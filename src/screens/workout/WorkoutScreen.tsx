@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { db } from '../../db/schema';
 import type { Load, WorkoutSet } from '../../db/types';
-import { addExercise, deleteSet, finishWorkout, logSet, setsOf, updateSet } from '../../db/workouts';
+import { addExercise, deleteSet, finishWorkout, logSet, restoreSet, setsOf, updateSet } from '../../db/workouts';
 import { getPastSessions } from '../../db/history';
 import { pickLoadType, saveLoadType } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
@@ -16,7 +16,9 @@ import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../components/Toast';
-import { createUndoQueue } from '../../lib/undoQueue';
+import { createDeleteUndo } from '../../lib/deleteUndo';
+import { clearSessionDrafts } from '../../lib/drafts';
+import { planItemLoadType } from '../../lib/loadTypeRule';
 import { hints } from '../../lib/hints';
 import { extendRest, loadRest, saveRest, startRest, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
@@ -59,11 +61,12 @@ export function WorkoutScreen() {
   const nameOf = (id: string) => entryOf.get(id)?.name ?? exerciseName(id);
 
   const loadTypeOf = (id: string): Load['kind'] | undefined => {
-    // A plan hold ("45 sec") is timed, whatever the name says.
+    // The plan's unit wins over the name: a "45 sec" hold is timed, "3 × 10" Plank is reps
+    // (loadTypeRule.ts, PLAN ITEMS). Unknown: the user's answer, asked once.
     const entry = entryOf.get(id);
-    if (entry && (entry.finisher || (entry.seconds !== undefined && entry.reps === undefined))) return 'timed';
     const fixed = planExercise(id)?.loadType;
-    if (fixed && fixed !== 'unknown') return fixed;
+    const kind = entry ? planItemLoadType(entry.name, entry, fixed) : fixed;
+    if (kind && kind !== 'unknown') return kind;
     return gym.value ? pickLoadType(settings.value ?? [], id, gym.value.id) : undefined;
   };
 
@@ -107,16 +110,9 @@ export function WorkoutScreen() {
   const finishing = useRef(false);
   const [actionSlot, setActionSlot] = useState<HTMLDivElement | null>(null);
 
-  const queue = useMemo(() => createUndoQueue<WorkoutSet>((s) => deleteSet(s.id)), []);
-  // Leaving the screen (or the page) commits held deletes right away.
-  useEffect(() => {
-    const flush = () => void queue.flush();
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  }, [queue]);
+  // Deletes are written at once (an app kill can never bring a set back); Undo writes the same
+  // record back, same id and order (SPEC 13.1).
+  const deletes = useMemo(() => createDeleteUndo<WorkoutSet>({ remove: (s) => deleteSet(s.id), restore: restoreSet }), []);
 
   useEffect(() => {
     if (!toast) return;
@@ -234,38 +230,51 @@ export function WorkoutScreen() {
     }
   };
 
+  const unhide = (id: string) =>
+    setHidden((h) => {
+      const next = new Set(h);
+      next.delete(id);
+      return next;
+    });
+
+  /** Undo, and Try again after a failed Undo: writes back that exact record (same id and order). */
+  const restore = (set: WorkoutSet) => {
+    if (finishing.current) return;
+    setToast(null);
+    deletes.undo(set.id).then(
+      (item) => item && unhide(set.id),
+      () => setToast(toastOf('Could not bring that set back', { label: 'Try again', onPress: () => restore(set) })),
+    );
+  };
+
   const onDelete = (set: WorkoutSet) => {
+    if (finishing.current) return;
     setEditing(null);
     setHidden((h) => new Set(h).add(set.id));
-    queue.push(set.id, set);
-    setToast(
-      toastOf('Set deleted', {
-        label: 'Undo',
-        onPress: () => {
-          queue.undo(set.id);
-          setHidden((h) => {
-            const next = new Set(h);
-            next.delete(set.id);
-            return next;
-          });
-          setToast(null);
-        },
-      }),
-    );
+    setToast(toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) }));
+    deletes.remove(set).catch(() => {
+      if (deletes.canUndo(set.id)) return; // an Undo already put it back
+      // The set is still saved: show it again, say so, offer a retry.
+      unhide(set.id);
+      setToast(toastOf('Could not delete that set', { label: 'Try again', onPress: () => onDelete(set) }));
+    });
   };
 
   const finish = useTapGuard(async () => {
     if (finishing.current) return;
     finishing.current = true;
     try {
-      await queue.flush();
+      // No new delete or Undo from here; every write still running lands before the sets are counted.
+      await deletes.close();
       const result = await finishWorkout(sessionId);
       setRest(null);
       saveCurrent(sessionId, null);
+      clearSessionDrafts(sessionId);
       const text = result.saved ? `Workout saved · ${result.sets} ${result.sets === 1 ? 'set' : 'sets'}` : 'Nothing logged · Workout discarded';
       navigate('/', { replace: true, state: { toast: text } });
     } catch {
       finishing.current = false;
+      deletes.reopen();
       setToast(toastOf('Could not finish. Try again.'));
     }
   });
@@ -282,6 +291,7 @@ export function WorkoutScreen() {
   const card = (id: string) => (
     <ExerciseCard
       key={id}
+      sessionId={sessionId}
       exerciseId={id}
       name={nameOf(id)}
       loadType={loadTypeOf(id)}

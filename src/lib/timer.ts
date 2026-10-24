@@ -49,3 +49,12 @@ export function formatElapsed(seconds: number): string {
   const ss = String(s % 60).padStart(2, '0');
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
+
+/**
+ * Log set on a hold: stops a running stopwatch at `now` and reads it in the same step, so the
+ * saved seconds are the live time, never a value from an earlier stop (Start again, then Log set).
+ */
+export function captureHold(w: Stopwatch, now: number): { watch: Stopwatch; seconds: number } {
+  const stopped = stopWatch(w, now);
+  return { watch: stopped, seconds: wholeSeconds(stopped.accumulated) };
+}

@@ -51,6 +51,11 @@ export function TodayScreen() {
   const [changing, setChanging] = useState(false);
 
   useEffect(() => onUpdateReady(setUpdateReady), []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), 3000);
+    return () => window.clearTimeout(t);
+  }, [toast]);
 
   // A message from the workout screen ("Workout saved · 6 sets"), shown once.
   useEffect(() => {
@@ -104,7 +109,15 @@ export function TodayScreen() {
         trailing={
           <div className={styles.trailing}>
             {updateReady && (
-              <button type="button" className={`${styles.update} pressable`} onClick={applyUpdate}>
+              <button
+                type="button"
+                className={`${styles.update} pressable`}
+                onClick={() =>
+                  void applyUpdate().then((applied) => {
+                    if (!applied) setToast({ id: Date.now(), text: 'Finish your workout first, then update.' });
+                  })
+                }
+              >
                 Update ready
               </button>
             )}

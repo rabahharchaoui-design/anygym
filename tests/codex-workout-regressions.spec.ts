@@ -93,8 +93,8 @@ test('offline edits, undo and Finish persist exact sets after offline reload', a
   }
 });
 
-// CODEX FOUND BUG, fix in 1.10c
-test.skip('changing machine step cannot log the old pin when it no longer exists', async ({ page }) => {
+// CODEX FOUND BUG, fixed in 1.10c
+test('changing machine step cannot log the old pin when it no longer exists', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await page.getByRole('button', { name: /Quick workout/ }).tap();

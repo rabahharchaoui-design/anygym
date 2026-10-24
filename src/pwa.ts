@@ -3,9 +3,9 @@
 import { registerSW } from 'virtual:pwa-register';
 import { db } from './db/schema';
 import { getActiveSession } from './db/workouts';
-import { setUpdateReady, shouldApplyUpdateNow } from './lib/pwaUpdate';
+import { setUpdateReady, shouldApplyUpdateNow, type Activity } from './lib/pwaUpdate';
 
-async function activity(): Promise<{ workout: boolean; run: boolean }> {
+async function activity(): Promise<Activity> {
   try {
     const [session, run] = await Promise.all([getActiveSession(), db.runs.filter((r) => r.endedAt === undefined).first()]);
     return { workout: !!session, run: !!run };
@@ -23,7 +23,7 @@ export function registerAppUpdates(): void {
       void activity().then(({ workout, run }) => {
         const apply = () => void updateSW(true);
         if (shouldApplyUpdateNow(workout, run)) apply();
-        else setUpdateReady(apply);
+        else setUpdateReady(apply, activity);
       });
     },
     onRegisteredSW(_url, registration) {

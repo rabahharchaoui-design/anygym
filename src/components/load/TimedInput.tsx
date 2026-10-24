@@ -19,9 +19,15 @@ type Props = {
   unit: Unit;
   /** Optional target hold in seconds, drawn as a ring. */
   targetSeconds?: number;
-  onChange: (load: Load) => void;
+  onChange?: (load: Load) => void;
   /** Whole seconds held, on stop and on reset. */
-  onSeconds: (seconds: number) => void;
+  onSeconds?: (seconds: number) => void;
+  /**
+   * Controlled stopwatch (the workout card): the parent owns the timestamps, so it can read the
+   * live time when Log set is tapped, and keep a running hold across a collapse or reload.
+   */
+  watch?: Stopwatch;
+  onWatch?: (watch: Stopwatch) => void;
 };
 
 const R = 104;
@@ -29,8 +35,13 @@ const C = 2 * Math.PI * R;
 const TICK_MS = 200;
 
 /** Timed (SPEC 5.2, 13.6): "Hold for" and a big start/stop timer, only on timed exercises. Time is read from Date.now(), so it stays right in the background. */
-export function TimedInput({ unit, targetSeconds, onChange, onSeconds }: Props) {
-  const [watch, setWatch] = useState<Stopwatch>(STOPPED);
+export function TimedInput({ unit, targetSeconds, onChange, onSeconds, watch: controlled, onWatch }: Props) {
+  const [own, setOwn] = useState<Stopwatch>(STOPPED);
+  const watch = controlled ?? own;
+  const setWatch = (w: Stopwatch) => {
+    if (!controlled) setOwn(w);
+    onWatch?.(w);
+  };
   const [now, setNow] = useState(() => Date.now());
   const running = watch.startedAt !== null;
 
@@ -58,14 +69,14 @@ export function TimedInput({ unit, targetSeconds, onChange, onSeconds }: Props) 
     }
     const stopped = stopWatch(watch, t);
     setWatch(stopped);
-    onChange(timedLoad(unit));
-    onSeconds(wholeSeconds(stopped.accumulated));
+    onChange?.(timedLoad(unit));
+    onSeconds?.(wholeSeconds(stopped.accumulated));
   });
 
   const reset = () => {
     setWatch(STOPPED);
     setNow(Date.now());
-    onSeconds(0);
+    onSeconds?.(0);
   };
 
   const action = running ? 'Stop' : ms > 0 ? 'Start again' : 'Start';

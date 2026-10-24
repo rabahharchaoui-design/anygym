@@ -159,6 +159,9 @@ export type Load = {
   added?: number;
 };
 
+/** Next free set order of a workout (PLAN 1.10c): one past the highest order ever used, never lowered. */
+export type OrderCounter = { sessionId: string; next: number };
+
 export type SetKind = 'warmup' | 'work' | 'drop';
 
 export type WorkoutSet = {

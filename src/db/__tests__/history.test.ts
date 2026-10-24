@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
 import { ANY_GYM, type Load } from '../types';
-import { getPastSessions, historyKeyFor } from '../history';
+import { finishedDetail, getPastSessions, historyKeyFor, listFinished } from '../history';
 import { finishWorkout, logSet, startWorkout } from '../workouts';
 
 let db: AnyGymDB;
@@ -95,5 +95,37 @@ describe('warm up sets (SPEC 6 rule 1)', () => {
     });
     expect(p.lastTime).toBeNull();
     expect(p.next).toMatchObject({ load: null, kind: 'first_time', reason: FIRST_TIME });
+  });
+});
+
+describe('listFinished and finishedDetail (PLAN 1.10c fix 7: History)', () => {
+  it('lists only finished workouts, newest first, with their set counts', async () => {
+    const a = await workout('g1', 1000, [{ id: 'a1' }, { id: 'a2' }]);
+    const b = await workout('g1', 5000, [{ id: 'b1', ex: 'bench' }]);
+    await workout('g1', 9000, [{ id: 'c1' }], false); // still going: not in History
+    const list = await listFinished(db);
+    expect(list.map((x) => [x.session.id, x.sets])).toEqual([
+      [b.id, 1],
+      [a.id, 2],
+    ]);
+  });
+
+  it('includes imported workouts, and is empty only when there truly are none', async () => {
+    expect(await listFinished(db)).toEqual([]);
+    await db.sessions.add({ id: 'imp', gymId: 'g1', startedAt: 10, imported: true });
+    expect((await listFinished(db)).map((x) => [x.session.id, x.sets])).toEqual([['imp', 0]]);
+  });
+
+  it('detail: the session and its sets in logged order; nothing for a missing or running workout', async () => {
+    const a = await workout('g1', 1000, [{ id: 'a1' }, { id: 'a2', ex: 'bench', reps: 8 }]);
+    const open = await workout('g1', 9000, [{ id: 'c1' }], false);
+    const d = await finishedDetail(a.id, db);
+    expect(d!.session.endedAt).toBe(1001);
+    expect(d!.sets.map((s) => [s.id, s.order, s.reps])).toEqual([
+      ['a1', 0, 10],
+      ['a2', 1, 8],
+    ]);
+    expect(await finishedDetail(open.id, db)).toBeUndefined();
+    expect(await finishedDetail('nope', db)).toBeUndefined();
   });
 });

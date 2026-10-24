@@ -54,6 +54,7 @@ test('an offline active workout restores its selected exercise, exact sets, repe
     await page.reload();
     await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
     await page.getByRole('button', { name: /Quick workout/ }).tap();
+    await expect(page).toHaveURL(/#\/workout\//);
     const workoutUrl = page.url();
     await addExercise(page, 'back squat', 'Barbell Back Squat');
     const squat = page.getByTestId('exercise-barbell-back-squat');
@@ -105,8 +106,8 @@ test('an offline active workout restores its selected exercise, exact sets, repe
   }
 });
 
-// CODEX FOUND BUG, fix in 1.10c
-test.skip('changing starting resistance in Edit set keeps the active diagram, Log set and stored total in agreement', async ({ page }) => {
+// CODEX FOUND BUG, fixed in 1.10c
+test('changing starting resistance in Edit set keeps the active diagram, Log set and stored total in agreement', async ({ page }) => {
   const errors = watchErrors(page);
   try {
     await page.goto('./');
@@ -149,8 +150,8 @@ test.skip('changing starting resistance in Edit set keeps the active diagram, Lo
   }
 });
 
-// CODEX FOUND BUG, fix in 1.10c
-test.skip('iPhone SE: adding bodyweight resistance keeps the set controls visible without scrolling, including during rest', async ({ page }) => {
+// CODEX FOUND BUG, fixed in 1.10c
+test('iPhone SE: adding bodyweight resistance keeps the set controls visible without scrolling, including during rest', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 375, height: 667 });
   try {
@@ -159,7 +160,11 @@ test.skip('iPhone SE: adding bodyweight resistance keeps the set controls visibl
     await addExercise(page, 'wide grip pull', 'Wide Grip Pull Up');
     const card = page.getByTestId('exercise-wide-grip-pull-up');
     await card.getByRole('button', { name: 'Add weight', exact: true }).tap();
-    await typeOnPad(card.getByRole('group', { name: 'Added weight', exact: true }), '25');
+    // 1.10c fix 13: the keypad opens in a sheet (selector change only), Done closes it.
+    const addSheet = page.getByRole('dialog', { name: 'Add weight', exact: true });
+    await typeOnPad(addSheet.getByRole('group', { name: 'Added weight', exact: true }), '25');
+    await addSheet.getByRole('button', { name: 'Done', exact: true }).tap();
+    await expect(addSheet).toHaveCount(0);
     await expect(card.getByTestId('bodyweight-added')).toHaveText('+ 25 lb added');
 
     const fits = async () => {

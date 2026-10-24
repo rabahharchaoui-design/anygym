@@ -80,21 +80,26 @@ function validSet(input: Pick<NewSet, 'reps' | 'seconds' | 'load'>): boolean {
 
 /**
  * Logs a work set at the end of the workout. Idempotent: if a set with this id exists it is
- * returned unchanged. Order is one past the highest order in the session.
+ * returned unchanged. Order comes from the workout's counter: one past the highest order ever
+ * used, deleted sets included, so a set put back by Undo never shares its order with a newer one.
+ * Workouts from before the counter (schema v4) start from their highest saved order.
  */
 export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<WorkoutSet> {
   if (!validSet(input)) throw new Error('Invalid set');
-  return db.transaction('rw', db.sessions, db.sets, async () => {
+  return db.transaction('rw', db.sessions, db.sets, db.orderCounters, async () => {
     const existing = await db.sets.get(input.id);
     if (existing) return existing;
     const session = await db.sessions.get(input.sessionId);
     if (!session || session.endedAt !== undefined) throw new Error('Workout not active');
     const last = await db.sets.where('[sessionId+order]').between([input.sessionId, -Infinity], [input.sessionId, Infinity]).last();
+    const counter = await db.orderCounters.get(input.sessionId);
+    const order = Math.max(counter?.next ?? 0, last ? last.order + 1 : 0);
+    await db.orderCounters.put({ sessionId: input.sessionId, next: order + 1 });
     const set: WorkoutSet = {
       id: input.id,
       sessionId: input.sessionId,
       exerciseId: input.exerciseId,
-      order: last ? last.order + 1 : 0,
+      order,
       kind: input.kind ?? 'work',
       load: { ...input.load },
       uncertain: false,
@@ -157,12 +162,13 @@ export type FinishResult = { saved: true; sets: number } | { saved: false };
  * empty session. Finishing twice is safe. A saved plan day moves the plan to the next day.
  */
 export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<FinishResult> {
-  return db.transaction('rw', db.sessions, db.sets, db.planState, async () => {
+  return db.transaction('rw', db.sessions, db.sets, db.planState, db.orderCounters, async () => {
     const s = await db.sessions.get(sessionId);
     const count = await db.sets.where('sessionId').equals(sessionId).count();
     if (!s) return { saved: false };
     if (count === 0) {
       await db.sessions.delete(sessionId);
+      await db.orderCounters.delete(sessionId);
       return { saved: false };
     }
     if (s.endedAt === undefined) {

@@ -51,3 +51,22 @@ export async function getPastSessions(
     };
   });
 }
+
+/** A finished workout for the History list (SPEC 8, 13.1): only what is saved, nothing made up. */
+export type FinishedWorkout = { session: Session; sets: number };
+
+/** Finished workouts (ended, or imported), newest first, each with its set count. */
+export async function listFinished(db: AnyGymDB = defaultDb): Promise<FinishedWorkout[]> {
+  const sessions = (await db.sessions.orderBy('startedAt').reverse().toArray()).filter((s) => s.endedAt !== undefined || s.imported);
+  const counts = new Map<string, number>();
+  await db.sets.each((s) => counts.set(s.sessionId, (counts.get(s.sessionId) ?? 0) + 1));
+  return sessions.map((session) => ({ session, sets: counts.get(session.id) ?? 0 }));
+}
+
+/** One finished workout and its sets in logged order; undefined if it does not exist or is still going. */
+export async function finishedDetail(id: string, db: AnyGymDB = defaultDb): Promise<{ session: Session; sets: WorkoutSet[] } | undefined> {
+  const session = await db.sessions.get(id);
+  if (!session || (session.endedAt === undefined && !session.imported)) return undefined;
+  const sets = await db.sets.where('[sessionId+order]').between([id, -Infinity], [id, Infinity]).toArray();
+  return { session, sets };
+}

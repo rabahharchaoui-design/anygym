@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeGym } from '../../db/gyms';
 import type { Gym, Load } from '../../db/types';
-import { prefillLoad } from '../../screens/workout/exerciseLoad';
+import { currentLoad, prefillLoad } from '../../screens/workout/exerciseLoad';
 
 const lbGym = (): Gym => makeGym({ name: 'Home', type: 'full', unit: 'lb' }, 0);
 
@@ -57,5 +57,45 @@ describe('prefillLoad (SPEC 13.5: a repeat set is one tap)', () => {
     expect(prefillLoad({ kind: 'bodyweight', unit: 'lb', total: 25, added: 25 }, 'bodyweight', gym, 'x', 'Dip')).toEqual({ kind: 'bodyweight', unit: 'lb', total: 25, added: 25 });
     expect(prefillLoad({ kind: 'bodyweight', unit: 'lb', total: 0 }, 'bodyweight', gym, 'x', 'Dip')).toEqual({ kind: 'bodyweight', unit: 'lb', total: 0 });
     expect(prefillLoad({ kind: 'timed', unit: 'lb', total: 0 }, 'timed', gym, 'x', 'Plank')).toEqual({ kind: 'timed', unit: 'lb', total: 0 });
+  });
+});
+
+describe('currentLoad (PLAN 1.10c fixes 4, 5, 11: one canonical load through load.ts)', () => {
+  it('editing a machine starting resistance rebuilds the active load: 0 → 50 start with 45 per side is 140', () => {
+    const gym = lbGym();
+    const plates0 = { ...gym, equipmentWeights: { 'leg-press': { kind: 'plates_only' as const, value: 0 } } };
+    const start50 = { ...gym, equipmentWeights: { 'leg-press': { kind: 'starting_resistance' as const, value: 50 } } };
+    const picked: Load = { kind: 'plate_machine', unit: 'lb', total: 90, barWeight: 0, perSide: [45] };
+    expect(currentLoad(picked, [45], 'plate_machine', plates0, 'leg-press', 'Leg Press')).toEqual(picked);
+    expect(currentLoad(picked, [45], 'plate_machine', start50, 'leg-press', 'Leg Press')).toEqual({ kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 50, perSide: [45] });
+    // Not answered yet: no total, never a guess.
+    expect(currentLoad(picked, [45], 'plate_machine', gym, 'leg-press', 'Leg Press')).toBeNull();
+  });
+
+  it('a bar weight edit rebuilds the barbell load; EZ bars stay unknown until answered', () => {
+    const gym = lbGym();
+    expect(currentLoad(null, [45], 'barbell', gym, 'barbell-back-squat', 'Barbell Back Squat')!.total).toBe(135);
+    expect(currentLoad(null, [10], 'barbell', gym, 'ez-bar-curl', 'EZ Bar Curl')).toBeNull();
+    const ez = { ...gym, bars: { ...gym.bars, ez_curl: 25 } };
+    expect(currentLoad(null, [10], 'barbell', ez, 'ez-bar-curl', 'EZ Bar Curl')).toEqual({ kind: 'barbell', unit: 'lb', total: 45, barWeight: 25, perSide: [10] });
+    const trap = { ...gym, bars: { ...gym.bars, trap: 55 } };
+    expect(currentLoad(null, [45], 'barbell', trap, 'trap-bar-deadlift', 'Trap Bar Deadlift')!.total).toBe(145);
+  });
+
+  it('a stack step change drops a pin the new step lacks (15 lb on a 10 lb step), never rounds it', () => {
+    const gym = lbGym();
+    const pin15: Load = { kind: 'stack', unit: 'lb', total: 15, stackValue: 15 };
+    expect(currentLoad(pin15, [], 'stack', gym, 'leg-press', 'Leg Press')).toEqual(pin15);
+    const by10 = { ...gym, equipmentWeights: { 'leg-press': { kind: 'stack_step' as const, value: 10 } } };
+    expect(currentLoad(pin15, [], 'stack', by10, 'leg-press', 'Leg Press')).toBeNull();
+    expect(currentLoad({ kind: 'stack', unit: 'lb', total: 20, stackValue: 20 }, [], 'stack', by10, 'leg-press', 'Leg Press')!.total).toBe(20);
+  });
+
+  it('bodyweight keeps its added weight; timed is just the hold', () => {
+    const gym = lbGym();
+    expect(currentLoad({ kind: 'bodyweight', unit: 'lb', total: 25, added: 25 }, [], 'bodyweight', gym, 'x', 'Pull Up')).toEqual({ kind: 'bodyweight', unit: 'lb', total: 25, added: 25 });
+    expect(currentLoad(null, [], 'bodyweight', gym, 'x', 'Pull Up')).toEqual({ kind: 'bodyweight', unit: 'lb', total: 0 });
+    expect(currentLoad(null, [], 'timed', gym, 'x', 'Plank')).toEqual({ kind: 'timed', unit: 'lb', total: 0 });
+    expect(currentLoad(null, [], 'dumbbell_each', gym, 'x', 'Curl')).toBeNull();
   });
 });

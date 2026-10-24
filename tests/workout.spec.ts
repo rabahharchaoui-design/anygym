@@ -207,7 +207,7 @@ test('unknown exercise: asked once how it is loaded, remembered after reload', a
   await addExercise(page, 'leg press', 'Leg Press');
   const ask = page.getByRole('dialog', { name: 'How do you load this?' });
   await expect(ask).toBeVisible();
-  await expect(ask.getByRole('button')).toHaveCount(7);
+  await expect(ask.getByRole('button')).toHaveCount(8); // 7 choices + the labelled Close (1.10c)
   await shot(page, 'load-type-sheet');
   await ask.getByRole('button', { name: /Machine with a pin/ }).tap();
   await expect(ask).toHaveCount(0);
@@ -247,7 +247,7 @@ test('finishing an empty workout discards it', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('a deleted set is gone for good after 5 s, and a double tap on Quick workout starts one', async ({ page }) => {
+test('a deleted set is gone from storage at once (1.10c), and a double tap on Quick workout starts one', async ({ page }) => {
   const errors = watchErrors(page);
   await (await startQuick(page)).dblclick();
   await expect(page).toHaveURL(/#\/workout\//);
@@ -264,8 +264,8 @@ test('a deleted set is gone for good after 5 s, and a double tap on Quick workou
   await card.getByTestId('set-row').first().tap();
   await page.getByRole('dialog', { name: 'Edit set' }).getByRole('button', { name: 'Delete set' }).tap();
   await expect(card.getByTestId('set-row')).toHaveCount(0);
-  expect(await dbAll(page, 'sets')).toHaveLength(1); // held for undo
-  await expect.poll(() => dbAll(page, 'sets').then((s) => s.length), { timeout: 8000 }).toBe(0);
+  // 1.10c: written at once (an app kill can never bring it back); Undo writes it back.
+  await expect.poll(() => dbAll(page, 'sets').then((s) => s.length)).toBe(0);
   expect(errors).toEqual([]);
 });
 

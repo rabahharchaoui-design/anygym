@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { equipmentWeightFor, stackStepFor } from '../../db/gyms';
 import type { Gym, Load } from '../../db/types';
 import { DISPLAY_STACK_MAX, formatAmount, formatWeight, stackLoad, stackValues } from '../../lib/load';
@@ -15,7 +15,8 @@ type Props = {
   /** Machine id for the per machine step, e.g. 'lat_pulldown'. */
   machineId: string;
   value: Load | null;
-  onChange: (load: Load) => void;
+  /** null: the picked pin is gone (the stack step changed); Log set waits for a new pin. */
+  onChange: (load: Load | null) => void;
 };
 
 const ROW = 48;
@@ -36,10 +37,16 @@ export function StackSelector({ gym, machineId, value, onChange }: Props) {
   const own = value?.kind === 'stack' ? value : null;
   const pin = own?.stackValue ?? null;
   const pinIndex = pin === null ? -1 : pins.indexOf(pin);
+  const stale = pin !== null && pinIndex < 0;
   const [addedOn, setAddedOn] = useState((own?.added ?? 0) > 0);
   const [added, setAdded] = useState(own?.added ?? 0);
   const [asking, setAsking] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // A new step can drop the picked pin (15 lb on a 10 lb step): clear it, never round it.
+  useEffect(() => {
+    if (stale) onChange(null);
+  }, [stale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bring the pin into view on mount.
   useLayoutEffect(() => {
@@ -69,7 +76,7 @@ export function StackSelector({ gym, machineId, value, onChange }: Props) {
     <div className={base.root}>
       <div className={base.readout}>
         <p className={`${base.total} num`} aria-live="polite" data-testid="stack-total">
-          {own ? formatAmount(own.total) : <span className={base.placeholder}>–</span>}
+          {own && !stale ? formatAmount(own.total) : <span className={base.placeholder}>–</span>}
           <span className={base.unit}>{unit}</span>
         </p>
         <p className={base.label} data-testid="picker-title">
