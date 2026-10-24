@@ -41,6 +41,24 @@ CODEX (second opinion from G's ChatGPT plan, optional)
 - If codex is missing, not logged in, out of usage, or errors, skip it silently and continue. Codex never edits files and never commits.
 - When you resume after a usage limit, read any new reports/codex/bughunt-*.md (written by a helper while you were paused). Turn real BLOCKER and MAJOR findings into a short fix item at the top of the remaining queue in PLAN.md (for example "1.7d Codex bug hunt fixes"), then continue.
 
+CODEX TESTS (added Oct 24 1:15 AM, G approved)
+- A helper has Codex write new tests after each item you finish, in its own copy of the repo (~/projects/anygym-codex) on a branch named codex-tests-MMDD-HHMM. It only ever adds files named src/**/__tests__/codex-*.test.ts(x) or tests/codex-*.spec.ts. Each batch has a report reports/codex/tests-*.md whose first line is "STATUS: NEW".
+- After EVERY item (right after you check for bughunt reports), if a tests report says STATUS: NEW: hand it to the tester. Budget about 10 minutes, never loop on it.
+  1. `git merge --no-ff --no-edit <branch>` into the session branch. If it conflicts, `git merge --abort`, set the report's first line to "STATUS: SKIPPED conflict" and move on.
+  2. Run the new Vitest files and `npx playwright test tests/codex-*` on all device profiles.
+  3. Passing tests stay. A failing test that is wrong per SPEC.md: delete it (it is Codex's file, deleting it is allowed). A failing test that shows a real app bug: keep it but mark it skipped (`it.skip` or `test.skip`) with a comment `// CODEX FOUND BUG, fix in <item id>`, and add a short fix item at the top of the remaining queue in PLAN.md whose acceptance check is that the test is unskipped and passes.
+  4. Never rewrite Codex's tests beyond tiny selector or import fixes. Commit as "Codex tests <stamp>: kept N, dropped N, bugs N". Set the report's first line to "STATUS: HANDLED kept N, dropped N, bugs N". You may delete the merged codex-tests-* branch with `git branch -d`.
+- The full test suite must still pass at every merge gate with the Codex tests included.
+
+UI SKILLS (Oct 24): for any item that touches UI, tell the builder and the ux-critic in the brief to read .design-ref/skills/emil-design-eng/SKILL.md, mobile-native/SKILL.md and frontend-design/SKILL.md first (critic also break-ui/SKILL.md), and to follow SPEC 23. Never commit .design-ref/.
+
+REAL IPHONE SIMULATOR (added Oct 24 1:45 AM, Xcode 27.1 is installed on gmini)
+- For every item that changes UI, after Playwright passes, the tester also checks the screens in the real iOS Simulator (real Mobile Safari, real notch, safe areas, blur and fonts). Playwright WebKit stays the main test runner; the simulator is the truth check for looks.
+- Devices (created by G Oct 24, iOS 27.0): "AnyGym Small" = iPhone SE (3rd generation), 375 x 667, the smallest modern iPhone; "AnyGym Max" = iPhone 17 Pro Max, G's own phone. Also do one quick layout screenshot per UI item on G's existing "iPhone Duo" simulator (iOS 27.1, a new screen shape) to catch odd aspect ratios. If AnyGym Small or Max is missing, recreate it with `xcrun simctl create "<name>" "<device type>"`. Never delete G's other simulators.
+- How: `xcrun simctl boot "<name>"` with name AnyGym Small or AnyGym Max (ignore "already booted"), `xcrun simctl bootstatus "<name>" -b`, start `npx vite preview --port 4174 --strictPort` in the background, `xcrun simctl openurl "<name>" "http://localhost:4174/anygym/#/<route>"`, wait 3 s, `xcrun simctl io "<name>" screenshot reports/shots/<item>/sim-<device>-<screen>.png`. For motion items also `xcrun simctl io "<name>" recordVideo --codec h264 reports/videos/<item>-<device>.mp4` for about 8 s while the flow runs. Stop the preview server and `xcrun simctl shutdown all` when done.
+- Never open Simulator.app windows on top of G's work if avoidable, never install anything, and if xcrun or the simulator fails, note it in the report and continue (do not block the item on it).
+- The ux-critic must look at the simulator screenshots, not only the Playwright ones, before scoring feel (SPEC 23.4).
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 

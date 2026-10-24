@@ -116,8 +116,23 @@ export type Session = {
   timeBudgetMin?: number;
   imported: boolean;
   importSeq?: number;
-  /** Exercises added to a quick workout, in order (PLAN 1.7). Not indexed. */
+  /** Exercises in the workout, in order: added by hand (quick workout) or the plan day's (PLAN 1.10). Not indexed. */
   exerciseIds?: string[];
+  /** weekly_table plans: the 0 based week this day was started in, so a reload shows the same targets. */
+  weekIndex?: number;
+};
+
+/** Where the user is in their curated plan (PLAN 1.10). One row with id 'active'. */
+export type PlanState = {
+  id: 'active';
+  planId: string;
+  startedAt: number;
+  /** weekly_table plans: 0 based week; stays on the last week after the table ends. 0 otherwise. */
+  weekIndex: number;
+  /** 0 based index of the day to do next. */
+  nextDayIndex: number;
+  /** Days finished in this pass through the plan (0 based), for the week strip checks. */
+  doneDays: number[];
 };
 
 /** Gym id used for answers that hold at every gym (free weights). IndexedDB keys cannot be null. */

@@ -23,10 +23,12 @@ type Props = {
   onSeconds?: (seconds: number) => void;
   /** Workout size (SPEC 13.5): the plate diagram shrinks to fit one screen. */
   compact?: boolean;
+  /** Timed only: the plan's hold, drawn as a ring. */
+  targetSeconds?: number;
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, onSeconds, compact = false }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, onSeconds, compact = false, targetSeconds }: Props) {
   switch (loadType) {
     case 'barbell':
       return <BarbellField gym={gym} exerciseName={exerciseName} value={value} onChange={onChange} compact={compact} />;
@@ -44,7 +46,7 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
     case 'bodyweight':
       return <BodyweightInput unit={gym.unit} value={value} onChange={onChange} />;
     case 'timed':
-      return <TimedInput unit={gym.unit} onChange={onChange} onSeconds={onSeconds ?? (() => {})} />;
+      return <TimedInput unit={gym.unit} targetSeconds={targetSeconds} onChange={onChange} onSeconds={onSeconds ?? (() => {})} />;
   }
 }
 

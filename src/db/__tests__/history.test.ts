@@ -71,3 +71,29 @@ describe('getPastSessions', () => {
     expect(await getPastSessions('squat', 'g1', 'barbell', 6, { db })).toEqual([]);
   });
 });
+
+describe('warm up sets (SPEC 6 rule 1)', () => {
+  it('are stored as warm ups and never drive Last time or Next', async () => {
+    const { progress, FIRST_TIME } = await import('../../lib/progression');
+    const s = await startWorkout('g1', db, 1000);
+    const warm = await logSet({ id: 'w1', sessionId: s.id, exerciseId: 'band', reps: 12, load: bar185, kind: 'warmup' }, db);
+    expect(warm.kind).toBe('warmup');
+    expect((await db.sets.get('w1'))!.kind).toBe('warmup');
+    expect((await logSet({ id: 'w2', sessionId: s.id, exerciseId: 'band', reps: 12, load: bar185 }, db)).kind).toBe('work');
+    await db.sets.delete('w2');
+    await finishWorkout(s.id, db, 2000);
+    const past = await getPastSessions('band', 'g1', 'barbell', 6, { db });
+    expect(past).toHaveLength(1);
+    expect(past[0]!.sets.map((x) => x.kind)).toEqual(['warmup']);
+    const p = progress({
+      exerciseId: 'band',
+      loadKind: 'barbell',
+      unit: 'lb',
+      gym: { base: 45, plates: [45, 25, 10, 5, 2.5], collars: 'none', dumbbellRange: null, stackStep: 5 },
+      repRange: [10, 12],
+      history: past,
+    });
+    expect(p.lastTime).toBeNull();
+    expect(p.next).toMatchObject({ load: null, kind: 'first_time', reason: FIRST_TIME });
+  });
+});

@@ -70,3 +70,209 @@
   position: absolute;
   inset: -8px 0;
 }
+
+/* ---------------------------------------------------------------- no plan yet */
+
+.pick,
+.dayCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: 24px;
+  background: var(--surface-1);
+}
+
+.pickTitle {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.pickSub {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.pickButton {
+  min-height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+/* Quick workout: the second, smaller action. */
+.quick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 64px;
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  text-align: left;
+}
+
+.quickLabel {
+  font-weight: 700;
+}
+
+.quickSub {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------- plan day card (SPEC 8.1) */
+
+.dayCard {
+  view-transition-name: plan-day;
+}
+
+.planName {
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.dayTitle {
+  margin-top: -6px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.dayStart {
+  min-height: 72px;
+  align-items: center;
+  border-radius: var(--radius-pill);
+}
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stripLabel {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.dayDot {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.dotCircle {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--hairline);
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.dayDot[data-state='done'] .dotCircle {
+  background: rgba(212, 255, 58, 0.14);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.dayDot[data-state='next'] .dotCircle {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.changeDay {
+  align-self: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.sheetTitle {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.dayChoices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dayChoice {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.dayChoice[aria-current='true'] {
+  border-color: var(--accent);
+}
+
+.dayChoiceName {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.dayChoiceTime {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayCard {
+    view-transition-name: none;
+  }
+}

@@ -1,11 +1,12 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AnyGymDB, SCHEMA_V1 } from '../schema';
+import { AnyGymDB, SCHEMA_V1, SCHEMA_V2 } from '../schema';
 import { makeGym } from '../gyms';
 import type { Run, Session, WorkoutSet } from '../types';
 import { ANY_GYM } from '../types';
-import { finishWorkout, getActiveSession, logSet } from '../workouts';
+import { finishWorkout, getActiveSession, logSet, startPlanDay } from '../workouts';
+import { choosePlan, getPlanState } from '../planState';
 
 // CHECKPOINT RULE: saved data is sacred. Data written by the shipped version 1 schema must all be
 // there after opening with the current schema.
@@ -52,7 +53,7 @@ describe('schema v1 → v2 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     expect(await db.gyms.toArray()).toEqual([seeded.gym]);
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect(await db.sets.count()).toBe(25);
@@ -77,5 +78,40 @@ describe('schema v1 → v2 migration', () => {
     expect(await again.sets.count()).toBe(26);
     expect(await again.gyms.count()).toBe(1);
     again.close();
+  });
+});
+
+describe('schema v2 → v3 migration', () => {
+  it('keeps every set, session and load type answer, and adds an empty planState', async () => {
+    const name = `anygym-mig-${n++}`;
+    names.push(name);
+    const seeded = await seedV1(name);
+    // Upgrade the v1 data to exactly v2 first and write a v2 only record.
+    const v2 = new Dexie(name);
+    v2.version(1).stores(SCHEMA_V1);
+    v2.version(2).stores(SCHEMA_V2);
+    await v2.open();
+    expect(v2.verno).toBe(2);
+    await v2.table('exerciseSettings').put({ exerciseId: 'leg-press', gymId: seeded.gym.id, loadType: 'plate_machine' });
+    v2.close();
+
+    const db = new AnyGymDB(name);
+    await db.open();
+    expect(db.verno).toBe(3);
+    expect(await db.sets.count()).toBe(25);
+    for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
+    expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
+    expect(await db.exerciseSettings.toArray()).toEqual([{ exerciseId: 'leg-press', gymId: seeded.gym.id, loadType: 'plate_machine' }]);
+    expect(await db.planState.count()).toBe(0);
+
+    // The new table works with the migrated data: finish the open workout, then follow a plan.
+    await finishWorkout('sess-2', db, 9000);
+    await choosePlan('ohrabah-split', db, 10_000);
+    const day = await startPlanDay(seeded.gym.id, 'ohrabah-split', 0, db, 11_000);
+    await logSet({ id: 'p1', sessionId: day.id, exerciseId: 'barbell-back-squat', reps: 8, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] } }, db);
+    await finishWorkout(day.id, db, 12_000);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(1);
+    expect(await db.sets.count()).toBe(26);
+    db.close();
   });
 });
