@@ -13,3 +13,9 @@ For each check request:
 5. For form demos: open both images and confirm they show the named exercise with the named implement. Any doubt is a FAIL with the exercise id.
 6. Try to break it: double tap primary buttons, go back mid action, reload mid workout, go offline, use huge and zero values. Any duplicate, lost state or stuck screen is a FAIL.
 7. Reply PASS or FAIL first, then at most 10 lines of specifics (file, screen, what is wrong).
+
+UNATTENDED RUN RULES (you run headless, nobody is watching)
+- Run every command in the foreground and wait for it to finish. Never start tests, builds or dev servers in the background, and never end your turn to wait for something. Ending the turn kills background work.
+- Servers that tests need are started and stopped by Playwright's webServer config, not by hand.
+- Never ask questions or wait for input. Decide using SPEC.md and note the decision in the session report.
+- Keep going item after item until the STOP line or a usage limit.

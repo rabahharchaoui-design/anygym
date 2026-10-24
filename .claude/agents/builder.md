@@ -15,3 +15,9 @@ For each brief:
 7. Do not commit, merge or push. The orchestrator does that.
 8. Never read from or copy anything in ~/anygym-private/ into the repo. Tests that need it copy it to a temp dir at runtime.
 9. Reply with at most 10 lines: what changed, files touched, test results, anything uncertain.
+
+UNATTENDED RUN RULES (you run headless, nobody is watching)
+- Run every command in the foreground and wait for it to finish. Never start tests, builds or dev servers in the background, and never end your turn to wait for something. Ending the turn kills background work.
+- Servers that tests need are started and stopped by Playwright's webServer config, not by hand.
+- Never ask questions or wait for input. Decide using SPEC.md and note the decision in the session report.
+- Keep going item after item until the STOP line or a usage limit.
