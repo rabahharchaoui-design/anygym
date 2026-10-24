@@ -2,7 +2,7 @@
 
 Worked top to bottom by the orchestrator (see PROMPT.md). One item at a time. Mark an item [x] with a one line note when done. Each session has its own tag, branch, report and merge gate. SPEC.md is the source of truth; if this file and SPEC.md disagree, SPEC.md wins.
 
-Rules for every item: iPhone portrait first (Playwright WebKit on iPhone SE, 15 Pro and 15 Pro Max), offline first, no clutter, plain words, swift transitions, zero console errors (SPEC 13), exact weight math, never commit anything from ~/anygym-private/. Every merge gate includes the ux-critic pass (PROMPT.md).
+Rules for every item: phone portrait first and must fit most to all smartphones (device matrix in SPEC 13.4: iPhones in WebKit, Androids in Chromium, 320 wide floor), offline first, no clutter, plain words, swift transitions, zero console errors (SPEC 13), exact weight math, never commit anything from ~/anygym-private/. Every merge gate includes the ux-critic pass (PROMPT.md).
 
 CHECKPOINT RULE (added by G, Oct 23 9 PM, applies from the next item on): G uses the live app at the gym every day while this builds.
 - After every item that passes the tester, ship it: merge the session branch into master (no fast forward), run the Playwright smoke tests on master, push, wait for the Pages deploy to go green, run the live check, then switch back to the session branch. Items before 1.2 is done skip this.
@@ -26,7 +26,7 @@ Tag: pre-s1 · Branch: s1-foundation · Report: reports/session-1.md
 - [ ] 1.9 Progression engine (SPEC 6) as pure functions with tests for every rule, then "Last time" and "Next" lines on the set card. Then CHECKPOINT: ship to master and the live app.
 - [ ] 1.10 G's programs, early: load data/plans/ohrabah-split.json and six-week-volume.json as startable plans. Today shows "Pick a plan", then the day list; starting a day opens the workout with that day's exercises, sets, rep ranges, rest times, pairs (supersets) and notes, using the load inputs from 1.6. Exercises without a catalog match yet show the name and plan notes with no demo (never a wrong demo). Then CHECKPOINT: ship to master and the live app.
 - [ ] 1.11 Import history, early (SPEC 9.3): Settings → Import history with the review screen, uncertain sets highlighted, unknown load types asked. Map by planExercise name to the plan exercises from 1.10 so "Last time" and "Next" work on G's own workouts. Test with a synthetic fixture in the repo and with ~/anygym-private/g-history.json copied to a temp dir at test time only (never committed). Then CHECKPOINT: ship to master and the live app.
-- [ ] 1.12 Test harness for SPEC 13.3: three device profiles, console error trap that fails any test, monkey test helper, generated 2 year history fixture, kill and restore helpers. Then the Session 1 merge gate: ux-critic pass, full Vitest and Playwright pass, merge to master, push, confirm deploy, run live check, write report with an iPhone hand test list.
+- [ ] 1.12 Test harness for SPEC 13.3 and 13.4: the full phone device matrix (iPhone SE, 15, 17 Pro Max, Pixel 7, Galaxy compact, small Android, 320 floor) with safe area and no horizontal scroll checks on every screen, console error trap that fails any test, monkey test helper, generated 2 year history fixture, kill and restore helpers. Then the Session 1 merge gate: ux-critic pass, full Vitest and Playwright pass, merge to master, push, confirm deploy, run live check, write report with an iPhone hand test list.
 
 ## SESSION 2: CATALOG, FORM DEMOS, MUSCLES
 Tag: pre-s2 · Branch: s2-catalog · Report: reports/session-2.md

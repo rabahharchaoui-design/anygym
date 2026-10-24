@@ -323,8 +323,19 @@ Every run can be exported as a standard GPX file through the share sheet, so it 
 
 ### 13.3 Zero bug standard
 - Any console error or unhandled promise rejection during any test = FAIL.
-- Every Playwright UI test runs on three WebKit profiles: iPhone SE (375 wide), iPhone 15 Pro, iPhone 15 Pro Max.
+- Every Playwright UI test runs on the device matrix in 13.4 (WebKit for iPhones, Chromium for Android).
 - Edge cases covered by tests: brand new user with no data, 2 years of history (generated), very long exercise names, 0 and huge weights, kg and lb, offline, app killed mid workout (state restores exactly where it was), app killed mid run (run restores, gap recorded), double taps on every primary button (no duplicate sets), fast back and forth navigation.
 - Monkey test: 90 seconds of random taps and swipes on each main screen with no console errors and no stuck states.
 - New user walkthrough test: fresh install → onboarding → start today's workout → log 3 sets → finish, measured in taps. Target: onboarding under 60 seconds and logging a set in 2 taps when the suggested weight is right.
 - Accessibility: every control has an accessible label, text contrast at least WCAG AA, tap targets at least 48 pt, Dynamic Type friendly up to 130%.
+
+### 13.4 Every phone, every aspect ratio
+G uses an iPhone 17 Pro Max, but AnyGym must look and work right on most to all smartphones.
+- Device matrix for every UI test: iPhone SE (375 x 667, home button), iPhone 15 (393 x 852), iPhone 17 Pro Max (440 x 956, Dynamic Island), Pixel 7 (412 x 915), Galaxy S-series compact (360 x 780), small Android (360 x 640), and a 320 wide floor (smallest supported width, e.g. foldable cover screens). WebKit for iPhones, Chromium for Android.
+- Layout is fluid, never fixed to one phone: flexbox and grid, `clamp()` for type and spacing, `dvh`/`svh` instead of `vh` so browser bars never hide buttons, no element wider than the viewport, no horizontal scroll ever.
+- Safe areas everywhere: `viewport-fit=cover` plus `env(safe-area-inset-*)` padding so nothing sits under the Dynamic Island, notches, punch hole cameras, the iPhone home indicator, or Android gesture bars.
+- Tall and short screens: the primary action (Log set, Start, Hold to end) stays reachable in the thumb zone on 667 tall and 956 tall screens alike; long content scrolls inside the screen, fixed bars never cover it.
+- Portrait only, by G's rule: every screen is designed and tested for portrait. Landscape is used only where absolutely necessary, and right now no screen needs it. The manifest locks portrait (Android honors it). iOS ignores the lock, so when an iPhone is turned sideways, show one clean full screen "Turn your phone upright" card on every screen (state is kept underneath, nothing resets). Any future landscape layout needs a written reason in this spec first.
+- Android install: Chrome "Add to Home screen" / install prompt works, maskable icon fills the shape with no clipping, theme and splash colors match, Android back button closes sheets before leaving a screen.
+- Text: respects the phone's font size setting up to 130% without overlapping or cutting off.
+- Screenshot every main screen on every matrix device in each session report and look at them. Any overlap, clipping, cut off text, or button under a system bar is a FAIL.

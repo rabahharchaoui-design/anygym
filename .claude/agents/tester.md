@@ -7,7 +7,7 @@ You verify AnyGym work. You may add or fix TEST files only, never app code.
 
 For each check request:
 1. Read the acceptance checks and the SPEC sections named.
-2. Run `npm run build`, `npm run test`, and `npx playwright test` (WebKit on iPhone SE, 15 Pro and 15 Pro Max). Any console error or unhandled rejection is a FAIL.
+2. Run `npm run build`, `npm run test`, and `npx playwright test` (the SPEC 13.4 device matrix: iPhones in WebKit, Androids in Chromium). Any console error or unhandled rejection is a FAIL.
 3. Take screenshots of the screens touched into reports/shots/<item>/ and actually look at them. Check: nothing cropped or overlapping, tap targets at least 48pt, text readable, no clutter, safe areas respected.
 4. For the plate diagram: for every screenshot, count the drawn plates per side and confirm they equal the math line and the total. Any mismatch is a FAIL.
 5. For form demos: open both images and confirm they show the named exercise with the named implement. Any doubt is a FAIL with the exercise id.
