@@ -2,27 +2,45 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { IconLink } from '../components/IconButton';
-import { EmptyState } from '../components/EmptyState';
 import { GymPill } from '../components/GymPill';
 import { ProfileIcon } from '../components/icons';
 import { Toast, type ToastMessage } from '../components/Toast';
+import { planById } from '../data/plans';
 import { startDb } from '../db/bootstrap';
-import { getActiveSession, startWorkout } from '../db/workouts';
+import { getPlanState, setNextDay } from '../db/planState';
+import { getActiveSession, startPlanDay, startWorkout } from '../db/workouts';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
 import { applyUpdate, isUpdateReady, onUpdateReady } from '../lib/pwaUpdate';
+import { DayCard } from './today/DayCard';
+import { ChangeDaySheet } from './today/ChangeDaySheet';
 import styles from './TodayScreen.module.css';
 
 export function TodayScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const active = useLive(async () => {
-    await startDb();
-    return (await getActiveSession()) ?? null;
+  // Open the database first, outside the live query: awaiting a non Dexie promise inside it would
+  // stop it from tracking, and Today would never see a later Change day or finish.
+  const [dbOpen, setDbOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const done = () => alive && setDbOpen(true);
+    startDb().then(done, done);
+    return () => {
+      alive = false;
+    };
   }, []);
+  const live = useLive(async () => {
+    if (!dbOpen) return null;
+    const active = await getActiveSession();
+    const planState = await getPlanState();
+    return { active: active ?? null, planState: planState ?? null };
+  }, [dbOpen]);
+  const data = { ready: dbOpen && live.ready && live.value !== null, value: live.value ?? undefined };
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [updateReady, setUpdateReady] = useState(isUpdateReady);
   const [error, setError] = useState(false);
+  const [changing, setChanging] = useState(false);
 
   useEffect(() => onUpdateReady(setUpdateReady), []);
 
@@ -36,17 +54,39 @@ export function TodayScreen() {
     return () => window.clearTimeout(t);
   }, [location.state, navigate]);
 
-  const go = useTapGuard(async () => {
+  const active = data.value?.active ?? null;
+  const planState = data.value?.planState ?? null;
+  const plan = planById(planState?.planId);
+
+  const quick = useTapGuard(async () => {
     setError(false);
     try {
-      const session = active.value ?? (await startWorkout((await startDb()).id));
+      const session = active ?? (await startWorkout((await startDb()).id));
       navigate(`/workout/${session.id}`);
     } catch {
       setError(true);
     }
   });
 
-  const continuing = !!active.value;
+  const startDay = useTapGuard(async () => {
+    if (!plan || !planState) return;
+    setError(false);
+    try {
+      const session = await startPlanDay((await startDb()).id, plan.id, planState.nextDayIndex);
+      navigate(`/workout/${session.id}`, { viewTransition: true });
+    } catch {
+      setError(true);
+    }
+  });
+
+  const pickDay = async (dayIndex: number) => {
+    setChanging(false);
+    try {
+      await setNextDay(dayIndex);
+    } catch {
+      setError(true);
+    }
+  };
 
   return (
     <>
@@ -67,19 +107,37 @@ export function TodayScreen() {
         }
       />
       <div className={styles.stack}>
-        {active.ready ? (
-          <button type="button" className={`${styles.start} pressable`} data-continue={continuing} onClick={() => void go()}>
-            <span className={styles.startLabel}>{continuing ? 'Continue workout' : 'Quick workout'}</span>
-            <span className={styles.startSub}>{continuing ? 'Pick up where you left off' : 'Start empty, add exercises as you go'}</span>
-          </button>
-        ) : (
+        {!data.ready ? (
           <div className={styles.startSkeleton} aria-hidden="true" />
+        ) : active ? (
+          <button type="button" className={`${styles.start} pressable`} data-continue onClick={() => void quick()}>
+            <span className={styles.startLabel}>Continue workout</span>
+            <span className={styles.startSub}>Pick up where you left off</span>
+          </button>
+        ) : plan && planState ? (
+          <DayCard plan={plan} state={planState} onStart={() => void startDay()} onChangeDay={() => setChanging(true)} />
+        ) : (
+          <section className={styles.pick} aria-label="Pick a plan">
+            <h2 className={styles.pickTitle}>Pick a plan</h2>
+            <p className={styles.pickSub}>Follow a plan and every day is lined up for you: exercises, sets and rest.</p>
+            <button type="button" className={`${styles.pickButton} pressable`} onClick={() => navigate('/plans')}>
+              See plans
+            </button>
+          </section>
+        )}
+        {data.ready && !active && (
+          <button type="button" className={`${styles.quick} pressable`} onClick={() => void quick()}>
+            <span className={styles.quickLabel}>Quick workout</span>
+            <span className={styles.quickSub}>Start empty, add exercises as you go</span>
+          </button>
         )}
         <p className={styles.error} role="status">
           {error ? 'Could not start a workout. Try again.' : ''}
         </p>
-        <EmptyState title="No plan yet" next="Once you pick a plan, today's workout shows up here." />
       </div>
+      {plan && planState && (
+        <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={plan} state={planState} onPick={(i) => void pickDay(i)} />
+      )}
       <Toast toast={toast} bottom="var(--tabbar-height)" />
     </>
   );

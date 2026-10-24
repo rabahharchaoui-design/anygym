@@ -187,6 +187,12 @@
 .cardHead .cardName {
   flex: 1;
   font-size: 17px;
+  /* Up to two lines, never cut short in a way that hides which exercise it is (pair partners). */
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .cardName {
@@ -202,7 +208,7 @@
 
 .cardSummary {
   flex: none;
-  max-width: 55%;
+  max-width: 45%;
   color: var(--text-2);
   font-size: var(--text-sm);
   white-space: nowrap;
@@ -547,4 +553,124 @@
 .choiceHint {
   color: var(--text-2);
   font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------- plan workouts (PLAN 1.10) */
+
+.planHead {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 var(--space-1);
+}
+
+.planHead .target {
+  font-size: 15px;
+}
+
+.planLine {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.planNote {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* A pair (superset): both cards on one colored rail with the plain label (SPEC 8.2, 13.1). */
+.pairGroup {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 4px solid var(--pair);
+  border-radius: 2px;
+}
+
+.pairGroup[data-warmup] {
+  border-left-color: var(--amber);
+}
+
+.pairLabel {
+  margin: 0;
+  padding: 2px 0 0 4px;
+  color: var(--pair);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.pairGroup[data-warmup] .pairLabel,
+.warmLabel {
+  color: var(--amber);
+}
+
+.warmLabel {
+  margin: 0;
+  padding: 2px 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.clockLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card[data-done]:not([data-expanded='true']) {
+  opacity: 0.6;
+}
+
+/* Long plan names wrap rather than hide which exercise it is. */
+.planHead .cardName {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cardHead .cardSummary {
+  white-space: normal;
+  text-align: right;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The expanded plan title: up to two lines, a touch smaller on narrow phones, never cut off. */
+.planHead .cardName {
+  font-size: clamp(17px, 4.9vw, var(--text-lg));
+  line-height: 1.15;
+  text-overflow: clip;
+  overflow: visible;
+}
+
+/* Header day name: wraps to a second line at a smaller size instead of cutting off. */
+.clockLabel {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 3.2vw, 13px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+/* A warm up set in the strip: a small amber tag (not counted for progression). */
+.chipWarm {
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.finisherLabel {
+  margin: 0;
+  padding: 2px 0 0 4px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 16px;
 }

@@ -4,7 +4,8 @@ import { ArrivalGuard } from './components/ArrivalGuard';
 import { TodayScreen } from './screens/TodayScreen';
 import { RunScreen } from './screens/RunScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
-import { PlansScreen } from './screens/PlansScreen';
+import { PlansScreen } from './screens/plans/PlansScreen';
+import { PlanViewer } from './screens/plans/PlanViewer';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { WorkoutScreen } from './screens/workout/WorkoutScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
@@ -28,6 +29,7 @@ export function App() {
           <Route path="run" element={<RunScreen />} />
           <Route path="history" element={<HistoryScreen />} />
           <Route path="plans" element={<PlansScreen />} />
+          <Route path="plans/:planId" element={<PlanViewer />} />
           <Route path="settings" element={<SettingsScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

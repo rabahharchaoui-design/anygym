@@ -14,7 +14,7 @@ export function TabBar() {
   return (
     <nav className={styles.bar} aria-label="Main">
       {TABS.map(({ to, label, Icon, also }) => {
-        const active = pathname === to || (also as readonly string[]).includes(pathname);
+        const active = pathname === to || (also as readonly string[]).includes(pathname) || (to !== '/' && pathname.startsWith(`${to}/`));
         return (
           <NavLink
             key={to}

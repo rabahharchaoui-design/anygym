@@ -5,6 +5,7 @@ import { newId } from '../../db/ids';
 import { machineStartFor } from '../../db/gyms';
 import { barbellLoad, bodyweightLoad, formatSetLine, plateMachineLoad, timedLoad } from '../../lib/load';
 import { formatNext, formatSets, formatWhen, type Progression } from '../../lib/progression';
+import { setLine, targetSecondsOf, type WorkoutEntry } from '../../lib/planWorkout';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { Hint } from '../../components/hint/Hint';
 import { barIdFor, machineIdFor, prefillLoad } from './exerciseLoad';
@@ -27,6 +28,8 @@ type Props = {
   onEditSet: (set: WorkoutSet) => void;
   /** The sticky bar at the bottom of the workout screen; Log set renders there so it is always in reach. */
   actionSlot?: HTMLElement | null;
+  /** Plan workouts (PLAN 1.10): target sets, reps or hold, rest and the plan's note. */
+  entry?: WorkoutEntry;
 };
 
 export const DEFAULT_REPS = 10;
@@ -90,7 +93,7 @@ const repsNumber = (r: Progression['next']['reps']): number | undefined => (r ==
  * logged sets as a strip, the compact load input, reps, and Log set in the thumb zone. Weight and
  * reps are prefilled from the last set (this workout, else the last one), so a repeat is one tap.
  */
-export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progression, onLog, onEditSet, actionSlot }: Props) {
+export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progression, onLog, onEditSet, actionSlot, entry }: Props) {
   const last = sets[sets.length - 1];
   const { next, perSet } = progression;
   // Mid workout (e.g. after a reload) the last logged set wins; else the engine's target.
@@ -140,7 +143,8 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progres
 
   const action = (
     <div className={styles.actionWrap}>
-      <Hint id="setCard" className={styles.actionHint} point="down" />
+      {/* "Tap Log set when you finish the set" would contradict "Start the timer" on a timed card. */}
+      {!timed && <Hint id="setCard" className={styles.actionHint} point="down" />}
       <button type="button" className={`${styles.logButton} pressable`} disabled={!ready} onClick={() => void log()}>
         {ready ? (
           <>
@@ -156,12 +160,16 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progres
 
   return (
     <div className={styles.setCard}>
-      <div className={styles.setHead}>
-        <h2 className={styles.cardName}>{exerciseName}</h2>
-        <p className={`${styles.target} num`} data-testid="set-target">
-          Set {sets.length + 1}
-        </p>
-      </div>
+      {entry ? (
+        <PlanHead entry={entry} name={exerciseName} setNumber={sets.length + 1} />
+      ) : (
+        <div className={styles.setHead}>
+          <h2 className={styles.cardName}>{exerciseName}</h2>
+          <p className={`${styles.target} num`} data-testid="set-target">
+            Set {sets.length + 1}
+          </p>
+        </div>
+      )}
       <GuideLines progression={progression} logged={sets.length} />
       {sets.length > 0 && <SetStrip sets={sets} onEdit={onEditSet} />}
 
@@ -175,11 +183,33 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progres
         onChange={setLoad}
         onSeconds={setSeconds}
         compact
+        targetSeconds={entry ? targetSecondsOf(entry) : undefined}
       />
 
       {!timed && <RepsStepper value={reps} onChange={setReps} compact />}
 
       {actionSlot ? createPortal(action, actionSlot) : action}
+    </div>
+  );
+}
+
+/**
+ * Plan card head: the full name, "Set 1 of 4 · 8 to 12 reps", then the plan's note and the day
+ * plan line ("Wide stance · 4 sets × 8 to 12 · 90 s rest"). No demo image: none is certain yet.
+ */
+function PlanHead({ entry, name, setNumber }: { entry: WorkoutEntry; name: string; setNumber: number }) {
+  return (
+    <div className={styles.planHead}>
+      <h2 className={styles.cardName}>{name}</h2>
+      <p className={`${styles.target} num`} data-testid="set-target">
+        {setLine(entry, setNumber)}
+      </p>
+      {(entry.note || entry.line) && (
+        <p className={`${styles.planLine} num`} data-testid="set-plan">
+          {entry.note && <span className={styles.planNote}>{entry.note}{entry.line ? ' · ' : ''}</span>}
+          {entry.line}
+        </p>
+      )}
     </div>
   );
 }
@@ -200,11 +230,12 @@ export function SetStrip({ sets, onEdit }: { sets: WorkoutSet[]; onEdit: (set: W
             type="button"
             className={`${styles.chip} pressable`}
             onClick={() => onEdit(s)}
-            aria-label={`Set ${i + 1}: ${formatSetLine(s)}. Edit`}
+            aria-label={`Set ${i + 1}${s.kind === 'warmup' ? ', warm up' : ''}: ${formatSetLine(s)}. Edit`}
             data-testid="set-row"
           >
             <span className={styles.chipPill}>
               <span className={styles.chipIndex}>{i + 1}</span>
+              {s.kind === 'warmup' && <span className={styles.chipWarm}>Warm up</span>}
               <span className="num">{formatSetLine(s)}</span>
             </span>
           </button>

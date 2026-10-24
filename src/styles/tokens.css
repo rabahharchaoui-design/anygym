@@ -34,6 +34,7 @@
   --on-accent: #000000;
   --amber: #ffb020;
   --red: #ff4d4d;
+  --pair: #7cc4ff; /* the rail that groups a pair (superset) */
 
   /* type */
   --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;

@@ -1,0 +1,275 @@
+/* Plans tab and plan viewer (SPEC 8.6, 10, 13.1). Setup screens: they may scroll. */
+
+.lead {
+  margin: calc(var(--space-4) * -1) 0 var(--space-4);
+  color: var(--text-2);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.planTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.planName {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.badge {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(212, 255, 58, 0.12);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.planMeta {
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.planSummary {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+/* ---------------------------------------------------------------- viewer */
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  /* room for the pinned Use this plan bar */
+  padding-bottom: 92px;
+}
+
+.viewer > header {
+  margin-bottom: var(--space-2);
+}
+
+.viewerMeta {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.viewerSummary {
+  margin: 0 0 var(--space-4);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.weeks {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+
+.week {
+  height: var(--tap);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 700;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.week[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.day {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.dayHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.dayTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.dayTime {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.addOn {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.blocks {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.block[data-kind='pair'] {
+  position: relative;
+  padding-left: 14px;
+}
+
+/* The pair rail (SPEC 8.2): one colored line down the left of both exercises. */
+.block[data-kind='pair']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--pair);
+}
+
+.blockLabel {
+  margin: 0 0 4px;
+  color: var(--pair);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.block[data-warmup] .blockLabel {
+  color: var(--amber);
+}
+
+.block[data-warmup][data-kind='pair']::before {
+  background: var(--amber);
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.itemName {
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.itemLine {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.itemNote {
+  color: var(--text);
+  opacity: 0.8;
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.useBar {
+  /* Pinned just above the tab bar so the one primary action is always in reach. */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tabbar-height) + 1px + var(--safe-bottom));
+  padding: var(--space-5) calc(var(--space-5) + var(--safe-right)) var(--space-3) calc(var(--space-5) + var(--safe-left));
+  background: linear-gradient(to bottom, transparent, var(--bg) 28px);
+  pointer-events: none;
+}
+
+.useBar > * {
+  pointer-events: auto;
+}
+
+.useButton {
+  width: 100%;
+  min-height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.error {
+  margin: 0 0 4px;
+  min-height: 18px;
+  color: var(--red);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.finisher {
+  margin: var(--space-2) 0 0;
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--hairline);
+  font-weight: 700;
+}
+
+.finisherTag {
+  color: var(--accent);
+  font-size: 13px;
+  margin-right: 4px;
+}

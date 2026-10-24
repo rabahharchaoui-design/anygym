@@ -1,7 +1,11 @@
 // Quick workout sessions and their sets (PLAN 1.7, SPEC 2, 5.1). Every write is transactional.
+import { planById } from '../data/plans';
+import { dayIdOf } from '../lib/plans';
+import { dayWorkout } from '../lib/planWorkout';
 import { newId } from './ids';
+import { advanceAfter, weekFor } from './planState';
 import { db as defaultDb, type AnyGymDB } from './schema';
-import type { Load, Session, WorkoutSet } from './types';
+import type { Load, Session, SetKind, WorkoutSet } from './types';
 
 /** The workout in progress: started, not ended, not imported. Newest first if somehow several. */
 export async function getActiveSession(db: AnyGymDB = defaultDb): Promise<Session | undefined> {
@@ -18,6 +22,25 @@ export async function startWorkout(gymId: string, db: AnyGymDB = defaultDb, now 
     const active = await getActiveSession(db);
     if (active) return active;
     const session: Session = { id: newId(), gymId, startedAt: now, imported: false, exerciseIds: [] };
+    await db.sessions.add(session);
+    return session;
+  });
+}
+
+/**
+ * Starts a plan day (PLAN 1.10): the session carries planId, dayId and the week, and lists the
+ * day's exercises in order. If a workout is already in progress it is returned instead.
+ */
+export async function startPlanDay(gymId: string, planId: string, dayIndex: number, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Session> {
+  const plan = planById(planId);
+  const day = plan?.days[dayIndex];
+  if (!plan || !day) throw new Error('Plan day not found');
+  return db.transaction('rw', db.sessions, db.planState, async () => {
+    const active = await getActiveSession(db);
+    if (active) return active;
+    const weekIndex = weekFor(await db.planState.get('active'), planId);
+    const exerciseIds = [...new Set(dayWorkout(plan, dayIndex, weekIndex).map((e) => e.exerciseId))];
+    const session: Session = { id: newId(), gymId, planId, dayId: dayIdOf(day), weekIndex, startedAt: now, imported: false, exerciseIds };
     await db.sessions.add(session);
     return session;
   });
@@ -44,6 +67,8 @@ export type NewSet = {
   reps?: number;
   seconds?: number;
   load: Load;
+  /** 'warmup' for sets of a plan warm up block (SPEC 6 rule 1 ignores them); default 'work'. */
+  kind?: SetKind;
 };
 
 function validSet(input: Pick<NewSet, 'reps' | 'seconds' | 'load'>): boolean {
@@ -70,7 +95,7 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
       sessionId: input.sessionId,
       exerciseId: input.exerciseId,
       order: last ? last.order + 1 : 0,
-      kind: 'work',
+      kind: input.kind ?? 'work',
       load: { ...input.load },
       uncertain: false,
     };
@@ -129,10 +154,10 @@ export type FinishResult = { saved: true; sets: number } | { saved: false };
 
 /**
  * Ends the workout. With sets it is saved (endedAt); with none it is deleted, never kept as an
- * empty session. Finishing twice is safe.
+ * empty session. Finishing twice is safe. A saved plan day moves the plan to the next day.
  */
 export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<FinishResult> {
-  return db.transaction('rw', db.sessions, db.sets, async () => {
+  return db.transaction('rw', db.sessions, db.sets, db.planState, async () => {
     const s = await db.sessions.get(sessionId);
     const count = await db.sets.where('sessionId').equals(sessionId).count();
     if (!s) return { saved: false };
@@ -140,7 +165,10 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       await db.sessions.delete(sessionId);
       return { saved: false };
     }
-    if (s.endedAt === undefined) await db.sessions.put({ ...s, endedAt: now });
+    if (s.endedAt === undefined) {
+      await db.sessions.put({ ...s, endedAt: now });
+      await advanceAfter(s, db);
+    }
     return { saved: true, sets: count };
   });
 }

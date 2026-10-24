@@ -27,6 +27,10 @@ export default defineConfig({
         // SPEC 6: every progression rule is tested.
         'src/lib/progression.ts': { lines: 100 },
         'src/db/history.ts': { lines: 100 },
+        // PLAN 1.10: curated plans, plan day workouts and the plan pointer.
+        'src/lib/plans.ts': { lines: 100 },
+        'src/lib/planWorkout.ts': { lines: 100 },
+        'src/db/planState.ts': { lines: 100 },
       },
     },
   },
