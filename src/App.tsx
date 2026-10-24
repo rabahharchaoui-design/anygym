@@ -6,6 +6,7 @@ import { HistoryScreen } from './screens/HistoryScreen';
 import { PlansScreen } from './screens/PlansScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
+import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
 
 const DEV_TOOLS = devToolsEnabled();
@@ -14,6 +15,7 @@ export function App() {
   return (
     <Routes>
       {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
+      {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
       <Route element={<AppShell />}>
         <Route index element={<TodayScreen />} />
         <Route path="run" element={<RunScreen />} />

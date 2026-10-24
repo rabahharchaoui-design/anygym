@@ -1,9 +1,18 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from 'motion/react';
 import type { Collars, PlateColors, Unit } from '../../db/types';
 import { fitsSleeve, formatAmount, formatMathLine, formatWeight, sumLoad } from '../../lib/load';
 import { plateSpec, type PlateSpec } from '../../lib/plates';
-import { barLayout, outermost, withPlates, withoutOutermost, type PlateRect, type Side } from '../../lib/plateLayout';
+import {
+  barLayout,
+  hornLayout,
+  outermost,
+  withPlates,
+  withoutOutermost,
+  type BarLayout,
+  type PlateRect,
+  type Side,
+} from '../../lib/plateLayout';
 import { FADE, SPRING } from '../motion';
 import { TypeItSheet } from './TypeItSheet';
 import styles from './PlateDiagram.module.css';
@@ -19,6 +28,10 @@ type Props = {
   /** One side's plates, heaviest first. */
   value: readonly number[];
   onChange: (perSide: number[]) => void;
+  /** 'bar': a barbell, plates on both sleeves. 'horn': one plate loaded machine horn, "per side". */
+  variant?: 'bar' | 'horn';
+  /** Extra link next to Type it / Clear (e.g. "Set starting weight"). */
+  extraLink?: ReactNode;
 };
 
 const HEIGHT = 168;
@@ -46,7 +59,7 @@ function plateLook(weight: number, unit: Unit, mode: PlateColors) {
 }
 
 /** Plate diagram (SPEC 5.3): tap plates on, tap the bar to take the outermost off, live total and math. */
-export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, onChange }: Props) {
+export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, onChange, variant = 'bar', extraLink }: Props) {
   const reduce = useReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(340);
@@ -68,9 +81,12 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
   useLayoutEffect(() => () => window.clearTimeout(fullTimer.current), []);
 
   const sizes = [...inventory].sort((a, b) => b - a);
-  const layout = barLayout({ unit, perSide: value, inventory: sizes, width, height: HEIGHT, labelOf: formatAmount });
+  const horn = variant === 'horn';
+  const baseLabel = horn ? 'start' : 'bar';
+  const makeLayout = horn ? hornLayout : barLayout;
+  const layout = makeLayout({ unit, perSide: value, inventory: sizes, width, height: HEIGHT, labelOf: formatAmount });
   const { total } = sumLoad({ bar, perSide: value, collars, unit });
-  const math = formatMathLine(bar, value, collars, unit);
+  const math = formatMathLine(bar, value, collars, unit, baseLabel);
   const outer = outermost(value);
 
   const sleeveFull = () => {
@@ -124,9 +140,10 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
           />
         </div>
         <p className={styles.full} role="status" data-visible={full}>
-          {full ? 'Sleeve is full' : ''}
+          {full ? (horn ? 'Horn is full' : 'Sleeve is full') : ''}
         </p>
       </div>
+      {horn && <p className={styles.perSide}>per side</p>}
 
       <div className={styles.tray} role="group" aria-label="Plates">
         {sizes.map((w) => (
@@ -148,6 +165,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
         >
           Clear
         </button>
+        {extraLink}
       </div>
 
       {bar !== null && (
@@ -156,6 +174,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
           onClose={() => setTyping(false)}
           unit={unit}
           bar={bar}
+          baseLabel={baseLabel}
           inventory={sizes}
           collars={collars}
           onApply={onChange}
@@ -166,7 +185,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
 }
 
 type BarProps = {
-  layout: ReturnType<typeof barLayout>;
+  layout: BarLayout;
   unit: Unit;
   colorMode: PlateColors;
   reduce: boolean;
@@ -175,7 +194,7 @@ type BarProps = {
 };
 
 function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: BarProps) {
-  const { width, height, sleeves, shoulders, shaft, plates } = layout;
+  const { width, height, sleeves, shoulders, shaft, plates, sides, frame } = layout;
   // Every plate of a size gets a stable key (its nth occurrence), so a heavier plate added later
   // slides in at its place while lighter ones glide outward.
   const seen = new Map<string, number>();
@@ -202,13 +221,17 @@ function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: BarProps) 
       viewBox={`0 0 ${width} ${height}`}
       data-testid="plate-svg"
       role="img"
-      aria-label="Barbell"
+      aria-label={frame ? 'Machine horn' : 'Barbell'}
     >
       <defs>
         <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#D5D8DE" />
           <stop offset="0.45" stopColor="#9EA2AA" />
           <stop offset="1" stopColor="#5E6168" />
+        </linearGradient>
+        <linearGradient id="frame" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#3A3B42" />
+          <stop offset="1" stopColor="#24252A" />
         </linearGradient>
         <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.14" />
@@ -217,21 +240,27 @@ function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: BarProps) 
         </linearGradient>
       </defs>
 
-      <rect {...shaft} fill="url(#steel)" />
-      {/* Break marks: the shaft between the sleeves is shortened, not to scale. */}
-      <path
-        d={`M${shaft.x + shaft.width / 2 - 5} ${shaft.y - 5} l4 ${shaft.height + 10} M${shaft.x + shaft.width / 2 + 1} ${shaft.y - 5} l4 ${shaft.height + 10}`}
-        stroke="var(--surface-1)"
-        strokeWidth="2.5"
-      />
-      {(['left', 'right'] as const).map((side) => (
+      {frame ? (
+        <rect {...frame} rx={5} fill="url(#frame)" stroke="#4A4B52" strokeWidth={1} />
+      ) : (
+        <>
+          <rect {...shaft} fill="url(#steel)" />
+          {/* Break marks: the shaft between the sleeves is shortened, not to scale. */}
+          <path
+            d={`M${shaft.x + shaft.width / 2 - 5} ${shaft.y - 5} l4 ${shaft.height + 10} M${shaft.x + shaft.width / 2 + 1} ${shaft.y - 5} l4 ${shaft.height + 10}`}
+            stroke="var(--surface-1)"
+            strokeWidth="2.5"
+          />
+        </>
+      )}
+      {sides.map((side) => (
         <g key={side}>
           <rect {...sleeves[side]} rx={1.5} fill="url(#steel)" />
           <rect {...shoulders[side]} rx={1.5} fill="url(#steel)" />
         </g>
       ))}
 
-      {(['left', 'right'] as const).map((side) => (
+      {sides.map((side) => (
         <g
           key={side}
           className={styles.side}
@@ -263,7 +292,7 @@ function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: BarProps) 
 
 type PlateProps = {
   plate: PlateRect;
-  layout: ReturnType<typeof barLayout>;
+  layout: BarLayout;
   unit: Unit;
   colorMode: PlateColors;
   reduce: boolean;

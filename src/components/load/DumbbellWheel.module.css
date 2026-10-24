@@ -1,0 +1,97 @@
+.glyph {
+  fill: var(--text);
+  flex: none;
+  margin-bottom: var(--space-1);
+}
+
+.wheelWrap {
+  position: relative;
+  height: 72px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+
+/* Centre marker: the lime notch the selected weight snaps under. */
+.notch {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 6px;
+  width: var(--item, 68px);
+  transform: translateX(-50%);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--accent);
+  background: rgba(212, 255, 58, 0.06);
+  pointer-events: none;
+}
+
+.track {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-inline: calc(50% - var(--item, 68px) / 2);
+  outline: none;
+  /* Soft fade at the ends. */
+  mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.track:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.item {
+  flex: 0 0 var(--item, 68px);
+  height: 100%;
+  scroll-snap-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-2);
+  opacity: 0.55;
+  transform: scale(0.86);
+  transition:
+    transform 220ms var(--ease-spring),
+    opacity var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.item[data-centered='true'] {
+  opacity: 1;
+  color: var(--text);
+  transform: scale(1);
+}
+
+.item[data-selected='true'] {
+  color: var(--accent);
+  transform: scale(1.12);
+}
+
+.item:active {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .item[data-selected='true'],
+  .item:active {
+    transform: none;
+    transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+}

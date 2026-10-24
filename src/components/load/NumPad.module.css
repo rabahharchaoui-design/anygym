@@ -1,0 +1,20 @@
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.key {
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-size: 26px;
+  font-weight: 500;
+  touch-action: manipulation;
+}
+
+.pad[data-compact='true'] .key {
+  height: var(--tap);
+  font-size: 22px;
+  background: var(--surface-2);
+}
