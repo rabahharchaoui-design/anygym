@@ -303,6 +303,62 @@ export function nextDumbbell(each: number, range: DumbbellRange): number | null 
   return dumbbellsInRange(range).find((w) => w > each + EPS) ?? null;
 }
 
+/**
+ * Top of the stack selector when the machine's real stack size is not known: 300 lb / 140 kg.
+ * A display range only (how far the pin list scrolls), never stored and never shown as data.
+ */
+export const DISPLAY_STACK_MAX: Record<Unit, number> = { lb: 300, kg: 140 };
+
+/** Every pin position of a stack, lightest first: step, 2 × step, ... up to max. Empty for a step that is not positive. */
+export function stackValues(step: number, max: number): number[] {
+  if (!(step > 0)) return [];
+  const count = Math.max(1, Math.floor(toInt(max) / toInt(step) + EPS));
+  return Array.from({ length: count }, (_, i) => times(step, i + 1));
+}
+
+// ---------------------------------------------------------------- Load records (SPEC 5.5)
+
+/** Dumbbell pair, each hand: total = 2 × each. */
+export function dumbbellLoad(each: number, unit: Unit): Load {
+  return { kind: 'dumbbell_each', unit, total: dumbbellTotal(each) };
+}
+
+/** One weight held (goblet, kettlebell): total = the weight. */
+export function singleLoad(weight: number, unit: Unit): Load {
+  return { kind: 'single', unit, total: weight };
+}
+
+/** The dumbbell or held weight a dumbbell_each / single load was made from; null for any other load. */
+export function heldWeightOf(load: Load | null | undefined): number | null {
+  if (load?.kind === 'dumbbell_each') return fromInt(toInt(load.total) / 2);
+  if (load?.kind === 'single') return load.total;
+  return null;
+}
+
+/** Stack: the pin value plus optional added weight (plates on the pin). */
+export function stackLoad(stackValue: number, unit: Unit, added = 0): Load {
+  const load: Load = { kind: 'stack', unit, total: stackTotal(stackValue, added), stackValue };
+  if (added > 0) load.added = added;
+  return load;
+}
+
+/** Plate loaded machine: start + 2 × sum(perSide). null while the starting resistance is unknown (never a guess). */
+export function plateMachineLoad(start: number | null, perSide: readonly number[], unit: Unit): Load | null {
+  if (start === null) return null;
+  const total = sumLoad({ bar: start, perSide, unit }).total!;
+  return { kind: 'plate_machine', unit, total, barWeight: start, perSide: [...perSide] };
+}
+
+/** Bodyweight: the body is not counted (it is not known); total is the added weight only, 0 with none. */
+export function bodyweightLoad(unit: Unit, added = 0): Load {
+  return added > 0 ? { kind: 'bodyweight', unit, total: added, added } : { kind: 'bodyweight', unit, total: 0 };
+}
+
+/** Timed hold: no load; the seconds live on the set. */
+export function timedLoad(unit: Unit): Load {
+  return { kind: 'timed', unit, total: 0 };
+}
+
 // ---------------------------------------------------------------- progression helpers (SPEC 6)
 
 type GymLike = Pick<Gym, 'unit' | 'plateInventory' | 'dumbbellRange' | 'stackStep' | 'equipmentWeights'>;

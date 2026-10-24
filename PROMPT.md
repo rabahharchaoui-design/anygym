@@ -21,10 +21,18 @@ MERGE GATE (the last item of each session)
 - Merge the block branch into master (no fast forward), push, wait for the GitHub Pages workflow to finish green (`gh run list --limit 3`, `gh run watch`), then run the live check against https://rabahharchaoui-design.github.io/anygym/.
 - Write reports/session-N.md: what shipped, screenshots paths, anything marked [!], and an iPhone hand test list G can run in 5 minutes.
 - If the gate fails, do NOT merge. Leave the branch, explain in the report, and continue with the next session only if it does not depend on the failed work.
-- Optional phone alert: if ~/.config/pocketsim/ntfy-topic exists, send one short message at each merge gate: `curl -s -d "AnyGym: session N merged and live" "ntfy.sh/$(cat ~/.config/pocketsim/ntfy-topic)"`. Never write the topic into the repo.
+- Phone alert (G wants these): at every checkpoint ship and every merge gate, send one short push with the item and what changed: `curl -s -H "Title: AnyGym: shipped" -H "Tags: rocket" -d "<item id> <short summary> is live" "ntfy.sh/$(cat ~/.config/anygym/ntfy-topic)"`. Also push when an item gets marked [!]. Never write the topic into the repo.
 
 CHECKPOINTS
 Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. Master is always usable and saved data is never lost.
+
+TEST NOW PUSHES (G wants to know when to open the app and what to try)
+- After a checkpoint ships anything G can see or tap on his iPhone, send a second push titled "AnyGym: test now" that opens the app when tapped:
+  `curl -s -H "Title: AnyGym: test now" -H "Tags: iphone" -H "Click: https://rabahharchaoui-design.github.io/anygym/" -d "<steps>" "ntfy.sh/$(cat ~/.config/anygym/ntfy-topic)"`
+- <steps> is plain words, max 3 short steps, what to tap and what he should see, ending with how long it takes. Example: "1. Open AnyGym and tap Quick workout. 2. Add Bench press, tap a 45 on each side. 3. Total should read 135 lb with the math under it. 2 min."
+- If the update needs a fresh install (new icon or name), say so: "Delete AnyGym from your Home Screen, then add it again from Safari."
+- Skip test now pushes for behind the scenes items (math libraries, test harness, data schema) unless they change what he sees.
+- Also append each test now message, with the time and item id, to reports/test-now.md so he can scroll back through them.
 
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.

@@ -1,0 +1,79 @@
+.dial {
+  position: relative;
+  align-self: center;
+  width: min(240px, 68vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 35%, #1d1d21, var(--surface-1) 70%);
+  touch-action: manipulation;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.track {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 10;
+}
+
+.dial[data-running='true'] .track {
+  stroke: #33352a;
+}
+
+.progress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 200ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress {
+    transition: none;
+  }
+}
+
+.face {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.clock {
+  font-size: clamp(48px, 16vw, 64px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.action {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 96px;
+}
+
+.dial[data-running='true'] .action {
+  color: var(--text);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-2);
+}
+
+.footer p {
+  margin: 0;
+}

@@ -54,7 +54,8 @@ export type BarId = keyof Bars;
  * A missing key or `value: null` means unknown; never guess.
  */
 export type EquipmentWeight = {
-  kind: 'plates_only' | 'starting_resistance' | 'stack_step';
+  /** 'bar_weight': Smith, EZ curl or trap bar weight (mirrored into `bars`). */
+  kind: 'plates_only' | 'starting_resistance' | 'stack_step' | 'bar_weight';
   value: number | null;
 };
 

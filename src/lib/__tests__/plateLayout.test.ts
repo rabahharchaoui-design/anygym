@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatAmount } from '../load';
 import { SLEEVE_LENGTH, plateSpec } from '../plates';
-import { MIN_LABEL, PAD, SHAFT_GAP, barLayout, labelSize, outermost, withPlates, withoutOutermost } from '../plateLayout';
+import { FRAME_WIDTH, MIN_LABEL, PAD, SHAFT_GAP, barLayout, hornLayout, labelSize, outermost, withPlates, withoutOutermost } from '../plateLayout';
 
 const LB = [45, 35, 25, 10, 5, 2.5];
 const KG = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -93,5 +93,40 @@ describe('plate list edits', () => {
   it('names the outermost plate', () => {
     expect(outermost([45, 25])).toBe(25);
     expect(outermost([])).toBeNull();
+  });
+});
+
+describe('hornLayout', () => {
+  const horn = (unit: 'lb' | 'kg', perSide: number[], inventory: number[] = unit === 'lb' ? LB : KG, width = 340) =>
+    hornLayout({ unit, perSide, inventory, width, height: 168, labelOf: formatAmount });
+
+  it('draws one horn out of a frame, plates heaviest innermost, to scale', () => {
+    const l = horn('lb', [25, 45]);
+    expect(l.sides).toEqual(['right']);
+    expect(l.frame!.width).toBe(FRAME_WIDTH);
+    expect(l.plates.every((p) => p.side === 'right')).toBe(true);
+    expect(l.plates.map((p) => p.weight)).toEqual([45, 25]);
+    expect(l.plates[0]!.x).toBeCloseTo(l.sleeves.right.x, 9);
+    expect(l.plates[1]!.x).toBeCloseTo(l.plates[0]!.x + l.plates[0]!.width, 9);
+    expect(l.sleeves.right.width).toBeCloseTo(SLEEVE_LENGTH.lb * l.scale, 9);
+    expect(l.shoulders.right.x).toBeCloseTo(l.frame!.x + FRAME_WIDTH, 9);
+    for (const p of l.plates) {
+      expect(p.height).toBeCloseTo(plateSpec(p.weight, 'lb').diameter * l.scale, 9);
+      expect(p.y + p.height / 2).toBeCloseTo(84, 9);
+    }
+    expect(l.sleeves.left.width).toBe(0);
+    expect(l.shaft.width).toBe(0);
+  });
+
+  it('stays inside the drawing on narrow and wide stages, kg too', () => {
+    for (const width of [200, 340, 600]) {
+      const w = horn('kg', [25, 20, 10], KG, width);
+      const right = w.sleeves.right.x + w.sleeves.right.width;
+      expect(w.frame!.x).toBeGreaterThanOrEqual(PAD - 1e-9);
+      expect(right).toBeLessThanOrEqual(width - PAD + 1e-9);
+      for (const p of w.plates) expect(p.y).toBeGreaterThanOrEqual(PAD - 1e-9);
+    }
+    expect(horn('lb', [], []).plates).toEqual([]);
+    expect(horn('lb', [45], LB, 10).scale).toBe(0);
   });
 });

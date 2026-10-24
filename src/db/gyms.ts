@@ -4,6 +4,7 @@ import {
   EQUIPMENT_IDS,
   type Bars,
   type DumbbellRange,
+  type EquipmentWeight,
   type EquipmentId,
   type Gym,
   type GymType,
@@ -49,6 +50,22 @@ export function defaultStackStep(unit: Unit): number {
 export function stackStepFor(gym: Pick<Gym, 'stackStep' | 'equipmentWeights'>, machineId: string): number {
   const own = gym.equipmentWeights[machineId];
   return own?.kind === 'stack_step' && own.value !== null ? own.value : gym.stackStep;
+}
+
+/** The saved answer for a machine at this gym, or undefined when never answered. */
+export function equipmentWeightFor(gym: Pick<Gym, 'equipmentWeights'>, machineId: string): EquipmentWeight | undefined {
+  return gym.equipmentWeights[machineId];
+}
+
+/**
+ * Starting resistance of a plate loaded machine: 0 for "plates only", the listed value, or
+ * null until the user answers (then the UI shows "+ start", never a guess).
+ */
+export function machineStartFor(gym: Pick<Gym, 'equipmentWeights'>, machineId: string): number | null {
+  const own = gym.equipmentWeights[machineId];
+  if (own?.kind === 'plates_only') return 0;
+  if (own?.kind === 'starting_resistance') return own.value;
+  return null;
 }
 
 export function defaultPlateColors(unit: Unit): PlateColors {

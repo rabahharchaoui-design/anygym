@@ -48,6 +48,10 @@ export type BarLayout = {
   shoulders: Record<Side, Rect>;
   shaft: Rect;
   plates: PlateRect[];
+  /** Sides that carry plates: both on a bar, only 'right' on a machine horn. */
+  sides: Side[];
+  /** Machine frame the horn sticks out of (horn only). */
+  frame?: Rect;
 };
 
 /** Label font size that fits a plate of this pixel width, or null when none does. */
@@ -115,7 +119,61 @@ export function barLayout({ unit, perSide, inventory, width, height, labelOf }: 
     offset += w;
   });
 
-  return { width, height, scale, sleeves, shoulders, shaft, plates };
+  return { width, height, scale, sleeves, shoulders, shaft, plates, sides: ['left', 'right'] };
+}
+
+/** Pixel width of the machine frame post a horn sticks out of. */
+export const FRAME_WIDTH = 22;
+
+/**
+ * One plate loaded machine horn (SPEC 5.2), edge on: a frame post on the left, a collar, and the
+ * horn to the right, drawn to the same scale as the plates. Horn length uses the Olympic sleeve
+ * length (machines vary; it only needs to look right, the math does not depend on it).
+ * Plates sit heaviest innermost against the collar. Only the 'right' side exists.
+ */
+export function hornLayout({ unit, perSide, inventory, width, height, labelOf }: LayoutInput): BarLayout {
+  const parts = BAR_PARTS[unit];
+  const sleeveLength = SLEEVE_LENGTH[unit];
+  const sizes = inventory.length ? inventory : PLATE_SPECS[unit].map((p) => p.weight);
+  const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
+  const room = width - FRAME_WIDTH - 2 * PAD;
+  const scale = Math.max(0, Math.min(room / (sleeveLength + parts.shoulderWidth), (height - 2 * PAD) / biggest));
+  const cy = height / 2;
+
+  const sleeveW = sleeveLength * scale;
+  const shoulderW = parts.shoulderWidth * scale;
+  const drawn = FRAME_WIDTH + shoulderW + sleeveW;
+  const left = Math.max(PAD, (width - drawn) / 2);
+  const frame = { x: left, y: PAD, width: FRAME_WIDTH, height: height - 2 * PAD };
+  const shoulderH = parts.shoulderDiameter * scale;
+  const sleeveH = parts.sleeveDiameter * scale;
+  const shoulder = { x: left + FRAME_WIDTH, y: cy - shoulderH / 2, width: shoulderW, height: shoulderH };
+  const sleeve = { x: shoulder.x + shoulderW, y: cy - sleeveH / 2, width: sleeveW, height: sleeveH };
+  const none = { x: left, y: cy, width: 0, height: 0 };
+
+  const plates: PlateRect[] = [];
+  let offset = 0;
+  [...perSide]
+    .sort((a, b) => b - a)
+    .forEach((weight, index) => {
+      const spec = plateSpec(weight, unit);
+      const w = spec.thickness * scale;
+      const h = spec.diameter * scale;
+      plates.push({ side: 'right', index, weight, x: sleeve.x + offset, y: cy - h / 2, width: w, height: h, label: labelSize(w, h, labelOf(weight)) });
+      offset += w;
+    });
+
+  return {
+    width,
+    height,
+    scale,
+    sleeves: { left: none, right: sleeve },
+    shoulders: { left: none, right: shoulder },
+    shaft: none,
+    plates,
+    sides: ['right'],
+    frame,
+  };
 }
 
 // ---------------------------------------------------------------- list edits (no arithmetic)

@@ -3,7 +3,16 @@ import { defaultPlateInventory, makeGym } from '../../db/gyms';
 import type { Collars, Unit } from '../../db/types';
 import {
   add,
+  bodyweightLoad,
   collarsWeight,
+  DISPLAY_STACK_MAX,
+  dumbbellLoad,
+  heldWeightOf,
+  plateMachineLoad,
+  singleLoad,
+  stackLoad,
+  stackValues,
+  timedLoad,
   convertForGym,
   dumbbellsInRange,
   dumbbellTotal,
@@ -442,5 +451,73 @@ describe('formatMathLine', () => {
     expect(formatMathLine(0, [], 'none', 'lb')).toBe('0 bar = 0 lb');
     expect(formatMathLine(0, [25, 10], 'none', 'kg')).toBe('2 × (25 + 10) = 70 kg');
     expect(formatMathLine(20, [2.5, 1.25], 'none', 'kg')).toBe('20 bar + 2 × (2.5 + 1.25) = 27.5 kg');
+  });
+});
+
+// ---------------------------------------------------------------- 1.6 load inputs
+
+describe('stack pin values', () => {
+  it('lists step to max, lightest first', () => {
+    expect(stackValues(5, 30)).toEqual([5, 10, 15, 20, 25, 30]);
+    expect(stackValues(2.5, 10)).toEqual([2.5, 5, 7.5, 10]);
+    expect(stackValues(10, 35)).toEqual([10, 20, 30]);
+    expect(stackValues(5, DISPLAY_STACK_MAX.lb)).toHaveLength(60);
+    expect(stackValues(2.5, DISPLAY_STACK_MAX.kg).at(-1)).toBe(140);
+    expect(stackValues(1.25, 5)).toEqual([1.25, 2.5, 3.75, 5]);
+  });
+
+  it('always has at least one pin, and none for a bad step', () => {
+    expect(stackValues(20, 5)).toEqual([20]);
+    expect(stackValues(0, 100)).toEqual([]);
+    expect(stackValues(-5, 100)).toEqual([]);
+    expect(stackValues(Number.NaN, 100)).toEqual([]);
+  });
+});
+
+describe('Load records (SPEC 5.5)', () => {
+  it('dumbbell each hand doubles, single holds, and both read back', () => {
+    expect(dumbbellLoad(30, 'lb')).toEqual({ kind: 'dumbbell_each', unit: 'lb', total: 60 });
+    expect(dumbbellLoad(2.5, 'kg').total).toBe(5);
+    expect(singleLoad(35, 'lb')).toEqual({ kind: 'single', unit: 'lb', total: 35 });
+    expect(heldWeightOf(dumbbellLoad(22.5, 'kg'))).toBe(22.5);
+    expect(heldWeightOf(singleLoad(35, 'lb'))).toBe(35);
+    expect(heldWeightOf(null)).toBeNull();
+    expect(heldWeightOf(undefined)).toBeNull();
+    expect(heldWeightOf(timedLoad('lb'))).toBeNull();
+  });
+
+  it('stack keeps the pin and adds plates on the pin', () => {
+    expect(stackLoad(15, 'lb')).toEqual({ kind: 'stack', unit: 'lb', total: 15, stackValue: 15 });
+    expect(stackLoad(47.5, 'kg', 1.25)).toEqual({ kind: 'stack', unit: 'kg', total: 48.75, stackValue: 47.5, added: 1.25 });
+    expect(stackLoad(50, 'lb', 0)).not.toHaveProperty('added');
+  });
+
+  it('plate machine needs a known start', () => {
+    expect(plateMachineLoad(null, [45], 'lb')).toBeNull();
+    expect(plateMachineLoad(0, [45, 25], 'lb')).toEqual({
+      kind: 'plate_machine',
+      unit: 'lb',
+      total: 140,
+      barWeight: 0,
+      perSide: [45, 25],
+    });
+    expect(plateMachineLoad(50, [20], 'kg')!.total).toBe(90);
+  });
+
+  it('bodyweight counts only added weight, timed has none', () => {
+    expect(bodyweightLoad('lb')).toEqual({ kind: 'bodyweight', unit: 'lb', total: 0 });
+    expect(bodyweightLoad('lb', 25)).toEqual({ kind: 'bodyweight', unit: 'lb', total: 25, added: 25 });
+    expect(timedLoad('kg')).toEqual({ kind: 'timed', unit: 'kg', total: 0 });
+  });
+});
+
+describe('formatMathLine on a machine horn', () => {
+  it('names the base "start", unknown, known and plates only', () => {
+    expect(formatMathLine(null, [45], 'none', 'lb', 'start')).toBe('2 × 45 + start');
+    expect(formatMathLine(null, [45, 25], 'none', 'lb', 'start')).toBe('2 × (45 + 25) + start');
+    expect(formatMathLine(null, [], 'none', 'lb', 'start')).toBe('start');
+    expect(formatMathLine(110, [45, 25], 'none', 'lb', 'start')).toBe('110 start + 2 × (45 + 25) = 250 lb');
+    expect(formatMathLine(0, [45, 25], 'none', 'lb', 'start')).toBe('2 × (45 + 25) = 140 lb');
+    expect(formatMathLine(0, [], 'none', 'kg', 'start')).toBe('0 start = 0 kg');
   });
 });
