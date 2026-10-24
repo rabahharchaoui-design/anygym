@@ -5,6 +5,7 @@ import { entryFor, promptFor, type PromptKind } from '../../lib/equipmentPrompt'
 import { formatWeight } from '../../lib/load';
 import { parseTyped, pressKey } from '../../lib/numpad';
 import { Sheet } from '../Sheet';
+import { InfoButton } from '../info/InfoButton';
 import { NumPad } from './NumPad';
 import styles from './EquipmentWeightSheet.module.css';
 
@@ -54,7 +55,10 @@ export function EquipmentWeightSheet({ open, onClose, gymId, unit, machineId, ki
   return (
     <Sheet open={open} onClose={onClose} label={prompt.title}>
       <div className={styles.body}>
-        <h2 className={styles.title}>{prompt.title}</h2>
+        <div className={styles.titleRow}>
+          <h2 className={styles.title}>{prompt.title}</h2>
+          <InfoButton id={prompt.info} className={styles.info} />
+        </div>
         <p className={styles.question}>{prompt.question}</p>
 
         {prompt.chips && (

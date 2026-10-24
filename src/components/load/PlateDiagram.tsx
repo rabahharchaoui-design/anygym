@@ -138,7 +138,11 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
         </p>
         <Hint id="plates" className={styles.hint} point="down" />
       </div>
-      {horn && <p className={styles.perSide}>per side</p>}
+      {horn && (
+        <p className={styles.perSide} data-testid="picker-title">
+          Machine · plates per side
+        </p>
+      )}
 
       <div className={styles.tray} role="group" aria-label="Plates" data-scroll={sizes.length > 7}>
         {sizes.map((w) => (

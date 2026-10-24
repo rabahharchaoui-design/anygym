@@ -470,3 +470,32 @@ Playwright tap count tests that fail if exceeded:
 - From Today: start today's plan day and log all 4 sets of a barbell squat at target: at most 6 taps (Start, row, 4 checks).
 - Change the weight of one set on a barbell lift: at most 3 extra taps.
 - Quick workout with one exercise and 3 sets logged: at most 7 taps including search.
+
+## 21. Learn from the best: Hevy and Bevel (G's request, Oct 24)
+Hevy is the most loved lifting tracker; Bevel is praised for turning complex health data into beautiful, readable summaries. Borrow the PATTERNS that make them great, never their visuals, names, icons, copy, or assets. AnyGym keeps its own black and lime identity.
+
+### 21.1 From Hevy (logging that lifters love)
+- The set table on the exercise view: columns SET · LAST TIME · WEIGHT · REPS · ✓. "Last time" shows exactly what they did in that set last session; tapping it copies those numbers into the row. Combined with our prefilled Next targets (SPEC 20), most sets are just the ✓.
+- Checking a set: the row turns a satisfying lime tint with a smooth check animation and a light haptic style bounce; the rest timer starts for that exercise.
+- Rest timer is per exercise (editable on the exercise), shown as a slim bar at the bottom of the screen with time left, +15 / -15, and Skip. It keeps counting if the user leaves the screen.
+- Set types as a tiny tap target on the set number: normal, W (warm up), D (drop set), F (to failure). Warm ups never count toward progress or PRs.
+- Live workout header: elapsed time, total sets done, total lifted, always visible but compact.
+- Exercise menu (⋯ on each exercise): Replace (our swap engine), Reorder, Make a pair (superset), Add note, Rest time, Remove. Pairs get a colored rail.
+- Finish screen celebrates: PRs called out with a trophy style badge per lift (heaviest weight, best set volume, most reps at a weight), duration, sets, total lifted, a muscles worked body map, and a share card.
+- Exercise detail page has tabs: How to (demo, cues), History (every past session for that lift), Charts (best weight, estimated strength trend, total lifted), Records.
+- A contextual one time tip explains dumbbell weight entry ("Enter the weight of one dumbbell").
+- Profile shows a weekly workout calendar with streak dots and a muscles trained this week heat map.
+
+### 21.2 From Bevel (beautiful, calm, smart)
+- Home is a small set of cards the user can reorder or hide (edit mode with drag handles). Default cards: Today's workout, Weekly goal ring, Coach, Recent PR, Passport teaser.
+- Big, calm rings and scores with one number and one word ("3 of 4 · On track"). Every score has a "Learn more" sheet in plain words instead of cluttering the card.
+- The coach speaks like a person: short, specific, kind, actionable ("Legs recovered. Good day to push squats."), and explains why in one tap.
+- Muscle load visual after a workout: a front and back body map heating up by muscles worked this week, so users see balance at a glance.
+- Never a blank, demotivating home: a brand new user sees a friendly, filled first day (today's plan, a goal ring at 0 of N with "Let's start", and one coach tip).
+- Playful micro interactions in moderation (a morphing slider for "How did that feel?", smooth number count ups on the finish screen).
+- Fix what reviewers dislike in Bevel: adding exercises one by one takes too many taps, so our exercise picker supports multi select (tap several, then Add 4).
+
+### 21.3 Avoid
+- Paywalls, upsell screens, or ads (none in AnyGym v1).
+- Long onboarding without visible progress (our intake shows progress and stays near 2 minutes).
+- Dense tables with tiny text; everything respects SPEC 13 sizes.

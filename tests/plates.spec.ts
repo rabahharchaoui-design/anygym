@@ -72,7 +72,11 @@ const expectRealBar = async (page: Page) => {
       const right = [...document.querySelectorAll('[data-plate][data-side="right"]')];
       const drawn = [...new Set(right.map((e) => e.getAttribute('data-weight')))].sort();
       const onPlate = right.filter((e) => e.querySelector('text')).map((e) => e.getAttribute('data-weight'));
-      const under = [...document.querySelectorAll('[data-testid="remove-right"] [data-under-label]')].map((e) => String(Number(e.textContent)));
+      const underEls = [...document.querySelectorAll('[data-testid="remove-right"] [data-under-label]')];
+      const under = underEls.map((e) => e.getAttribute('data-weight'));
+      // Never fewer labels than plates: an upright label names its plate, an under label its count.
+      const labelled = right.filter((e) => e.querySelector('text')).length + underEls.reduce((n, e) => n + Number(e.getAttribute('data-count')), 0);
+      if (labelled !== right.length) return { drawn, named: [`${labelled} labels for ${right.length} plates`] };
       return { drawn, named: [...new Set([...onPlate, ...under])].sort() };
     });
   await expect.poll(async () => { const n = await naming(); return n.named.join() === n.drawn.join() ? 'ok' : JSON.stringify(n); }).toBe('ok');

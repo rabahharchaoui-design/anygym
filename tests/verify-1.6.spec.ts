@@ -57,10 +57,10 @@ test('1.6 tap targets and wheel snap', async ({ page }) => {
   await check(sec(page, 'single').getByRole('option'), 'single opt');
   await check(sec(page, 'stack').getByRole('radio'), 'stack pin');
   await check(sec(page, 'stack').getByRole('button'), 'stack btn');
-  await sec(page, 'stack').getByRole('button', { name: '+ added' }).tap();
+  await sec(page, 'stack').getByRole('button', { name: 'Add weight' }).tap();
   await check(sec(page, 'stack').getByRole('button'), 'stack btn2');
   await check(sec(page, 'bodyweight').getByRole('button'), 'bw btn');
-  await sec(page, 'bodyweight').getByRole('button', { name: '+ added weight' }).tap();
+  await sec(page, 'bodyweight').getByRole('button', { name: 'Add weight' }).tap();
   await check(sec(page, 'bodyweight').getByRole('button'), 'bw btn2');
   await check(sec(page, 'plate-machine').getByRole('button'), 'pm btn');
   await check(sec(page, 'timed').getByRole('button'), 'timed btn');
@@ -93,7 +93,7 @@ test('1.6 wheel range and huge/zero added', async ({ page }) => {
   console.log('WHEEL', names.join(','));
   const bw = sec(page, 'bodyweight');
   await bw.scrollIntoViewIfNeeded();
-  await bw.getByRole('button', { name: '+ added weight' }).tap();
+  await bw.getByRole('button', { name: 'Add weight' }).tap();
   const pad = bw.getByRole('group', { name: 'Added weight' });
   for (const ch of '9999') await pad.getByRole('button', { name: ch, exact: true }).tap();
   console.log('J9999', await page.getByTestId('json-bodyweight').textContent());

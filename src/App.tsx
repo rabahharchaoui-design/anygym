@@ -9,6 +9,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { WorkoutScreen } from './screens/workout/WorkoutScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
 import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
+import { InfoDevScreen } from './screens/dev/InfoDevScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
 
 const DEV_TOOLS = devToolsEnabled();
@@ -20,6 +21,7 @@ export function App() {
       <Routes>
         {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
+        {DEV_TOOLS && <Route path="dev/info" element={<InfoDevScreen />} />}
         <Route path="workout/:sessionId" element={<WorkoutScreen />} />
         <Route element={<AppShell />}>
           <Route index element={<TodayScreen />} />

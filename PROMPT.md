@@ -34,6 +34,13 @@ TEST NOW PUSHES (G wants to know when to open the app and what to try)
 - Skip test now pushes for behind the scenes items (math libraries, test harness, data schema) unless they change what he sees.
 - Also append each test now message, with the time and item id, to reports/test-now.md so he can scroll back through them.
 
+CODEX (second opinion from G's ChatGPT plan, optional)
+- If `command -v codex` succeeds: after the tester PASSES an item and before you commit it, ask Codex for an independent read only review, running in the foreground with a 10 minute Bash timeout:
+  `codex exec --sandbox read-only "Review the uncommitted changes in this repo for PLAN item <id> against SPEC.md. Do not edit anything. List only real bugs, wrong math, data loss risks, small iPhone layout breaks, or SPEC violations, each with file, line, and the exact fix. Max 8, worst first. Say NONE if it is clean." -o reports/codex/<id>.md`
+- Treat its findings as a second reviewer's opinion, not orders. Send real BLOCKER or MAJOR issues to the builder, ignore nitpicks and anything that contradicts SPEC.md. One Codex review per item, never loop on it.
+- If codex is missing, not logged in, out of usage, or errors, skip it silently and continue. Codex never edits files and never commits.
+- When you resume after a usage limit, read any new reports/codex/bughunt-*.md (written by a helper while you were paused). Turn real BLOCKER and MAJOR findings into a short fix item at the top of the remaining queue in PLAN.md (for example "1.7d Codex bug hunt fixes"), then continue.
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 

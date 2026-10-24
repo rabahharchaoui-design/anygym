@@ -80,9 +80,9 @@ export function prefillLoad(
 
 export const LOAD_TYPE_CHOICES: Array<{ kind: Load['kind']; label: string; hint: string }> = [
   { kind: 'barbell', label: 'Plates on a bar', hint: 'Barbell' },
-  { kind: 'dumbbell_each', label: 'Dumbbells', hint: 'Each hand' },
+  { kind: 'dumbbell_each', label: 'Dumbbells', hint: 'One in each hand' },
   { kind: 'single', label: 'One weight', hint: 'Kettlebell, goblet' },
-  { kind: 'stack', label: 'Stack with a pin', hint: 'Cable or machine' },
+  { kind: 'stack', label: 'Machine with a pin', hint: 'Cable or machine' },
   { kind: 'plate_machine', label: 'Plates on a machine', hint: 'Leg press, hack squat' },
   { kind: 'bodyweight', label: 'Bodyweight', hint: 'Just you' },
   { kind: 'timed', label: 'Timed', hint: 'Hold or stretch' },

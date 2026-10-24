@@ -1,0 +1,92 @@
+/* SPEC 13.7: a subtle ⓘ (secondary colour, 24 pt glyph, 48 pt hit area) and its sheet. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  /* The hit area is 48 pt; the negative margin keeps it from pushing the text around. */
+  margin: -12px;
+  color: var(--text-2);
+  border-radius: var(--radius-pill);
+  vertical-align: middle;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    opacity var(--dur-press) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-1);
+}
+
+.art {
+  align-self: center;
+  width: min(100%, 280px);
+  aspect-ratio: 160 / 120;
+  color: var(--text);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  padding: var(--space-3);
+}
+
+.art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.term {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.sentences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sentences p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--text);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.weight {
+  margin: 0;
+  align-self: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+}
+
+.done {
+  width: 100%;
+  height: 52px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 17px;
+}

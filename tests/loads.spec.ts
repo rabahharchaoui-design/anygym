@@ -37,7 +37,10 @@ test('dumbbell wheel: tap, double tap, and swipe to pick', async ({ page }) => {
   await open(page);
   const s = section(page, 'dumbbell');
   await expectJson(page, 'dumbbell', null);
-  await expect(s.getByText('each hand')).toBeVisible();
+  await expect(s.getByTestId('picker-title')).toHaveText('Dumbbells · weight of one');
+  await expect(s.getByText('You hold one in each hand', { exact: true })).toBeVisible();
+  await expect(s.locator('[data-picture]')).toHaveCount(1); // one clean dumbbell, no stacked icons
+  await expect(s.locator('[data-picture="dumbbell"]')).toBeVisible();
 
   await s.getByRole('option', { name: '30 lb', exact: true }).tap();
   await expectJson(page, 'dumbbell', { kind: 'dumbbell_each', unit: 'lb', total: 60 });
@@ -59,7 +62,7 @@ test('dumbbell wheel: tap, double tap, and swipe to pick', async ({ page }) => {
 
   await s.getByRole('option', { name: '30 lb', exact: true }).tap();
   await expectJson(page, 'dumbbell', { kind: 'dumbbell_each', unit: 'lb', total: 60 });
-  await shot(s, 'dumbbell-each-hand');
+  await shot(s, 'dumbbells');
 
   const box = (await s.getByRole('option', { name: '30 lb', exact: true }).boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(48);
@@ -67,16 +70,19 @@ test('dumbbell wheel: tap, double tap, and swipe to pick', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('single weight: held', async ({ page }) => {
+test('single weight: one weight, both hands', async ({ page }) => {
   const errors = watchErrors(page);
   await open(page);
   const s = section(page, 'single');
   await s.scrollIntoViewIfNeeded();
-  await expect(s.getByText('held', { exact: true })).toBeVisible();
+  await expect(s.getByTestId('picker-title')).toHaveText('One weight · both hands');
+  await expect(s.getByText('Goblet squat, kettlebell swing', { exact: true })).toBeVisible();
+  await expect(s.locator('[data-picture="upright dumbbell"]')).toBeVisible();
+  await expect(section(page, 'kettlebell').locator('[data-picture="kettlebell"]')).toBeVisible();
   await s.getByRole('option', { name: '35 lb', exact: true }).tap();
   await expectJson(page, 'single', { kind: 'single', unit: 'lb', total: 35 });
   await expect(s.getByTestId('wheel-total')).toHaveText('35lb');
-  await shot(s, 'single-held');
+  await shot(s, 'single-weight');
   expect(errors).toEqual([]);
 });
 
@@ -90,13 +96,14 @@ test('stack: tap a pin, add weight, change the step', async ({ page }) => {
   await pins.nth(2).tap();
   await expectJson(page, 'stack', { kind: 'stack', unit: 'lb', total: 15, stackValue: 15 });
   await expect(s.getByTestId('stack-total')).toHaveText('15lb');
-  await expect(s.getByText('stack', { exact: true })).toBeVisible();
+  await expect(s.getByTestId('picker-title')).toHaveText('Machine · pick the pin');
+  await expect(s.getByTestId('stack-sub')).toHaveText('Use the number next to the pin on the weight stack');
   await pins.nth(2).dblclick();
   await expectJson(page, 'stack', { kind: 'stack', unit: 'lb', total: 15, stackValue: 15 });
   await shot(s, 'stack');
 
-  // "+ added": a double tap leaves it on.
-  const toggle = s.getByRole('button', { name: '+ added' });
+  // "Add weight": a double tap leaves it on.
+  const toggle = s.getByRole('button', { name: 'Add weight' });
   await toggle.dblclick();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await typeOnPad(s.getByRole('group', { name: 'Added weight on the pin' }), '5');
@@ -107,9 +114,9 @@ test('stack: tap a pin, add weight, change the step', async ({ page }) => {
   await expectJson(page, 'stack', { kind: 'stack', unit: 'lb', total: 15, stackValue: 15 });
 
   // First use step question: 10.
-  await s.getByRole('button', { name: 'Step 5 · Change' }).tap();
-  const sheet = page.getByRole('dialog', { name: 'Stack step' });
-  await expect(sheet.getByText('Does this stack go up by 5, 10, or other?')).toBeVisible();
+  await s.getByRole('button', { name: 'Steps of 5 · Change' }).tap();
+  const sheet = page.getByRole('dialog', { name: 'Weight steps' });
+  await expect(sheet.getByText('Do the plates on this machine go up by 5, 10, or other?')).toBeVisible();
   await shot(sheet, 'stack-step-sheet');
   await sheet.getByRole('button', { name: 'Goes up by 10 lb' }).tap();
   await expect(sheet).toBeHidden();
@@ -126,7 +133,7 @@ test('plate machine: honest "+ start" until answered, then Plates only and a typ
   const s = section(page, 'plate-machine');
   await s.scrollIntoViewIfNeeded();
   await expect(s.getByRole('img', { name: 'Machine horn' })).toBeVisible();
-  await expect(s.getByText('per side', { exact: true })).toBeVisible();
+  await expect(s.getByTestId('picker-title')).toHaveText('Machine · plates per side');
 
   await s.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
   await s.getByRole('button', { name: 'Add 25 lb plate to each side' }).tap();
@@ -164,13 +171,13 @@ test('plate machine: honest "+ start" until answered, then Plates only and a typ
   expect(errors).toEqual([]);
 });
 
-test('bodyweight: + added weight 25', async ({ page }) => {
+test('bodyweight: your bodyweight, add weight 25', async ({ page }) => {
   const errors = watchErrors(page);
   await open(page);
   const s = section(page, 'bodyweight');
   await s.scrollIntoViewIfNeeded();
-  await expect(s.locator('p', { hasText: /^Bodyweight$/ })).toBeVisible();
-  const toggle = s.getByRole('button', { name: '+ added weight' });
+  await expect(s.getByTestId('picker-title')).toHaveText('Your bodyweight');
+  const toggle = s.getByRole('button', { name: 'Add weight' });
   await toggle.dblclick();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await typeOnPad(s.getByRole('group', { name: 'Added weight' }), '25');

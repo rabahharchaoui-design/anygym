@@ -12,7 +12,7 @@ type Props = {
   onChange: (load: Load) => void;
 };
 
-/** Bodyweight (SPEC 5.2): reps only, with an optional "+ added weight" (vest, belt, plate). */
+/** Bodyweight (SPEC 5.2, 13.6): "Your bodyweight", reps only, with an optional "Add weight" (vest, belt, plate). */
 export function BodyweightInput({ unit, value, onChange }: Props) {
   const own = value?.kind === 'bodyweight' ? value : null;
   const [on, setOn] = useState((own?.added ?? 0) > 0);
@@ -32,7 +32,9 @@ export function BodyweightInput({ unit, value, onChange }: Props) {
   return (
     <div className={base.root}>
       <div className={base.readout}>
-        <p className={styles.word}>Bodyweight</p>
+        <p className={styles.word} data-testid="picker-title">
+          Your bodyweight
+        </p>
         <p className={`${base.sub} ${styles.added}`} data-testid="bodyweight-added" aria-live="polite">
           {own?.added ? (
             <>
@@ -44,7 +46,7 @@ export function BodyweightInput({ unit, value, onChange }: Props) {
         </p>
       </div>
       <button type="button" className={`${base.toggle} pressable`} aria-pressed={on} onClick={toggle}>
-        + added weight
+        Add weight
       </button>
       {on && <AddedWeightField unit={unit} value={added} onChange={change} label="Added weight" />}
     </div>
