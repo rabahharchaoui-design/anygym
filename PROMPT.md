@@ -23,6 +23,9 @@ MERGE GATE (the last item of each session)
 - If the gate fails, do NOT merge. Leave the branch, explain in the report, and continue with the next session only if it does not depend on the failed work.
 - Optional phone alert: if ~/.config/pocketsim/ntfy-topic exists, send one short message at each merge gate: `curl -s -d "AnyGym: session N merged and live" "ntfy.sh/$(cat ~/.config/pocketsim/ntfy-topic)"`. Never write the topic into the repo.
 
+CHECKPOINTS
+Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. Master is always usable and saved data is never lost.
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 
@@ -32,3 +35,9 @@ HARD RULES
 - Never touch other repos on this machine (especially ~/projects/kgeu-flight).
 - Keep terminal output short. No long logs or code dumps.
 - If you hit a usage limit, just stop. The launcher resumes you later and you pick up from PLAN.md.
+
+UNATTENDED RUN RULES (you run headless, nobody is watching)
+- Run every command in the foreground and wait for it to finish. Never start tests, builds or dev servers in the background, and never end your turn to wait for something. Ending the turn kills background work.
+- Servers that tests need are started and stopped by Playwright's webServer config, not by hand.
+- Never ask questions or wait for input. Decide using SPEC.md and note the decision in the session report.
+- Keep going item after item until the STOP line or a usage limit.
