@@ -13,6 +13,7 @@ import {
   hornLayout,
   labelSize,
   outermost,
+  runLabel,
   textWidth,
   withPlates,
   withoutOutermost,
@@ -134,6 +135,50 @@ describe('barLayout', () => {
 
   it('never returns a negative scale for a tiny width', () => {
     expect(lay('lb', [45], LB, 10).scale).toBe(0);
+  });
+});
+
+describe('under labels name every plate (PLAN 1.7b)', () => {
+  const named = (l: ReturnType<typeof barLayout>, side: 'left' | 'right') =>
+    l.plates.filter((p) => p.side === side && p.label !== null).length +
+    l.labels.filter((u) => u.side === side).reduce((n, u) => n + u.count, 0);
+
+  it('315 lb: three 45s per side read "3×45", not a lone "45"', () => {
+    for (const width of [300, 340, 400]) {
+      const l = barLayout({ unit: 'lb', perSide: [45, 45, 45], inventory: LB, width, height: 96, labelOf: formatAmount, labelBand: LABEL_BAND });
+      for (const side of ['left', 'right'] as const) {
+        expect(named(l, side)).toBe(3);
+        const own = l.labels.filter((u) => u.side === side);
+        if (own.length) expect(own.map((u) => u.text)).toEqual(['3×45']);
+      }
+    }
+  });
+
+  it('never fewer labels than plates on phone widths, lb and kg', () => {
+    const PHONES = [264, 288, 340, 400];
+    const loads: Array<['lb' | 'kg', number[], readonly number[], number[]]> = [
+      ['lb', [45, 45, 25, 10, 5, 2.5], LB, PHONES],
+      ['lb', [45, 45, 45, 45], LB, PHONES],
+      ['lb', [45, 25], LB, PHONES],
+      ['kg', [20, 20, 20], KG, PHONES],
+      ['kg', [25, 20, 10, 5, 2.5], KG, PHONES],
+      // Seven different plates per side only fit from a normal phone width up.
+      ['kg', [25, 25, 20, 10, 5, 2.5, 1.25], KG, [340, 400]],
+    ];
+    for (const [unit, perSide, inv, widths] of loads) {
+      for (const width of widths) {
+        for (const height of [96, 168]) {
+          const l = barLayout({ unit, perSide, inventory: inv, width, height, labelOf: formatAmount, labelBand: LABEL_BAND });
+          expect(named(l, 'right'), `${unit} ${perSide.join('+')} @${width}x${height}`).toBe(perSide.length);
+          expect(named(l, 'left')).toBe(perSide.length);
+        }
+      }
+    }
+  });
+
+  it('runLabel', () => {
+    expect(runLabel(1, '45')).toBe('45');
+    expect(runLabel(3, '2.5')).toBe('3×2.5');
   });
 });
 

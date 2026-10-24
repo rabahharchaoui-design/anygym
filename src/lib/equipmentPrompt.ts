@@ -6,6 +6,8 @@ export type PromptKind = 'smith' | 'plate_machine' | 'stack' | 'ez_curl' | 'trap
 
 export type Prompt = {
   title: string;
+  /** Glossary id for the ⓘ next to the title (SPEC 13.7). */
+  info: string;
   question: string;
   /** The one non number answer, e.g. "Plates only". */
   alternative?: { label: string; entry: EquipmentWeight };
@@ -22,6 +24,7 @@ export function promptFor(kind: PromptKind, unit: Unit): Prompt {
     case 'smith':
       return {
         title: 'Smith machine bar',
+        info: 'smith-machine',
         question: 'Enter the bar weight (usually on a sticker on the frame).',
         alternative: { label: 'Count plates only', entry: PLATES_ONLY },
         save: 'Save bar weight',
@@ -29,21 +32,23 @@ export function promptFor(kind: PromptKind, unit: Unit): Prompt {
     case 'plate_machine':
       return {
         title: 'Starting weight',
+        info: 'plate-loaded-machine',
         question: 'Enter the listed starting resistance, or count plates only.',
         alternative: { label: 'Plates only', entry: PLATES_ONLY },
         save: 'Save starting weight',
       };
     case 'stack':
       return {
-        title: 'Stack step',
-        question: `Does this stack go up by ${unit === 'lb' ? '5, 10' : '2.5, 5'}, or other?`,
+        title: 'Weight steps',
+        info: 'weight-stack-machine',
+        question: `Do the plates on this machine go up by ${unit === 'lb' ? '5, 10' : '2.5, 5'}, or other?`,
         chips: unit === 'lb' ? [5, 10] : [2.5, 5],
         save: 'Save step',
       };
     case 'ez_curl':
-      return { title: 'EZ curl bar', question: 'Enter the bar weight.', save: 'Save bar weight' };
+      return { title: 'EZ curl bar', info: 'ez-curl-bar', question: 'Enter the bar weight.', save: 'Save bar weight' };
     case 'trap':
-      return { title: 'Trap bar', question: 'Enter the bar weight.', save: 'Save bar weight' };
+      return { title: 'Trap bar', info: 'trap-bar', question: 'Enter the bar weight.', save: 'Save bar weight' };
   }
 }
 

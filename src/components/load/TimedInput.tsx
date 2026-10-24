@@ -28,7 +28,7 @@ const R = 104;
 const C = 2 * Math.PI * R;
 const TICK_MS = 200;
 
-/** Timed (SPEC 5.2): a big start/stop timer. Time is read from Date.now(), so it stays right in the background. */
+/** Timed (SPEC 5.2, 13.6): "Hold for" and a big start/stop timer, only on timed exercises. Time is read from Date.now(), so it stays right in the background. */
 export function TimedInput({ unit, targetSeconds, onChange, onSeconds }: Props) {
   const [watch, setWatch] = useState<Stopwatch>(STOPPED);
   const [now, setNow] = useState(() => Date.now());
@@ -72,6 +72,9 @@ export function TimedInput({ unit, targetSeconds, onChange, onSeconds }: Props) 
 
   return (
     <div className={base.root}>
+      <p className={`${base.label} ${styles.title}`} data-testid="picker-title">
+        Hold for
+      </p>
       <button
         type="button"
         className={`${styles.dial} pressable`}

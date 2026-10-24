@@ -262,10 +262,11 @@
 }
 
 .perSide {
-  margin: calc(-1 * var(--space-2)) 0 0;
+  /* Breathing room under the plate labels (≥ 8px with the root gap). */
+  margin: 6px 0 0;
   text-align: center;
-  color: var(--text-2);
-  font-size: var(--text-sm);
+  color: var(--text);
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }

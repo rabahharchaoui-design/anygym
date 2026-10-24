@@ -218,6 +218,8 @@ export function BarSvg({ layout, unit, colorMode, reduce, band, outer, onRemove 
                   key={`${l.side}-${l.weight}`}
                   className={styles.underLabel}
                   data-under-label={l.text}
+                  data-weight={l.weight}
+                  data-count={l.count}
                   y={l.y}
                   fontSize={l.size}
                   textAnchor="middle"

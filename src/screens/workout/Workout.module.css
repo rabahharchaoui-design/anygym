@@ -169,8 +169,8 @@
 .card[data-expanded='true'] {
   padding: 8px 10px;
   border-color: #33333a;
-  /* The one row plate tray runs to the card edges so seven plates stay 48pt wide on a 375 phone. */
-  --tray-bleed: 10px;
+  /* The one row plate tray runs wide so plates stay 48pt on a 375 phone, but never touches the card edge. */
+  --tray-bleed: 4px;
 }
 
 /* Not current: one line, name and the last set. */

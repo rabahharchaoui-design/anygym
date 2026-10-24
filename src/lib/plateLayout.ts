@@ -28,6 +28,8 @@ const MAX_LABEL = 13;
 const CHAR_EM = 0.62;
 /** Font size of the labels in the band under the plates. */
 export const UNDER_LABEL = 11;
+/** Fallback size for a crowded side, so every plate keeps its label. */
+export const SMALL_UNDER_LABEL = 9;
 /** Height of the label band a caller should reserve for UNDER_LABEL text. */
 export const LABEL_BAND = 16;
 
@@ -50,6 +52,8 @@ export type PlateRect = {
 export type UnderLabel = {
   side: Side;
   weight: number;
+  /** How many plates of this weight the label names (a run of 3 reads "3×45"). */
+  count: number;
   text: string;
   /** Centre x of the text. */
   x: number;
@@ -99,43 +103,68 @@ export function labelSize(plateWidth: number, plateHeight: number, text: string)
 
 /**
  * Labels for runs of unlabelled plates, placed in the band under the plates. Each run of the same
- * weight gets one label centred under it; a label that would touch the previous one slides
+ * weight gets one label centred under it that names every plate in the run ("3×45" for three
+ * 45s, never a lone "45" for three plates); a label that would touch the previous one slides
  * outward along the sleeve. Labels that would leave the drawing are dropped (the math line and
  * the tray still name every plate).
  */
 export function underLabels(plates: readonly PlateRect[], width: number, bandTop: number, labelOf: (w: number) => string): UnderLabel[] {
+  // A crowded side first tries the readable size, then a smaller one, so no plate goes unnamed.
   const out: UnderLabel[] = [];
-  const size = UNDER_LABEL;
-  const y = bandTop + LABEL_BAND / 2;
   for (const side of ['right', 'left'] as const) {
-    const own = plates.filter((p) => p.side === side).sort((a, b) => a.index - b.index);
-    // Runs of the same weight, innermost first.
-    const runs: PlateRect[][] = [];
-    for (const p of own) {
-      const last = runs[runs.length - 1];
-      if (last && last[0]!.weight === p.weight) last.push(p);
-      else runs.push([p]);
+    let best: UnderLabel[] = [];
+    for (const size of [UNDER_LABEL, SMALL_UNDER_LABEL]) {
+      const { labels, complete } = sideLabels(plates, side, width, bandTop, labelOf, size);
+      best = labels;
+      if (complete) break;
     }
-    let edge = side === 'right' ? -Infinity : Infinity; // outer edge of the previous label
-    for (const run of runs) {
-      if (run[0]!.label !== null) {
-        // Upright on the plate: later labels only need to clear these plates.
-        const lastP = run[run.length - 1]!;
-        edge = side === 'right' ? Math.max(edge, lastP.x + lastP.width) : Math.min(edge, lastP.x);
-        continue;
-      }
-      const text = labelOf(run[0]!.weight);
-      const half = textWidth(text, size) / 2;
-      const lo = Math.min(...run.map((p) => p.x));
-      const hi = Math.max(...run.map((p) => p.x + p.width));
-      const anchor = (lo + hi) / 2;
-      const x = side === 'right' ? Math.max(anchor, edge + 3 + half) : Math.min(anchor, edge - 3 - half);
-      if (x - half < PAD || x + half > width - PAD) break;
-      out.push({ side, weight: run[0]!.weight, text, x, anchor, y, size });
-      edge = side === 'right' ? x + half : x - half;
-    }
+    out.push(...best);
   }
   return out;
+}
+
+function sideLabels(
+  plates: readonly PlateRect[],
+  side: Side,
+  width: number,
+  bandTop: number,
+  labelOf: (w: number) => string,
+  size: number,
+): { labels: UnderLabel[]; complete: boolean } {
+  const out: UnderLabel[] = [];
+  const y = bandTop + LABEL_BAND / 2;
+  const own = plates.filter((p) => p.side === side).sort((a, b) => a.index - b.index);
+  // Runs of the same weight, innermost first.
+  const runs: PlateRect[][] = [];
+  for (const p of own) {
+    const last = runs[runs.length - 1];
+    if (last && last[0]!.weight === p.weight) last.push(p);
+    else runs.push([p]);
+  }
+  let edge = side === 'right' ? -Infinity : Infinity; // outer edge of the previous label
+  for (const run of runs) {
+    if (run[0]!.label !== null) {
+      // Upright on the plate: later labels only need to clear these plates.
+      const lastP = run[run.length - 1]!;
+      edge = side === 'right' ? Math.max(edge, lastP.x + lastP.width) : Math.min(edge, lastP.x);
+      continue;
+    }
+    const text = runLabel(run.length, labelOf(run[0]!.weight));
+    const half = textWidth(text, size) / 2;
+    const lo = Math.min(...run.map((p) => p.x));
+    const hi = Math.max(...run.map((p) => p.x + p.width));
+    const anchor = (lo + hi) / 2;
+    const x = side === 'right' ? Math.max(anchor, edge + 3 + half) : Math.min(anchor, edge - 3 - half);
+    if (x - half < PAD || x + half > width - PAD) return { labels: out, complete: false };
+    out.push({ side, weight: run[0]!.weight, count: run.length, text, x, anchor, y, size });
+    edge = side === 'right' ? x + half : x - half;
+  }
+  return { labels: out, complete: true };
+}
+
+/** Label for a run of identical plates: "45" for one, "3×45" for three. */
+export function runLabel(count: number, text: string): string {
+  return count > 1 ? `${count}×${text}` : text;
 }
 
 export type LayoutInput = {

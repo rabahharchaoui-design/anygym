@@ -209,7 +209,7 @@ test('unknown exercise: asked once how it is loaded, remembered after reload', a
   await expect(ask).toBeVisible();
   await expect(ask.getByRole('button')).toHaveCount(7);
   await shot(page, 'load-type-sheet');
-  await ask.getByRole('button', { name: /Stack with a pin/ }).tap();
+  await ask.getByRole('button', { name: /Machine with a pin/ }).tap();
   await expect(ask).toHaveCount(0);
   const card = page.getByTestId('exercise-leg-press');
   await expect(card.getByRole('radiogroup', { name: 'Pin position' })).toBeVisible();

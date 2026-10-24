@@ -8,7 +8,7 @@
 }
 
 .readout {
-  height: 112px;
+  min-height: 112px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -44,11 +44,21 @@
   letter-spacing: 0;
 }
 
+/* Picker title (SPEC 13.6), e.g. "Dumbbells · weight of one". */
 .label {
-  color: var(--text-2);
-  font-size: var(--text-sm);
+  color: var(--text);
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+}
+
+/* One helper line max (SPEC 13.6); on the narrowest phones it may wrap, never cut off. */
+.helper {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.25;
+  max-width: 100%;
+  text-wrap: balance;
 }
 
 .sub {
@@ -73,6 +83,13 @@
   font-size: var(--text-base);
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* A link with its ⓘ right after it (SPEC 13.7). */
+.linkWithInfo {
+  display: inline-flex;
+  align-items: center;
+  padding-right: 12px;
 }
 
 .link:disabled {

@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import type { DumbbellRange, Load, Unit } from '../../db/types';
 import { dumbbellLoad, dumbbellsInRange, formatAmount, formatWeight, heldWeightOf, singleLoad } from '../../lib/load';
 import { SPRING } from '../motion';
+import { DumbbellPicture, KettlebellPicture, UprightDumbbellPicture } from './PickerArt';
 import { Hint } from '../hint/Hint';
 import base from './LoadInput.module.css';
 import styles from './DumbbellWheel.module.css';
@@ -12,8 +13,10 @@ type Props = {
   unit: Unit;
   /** The gym's dumbbell range; null = the gym has no dumbbells. */
   range: DumbbellRange | null;
-  /** 'dumbbell_each': a pair, label "each hand". 'single': one held weight, label "held". */
+  /** 'dumbbell_each': a pair, you pick the weight of one. 'single': one weight in both hands. */
   mode: 'dumbbell_each' | 'single';
+  /** Picks the picture for one weight: a kettlebell for kettlebell moves, else an upright dumbbell. */
+  exerciseName?: string;
   value: Load | null;
   onChange: (load: Load) => void;
 };
@@ -23,7 +26,13 @@ const ITEM = 68;
 const SETTLE_MS = 110;
 
 /** Dumbbell wheel (SPEC 5.2): a horizontal snapping wheel over the gym's dumbbell range. */
-export function DumbbellWheel({ unit, range, mode, value, onChange }: Props) {
+/** SPEC 13.6 labels: plain words, one helper line. */
+export const WHEEL_COPY = {
+  dumbbell_each: { title: 'Dumbbells · weight of one', helper: 'You hold one in each hand' },
+  single: { title: 'One weight · both hands', helper: 'Goblet squat, kettlebell swing' },
+} as const;
+
+export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName }: Props) {
   if (!range) {
     return (
       <div className={base.empty}>
@@ -34,10 +43,10 @@ export function DumbbellWheel({ unit, range, mode, value, onChange }: Props) {
       </div>
     );
   }
-  return <Wheel unit={unit} range={range} mode={mode} value={value} onChange={onChange} />;
+  return <Wheel unit={unit} range={range} mode={mode} value={value} onChange={onChange} exerciseName={exerciseName} />;
 }
 
-function Wheel({ unit, range, mode, value, onChange }: Props & { range: DumbbellRange }) {
+function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props & { range: DumbbellRange }) {
   const reduce = useReducedMotion();
   const weights = useMemo(() => dumbbellsInRange(range), [range]);
   const selected = value?.kind === mode ? heldWeightOf(value) : null;
@@ -139,17 +148,23 @@ function Wheel({ unit, range, mode, value, onChange }: Props & { range: Dumbbell
   };
 
   const shown = selectedIndex >= 0 ? weights[centered] : null;
-  const label = mode === 'dumbbell_each' ? 'each hand' : 'held';
+  const copy = WHEEL_COPY[mode];
+  const picture = mode === 'dumbbell_each' ? 'dumbbell' : /kettlebell/i.test(exerciseName) ? 'kettlebell' : 'upright';
 
   return (
     <div className={base.root}>
       <div className={base.readout}>
-        <DumbbellGlyph pair={mode === 'dumbbell_each'} bump={shown ?? -1} reduce={!!reduce} />
         <p className={`${base.total} num`} aria-live="polite" data-testid="wheel-total">
           {shown == null ? <span className={base.placeholder}>–</span> : formatAmount(shown)}
           <span className={base.unit}>{unit}</span>
         </p>
-        <p className={base.label}>{label}</p>
+        <div className={styles.titleRow}>
+          <Picture kind={picture} bump={shown ?? -1} reduce={!!reduce} />
+          <p className={base.label} data-testid="picker-title">
+            {copy.title}
+          </p>
+        </div>
+        <p className={base.helper}>{copy.helper}</p>
       </div>
 
       <div className={styles.wheelOuter}>
@@ -160,7 +175,7 @@ function Wheel({ unit, range, mode, value, onChange }: Props & { range: Dumbbell
             ref={trackRef}
             className={styles.track}
             role="listbox"
-            aria-label={mode === 'dumbbell_each' ? 'Dumbbell weight, each hand' : 'Weight held'}
+            aria-label={mode === 'dumbbell_each' ? 'Weight of one dumbbell' : 'Weight'}
             aria-orientation="horizontal"
             tabIndex={0}
             onScroll={onScroll}
@@ -206,39 +221,17 @@ function Wheel({ unit, range, mode, value, onChange }: Props & { range: Dumbbell
   );
 }
 
-/** A drawn dumbbell (or a pair). Pops slightly each time the weight changes. */
-function DumbbellGlyph({ pair, bump, reduce }: { pair: boolean; bump: number; reduce: boolean }) {
-  const one = (
-    <g>
-      <rect x="6" y="11" width="5" height="18" rx="1.5" />
-      <rect x="11" y="7" width="6" height="26" rx="2" />
-      <rect x="17" y="18" width="30" height="4" rx="2" opacity="0.75" />
-      <rect x="47" y="7" width="6" height="26" rx="2" />
-      <rect x="53" y="11" width="5" height="18" rx="1.5" />
-    </g>
-  );
+/** The one picture for this picker. Pops slightly each time the weight changes. */
+function Picture({ kind, bump, reduce }: { kind: 'dumbbell' | 'kettlebell' | 'upright'; bump: number; reduce: boolean }) {
   return (
-    <motion.svg
+    <motion.span
       key={bump}
       className={styles.glyph}
-      viewBox="0 0 64 56"
-      width="56"
-      height="40"
-      aria-hidden="true"
       initial={reduce ? false : { scale: 0.92 }}
       animate={{ scale: 1 }}
       transition={SPRING}
     >
-      {pair ? (
-        <>
-          <g transform="translate(0 -4)">{one}</g>
-          <g transform="translate(0 18)" opacity="0.55">
-            {one}
-          </g>
-        </>
-      ) : (
-        <g transform="translate(0 8)">{one}</g>
-      )}
-    </motion.svg>
+      {kind === 'dumbbell' ? <DumbbellPicture /> : kind === 'kettlebell' ? <KettlebellPicture /> : <UprightDumbbellPicture />}
+    </motion.span>
   );
 }

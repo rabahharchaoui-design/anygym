@@ -6,6 +6,7 @@ import { useTapGuard } from '../../hooks/useTapGuard';
 import { AddedWeightField } from './AddedWeightField';
 import { EquipmentWeightSheet } from './EquipmentWeightSheet';
 import { Hint } from '../hint/Hint';
+import { InfoButton } from '../info/InfoButton';
 import base from './LoadInput.module.css';
 import styles from './StackSelector.module.css';
 
@@ -18,6 +19,9 @@ type Props = {
 };
 
 const ROW = 48;
+
+/** SPEC 13.6 labels. */
+export const STACK_COPY = { title: 'Machine · pick the pin', helper: 'Use the number next to the pin on the weight stack' } as const;
 
 /**
  * Stack selector (SPEC 5.2): a vertical pin style list of stack plates; tap a plate to set the
@@ -68,9 +72,11 @@ export function StackSelector({ gym, machineId, value, onChange }: Props) {
           {own ? formatAmount(own.total) : <span className={base.placeholder}>–</span>}
           <span className={base.unit}>{unit}</span>
         </p>
-        <p className={base.label}>stack</p>
-        <p className={base.sub} data-testid="stack-sub">
-          {own?.added ? `${formatAmount(own.stackValue!)} pin + ${formatAmount(own.added)} added` : ' '}
+        <p className={base.label} data-testid="picker-title">
+          {STACK_COPY.title}
+        </p>
+        <p className={base.helper} data-testid="stack-sub">
+          {own?.added ? `${formatAmount(own.stackValue!)} pin + ${formatAmount(own.added)} added` : STACK_COPY.helper}
         </p>
       </div>
 
@@ -107,11 +113,14 @@ export function StackSelector({ gym, machineId, value, onChange }: Props) {
 
       <div className={base.links}>
         <button type="button" className={`${base.toggle} pressable`} aria-pressed={addedOn} onClick={toggleAdded}>
-          + added
+          Add weight
         </button>
-        <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
-          {answered ? `Goes up by ${formatAmount(step)}` : `Step ${formatAmount(step)} · Change`}
-        </button>
+        <span className={base.linkWithInfo}>
+          <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
+            {answered ? `Goes up by ${formatAmount(step)}` : `Steps of ${formatAmount(step)} · Change`}
+          </button>
+          <InfoButton id="weight-stack-machine" />
+        </span>
       </div>
 
       {addedOn && <AddedWeightField unit={unit} value={added} onChange={changeAdded} label="Added weight on the pin" />}

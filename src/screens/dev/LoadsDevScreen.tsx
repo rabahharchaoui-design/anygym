@@ -24,6 +24,7 @@ export function LoadsDevScreen() {
   const gym = useActiveGym();
   const [dumbbell, setDumbbell] = useState<Load | null>(null);
   const [single, setSingle] = useState<Load | null>(null);
+  const [kettlebell, setKettlebell] = useState<Load | null>(null);
   const [stack, setStack] = useState<Load | null>(null);
   const [perSide, setPerSide] = useState<number[]>([]);
   const [machine, setMachine] = useState<Load | null>(null);
@@ -47,7 +48,17 @@ export function LoadsDevScreen() {
             <DumbbellWheel unit={gym.unit} range={gym.dumbbellRange} mode="dumbbell_each" value={dumbbell} onChange={setDumbbell} />
           </Section>
           <Section id="single" title="Single weight" json={single}>
-            <DumbbellWheel unit={gym.unit} range={gym.dumbbellRange} mode="single" value={single} onChange={setSingle} />
+            <DumbbellWheel unit={gym.unit} range={gym.dumbbellRange} mode="single" value={single} onChange={setSingle} exerciseName="Goblet Squat" />
+          </Section>
+          <Section id="kettlebell" title="Single weight (kettlebell move)" json={kettlebell}>
+            <DumbbellWheel
+              unit={gym.unit}
+              range={gym.dumbbellRange}
+              mode="single"
+              value={kettlebell}
+              onChange={setKettlebell}
+              exerciseName="Kettlebell Swing"
+            />
           </Section>
           <Section id="stack" title="Stack" json={stack}>
             <StackSelector gym={gym} machineId={STACK_MACHINE} value={stack} onChange={setStack} />

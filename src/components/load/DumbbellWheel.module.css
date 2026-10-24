@@ -1,7 +1,22 @@
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* The one small picture sits right before the title (SPEC 13.6). */
 .glyph {
-  fill: var(--text);
+  display: block;
   flex: none;
-  margin-bottom: var(--space-1);
+  height: 24px;
+  color: var(--text);
+}
+
+.glyph svg {
+  display: block;
+  height: 24px;
+  width: auto;
 }
 
 .wheelOuter {

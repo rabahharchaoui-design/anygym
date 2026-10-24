@@ -4,6 +4,7 @@ import type { Gym, Load } from '../../db/types';
 import { enabledPlates, formatWeight, machineBase, plateMachineLoad } from '../../lib/load';
 import { EquipmentWeightSheet } from './EquipmentWeightSheet';
 import { PlateDiagram } from './PlateDiagram';
+import { InfoButton } from '../info/InfoButton';
 import base from './LoadInput.module.css';
 
 type Props = {
@@ -41,9 +42,12 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
         value={perSide}
         onChange={(next) => change(next)}
         extraLink={
-          <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
-            {linkText}
-          </button>
+          <span className={base.linkWithInfo}>
+            <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
+              {linkText}
+            </button>
+            <InfoButton id="plate-loaded-machine" />
+          </span>
         }
       />
       <EquipmentWeightSheet

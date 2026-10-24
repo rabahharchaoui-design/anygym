@@ -12,6 +12,24 @@
   text-align: center;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* Keeps the title optically centred: the ⓘ hangs to the right of it. */
+.titleRow::before {
+  content: '';
+  width: 24px;
+  flex: none;
+}
+
+.info {
+  margin: -12px;
+}
+
 .question {
   margin: 0;
   color: var(--text-2);

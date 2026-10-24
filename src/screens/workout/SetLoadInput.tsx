@@ -6,6 +6,7 @@ import { PlateDiagram } from '../../components/load/PlateDiagram';
 import { PlateMachineInput } from '../../components/load/PlateMachineInput';
 import { StackSelector } from '../../components/load/StackSelector';
 import { TimedInput } from '../../components/load/TimedInput';
+import { InfoButton } from '../../components/info/InfoButton';
 import base from '../../components/load/LoadInput.module.css';
 import type { Gym, Load } from '../../db/types';
 import { barbellLoad, enabledPlates } from '../../lib/load';
@@ -31,7 +32,9 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
       return <BarbellField gym={gym} exerciseName={exerciseName} value={value} onChange={onChange} compact={compact} />;
     case 'dumbbell_each':
     case 'single':
-      return <DumbbellWheel unit={gym.unit} range={gym.dumbbellRange} mode={loadType} value={value} onChange={onChange} />;
+      return (
+        <DumbbellWheel unit={gym.unit} range={gym.dumbbellRange} mode={loadType} value={value} onChange={onChange} exerciseName={exerciseName} />
+      );
     case 'stack':
       return <StackSelector gym={gym} machineId={machineIdFor(exerciseId, exerciseName)} value={value} onChange={onChange} />;
     case 'plate_machine':
@@ -79,9 +82,12 @@ function BarbellField({
         compact={compact}
         extraLink={
           barId === 'smith' ? (
-            <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
-              {bar === null ? 'Set bar weight' : 'Bar · Change'}
-            </button>
+            <span className={base.linkWithInfo}>
+              <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
+                {bar === null ? 'Set bar weight' : 'Bar · Change'}
+              </button>
+              <InfoButton id="smith-machine" />
+            </span>
           ) : undefined
         }
       />
