@@ -13,6 +13,8 @@ export type Draft = {
   plates?: number[];
   reps?: number;
   watch?: Stopwatch;
+  /** Edit count: a Log set write clears only the version it submitted, never newer edits (PLAN 1.10d). */
+  rev?: number;
 };
 
 const KEY = 'anygym-drafts';
@@ -38,6 +40,7 @@ function validDraft(v: unknown): v is Draft {
   if (d.load !== null && (typeof d.load !== 'object' || !isNum((d.load as Load).total))) return false;
   if (d.plates !== undefined && !(Array.isArray(d.plates) && d.plates.every(isNum))) return false;
   if (d.reps !== undefined && !isNum(d.reps)) return false;
+  if (d.rev !== undefined && !isNum(d.rev)) return false;
   if (d.watch !== undefined) {
     const w = d.watch as Record<string, unknown>;
     if (!w || typeof w !== 'object' || !isNum(w.accumulated) || !(w.startedAt === null || isNum(w.startedAt))) return false;
@@ -54,43 +57,120 @@ function read(s: StorageLike): Store {
   }
 }
 
-function write(s: StorageLike, store: Store): void {
-  try {
-    if (Object.keys(store).length) s.setItem(KEY, JSON.stringify(store));
-    else s.removeItem(KEY);
-  } catch {
-    /* storage full or blocked: the draft lives only in memory */
+/**
+ * The session level memory copy, one per storage (the phone's localStorage, or none): the source
+ * of truth while the app is open, so a storage write that fails (full or blocked) never loses a
+ * pending weight, reps or running hold when switching cards. Once a workout has a copy it is
+ * complete (filled from storage first), and every storage write is that whole copy, never a merge
+ * into what storage held: a draft only memory kept comes back after a reload once storage works
+ * again, and a cleared draft stays cleared.
+ */
+type Memory = { session: string | null; drafts: Map<string, Draft>; failed: boolean };
+const memories = new WeakMap<object, Memory>();
+const NO_STORAGE = {};
+
+function memoryOf(s: StorageLike | null): Memory {
+  const k = s ?? NO_STORAGE;
+  let m = memories.get(k);
+  if (!m) {
+    m = { session: null, drafts: new Map(), failed: false };
+    memories.set(k, m);
   }
+  return m;
+}
+
+/** The complete copy of this workout's drafts; other workouts are dropped (only one is in progress). */
+function sessionCopy(m: Memory, sessionId: string, s: StorageLike | null): Map<string, Draft> {
+  if (m.session !== sessionId) {
+    m.session = sessionId;
+    m.drafts = new Map();
+    const stored = s ? (read(s)[sessionId] ?? {}) : {};
+    for (const [ex, d] of Object.entries(stored)) if (validDraft(d)) m.drafts.set(ex, d);
+  }
+  return m.drafts;
+}
+
+type FailListener = () => void;
+const failListeners = new Set<FailListener>();
+
+/** Called once (per storage) when drafts can no longer be saved for a reload. Returns the unsubscribe. */
+export function onDraftStorageFail(fn: FailListener): () => void {
+  failListeners.add(fn);
+  return () => void failListeners.delete(fn);
+}
+
+export const DRAFTS_NOT_SAVED = 'Drafts will not survive a reload on this phone';
+
+/** Mirrors the whole memory copy to storage. False when that failed (storage full, blocked or missing). */
+function mirror(m: Memory, s: StorageLike | null): boolean {
+  let ok = false;
+  if (s) {
+    try {
+      if (m.session && m.drafts.size) s.setItem(KEY, JSON.stringify({ [m.session]: Object.fromEntries(m.drafts) }));
+      else s.removeItem(KEY);
+      ok = true;
+    } catch {
+      ok = false;
+    }
+  }
+  if (!ok && !m.failed) {
+    m.failed = true;
+    for (const fn of [...failListeners]) fn();
+  }
+  return ok;
 }
 
 export function loadDraft(sessionId: string, exerciseId: string, s = storage()): Draft | null {
+  const m = memoryOf(s);
+  if (m.session === sessionId) return m.drafts.get(exerciseId) ?? null;
   if (!s) return null;
   const d = read(s)[sessionId]?.[exerciseId];
   return validDraft(d) ? d : null;
 }
 
-export function saveDraft(sessionId: string, exerciseId: string, draft: Draft, s = storage()): void {
-  if (!s) return;
-  const store = read(s);
-  // Only the workout in progress keeps drafts; older ones are dropped on the way.
-  write(s, { [sessionId]: { ...(store[sessionId] ?? {}), [exerciseId]: draft } });
+/** Keeps the draft in memory at once, then mirrors it to storage. False when only memory has it. */
+export function saveDraft(sessionId: string, exerciseId: string, draft: Draft, s = storage()): boolean {
+  const m = memoryOf(s);
+  sessionCopy(m, sessionId, s).set(exerciseId, draft);
+  return mirror(m, s);
 }
 
 export function clearDraft(sessionId: string, exerciseId: string, s = storage()): void {
-  if (!s) return;
-  const store = read(s);
-  const own = { ...(store[sessionId] ?? {}) };
-  delete own[exerciseId];
-  const next = { ...store };
-  if (Object.keys(own).length) next[sessionId] = own;
-  else delete next[sessionId];
-  write(s, next);
+  const m = memoryOf(s);
+  sessionCopy(m, sessionId, s).delete(exerciseId);
+  mirror(m, s);
+}
+
+/**
+ * A Log set write landed with the draft version `rev` (PLAN 1.10d). If the draft was not edited
+ * since, it is cleared; if it was (weight, reps or a hold changed during the write), those edits
+ * are kept under the next set's id. Returns the kept draft, or null when cleared.
+ */
+export function settleDraft(sessionId: string, exerciseId: string, rev: number | undefined, nextId: string, s = storage()): Draft | null {
+  const now = loadDraft(sessionId, exerciseId, s);
+  if (!now || now.rev === rev) {
+    clearDraft(sessionId, exerciseId, s);
+    return null;
+  }
+  const kept = { ...now, id: nextId };
+  saveDraft(sessionId, exerciseId, kept, s);
+  return kept;
 }
 
 /** Drops every draft of a workout (Finish). */
 export function clearSessionDrafts(sessionId: string, s = storage()): void {
+  const m = memoryOf(s);
+  if (m.session === sessionId) {
+    m.session = null;
+    m.drafts = new Map();
+  }
   if (!s) return;
   const next = { ...read(s) };
   delete next[sessionId];
-  write(s, next);
+  try {
+    if (Object.keys(next).length) s.setItem(KEY, JSON.stringify(next));
+    else s.removeItem(KEY);
+  } catch {
+    /* memory is already clear */
+  }
 }

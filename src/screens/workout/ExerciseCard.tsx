@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react';
-import type { Gym, Load, WorkoutSet } from '../../db/types';
+import type { BarId, Gym, Load, WorkoutSet } from '../../db/types';
 import { formatSetLine } from '../../lib/load';
 import type { Progression } from '../../lib/progression';
 import type { WorkoutEntry } from '../../lib/planWorkout';
@@ -25,10 +25,13 @@ type Props = {
   actionSlot?: HTMLElement | null;
   /** Plan workouts: the day's targets for this exercise (PLAN 1.10). */
   entry?: WorkoutEntry;
+  /** Barbell: the bar picked at this gym (PLAN 1.10d). */
+  bar?: BarId;
+  onNotice?: (text: string, retry?: () => void) => void;
 };
 
 /** One exercise in the workout: one line when not current, or expanded in place with the set card. */
-export function ExerciseCard({ sessionId, exerciseId, name, loadType, gym, sets, progression, expanded, onExpand, onAskLoadType, onLog, onEditSet, actionSlot, entry }: Props) {
+export function ExerciseCard({ sessionId, exerciseId, name, loadType, gym, sets, progression, expanded, onExpand, onAskLoadType, onLog, onEditSet, actionSlot, entry, bar, onNotice }: Props) {
   const reduce = useReducedMotion();
   const last = sets[sets.length - 1];
   const summary = entry
@@ -77,6 +80,8 @@ export function ExerciseCard({ sessionId, exerciseId, name, loadType, gym, sets,
               onEditSet={onEditSet}
               actionSlot={actionSlot}
               entry={entry}
+              bar={bar}
+              onNotice={onNotice}
             />
             )
           ) : (

@@ -2,8 +2,10 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
 import { ANY_GYM, type Load } from '../types';
-import { addExercise, deleteSet, finishWorkout, getActiveSession, logSet, restoreSet, setsOf, startWorkout, updateSet } from '../workouts';
-import { isPerGym, loadTypeFor, pickLoadType, saveLoadType } from '../exerciseSettings';
+import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, getActiveSession, logSet, restoreSet, setsOf, startWorkout, updateSet } from '../workouts';
+import { isPerGym, loadTypeFor, pickBar, pickLoadType, saveBarChoice, saveLoadType } from '../exerciseSettings';
+import { createDeleteUndo } from '../../lib/deleteUndo';
+import type { WorkoutSet } from '../types';
 
 let db: AnyGymDB;
 let n = 0;
@@ -129,6 +131,64 @@ describe('delete and undo', () => {
     ]);
     expect(await db.sets.get('b')).toEqual(gone);
   });
+
+  it('PLAN 1.10d (2): Undo puts back the record deleteSet read, not the edit sheet\'s stale copy (save 12 over 10, delete, undo → 12)', async () => {
+    const s = await startWorkout('g', db);
+    const stale = await logSet(newSet('a', s.id, { reps: 10 }), db);
+    const d = createDeleteUndo<WorkoutSet>({ remove: (x) => deleteSet(x.id, db), restore: (x) => restoreSet(x, db) });
+    await updateSet('a', { reps: 12, load: bar185 }, db);
+    await d.remove(stale); // the sheet still holds reps 10
+    expect(await setsOf(s.id, db)).toEqual([]);
+    const back = await d.undo('a');
+    expect(back!.reps).toBe(12);
+    expect((await db.sets.get('a'))!.reps).toBe(12);
+  });
+
+  it('Codex 1.10d (5): a workout logged before the order counter (v3 style) never gets duplicate orders', async () => {
+    const s = await startWorkout('g', db);
+    // Sets written before schema v4: orders 0, 1, 2 and no counter row.
+    for (const [i, id] of ['a', 'b', 'c'].entries()) {
+      await db.sets.add({ id, sessionId: s.id, exerciseId: 'barbell-back-squat', order: i, kind: 'work', reps: 10, load: bar185, uncertain: false });
+    }
+    expect(await db.orderCounters.get(s.id)).toBeUndefined();
+    const gone = (await deleteSet('c', db))!; // the newest
+    expect(await db.orderCounters.get(s.id)).toEqual({ sessionId: s.id, next: 3 });
+    const d = await logSet(newSet('d', s.id), db);
+    expect(d.order).toBe(3);
+    await restoreSet(gone, db);
+    const orders = (await setsOf(s.id, db)).map((x) => [x.id, x.order]);
+    expect(orders).toEqual([
+      ['a', 0],
+      ['b', 1],
+      ['c', 2],
+      ['d', 3],
+    ]);
+    // Undo into a counter that is behind (an old record): the counter moves past it.
+    await db.orderCounters.delete(s.id);
+    await deleteSet('d', db);
+    await restoreSet({ ...d, order: 7 }, db);
+    expect((await db.orderCounters.get(s.id))!.next).toBe(8);
+    expect(await deleteSet('missing', db)).toBeUndefined();
+  });
+
+  it('PLAN 1.10d (3): restoring into a finished or deleted workout writes nothing and says so', async () => {
+    const s = await startWorkout('g', db);
+    await logSet(newSet('a', s.id), db);
+    const gone = (await logSet(newSet('b', s.id), db))!;
+    await deleteSet('b', db);
+    await finishWorkout(s.id, db, 5);
+    await expect(restoreSet(gone, db)).rejects.toBeInstanceOf(WorkoutFinishedError);
+    await expect(restoreSet(gone, db)).rejects.toThrow('That workout is already finished');
+    expect(await db.sets.get('b')).toBeUndefined();
+
+    // Finish discarded the empty workout (its only set deleted): Undo can never orphan a set.
+    const t = await startWorkout('g', db);
+    const only = await logSet(newSet('c', t.id), db);
+    await deleteSet('c', db);
+    expect(await finishWorkout(t.id, db)).toEqual({ saved: false });
+    await expect(restoreSet(only, db)).rejects.toBeInstanceOf(WorkoutFinishedError);
+    expect(await db.sets.count()).toBe(1);
+  });
 });
 
 describe('finishWorkout', () => {
@@ -174,5 +234,22 @@ describe('exerciseSettings', () => {
     expect(pickLoadType([], 'x', 'g')).toBeUndefined();
     expect(pickLoadType([{ exerciseId: 'x', gymId: ANY_GYM, loadType: 'timed' }], 'x', ANY_GYM)).toBe('timed');
   });
-});
 
+  it('PLAN 1.10d (4): a bar choice is saved per exercise and gym, next to the load type answer', async () => {
+    expect(pickBar([], 'bench', 'gym-a')).toBeUndefined();
+    await saveLoadType('bench', 'gym-a', 'barbell', db); // free weight: every gym
+    expect(await saveBarChoice('bench', 'gym-a', 'womens', db)).toEqual({ exerciseId: 'bench', gymId: 'gym-a', barId: 'womens' });
+    const all = await db.exerciseSettings.toArray();
+    expect(pickBar(all, 'bench', 'gym-a')).toBe('womens');
+    expect(pickBar(all, 'bench', 'gym-b')).toBeUndefined();
+    // A bar only record never hides the every-gym load type answer.
+    expect(pickLoadType(all, 'bench', 'gym-a')).toBe('barbell');
+    expect(await loadTypeFor('bench', 'gym-a', db)).toBe('barbell');
+    // Machine answers and bar choices share the per gym record without losing each other.
+    await saveBarChoice('leg-press', 'gym-a', 'olympic', db);
+    await saveLoadType('leg-press', 'gym-a', 'plate_machine', db);
+    expect(await db.exerciseSettings.get(['leg-press', 'gym-a'])).toEqual({ exerciseId: 'leg-press', gymId: 'gym-a', loadType: 'plate_machine', barId: 'olympic' });
+    await saveBarChoice('leg-press', 'gym-a', 'womens', db);
+    expect(await db.exerciseSettings.get(['leg-press', 'gym-a'])).toEqual({ exerciseId: 'leg-press', gymId: 'gym-a', loadType: 'plate_machine', barId: 'womens' });
+  });
+});

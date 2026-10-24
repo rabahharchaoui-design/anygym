@@ -176,3 +176,36 @@
   color: var(--text-2);
   font-size: var(--text-base);
 }
+
+/* Workout size bar picker (PLAN 1.10d, SPEC 13.5): sits in the drawing's free corner, no extra row. */
+.barChip {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  max-width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2px 0;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.barChipCaption {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.barChipName {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.barChipAction {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}

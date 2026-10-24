@@ -222,7 +222,7 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once and shows "+ bar" until an
 
   // Answered once: after a reload it is remembered, never asked again.
   await page.reload();
-  await expect(card.getByRole('button', { name: 'Bar · Change' })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Bar: EZ curl 25 lb · Change' })).toBeVisible(); // PLAN 1.10d: the bar link names the bar
   await expect(card.getByRole('button', { name: 'Set bar weight' })).toHaveCount(0);
   await logButton(page).tap();
   await expect(card.getByTestId('set-row')).toHaveCount(1);

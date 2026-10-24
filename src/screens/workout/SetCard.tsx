@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Gym, Load, WorkoutSet } from '../../db/types';
-import { newId } from '../../db/ids';
+import type { BarId, Gym, Load, WorkoutSet } from '../../db/types';
 import { machineStartFor } from '../../db/gyms';
 import { barbellLoad, bodyweightLoad, formatSetLine, plateMachineLoad, timedLoad } from '../../lib/load';
 import { formatNext, formatSets, formatWhen, type Progression } from '../../lib/progression';
 import { setLine, targetSecondsOf, type WorkoutEntry } from '../../lib/planWorkout';
-import { clearDraft, loadDraft, saveDraft, type Draft } from '../../lib/drafts';
+import { loadDraft, saveDraft, settleDraft, type Draft } from '../../lib/drafts';
+import { logKey, logQueue } from '../../lib/logQueue';
 import { STOPPED, captureHold, elapsedMs, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
@@ -35,15 +35,19 @@ type Props = {
   actionSlot?: HTMLElement | null;
   /** Plan workouts (PLAN 1.10): target sets, reps or hold, rest and the plan's note. */
   entry?: WorkoutEntry;
+  /** Barbell: the bar picked for this exercise at this gym (PLAN 1.10d); undefined = the name rule. */
+  bar?: BarId;
+  /** A toast from the inputs (a failed bar choice save), with an optional Try again. */
+  onNotice?: (text: string, retry?: () => void) => void;
 };
 
 export const DEFAULT_REPS = 10;
 
 /** What the input shows before anything is picked: only loads that are certain (an empty bar, just you). */
-function startingLoad(loadType: Load['kind'], gym: Gym, exerciseId: string, exerciseName: string): Load | null {
+function startingLoad(loadType: Load['kind'], gym: Gym, exerciseId: string, exerciseName: string, bar?: BarId): Load | null {
   switch (loadType) {
     case 'barbell':
-      return barbellLoad(gym.bars[barIdFor(exerciseName)], [], gym.collars, gym.unit);
+      return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], [], gym.collars, gym.unit);
     case 'plate_machine':
       return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), [], gym.unit);
     case 'bodyweight':
@@ -97,30 +101,37 @@ const repsNumber = (r: Progression['next']['reps']): number | undefined => (r ==
  * logged sets as a strip, the compact load input, reps, and Log set in the thumb zone. Weight and
  * reps are prefilled from the last set (this workout, else the last one), so a repeat is one tap.
  */
-export function SetCard({ sessionId, exerciseId, exerciseName, loadType, gym, sets, progression, onLog, onEditSet, actionSlot, entry }: Props) {
+export function SetCard({ sessionId, exerciseId, exerciseName, loadType, gym, sets, progression, onLog, onEditSet, actionSlot, entry, bar, onNotice }: Props) {
   const last = sets[sets.length - 1];
   const { next, perSet } = progression;
+  const key = logKey(sessionId, exerciseId);
   // A saved draft (picked before a collapse or reload) wins; then the last logged set mid workout;
-  // else the engine's target. A draft whose id is already logged is stale and ignored.
+  // else the engine's target. A draft whose id is already logged is stale and ignored. The id comes
+  // from the log queue, never from this card, so a card remounted mid write logs a new set.
   const [draft, setDraftState] = useState<Draft>(() => {
     const saved = loadDraft(sessionId, exerciseId);
-    if (saved && !sets.some((s) => s.id === saved.id)) return saved;
+    const fresh = saved && !sets.some((s) => s.id === saved.id) ? saved : null;
+    const id = logQueue.current(key, fresh?.id);
+    if (fresh) return { ...fresh, id };
     const load = last
-      ? (prefillLoad(last.load, loadType, gym, exerciseId, exerciseName) ?? startingLoad(loadType, gym, exerciseId, exerciseName))
-      : (perSet[0]?.target.load ?? next.load ?? startingLoad(loadType, gym, exerciseId, exerciseName));
+      ? (prefillLoad(last.load, loadType, gym, exerciseId, exerciseName, bar) ?? startingLoad(loadType, gym, exerciseId, exerciseName, bar))
+      : (perSet[0]?.target.load ?? next.load ?? startingLoad(loadType, gym, exerciseId, exerciseName, bar));
     const reps = (last ? last.reps : (perSet[0]?.target.reps ?? repsNumber(next.reps))) ?? DEFAULT_REPS;
-    return { id: newId(), load, plates: load?.perSide ?? [], reps };
+    return { id, load, plates: load?.perSide ?? [], reps };
   });
   const draftRef = useRef(draft);
   draftRef.current = draft;
   /** Every user change is saved at once, so a collapse, a reload or an app kill keeps it (SPEC 13.3). */
   const update = (patch: Partial<Draft>) => {
-    const nextDraft = { ...draftRef.current, ...patch };
+    const nextDraft = { ...draftRef.current, ...patch, rev: (draftRef.current.rev ?? 0) + 1 };
     draftRef.current = nextDraft;
     setDraftState(nextDraft);
     saveDraft(sessionId, exerciseId, nextDraft);
   };
-  const busy = useRef(false);
+  const setsRef = useRef(sets);
+  setsRef.current = sets;
+  const perSetRef = useRef(perSet);
+  perSetRef.current = perSet;
   const timed = loadType === 'timed';
   const reps = draft.reps ?? DEFAULT_REPS;
   const watch: Stopwatch = draft.watch ?? STOPPED;
@@ -129,7 +140,7 @@ export function SetCard({ sessionId, exerciseId, exerciseName, loadType, gym, se
 
   // The load shown and logged, rebuilt through load.ts on today's equipment (bar weight, starting
   // resistance, stack step), so the diagram, the Log set label and the saved set always agree.
-  const load = currentLoad(draft.load, draft.plates ?? [], loadType, gym, exerciseId, exerciseName);
+  const load = currentLoad(draft.load, draft.plates ?? [], loadType, gym, exerciseId, exerciseName, bar);
 
   // A pick that is no longer loadable (a pin the new stack step lacks) is cleared, never rounded.
   const lost = draft.load !== null && load === null && (loadType === 'stack' || loadType === 'dumbbell_each' || loadType === 'single');
@@ -140,26 +151,46 @@ export function SetCard({ sessionId, exerciseId, exerciseName, loadType, gym, se
   const liveSeconds = wholeSeconds(elapsedMs(watch, running ? Math.max(now, Date.now()) : now));
   const ready = load !== null && (timed ? liveSeconds > 0 : reps > 0);
 
-  const log = useTapGuard(async () => {
-    if (busy.current || load === null) return;
-    // A running hold is stopped and read at this very moment, never a stale value.
-    const { watch: stopped, seconds } = captureHold(watch, Date.now());
-    if (timed ? seconds <= 0 : reps <= 0) return;
-    busy.current = true;
-    if (timed && running) update({ watch: stopped });
-    const out: SetDraft = timed ? { id: draft.id, seconds, load } : { id: draft.id, reps, load };
-    try {
-      if (await onLog(out)) {
-        clearDraft(sessionId, exerciseId);
-        const target = perSet[sets.length + 1]?.target.reps;
-        const fresh: Draft = { ...draftRef.current, id: newId(), watch: STOPPED };
+  // Every mounted card of this exercise (this one, or one remounted mid write) gets the fresh id
+  // once a set lands, and starts the next set from what was just logged.
+  useEffect(
+    () =>
+      logQueue.subscribe(key, (nextId, loggedId) => {
+        // Edits made during the write were kept (settleDraft): show them, under the new id.
+        const kept = loadDraft(sessionId, exerciseId);
+        if (kept) {
+          draftRef.current = kept;
+          setDraftState(kept);
+          return;
+        }
+        const list = setsRef.current;
+        const logged = list.some((s) => s.id === loggedId) ? list.length : list.length + 1;
+        const target = perSetRef.current[logged]?.target.reps;
+        const fresh: Draft = { ...draftRef.current, id: nextId, watch: STOPPED };
         if (!timed && target !== undefined) fresh.reps = target;
         draftRef.current = fresh;
         setDraftState(fresh);
-      }
-    } finally {
-      busy.current = false;
-    }
+      }),
+    [key, timed, sessionId, exerciseId],
+  );
+
+  const log = useTapGuard(async () => {
+    // One write per exercise at a time: a tap while one runs is ignored (no duplicate, no lost set).
+    if (logQueue.pending(key) || load === null) return;
+    // A running hold is stopped and read at this very moment, never a stale value.
+    const { watch: stopped, seconds } = captureHold(watch, Date.now());
+    if (timed ? seconds <= 0 : reps <= 0) return;
+    if (timed && running) update({ watch: stopped });
+    const amount = timed ? { seconds, load } : { reps, load };
+    // The version submitted: only it is cleared when the write lands; newer edits stay.
+    if (draftRef.current.rev === undefined) update({}); // every submitted draft has a version, saved
+    const submitted = draftRef.current.rev;
+    await logQueue.submit(
+      key,
+      (id) => onLog({ id, ...amount }),
+      // Runs once even if the card was closed during the write.
+      (nextId) => void settleDraft(sessionId, exerciseId, submitted, nextId),
+    );
   });
 
   const blocked =
@@ -215,6 +246,8 @@ export function SetCard({ sessionId, exerciseId, exerciseName, loadType, gym, se
         value={load}
         plates={draft.plates}
         onChange={(picked, plates) => update(plates ? { load: picked, plates } : { load: picked })}
+        bar={bar}
+        onNotice={onNotice}
         watch={watch}
         onWatch={(w) => update({ watch: w })}
         compact

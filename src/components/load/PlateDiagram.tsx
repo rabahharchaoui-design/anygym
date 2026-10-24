@@ -26,6 +26,8 @@ type Props = {
   extraLink?: ReactNode;
   /** Workout size (SPEC 13.5): smaller bar, one row tray, links beside the total. */
   compact?: boolean;
+  /** A small control in the free top left corner of the drawing (the bar picker), taking no extra height. */
+  corner?: ReactNode;
 };
 
 const HEIGHT = 168;
@@ -34,7 +36,7 @@ const LONG_PRESS_MS = 400;
 const FULL_MS = 1500;
 
 /** Plate diagram (SPEC 5.3): tap plates on, tap the bar to take the outermost off, live total and math. */
-export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, onChange, variant = 'bar', extraLink, compact = false }: Props) {
+export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner }: Props) {
   const reduce = useReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(340);
@@ -122,6 +124,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
       </div>
 
       <div ref={wrapRef} className={styles.stage}>
+        {corner && <div className={styles.corner}>{corner}</div>}
         <div ref={scope}>
           <BarSvg
             layout={layout}
