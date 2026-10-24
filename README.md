@@ -12,3 +12,5 @@ Your training keeps working in any gym. AnyGym is an iPhone-first web app that b
 ## Develop
 
 `npm run dev` · `npm run build` · `npm run test` · `npm run test:ui` · `npm run typecheck`
+
+`npm run test:live` checks the live site.

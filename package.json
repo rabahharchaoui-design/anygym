@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "playwright test",
+    "test:live": "playwright test -c playwright.live.config.ts",
     "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {

@@ -4,6 +4,13 @@ Worked top to bottom by the orchestrator (see PROMPT.md). One item at a time. Ma
 
 Rules for every item: iPhone portrait first (Playwright WebKit on iPhone SE, 15 Pro and 15 Pro Max), offline first, no clutter, plain words, swift transitions, zero console errors (SPEC 13), exact weight math, never commit anything from ~/anygym-private/. Every merge gate includes the ux-critic pass (PROMPT.md).
 
+CHECKPOINT RULE (added by G, Oct 23 9 PM, applies from the next item on): G uses the live app at the gym every day while this builds.
+- After every item that passes the tester, ship it: merge the session branch into master (no fast forward), run the Playwright smoke tests on master, push, wait for the Pages deploy to go green, run the live check, then switch back to the session branch. Items before 1.2 is done skip this.
+- Master must always be usable. Never ship a half feature that breaks logging, history or saved data. Hide unfinished screens behind a simple flag instead.
+- Saved data is sacred: every Dexie schema change is an additive migration with a test that opens data from the previous version and finds every set still there.
+- Updates must never interrupt a workout or a run: with the PWA auto update, only reload when no workout or run is active; otherwise wait and show a small "Update ready" chip.
+- The session merge gate (ux-critic, full test suite, report) still happens at the end of each session.
+
 ## SESSION 1: FOUNDATION AND THE LOGGER
 Tag: pre-s1 · Branch: s1-foundation · Report: reports/session-1.md
 
@@ -16,7 +23,9 @@ Tag: pre-s1 · Branch: s1-foundation · Report: reports/session-1.md
 - [ ] 1.7 Set card and rest timer (SPEC 5.1) plus a "Quick workout" flow: start an empty workout, add exercises from a temporary list of the plan exercises, log sets. Edit and delete sets. Wake lock during workouts.
 - [ ] 1.8 Backup and restore (SPEC 9.1, 9.2) via share sheet with download fallback. Round trip test.
 - [ ] 1.9 Progression engine (SPEC 6) as pure functions with tests for every rule, then "Last time" and "Next" lines on the set card.
-- [ ] 1.10 Test harness for SPEC 13.3: three device profiles, console error trap that fails any test, monkey test helper, generated 2 year history fixture, kill and restore helpers. Then the Session 1 merge gate: ux-critic pass, full Vitest and Playwright pass, merge to master, push, confirm deploy, run live check, write report with an iPhone hand test list.
+- [ ] 1.10 G's programs, early: load data/plans/ohrabah-split.json and six-week-volume.json as startable plans. Today shows "Pick a plan", then the day list; starting a day opens the workout with that day's exercises, sets, rep ranges, rest times, pairs (supersets) and notes, using the load inputs from 1.6. Exercises without a catalog match yet show the name and plan notes with no demo (never a wrong demo).
+- [ ] 1.11 Import history, early (SPEC 9.3): Settings → Import history with the review screen, uncertain sets highlighted, unknown load types asked. Map by planExercise name to the plan exercises from 1.10 so "Last time" and "Next" work on G's own workouts. Test with a synthetic fixture in the repo and with ~/anygym-private/g-history.json copied to a temp dir at test time only (never committed).
+- [ ] 1.12 Test harness for SPEC 13.3: three device profiles, console error trap that fails any test, monkey test helper, generated 2 year history fixture, kill and restore helpers. Then the Session 1 merge gate: ux-critic pass, full Vitest and Playwright pass, merge to master, push, confirm deploy, run live check, write report with an iPhone hand test list.
 
 ## SESSION 2: CATALOG, FORM DEMOS, MUSCLES
 Tag: pre-s2 · Branch: s2-catalog · Report: reports/session-2.md
@@ -31,8 +40,8 @@ Tag: pre-s2 · Branch: s2-catalog · Report: reports/session-2.md
 ## SESSION 3: PLANS, IMPORT, ONBOARDING, SWAPS
 Tag: pre-s3 · Branch: s3-plans · Report: reports/session-3.md
 
-- [ ] 3.1 Load curated plans from data/plans/ (The OhRabah Split, Six Week Volume Builder), plan viewer, start a plan day into a workout, supersets grouped, weekly table progression for the six week plan.
-- [ ] 3.2 Import history (SPEC 9.3) with the review screen. Test with ~/anygym-private/g-history.json copied into a temp dir at test time only (never commit it or any fixture made from it; write a small synthetic fixture for the repo tests instead).
+- [ ] 3.1 Finish curated plans (started in 1.10): catalog mapping and demos inside plan workouts. Load curated plans from data/plans/ (The OhRabah Split, Six Week Volume Builder), plan viewer, start a plan day into a workout, supersets grouped, weekly table progression for the six week plan.
+- [ ] 3.2 Finish import (started in 1.11): remap imported exercises to catalog ids. Import history (SPEC 9.3) with the review screen. Test with ~/anygym-private/g-history.json copied into a temp dir at test time only (never commit it or any fixture made from it; write a small synthetic fixture for the repo tests instead).
 - [ ] 3.3 Onboarding questionnaire (SPEC 7.1). This is the first impression: make it beautiful, fast and obvious. Use the frontend-design skill.
 - [ ] 3.4 Movement pattern ladders and swap engine (SPEC 7.2), Swap button in the workout, auto swap when a plan meets missing equipment.
 - [ ] 3.5 Plan generator (SPEC 7.3) and the three generated curated plans frozen to JSON (SPEC 7.5 items 3 to 5).

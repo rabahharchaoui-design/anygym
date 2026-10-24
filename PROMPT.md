@@ -23,6 +23,9 @@ MERGE GATE (the last item of each session)
 - If the gate fails, do NOT merge. Leave the branch, explain in the report, and continue with the next session only if it does not depend on the failed work.
 - Optional phone alert: if ~/.config/pocketsim/ntfy-topic exists, send one short message at each merge gate: `curl -s -d "AnyGym: session N merged and live" "ntfy.sh/$(cat ~/.config/pocketsim/ntfy-topic)"`. Never write the topic into the repo.
 
+CHECKPOINTS
+Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. Master is always usable and saved data is never lost.
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 

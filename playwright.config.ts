@@ -9,6 +9,8 @@ const PROFILES: Array<[string, (typeof devices)[string]]> = [
 
 export default defineConfig({
   testDir: 'tests',
+  // The live site check runs only via `npm run test:live`.
+  testIgnore: 'live_check.spec.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
