@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
+import { ArrivalGuard } from './components/ArrivalGuard';
 import { TodayScreen } from './screens/TodayScreen';
 import { RunScreen } from './screens/RunScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { PlansScreen } from './screens/PlansScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { WorkoutScreen } from './screens/workout/WorkoutScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
 import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
@@ -13,17 +15,21 @@ const DEV_TOOLS = devToolsEnabled();
 
 export function App() {
   return (
-    <Routes>
-      {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
-      {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
-      <Route element={<AppShell />}>
-        <Route index element={<TodayScreen />} />
-        <Route path="run" element={<RunScreen />} />
-        <Route path="history" element={<HistoryScreen />} />
-        <Route path="plans" element={<PlansScreen />} />
-        <Route path="settings" element={<SettingsScreen />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
+    <>
+      <ArrivalGuard />
+      <Routes>
+        {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
+        {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
+        <Route path="workout/:sessionId" element={<WorkoutScreen />} />
+        <Route element={<AppShell />}>
+          <Route index element={<TodayScreen />} />
+          <Route path="run" element={<RunScreen />} />
+          <Route path="history" element={<HistoryScreen />} />
+          <Route path="plans" element={<PlansScreen />} />
+          <Route path="settings" element={<SettingsScreen />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </>
   );
 }

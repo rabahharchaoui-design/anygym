@@ -1,0 +1,476 @@
+/* Workout screen (SPEC 8.2, 10): a fixed frame; only the body scrolls. Numbers are the hero. */
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ---------------------------------------------------------------- top bar */
+
+.topBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: calc(var(--safe-top) + var(--space-2)) calc(var(--space-4) + var(--safe-right)) var(--space-2)
+    calc(var(--space-4) + var(--safe-left));
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg);
+}
+
+.clockBox {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.clockLabel {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.clock {
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.music {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.musicButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.finish {
+  height: 40px;
+  min-width: 80px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+  /* 48pt tap target around the 40px pill */
+  margin: 4px 0;
+  position: relative;
+}
+
+.finish::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+
+/* ---------------------------------------------------------------- body */
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* the bottom 76px stay free for the rest bar, so it never covers anything when it appears */
+  padding: var(--space-4) calc(var(--space-4) + var(--safe-right)) calc(var(--space-4) + var(--rest-height))
+    calc(var(--space-4) + var(--safe-left));
+}
+
+.screen {
+  --rest-height: 76px;
+}
+
+.dockWrap {
+  flex: none;
+  position: relative;
+  padding-bottom: var(--safe-bottom);
+  background: var(--bg);
+}
+
+.dock {
+  padding: var(--space-2) calc(var(--space-4) + var(--safe-right)) var(--space-2) calc(var(--space-4) + var(--safe-left));
+  border-top: 1px solid var(--hairline);
+}
+
+.dock:empty {
+  display: none;
+}
+
+.logWhat {
+  font-weight: 500;
+}
+
+.skeleton {
+  height: 220px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* ---------------------------------------------------------------- exercise card */
+
+.card {
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+
+.card[data-expanded='true'] {
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border-color: #33333a;
+}
+
+.cardHead {
+  width: 100%;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+}
+
+.cardName {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.card[data-expanded='true'] > .cardName {
+  padding: 0 var(--space-1);
+}
+
+.cardSummary {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.setCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.target {
+  padding: 0 var(--space-1);
+  color: var(--accent);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.setCard .hint {
+  text-align: left;
+  padding: 0 var(--space-1);
+  margin-top: calc(var(--space-2) * -1);
+}
+
+.logButton {
+  width: 100%;
+  min-height: 60px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 0 var(--space-4);
+  font-family: var(--font-display);
+  font-size: clamp(16px, 5vw, 20px);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logButton:disabled {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.secondaryButton,
+.addButton {
+  width: 100%;
+  min-height: 56px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.addButton {
+  flex: none;
+  border-style: dashed;
+  color: var(--text-2);
+}
+
+.askBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.deleteButton {
+  width: 100%;
+  min-height: 52px;
+  border-radius: var(--radius-pill);
+  color: var(--red);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+/* ---------------------------------------------------------------- logged rows */
+
+.rows {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.row {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.rows li:last-child .row {
+  border-bottom: 0;
+}
+
+.rowIndex {
+  width: 24px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.rowLine {
+  flex: 1;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.rowEdit {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------- rest bar */
+
+.rest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--rest-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) calc(var(--space-3) + var(--safe-right)) var(--space-2) calc(var(--space-4) + var(--safe-left));
+  background: var(--surface-2);
+  border-top: 1px solid var(--hairline);
+}
+
+.restRing {
+  flex: none;
+  width: 44px;
+  height: 44px;
+}
+
+.restTrack {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 5;
+}
+
+.restProgress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 250ms linear;
+}
+
+.rest[data-done='true'] .restProgress {
+  stroke: transparent;
+}
+
+.rest[data-done='true'] .restTrack {
+  stroke: var(--accent);
+}
+
+.restText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.restLabel {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.restClock {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.rest[data-done='true'] .restClock {
+  color: var(--accent);
+}
+
+.restButton {
+  flex: none;
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  font-weight: 700;
+  font-size: var(--text-base);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- sheets */
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.sheetTitle {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.sheetSub {
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--text-2);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.search {
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  font-size: 16px;
+  appearance: none;
+}
+
+.pickList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pickRow {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--hairline);
+  text-align: left;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.pickAdded {
+  flex: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.choice {
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.choiceLabel {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.choiceHint {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}

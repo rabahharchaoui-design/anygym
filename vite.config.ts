@@ -9,7 +9,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': a new version waits until no workout or run is active (src/pwa.ts).
+      registerType: 'prompt',
       injectRegister: false, // registered in src/main.tsx via virtual:pwa-register
       includeAssets: ['icons/favicon.svg', 'icons/apple-touch-icon-180.png'],
       manifest: {

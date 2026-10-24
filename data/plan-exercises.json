@@ -1,0 +1,417 @@
+[
+ {
+  "id": "28-method-squat",
+  "name": "28 Method Squat",
+  "loadType": "unknown"
+ },
+ {
+  "id": "30-second-interval-sprint",
+  "name": "30 Second Interval Sprint",
+  "loadType": "unknown"
+ },
+ {
+  "id": "angled-machine-leg-press",
+  "name": "Angled Machine Leg Press",
+  "loadType": "unknown"
+ },
+ {
+  "id": "band-internal-shoulder-rotation-0-degrees",
+  "name": "Band Internal Shoulder Rotation (0 degrees)",
+  "loadType": "unknown"
+ },
+ {
+  "id": "band-internal-shoulder-rotation-90-degrees",
+  "name": "Band Internal Shoulder Rotation (90 degrees)",
+  "loadType": "unknown"
+ },
+ {
+  "id": "barbell-back-squat",
+  "name": "Barbell Back Squat",
+  "loadType": "barbell"
+ },
+ {
+  "id": "barbell-bent-over-row",
+  "name": "Barbell Bent Over Row",
+  "loadType": "barbell"
+ },
+ {
+  "id": "barbell-bicep-curl",
+  "name": "Barbell Bicep Curl",
+  "loadType": "barbell"
+ },
+ {
+  "id": "barbell-incline-bench-press",
+  "name": "Barbell Incline Bench Press",
+  "loadType": "barbell"
+ },
+ {
+  "id": "barbell-straight-leg-romanian-deadlift",
+  "name": "Barbell Straight Leg Romanian Deadlift",
+  "loadType": "barbell"
+ },
+ {
+  "id": "bent-over-barbell-row",
+  "name": "Bent Over Barbell Row",
+  "loadType": "barbell"
+ },
+ {
+  "id": "bicep-curl",
+  "name": "Bicep Curl",
+  "loadType": "unknown"
+ },
+ {
+  "id": "bird-dog",
+  "name": "Bird Dog",
+  "loadType": "unknown"
+ },
+ {
+  "id": "bulgarian-split-squat",
+  "name": "Bulgarian Split Squat",
+  "loadType": "unknown"
+ },
+ {
+  "id": "cable-overhead-tricep-extension",
+  "name": "Cable Overhead Tricep Extension",
+  "loadType": "stack"
+ },
+ {
+  "id": "cable-reverse-grip-tricep-pulldown",
+  "name": "Cable Reverse Grip Tricep Pulldown",
+  "loadType": "stack"
+ },
+ {
+  "id": "cable-rope-tricep-extension",
+  "name": "Cable Rope Tricep Extension",
+  "loadType": "stack"
+ },
+ {
+  "id": "cable-seated-close-grip-row",
+  "name": "Cable Seated Close Grip Row",
+  "loadType": "stack"
+ },
+ {
+  "id": "cable-single-arm-bicep-curl",
+  "name": "Cable Single Arm Bicep Curl",
+  "loadType": "stack"
+ },
+ {
+  "id": "cable-tricep-pushdown",
+  "name": "Cable Tricep Pushdown",
+  "loadType": "stack"
+ },
+ {
+  "id": "chest-fly",
+  "name": "Chest Fly",
+  "loadType": "unknown"
+ },
+ {
+  "id": "cross-body-mountain-climber",
+  "name": "Cross Body Mountain Climber",
+  "loadType": "unknown"
+ },
+ {
+  "id": "crunch",
+  "name": "Crunch",
+  "loadType": "unknown"
+ },
+ {
+  "id": "curl-up-crunch",
+  "name": "Curl Up Crunch",
+  "loadType": "unknown"
+ },
+ {
+  "id": "dead-bug",
+  "name": "Dead Bug",
+  "loadType": "unknown"
+ },
+ {
+  "id": "deadlift",
+  "name": "Deadlift",
+  "loadType": "unknown"
+ },
+ {
+  "id": "decline-bench-sit-up",
+  "name": "Decline Bench Sit Up",
+  "loadType": "unknown"
+ },
+ {
+  "id": "dumbbell-arnold-shoulder-press",
+  "name": "Dumbbell Arnold Shoulder Press",
+  "loadType": "dumbbell_each"
+ },
+ {
+  "id": "dumbbell-bench-press",
+  "name": "Dumbbell Bench Press",
+  "loadType": "dumbbell_each"
+ },
+ {
+  "id": "dumbbell-front-raise",
+  "name": "Dumbbell Front Raise",
+  "loadType": "dumbbell_each"
+ },
+ {
+  "id": "dumbbell-lateral-raise",
+  "name": "Dumbbell Lateral Raise",
+  "loadType": "dumbbell_each"
+ },
+ {
+  "id": "dumbbell-shrug",
+  "name": "Dumbbell Shrug",
+  "loadType": "dumbbell_each"
+ },
+ {
+  "id": "dumbbell-single-arm-overhead-tricep-extension",
+  "name": "Dumbbell Single Arm Overhead Tricep Extension",
+  "loadType": "single"
+ },
+ {
+  "id": "dumbbell-single-arm-preacher-curl",
+  "name": "Dumbbell Single Arm Preacher Curl",
+  "loadType": "single"
+ },
+ {
+  "id": "dumbbell-stationary-lunge",
+  "name": "Dumbbell Stationary Lunge",
+  "loadType": "dumbbell_each"
+ },
+ {
+  "id": "dumbbell-walking-lunge",
+  "name": "Dumbbell Walking Lunge",
+  "loadType": "dumbbell_each"
+ },
+ {
+  "id": "dynamic-hip-flexor-stretch",
+  "name": "Dynamic Hip Flexor Stretch",
+  "loadType": "timed"
+ },
+ {
+  "id": "elbow-plank",
+  "name": "Elbow Plank",
+  "loadType": "timed"
+ },
+ {
+  "id": "forearm-finger-roll",
+  "name": "Forearm Finger Roll",
+  "loadType": "unknown"
+ },
+ {
+  "id": "front-and-lateral-plate-raise",
+  "name": "Front and Lateral Plate Raise",
+  "loadType": "unknown"
+ },
+ {
+  "id": "front-squat",
+  "name": "Front Squat",
+  "loadType": "unknown"
+ },
+ {
+  "id": "hip-abductor",
+  "name": "Hip Abductor",
+  "loadType": "unknown"
+ },
+ {
+  "id": "hip-adductor",
+  "name": "Hip Adductor",
+  "loadType": "unknown"
+ },
+ {
+  "id": "hip-thrust",
+  "name": "Hip Thrust",
+  "loadType": "unknown"
+ },
+ {
+  "id": "hyperextension-roman-chair-back-extension",
+  "name": "Hyperextension Roman Chair Back Extension",
+  "loadType": "unknown"
+ },
+ {
+  "id": "incline-plate-press",
+  "name": "Incline Plate Press",
+  "loadType": "unknown"
+ },
+ {
+  "id": "kettlebell-goblet-squat",
+  "name": "Kettlebell Goblet Squat",
+  "loadType": "unknown"
+ },
+ {
+  "id": "knee-hug",
+  "name": "Knee Hug",
+  "loadType": "unknown"
+ },
+ {
+  "id": "lat-machine-wide-grip-pulldown",
+  "name": "Lat Machine Wide Grip Pulldown",
+  "loadType": "unknown"
+ },
+ {
+  "id": "leg-curl",
+  "name": "Leg Curl",
+  "loadType": "unknown"
+ },
+ {
+  "id": "leg-extension",
+  "name": "Leg Extension",
+  "loadType": "unknown"
+ },
+ {
+  "id": "leg-press",
+  "name": "Leg Press",
+  "loadType": "unknown"
+ },
+ {
+  "id": "leg-press-machine-calf-raise",
+  "name": "Leg Press Machine Calf Raise",
+  "loadType": "unknown"
+ },
+ {
+  "id": "lying-straight-leg-raise",
+  "name": "Lying Straight Leg Raise",
+  "loadType": "unknown"
+ },
+ {
+  "id": "machine-leg-press",
+  "name": "Machine Leg Press",
+  "loadType": "unknown"
+ },
+ {
+  "id": "machine-lying-leg-curl",
+  "name": "Machine Lying Leg Curl",
+  "loadType": "unknown"
+ },
+ {
+  "id": "machine-seated-calf-raise",
+  "name": "Machine Seated Calf Raise",
+  "loadType": "unknown"
+ },
+ {
+  "id": "machine-seated-chest-fly",
+  "name": "Machine Seated Chest Fly",
+  "loadType": "unknown"
+ },
+ {
+  "id": "machine-seated-leg-extension",
+  "name": "Machine Seated Leg Extension",
+  "loadType": "unknown"
+ },
+ {
+  "id": "machine-seated-reverse-fly",
+  "name": "Machine Seated Reverse Fly",
+  "loadType": "unknown"
+ },
+ {
+  "id": "narrow-grip-lat-pulldown",
+  "name": "Narrow Grip Lat Pulldown",
+  "loadType": "unknown"
+ },
+ {
+  "id": "oblique-crunch",
+  "name": "Oblique Crunch",
+  "loadType": "unknown"
+ },
+ {
+  "id": "overhead-press",
+  "name": "Overhead Press",
+  "loadType": "unknown"
+ },
+ {
+  "id": "plank",
+  "name": "Plank",
+  "loadType": "timed"
+ },
+ {
+  "id": "plate-russian-twist",
+  "name": "Plate Russian Twist",
+  "loadType": "unknown"
+ },
+ {
+  "id": "rear-delt-fly",
+  "name": "Rear Delt Fly",
+  "loadType": "unknown"
+ },
+ {
+  "id": "reverse-bicep-curl",
+  "name": "Reverse Bicep Curl",
+  "loadType": "unknown"
+ },
+ {
+  "id": "romanian-deadlift",
+  "name": "Romanian Deadlift",
+  "loadType": "unknown"
+ },
+ {
+  "id": "russian-twist",
+  "name": "Russian Twist",
+  "loadType": "unknown"
+ },
+ {
+  "id": "single-arm-dumbbell-row",
+  "name": "Single Arm Dumbbell Row",
+  "loadType": "single"
+ },
+ {
+  "id": "single-leg-romanian-deadlift",
+  "name": "Single Leg Romanian Deadlift",
+  "loadType": "unknown"
+ },
+ {
+  "id": "smith-machine-upright-row",
+  "name": "Smith Machine Upright Row",
+  "loadType": "unknown"
+ },
+ {
+  "id": "spider-plank",
+  "name": "Spider Plank",
+  "loadType": "timed"
+ },
+ {
+  "id": "static-pigeon-stretch",
+  "name": "Static Pigeon Stretch",
+  "loadType": "timed"
+ },
+ {
+  "id": "static-proximal-hamstring-stretch",
+  "name": "Static Proximal Hamstring Stretch",
+  "loadType": "timed"
+ },
+ {
+  "id": "static-quadricep-stretch",
+  "name": "Static Quadricep Stretch",
+  "loadType": "timed"
+ },
+ {
+  "id": "sumo-squat",
+  "name": "Sumo Squat",
+  "loadType": "unknown"
+ },
+ {
+  "id": "toe-touch",
+  "name": "Toe Touch",
+  "loadType": "unknown"
+ },
+ {
+  "id": "upright-row",
+  "name": "Upright Row",
+  "loadType": "unknown"
+ },
+ {
+  "id": "v-up",
+  "name": "V Up",
+  "loadType": "unknown"
+ },
+ {
+  "id": "wide-grip-pull-up",
+  "name": "Wide Grip Pull Up",
+  "loadType": "bodyweight"
+ },
+ {
+  "id": "wide-lunge",
+  "name": "Wide Lunge",
+  "loadType": "unknown"
+ },
+ {
+  "id": "wrist-twist",
+  "name": "Wrist Twist",
+  "loadType": "unknown"
+ }
+]

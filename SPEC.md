@@ -141,6 +141,15 @@ Settings toggle: "Plate colors: Black iron / Color coded" (lb gyms default black
 
 Drawing rules: heaviest plates innermost, then descending outward, identical on both sides. Sleeve drawn to scale (Olympic loadable sleeve about 16.4 in / 415 mm). If plates would overflow the sleeve, block the add with a gentle shake and "Sleeve is full".
 
+### 5.6 Bar realism (G's feedback, Oct 23: "bar looks very novice")
+The barbell must look like a real, premium Olympic bar, not a flat gray rectangle:
+- Correct proportions: thin shaft (28 mm feel) and fatter sleeves (50 mm feel), inner collars as a raised flange where shaft meets sleeve, end caps on the sleeves.
+- Materials: brushed steel shaft with a subtle knurling texture (fine diamond pattern, two grip zones plus a center knurl), polished chrome sleeves with a soft specular highlight and gradient, slight shadow under the bar.
+- Plates: real plate look, not flat rectangles. Beveled outer rim with a lighter lip, a darker hub ring near the sleeve, subtle depth shading so they read as round discs seen edge on. Black iron mode looks like rubber coated iron; color mode uses the IWF colors with the same depth.
+- Weight labels stay readable and upright (horizontal text on or under each plate edge, never sideways text that has to be read by tilting your head).
+- Plates slide onto the sleeve with a tiny settle bounce; removing slides them off. 60 fps.
+- Keep the math line and total exactly as they are now (G likes them).
+
 ### 5.4 Weight math (pure functions in `src/lib/load.ts`, 100% unit tested)
 - `total = bar + 2 × sum(perSidePlates) + collars`.
 - Internally store every load as `{ unit, value }` plus the loading breakdown, **never convert on save.** Convert only for display, using exactly 1 lb = 0.45359237 kg. Display kg to 1 decimal, lb to 1 decimal only when needed (e.g. 132.5).
@@ -339,3 +348,34 @@ G uses an iPhone 17 Pro Max, but AnyGym must look and work right on most to all 
 - Android install: Chrome "Add to Home screen" / install prompt works, maskable icon fills the shape with no clipping, theme and splash colors match, Android back button closes sheets before leaving a screen.
 - Text: respects the phone's font size setting up to 130% without overlapping or cutting off.
 - Screenshot every main screen on every matrix device in each session report and look at them. Any overlap, clipping, cut off text, or button under a system bar is a FAIL.
+
+
+### 13.5 Active workout = zero thinking (G's rule)
+Setup screens (onboarding, plans, settings) may scroll. During an ACTIVE workout the lifter should barely have to think or scroll:
+- The current set fits on ONE screen with no scrolling, even on iPhone SE (667 tall): exercise name, Last time, Next target, the load picker, reps, and a big Log set button in the thumb zone.
+- Everything is prefilled with the Next target (weight and reps), so if they hit it, logging is ONE tap. Changing reps is a big plus/minus stepper, not typing.
+- Compact plate diagram during workouts: the bar and a single row plate tray, no wrapping onto a second row.
+- After Log set: the rest timer starts on its own, then the card moves to the next set; after the last set it moves to the next exercise. No hunting.
+- First time hints, shown once each and dismissed with a tap: "Tap plates to load the bar. We add it up." on the plate diagram, "Spin to pick your dumbbells" on the wheel, "Tap the pin to pick the weight" on the stack, "Tap Log set when you finish the set" on the set card. Small, friendly, never stacked, never during a rest timer countdown.
+- Exercise details (form demo, cues) are one tap away in a sheet, never pushing the set card off screen.
+
+### 13.6 Plain labels for the weight pickers (G's feedback, Oct 23)
+Every word and every inch on screen must have a purpose. Rename and clean up:
+| Picker | Old | New label | Picture |
+|---|---|---|---|
+| Dumbbells | "each hand" with two stacked dumbbell icons | "Dumbbells · weight of one" with a small helper line "You hold one in each hand" | ONE clean dumbbell drawing, no stacked icons |
+| Single weight | "held" | "One weight · both hands" with helper "Goblet squat, kettlebell swing" style examples for that exercise | one kettlebell or one dumbbell held vertically, matching the exercise |
+| Stack | "stack" | "Machine · pick the pin" with helper "Use the number next to the pin on the weight stack" | a simple weight stack with the pin, the picked plate highlighted |
+| Plate loaded machine | (unchanged idea) | "Machine · plates per side" | the machine horn with plates |
+| Bodyweight | | "Your bodyweight" plus an "Add weight" toggle | none, or a tiny figure |
+| Timed | | "Hold for" with the timer | only shown for timed exercises (planks, stretches, carries), never as a picker anywhere else |
+- Show only the ONE picker that matches the current exercise. Never show a list of all pickers to users. The #/dev/loads page is a developer page only; no debug text (raw JSON) ever appears in user screens.
+- Numbers stay huge and centered, units small, one helper line max.
+
+### 13.7 Info buttons for anything unusual (G's rule)
+Next to any equipment name or gym term a normal person might not know, show a small ⓘ button. Tapping it opens a short sheet with:
+- A clear picture of the thing (a clean, accurate line illustration drawn in the app's style, so no photo licensing; each illustration goes through the Review screen before it counts as approved),
+- One or two plain sentences: what it is and how to spot it in a gym,
+- Its typical weight when that is standard (for example "Olympic bar: 45 lb / 20 kg"), or "Check the sticker or stamp, it varies" when it is not.
+Glossary to cover at minimum: Olympic barbell, women's bar, EZ curl bar, trap (hex) bar, fixed weight barbell, Smith machine, cable station and attachments (rope, straight bar, V handle, D handle), plate loaded machine, weight stack machine, leg press, hack squat, pec deck, lat pulldown, seated row, preacher bench, adjustable bench, decline bench, hyperextension bench, dip station, landmine, kettlebell, resistance band, collars and clips, bumper vs iron plates, plus workout terms shown in the app (pair / back to back sets, warm up set, drop set, rest timer, reps, sets).
+Places it appears: the first use weight prompts (Smith machine, EZ bar, plate loaded machines), the equipment picker in onboarding and gym settings, exercise sheets, and plan days. Keep the ⓘ subtle (secondary color, 24 pt tap target inside a 48 pt hit area).

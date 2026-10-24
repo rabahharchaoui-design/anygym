@@ -40,3 +40,12 @@ export function ringProgress(ms: number, targetSeconds: number | undefined): num
   if (!targetSeconds || targetSeconds <= 0) return 0;
   return Math.min(1, Math.max(0, ms / (targetSeconds * 1000)));
 }
+
+/** Workout clock: "4:05", "59:59", then "1:00:00". */
+export function formatElapsed(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}

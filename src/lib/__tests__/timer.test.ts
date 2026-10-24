@@ -37,3 +37,16 @@ describe('stopwatch', () => {
     expect(ringProgress(5000, 0)).toBe(0);
   });
 });
+
+import { formatElapsed } from '../timer';
+
+describe('formatElapsed', () => {
+  it('m:ss under an hour, then h:mm:ss', () => {
+    expect(formatElapsed(0)).toBe('0:00');
+    expect(formatElapsed(-5)).toBe('0:00');
+    expect(formatElapsed(65.9)).toBe('1:05');
+    expect(formatElapsed(3599)).toBe('59:59');
+    expect(formatElapsed(3600)).toBe('1:00:00');
+    expect(formatElapsed(3725)).toBe('1:02:05');
+  });
+});
