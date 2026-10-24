@@ -41,6 +41,15 @@ CODEX (second opinion from G's ChatGPT plan, optional)
 - If codex is missing, not logged in, out of usage, or errors, skip it silently and continue. Codex never edits files and never commits.
 - When you resume after a usage limit, read any new reports/codex/bughunt-*.md (written by a helper while you were paused). Turn real BLOCKER and MAJOR findings into a short fix item at the top of the remaining queue in PLAN.md (for example "1.7d Codex bug hunt fixes"), then continue.
 
+CODEX TESTS (added Oct 24 1:15 AM, G approved)
+- A helper has Codex write new tests after each item you finish, in its own copy of the repo (~/projects/anygym-codex) on a branch named codex-tests-MMDD-HHMM. It only ever adds files named src/**/__tests__/codex-*.test.ts(x) or tests/codex-*.spec.ts. Each batch has a report reports/codex/tests-*.md whose first line is "STATUS: NEW".
+- After EVERY item (right after you check for bughunt reports), if a tests report says STATUS: NEW: hand it to the tester. Budget about 10 minutes, never loop on it.
+  1. `git merge --no-ff --no-edit <branch>` into the session branch. If it conflicts, `git merge --abort`, set the report's first line to "STATUS: SKIPPED conflict" and move on.
+  2. Run the new Vitest files and `npx playwright test tests/codex-*` on all device profiles.
+  3. Passing tests stay. A failing test that is wrong per SPEC.md: delete it (it is Codex's file, deleting it is allowed). A failing test that shows a real app bug: keep it but mark it skipped (`it.skip` or `test.skip`) with a comment `// CODEX FOUND BUG, fix in <item id>`, and add a short fix item at the top of the remaining queue in PLAN.md whose acceptance check is that the test is unskipped and passes.
+  4. Never rewrite Codex's tests beyond tiny selector or import fixes. Commit as "Codex tests <stamp>: kept N, dropped N, bugs N". Set the report's first line to "STATUS: HANDLED kept N, dropped N, bugs N". You may delete the merged codex-tests-* branch with `git branch -d`.
+- The full test suite must still pass at every merge gate with the Codex tests included.
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 

@@ -10,7 +10,7 @@ CHECKPOINT RULE (added by G, Oct 23 9 PM, applies from the next item on): G uses
 - Saved data is sacred: every Dexie schema change is an additive migration with a test that opens data from the previous version and finds every set still there.
 - Updates must never interrupt a workout or a run: with the PWA auto update, only reload when no workout or run is active; otherwise wait and show a small "Update ready" chip.
 - The session merge gate (ux-critic, full test suite, report) still happens at the end of each session.
-- Codex second opinion (added Oct 24): if `codex` is installed, get one read only Codex review per item before committing, and after EVERY item check for new reports/codex/bughunt-*.md: turn their real BLOCKER and MAJOR findings into a fix item placed next in the queue. Full rules in PROMPT.md section CODEX. Re-read PROMPT.md if you have not since 12:40 AM Oct 24.
+- Codex second opinion (added Oct 24): if `codex` is installed, get one read only Codex review per item before committing, and after EVERY item check for new reports/codex/bughunt-*.md: turn their real BLOCKER and MAJOR findings into a fix item placed next in the queue. Full rules in PROMPT.md section CODEX. Also merge new Codex test batches (reports/codex/tests-*.md with STATUS: NEW) per PROMPT.md section CODEX TESTS. Re-read PROMPT.md if you have not since 1:15 AM Oct 24.
 
 ## SESSION 1: FOUNDATION AND THE LOGGER
 Tag: pre-s1 · Branch: s1-foundation · Report: reports/session-1.md
