@@ -20,7 +20,7 @@ const probe = (page: Page) =>
     };
   });
 
-for (const r of ['./', './#/history', './#/plans', './#/settings', './#/plans/six-week-volume', './#/plans/ohrabah-split']) {
+for (const r of ['./', './#/history', './#/plans', './#/settings', './#/plans/six-week-volume', './#/plans/five-day-split']) {
   for (const vp of [null, { width: 440, height: 700 }]) {
     test(`1.10b ${r} ${vp ? 'short' : 'native'}`, async ({ page }) => {
       const e = errs(page);

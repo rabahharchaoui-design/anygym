@@ -37,7 +37,7 @@ const dbAll = (page: Page, store: string) =>
   );
 
 
-test('The OhRabah Split: pick it, see day 2 pairs, follow day 1, log, reload, finish', async ({ page }) => {
+test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, finish', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
 
@@ -46,16 +46,16 @@ test('The OhRabah Split: pick it, see day 2 pairs, follow day 1, log, reload, fi
   await expect(page.getByRole('button', { name: /Quick workout/ })).toBeVisible();
   await page.getByRole('button', { name: 'See plans' }).tap();
   await expect(page).toHaveURL(/#\/plans$/);
-  const card = page.getByTestId('plan-ohrabah-split');
-  await expect(card).toContainText('The OhRabah Split');
+  const card = page.getByTestId('plan-five-day-split');
+  await expect(card).toContainText('Classic 5 Day Split');
   await expect(card).toContainText('5 days · Full gym');
   await expect(page.getByTestId('plan-six-week-volume')).toContainText('5 days · 6 weeks · Full gym');
   await shot(page, 'plans');
 
   // Plan viewer: plain words, pairs and warm ups labeled.
   await card.tap();
-  await expect(page).toHaveURL(/#\/plans\/ohrabah-split$/);
-  await expect(page.getByRole('heading', { name: 'The OhRabah Split' })).toBeVisible();
+  await expect(page).toHaveURL(/#\/plans\/five-day-split$/);
+  await expect(page.getByRole('heading', { name: 'Classic 5 Day Split' })).toBeVisible();
   const day1 = page.getByRole('region', { name: 'Day 1 · Legs (hamstring focus)' });
   await expect(day1.getByTestId('plan-item-barbell-back-squat')).toHaveText(/Barbell Back Squat4 sets × 8 to 12 · 90 s restWide stance/);
   await expect(day1.getByTestId('plan-item-static-quadricep-stretch')).toContainText('45 sec');
@@ -251,7 +251,7 @@ test('Six Week Volume Builder: week picker, Week 1 of 6, day 1 at 5 sets × 6', 
 
 test('Quick workout still starts empty while a plan is active', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   await page.getByRole('button', { name: /Quick workout/ }).tap();
@@ -264,7 +264,7 @@ test('Quick workout still starts empty while a plan is active', async ({ page })
 
 test('after a reload, Change day still updates Today and Start opens that day', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 ·/);
   await page.reload();
@@ -302,7 +302,7 @@ test('Six Week: no invented rest, rests stated in notes shown, sprint in rounds'
 
 test('long names are fully readable: list title and exercise name wrap, the exercise view fits', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await page.getByRole('button', { name: 'Change day' }).tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 2 ·/ }).tap();

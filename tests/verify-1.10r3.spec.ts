@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './fixtures';
 import { readFileSync } from 'node:fs';
 
-const oh = JSON.parse(readFileSync('data/plans/ohrabah-split.json', 'utf8'));
+const oh = JSON.parse(readFileSync('data/plans/five-day-split.json', 'utf8'));
 const watch = (page: Page) => {
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));
@@ -21,7 +21,7 @@ const answer = async (page: Page) => {
 };
 // PLAN 1.7c: a plan day opens on the day list; each exercise opens from its row.
 async function start(page: Page, n: number) {
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: /Use this plan|Go to Today/ }).tap();
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   await page.getByRole('button', { name: 'Change day' }).tap();
@@ -50,7 +50,7 @@ test('r3: warm up tag + db kind', async ({ page }) => {
 
 test('r3: finisher in viewer and workout', async ({ page }) => {
   const errors = watch(page);
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   for (let i = 0; i < oh.days.length; i++) {
     const d = oh.days[i];
     const reg = page.getByRole('region', { name: new RegExp(`^Day ${i + 1} ·`) });

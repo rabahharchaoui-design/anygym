@@ -1,13 +1,12 @@
 {
- "id": "ohrabah-split",
- "name": "The OhRabah Split",
- "author": "OhRabah",
+ "id": "five-day-split",
+ "name": "Classic 5 Day Split",
  "summary": "5 day bodybuilding split built for a full commercial gym. Two leg days, push, pull, shoulders. Cardio finisher most days.",
  "gymType": "full",
  "goal": "muscle",
  "level": "intermediate",
  "daysPerWeek": 5,
- "source": "Transcribed from G's existing program screenshots, Oct 2026",
+ "source": "Curated 5 day bodybuilding split",
  "days": [
   {
    "n": 1,

@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures';
 test('r2 day2', async ({ page }, info) => {
   test.skip(info.project.name !== 'iPhone 15 Pro');
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: /Use this plan/ }).tap();
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   await page.getByRole('button', { name: 'Change day' }).tap();

@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { planById } from '../../data/plans';
 import { dayWorkout, finisherId, firstOpen, nextCurrent, repRangeOf, restAfter, setLine, targetSecondsOf, type WorkoutEntry } from '../planWorkout';
 
-const ohrabah = planById('ohrabah-split')!;
+const split5 = planById('five-day-split')!;
 const sixWeek = planById('six-week-volume')!;
 
 describe('dayWorkout', () => {
   it('day 1: every exercise in order with targets, rest and notes', () => {
-    const day = dayWorkout(ohrabah, 0);
+    const day = dayWorkout(split5, 0);
     expect(day).toHaveLength(16);
     expect(day.map((e) => e.exerciseId).slice(0, 5)).toEqual([
       'static-quadricep-stretch',
@@ -39,7 +39,7 @@ describe('dayWorkout', () => {
   });
 
   it('day 2: pairs share a block, warm up flagged', () => {
-    const day = dayWorkout(ohrabah, 1);
+    const day = dayWorkout(split5, 1);
     expect(day.slice(0, 2).map((e) => [e.kind, e.warmup, e.block, e.pairIndex, e.pairSize])).toEqual([
       ['pair', true, 0, 0, 2],
       ['pair', true, 0, 1, 2],
@@ -54,14 +54,14 @@ describe('dayWorkout', () => {
     expect(dayWorkout(sixWeek, 2, 0)[0]).toMatchObject({ setsText: '10 rounds × 30 sec', line: '10 rounds × 30 sec', seconds: 30, rounds: true, restSec: 90 });
     expect(setLine(dayWorkout(sixWeek, 2, 0)[0]!, 2)).toBe('Round 2 of 10 · 30 sec');
     expect(dayWorkout(sixWeek, 2, 0)[0]!.prescription).toBeUndefined();
-    expect(dayWorkout(ohrabah, 0)[4]!.prescription).toBeUndefined();
-    expect(dayWorkout(ohrabah, 9)).toEqual([]);
+    expect(dayWorkout(split5, 0)[4]!.prescription).toBeUndefined();
+    expect(dayWorkout(split5, 9)).toEqual([]);
   });
 });
 
 describe('finisher row', () => {
   it('is the last row: timed with the plan minutes, no rest, no invented length', () => {
-    const day2 = dayWorkout(ohrabah, 1);
+    const day2 = dayWorkout(split5, 1);
     expect(day2.at(-1)).toEqual({
       exerciseId: 'finisher-stair-climbing',
       name: 'Stair climbing',
@@ -78,11 +78,11 @@ describe('finisher row', () => {
       amount: '15 min',
       finisher: true,
     });
-    const day5 = dayWorkout(ohrabah, 4).at(-1)!;
+    const day5 = dayWorkout(split5, 4).at(-1)!;
     expect(day5).toMatchObject({ exerciseId: finisherId('Cycling'), name: 'Cycling', line: '', finisher: true, restSec: 0 });
     expect(day5.seconds).toBeUndefined();
     expect(setLine(day5, 1)).toBe('Set 1 of 1');
-    expect(dayWorkout(ohrabah, 0).some((e) => e.finisher)).toBe(false);
+    expect(dayWorkout(split5, 0).some((e) => e.finisher)).toBe(false);
   });
 });
 

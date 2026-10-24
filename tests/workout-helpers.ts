@@ -79,7 +79,7 @@ export async function seedFinished(page: Page, exercises: Record<string, SeedSet
 export const bar185 = { kind: 'barbell', unit: 'lb', total: 185, barWeight: 45, perSide: [45, 25] };
 
 /** Picks a curated plan from Today (See plans → plan → Use this plan), ending back on Today. */
-export async function usePlan(page: Page, planTestId = 'plan-ohrabah-split') {
+export async function usePlan(page: Page, planTestId = 'plan-five-day-split') {
   await page.goto('./');
   await page.getByRole('button', { name: 'See plans' }).tap();
   await page.getByTestId(planTestId).tap();
