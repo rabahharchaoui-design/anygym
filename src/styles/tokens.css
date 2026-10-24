@@ -65,6 +65,9 @@
 
   /* layout */
   --tabbar-height: 64px;
+  /* Height of every full screen fixed frame (PLAN 1.10b). Frames pin to the top and take this
+     height, never inset bottom 0, so one bottom inset is applied once by the frame's last bar. */
+  --app-height: 100vh;
 
   /* motion */
   --press-scale: 0.97;
@@ -74,4 +77,15 @@
   --dur-base: 240ms;
   --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-height: 100dvh;
+  }
+  @media (display-mode: standalone) {
+    :root {
+      --app-height: 100lvh;
+    }
+  }
 }

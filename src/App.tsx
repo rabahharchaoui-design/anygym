@@ -11,6 +11,7 @@ import { WorkoutScreen } from './screens/workout/WorkoutScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
 import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { InfoDevScreen } from './screens/dev/InfoDevScreen';
+import { ViewportDevScreen } from './screens/dev/ViewportDevScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
 
 const DEV_TOOLS = devToolsEnabled();
@@ -31,6 +32,8 @@ export function App() {
           <Route path="plans" element={<PlansScreen />} />
           <Route path="plans/:planId" element={<PlanViewer />} />
           <Route path="settings" element={<SettingsScreen />} />
+          {/* Always registered (device geometry only), reached by tapping the Today title 7 times. */}
+          <Route path="dev/viewport" element={<ViewportDevScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

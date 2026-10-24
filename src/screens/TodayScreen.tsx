@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { IconLink } from '../components/IconButton';
@@ -12,12 +12,20 @@ import { getActiveSession, startPlanDay, startWorkout } from '../db/workouts';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
 import { applyUpdate, isUpdateReady, onUpdateReady } from '../lib/pwaUpdate';
+import { registerTap } from '../lib/secretTaps';
 import { DayCard } from './today/DayCard';
 import { ChangeDaySheet } from './today/ChangeDaySheet';
 import styles from './TodayScreen.module.css';
 
 export function TodayScreen() {
   const navigate = useNavigate();
+  // Hidden: 7 taps on the title within 3 s opens the viewport diagnostics (PLAN 1.10b).
+  const titleTaps = useRef<number[]>([]);
+  const onTitleTap = () => {
+    const r = registerTap(titleTaps.current, Date.now());
+    titleTaps.current = r.taps;
+    if (r.fired) navigate('/dev/viewport');
+  };
   const location = useLocation();
   // Open the database first, outside the live query: awaiting a non Dexie promise inside it would
   // stop it from tracking, and Today would never see a later Change day or finish.
@@ -92,6 +100,7 @@ export function TodayScreen() {
     <>
       <ScreenHeader
         title="Today"
+        onTitleTap={onTitleTap}
         trailing={
           <div className={styles.trailing}>
             {updateReady && (
