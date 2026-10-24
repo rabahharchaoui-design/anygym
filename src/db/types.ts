@@ -116,6 +116,21 @@ export type Session = {
   timeBudgetMin?: number;
   imported: boolean;
   importSeq?: number;
+  /** Exercises added to a quick workout, in order (PLAN 1.7). Not indexed. */
+  exerciseIds?: string[];
+};
+
+/** Gym id used for answers that hold at every gym (free weights). IndexedDB keys cannot be null. */
+export const ANY_GYM = '';
+
+/**
+ * How an exercise is loaded, answered once by the user (PLAN 1.7). Free weight answers hold at
+ * every gym (gymId ANY_GYM); stack and plate machine answers are per gym.
+ */
+export type ExerciseSetting = {
+  exerciseId: string;
+  gymId: string;
+  loadType: Load['kind'];
 };
 
 /** SPEC 5.5. Stored in the unit it was entered in; never converted on save. */

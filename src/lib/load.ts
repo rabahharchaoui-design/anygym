@@ -318,6 +318,13 @@ export function stackValues(step: number, max: number): number[] {
 
 // ---------------------------------------------------------------- Load records (SPEC 5.5)
 
+/** Barbell: bar + 2 × perSide + collars. null while the bar weight is unknown (never a guess). */
+export function barbellLoad(bar: number | null, perSide: readonly number[], collars: Collars, unit: Unit): Load | null {
+  const { total } = sumLoad({ bar, perSide, collars, unit });
+  if (bar === null || total === null) return null;
+  return { kind: 'barbell', unit, total, barWeight: bar, perSide: [...perSide] };
+}
+
 /** Dumbbell pair, each hand: total = 2 × each. */
 export function dumbbellLoad(each: number, unit: Unit): Load {
   return { kind: 'dumbbell_each', unit, total: dumbbellTotal(each) };
@@ -454,4 +461,18 @@ export function formatMathLine(
   if (total === null) return [...parts, baseLabel].join(' + ');
   const left = parts.length ? parts.join(' + ') : `0 ${baseLabel}`;
   return `${left} = ${formatWeight(total, unit)}`;
+}
+
+/**
+ * One logged set as a compact row (PLAN 1.7): "12 × 185 lb", "10 × 30 lb each", "10 × 30 lb" (one weight held), "8 reps",
+ * "8 reps + 25 lb", "45 s". Dumbbell pairs show the dumbbell, not the doubled total.
+ */
+export function formatSetLine(set: { reps?: number; seconds?: number; load?: Load }): string {
+  const load = set.load;
+  if (load?.kind === 'timed' || (set.reps === undefined && set.seconds !== undefined)) return `${set.seconds ?? 0} s`;
+  const reps = set.reps ?? 0;
+  if (!load) return `${reps} reps`;
+  if (load.kind === 'bodyweight') return load.added ? `${reps} reps + ${formatWeight(load.added, load.unit)}` : `${reps} reps`;
+  if (load.kind === 'dumbbell_each') return `${reps} × ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
+  return `${reps} × ${formatWeight(load.total, load.unit)}`;
 }

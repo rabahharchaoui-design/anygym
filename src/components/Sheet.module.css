@@ -24,10 +24,35 @@
   will-change: transform;
 }
 
+.grabberZone {
+  padding-bottom: var(--space-3);
+}
+
+.sheet[data-scroll='true'] .grabberZone {
+  /* the only drag handle on a scrolling sheet: a taller hit area */
+  margin-top: calc(var(--space-2) * -1);
+  padding: var(--space-3) 0;
+  touch-action: none;
+}
+
 .grabber {
   width: 36px;
   height: 5px;
   border-radius: 3px;
   background: var(--hairline);
-  margin: 0 auto var(--space-3);
+  margin: 0 auto;
+}
+
+.sheet[data-scroll='true'] {
+  touch-action: auto;
+}
+
+.scrollBody {
+  max-height: calc(88dvh - var(--safe-top) - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: 0 var(--space-4);
 }

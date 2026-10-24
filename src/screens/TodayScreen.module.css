@@ -3,3 +3,70 @@
   align-items: center;
   gap: var(--space-1);
 }
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.start,
+.startSkeleton {
+  width: 100%;
+  min-height: 96px;
+  border-radius: 24px;
+}
+
+.start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: var(--space-4) var(--space-5);
+  background: var(--accent);
+  color: var(--on-accent);
+  text-align: left;
+}
+
+.startSkeleton {
+  background: var(--surface-1);
+}
+
+.startLabel {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.startSub {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.error {
+  margin: 0;
+  min-height: 20px;
+  color: var(--red);
+  font-size: var(--text-sm);
+}
+
+.update {
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: rgba(212, 255, 58, 0.12);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  position: relative;
+}
+
+.update::after {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
