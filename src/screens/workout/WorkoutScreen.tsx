@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { db } from '../../db/schema';
 import type { Load, WorkoutSet } from '../../db/types';
-import { addExercise, deleteSet, finishWorkout, logSet, setsOf, updateSet } from '../../db/workouts';
+import { addExercise, deleteSet, finishWorkout, lastSetBefore, logSet, setsOf, updateSet } from '../../db/workouts';
 import { pickLoadType, saveLoadType } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
 import { useLive } from '../../hooks/useLive';
@@ -12,6 +12,7 @@ import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../components/Toast';
 import { createUndoQueue } from '../../lib/undoQueue';
+import { hints } from '../../lib/hints';
 import { extendRest, loadRest, saveRest, startRest, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
 import { unlockAudio } from '../../lib/tone';
@@ -39,6 +40,13 @@ export function WorkoutScreen() {
   const gymId = session.value?.gymId;
   const gym = useLive(() => (gymId ? db.gyms.get(gymId) : Promise.resolve(undefined)), [gymId]);
   const settings = useLive(() => db.exerciseSettings.toArray(), []);
+  const idsKey = (session.value?.exerciseIds ?? []).join('|');
+  // Each exercise's last set in the most recent earlier workout: prefill and "Last time".
+  const history = useLive(async () => {
+    const ids = idsKey ? idsKey.split('|') : [];
+    const found = await Promise.all(ids.map((id) => lastSetBefore(id, sessionId)));
+    return new Map(ids.map((id, i) => [id, found[i]] as const));
+  }, [idsKey, sessionId]);
 
   const [current, setCurrent] = useState<string | null>(() => loadCurrent(sessionId));
   const [adding, setAdding] = useState(false);
@@ -66,6 +74,12 @@ export function WorkoutScreen() {
     const t = window.setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), toast.action ? 5000 : 3000);
     return () => window.clearTimeout(t);
   }, [toast]);
+
+  // No first time hints while the rest timer counts (SPEC 13.5).
+  useEffect(() => {
+    hints.setBlocked(rest !== null);
+  }, [rest]);
+  useEffect(() => () => hints.setBlocked(false), []);
 
   const setRest = useCallback((r: Rest | null) => {
     setRestState(r);
@@ -174,7 +188,7 @@ export function WorkoutScreen() {
 
   const startedAt = session.value?.startedAt;
   const editIndex = editing ? sets.filter((s) => s.exerciseId === editing.exerciseId).findIndex((s) => s.id === editing.id) : 0;
-  const ready = session.value && gym.value && allSets.ready && settings.ready;
+  const ready = session.value && gym.value && allSets.ready && settings.ready && history.ready;
 
   return (
     <div className={styles.screen}>
@@ -219,6 +233,7 @@ export function WorkoutScreen() {
                 loadType={loadTypeOf(id)}
                 gym={gym.value!}
                 sets={sets.filter((s) => s.exerciseId === id)}
+                previous={history.value?.get(id)}
                 expanded={id === expanded}
                 onExpand={() => expand(id)}
                 onAskLoadType={() => setAsking(id)}

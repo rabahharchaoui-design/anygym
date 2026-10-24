@@ -1,19 +1,11 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import { AnimatePresence, motion, useAnimate, useReducedMotion } from 'motion/react';
+import { useAnimate, useReducedMotion } from 'motion/react';
 import type { Collars, PlateColors, Unit } from '../../db/types';
 import { fitsSleeve, formatAmount, formatMathLine, formatWeight, sumLoad } from '../../lib/load';
-import { plateSpec, type PlateSpec } from '../../lib/plates';
-import {
-  barLayout,
-  hornLayout,
-  outermost,
-  withPlates,
-  withoutOutermost,
-  type BarLayout,
-  type PlateRect,
-  type Side,
-} from '../../lib/plateLayout';
-import { FADE, SPRING } from '../motion';
+import { plateSpec } from '../../lib/plates';
+import { LABEL_BAND, barLayout, hornLayout, outermost, withPlates, withoutOutermost } from '../../lib/plateLayout';
+import { Hint } from '../hint/Hint';
+import { BarSvg, plateLook } from './BarSvg';
 import { TypeItSheet } from './TypeItSheet';
 import styles from './PlateDiagram.module.css';
 
@@ -32,34 +24,17 @@ type Props = {
   variant?: 'bar' | 'horn';
   /** Extra link next to Type it / Clear (e.g. "Set starting weight"). */
   extraLink?: ReactNode;
+  /** Workout size (SPEC 13.5): smaller bar, one row tray, links beside the total. */
+  compact?: boolean;
 };
 
 const HEIGHT = 168;
+const COMPACT_HEIGHT = 96;
 const LONG_PRESS_MS = 400;
 const FULL_MS = 1500;
 
-/** Plate face colours. Black iron is near black with a hairline edge; colour coded follows IWF. */
-const FILL: Record<PlateSpec['color'], { fill: string; ink: string }> = {
-  black: { fill: '#1C1C1F', ink: '#C9C9CF' },
-  red: { fill: '#D9302C', ink: '#FFFFFF' },
-  blue: { fill: '#2F64D6', ink: '#FFFFFF' },
-  yellow: { fill: '#F2C230', ink: '#1A1A1A' },
-  green: { fill: '#2E9E4F', ink: '#FFFFFF' },
-  white: { fill: '#EDEDEF', ink: '#1A1A1A' },
-  chrome: { fill: '#B9BDC5', ink: '#1A1A1A' },
-};
-
-function plateLook(weight: number, unit: Unit, mode: PlateColors) {
-  if (mode === 'black') {
-    // The 45 carries the raised white label (SPEC 5.3).
-    return { fill: FILL.black.fill, ink: unit === 'lb' && weight === 45 ? '#FFFFFF' : FILL.black.ink, edge: '#3A3A41' };
-  }
-  const look = FILL[plateSpec(weight, unit).color];
-  return { ...look, edge: 'rgba(0,0,0,0.35)' };
-}
-
 /** Plate diagram (SPEC 5.3): tap plates on, tap the bar to take the outermost off, live total and math. */
-export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, onChange, variant = 'bar', extraLink }: Props) {
+export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, onChange, variant = 'bar', extraLink, compact = false }: Props) {
   const reduce = useReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(340);
@@ -84,7 +59,9 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
   const horn = variant === 'horn';
   const baseLabel = horn ? 'start' : 'bar';
   const makeLayout = horn ? hornLayout : barLayout;
-  const layout = makeLayout({ unit, perSide: value, inventory: sizes, width, height: HEIGHT, labelOf: formatAmount });
+  const height = compact ? COMPACT_HEIGHT : HEIGHT;
+  const layout = makeLayout({ unit, perSide: value, inventory: sizes, width, height, labelOf: formatAmount, labelBand: LABEL_BAND });
+  const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
   const { total } = sumLoad({ bar, perSide: value, collars, unit });
   const math = formatMathLine(bar, value, collars, unit, baseLabel);
   const outer = outermost(value);
@@ -108,24 +85,40 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
     if (value.length) onChange(withoutOutermost(value));
   };
 
+  const typeIt =
+    bar !== null ? (
+      <button type="button" className={`${styles.link} pressable`} onClick={() => setTyping(true)}>
+        Type it
+      </button>
+    ) : null;
+  const clear = (
+    <button type="button" className={`${styles.link} pressable`} onClick={() => onChange([])} disabled={!value.length}>
+      Clear
+    </button>
+  );
+
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-compact={compact}>
       <div className={styles.readout}>
-        {total === null ? (
-          <p className={`${styles.total} ${styles.unknown} num`} aria-live="polite" data-testid="plate-total">
-            {math}
-          </p>
-        ) : (
-          <>
-            <p className={`${styles.total} num`} aria-live="polite" data-testid="plate-total">
-              {formatAmount(total)}
-              <span className={styles.unit}>{unit}</span>
-            </p>
-            <p className={`${styles.math} num`} data-testid="plate-math">
+        {compact && <div className={styles.readoutSide}>{typeIt}</div>}
+        <div className={styles.readoutMain}>
+          {total === null ? (
+            <p className={`${styles.total} ${styles.unknown} num`} aria-live="polite" data-testid="plate-total">
               {math}
             </p>
-          </>
-        )}
+          ) : (
+            <>
+              <p className={`${styles.total} num`} aria-live="polite" data-testid="plate-total">
+                {formatAmount(total)}
+                <span className={styles.unit}>{unit}</span>
+              </p>
+              <p className={`${styles.math} num`} data-testid="plate-math">
+                {math}
+              </p>
+            </>
+          )}
+        </div>
+        {compact && <div className={styles.readoutSide} data-end="">{clear}</div>}
       </div>
 
       <div ref={wrapRef} className={styles.stage}>
@@ -135,6 +128,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
             unit={unit}
             colorMode={colorMode}
             reduce={!!reduce}
+            band={LABEL_BAND}
             outer={outer}
             onRemove={removeOuter}
           />
@@ -142,31 +136,23 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
         <p className={styles.full} role="status" data-visible={full}>
           {full ? (horn ? 'Horn is full' : 'Sleeve is full') : ''}
         </p>
+        <Hint id="plates" className={styles.hint} point="down" />
       </div>
       {horn && <p className={styles.perSide}>per side</p>}
 
-      <div className={styles.tray} role="group" aria-label="Plates">
+      <div className={styles.tray} role="group" aria-label="Plates" data-scroll={sizes.length > 7}>
         {sizes.map((w) => (
-          <TrayPlate key={w} weight={w} unit={unit} colorMode={colorMode} onAdd={add} />
+          <TrayPlate key={w} weight={w} unit={unit} colorMode={colorMode} size={plateSpec(w, unit).diameter / biggest} onAdd={add} />
         ))}
       </div>
 
-      <div className={styles.links}>
-        {bar !== null && (
-          <button type="button" className={`${styles.link} pressable`} onClick={() => setTyping(true)}>
-            Type it
-          </button>
-        )}
-        <button
-          type="button"
-          className={`${styles.link} pressable`}
-          onClick={() => onChange([])}
-          disabled={!value.length}
-        >
-          Clear
-        </button>
-        {extraLink}
-      </div>
+      {(!compact || extraLink) && (
+        <div className={styles.links}>
+          {!compact && typeIt}
+          {!compact && clear}
+          {extraLink}
+        </div>
+      )}
 
       {bar !== null && (
         <TypeItSheet
@@ -184,175 +170,17 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
   );
 }
 
-type BarProps = {
-  layout: BarLayout;
-  unit: Unit;
-  colorMode: PlateColors;
-  reduce: boolean;
-  outer: number | null;
-  onRemove: () => void;
-};
-
-function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: BarProps) {
-  const { width, height, sleeves, shoulders, shaft, plates, sides, frame } = layout;
-  // Every plate of a size gets a stable key (its nth occurrence), so a heavier plate added later
-  // slides in at its place while lighter ones glide outward.
-  const seen = new Map<string, number>();
-  const keyed = plates.map((p) => {
-    const k = `${p.side}-${p.weight}`;
-    const n = seen.get(k) ?? 0;
-    seen.set(k, n + 1);
-    return { p, key: `${k}-${n}` };
-  });
-  const removeLabel = outer === null ? undefined : `Remove outermost ${formatWeight(outer, unit)} plate`;
-
-  const sideHit = (side: Side) => {
-    const s = sleeves[side];
-    const top = Math.min(...plates.map((p) => p.y), s.y - 24);
-    const bottom = Math.max(...plates.map((p) => p.y + p.height), s.y + s.height + 24);
-    return { x: s.x, y: top, width: s.width, height: bottom - top };
-  };
-
-  return (
-    <svg
-      className={styles.svg}
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      data-testid="plate-svg"
-      role="img"
-      aria-label={frame ? 'Machine horn' : 'Barbell'}
-    >
-      <defs>
-        <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#D5D8DE" />
-          <stop offset="0.45" stopColor="#9EA2AA" />
-          <stop offset="1" stopColor="#5E6168" />
-        </linearGradient>
-        <linearGradient id="frame" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#3A3B42" />
-          <stop offset="1" stopColor="#24252A" />
-        </linearGradient>
-        <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.14" />
-          <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0" />
-          <stop offset="1" stopColor="#000000" stopOpacity="0.18" />
-        </linearGradient>
-      </defs>
-
-      {frame ? (
-        <rect {...frame} rx={5} fill="url(#frame)" stroke="#4A4B52" strokeWidth={1} />
-      ) : (
-        <>
-          <rect {...shaft} fill="url(#steel)" />
-          {/* Break marks: the shaft between the sleeves is shortened, not to scale. */}
-          <path
-            d={`M${shaft.x + shaft.width / 2 - 5} ${shaft.y - 5} l4 ${shaft.height + 10} M${shaft.x + shaft.width / 2 + 1} ${shaft.y - 5} l4 ${shaft.height + 10}`}
-            stroke="var(--surface-1)"
-            strokeWidth="2.5"
-          />
-        </>
-      )}
-      {sides.map((side) => (
-        <g key={side}>
-          <rect {...sleeves[side]} rx={1.5} fill="url(#steel)" />
-          <rect {...shoulders[side]} rx={1.5} fill="url(#steel)" />
-        </g>
-      ))}
-
-      {sides.map((side) => (
-        <g
-          key={side}
-          className={styles.side}
-          role={outer === null ? undefined : 'button'}
-          tabIndex={outer === null ? undefined : 0}
-          aria-label={removeLabel}
-          data-testid={`remove-${side}`}
-          onClick={onRemove}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onRemove();
-            }
-          }}
-        >
-          <rect {...sideHit(side)} fill="transparent" />
-          <AnimatePresence initial={false}>
-            {keyed
-              .filter(({ p }) => p.side === side)
-              .map(({ p, key }) => (
-                <Plate key={key} plate={p} layout={layout} unit={unit} colorMode={colorMode} reduce={reduce} />
-              ))}
-          </AnimatePresence>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-type PlateProps = {
-  plate: PlateRect;
-  layout: BarLayout;
-  unit: Unit;
-  colorMode: PlateColors;
-  reduce: boolean;
-};
-
-function Plate({ plate, layout, unit, colorMode, reduce }: PlateProps) {
-  const look = plateLook(plate.weight, unit, colorMode);
-  const s = layout.sleeves[plate.side];
-  // Slides on from the free end of the sleeve, off the same way.
-  const offX = plate.side === 'right' ? s.x + s.width + 8 : s.x - plate.width - 8;
-  const from = reduce ? { x: plate.x, opacity: 0 } : { x: offX, opacity: 0 };
-  const rx = Math.min(3, plate.width * 0.25);
-  return (
-    <motion.g
-      data-plate=""
-      data-side={plate.side}
-      data-weight={plate.weight}
-      initial={from}
-      animate={{ x: plate.x, opacity: 1 }}
-      exit={from}
-      transition={reduce ? FADE : { ...SPRING, opacity: { duration: 0.12 } }}
-    >
-      <rect
-        x={0}
-        y={plate.y}
-        width={plate.width}
-        height={plate.height}
-        rx={rx}
-        fill={look.fill}
-        stroke={look.edge}
-        strokeWidth={0.75}
-      />
-      <rect x={0} y={plate.y} width={plate.width} height={plate.height} rx={rx} fill="url(#sheen)" />
-      {plate.label !== null && (
-        <text
-          className={styles.plateLabel}
-          x={plate.width / 2}
-          y={plate.y + plate.height / 2}
-          fill={look.ink}
-          fontSize={plate.label}
-          transform={`rotate(-90 ${plate.width / 2} ${plate.y + plate.height / 2})`}
-          textAnchor="middle"
-          dominantBaseline="central"
-        >
-          {formatAmount(plate.weight)}
-        </text>
-      )}
-    </motion.g>
-  );
-}
-
 type TrayProps = {
   weight: number;
   unit: Unit;
   colorMode: PlateColors;
+  /** Diameter relative to the biggest plate in the tray (0 to 1), for the little swatch. */
+  size: number;
   onAdd: (weight: number, count: number) => void;
 };
 
 /** Tray plate: tap adds one to each side, long press (400 ms) adds two to each side. */
-function TrayPlate({ weight, unit, colorMode, onAdd }: TrayProps) {
+function TrayPlate({ weight, unit, colorMode, size, onAdd }: TrayProps) {
   const timer = useRef<number>(undefined);
   const longPressed = useRef(false);
   const look = plateLook(weight, unit, colorMode);
@@ -390,7 +218,11 @@ function TrayPlate({ weight, unit, colorMode, onAdd }: TrayProps) {
         onAdd(weight, 1);
       }}
     >
-      <span className={styles.swatch} style={{ background: look.fill, borderColor: look.edge }} aria-hidden="true" />
+      <span
+        className={styles.swatch}
+        style={{ ['--plate' as string]: look.fill, height: `${Math.round(12 + 18 * size)}px` }}
+        aria-hidden="true"
+      />
       <span className={`${styles.trayWeight} num`}>{formatAmount(weight)}</span>
     </button>
   );

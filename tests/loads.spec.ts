@@ -266,3 +266,81 @@ test('no dumbbells at this gym: honest empty state', async ({ page }) => {
   await expect(page).toHaveURL(/#\/settings$/);
   expect(errors).toEqual([]);
 });
+
+// PLAN 1.7a: on G's iPhone the wheels showed an empty black box. The numbers must be painted
+// from the first frame and the wheel must move with a swipe.
+for (const id of ['dumbbell', 'single'] as const) {
+  test(`${id} wheel shows its numbers and a swipe changes the pick`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await open(page);
+    const s = section(page, id);
+    await s.scrollIntoViewIfNeeded();
+    const list = s.getByRole('listbox');
+    for (const w of ['5', '10', '15']) {
+      const option = s.getByRole('option', { name: `${w} lb`, exact: true });
+      await expect(option).toBeVisible();
+      await expect(option).toHaveText(w);
+      const box = (await option.boundingBox())!;
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.height).toBeGreaterThan(0);
+      // Really painted: the label is inside the visible wheel, not clipped away.
+      const wheel = (await list.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(wheel.x - 1);
+    }
+    // The visible text is not hidden by a mask or zero opacity.
+    const style = await s.getByRole('option', { name: '5 lb', exact: true }).evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const track = getComputedStyle(el.parentElement!);
+      return { opacity: Number(cs.opacity), mask: track.maskImage || (track as unknown as { webkitMaskImage: string }).webkitMaskImage || 'none' };
+    });
+    expect(style.opacity).toBeGreaterThan(0.3);
+    expect(style.mask).toBe('none');
+
+    // Swipe: drag the wheel left by five weights; it picks the weight it settles on.
+    await page.waitForTimeout(700); // let the first time hint settle
+    const box = (await list.boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width - 20, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 20 - 68 * 2.5, y, { steps: 6 });
+    await page.mouse.move(box.x + box.width - 20 - 68 * 5, y, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(() => json(page, id), { timeout: 4000 }).not.toBeNull();
+    const picked = await json(page, id);
+    expect(picked.total).toBeGreaterThan(id === 'dumbbell' ? 10 : 5);
+    await expect(s.getByRole('option', { selected: true })).toHaveCount(1);
+    await expect(s.getByTestId('wheel-total')).not.toHaveText(/–/);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('first time hints on the loads page: one at a time, each once', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page);
+  const hint = page.getByTestId('hint');
+  await expect(hint).toHaveText('Spin to pick your dumbbells');
+  await expect(hint).toHaveCount(1);
+  await page.getByRole('heading', { level: 1, name: 'Loads' }).tap();
+  await expect(hint).toHaveText('Tap the pin to pick the weight');
+  await expect(hint).toHaveCount(1);
+  await page.getByRole('heading', { level: 1, name: 'Loads' }).tap();
+  await expect(hint).toHaveText('Tap plates to load the bar. We add it up.');
+  await page.getByRole('heading', { level: 1, name: 'Loads' }).tap();
+  await page.waitForTimeout(900);
+  await expect(hint).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId('section-dumbbell')).toBeVisible();
+  await page.waitForTimeout(900);
+  await expect(hint).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('dev page error tools are there and quiet', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page);
+  await expect(page.getByTestId('dev-error-log')).toHaveText('No errors');
+  await page.evaluate(() => setTimeout(() => Promise.reject(new Error('test rejection')), 0));
+  await expect(page.getByTestId('dev-error-log')).toContainText('Unhandled rejection: Error: test rejection');
+  // The deliberate rejection above is the only error.
+  expect(errors.filter((e) => !e.includes('test rejection'))).toEqual([]);
+});

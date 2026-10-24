@@ -1,13 +1,22 @@
 import { useEffect, useRef, type PointerEvent } from 'react';
 import styles from './RepsStepper.module.css';
 
-type Props = { value: number; onChange: (n: number) => void; label?: string; unit?: string; min?: number; max?: number };
+type Props = {
+  value: number;
+  onChange: (n: number) => void;
+  label?: string;
+  unit?: string;
+  min?: number;
+  max?: number;
+  /** Workout size: a little shorter so the set card fits one screen. */
+  compact?: boolean;
+};
 
 const HOLD_DELAY_MS = 400;
 const REPEAT_MS = 90;
 
 /** Big − number + stepper. A tap steps once; holding repeats. */
-export function RepsStepper({ value, onChange, label = 'Reps', unit, min = 1, max = 999 }: Props) {
+export function RepsStepper({ value, onChange, label = 'Reps', unit, min = 1, max = 999, compact = false }: Props) {
   const valueRef = useRef(value);
   valueRef.current = value;
   const timers = useRef<{ delay?: number; repeat?: number }>({});
@@ -67,7 +76,7 @@ export function RepsStepper({ value, onChange, label = 'Reps', unit, min = 1, ma
   );
 
   return (
-    <div className={styles.root} role="group" aria-label={label}>
+    <div className={styles.root} role="group" aria-label={label} data-compact={compact}>
       {button(-1, '−', `Fewer ${label.toLowerCase()}`, value <= min)}
       <div className={styles.readout}>
         <span className={`${styles.value} num`} data-testid={`stepper-${label.toLowerCase()}`} aria-live="polite">

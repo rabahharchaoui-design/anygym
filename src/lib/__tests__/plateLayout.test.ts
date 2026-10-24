@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { formatAmount } from '../load';
 import { SLEEVE_LENGTH, plateSpec } from '../plates';
-import { FRAME_WIDTH, MIN_LABEL, PAD, SHAFT_GAP, barLayout, hornLayout, labelSize, outermost, withPlates, withoutOutermost } from '../plateLayout';
+import {
+  BAR_PARTS,
+  FRAME_WIDTH,
+  LABEL_BAND,
+  MIN_LABEL,
+  PAD,
+  SHAFT_GAP,
+  UNDER_LABEL,
+  barLayout,
+  hornLayout,
+  labelSize,
+  outermost,
+  textWidth,
+  withPlates,
+  withoutOutermost,
+} from '../plateLayout';
 
 const LB = [45, 35, 25, 10, 5, 2.5];
 const KG = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -41,8 +56,10 @@ describe('barLayout', () => {
     for (const width of [300, 343, 398]) {
       const l = lay('lb', [], LB, width);
       expect(plateSpec(45, 'lb').diameter * l.scale).toBeLessThanOrEqual(168 - 2 * PAD + 1e-9);
-      expect(l.sleeves.left.x).toBeGreaterThanOrEqual(PAD - 1e-9);
-      expect(l.sleeves.right.x + l.sleeves.right.width).toBeLessThanOrEqual(width - PAD + 1e-9);
+      expect(l.caps.left.x).toBeGreaterThanOrEqual(PAD - 1e-9);
+      expect(l.caps.right.x + l.caps.right.width).toBeLessThanOrEqual(width - PAD + 1e-9);
+      expect(l.caps.left.x + l.caps.left.width).toBeCloseTo(l.sleeves.left.x, 9);
+      expect(l.caps.right.x).toBeCloseTo(l.sleeves.right.x + l.sleeves.right.width, 9);
       expect(l.shaft.width).toBe(SHAFT_GAP);
     }
   });
@@ -57,11 +74,62 @@ describe('barLayout', () => {
     expect(lay('kg', [], []).scale).toBe(lay('kg', [], KG).scale);
   });
 
-  it('labels thick plates and leaves thin ones unlabelled', () => {
-    const l = lay('lb', [45, 2.5], LB, 343);
-    const [p45, p25] = l.plates.filter((p) => p.side === 'right');
-    expect(p45!.label).toBeGreaterThanOrEqual(MIN_LABEL);
-    expect(p25!.label).toBeNull();
+  it('keeps real bar proportions: shaft thinner than sleeve, collar flange fatter, cap a touch fatter', () => {
+    for (const unit of ['lb', 'kg'] as const) {
+      const l = lay(unit, []);
+      const p = BAR_PARTS[unit];
+      expect(l.shaft.height).toBeCloseTo(p.shaftDiameter * l.scale, 9);
+      expect(l.shaft.height).toBeLessThan(l.sleeves.right.height);
+      expect(l.shoulders.right.height).toBeGreaterThan(l.sleeves.right.height);
+      expect(l.caps.right.height).toBeGreaterThan(l.sleeves.right.height);
+      // 28 vs 50 mm feel.
+      expect(l.shaft.height / l.sleeves.right.height).toBeCloseTo(p.shaftDiameter / p.sleeveDiameter, 9);
+    }
+  });
+
+  it('labels thick plates upright on the plate and puts thin ones under it', () => {
+    const l = barLayout({ unit: 'kg', perSide: [25, 2.5], inventory: KG, width: 343, height: 168, labelOf: formatAmount, labelBand: LABEL_BAND });
+    const [p25, p2] = l.plates.filter((p) => p.side === 'right');
+    expect(p25!.label).toBeGreaterThanOrEqual(MIN_LABEL);
+    expect(textWidth('25', p25!.label!)).toBeLessThan(p25!.width);
+    expect(p2!.label).toBeNull();
+    const under = l.labels.filter((u) => u.side === 'right');
+    expect(under.map((u) => u.text)).toEqual(['2.5']);
+    expect(under[0]!.size).toBe(UNDER_LABEL);
+    expect(under[0]!.y).toBeGreaterThan(p25!.y + p25!.height);
+    // It clears the upright-labelled plate before it.
+    expect(under[0]!.x - textWidth('2.5', UNDER_LABEL) / 2).toBeGreaterThan(p25!.x + p25!.width);
+    expect(l.labels.filter((u) => u.side === 'left').map((u) => u.text)).toEqual(['2.5']);
+  });
+
+  it('no label band means no under labels, and plates are centred in what is left', () => {
+    expect(lay('lb', [2.5]).labels).toEqual([]);
+    const l = barLayout({ unit: 'lb', perSide: [45], inventory: LB, width: 340, height: 168, labelOf: formatAmount, labelBand: LABEL_BAND });
+    const p = l.plates[0]!;
+    expect(p.y + p.height / 2).toBeCloseTo((168 - LABEL_BAND) / 2, 9);
+    expect(p.y + p.height).toBeLessThanOrEqual(168 - LABEL_BAND - PAD + 1e-9);
+  });
+
+  it('one label per run of the same plate, never overlapping, nudged outward, inside the drawing', () => {
+    const l = barLayout({ unit: 'lb', perSide: [45, 45, 25, 10, 5, 2.5], inventory: LB, width: 340, height: 100, labelOf: formatAmount, labelBand: LABEL_BAND });
+    for (const side of ['left', 'right'] as const) {
+      const own = l.labels.filter((u) => u.side === side);
+      const sorted = [...own].sort((a, b) => a.x - b.x);
+      for (let i = 1; i < sorted.length; i++) {
+        const a = sorted[i - 1]!;
+        const b = sorted[i]!;
+        expect(a.x + textWidth(a.text, a.size) / 2).toBeLessThanOrEqual(b.x - textWidth(b.text, b.size) / 2 + 1e-9);
+      }
+      for (const u of own) {
+        expect(u.x - textWidth(u.text, u.size) / 2).toBeGreaterThanOrEqual(PAD - 1e-9);
+        expect(u.x + textWidth(u.text, u.size) / 2).toBeLessThanOrEqual(340 - PAD + 1e-9);
+        // Nudged only outward from the plates it names.
+        if (side === 'right') expect(u.x).toBeGreaterThanOrEqual(u.anchor - 1e-9);
+        else expect(u.x).toBeLessThanOrEqual(u.anchor + 1e-9);
+      }
+      // 45, 45 share one label.
+      expect(own.filter((u) => u.weight === 45).length).toBeLessThanOrEqual(1);
+    }
   });
 
   it('never returns a negative scale for a tiny width', () => {
@@ -69,14 +137,42 @@ describe('barLayout', () => {
   });
 });
 
+describe('underLabels edge cases', () => {
+  it('drops labels that would leave a narrow drawing', () => {
+    const l = barLayout({ unit: 'lb', perSide: [45, 35, 25, 10, 5, 2.5], inventory: LB, width: 150, height: 100, labelOf: formatAmount, labelBand: LABEL_BAND });
+    const right = l.labels.filter((u) => u.side === 'right');
+    expect(right.length).toBeLessThan(6);
+    for (const u of l.labels) {
+      expect(u.x - textWidth(u.text, u.size) / 2).toBeGreaterThanOrEqual(PAD - 1e-9);
+      expect(u.x + textWidth(u.text, u.size) / 2).toBeLessThanOrEqual(150 - PAD + 1e-9);
+    }
+  });
+
+  it('labels under thin plates clear upright labelled plates on both sides', () => {
+    const l = barLayout({ unit: 'kg', perSide: [25, 25, 10, 1.25], inventory: KG, width: 380, height: 168, labelOf: formatAmount, labelBand: LABEL_BAND });
+    const left = l.plates.filter((p) => p.side === 'left');
+    const leftLabels = l.labels.filter((u) => u.side === 'left');
+    expect(left[0]!.label).not.toBeNull();
+    const lastUpright = left.filter((p) => p.label !== null).pop()!;
+    for (const u of leftLabels) expect(u.x + textWidth(u.text, u.size) / 2).toBeLessThan(lastUpright.x);
+  });
+
+  it('a horn gets under labels too', () => {
+    const h = hornLayout({ unit: 'lb', perSide: [45, 2.5], inventory: LB, width: 340, height: 120, labelOf: formatAmount, labelBand: LABEL_BAND });
+    expect(h.labels.map((u) => u.text)).toContain('2.5');
+    expect(h.caps.right.x).toBeCloseTo(h.sleeves.right.x + h.sleeves.right.width, 9);
+  });
+});
+
 describe('labelSize', () => {
   it('is at least the minimum readable size or null', () => {
     expect(labelSize(20, 100, '45')).toBe(13);
-    expect(labelSize(13, 100, '45')).toBe(11);
-    expect(labelSize(12.9, 100, '45')).toBeNull();
+    expect(labelSize(17, 100, '45')).toBe(11);
+    expect(labelSize(16.5, 100, '45')).toBeNull();
   });
-  it('drops the label when the text would not fit along the plate', () => {
-    expect(labelSize(20, 20, '102.5')).toBeNull();
+  it('is upright: the text must fit across the plate width, not along its height', () => {
+    expect(labelSize(20, 100, '102.5')).toBeNull();
+    expect(labelSize(60, 14, '45')).toBeNull();
   });
 });
 

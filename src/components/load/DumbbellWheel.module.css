@@ -4,6 +4,16 @@
   margin-bottom: var(--space-1);
 }
 
+.wheelOuter {
+  position: relative;
+}
+
+.hint {
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+}
+
 .wheelWrap {
   position: relative;
   height: 72px;
@@ -36,11 +46,40 @@
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding-inline: calc(50% - var(--item, 68px) / 2);
   outline: none;
-  /* Soft fade at the ends. */
-  mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+  /* No mask-image here: on iPhone Safari a mask on a scrolling box is sized to the scrolled
+     content, which left every number in the transparent band (the empty black box bug). The
+     end fades are separate overlays instead. */
+}
+
+/* While a mouse drags the wheel, snapping would fight the drag. */
+.track[data-dragging='true'] {
+  scroll-snap-type: none;
+  cursor: grabbing;
+}
+
+.spacer {
+  flex: 0 0 calc(50% - var(--item, 68px) / 2);
+  height: 1px;
+}
+
+/* Soft fade at the ends, painted over the track, never catching taps. */
+.fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22%;
+  pointer-events: none;
+}
+
+.fade[data-end='start'] {
+  left: 0;
+  background: linear-gradient(90deg, var(--surface-2), rgba(23, 23, 26, 0));
+}
+
+.fade[data-end='end'] {
+  right: 0;
+  background: linear-gradient(270deg, var(--surface-2), rgba(23, 23, 26, 0));
 }
 
 .track::-webkit-scrollbar {

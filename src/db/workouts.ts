@@ -125,6 +125,20 @@ export async function setsOf(sessionId: string, db: AnyGymDB = defaultDb): Promi
   return db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
 }
 
+/**
+ * The last set of an exercise in the most recent other workout (by start time), for prefilling
+ * the set card. Skips sets marked uncertain (imports). undefined when there is none.
+ */
+export async function lastSetBefore(exerciseId: string, sessionId: string, db: AnyGymDB = defaultDb): Promise<WorkoutSet | undefined> {
+  const sets = (await db.sets.where('exerciseId').equals(exerciseId).toArray()).filter((s) => s.sessionId !== sessionId && !s.uncertain);
+  if (!sets.length) return undefined;
+  const ids = [...new Set(sets.map((s) => s.sessionId))];
+  const sessions = (await db.sessions.bulkGet(ids)).filter((s): s is Session => !!s);
+  const latest = sessions.reduce<Session | undefined>((a, b) => (!a || b.startedAt > a.startedAt ? b : a), undefined);
+  if (!latest) return undefined;
+  return sets.filter((s) => s.sessionId === latest.id).reduce<WorkoutSet | undefined>((a, b) => (!a || b.order > a.order ? b : a), undefined);
+}
+
 export type FinishResult = { saved: true; sets: number } | { saved: false };
 
 /**

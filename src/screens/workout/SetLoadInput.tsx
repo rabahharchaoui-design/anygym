@@ -20,20 +20,24 @@ type Props = {
   onChange: (load: Load | null) => void;
   /** Timed only: whole seconds held. */
   onSeconds?: (seconds: number) => void;
+  /** Workout size (SPEC 13.5): the plate diagram shrinks to fit one screen. */
+  compact?: boolean;
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, onSeconds }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, onSeconds, compact = false }: Props) {
   switch (loadType) {
     case 'barbell':
-      return <BarbellField gym={gym} exerciseName={exerciseName} value={value} onChange={onChange} />;
+      return <BarbellField gym={gym} exerciseName={exerciseName} value={value} onChange={onChange} compact={compact} />;
     case 'dumbbell_each':
     case 'single':
       return <DumbbellWheel unit={gym.unit} range={gym.dumbbellRange} mode={loadType} value={value} onChange={onChange} />;
     case 'stack':
       return <StackSelector gym={gym} machineId={machineIdFor(exerciseId, exerciseName)} value={value} onChange={onChange} />;
     case 'plate_machine':
-      return <PlateMachineField gym={gym} machineId={machineIdFor(exerciseId, exerciseName)} value={value} onChange={onChange} />;
+      return (
+        <PlateMachineField gym={gym} machineId={machineIdFor(exerciseId, exerciseName)} value={value} onChange={onChange} compact={compact} />
+      );
     case 'bodyweight':
       return <BodyweightInput unit={gym.unit} value={value} onChange={onChange} />;
     case 'timed':
@@ -41,7 +45,19 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
   }
 }
 
-function BarbellField({ gym, exerciseName, value, onChange }: { gym: Gym; exerciseName: string; value: Load | null; onChange: (l: Load | null) => void }) {
+function BarbellField({
+  gym,
+  exerciseName,
+  value,
+  onChange,
+  compact,
+}: {
+  gym: Gym;
+  exerciseName: string;
+  value: Load | null;
+  onChange: (l: Load | null) => void;
+  compact: boolean;
+}) {
   const [perSide, setPerSide] = useState<number[]>(value?.perSide ?? []);
   const [asking, setAsking] = useState(false);
   const barId = barIdFor(exerciseName);
@@ -60,6 +76,7 @@ function BarbellField({ gym, exerciseName, value, onChange }: { gym: Gym; exerci
         colorMode={gym.plateColors}
         value={perSide}
         onChange={(next) => change(next)}
+        compact={compact}
         extraLink={
           barId === 'smith' ? (
             <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
@@ -83,13 +100,26 @@ function BarbellField({ gym, exerciseName, value, onChange }: { gym: Gym; exerci
   );
 }
 
-function PlateMachineField({ gym, machineId, value, onChange }: { gym: Gym; machineId: string; value: Load | null; onChange: (l: Load | null) => void }) {
+function PlateMachineField({
+  gym,
+  machineId,
+  value,
+  onChange,
+  compact,
+}: {
+  gym: Gym;
+  machineId: string;
+  value: Load | null;
+  onChange: (l: Load | null) => void;
+  compact: boolean;
+}) {
   const [perSide, setPerSide] = useState<number[]>(value?.perSide ?? []);
   return (
     <PlateMachineInput
       gym={gym}
       machineId={machineId}
       perSide={perSide}
+      compact={compact}
       onChange={(next, load) => {
         setPerSide(next);
         onChange(load);

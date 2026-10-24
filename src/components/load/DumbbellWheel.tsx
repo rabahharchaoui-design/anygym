@@ -1,9 +1,10 @@
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import type { DumbbellRange, Load, Unit } from '../../db/types';
 import { dumbbellLoad, dumbbellsInRange, formatAmount, formatWeight, heldWeightOf, singleLoad } from '../../lib/load';
 import { SPRING } from '../motion';
+import { Hint } from '../hint/Hint';
 import base from './LoadInput.module.css';
 import styles from './DumbbellWheel.module.css';
 
@@ -45,6 +46,9 @@ function Wheel({ unit, range, mode, value, onChange }: Props & { range: Dumbbell
   const settleTimer = useRef<number>(undefined);
   /** Set while we scroll on purpose (mount, tap) so the settle handler does not pick for the user. */
   const programmatic = useRef(false);
+  /** Mouse drag (desktop, tests): touch scrolls natively, a mouse grabs and drags the wheel. */
+  const drag = useRef<{ id: number; x: number; left: number; moved: boolean } | null>(null);
+  const dragged = useRef(false);
   const [centered, setCentered] = useState(Math.max(0, selectedIndex));
 
   const scrollToIndex = (i: number, smooth: boolean) => {
@@ -76,6 +80,7 @@ function Wheel({ unit, range, mode, value, onChange }: Props & { range: Dumbbell
   };
 
   const onScroll = () => {
+    if (drag.current) return; // picked on release
     const el = trackRef.current!;
     const i = Math.min(weights.length - 1, Math.max(0, Math.round(el.scrollLeft / ITEM)));
     if (!programmatic.current) setCentered(i);
@@ -87,6 +92,37 @@ function Wheel({ unit, range, mode, value, onChange }: Props & { range: Dumbbell
       }
       pick(i);
     }, SETTLE_MS);
+  };
+
+  const nearest = () => Math.min(weights.length - 1, Math.max(0, Math.round(trackRef.current!.scrollLeft / ITEM)));
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag.current = { id: e.pointerId, x: e.clientX, left: trackRef.current!.scrollLeft, moved: false };
+    dragged.current = false;
+  };
+  const onPointerMove = (e: PointerEvent) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x;
+    if (!d.moved && Math.abs(dx) < 4) return;
+    if (!d.moved) {
+      d.moved = true;
+      trackRef.current!.setPointerCapture?.(e.pointerId);
+      trackRef.current!.dataset.dragging = 'true';
+    }
+    trackRef.current!.scrollLeft = d.left - dx;
+    setCentered(nearest());
+  };
+  const onPointerUp = (e: PointerEvent) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    delete trackRef.current!.dataset.dragging;
+    if (d.moved) {
+      dragged.current = true; // swallow the click that follows the drag
+      tap(nearest());
+    }
   };
 
   const tap = (i: number) => {
@@ -116,35 +152,54 @@ function Wheel({ unit, range, mode, value, onChange }: Props & { range: Dumbbell
         <p className={base.label}>{label}</p>
       </div>
 
-      <div className={styles.wheelWrap}>
-        <div className={styles.notch} aria-hidden="true" />
-        <div
-          ref={trackRef}
-          className={styles.track}
-          role="listbox"
-          aria-label={mode === 'dumbbell_each' ? 'Dumbbell weight, each hand' : 'Weight held'}
-          aria-orientation="horizontal"
-          tabIndex={0}
-          onScroll={onScroll}
-          onKeyDown={onKeyDown}
-          style={{ ['--item' as string]: `${ITEM}px` }}
-        >
-          {weights.map((w, i) => (
-            <button
-              key={w}
-              type="button"
-              role="option"
-              aria-selected={i === selectedIndex}
-              aria-label={formatWeight(w, unit)}
-              tabIndex={-1}
-              className={styles.item}
-              data-centered={i === centered}
-              data-selected={i === selectedIndex}
-              onClick={() => tap(i)}
-            >
-              <span className="num">{formatAmount(w)}</span>
-            </button>
-          ))}
+      <div className={styles.wheelOuter}>
+        {mode === 'dumbbell_each' && <Hint id="wheel" className={styles.hint} point="down" />}
+        <div className={styles.wheelWrap}>
+          <div className={styles.notch} aria-hidden="true" />
+          <div
+            ref={trackRef}
+            className={styles.track}
+            role="listbox"
+            aria-label={mode === 'dumbbell_each' ? 'Dumbbell weight, each hand' : 'Weight held'}
+            aria-orientation="horizontal"
+            tabIndex={0}
+            onScroll={onScroll}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onKeyDown={onKeyDown}
+            style={{ ['--item' as string]: `${ITEM}px` }}
+          >
+            {/* Spacers (not padding) let the first and last weight sit centred: iOS Safari drops
+              end padding in flex scrollers. Content is plain flex boxes: visible on first paint, no JS. */}
+            <span className={styles.spacer} aria-hidden="true" />
+            {weights.map((w, i) => (
+              <button
+                key={w}
+                type="button"
+                role="option"
+                aria-selected={i === selectedIndex}
+                aria-label={formatWeight(w, unit)}
+                tabIndex={-1}
+                className={styles.item}
+                data-centered={i === centered}
+                data-selected={i === selectedIndex}
+                onClick={() => {
+                  if (dragged.current) {
+                    dragged.current = false;
+                    return;
+                  }
+                  tap(i);
+                }}
+              >
+                <span className="num">{formatAmount(w)}</span>
+              </button>
+            ))}
+            <span className={styles.spacer} aria-hidden="true" />
+          </div>
+          <div className={styles.fade} data-end="start" aria-hidden="true" />
+          <div className={styles.fade} data-end="end" aria-hidden="true" />
         </div>
       </div>
     </div>

@@ -178,7 +178,7 @@ Strength goal uses the same engine with lower rep ranges (see 7.3). No estimated
 
 ## 7. Plans
 
-### 7.1 Onboarding questionnaire (the first impression; make it gorgeous)
+### 7.1 Onboarding questionnaire (the first impression; make it gorgeous). SUPERSEDED by section 14, which expands it.
 Full screen cards, one question each, big tappable choices with icons, progress bar on top, swipe or tap Next, back always available, finish in under 60 seconds:
 1. "What's the goal?" Build muscle · Get stronger · Lose fat · Stay fit · Athletic
 2. "How long have you been training?" New · Under 2 years · 2+ years
@@ -379,3 +379,94 @@ Next to any equipment name or gym term a normal person might not know, show a sm
 - Its typical weight when that is standard (for example "Olympic bar: 45 lb / 20 kg"), or "Check the sticker or stamp, it varies" when it is not.
 Glossary to cover at minimum: Olympic barbell, women's bar, EZ curl bar, trap (hex) bar, fixed weight barbell, Smith machine, cable station and attachments (rope, straight bar, V handle, D handle), plate loaded machine, weight stack machine, leg press, hack squat, pec deck, lat pulldown, seated row, preacher bench, adjustable bench, decline bench, hyperextension bench, dip station, landmine, kettlebell, resistance band, collars and clips, bumper vs iron plates, plus workout terms shown in the app (pair / back to back sets, warm up set, drop set, rest timer, reps, sets).
 Places it appears: the first use weight prompts (Smith machine, EZ bar, plate loaded machines), the equipment picker in onboarding and gym settings, exercise sheets, and plan days. Keep the ⓘ subtle (secondary color, 24 pt tap target inside a 48 pt hit area).
+
+## 14. Getting to know them: the intake funnel (G's rule: more options, all taps)
+Replaces the short onboarding in 7.1. Every screen is big tappable prompt chips (with icons), multi select where it makes sense, a "Skip" on anything personal, progress bar, back always works, about 2 minutes total. More options are better, but every screen asks one clear thing.
+1. Main goal (pick 1): Build muscle · Get stronger · Lose fat · Tone up · Stay healthy · Athletic performance · Train for a race · Get back into it
+2. Focus areas (pick any): Chest · Back · Shoulders · Arms · Abs and core · Glutes · Legs · Whole body balance
+3. What would make this a win? (pick any): Look better in clothes · Bigger arms · Stronger lifts · More energy · Better posture · Lose belly fat · Run farther · Feel less stiff
+4. Experience: Brand new · A few months · 1 to 2 years · 3+ years · Coming back after a break
+5. Days per week: 2 · 3 · 4 · 5 · 6, then "Which days work best?" weekday chips (used for reminders)
+6. Time per session: 20 · 30 · 45 · 60 · 75+ min
+7. Where do you usually train? Full gym · Hotel gyms (I travel a lot) · Home · Outdoors · Mix of everything. Then the equipment picker (section 3) with ⓘ buttons.
+8. How do you like to train? Free weights · Machines · Mix · Bodyweight · Whatever works
+9. Cardio: Love it · A little · Only if I have to · None. Plus favorites: Running · Treadmill · Bike · Stairs · Rower · Jump rope · Walking
+10. Anything to go easy on? Lower back · Knees · Shoulders · Wrists · Neck · Hips · None. (Stored only on the phone; used to avoid or swap exercises; never shown as medical advice; plain note: "If something hurts, stop and check with a professional.")
+11. Exercises you love / never want to see (searchable chips, optional)
+12. When do you usually work out? Early morning · Lunch · After work · Night (used for reminder timing)
+13. About you (optional, Skip button prominent): name for the passport, units, bodyweight, height, age range. Used only to suggest starting weights and calorie neutral targets.
+14. Your plan reveal: animated build of their week ("Mon Push · Wed Pull · Fri Legs"), why it fits them in 2 lines ("4 days, 45 min, hotel friendly, extra arm and glute work, easy on knees"), and "Or pick a curated plan" with matching curated plans.
+Everything is editable later in Settings → My profile, and "Rebuild my plan" reruns the generator.
+
+## 15. The coach: recommendations everywhere (G's rule: the user should not have to think)
+The app acts like a personal trainer. Recommendations are short, specific, one tap to accept, and always say why in plain words. Logic lives in src/lib/coach.ts as pure, fully tested functions.
+- Plan curation from the intake (14): goal sets rep ranges and rest; focus areas add 2 to 4 extra weekly sets for those muscles; "go easy on" swaps out risky lifts (for example lower back: no barbell good mornings, prefer supported rows; knees: box squats or leg press over deep lunges); loved exercises included where they fit, never-want exercises excluded; session time and equipment respected.
+- Starting weights for first timers: no fake numbers. Suggest a test set ("Start light: 10 easy reps, then we'll set your number") and set the first real target from that set.
+- Warm up sets auto added to the first compound of the day for intermediate and up (empty bar or light × 10, about 50% × 5, about 75% × 3), marked as warm up and excluded from progress.
+- Weekly Level up card (Today screen, after each training week): "You hit all your reps on 5 lifts this week. Add weight?" One tap applies to the lifts that earned it: lower body compounds +5% (min +10 lb / +5 kg), upper body compounds +2.5 to 5% (min +5 lb / +2.5 kg), isolation exercises add reps first, then weight. Every number rounded to something loadable at the active gym. Lifts that didn't earn it are listed as "holding steady" with why.
+- Plateau: same weight and reps for 3 sessions → suggest one of: switch rep range, swap to a close variation, or a small deload. One tap.
+- Deload: every 5th to 6th week, or after missed reps two sessions in a row on most lifts, suggest a lighter week (about 10% lighter, one fewer set). One tap.
+- Missed days: after 7+ days off, "Welcome back" week at about 90% weight.
+- Rest timer defaults by goal and exercise; recovery note if the same muscles are trained two days in a row.
+- Cardio suggestions by goal (for example fat loss: 10 min finisher; race goal: runs in the Run tab with a weekly distance target).
+- A small "Coach" line on Today with the single most useful recommendation right now. Never more than one card at a time.
+
+## 16. The passport book (upgrade of 12.8)
+A real feeling passport. Opening it is a moment:
+- Cover: black leather texture, lime foil AnyGym A logo and "ANYGYM PASSPORT" embossed, subtle shine that moves with the phone tilt where supported.
+- Opening animation: the cover swings open in 3D (CSS perspective, about 600 ms, springy), pages fan slightly. Swipe or tap to flip pages with a real page curl turn.
+- ID page: their photo from the camera roll (stays on the phone) or an avatar they build (face shape, skin tone, hair, cap, colors), name, "Home gym", "Issued" date, member number, total cities, total workouts, total distance, and a fake machine readable strip at the bottom in the passport style (decorative, no real personal data beyond what they typed).
+- Stamp pages: one stamp per city, earned by a run there or a workout at a gym tagged with that city. Each stamp looks like an ink stamp: round, rectangle, or hexagon, rotated a few degrees, slightly uneven ink, in a color from the palette, with city name, country flag, date, and "RUN 5.2 km" or "WORKOUT 48 min". New stamps land with a stamping animation and a soft thunk haptic sound.
+- Visa pages for milestones (first run, 10 cities, first marathon distance).
+- Works offline. Shareable as an image of the open spread.
+- Gyms get an optional city field when created, so hotel gym workouts can earn stamps without location tracking.
+
+## 17. Achievements and motivation
+- Weekly goal ring on Today: "3 of 4 workouts this week", fills with a satisfying animation. Weekly streak (weeks in a row hitting the goal), never daily streaks that punish rest days.
+- XP: points for each workout, sets completed, PRs, runs, new cities, Level ups accepted. Levels with names and a progress bar. XP pops up gently at the end of a workout, not during sets.
+- Badges with great looking unlock animations (badge drops in, shines, confetti burst, "Badge unlocked"): First workout · First PR · 5, 25, 100 workouts · 3, 8, 26 week streaks · Hotel Hero (workout at a hotel gym) · Globetrotter (3, 10, 25 cities) · Early Bird · Night Owl · 5K, 10K, half marathon · Iron Week (all planned workouts done) · Comeback (back after 2+ weeks off) · Plate Master (first 2 plate lift, 225 lb or 100 kg) and more.
+- Trophy case screen with locked badges showing how to earn them.
+- Leaderboards come with accounts (section 18): friends and global weekly XP, opt in only.
+
+## 18. Accounts and reminders (optional, after the first workout) — 100% free stack (G's choice)
+- After the first finished workout: one friendly card "Save your progress and get reminders" with Continue with Google and Continue with email. "Not now" is always there and never nags more than once a week.
+- Sign in: Firebase Authentication on the free Spark plan (Google sign in plus email link sign in; Firebase sends the sign in emails itself, so no domain is needed). Add rabahharchaoui-design.github.io as an authorized domain.
+- Sync: Cloud Firestore on the free Spark plan. The phone stays the source of truth and works offline; Firestore holds a synced copy for backup and new phones. Security rules: each user can only read and write their own documents.
+- Push reminders: standard Web Push (works on iPhone once the app is on the Home Screen, iOS 16.4+, and on Android) sent by a Cloudflare Worker on G's free Cloudflare account with a Cron Trigger every 15 minutes. VAPID keys generated once; the private key lives only as a Worker secret. On their workout days at their usual time from the intake: "Leg day today, 45 min. Tap to start." Skip if they already trained, nudge once if they missed, never more than one push a day. Settings to change days, time, or turn off.
+- Weekly recap: a Sunday push "Your week: 3 of 4 workouts, 2 PRs. Tap to see it" that opens an in app recap screen (workouts vs goal, PRs, XP, next week's plan, one coach tip). No email needed for v1.
+- Email recaps later (optional, still free): a Google Apps Script on G's Gmail with a weekly time trigger that reads opted in users from Firestore and sends the recap (consumer Gmail allows about 100 recipients a day, fine for friends and early users). Paid email (Resend with a domain) only if AnyGym outgrows that.
+- Secrets never go in the repo: VAPID private key and any service credentials live only as Cloudflare Worker secrets or in ~/anygym-private/. The Firebase web config is public by design and may be committed.
+- What G must set up first (the build waits for these and does everything else with mocks): a Firebase project with Google and Email link sign in enabled, the web app config saved to ~/anygym-private/accounts.env, and a one time `npx wrangler login` on gmini. Until then the sign up card stays hidden.
+
+## 19. Gym switching everywhere
+The gym pill is on Today, the workout screen header, and the Run tab. One tap opens a sheet with recent gyms, "+ New gym" (presets: Hotel gym, Full gym, Home, Outdoors, No equipment) with name and optional city, and edit. Switching mid workout re-checks the remaining exercises and offers swaps. People travel constantly, so switching must take two taps or less.
+
+## 20. Workout flow: follow the plan, don't fill in a log (G's rule, Oct 23 11:56 PM, overrides 5.1 where they differ)
+G tried logging a barbell squat and it took far too much clicking. The workout must feel like following a coach's list, not filling in a spreadsheet. Design reference (private, not in git): .design-ref/workout-list-inspiration.png (a white list from another app; take the layout idea, keep our dark style, copy nothing else).
+
+### 20.1 The day list (the workout screen)
+- Title is the day name ("Legs · hamstring focus"), with the gym pill and time estimate.
+- One row per exercise, in order: small rounded thumbnail of the form demo on the left (about 64 pt), then the exercise name (big), then "3 sets × 15 to 20" (or "3 × 60 to 90 sec"), then a quiet line "60 s rest". Pairs (supersets) are grouped with a colored rail and the label "Pair: back to back".
+- Each row shows progress: empty, then a ring filling per set done, then a check when done. Done rows dim slightly and the next row is highlighted.
+- Tap a row to open that exercise (20.2). That is the only navigation needed.
+- No "add exercise" or "pick a load type" steps when following a plan. Every exercise already knows its equipment and load type from the catalog.
+
+### 20.2 The exercise view (one tap from the list)
+- Top: the form demo (tap for the full form sheet), name, one line cue.
+- "Last time 12 × 185 · 12 × 185 · 10 × 185" in small text.
+- The sets as rows, ALREADY FILLED with the target weight and reps (from the coach/progression engine; for first timers, the test set flow from SPEC 15). Each row: set number, weight, reps, and a big round check button.
+- Logging a set = tap its check. That's it. The rest timer starts on its own as a slim bar at the bottom (with +15 and Skip), and the next set row is highlighted.
+- Different weight? Tap the weight on that row: the right picker slides up as a sheet (plate diagram for barbells, dumbbell wheel, machine pin), already set to the target, change it, Done. That row and the rows below update to match.
+- Different reps? Tap the reps: a plus/minus stepper right there.
+- After the last set: a quick "Nice. Next: Romanian deadlift" and it returns to the list with the next row highlighted (or swipe to go straight to the next exercise).
+- Target for a barbell squat with the weights right: open list, tap Barbell back squat, tap check 4 times. Nothing else.
+
+### 20.3 Quick workout (no plan)
+- Starts with a fast exercise picker: search box on top, then "Recent", "For your gym", and body part chips. Tapping an exercise adds it to the list with sensible default sets and reps for the user's goal. No load type question ever: the catalog knows it.
+- Then it behaves exactly like 20.1 and 20.2.
+
+### 20.4 Test it the way G uses it
+Playwright tap count tests that fail if exceeded:
+- From Today: start today's plan day and log all 4 sets of a barbell squat at target: at most 6 taps (Start, row, 4 checks).
+- Change the weight of one set on a barbell lift: at most 3 extra taps.
+- Quick workout with one exercise and 3 sets logged: at most 7 taps including search.

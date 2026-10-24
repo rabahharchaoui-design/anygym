@@ -4,6 +4,7 @@ import { defaultBars, defaultPlateColors, defaultPlateInventory } from '../../db
 import type { Collars, PlateColors, Unit } from '../../db/types';
 import { useActiveGym } from '../../db/useActiveGym';
 import { enabledPlates, formatWeight, solvePlates } from '../../lib/load';
+import { DevErrorBoundary, DevErrorLog } from './DevErrors';
 import styles from './PlatesDevScreen.module.css';
 
 const PRESETS: Record<Unit, number[]> = { lb: [135, 185, 315], kg: [60, 102.5] };
@@ -47,13 +48,7 @@ export function PlatesDevScreen() {
         <h1 className={styles.title}>Plates</h1>
         <div className={styles.segment} role="group" aria-label="Unit">
           {(['lb', 'kg'] as const).map((u) => (
-            <button
-              key={u}
-              type="button"
-              className={`${styles.seg} pressable`}
-              aria-pressed={unit === u}
-              onClick={() => switchUnit(u)}
-            >
+            <button key={u} type="button" className={`${styles.seg} pressable`} aria-pressed={unit === u} onClick={() => switchUnit(u)}>
               {u}
             </button>
           ))}
@@ -66,27 +61,25 @@ export function PlatesDevScreen() {
             {formatWeight(t, unit)}
           </button>
         ))}
-        <button
-          type="button"
-          className={`${styles.preset} pressable`}
-          aria-pressed={unknownBar}
-          onClick={() => setUnknownBar((v) => !v)}
-        >
+        <button type="button" className={`${styles.preset} pressable`} aria-pressed={unknownBar} onClick={() => setUnknownBar((v) => !v)}>
           Bar unknown
         </button>
       </div>
 
       <section className={styles.card}>
-        <PlateDiagram
-          unit={unit}
-          bar={bar}
-          inventory={setup.inventory}
-          collars={setup.collars}
-          colorMode={setup.colorMode}
-          value={perSide}
-          onChange={setPerSide}
-        />
+        <DevErrorBoundary name="Plate diagram">
+          <PlateDiagram
+            unit={unit}
+            bar={bar}
+            inventory={setup.inventory}
+            collars={setup.collars}
+            colorMode={setup.colorMode}
+            value={perSide}
+            onChange={setPerSide}
+          />
+        </DevErrorBoundary>
       </section>
+      <DevErrorLog />
     </div>
   );
 }

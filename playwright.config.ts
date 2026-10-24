@@ -4,9 +4,10 @@ const PORT = 4173;
 
 // Add a profile with one line, e.g. ['iPhone SE', devices['iPhone SE']].
 const PROFILES: Array<[string, (typeof devices)[string]]> = [
-  ['iPhone SE', devices['iPhone SE']],
+  // SPEC 13.4: iPhone SE is the 375 x 667 home button phone (Playwright's plain 'iPhone SE' is the 320 x 568 first gen).
+  ['iPhone SE', devices['iPhone SE (3rd gen)']],
   ['iPhone 15 Pro', devices['iPhone 15 Pro']],
-  ['iPhone 15 Pro Max', devices['iPhone 15 Pro Max']],
+  ['iPhone 17 Pro Max', devices['iPhone 17 Pro Max']],
 ];
 
 export default defineConfig({

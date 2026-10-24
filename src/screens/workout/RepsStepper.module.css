@@ -44,3 +44,15 @@
   font-size: var(--text-sm);
   font-weight: 600;
 }
+
+.root[data-compact='true'] .step {
+  height: 52px;
+}
+
+.root[data-compact='true'] .value {
+  font-size: 40px;
+}
+
+.root[data-compact='true'] .label {
+  margin-top: 2px;
+}

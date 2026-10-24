@@ -48,9 +48,34 @@ const typeIt = async (page: Page, text: string) => {
 };
 
 const shot = async (page: Page, name: string, project: string) => {
+  if (project === 'iPhone SE' || project === 'iPhone 17 Pro Max') {
+    // PLAN 1.7a: the realistic bar on the smallest and largest phones.
+    await page.waitForTimeout(450); // let the springs settle
+    await page.getByTestId('hint').waitFor({ state: 'detached' }).catch(() => {});
+    await page.screenshot({ path: `reports/shots/1.7a/bar-${name}-${project.replace(/ /g, '-')}.png` });
+    return;
+  }
   if (project !== 'iPhone 15 Pro') return;
   await page.waitForTimeout(450); // let the springs settle
   await page.screenshot({ path: `reports/shots/1.5/${name}.png` });
+};
+
+/** SPEC 5.6: every weight label is horizontal and upright, the bar has its real parts. */
+const expectRealBar = async (page: Page) => {
+  const svg = page.getByTestId('plate-svg');
+  expect(await svg.locator('text[transform*="rotate"]').count()).toBe(0);
+  expect(await svg.locator('pattern[id$="-knurl"]').count()).toBe(1);
+  expect(await svg.locator('linearGradient[id$="-chrome"]').count()).toBe(1);
+  // Every plate is named: upright on the plate or in the band under it, once per run of a size.
+  const naming = () =>
+    page.evaluate(() => {
+      const right = [...document.querySelectorAll('[data-plate][data-side="right"]')];
+      const drawn = [...new Set(right.map((e) => e.getAttribute('data-weight')))].sort();
+      const onPlate = right.filter((e) => e.querySelector('text')).map((e) => e.getAttribute('data-weight'));
+      const under = [...document.querySelectorAll('[data-testid="remove-right"] [data-under-label]')].map((e) => String(Number(e.textContent)));
+      return { drawn, named: [...new Set([...onPlate, ...under])].sort() };
+    });
+  await expect.poll(async () => { const n = await naming(); return n.named.join() === n.drawn.join() ? 'ok' : JSON.stringify(n); }).toBe('ok');
 };
 
 // Note: the brief listed taps "45, 45, 25" with 3 plates per side, but a tap adds one plate to
@@ -160,6 +185,8 @@ test('kg bar, unknown bar, and the report screenshots', async ({ page }) => {
   for (const t of [135, 185, 315]) {
     await page.getByRole('button', { name: `${t} lb`, exact: true }).tap();
     await expect(page.getByTestId('plate-total')).toHaveText(`${t}lb`);
+    await page.waitForTimeout(350);
+    await expectRealBar(page);
     await shot(page, `${t}-lb`, project);
   }
 
@@ -186,9 +213,42 @@ test('kg bar, unknown bar, and the report screenshots', async ({ page }) => {
     const expected = line ?? `20 bar + 2 × (${solved.perSide.join(' + ')}) = ${t} kg`;
     await expect(math(page)).toHaveText(expected);
     await expectPerSide(page, solved.perSide);
+    await page.waitForTimeout(350);
+    await expectRealBar(page);
     await shot(page, `${t}-kg`, project);
   }
   // Heaviest first from the default kg inventory.
   await expect(math(page)).toHaveText('20 bar + 2 × (25 + 15 + 1.25) = 102.5 kg');
   expect(errors).toEqual([]);
+});
+
+test('first time hint on the plate diagram: shown once, gone on the first tap, never again', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page);
+  const hint = page.getByTestId('hint');
+  await expect(hint).toHaveText('Tap plates to load the bar. We add it up.');
+  await expect(hint).toHaveCount(1); // never two at once
+  // It never blocks the plate under it.
+  await tray(page, '45 lb').tap();
+  await expect(hint).toHaveCount(0);
+  await expect(math(page)).toHaveText('45 bar + 2 × 45 = 135 lb');
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('anygym-hints')))!)).toEqual({ plates: true });
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Plates' })).toBeVisible();
+  await page.waitForTimeout(800);
+  await expect(hint).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('reduced motion: the hint still shows (as a fade) and plates still load', async ({ browser }) => {
+  const context = await browser.newContext({ ...test.info().project.use, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const errors = watchErrors(page);
+  await open(page);
+  await expect(page.getByTestId('hint')).toBeVisible();
+  await tray(page, '25 lb').tap();
+  await expect(math(page)).toHaveText('45 bar + 2 × 25 = 95 lb');
+  await expect(plates(page, 'right')).toHaveCount(1);
+  expect(errors).toEqual([]);
+  await context.close();
 });

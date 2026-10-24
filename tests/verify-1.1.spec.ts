@@ -14,6 +14,8 @@ test('1.1 verify: network, shots, break', async ({ page }) => {
   const routes: Array<[string, string]> = [['', 'today'], ['run', 'run'], ['history', 'history'], ['plans', 'plans'], ['settings', 'settings']];
   for (const [h, n] of routes) {
     await page.goto('./#/' + h);
+    // Let SW registration settle: navigating away mid-register makes WebKit report an aborted sw.js fetch as a pageerror.
+    await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
     await expect(page.locator('h1')).toBeVisible();
     await page.waitForTimeout(300);

@@ -9,18 +9,27 @@ import type { Unit } from '../db/types';
 import { PLATE_SPECS, SLEEVE_LENGTH, plateSpec } from './plates';
 
 /** Olympic bar parts in the unit's length unit (in for lb, mm for kg). Drawing only, approximate. */
-export const BAR_PARTS: Record<Unit, { sleeveDiameter: number; shaftDiameter: number; shoulderDiameter: number; shoulderWidth: number }> = {
-  lb: { sleeveDiameter: 1.97, shaftDiameter: 1.1, shoulderDiameter: 2.9, shoulderWidth: 1 },
-  kg: { sleeveDiameter: 50, shaftDiameter: 28, shoulderDiameter: 74, shoulderWidth: 25 },
+export const BAR_PARTS: Record<
+  Unit,
+  { sleeveDiameter: number; shaftDiameter: number; shoulderDiameter: number; shoulderWidth: number; capWidth: number; capDiameter: number }
+> = {
+  lb: { sleeveDiameter: 1.97, shaftDiameter: 1.1, shoulderDiameter: 2.9, shoulderWidth: 1, capWidth: 0.45, capDiameter: 2.15 },
+  kg: { sleeveDiameter: 50, shaftDiameter: 28, shoulderDiameter: 74, shoulderWidth: 25, capWidth: 11, capDiameter: 55 },
 };
 
-/** Pixel gap that stands in for the shaft between the two shoulders. */
-export const SHAFT_GAP = 36;
+/** Pixel gap that stands in for the shaft between the two shoulders (room for both grip knurls and the centre knurl). */
+export const SHAFT_GAP = 48;
 /** Pixel padding around the drawing. */
 export const PAD = 4;
-/** Smallest readable label (px). Thinner plates get no label; the tray names them. */
+/** Smallest readable label (px). Plates too thin for an upright label get it under the plate instead. */
 export const MIN_LABEL = 11;
 const MAX_LABEL = 13;
+/** Rough width of one digit or point as a share of the font size (Space Grotesk, tabular). */
+const CHAR_EM = 0.62;
+/** Font size of the labels in the band under the plates. */
+export const UNDER_LABEL = 11;
+/** Height of the label band a caller should reserve for UNDER_LABEL text. */
+export const LABEL_BAND = 16;
 
 export type Side = 'left' | 'right';
 
@@ -33,8 +42,22 @@ export type PlateRect = {
   y: number;
   width: number;
   height: number;
-  /** Font size for the weight label, or null when the plate is too thin to label. */
+  /** Font size for an upright label on the plate edge, or null when it goes under the plate. */
   label: number | null;
+};
+
+/** An upright weight label under a run of identical plates, nudged outward so labels never overlap. */
+export type UnderLabel = {
+  side: Side;
+  weight: number;
+  text: string;
+  /** Centre x of the text. */
+  x: number;
+  /** Centre x of the plates it names (differs from x when nudged). */
+  anchor: number;
+  /** Centre y of the text. */
+  y: number;
+  size: number;
 };
 
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -46,21 +69,73 @@ export type BarLayout = {
   scale: number;
   sleeves: Record<Side, Rect>;
   shoulders: Record<Side, Rect>;
+  /** End caps at the free ends of the sleeves. */
+  caps: Record<Side, Rect>;
   shaft: Rect;
   plates: PlateRect[];
+  /** Labels in the band under the plates, for plates too thin for an upright label. */
+  labels: UnderLabel[];
   /** Sides that carry plates: both on a bar, only 'right' on a machine horn. */
   sides: Side[];
   /** Machine frame the horn sticks out of (horn only). */
   frame?: Rect;
 };
 
-/** Label font size that fits a plate of this pixel width, or null when none does. */
+/** Pixel width of a label at a font size. */
+export function textWidth(text: string, size: number): number {
+  return text.length * size * CHAR_EM;
+}
+
+/**
+ * Font size for an upright (horizontal) label across the plate edge, or null when the text is
+ * wider than the plate. Never rotated: SPEC 5.6 wants labels readable without tilting your head.
+ */
 export function labelSize(plateWidth: number, plateHeight: number, text: string): number | null {
-  const size = Math.min(MAX_LABEL, plateWidth - 2);
-  if (size < MIN_LABEL) return null;
-  // Rotated label runs along the plate height; digits are about 0.62em wide.
-  if (text.length * size * 0.62 + 6 > plateHeight) return null;
-  return size;
+  for (let size = MAX_LABEL; size >= MIN_LABEL; size--) {
+    if (textWidth(text, size) + 3 <= plateWidth && size + 6 <= plateHeight) return size;
+  }
+  return null;
+}
+
+/**
+ * Labels for runs of unlabelled plates, placed in the band under the plates. Each run of the same
+ * weight gets one label centred under it; a label that would touch the previous one slides
+ * outward along the sleeve. Labels that would leave the drawing are dropped (the math line and
+ * the tray still name every plate).
+ */
+export function underLabels(plates: readonly PlateRect[], width: number, bandTop: number, labelOf: (w: number) => string): UnderLabel[] {
+  const out: UnderLabel[] = [];
+  const size = UNDER_LABEL;
+  const y = bandTop + LABEL_BAND / 2;
+  for (const side of ['right', 'left'] as const) {
+    const own = plates.filter((p) => p.side === side).sort((a, b) => a.index - b.index);
+    // Runs of the same weight, innermost first.
+    const runs: PlateRect[][] = [];
+    for (const p of own) {
+      const last = runs[runs.length - 1];
+      if (last && last[0]!.weight === p.weight) last.push(p);
+      else runs.push([p]);
+    }
+    let edge = side === 'right' ? -Infinity : Infinity; // outer edge of the previous label
+    for (const run of runs) {
+      if (run[0]!.label !== null) {
+        // Upright on the plate: later labels only need to clear these plates.
+        const lastP = run[run.length - 1]!;
+        edge = side === 'right' ? Math.max(edge, lastP.x + lastP.width) : Math.min(edge, lastP.x);
+        continue;
+      }
+      const text = labelOf(run[0]!.weight);
+      const half = textWidth(text, size) / 2;
+      const lo = Math.min(...run.map((p) => p.x));
+      const hi = Math.max(...run.map((p) => p.x + p.width));
+      const anchor = (lo + hi) / 2;
+      const x = side === 'right' ? Math.max(anchor, edge + 3 + half) : Math.min(anchor, edge - 3 - half);
+      if (x - half < PAD || x + half > width - PAD) break;
+      out.push({ side, weight: run[0]!.weight, text, x, anchor, y, size });
+      edge = side === 'right' ? x + half : x - half;
+    }
+  }
+  return out;
 }
 
 export type LayoutInput = {
@@ -73,18 +148,24 @@ export type LayoutInput = {
   height: number;
   /** Label text per weight, e.g. "2.5". */
   labelOf: (weight: number) => string;
+  /** Pixels reserved at the bottom for labels under thin plates (LABEL_BAND). Default 0 = none. */
+  labelBand?: number;
 };
 
-export function barLayout({ unit, perSide, inventory, width, height, labelOf }: LayoutInput): BarLayout {
+export function barLayout({ unit, perSide, inventory, width, height, labelOf, labelBand = 0 }: LayoutInput): BarLayout {
   const parts = BAR_PARTS[unit];
   const sleeveLength = SLEEVE_LENGTH[unit];
   const sizes = inventory.length ? inventory : PLATE_SPECS[unit].map((p) => p.weight);
   const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
+  const plateArea = height - labelBand;
 
-  // Room for one sleeve and its shoulder on each side of the shaft gap.
+  // Room for one sleeve, its shoulder and its end cap on each side of the shaft gap.
   const sleevePx = (width - SHAFT_GAP - 2 * PAD) / 2;
-  const scale = Math.max(0, Math.min(sleevePx / (sleeveLength + parts.shoulderWidth), (height - 2 * PAD) / biggest));
-  const cy = height / 2;
+  const scale = Math.max(
+    0,
+    Math.min(sleevePx / (sleeveLength + parts.shoulderWidth + parts.capWidth), (plateArea - 2 * PAD) / biggest),
+  );
+  const cy = plateArea / 2;
   const cx = width / 2;
 
   const sleeveH = parts.sleeveDiameter * scale;
@@ -104,6 +185,12 @@ export function barLayout({ unit, perSide, inventory, width, height, labelOf }: 
     left: { x: innerLeft - sleeveW, y: cy - sleeveH / 2, width: sleeveW, height: sleeveH },
     right: { x: innerRight, y: cy - sleeveH / 2, width: sleeveW, height: sleeveH },
   };
+  const capW = parts.capWidth * scale;
+  const capH = parts.capDiameter * scale;
+  const caps = {
+    left: { x: sleeves.left.x - capW, y: cy - capH / 2, width: capW, height: capH },
+    right: { x: sleeves.right.x + sleeveW, y: cy - capH / 2, width: capW, height: capH },
+  };
 
   const sorted = [...perSide].sort((a, b) => b - a);
   const plates: PlateRect[] = [];
@@ -119,7 +206,8 @@ export function barLayout({ unit, perSide, inventory, width, height, labelOf }: 
     offset += w;
   });
 
-  return { width, height, scale, sleeves, shoulders, shaft, plates, sides: ['left', 'right'] };
+  const labels = labelBand > 0 ? underLabels(plates, width, plateArea, labelOf) : [];
+  return { width, height, scale, sleeves, shoulders, caps, shaft, plates, labels, sides: ['left', 'right'] };
 }
 
 /** Pixel width of the machine frame post a horn sticks out of. */
@@ -131,24 +219,31 @@ export const FRAME_WIDTH = 22;
  * length (machines vary; it only needs to look right, the math does not depend on it).
  * Plates sit heaviest innermost against the collar. Only the 'right' side exists.
  */
-export function hornLayout({ unit, perSide, inventory, width, height, labelOf }: LayoutInput): BarLayout {
+export function hornLayout({ unit, perSide, inventory, width, height, labelOf, labelBand = 0 }: LayoutInput): BarLayout {
   const parts = BAR_PARTS[unit];
   const sleeveLength = SLEEVE_LENGTH[unit];
   const sizes = inventory.length ? inventory : PLATE_SPECS[unit].map((p) => p.weight);
   const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
+  const plateArea = height - labelBand;
   const room = width - FRAME_WIDTH - 2 * PAD;
-  const scale = Math.max(0, Math.min(room / (sleeveLength + parts.shoulderWidth), (height - 2 * PAD) / biggest));
-  const cy = height / 2;
+  const scale = Math.max(
+    0,
+    Math.min(room / (sleeveLength + parts.shoulderWidth + parts.capWidth), (plateArea - 2 * PAD) / biggest),
+  );
+  const cy = plateArea / 2;
 
   const sleeveW = sleeveLength * scale;
   const shoulderW = parts.shoulderWidth * scale;
-  const drawn = FRAME_WIDTH + shoulderW + sleeveW;
+  const capW = parts.capWidth * scale;
+  const drawn = FRAME_WIDTH + shoulderW + sleeveW + capW;
   const left = Math.max(PAD, (width - drawn) / 2);
-  const frame = { x: left, y: PAD, width: FRAME_WIDTH, height: height - 2 * PAD };
+  const frame = { x: left, y: PAD, width: FRAME_WIDTH, height: plateArea - 2 * PAD };
   const shoulderH = parts.shoulderDiameter * scale;
   const sleeveH = parts.sleeveDiameter * scale;
   const shoulder = { x: left + FRAME_WIDTH, y: cy - shoulderH / 2, width: shoulderW, height: shoulderH };
   const sleeve = { x: shoulder.x + shoulderW, y: cy - sleeveH / 2, width: sleeveW, height: sleeveH };
+  const capH = parts.capDiameter * scale;
+  const cap = { x: sleeve.x + sleeveW, y: cy - capH / 2, width: capW, height: capH };
   const none = { x: left, y: cy, width: 0, height: 0 };
 
   const plates: PlateRect[] = [];
@@ -169,8 +264,10 @@ export function hornLayout({ unit, perSide, inventory, width, height, labelOf }:
     scale,
     sleeves: { left: none, right: sleeve },
     shoulders: { left: none, right: shoulder },
+    caps: { left: none, right: cap },
     shaft: none,
     plates,
+    labels: labelBand > 0 ? underLabels(plates, width, plateArea, labelOf) : [],
     sides: ['right'],
     frame,
   };

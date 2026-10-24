@@ -5,6 +5,7 @@ import { DISPLAY_STACK_MAX, formatAmount, formatWeight, stackLoad, stackValues }
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { AddedWeightField } from './AddedWeightField';
 import { EquipmentWeightSheet } from './EquipmentWeightSheet';
+import { Hint } from '../hint/Hint';
 import base from './LoadInput.module.css';
 import styles from './StackSelector.module.css';
 
@@ -73,31 +74,34 @@ export function StackSelector({ gym, machineId, value, onChange }: Props) {
         </p>
       </div>
 
-      <div className={styles.frame}>
-        <div ref={listRef} className={styles.list} role="radiogroup" aria-label="Pin position">
-          {pins.map((v, i) => {
-            const lifted = pinIndex >= 0 && i <= pinIndex;
-            return (
-              <button
-                key={v}
-                type="button"
-                role="radio"
-                aria-checked={i === pinIndex}
-                aria-label={`Pin at ${formatWeight(v, unit)}`}
-                className={styles.row}
-                data-lifted={lifted}
-                data-pin={i === pinIndex}
-                onClick={() => setPin(v)}
-              >
-                <span className={styles.plate}>
-                  <span className={`${styles.value} num`}>{formatAmount(v)}</span>
-                  <span className={styles.hole} aria-hidden="true">
-                    <span className={styles.pin} />
+      <div className={styles.frameOuter}>
+        <Hint id="stack" className={styles.hint} point="down" />
+        <div className={styles.frame}>
+          <div ref={listRef} className={styles.list} role="radiogroup" aria-label="Pin position">
+            {pins.map((v, i) => {
+              const lifted = pinIndex >= 0 && i <= pinIndex;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={i === pinIndex}
+                  aria-label={`Pin at ${formatWeight(v, unit)}`}
+                  className={styles.row}
+                  data-lifted={lifted}
+                  data-pin={i === pinIndex}
+                  onClick={() => setPin(v)}
+                >
+                  <span className={styles.plate}>
+                    <span className={`${styles.value} num`}>{formatAmount(v)}</span>
+                    <span className={styles.hole} aria-hidden="true">
+                      <span className={styles.pin} />
+                    </span>
                   </span>
-                </span>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -112,14 +116,7 @@ export function StackSelector({ gym, machineId, value, onChange }: Props) {
 
       {addedOn && <AddedWeightField unit={unit} value={added} onChange={changeAdded} label="Added weight on the pin" />}
 
-      <EquipmentWeightSheet
-        open={asking}
-        onClose={() => setAsking(false)}
-        gymId={gym.id}
-        unit={unit}
-        machineId={machineId}
-        kind="stack"
-      />
+      <EquipmentWeightSheet open={asking} onClose={() => setAsking(false)} gymId={gym.id} unit={unit} machineId={machineId} kind="stack" />
     </div>
   );
 }

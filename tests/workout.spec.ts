@@ -268,3 +268,112 @@ test('a deleted set is gone for good after 5 s, and a double tap on Quick workou
   await expect.poll(() => dbAll(page, 'sets').then((s) => s.length), { timeout: 8000 }).toBe(0);
   expect(errors).toEqual([]);
 });
+
+// SPEC 13.5 (PLAN 1.7a): the current set fits one screen, even on iPhone SE, and a repeat is one tap.
+const shot17a = async (page: Page, name: string) => {
+  const project = test.info().project.name;
+  if (project !== 'iPhone SE' && project !== 'iPhone 17 Pro Max') return;
+  await page.waitForTimeout(450); // let springs settle
+  await page.screenshot({ path: `reports/shots/1.7a/${name}-${project.replace(/ /g, '-')}.png` });
+};
+
+const fitsOneScreen = async (page: Page, card: Locator) => {
+  const main = page.getByRole('main');
+  const { scrollHeight, clientHeight } = await main.evaluate((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }));
+  expect(scrollHeight).toBeLessThanOrEqual(clientHeight);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height);
+  for (const el of [
+    card.getByTestId('plate-total'),
+    card.getByTestId('stepper-reps'),
+    card.getByRole('button', { name: 'More reps' }),
+    card.getByRole('group', { name: 'Plates' }),
+    page.getByTestId('action-bar').getByRole('button', { name: /^Log set/ }),
+  ]) {
+    await expect(el).toBeInViewport({ ratio: 1 });
+  }
+};
+
+test('one screen set card: no scrolling, one row tray, prefilled repeat is one tap', async ({ page }) => {
+  const errors = watchErrors(page);
+  await (await startQuick(page)).tap();
+  await addExercise(page, 'back squat', 'Barbell Back Squat');
+  const card = page.getByTestId('exercise-barbell-back-squat');
+  await expect(card.getByTestId('set-guide')).toHaveText('First time: pick a weight you could lift 2 more reps with');
+
+  // One row tray: every plate button on the same line.
+  const tops = await card.getByRole('group', { name: 'Plates' }).getByRole('button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+  expect(tops.length).toBe(6);
+  expect(new Set(tops).size).toBe(1);
+  for (const b of await card.getByRole('group', { name: 'Plates' }).getByRole('button').all()) {
+    const box = (await b.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(48);
+    expect(box.height).toBeGreaterThanOrEqual(48);
+  }
+
+  await tray(card, '45 lb').tap();
+  await tray(card, '25 lb').tap();
+  await expect(card.getByTestId('plate-total')).toHaveText('185lb');
+  await expect(card.getByTestId('plate-math')).toHaveText('45 bar + 2 × (45 + 25) = 185 lb');
+  await shot17a(page, 'set-card');
+  await fitsOneScreen(page, card);
+
+  // Log set: the card moves on to set 2 by itself, rest starts, same weight and reps ready.
+  const log = page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 185 lb' });
+  await log.tap();
+  await expect(card.getByTestId('set-target')).toHaveText('Set 2');
+  await expect(page.getByTestId('rest-timer')).toBeVisible();
+  await expect(card.getByTestId('set-guide')).toHaveText('Last set: 10 × 185 lb');
+  await expect(card.getByTestId('set-row')).toHaveCount(1);
+  await fitsOneScreen(page, card);
+  await shot17a(page, 'set-card-resting');
+
+  // A second exercise: the squat collapses to one line.
+  await page.getByRole('button', { name: 'Skip' }).tap();
+  await addExercise(page, 'dumbbell bench', 'Dumbbell Bench Press');
+  const squatHead = card.getByRole('button', { expanded: false });
+  await expect(squatHead).toBeVisible();
+  expect((await squatHead.boundingBox())!.height).toBeLessThanOrEqual(56);
+  await expect(squatHead).toContainText('1 set · 10 × 185 lb');
+  // The dumbbell card (wheel) also fits one screen, with the squat line above it.
+  const db = page.getByTestId('exercise-dumbbell-bench-press');
+  await expect(db.getByRole('option', { name: '30 lb', exact: true })).toBeVisible();
+  await db.getByRole('option', { name: '30 lb', exact: true }).tap();
+  await expect(db.getByTestId('wheel-total')).toHaveText('30lb');
+  await shot17a(page, 'set-card-dumbbell');
+  const m = await page.getByRole('main').evaluate((el) => el.scrollHeight - el.clientHeight);
+  expect(m).toBeLessThanOrEqual(0);
+  await expect(db.getByRole('button', { name: 'More reps' })).toBeInViewport({ ratio: 1 });
+
+  // Next workout: the squat comes back prefilled from last time; logging it is ONE tap.
+  await page.getByRole('button', { name: 'Finish' }).tap();
+  await expect(page).toHaveURL(/#\/$/);
+  await (await startQuick(page)).tap();
+  await addExercise(page, 'back squat', 'Barbell Back Squat');
+  const again = page.getByTestId('exercise-barbell-back-squat');
+  await expect(again.getByTestId('set-guide')).toHaveText('Last time: 10 × 185 lb');
+  await expect(again.getByTestId('plate-total')).toHaveText('185lb');
+  await expect(again.getByTestId('stepper-reps')).toHaveText('10');
+  await page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 185 lb' }).tap();
+  await expect(again.getByTestId('set-row')).toHaveCount(1);
+  await expect(again.getByTestId('set-row').first()).toContainText('10 × 185 lb');
+  expect(errors).toEqual([]);
+});
+
+test('first time hints in the workout: plates, then Log set, never during rest', async ({ page }) => {
+  const errors = watchErrors(page);
+  await (await startQuick(page)).tap();
+  await addExercise(page, 'back squat', 'Barbell Back Squat');
+  const card = page.getByTestId('exercise-barbell-back-squat');
+  const hint = page.getByTestId('hint');
+  await expect(hint).toHaveText('Tap plates to load the bar. We add it up.');
+  await tray(card, '45 lb').tap();
+  await expect(hint).toHaveText('Tap Log set when you finish the set');
+  await expect(hint).toHaveCount(1);
+  await shot17a(page, 'hint-log-set');
+  await page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 135 lb' }).tap();
+  await expect(page.getByTestId('rest-timer')).toBeVisible();
+  await page.waitForTimeout(900);
+  await expect(hint).toHaveCount(0);
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('anygym-hints')))!)).toEqual({ plates: true, setCard: true });
+  expect(errors).toEqual([]);
+});
