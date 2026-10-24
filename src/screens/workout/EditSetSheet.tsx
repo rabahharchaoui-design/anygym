@@ -83,7 +83,8 @@ function EditBody({
           value={load}
           onChange={setLoad}
           bar={bar}
-          ownBar={set.load?.kind === 'barbell' ? set.load.barWeight : undefined}
+          ownBar={set.load?.kind === 'barbell' || set.load?.kind === 'plate_machine' ? set.load.barWeight : undefined}
+          ownBarId={set.load?.kind === 'barbell' ? set.load.barId : undefined}
         />
       )}
       {timed ? (

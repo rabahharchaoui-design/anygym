@@ -1,126 +1,88 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { AnimatePresence } from 'motion/react';
-import { db } from '../../db/schema';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, WorkoutSet } from '../../db/types';
-import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, logSet, restoreSet, setsOf, updateSet } from '../../db/workouts';
-import { getPastSessions } from '../../db/history';
-import { pickBar, pickLoadType, saveLoadType } from '../../db/exerciseSettings';
-import { planExercise } from '../../data/planExercises';
-import { planById } from '../../data/plans';
-import { dayIndexOf } from '../../lib/plans';
-import { dayWorkout, firstOpen, nextCurrent, repRangeOf, restAfter, type DoneCounts } from '../../lib/planWorkout';
-import { dayTitle } from '../plans/planWords';
-import { useLive } from '../../hooks/useLive';
+import {
+  WorkoutFinishedError,
+  addExercise,
+  deleteSet,
+  finishWorkout,
+  removeExercise,
+  restoreExercise,
+  restoreSet,
+  setExerciseOrder,
+  updateSet,
+} from '../../db/workouts';
+import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
+import { moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../components/Toast';
+import { FADE, SHEET_SPRING } from '../../components/motion';
 import { createDeleteUndo } from '../../lib/deleteUndo';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
-import { planItemLoadType } from '../../lib/loadTypeRule';
+import { clearExtraSets } from '../../lib/extraSets';
 import { hints } from '../../lib/hints';
-import { extendRest, loadRest, saveRest, startRest, type Rest } from '../../lib/rest';
+import { extendRest, loadRest, saveRest, shortenRest, startRest, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
-import { progress, type PastSession, type Progression } from '../../lib/progression';
-import { unlockAudio } from '../../lib/tone';
-import { AddExerciseSheet } from './AddExerciseSheet';
+import { formatTotal, totalLifted } from '../../lib/load';
+import { DayList } from './DayList';
 import { EditSetSheet } from './EditSetSheet';
-import { ExerciseCard } from './ExerciseCard';
+import { ExerciseMenu, type MenuAction } from './ExerciseMenu';
+import { ExercisePicker } from './ExercisePicker';
+import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { RestDock } from './RestDock';
-import type { SetDraft } from './SetCard';
-import { loadCurrent, saveCurrent } from './currentExercise';
-import { barIdFor, loadSetupFor } from './exerciseLoad';
+import { ChevronLeft } from './icons';
+import { useWorkout } from './useWorkout';
+import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';
 
 let toastSeq = 0;
 const toastOf = (text: string, action?: ToastMessage['action']): ToastMessage => ({ id: ++toastSeq, text, action });
-const exerciseName = (id: string) => planExercise(id)?.name ?? id;
 
-/** Workout screen (SPEC 8.2): top bar, exercise cards, the set card, rest timer. No tab bar. */
+/** iOS push (SPEC 13.2, 23.1): the new screen slides in from the right, the old one moves 30% left and dims. */
+/** dir 0: no movement (the picker sheet already covers the change). */
+const PUSH: Variants = {
+  enter: (dir: number) => (dir === 0 ? { x: 0, opacity: 1 } : { x: dir > 0 ? '100%' : '-30%', opacity: dir > 0 ? 1 : 0.6 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => (dir === 0 ? { opacity: 0, transition: { duration: 0 } } : { x: dir > 0 ? '-30%' : '100%', opacity: dir > 0 ? 0.6 : 1 }),
+};
+const CROSSFADE: Variants = { enter: { opacity: 0 }, center: { opacity: 1 }, exit: { opacity: 0 } };
+
+type Chip = { id: number; text: string };
+
+/**
+ * The workout (SPEC 20, 21.1): the day list at #/workout/:id and one exercise at
+ * #/workout/:id/:exerciseId (a reload lands on the same screen). The live header, the rest bar
+ * and the sheets are shared, so the rest keeps counting while moving between them.
+ */
 export function WorkoutScreen() {
-  const { sessionId = '' } = useParams();
+  const { sessionId = '', '*': sub = '' } = useParams();
+  const exerciseId = sub ? decodeURIComponent(sub.split('/')[0]!) : null;
   const navigate = useNavigate();
+  const location = useLocation();
+  const reduce = useReducedMotion();
   useWakeLock(true);
 
-  const session = useLive(() => db.sessions.get(sessionId), [sessionId]);
-  const allSets = useLive(() => setsOf(sessionId), [sessionId]);
-  const gymId = session.value?.gymId;
-  const gym = useLive(() => (gymId ? db.gyms.get(gymId) : Promise.resolve(undefined)), [gymId]);
-  const settings = useLive(() => db.exerciseSettings.toArray(), []);
-  const exerciseIds = session.value?.exerciseIds ?? [];
-
-  // Plan day (PLAN 1.10): targets, rest, notes and pairs for each exercise, in day order.
-  const plan = planById(session.value?.planId);
-  const dayIndex = plan ? dayIndexOf(plan, session.value?.dayId) : -1;
-  const weekIndex = session.value?.weekIndex ?? 0;
-  const entries = useMemo(() => (plan && dayIndex >= 0 ? dayWorkout(plan, dayIndex, weekIndex) : []), [plan, dayIndex, weekIndex]);
-  const entryOf = useMemo(() => new Map(entries.map((e) => [e.exerciseId, e])), [entries]);
-  const day = plan && dayIndex >= 0 ? plan.days[dayIndex] : undefined;
-  const nameOf = (id: string) => entryOf.get(id)?.name ?? exerciseName(id);
-
-  const loadTypeOf = (id: string): Load['kind'] | undefined => {
-    // The plan's unit wins over the name: a "45 sec" hold is timed, "3 × 10" Plank is reps
-    // (loadTypeRule.ts, PLAN ITEMS). Unknown: the user's answer, asked once.
-    const entry = entryOf.get(id);
-    const fixed = planExercise(id)?.loadType;
-    const kind = entry ? planItemLoadType(entry.name, entry, fixed) : fixed;
-    if (kind && kind !== 'unknown') return kind;
-    return gym.value ? pickLoadType(settings.value ?? [], id, gym.value.id) : undefined;
-  };
-  /** The bar picked for a barbell exercise at this gym (PLAN 1.10d); undefined = the name rule. */
-  const barOf = (id: string) => (gym.value ? pickBar(settings.value ?? [], id, gym.value.id) : undefined);
-
-  // Earlier workouts of each exercise whose load type is known (SPEC 6): "Last time" and "Next".
-  const historyKey = gymId ? exerciseIds.map((id) => `${id}:${loadTypeOf(id) ?? ''}:${barIdFor(nameOf(id), barOf(id)) === 'smith' ? 's' : ''}`).join('|') : '';
-  const history = useLive(async () => {
-    const out = new Map<string, PastSession[]>();
-    if (!gymId || !historyKey) return out;
-    for (const pair of historyKey.split('|')) {
-      const [id, kind, smith] = pair.split(':') as [string, Load['kind'] | '', string];
-      if (kind) out.set(id, await getPastSessions(id, gymId, kind, 6, { smith: smith === 's' }));
-    }
-    return out;
-  }, [historyKey, gymId]);
-
-  const progressionOf = (id: string): Progression | undefined => {
-    const kind = loadTypeOf(id);
-    const past = history.value?.get(id);
-    if (!kind || !past || !gym.value) return undefined;
-    // Plan: the plan's rep range, and the week's prescription for a weekly table (SPEC 6 rule 6).
-    // Quick workout: no rep range yet, so the engine aims to beat last time's reps (SPEC 6, 20.3).
-    const entry = entryOf.get(id);
-    return progress({
-      exerciseId: id,
-      loadKind: kind,
-      unit: gym.value.unit,
-      gym: loadSetupFor(gym.value, kind, id, nameOf(id), barOf(id)),
-      repRange: entry && kind !== 'timed' ? repRangeOf(entry) : null,
-      history: past,
-      ...(entry?.prescription && kind !== 'timed' ? { prescription: entry.prescription } : {}),
-    });
-  };
-
-  const [current, setCurrent] = useState<string | null>(() => loadCurrent(sessionId));
-  const [adding, setAdding] = useState(false);
-  const [asking, setAsking] = useState<string | null>(null);
-  const [editing, setEditing] = useState<WorkoutSet | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
-  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const w = useWorkout(sessionId, hidden);
   const [rest, setRestState] = useState<Rest | null>(() => loadRest(sessionId));
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [chip, setChip] = useState<Chip | null>(null);
+  const [editing, setEditing] = useState<WorkoutSet | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const finishing = useRef(false);
-  const [actionSlot, setActionSlot] = useState<HTMLDivElement | null>(null);
+  const routeRef = useRef(exerciseId);
+  routeRef.current = exerciseId;
 
-  // Deletes are written at once (an app kill can never bring a set back); Undo writes the same
-  // record back, same id and order (SPEC 13.1).
-  // The Undo record is the one deleteSet read in its own transaction, never a stale UI copy.
   const deletes = useMemo(() => createDeleteUndo<WorkoutSet>({ remove: (s) => deleteSet(s.id), restore: restoreSet }), []);
 
-  // Storage full or blocked: drafts still live in memory, but say once that a reload loses them.
   useEffect(() => onDraftStorageFail(() => setToast(toastOf(DRAFTS_NOT_SAVED))), []);
-
   useEffect(() => {
     if (!toast) return;
     const t = window.setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), toast.action ? 5000 : 3000);
@@ -128,112 +90,146 @@ export function WorkoutScreen() {
   }, [toast]);
 
   // No first time hints while the rest timer counts (SPEC 13.5).
-  useEffect(() => {
-    hints.setBlocked(rest !== null);
-  }, [rest]);
+  useEffect(() => hints.setBlocked(rest !== null), [rest]);
   useEffect(() => () => hints.setBlocked(false), []);
 
-  const setRest = useCallback((r: Rest | null) => {
-    setRestState(r);
-    saveRest(r);
-  }, []);
+  const setRest = useCallback(
+    (r: Rest | null) => {
+      setRestState(r);
+      saveRest(r);
+    },
+    [],
+  );
+  const notice = (text: string, retry?: () => void) => setToast(toastOf(text, retry ? { label: 'Try again', onPress: retry } : undefined));
 
-  const sets = (allSets.value ?? []).filter((s) => !hidden.has(s.id));
-  const doneCounts = (list: WorkoutSet[]): Record<string, number> => {
-    const out: Record<string, number> = {};
-    for (const s of list) out[s.exerciseId] = (out[s.exerciseId] ?? 0) + 1;
-    return out;
-  };
-  // Plan: the first exercise with sets left; quick workout: the newest one.
-  const fallback = entries.length ? (firstOpen(entries, doneCounts(sets)) ?? entries[0]!.exerciseId) : (exerciseIds[exerciseIds.length - 1] ?? null);
-  const expanded = current && exerciseIds.includes(current) ? current : fallback;
+  // ---------------------------------------------------------------- navigation
 
-  const mainRef = useRef<HTMLElement>(null);
-  const scrollMode = useRef<'instant' | 'smooth' | null>('instant');
-  const expand = (id: string) => {
-    setCurrent(id);
-    saveCurrent(sessionId, id);
-  };
-  const advance = (id: string) => {
-    scrollMode.current = 'smooth';
-    expand(id);
-  };
-
-  // Current card first (PLAN 1.10): on open and after each advance, the current card sits at the
-  // top of the list (a pair's label stays visible above its first card).
-  const ready = !!(session.value && gym.value && allSets.ready && settings.ready && history.ready);
-  useLayoutEffect(() => {
-    const main = mainRef.current;
-    const mode = scrollMode.current;
-    if (!ready || !main || !expanded || !mode || entries.length === 0) return;
-    const card = main.querySelector<HTMLElement>(`[data-exercise="${CSS.escape(expanded)}"]`);
-    if (!card) return;
-    scrollMode.current = null;
-    const group = card.parentElement?.dataset.group !== undefined && card.previousElementSibling?.tagName === 'P' ? card.parentElement : card;
-    const pad = 6;
-    const top = group.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - pad;
-    const smooth = mode === 'smooth' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    main.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
-  }, [ready, expanded, entries.length]);
-
-  // Plan exercises whose load type is not known yet ask once, when they come up.
-  const asked = useRef(new Set<string>());
-  const expandedNeedsType = ready && !!expanded && entryOf.has(expanded) && !loadTypeOf(expanded);
+  const navState = location.state as { fromList?: boolean; instant?: boolean } | null;
+  const fromList = navState?.fromList === true;
+  const prevView = useRef<string | null>(exerciseId);
+  const order = w.entries.map((e) => e.exerciseId);
+  const dir = (() => {
+    const before = prevView.current;
+    if (navState?.instant && before !== exerciseId) return 0;
+    if (before === exerciseId) return 1;
+    if (exerciseId === null) return -1;
+    if (before === null) return 1;
+    return order.indexOf(exerciseId) >= order.indexOf(before) ? 1 : -1;
+  })();
   useEffect(() => {
-    if (!expandedNeedsType || !expanded || asked.current.has(expanded)) return;
-    asked.current.add(expanded);
-    setAsking(expanded);
-  }, [expandedNeedsType, expanded]);
+    prevView.current = exerciseId;
+  }, [exerciseId]);
 
-  const pick = async (id: string) => {
-    setAdding(false);
-    try {
-      await addExercise(sessionId, id);
-      expand(id);
-      if (!loadTypeOf(id)) setAsking(id);
-    } catch {
-      setToast(toastOf('Could not add that. Try again.'));
+  const openExercise = (id: string, instant = false) =>
+    navigate(`/workout/${sessionId}/${encodeURIComponent(id)}`, { state: { fromList: true, ...(instant ? { instant: true } : {}) } });
+  const switchExercise = (id: string) => navigate(`/workout/${sessionId}/${encodeURIComponent(id)}`, { replace: true, state: { fromList } });
+  const goList = () => {
+    if (fromList) navigate(-1);
+    else navigate(`/workout/${sessionId}`, { replace: true });
+  };
+
+  const chipTimer = useRef<number | undefined>(undefined);
+  /** "Nice. Next: Romanian deadlift" for a moment, then `then` if the user is still on that exercise. */
+  const showChip = (text: string, ms: number, from: string, then: () => void) => {
+    window.clearTimeout(chipTimer.current);
+    const c = { id: ++toastSeq, text };
+    setChip(c);
+    chipTimer.current = window.setTimeout(() => {
+      setChip((cur) => (cur?.id === c.id ? null : cur));
+      if (routeRef.current === from) then();
+    }, ms);
+  };
+  useEffect(() => () => window.clearTimeout(chipTimer.current), []);
+  useEffect(() => {
+    // Leaving the exercise by hand ends its chip.
+    setChip(null);
+    window.clearTimeout(chipTimer.current);
+  }, [exerciseId]);
+
+  // ---------------------------------------------------------------- after a set
+
+  const onLogged = (id: string) => {
+    const done = { ...w.done, [id]: (w.done[id] ?? 0) + 1 };
+    const entries = w.entries;
+    const r = restAfter(entries, done, id);
+    const seconds = r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
+    setRest(seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null);
+    const e = entries.find((x) => x.exerciseId === id);
+    if (!e) return;
+    const next = nextCurrent(entries, done, id);
+    const partner = entries.find((x) => x.exerciseId === next);
+    if (next !== id && e.kind === 'pair' && partner?.block === e.block) {
+      // A pair: straight on to the other exercise of the round (SPEC 13.1: back to back).
+      showChip(`Next: ${w.nameOf(next)}`, 900, id, () => switchExercise(next));
+    } else if ((done[id] ?? 0) >= e.sets) {
+      const after = upNext(entries, done, id);
+      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', 1500, id, goList);
     }
+  };
+
+  const swipeNext = () => {
+    if (!exerciseId) return;
+    const i = order.indexOf(exerciseId);
+    const later = w.entries.slice(i + 1).find((e) => (w.done[e.exerciseId] ?? 0) < e.sets) ?? w.entries[i + 1];
+    if (later) switchExercise(later.exerciseId);
+  };
+
+  // ---------------------------------------------------------------- quick workout: the picker
+
+  // An empty quick workout opens straight into the picker (SPEC 20.3), in the same frame as the
+  // list, so there is never a moment where "+ Add exercise" shows and then goes inert.
+  const autoPicked = useRef(false);
+  const autoOpen = w.ready && !autoPicked.current && !exerciseId && w.isQuick && w.entries.length === 0;
+  const closePicker = () => {
+    autoPicked.current = true;
+    setPicking(false);
+  };
+
+  // Just added: their view may open before the live session lists them.
+  const justAdded = useRef(new Set<string>());
+  const add = async (ids: string[]) => {
+    closePicker();
+    try {
+      for (const id of ids) {
+        await addExercise(sessionId, id);
+        justAdded.current.add(id);
+      }
+      // One exercise: straight into it, ready to log (SPEC 20.4 tap count).
+      if (ids.length === 1) openExercise(ids[0]!, true);
+    } catch {
+      notice('Could not add that. Try again.');
+    }
+  };
+
+  // Exercises whose load type is not known yet ask once, when they open (PLAN 1.7), in the same
+  // frame as the exercise view.
+  const asked = useRef(new Set<string>());
+  const needsType = w.ready && !!exerciseId && !w.loadTypeOf(exerciseId) && order.includes(exerciseId);
+  const askingNow = asking ?? (needsType && exerciseId && !asked.current.has(exerciseId) ? exerciseId : null);
+  const closeAsk = () => {
+    if (askingNow) asked.current.add(askingNow);
+    setAsking(null);
   };
 
   const answer = async (kind: Load['kind']) => {
-    const id = asking;
-    setAsking(null);
-    if (!id || !gym.value) return;
+    const id = askingNow;
+    closeAsk();
+    if (!id || !w.gym) return;
     try {
-      await saveLoadType(id, gym.value.id, kind);
+      await saveLoadType(id, w.gym.id, kind);
     } catch {
-      setToast(toastOf('Could not save that. Try again.'));
+      notice('Could not save that. Try again.');
     }
   };
 
-  const onLog = async (draft: SetDraft, exerciseId: string): Promise<boolean> => {
-    unlockAudio();
-    try {
-      // Warm up block sets are stored as warm ups, so progression ignores them (SPEC 6 rule 1).
-      await logSet({ ...draft, sessionId, exerciseId, ...(entryOf.get(exerciseId)?.warmup ? { kind: 'warmup' as const } : {}) });
-      const done: DoneCounts = doneCounts([...sets, { exerciseId } as WorkoutSet]);
-      const restSec = restAfter(entries, done, exerciseId);
-      if (restSec === null) setRest(startRest(sessionId, Date.now()));
-      else setRest(restSec > 0 ? startRest(sessionId, Date.now(), restSec) : null);
-      // Plan: on to the next set, the pair partner or the next exercise (SPEC 13.5).
-      if (entryOf.has(exerciseId)) {
-        const next = nextCurrent(entries, done, exerciseId);
-        if (next !== exerciseId) advance(next);
-      }
-      return true;
-    } catch {
-      setToast(toastOf('Could not save that set. Try again.'));
-      return false;
-    }
-  };
+  // ---------------------------------------------------------------- edit, delete, undo
 
   const onSave = async (set: WorkoutSet, change: { reps?: number; seconds?: number; load: Load }) => {
     try {
       await updateSet(set.id, change);
       setEditing(null);
     } catch {
-      setToast(toastOf('Could not save that. Try again.'));
+      notice('Could not save that. Try again.');
     }
   };
 
@@ -266,11 +262,45 @@ export function WorkoutScreen() {
     setToast(toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) }));
     await deletes.remove(set).catch(() => {
       if (deletes.canUndo(set.id)) return; // an Undo already put it back
-      // The set is still saved: show it again, say so, offer a retry.
       unhide(set.id);
       setToast(toastOf('Could not delete that set', { label: 'Try again', onPress: () => void onDelete(set) }));
     });
   };
+
+  // ---------------------------------------------------------------- the ⋯ menu
+
+  const menuAction = async (id: string, a: MenuAction) => {
+    setMenuFor(null);
+    if (a === 'loadType') {
+      setAsking(id);
+      return;
+    }
+    const ids = w.session?.exerciseIds ?? [];
+    try {
+      if (a === 'remove') {
+        const at = await removeExercise(sessionId, id);
+        justAdded.current.delete(id);
+        if (routeRef.current === id) goList();
+        const name = w.nameOf(id);
+        setToast(
+          toastOf(`${name} removed`, {
+            label: 'Undo',
+            onPress: () => {
+              setToast(null);
+              restoreExercise(sessionId, id, at).catch(() => notice('Could not put it back'));
+            },
+          }),
+        );
+        return;
+      }
+      const next = moveInOrder(ids, id, a === 'up' ? -1 : 1, w.entryOf);
+      if (next) await setExerciseOrder(sessionId, next);
+    } catch {
+      notice('Could not change that. Try again.');
+    }
+  };
+
+  // ---------------------------------------------------------------- finish
 
   const finish = useTapGuard(async () => {
     if (finishing.current) return;
@@ -281,156 +311,173 @@ export function WorkoutScreen() {
       await logQueue.settle(sessionId);
       const result = await finishWorkout(sessionId);
       setRest(null);
-      saveCurrent(sessionId, null);
       clearSessionDrafts(sessionId);
       logQueue.clearSession(sessionId);
-      const text = result.saved ? `Workout saved · ${result.sets} ${result.sets === 1 ? 'set' : 'sets'}` : 'Nothing logged · Workout discarded';
-      navigate('/', { replace: true, state: { toast: text } });
+      clearExtraSets();
+      if (result.saved) navigate(`/workout/${sessionId}/done`, { replace: true });
+      else navigate('/', { replace: true, state: { toast: 'Nothing logged · Workout discarded' } });
     } catch {
       finishing.current = false;
       deletes.reopen();
-      setToast(toastOf('Could not finish. Try again.'));
+      notice('Could not finish. Try again.');
     }
   });
 
-  const notice = (text: string, retry?: () => void) => setToast(toastOf(text, retry ? { label: 'Try again', onPress: retry } : undefined));
-
   const now = useNow(1000);
 
-  if (session.ready && (!session.value || session.value.endedAt !== undefined) && !finishing.current) {
+  if (w.sessionReady && (!w.session || w.session.endedAt !== undefined) && !finishing.current) {
     return <Navigate to="/" replace />;
   }
-
-  const startedAt = session.value?.startedAt;
-  const editIndex = editing ? sets.filter((s) => s.exerciseId === editing.exerciseId).findIndex((s) => s.id === editing.id) : 0;
-
-  const card = (id: string) => (
-    <ExerciseCard
-      key={id}
-      sessionId={sessionId}
-      exerciseId={id}
-      name={nameOf(id)}
-      loadType={loadTypeOf(id)}
-      gym={gym.value!}
-      sets={sets.filter((s) => s.exerciseId === id)}
-      progression={progressionOf(id)}
-      expanded={id === expanded}
-      onExpand={() => expand(id)}
-      onAskLoadType={() => setAsking(id)}
-      onLog={(d) => onLog(d, id)}
-      onEditSet={setEditing}
-      actionSlot={actionSlot}
-      entry={entryOf.get(id)}
-      bar={barOf(id)}
-      onNotice={notice}
-    />
-  );
-
-  // Cards in order; a pair's cards share one rail with "Pair: back to back" (SPEC 8.2, 13.1).
-  const cards: ReactNode[] = [];
-  for (let i = 0; i < exerciseIds.length; ) {
-    const id = exerciseIds[i]!;
-    const entry = entryOf.get(id);
-    if (entry?.kind === 'pair') {
-      const group: string[] = [];
-      while (i < exerciseIds.length && entryOf.get(exerciseIds[i]!)?.block === entry.block) group.push(exerciseIds[i++]!);
-      cards.push(
-        <div key={`pair-${entry.block}`} className={styles.pairGroup} data-group="" data-warmup={entry.warmup || undefined} data-testid="pair-group">
-          <p className={styles.pairLabel}>{entry.warmup ? 'Warm up · Pair: back to back' : 'Pair: back to back'}</p>
-          {group.map(card)}
-        </div>,
-      );
-    } else {
-      cards.push(
-        entry?.finisher ? (
-          <Fragment key={id}>
-            <p className={styles.finisherLabel}>Finisher</p>
-            {card(id)}
-          </Fragment>
-        ) : entry?.warmup ? (
-          <Fragment key={id}>
-            <p className={styles.warmLabel}>Warm up</p>
-            {card(id)}
-          </Fragment>
-        ) : (
-          card(id)
-        ),
-      );
-      i++;
-    }
+  // An exercise that is not in this workout (removed, or a stale link): the list.
+  if (w.ready && exerciseId && !order.includes(exerciseId) && !justAdded.current.has(exerciseId)) {
+    return <Navigate to={`/workout/${sessionId}`} replace />;
   }
+
+  const startedAt = w.session?.startedAt;
+  const unit = w.gym?.unit ?? 'lb';
+  const lifted = totalLifted(w.sets, unit);
+  const editList = editing ? w.setsOfExercise(editing.exerciseId) : [];
+  const editIndex = editing ? editList.findIndex((s) => s.id === editing.id) : 0;
+  const menuId = menuFor;
+  const menuEntry = menuId ? w.entryOf(menuId) : undefined;
+  const ids = w.session?.exerciseIds ?? [];
+  const variants = reduce ? CROSSFADE : PUSH;
 
   return (
     <div className={styles.screen}>
       <header className={styles.topBar}>
-        <div className={styles.clockBox}>
-          <span className={styles.clockLabel} data-testid="workout-title">
-            {day ? dayTitle(day.n, day.name) : 'Workout'}
-          </span>
+        {exerciseId ? (
+          <button type="button" className={`${styles.back} pressable`} onClick={goList} aria-label="Back to the list">
+            <ChevronLeft />
+          </button>
+        ) : null}
+        <div className={styles.stats}>
           <span className={`${styles.clock} num`} data-testid="elapsed" role="timer" aria-live="off">
             {startedAt ? formatElapsed((now - startedAt) / 1000) : '0:00'}
           </span>
+          <span className={`${styles.statLine} num`} data-testid="live-stats">
+            {w.sets.length} {w.sets.length === 1 ? 'set' : 'sets'}
+            {lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}
+          </span>
         </div>
-        <nav className={styles.music} aria-label="Music">
-          <a className={`${styles.musicButton} pressable`} href="https://open.spotify.com/" target="_blank" rel="noopener" aria-label="Open Spotify">
-            Spotify
-          </a>
-          <a className={`${styles.musicButton} pressable`} href="https://music.apple.com/" target="_blank" rel="noopener" aria-label="Open Apple Music">
-            Music
-          </a>
-        </nav>
         <button type="button" className={`${styles.finish} pressable`} onClick={() => void finish()}>
           Finish
         </button>
       </header>
 
-      <main className={styles.body} ref={mainRef}>
-        {!ready ? (
+      <div className={styles.stage}>
+        {!w.ready ? (
           <div className={styles.skeleton} aria-hidden="true" />
-        ) : exerciseIds.length === 0 ? (
-          <div className={styles.empty}>
-            <h2 className={styles.emptyTitle}>Empty workout</h2>
-            <p className={styles.hint}>Add your first exercise to start logging.</p>
-            <button type="button" className={`${styles.logButton} pressable`} onClick={() => setAdding(true)}>
-              + Add exercise
-            </button>
-          </div>
         ) : (
-          <>
-            {cards}
-            <button type="button" className={`${styles.addButton} pressable`} onClick={() => setAdding(true)}>
-              + Add exercise
-            </button>
-          </>
+          <AnimatePresence initial={false} custom={dir}>
+            <motion.div
+              key={exerciseId ?? 'list'}
+              className={styles.view}
+              custom={dir}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={reduce ? FADE : SHEET_SPRING}
+            >
+              <Present>
+                {exerciseId ? (
+                  <ExerciseView
+                    w={w}
+                    sessionId={sessionId}
+                    exerciseId={exerciseId}
+                    onLogged={onLogged}
+                    onEditSet={setEditing}
+                    onAskLoadType={() => setAsking(exerciseId)}
+                    onMenu={() => setMenuFor(exerciseId)}
+                    onSwipeNext={swipeNext}
+                    onBack={goList}
+                    onNotice={notice}
+                  />
+                ) : (
+                  <DayList w={w} onOpen={openExercise} onAdd={() => setPicking(true)} />
+                )}
+              </Present>
+            </motion.div>
+          </AnimatePresence>
         )}
-      </main>
-
-      {/* Sticky bottom bar: Log set for the open card. The rest bar floats just above it over space
-          the body always reserves, so nothing moves when rest starts or ends. */}
-      <div className={styles.dockWrap}>
-        <AnimatePresence>
-          {rest && <RestDock key="rest" rest={rest} onExtend={() => setRest(extendRest(rest, Date.now()))} onSkip={() => setRest(null)} onDone={() => setRest(null)} />}
-        </AnimatePresence>
-        <div ref={setActionSlot} className={styles.dock} data-testid="action-bar" />
       </div>
 
-      <Toast toast={toast} bottom={rest ? '148px' : '76px'} />
+      {/* The bottom of the frame: the rest bar floats over space every screen keeps free, so it
+          never covers a heading or a row, and nothing moves when it comes or goes. */}
+      <div className={styles.dockWrap}>
+        <AnimatePresence>
+          {chip && (
+            <motion.p
+              key={chip.id}
+              className={styles.nextChip}
+              role="status"
+              data-testid="next-chip"
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              transition={reduce ? FADE : SHEET_SPRING}
+            >
+              {chip.text}
+            </motion.p>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {rest && (
+            <RestDock
+              key="rest"
+              rest={rest}
+              onExtend={() => setRest(extendRest(rest, Date.now()))}
+              onShorten={() => setRest(shortenRest(rest, Date.now()))}
+              onSkip={() => setRest(null)}
+              onDone={() => setRest(null)}
+            />
+          )}
+        </AnimatePresence>
+      </div>
 
-      <AddExerciseSheet open={adding} onClose={() => setAdding(false)} added={exerciseIds} onPick={(id) => void pick(id)} />
-      <LoadTypeSheet open={asking !== null} onClose={() => setAsking(null)} exerciseName={asking ? nameOf(asking) : ''} onPick={(k) => void answer(k)} />
-      {gym.value && (
+      <Toast toast={toast} bottom={rest ? 'calc(var(--rest-height) + 8px)' : '8px'} />
+
+      <ExercisePicker open={picking || autoOpen} onClose={closePicker} gym={w.gym} added={ids} onAdd={(list) => void add(list)} />
+      <LoadTypeSheet open={askingNow !== null} onClose={closeAsk} exerciseName={askingNow ? w.nameOf(askingNow) : ''} onPick={(k) => void answer(k)} />
+      {w.gym && (
         <EditSetSheet
           set={editing}
           index={Math.max(0, editIndex)}
-          exerciseName={editing ? nameOf(editing.exerciseId) : ''}
-          loadType={editing ? loadTypeOf(editing.exerciseId) : undefined}
-          bar={editing ? barOf(editing.exerciseId) : undefined}
-          gym={gym.value}
+          exerciseName={editing ? w.nameOf(editing.exerciseId) : ''}
+          loadType={editing ? w.loadTypeOf(editing.exerciseId) : undefined}
+          bar={editing ? w.barOf(editing.exerciseId) : undefined}
+          gym={w.gym}
           onClose={() => setEditing(null)}
           onSave={onSave}
           onDelete={onDelete}
         />
       )}
+      <ExerciseMenu
+        open={menuId !== null}
+        onClose={() => setMenuFor(null)}
+        name={menuId ? w.nameOf(menuId) : ''}
+        canUp={!!menuId && moveInOrder(ids, menuId, -1, w.entryOf) !== null}
+        canDown={!!menuId && moveInOrder(ids, menuId, 1, w.entryOf) !== null}
+        moveNote={menuEntry?.kind === 'pair' ? 'A pair moves together' : undefined}
+        removeNote={menuId && (w.done[menuId] ?? 0) > 0 ? 'Delete its sets first' : undefined}
+        rest={menuId ? w.restOf(menuId) : 90}
+        note={(menuId && w.noteOf(menuId)) || ''}
+        loadedWith={menuId ? LOAD_TYPE_CHOICES.find((c) => c.kind === w.loadTypeOf(menuId))?.label : undefined}
+        onAction={(a) => menuId && void menuAction(menuId, a)}
+        onRest={(s) => menuId && saveExerciseRest(menuId, s).catch(() => notice('Could not save that. Try again.'))}
+        onNote={(n) => menuId && saveExerciseNote(menuId, n).catch(() => notice('Could not save that. Try again.'))}
+      />
+    </div>
+  );
+}
+
+/** A screen sliding away is hidden from screen readers and takes no taps (one main at a time). */
+function Present({ children }: { children: ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <div className={styles.present} aria-hidden={present ? undefined : true} {...(present ? {} : { inert: '' })}>
+      {children}
     </div>
   );
 }

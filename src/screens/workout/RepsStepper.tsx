@@ -10,13 +10,15 @@ type Props = {
   max?: number;
   /** Workout size: a little shorter so the set card fits one screen. */
   compact?: boolean;
+  /** Amount per tap (rest time: 15 s). */
+  step?: number;
 };
 
 const HOLD_DELAY_MS = 400;
 const REPEAT_MS = 90;
 
 /** Big − number + stepper. A tap steps once; holding repeats. */
-export function RepsStepper({ value, onChange, label = 'Reps', unit, min = 1, max = 999, compact = false }: Props) {
+export function RepsStepper({ value, onChange, label = 'Reps', unit, min = 1, max = 999, compact = false, step: by = 1 }: Props) {
   const valueRef = useRef(value);
   valueRef.current = value;
   const timers = useRef<{ delay?: number; repeat?: number }>({});
@@ -30,7 +32,7 @@ export function RepsStepper({ value, onChange, label = 'Reps', unit, min = 1, ma
   useEffect(() => stop, []);
 
   const step = (d: number) => {
-    const next = Math.min(max, Math.max(min, valueRef.current + d));
+    const next = Math.min(max, Math.max(min, valueRef.current + d * by));
     if (next !== valueRef.current) {
       valueRef.current = next;
       onChange(next);

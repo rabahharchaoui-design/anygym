@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { barForName, buildPlanExercises, loadTypeFromName, planItemLoadType, slugify } from '../loadTypeRule';
+import { barForName, buildPlanExercises, loadTypeFromName, planItemLoadType, slugify, type LoadTypeOverride } from '../loadTypeRule';
+import overrides from '../../../data/plan-exercise-overrides.json';
 import { planById } from '../../data/plans';
 import { dayWorkout } from '../planWorkout';
 import { PLAN_EXERCISES, planExercise } from '../../data/planExercises';
@@ -41,9 +42,11 @@ describe('loadTypeFromName', () => {
     expect(loadTypeFromName(name)).toBe(type);
   });
 
-  it('never calls anything a machine', () => {
+  it('the name rule never calls anything a plate machine (only the hand written table does, PLAN 1.7c)', () => {
+    const hand = new Set((overrides as LoadTypeOverride[]).map((o) => slugify(o.name)));
     for (const e of PLAN_EXERCISES) {
-      expect(e.loadType).not.toBe('plate_machine');
+      if (!hand.has(e.id)) expect(e.loadType).not.toBe('plate_machine');
+      expect(loadTypeFromName(e.name)).not.toBe('plate_machine');
     }
   });
 });
@@ -68,10 +71,33 @@ describe('plan exercise list', () => {
       .filter((f) => f.endsWith('.json'))
       .sort()
       .map((f) => JSON.parse(readFileSync(new URL(f, dir), 'utf8')));
-    expect(PLAN_EXERCISES).toEqual(buildPlanExercises(plans));
+    expect(PLAN_EXERCISES).toEqual(buildPlanExercises(plans, overrides as LoadTypeOverride[]));
     expect(new Set(PLAN_EXERCISES.map((e) => e.id)).size).toBe(PLAN_EXERCISES.length);
     expect(planExercise('barbell-back-squat')).toEqual({ id: 'barbell-back-squat', name: 'Barbell Back Squat', loadType: 'barbell' });
     expect(planExercise('nope')).toBeUndefined();
+  });
+});
+
+describe('hand written load types (PLAN 1.7c)', () => {
+  const plans = [{ exercise: 'Leg Curl' }, { exercise: 'Smith Machine Row' }, { exercise: 'Plank' }];
+  it('override wins over the name rule, keeps a bar, rejects bad entries', () => {
+    const list = buildPlanExercises(plans, [
+      { name: 'leg curl', loadType: 'stack', why: 'pin stack' },
+      { name: 'Smith Machine Row', loadType: 'barbell', bar: 'smith', why: 'Smith bar' },
+    ]);
+    expect(list).toEqual([
+      { id: 'leg-curl', name: 'Leg Curl', loadType: 'stack' },
+      { id: 'plank', name: 'Plank', loadType: 'timed' },
+      { id: 'smith-machine-row', name: 'Smith Machine Row', loadType: 'barbell', bar: 'smith' },
+    ]);
+    expect(() => buildPlanExercises(plans, [{ name: 'Nope', loadType: 'stack', why: '' }])).toThrow();
+    expect(() => buildPlanExercises(plans, [{ name: 'Leg Curl', loadType: 'heavy' as never, why: '' }])).toThrow();
+    expect(() => buildPlanExercises(plans, [{ name: 'Leg Curl', loadType: 'stack', bar: 'smith', why: '' }])).toThrow();
+  });
+  it('every override says why, and only a few plan exercises stay unknown', () => {
+    for (const o of overrides as LoadTypeOverride[]) expect(o.why.length).toBeGreaterThan(5);
+    const unknown = PLAN_EXERCISES.filter((e) => e.loadType === 'unknown').map((e) => e.name);
+    expect(unknown).toEqual(['28 Method Squat', 'Forearm Finger Roll', 'Single Leg Romanian Deadlift', 'Wide Lunge', 'Wrist Twist']);
   });
 });
 

@@ -23,6 +23,11 @@ export function extendRest(rest: Rest, now: number, seconds = REST_STEP_SEC): Re
   return { ...rest, endsAt: base + seconds * 1000, totalSec: Math.max(rest.totalSec, Math.ceil(left)) };
 }
 
+/** −15 s: takes from what is left, never below now (then the rest is over). The ring keeps its length. */
+export function shortenRest(rest: Rest, now: number, seconds = REST_STEP_SEC): Rest {
+  return { ...rest, endsAt: Math.max(now, rest.endsAt - seconds * 1000) };
+}
+
 export function remainingMs(rest: Rest, now: number): number {
   return Math.max(0, rest.endsAt - now);
 }

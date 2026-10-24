@@ -12,6 +12,10 @@ export type Draft = {
   /** Plates per side on a bar or machine horn, kept even while the bar weight is unknown. */
   plates?: number[];
   reps?: number;
+  /** Timed rows (PLAN 1.7c): the hold typed or kept for this row. */
+  seconds?: number;
+  /** Set type picked on the set number (PLAN 1.7c): normal, warmup, drop or failure. */
+  type?: 'normal' | 'warmup' | 'drop' | 'failure';
   watch?: Stopwatch;
   /** Edit count: a Log set write clears only the version it submitted, never newer edits (PLAN 1.10d). */
   rev?: number;
@@ -41,6 +45,8 @@ function validDraft(v: unknown): v is Draft {
   if (d.plates !== undefined && !(Array.isArray(d.plates) && d.plates.every(isNum))) return false;
   if (d.reps !== undefined && !isNum(d.reps)) return false;
   if (d.rev !== undefined && !isNum(d.rev)) return false;
+  if (d.seconds !== undefined && !isNum(d.seconds)) return false;
+  if (d.type !== undefined && !['normal', 'warmup', 'drop', 'failure'].includes(d.type as string)) return false;
   if (d.watch !== undefined) {
     const w = d.watch as Record<string, unknown>;
     if (!w || typeof w !== 'object' || !isNum(w.accumulated) || !(w.startedAt === null || isNum(w.startedAt))) return false;

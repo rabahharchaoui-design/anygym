@@ -1,0 +1,180 @@
+/* The fast exercise picker (SPEC 20.3): search, chips, sections, multi select, "Add N". */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.search {
+  width: 100%;
+  height: 50px;
+  padding: 0 var(--space-4);
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  font-size: 17px;
+  appearance: none;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: 0 var(--space-4);
+  touch-action: pan-x;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  /* A real 48 pt target, no hit area outside the box (the row scrolls sideways and would clip it). */
+  height: 48px;
+  min-width: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionTitle {
+  margin: 4px 4px 2px;
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.item:disabled {
+  cursor: default;
+}
+
+.itemName {
+  font-size: 17px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.item:disabled .itemName {
+  color: var(--text-2);
+}
+
+.added {
+  flex: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.tick {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #3a3a42;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.tick svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--on-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+
+.tick[data-on] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.tick[data-on] svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.none {
+  margin: var(--space-3) 0;
+  color: var(--text-2);
+  text-align: center;
+}
+
+/* "Add N" stays in reach at the bottom of the sheet while the list scrolls. */
+.footer {
+  position: sticky;
+  bottom: 0;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: var(--space-3) var(--space-4) var(--space-1);
+  background: linear-gradient(to bottom, rgba(23, 23, 26, 0), var(--surface-2) 30%);
+}
+
+.addButton {
+  width: 100%;
+  min-height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.addButton:disabled {
+  background: var(--surface-1);
+  color: var(--text-2);
+}

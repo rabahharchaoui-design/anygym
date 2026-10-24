@@ -521,3 +521,81 @@ describe('formatMathLine on a machine horn', () => {
     expect(formatMathLine(0, [], 'none', 'kg', 'start')).toBe('0 start = 0 kg');
   });
 });
+
+describe('totals (PLAN 1.7c)', () => {
+  it('setLifted: reps × total, both dumbbells, added weight only on bodyweight, 0 for holds', async () => {
+    const { setLifted, barbellLoad: bl, dumbbellLoad: dl, bodyweightLoad: bw, timedLoad: tl } = await import('../load');
+    expect(setLifted({ reps: 10, load: bl(45, [45, 25], 'none', 'lb')! })).toBe(1850);
+    expect(setLifted({ reps: 10, load: dl(30, 'lb') })).toBe(600);
+    expect(setLifted({ reps: 8, load: bw('lb') })).toBe(0);
+    expect(setLifted({ reps: 8, load: bw('kg', 10) })).toBe(80);
+    expect(setLifted({ seconds: 45, load: tl('lb') })).toBe(0);
+    expect(setLifted({ reps: 3, load: bl(20, [1.25], 'none', 'kg')! })).toBe(67.5);
+    expect(setLifted({ load: bl(45, [], 'none', 'lb')! })).toBe(0);
+  });
+  it('totalLifted converts other units for display only, exact sums', async () => {
+    const { totalLifted, barbellLoad: bl } = await import('../load');
+    const lb = { reps: 10, load: bl(45, [45, 25], 'none', 'lb')! };
+    expect(totalLifted([lb, lb], 'lb')).toBe(3700);
+    const kg = { reps: 1, load: bl(20, [], 'none', 'kg')! };
+    expect(totalLifted([kg], 'lb')).toBeCloseTo(44.0924524, 6);
+    expect(totalLifted([], 'kg')).toBe(0);
+    expect(totalLifted([{ reps: 3, load: undefined }], 'kg')).toBe(0);
+  });
+  it('formatTotal groups thousands', async () => {
+    const { formatTotal } = await import('../load');
+    expect(formatTotal(4350, 'lb')).toBe('4,350 lb');
+    expect(formatTotal(1234567.5, 'kg')).toBe('1,234,567.5 kg');
+    expect(formatTotal(980, 'lb')).toBe('980 lb');
+    expect(formatTotal(44.0924524, 'lb')).toBe('44.1 lb');
+  });
+  it('cellWeight and platesOnly', async () => {
+    const { cellWeight, platesOnly, dumbbellLoad: dl, bodyweightLoad: bw, timedLoad: tl, stackLoad: sl } = await import('../load');
+    expect(cellWeight(dl(25, 'lb'))).toBe(25);
+    expect(cellWeight(bw('lb', 10))).toBe(10);
+    expect(cellWeight(bw('lb'))).toBe(0);
+    expect(cellWeight(tl('lb'))).toBeNull();
+    expect(cellWeight(sl(15, 'lb', 2.5))).toBe(17.5);
+    expect(platesOnly([10, 5], 'lb')).toBe(30);
+    expect(platesOnly([1.25, 0.5], 'kg')).toBe(3.5);
+  });
+});
+
+describe('isStackPin (PLAN 1.7c: no ceiling)', () => {
+  it('any positive multiple of the step', async () => {
+    const { isStackPin } = await import('../load');
+    expect(isStackPin(305, 5)).toBe(true);
+    expect(isStackPin(1000, 10)).toBe(true);
+    expect(isStackPin(7.5, 2.5)).toBe(true);
+    expect(isStackPin(7, 5)).toBe(false);
+    expect(isStackPin(0, 5)).toBe(false);
+    expect(isStackPin(5, 0)).toBe(false);
+  });
+});
+
+describe('morePins', () => {
+  it('adds 10 steps exactly', async () => {
+    const { morePins } = await import('../load');
+    expect(morePins(300, 5)).toBe(350);
+    expect(morePins(140, 2.5)).toBe(165);
+    expect(morePins(140, 1.25, 4)).toBe(145);
+  });
+});
+
+describe('comparableWeight', () => {
+  it('converts for comparison only', async () => {
+    const { comparableWeight, barbellLoad: bl, dumbbellLoad: dl, stackLoad: sl, bodyweightLoad: bw } = await import('../load');
+    expect(comparableWeight(bl(45, [45], 'none', 'lb')!, 'lb')).toBe(135);
+    expect(comparableWeight(bl(20, [40], 'none', 'kg')!, 'lb')).toBeCloseTo(220.462, 2);
+    expect(comparableWeight(dl(30, 'lb'), 'lb')).toBe(30);
+    expect(comparableWeight(sl(100, 'lb', 5), 'lb')).toBe(105);
+    expect(comparableWeight(bw('lb', 10), 'lb')).toBe(10);
+  });
+});
+
+describe('comparableWeight on a hold', () => {
+  it('is 0 (nothing to compare)', async () => {
+    const { comparableWeight, timedLoad: tl } = await import('../load');
+    expect(comparableWeight(tl('kg'), 'lb')).toBe(0);
+  });
+});

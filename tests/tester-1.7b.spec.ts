@@ -80,11 +80,14 @@ test('tester: pickers, no held/stack labels, stretch, reload, double tap', async
   const errors = watch(page);
   await page.goto('./');
   await page.getByRole('button', { name: /Quick workout/ }).tap();
+  // PLAN 1.7c: the empty quick workout opens the picker; "Add 1" opens the exercise view.
   const add = async (q: string, name: string) => {
-    await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
     const sheet = page.getByRole('dialog', { name: 'Add exercise' });
+    await expect(page.getByTestId('workout-title')).toBeVisible();
+    if (!(await sheet.isVisible())) await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
     await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill(q);
     await sheet.getByRole('button', { name, exact: true }).tap();
+    await sheet.getByRole('button', { name: 'Add 1', exact: true }).tap();
     await expect(sheet).toHaveCount(0);
   };
   const ask = page.getByRole('dialog', { name: 'How do you load this?' });
@@ -108,8 +111,12 @@ test('tester: pickers, no held/stack labels, stretch, reload, double tap', async
   await page.reload();
   await page.waitForTimeout(600);
   console.log('AFTER RELOAD main:', (await page.locator('main').innerText()).slice(0, 300));
+  // The timed exercise view: the hold timer, no weight picker.
+  await expect(page.getByTestId('exercise-static-quadricep-stretch').getByRole('button', { name: 'Start timer' })).toBeVisible();
+  await expect(page.getByTestId('weight-cell')).toHaveCount(0);
   await page.context().setOffline(true);
-  await page.getByRole('button', { name: '+ Add exercise' }).first().tap().catch(() => {});
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
+  await page.getByRole('button', { name: '+ Add exercise' }).first().tap({ timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(300);
   await page.context().setOffline(false);
   expect(errors).toEqual([]);

@@ -18,20 +18,42 @@ const shot = async (page: Page, name: string, target?: Locator) => {
   await (target ?? page).screenshot({ path: `reports/shots/1.7b/${name}.png` });
 };
 
+/** PLAN 1.7c: back to the day list if needed, then the picker (open on an empty workout), "Add 1" opens it. */
 const addExercise = async (page: Page, query: string, name: string) => {
-  await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
+  const back = page.getByRole('button', { name: 'Back to the list' });
+  if (await back.isVisible()) {
+    await back.tap();
+    await expect(page.getByTestId('arrival-guard')).toHaveCount(0);
+  }
   const sheet = page.getByRole('dialog', { name: 'Add exercise' });
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  if (!(await sheet.isVisible())) await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
   await expect(sheet).toBeVisible();
   await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill(query);
   await sheet.getByRole('button', { name, exact: true }).tap();
+  await sheet.getByRole('button', { name: 'Add 1', exact: true }).tap();
   await expect(sheet).toHaveCount(0);
 };
 
+/** PLAN 1.7c: the picker lives in the "Pick the weight" sheet, opened from the first weight cell. */
+const openPicker = async (page: Page, view: Locator) => {
+  await view.getByTestId('weight-cell').first().tap();
+  const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
+  await expect(sheet).toBeVisible();
+  return sheet;
+};
+const closePicker = async (page: Page) => {
+  const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
+  await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(sheet).toHaveCount(0);
+};
+
+// PLAN 1.7c: these exercises are hand mapped (data/plan-exercise-overrides.json), so nothing is
+// asked; the mapping is the answer the test used to give (`choice`, kept for the record).
 const answerLoadType = async (page: Page, choice: RegExp) => {
-  const ask = page.getByRole('dialog', { name: 'How do you load this?' });
-  await expect(ask).toBeVisible();
-  await ask.getByRole('button', { name: choice }).tap();
-  await expect(ask).toHaveCount(0);
+  void choice;
+  await expect(page.locator('[data-testid^="exercise-"]')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'How do you load this?' })).toHaveCount(0);
 };
 
 /** No raw JSON or debug words anywhere on a user screen (SPEC 13.6). */
@@ -47,9 +69,9 @@ const expectNoOldLabels = async (scope: Locator) => {
   }
 };
 
-/** The one expanded card shows exactly one picker. */
+/** The weight sheet shows exactly one picker. */
 const expectOnePicker = async (page: Page, title: string) => {
-  const titles = page.locator('main [data-testid="picker-title"]:visible');
+  const titles = page.locator('[role="dialog"] [data-testid="picker-title"]:visible');
   await expect(titles).toHaveCount(1);
   await expect(titles).toHaveText(title);
 };
@@ -61,44 +83,50 @@ test('workout: each exercise shows only its own picker with the SPEC 13.6 labels
 
   // Dumbbells.
   await addExercise(page, 'dumbbell bench', 'Dumbbell Bench Press');
-  const db = page.getByTestId('exercise-dumbbell-bench-press');
+  let db = await openPicker(page, page.getByTestId('exercise-dumbbell-bench-press'));
   await expectOnePicker(page, 'Dumbbells · weight of one');
   await expect(db.getByText('You hold one in each hand', { exact: true })).toBeVisible();
   await expect(db.locator('[data-picture]')).toHaveCount(1);
   await expect(db.locator('[data-picture="dumbbell"]')).toBeVisible();
   await expect(page.getByTestId('timer-clock')).toHaveCount(0); // timer only on timed exercises
   await expectNoOldLabels(page.locator('main'));
+  await expectNoOldLabels(db);
   await expectNoDebugText(page);
   await db.getByRole('option', { name: '30 lb', exact: true }).tap();
   await shot(page, 'picker-dumbbells');
+  await closePicker(page);
 
   // One weight, both hands: a kettlebell move gets the kettlebell picture.
   await addExercise(page, 'goblet', 'Kettlebell Goblet Squat');
   await answerLoadType(page, /One weight/);
-  const kb = page.getByTestId('exercise-kettlebell-goblet-squat');
+  const kb = await openPicker(page, page.getByTestId('exercise-kettlebell-goblet-squat'));
   await expectOnePicker(page, 'One weight · both hands');
   await expect(kb.getByText('Goblet squat, kettlebell swing', { exact: true })).toBeVisible();
   await expect(kb.locator('[data-picture="kettlebell"]')).toBeVisible();
   await kb.getByRole('option', { name: '35 lb', exact: true }).tap();
   await shot(page, 'picker-one-weight');
+  await closePicker(page);
 
   // A one arm dumbbell move gets the upright dumbbell.
   await addExercise(page, 'single arm dumbbell row', 'Single Arm Dumbbell Row');
+  db = await openPicker(page, page.getByTestId('exercise-single-arm-dumbbell-row'));
   await expectOnePicker(page, 'One weight · both hands');
-  await expect(page.getByTestId('exercise-single-arm-dumbbell-row').locator('[data-picture="upright dumbbell"]')).toBeVisible();
+  await expect(db.locator('[data-picture="upright dumbbell"]')).toBeVisible();
+  await closePicker(page);
 
   // Machine · pick the pin.
   await addExercise(page, 'cable tricep pushdown', 'Cable Tricep Pushdown');
-  const cable = page.getByTestId('exercise-cable-tricep-pushdown');
+  const cable = await openPicker(page, page.getByTestId('exercise-cable-tricep-pushdown'));
   await expectOnePicker(page, 'Machine · pick the pin');
   await expect(cable.getByTestId('stack-sub')).toHaveText('Use the number next to the pin on the weight stack');
   await cable.getByRole('radio', { name: 'Pin at 50 lb' }).tap();
   await shot(page, 'picker-machine-pin');
+  await closePicker(page);
 
   // Machine · plates per side, with the ⓘ next to "Set starting weight".
   await addExercise(page, 'angled machine leg press', 'Angled Machine Leg Press');
   await answerLoadType(page, /Plates on a machine/);
-  const press = page.getByTestId('exercise-angled-machine-leg-press');
+  const press = await openPicker(page, page.getByTestId('exercise-angled-machine-leg-press'));
   await expectOnePicker(page, 'Machine · plates per side');
   await expect(press.getByRole('button', { name: 'What is Plate loaded machine?' })).toBeVisible();
   await press.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
@@ -106,26 +134,32 @@ test('workout: each exercise shows only its own picker with the SPEC 13.6 labels
   const label = (await press.locator('[data-under-label]').first().boundingBox())!;
   const title = (await press.getByTestId('picker-title').boundingBox())!;
   expect(title.y - (label.y + label.height)).toBeGreaterThanOrEqual(8);
-  // The last tray tile does not touch the card edge.
-  const cardBox = (await press.boundingBox())!;
+  // The last tray tile does not touch the sheet edge.
+  const sheetBox = (await press.boundingBox())!;
   const tiles = press.getByRole('group', { name: 'Plates' }).getByRole('button');
   const last = (await tiles.last().boundingBox())!;
   const first = (await tiles.first().boundingBox())!;
-  expect(cardBox.x + cardBox.width - (last.x + last.width)).toBeGreaterThanOrEqual(4);
-  expect(first.x - cardBox.x).toBeGreaterThanOrEqual(4);
+  expect(sheetBox.x + sheetBox.width - (last.x + last.width)).toBeGreaterThanOrEqual(4);
+  expect(first.x - sheetBox.x).toBeGreaterThanOrEqual(4);
   await press.getByTestId('picker-title').scrollIntoViewIfNeeded();
   await shot(page, 'picker-machine-plates');
+  await closePicker(page);
 
   // Your bodyweight + Add weight.
   await addExercise(page, 'wide grip pull up', 'Wide Grip Pull Up');
+  const bw = await openPicker(page, page.getByTestId('exercise-wide-grip-pull-up'));
   await expectOnePicker(page, 'Your bodyweight');
-  await expect(page.getByTestId('exercise-wide-grip-pull-up').getByRole('button', { name: 'Add weight' })).toBeVisible();
+  await expect(bw.getByRole('button', { name: 'Add weight' })).toBeVisible();
   await shot(page, 'picker-bodyweight');
+  await closePicker(page);
 
-  // Hold for: the timer, only here.
+  // Hold for: the timer, only here, and no weight picker at all.
   await addExercise(page, 'plank', 'Plank');
-  await expectOnePicker(page, 'Hold for');
+  const plank = page.getByTestId('exercise-plank');
+  await expect(plank.getByTestId('weight-cell')).toHaveCount(0);
+  await expect(plank.getByTestId('hold-cell')).toHaveCount(3);
   await expect(page.getByTestId('timer-clock')).toHaveCount(1);
+  await expect(plank.getByRole('button', { name: 'Start timer' })).toBeVisible();
   await shot(page, 'picker-hold-for');
 
   await expectNoOldLabels(page.locator('main'));
@@ -139,7 +173,7 @@ test('Smith machine: ⓘ in the first use prompt opens the info sheet; 48 pt hit
   await page.getByRole('button', { name: /Quick workout/ }).tap();
   await addExercise(page, 'smith', 'Smith Machine Upright Row');
   await answerLoadType(page, /Plates on a bar/);
-  const card = page.getByTestId('exercise-smith-machine-upright-row');
+  const card = await openPicker(page, page.getByTestId('exercise-smith-machine-upright-row'));
   await expect(card.getByRole('button', { name: 'What is Smith machine?' })).toBeVisible();
   await expectNoDebugText(page);
 

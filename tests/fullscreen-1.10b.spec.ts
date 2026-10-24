@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './fixtures';
+import { bar185, quickWith, seedFinished } from './workout-helpers';
 
-// PLAN 1.10b: the app fills the screen. The tab bar (and the workout's sticky bar) reach the
+// PLAN 1.10b: the app fills the screen. The tab bar (and the workout's bottom bar) reach the
 // bottom edge, the header starts exactly at the top safe area, nothing is wider than the screen.
 
 const watchErrors = (page: Page) => {
@@ -59,25 +60,39 @@ for (const [route, title] of [
   });
 }
 
-test('workout: the sticky Log set bar reaches the bottom edge', async ({ page }) => {
+// PLAN 1.7c: no sticky Log set bar any more. The workout frame's bottom (where the rest bar
+// lives) reaches the bottom edge with the one safe inset, and the rest bar sits right above it.
+test('workout: the frame bottom with the rest bar reaches the bottom edge', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
-  await page.getByRole('button', { name: /Quick workout/ }).tap();
-  await expect(page).toHaveURL(/#\/workout\//);
-  await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
-  const sheet = page.getByRole('dialog', { name: 'Add exercise' });
-  await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill('back squat');
-  await sheet.getByRole('button', { name: 'Barbell Back Squat', exact: true }).tap();
-  await expect(sheet).toHaveCount(0);
-  const bar = page.getByTestId('action-bar');
-  await expect(bar.getByRole('button', { name: /^Log set/ })).toBeVisible();
-  const { bottom, innerHeight, scrollW, vw } = await page.evaluate(() => ({
-    bottom: document.querySelector('[data-testid="action-bar"]')!.getBoundingClientRect().bottom,
-    innerHeight: window.innerHeight,
-    scrollW: document.documentElement.scrollWidth,
-    vw: document.documentElement.clientWidth,
-  }));
-  expect(bottom).toBe(innerHeight);
+  await seedFinished(page, { 'barbell-back-squat': [{ reps: 10, load: bar185 }] });
+  await quickWith(page, [['back squat', 'Barbell Back Squat']]);
+  await page.getByTestId('check-current').tap();
+  const rest = page.getByTestId('rest-timer');
+  await expect(rest).toBeVisible();
+  await page.waitForTimeout(400); // let the rest bar settle
+  const { dockBottom, dockTop, restBottom, padBottom, safeBottom, innerHeight, scrollW, vw } = await page.evaluate(() => {
+    const restEl = document.querySelector('[data-testid="rest-timer"]')!;
+    const dock = restEl.parentElement!;
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;padding-bottom:env(safe-area-inset-bottom,0px);visibility:hidden';
+    document.body.appendChild(probe);
+    const safe = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+    probe.remove();
+    return {
+      dockBottom: dock.getBoundingClientRect().bottom,
+      dockTop: dock.getBoundingClientRect().top,
+      restBottom: restEl.getBoundingClientRect().bottom,
+      padBottom: parseFloat(getComputedStyle(dock).paddingBottom),
+      safeBottom: safe,
+      innerHeight: window.innerHeight,
+      scrollW: document.documentElement.scrollWidth,
+      vw: document.documentElement.clientWidth,
+    };
+  });
+  expect(dockBottom).toBe(innerHeight);
+  expect(padBottom).toBe(safeBottom);
+  expect(Math.abs(restBottom - dockTop)).toBeLessThanOrEqual(0.5);
   expect(scrollW).toBeLessThanOrEqual(vw);
   expect(errors).toEqual([]);
 });

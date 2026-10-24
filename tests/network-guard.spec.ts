@@ -13,6 +13,9 @@ test('music buttons stay real links but never leave the machine in tests', async
   await page.goto('./');
   await page.getByRole('button', { name: /Quick workout/ }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
+  // PLAN 1.7c: the empty quick workout opens the exercise picker first; the music links sit in the day list.
+  await page.getByRole('dialog', { name: 'Add exercise' }).getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(page.getByRole('dialog', { name: 'Add exercise' })).toHaveCount(0);
 
   const spotify = page.getByRole('link', { name: 'Open Spotify' });
   const music = page.getByRole('link', { name: 'Open Apple Music' });

@@ -17,13 +17,18 @@ type Props = {
   onChange: (perSide: number[], load: Load | null) => void;
   /** Workout size plate diagram (SPEC 13.5). */
   compact?: boolean;
+  /**
+   * Edit set (PLAN 1.7c): the starting resistance the set was logged with. The diagram and the
+   * saved load both use it, so an old set never changes weight because the machine's answer did.
+   */
+  ownStart?: number;
 };
 
 /** Plate loaded machine (SPEC 5.2): the plate diagram on one horn, "per side", plus the starting resistance. */
-export function PlateMachineInput({ gym, machineId, perSide, onChange, compact = false }: Props) {
+export function PlateMachineInput({ gym, machineId, perSide, onChange, compact = false, ownStart }: Props) {
   const [asking, setAsking] = useState(false);
   const unit = gym.unit;
-  const start = machineBase(machineStartFor(gym, machineId));
+  const start = ownStart !== undefined ? ownStart : machineBase(machineStartFor(gym, machineId));
 
   const change = (next: number[], s: number | null = start) => onChange(next, plateMachineLoad(s, next, unit));
 
@@ -42,12 +47,14 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
         value={perSide}
         onChange={(next) => change(next)}
         extraLink={
+          ownStart !== undefined ? undefined : (
           <span className={base.linkWithInfo}>
             <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
               {linkText}
             </button>
             <InfoButton id="plate-loaded-machine" />
           </span>
+          )
         }
       />
       <EquipmentWeightSheet

@@ -27,14 +27,19 @@ async function dbAll<T>(page: Page, store: string): Promise<T[]> {
   }), store);
 }
 
-const logButton = (page: Page) => page.getByTestId('action-bar').getByRole('button').first();
+// PLAN 1.7c: the set card's Log set is now the current row's check in the set table.
+const logButton = (page: Page) => page.getByTestId('check-current');
 
 async function addExercise(page: Page, query: string, name: string) {
-  await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
   const sheet = page.getByRole('dialog', { name: 'Add exercise' });
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  if (!(await sheet.isVisible())) await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
   await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill(query);
   await sheet.getByRole('button', { name, exact: true }).tap();
+  await sheet.getByRole('button', { name: 'Add 1', exact: true }).tap();
   await expect(sheet).toHaveCount(0);
+  // Adding one exercise opens it; the 300 ms arrival guard (1.10c) is not a layout overlay.
+  await expect(page.getByTestId('arrival-guard')).toHaveCount(0);
 }
 
 async function fitsWithoutScrolling(page: Page, controls: Locator[]) {
@@ -56,25 +61,33 @@ async function fitsWithoutScrolling(page: Page, controls: Locator[]) {
   }
 }
 
-// CODEX FOUND BUG, fix in 1.10e: on iPhone SE (375x667), after Leg Press pin 15 + added weight 2.5 is typed, the page/main scrolls (overflow ~530px) and the exercise heading sits at y=-352, off screen; SPEC 355 requires the current set on one screen with no scrolling.
-test.skip('SE: a stack with added weight keeps reps, pin and Log set reachable before and during rest', async ({ page }) => {
+// Was CODEX FOUND BUG, fixed in 1.10e: the added weight pad opens in its own sheet; selectors adapted to the 1.7c set table.
+test('SE: a stack with added weight keeps reps, pin and Log set reachable before and during rest', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 375, height: 667 });
   try {
     await page.goto('./');
     await page.getByRole('button', { name: /Quick workout/ }).tap();
     await addExercise(page, 'leg press', 'Leg Press');
+    // PLAN 1.7c round 2: Leg Press is mapped (plate machine); switch it to a pin stack from the ⋯ menu.
+    await page.getByTestId('exercise-leg-press').getByRole('button', { name: 'More for Leg Press' }).tap();
+    await page.getByRole('dialog', { name: 'Leg Press options' }).getByRole('button', { name: /Loaded with/ }).tap();
     await page.getByRole('dialog', { name: 'How do you load this?' }).getByRole('button', { name: /Machine with a pin/ }).tap();
     const card = page.getByTestId('exercise-leg-press');
-    const pin = card.getByRole('radio', { name: 'Pin at 15 lb', exact: true });
+    await card.getByTestId('weight-cell').first().tap();
+    const picker = page.getByRole('dialog', { name: 'Pick the weight', exact: true });
+    const pin = picker.getByRole('radio', { name: 'Pin at 15 lb', exact: true });
     await pin.tap();
-    await card.getByRole('button', { name: 'Add weight', exact: true }).tap();
-    const added = card.getByRole('group', { name: 'Added weight on the pin', exact: true });
+    await picker.getByRole('button', { name: 'Add weight', exact: true }).tap();
+    const added = page.getByRole('group', { name: 'Added weight on the pin', exact: true });
     await added.getByRole('button', { name: '2', exact: true }).tap();
     await added.getByRole('button', { name: 'Decimal point', exact: true }).tap();
     await added.getByRole('button', { name: '5', exact: true }).tap();
-    await expect(logButton(page)).toHaveText('Log set · 10 × 17.5 lb');
-    const controls = [card.getByRole('heading', { name: 'Leg Press' }), card.getByTestId('set-target'), card.getByTestId('stack-total'), pin, card.getByRole('button', { name: 'Fewer reps' }), card.getByRole('button', { name: 'More reps' }), logButton(page)];
+    await page.getByRole('dialog', { name: 'Add weight', exact: true }).getByRole('button', { name: 'Done', exact: true }).tap();
+    await expect(picker.getByTestId('stack-total')).toHaveText('17.5lb');
+    await picker.getByRole('button', { name: 'Done', exact: true }).tap();
+    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 17.5 lb');
+    const controls = [card.getByRole('heading', { name: 'Leg Press' }), card.getByTestId('set-target'), card.getByTestId('weight-cell').first(), card.getByTestId('reps-cell').first(), logButton(page)];
     await fitsWithoutScrolling(page, controls);
     await logButton(page).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(1);
@@ -86,8 +99,8 @@ test.skip('SE: a stack with added weight keeps reps, pin and Log set reachable b
   }
 });
 
-// CODEX FOUND BUG, fix in 1.10e: on iPhone SE, after logging a timed Plank set the rest timer shows, main overflows by ~5px (scrollHeight>clientHeight) and the Plank heading (y 66-90) fails elementFromPoint, i.e. an overlay (header/rest dock) covers it; SPEC 355 requires no scrolling and unobscured controls.
-test.skip('SE: timed set controls stay unobscured when the next hold starts during rest', async ({ page }) => {
+// Was CODEX FOUND BUG, fixed in 1.10e: the rest bar sits over space the exercise view keeps free; selectors adapted to the 1.7c set table.
+test('SE: timed set controls stay unobscured when the next hold starts during rest', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 375, height: 667 });
   try {
@@ -150,34 +163,44 @@ test('offline reload keeps plates and reps on an unknown EZ bar until its weight
       };
     }));
     await page.reload();
+    // PLAN 1.7c: open the exercise from the day list; its load type question opens once by itself.
+    await page.getByTestId('row-ez-bar-curl').tap();
     const card = page.getByTestId('exercise-ez-bar-curl');
-    await card.getByRole('button', { name: 'How do you load this?' }).tap();
-    await page.getByRole('dialog', { name: 'How do you load this?' }).getByRole('button', { name: /Plates on a bar/ }).tap();
+    const ask = page.getByRole('dialog', { name: 'How do you load this?' });
+    if (!(await ask.isVisible())) await card.getByRole('button', { name: 'How do you load this?' }).tap();
+    await ask.getByRole('button', { name: /Plates on a bar/ }).tap();
     await context.setOffline(true);
-    await card.getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
-    await card.getByRole('button', { name: 'Add 5 lb plate to each side' }).tap();
+    await card.getByTestId('weight-cell').first().tap();
+    const picker = page.getByRole('dialog', { name: 'Pick the weight', exact: true });
+    await picker.getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
+    await picker.getByRole('button', { name: 'Add 5 lb plate to each side' }).tap();
+    await picker.getByRole('button', { name: 'Done', exact: true }).tap();
+    await card.getByTestId('reps-cell').first().tap();
     await card.getByRole('button', { name: 'More reps' }).tap();
-    await expect(card.getByTestId('plate-total')).toContainText('+ bar');
+    await expect(card.getByTestId('weight-cell').first()).toContainText('+ bar');
     await expect(logButton(page)).toBeDisabled();
     expect(await dbAll<WorkoutSet>(page, 'sets')).toEqual([]);
     await page.reload();
-    await expect(card.getByTestId('plate-total')).toContainText('+ bar');
-    await expect(card.getByTestId('stepper-reps')).toHaveText('11');
-    await expect(logButton(page)).toHaveText('Set the bar weight first');
+    await expect(card.getByTestId('weight-cell').first()).toContainText('+ bar');
+    await expect(card.getByTestId('reps-cell').first()).toHaveText('9');
+    await expect(card.getByTestId('set-status')).toHaveText('Set 1: Set the bar weight first');
     await expect(logButton(page)).toBeDisabled();
-    await card.getByRole('button', { name: 'Set bar weight', exact: true }).tap();
+    await card.getByTestId('weight-cell').first().tap();
+    await picker.getByRole('button', { name: 'Set bar weight', exact: true }).tap();
     const sheet = page.getByRole('dialog', { name: 'EZ curl bar', exact: true });
     for (const digit of '25') await sheet.getByRole('button', { name: digit, exact: true }).tap();
     await sheet.getByRole('button', { name: 'Save bar weight', exact: true }).tap();
     await expect(sheet).toHaveCount(0);
-    await expect(card.getByTestId('plate-total')).toHaveText('55lb');
-    await expect(logButton(page)).toHaveText('Log set · 11 × 55 lb');
+    await expect(picker.getByTestId('plate-total')).toHaveText('55lb');
+    await picker.getByRole('button', { name: 'Done', exact: true }).tap();
+    await expect(card.getByTestId('weight-cell').first()).toHaveText('55');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 55 lb');
     await logButton(page).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(1);
     const saved = await dbAll<WorkoutSet>(page, 'sets');
-    expect(saved[0]).toMatchObject({ reps: 11, load: { kind: 'barbell', unit: 'lb', total: 55, barWeight: 25, perSide: [10, 5] } });
+    expect(saved[0]).toMatchObject({ reps: 9, load: { kind: 'barbell', unit: 'lb', total: 55, barWeight: 25, perSide: [10, 5] } });
     await page.reload();
-    await expect(card.getByTestId('plate-total')).toHaveText('55lb');
+    await expect(card.getByTestId('set-row').first()).toContainText('55');
     expect(await dbAll<WorkoutSet>(page, 'sets')).toEqual(saved);
   } finally {
     await context.setOffline(false);

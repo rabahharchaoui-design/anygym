@@ -1,0 +1,217 @@
+/* The day list (SPEC 20.1): a coach's list, not a log. Calm rows, the next one lit. */
+
+.main {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) calc(var(--space-4) + var(--rest-height))
+    calc(var(--space-4) + var(--safe-left));
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  font-size: clamp(26px, 7.4vw, 32px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.meta {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  color: var(--text-2);
+}
+
+.minutes {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.list,
+.pairRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 84px;
+  padding: 10px 10px 10px 8px;
+  border-radius: 18px;
+  text-align: left;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+.row[data-state='next'] {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px rgba(212, 255, 58, 0.5);
+}
+
+.row[data-state='done'] {
+  opacity: 0.55;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: clamp(17px, 4.9vw, 19px);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.sets {
+  color: var(--text);
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+.rest {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.progress {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.ring {
+  width: 32px;
+  height: 32px;
+}
+
+.ringTrack {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 3;
+}
+
+.progress[data-full] .ringTrack {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.ringFill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-base) var(--ease-out);
+}
+
+.ringCheck {
+  fill: none;
+  stroke: var(--on-accent);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* A pair (superset): one colored rail, the plain label (SPEC 13.1). */
+.pair {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--pair);
+  border-radius: 2px;
+}
+
+.pair[data-warmup] {
+  border-left-color: var(--amber);
+}
+
+.pairLabel {
+  margin: 2px 0 2px 8px;
+  color: var(--pair);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pair[data-warmup] .pairLabel,
+.warmLabel {
+  color: var(--amber);
+}
+
+.warmLabel,
+.finisherLabel {
+  margin: 8px 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.finisherLabel {
+  color: var(--accent);
+}
+
+.empty {
+  padding: var(--space-6) var(--space-2);
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.emptySub {
+  margin: 6px 0 0;
+  color: var(--text-2);
+}
+
+.addRow {
+  width: 100%;
+  min-height: 56px;
+  margin-top: var(--space-3);
+  border-radius: 18px;
+  border: 1px dashed #3a3a42;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.music {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+
+.musicLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+}

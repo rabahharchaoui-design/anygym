@@ -10,6 +10,7 @@ import { PlansScreen } from './screens/plans/PlansScreen';
 import { PlanViewer } from './screens/plans/PlanViewer';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { WorkoutScreen } from './screens/workout/WorkoutScreen';
+import { FinishScreen } from './screens/workout/FinishScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
 import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { InfoDevScreen } from './screens/dev/InfoDevScreen';
@@ -26,7 +27,8 @@ export function App() {
         {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/info" element={<InfoDevScreen />} />}
-        <Route path="workout/:sessionId" element={<WorkoutScreen />} />
+        <Route path="workout/:sessionId/done" element={<FinishScreen />} />
+        <Route path="workout/:sessionId/*" element={<WorkoutScreen />} />
         <Route element={<AppShell />}>
           <Route index element={<TodayScreen />} />
           <Route path="run" element={<RunScreen />} />

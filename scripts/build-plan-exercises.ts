@@ -10,6 +10,8 @@ const plans = readdirSync(plansDir)
   .sort()
   .map((f) => JSON.parse(readFileSync(new URL(f, plansDir), 'utf8')));
 
-const list = buildPlanExercises(plans);
+// Hand written load types for names the rule cannot read (PLAN 1.7c); regenerating keeps them.
+const overrides = JSON.parse(readFileSync(new URL('../data/plan-exercise-overrides.json', import.meta.url), 'utf8'));
+const list = buildPlanExercises(plans, overrides);
 writeFileSync(new URL('../data/plan-exercises.json', import.meta.url), JSON.stringify(list, null, 1) + '\n');
 console.log(`plan-exercises.json: ${list.length} exercises`);

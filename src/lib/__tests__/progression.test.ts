@@ -130,9 +130,9 @@ describe('rule 2: every working set at the top, same load → one step up', () =
     expect(p.next.load).toEqual(stackLoad(105, 'lb'));
     const withAdd = run({ loadKind: 'stack', history: [session(day(20), same([12, 12], stackLoad(100, 'lb', 5)))] });
     expect(withAdd.next.load).toEqual(stackLoad(105, 'lb', 5));
-    // Bottom of the stack picker list: no pin above 300 lb.
+    // PLAN 1.7c: 300 lb is only the first display range ("More" adds pins), so the next pin is 305.
     const top = run({ loadKind: 'stack', history: [session(day(20), same([12], stackLoad(300, 'lb')))] });
-    expect(top.next).toMatchObject({ load: stackLoad(300, 'lb'), kind: 'beat_reps' });
+    expect(top.next).toMatchObject({ load: stackLoad(305, 'lb'), kind: 'increase' });
   });
   it('a full sleeve: same weight, more reps', () => {
     const s = setupOf('lb', { plates: [45] });
@@ -356,7 +356,8 @@ describe('load.ts progression helpers', () => {
     expect(loadAt('dumbbell_each', 33, s)).toBeNull();
     expect(loadAt('single', 20, { ...s, dumbbellRange: null })).toBeNull();
     expect(loadAt('stack', 7, s)).toBeNull();
-    expect(loadAt('stack', 305, s)).toBeNull();
+    expect(loadAt('stack', 305, s)).toEqual(stackLoad(305, 'lb'));
+    expect(loadAt('stack', 0, s)).toBeNull();
     expect(loadAt('bodyweight', 10, s)).toEqual(bodyweightLoad('lb', 10));
     expect(loadAt('timed', 0, s)).toEqual(timedLoad('lb'));
   });

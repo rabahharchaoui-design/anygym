@@ -1,0 +1,243 @@
+[
+ {
+  "name": "30 Second Interval Sprint",
+  "loadType": "timed",
+  "why": "Sprint rounds of 30 s: a timed effort, no weight"
+ },
+ {
+  "name": "Angled Machine Leg Press",
+  "loadType": "plate_machine",
+  "why": "Angled (45 degree) leg presses are plate loaded sleds"
+ },
+ {
+  "name": "Band Internal Shoulder Rotation (0 degrees)",
+  "loadType": "bodyweight",
+  "why": "Band work: reps only, the band's pull is not a weight we can count"
+ },
+ {
+  "name": "Band Internal Shoulder Rotation (90 degrees)",
+  "loadType": "bodyweight",
+  "why": "Band work: reps only, the band's pull is not a weight we can count"
+ },
+ {
+  "name": "Bicep Curl",
+  "loadType": "dumbbell_each",
+  "why": "A plain bicep curl in a plan means dumbbells, one in each hand"
+ },
+ {
+  "name": "Bird Dog",
+  "loadType": "bodyweight",
+  "why": "Floor core drill, no load"
+ },
+ {
+  "name": "Bulgarian Split Squat",
+  "loadType": "dumbbell_each",
+  "why": "Loaded with a dumbbell in each hand"
+ },
+ {
+  "name": "Chest Fly",
+  "loadType": "dumbbell_each",
+  "why": "A plain chest fly is a dumbbell fly on a bench"
+ },
+ {
+  "name": "Cross Body Mountain Climber",
+  "loadType": "bodyweight",
+  "why": "Floor drill, no load"
+ },
+ {
+  "name": "Crunch",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load"
+ },
+ {
+  "name": "Curl Up Crunch",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load"
+ },
+ {
+  "name": "Dead Bug",
+  "loadType": "bodyweight",
+  "why": "Floor core drill, no load"
+ },
+ {
+  "name": "Deadlift",
+  "loadType": "barbell",
+  "why": "The deadlift is a barbell lift"
+ },
+ {
+  "name": "Decline Bench Sit Up",
+  "loadType": "bodyweight",
+  "why": "Sit ups on the decline bench, no load"
+ },
+ {
+  "name": "Front and Lateral Plate Raise",
+  "loadType": "single",
+  "why": "One plate held in both hands: the weight is the plate"
+ },
+ {
+  "name": "Front Squat",
+  "loadType": "barbell",
+  "why": "The front squat is a barbell lift"
+ },
+ {
+  "name": "Hip Abductor",
+  "loadType": "stack",
+  "why": "The seated abductor machine is a pin stack"
+ },
+ {
+  "name": "Hip Adductor",
+  "loadType": "stack",
+  "why": "The seated adductor machine is a pin stack"
+ },
+ {
+  "name": "Hip Thrust",
+  "loadType": "barbell",
+  "why": "Hip thrusts are loaded with a barbell across the hips"
+ },
+ {
+  "name": "Hyperextension Roman Chair Back Extension",
+  "loadType": "bodyweight",
+  "why": "Bodyweight on the roman chair; a held plate goes in Add weight"
+ },
+ {
+  "name": "Incline Plate Press",
+  "loadType": "plate_machine",
+  "why": "Plate press: a plate loaded incline press machine"
+ },
+ {
+  "name": "Kettlebell Goblet Squat",
+  "loadType": "single",
+  "why": "One kettlebell held in both hands"
+ },
+ {
+  "name": "Knee Hug",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load"
+ },
+ {
+  "name": "Lat Machine Wide Grip Pulldown",
+  "loadType": "stack",
+  "why": "Lat pulldown machines are pin stacks"
+ },
+ {
+  "name": "Leg Curl",
+  "loadType": "stack",
+  "why": "Leg curl machines are pin stacks"
+ },
+ {
+  "name": "Leg Extension",
+  "loadType": "stack",
+  "why": "Leg extension machines are pin stacks"
+ },
+ {
+  "name": "Leg Press",
+  "loadType": "plate_machine",
+  "why": "Most leg presses are plate loaded sleds"
+ },
+ {
+  "name": "Leg Press Machine Calf Raise",
+  "loadType": "plate_machine",
+  "why": "Calf raises on the plate loaded leg press"
+ },
+ {
+  "name": "Lying Straight Leg Raise",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load"
+ },
+ {
+  "name": "Machine Leg Press",
+  "loadType": "plate_machine",
+  "why": "Most leg presses are plate loaded sleds"
+ },
+ {
+  "name": "Machine Lying Leg Curl",
+  "loadType": "stack",
+  "why": "Lying leg curl machines are pin stacks"
+ },
+ {
+  "name": "Machine Seated Calf Raise",
+  "loadType": "plate_machine",
+  "why": "Seated calf raise machines are plate loaded"
+ },
+ {
+  "name": "Machine Seated Chest Fly",
+  "loadType": "stack",
+  "why": "Pec deck machines are pin stacks"
+ },
+ {
+  "name": "Machine Seated Leg Extension",
+  "loadType": "stack",
+  "why": "Leg extension machines are pin stacks"
+ },
+ {
+  "name": "Machine Seated Reverse Fly",
+  "loadType": "stack",
+  "why": "Reverse pec deck machines are pin stacks"
+ },
+ {
+  "name": "Narrow Grip Lat Pulldown",
+  "loadType": "stack",
+  "why": "Lat pulldown machines are pin stacks"
+ },
+ {
+  "name": "Oblique Crunch",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load"
+ },
+ {
+  "name": "Overhead Press",
+  "loadType": "barbell",
+  "why": "The overhead press is a standing barbell press"
+ },
+ {
+  "name": "Plate Russian Twist",
+  "loadType": "single",
+  "why": "One plate held in both hands: the weight is the plate"
+ },
+ {
+  "name": "Rear Delt Fly",
+  "loadType": "dumbbell_each",
+  "why": "Bent over rear delt flys with a dumbbell in each hand"
+ },
+ {
+  "name": "Reverse Bicep Curl",
+  "loadType": "barbell",
+  "why": "Reverse grip curls are done with a bar"
+ },
+ {
+  "name": "Romanian Deadlift",
+  "loadType": "barbell",
+  "why": "The Romanian deadlift is a barbell lift"
+ },
+ {
+  "name": "Russian Twist",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load (the plate version is Plate Russian Twist)"
+ },
+ {
+  "name": "Smith Machine Upright Row",
+  "loadType": "barbell",
+  "bar": "smith",
+  "why": "A bar on the Smith machine: plates on the Smith bar"
+ },
+ {
+  "name": "Sumo Squat",
+  "loadType": "single",
+  "why": "One dumbbell or kettlebell held between the legs"
+ },
+ {
+  "name": "Toe Touch",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load"
+ },
+ {
+  "name": "Upright Row",
+  "loadType": "barbell",
+  "why": "The upright row is a barbell lift"
+ },
+ {
+  "name": "V Up",
+  "loadType": "bodyweight",
+  "why": "Floor core, no load"
+ }
+]

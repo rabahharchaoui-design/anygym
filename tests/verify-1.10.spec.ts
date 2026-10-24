@@ -75,14 +75,15 @@ async function readViewer(page: Page, label: RegExp) {
   });
 }
 
+// PLAN 1.7c: the workout opens on the day list; one row per exercise (the finisher row is not a plan block).
 async function readWorkout(page: Page) {
   return page.getByRole('main').evaluate((main) => {
     const rows: any[] = [];
-    main.querySelectorAll('[data-testid^="exercise-"]').forEach((c) => {
+    main.querySelectorAll('[data-row]:not([data-testid="finisher"])').forEach((c) => {
       const g = c.closest('[data-testid="pair-group"]');
       const el = c as HTMLElement;
       rows.push({
-        name: (el.innerText.split('\n')[0] ?? '').trim(),
+        name: ((el.querySelector('[class*="_name_"]') as HTMLElement | null)?.innerText ?? '').trim(),
         text: el.innerText,
         kind: g ? 'pair' : 'single',
         warm: !!g && g.hasAttribute('data-warmup'),
@@ -124,7 +125,7 @@ async function startDay(page: Page, planPath: string, dayN: number, week?: numbe
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\//);
   await expect(page.getByTestId('workout-title')).toBeVisible();
-  await page.locator('[data-testid^="exercise-"]').first().waitFor({ timeout: 10000 });
+  await page.locator('[data-row]').first().waitFor({ timeout: 10000 });
   await page.waitForTimeout(500);
 }
 
@@ -146,8 +147,8 @@ for (const n of [1, 2, 4]) {
     bad.push(...compare(`OH workout d${n}`, rows, expectedOh(day), { noteInCard: false }));
     const labels = await page.locator('[data-testid="pair-group"]').evaluateAll((g) => g.map((x) => x.querySelector('p')?.textContent));
     console.log(`d${n} pair labels`, JSON.stringify(labels));
-    const cur = page.locator('[data-testid^="exercise-"][data-expanded="true"]').first();
-    console.log(`d${n} current card:`, (await cur.innerText({ timeout: 3000 }).catch(() => 'NO EXPANDED CARD')).replace(/\n+/g, ' / ').slice(0, 300));
+    const cur = page.locator('[data-row][data-state="next"]').first();
+    console.log(`d${n} next row:`, (await cur.innerText({ timeout: 3000 }).catch(() => 'NO NEXT ROW')).replace(/\n+/g, ' / ').slice(0, 300));
     console.log(`MISMATCHES OH d${n}:\n` + bad.join('\n'));
     expect(bad).toEqual([]);
     expect(errors).toEqual([]);
@@ -214,35 +215,57 @@ const vshot = async (page: Page, name: string) => {
   await page.waitForTimeout(500);
   await page.screenshot({ path: `reports/shots/1.10/v-${name}.png`, fullPage: false });
 };
+// Unknown load types are answered "Bodyweight": a load that is certain, so a set can be logged.
 const answerAny = async (page: Page) => {
   const d = page.getByRole('dialog', { name: 'How do you load this?' });
+  await page.waitForTimeout(400);
   if (await d.count()) {
-    await page.waitForTimeout(700);
-    await d.getByRole('button').first().tap();
+    await d.getByRole('button', { name: /^Bodyweight/ }).tap();
     await expect(d).toHaveCount(0);
   }
+};
+/** PLAN 1.7c: open rows in order until one can be logged with one ✓, log it. */
+const logOneSet = async (page: Page) => {
+  const rows = page.locator('[data-row]');
+  const total = await rows.count();
+  for (let i = 0; i < total; i++) {
+    await rows.nth(i).tap();
+    await answerAny(page);
+    const check = page.getByTestId('check-current');
+    // A first time weight is picked, never invented: an empty bar (or what the picker starts at).
+    if ((await check.count()) && !(await check.isEnabled()) && (await page.getByTestId('weight-cell').count())) {
+      await page.getByTestId('weight-cell').first().tap();
+      const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
+      const done = sheet.getByRole('button', { name: 'Done', exact: true });
+      if (await done.isEnabled()) await done.tap();
+      else await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+      await expect(sheet).toHaveCount(0);
+    }
+    if ((await check.count()) && (await check.isEnabled())) {
+      await check.tap();
+      await expect(page.getByTestId('set-row').first()).toBeVisible();
+      return;
+    }
+    await page.getByRole('button', { name: 'Back to the list' }).tap();
+    await expect(page.getByTestId('arrival-guard')).toHaveCount(0);
+  }
+  throw new Error('no row could be logged');
+};
+const finishDay = async (page: Page) => {
+  await page.getByRole('button', { name: 'Finish' }).tap();
+  await expect(page).toHaveURL(/\/done$/);
+  await page.getByRole('button', { name: 'Done' }).tap();
+  await expect(page).toHaveURL(/#\/$/);
 };
 const doDay = async (page: Page, n: number) => {
   await page.getByRole('button', { name: 'Change day' }).tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: new RegExp(`Day ${n} ·`) }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\//);
-  await page.locator('[data-testid^="exercise-"]').first().waitFor();
+  await page.locator('[data-row]').first().waitFor();
   await page.waitForTimeout(500);
-  await answerAny(page);
-  const log = page.getByTestId('action-bar').getByRole('button').first();
-  const cards = page.locator('[data-testid^="exercise-"]');
-  const total = await cards.count();
-  for (let i = 1; i < total && !(await log.isEnabled()); i++) {
-    await cards.nth(i).getByRole('button').first().tap();
-    await page.waitForTimeout(500);
-    await answerAny(page);
-  }
-  await log.tap();
-  await page.waitForTimeout(600);
-  await answerAny(page);
-  await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page).toHaveURL(/#\/$/);
+  await logOneSet(page);
+  await finishDay(page);
 };
 
 test('flow: wrap after day 5, six week to week 2, tap targets', async ({ page }) => {
@@ -261,14 +284,10 @@ test('flow: wrap after day 5, six week to week 2, tap targets', async ({ page })
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 5 ·/ }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\//);
-  await page.locator('[data-testid^="exercise-"]').first().waitFor();
+  await page.locator('[data-row]').first().waitFor();
   await page.waitForTimeout(500);
-  await answerAny(page);
-  await page.getByTestId('action-bar').getByRole('button').first().tap();
-  await page.waitForTimeout(600);
-  await answerAny(page);
-  await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page).toHaveURL(/#\/$/);
+  await logOneSet(page);
+  await finishDay(page);
   console.log('sessions', JSON.stringify((await dbAll(page, 'sessions')).map((x) => [x.planId, x.dayId, x.endedAt])), JSON.stringify(await dbAll(page, 'planState')));
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 · Legs \(hamstring focus\)/);
   console.log('after d5 states', JSON.stringify(await Promise.all([1, 2, 3, 4, 5].map((n) => page.getByTestId(`week-day-${n}`).getAttribute('data-state')))));
@@ -289,50 +308,62 @@ test('flow: six week all days of week 1 -> Week 2 of 6', async ({ page }) => {
   await expect(page.getByTestId('week-label')).toHaveText('Week 2 of 6');
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 · Quads/);
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await page.getByTestId('row-front-squat').tap();
   await answerAny(page);
   await expect(page.getByTestId('exercise-front-squat').getByTestId('set-target')).toHaveText('Set 1 of 5 · 7 reps');
   expect(errors).toEqual([]);
 });
 
-test('honest: no img, unknown asks once, timed Hold for, one screen card on plan targets', async ({ page }) => {
+test('honest: no img, unknown asks once, timed Hold, one screen exercise view on plan targets', async ({ page }) => {
   const errors = watch(page);
   await page.goto('./#/plans/ohrabah-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
-  await page.locator('[data-testid^="exercise-"]').first().waitFor();
+  await page.locator('[data-row]').first().waitFor();
   await expect(page.getByRole('main').locator('img')).toHaveCount(0);
+  const back = async () => {
+    await page.getByRole('button', { name: 'Back to the list' }).tap();
+    await expect(page.getByTestId('arrival-guard')).toHaveCount(0);
+  };
+  await expect(page.getByTestId('row-static-quadricep-stretch')).toContainText('45 sec');
+  await page.getByTestId('row-static-quadricep-stretch').tap();
   const stretch = page.getByTestId('exercise-static-quadricep-stretch');
-  await expect(stretch).toContainText('Hold for');
-  await expect(stretch).toContainText('45');
+  await expect(stretch).toContainText('Hold');
+  await expect(stretch.getByTestId('hold-cell')).toHaveText(['45 s']);
+  await expect(stretch.getByRole('button', { name: 'Start timer' })).toBeVisible();
+  await back();
   // plank target seconds
-  await page.getByTestId('exercise-elbow-plank').getByRole('button').first().tap();
+  await page.getByTestId('row-elbow-plank').tap();
   const plank = page.getByTestId('exercise-elbow-plank');
-  console.log('plank card:', (await plank.innerText()).replace(/\n+/g, ' / '));
-  await expect(plank).toContainText('Hold for');
-  await expect(plank).toContainText(/60 to 90|60/);
-  // squat: asked once
-  await page.getByTestId('exercise-barbell-back-squat').getByRole('button').first().tap();
+  console.log('plank view:', (await plank.innerText()).replace(/\n+/g, ' / '));
+  await expect(plank).toContainText('Hold');
+  await expect(plank.getByTestId('hold-cell').first()).toContainText(/60/);
+  await back();
+  // squat: known (barbell), never asked
+  await page.getByTestId('row-barbell-back-squat').tap();
   const ask = page.getByRole('dialog', { name: 'How do you load this?' });
   const squat = page.getByTestId('exercise-barbell-back-squat');
-  console.log('squat card:', (await squat.innerText()).replace(/\n+/g, ' / ').slice(0, 400), 'asked', await ask.count());
-  // leg press (unknown load type) asked once
-  await page.getByTestId('exercise-angled-machine-leg-press').getByRole('button').first().tap();
-  if (await ask.count()) {
-    await page.waitForTimeout(700);
-    await ask.getByRole('button', { name: /^Plates on a machine/ }).tap();
-  }
+  await expect(squat.getByTestId('set-target')).toBeVisible();
+  await page.waitForTimeout(400);
+  console.log('squat view:', (await squat.innerText()).replace(/\n+/g, ' / ').slice(0, 400), 'asked', await ask.count());
   await expect(ask).toHaveCount(0);
+  await back();
+  // leg press: a plate loaded machine by the hand mapped list (PLAN 1.7c), never asked either
+  await page.getByTestId('row-angled-machine-leg-press').tap();
   const press = page.getByTestId('exercise-angled-machine-leg-press');
-  console.log('press card:', (await press.innerText()).replace(/\n+/g, ' / ').slice(0, 500));
-  // one screen rule on SE
-  const mainH = await page.getByRole('main').evaluate((e) => e.clientHeight);
-  const h = (await press.boundingBox())!.height;
+  await expect(press.getByTestId('set-target')).toBeVisible();
+  await page.waitForTimeout(400);
+  await expect(ask).toHaveCount(0);
+  await expect(press.getByTestId('set-status')).toContainText('starting weight');
+  console.log('press view:', (await press.innerText()).replace(/\n+/g, ' / ').slice(0, 500));
+  // one screen rule on SE: the exercise view never scrolls
   const sh = await press.evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight }));
-  console.log('press card height', h, 'main', mainH, JSON.stringify(sh));
-  expect.soft(h).toBeLessThanOrEqual(mainH);
+  console.log('press view', JSON.stringify(sh));
+  expect.soft(sh.sh - sh.ch).toBeLessThanOrEqual(1);
   await vshot(page, 'card-plan-target');
   await page.reload();
-  await page.locator('[data-testid^="exercise-"]').first().waitFor();
+  await press.waitFor();
+  await page.waitForTimeout(500);
   await expect(ask).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -348,10 +379,14 @@ test('break: double tap Use this plan and Start; switch plan mid workout; reload
   const sess = await dbAll(page, 'sessions');
   console.log('sessions after double Start', sess.length);
   expect(sess.length).toBe(1);
-  await page.locator('[data-testid^="exercise-"]').first().waitFor();
-  await page.getByTestId('exercise-barbell-back-squat').getByRole('button').first().tap();
+  await page.locator('[data-row]').first().waitFor();
+  await page.getByTestId('row-barbell-back-squat').tap();
   await answerAny(page);
-  await page.getByTestId('action-bar').getByRole('button', { name: /Log set/ }).tap();
+  // First time: pick the first weight (an empty bar), then one ✓.
+  await page.getByTestId('weight-cell').first().tap();
+  await page.getByRole('dialog', { name: 'Pick the weight' }).getByRole('button', { name: 'Done' }).tap();
+  await page.getByTestId('check-current').tap();
+  await expect(page.getByTestId('set-row')).toHaveCount(1);
   await page.waitForTimeout(600);
   // switch plan mid workout via URL (tab bar hidden in workout)
   await page.goto('./#/plans/six-week-volume');
@@ -366,7 +401,12 @@ test('break: double tap Use this plan and Start; switch plan mid workout; reload
   // resume active workout?
   const resume = page.getByRole('button', { name: /Resume|Continue/ });
   console.log('resume buttons', await resume.count());
-  if (await resume.count()) { await resume.first().tap(); await expect(page).toHaveURL(/#\/workout\//); await expect(page.getByTestId('exercise-barbell-back-squat')).toContainText(/Set 2 of 4/); }
+  if (await resume.count()) {
+    await resume.first().tap();
+    await expect(page).toHaveURL(/#\/workout\//);
+    await page.getByTestId('row-barbell-back-squat').tap();
+    await expect(page.getByTestId('exercise-barbell-back-squat')).toContainText(/Set 2 of 4/);
+  }
   // reload viewer
   await page.goto('./#/plans/six-week-volume');
   await page.reload();
@@ -432,10 +472,9 @@ test('shots: plans, both viewers, today day card, workout pair', async ({ page }
   await vshot(page, 'change-day');
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 2 ·/ }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
-  await page.locator('[data-testid^="exercise-"]').first().waitFor();
+  await page.locator('[data-row]').first().waitFor();
   await page.waitForTimeout(500);
   await vshot(page, 'workout-pair-top');
-  await answerAny(page);
   await page.getByTestId('pair-group').nth(1).scrollIntoViewIfNeeded();
   await vshot(page, 'workout-pair-2');
 });
