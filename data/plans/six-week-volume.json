@@ -1,0 +1,1436 @@
+{
+ "id": "six-week-volume",
+ "name": "Six Week Volume Builder",
+ "author": "OhRabah",
+ "summary": "Volume focused 6 week block. Same lifts every week, reps climb each week so you finish week 6 doing far more work than week 1.",
+ "gymType": "full",
+ "goal": "muscle",
+ "level": "intermediate",
+ "daysPerWeek": 5,
+ "weeks": 6,
+ "source": "Transcribed from G's Volume Focused Six Week Lifting Program table, Oct 2026",
+ "progressionMode": "weekly_table",
+ "days": [
+  {
+   "n": 1,
+   "name": "Quads",
+   "items": [
+    {
+     "exercise": "Front Squat",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 6
+      },
+      {
+       "sets": 5,
+       "reps": 7
+      },
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      }
+     ]
+    },
+    {
+     "exercise": "Bulgarian Split Squat",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 6
+      },
+      {
+       "sets": 5,
+       "reps": 7
+      },
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      }
+     ]
+    },
+    {
+     "exercise": "Wide Lunge",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 15
+      }
+     ]
+    },
+    {
+     "exercise": "Leg Extension",
+     "weeks": [
+      {
+       "sets": 10,
+       "reps": 10
+      },
+      {
+       "sets": 10,
+       "reps": 11
+      },
+      {
+       "sets": 10,
+       "reps": 12
+      },
+      {
+       "sets": 10,
+       "reps": 13
+      },
+      {
+       "sets": 10,
+       "reps": 14
+      },
+      {
+       "sets": 10,
+       "reps": 15
+      }
+     ],
+     "note": "10 seconds rest between sets"
+    },
+    {
+     "exercise": "28 Method Squat",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 28
+      },
+      {
+       "sets": 3,
+       "reps": 28
+      },
+      {
+       "sets": 4,
+       "reps": 28
+      },
+      {
+       "sets": 4,
+       "reps": 28
+      },
+      {
+       "sets": 5,
+       "reps": 28
+      },
+      {
+       "sets": 5,
+       "reps": 28
+      }
+     ]
+    },
+    {
+     "exercise": "Leg Press",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 16
+      },
+      {
+       "sets": 5,
+       "reps": 18
+      },
+      {
+       "sets": 5,
+       "reps": 20
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Upper body",
+   "items": [
+    {
+     "exercise": "Bent Over Barbell Row",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 15
+      }
+     ]
+    },
+    {
+     "exercise": "Single Arm Dumbbell Row",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Overhead Press",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Upright Row",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Bicep Curl",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Reverse Bicep Curl",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Cable Overhead Tricep Extension",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Cable Tricep Pushdown",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Narrow Grip Lat Pulldown",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 16
+      },
+      {
+       "sets": 5,
+       "reps": 18
+      },
+      {
+       "sets": 5,
+       "reps": 20
+      }
+     ]
+    },
+    {
+     "exercise": "Front and Lateral Plate Raise",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Rear Delt Fly",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Chest Fly",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "name": "HIIT cardio and abs",
+   "items": [
+    {
+     "exercise": "30 Second Interval Sprint",
+     "weeks": [
+      {
+       "rounds": 10
+      },
+      {
+       "rounds": 12
+      },
+      {
+       "rounds": 14
+      },
+      {
+       "rounds": 16
+      },
+      {
+       "rounds": 18
+      },
+      {
+       "rounds": 20
+      }
+     ]
+    },
+    {
+     "exercise": "Crunch",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Oblique Crunch",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Toe Touch",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "V Up",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Russian Twist",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Dead Bug",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Knee Hug",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Plank",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Spider Plank",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "exercise": "Bird Dog",
+     "weeks": [
+      {
+       "sets": 3,
+       "reps": 10
+      },
+      {
+       "sets": 4,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 6,
+       "reps": 10
+      },
+      {
+       "sets": 7,
+       "reps": 10
+      },
+      {
+       "sets": 8,
+       "reps": 10
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "name": "Hamstrings and glutes",
+   "items": [
+    {
+     "exercise": "Sumo Squat",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Deadlift",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      }
+     ]
+    },
+    {
+     "exercise": "Hip Thrust",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 15
+      },
+      {
+       "sets": 5,
+       "reps": 16
+      },
+      {
+       "sets": 5,
+       "reps": 18
+      }
+     ]
+    },
+    {
+     "exercise": "Romanian Deadlift",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 15
+      }
+     ]
+    },
+    {
+     "exercise": "Single Leg Romanian Deadlift",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      }
+     ]
+    },
+    {
+     "exercise": "Leg Curl",
+     "weeks": [
+      {
+       "sets": 10,
+       "reps": 10
+      },
+      {
+       "sets": 10,
+       "reps": 11
+      },
+      {
+       "sets": 10,
+       "reps": 12
+      },
+      {
+       "sets": 10,
+       "reps": 13
+      },
+      {
+       "sets": 10,
+       "reps": 14
+      },
+      {
+       "sets": 10,
+       "reps": 15
+      }
+     ],
+     "note": "10 seconds rest between sets"
+    },
+    {
+     "exercise": "Hip Abductor",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 15
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "name": "Upper body",
+   "items": [
+    {
+     "exercise": "Bent Over Barbell Row",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 15
+      }
+     ]
+    },
+    {
+     "exercise": "Single Arm Dumbbell Row",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Overhead Press",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Upright Row",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Bicep Curl",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Reverse Bicep Curl",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Cable Overhead Tricep Extension",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Cable Tricep Pushdown",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Narrow Grip Lat Pulldown",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 14
+      },
+      {
+       "sets": 5,
+       "reps": 16
+      },
+      {
+       "sets": 5,
+       "reps": 18
+      },
+      {
+       "sets": 5,
+       "reps": 20
+      }
+     ]
+    },
+    {
+     "exercise": "Front and Lateral Plate Raise",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Rear Delt Fly",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    },
+    {
+     "exercise": "Chest Fly",
+     "weeks": [
+      {
+       "sets": 5,
+       "reps": 8
+      },
+      {
+       "sets": 5,
+       "reps": 9
+      },
+      {
+       "sets": 5,
+       "reps": 10
+      },
+      {
+       "sets": 5,
+       "reps": 11
+      },
+      {
+       "sets": 5,
+       "reps": 12
+      },
+      {
+       "sets": 5,
+       "reps": 13
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "transcriptionNotes": [
+  "Day 3 table has one extra unnamed row (3x10 rising to 8x10). Left out until G names it."
+ ]
+}

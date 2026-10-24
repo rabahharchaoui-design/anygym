@@ -1,0 +1,649 @@
+{
+ "id": "ohrabah-split",
+ "name": "The OhRabah Split",
+ "author": "OhRabah",
+ "summary": "5 day bodybuilding split built for a full commercial gym. Two leg days, push, pull, shoulders. Cardio finisher most days.",
+ "gymType": "full",
+ "goal": "muscle",
+ "level": "intermediate",
+ "daysPerWeek": 5,
+ "source": "Transcribed from G's existing program screenshots, Oct 2026",
+ "days": [
+  {
+   "n": 1,
+   "name": "Legs (hamstring focus)",
+   "addOn": "Abs",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Static Quadricep Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Dynamic Hip Flexor Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Static Proximal Hamstring Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Static Pigeon Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Barbell Back Squat",
+     "sets": 4,
+     "reps": [
+      8,
+      12
+     ],
+     "restSec": 90,
+     "note": "Wide stance"
+    },
+    {
+     "type": "single",
+     "exercise": "Angled Machine Leg Press",
+     "sets": 3,
+     "reps": [
+      8,
+      12
+     ],
+     "restSec": 90,
+     "note": "Wide stance"
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Lying Leg Curl",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Seated Leg Extension",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Walking Lunge",
+     "sets": 3,
+     "reps": 20,
+     "restSec": 90,
+     "note": "20 steps, 10 each leg"
+    },
+    {
+     "type": "single",
+     "exercise": "Barbell Straight Leg Romanian Deadlift",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Lying Straight Leg Raise",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Decline Bench Sit Up",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Elbow Plank",
+     "sets": 3,
+     "seconds": [
+      60,
+      90
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Plate Russian Twist",
+     "sets": 3,
+     "reps": 20,
+     "restSec": 60,
+     "note": "10 each side"
+    },
+    {
+     "type": "single",
+     "exercise": "Cross Body Mountain Climber",
+     "sets": 3,
+     "reps": 20,
+     "restSec": 60,
+     "eachSide": true
+    },
+    {
+     "type": "single",
+     "exercise": "Curl Up Crunch",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Chest and triceps",
+   "finisher": {
+    "name": "Stair climbing",
+    "minutes": 15
+   },
+   "blocks": [
+    {
+     "type": "superset",
+     "sets": 3,
+     "warmup": true,
+     "items": [
+      {
+       "exercise": "Band Internal Shoulder Rotation (0 degrees)",
+       "reps": [
+        10,
+        12
+       ],
+       "note": "Warm up. Band, cable or dumbbell"
+      },
+      {
+       "exercise": "Band Internal Shoulder Rotation (90 degrees)",
+       "reps": [
+        10,
+        12
+       ],
+       "note": "Warm up. Band, cable or dumbbell"
+      }
+     ]
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Bench Press",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90,
+     "note": "Not including warm up"
+    },
+    {
+     "type": "superset",
+     "sets": 4,
+     "items": [
+      {
+       "exercise": "Barbell Incline Bench Press",
+       "reps": [
+        10,
+        12
+       ]
+      },
+      {
+       "exercise": "Incline Plate Press",
+       "reps": [
+        10,
+        12
+       ]
+      }
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Seated Chest Fly",
+     "sets": 4,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60,
+     "note": "Controlled"
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Reverse Grip Tricep Pulldown",
+     "sets": 4,
+     "reps": [
+      12,
+      15
+     ],
+     "restSec": 60,
+     "note": "Single arm. Squeeze at the bottom of the rep"
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Rope Tricep Extension",
+     "sets": 4,
+     "reps": [
+      12,
+      15
+     ],
+     "restSec": 60,
+     "note": "Squeeze at the bottom of the rep"
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Single Arm Overhead Tricep Extension",
+     "sets": 4,
+     "reps": [
+      12,
+      15
+     ],
+     "restSec": 60,
+     "eachSide": true
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "name": "Back and biceps",
+   "finisher": {
+    "name": "Jump rope",
+    "minutes": 10
+   },
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Wide Grip Pull Up",
+     "sets": 3,
+     "reps": [
+      6,
+      12
+     ],
+     "restSec": 90,
+     "note": "Warm up"
+    },
+    {
+     "type": "single",
+     "exercise": "Barbell Bent Over Row",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90,
+     "note": "Warm up with the empty barbell before the first set"
+    },
+    {
+     "type": "single",
+     "exercise": "Lat Machine Wide Grip Pulldown",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Seated Close Grip Row",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90,
+     "note": "Close grip"
+    },
+    {
+     "type": "single",
+     "exercise": "Hyperextension Roman Chair Back Extension",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90,
+     "note": "Hold 25 lb"
+    },
+    {
+     "type": "single",
+     "exercise": "Barbell Bicep Curl",
+     "sets": 3,
+     "reps": 24,
+     "restSec": 60,
+     "note": "12 wide grip then 12 narrow grip"
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Single Arm Bicep Curl",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60,
+     "note": "Squeeze at the top",
+     "eachSide": true
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Single Arm Preacher Curl",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Forearm Finger Roll",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60,
+     "note": "Forearms at the end"
+    },
+    {
+     "type": "single",
+     "exercise": "Wrist Twist",
+     "sets": 3,
+     "reps": 20,
+     "restSec": 60
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "name": "Legs (quad focus)",
+   "addOn": "Abs",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Static Quadricep Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Dynamic Hip Flexor Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Static Proximal Hamstring Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Static Pigeon Stretch",
+     "seconds": 45
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Leg Press",
+     "sets": 4,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90,
+     "note": "Narrow stance"
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Seated Leg Extension",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Lying Leg Curl",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Stationary Lunge",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Kettlebell Goblet Squat",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90,
+     "note": "Kettlebell, dumbbell or cable"
+    },
+    {
+     "type": "single",
+     "exercise": "Hip Adductor",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Hip Abductor",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Lying Straight Leg Raise",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Decline Bench Sit Up",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Elbow Plank",
+     "sets": 3,
+     "seconds": [
+      60,
+      90
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Plate Russian Twist",
+     "sets": 3,
+     "reps": 20,
+     "restSec": 60,
+     "note": "10 each side"
+    },
+    {
+     "type": "single",
+     "exercise": "Cross Body Mountain Climber",
+     "sets": 3,
+     "reps": 20,
+     "restSec": 60,
+     "eachSide": true
+    },
+    {
+     "type": "single",
+     "exercise": "Curl Up Crunch",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "name": "Shoulders and calves",
+   "finisher": {
+    "name": "Cycling",
+    "minutes": null
+   },
+   "blocks": [
+    {
+     "type": "superset",
+     "sets": 3,
+     "warmup": true,
+     "items": [
+      {
+       "exercise": "Band Internal Shoulder Rotation (0 degrees)",
+       "reps": [
+        10,
+        12
+       ],
+       "note": "Warm up. Band, cable or dumbbell"
+      },
+      {
+       "exercise": "Band Internal Shoulder Rotation (90 degrees)",
+       "reps": [
+        10,
+        12
+       ],
+       "note": "Warm up. Band, cable or dumbbell"
+      }
+     ]
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Arnold Shoulder Press",
+     "sets": 4,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Lateral Raise",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Seated Reverse Fly",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Smith Machine Upright Row",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60,
+     "note": "Wide grip. Smith or EZ bar"
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Front Raise",
+     "sets": 3,
+     "reps": [
+      10,
+      12
+     ],
+     "restSec": 60,
+     "note": "Plate or dumbbell"
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Shrug",
+     "sets": 3,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Seated Calf Raise",
+     "sets": 4,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60,
+     "note": "Controlled"
+    },
+    {
+     "type": "single",
+     "exercise": "Leg Press Machine Calf Raise",
+     "sets": 4,
+     "reps": [
+      15,
+      20
+     ],
+     "restSec": 60,
+     "note": "Controlled"
+    }
+   ]
+  }
+ ]
+}
