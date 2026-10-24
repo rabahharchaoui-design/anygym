@@ -13,6 +13,8 @@ export default defineConfig({
         // SPEC 5.4: weight math is fully unit tested.
         'src/lib/load.ts': { lines: 100 },
         'src/lib/plates.ts': { lines: 100 },
+        'src/lib/plateLayout.ts': { lines: 100, branches: 100 },
+        'src/lib/numpad.ts': { lines: 100, branches: 100 },
       },
     },
   },

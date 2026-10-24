@@ -1,0 +1,153 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Fixed height: the readout never pushes the bar around (no layout shift). */
+.readout {
+  height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.readout p {
+  margin: 0;
+}
+
+.total {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.unit {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--text-2);
+  margin-left: 6px;
+  letter-spacing: 0;
+}
+
+/* Bar weight unknown: the "2 × 45 + bar" form, never a made up number. */
+.unknown {
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.math {
+  margin-top: var(--space-2) !important;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+}
+
+.side {
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.side:focus-visible rect:first-child {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.plateLabel {
+  font-family: var(--font-display);
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.full {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  margin: 0;
+  text-align: center;
+  color: var(--amber);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+
+.full[data-visible='true'] {
+  opacity: 1;
+}
+
+.tray {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: var(--space-2);
+}
+
+.trayPlate {
+  min-height: 56px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  -webkit-touch-callout: none;
+}
+
+.swatch {
+  width: 8px;
+  height: 28px;
+  border-radius: 2px;
+  border: 1px solid;
+  flex: none;
+}
+
+.trayWeight {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.links {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-5);
+}
+
+.link {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 var(--space-3);
+  color: var(--accent);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.link:disabled {
+  color: var(--text-2);
+  opacity: 0.5;
+}

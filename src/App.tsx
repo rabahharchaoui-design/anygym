@@ -5,10 +5,15 @@ import { RunScreen } from './screens/RunScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { PlansScreen } from './screens/PlansScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
+import { devToolsEnabled } from './screens/dev/devFlag';
+
+const DEV_TOOLS = devToolsEnabled();
 
 export function App() {
   return (
     <Routes>
+      {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
       <Route element={<AppShell />}>
         <Route index element={<TodayScreen />} />
         <Route path="run" element={<RunScreen />} />
