@@ -136,16 +136,45 @@ export async function updateSet(
 
 /** Deletes a set for good. Returns the deleted record (for undo) or undefined if it was gone. */
 export async function deleteSet(id: string, db: AnyGymDB = defaultDb): Promise<WorkoutSet | undefined> {
-  return db.transaction('rw', db.sets, async () => {
+  return db.transaction('rw', db.sets, db.orderCounters, async () => {
     const set = await db.sets.get(id);
-    if (set) await db.sets.delete(id);
+    if (!set) return undefined;
+    await seedCounter(set.sessionId, db);
+    await db.sets.delete(id);
     return set;
   });
 }
 
-/** Puts a deleted set back exactly as it was: same id, same order. */
+/**
+ * A workout logged before the counter (schema v4) gets one now, from its highest saved order, in
+ * the caller's transaction and before anything is deleted: so deleting its newest set, logging
+ * another and Undo can never share an order.
+ */
+async function seedCounter(sessionId: string, db: AnyGymDB, atLeast = 0): Promise<void> {
+  const counter = await db.orderCounters.get(sessionId);
+  const last = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).last();
+  const next = Math.max(counter?.next ?? 0, last ? last.order + 1 : 0, atLeast);
+  if (next !== counter?.next) await db.orderCounters.put({ sessionId, next });
+}
+
+/** Undo after the workout was finished (or discarded): the set is not put back. */
+export class WorkoutFinishedError extends Error {
+  constructor() {
+    super('That workout is already finished');
+    this.name = 'WorkoutFinishedError';
+  }
+}
+
+/**
+ * Puts a deleted set back exactly as it was: same id, same order. In the same transaction it
+ * checks that its workout still exists and is in progress; otherwise nothing is written and it
+ * throws WorkoutFinishedError, so a set can never land in a finished or deleted workout.
+ */
 export async function restoreSet(set: WorkoutSet, db: AnyGymDB = defaultDb): Promise<void> {
-  await db.transaction('rw', db.sets, async () => {
+  await db.transaction('rw', db.sessions, db.sets, db.orderCounters, async () => {
+    const session = await db.sessions.get(set.sessionId);
+    if (!session || session.endedAt != null) throw new WorkoutFinishedError();
+    await seedCounter(set.sessionId, db, set.order + 1);
     await db.sets.put({ ...set });
   });
 }

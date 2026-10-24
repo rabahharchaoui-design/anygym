@@ -1,7 +1,7 @@
 // Durable delete with Undo (SPEC 0, 2, 13.1). The delete is written right away, so an app kill
 // during the Undo window can never bring the item back. The removed record stays in memory for
 // the Undo window and until a restore actually lands; Undo writes it back unchanged (same id,
-// same order). Every write is tracked and a failed write is reported, never swallowed.
+// same order), using the record the delete read in its own transaction. Every write is tracked and a failed write is reported, never swallowed.
 // Finish calls close(): no new delete or Undo starts, and it waits until no write is left.
 import { UNDO_MS } from './undoQueue';
 
@@ -28,7 +28,11 @@ export type DeleteUndo<T> = {
 export const CLOSED = 'Workout is finishing';
 
 export function createDeleteUndo<T extends { id: string }>(
-  ops: { remove: (item: T) => Promise<unknown>; restore: (item: T) => Promise<unknown> },
+  ops: {
+    /** Deletes the item. When it resolves with the record it deleted (read inside its transaction), Undo writes that one back. */
+    remove: (item: T) => Promise<T | undefined | void>;
+    restore: (item: T) => Promise<unknown>;
+  },
   ms = UNDO_MS,
 ): DeleteUndo<T> {
   type Record = { item: T; timer?: ReturnType<typeof setTimeout>; restoring: Promise<T> | null };
@@ -72,7 +76,9 @@ export function createDeleteUndo<T extends { id: string }>(
       records.set(item.id, rec);
       arm(rec, item.id);
       try {
-        await track(item.id, Promise.resolve().then(() => ops.remove(item)));
+        const gone = await track(item.id, Promise.resolve().then(() => ops.remove(item)));
+        // The record as it was saved at the delete, never the caller's possibly stale copy.
+        if (gone) rec.item = gone;
       } catch (err) {
         if (!rec.restoring) forget(rec, item.id);
         throw err;

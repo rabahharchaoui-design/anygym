@@ -113,6 +113,14 @@
   width: 100%;
 }
 
+/* The bar's sleeves end well inside the stage, so this corner is always free (PLAN 1.10d). */
+.corner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
 .svg {
   display: block;
   overflow: visible;

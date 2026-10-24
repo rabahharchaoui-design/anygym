@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeGym } from '../../db/gyms';
 import type { Gym, Load } from '../../db/types';
-import { currentLoad, prefillLoad } from '../../screens/workout/exerciseLoad';
+import { barIdFor, currentLoad, knownBars, loadSetupFor, prefillLoad } from '../../screens/workout/exerciseLoad';
 
 const lbGym = (): Gym => makeGym({ name: 'Home', type: 'full', unit: 'lb' }, 0);
 
@@ -97,5 +97,25 @@ describe('currentLoad (PLAN 1.10c fixes 4, 5, 11: one canonical load through loa
     expect(currentLoad(null, [], 'bodyweight', gym, 'x', 'Pull Up')).toEqual({ kind: 'bodyweight', unit: 'lb', total: 0 });
     expect(currentLoad(null, [], 'timed', gym, 'x', 'Plank')).toEqual({ kind: 'timed', unit: 'lb', total: 0 });
     expect(currentLoad(null, [], 'dumbbell_each', gym, 'x', 'Curl')).toBeNull();
+  });
+});
+
+describe('bar choice (PLAN 1.10d)', () => {
+  it('the picked bar feeds the diagram load, the prefill and the progression base alike', () => {
+    const gym = lbGym();
+    const prev: Load = { kind: 'barbell', unit: 'lb', total: 135, barWeight: 45, perSide: [45] };
+    expect(barIdFor('Bench Press')).toBe('olympic');
+    expect(barIdFor('Bench Press', 'womens')).toBe('womens');
+    expect(barIdFor('EZ Bar Curl')).toBe('ez_curl');
+    expect(currentLoad(null, [45], 'barbell', gym, 'bench-press', 'Bench Press', 'womens')).toEqual({ kind: 'barbell', unit: 'lb', total: 125, barWeight: 35, perSide: [45] });
+    expect(prefillLoad(prev, 'barbell', gym, 'bench-press', 'Bench Press', 'womens')!.total).toBe(125);
+    expect(loadSetupFor(gym, 'barbell', 'bench-press', 'Bench Press', 'womens').base).toBe(35);
+    expect(loadSetupFor(gym, 'barbell', 'bench-press', 'Bench Press').base).toBe(45);
+  });
+
+  it('lists only bars with a known weight: Olympic and women\'s, then EZ, trap, Smith once answered', () => {
+    const gym = lbGym();
+    expect(knownBars(gym)).toEqual(['olympic', 'womens']);
+    expect(knownBars({ bars: { ...gym.bars, trap: 55, smith: 25 } })).toEqual(['olympic', 'womens', 'trap', 'smith']);
   });
 });

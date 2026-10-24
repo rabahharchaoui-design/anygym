@@ -20,9 +20,26 @@ import {
 import { barForName } from '../../lib/loadTypeRule';
 import type { PromptKind } from '../../lib/equipmentPrompt';
 
-/** The bar a barbell exercise uses (EZ, trap, Smith or olympic), by the name rule in loadTypeRule.ts. */
-export function barIdFor(exerciseName: string): BarId {
-  return barForName(exerciseName);
+/**
+ * The bar a barbell exercise uses: the one picked for it at this gym (PLAN 1.10d), else EZ, trap,
+ * Smith or olympic by the name rule in loadTypeRule.ts.
+ */
+export function barIdFor(exerciseName: string, chosen?: BarId): BarId {
+  return chosen ?? barForName(exerciseName);
+}
+
+/** Plain names for the bar picker ("Bar: Olympic 45 lb · Change"). */
+export const BAR_NAMES: Record<BarId, string> = {
+  olympic: 'Olympic',
+  womens: "Women's",
+  ez_curl: 'EZ curl',
+  trap: 'Trap',
+  smith: 'Smith',
+};
+
+/** Bars this gym has a known weight for, in picker order (Olympic, women's, then answered EZ, trap, Smith). */
+export function knownBars(gym: Pick<Gym, 'bars'>): BarId[] {
+  return (Object.keys(BAR_NAMES) as BarId[]).filter((id) => gym.bars[id] !== null);
 }
 
 /** Bars whose weight varies by brand: asked once per gym through the first use prompt (SPEC 5.3). */
@@ -54,6 +71,7 @@ export function prefillLoad(
   gym: Gym,
   exerciseId: string,
   exerciseName: string,
+  bar?: BarId,
 ): Load | null {
   const load = reusable(prev, kind, gym);
   if (!load) return null;
@@ -64,7 +82,7 @@ export function prefillLoad(
   };
   switch (kind) {
     case 'barbell':
-      return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName)], load.perSide, gym.collars, gym.unit) : null;
+      return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName, bar)], load.perSide, gym.collars, gym.unit) : null;
     case 'plate_machine':
       return platesOk(load.perSide)
         ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit)
@@ -101,10 +119,11 @@ export function currentLoad(
   gym: Gym,
   exerciseId: string,
   exerciseName: string,
+  bar?: BarId,
 ): Load | null {
   switch (kind) {
     case 'barbell':
-      return barbellLoad(gym.bars[barIdFor(exerciseName)], plates, gym.collars, gym.unit);
+      return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit);
     case 'plate_machine':
       return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit);
     case 'bodyweight':
@@ -112,15 +131,15 @@ export function currentLoad(
     case 'timed':
       return timedLoad(gym.unit);
     default:
-      return prefillLoad(picked ?? undefined, kind, gym, exerciseId, exerciseName);
+      return prefillLoad(picked ?? undefined, kind, gym, exerciseId, exerciseName, bar);
   }
 }
 
 /** What this exercise can load at this gym, for the progression engine (SPEC 6). */
-export function loadSetupFor(gym: Gym, kind: Load['kind'], exerciseId: string, exerciseName: string): Omit<LoadSetup, 'unit'> {
+export function loadSetupFor(gym: Gym, kind: Load['kind'], exerciseId: string, exerciseName: string, bar?: BarId): Omit<LoadSetup, 'unit'> {
   const machine = machineIdFor(exerciseId, exerciseName);
   return {
-    base: kind === 'barbell' ? gym.bars[barIdFor(exerciseName)] : kind === 'plate_machine' ? machineStartFor(gym, machine) : null,
+    base: kind === 'barbell' ? gym.bars[barIdFor(exerciseName, bar)] : kind === 'plate_machine' ? machineStartFor(gym, machine) : null,
     plates: enabledPlates(gym.plateInventory),
     collars: kind === 'barbell' ? gym.collars : 'none',
     dumbbellRange: gym.dumbbellRange,

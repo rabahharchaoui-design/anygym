@@ -145,7 +145,10 @@ export const ANY_GYM = '';
 export type ExerciseSetting = {
   exerciseId: string;
   gymId: string;
-  loadType: Load['kind'];
+  /** How it is loaded. Missing on a record that only holds a bar choice. */
+  loadType?: Load['kind'];
+  /** Barbell exercises: the bar picked at this gym (PLAN 1.10d). Missing = the name rule. */
+  barId?: BarId;
 };
 
 /** SPEC 5.5. Stored in the unit it was entered in; never converted on save. */

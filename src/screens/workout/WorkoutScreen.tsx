@@ -3,9 +3,9 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { db } from '../../db/schema';
 import type { Load, WorkoutSet } from '../../db/types';
-import { addExercise, deleteSet, finishWorkout, logSet, restoreSet, setsOf, updateSet } from '../../db/workouts';
+import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, logSet, restoreSet, setsOf, updateSet } from '../../db/workouts';
 import { getPastSessions } from '../../db/history';
-import { pickLoadType, saveLoadType } from '../../db/exerciseSettings';
+import { pickBar, pickLoadType, saveLoadType } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
 import { planById } from '../../data/plans';
 import { dayIndexOf } from '../../lib/plans';
@@ -17,7 +17,8 @@ import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../components/Toast';
 import { createDeleteUndo } from '../../lib/deleteUndo';
-import { clearSessionDrafts } from '../../lib/drafts';
+import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
+import { logQueue } from '../../lib/logQueue';
 import { planItemLoadType } from '../../lib/loadTypeRule';
 import { hints } from '../../lib/hints';
 import { extendRest, loadRest, saveRest, startRest, type Rest } from '../../lib/rest';
@@ -69,15 +70,17 @@ export function WorkoutScreen() {
     if (kind && kind !== 'unknown') return kind;
     return gym.value ? pickLoadType(settings.value ?? [], id, gym.value.id) : undefined;
   };
+  /** The bar picked for a barbell exercise at this gym (PLAN 1.10d); undefined = the name rule. */
+  const barOf = (id: string) => (gym.value ? pickBar(settings.value ?? [], id, gym.value.id) : undefined);
 
   // Earlier workouts of each exercise whose load type is known (SPEC 6): "Last time" and "Next".
-  const historyKey = gymId ? exerciseIds.map((id) => `${id}:${loadTypeOf(id) ?? ''}`).join('|') : '';
+  const historyKey = gymId ? exerciseIds.map((id) => `${id}:${loadTypeOf(id) ?? ''}:${barIdFor(nameOf(id), barOf(id)) === 'smith' ? 's' : ''}`).join('|') : '';
   const history = useLive(async () => {
     const out = new Map<string, PastSession[]>();
     if (!gymId || !historyKey) return out;
     for (const pair of historyKey.split('|')) {
-      const [id, kind] = pair.split(':') as [string, Load['kind'] | ''];
-      if (kind) out.set(id, await getPastSessions(id, gymId, kind, 6, { smith: barIdFor(nameOf(id)) === 'smith' }));
+      const [id, kind, smith] = pair.split(':') as [string, Load['kind'] | '', string];
+      if (kind) out.set(id, await getPastSessions(id, gymId, kind, 6, { smith: smith === 's' }));
     }
     return out;
   }, [historyKey, gymId]);
@@ -93,7 +96,7 @@ export function WorkoutScreen() {
       exerciseId: id,
       loadKind: kind,
       unit: gym.value.unit,
-      gym: loadSetupFor(gym.value, kind, id, nameOf(id)),
+      gym: loadSetupFor(gym.value, kind, id, nameOf(id), barOf(id)),
       repRange: entry && kind !== 'timed' ? repRangeOf(entry) : null,
       history: past,
       ...(entry?.prescription && kind !== 'timed' ? { prescription: entry.prescription } : {}),
@@ -112,7 +115,11 @@ export function WorkoutScreen() {
 
   // Deletes are written at once (an app kill can never bring a set back); Undo writes the same
   // record back, same id and order (SPEC 13.1).
+  // The Undo record is the one deleteSet read in its own transaction, never a stale UI copy.
   const deletes = useMemo(() => createDeleteUndo<WorkoutSet>({ remove: (s) => deleteSet(s.id), restore: restoreSet }), []);
+
+  // Storage full or blocked: drafts still live in memory, but say once that a reload loses them.
+  useEffect(() => onDraftStorageFail(() => setToast(toastOf(DRAFTS_NOT_SAVED))), []);
 
   useEffect(() => {
     if (!toast) return;
@@ -243,20 +250,25 @@ export function WorkoutScreen() {
     setToast(null);
     deletes.undo(set.id).then(
       (item) => item && unhide(set.id),
-      () => setToast(toastOf('Could not bring that set back', { label: 'Try again', onPress: () => restore(set) })),
+      (err: unknown) =>
+        setToast(
+          err instanceof WorkoutFinishedError
+            ? toastOf('That workout is already finished')
+            : toastOf('Could not bring that set back', { label: 'Try again', onPress: () => restore(set) }),
+        ),
     );
   };
 
-  const onDelete = (set: WorkoutSet) => {
+  const onDelete = async (set: WorkoutSet): Promise<void> => {
     if (finishing.current) return;
     setEditing(null);
     setHidden((h) => new Set(h).add(set.id));
     setToast(toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) }));
-    deletes.remove(set).catch(() => {
+    await deletes.remove(set).catch(() => {
       if (deletes.canUndo(set.id)) return; // an Undo already put it back
       // The set is still saved: show it again, say so, offer a retry.
       unhide(set.id);
-      setToast(toastOf('Could not delete that set', { label: 'Try again', onPress: () => onDelete(set) }));
+      setToast(toastOf('Could not delete that set', { label: 'Try again', onPress: () => void onDelete(set) }));
     });
   };
 
@@ -266,10 +278,12 @@ export function WorkoutScreen() {
     try {
       // No new delete or Undo from here; every write still running lands before the sets are counted.
       await deletes.close();
+      await logQueue.settle(sessionId);
       const result = await finishWorkout(sessionId);
       setRest(null);
       saveCurrent(sessionId, null);
       clearSessionDrafts(sessionId);
+      logQueue.clearSession(sessionId);
       const text = result.saved ? `Workout saved · ${result.sets} ${result.sets === 1 ? 'set' : 'sets'}` : 'Nothing logged · Workout discarded';
       navigate('/', { replace: true, state: { toast: text } });
     } catch {
@@ -278,6 +292,8 @@ export function WorkoutScreen() {
       setToast(toastOf('Could not finish. Try again.'));
     }
   });
+
+  const notice = (text: string, retry?: () => void) => setToast(toastOf(text, retry ? { label: 'Try again', onPress: retry } : undefined));
 
   const now = useNow(1000);
 
@@ -305,6 +321,8 @@ export function WorkoutScreen() {
       onEditSet={setEditing}
       actionSlot={actionSlot}
       entry={entryOf.get(id)}
+      bar={barOf(id)}
+      onNotice={notice}
     />
   );
 
@@ -406,6 +424,7 @@ export function WorkoutScreen() {
           index={Math.max(0, editIndex)}
           exerciseName={editing ? nameOf(editing.exerciseId) : ''}
           loadType={editing ? loadTypeOf(editing.exerciseId) : undefined}
+          bar={editing ? barOf(editing.exerciseId) : undefined}
           gym={gym.value}
           onClose={() => setEditing(null)}
           onSave={onSave}

@@ -389,6 +389,10 @@
   font-size: 17px;
 }
 
+.deleteButton:disabled {
+  opacity: 0.4;
+}
+
 /* ---------------------------------------------------------------- rest bar */
 
 .rest {
@@ -676,4 +680,26 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 16px;
+}
+
+/* ---------------------------------------------------------------- bar choice (PLAN 1.10d) */
+
+.choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.choiceRow {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.choiceOther {
+  min-height: var(--tap);
+  color: var(--accent);
+  font-size: var(--text-base);
+  font-weight: 600;
 }
