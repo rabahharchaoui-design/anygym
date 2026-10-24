@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, guardContext } from './fixtures';
 import { solvePlates } from '../src/lib/load';
 
 // Plate diagram (PLAN 1.5, SPEC 5.3 / 5.4) on the hidden dev harness.
@@ -245,7 +245,7 @@ test('first time hint on the plate diagram: shown once, gone on the first tap, n
 });
 
 test('reduced motion: the hint still shows (as a fade) and plates still load', async ({ browser }) => {
-  const context = await browser.newContext({ ...test.info().project.use, reducedMotion: 'reduce' });
+  const context = await guardContext(await browser.newContext({ ...test.info().project.use, reducedMotion: 'reduce' }));
   const page = await context.newPage();
   const errors = watchErrors(page);
   await open(page);

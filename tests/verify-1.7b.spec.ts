@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './fixtures';
 
 // PLAN 1.7b: SPEC 13.6 plain picker labels, one picker per exercise, no debug text in user
 // screens, and the SPEC 13.7 ⓘ info sheets.

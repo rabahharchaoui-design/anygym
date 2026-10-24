@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './fixtures';
 
 // Other load inputs (PLAN 1.6, SPEC 5.2 / 5.3 / 5.5) on the hidden dev harness #/dev/loads.
 

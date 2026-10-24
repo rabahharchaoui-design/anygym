@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './fixtures';
 
 // G's programs, early (PLAN 1.10): curated plans, the Today day card, plan day workouts.
 

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
 // "Last time" and "Next" on the set card from the progression engine (PLAN 1.9, SPEC 6).
 
