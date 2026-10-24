@@ -1,3 +1,5 @@
+/* The outermost bottom bar: it owns the one bottom inset, so its background runs to the
+   physical edge under the home indicator and the tabs sit just above it. */
 .bar {
   flex: none;
   display: grid;

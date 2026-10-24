@@ -11,6 +11,7 @@ body,
   margin: 0;
 }
 
+/* True black behind everything, so no stray band can ever show a different color. */
 html {
   background: var(--bg);
   color-scheme: dark;
@@ -28,6 +29,13 @@ body {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
   font-variant-numeric: tabular-nums;
+}
+
+@media (display-mode: standalone) {
+  html,
+  body {
+    min-height: 100lvh;
+  }
 }
 
 h1,

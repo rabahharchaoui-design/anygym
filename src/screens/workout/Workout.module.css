@@ -2,7 +2,8 @@
 
 .screen {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: var(--app-height);
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -15,7 +16,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: calc(var(--safe-top) + 2px) calc(var(--space-4) + var(--safe-right)) 2px calc(var(--space-4) + var(--safe-left));
+  padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 2px calc(var(--space-4) + var(--safe-left));
   border-bottom: 1px solid var(--hairline);
   background: var(--bg);
 }
@@ -96,6 +97,8 @@
   --rest-height: 60px;
 }
 
+/* The outermost bottom element of the workout frame: it alone adds the bottom inset; the rest
+   bar and Log set bar sit inside it. */
 .dockWrap {
   flex: none;
   position: relative;

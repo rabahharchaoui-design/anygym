@@ -1,6 +1,7 @@
 .page {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: var(--app-height);
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--bg);

@@ -1,6 +1,7 @@
 .guard {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: var(--app-height);
   z-index: 1000;
   background: transparent;
   touch-action: none;

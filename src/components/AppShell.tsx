@@ -8,7 +8,7 @@ import styles from './AppShell.module.css';
  */
 export function AppShell() {
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-shell>
       <main className={styles.content}>
         <Outlet />
       </main>

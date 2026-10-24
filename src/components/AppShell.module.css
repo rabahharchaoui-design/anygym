@@ -1,9 +1,11 @@
 .shell {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: var(--app-height);
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  overscroll-behavior: none;
 }
 
 .content {
