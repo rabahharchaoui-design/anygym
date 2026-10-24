@@ -8,6 +8,7 @@ import { TimedInput } from '../../components/load/TimedInput';
 import type { Load } from '../../db/types';
 import { useActiveGym } from '../../db/useActiveGym';
 import type { PromptKind } from '../../lib/equipmentPrompt';
+import { DevErrorBoundary, DevErrorLog } from './DevErrors';
 import styles from './LoadsDevScreen.module.css';
 
 const PLATE_MACHINE = 'leg_press';
@@ -87,6 +88,7 @@ export function LoadsDevScreen() {
           </Section>
         </>
       )}
+      <DevErrorLog />
     </div>
   );
 }
@@ -107,7 +109,7 @@ function Section({
   return (
     <section className={styles.card} data-testid={`section-${id}`} aria-label={title}>
       <h2 className={styles.cardTitle}>{title}</h2>
-      {children}
+      <DevErrorBoundary name={title}>{children}</DevErrorBoundary>
       <pre className={styles.json} data-testid={`json-${id}`}>
         {JSON.stringify(json)}
       </pre>

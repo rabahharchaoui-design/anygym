@@ -14,10 +14,12 @@ type Props = {
   perSide: readonly number[];
   /** load is null while the starting resistance is unknown (the UI shows "+ start"). */
   onChange: (perSide: number[], load: Load | null) => void;
+  /** Workout size plate diagram (SPEC 13.5). */
+  compact?: boolean;
 };
 
 /** Plate loaded machine (SPEC 5.2): the plate diagram on one horn, "per side", plus the starting resistance. */
-export function PlateMachineInput({ gym, machineId, perSide, onChange }: Props) {
+export function PlateMachineInput({ gym, machineId, perSide, onChange, compact = false }: Props) {
   const [asking, setAsking] = useState(false);
   const unit = gym.unit;
   const start = machineBase(machineStartFor(gym, machineId));
@@ -30,6 +32,7 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange }: Props) 
     <>
       <PlateDiagram
         variant="horn"
+        compact={compact}
         unit={unit}
         bar={start}
         inventory={enabledPlates(gym.plateInventory)}
