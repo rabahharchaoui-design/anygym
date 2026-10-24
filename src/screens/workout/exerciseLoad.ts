@@ -15,6 +15,7 @@ import {
   stackLoad,
   stackValues,
   timedLoad,
+  type LoadSetup,
 } from '../../lib/load';
 
 /** Smith exercises use the Smith bar (unknown until answered); every other bar exercise the olympic bar. */
@@ -76,6 +77,18 @@ export function prefillLoad(
     case 'timed':
       return timedLoad(gym.unit);
   }
+}
+
+/** What this exercise can load at this gym, for the progression engine (SPEC 6). */
+export function loadSetupFor(gym: Gym, kind: Load['kind'], exerciseId: string, exerciseName: string): Omit<LoadSetup, 'unit'> {
+  const machine = machineIdFor(exerciseId, exerciseName);
+  return {
+    base: kind === 'barbell' ? gym.bars[barIdFor(exerciseName)] : kind === 'plate_machine' ? machineStartFor(gym, machine) : null,
+    plates: enabledPlates(gym.plateInventory),
+    collars: kind === 'barbell' ? gym.collars : 'none',
+    dumbbellRange: gym.dumbbellRange,
+    stackStep: stackStepFor(gym, machine),
+  };
 }
 
 export const LOAD_TYPE_CHOICES: Array<{ kind: Load['kind']; label: string; hint: string }> = [

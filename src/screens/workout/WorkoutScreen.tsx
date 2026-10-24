@@ -3,7 +3,8 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { db } from '../../db/schema';
 import type { Load, WorkoutSet } from '../../db/types';
-import { addExercise, deleteSet, finishWorkout, lastSetBefore, logSet, setsOf, updateSet } from '../../db/workouts';
+import { addExercise, deleteSet, finishWorkout, logSet, setsOf, updateSet } from '../../db/workouts';
+import { getPastSessions } from '../../db/history';
 import { pickLoadType, saveLoadType } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
 import { useLive } from '../../hooks/useLive';
@@ -15,6 +16,7 @@ import { createUndoQueue } from '../../lib/undoQueue';
 import { hints } from '../../lib/hints';
 import { extendRest, loadRest, saveRest, startRest, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
+import { progress, type PastSession, type Progression } from '../../lib/progression';
 import { unlockAudio } from '../../lib/tone';
 import { AddExerciseSheet } from './AddExerciseSheet';
 import { EditSetSheet } from './EditSetSheet';
@@ -23,6 +25,7 @@ import { LoadTypeSheet } from './LoadTypeSheet';
 import { RestDock } from './RestDock';
 import type { SetDraft } from './SetCard';
 import { loadCurrent, saveCurrent } from './currentExercise';
+import { barIdFor, loadSetupFor } from './exerciseLoad';
 import styles from './Workout.module.css';
 
 let toastSeq = 0;
@@ -40,13 +43,33 @@ export function WorkoutScreen() {
   const gymId = session.value?.gymId;
   const gym = useLive(() => (gymId ? db.gyms.get(gymId) : Promise.resolve(undefined)), [gymId]);
   const settings = useLive(() => db.exerciseSettings.toArray(), []);
-  const idsKey = (session.value?.exerciseIds ?? []).join('|');
-  // Each exercise's last set in the most recent earlier workout: prefill and "Last time".
+  const exerciseIds = session.value?.exerciseIds ?? [];
+
+  const loadTypeOf = (id: string): Load['kind'] | undefined => {
+    const fixed = planExercise(id)?.loadType;
+    if (fixed && fixed !== 'unknown') return fixed;
+    return gym.value ? pickLoadType(settings.value ?? [], id, gym.value.id) : undefined;
+  };
+
+  // Earlier workouts of each exercise whose load type is known (SPEC 6): "Last time" and "Next".
+  const historyKey = gymId ? exerciseIds.map((id) => `${id}:${loadTypeOf(id) ?? ''}`).join('|') : '';
   const history = useLive(async () => {
-    const ids = idsKey ? idsKey.split('|') : [];
-    const found = await Promise.all(ids.map((id) => lastSetBefore(id, sessionId)));
-    return new Map(ids.map((id, i) => [id, found[i]] as const));
-  }, [idsKey, sessionId]);
+    const out = new Map<string, PastSession[]>();
+    if (!gymId || !historyKey) return out;
+    for (const pair of historyKey.split('|')) {
+      const [id, kind] = pair.split(':') as [string, Load['kind'] | ''];
+      if (kind) out.set(id, await getPastSessions(id, gymId, kind, 6, { smith: barIdFor(nameOf(id)) === 'smith' }));
+    }
+    return out;
+  }, [historyKey, gymId]);
+
+  const progressionOf = (id: string): Progression | undefined => {
+    const kind = loadTypeOf(id);
+    const past = history.value?.get(id);
+    if (!kind || !past || !gym.value) return undefined;
+    // Quick workout: no rep range yet, so the engine aims to beat last time's reps (SPEC 6, 20.3).
+    return progress({ exerciseId: id, loadKind: kind, unit: gym.value.unit, gym: loadSetupFor(gym.value, kind, id, nameOf(id)), repRange: null, history: past });
+  };
 
   const [current, setCurrent] = useState<string | null>(() => loadCurrent(sessionId));
   const [adding, setAdding] = useState(false);
@@ -86,15 +109,8 @@ export function WorkoutScreen() {
     saveRest(r);
   }, []);
 
-  const exerciseIds = session.value?.exerciseIds ?? [];
   const sets = (allSets.value ?? []).filter((s) => !hidden.has(s.id));
   const expanded = current && exerciseIds.includes(current) ? current : (exerciseIds[exerciseIds.length - 1] ?? null);
-
-  const loadTypeOf = (id: string): Load['kind'] | undefined => {
-    const fixed = planExercise(id)?.loadType;
-    if (fixed && fixed !== 'unknown') return fixed;
-    return gym.value ? pickLoadType(settings.value ?? [], id, gym.value.id) : undefined;
-  };
 
   const expand = (id: string) => {
     setCurrent(id);
@@ -233,7 +249,7 @@ export function WorkoutScreen() {
                 loadType={loadTypeOf(id)}
                 gym={gym.value!}
                 sets={sets.filter((s) => s.exerciseId === id)}
-                previous={history.value?.get(id)}
+                progression={progressionOf(id)}
                 expanded={id === expanded}
                 onExpand={() => expand(id)}
                 onAskLoadType={() => setAsking(id)}
