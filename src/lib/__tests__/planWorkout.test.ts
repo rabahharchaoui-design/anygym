@@ -29,6 +29,7 @@ describe('dayWorkout', () => {
       sets: 4,
       reps: [8, 12],
       restSec: 90,
+      statedRest: 90,
       setsText: '4 sets × 8 to 12',
       line: '4 sets × 8 to 12 · 90 s rest',
       amount: '8 to 12 reps',
@@ -154,5 +155,57 @@ describe('nextCurrent and restAfter', () => {
     expect(restAfter(day, all, 'b')).toBe(0);
     expect(nextCurrent(day, {}, 'zz')).toBe('zz');
     expect(restAfter(day, {}, 'zz')).toBeNull();
+  });
+});
+
+describe('quick workout entries and order (PLAN 1.7c)', () => {
+  it('quickEntry: 3 × 8 to 12, 90 s rest; holds invent no length', async () => {
+    const { quickEntry, QUICK_DEFAULT } = await import('../planWorkout');
+    expect(QUICK_DEFAULT).toEqual({ sets: 3, reps: [8, 12], restSec: 90 });
+    expect(quickEntry('sq', 'Squat', 'barbell', 0)).toMatchObject({ sets: 3, reps: [8, 12], restSec: 90, setsText: '3 sets × 8 to 12', amount: '8 to 12 reps', kind: 'single' });
+    const plank = quickEntry('plank', 'Plank', 'timed', 1);
+    expect(plank.reps).toBeUndefined();
+    expect(plank.seconds).toBeUndefined();
+    expect(plank.setsText).toBe('3 sets');
+    expect(quickEntry('x', 'X', undefined, 2).statedRest).toBeUndefined();
+  });
+  it('orderEntries follows the workout order and drops removed exercises', async () => {
+    const { orderEntries, quickEntry } = await import('../planWorkout');
+    const a = quickEntry('a', 'A', 'barbell', 0);
+    const b = quickEntry('b', 'B', 'barbell', 1);
+    const out = orderEntries([a, b], ['b', 'c'], (id, i) => quickEntry(id, id.toUpperCase(), 'timed', i));
+    expect(out.map((e) => e.exerciseId)).toEqual(['b', 'c']);
+    expect(out[1]!.block).toBe(3);
+  });
+  it('moveInOrder: singles swap, pairs move as one and are never split', async () => {
+    const { moveInOrder } = await import('../planWorkout');
+    const kinds: Record<string, { kind: 'single' | 'pair'; block: number }> = {
+      a: { kind: 'single', block: 0 },
+      p1: { kind: 'pair', block: 1 },
+      p2: { kind: 'pair', block: 1 },
+      d: { kind: 'single', block: 2 },
+    };
+    const of = (id: string) => kinds[id];
+    const ids = ['a', 'p1', 'p2', 'd'];
+    expect(moveInOrder(ids, 'a', 1, of)).toEqual(['p1', 'p2', 'a', 'd']);
+    expect(moveInOrder(ids, 'd', -1, of)).toEqual(['a', 'd', 'p1', 'p2']);
+    expect(moveInOrder(ids, 'a', -1, of)).toBeNull();
+    expect(moveInOrder(ids, 'd', 1, of)).toBeNull();
+    expect(moveInOrder(ids, 'p1', 1, of)).toBeNull();
+    expect(moveInOrder(ids, 'zz', 1, of)).toBeNull();
+    expect(moveInOrder(['x', 'y'], 'x', 1, () => undefined)).toEqual(['y', 'x']);
+  });
+});
+
+describe('upNext (the highlighted row)', () => {
+  it('carries on after the last logged exercise, else the first with sets left', async () => {
+    const { quickEntry, upNext } = await import('../planWorkout');
+    const es = ['a', 'b', 'c'].map((id, i) => quickEntry(id, id, 'barbell', i));
+    expect(upNext(es, {}, undefined)).toBe('a');
+    expect(upNext(es, { b: 1 }, 'b')).toBe('b');
+    expect(upNext(es, { b: 3 }, 'b')).toBe('c');
+    expect(upNext(es, { b: 3, c: 3 }, 'c')).toBe('a');
+    expect(upNext(es, { a: 3, b: 3, c: 3 }, 'c')).toBeNull();
+    expect(upNext(es, {}, 'gone')).toBe('a');
   });
 });

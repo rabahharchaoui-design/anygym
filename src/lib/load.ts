@@ -12,7 +12,7 @@
 // and never 3.7500000001. Nothing here rounds to display precision; only the format
 // helpers at the bottom do that.
 import { stackStepFor } from '../db/gyms';
-import type { Collars, DumbbellRange, Gym, Load, PlateToggle, Unit } from '../db/types';
+import type { BarId, Collars, DumbbellRange, Gym, Load, PlateToggle, Unit } from '../db/types';
 import { plateSpec, SLEEVE_LENGTH } from './plates';
 
 export { fitsSleeve } from './plates';
@@ -309,6 +309,19 @@ export function nextDumbbell(each: number, range: DumbbellRange): number | null 
  */
 export const DISPLAY_STACK_MAX: Record<Unit, number> = { lb: 300, kg: 140 };
 
+/**
+ * A pin this machine can be set to: any positive whole multiple of its step (PLAN 1.7c: the pin
+ * list grows past DISPLAY_STACK_MAX with "More", so validity never depends on the display range).
+ */
+export function isStackPin(value: number, step: number): boolean {
+  return step > 0 && value > 0 && toInt(value) % toInt(step) === 0;
+}
+
+/** The pin list after "More": `pins` more steps past `max` (PLAN 1.7c). */
+export function morePins(max: number, step: number, pins = 10): number {
+  return add(max, times(step, pins));
+}
+
 /** Every pin position of a stack, lightest first: step, 2 × step, ... up to max. Empty for a step that is not positive. */
 export function stackValues(step: number, max: number): number[] {
   if (!(step > 0)) return [];
@@ -319,10 +332,12 @@ export function stackValues(step: number, max: number): number[] {
 // ---------------------------------------------------------------- Load records (SPEC 5.5)
 
 /** Barbell: bar + 2 × perSide + collars. null while the bar weight is unknown (never a guess). */
-export function barbellLoad(bar: number | null, perSide: readonly number[], collars: Collars, unit: Unit): Load | null {
+export function barbellLoad(bar: number | null, perSide: readonly number[], collars: Collars, unit: Unit, barId?: BarId): Load | null {
   const { total } = sumLoad({ bar, perSide, collars, unit });
   if (bar === null || total === null) return null;
-  return { kind: 'barbell', unit, total, barWeight: bar, perSide: [...perSide] };
+  const load: Load = { kind: 'barbell', unit, total, barWeight: bar, perSide: [...perSide] };
+  if (barId) load.barId = barId;
+  return load;
 }
 
 /** Dumbbell pair, each hand: total = 2 × each. */
@@ -489,7 +504,7 @@ export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 
       return kind === 'single' ? singleLoad(value, s.unit) : dumbbellLoad(value, s.unit);
     }
     case 'stack':
-      return stackValues(s.stackStep, DISPLAY_STACK_MAX[s.unit]).some((p) => toInt(p) === toInt(value)) ? stackLoad(value, s.unit, added) : null;
+      return isStackPin(value, s.stackStep) ? stackLoad(value, s.unit, added) : null;
     case 'bodyweight':
       return bodyweightLoad(s.unit, value);
     case 'timed':
@@ -510,7 +525,7 @@ export function nearestLoadable(kind: Load['kind'], value: number, s: LoadSetup)
     case 'single':
       return s.dumbbellRange ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
     case 'stack':
-      return roundToLoadable(value, { kind: 'stack', step: s.stackStep, max: DISPLAY_STACK_MAX[s.unit] });
+      return roundToLoadable(value, { kind: 'stack', step: s.stackStep });
     case 'bodyweight':
       return toInt(value) === 0 ? 0 : null;
     case 'timed':
@@ -536,10 +551,9 @@ export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number 
     case 'dumbbell_each':
     case 'single':
       return s.dumbbellRange ? nextDumbbell(value, s.dumbbellRange) : null;
-    case 'stack': {
-      const next = add(value, s.stackStep);
-      return next > DISPLAY_STACK_MAX[s.unit] + EPS ? null : next;
-    }
+    case 'stack':
+      // The real stack size is not known: the next pin up (the user picks "More" if needed).
+      return add(value, s.stackStep);
     case 'bodyweight':
     case 'timed':
       return null;
@@ -610,4 +624,56 @@ export function formatSetLine(set: { reps?: number; seconds?: number; load?: Loa
   if (load.kind === 'bodyweight') return load.added ? `${reps} reps + ${formatWeight(load.added, load.unit)}` : `${reps} reps`;
   if (load.kind === 'dumbbell_each') return `${reps} × ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
   return `${reps} × ${formatWeight(load.total, load.unit)}`;
+}
+
+// ---------------------------------------------------------------- totals (PLAN 1.7c, SPEC 21.1)
+
+/**
+ * Weight moved by one set: reps × the set's total, in the set's own unit (dumbbell pairs count
+ * both dumbbells; bodyweight counts only the added weight, the body is not known). 0 for holds.
+ */
+export function setLifted(set: { reps?: number; seconds?: number; load?: Load }): number {
+  if (!set.load || set.reps === undefined || set.load.kind === 'timed') return 0;
+  return times(set.load.total, set.reps);
+}
+
+/** "Total lifted" over logged sets, in `unit`. A set in the other unit is converted for display only. */
+export function totalLifted(sets: ReadonlyArray<{ reps?: number; seconds?: number; load?: Load }>, unit: Unit): number {
+  return add(...sets.map((s) => (s.load ? convertForGym(setLifted(s), s.load.unit, unit) : 0)));
+}
+
+/** "4,350 lb", "1,234.5 kg": formatAmount with thousands separators. */
+export function formatTotal(value: number, unit: Unit): string {
+  const [whole, frac] = formatAmount(value).split('.');
+  const grouped = whole!.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${frac ? `${grouped}.${frac}` : grouped} ${unit}`;
+}
+
+/** The weight a set table cell shows, number only (SPEC 21.1): the dumbbell (not the pair), the added weight on bodyweight, else the total. null for holds. */
+export function cellWeight(load: Load): number | null {
+  switch (load.kind) {
+    case 'dumbbell_each':
+      return heldWeightOf(load);
+    case 'bodyweight':
+      return load.added ?? 0;
+    case 'timed':
+      return null;
+    default:
+      return load.total;
+  }
+}
+
+/**
+ * The weight a record compares, in `unit` (PLAN 1.7c): the total for bars, machines and stacks,
+ * one dumbbell for pairs, the added weight on bodyweight; converted when logged in the other unit.
+ * Comparison only, never stored or shown.
+ */
+export function comparableWeight(load: Load, unit: Unit): number {
+  const own = load.kind === 'stack' ? load.total : (pickedWeight(load) ?? 0);
+  return convertForGym(own, load.unit, unit);
+}
+
+/** Plates on a bar or horn while its base weight is unknown: the "40 + bar" cell. */
+export function platesOnly(perSide: readonly number[], unit: Unit): number {
+  return sumLoad({ bar: 0, perSide, unit }).platesTotal;
 }

@@ -1,0 +1,332 @@
+/* The set table (SPEC 20.2, 21.1): big numbers, thumb sized cells, one check per row. */
+
+.wrap {
+  --cols: 48px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr) 52px;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 calc(var(--space-2) * -1);
+  padding: 0 var(--space-2);
+}
+
+.wrap[data-timed] {
+  --cols: 48px minmax(0, 1.2fr) minmax(0, 1fr) 52px;
+}
+
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: 6px;
+  align-items: end;
+  height: 24px;
+  padding: 0 4px 4px;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.head > span {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.head > span:nth-child(2) {
+  text-align: left;
+  padding-left: 6px;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rowGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: 6px;
+  align-items: center;
+  min-height: 52px;
+  padding: 2px 4px;
+  border-radius: 14px;
+  background: var(--surface-1);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.row[data-state='current'] {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px #34343b;
+}
+
+/* Logged: a lime tint, filled from left to right once when it is checked (SPEC 23.3). */
+.row[data-state='logged'] {
+  background: transparent;
+}
+
+.row[data-state='logged']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(212, 255, 58, 0.13);
+  transform-origin: left center;
+}
+
+.row[data-fresh]::before {
+  animation: fill 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* The logged row's middle is one button (tap to edit); it spans LAST TIME to REPS. */
+.loggedBody {
+  grid-column: 2 / -2;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-height: 48px;
+  text-align: left;
+}
+
+.wrap .loggedBody {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  gap: 6px;
+}
+
+.wrap[data-timed] .loggedBody {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.setNo {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.setNo[data-type='warmup'] {
+  color: var(--amber);
+}
+
+.setNo[data-type='drop'] {
+  color: var(--pair);
+}
+
+.setNo[data-type='failure'] {
+  color: var(--red);
+}
+
+.last {
+  min-width: 0;
+  padding-left: 6px;
+  color: var(--text-2);
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.cellButton {
+  min-height: 48px;
+  border-radius: 12px;
+}
+
+.cellButton:disabled {
+  cursor: default;
+}
+
+.cellValue {
+  min-width: 0;
+  text-align: center;
+  font-size: clamp(18px, 5.4vw, 22px);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row:not([data-state='logged']) .cellValue {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cellValue[data-empty] {
+  color: var(--accent);
+  font-size: 15px;
+  box-shadow: inset 0 0 0 1px rgba(212, 255, 58, 0.45);
+  background: transparent;
+}
+
+.cellValue[data-unknown] {
+  font-size: 14px;
+  color: var(--amber);
+}
+
+.checkWrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.check,
+.checkDone,
+.checkCircle {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The whole 48 pt square takes the tap; the circle is drawn inside it. */
+.checkDone,
+.checkCircle {
+  border-radius: 50%;
+}
+
+.checkCircle {
+  width: 46px;
+  height: 46px;
+  border: 2px solid #3a3a42;
+  color: var(--text-2);
+  background: transparent;
+}
+
+.row[data-state='current'] .check:not(:disabled) .checkCircle {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.check:disabled .checkCircle {
+  opacity: 0.35;
+}
+
+.checkDone {
+  justify-self: center;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.checkIcon {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.checkDone .checkIcon path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+}
+
+.row[data-fresh] .checkDone {
+  animation: pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.row[data-fresh] .checkDone .checkIcon path {
+  animation: draw 240ms 60ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.7);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row[data-fresh]::before,
+  .row[data-fresh] .checkDone {
+    animation: fade 160ms ease-out both;
+  }
+  .row[data-fresh] .checkDone .checkIcon path {
+    animation: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hint {
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: 220px;
+}
+
+/* Inline reps (or hold) stepper under the row being changed. */
+.stepperRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.stepperRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.stepperDone {
+  flex: none;
+  min-width: 64px;
+  height: 48px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}

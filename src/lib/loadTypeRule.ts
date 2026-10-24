@@ -27,7 +27,16 @@ import type { BarId, Load } from '../db/types';
 
 export type ExerciseLoadType = Load['kind'] | 'unknown';
 
-export type PlanExercise = { id: string; name: string; loadType: ExerciseLoadType };
+export type PlanExercise = { id: string; name: string; loadType: ExerciseLoadType; bar?: BarId };
+
+/**
+ * A hand written answer for one exercise name (data/plan-exercise-overrides.json, PLAN 1.7c):
+ * how an experienced coach would load it when the name rule cannot tell. `why` is for people.
+ */
+export type LoadTypeOverride = { name: string; loadType: ExerciseLoadType; bar?: BarId; why: string };
+
+const LOAD_TYPES: ExerciseLoadType[] = ['barbell', 'dumbbell_each', 'single', 'stack', 'plate_machine', 'bodyweight', 'timed', 'unknown'];
+const BARS: BarId[] = ['olympic', 'womens', 'ez_curl', 'trap', 'smith'];
 
 const has = (name: string, words: string[]) =>
   words.some((w) => new RegExp(`\\b${w.replace(/ /g, '\\s+')}\\b`, 'i').test(name));
@@ -74,8 +83,12 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** Every `exercise` string anywhere in the plan files, unique by id, sorted by name. */
-export function buildPlanExercises(plans: unknown[]): PlanExercise[] {
+/**
+ * Every `exercise` string anywhere in the plan files, unique by id, sorted by name. The name rule
+ * gives each its load type, unless the override table answers for that name (it wins). An
+ * override for a name no plan uses, or with a load type or bar that does not exist, throws.
+ */
+export function buildPlanExercises(plans: unknown[], overrides: readonly LoadTypeOverride[] = []): PlanExercise[] {
   const names = new Map<string, string>();
   const walk = (node: unknown): void => {
     if (Array.isArray(node)) return node.forEach(walk);
@@ -89,7 +102,19 @@ export function buildPlanExercises(plans: unknown[]): PlanExercise[] {
     }
   };
   plans.forEach(walk);
+  const byId = new Map<string, LoadTypeOverride>();
+  for (const o of overrides) {
+    const id = slugify(o.name);
+    if (!names.has(id)) throw new Error(`Override for an exercise no plan uses: "${o.name}"`);
+    if (!LOAD_TYPES.includes(o.loadType)) throw new Error(`Override with an unknown load type: "${o.name}"`);
+    if (o.bar !== undefined && (o.loadType !== 'barbell' || !BARS.includes(o.bar))) throw new Error(`Override with a bad bar: "${o.name}"`);
+    byId.set(id, o);
+  }
   return [...names]
-    .map(([id, name]) => ({ id, name, loadType: loadTypeFromName(name) }))
+    .map(([id, name]): PlanExercise => {
+      const o = byId.get(id);
+      if (!o) return { id, name, loadType: loadTypeFromName(name) };
+      return o.bar ? { id, name, loadType: o.loadType, bar: o.bar } : { id, name, loadType: o.loadType };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }

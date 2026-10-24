@@ -1,40 +1,20 @@
-import { expect, test, type Locator, type Page } from './fixtures';
+import { expect, test, type Page } from './fixtures';
+import {
+  bar185,
+  checkCurrent,
+  dbAll,
+  exerciseView,
+  fitsOneScreen,
+  loggedRows,
+  pickExercises,
+  quickWith,
+  seedFinished,
+  shotOn,
+  watchErrors,
+} from './workout-helpers';
 
-// Quick workout, set card, rest timer, edit / delete / undo, kill and restore (PLAN 1.7).
-
-const watchErrors = (page: Page) => {
-  const errors: string[] = [];
-  page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(`console: ${m.text()}`);
-  });
-  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-  return errors;
-};
-
-const shot = async (page: Page, name: string, target?: Locator) => {
-  if (test.info().project.name !== 'iPhone 15 Pro') return;
-  await page.waitForTimeout(450); // let springs settle
-  await (target ?? page).screenshot({ path: `reports/shots/1.7/${name}.png` });
-};
-
-/** Every record of an IndexedDB store, read straight from the database. */
-const dbAll = <T = Record<string, unknown>>(page: Page, store: string) =>
-  page.evaluate(
-    (name) =>
-      new Promise<unknown[]>((resolve, reject) => {
-        const req = indexedDB.open('anygym');
-        req.onerror = () => reject(req.error);
-        req.onsuccess = () => {
-          const q = req.result.transaction(name, 'readonly').objectStore(name).getAll();
-          q.onsuccess = () => {
-            resolve(q.result);
-            req.result.close();
-          };
-          q.onerror = () => reject(q.error);
-        };
-      }),
-    store,
-  ) as Promise<T[]>;
+// The workout flow of PLAN 1.7c (SPEC 20, 21.1): day list → exercise view → set table with a ✓
+// per set, rest bar, edit / delete / undo, kill and restore, finish screen.
 
 // A fake Screen Wake Lock that counts requests and releases.
 const fakeWakeLock = (page: Page) =>
@@ -59,143 +39,122 @@ const elapsedSec = async (page: Page) => {
   return text.split(':').reduce((acc, part) => acc * 60 + Number(part), 0);
 };
 
-const startQuick = async (page: Page) => {
-  await page.goto('./');
-  const start = page.getByRole('button', { name: /Quick workout/ });
-  await expect(start).toBeVisible();
-  return start;
-};
+const weightSheet = (page: Page) => page.getByRole('dialog', { name: 'Pick the weight' });
 
-const addExercise = async (page: Page, query: string, name: string) => {
-  await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
-  const sheet = page.getByRole('dialog', { name: 'Add exercise' });
-  await expect(sheet).toBeVisible();
-  await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill(query);
-  await sheet.getByRole('button', { name, exact: true }).tap();
-  await expect(sheet).toHaveCount(0);
-};
-
-const tray = (scope: Locator | Page, label: string) => scope.getByRole('button', { name: `Add ${label} plate to each side` });
-
-test('quick workout: log, double tap, edit, delete with undo, reload, finish', async ({ page }) => {
+test('quick workout: picker, first weight, check, double tap, edit, delete with undo, reload, finish', async ({ page }) => {
   const errors = watchErrors(page);
   await fakeWakeLock(page);
-  const start = await startQuick(page);
-  await shot(page, 'today-quick-workout');
-  await start.tap();
-
+  await page.goto('./');
+  await page.getByRole('button', { name: /Quick workout/ }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
-  await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Empty workout' })).toBeVisible();
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __wl: number }).__wl)).toBeGreaterThanOrEqual(1);
   const sessionId = page.url().split('/').pop()!;
+  await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __wl: number }).__wl)).toBeGreaterThanOrEqual(1);
 
-  await addExercise(page, 'back squat', 'Barbell Back Squat');
-  const card = page.getByTestId('exercise-barbell-back-squat');
-  await expect(card.getByTestId('set-target')).toHaveText('Set 1');
-  await expect(card.getByText('First time: pick a weight you could lift 2 more reps with')).toBeVisible();
+  // The empty quick workout opens straight into the picker; adding one exercise opens it.
+  await pickExercises(page, [['back squat', 'Barbell Back Squat']]);
+  await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}/barbell-back-squat$`));
+  const view = exerciseView(page, 'barbell-back-squat');
+  await expect(view.getByTestId('set-guide')).toHaveText('First time: pick a weight you could lift 2 more reps with');
+  // 3 × 8 to 12 by default; no weight is invented for a first time.
+  await expect(view.getByTestId('set-todo')).toHaveCount(3);
+  await expect(view.getByTestId('weight-cell')).toHaveText(['Set', 'Set', 'Set']);
+  await expect(view.getByTestId('reps-cell')).toHaveText(['8', '8', '8']);
+  await expect(checkCurrent(view)).toBeDisabled();
+  await expect(view.getByTestId('set-status')).toHaveText('Set 1: Pick a weight');
 
-  await tray(card, '45 lb').tap();
-  await tray(card, '25 lb').tap();
-  await expect(card.getByTestId('plate-total')).toHaveText('185lb');
-  await expect(card.getByTestId('plate-math')).toHaveText('45 bar + 2 × (45 + 25) = 185 lb');
+  // First weight: the plate diagram in a sheet, applied to every row not logged yet.
+  await view.getByTestId('weight-cell').first().tap();
+  await weightSheet(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+  await weightSheet(page).getByRole('button', { name: 'Add 25 lb plate to each side' }).tap();
+  await expect(weightSheet(page).getByTestId('plate-math')).toHaveText('45 bar + 2 × (45 + 25) = 185 lb');
+  await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
+  await expect(view.getByTestId('weight-cell')).toHaveText(['185', '185', '185']);
 
-  // Reps stepper: one more, one less, back at 10.
-  await expect(card.getByTestId('stepper-reps')).toHaveText('10');
-  await card.getByRole('button', { name: 'More reps' }).tap();
-  await expect(card.getByTestId('stepper-reps')).toHaveText('11');
-  await card.getByRole('button', { name: 'Fewer reps' }).tap();
-  await expect(card.getByTestId('stepper-reps')).toHaveText('10');
+  // Reps in place: the inline stepper.
+  await view.getByTestId('reps-cell').first().tap();
+  await view.getByRole('button', { name: 'More reps' }).tap();
+  await view.getByRole('button', { name: 'More reps' }).tap();
+  await view.getByRole('button', { name: 'Done' }).tap();
+  await expect(view.getByTestId('reps-cell').first()).toHaveText('10');
 
-  // Log set lives in the sticky bar and says what it will log.
-  const logButton = page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 185 lb' });
-  await expect(logButton).toBeInViewport();
-  const box0 = (await logButton.boundingBox())!;
-  await logButton.tap();
-  const rows = card.getByTestId('set-row');
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText('10 × 185 lb');
+  // ✓: logged, rest bar at the bottom, the next row is current.
+  await checkCurrent(view).tap();
+  await expect(loggedRows(view)).toHaveCount(1);
+  await expect(loggedRows(view).first()).toContainText('185');
   await expect(page.getByTestId('rest-timer')).toBeVisible();
   await expect(page.getByTestId('rest-clock')).toHaveText(/^1:(30|29|28)$/);
-  // No layout shift: the rest bar appears without moving Log set.
-  await page.waitForTimeout(400);
-  expect(await logButton.boundingBox()).toEqual(box0);
-  await expect(logButton).toBeInViewport();
-  await expect(card.getByTestId('set-target')).toHaveText('Set 2');
-  // The load stays for the next set.
-  await expect(card.getByTestId('plate-total')).toHaveText('185lb');
-  await shot(page, 'workout-logged-row');
-  await page.getByRole('main').evaluate((el) => el.scrollTo(0, 0));
-  await shot(page, 'workout-logged-rest');
+  await expect(page.getByTestId('live-stats')).toHaveText('1 set · Total lifted 1,850 lb');
+  await expect(view.getByTestId('set-target')).toHaveText('Set 2 of 3 · 8 to 12 reps');
 
-  // Double tap (a while after the last set, so the tap guard is clear): exactly one more set.
-  await page.waitForTimeout(500);
-  await logButton.dblclick();
-  await expect(rows).toHaveCount(2);
+  // Double tap on a ✓: exactly one more set.
+  await page.waitForTimeout(400);
+  await checkCurrent(view).dblclick();
+  await expect(loggedRows(view)).toHaveCount(2);
   await page.waitForTimeout(800);
-  await expect(rows).toHaveCount(2);
+  await expect(loggedRows(view)).toHaveCount(2);
   expect((await dbAll(page, 'sets')).length).toBe(2);
 
-  // +15 s and Skip.
+  // +15 and −15.
   const before = await page.getByTestId('rest-clock').textContent();
   await page.getByRole('button', { name: 'Add 15 seconds' }).tap();
   await expect(page.getByTestId('rest-clock')).not.toHaveText(before!);
   await expect(page.getByTestId('rest-clock')).toHaveText(/^1:4\d$/);
+  await page.getByRole('button', { name: 'Take off 15 seconds' }).tap();
+  await expect(page.getByTestId('rest-clock')).toHaveText(/^1:[23]\d$/);
 
-  // Edit: reps 10 → 11.
-  await rows.nth(1).tap();
+  // Edit: reps 8 → 9 on set 2.
+  await loggedRows(view).nth(1).tap();
   const edit = page.getByRole('dialog', { name: 'Edit set' });
-  await expect(edit).toBeVisible();
   await expect(edit.getByTestId('plate-total')).toHaveText('185lb');
   await edit.getByRole('button', { name: 'More reps' }).tap();
-  await expect(edit.getByTestId('stepper-reps')).toHaveText('11');
-  await edit.evaluate((el) => el.querySelector('[class*="scrollBody"]')?.scrollTo(0, 0));
-  await shot(page, 'edit-set-sheet');
   await edit.getByRole('button', { name: 'Save' }).tap();
   await expect(edit).toHaveCount(0);
-  await expect(rows.nth(1)).toContainText('11 × 185 lb');
+  await expect(loggedRows(view).nth(1)).toContainText('9');
 
   // Delete → toast → Undo → back with the same id and order.
-  const setsBefore = await dbAll<{ id: string; order: number; reps: number }>(page, 'sets');
-  await rows.nth(1).tap();
+  const setsBefore = await dbAll<{ id: string; order: number }>(page, 'sets');
+  await loggedRows(view).nth(1).tap();
   await page.getByRole('dialog', { name: 'Edit set' }).getByRole('button', { name: 'Delete set' }).tap();
   await expect(page.getByRole('status').filter({ hasText: 'Set deleted' })).toBeVisible();
-  await expect(rows).toHaveCount(1);
+  await expect(loggedRows(view)).toHaveCount(1);
   await page.getByRole('button', { name: 'Undo' }).tap();
-  await expect(rows).toHaveCount(2);
-  await expect(rows.nth(1)).toContainText('11 × 185 lb');
-  const setsAfter = await dbAll<{ id: string; order: number; reps: number }>(page, 'sets');
+  await expect(loggedRows(view)).toHaveCount(2);
+  const setsAfter = await dbAll<{ id: string; order: number }>(page, 'sets');
   expect(setsAfter.sort((a, b) => a.order - b.order)).toEqual(setsBefore.sort((a, b) => a.order - b.order));
 
-  // Kill and restore: same screen, sets intact, rest timer and the clock keep going.
+  // Kill and restore: the same exercise view, sets, rest and clock keep going.
   const t0 = await elapsedSec(page);
   await page.reload();
-  await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}$`));
-  const cardAgain = page.getByTestId('exercise-barbell-back-squat');
-  await expect(cardAgain.getByTestId('set-row')).toHaveCount(2);
-  await expect(cardAgain.getByTestId('set-row').nth(1)).toContainText('11 × 185 lb');
-  await expect(cardAgain.getByTestId('set-target')).toHaveText('Set 3');
-  await expect(cardAgain.getByTestId('plate-total')).toHaveText('185lb');
+  await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}/barbell-back-squat$`));
+  await expect(loggedRows(view)).toHaveCount(2);
+  await expect(view.getByTestId('weight-cell')).toHaveText(['185']);
   await expect(page.getByTestId('rest-timer')).toBeVisible();
   await expect.poll(() => elapsedSec(page), { timeout: 4000 }).toBeGreaterThan(t0);
-
-  // Skip the rest.
   await page.getByRole('button', { name: 'Skip' }).tap();
   await expect(page.getByTestId('rest-timer')).toHaveCount(0);
+
+  // Back to the list: the row shows 2 of 3.
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
+  await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}$`));
+  await expect(page.getByTestId('row-barbell-back-squat')).toHaveAccessibleName(/2 of 3 done/);
 
   // Today shows Continue workout while it is active.
   await page.goto('./');
   await page.getByRole('button', { name: /Continue workout/ }).tap();
   await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}$`));
 
-  // Finish.
+  // Finish → finish screen → Done → Today.
   await page.getByRole('button', { name: 'Finish' }).tap();
+  await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}/done$`));
+  await expect(page.getByTestId('finish-sets')).toHaveText('2');
+  await expect(page.getByTestId('finish-total')).toHaveText('3,515 lb');
+  await expect(page.getByTestId('pr-chip')).toHaveCount(0); // no history, no records
+  await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByRole('status').filter({ hasText: 'Workout saved · 2 sets' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Quick workout/ })).toBeVisible();
   const sessions = await dbAll<{ id: string; endedAt?: number }>(page, 'sessions');
   expect(sessions).toHaveLength(1);
-  expect(sessions[0]!.id).toBe(sessionId);
   expect(typeof sessions[0]!.endedAt).toBe('number');
   expect(await page.evaluate(() => (window as unknown as { __wlr: number }).__wlr)).toBeGreaterThanOrEqual(1);
   expect(errors).toEqual([]);
@@ -203,40 +162,38 @@ test('quick workout: log, double tap, edit, delete with undo, reload, finish', a
 
 test('unknown exercise: asked once how it is loaded, remembered after reload', async ({ page }) => {
   const errors = watchErrors(page);
-  await (await startQuick(page)).tap();
-  await addExercise(page, 'leg press', 'Leg Press');
+  // PLAN 1.7c: almost every exercise is mapped; Forearm Finger Roll is one a coach cannot tell from the name.
+  await quickWith(page, [['finger roll', 'Forearm Finger Roll']]);
   const ask = page.getByRole('dialog', { name: 'How do you load this?' });
   await expect(ask).toBeVisible();
   await expect(ask.getByRole('button')).toHaveCount(8); // 7 choices + the labelled Close (1.10c)
-  await shot(page, 'load-type-sheet');
   await ask.getByRole('button', { name: /Machine with a pin/ }).tap();
   await expect(ask).toHaveCount(0);
-  const card = page.getByTestId('exercise-leg-press');
-  await expect(card.getByRole('radiogroup', { name: 'Pin position' })).toBeVisible();
+  const view = exerciseView(page, 'forearm-finger-roll');
+  await expect(view.getByTestId('weight-cell')).toHaveCount(3);
 
   await page.reload();
-  await expect(page.getByTestId('exercise-leg-press').getByRole('radiogroup', { name: 'Pin position' })).toBeVisible();
+  await expect(view.getByTestId('weight-cell')).toHaveCount(3);
   await expect(page.getByRole('dialog', { name: 'How do you load this?' })).toHaveCount(0);
 
-  // Pick 120 on the pin and log it.
-  const c = page.getByTestId('exercise-leg-press');
-  await c.getByRole('radio', { name: 'Pin at 120 lb' }).tap();
-  await page.getByRole('button', { name: 'Log set · 10 × 120 lb' }).tap();
-  await expect(c.getByTestId('set-row').first()).toContainText('10 × 120 lb');
+  // Pin 120 for every row, then ✓.
+  await view.getByTestId('weight-cell').first().tap();
+  await weightSheet(page).getByRole('radio', { name: 'Pin at 120 lb' }).tap();
+  await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
+  await checkCurrent(view).tap();
+  await expect(loggedRows(view).first()).toContainText('120');
   const settings = await dbAll<{ exerciseId: string; gymId: string; loadType: string }>(page, 'exerciseSettings');
   expect(settings).toHaveLength(1);
-  expect(settings[0]).toMatchObject({ exerciseId: 'leg-press', loadType: 'stack' });
+  expect(settings[0]).toMatchObject({ exerciseId: 'forearm-finger-roll', loadType: 'stack' });
   expect(settings[0]!.gymId).not.toBe('');
-
-  // Adding it again later does not ask again.
-  await addExercise(page, 'leg press', 'Leg Press, added');
-  await expect(page.getByRole('dialog', { name: 'How do you load this?' })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
 test('finishing an empty workout discards it', async ({ page }) => {
   const errors = watchErrors(page);
-  await (await startQuick(page)).tap();
+  await page.goto('./');
+  await page.getByRole('button', { name: /Quick workout/ }).tap();
+  await page.getByRole('dialog', { name: 'Add exercise' }).getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(page.getByRole('heading', { name: 'Empty workout' })).toBeVisible();
   // A double tap on Finish: the second tap must not land on Today (the Settings icon sits there).
   await page.getByRole('button', { name: 'Finish' }).dblclick();
@@ -247,134 +204,182 @@ test('finishing an empty workout discards it', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('a deleted set is gone from storage at once (1.10c), and a double tap on Quick workout starts one', async ({ page }) => {
+test('a deleted hold is gone from storage at once (1.10c), and a double tap on Quick workout starts one', async ({ page }) => {
   const errors = watchErrors(page);
-  await (await startQuick(page)).dblclick();
+  await page.goto('./');
+  await page.getByRole('button', { name: /Quick workout/ }).dblclick();
   await expect(page).toHaveURL(/#\/workout\//);
   expect(await dbAll(page, 'sessions')).toHaveLength(1);
-  await addExercise(page, 'plank', 'Plank');
-  const card = page.getByTestId('exercise-plank');
-  // Timed: start, hold, stop, log.
-  await card.getByRole('button', { name: 'Start timer' }).tap();
+  await pickExercises(page, [['plank', 'Plank']]);
+  const view = exerciseView(page, 'plank');
+  // Timed: SET · LAST TIME · HOLD · ✓, the timer under the table.
+  await expect(view.getByTestId('weight-cell')).toHaveCount(0);
+  await expect(checkCurrent(view)).toBeDisabled();
+  await view.getByRole('button', { name: 'Start timer' }).tap();
   await page.waitForTimeout(1300);
-  await card.getByRole('button', { name: 'Stop timer' }).tap();
-  await page.getByRole('button', { name: /^Log set · \d+ s$/ }).tap();
-  await expect(card.getByTestId('set-row')).toHaveCount(1);
-  await expect(card.getByTestId('set-row').first()).toContainText(/\d+ s/);
-  await card.getByTestId('set-row').first().tap();
+  await view.getByRole('button', { name: 'Stop timer' }).tap();
+  await checkCurrent(view).tap();
+  await expect(loggedRows(view)).toHaveCount(1);
+  await expect(loggedRows(view).first()).toContainText(/\d+ s/);
+  await loggedRows(view).first().tap();
   await page.getByRole('dialog', { name: 'Edit set' }).getByRole('button', { name: 'Delete set' }).tap();
-  await expect(card.getByTestId('set-row')).toHaveCount(0);
-  // 1.10c: written at once (an app kill can never bring it back); Undo writes it back.
+  await expect(loggedRows(view)).toHaveCount(0);
   await expect.poll(() => dbAll(page, 'sets').then((s) => s.length)).toBe(0);
   expect(errors).toEqual([]);
 });
 
-// SPEC 13.5 (PLAN 1.7a): the current set fits one screen, even on iPhone SE, and a repeat is one tap.
-const shot17a = async (page: Page, name: string) => {
-  const project = test.info().project.name;
-  if (project !== 'iPhone SE' && project !== 'iPhone 17 Pro Max') return;
-  await page.waitForTimeout(450); // let springs settle
-  await page.screenshot({ path: `reports/shots/1.7a/${name}-${project.replace(/ /g, '-')}.png` });
-};
-
-const fitsOneScreen = async (page: Page, card: Locator) => {
-  const main = page.getByRole('main');
-  const { scrollHeight, clientHeight } = await main.evaluate((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }));
-  expect(scrollHeight).toBeLessThanOrEqual(clientHeight);
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height);
-  for (const el of [
-    card.getByTestId('plate-total'),
-    card.getByTestId('stepper-reps'),
-    card.getByRole('button', { name: 'More reps' }),
-    card.getByRole('group', { name: 'Plates' }),
-    page.getByTestId('action-bar').getByRole('button', { name: /^Log set/ }),
-  ]) {
-    await expect(el).toBeInViewport({ ratio: 1 });
-  }
-};
-
-test('one screen set card: no scrolling, one row tray, prefilled repeat is one tap', async ({ page }) => {
+test('one screen exercise view on every phone: 5 rows, no page scroll, rest bar never covers a row', async ({ page }) => {
   const errors = watchErrors(page);
-  await (await startQuick(page)).tap();
-  await addExercise(page, 'back squat', 'Barbell Back Squat');
-  const card = page.getByTestId('exercise-barbell-back-squat');
-  await expect(card.getByTestId('set-guide')).toHaveText('First time: pick a weight you could lift 2 more reps with');
-
-  // One row tray: every plate button on the same line.
-  const tops = await card.getByRole('group', { name: 'Plates' }).getByRole('button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
-  expect(tops.length).toBe(6);
-  expect(new Set(tops).size).toBe(1);
-  for (const b of await card.getByRole('group', { name: 'Plates' }).getByRole('button').all()) {
-    const box = (await b.boundingBox())!;
-    expect(box.width).toBeGreaterThanOrEqual(48);
-    expect(box.height).toBeGreaterThanOrEqual(48);
-  }
-
-  await tray(card, '45 lb').tap();
-  await tray(card, '25 lb').tap();
-  await expect(card.getByTestId('plate-total')).toHaveText('185lb');
-  await expect(card.getByTestId('plate-math')).toHaveText('45 bar + 2 × (45 + 25) = 185 lb');
-  await shot17a(page, 'set-card');
-  await fitsOneScreen(page, card);
-
-  // Log set: the card moves on to set 2 by itself, rest starts, same weight and reps ready.
-  const log = page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 185 lb' });
-  await log.tap();
-  await expect(card.getByTestId('set-target')).toHaveText('Set 2');
+  await page.goto('./');
+  await seedFinished(page, { 'barbell-back-squat': Array.from({ length: 5 }, () => ({ reps: 10, load: bar185 })) });
+  await quickWith(page, [['back squat', 'Barbell Back Squat']]);
+  const view = exerciseView(page, 'barbell-back-squat');
+  await view.getByRole('button', { name: '+ Add set' }).tap();
+  await view.getByRole('button', { name: '+ Add set' }).tap();
+  await expect(view.getByTestId('set-todo')).toHaveCount(5);
+  await checkCurrent(view).tap();
+  await checkCurrent(view).tap();
+  await expect(loggedRows(view)).toHaveCount(2);
   await expect(page.getByTestId('rest-timer')).toBeVisible();
-  await expect(card.getByTestId('set-guide')).toHaveCount(0);
-  await expect(card.getByTestId('set-row')).toHaveCount(1);
-  await fitsOneScreen(page, card);
-  await shot17a(page, 'set-card-resting');
-
-  // A second exercise: the squat collapses to one line.
-  await page.getByRole('button', { name: 'Skip' }).tap();
-  await addExercise(page, 'dumbbell bench', 'Dumbbell Bench Press');
-  const squatHead = card.getByRole('button', { expanded: false });
-  await expect(squatHead).toBeVisible();
-  expect((await squatHead.boundingBox())!.height).toBeLessThanOrEqual(56);
-  await expect(squatHead).toContainText('1 set · 10 × 185 lb');
-  // The dumbbell card (wheel) also fits one screen, with the squat line above it.
-  const db = page.getByTestId('exercise-dumbbell-bench-press');
-  await expect(db.getByRole('option', { name: '30 lb', exact: true })).toBeVisible();
-  await db.getByRole('option', { name: '30 lb', exact: true }).tap();
-  await expect(db.getByTestId('wheel-total')).toHaveText('30lb');
-  await shot17a(page, 'set-card-dumbbell');
-  const m = await page.getByRole('main').evaluate((el) => el.scrollHeight - el.clientHeight);
-  expect(m).toBeLessThanOrEqual(0);
-  await expect(db.getByRole('button', { name: 'More reps' })).toBeInViewport({ ratio: 1 });
-
-  // Next workout: the squat comes back prefilled from last time; logging it is ONE tap.
-  await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page).toHaveURL(/#\/$/);
-  await (await startQuick(page)).tap();
-  await addExercise(page, 'back squat', 'Barbell Back Squat');
-  const again = page.getByTestId('exercise-barbell-back-squat');
-  await expect(again.getByTestId('set-guide')).toHaveText('Last time (today): 10 × 185 lb');
-  await expect(again.getByTestId('set-next')).toHaveText('Next: 10 × 185 lb · Aim for 10 or better');
-  await expect(again.getByTestId('plate-total')).toHaveText('185lb');
-  await expect(again.getByTestId('stepper-reps')).toHaveText('10');
-  await page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 185 lb' }).tap();
-  await expect(again.getByTestId('set-row')).toHaveCount(1);
-  await expect(again.getByTestId('set-row').first()).toContainText('10 × 185 lb');
+  await fitsOneScreen(page);
+  await shotOn(page, '1.7c', 'exercise-view');
+  const rest = (await page.getByTestId('rest-timer').boundingBox())!;
+  for (const el of [view.getByRole('heading', { name: 'Barbell Back Squat' }), view.getByTestId('set-guide'), ...[0, 1].map((i) => loggedRows(view).nth(i)), ...[0, 1, 2].map((i) => view.getByTestId('set-todo').nth(i))]) {
+    await expect(el).toBeInViewport({ ratio: 1 });
+    const box = (await el.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(rest.y + 0.5);
+  }
+  // Rows are thumb sized.
+  for (const b of await view.getByTestId('set-todo').first().getByRole('button').all()) {
+    const box = (await b.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
   expect(errors).toEqual([]);
 });
 
-test('first time hints in the workout: plates, then Log set, never during rest', async ({ page }) => {
+test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove with undo)', async ({ page }) => {
   const errors = watchErrors(page);
-  await (await startQuick(page)).tap();
-  await addExercise(page, 'back squat', 'Barbell Back Squat');
-  const card = page.getByTestId('exercise-barbell-back-squat');
+  await page.goto('./');
+  await seedFinished(page, { 'barbell-back-squat': [{ reps: 12, load: bar185 }, { reps: 9, load: { ...bar185, total: 135, perSide: [45] } }] });
+  await quickWith(page, [
+    ['back squat', 'Barbell Back Squat'],
+    ['plank', 'Plank'],
+  ]);
+  // Two added: the list, in order.
+  await expect(page.getByRole('list', { name: 'Exercises' }).getByRole('button')).toHaveCount(2);
+  await page.getByTestId('row-barbell-back-squat').tap();
+  const view = exerciseView(page, 'barbell-back-squat');
+
+  // Set type: normal → W → D → F, stored as kind + failure.
+  const type = view.getByTestId('set-type').first();
+  await type.tap();
+  await expect(type).toHaveText('W');
+  await type.tap();
+  await expect(type).toHaveText('D');
+  await type.tap();
+  await expect(type).toHaveText('F');
+
+  // LAST TIME copies that set into the row (row 2: 9 × 135).
+  await expect(view.getByTestId('weight-cell').nth(1)).toHaveText('185');
+  await view.getByRole('button', { name: /^Last time 9 × 135/ }).tap();
+  await expect(view.getByTestId('weight-cell').nth(1)).toHaveText('135');
+  await expect(view.getByTestId('reps-cell').nth(1)).toHaveText('9');
+
+  await checkCurrent(view).tap();
+  await expect(loggedRows(view)).toHaveCount(1);
+  const first = (await dbAll<{ id: string; kind: string; failure?: boolean }>(page, 'sets')).find((s) => !s.id.startsWith('seed-'))!;
+  expect(first).toMatchObject({ kind: 'work', failure: true });
+
+  // ⋯ → Rest time 120 → the next set rests 2:00.
+  await view.getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
+  const menu = page.getByRole('dialog', { name: 'Barbell Back Squat options' });
+  await expect(menu.getByRole('button', { name: /Replace/ })).toBeDisabled();
+  await expect(menu.getByRole('button', { name: /Make a pair/ })).toBeDisabled();
+  await expect(menu.getByRole('button', { name: /Remove/ })).toBeDisabled();
+  await expect(menu.getByRole('button', { name: /Remove/ })).toContainText('Delete its sets first');
+  await menu.getByRole('button', { name: /Rest time/ }).tap();
+  const restSheet = page.getByRole('dialog', { name: 'Rest time' });
+  await restSheet.getByRole('button', { name: 'More rest' }).tap();
+  await restSheet.getByRole('button', { name: 'More rest' }).tap();
+  await restSheet.getByRole('button', { name: 'Save' }).tap();
+  await page.getByRole('button', { name: 'Skip' }).tap();
+  await checkCurrent(view).tap();
+  await expect(page.getByTestId('rest-clock')).toHaveText(/^(2:00|1:59|1:58)$/);
+
+  // ⋯ → Add note → shown under the name.
+  await view.getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
+  await page.getByRole('dialog', { name: 'Barbell Back Squat options' }).getByRole('button', { name: /Add note/ }).tap();
+  await page.getByRole('dialog', { name: 'Add note' }).getByRole('textbox', { name: 'Note' }).fill('Belt on');
+  await page.getByRole('dialog', { name: 'Add note' }).getByRole('button', { name: 'Save note' }).tap();
+  await expect(view.getByTestId('set-plan')).toHaveText('Belt on');
+
+  // Plank: move up, then remove (no sets) with Undo.
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
+  await page.getByTestId('row-plank').tap();
+  await exerciseView(page, 'plank').getByRole('button', { name: 'More for Plank' }).tap();
+  await page.getByRole('dialog', { name: 'Plank options' }).getByRole('button', { name: /Move up/ }).tap();
+  await expect.poll(async () => (await dbAll<{ exerciseIds: string[]; endedAt?: number }>(page, 'sessions')).find((s) => s.endedAt === undefined)!.exerciseIds).toEqual(['plank', 'barbell-back-squat']);
+  await exerciseView(page, 'plank').getByRole('button', { name: 'More for Plank' }).tap();
+  await page.getByRole('dialog', { name: 'Plank options' }).getByRole('button', { name: /Remove/ }).tap();
+  await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
+  await expect(page.getByTestId('row-plank')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo' }).tap();
+  await expect(page.getByTestId('row-plank')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Exercises' }).getByRole('button').first()).toHaveAccessibleName(/^Plank/);
+  expect(errors).toEqual([]);
+});
+
+test('finish screen calls out records from real history only', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('./');
+  await seedFinished(page, { 'barbell-back-squat': [{ reps: 8, load: bar185 }] });
+  await quickWith(page, [['back squat', 'Barbell Back Squat']]);
+  const view = exerciseView(page, 'barbell-back-squat');
+  await view.getByTestId('weight-cell').first().tap();
+  await weightSheet(page).getByRole('button', { name: 'Add 5 lb plate to each side' }).tap();
+  await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
+  await checkCurrent(view).tap();
+  await expect(loggedRows(view)).toHaveCount(1);
+  await page.getByRole('button', { name: 'Finish' }).tap();
+  await expect(page.getByTestId('pr-chip')).toHaveText(['Barbell Back Squat: heaviest ever, 195 lb']);
+  await shotOn(page, '1.7c', 'finish');
+  expect(errors).toEqual([]);
+});
+
+test('first time hints: plates in the picker, then the check, never during rest', async ({ page }) => {
+  const errors = watchErrors(page);
+  await quickWith(page, [['back squat', 'Barbell Back Squat']]);
+  const view = exerciseView(page, 'barbell-back-squat');
   const hint = page.getByTestId('hint');
+  await view.getByTestId('weight-cell').first().tap();
   await expect(hint).toHaveText('Tap plates to load the bar. We add it up.');
-  await tray(card, '45 lb').tap();
-  await expect(hint).toHaveText('Tap Log set when you finish the set');
+  await weightSheet(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+  await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
+  await expect(hint).toHaveText('Tap the check when you finish a set');
   await expect(hint).toHaveCount(1);
-  await shot17a(page, 'hint-log-set');
-  await page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 135 lb' }).tap();
+  await checkCurrent(view).tap();
   await expect(page.getByTestId('rest-timer')).toBeVisible();
   await page.waitForTimeout(900);
   await expect(hint).toHaveCount(0);
   expect(JSON.parse((await page.evaluate(() => localStorage.getItem('anygym-hints')))!)).toEqual({ plates: true, setCard: true });
+  expect(errors).toEqual([]);
+});
+
+test('swipe left goes to the next exercise; reload keeps the route', async ({ page }) => {
+  const errors = watchErrors(page);
+  await quickWith(page, [
+    ['back squat', 'Barbell Back Squat'],
+    ['plank', 'Plank'],
+  ]);
+  await page.getByTestId('row-barbell-back-squat').tap();
+  const main = exerciseView(page, 'barbell-back-squat');
+  const box = (await main.boundingBox())!;
+  const y = box.y + box.height - 120;
+  // A finger swipe right to left (pointer events, as Safari sends them for touch).
+  await main.dispatchEvent('pointerdown', { clientX: box.x + box.width - 40, clientY: y, pointerType: 'touch', isPrimary: true });
+  await main.dispatchEvent('pointerup', { clientX: box.x + 60, clientY: y + 6, pointerType: 'touch', isPrimary: true });
+  await expect(page).toHaveURL(/\/plank$/);
+  await page.reload();
+  await expect(exerciseView(page, 'plank')).toBeVisible();
   expect(errors).toEqual([]);
 });

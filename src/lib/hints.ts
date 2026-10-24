@@ -7,7 +7,7 @@ export const HINT_TEXT: Record<HintId, string> = {
   plates: 'Tap plates to load the bar. We add it up.',
   wheel: 'Spin to pick your dumbbells',
   stack: 'Tap the pin to pick the weight',
-  setCard: 'Tap Log set when you finish the set',
+  setCard: 'Tap the check when you finish a set',
 };
 
 export const HINTS_KEY = 'anygym-hints';

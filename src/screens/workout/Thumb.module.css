@@ -1,0 +1,36 @@
+/* The demo placeholder tile (PLAN 1.7c): neutral, rounded, the equipment drawn in quiet gray. */
+.tile {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #1d1d21, var(--surface-1));
+  border: 1px solid var(--hairline);
+  color: #6e6e76;
+}
+
+.tile[data-size='hero'] {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+}
+
+.glyph {
+  width: 34px;
+  height: 34px;
+}
+
+.tile[data-size='hero'] .glyph {
+  width: 30px;
+  height: 30px;
+}
+
+.letters {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

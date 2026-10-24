@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4173;
+// PW_PORT, PW_NO_BUILD and PW_DIST (a copied dist folder) let several runs share one build on their own ports.
+const PORT = Number(process.env.PW_PORT ?? 4173);
 
 // Add a profile with one line, e.g. ['iPhone SE', devices['iPhone SE']].
 const PROFILES: Array<[string, (typeof devices)[string]]> = [
@@ -27,7 +28,7 @@ export default defineConfig({
     use: { ...device, browserName: 'webkit' as const },
   })),
   webServer: {
-    command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
+    command: `${process.env.PW_NO_BUILD ? '' : 'npm run build && '}npx vite preview --port ${PORT} --strictPort${process.env.PW_DIST ? ` --outDir ${process.env.PW_DIST}` : ''}`,
     url: `http://localhost:${PORT}/anygym/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

@@ -4,7 +4,8 @@
 // current after a set is logged (pairs alternate: A1, B1, rest, A2, B2, rest...).
 import type { RepRange } from './progression';
 import { slugify } from './loadTypeRule';
-import { amountText, blockRest, itemLine, itemTarget, setsText, type Plan, type PlanReps, type PlanSeconds } from './plans';
+import { amountText, blockRest, itemLine, itemTarget, planRest, setsText, type Plan, type PlanReps, type PlanSeconds } from './plans';
+import type { ExerciseLoadType } from './loadTypeRule';
 
 export type WorkoutEntry = {
   exerciseId: string;
@@ -22,6 +23,8 @@ export type WorkoutEntry = {
   reps?: PlanReps;
   seconds?: PlanSeconds;
   restSec: number;
+  /** The rest the plan itself states (the only rest the day list may show), or undefined. */
+  statedRest?: number;
   /** "4 sets × 8 to 12" */
   setsText: string;
   /** "4 sets × 8 to 12 · 90 s rest" */
@@ -60,6 +63,8 @@ export function dayWorkout(plan: Plan, dayIndex: number, weekIndex = 0): Workout
       };
       if (it.note) e.note = it.note;
       if (it.eachSide) e.eachSide = true;
+      const stated = planRest(b);
+      if (stated !== undefined) e.statedRest = stated;
       if (t.reps !== undefined) e.reps = t.reps;
       if (t.seconds !== undefined) e.seconds = t.seconds;
       if (t.rounds) e.rounds = true;
@@ -158,4 +163,80 @@ export function restAfter(entries: WorkoutEntry[], done: DoneCounts, logged: str
   const next = entries.find((x) => x.exerciseId === nextCurrent(entries, done, logged));
   if (e.kind === 'pair' && next && next.block === e.block && next.pairIndex > e.pairIndex) return 0;
   return e.restSec;
+}
+
+// ---------------------------------------------------------------- quick workout (SPEC 20.3)
+
+/**
+ * Sensible defaults for an exercise added by hand (SPEC 20.3), until the intake (SPEC 14) knows
+ * the user's goal: 3 sets of 8 to 12 reps, 90 s rest (DEFAULT_PLAN_REST_SEC). Timed holds: 3 sets,
+ * no hold length is invented (the first one is timed).
+ */
+export const QUICK_DEFAULT = { sets: 3, reps: [8, 12] as RepRange, restSec: 90 } as const;
+
+/** A day list entry for an exercise added by hand to a quick workout. */
+export function quickEntry(exerciseId: string, name: string, loadType: ExerciseLoadType | undefined, block: number): WorkoutEntry {
+  const timed = loadType === 'timed';
+  const t = timed ? { sets: QUICK_DEFAULT.sets } : { sets: QUICK_DEFAULT.sets, reps: QUICK_DEFAULT.reps };
+  const e: WorkoutEntry = {
+    exerciseId,
+    name,
+    block,
+    kind: 'single',
+    warmup: false,
+    pairIndex: 0,
+    pairSize: 1,
+    sets: t.sets,
+    restSec: QUICK_DEFAULT.restSec,
+    setsText: setsText(t),
+    line: setsText(t),
+    amount: amountText(t),
+  };
+  if (!timed) e.reps = QUICK_DEFAULT.reps;
+  return e;
+}
+
+/**
+ * The workout's entries in the session's own order (Reorder, Remove): plan entries for the
+ * exercises still in the workout, in exerciseIds order; exercises without a plan entry use `make`.
+ */
+export function orderEntries(planEntries: WorkoutEntry[], exerciseIds: string[], make: (id: string, index: number) => WorkoutEntry): WorkoutEntry[] {
+  const byId = new Map(planEntries.map((e) => [e.exerciseId, e]));
+  return exerciseIds.map((id, i) => byId.get(id) ?? make(id, planEntries.length + i));
+}
+
+/**
+ * Moves an exercise one place up or down (dir −1 / +1). A pair moves as one unit and is never
+ * split: moving next to a pair jumps over the whole pair. Returns the new order, or null when
+ * it cannot move (already first or last, or the exercise is in a pair).
+ */
+export function moveInOrder(ids: string[], id: string, dir: -1 | 1, entryOf: (id: string) => Pick<WorkoutEntry, 'kind' | 'block'> | undefined): string[] | null {
+  const e = entryOf(id);
+  if (!ids.includes(id) || e?.kind === 'pair') return null;
+  // Units: runs of one pair, or single exercises.
+  const units: string[][] = [];
+  for (const x of ids) {
+    const ex = entryOf(x);
+    const last = units[units.length - 1];
+    const prev = last ? entryOf(last[0]!) : undefined;
+    if (ex?.kind === 'pair' && last && prev?.kind === 'pair' && prev.block === ex.block) last.push(x);
+    else units.push([x]);
+  }
+  const at = units.findIndex((u) => u.includes(id));
+  const to = at + dir;
+  if (to < 0 || to >= units.length) return null;
+  [units[at], units[to]] = [units[to]!, units[at]!];
+  return units.flat();
+}
+
+/**
+ * The exercise to do next (the highlighted row, SPEC 20.1): carry on from the last one logged
+ * (its next set, its pair partner, or the next exercise after it), else the first with sets left.
+ * null when every set is done.
+ */
+export function upNext(entries: WorkoutEntry[], done: DoneCounts, lastLogged?: string): string | null {
+  const after = lastLogged && entries.some((e) => e.exerciseId === lastLogged) ? nextCurrent(entries, done, lastLogged) : null;
+  const e = after ? entries.find((x) => x.exerciseId === after) : undefined;
+  if (e && open(e, done)) return e.exerciseId;
+  return firstOpen(entries, done);
 }

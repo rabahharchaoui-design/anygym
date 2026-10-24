@@ -190,3 +190,16 @@ describe('drafts', () => {
     expect(loadDraft('w9', 'x', s)).toBeNull();
   });
 });
+
+describe('row drafts (PLAN 1.7c): seconds and set type', () => {
+  it('keeps seconds and type, rejects bad ones', async () => {
+    const { loadDraft, saveDraft } = await import('../drafts');
+    const m = new Map<string, string>();
+    const kv = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
+    saveDraft('row-s', 'plank#1', { id: 'a', load: null, seconds: 40, type: 'failure' }, kv);
+    expect(loadDraft('row-s', 'plank#1', kv)).toMatchObject({ seconds: 40, type: 'failure' });
+    m.set('anygym-drafts', JSON.stringify({ other: { x: { id: 'b', load: null, type: 'heavy' }, y: { id: 'c', load: null, seconds: 'x' } } }));
+    expect(loadDraft('other', 'x', kv)).toBeNull();
+    expect(loadDraft('other', 'y', kv)).toBeNull();
+  });
+});

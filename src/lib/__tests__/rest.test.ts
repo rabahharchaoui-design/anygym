@@ -126,3 +126,15 @@ describe('blocked storage', () => {
     }
   });
 });
+
+describe('shortenRest (−15, PLAN 1.7c)', () => {
+  it('takes 15 s off what is left, never below now, ring length kept', async () => {
+    const { shortenRest, startRest, remainingSec } = await import('../rest');
+    const r = startRest('s', 0, 90);
+    const s = shortenRest(r, 10_000);
+    expect(remainingSec(s, 10_000)).toBe(65);
+    expect(s.totalSec).toBe(90);
+    expect(remainingSec(shortenRest(startRest('s', 0, 10), 0), 0)).toBe(0);
+    expect(shortenRest(startRest('s', 0, 10), 5000).endsAt).toBe(5000);
+  });
+});

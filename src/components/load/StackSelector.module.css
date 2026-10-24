@@ -136,3 +136,14 @@
     transition: opacity var(--dur-fast) var(--ease-out);
   }
 }
+
+/* "More": extends the pin list by 10 pins (the real stack size is not known, PLAN 1.7c). */
+.more {
+  display: block;
+  width: 100%;
+  height: 48px;
+  scroll-snap-align: start;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: var(--text-base);
+}

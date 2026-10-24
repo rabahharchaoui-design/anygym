@@ -149,14 +149,23 @@ export type ExerciseSetting = {
   loadType?: Load['kind'];
   /** Barbell exercises: the bar picked at this gym (PLAN 1.10d). Missing = the name rule. */
   barId?: BarId;
+  /** Rest after each set in seconds, set by the user from the exercise menu (PLAN 1.7c). Stored on the every-gym record. */
+  restSec?: number;
+  /** The user's own note for this exercise (PLAN 1.7c). Stored on the every-gym record. */
+  note?: string;
 };
 
-/** SPEC 5.5. Stored in the unit it was entered in; never converted on save. */
+/**
+ * SPEC 5.5. Stored in the unit it was entered in; never converted on save. `barId` (PLAN 1.7c,
+ * additive, barbell only): which bar it was lifted on, so Smith machine sets never mix with free
+ * bar history. Older records without it count as the exercise's default bar.
+ */
 export type Load = {
   kind: 'barbell' | 'dumbbell_each' | 'single' | 'stack' | 'plate_machine' | 'bodyweight' | 'timed';
   unit: Unit;
   total: number;
   barWeight?: number;
+  barId?: BarId;
   perSide?: number[];
   stackValue?: number;
   added?: number;
@@ -179,6 +188,8 @@ export type WorkoutSet = {
   rpe?: number;
   note?: string;
   uncertain: boolean;
+  /** Set type F (PLAN 1.7c): a work set taken to failure. Not indexed. */
+  failure?: boolean;
 };
 
 /** [lat, lng, t (ms), accuracy (m)] */

@@ -69,6 +69,8 @@ export type NewSet = {
   load: Load;
   /** 'warmup' for sets of a plan warm up block (SPEC 6 rule 1 ignores them); default 'work'. */
   kind?: SetKind;
+  /** Set type F (PLAN 1.7c): a work set taken to failure. */
+  failure?: boolean;
 };
 
 function validSet(input: Pick<NewSet, 'reps' | 'seconds' | 'load'>): boolean {
@@ -106,6 +108,7 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
     };
     if (input.reps !== undefined) set.reps = input.reps;
     if (input.seconds !== undefined) set.seconds = input.seconds;
+    if (input.failure && set.kind === 'work') set.failure = true;
     await db.sets.add(set);
     if (!(session.exerciseIds ?? []).includes(input.exerciseId)) {
       await db.sessions.put({ ...session, exerciseIds: [...(session.exerciseIds ?? []), input.exerciseId] });
@@ -131,6 +134,59 @@ export async function updateSet(
     if (change.seconds !== undefined) next.seconds = change.seconds;
     await db.sets.put(next);
     return next;
+  });
+}
+
+/** Changes a logged set's type (PLAN 1.7c): warm up, work, drop, or work to failure. */
+export async function updateSetType(id: string, kind: SetKind, failure = false, db: AnyGymDB = defaultDb): Promise<WorkoutSet> {
+  return db.transaction('rw', db.sets, async () => {
+    const set = await db.sets.get(id);
+    if (!set) throw new Error('Set not found');
+    const next: WorkoutSet = { ...set, kind };
+    delete next.failure;
+    if (failure && kind === 'work') next.failure = true;
+    await db.sets.put(next);
+    return next;
+  });
+}
+
+/** Writes the workout's exercise order (Reorder in the exercise menu). Must be the same exercises. */
+export async function setExerciseOrder(sessionId: string, exerciseIds: string[], db: AnyGymDB = defaultDb): Promise<void> {
+  await db.transaction('rw', db.sessions, async () => {
+    const s = await db.sessions.get(sessionId);
+    if (!s || s.endedAt !== undefined) throw new Error('Workout not active');
+    const now = s.exerciseIds ?? [];
+    if (now.length !== exerciseIds.length || !now.every((id) => exerciseIds.includes(id))) throw new Error('Not the same exercises');
+    await db.sessions.put({ ...s, exerciseIds: [...exerciseIds] });
+  });
+}
+
+/**
+ * Takes an exercise with no logged sets out of the workout (Remove in the exercise menu).
+ * Returns its position for Undo. An exercise with sets is never removed (its sets would go too).
+ */
+export async function removeExercise(sessionId: string, exerciseId: string, db: AnyGymDB = defaultDb): Promise<number> {
+  return db.transaction('rw', db.sessions, db.sets, async () => {
+    const s = await db.sessions.get(sessionId);
+    if (!s || s.endedAt !== undefined) throw new Error('Workout not active');
+    const has = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).filter((x) => x.exerciseId === exerciseId).count();
+    if (has > 0) throw new Error('Exercise has sets');
+    const ids = s.exerciseIds ?? [];
+    const at = ids.indexOf(exerciseId);
+    if (at === -1) return -1;
+    await db.sessions.put({ ...s, exerciseIds: ids.filter((id) => id !== exerciseId) });
+    return at;
+  });
+}
+
+/** Undo of removeExercise: puts it back at its position. Throws WorkoutFinishedError after Finish. */
+export async function restoreExercise(sessionId: string, exerciseId: string, at: number, db: AnyGymDB = defaultDb): Promise<void> {
+  await db.transaction('rw', db.sessions, async () => {
+    const s = await db.sessions.get(sessionId);
+    if (!s || s.endedAt != null) throw new WorkoutFinishedError();
+    const ids = (s.exerciseIds ?? []).filter((id) => id !== exerciseId);
+    ids.splice(Math.max(0, Math.min(at, ids.length)), 0, exerciseId);
+    await db.sessions.put({ ...s, exerciseIds: ids });
   });
 }
 

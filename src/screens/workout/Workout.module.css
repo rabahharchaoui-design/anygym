@@ -1,6 +1,7 @@
-/* Workout screen (SPEC 8.2, 10): a fixed frame; only the body scrolls. Numbers are the hero. */
+/* Workout (SPEC 20, 21.1): a fixed frame with the live header, the screens, and the rest bar. */
 
 .screen {
+  --rest-height: 64px;
   position: fixed;
   inset: 0 0 auto;
   height: var(--app-height);
@@ -9,96 +10,315 @@
   background: var(--bg);
 }
 
-/* ---------------------------------------------------------------- top bar */
+/* ---------------------------------------------------------------- live header */
 
 .topBar {
   flex: none;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 2px calc(var(--space-4) + var(--safe-left));
+  min-height: calc(var(--safe-top) + 56px);
+  padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-3) + var(--safe-left));
   border-bottom: 1px solid var(--hairline);
   background: var(--bg);
 }
 
-.clockBox {
+.back {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+}
+
+.stats {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   line-height: 1.1;
-}
-
-.clockLabel {
-  color: var(--text-2);
-  font-size: 13px;
-  font-weight: 600;
+  padding-left: 4px;
 }
 
 .clock {
-  font-size: var(--text-xl);
+  font-size: 24px;
   font-weight: 700;
 }
 
-.music {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.musicButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--tap);
-  height: var(--tap);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-pill);
+.statLine {
   color: var(--text-2);
-  font-size: var(--text-sm);
+  font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .finish {
-  height: 40px;
-  min-width: 80px;
+  flex: none;
+  height: 48px;
+  min-width: 84px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   border: 1px solid var(--accent);
   color: var(--accent);
   font-weight: 700;
-  /* 48pt tap target around the 40px pill */
-  margin: 4px 0;
   position: relative;
 }
 
-.finish::after {
-  content: '';
-  position: absolute;
-  inset: -4px 0;
-}
+/* ---------------------------------------------------------------- screens */
 
-/* ---------------------------------------------------------------- body */
-
-.body {
+.stage {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
+  position: relative;
+  overflow: hidden;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  will-change: transform;
+}
+
+.present {
+  height: 100%;
+}
+
+.skeleton {
+  margin: var(--space-4);
+  height: 220px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+/* ---------------------------------------------------------------- exercise view */
+
+.exMain {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  /* the bottom stays free for the rest bar, so it never covers anything when it appears */
-  padding: 6px calc(var(--space-2) + var(--safe-right)) calc(6px + var(--rest-height))
-    calc(var(--space-2) + var(--safe-left));
+  gap: 10px;
+  overflow: hidden;
+  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) calc(var(--rest-height) + var(--space-2)) calc(var(--space-4) + var(--safe-left));
+  touch-action: pan-y;
 }
 
-.screen {
-  --rest-height: 60px;
+.hero {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
-/* The outermost bottom element of the workout frame: it alone adds the bottom inset; the rest
-   bar and Log set bar sit inside it. */
+.heroTile {
+  flex: none;
+  border-radius: 14px;
+}
+
+.heroText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.exName {
+  font-size: clamp(19px, 5.6vw, 23px);
+  font-weight: 700;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.exTarget {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.exNote {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moreButton {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.guides {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guide {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.guideWhen {
+  opacity: 0.8;
+}
+
+.guideNext {
+  color: var(--accent);
+}
+
+.tableSkeleton {
+  height: 220px;
+  border-radius: 14px;
+  background: var(--surface-1);
+}
+
+.addSet {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 6px;
+  border-radius: 14px;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.holdBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 6px 6px var(--space-4);
+  border-radius: 18px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+}
+
+.holdClock {
+  flex: 1;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.holdReset {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.holdReset:disabled {
+  opacity: 0.35;
+}
+
+.holdButton {
+  min-width: 110px;
+  height: 52px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.holdButton[data-running='true'] {
+  background: var(--surface-2);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.statusLine {
+  flex: none;
+  position: relative;
+  min-height: 18px;
+}
+
+.status {
+  margin: 0;
+  color: var(--amber);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.checkHint {
+  right: 0;
+  top: calc(100% - 14px);
+}
+
+.askBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.demoTile {
+  display: flex;
+  justify-content: center;
+}
+
+.demoNote {
+  margin: 0;
+  text-align: center;
+  color: var(--text);
+}
+
+/* "Nice. Next: Romanian deadlift" (SPEC 20.2): floats above the rest bar for a moment. */
+.nextChip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + var(--rest-height) + 10px);
+  transform-origin: center bottom;
+  translate: -50% 0;
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* The outermost bottom element: it alone adds the bottom inset; the rest bar sits just above it. */
 .dockWrap {
   flex: none;
   position: relative;
@@ -106,235 +326,7 @@
   background: var(--bg);
 }
 
-.dock {
-  padding: var(--space-2) calc(var(--space-4) + var(--safe-right)) var(--space-2) calc(var(--space-4) + var(--safe-left));
-  border-top: 1px solid var(--hairline);
-}
-
-.dock:empty {
-  display: none;
-}
-
-.actionWrap {
-  position: relative;
-}
-
-.actionHint {
-  left: 0;
-  right: 0;
-  bottom: calc(100% + 12px);
-}
-
-.logWhat {
-  font-weight: 500;
-}
-
-.skeleton {
-  height: 220px;
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-6) var(--space-4);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-  text-align: center;
-}
-
-.emptyTitle {
-  font-size: var(--text-lg);
-  font-weight: 700;
-}
-
-.hint {
-  margin: 0;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  text-align: center;
-  text-wrap: balance;
-}
-
-/* ---------------------------------------------------------------- exercise card */
-
-.card {
-  flex: none;
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-  overflow: hidden;
-}
-
-.card[data-expanded='true'] {
-  padding: 8px 10px;
-  border-color: #33333a;
-  /* The one row plate tray runs wide so plates stay 48pt on a 375 phone, but never touches the card edge. */
-  --tray-bleed: 4px;
-}
-
-/* Not current: one line, name and the last set. */
-.cardHead {
-  width: 100%;
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-4);
-  text-align: left;
-}
-
-.cardHead .cardName {
-  flex: 1;
-  font-size: 17px;
-  /* Up to two lines, never cut short in a way that hides which exercise it is (pair partners). */
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow-wrap: anywhere;
-}
-
-.cardName {
-  min-width: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cardSummary {
-  flex: none;
-  max-width: 45%;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.setCard {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.setHead {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  padding: 0 var(--space-1);
-}
-
-.setHead .cardName {
-  flex: 1;
-}
-
-.target {
-  flex: none;
-  color: var(--accent);
-  font-size: var(--text-base);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-/* Last set / Last time / first time advice: one or two short lines. */
-.guide {
-  margin: -2px 0 0;
-  padding: 0 var(--space-1);
-  color: var(--text-2);
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  line-height: 18px;
-  max-height: 36px;
-  overflow: hidden;
-  text-wrap: balance;
-}
-
-/* Last time + Next: two single lines, never more (SPEC 13.5 one screen rule). */
-.guides {
-  display: flex;
-  flex-direction: column;
-  margin-top: -3px;
-}
-
-.guides .guide {
-  margin: 0;
-  font-size: 13px;
-  line-height: 16px;
-  max-height: none;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.nextTarget {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.nextReason {
-  color: var(--text-2);
-}
-
-/* Logged sets: one row of chips, sideways scroll, newest last. Each chip button is a full 48pt
-   tall target around a 32px pill; the negative margins keep the row visually tight. */
-.strip {
-  list-style: none;
-  margin: -8px 0 -6px;
-  padding: 0 var(--space-1);
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-}
-
-.strip::-webkit-scrollbar {
-  display: none;
-}
-
-.strip li {
-  flex: none;
-}
-
-.chip {
-  height: 48px;
-  display: flex;
-  align-items: center;
-}
-
-.chipPill {
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px 0 4px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.chipIndex {
-  min-width: 22px;
-  height: 22px;
-  border-radius: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(212, 255, 58, 0.14);
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-}
+/* ---------------------------------------------------------------- buttons */
 
 .logButton {
   width: 100%;
@@ -352,12 +344,11 @@
 }
 
 .logButton:disabled {
-  background: var(--surface-2);
+  background: var(--surface-1);
   color: var(--text-2);
 }
 
-.secondaryButton,
-.addButton {
+.secondaryButton {
   width: 100%;
   min-height: 48px;
   border-radius: var(--radius-pill);
@@ -366,18 +357,6 @@
   color: var(--text);
   font-weight: 600;
   font-size: 17px;
-}
-
-.addButton {
-  flex: none;
-  border-style: dashed;
-  color: var(--text-2);
-}
-
-.askBox {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .deleteButton {
@@ -391,6 +370,64 @@
 
 .deleteButton:disabled {
   opacity: 0.4;
+}
+
+/* ---------------------------------------------------------------- exercise menu */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menuPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.menuItem {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8px var(--space-4);
+  border-radius: 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.menuItem:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menuItem[data-danger] .menuLabel {
+  color: var(--red);
+}
+
+.menuLabel {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.menuSub {
+  color: var(--text-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.noteInput {
+  width: 100%;
+  min-height: 96px;
+  padding: var(--space-3);
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  font-size: 17px;
+  resize: none;
 }
 
 /* ---------------------------------------------------------------- rest bar */
@@ -562,126 +599,6 @@
   font-size: var(--text-sm);
 }
 
-/* ---------------------------------------------------------------- plan workouts (PLAN 1.10) */
-
-.planHead {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 0 var(--space-1);
-}
-
-.planHead .target {
-  font-size: 15px;
-}
-
-.planLine {
-  margin: 0;
-  color: var(--text-2);
-  font-size: 13px;
-  line-height: 16px;
-}
-
-.planNote {
-  color: var(--text);
-  font-weight: 600;
-}
-
-/* A pair (superset): both cards on one colored rail with the plain label (SPEC 8.2, 13.1). */
-.pairGroup {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-left: 8px;
-  border-left: 4px solid var(--pair);
-  border-radius: 2px;
-}
-
-.pairGroup[data-warmup] {
-  border-left-color: var(--amber);
-}
-
-.pairLabel {
-  margin: 0;
-  padding: 2px 0 0 4px;
-  color: var(--pair);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 16px;
-}
-
-.pairGroup[data-warmup] .pairLabel,
-.warmLabel {
-  color: var(--amber);
-}
-
-.warmLabel {
-  margin: 0;
-  padding: 2px 0 0 4px;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 16px;
-}
-
-.clockLabel {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.card[data-done]:not([data-expanded='true']) {
-  opacity: 0.6;
-}
-
-/* Long plan names wrap rather than hide which exercise it is. */
-.planHead .cardName {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.cardHead .cardSummary {
-  white-space: normal;
-  text-align: right;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-/* The expanded plan title: up to two lines, a touch smaller on narrow phones, never cut off. */
-.planHead .cardName {
-  font-size: clamp(17px, 4.9vw, var(--text-lg));
-  line-height: 1.15;
-  text-overflow: clip;
-  overflow: visible;
-}
-
-/* Header day name: wraps to a second line at a smaller size instead of cutting off. */
-.clockLabel {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  font-size: clamp(11px, 3.2vw, 13px);
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-/* A warm up set in the strip: a small amber tag (not counted for progression). */
-.chipWarm {
-  color: var(--amber);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.finisherLabel {
-  margin: 0;
-  padding: 2px 0 0 4px;
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 16px;
-}
-
 /* ---------------------------------------------------------------- bar choice (PLAN 1.10d) */
 
 .choice[aria-pressed='true'] {
@@ -702,4 +619,14 @@
   color: var(--accent);
   font-size: var(--text-base);
   font-weight: 600;
+}
+
+/* A sheet's main button stays in reach while its body scrolls (the weight picker on iPhone SE). */
+.sheetFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: var(--space-3) var(--space-4) var(--space-1);
+  background: linear-gradient(to bottom, rgba(23, 23, 26, 0), var(--surface-2) 28%);
 }

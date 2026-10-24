@@ -3,7 +3,6 @@
 import { machineStartFor, stackStepFor } from '../../db/gyms';
 import type { BarId, Gym, Load } from '../../db/types';
 import {
-  DISPLAY_STACK_MAX,
   barbellLoad,
   bodyweightLoad,
   dumbbellLoad,
@@ -13,7 +12,7 @@ import {
   plateMachineLoad,
   singleLoad,
   stackLoad,
-  stackValues,
+  isStackPin,
   timedLoad,
   type LoadSetup,
 } from '../../lib/load';
@@ -82,7 +81,7 @@ export function prefillLoad(
   };
   switch (kind) {
     case 'barbell':
-      return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName, bar)], load.perSide, gym.collars, gym.unit) : null;
+      return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName, bar)], load.perSide, gym.collars, gym.unit, barIdFor(exerciseName, bar)) : null;
     case 'plate_machine':
       return platesOk(load.perSide)
         ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit)
@@ -96,7 +95,7 @@ export function prefillLoad(
     case 'stack': {
       const step = stackStepFor(gym, machineIdFor(exerciseId, exerciseName));
       const pin = load.stackValue;
-      if (pin === undefined || !stackValues(step, DISPLAY_STACK_MAX[gym.unit]).includes(pin)) return null;
+      if (pin === undefined || !isStackPin(pin, step)) return null;
       return stackLoad(pin, gym.unit, load.added ?? 0);
     }
     case 'bodyweight':
@@ -123,7 +122,7 @@ export function currentLoad(
 ): Load | null {
   switch (kind) {
     case 'barbell':
-      return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit);
+      return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar));
     case 'plate_machine':
       return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit);
     case 'bodyweight':

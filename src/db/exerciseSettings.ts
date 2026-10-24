@@ -19,6 +19,15 @@ export async function saveLoadType(
     // A bar choice saved on the same record is kept.
     const setting: ExerciseSetting = { ...(await db.exerciseSettings.get(key)), exerciseId, gymId: key[1], loadType };
     await db.exerciseSettings.put(setting);
+    // A change from a machine answer (this gym) to a free weight (every gym) or back: the other
+    // answer goes, so the new one is the one used (PLAN 1.7c "Loaded with… Change").
+    const other: [string, string] = [exerciseId, key[1] === ANY_GYM ? gymId : ANY_GYM];
+    const old = other[1] === key[1] ? undefined : await db.exerciseSettings.get(other);
+    if (old?.loadType !== undefined) {
+      const rest = { ...old };
+      delete rest.loadType;
+      await db.exerciseSettings.put(rest);
+    }
     return setting;
   });
 }
@@ -49,4 +58,42 @@ export function pickBar(settings: ExerciseSetting[], exerciseId: string, gymId: 
 
 export async function loadTypeFor(exerciseId: string, gymId: string, db: AnyGymDB = defaultDb): Promise<Load['kind'] | undefined> {
   return pickLoadType(await db.exerciseSettings.where('exerciseId').equals(exerciseId).toArray(), exerciseId, gymId);
+}
+
+/**
+ * Per exercise preferences from the exercise menu (PLAN 1.7c): rest after each set and the user's
+ * own note. Kept on the every-gym record (ANY_GYM), so they follow the exercise everywhere. A
+ * load type or bar choice on the same record is kept. Schema unchanged: neither field is indexed.
+ */
+async function savePreference(exerciseId: string, patch: Pick<ExerciseSetting, 'restSec' | 'note'>, db: AnyGymDB): Promise<ExerciseSetting> {
+  return db.transaction('rw', db.exerciseSettings, async () => {
+    const setting: ExerciseSetting = { ...(await db.exerciseSettings.get([exerciseId, ANY_GYM])), exerciseId, gymId: ANY_GYM, ...patch };
+    if (setting.note !== undefined && !setting.note.trim()) delete setting.note;
+    await db.exerciseSettings.put(setting);
+    return setting;
+  });
+}
+
+export const MIN_REST_SEC = 0;
+export const MAX_REST_SEC = 600;
+
+/** Saves the rest after each set, whole seconds from 0 to 10 minutes. */
+export async function saveExerciseRest(exerciseId: string, restSec: number, db: AnyGymDB = defaultDb): Promise<ExerciseSetting> {
+  if (!Number.isInteger(restSec) || restSec < MIN_REST_SEC || restSec > MAX_REST_SEC) throw new Error('Invalid rest');
+  return savePreference(exerciseId, { restSec }, db);
+}
+
+/** Saves the user's note (trimmed; empty removes it). */
+export async function saveExerciseNote(exerciseId: string, note: string, db: AnyGymDB = defaultDb): Promise<ExerciseSetting> {
+  return savePreference(exerciseId, { note: note.trim().slice(0, 200) }, db);
+}
+
+/** The rest the user picked for this exercise, or undefined (the plan's or the default). */
+export function pickRest(settings: ExerciseSetting[], exerciseId: string): number | undefined {
+  return settings.find((s) => s.exerciseId === exerciseId && s.gymId === ANY_GYM)?.restSec;
+}
+
+/** The user's note for this exercise, or undefined. */
+export function pickNote(settings: ExerciseSetting[], exerciseId: string): string | undefined {
+  return settings.find((s) => s.exerciseId === exerciseId && s.gymId === ANY_GYM)?.note;
 }

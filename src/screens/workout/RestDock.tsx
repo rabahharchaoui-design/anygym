@@ -7,15 +7,15 @@ import { formatElapsed } from '../../lib/timer';
 import { playTone } from '../../lib/tone';
 import styles from './Workout.module.css';
 
-type Props = { rest: Rest; onExtend: () => void; onSkip: () => void; onDone: () => void };
+type Props = { rest: Rest; onExtend: () => void; onShorten: () => void; onSkip: () => void; onDone: () => void };
 
 const R = 19;
 const C = 2 * Math.PI * R;
 /** How long "Rest over" stays before the bar goes away. */
 const DONE_LINGER_MS = 2500;
 
-/** Rest timer (SPEC 5.1): a small ring countdown in the bottom bar, +15 s and Skip, a soft tone at 0. */
-export function RestDock({ rest, onExtend, onSkip, onDone }: Props) {
+/** Rest timer (SPEC 5.1, 21.1): a slim bar at the bottom with a ring countdown, −15, +15 and Skip, a soft tone at 0. */
+export function RestDock({ rest, onExtend, onShorten, onSkip, onDone }: Props) {
   const reduce = useReducedMotion();
   const now = useNow(250);
   const done = isRestDone(rest, now);
@@ -69,8 +69,11 @@ export function RestDock({ rest, onExtend, onSkip, onDone }: Props) {
           {done ? 'Go' : formatElapsed(left)}
         </span>
       </div>
+      <button type="button" className={`${styles.restButton} pressable`} onClick={onShorten} disabled={done} aria-label={`Take off ${REST_STEP_SEC} seconds`}>
+        −{REST_STEP_SEC}
+      </button>
       <button type="button" className={`${styles.restButton} pressable`} onClick={onExtend} aria-label={`Add ${REST_STEP_SEC} seconds`}>
-        +{REST_STEP_SEC} s
+        +{REST_STEP_SEC}
       </button>
       <button type="button" className={`${styles.restButton} pressable`} onClick={onSkip}>
         {done ? 'Close' : 'Skip'}
