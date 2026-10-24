@@ -117,7 +117,7 @@ test('(4) Bench switches to the women\'s bar: math, the ✓ and the saved set ag
   await shot(page, 'bar-womens');
   await logButton(page).tap();
   await expect(card.getByTestId('set-row')).toHaveCount(1);
-  expect((await savedSets(page))[0]!.load).toEqual({ kind: 'barbell', unit: 'lb', total: 125, barWeight: 35, perSide: [45], barId: 'womens' });
+  expect((await savedSets(page))[0]!.load).toEqual({ kind: 'barbell', unit: 'lb', total: 125, barWeight: 35, perSide: [45], barId: 'womens', collars: 0 });
 
   await page.reload();
   await expect(logButton(page)).toHaveAccessibleName('Log set 2: 8 × 125 lb');

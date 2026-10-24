@@ -132,15 +132,20 @@ export async function workoutRecords(
   const ids = [...new Set(sets.map((s) => s.exerciseId))];
   for (const id of ids) {
     const today = sets.filter((s): s is WorkoutSet & { load: Load } => s.exerciseId === id && !!s.load && !s.uncertain);
-    const firstWork = today.find((s) => s.kind === 'work');
-    if (!firstWork) continue;
-    const kind = firstWork.load.kind;
     const name = nameOf(id);
     const defaultBar = barForName(name);
-    const smith = kind === 'barbell' && (firstWork.load.barId ?? defaultBar) === 'smith';
-    const past = (await getPastSessions(id, session.gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
     const pick = (x: WorkoutSet & { load: Load }): PastSet => ({ kind: x.kind, load: x.load, ...(x.reps !== undefined ? { reps: x.reps } : {}) });
-    out.push(...recordsFor(id, name, today.map(pick), past.flatMap((p) => p.sets)));
+    // Same bar identity as "Last time" (PLAN 1.7f): Smith sets and free bar sets of one exercise
+    // are separate lifts, each compared only with its own history (older sets: the default bar).
+    const isSmith = (x: WorkoutSet & { load: Load }) => x.load.kind === 'barbell' && (x.load.barId ?? defaultBar) === 'smith';
+    for (const smith of [false, true]) {
+      const group = today.filter((x) => isSmith(x) === smith);
+      const firstWork = group.find((x) => x.kind === 'work');
+      if (!firstWork) continue;
+      const kind = firstWork.load.kind;
+      const past = (await getPastSessions(id, session.gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
+      out.push(...recordsFor(id, name, group.map(pick), past.flatMap((p) => p.sets)));
+    }
   }
   return out;
 }

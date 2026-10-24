@@ -3,7 +3,7 @@ import { barbellLoad, formatSetLine } from '../load';
 
 describe('barbellLoad', () => {
   it('bar + 2 × plates + collars, stored with its breakdown', () => {
-    expect(barbellLoad(45, [45, 25], 'none', 'lb')).toEqual({ kind: 'barbell', unit: 'lb', total: 185, barWeight: 45, perSide: [45, 25] });
+    expect(barbellLoad(45, [45, 25], 'none', 'lb')).toEqual({ kind: 'barbell', unit: 'lb', total: 185, barWeight: 45, perSide: [45, 25], collars: 0 });
     expect(barbellLoad(20, [20, 5], 'competition', 'kg')!.total).toBe(75);
     expect(barbellLoad(45, [], 'none', 'lb')!.total).toBe(45);
   });

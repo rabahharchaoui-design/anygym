@@ -4,6 +4,7 @@ import { IconLink } from '../../components/IconButton';
 import { BackIcon } from '../../components/icons';
 import { finishedDetail } from '../../db/history';
 import type { WorkoutSet } from '../../db/types';
+import { LoadError } from '../../components/LoadError';
 import { useLive } from '../../hooks/useLive';
 import { formatSetLine } from '../../lib/load';
 import { exerciseNamer, setCount, workoutDate, workoutTitle } from './historyWords';
@@ -13,8 +14,8 @@ import styles from './History.module.css';
 export function HistoryDetail() {
   const { sessionId = '' } = useParams();
   const detail = useLive(() => finishedDetail(sessionId), [sessionId]);
-  if (detail.ready && !detail.value) return <Navigate to="/history" replace />;
-  const value = detail.value;
+  if (detail.ready && !detail.error && !detail.data) return <Navigate to="/history" replace />;
+  const value = detail.data;
 
   // Exercises in the order their first set was logged.
   const groups: Array<{ exerciseId: string; sets: WorkoutSet[] }> = [];
@@ -35,8 +36,9 @@ export function HistoryDetail() {
           </IconLink>
         }
       />
+      {detail.error ? <LoadError text="Could not load this workout" onRetry={detail.retry} /> : null}
       {!value ? (
-        <div className={styles.skeleton} aria-hidden="true" />
+        !detail.error && <div className={styles.skeleton} aria-hidden="true" />
       ) : (
         <>
           <p className={`${styles.meta} num`} data-testid="history-meta">

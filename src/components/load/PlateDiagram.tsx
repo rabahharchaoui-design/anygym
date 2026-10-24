@@ -16,6 +16,8 @@ type Props = {
   /** Enabled plate sizes in the gym, any order. */
   inventory: readonly number[];
   collars: Collars;
+  /** Edit set: an older record's gap beyond bar, plates and collars (load.ts otherOf), shown as "other". */
+  other?: number;
   colorMode: PlateColors;
   /** One side's plates, heaviest first. */
   value: readonly number[];
@@ -36,7 +38,7 @@ const LONG_PRESS_MS = 400;
 const FULL_MS = 1500;
 
 /** Plate diagram (SPEC 5.3): tap plates on, tap the bar to take the outermost off, live total and math. */
-export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner }: Props) {
+export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner }: Props) {
   const reduce = useReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(340);
@@ -64,8 +66,8 @@ export function PlateDiagram({ unit, bar, inventory, collars, colorMode, value, 
   const height = compact ? COMPACT_HEIGHT : HEIGHT;
   const layout = makeLayout({ unit, perSide: value, inventory: sizes, width, height, labelOf: formatAmount, labelBand: LABEL_BAND });
   const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
-  const { total } = sumLoad({ bar, perSide: value, collars, unit });
-  const math = formatMathLine(bar, value, collars, unit, baseLabel);
+  const { total } = sumLoad({ bar, perSide: value, collars, unit, other });
+  const math = formatMathLine(bar, value, collars, unit, baseLabel, other);
   const outer = outermost(value);
 
   const sleeveFull = () => {

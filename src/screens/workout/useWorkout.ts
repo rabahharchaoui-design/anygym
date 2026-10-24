@@ -51,19 +51,19 @@ export type Workout = {
 export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Workout {
   const session = useLive(() => db.sessions.get(sessionId), [sessionId]);
   const allSets = useLive(() => setsOf(sessionId), [sessionId]);
-  const gymId = session.value?.gymId;
+  const gymId = session.data?.gymId;
   const gym = useLive(() => (gymId ? db.gyms.get(gymId) : Promise.resolve(undefined)), [gymId]);
   const settings = useLive(() => db.exerciseSettings.toArray(), []);
   const [extraTick, setExtraTick] = useState(0);
-  const exerciseIds = useMemo(() => session.value?.exerciseIds ?? [], [session.value?.exerciseIds]);
+  const exerciseIds = useMemo(() => session.data?.exerciseIds ?? [], [session.data?.exerciseIds]);
 
-  const plan = planById(session.value?.planId);
-  const dayIndex = plan ? dayIndexOf(plan, session.value?.dayId) : -1;
-  const weekIndex = session.value?.weekIndex ?? 0;
+  const plan = planById(session.data?.planId);
+  const dayIndex = plan ? dayIndexOf(plan, session.data?.dayId) : -1;
+  const weekIndex = session.data?.weekIndex ?? 0;
   const day = plan && dayIndex >= 0 ? plan.days[dayIndex] : undefined;
   const planEntries = useMemo(() => (plan && dayIndex >= 0 ? dayWorkout(plan, dayIndex, weekIndex) : []), [plan, dayIndex, weekIndex]);
   const planEntryOf = useMemo(() => new Map(planEntries.map((e) => [e.exerciseId, e])), [planEntries]);
-  const list = settings.value ?? [];
+  const list = settings.data ?? [];
 
   const nameOf = (id: string) => planEntryOf.get(id)?.name ?? planExercise(id)?.name ?? id;
 
@@ -71,7 +71,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     // The user's own answer (asked once, or changed from the ⋯ menu) wins. Then the plan's unit
     // over the name: a "45 sec" hold is timed, "3 × 10" Plank is reps (loadTypeRule.ts). Then the
     // exercise list (name rule plus the hand written table). Unknown: asked once.
-    const saved = gym.value ? pickLoadType(list, id, gym.value.id) : undefined;
+    const saved = gym.data ? pickLoadType(list, id, gym.data.id) : undefined;
     if (saved) return saved;
     const entry = planEntryOf.get(id);
     const fixed = planExercise(id)?.loadType;
@@ -79,7 +79,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     return kind && kind !== 'unknown' ? kind : undefined;
   };
   // The bar picked here, else the exercise list's bar (Smith machine lifts), else the name rule.
-  const barOf = (id: string) => (gym.value ? pickBar(list, id, gym.value.id) : undefined) ?? planExercise(id)?.bar;
+  const barOf = (id: string) => (gym.data ? pickBar(list, id, gym.data.id) : undefined) ?? planExercise(id)?.bar;
 
   const entries = useMemo(() => {
     const base = orderEntries(planEntries, exerciseIds, (id, block) => quickEntry(id, nameOf(id), loadTypeOf(id), block));
@@ -88,7 +88,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
       return extra ? { ...e, sets: e.sets + extra } : e;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planEntries, exerciseIds, sessionId, extraTick, settings.value, gym.value]);
+  }, [planEntries, exerciseIds, sessionId, extraTick, settings.data, gym.data]);
   const entryMap = useMemo(() => new Map(entries.map((e) => [e.exerciseId, e])), [entries]);
 
   // Earlier workouts of each exercise whose load type is known (SPEC 6): working sets for "Last
@@ -111,21 +111,21 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
 
   const progressionOf = (id: string): Progression | undefined => {
     const kind = loadTypeOf(id);
-    const past = history.value?.get(id)?.past;
-    if (!kind || !past || !gym.value) return undefined;
+    const past = history.data?.get(id)?.past;
+    if (!kind || !past || !gym.data) return undefined;
     const entry = entryMap.get(id);
     return progress({
       exerciseId: id,
       loadKind: kind,
-      unit: gym.value.unit,
-      gym: loadSetupFor(gym.value, kind, id, nameOf(id), barOf(id)),
+      unit: gym.data.unit,
+      gym: loadSetupFor(gym.data, kind, id, nameOf(id), barOf(id)),
       repRange: entry && kind !== 'timed' ? repRangeOf(entry) : null,
       history: past,
       ...(entry?.prescription && kind !== 'timed' ? { prescription: entry.prescription } : {}),
     });
   };
 
-  const sets = (allSets.value ?? []).filter((s) => !hidden.has(s.id));
+  const sets = (allSets.data ?? []).filter((s) => !hidden.has(s.id));
   const done: Record<string, number> = {};
   for (const s of sets) done[s.exerciseId] = (done[s.exerciseId] ?? 0) + 1;
 
@@ -133,10 +133,10 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   const restOf = (id: string) => userRestOf(id) ?? entryMap.get(id)?.restSec ?? 90;
 
   return {
-    ready: !!(session.value && gym.value && allSets.ready && settings.ready && history.ready),
-    session: session.value,
+    ready: !!(session.data && gym.data && allSets.ready && settings.ready && history.ready),
+    session: session.data,
     sessionReady: session.ready,
-    gym: gym.value,
+    gym: gym.data,
     plan,
     day,
     minutes: day ? estimateDayMinutes(day, weekIndex) : undefined,
@@ -148,7 +148,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     loadTypeOf,
     barOf,
     progressionOf,
-    lastSetsOf: (id) => history.value?.get(id)?.last?.sets ?? null,
+    lastSetsOf: (id) => history.data?.get(id)?.last?.sets ?? null,
     restOf,
     userRestOf,
     noteOf: (id) => pickNote(list, id),

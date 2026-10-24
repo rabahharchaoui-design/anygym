@@ -18,7 +18,7 @@ export function PlanViewer() {
   const plan = planById(planId);
   const navigate = useNavigate();
   const state = useLive(() => getPlanState(), []);
-  const active = state.value?.planId === plan?.id;
+  const active = state.data?.planId === plan?.id;
   const [week, setWeek] = useState<number | null>(null);
   const [error, setError] = useState(false);
 
@@ -34,7 +34,7 @@ export function PlanViewer() {
   });
 
   if (!plan) return <Navigate to="/plans" replace />;
-  const weekIndex = week ?? (active ? (state.value?.weekIndex ?? 0) : 0);
+  const weekIndex = week ?? (active ? (state.data?.weekIndex ?? 0) : 0);
 
   return (
     <div className={styles.viewer}>

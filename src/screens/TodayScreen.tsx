@@ -4,6 +4,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { IconLink } from '../components/IconButton';
 import { GymPill } from '../components/GymPill';
 import { ProfileIcon } from '../components/icons';
+import { LoadError } from '../components/LoadError';
 import { Toast, type ToastMessage } from '../components/Toast';
 import { planById } from '../data/plans';
 import { startDb } from '../db/bootstrap';
@@ -44,7 +45,10 @@ export function TodayScreen() {
     const planState = await getPlanState();
     return { active: active ?? null, planState: planState ?? null };
   }, [dbOpen]);
-  const data = { ready: dbOpen && live.ready && live.value !== null, value: live.value ?? undefined };
+  // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
+  // good result stays on screen (PLAN 1.7f).
+  const data = { ready: dbOpen && live.ready && live.data != null, value: live.data ?? undefined };
+  const failed = dbOpen && live.error !== null && !data.ready;
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [updateReady, setUpdateReady] = useState(isUpdateReady);
   const [error, setError] = useState(false);
@@ -129,7 +133,8 @@ export function TodayScreen() {
         }
       />
       <div className={styles.stack}>
-        {!data.ready ? (
+        {live.error && dbOpen ? <LoadError text="Could not load workouts" onRetry={live.retry} /> : null}
+        {failed ? null : !data.ready ? (
           <div className={styles.startSkeleton} aria-hidden="true" />
         ) : active ? (
           <button type="button" className={`${styles.start} pressable`} data-continue onClick={() => void quick()}>

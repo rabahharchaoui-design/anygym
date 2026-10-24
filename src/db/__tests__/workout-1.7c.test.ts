@@ -126,6 +126,43 @@ describe('workoutRecords', () => {
   });
 });
 
+describe('workoutRecords keeps Smith and free bar lifts apart (PLAN 1.7f)', () => {
+  const smith = (total: number, perSide: number[]): Load => ({ kind: 'barbell', unit: 'lb', total, barWeight: 0, perSide, barId: 'smith' });
+  const workout = async (at: number, loads: Load[]) => {
+    const s = await startWorkout('g', db, at);
+    for (const [i, load] of loads.entries()) await logSet({ id: `${at}-${i}`, sessionId: s.id, exerciseId: 'bench', reps: 8, load }, db);
+    await finishWorkout(s.id, db, at + 1);
+    return s;
+  };
+
+  it('a heavier Smith set in the same workout earns no Olympic record, and has no Smith history yet', async () => {
+    await workout(1000, [bar(135, [45])]);
+    const s = await workout(2000, [bar(135, [45]), smith(270, [45, 45, 45])]);
+    expect(await workoutRecords(s.id, names, db)).toEqual([]);
+  });
+
+  it('each lift is compared with its own history only (legacy sets without barId count as the default bar)', async () => {
+    await workout(1000, [bar(185, [45, 25]), smith(90, [45])]);
+    // Smith 180 beats Smith 90 (not the free 185); free 155 beats nothing.
+    const s = await workout(2000, [bar(155, [45, 10]), smith(180, [45, 45])]);
+    expect((await workoutRecords(s.id, names, db)).map((r) => r.text)).toEqual(['Bench: heaviest ever, 180 lb']);
+    // A free bar record against free history only, with the Smith 180 in the same workout.
+    const t = await workout(3000, [bar(195, [45, 30]), smith(100, [50])]);
+    expect((await workoutRecords(t.id, names, db)).map((r) => r.text)).toEqual(['Bench: heaviest ever, 195 lb']);
+  });
+
+  it('a Smith exercise by name: older sets without barId are Smith', async () => {
+    const legacy: Load = { kind: 'barbell', unit: 'lb', total: 90, barWeight: 0, perSide: [45] };
+    const a = await startWorkout('g', db, 1000);
+    await logSet({ id: 's1', sessionId: a.id, exerciseId: 'smith-squat', reps: 8, load: legacy }, db);
+    await finishWorkout(a.id, db, 1001);
+    const b = await startWorkout('g', db, 2000);
+    await logSet({ id: 's2', sessionId: b.id, exerciseId: 'smith-squat', reps: 8, load: smith(180, [45, 45]) }, db);
+    await finishWorkout(b.id, db, 2001);
+    expect((await workoutRecords(b.id, () => 'Smith Squat', db)).map((r) => r.text)).toEqual(['Smith Squat: heaviest ever, 180 lb']);
+  });
+});
+
 describe('changing how an exercise is loaded (Loaded with… Change)', () => {
   it('a machine answer at this gym and a free weight answer never fight: the newest wins', async () => {
     await saveLoadType('leg-press', 'g1', 'stack', db);

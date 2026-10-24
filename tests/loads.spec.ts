@@ -149,7 +149,7 @@ test('plate machine: honest "+ start" until answered, then Plates only and a typ
   await shot(sheet, 'plate-machine-sheet');
   await sheet.getByRole('button', { name: 'Plates only' }).dblclick();
   await expect(sheet).toBeHidden();
-  await expectJson(page, 'plate-machine', { kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 0, perSide: [45, 25] });
+  await expectJson(page, 'plate-machine', { kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 0, perSide: [45, 25], collars: 0 });
   await expect(s.getByTestId('plate-math')).toHaveText('2 × (45 + 25) = 140 lb');
   await expect(s.getByTestId('plate-total')).toHaveText('140lb');
   await shot(s, 'plate-machine-plates-only');
@@ -162,7 +162,7 @@ test('plate machine: honest "+ start" until answered, then Plates only and a typ
   await sheet.getByRole('button', { name: 'Save starting weight' }).tap();
   await expect(sheet).toBeHidden();
   await expect(s.getByTestId('plate-math')).toHaveText('110 start + 2 × (45 + 25) = 250 lb');
-  await expectJson(page, 'plate-machine', { kind: 'plate_machine', unit: 'lb', total: 250, barWeight: 110, perSide: [45, 25] });
+  await expectJson(page, 'plate-machine', { kind: 'plate_machine', unit: 'lb', total: 250, barWeight: 110, perSide: [45, 25], collars: 0 });
   await expect(s.getByRole('button', { name: 'Start 110 lb · Change' })).toBeVisible();
 
   // Saved to the gym: survives a reload.

@@ -158,7 +158,9 @@ export type ExerciseSetting = {
 /**
  * SPEC 5.5. Stored in the unit it was entered in; never converted on save. `barId` (PLAN 1.7c,
  * additive, barbell only): which bar it was lifted on, so Smith machine sets never mix with free
- * bar history. Older records without it count as the exercise's default bar.
+ * bar history. Older records without it count as the exercise's default bar. `collars` (PLAN 1.7f,
+ * additive, barbell and plate machine): the total collar weight in the load's unit; older records
+ * recover it with collarsOf in load.ts.
  */
 export type Load = {
   kind: 'barbell' | 'dumbbell_each' | 'single' | 'stack' | 'plate_machine' | 'bodyweight' | 'timed';
@@ -167,6 +169,7 @@ export type Load = {
   barWeight?: number;
   barId?: BarId;
   perSide?: number[];
+  collars?: number;
   stackValue?: number;
   added?: number;
 };

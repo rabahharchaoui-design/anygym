@@ -58,6 +58,8 @@ export type SumInput = {
   perSide: readonly number[];
   collars?: Collars;
   unit: Unit;
+  /** Edit set, older records only: weight the stored total holds beyond bar, plates and collars (otherOf). */
+  other?: number;
 };
 
 export type SumResult = {
@@ -68,12 +70,12 @@ export type SumResult = {
   collarsTotal: number;
 };
 
-/** total = bar + 2 × sum(perSide) + collars. */
-export function sumLoad({ bar, perSide, collars = 'none', unit }: SumInput): SumResult {
+/** total = bar + 2 × sum(perSide) + collars (+ other, see otherOf). */
+export function sumLoad({ bar, perSide, collars = 'none', unit, other = 0 }: SumInput): SumResult {
   const platesTotal = times(add(...perSide), 2);
   const collarsTotal = collarsWeight(collars, unit);
   return {
-    total: bar === null ? null : add(bar, platesTotal, collarsTotal),
+    total: bar === null ? null : add(bar, platesTotal, collarsTotal, other),
     platesTotal,
     collarsTotal,
   };
@@ -333,9 +335,9 @@ export function stackValues(step: number, max: number): number[] {
 
 /** Barbell: bar + 2 × perSide + collars. null while the bar weight is unknown (never a guess). */
 export function barbellLoad(bar: number | null, perSide: readonly number[], collars: Collars, unit: Unit, barId?: BarId): Load | null {
-  const { total } = sumLoad({ bar, perSide, collars, unit });
+  const { total, collarsTotal } = sumLoad({ bar, perSide, collars, unit });
   if (bar === null || total === null) return null;
-  const load: Load = { kind: 'barbell', unit, total, barWeight: bar, perSide: [...perSide] };
+  const load: Load = { kind: 'barbell', unit, total, barWeight: bar, perSide: [...perSide], collars: collarsTotal };
   if (barId) load.barId = barId;
   return load;
 }
@@ -368,7 +370,35 @@ export function stackLoad(stackValue: number, unit: Unit, added = 0): Load {
 export function plateMachineLoad(start: number | null, perSide: readonly number[], unit: Unit): Load | null {
   if (start === null) return null;
   const total = sumLoad({ bar: start, perSide, unit }).total!;
-  return { kind: 'plate_machine', unit, total, barWeight: start, perSide: [...perSide] };
+  return { kind: 'plate_machine', unit, total, barWeight: start, perSide: [...perSide], collars: 0 };
+}
+
+/**
+ * The collar weight a bar or plate machine load was lifted with (PLAN 1.7f), in the load's unit.
+ * New loads store it. Older loads recover it as total − barWeight − 2 × sum(perSide) when that is
+ * a real collar value (none, or the competition pair); anything else counts as 0. 0 for other kinds.
+ */
+export function collarsOf(load: Load): number {
+  if (load.collars !== undefined) return load.collars;
+  if (load.barWeight === undefined || !load.perSide) return 0;
+  const rest = add(load.total, -load.barWeight, -times(add(...load.perSide), 2));
+  const pair = collarsWeight('competition', load.unit);
+  return Math.abs(rest - pair) < 1e-6 ? pair : 0;
+}
+
+/**
+ * What a stored bar or plate machine total holds beyond bar, plates and collars (PLAN 1.7f): 0 for
+ * every load this app builds; an older or imported record can carry a gap (stored 63 on 20 bar +
+ * 2 × 20). Editing shows it as "3 other" so the stored total is never changed by just opening it.
+ */
+export function otherOf(load: Load): number {
+  if (load.barWeight === undefined || !load.perSide) return 0;
+  return add(load.total, -load.barWeight, -times(add(...load.perSide), 2), -collarsOf(load));
+}
+
+/** The collar setting a load was lifted with: editing a set uses this, never today's gym setting. */
+export function collarsSettingOf(load: Load): Collars {
+  return collarsOf(load) > 0 ? 'competition' : 'none';
 }
 
 /** Bodyweight: the body is not counted (it is not known); total is the added weight only, 0 with none. */
@@ -591,6 +621,7 @@ export function formatWeight(value: number, unit: Unit): string {
  *   45 bar + 2 × (45 + 25) = 185 lb
  *   20 bar + 2 × (20 + 5) + 5 collars = 75 kg
  *   2 × 45 + bar                 (bar weight not known yet)
+ *   20 bar + 2 × 20 + 3 other = 63 kg   (an older record's gap, see otherOf)
  * A base of 0 (plates only) is left out. `baseLabel` names the base ("bar", or e.g. "start" on a
  * plate loaded machine).
  */
@@ -600,15 +631,18 @@ export function formatMathLine(
   collars: Collars,
   unit: Unit,
   baseLabel = 'bar',
+  other = 0,
 ): string {
-  const { total, collarsTotal } = sumLoad({ bar, perSide, collars, unit });
+  const { total, collarsTotal } = sumLoad({ bar, perSide, collars, unit, other });
   const parts: string[] = [];
   if (bar !== null && bar !== 0) parts.push(`${formatAmount(bar)} ${baseLabel}`);
   if (perSide.length === 1) parts.push(`2 × ${formatAmount(perSide[0]!)}`);
   if (perSide.length > 1) parts.push(`2 × (${perSide.map(formatAmount).join(' + ')})`);
   if (collarsTotal) parts.push(`${formatAmount(collarsTotal)} collars`);
   if (total === null) return [...parts, baseLabel].join(' + ');
-  const left = parts.length ? parts.join(' + ') : `0 ${baseLabel}`;
+  let left = parts.length ? parts.join(' + ') : `0 ${baseLabel}`;
+  if (other > 0) left += ` + ${formatAmount(other)} other`;
+  if (other < 0) left += ` − ${formatAmount(-other)} other`;
   return `${left} = ${formatWeight(total, unit)}`;
 }
 
