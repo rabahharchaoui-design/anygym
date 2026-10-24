@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
-async function gymCount(page: import('@playwright/test').Page) {
+async function gymCount(page: Page) {
   return page.evaluate(
     () =>
       new Promise<number>((resolve, reject) => {

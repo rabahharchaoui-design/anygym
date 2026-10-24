@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
 // Uses the configured WebKit iPhone projects. Do not run alongside the port owner's suite.
 const watchErrors = (page: Page) => {

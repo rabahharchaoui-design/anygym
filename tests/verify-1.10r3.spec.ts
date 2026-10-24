@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import { readFileSync } from 'node:fs';
 
 const oh = JSON.parse(readFileSync('data/plans/ohrabah-split.json', 'utf8'));

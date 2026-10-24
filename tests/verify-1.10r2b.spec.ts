@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 test('r2 day2', async ({ page }, info) => {
   test.skip(info.project.name !== 'iPhone 15 Pro');
   await page.goto('./#/plans/ohrabah-split');

@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './fixtures';
 
 // Quick workout, set card, rest timer, edit / delete / undo, kill and restore (PLAN 1.7).
 

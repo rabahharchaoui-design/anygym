@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('1.1 verify: network, shots, break', async ({ page }) => {
   const errors: string[] = [];

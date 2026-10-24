@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('1.7a verify: hints persist, tap targets, double tap, reload, offline', async ({ page, context }, info) => {
   const errors: string[] = [];

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, guardContext } from './fixtures';
 
 const dump = (page: Page) =>
   page.evaluate(
@@ -35,7 +35,7 @@ test('1.3 verify: one gym after fast reloads and concurrent tabs', async ({ page
   expect(gyms[0]).toMatchObject({ name: 'My Gym', type: 'full', unit: 'lb', isActive: true });
 
   // fresh context = fresh storage; open 4 pages at once
-  const ctx2 = await page.context().browser()!.newContext(info.project.use as any);
+  const ctx2 = await guardContext(await page.context().browser()!.newContext(info.project.use as any));
   const pages = await Promise.all([1, 2, 3, 4].map(() => ctx2.newPage()));
   pages.forEach(watch);
   await Promise.all(pages.map((p) => p.goto(new URL('./', info.project.use.baseURL ?? 'http://localhost:4173/anygym/').href)));

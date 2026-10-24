@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.describe('app shell', () => {
   test('loads, shows 4 tabs, each tab opens its screen, no console errors', async ({ page }) => {
