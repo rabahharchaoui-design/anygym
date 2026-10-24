@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Gym, Load, WorkoutSet } from '../../db/types';
 import { newId } from '../../db/ids';
@@ -6,9 +6,12 @@ import { machineStartFor } from '../../db/gyms';
 import { barbellLoad, bodyweightLoad, formatSetLine, plateMachineLoad, timedLoad } from '../../lib/load';
 import { formatNext, formatSets, formatWhen, type Progression } from '../../lib/progression';
 import { setLine, targetSecondsOf, type WorkoutEntry } from '../../lib/planWorkout';
+import { clearDraft, loadDraft, saveDraft, type Draft } from '../../lib/drafts';
+import { STOPPED, captureHold, elapsedMs, wholeSeconds, type Stopwatch } from '../../lib/timer';
+import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { Hint } from '../../components/hint/Hint';
-import { barIdFor, machineIdFor, prefillLoad } from './exerciseLoad';
+import { barIdFor, currentLoad, machineIdFor, prefillLoad } from './exerciseLoad';
 import { RepsStepper } from './RepsStepper';
 import { SetLoadInput } from './SetLoadInput';
 import styles from './Workout.module.css';
@@ -16,6 +19,8 @@ import styles from './Workout.module.css';
 export type SetDraft = { id: string; reps?: number; seconds?: number; load: Load };
 
 type Props = {
+  /** The workout; drafts are kept per workout and exercise. */
+  sessionId: string;
   exerciseId: string;
   exerciseName: string;
   loadType: Load['kind'];
@@ -49,7 +54,6 @@ function startingLoad(loadType: Load['kind'], gym: Gym, exerciseId: string, exer
       return null;
   }
 }
-
 /**
  * The two short lines under the name (SPEC 6, 13.5): "Last time (Tue): 10 × 185 · 10 × 185 lb"
  * and "Next: 10 × 185 lb · Aim for 10, 10 or better". First time: just the honest advice, until a set is logged.
@@ -93,37 +97,65 @@ const repsNumber = (r: Progression['next']['reps']): number | undefined => (r ==
  * logged sets as a strip, the compact load input, reps, and Log set in the thumb zone. Weight and
  * reps are prefilled from the last set (this workout, else the last one), so a repeat is one tap.
  */
-export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progression, onLog, onEditSet, actionSlot, entry }: Props) {
+export function SetCard({ sessionId, exerciseId, exerciseName, loadType, gym, sets, progression, onLog, onEditSet, actionSlot, entry }: Props) {
   const last = sets[sets.length - 1];
   const { next, perSet } = progression;
-  // Mid workout (e.g. after a reload) the last logged set wins; else the engine's target.
-  const [load, setLoad] = useState<Load | null>(() =>
-    last
+  // A saved draft (picked before a collapse or reload) wins; then the last logged set mid workout;
+  // else the engine's target. A draft whose id is already logged is stale and ignored.
+  const [draft, setDraftState] = useState<Draft>(() => {
+    const saved = loadDraft(sessionId, exerciseId);
+    if (saved && !sets.some((s) => s.id === saved.id)) return saved;
+    const load = last
       ? (prefillLoad(last.load, loadType, gym, exerciseId, exerciseName) ?? startingLoad(loadType, gym, exerciseId, exerciseName))
-      : (perSet[0]?.target.load ?? next.load ?? startingLoad(loadType, gym, exerciseId, exerciseName)),
-  );
-  const [reps, setReps] = useState(() => (last ? last.reps : (perSet[0]?.target.reps ?? repsNumber(next.reps))) ?? DEFAULT_REPS);
-  const [seconds, setSeconds] = useState(0);
-  const [timerKey, setTimerKey] = useState(0);
-  const pendingId = useRef(newId());
+      : (perSet[0]?.target.load ?? next.load ?? startingLoad(loadType, gym, exerciseId, exerciseName));
+    const reps = (last ? last.reps : (perSet[0]?.target.reps ?? repsNumber(next.reps))) ?? DEFAULT_REPS;
+    return { id: newId(), load, plates: load?.perSide ?? [], reps };
+  });
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  /** Every user change is saved at once, so a collapse, a reload or an app kill keeps it (SPEC 13.3). */
+  const update = (patch: Partial<Draft>) => {
+    const nextDraft = { ...draftRef.current, ...patch };
+    draftRef.current = nextDraft;
+    setDraftState(nextDraft);
+    saveDraft(sessionId, exerciseId, nextDraft);
+  };
   const busy = useRef(false);
   const timed = loadType === 'timed';
+  const reps = draft.reps ?? DEFAULT_REPS;
+  const watch: Stopwatch = draft.watch ?? STOPPED;
+  const running = watch.startedAt !== null;
+  const now = useNow(250, timed && running);
 
-  const ready = load !== null && (timed ? seconds > 0 : reps > 0);
+  // The load shown and logged, rebuilt through load.ts on today's equipment (bar weight, starting
+  // resistance, stack step), so the diagram, the Log set label and the saved set always agree.
+  const load = currentLoad(draft.load, draft.plates ?? [], loadType, gym, exerciseId, exerciseName);
+
+  // A pick that is no longer loadable (a pin the new stack step lacks) is cleared, never rounded.
+  const lost = draft.load !== null && load === null && (loadType === 'stack' || loadType === 'dumbbell_each' || loadType === 'single');
+  useEffect(() => {
+    if (lost) update({ load: null });
+  }, [lost]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const liveSeconds = wholeSeconds(elapsedMs(watch, running ? Math.max(now, Date.now()) : now));
+  const ready = load !== null && (timed ? liveSeconds > 0 : reps > 0);
 
   const log = useTapGuard(async () => {
-    if (!ready || busy.current) return;
+    if (busy.current || load === null) return;
+    // A running hold is stopped and read at this very moment, never a stale value.
+    const { watch: stopped, seconds } = captureHold(watch, Date.now());
+    if (timed ? seconds <= 0 : reps <= 0) return;
     busy.current = true;
-    const draft: SetDraft = timed ? { id: pendingId.current, seconds, load } : { id: pendingId.current, reps, load };
+    if (timed && running) update({ watch: stopped });
+    const out: SetDraft = timed ? { id: draft.id, seconds, load } : { id: draft.id, reps, load };
     try {
-      if (await onLog(draft)) {
-        pendingId.current = newId();
+      if (await onLog(out)) {
+        clearDraft(sessionId, exerciseId);
         const target = perSet[sets.length + 1]?.target.reps;
-        if (!timed && target !== undefined) setReps(target);
-        if (timed) {
-          setSeconds(0);
-          setTimerKey((k) => k + 1);
-        }
+        const fresh: Draft = { ...draftRef.current, id: newId(), watch: STOPPED };
+        if (!timed && target !== undefined) fresh.reps = target;
+        draftRef.current = fresh;
+        setDraftState(fresh);
       }
     } finally {
       busy.current = false;
@@ -133,7 +165,9 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progres
   const blocked =
     load !== null
       ? timed
-        ? 'Start the timer'
+        ? running
+          ? null
+          : 'Start the timer'
         : null
       : loadType === 'barbell'
         ? 'Set the bar weight first'
@@ -149,7 +183,7 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progres
         {ready ? (
           <>
             Log set
-            <span className={`${styles.logWhat} num`}> · {formatSetLine(timed ? { seconds, load } : { reps, load })}</span>
+            <span className={`${styles.logWhat} num`}> · {formatSetLine(timed ? { seconds: liveSeconds, load } : { reps, load })}</span>
           </>
         ) : (
           (blocked ?? 'Log set')
@@ -174,19 +208,20 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progres
       {sets.length > 0 && <SetStrip sets={sets} onEdit={onEditSet} />}
 
       <SetLoadInput
-        key={timed ? timerKey : 'load'}
         loadType={loadType}
         gym={gym}
         exerciseId={exerciseId}
         exerciseName={exerciseName}
         value={load}
-        onChange={setLoad}
-        onSeconds={setSeconds}
+        plates={draft.plates}
+        onChange={(picked, plates) => update(plates ? { load: picked, plates } : { load: picked })}
+        watch={watch}
+        onWatch={(w) => update({ watch: w })}
         compact
         targetSeconds={entry ? targetSecondsOf(entry) : undefined}
       />
 
-      {!timed && <RepsStepper value={reps} onChange={setReps} compact />}
+      {!timed && <RepsStepper value={reps} onChange={(r) => update({ reps: r })} compact />}
 
       {actionSlot ? createPortal(action, actionSlot) : action}
     </div>

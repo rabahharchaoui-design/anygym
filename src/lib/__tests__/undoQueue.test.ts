@@ -41,11 +41,38 @@ describe('undo queue (Set deleted · Undo)', () => {
     expect(q.undo('a')).toBeUndefined();
   });
 
-  it('a failed commit is swallowed', async () => {
+  it('a failed commit is reported by flush, never swallowed', async () => {
     const q = createUndoQueue<string>(async () => {
       throw new Error('db');
     }, 10);
     q.push('a', 'A');
+    await expect(q.flush()).rejects.toThrow('db');
+    // Reported once: the next flush is clean.
     await expect(q.flush()).resolves.toBeUndefined();
+  });
+
+  it('a commit that failed on its timer is reported by the next flush', async () => {
+    const q = createUndoQueue<string>(async () => {
+      throw new Error('timer db');
+    }, 10);
+    q.push('a', 'A');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(q.pending()).toEqual([]);
+    await expect(q.flush()).rejects.toThrow('timer db');
+  });
+
+  it('flush waits for a commit already running', async () => {
+    let release!: () => void;
+    const commit = vi.fn(() => new Promise<void>((r) => (release = r)));
+    const q = createUndoQueue<string>(commit, 10);
+    q.push('a', 'A');
+    await vi.advanceTimersByTimeAsync(10);
+    let done = false;
+    const f = q.flush().then(() => (done = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done).toBe(false);
+    release();
+    await f;
+    expect(done).toBe(true);
   });
 });

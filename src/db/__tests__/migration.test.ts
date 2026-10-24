@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AnyGymDB, SCHEMA_V1, SCHEMA_V2 } from '../schema';
+import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from '../schema';
 import { makeGym } from '../gyms';
 import type { Run, Session, WorkoutSet } from '../types';
 import { ANY_GYM } from '../types';
@@ -53,7 +53,7 @@ describe('schema v1 → v2 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     expect(await db.gyms.toArray()).toEqual([seeded.gym]);
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect(await db.sets.count()).toBe(25);
@@ -97,7 +97,7 @@ describe('schema v2 → v3 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     expect(await db.sets.count()).toBe(25);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
@@ -112,6 +112,36 @@ describe('schema v2 → v3 migration', () => {
     await finishWorkout(day.id, db, 12_000);
     expect((await getPlanState(db))!.nextDayIndex).toBe(1);
     expect(await db.sets.count()).toBe(26);
+    db.close();
+  });
+});
+
+describe('schema v3 → v4 migration (PLAN 1.10c: set order counter)', () => {
+  it('keeps every record, adds an empty orderCounters table, and an old workout continues from its highest order', async () => {
+    const name = `anygym-mig-${n++}`;
+    names.push(name);
+    const seeded = await seedV1(name);
+    const v3 = new Dexie(name);
+    v3.version(1).stores(SCHEMA_V1);
+    v3.version(2).stores(SCHEMA_V2);
+    v3.version(3).stores(SCHEMA_V3);
+    await v3.open();
+    await v3.table('planState').put({ id: 'active', planId: 'ohrabah-split', startedAt: 1, weekIndex: 0, nextDayIndex: 2, doneDays: [0, 1] });
+    v3.close();
+
+    const db = new AnyGymDB(name);
+    await db.open();
+    expect(db.verno).toBe(4);
+    for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
+    expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(2);
+    expect(await db.orderCounters.count()).toBe(0);
+
+    // The open v3 workout (sets with orders up to 24) keeps going without an order clash.
+    const top = Math.max(...seeded.sets.filter((s) => s.sessionId === 'sess-2').map((s) => s.order));
+    const set = await logSet({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', reps: 5, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] } }, db);
+    expect(set.order).toBe(top + 1);
+    expect(await db.orderCounters.get('sess-2')).toEqual({ sessionId: 'sess-2', next: top + 2 });
     db.close();
   });
 });

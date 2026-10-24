@@ -13,7 +13,17 @@
 //   7. anything else                              → unknown (the user is asked once)
 // Machine vs plate loaded is NEVER guessed: "Machine" alone stays unknown.
 // Words match whole words, case insensitive, first rule wins.
-import type { Load } from '../db/types';
+//
+// PLAN ITEMS (planItemLoadType): the plan's own unit beats the name rule.
+//   1. a finisher, or a hold with seconds and no reps            → timed
+//   2. explicit reps where the name rule says timed (Six Week day 3 "Plank", 3 × 10 reps):
+//      reps are never turned into seconds. No weight word         → bodyweight (reps)
+//      with a weight word, or reps and seconds both given          → unknown (asked once)
+//   3. anything else                                               → the name rule
+//
+// BAR (barForName): "EZ" → ez_curl, "Trap" or "Hex" → trap, "Smith" → smith, else olympic.
+// EZ, trap and Smith weights are never guessed: they come from the first use prompt (SPEC 5.3).
+import type { BarId, Load } from '../db/types';
 
 export type ExerciseLoadType = Load['kind'] | 'unknown';
 
@@ -34,6 +44,26 @@ export function loadTypeFromName(name: string): ExerciseLoadType {
   if (has(name, ['Stretch', 'Plank', 'Hold'])) return 'timed';
   if (has(name, ['Pull Up', 'Chin Up', 'Push Up', 'Dip']) && !has(name, WEIGHT_WORDS)) return 'bodyweight';
   return 'unknown';
+}
+
+/** A plan item's amount: reps, a hold in seconds, or the day's cardio finisher. */
+export type PlanAmount = { reps?: unknown; seconds?: unknown; finisher?: boolean };
+
+/** Which input a plan item uses: the plan's unit wins over the name (see PLAN ITEMS above). */
+export function planItemLoadType(name: string, amount: PlanAmount, fromName: ExerciseLoadType = loadTypeFromName(name)): ExerciseLoadType {
+  const hasReps = amount.reps !== undefined;
+  const hasSeconds = amount.seconds !== undefined;
+  if (amount.finisher || (hasSeconds && !hasReps)) return 'timed';
+  if (hasReps && fromName === 'timed') return hasSeconds || has(name, WEIGHT_WORDS) ? 'unknown' : 'bodyweight';
+  return fromName;
+}
+
+/** Which bar a barbell exercise uses, from its name (see BAR above). */
+export function barForName(name: string): BarId {
+  if (has(name, ['EZ'])) return 'ez_curl';
+  if (has(name, ['Trap', 'Hex'])) return 'trap';
+  if (has(name, ['Smith'])) return 'smith';
+  return 'olympic';
 }
 
 /** Stable id from a name: "Barbell Back Squat" → "barbell-back-squat". */

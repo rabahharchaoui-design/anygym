@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STOPPED, elapsedMs, formatClock, ringProgress, startWatch, stopWatch, wholeSeconds } from '../timer';
+import { STOPPED, captureHold, elapsedMs, formatClock, ringProgress, startWatch, stopWatch, wholeSeconds } from '../timer';
 
 describe('stopwatch', () => {
   it('measures from wall clock time, resumes, and ignores repeat start/stop', () => {
@@ -48,5 +48,20 @@ describe('formatElapsed', () => {
     expect(formatElapsed(3599)).toBe('59:59');
     expect(formatElapsed(3600)).toBe('1:00:00');
     expect(formatElapsed(3725)).toBe('1:02:05');
+  });
+});
+
+describe('captureHold (PLAN 1.10c fix 1: Log set reads the live hold)', () => {
+  it('stop at 10 s, Start again, Log set while running: saves the live total, not the stale 10 s', () => {
+    let w = startWatch(STOPPED, 0);
+    w = stopWatch(w, 10_000);
+    w = startWatch(w, 20_000); // Start again
+    const { watch, seconds } = captureHold(w, 27_400);
+    expect(seconds).toBe(17);
+    expect(watch).toEqual({ startedAt: null, accumulated: 17_400 });
+  });
+
+  it('a stopped watch reads as is', () => {
+    expect(captureHold({ startedAt: null, accumulated: 9_999 }, 50_000)).toEqual({ watch: { startedAt: null, accumulated: 9_999 }, seconds: 9 });
   });
 });

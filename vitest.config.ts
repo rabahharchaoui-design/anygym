@@ -22,6 +22,7 @@ export default defineConfig({
         'src/db/exerciseSettings.ts': { lines: 100 },
         'src/lib/rest.ts': { lines: 100 },
         'src/lib/undoQueue.ts': { lines: 100, branches: 100 },
+        'src/lib/deleteUndo.ts': { lines: 100, branches: 100 },
         'src/lib/pwaUpdate.ts': { lines: 100, branches: 100 },
         'src/lib/loadTypeRule.ts': { lines: 100, branches: 100 },
         // SPEC 6: every progression rule is tested.

@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie';
-import type { ExerciseSetting, Gym, Plan, PlanDay, PlanState, Profile, Run, Session, WorkoutSet } from './types';
+import type { ExerciseSetting, Gym, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, WorkoutSet } from './types';
 
 export const DB_NAME = 'anygym';
 
@@ -27,6 +27,15 @@ export const SCHEMA_V3 = {
   planState: 'id',
 } as const;
 
+/**
+ * Version 4 (PLAN 1.10c), additive: per workout set order counter, the highest order ever used
+ * (deleted sets included). A new set never reuses the order of a deleted one, so Undo can put a
+ * set back at its own order without a clash. One row per session, { sessionId, next }.
+ */
+export const SCHEMA_V4 = {
+  orderCounters: 'sessionId',
+} as const;
+
 /** SPEC 2 + 12.11. Exercises are static JSON shipped with the app, not a table. */
 export class AnyGymDB extends Dexie {
   profile!: EntityTable<Profile, 'id'>;
@@ -38,6 +47,7 @@ export class AnyGymDB extends Dexie {
   runs!: EntityTable<Run, 'id'>;
   exerciseSettings!: Table<ExerciseSetting, [string, string]>;
   planState!: EntityTable<PlanState, 'id'>;
+  orderCounters!: EntityTable<OrderCounter, 'sessionId'>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -45,6 +55,7 @@ export class AnyGymDB extends Dexie {
     this.version(1).stores(SCHEMA_V1);
     this.version(2).stores(SCHEMA_V2);
     this.version(3).stores(SCHEMA_V3);
+    this.version(4).stores(SCHEMA_V4);
   }
 }
 

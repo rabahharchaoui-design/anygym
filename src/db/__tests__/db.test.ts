@@ -23,10 +23,10 @@ const disabled = (unit: 'lb' | 'kg') =>
   defaultPlateInventory(unit).filter((p) => !p.enabled).map((p) => p.weight).sort((a, b) => b - a);
 
 describe('schema', () => {
-  it('opens at version 3 with the expected tables', () => {
-    expect(db.verno).toBe(3);
+  it('opens at version 4 with the expected tables', () => {
+    expect(db.verno).toBe(4);
     expect(db.tables.map((t) => t.name).sort()).toEqual(
-      ['exerciseSettings', 'gyms', 'planDays', 'planState', 'plans', 'profile', 'runs', 'sessions', 'sets'].sort(),
+      ['exerciseSettings', 'gyms', 'orderCounters', 'planDays', 'planState', 'plans', 'profile', 'runs', 'sessions', 'sets'].sort(),
     );
   });
 

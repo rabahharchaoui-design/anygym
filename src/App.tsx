@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { ArrivalGuard } from './components/ArrivalGuard';
+import { LandscapeGuard } from './components/LandscapeGuard';
 import { TodayScreen } from './screens/TodayScreen';
 import { RunScreen } from './screens/RunScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
+import { HistoryDetail } from './screens/history/HistoryDetail';
 import { PlansScreen } from './screens/plans/PlansScreen';
 import { PlanViewer } from './screens/plans/PlanViewer';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -29,6 +31,7 @@ export function App() {
           <Route index element={<TodayScreen />} />
           <Route path="run" element={<RunScreen />} />
           <Route path="history" element={<HistoryScreen />} />
+          <Route path="history/:sessionId" element={<HistoryDetail />} />
           <Route path="plans" element={<PlansScreen />} />
           <Route path="plans/:planId" element={<PlanViewer />} />
           <Route path="settings" element={<SettingsScreen />} />
@@ -37,6 +40,7 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      <LandscapeGuard />
     </>
   );
 }

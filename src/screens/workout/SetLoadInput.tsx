@@ -10,7 +10,8 @@ import { InfoButton } from '../../components/info/InfoButton';
 import base from '../../components/load/LoadInput.module.css';
 import type { Gym, Load } from '../../db/types';
 import { barbellLoad, enabledPlates } from '../../lib/load';
-import { barIdFor, machineIdFor } from './exerciseLoad';
+import type { Stopwatch } from '../../lib/timer';
+import { BAR_PROMPTS, barIdFor, machineIdFor } from './exerciseLoad';
 
 type Props = {
   loadType: Load['kind'];
@@ -18,20 +19,24 @@ type Props = {
   exerciseId: string;
   exerciseName: string;
   value: Load | null;
-  onChange: (load: Load | null) => void;
-  /** Timed only: whole seconds held. */
-  onSeconds?: (seconds: number) => void;
-  /** Workout size (SPEC 13.5): the plate diagram shrinks to fit one screen. */
+  /** `plates`: the plates per side on a bar or machine horn, also while the base weight is unknown. */
+  onChange: (load: Load | null, plates?: number[]) => void;
+  /** Bar and machine: the plates to start from (a saved draft); defaults to value's plates. */
+  plates?: readonly number[];
+  /** Timed: the stopwatch, owned by the card. */
+  watch?: Stopwatch;
+  onWatch?: (watch: Stopwatch) => void;
+  /** Workout size (SPEC 13.5): the plate diagram shrinks and pads open in sheets to fit one screen. */
   compact?: boolean;
   /** Timed only: the plan's hold, drawn as a ring. */
   targetSeconds?: number;
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, onSeconds, compact = false, targetSeconds }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds }: Props) {
   switch (loadType) {
     case 'barbell':
-      return <BarbellField gym={gym} exerciseName={exerciseName} value={value} onChange={onChange} compact={compact} />;
+      return <BarbellField gym={gym} exerciseName={exerciseName} plates={plates ?? value?.perSide ?? []} onChange={onChange} compact={compact} />;
     case 'dumbbell_each':
     case 'single':
       return (
@@ -41,35 +46,43 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
       return <StackSelector gym={gym} machineId={machineIdFor(exerciseId, exerciseName)} value={value} onChange={onChange} />;
     case 'plate_machine':
       return (
-        <PlateMachineField gym={gym} machineId={machineIdFor(exerciseId, exerciseName)} value={value} onChange={onChange} compact={compact} />
+        <PlateMachineField
+          gym={gym}
+          machineId={machineIdFor(exerciseId, exerciseName)}
+          plates={plates ?? value?.perSide ?? []}
+          onChange={onChange}
+          compact={compact}
+        />
       );
     case 'bodyweight':
-      return <BodyweightInput unit={gym.unit} value={value} onChange={onChange} />;
+      return <BodyweightInput unit={gym.unit} value={value} onChange={onChange} padInSheet={compact} />;
     case 'timed':
-      return <TimedInput unit={gym.unit} targetSeconds={targetSeconds} onChange={onChange} onSeconds={onSeconds ?? (() => {})} />;
+      return <TimedInput unit={gym.unit} targetSeconds={targetSeconds} watch={watch} onWatch={onWatch} />;
   }
 }
 
 function BarbellField({
   gym,
   exerciseName,
-  value,
+  plates,
   onChange,
   compact,
 }: {
   gym: Gym;
   exerciseName: string;
-  value: Load | null;
-  onChange: (l: Load | null) => void;
+  plates: readonly number[];
+  onChange: (l: Load | null, plates: number[]) => void;
   compact: boolean;
 }) {
-  const [perSide, setPerSide] = useState<number[]>(value?.perSide ?? []);
+  const [perSide, setPerSide] = useState<number[]>([...plates]);
   const [asking, setAsking] = useState(false);
   const barId = barIdFor(exerciseName);
   const bar = gym.bars[barId];
+  // EZ, trap and Smith bars vary by brand: their weight comes from the first use prompt (SPEC 5.3).
+  const prompt = BAR_PROMPTS[barId];
   const change = (next: number[], b: number | null = bar) => {
     setPerSide(next);
-    onChange(barbellLoad(b, next, gym.collars, gym.unit));
+    onChange(barbellLoad(b, next, gym.collars, gym.unit), next);
   };
   return (
     <>
@@ -83,25 +96,25 @@ function BarbellField({
         onChange={(next) => change(next)}
         compact={compact}
         extraLink={
-          barId === 'smith' ? (
+          prompt ? (
             <span className={base.linkWithInfo}>
               <button type="button" className={`${base.link} pressable`} onClick={() => setAsking(true)}>
                 {bar === null ? 'Set bar weight' : 'Bar · Change'}
               </button>
-              <InfoButton id="smith-machine" />
+              <InfoButton id={prompt.info} />
             </span>
           ) : undefined
         }
       />
-      {barId === 'smith' && (
+      {prompt && (
         <EquipmentWeightSheet
           open={asking}
           onClose={() => setAsking(false)}
           gymId={gym.id}
           unit={gym.unit}
-          machineId="smith_machine"
-          kind="smith"
-          onSaved={(g) => change(perSide, g.bars.smith)}
+          machineId={prompt.machineId}
+          kind={prompt.kind}
+          onSaved={(g) => change(perSide, g.bars[barId])}
         />
       )}
     </>
@@ -111,17 +124,17 @@ function BarbellField({
 function PlateMachineField({
   gym,
   machineId,
-  value,
+  plates,
   onChange,
   compact,
 }: {
   gym: Gym;
   machineId: string;
-  value: Load | null;
-  onChange: (l: Load | null) => void;
+  plates: readonly number[];
+  onChange: (l: Load | null, plates: number[]) => void;
   compact: boolean;
 }) {
-  const [perSide, setPerSide] = useState<number[]>(value?.perSide ?? []);
+  const [perSide, setPerSide] = useState<number[]>([...plates]);
   return (
     <PlateMachineInput
       gym={gym}
@@ -130,7 +143,7 @@ function PlateMachineField({
       compact={compact}
       onChange={(next, load) => {
         setPerSide(next);
-        onChange(load);
+        onChange(load, next);
       }}
     />
   );

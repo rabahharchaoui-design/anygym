@@ -17,11 +17,20 @@ import {
   timedLoad,
   type LoadSetup,
 } from '../../lib/load';
+import { barForName } from '../../lib/loadTypeRule';
+import type { PromptKind } from '../../lib/equipmentPrompt';
 
-/** Smith exercises use the Smith bar (unknown until answered); every other bar exercise the olympic bar. */
+/** The bar a barbell exercise uses (EZ, trap, Smith or olympic), by the name rule in loadTypeRule.ts. */
 export function barIdFor(exerciseName: string): BarId {
-  return /\bsmith\b/i.test(exerciseName) ? 'smith' : 'olympic';
+  return barForName(exerciseName);
 }
+
+/** Bars whose weight varies by brand: asked once per gym through the first use prompt (SPEC 5.3). */
+export const BAR_PROMPTS: Partial<Record<BarId, { machineId: string; kind: PromptKind; info: string }>> = {
+  smith: { machineId: 'smith_machine', kind: 'smith', info: 'smith-machine' },
+  ez_curl: { machineId: 'ez_curl_bar', kind: 'ez_curl', info: 'ez-curl-bar' },
+  trap: { machineId: 'trap_bar', kind: 'trap', info: 'trap-bar' },
+};
 
 /** Machine id for per machine answers (stack step, starting weight): cables share the cable station. */
 export function machineIdFor(exerciseId: string, exerciseName: string): string {
@@ -76,6 +85,34 @@ export function prefillLoad(
       return bodyweightLoad(gym.unit, load.added ?? 0);
     case 'timed':
       return timedLoad(gym.unit);
+  }
+}
+
+/**
+ * The load the active card shows and logs, rebuilt through load.ts from what was picked and the
+ * gym's equipment right now (bar weight, starting resistance, stack step, dumbbell range). So when
+ * any of those change, the diagram, the Log set label and the saved set agree. null = nothing
+ * loadable is picked (a pin the new step lacks, an unknown bar weight).
+ */
+export function currentLoad(
+  picked: Load | null,
+  plates: readonly number[],
+  kind: Load['kind'],
+  gym: Gym,
+  exerciseId: string,
+  exerciseName: string,
+): Load | null {
+  switch (kind) {
+    case 'barbell':
+      return barbellLoad(gym.bars[barIdFor(exerciseName)], plates, gym.collars, gym.unit);
+    case 'plate_machine':
+      return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit);
+    case 'bodyweight':
+      return bodyweightLoad(gym.unit, reusable(picked ?? undefined, kind, gym)?.added ?? 0);
+    case 'timed':
+      return timedLoad(gym.unit);
+    default:
+      return prefillLoad(picked ?? undefined, kind, gym, exerciseId, exerciseName);
   }
 }
 
