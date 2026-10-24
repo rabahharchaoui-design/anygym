@@ -278,7 +278,7 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once and shows "+ bar" until an
   await expect(picker(page)).toHaveCount(0);
   await logButton(page).tap();
   await expect(card.getByTestId('set-row')).toHaveCount(1);
-  expect((await savedSets(page))[0]!.load).toEqual({ kind: 'barbell', unit: 'lb', total: 45, barWeight: 25, perSide: [10], barId: 'ez_curl' });
+  expect((await savedSets(page))[0]!.load).toEqual({ kind: 'barbell', unit: 'lb', total: 45, barWeight: 25, perSide: [10], barId: 'ez_curl', collars: 0 });
   expect(errors).toEqual([]);
 });
 

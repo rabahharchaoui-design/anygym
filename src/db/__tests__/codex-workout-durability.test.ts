@@ -24,11 +24,11 @@ async function reopen() {
 describe('saved workout durability (SPEC 0, 2, 5.4, 5.5)', () => {
   it('keeps exact entered units and load breakdowns through edit, delete, undo, finish and reopen', async () => {
     const cases: Array<{ load: Load; expected: Load }> = [
-      { load: barbellLoad(35, [25, 2.5], 'none', 'lb')!, expected: { kind: 'barbell', unit: 'lb', total: 90, barWeight: 35, perSide: [25, 2.5] } },
-      { load: barbellLoad(15, [20, 1.25], 'competition', 'kg')!, expected: { kind: 'barbell', unit: 'kg', total: 62.5, barWeight: 15, perSide: [20, 1.25] } },
-      { load: barbellLoad(0, [45, 10], 'none', 'lb')!, expected: { kind: 'barbell', unit: 'lb', total: 110, barWeight: 0, perSide: [45, 10] } },
-      { load: plateMachineLoad(110, [45, 25], 'lb')!, expected: { kind: 'plate_machine', unit: 'lb', total: 250, barWeight: 110, perSide: [45, 25] } },
-      { load: plateMachineLoad(0, [20, 1.25], 'kg')!, expected: { kind: 'plate_machine', unit: 'kg', total: 42.5, barWeight: 0, perSide: [20, 1.25] } },
+      { load: barbellLoad(35, [25, 2.5], 'none', 'lb')!, expected: { kind: 'barbell', unit: 'lb', total: 90, barWeight: 35, perSide: [25, 2.5], collars: 0 } },
+      { load: barbellLoad(15, [20, 1.25], 'competition', 'kg')!, expected: { kind: 'barbell', unit: 'kg', total: 62.5, barWeight: 15, perSide: [20, 1.25], collars: 5 } },
+      { load: barbellLoad(0, [45, 10], 'none', 'lb')!, expected: { kind: 'barbell', unit: 'lb', total: 110, barWeight: 0, perSide: [45, 10], collars: 0 } },
+      { load: plateMachineLoad(110, [45, 25], 'lb')!, expected: { kind: 'plate_machine', unit: 'lb', total: 250, barWeight: 110, perSide: [45, 25], collars: 0 } },
+      { load: plateMachineLoad(0, [20, 1.25], 'kg')!, expected: { kind: 'plate_machine', unit: 'kg', total: 42.5, barWeight: 0, perSide: [20, 1.25], collars: 0 } },
       { load: dumbbellLoad(22.5, 'kg'), expected: { kind: 'dumbbell_each', unit: 'kg', total: 45 } },
       { load: singleLoad(22.5, 'kg'), expected: { kind: 'single', unit: 'kg', total: 22.5 } },
       { load: stackLoad(47.5, 'kg', 1.25), expected: { kind: 'stack', unit: 'kg', total: 48.75, stackValue: 47.5, added: 1.25 } },

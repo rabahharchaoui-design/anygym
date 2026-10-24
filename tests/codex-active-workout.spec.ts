@@ -97,7 +97,7 @@ test('an offline active workout restores its selected exercise, exact sets, repe
     await expect(page.getByTestId('rest-timer')).toBeVisible();
     const before = await savedSets(page);
     expect(before.map((s) => [s.order, s.reps, s.load])).toEqual([
-      [0, 8, { kind: 'barbell', unit: 'lb', total: 135, barWeight: 45, perSide: [45], barId: 'olympic' }],
+      [0, 8, { kind: 'barbell', unit: 'lb', total: 135, barWeight: 45, perSide: [45], barId: 'olympic', collars: 0 }],
       [1, 9, { kind: 'dumbbell_each', unit: 'lb', total: 60 }],
     ]);
     const sessionBefore = await dbAll<Session>(page, 'sessions');
@@ -177,8 +177,8 @@ test('changing starting resistance in Edit set keeps the active diagram, Log set
     await expect(card.getByTestId('set-row')).toHaveCount(2);
     const saved = await savedSets(page);
     expect(saved[0]!.id).toBe(original.id);
-    expect(saved[0]!.load).toEqual({ kind: 'plate_machine', unit: 'lb', total: 90, barWeight: 0, perSide: [45] });
-    expect(saved[1]!.load).toEqual({ kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 50, perSide: [45] });
+    expect(saved[0]!.load).toEqual({ kind: 'plate_machine', unit: 'lb', total: 90, barWeight: 0, perSide: [45], collars: 0 });
+    expect(saved[1]!.load).toEqual({ kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 50, perSide: [45], collars: 0 });
     await page.reload();
     await expect(card.getByTestId('set-row')).toHaveCount(2);
     expect(await savedSets(page)).toEqual(saved);

@@ -8,7 +8,7 @@ import { StackSelector } from '../../components/load/StackSelector';
 import { TimedInput } from '../../components/load/TimedInput';
 import { InfoButton } from '../../components/info/InfoButton';
 import base from '../../components/load/LoadInput.module.css';
-import type { BarId, Gym, Load } from '../../db/types';
+import type { BarId, Collars, Gym, Load } from '../../db/types';
 import { saveBarChoice } from '../../db/exerciseSettings';
 import { barbellLoad, enabledPlates, formatWeight } from '../../lib/load';
 import type { Stopwatch } from '../../lib/timer';
@@ -41,6 +41,10 @@ type Props = {
   ownBar?: number;
   /** Edit set: the bar the set was logged on (PLAN 1.7c), kept unless another bar is picked. */
   ownBarId?: BarId;
+  /** Edit set: the collars the set was logged with (PLAN 1.7f), never today's gym setting. */
+  ownCollars?: Collars;
+  /** Edit set: an older record's gap (load.ts otherOf), shown until the plates are changed. */
+  ownOther?: number;
   /** Tells the screen something went wrong (a toast), with an optional Try again. */
   onNotice?: (text: string, retry?: () => void) => void;
   /** Added weight pads (bodyweight, stack) open in their own sheet (SPEC 13.5, PLAN 1.10e). Default: compact. */
@@ -48,7 +52,7 @@ type Props = {
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, onNotice, padInSheet = compact }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact }: Props) {
   switch (loadType) {
     case 'barbell':
       return (
@@ -59,6 +63,8 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
           chosen={bar}
           ownBar={ownBar}
           ownBarId={ownBarId}
+          ownCollars={ownCollars}
+          ownOther={ownOther}
           onNotice={onNotice}
           plates={plates ?? value?.perSide ?? []}
           onChange={onChange}
@@ -103,6 +109,8 @@ function BarbellField({
   chosen,
   ownBar,
   ownBarId,
+  ownCollars,
+  ownOther,
   onNotice,
   plates,
   onChange,
@@ -114,6 +122,8 @@ function BarbellField({
   chosen?: BarId;
   ownBar?: number;
   ownBarId?: BarId;
+  ownCollars?: Collars;
+  ownOther?: number;
   onNotice?: (text: string, retry?: () => void) => void;
   plates: readonly number[];
   onChange: (l: Load | null, plates: number[]) => void;
@@ -138,13 +148,19 @@ function BarbellField({
   }));
   const barId = local ? (localBar.id ?? barIdFor(exerciseName, chosen)) : barIdFor(exerciseName, picked);
   const bar = local ? localBar.weight : gym.bars[barId];
+  // Edit set: the set's own collars, so a set lifted with collars keeps its total (PLAN 1.7f).
+  const collars = (local && ownCollars) || gym.collars;
+  // Edit set: the stored total stays as it is until the plates or bar change (PLAN 1.7f).
+  const [untouched, setUntouched] = useState(true);
+  const other = local && untouched ? (ownOther ?? 0) : 0;
   const prompt = BAR_PROMPTS[barId];
   const askPrompt = BAR_PROMPTS[askBar];
   const change = (next: number[], b: number | null = bar) => {
     setPerSide(next);
+    setUntouched(false);
     // The bar it is lifted on goes with the load (PLAN 1.7c), so Smith sets keep their own history.
     const id = local ? (localBar.id ?? ownBarId ?? barIdFor(exerciseName, chosen)) : barIdFor(exerciseName, picked);
-    onChange(barbellLoad(b, next, gym.collars, gym.unit, id), next);
+    onChange(barbellLoad(b, next, collars, gym.unit, id), next);
   };
   /**
    * Workout: saved per exercise and gym first; only once that landed do the picker and the load
@@ -202,7 +218,8 @@ function BarbellField({
         unit={gym.unit}
         bar={bar}
         inventory={enabledPlates(gym.plateInventory)}
-        collars={gym.collars}
+        collars={collars}
+        other={other}
         colorMode={gym.plateColors}
         value={perSide}
         onChange={(next) => change(next)}

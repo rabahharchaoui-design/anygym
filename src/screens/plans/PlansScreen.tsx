@@ -9,7 +9,7 @@ import styles from './Plans.module.css';
 /** Plans tab (SPEC 8.6): the curated plans. Tap one to see every day. */
 export function PlansScreen() {
   const state = useLive(() => getPlanState(), []);
-  const activeId = state.value?.planId;
+  const activeId = state.data?.planId;
   return (
     <>
       <ScreenHeader title="Plans" />

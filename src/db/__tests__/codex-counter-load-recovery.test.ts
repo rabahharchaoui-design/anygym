@@ -115,10 +115,10 @@ describe('order counter and equipment recovery (built PLAN 1.3–1.10c)', () => 
     const pounds = (await db.gyms.get(lb.id))!;
     const kilos = (await db.gyms.get(kg.id))!;
     const cases: Array<{ gym: typeof lb; name: string; id: string; plates: number[]; expected: Load }> = [
-      { gym: pounds, name: 'Smith Squat', id: 'smith-squat', plates: [45, 2.5], expected: { kind: 'barbell', unit: 'lb', total: 95, barWeight: 0, perSide: [45, 2.5], barId: 'smith' } },
-      { gym: kilos, name: 'Smith Squat', id: 'smith-squat', plates: [20, 1.25], expected: { kind: 'barbell', unit: 'kg', total: 62.5, barWeight: 15, perSide: [20, 1.25], barId: 'smith' } },
-      { gym: pounds, name: 'Leg Press', id: 'leg-press', plates: [45, 25], expected: { kind: 'plate_machine', unit: 'lb', total: 250, barWeight: 110, perSide: [45, 25] } },
-      { gym: kilos, name: 'Leg Press', id: 'leg-press', plates: [20, 1.25], expected: { kind: 'plate_machine', unit: 'kg', total: 77.5, barWeight: 35, perSide: [20, 1.25] } },
+      { gym: pounds, name: 'Smith Squat', id: 'smith-squat', plates: [45, 2.5], expected: { kind: 'barbell', unit: 'lb', total: 95, barWeight: 0, perSide: [45, 2.5], barId: 'smith', collars: 0 } },
+      { gym: kilos, name: 'Smith Squat', id: 'smith-squat', plates: [20, 1.25], expected: { kind: 'barbell', unit: 'kg', total: 62.5, barWeight: 15, perSide: [20, 1.25], barId: 'smith', collars: 5 } },
+      { gym: pounds, name: 'Leg Press', id: 'leg-press', plates: [45, 25], expected: { kind: 'plate_machine', unit: 'lb', total: 250, barWeight: 110, perSide: [45, 25], collars: 0 } },
+      { gym: kilos, name: 'Leg Press', id: 'leg-press', plates: [20, 1.25], expected: { kind: 'plate_machine', unit: 'kg', total: 77.5, barWeight: 35, perSide: [20, 1.25], collars: 0 } },
     ];
     for (const [i, c] of cases.entries()) {
       const load = currentLoad(null, c.plates, c.expected.kind, c.gym, c.id, c.name);

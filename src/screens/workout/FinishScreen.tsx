@@ -5,6 +5,7 @@ import { finishedDetail, workoutRecords } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
 import { formatTotal, totalLifted } from '../../lib/load';
 import { FADE } from '../../components/motion';
+import { LoadError } from '../../components/LoadError';
 import { exerciseNamer, setCount, workoutTitle } from '../history/historyWords';
 import { TrophyIcon } from './icons';
 import styles from './Finish.module.css';
@@ -27,13 +28,16 @@ export function FinishScreen() {
     return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records };
   }, [sessionId]);
 
-  if (detail.ready && !detail.value?.d) return <Navigate to="/" replace />;
-  const v = detail.value;
+  if (detail.ready && !detail.error && !detail.data?.d) return <Navigate to="/" replace />;
+  const v = detail.data;
   const d = v?.d;
 
   const minutes = d ? Math.round(((d.session.endedAt ?? d.session.startedAt) - d.session.startedAt) / 60000) : 0;
   const lifted = d && v ? totalLifted(d.sets, v.unit) : 0;
-  const done = () => navigate('/', { replace: true, state: { toast: `Workout saved · ${setCount(d?.sets.length ?? 0)}` } });
+  // The workout is saved whether or not this screen could read it back: Done always works, and
+  // only claims a set count it actually read (PLAN 1.7f).
+  const done = () => navigate('/', { replace: true, state: d ? { toast: `Workout saved · ${setCount(d.sets.length)}` } : null });
+  const loading = !detail.error && (!d || !v);
 
   const item = (i: number) =>
     reduce
@@ -43,8 +47,9 @@ export function FinishScreen() {
   return (
     <div className={styles.screen}>
       <main className={styles.main} aria-label="Workout done">
+        {detail.error ? <LoadError text="Could not load this workout" onRetry={detail.retry} /> : null}
         {!d || !v ? (
-          <div className={styles.skeleton} aria-hidden="true" />
+          !detail.error && <div className={styles.skeleton} aria-hidden="true" />
         ) : (
           <>
             <motion.div className={styles.head} {...item(0)}>
@@ -75,8 +80,8 @@ export function FinishScreen() {
               <motion.section className={styles.records} aria-label="New bests" {...item(4)}>
                 <h2 className={styles.recordsTitle}>New bests</h2>
                 <ul className={styles.recordList}>
-                  {v.records.map((r) => (
-                    <li key={`${r.exerciseId}-${r.kind}`} className={styles.record} data-testid="pr-chip">
+                  {v.records.map((r, i) => (
+                    <li key={`${r.exerciseId}-${r.kind}-${i}`} className={styles.record} data-testid="pr-chip">
                       <span className={styles.trophy}>
                         <TrophyIcon />
                       </span>
@@ -90,7 +95,7 @@ export function FinishScreen() {
         )}
       </main>
       <div className={styles.footer}>
-        <button type="button" className={`${styles.done} pressable`} onClick={done} disabled={!d}>
+        <button type="button" className={`${styles.done} pressable`} onClick={done} disabled={loading}>
           Done
         </button>
       </div>

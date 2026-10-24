@@ -9,7 +9,7 @@ describe('prefillLoad (SPEC 13.5: a repeat set is one tap)', () => {
   it('rebuilds a barbell load on today\'s bar, so the total is right for this gym', () => {
     const gym = lbGym();
     const prev: Load = { kind: 'barbell', unit: 'lb', total: 185, barWeight: 45, perSide: [45, 25] };
-    expect(prefillLoad(prev, 'barbell', gym, 'barbell-back-squat', 'Barbell Back Squat')).toEqual({ ...prev, barId: 'olympic' });
+    expect(prefillLoad(prev, 'barbell', gym, 'barbell-back-squat', 'Barbell Back Squat')).toEqual({ ...prev, barId: 'olympic', collars: 0 });
     const womens = { ...gym, bars: { ...gym.bars, olympic: 35 } };
     expect(prefillLoad(prev, 'barbell', womens, 'barbell-back-squat', 'Barbell Back Squat')!.total).toBe(175);
   });
@@ -31,7 +31,7 @@ describe('prefillLoad (SPEC 13.5: a repeat set is one tap)', () => {
     const prev: Load = { kind: 'plate_machine', unit: 'lb', total: 90, barWeight: 0, perSide: [45] };
     expect(prefillLoad(prev, 'plate_machine', gym, 'leg-press', 'Leg Press')).toBeNull(); // not answered yet
     const answered = { ...gym, equipmentWeights: { 'leg-press': { kind: 'plates_only' as const, value: 0 } } };
-    expect(prefillLoad(prev, 'plate_machine', answered, 'leg-press', 'Leg Press')).toEqual(prev);
+    expect(prefillLoad(prev, 'plate_machine', answered, 'leg-press', 'Leg Press')).toEqual({ ...prev, collars: 0 });
     expect(prefillLoad({ ...prev, perSide: [100] }, 'plate_machine', answered, 'leg-press', 'Leg Press')).toBeNull();
   });
 
@@ -66,8 +66,8 @@ describe('currentLoad (PLAN 1.10c fixes 4, 5, 11: one canonical load through loa
     const plates0 = { ...gym, equipmentWeights: { 'leg-press': { kind: 'plates_only' as const, value: 0 } } };
     const start50 = { ...gym, equipmentWeights: { 'leg-press': { kind: 'starting_resistance' as const, value: 50 } } };
     const picked: Load = { kind: 'plate_machine', unit: 'lb', total: 90, barWeight: 0, perSide: [45] };
-    expect(currentLoad(picked, [45], 'plate_machine', plates0, 'leg-press', 'Leg Press')).toEqual(picked);
-    expect(currentLoad(picked, [45], 'plate_machine', start50, 'leg-press', 'Leg Press')).toEqual({ kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 50, perSide: [45] });
+    expect(currentLoad(picked, [45], 'plate_machine', plates0, 'leg-press', 'Leg Press')).toEqual({ ...picked, collars: 0 });
+    expect(currentLoad(picked, [45], 'plate_machine', start50, 'leg-press', 'Leg Press')).toEqual({ kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 50, perSide: [45], collars: 0 });
     // Not answered yet: no total, never a guess.
     expect(currentLoad(picked, [45], 'plate_machine', gym, 'leg-press', 'Leg Press')).toBeNull();
   });
@@ -77,7 +77,7 @@ describe('currentLoad (PLAN 1.10c fixes 4, 5, 11: one canonical load through loa
     expect(currentLoad(null, [45], 'barbell', gym, 'barbell-back-squat', 'Barbell Back Squat')!.total).toBe(135);
     expect(currentLoad(null, [10], 'barbell', gym, 'ez-bar-curl', 'EZ Bar Curl')).toBeNull();
     const ez = { ...gym, bars: { ...gym.bars, ez_curl: 25 } };
-    expect(currentLoad(null, [10], 'barbell', ez, 'ez-bar-curl', 'EZ Bar Curl')).toEqual({ kind: 'barbell', unit: 'lb', total: 45, barWeight: 25, perSide: [10], barId: 'ez_curl' });
+    expect(currentLoad(null, [10], 'barbell', ez, 'ez-bar-curl', 'EZ Bar Curl')).toEqual({ kind: 'barbell', unit: 'lb', total: 45, barWeight: 25, perSide: [10], barId: 'ez_curl', collars: 0 });
     const trap = { ...gym, bars: { ...gym.bars, trap: 55 } };
     expect(currentLoad(null, [45], 'barbell', trap, 'trap-bar-deadlift', 'Trap Bar Deadlift')!.total).toBe(145);
   });
@@ -107,7 +107,7 @@ describe('bar choice (PLAN 1.10d)', () => {
     expect(barIdFor('Bench Press')).toBe('olympic');
     expect(barIdFor('Bench Press', 'womens')).toBe('womens');
     expect(barIdFor('EZ Bar Curl')).toBe('ez_curl');
-    expect(currentLoad(null, [45], 'barbell', gym, 'bench-press', 'Bench Press', 'womens')).toEqual({ kind: 'barbell', unit: 'lb', total: 125, barWeight: 35, perSide: [45], barId: 'womens' });
+    expect(currentLoad(null, [45], 'barbell', gym, 'bench-press', 'Bench Press', 'womens')).toEqual({ kind: 'barbell', unit: 'lb', total: 125, barWeight: 35, perSide: [45], barId: 'womens', collars: 0 });
     expect(prefillLoad(prev, 'barbell', gym, 'bench-press', 'Bench Press', 'womens')!.total).toBe(125);
     expect(loadSetupFor(gym, 'barbell', 'bench-press', 'Bench Press', 'womens').base).toBe(35);
     expect(loadSetupFor(gym, 'barbell', 'bench-press', 'Bench Press').base).toBe(45);

@@ -500,6 +500,7 @@ describe('Load records (SPEC 5.5)', () => {
       total: 140,
       barWeight: 0,
       perSide: [45, 25],
+      collars: 0,
     });
     expect(plateMachineLoad(50, [20], 'kg')!.total).toBe(90);
   });

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { sumLoad } from '../src/lib/load';
+import { collarsSettingOf, sumLoad } from '../src/lib/load';
 import { bar185, dbAll, seedFinished, usePlan, watchErrors } from './workout-helpers';
 
 // Independent tester spec for PLAN 1.7c / 1.10e. Taps are counted by my own page-level listener
@@ -26,7 +26,7 @@ const taps = async (page: Page) => page.evaluate(() => ({ click: (window as unkn
 
 type Set_ = { id: string; sessionId: string; exerciseId: string; order: number; kind: string; reps?: number; seconds?: number; failure?: boolean; load: any };
 const mine = async (page: Page) => (await dbAll<Set_>(page, 'sets')).filter((s) => !s.id.startsWith('seed-')).sort((a, b) => a.order - b.order);
-const totalOf = (l: any) => (l.kind === 'barbell' ? sumLoad({ bar: l.barWeight, perSide: l.perSide, collars: l.collars ?? 'none', unit: l.unit }).total : l.total);
+const totalOf = (l: any) => (l.kind === 'barbell' ? sumLoad({ bar: l.barWeight, perSide: l.perSide, collars: collarsSettingOf(l), unit: l.unit }).total : l.total);
 
 const seedSquat = (page: Page) => seedFinished(page, { 'barbell-back-squat': Array.from({ length: 4 }, () => ({ reps: 10, load: bar185 })) });
 

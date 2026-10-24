@@ -38,8 +38,8 @@ function PickerBody({ gym, added, onAdd }: Omit<Props, 'open' | 'onClose'>) {
   const recent = useLive(() => recentExerciseIds(8), []);
 
   const sections = useMemo(
-    () => pickerSections(PLAN_EXERCISES, { query, part, recent: recent.value ?? [], gym }),
-    [query, part, recent.value, gym],
+    () => pickerSections(PLAN_EXERCISES, { query, part, recent: recent.data ?? [], gym }),
+    [query, part, recent.data, gym],
   );
 
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
