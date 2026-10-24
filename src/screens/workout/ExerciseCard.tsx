@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'motion/react';
 import type { Gym, Load, WorkoutSet } from '../../db/types';
 import { formatSetLine } from '../../lib/load';
+import type { Progression } from '../../lib/progression';
 import { FADE, SHEET_SPRING } from '../../components/motion';
 import { SetCard, SetStrip, type SetDraft } from './SetCard';
 import styles from './Workout.module.css';
@@ -12,8 +13,8 @@ type Props = {
   loadType: Load['kind'] | undefined;
   gym: Gym;
   sets: WorkoutSet[];
-  /** Last set of this exercise in the most recent earlier workout (prefill and "Last time"). */
-  previous?: WorkoutSet;
+  /** "Last time" and "Next" from the progression engine; undefined while it loads. */
+  progression?: Progression;
   expanded: boolean;
   onExpand: () => void;
   onAskLoadType: () => void;
@@ -23,7 +24,7 @@ type Props = {
 };
 
 /** One exercise in the workout: one line when not current, or expanded in place with the set card. */
-export function ExerciseCard({ exerciseId, name, loadType, gym, sets, previous, expanded, onExpand, onAskLoadType, onLog, onEditSet, actionSlot }: Props) {
+export function ExerciseCard({ exerciseId, name, loadType, gym, sets, progression, expanded, onExpand, onAskLoadType, onLog, onEditSet, actionSlot }: Props) {
   const reduce = useReducedMotion();
   const summary = sets.length === 0 ? 'No sets yet' : `${sets.length} ${sets.length === 1 ? 'set' : 'sets'} · ${formatSetLine(sets[sets.length - 1]!)}`;
 
@@ -48,18 +49,20 @@ export function ExerciseCard({ exerciseId, name, loadType, gym, sets, previous, 
           transition={reduce ? FADE : SHEET_SPRING}
         >
           {loadType ? (
+            progression && (
             <SetCard
-              key={`${loadType}-${previous?.id ?? 'none'}`}
+              key={`${loadType}-${progression.lastTime?.date ?? 'none'}`}
               exerciseId={exerciseId}
               exerciseName={name}
               loadType={loadType}
               gym={gym}
               sets={sets}
-              previous={previous}
+              progression={progression}
               onLog={onLog}
               onEditSet={onEditSet}
               actionSlot={actionSlot}
             />
+            )
           ) : (
             <div className={styles.askBox}>
               <h2 className={styles.cardName}>{name}</h2>

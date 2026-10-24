@@ -248,6 +248,31 @@
   text-wrap: balance;
 }
 
+/* Last time + Next: two single lines, never more (SPEC 13.5 one screen rule). */
+.guides {
+  display: flex;
+  flex-direction: column;
+  margin-top: -3px;
+}
+
+.guides .guide {
+  margin: 0;
+  font-size: 13px;
+  line-height: 16px;
+  max-height: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nextTarget {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.nextReason {
+  color: var(--text-2);
+}
+
 /* Logged sets: one row of chips, sideways scroll, newest last. Each chip button is a full 48pt
    tall target around a 32px pill; the negative margins keep the row visually tight. */
 .strip {

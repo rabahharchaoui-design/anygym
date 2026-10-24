@@ -322,7 +322,7 @@ test('one screen set card: no scrolling, one row tray, prefilled repeat is one t
   await log.tap();
   await expect(card.getByTestId('set-target')).toHaveText('Set 2');
   await expect(page.getByTestId('rest-timer')).toBeVisible();
-  await expect(card.getByTestId('set-guide')).toHaveText('Last set: 10 × 185 lb');
+  await expect(card.getByTestId('set-guide')).toHaveCount(0);
   await expect(card.getByTestId('set-row')).toHaveCount(1);
   await fitsOneScreen(page, card);
   await shot17a(page, 'set-card-resting');
@@ -350,7 +350,8 @@ test('one screen set card: no scrolling, one row tray, prefilled repeat is one t
   await (await startQuick(page)).tap();
   await addExercise(page, 'back squat', 'Barbell Back Squat');
   const again = page.getByTestId('exercise-barbell-back-squat');
-  await expect(again.getByTestId('set-guide')).toHaveText('Last time: 10 × 185 lb');
+  await expect(again.getByTestId('set-guide')).toHaveText('Last time (today): 10 × 185 lb');
+  await expect(again.getByTestId('set-next')).toHaveText('Next: 10 × 185 lb · Aim for 10 or better');
   await expect(again.getByTestId('plate-total')).toHaveText('185lb');
   await expect(again.getByTestId('stepper-reps')).toHaveText('10');
   await page.getByTestId('action-bar').getByRole('button', { name: 'Log set · 10 × 185 lb' }).tap();

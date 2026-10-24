@@ -4,6 +4,7 @@ import type { Gym, Load, WorkoutSet } from '../../db/types';
 import { newId } from '../../db/ids';
 import { machineStartFor } from '../../db/gyms';
 import { barbellLoad, bodyweightLoad, formatSetLine, plateMachineLoad, timedLoad } from '../../lib/load';
+import { formatNext, formatSets, formatWhen, type Progression } from '../../lib/progression';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { Hint } from '../../components/hint/Hint';
 import { barIdFor, machineIdFor, prefillLoad } from './exerciseLoad';
@@ -20,8 +21,8 @@ type Props = {
   gym: Gym;
   /** This exercise's sets in this workout, logged order. */
   sets: WorkoutSet[];
-  /** The last set of this exercise in the most recent earlier workout, if any. */
-  previous?: WorkoutSet;
+  /** "Last time" and "Next" (SPEC 6): the guide lines and the prefill. */
+  progression: Progression;
   onLog: (draft: SetDraft) => Promise<boolean>;
   onEditSet: (set: WorkoutSet) => void;
   /** The sticky bar at the bottom of the workout screen; Log set renders there so it is always in reach. */
@@ -46,28 +47,59 @@ function startingLoad(loadType: Load['kind'], gym: Gym, exerciseId: string, exer
   }
 }
 
-/** The line under the name: what you did last, or the honest first time advice. Real data only. */
-function guideLine(loadType: Load['kind'], last: WorkoutSet | undefined, previous: WorkoutSet | undefined): string | null {
-  if (last) return `Last set: ${formatSetLine(last)}`;
-  if (previous) return `Last time: ${formatSetLine(previous)}`;
-  if (loadType === 'timed') return null;
-  return loadType === 'bodyweight'
-    ? 'First time: stop when you could do 2 more reps'
-    : 'First time: pick a weight you could lift 2 more reps with';
+/**
+ * The two short lines under the name (SPEC 6, 13.5): "Last time (Tue): 10 × 185 · 10 × 185 lb"
+ * and "Next: 10 × 185 lb · Aim for 10, 10 or better". First time: just the honest advice, until a set is logged.
+ */
+function GuideLines({ progression, logged }: { progression: Progression; logged: number }) {
+  const { lastTime, next } = progression;
+  if (!lastTime) {
+    // The first time advice is for picking the first weight; once a set is logged the strip says the rest.
+    if (logged > 0) return null;
+    return (
+      <p className={`${styles.guide} num`} data-testid="set-guide">
+        {next.reason}
+      </p>
+    );
+  }
+  const target = formatNext(next);
+  return (
+    <div className={styles.guides}>
+      <p className={`${styles.guide} num`} data-testid="set-guide">
+        Last time ({formatWhen(lastTime.date, Date.now())}): {formatSets(lastTime.sets)}
+      </p>
+      <p className={`${styles.guide} num`} data-testid="set-next">
+        {target ? (
+          <>
+            <span className={styles.nextTarget}>Next: {target}</span>
+            <span className={styles.nextReason}> · {next.reason}</span>
+          </>
+        ) : (
+          next.reason
+        )}
+      </p>
+    </div>
+  );
 }
+
+/** A rep target as one number for the stepper: the bottom of a range. */
+const repsNumber = (r: Progression['next']['reps']): number | undefined => (r === null ? undefined : typeof r === 'number' ? r : r[0]);
 
 /**
  * SPEC 5.1 / 13.5 set card, sized to fit one screen: name and set number, one guide line, the
  * logged sets as a strip, the compact load input, reps, and Log set in the thumb zone. Weight and
  * reps are prefilled from the last set (this workout, else the last one), so a repeat is one tap.
  */
-export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, previous, onLog, onEditSet, actionSlot }: Props) {
+export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, progression, onLog, onEditSet, actionSlot }: Props) {
   const last = sets[sets.length - 1];
-  const source = last ?? previous;
-  const [load, setLoad] = useState<Load | null>(
-    () => prefillLoad(source?.load, loadType, gym, exerciseId, exerciseName) ?? startingLoad(loadType, gym, exerciseId, exerciseName),
+  const { next, perSet } = progression;
+  // Mid workout (e.g. after a reload) the last logged set wins; else the engine's target.
+  const [load, setLoad] = useState<Load | null>(() =>
+    last
+      ? (prefillLoad(last.load, loadType, gym, exerciseId, exerciseName) ?? startingLoad(loadType, gym, exerciseId, exerciseName))
+      : (perSet[0]?.target.load ?? next.load ?? startingLoad(loadType, gym, exerciseId, exerciseName)),
   );
-  const [reps, setReps] = useState(source?.reps ?? DEFAULT_REPS);
+  const [reps, setReps] = useState(() => (last ? last.reps : (perSet[0]?.target.reps ?? repsNumber(next.reps))) ?? DEFAULT_REPS);
   const [seconds, setSeconds] = useState(0);
   const [timerKey, setTimerKey] = useState(0);
   const pendingId = useRef(newId());
@@ -83,6 +115,8 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, previou
     try {
       if (await onLog(draft)) {
         pendingId.current = newId();
+        const target = perSet[sets.length + 1]?.target.reps;
+        if (!timed && target !== undefined) setReps(target);
         if (timed) {
           setSeconds(0);
           setTimerKey((k) => k + 1);
@@ -92,8 +126,6 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, previou
       busy.current = false;
     }
   });
-
-  const line = guideLine(loadType, last, previous);
 
   const blocked =
     load !== null
@@ -130,11 +162,7 @@ export function SetCard({ exerciseId, exerciseName, loadType, gym, sets, previou
           Set {sets.length + 1}
         </p>
       </div>
-      {line && (
-        <p className={`${styles.guide} num`} data-testid="set-guide">
-          {line}
-        </p>
-      )}
+      <GuideLines progression={progression} logged={sets.length} />
       {sets.length > 0 && <SetStrip sets={sets} onEdit={onEditSet} />}
 
       <SetLoadInput

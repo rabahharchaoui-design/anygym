@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
 import { ANY_GYM, type Load } from '../types';
-import { addExercise, deleteSet, finishWorkout, getActiveSession, lastSetBefore, logSet, restoreSet, setsOf, startWorkout, updateSet } from '../workouts';
+import { addExercise, deleteSet, finishWorkout, getActiveSession, logSet, restoreSet, setsOf, startWorkout, updateSet } from '../workouts';
 import { isPerGym, loadTypeFor, pickLoadType, saveLoadType } from '../exerciseSettings';
 
 let db: AnyGymDB;
@@ -176,35 +176,3 @@ describe('exerciseSettings', () => {
   });
 });
 
-describe('lastSetBefore (prefill from the last workout)', () => {
-  it('returns the last set of the exercise in the most recent other workout', async () => {
-    const old = await startWorkout('gym-1', db, 1000);
-    await logSet(newSet('a1', old.id, { reps: 8 }), db);
-    await logSet(newSet('a2', old.id, { reps: 6 }), db);
-    await finishWorkout(old.id, db, 2000);
-    const newer = await startWorkout('gym-1', db, 3000);
-    await logSet(newSet('b1', newer.id, { reps: 12, load: { ...bar185, total: 205, perSide: [45, 35] } }), db);
-    await logSet(newSet('b2', newer.id, { reps: 5, exerciseId: 'plank-other' }), db);
-    await finishWorkout(newer.id, db, 4000);
-    const now = await startWorkout('gym-1', db, 5000);
-    await logSet(newSet('c1', now.id, { reps: 3 }), db);
-
-    const last = await lastSetBefore('barbell-back-squat', now.id, db);
-    expect(last?.id).toBe('b1');
-    expect(last?.reps).toBe(12);
-    // Only the asking workout is skipped: from the newer one, the newest other is the current one.
-    expect((await lastSetBefore('barbell-back-squat', newer.id, db))?.id).toBe('c1');
-    expect(await lastSetBefore('never-done', now.id, db)).toBeUndefined();
-  });
-
-  it('skips uncertain sets and sets whose workout is gone', async () => {
-    const s = await startWorkout('gym-1', db, 1000);
-    await logSet(newSet('u1', s.id), db);
-    await finishWorkout(s.id, db, 2000);
-    await db.sets.update('u1', { uncertain: true });
-    expect(await lastSetBefore('barbell-back-squat', 'other', db)).toBeUndefined();
-    await db.sets.update('u1', { uncertain: false });
-    await db.sessions.delete(s.id);
-    expect(await lastSetBefore('barbell-back-squat', 'other', db)).toBeUndefined();
-  });
-});
