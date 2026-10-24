@@ -1,7 +1,9 @@
 import { ScreenHeader } from '../components/ScreenHeader';
 import { IconLink } from '../components/IconButton';
 import { EmptyState } from '../components/EmptyState';
+import { GymPill } from '../components/GymPill';
 import { ProfileIcon } from '../components/icons';
+import styles from './TodayScreen.module.css';
 
 export function TodayScreen() {
   return (
@@ -9,9 +11,12 @@ export function TodayScreen() {
       <ScreenHeader
         title="Today"
         trailing={
-          <IconLink to="/settings" label="Settings">
-            <ProfileIcon />
-          </IconLink>
+          <div className={styles.trailing}>
+            <GymPill />
+            <IconLink to="/settings" label="Settings">
+              <ProfileIcon />
+            </IconLink>
+          </div>
         }
       />
       <EmptyState

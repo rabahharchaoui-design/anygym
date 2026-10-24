@@ -4,7 +4,9 @@ const PORT = 4173;
 
 // Add a profile with one line, e.g. ['iPhone SE', devices['iPhone SE']].
 const PROFILES: Array<[string, (typeof devices)[string]]> = [
+  ['iPhone SE', devices['iPhone SE']],
   ['iPhone 15 Pro', devices['iPhone 15 Pro']],
+  ['iPhone 15 Pro Max', devices['iPhone 15 Pro Max']],
 ];
 
 export default defineConfig({

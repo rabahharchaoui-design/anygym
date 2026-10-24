@@ -17,7 +17,7 @@ test('1.1 verify: network, shots, break', async ({ page }) => {
     await page.reload();
     await expect(page.locator('h1')).toBeVisible();
     await page.waitForTimeout(300);
-    await page.screenshot({ path: `reports/shots/1.1/${n}.png` });
+    await page.screenshot({ path: `test-results/verify-1.1/${n}.png` });
   }
   expect(fonts.length).toBeGreaterThan(0);
   await page.goto('./');
