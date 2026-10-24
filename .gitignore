@@ -7,3 +7,6 @@ playwright-report/
 .DS_Store
 coverage/
 *.private.json
+blob-report/
+playwright/.cache/
+*.tsbuildinfo

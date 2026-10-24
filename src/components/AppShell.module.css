@@ -1,0 +1,16 @@
+.shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 calc(var(--space-5) + var(--safe-right)) var(--space-6) calc(var(--space-5) + var(--safe-left));
+}
