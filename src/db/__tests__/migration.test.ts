@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from '../schema';
+import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4 } from '../schema';
 import { makeGym } from '../gyms';
 import type { Run, Session, WorkoutSet } from '../types';
 import { ANY_GYM } from '../types';
@@ -53,7 +53,7 @@ describe('schema v1 → v2 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     expect(await db.gyms.toArray()).toEqual([seeded.gym]);
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect(await db.sets.count()).toBe(25);
@@ -97,7 +97,7 @@ describe('schema v2 → v3 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     expect(await db.sets.count()).toBe(25);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
@@ -106,8 +106,8 @@ describe('schema v2 → v3 migration', () => {
 
     // The new table works with the migrated data: finish the open workout, then follow a plan.
     await finishWorkout('sess-2', db, 9000);
-    await choosePlan('ohrabah-split', db, 10_000);
-    const day = await startPlanDay(seeded.gym.id, 'ohrabah-split', 0, db, 11_000);
+    await choosePlan('five-day-split', db, 10_000);
+    const day = await startPlanDay(seeded.gym.id, 'five-day-split', 0, db, 11_000);
     await logSet({ id: 'p1', sessionId: day.id, exerciseId: 'barbell-back-squat', reps: 8, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] } }, db);
     await finishWorkout(day.id, db, 12_000);
     expect((await getPlanState(db))!.nextDayIndex).toBe(1);
@@ -131,10 +131,11 @@ describe('schema v3 → v4 migration (PLAN 1.10c: set order counter)', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect((await getPlanState(db))!.nextDayIndex).toBe(2);
+    expect((await getPlanState(db))!.planId).toBe('five-day-split');
     expect(await db.orderCounters.count()).toBe(0);
 
     // The open v3 workout (sets with orders up to 24) keeps going without an order clash.
@@ -142,6 +143,58 @@ describe('schema v3 → v4 migration (PLAN 1.10c: set order counter)', () => {
     const set = await logSet({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', reps: 5, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] } }, db);
     expect(set.order).toBe(top + 1);
     expect(await db.orderCounters.get('sess-2')).toEqual({ sessionId: 'sess-2', next: top + 2 });
+    db.close();
+  });
+});
+
+describe('schema v4 → v5 migration (PLAN 1.10f: plan renamed, old id ohrabah-split → five-day-split)', () => {
+  it('keeps the active plan, day position, done days, sessions and every set under the new id', async () => {
+    const name = `anygym-mig-${n++}`;
+    names.push(name);
+    const seeded = await seedV1(name);
+    const v4 = new Dexie(name);
+    v4.version(1).stores(SCHEMA_V1);
+    v4.version(2).stores(SCHEMA_V2);
+    v4.version(3).stores(SCHEMA_V3);
+    v4.version(4).stores(SCHEMA_V4);
+    await v4.open();
+    await v4.table('planState').put({ id: 'active', planId: 'ohrabah-split', startedAt: 1, weekIndex: 0, nextDayIndex: 3, doneDays: [0, 1, 2] });
+    const planSessions: Session[] = [
+      { id: 'plan-1', gymId: seeded.gym.id, planId: 'ohrabah-split', dayId: '1', weekIndex: 0, startedAt: 8000, endedAt: 9000, imported: false, exerciseIds: ['barbell-back-squat'] },
+      { id: 'plan-2', gymId: seeded.gym.id, planId: 'ohrabah-split', dayId: '2', weekIndex: 0, startedAt: 10_000, endedAt: 11_000, imported: false },
+    ];
+    const other: Session = { id: 'plan-3', gymId: seeded.gym.id, planId: 'six-week-volume', dayId: '1', weekIndex: 0, startedAt: 12_000, endedAt: 13_000, imported: false };
+    await v4.table('sessions').bulkAdd([...planSessions, other]);
+    const planSets: WorkoutSet[] = ['plan-1', 'plan-1', 'plan-2'].map((sessionId, i) => ({
+      id: `pset-${i}`, sessionId, exerciseId: 'barbell-back-squat', order: i, kind: 'work', reps: 8, uncertain: false,
+      load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] },
+    }));
+    await v4.table('sets').bulkAdd(planSets);
+    await v4.table('orderCounters').put({ sessionId: 'plan-1', next: 2 });
+    await v4.table('exerciseSettings').put({ exerciseId: 'leg-press', gymId: ANY_GYM, loadType: 'plate_machine' });
+    v4.close();
+
+    const db = new AnyGymDB(name);
+    await db.open();
+    expect(db.verno).toBe(5);
+    expect(await getPlanState(db)).toEqual({ id: 'active', planId: 'five-day-split', startedAt: 1, weekIndex: 0, nextDayIndex: 3, doneDays: [0, 1, 2] });
+    expect(await db.sessions.get('plan-1')).toEqual({ ...planSessions[0], planId: 'five-day-split' });
+    expect(await db.sessions.get('plan-2')).toEqual({ ...planSessions[1], planId: 'five-day-split' });
+    expect(await db.sessions.get('plan-3')).toEqual(other);
+    for (const s of seeded.sessions) expect(await db.sessions.get(s.id)).toEqual(s);
+    expect(await db.sets.count()).toBe(28);
+    for (const s of [...seeded.sets, ...planSets]) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
+    expect(await db.orderCounters.get('plan-1')).toEqual({ sessionId: 'plan-1', next: 2 });
+    expect(await db.exerciseSettings.count()).toBe(1);
+    expect(await db.sessions.filter((s) => s.planId === 'ohrabah-split').count()).toBe(0);
+
+    // The migrated plan keeps going: day 4 is next, and finishing it advances to day 5.
+    await finishWorkout('sess-2', db, 14_000);
+    const day = await startPlanDay(seeded.gym.id, 'five-day-split', 3, db, 15_000);
+    expect(day).toMatchObject({ planId: 'five-day-split', dayId: '4' });
+    await logSet({ id: 'p4', sessionId: day.id, exerciseId: 'barbell-back-squat', reps: 8, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] } }, db);
+    await finishWorkout(day.id, db, 16_000);
+    expect(await getPlanState(db)).toMatchObject({ planId: 'five-day-split', nextDayIndex: 4, doneDays: [0, 1, 2, 3] });
     db.close();
   });
 });

@@ -1,7 +1,7 @@
 // Curated plans (SPEC 7.5, PLAN 1.10). Pure: no Dexie, no React, no JSON imports.
 //
 // The two shipped plan files have different shapes:
-//   ohrabah-split.json     days[].blocks[]: { type: 'single', exercise, sets?, reps?, seconds?, restSec?, note? }
+//   five-day-split.json     days[].blocks[]: { type: 'single', exercise, sets?, reps?, seconds?, restSec?, note? }
 //                          or { type: 'superset', sets, restSec?, warmup?, items: [{ exercise, reps, note }] }
 //   six-week-volume.json   days[].items[]: { exercise, weeks: [{ sets, reps } | { rounds }], note? }
 // normalizePlan turns both into one Plan. Every exercise name must resolve to an id in

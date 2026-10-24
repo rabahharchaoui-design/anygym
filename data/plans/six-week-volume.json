@@ -1,14 +1,13 @@
 {
  "id": "six-week-volume",
  "name": "Six Week Volume Builder",
- "author": "OhRabah",
  "summary": "Volume focused 6 week block. Same lifts every week, reps climb each week so you finish week 6 doing far more work than week 1.",
  "gymType": "full",
  "goal": "muscle",
  "level": "intermediate",
  "daysPerWeek": 5,
  "weeks": 6,
- "source": "Transcribed from G's Volume Focused Six Week Lifting Program table, Oct 2026",
+ "source": "Curated 6 week volume program",
  "progressionMode": "weekly_table",
  "days": [
   {
@@ -1431,6 +1430,6 @@
   }
  ],
  "transcriptionNotes": [
-  "Day 3 table has one extra unnamed row (3x10 rising to 8x10). Left out until G names it."
+  "Day 3 table has one extra unnamed row (3x10 rising to 8x10). Left out until the row is named."
  ]
 }

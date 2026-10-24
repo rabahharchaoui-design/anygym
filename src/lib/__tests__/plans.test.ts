@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import ohrabahRaw from '../../../data/plans/ohrabah-split.json';
+import fiveDayRaw from '../../../data/plans/five-day-split.json';
 import sixWeekRaw from '../../../data/plans/six-week-volume.json';
 import list from '../../../data/plan-exercises.json';
 import { PLANS, planById, resolvePlanExercise } from '../../data/plans';
@@ -21,7 +21,7 @@ import {
   type PlanDay,
 } from '../plans';
 
-const ohrabah = planById('ohrabah-split')!;
+const split5 = planById('five-day-split')!;
 const sixWeek = planById('six-week-volume')!;
 const ids = new Set((list as Array<{ id: string }>).map((e) => e.id));
 
@@ -33,7 +33,7 @@ const rawNames = (node: unknown): string[] => {
 };
 
 describe('every plan exercise resolves to data/plan-exercises.json', () => {
-  for (const [name, raw] of [['ohrabah-split', ohrabahRaw], ['six-week-volume', sixWeekRaw]] as const) {
+  for (const [name, raw] of [['five-day-split', fiveDayRaw], ['six-week-volume', sixWeekRaw]] as const) {
     it(name, () => {
       const names = rawNames(raw);
       expect(names.length).toBeGreaterThan(20);
@@ -59,32 +59,32 @@ describe('every plan exercise resolves to data/plan-exercises.json', () => {
   });
 });
 
-describe('normalizePlan: The OhRabah Split (blocks)', () => {
+describe('normalizePlan: Classic 5 Day Split (blocks)', () => {
   it('keeps the plan facts', () => {
-    expect(ohrabah).toMatchObject({
-      id: 'ohrabah-split',
-      name: 'The OhRabah Split',
+    expect(split5).toMatchObject({
+      id: 'five-day-split',
+      name: 'Classic 5 Day Split',
       gymType: 'full',
       goal: 'muscle',
       level: 'intermediate',
       daysPerWeek: 5,
       progressionMode: 'double',
     });
-    expect(ohrabah.weeks).toBeUndefined();
-    expect(ohrabah.summary).toMatch(/^5 day bodybuilding split/);
-    expect(ohrabah.days.map((d) => d.name)).toEqual([
+    expect(split5.weeks).toBeUndefined();
+    expect(split5.summary).toMatch(/^5 day bodybuilding split/);
+    expect(split5.days.map((d) => d.name)).toEqual([
       'Legs (hamstring focus)',
       'Chest and triceps',
       'Back and biceps',
       'Legs (quad focus)',
       'Shoulders and calves',
     ]);
-    expect(ohrabah.days[0]!.addOn).toBe('Abs');
-    expect(ohrabah.days[1]!.addOn).toBeUndefined();
+    expect(split5.days[0]!.addOn).toBe('Abs');
+    expect(split5.days[1]!.addOn).toBeUndefined();
   });
 
   it('day 1: stretches as holds, then the squat with its note', () => {
-    const [stretch, , , , squat] = ohrabah.days[0]!.blocks;
+    const [stretch, , , , squat] = split5.days[0]!.blocks;
     expect(stretch).toEqual({ kind: 'single', items: [{ exerciseId: 'static-quadricep-stretch', name: 'Static Quadricep Stretch', seconds: 45 }] });
     expect(squat).toEqual({
       kind: 'single',
@@ -92,14 +92,14 @@ describe('normalizePlan: The OhRabah Split (blocks)', () => {
       restSec: 90,
       items: [{ exerciseId: 'barbell-back-squat', name: 'Barbell Back Squat', reps: [8, 12], note: 'Wide stance' }],
     });
-    const plank = ohrabah.days[0]!.blocks.find((b) => b.items[0]!.exerciseId === 'elbow-plank')!;
+    const plank = split5.days[0]!.blocks.find((b) => b.items[0]!.exerciseId === 'elbow-plank')!;
     expect(plank.items[0]!.seconds).toEqual([60, 90]);
-    const climber = ohrabah.days[0]!.blocks.find((b) => b.items[0]!.exerciseId === 'cross-body-mountain-climber')!;
+    const climber = split5.days[0]!.blocks.find((b) => b.items[0]!.exerciseId === 'cross-body-mountain-climber')!;
     expect(climber.items[0]).toMatchObject({ reps: 20, eachSide: true });
   });
 
   it('day 2: the warm up pair and the working pair', () => {
-    const [warm, , pair] = ohrabah.days[1]!.blocks;
+    const [warm, , pair] = split5.days[1]!.blocks;
     expect(warm).toMatchObject({ kind: 'pair', warmup: true, sets: 3 });
     expect(warm!.restSec).toBeUndefined();
     expect(warm!.items.map((i) => i.exerciseId)).toEqual(['band-internal-shoulder-rotation-0-degrees', 'band-internal-shoulder-rotation-90-degrees']);
@@ -145,9 +145,9 @@ describe('itemTarget: week table lookup', () => {
     expect([0, 1, 2, 3, 4, 5].map((w) => itemTarget(m28, m28.items[0]!, w).sets)).toEqual([3, 3, 4, 4, 5, 5]);
   });
   it('without a table: the block sets with the item reps; a lone hold is one set', () => {
-    const squat = ohrabah.days[0]!.blocks[4]!;
+    const squat = split5.days[0]!.blocks[4]!;
     expect(itemTarget(squat, squat.items[0]!)).toEqual({ sets: 4, reps: [8, 12] });
-    const stretch = ohrabah.days[0]!.blocks[0]!;
+    const stretch = split5.days[0]!.blocks[0]!;
     expect(itemTarget(stretch, stretch.items[0]!)).toEqual({ sets: 1, seconds: 45 });
     const sprint = sixWeek.days[2]!.blocks[0]!;
     expect(itemTarget(sprint, sprint.items[0]!, 1)).toEqual({ sets: 12, seconds: 30, rounds: true });
@@ -160,10 +160,10 @@ describe('itemTarget: week table lookup', () => {
 });
 
 describe('plain words', () => {
-  const squat = ohrabah.days[0]!.blocks[4]!;
+  const squat = split5.days[0]!.blocks[4]!;
   it('item lines', () => {
     expect(itemLine(squat, squat.items[0]!)).toBe('4 sets × 8 to 12 · 90 s rest');
-    const stretch = ohrabah.days[0]!.blocks[0]!;
+    const stretch = split5.days[0]!.blocks[0]!;
     expect(itemLine(stretch, stretch.items[0]!)).toBe('45 sec');
     const front = sixWeek.days[0]!.blocks[0]!;
     // The six week table states no rest: no rest line (the timer still uses the 90 s default).
@@ -180,8 +180,8 @@ describe('plain words', () => {
     const sprint = sixWeek.days[2]!.blocks[0]!;
     expect(itemLine(sprint, sprint.items[0]!, 0)).toBe('10 rounds × 30 sec');
     expect(itemLine(sprint, sprint.items[0]!, 5)).toBe('20 rounds × 30 sec');
-    // The OhRabah warm up pair states no rest either.
-    const warm = ohrabah.days[1]!.blocks[0]!;
+    // The 5 day split warm up pair states no rest either.
+    const warm = split5.days[1]!.blocks[0]!;
     expect(itemLine(warm, warm.items[0]!)).toBe('3 sets × 10 to 12');
   });
   it('setsText and amountText', () => {
@@ -196,8 +196,8 @@ describe('plain words', () => {
   });
   it('blockRest: the block, else 90 s, and none after a lone stretch', () => {
     expect(blockRest(squat)).toBe(90);
-    expect(blockRest(ohrabah.days[1]!.blocks[0]!)).toBe(90);
-    expect(blockRest(ohrabah.days[0]!.blocks[0]!)).toBe(0);
+    expect(blockRest(split5.days[1]!.blocks[0]!)).toBe(90);
+    expect(blockRest(split5.days[0]!.blocks[0]!)).toBe(0);
     expect(blockRest(sixWeek.days[2]!.blocks[0]!)).toBe(90);
   });
 });
@@ -228,8 +228,8 @@ describe('estimateDayMinutes (SPEC 7.4)', () => {
     expect(estimateDayMinutes(day)).toBe(11);
   });
   it("the shipped days (day 2 by hand: 3 × 80 + 3 × 90 + 3 × 130 + 4 × 80 + 4 × 90 + 4 × 4 × 100 + 8 × 60 = 3660 s, + 15 min stair climbing + 1 change = 4620 s)", () => {
-    expect(estimateDayMinutes(ohrabah.days[0]!)).toBe(90);
-    expect(ohrabah.days.map((d) => estimateDayMinutes(d))).toEqual([90, 77, 78, 98, 63]);
+    expect(estimateDayMinutes(split5.days[0]!)).toBe(90);
+    expect(split5.days.map((d) => estimateDayMinutes(d))).toEqual([90, 77, 78, 98, 63]);
     // The week table grows the day: 10 rounds of sprints in week 1, 20 in week 6.
     // Leg extension rests 10 s (its note), the rest the 90 s default: 3 × 5 × 130 + 10 × 50 + 3 × 130 + 5 × 130 + 5 × 60 = 3790 s.
     expect(estimateDayMinutes(sixWeek.days[0]!, 0)).toBe(63);
@@ -240,13 +240,13 @@ describe('estimateDayMinutes (SPEC 7.4)', () => {
 describe('advancePlan', () => {
   const start = { nextDayIndex: 0, weekIndex: 0, doneDays: [] as number[] };
   it('moves to the day after the one done and checks it', () => {
-    expect(advancePlan(start, 0, ohrabah)).toEqual({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] });
-    expect(advancePlan({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] }, 2, ohrabah)).toEqual({ nextDayIndex: 3, weekIndex: 0, doneDays: [0, 2] });
-    expect(advancePlan({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] }, 0, ohrabah)).toEqual({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] });
+    expect(advancePlan(start, 0, split5)).toEqual({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] });
+    expect(advancePlan({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] }, 2, split5)).toEqual({ nextDayIndex: 3, weekIndex: 0, doneDays: [0, 2] });
+    expect(advancePlan({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] }, 0, split5)).toEqual({ nextDayIndex: 1, weekIndex: 0, doneDays: [0] });
   });
   it('wraps after the last day: day 1, checks cleared, same week for a double plan', () => {
-    expect(advancePlan({ nextDayIndex: 4, weekIndex: 0, doneDays: [0, 1, 2, 3] }, 4, ohrabah)).toEqual({ nextDayIndex: 0, weekIndex: 0, doneDays: [] });
-    expect(advancePlan(start, 99, ohrabah).nextDayIndex).toBe(0);
+    expect(advancePlan({ nextDayIndex: 4, weekIndex: 0, doneDays: [0, 1, 2, 3] }, 4, split5)).toEqual({ nextDayIndex: 0, weekIndex: 0, doneDays: [] });
+    expect(advancePlan(start, 99, split5).nextDayIndex).toBe(0);
   });
   it('weekly table: the wrap moves one week on, never past week 6', () => {
     expect(advancePlan({ nextDayIndex: 4, weekIndex: 0, doneDays: [] }, 4, sixWeek)).toEqual({ nextDayIndex: 0, weekIndex: 1, doneDays: [] });
@@ -254,24 +254,24 @@ describe('advancePlan', () => {
     expect(advancePlan({ nextDayIndex: 2, weekIndex: 3, doneDays: [] }, 2, sixWeek).weekIndex).toBe(3);
   });
   it('day ids', () => {
-    expect(dayIdOf(ohrabah.days[2]!)).toBe('3');
-    expect(dayIndexOf(ohrabah, '3')).toBe(2);
-    expect(dayIndexOf(ohrabah, '9')).toBe(-1);
-    expect(dayIndexOf(ohrabah, undefined)).toBe(-1);
+    expect(dayIdOf(split5.days[2]!)).toBe('3');
+    expect(dayIndexOf(split5, '3')).toBe(2);
+    expect(dayIndexOf(split5, '9')).toBe(-1);
+    expect(dayIndexOf(split5, undefined)).toBe(-1);
   });
 });
 
 describe('finishers', () => {
-  it('The OhRabah Split keeps each day’s finisher exactly; a missing length stays unknown', () => {
-    expect(ohrabah.days.map((d) => d.finisher)).toEqual([
+  it('Classic 5 Day Split keeps each day’s finisher exactly; a missing length stays unknown', () => {
+    expect(split5.days.map((d) => d.finisher)).toEqual([
       undefined,
       { name: 'Stair climbing', minutes: 15 },
       { name: 'Jump rope', minutes: 10 },
       undefined,
       { name: 'Cycling', minutes: null },
     ]);
-    expect(finisherText(ohrabah.days[1]!.finisher!)).toBe('Stair climbing · 15 min');
-    expect(finisherText(ohrabah.days[4]!.finisher!)).toBe('Cycling');
+    expect(finisherText(split5.days[1]!.finisher!)).toBe('Stair climbing · 15 min');
+    expect(finisherText(split5.days[4]!.finisher!)).toBe('Cycling');
   });
   it('Six Week Volume Builder has none', () => {
     expect(sixWeek.days.every((d) => d.finisher === undefined)).toBe(true);

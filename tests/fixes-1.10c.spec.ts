@@ -346,7 +346,7 @@ test('(7) History lists finished workouts with date, name and sets; tap one for 
   await expect(page.getByRole('status').filter({ hasText: 'Workout saved · 2 sets' })).toBeVisible();
 
   // A plan day with one set.
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: /Use this plan|Go to Today/ }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\//);

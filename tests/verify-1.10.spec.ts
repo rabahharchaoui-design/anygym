@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 // Tester for PLAN 1.10: data fidelity of plan viewer + started workout against the JSON.
 
-const oh = JSON.parse(readFileSync('data/plans/ohrabah-split.json', 'utf8'));
+const oh = JSON.parse(readFileSync('data/plans/five-day-split.json', 'utf8'));
 const six = JSON.parse(readFileSync('data/plans/six-week-volume.json', 'utf8'));
 
 const watch = (page: Page) => {
@@ -130,11 +130,11 @@ async function startDay(page: Page, planPath: string, dayN: number, week?: numbe
 }
 
 for (const n of [1, 2, 4]) {
-  test(`fidelity: OhRabah day ${n} viewer + workout`, async ({ page }) => {
+  test(`fidelity: 5 day split day ${n} viewer + workout`, async ({ page }) => {
     const errors = watch(page);
     const bad: string[] = [];
     const day = oh.days[n - 1];
-    await page.goto('./#/plans/ohrabah-split');
+    await page.goto('./#/plans/five-day-split');
     const vrows = await readViewer(page, new RegExp(`^Day ${n} ·`));
     bad.push(...compare(`OH viewer d${n}`, vrows, expectedOh(day), {}));
     vrows.forEach((r: any, i: number) => {
@@ -142,7 +142,7 @@ for (const n of [1, 2, 4]) {
       if (e?.kind === 'pair' && !r.label.includes('Pair: back to back')) bad.push(`OH viewer d${n} ${r.name}: pair label "${r.label}"`);
       if (e?.warm && !r.label.includes('Warm up')) bad.push(`OH viewer d${n} ${r.name}: warm up label "${r.label}"`);
     });
-    await startDay(page, 'ohrabah-split', n);
+    await startDay(page, 'five-day-split', n);
     const rows = await readWorkout(page);
     bad.push(...compare(`OH workout d${n}`, rows, expectedOh(day), { noteInCard: false }));
     const labels = await page.locator('[data-testid="pair-group"]').evaluateAll((g) => g.map((x) => x.querySelector('p')?.textContent));
@@ -272,7 +272,7 @@ test('flow: wrap after day 5, six week to week 2, tap targets', async ({ page })
   const errors = watch(page);
   await page.goto('./#/plans');
   for (const l of await page.locator('a[data-testid^="plan-"]').all()) await big(l, 'plan row');
-  await page.getByTestId('plan-ohrabah-split').tap();
+  await page.getByTestId('plan-five-day-split').tap();
   await big(page.getByRole('button', { name: 'Use this plan' }), 'Use this plan');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await big(page.getByRole('button', { name: 'Start', exact: true }), 'Start');
@@ -316,7 +316,7 @@ test('flow: six week all days of week 1 -> Week 2 of 6', async ({ page }) => {
 
 test('honest: no img, unknown asks once, timed Hold, one screen exercise view on plan targets', async ({ page }) => {
   const errors = watch(page);
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await page.locator('[data-row]').first().waitFor();
@@ -370,7 +370,7 @@ test('honest: no img, unknown asks once, timed Hold, one screen exercise view on
 
 test('break: double tap Use this plan and Start; switch plan mid workout; reload on viewer; offline', async ({ page, context }) => {
   const errors = watch(page);
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).dblclick();
   await page.waitForTimeout(500);
   expect((await dbAll(page, 'planState')).length).toBe(1);
@@ -457,17 +457,17 @@ for (const where of ['viewer', 'today']) {
 test('shots: plans, both viewers, today day card, workout pair', async ({ page }) => {
   await page.goto('./#/plans');
   await vshot(page, 'plans');
-  await page.goto('./#/plans/ohrabah-split');
-  await vshot(page, 'viewer-ohrabah');
+  await page.goto('./#/plans/five-day-split');
+  await vshot(page, 'viewer-split5');
   await page.getByRole('region', { name: /^Day 2/ }).scrollIntoViewIfNeeded();
-  await vshot(page, 'viewer-ohrabah-day2');
+  await vshot(page, 'viewer-split5-day2');
   await page.goto('./#/plans/six-week-volume');
   await vshot(page, 'viewer-sixweek');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await vshot(page, 'today-sixweek');
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
-  await vshot(page, 'today-ohrabah');
+  await vshot(page, 'today-split5');
   await page.getByRole('button', { name: 'Change day' }).tap();
   await vshot(page, 'change-day');
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 2 ·/ }).tap();
@@ -482,7 +482,7 @@ test('shots: plans, both viewers, today day card, workout pair', async ({ page }
 // Regression for a real bug: after a fresh app load, picking a day in Change day must update the card and Start must open that day.
 test('change day works on a fresh app load (not only right after Use this plan)', async ({ page }) => {
   const errors = watch(page);
-  await page.goto('./#/plans/ohrabah-split');
+  await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await page.reload();
   await expect(page.getByTestId('day-card-title')).toBeVisible();

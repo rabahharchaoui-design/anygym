@@ -36,6 +36,17 @@ export const SCHEMA_V4 = {
   orderCounters: 'sessionId',
 } as const;
 
+/**
+ * Version 5 (PLAN 1.10f): no store changes. The curated split was renamed and its id changed, so
+ * the upgrade rewrites every stored reference to the old id: the active plan state (day position
+ * and done days kept), the sessions that started a day of it (ids and sets untouched) and any
+ * legacy planDays rows. Exercise settings are keyed per exercise and need nothing.
+ */
+export const SCHEMA_V5 = {} as const;
+
+/** Plan ids that were renamed, old → new. Only the migration reads this. */
+export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
+
 /** SPEC 2 + 12.11. Exercises are static JSON shipped with the app, not a table. */
 export class AnyGymDB extends Dexie {
   profile!: EntityTable<Profile, 'id'>;
@@ -56,6 +67,19 @@ export class AnyGymDB extends Dexie {
     this.version(2).stores(SCHEMA_V2);
     this.version(3).stores(SCHEMA_V3);
     this.version(4).stores(SCHEMA_V4);
+    this.version(5)
+      .stores(SCHEMA_V5)
+      .upgrade(async (tx) => {
+        for (const [from, to] of Object.entries(RENAMED_PLAN_IDS)) {
+          await tx.table('planState').toCollection().modify((s: { planId?: string }) => {
+            if (s.planId === from) s.planId = to;
+          });
+          await tx.table('sessions').toCollection().modify((s: { planId?: string }) => {
+            if (s.planId === from) s.planId = to;
+          });
+          await tx.table('planDays').where('planId').equals(from).modify({ planId: to });
+        }
+      });
   }
 }
 
