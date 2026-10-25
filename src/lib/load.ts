@@ -275,6 +275,11 @@ export function platesForSide(side: number, unit: Unit, listed?: readonly number
   return null;
 }
 
+/** A plate size the app knows for this unit (SPEC 5.3 table). Anything else is never drawn or solved. */
+export function isKnownPlate(weight: number, unit: Unit): boolean {
+  return PLATE_SPECS[unit].some((p) => p.weight === weight);
+}
+
 // ---------------------------------------------------------------- stacks and dumbbells
 
 /** Stack machine total: the pin value plus any added weight (e.g. an add-on plate). */
@@ -302,25 +307,32 @@ export function dumbbellTotal(each: number): number {
 /** The most dumbbells a range may list (a real rack has far fewer): bounds every generated list. */
 export const MAX_DUMBBELLS = 400;
 
+/** The smallest and largest dumbbell step a gym can have (PLAN 1.7k): finer steps are damage. */
+export const MIN_DUMBBELL_STEP = 0.25;
+export const MAX_DUMBBELL_STEP = 100;
+
 /**
- * A range that makes sense (PLAN 1.7i): finite numbers, a positive step, min ≥ 0, max ≥ min and
- * at most MAX_DUMBBELLS weights. Anything else (step 0 from a damaged backup) lists nothing.
+ * A range that makes sense (PLAN 1.7i, 1.7k): finite numbers, a step from 0.25 to 100, min ≥ 0,
+ * max ≥ min and (max − min) / step at most MAX_DUMBBELLS. Anything else (step 0 or 1e-12 from a
+ * damaged backup) lists nothing.
  */
 export function validDumbbellRange(range: DumbbellRange): boolean {
   const { min, max, step } = range;
-  if (![min, max, step].every(Number.isFinite) || step <= 0 || min < 0 || max < min) return false;
-  return Math.floor(add(max, -min) / step + EPS) + 1 <= MAX_DUMBBELLS;
+  if (![min, max, step].every(Number.isFinite) || step < MIN_DUMBBELL_STEP || step > MAX_DUMBBELL_STEP || min < 0 || max < min) return false;
+  return add(max, -min) / step <= MAX_DUMBBELLS;
 }
 
 /** Every dumbbell in the range, lightest first; none for a range that is not valid (never loops). */
 export function dumbbellsInRange(range: DumbbellRange): number[] {
   if (!validDumbbellRange(range)) return [];
   const out: number[] = [];
-  for (let n = 0; ; n++) {
+  // Bounded by construction: never more than MAX_DUMBBELLS + 1 weights, whatever the arithmetic.
+  for (let n = 0; n <= MAX_DUMBBELLS; n++) {
     const w = add(range.min, times(range.step, n));
-    if (w > range.max + EPS) return out;
+    if (w > range.max + EPS) break;
     out.push(w);
   }
+  return out;
 }
 
 /** Nearest dumbbell (each hand) in the range; ties go lighter, clamped to the range. */
@@ -534,16 +546,42 @@ export type LoadSetup = {
    * gym's enabled plate weights are the choices, never the dumbbell range.
    */
   heldPlates?: readonly number[];
+  /**
+   * One weight with no list of what this gym has (a kettlebell, or an implement the name does not
+   * tell, PLAN 1.7k): the weight is typed exactly as it is on the implement, never picked from or
+   * rounded to the dumbbell range. Nothing is suggested above or below it (no step is known).
+   */
+  heldExact?: boolean;
 };
 
 /**
  * The weights a dumbbell pair or one held weight can be at this gym, lightest first: the enabled
- * plates for a held plate (LoadSetup.heldPlates), else the dumbbell range. null for other kinds.
+ * plates for a held plate (LoadSetup.heldPlates), else the dumbbell range. null for other kinds,
+ * and for one weight typed exactly (LoadSetup.heldExact: there is no list).
  */
-export function heldChoices(kind: Load['kind'], s: Pick<LoadSetup, 'dumbbellRange' | 'heldPlates'>): number[] | null {
+export function heldChoices(kind: Load['kind'], s: Pick<LoadSetup, 'dumbbellRange' | 'heldPlates' | 'heldExact'>): number[] | null {
   if (kind === 'single' && s.heldPlates) return [...new Set(s.heldPlates.filter((w) => Number.isFinite(w) && w > 0))].sort((a, b) => a - b);
+  if (kind === 'single' && s.heldExact) return null;
   if (kind !== 'single' && kind !== 'dumbbell_each') return null;
   return s.dumbbellRange ? dumbbellsInRange(s.dumbbellRange) : [];
+}
+
+/** The most one typed weight can be (PLAN 1.7k): a guard against a slipped key, far above any real implement. */
+export const MAX_EXACT_HELD: Record<Unit, number> = { lb: 500, kg: 250 };
+
+/**
+ * A dumbbell or one held weight this gym can be at: one of its choices (heldChoices), or for a
+ * weight typed exactly any real weight above 0 up to MAX_EXACT_HELD, to the 1e-9.
+ */
+export function heldAvailable(kind: Load['kind'], value: number, s: Pick<LoadSetup, 'unit' | 'dumbbellRange' | 'heldPlates' | 'heldExact'>): boolean {
+  if (!Number.isFinite(value)) return false;
+  if (kind === 'single' && s.heldExact && !s.heldPlates) return value > 0 && value <= MAX_EXACT_HELD[s.unit] && fromInt(toInt(value)) === value;
+  return (heldChoices(kind, s) ?? []).some((w) => toInt(w) === toInt(value));
+}
+
+/** One held weight typed exactly (PLAN 1.7k), or null when it is not a weight (0, negative, too heavy). */
+export function exactHeldLoad(value: number, unit: Unit): Load | null {
+  return heldAvailable('single', value, { unit, dumbbellRange: null, heldExact: true }) ? singleLoad(value, unit) : null;
 }
 
 /** Nearest of a list (ties lighter), or null for an empty list. */
@@ -579,13 +617,15 @@ export function sameLoad(a: Load, b: Load): boolean {
 export const SAME_RESISTANCE_TOLERANCE = 0.01;
 
 /**
- * The same resistance, in any unit (PLAN 1.7i, records): same load kind and the same compared
- * weight (comparableWeight) after converting the second into the first one's unit, within
- * SAME_RESISTANCE_TOLERANCE. Bodyweight with nothing added is the same in lb and kg.
+ * The same resistance, in any unit (PLAN 1.7i, records; progression eligibility PLAN 1.7k): same
+ * load kind and the same compared weight (comparableWeight), exactly in one unit, else after
+ * converting the second into the first one's unit, within SAME_RESISTANCE_TOLERANCE. Bodyweight with nothing added is the same in lb and kg.
  */
 export function sameResistance(a: Load, b: Load): boolean {
   if (a.kind !== b.kind) return false;
-  if (a.unit === b.unit) return sameLoad(a, b);
+  // Same unit: the complete resistance, exactly. A stack's pin and add-on split is not resistance
+  // (100 pin + 25 added is the same 125 as a 125 pin, PLAN 1.7k).
+  if (a.unit === b.unit) return toInt(comparableWeight(a, a.unit)) === toInt(comparableWeight(b, a.unit));
   if (a.kind === 'bodyweight' && !(a.added ?? 0) && !(b.added ?? 0)) return true;
   return Math.abs(comparableWeight(a, a.unit) - comparableWeight(b, a.unit)) <= SAME_RESISTANCE_TOLERANCE;
 }
@@ -613,7 +653,7 @@ export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 
     }
     case 'dumbbell_each':
     case 'single': {
-      if (!heldChoices(kind, s)!.some((w) => toInt(w) === toInt(value))) return null;
+      if (!heldAvailable(kind, value, s)) return null;
       return kind === 'single' ? singleLoad(value, s.unit) : dumbbellLoad(value, s.unit);
     }
     case 'stack':
@@ -686,6 +726,8 @@ export function nearestLoadable(kind: Load['kind'], value: number, s: LoadSetup)
       return s.base === null ? null : roundToLoadable(value, { kind: 'plates', ...plateOpts(kind, s, s.base) });
     case 'single':
       if (s.heldPlates) return nearestOf(value, heldChoices(kind, s)!);
+      // Typed exactly: no list to round to, so a converted or reset weight is never made up.
+      if (s.heldExact) return null;
       return s.dumbbellRange && validDumbbellRange(s.dumbbellRange) ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
     case 'dumbbell_each':
       return s.dumbbellRange && validDumbbellRange(s.dumbbellRange) ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
@@ -715,8 +757,8 @@ export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number 
     }
     case 'dumbbell_each':
     case 'single':
-      // The next dumbbell up, or the next enabled plate up for a held plate.
-      return heldChoices(kind, s)!.find((w) => w > value + EPS) ?? null;
+      // The next dumbbell up, or the next enabled plate up for a held plate. Typed exactly: none known.
+      return heldChoices(kind, s)?.find((w) => w > value + EPS) ?? null;
     case 'stack':
       // The real stack size is not known: the next pin up (the user picks "More" if needed).
       return add(value, s.stackStep);

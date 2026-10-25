@@ -93,7 +93,7 @@ test('(3) three W rows on a normal lift leave its three working rows to do @matr
   expect(errors).toEqual([]);
 });
 
-test('(8) a failed Undo survives minimize and resume: Finish stays blocked until it is put back', async ({ page }) => {
+test('(8) a failed Undo survives minimize and resume: it is put back when the workout opens again (1.7k)', async ({ page }) => {
   const errors = watchErrors(page);
   const view = await squat135(page);
   await logOne(view);
@@ -131,14 +131,11 @@ test('(8) a failed Undo survives minimize and resume: Finish stays blocked until
   await page.waitForTimeout(5600);
   await page.getByRole('button', { name: /^Resume\b/ }).first().tap();
   await expect(page.getByTestId(`row-${SQUAT}`)).toBeVisible();
-  await page.waitForTimeout(300);
-  expect(await dbAll(page, 'tombstones')).toHaveLength(1);
+  // PLAN 1.7k: the Undo's intent was stored durably, so opening the workout again honours it now
+  // that IndexedDB works: the exact set is back and nothing is left to block Finish.
+  await expect.poll(async () => (await dbAll(page, 'tombstones')).length).toBe(0);
+  await expect.poll(async () => (await sets(page)).length).toBe(2);
   await page.getByRole('button', { name: 'Finish', exact: true }).tap();
-  const sheet = page.getByRole('dialog', { name: 'Undo did not finish' });
-  await expect(sheet).toBeVisible();
-  await shotOn(page, '1.7j', 'undo-after-resume');
-  expect((await dbAll<{ endedAt?: number }>(page, 'sessions')).every((s) => s.endedAt === undefined)).toBe(true);
-  await sheet.getByRole('button', { name: 'Try again' }).tap();
   await expect(page).toHaveURL(/\/done$/);
   const after = await sets(page);
   expect(after).toHaveLength(2);

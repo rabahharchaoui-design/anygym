@@ -6,8 +6,8 @@ import type { CrashPreference } from '../preferences';
 import type { Transport } from '../transport';
 import { stubBrowser } from './env';
 
-const WEBKIT_STACK = 'render@http://localhost:4173/anygym/assets/index-Ab12.js?v=1:40:1234\nlogSet@http://localhost:4173/anygym/assets/index-Ab12.js:12:99';
-const CHROME_STACK = 'TypeError: x\n    at render (https://rabahharchaoui-design.github.io/anygym/assets/index-Ab12.js:40:1234)';
+const WEBKIT_STACK = 'render@http://localhost:4173/anygym/assets/index-Ab12Cd34.js?v=1:40:1234\nlogSet@http://localhost:4173/anygym/assets/index-Ab12Cd34.js:12:99';
+const CHROME_STACK = 'TypeError: x\n    at render (https://rabahharchaoui-design.github.io/anygym/assets/index-Ab12Cd34.js:40:1234)';
 
 const prefs = (on: boolean): CrashPreference => ({ enabled: () => on, ready: async () => on, fresh: async () => on, setEnabled: async () => {}, subscribe: () => () => {} });
 let drains = 0;
@@ -24,24 +24,24 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('signatures', () => {
   it('first frame is the script file, line and column, the same in WebKit and Chrome stacks', () => {
-    expect(firstFrame(cleanStack(WEBKIT_STACK))).toBe('index-Ab12.js:40:1234');
-    expect(firstFrame(cleanStack(CHROME_STACK))).toBe('index-Ab12.js:40:1234');
+    expect(firstFrame(cleanStack(WEBKIT_STACK))).toBe('index-Ab12Cd34.js:40:1234');
+    expect(firstFrame(cleanStack(CHROME_STACK))).toBe('index-Ab12Cd34.js:40:1234');
     expect(firstFrame('')).toBe('no-stack');
     expect(crashSignature('TypeError: x', cleanStack(WEBKIT_STACK))).toBe(crashSignature('TypeError: x', cleanStack(CHROME_STACK)));
-    expect(crashSignature('TypeError: x', cleanStack(WEBKIT_STACK))).toBe('TypeError: x @ index-Ab12.js:40:1234');
+    expect(crashSignature('TypeError: x', cleanStack(WEBKIT_STACK))).toBe('TypeError: details hidden @ index-Ab12Cd34.js:40:1234');
   });
 
   it('ids in a message do not split a signature', () => {
     const a = buildCrash(new Error('No set 0f8c2a4e-1b2c-4d5e-8f90-123456789abc'))!;
     const b = buildCrash(new Error('No set 11111111-2222-4333-8444-555555555555'))!;
-    expect(a.message).toBe('Error: No set [id]');
+    expect(a.message).toBe('Error: details hidden');
     expect(a.signature.split(' @ ')[0]).toBe(b.signature.split(' @ ')[0]);
   });
 
   it('cleans stacks: only our own script frames, no origins or queries, at most 12 lines', () => {
-    const s = cleanStack(Array.from({ length: 20 }, () => 'f@https://host.example/anygym/a.js?k=SECRET:1:2').join('\n'));
+    const s = cleanStack(Array.from({ length: 20 }, () => 'f@https://host.example/anygym/index-Aa11Bb22.js?k=SECRET:1:2').join('\n'));
     expect(s.split('\n')).toHaveLength(12);
-    expect(s.split('\n')[0]).toBe('f@a.js:1:2');
+    expect(s.split('\n')[0]).toBe('index-Aa11Bb22.js:1:2');
     expect(s).not.toMatch(/host\.example|SECRET/);
     expect(cleanStack('x@https://evil.example/steal.js:1:2\nQuentin Privateperson 602-555-1234\nat (native)')).toBe('');
   });
@@ -52,14 +52,27 @@ describe('signatures', () => {
     const p = buildCrash(e)!;
     const text = JSON.stringify({ m: p.message, s: p.stack, g: p.signature });
     for (const secret of ['Quentin', 'Privateperson', '602', '555-1234', 'a@b.co', 'maps.example']) expect(text, secret).not.toContain(secret);
-    expect(p.message).toBe('Error: [name] [name], phone [phone], mail [email]');
-    expect(p.message.length).toBeLessThanOrEqual(160);
+    expect(p.message).toBe('Error: details hidden at index-Ab12Cd34.js:40:1234');
   });
 
-  it('messages are cut to 160 characters before the signature is built', () => {
+  it('messages are short fixed text, and the signature starts with the message', () => {
     const p = buildCrash(new Error('x'.repeat(400)))!;
-    expect(p.message.length).toBe(160);
-    expect(p.signature.startsWith(p.message)).toBe(true);
+    expect(p.message).toBe('Error: details hidden');
+    expect(p.signature).toBe('Error: details hidden @ no-stack');
+  });
+
+  it('1.7k: lower case names and addresses in error text never survive (message, stack, signature, ring)', async () => {
+    for (const raw of ['account alice smith at 14 oak street failed', 'workout for jane doe at 12 oak road failed']) {
+      const e = new TypeError(raw);
+      e.stack = `TypeError: ${raw}\n${WEBKIT_STACK}`;
+      const p = buildCrash(e)!;
+      const odd = buildCrash(Object.assign(new Error(raw), { name: 'AliceSmithError' }))!;
+      const text = JSON.stringify([p, odd, buildCrash(raw), buildCrash({ message: raw })]);
+      for (const s of ['alice', 'smith', 'jane', 'doe', 'oak', 'street', 'road', '14 ', '12 ']) expect(text.toLowerCase(), s).not.toContain(s);
+      expect(p.message).toBe('TypeError: details hidden at index-Ab12Cd34.js:40:1234');
+      expect(odd.message).toBe('Error: details hidden');
+    }
+    expect(buildCrash(new TypeError('Load failed'))!.message).toBe('TypeError: Load failed');
   });
 
   it('builds a tiny report with the templated route, and skips browser noise', () => {
@@ -68,11 +81,11 @@ describe('signatures', () => {
     const p = buildCrash(e)!;
     expect(Object.keys(p).sort()).toEqual(['appVersion', 'device', 'message', 'requestId', 'route', 'signature', 'stack']);
     expect(p.route).toBe('/workout/:id');
-    expect(p.message).toBe('TypeError: x is undefined');
+    expect(p.message).toBe('TypeError: details hidden at index-Ab12Cd34.js:40:1234');
     expect(p.appVersion).toMatch(/^\d+\.\d+\.\d+\+(dev|[0-9a-f]+)$/);
     expect(buildCrash('ResizeObserver loop completed with undelivered notifications.')).toBeNull();
     expect(buildCrash('Script error.')).toBeNull();
-    expect(buildCrash({ weird: true })!.message).toBe('[object]');
+    expect(buildCrash({ weird: true })!.message).toBe('Error: details hidden');
   });
 });
 

@@ -168,13 +168,15 @@ describe('(8) an unresolved Undo lives at workout level', () => {
       const again = deletesFor(s.id, db);
       expect(again).toBe(first);
       expect(again.unresolved()).toEqual(['b']);
-      // Opening the workout after the window: the unaccepted tombstone is kept for the retry.
-      await recoverSession(s.id, db, Date.now() + 60_000);
-      expect(await db.tombstones.get('b')).toBeDefined();
+      // Before recovery, Finish is refused.
       await expect(again.close()).rejects.toBeInstanceOf(UndoUnresolvedError);
       again.reopen();
-      // Try again puts it back; then Finish can go on.
-      expect(await again.undo('b')).toMatchObject({ id: 'b' });
+      // Opening the workout after the window (PLAN 1.7k): the stored Undo intent kept the tombstone,
+      // and now that IndexedDB works again recovery honours the Undo: the set is back, resolved.
+      const r = await recoverSession(s.id, db, Date.now() + 60_000);
+      expect(r.restored).toEqual(['b']);
+      expect(await db.tombstones.get('b')).toBeUndefined();
+      expect(again.unresolved()).toEqual([]);
       await expect(again.close()).resolves.toBeUndefined();
       expect((await finishWorkout(s.id, db, 2)).saved).toBe(true);
       expect((await setsOf(s.id, db)).map((x) => x.id)).toEqual(['a', 'b']);

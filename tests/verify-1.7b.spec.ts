@@ -101,9 +101,13 @@ test('workout: each exercise shows only its own picker with the SPEC 13.6 labels
   await answerLoadType(page, /One weight/);
   const kb = await openPicker(page, page.getByTestId('exercise-kettlebell-goblet-squat'));
   await expectOnePicker(page, 'One weight · both hands');
-  await expect(kb.getByText('Goblet squat, kettlebell swing', { exact: true })).toBeVisible();
   await expect(kb.locator('[data-picture="kettlebell"]')).toBeVisible();
-  await kb.getByRole('option', { name: '35 lb', exact: true }).tap();
+  // A kettlebell is typed exactly (PLAN 1.7k): never the dumbbell range.
+  await expect(kb.getByRole('listbox')).toHaveCount(0);
+  await expect(kb.getByText('Type the weight on your kettlebell', { exact: true })).toBeVisible();
+  await kb.getByRole('button', { name: '3', exact: true }).tap();
+  await kb.getByRole('button', { name: '5', exact: true }).tap();
+  await expect(kb.getByTestId('wheel-total')).toHaveText('35lb');
   await shot(page, 'picker-one-weight');
   await closePicker(page);
 

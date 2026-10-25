@@ -9,6 +9,7 @@ import {
   dumbbellLoad,
   enabledPlates,
   formatWeight,
+  heldAvailable,
   heldChoices,
   heldWeightOf,
   plateMachineLoad,
@@ -18,7 +19,7 @@ import {
   timedLoad,
   type LoadSetup,
 } from '../../lib/load';
-import { barForName, heldPlateName } from '../../lib/loadTypeRule';
+import { barForName, heldDumbbellName, heldPlateName } from '../../lib/loadTypeRule';
 import type { PromptKind } from '../../lib/equipmentPrompt';
 
 /**
@@ -90,9 +91,10 @@ export function prefillLoad(
         : null;
     case 'dumbbell_each':
     case 'single': {
-      // Dumbbells from the range; a held plate from the enabled plates (PLAN 1.7j).
+      // Dumbbells from the range; a held plate from the enabled plates (PLAN 1.7j); a kettlebell
+      // typed exactly, never the dumbbell range (PLAN 1.7k).
       const w = heldWeightOf(load);
-      if (w === null || !heldChoices(kind, heldSetup(gym, kind, exerciseName))!.includes(w)) return null;
+      if (w === null || !heldAvailable(kind, w, { unit: gym.unit, ...heldSetup(gym, kind, exerciseName) })) return null;
       return kind === 'single' ? singleLoad(w, gym.unit) : dumbbellLoad(w, gym.unit);
     }
     case 'stack': {
@@ -164,9 +166,19 @@ export function isHeldPlate(kind: Load['kind'], exerciseName: string): boolean {
   return kind === 'single' && heldPlateName(exerciseName);
 }
 
-/** The dumbbell range, and for a held plate the enabled plates (load.ts heldChoices). */
-function heldSetup(gym: Gym, kind: Load['kind'], exerciseName: string): Pick<LoadSetup, 'dumbbellRange' | 'heldPlates'> {
-  return isHeldPlate(kind, exerciseName) ? { dumbbellRange: gym.dumbbellRange, heldPlates: enabledPlates(gym.plateInventory) } : { dumbbellRange: gym.dumbbellRange };
+/**
+ * True when this exercise's one weight is typed exactly (PLAN 1.7k): a kettlebell, or an implement
+ * the name does not tell. Gyms keep no kettlebell list, so it is never the dumbbell range.
+ */
+export function isExactHeld(kind: Load['kind'], exerciseName: string): boolean {
+  return kind === 'single' && !heldPlateName(exerciseName) && !heldDumbbellName(exerciseName);
+}
+
+/** The dumbbell range, for a held plate the enabled plates, for a kettlebell exact entry (load.ts heldChoices). */
+function heldSetup(gym: Gym, kind: Load['kind'], exerciseName: string): Pick<LoadSetup, 'dumbbellRange' | 'heldPlates' | 'heldExact'> {
+  if (isHeldPlate(kind, exerciseName)) return { dumbbellRange: gym.dumbbellRange, heldPlates: enabledPlates(gym.plateInventory) };
+  if (isExactHeld(kind, exerciseName)) return { dumbbellRange: gym.dumbbellRange, heldExact: true };
+  return { dumbbellRange: gym.dumbbellRange };
 }
 
 /** The weights the one weight or dumbbell wheel offers for this exercise at this gym. */

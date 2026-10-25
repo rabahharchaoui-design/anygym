@@ -29,7 +29,7 @@ afterEach(async () => {
 
 const bar: Load = { kind: 'barbell', unit: 'lb', total: 187.5, barWeight: 45, barId: 'olympic', perSide: [45, 25, 1.25], collars: 0 };
 const collared: Load = { kind: 'barbell', unit: 'kg', total: 105, barWeight: 20, barId: 'olympic', perSide: [25, 15], collars: 5 };
-const smith: Load = { kind: 'barbell', unit: 'lb', total: 0.1 + 0.2, barWeight: 0, barId: 'smith', perSide: [0.1, 0.2].map((x) => x / 2) };
+const smith: Load = { kind: 'barbell', unit: 'lb', total: 0.1 + 0.2, barWeight: 0, barId: 'smith', perSide: [] };
 
 async function seed() {
   const home = makeGym({ name: 'Home', type: 'home', unit: 'kg', isActive: false }, 1000);
@@ -51,7 +51,7 @@ async function seed() {
     { id: 'd', sessionId: 's1', exerciseId: 'squat', order: 3, kind: 'work', reps: 5, load: smith, uncertain: false },
     { id: 'e', sessionId: 's2', exerciseId: 'squat', order: 0, kind: 'work', reps: 5, load: collared, uncertain: false },
     { id: 'f', sessionId: 's2', exerciseId: 'plank', order: 1, kind: 'work', seconds: 45, load: { kind: 'timed', unit: 'kg', total: 0 }, uncertain: false },
-    { id: 'g', sessionId: 's3', exerciseId: 'bench', order: 0, kind: 'work', reps: 6, load: { ...bar, total: 175, perSide: [45, 20] }, uncertain: true, note: 'weight unclear' },
+    { id: 'g', sessionId: 's3', exerciseId: 'bench', order: 0, kind: 'work', reps: 6, load: { ...bar, total: 175, perSide: [45, 10, 5, 5] }, uncertain: true, note: 'weight unclear' },
   ];
   await db.sets.bulkAdd(sets);
   await db.exerciseSettings.bulkAdd([
@@ -149,6 +149,20 @@ describe('round trip', () => {
     // A set with no id cannot be stored: the whole restore rolls back.
     const bad: Backup = { ...good, tables: { ...good.tables, sessions: [], sets: [{ ...good.tables.sets[0]!, id: undefined as unknown as string }] } };
     await expect(restoreReplace(bad, db)).rejects.toThrow();
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it('a backup with an unknown plate size is refused before anything is deleted (PLAN 1.7k)', async () => {
+    await seed();
+    const before = await snapshot();
+    const good = await exportBackup(db, 1);
+    const tampered = (b: Backup) => serializeBackup(b);
+    const withPlate = { ...good, tables: { ...good.tables, gyms: good.tables.gyms.map((g, i) => (i === 0 ? { ...g, plateInventory: [...g.plateInventory, { weight: 999, enabled: true }] } : g)) } };
+    const withSet = { ...good, tables: { ...good.tables, sets: good.tables.sets.map((s, i) => (i === 0 ? { ...s, load: { ...bar, perSide: [999] } } : s)) } };
+    for (const b of [withPlate, withSet]) {
+      const parsed = parseBackup(tampered(b));
+      expect(parsed.ok).toBe(false);
+    }
     expect(await snapshot()).toEqual(before);
   });
 

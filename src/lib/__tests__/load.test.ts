@@ -319,6 +319,9 @@ describe('dumbbells', () => {
   it('lists the range', () => {
     expect(dumbbellsInRange(lb)).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50]);
     expect(dumbbellsInRange({ min: 1, max: 3, step: 0.5 })).toEqual([1, 1.5, 2, 2.5, 3]);
+    // PLAN 1.7k review: a step that rounds to nothing lists nothing and returns at once.
+    expect(dumbbellsInRange({ min: 5, max: 5, step: 1e-12 })).toEqual([]);
+    expect(dumbbellsInRange({ min: 0, max: 100, step: 0.25 })).toHaveLength(401);
   });
 
   it('nearestDumbbell snaps into the range, ties lighter', () => {

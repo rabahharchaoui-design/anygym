@@ -54,3 +54,24 @@ export function onUpdateReady(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+/**
+ * The new version took control and the page would reload now (PLAN 1.7k). Activity is checked
+ * again at this very moment, not only before asking for the update: a workout or run started in
+ * between keeps the page as it is, and the reload waits behind "Update ready". An unreadable state
+ * counts as active. Resolves true when it reloaded.
+ */
+export async function reloadWhenIdle(checkActivity: () => Promise<Activity>, reload: () => void): Promise<boolean> {
+  let now: Activity;
+  try {
+    now = await checkActivity();
+  } catch {
+    now = { workout: true, run: false };
+  }
+  if (shouldApplyUpdateNow(now.workout, now.run)) {
+    reload();
+    return true;
+  }
+  setUpdateReady(reload, checkActivity);
+  return false;
+}

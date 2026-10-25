@@ -7,6 +7,7 @@ import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob }
 import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { db as defaultDb, type AnyGymDB } from './schema';
+import { UNDO_PREFIX, readUndoIntents } from './undoIntents';
 import type { Profile } from './types';
 
 export class ActiveWorkoutError extends Error {
@@ -33,7 +34,14 @@ export async function readTables(db: AnyGymDB = defaultDb): Promise<BackupTables
 /** The whole backup (SPEC 9.1). */
 export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), drafts: DraftStorage = undefined): Promise<Backup> {
   const tables = await readTables(db);
-  return buildBackup(tables, exportDrafts(drafts), version, now);
+  // An Undo asked for whose acceptance only reached its durable intent (PLAN 1.7k) travels as an
+  // accepted Undo: restored elsewhere, it is put back and never expires as a plain delete.
+  const marked: BackupTables = { ...tables, tombstones: [] };
+  for (const t of tables.tombstones) {
+    const wanted = !t.undo && (await readUndoIntents(t.sessionId, db).catch(() => [] as string[])).includes(t.id);
+    marked.tombstones.push(wanted ? { ...t, undo: true } : t);
+  }
+  return buildBackup(marked, exportDrafts(drafts), version, now);
 }
 
 async function refuseIfActive(db: AnyGymDB): Promise<void> {
@@ -60,6 +68,8 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
   const result = await db.transaction('rw', [...tablesOf(db), db.kv], async () => {
     await refuseIfActive(db);
     for (const t of TABLE_NAMES) await db.table(t).clear();
+    // Undo intents of workouts that are gone with the old data (PLAN 1.7k); other kv rows stay.
+    await db.kv.where('key').startsWith(UNDO_PREFIX).delete();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
       if (rows.length) await db.table(t).bulkAdd(rows);

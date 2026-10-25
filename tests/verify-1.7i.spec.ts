@@ -257,8 +257,8 @@ test('(f) log 135 lb, gym to kg, resume: saved row says 135 lb under the kg head
 
 test('(f2) a saved single weight under a dumbbell each heading says total', async ({ page }) => {
   const errors = watchErrors(page);
-  await quickWith(page, [['goblet', 'Kettlebell Goblet Squat']]);
-  const view = exerciseView(page, 'kettlebell-goblet-squat');
+  await quickWith(page, [['single arm dumbbell row', 'Single Arm Dumbbell Row']]);
+  const view = exerciseView(page, 'single-arm-dumbbell-row');
   await view.getByTestId('weight-cell').first().tap();
   await weightSheet(page).getByRole('option', { name: '50 lb', exact: true }).tap();
   await page.waitForTimeout(800);
@@ -266,7 +266,7 @@ test('(f2) a saved single weight under a dumbbell each heading says total', asyn
   await logOne(view);
   const saved = (await sets(page))[0]!;
   expect(saved.load).toMatchObject({ kind: 'single', total: 50 });
-  await dbPut(page, { exerciseSettings: [{ exerciseId: 'kettlebell-goblet-squat', gymId: '', loadType: 'dumbbell_each' }] });
+  await dbPut(page, { exerciseSettings: [{ exerciseId: 'single-arm-dumbbell-row', gymId: '', loadType: 'dumbbell_each' }] });
   await page.reload();
   await expect(view.getByTestId('set-row')).toHaveCount(1);
   await expect(view.getByText(/^lb each$/i).first()).toBeVisible();
@@ -296,7 +296,8 @@ const scrollWheelTo = (sheet: Locator, label: string) =>
 
 for (const [what, query, name, id, each] of [
   ['dumbbells (each)', 'bicep curl', 'Dumbbell Bicep Curl', 'bicep-curl', true],
-  ['one weight', 'goblet', 'Kettlebell Goblet Squat', 'kettlebell-goblet-squat', false],
+  // A dumbbell held as one weight (a kettlebell is typed exactly since PLAN 1.7k).
+  ['one weight', 'single arm dumbbell row', 'Single Arm Dumbbell Row', 'single-arm-dumbbell-row', false],
 ] as const) {
   test(`(d) ${what}: scroll 30 to 50 and Done at once with the debounce frozen saves the readout; Edit Save too`, async ({ page }) => {
     const errors = watchErrors(page);

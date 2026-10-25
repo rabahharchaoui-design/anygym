@@ -6,6 +6,7 @@ import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
 import { advanceAfter, keepPartialDay, weekFor } from './planState';
 import { db as defaultDb, type AnyGymDB } from './schema';
+import { dropSessionIntents, dropUndoIntent, hasUndoIntent } from './undoIntents';
 import type { Load, PlanState, Session, SetKind, WorkoutSet } from './types';
 
 /** The workout in progress: started, not ended, not imported. Newest first if somehow several. */
@@ -148,9 +149,12 @@ export async function updateSet(
   db: AnyGymDB = defaultDb,
 ): Promise<WorkoutSet> {
   if (!validSet(change)) throw new Error('Invalid set');
-  return db.transaction('rw', db.sets, async () => {
+  return db.transaction('rw', db.sessions, db.sets, async () => {
     const set = await db.sets.get(id);
     if (!set) throw new Error('Set not found');
+    // A workout that has ended is never changed afterwards (PLAN 1.7k), like updateSetType.
+    const session = await db.sessions.get(set.sessionId);
+    if (!session || session.endedAt !== undefined) throw new WorkoutFinishedError();
     const next: WorkoutSet = { ...set, load: { ...change.load } };
     delete next.reps;
     delete next.seconds;
@@ -260,15 +264,25 @@ export class WorkoutFinishedError extends Error {
  * Puts a deleted set back exactly as it was: same id, same order. In the same transaction it
  * checks that its workout still exists and is in progress; otherwise nothing is written and it
  * throws WorkoutFinishedError, so a set can never land in a finished or deleted workout.
+ * `ifTombstone` (Undo and recovery, PLAN 1.7k): only while its tombstone is still stored, checked in
+ * the same transaction, so a "Keep it deleted" that committed first is never undone by a stale
+ * restore. Resolves true when the set is back (or already was), false when nothing was restored.
+ * The stored Undo intent (db/undoIntents.ts) is used up in the same transaction.
  */
-export async function restoreSet(set: WorkoutSet, db: AnyGymDB = defaultDb): Promise<void> {
-  await db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.tombstones], async () => {
+export async function restoreSet(set: WorkoutSet, db: AnyGymDB = defaultDb, opts: { ifTombstone?: boolean } = {}): Promise<boolean> {
+  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.tombstones, db.kv], async () => {
     const session = await db.sessions.get(set.sessionId);
     if (!session || session.endedAt != null) throw new WorkoutFinishedError();
+    if (opts.ifTombstone && !(await db.tombstones.get(set.id))) {
+      await dropUndoIntent(set.sessionId, set.id, db);
+      return !!(await db.sets.get(set.id));
+    }
     await seedCounter(set.sessionId, db, set.order + 1);
     await db.sets.put({ ...set });
-    // Restored: its tombstone is used up in the same transaction.
+    // Restored: its tombstone and Undo intent are used up in the same transaction.
     await db.tombstones.delete(set.id);
+    await dropUndoIntent(set.sessionId, set.id, db);
+    return true;
   });
 }
 
@@ -295,18 +309,21 @@ export type FinishResult = { saved: true; sets: number; progress?: DayProgress }
  * empty session. Finishing twice is safe. A saved plan day moves the plan to the next day.
  */
 export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<FinishResult> {
-  return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions, db.journal], async () => {
+  return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions, db.journal, db.kv], async () => {
     const s = await db.sessions.get(sessionId);
     if (s && s.endedAt === undefined) {
-      // An Undo that was accepted but never written back (PLAN 1.7h) lands now; every other
-      // deleted set stays deleted (no Undo after Finish).
+      // An Undo that was accepted but never written back (PLAN 1.7h) lands now, and so does one
+      // the user asked for whose acceptance only reached the durable intent (PLAN 1.7k); every
+      // other deleted set stays deleted (no Undo after Finish).
       for (const t of await db.tombstones.where('sessionId').equals(sessionId).toArray()) {
-        if (t.undo && !(await db.sets.get(t.id))) {
+        const wanted = t.undo || (await hasUndoIntent(sessionId, t.id, db));
+        if (wanted && !(await db.sets.get(t.id))) {
           await seedCounter(sessionId, db, t.set.order + 1);
           await db.sets.put({ ...t.set });
         }
       }
       await db.tombstones.where('sessionId').equals(sessionId).delete();
+      await dropSessionIntents(sessionId, db);
       // Finish runs only once no failed row is left (rowLog.prepareFinish): the journal is done.
       await db.journal.where('sessionId').equals(sessionId).delete();
       // Submission receipts stay for the workout's lifetime (PLAN 1.7i): if Finish is undone and

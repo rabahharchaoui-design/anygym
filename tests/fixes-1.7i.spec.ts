@@ -169,7 +169,8 @@ const scrollWheelTo = (sheet: Locator, label: string) =>
 
 for (const [what, query, name, id, each] of [
   ['dumbbells', 'bicep curl', 'Dumbbell Bicep Curl', 'bicep-curl', true],
-  ['one weight', 'goblet', 'Kettlebell Goblet Squat', 'kettlebell-goblet-squat', false],
+  // A dumbbell held as one weight (a kettlebell is typed exactly since PLAN 1.7k).
+  ['one weight', 'single arm dumbbell row', 'Single Arm Dumbbell Row', 'single-arm-dumbbell-row', false],
 ] as const) {
   test(`(5) ${what}: Done right after a scroll, with the debounce frozen, saves the weight on the readout`, async ({ page }) => {
     const errors = watchErrors(page);

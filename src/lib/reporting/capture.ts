@@ -1,52 +1,38 @@
 // Crash reports (SPEC 24): window errors, unhandled rejections and React error boundaries send a
-// tiny report (message, stack, route, version, device). Each signature (message plus first stack
-// frame) is sent at most once per day per phone, and only while Send crash reports is on.
+// tiny report (message, stack, route, version, device). The message is allowlisted (mask.ts
+// autoMessage: error code, fixed text, script location), never the error's own words. Each
+// signature (message plus first stack frame) is sent at most once per day per phone, and only
+// while Send crash reports is on.
 // Reporting never logs, so it can never report itself.
 import { newId } from '../../db/ids';
 import { enqueueCrash } from '../../db/reports';
 import { APP_VERSION } from './config';
-import { currentRoute, describeValue, deviceInfo, installConsoleRing, noteRoute, pushError } from './diagnostics';
-import { maskStack, maskText } from './mask';
+import { currentRoute, describeValue, deviceInfo, installConsoleRing, noteRoute, ownScript, pushError } from './diagnostics';
+import { autoMessage, autoSignature, maskStack, stackRefs } from './mask';
 import { crashReports, type CrashPreference } from './preferences';
 import { transport, type Transport } from './transport';
 import type { CrashPayload } from './types';
 
+export { ownScript };
+
 /** The first frame of a (masked) stack that points into a script: 'index-abc.js:12:345'. */
-export function firstFrame(stack: string): string {
-  for (const line of stack.split('\n')) {
-    const m = /([\w.-]+\.(?:m?js|tsx?|jsx))(?::(\d+))?(?::(\d+))?/.exec(line);
-    if (m) return [m[1], m[2], m[3]].filter(Boolean).join(':');
-  }
-  return 'no-stack';
-}
+export const firstFrame = (stack: string): string => stackRefs(stack, 1) || 'no-stack';
 
-/** Our own scripts: same origin (when known) and under the app's base path. */
-export function ownScript(url: string): boolean {
-  try {
-    const u = new URL(url);
-    const origin = typeof window !== 'undefined' ? window.location?.origin : undefined;
-    if (origin && u.origin !== origin) return false;
-    return u.pathname.startsWith('/anygym/') || (import.meta.env?.DEV === true && u.pathname.startsWith('/src/'));
-  } catch {
-    return false;
-  }
-}
-
-/** Only frames from our own scripts, as 'fn@file.js:line:col'. */
+/** Only frames from our own scripts, as 'file.js:line:col'. */
 export const cleanStack = (stack: string): string => maskStack(stack, ownScript);
 
-/** The same bug gives the same signature: masked message plus first frame of the masked stack. */
-export function crashSignature(maskedMessage: string, maskedStack: string): string {
-  return `${maskedMessage} @ ${firstFrame(maskedStack)}`.slice(0, 300);
-}
+/** The same bug gives the same signature: automatic message plus first frame of the masked stack. */
+export const crashSignature = (message: string, maskedStack: string): string => autoSignature(message, maskedStack);
 
 export function buildCrash(error: unknown, fallbackStack = ''): CrashPayload | null {
-  // Masked (and cut to 160 characters) before anything else is built from it.
-  const message = maskText(describeValue(error)) || 'Unknown error';
+  const described = describeValue(error);
   const raw = error instanceof Error && typeof error.stack === 'string' && error.stack ? error.stack : fallbackStack;
   // Browser noise, not an app bug: layout observer warnings, and cross origin errors with no detail.
-  if (/ResizeObserver loop/i.test(message) || (/^Script error\.?$/.test(message) && !raw)) return null;
+  if (/ResizeObserver loop/i.test(described) || (/^Script error\.?$/.test(described) && !raw)) return null;
   const stack = cleanStack(raw);
+  // Never the error's own words: its approved code, a fixed text and where it happened.
+  const first = firstFrame(stack);
+  const message = autoMessage(described, first === 'no-stack' ? null : first);
   return { requestId: newId(), signature: crashSignature(message, stack), message, stack, route: currentRoute(), appVersion: APP_VERSION, device: deviceInfo() };
 }
 

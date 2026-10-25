@@ -1,5 +1,9 @@
 // Request validation. Only allowlisted fields are kept; anything else in the body is dropped.
+// Automatic fields (crash message, stack, signature, error list, route) are normalized again here
+// with the app's own allowlist (src/lib/reporting/mask.ts), so an old or tampered client can never
+// store or push arbitrary error text. The user's own words in a bug report are kept as written.
 import { MAX } from './limits';
+import { autoMessage, autoSignature, maskRoute, stackRefs } from '../../../src/lib/reporting/mask';
 
 export type Device = { model: string; os: string; viewport: string; dpr: number; standalone: boolean };
 
@@ -51,7 +55,7 @@ function common(b: Record<string, unknown>): Checked<{ requestId: string; route:
   if (!str(b.appVersion, 40) || !VERSION.test(b.appVersion)) return { ok: false, error: 'appVersion' };
   const d = device(b.device);
   if (!d) return { ok: false, error: 'device' };
-  return { ok: true, value: { requestId: b.requestId, route: b.route, appVersion: b.appVersion, device: d } };
+  return { ok: true, value: { requestId: b.requestId, route: maskRoute(b.route), appVersion: b.appVersion, device: d } };
 }
 
 export function checkFeedback(body: unknown): Checked<Feedback> {
@@ -68,7 +72,7 @@ export function checkFeedback(body: unknown): Checked<Feedback> {
   if (!Array.isArray(errors) || errors.length > MAX.errors || !errors.every((e) => str(e, MAX.errorText))) return { ok: false, error: 'errors' };
   const shot = body.screenshot ?? null;
   if (shot !== null && !(str(shot, MAX.screenshotB64, 4) && BASE64.test(shot))) return { ok: false, error: 'screenshot' };
-  return { ok: true, value: { ...c.value, message, unit, gymType, errors: errors as string[], screenshot: shot } };
+  return { ok: true, value: { ...c.value, message, unit, gymType, errors: (errors as string[]).map((e) => autoMessage(e)), screenshot: shot } };
 }
 
 export function checkCrash(body: unknown): Checked<Crash> {
@@ -78,7 +82,9 @@ export function checkCrash(body: unknown): Checked<Crash> {
   if (!str(body.signature, MAX.signature, 1)) return { ok: false, error: 'signature' };
   if (!str(body.message, MAX.crashMessage, 1)) return { ok: false, error: 'message' };
   if (!str(body.stack, MAX.stack)) return { ok: false, error: 'stack' };
-  return { ok: true, value: { ...c.value, signature: body.signature, message: body.message, stack: body.stack } };
+  const stack = stackRefs(body.stack);
+  const message = autoMessage(body.message, stackRefs(stack, 1) || null);
+  return { ok: true, value: { ...c.value, signature: autoSignature(message, stack), message, stack } };
 }
 
 /** The device column: one readable line. */

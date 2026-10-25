@@ -1,11 +1,11 @@
 // What a report knows about the app (SPEC 24), masked before it is stored or sent (mask.ts).
 import type { DeviceInfo } from './types';
 
-import { maskRoute, maskText, MASK_MAX } from './mask';
+import { autoMessage, maskRoute, maskStack, maskText, MASK_MAX } from './mask';
 
 export const RING_SIZE = 20;
 
-/** Masks automatic text (lib/reporting/mask.ts): no names, emails, phones, numbers, ids or URLs. */
+/** Masks the user's own words (lib/reporting/mask.ts): no names, emails, phones, numbers, ids or URLs. */
 export const sanitizeText = (input: string, max = MASK_MAX): string => maskText(input, max);
 
 /** A route with its ids replaced: '/workout/3f2…/done?x' → '/workout/:id/done'. */
@@ -24,9 +24,28 @@ export function describeValue(v: unknown): string {
 
 const ring: string[] = [];
 
-export function pushError(text: string): void {
-  const clean = sanitizeText(text);
-  if (!clean) return;
+/** Our own scripts: same origin (when known) and under the app's base path. */
+export function ownScript(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const origin = typeof window !== 'undefined' ? window.location?.origin : undefined;
+    if (origin && u.origin !== origin) return false;
+    return u.pathname.startsWith('/anygym/') || (import.meta.env?.DEV === true && u.pathname.startsWith('/src/'));
+  } catch {
+    return false;
+  }
+}
+
+/** The first script location of a thrown value's stack, from our own scripts only. */
+export function errorLocation(v: unknown): string | null {
+  const stack = v instanceof Error && typeof v.stack === 'string' ? v.stack : '';
+  return maskStack(stack, ownScript, 1) || null;
+}
+
+/** Remembers one app error in its automatic form (mask.ts autoMessage): code, fixed text, location. */
+export function pushError(text: string, location?: string | null): void {
+  if (!String(text ?? '').trim()) return;
+  const clean = autoMessage(text, location);
   ring.push(clean);
   if (ring.length > RING_SIZE) ring.splice(0, ring.length - RING_SIZE);
 }
@@ -45,7 +64,9 @@ export function installConsoleRing(target: Pick<Console, 'error'> = console): vo
   const original = target.error;
   target.error = function (...args: unknown[]) {
     try {
-      pushError(args.map(describeValue).join(' '));
+      const err = args.find((a) => a instanceof Error);
+      // The first Error argument names the code; any other text is never kept.
+      pushError(err ? describeValue(err) : args.map(describeValue).join(' '), errorLocation(err));
     } catch {
       // Never let the ring break logging.
     }

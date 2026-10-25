@@ -179,7 +179,7 @@ describe('shouldRemind', () => {
 
 const good: Record<TableName, Record<string, unknown>> = {
   profile: { id: 'me', defaultUnit: 'lb', createdAt: 1, lastBackupAt: 2 },
-  gyms: { ...gym, equipmentWeights: { leg_press: { kind: 'starting_resistance', value: 118 }, smith: { kind: 'bar_weight', value: null } }, dumbbellRange: { min: 5, max: 50, step: 5 }, plateInventory: [{ weight: 45, enabled: true }] },
+  gyms: { ...gym, equipmentWeights: { leg_press: { kind: 'starting_resistance', value: 118 }, smith: { kind: 'bar_weight', value: null } }, dumbbellRange: { min: 5, max: 50, step: 5 }, plateInventory: [{ weight: 20, enabled: true }, { weight: 0.5, enabled: false }] },
   plans: { id: 'p', name: 'Mine', source: 'generated', createdAt: 1 },
   planDays: { id: 'pd', planId: 'p', order: 0, name: 'Day 1' },
   sessions: { ...session, planId: 'five-day-split', dayId: 'd1', exerciseIds: ['bench'], weekIndex: 0 },
@@ -253,12 +253,19 @@ describe('dumbbell ranges (PLAN 1.7i)', () => {
     ['a reversed range', { min: 100, max: 5, step: 5 }],
     ['a negative minimum', { min: -5, max: 50, step: 5 }],
     ['millions of dumbbells', { min: 0, max: 1e7, step: 0.5 }],
+    // PLAN 1.7k review: a step that rounds to nothing froze the picker after Replace.
+    ['a 1e-12 step', { min: 5, max: 5, step: 1e-12 }],
+    ['a step under 0.25', { min: 5, max: 6, step: 0.1 }],
+    ['a step over 100', { min: 5, max: 500, step: 101 }],
+    ['an infinite step', { min: 5, max: 5, step: Infinity }],
+    ['more than 400 steps', { min: 0, max: 100.5, step: 0.25 }],
   ])('refuses %s as damaged', (_, dumbbellRange) => {
     expect(parseBackup(file({}, { gyms: [{ ...gym, dumbbellRange }] }))).toEqual({ ok: false, error: DAMAGED });
   });
   it('accepts a real rack, and a single dumbbell', () => {
     expect(parseBackup(file({}, { gyms: [{ ...gym, dumbbellRange: { min: 2.5, max: 50, step: 2.5 } }] })).ok).toBe(true);
     expect(parseBackup(file({}, { gyms: [{ ...gym, dumbbellRange: { min: 20, max: 20, step: 5 } }] })).ok).toBe(true);
+    expect(parseBackup(file({}, { gyms: [{ ...gym, dumbbellRange: { min: 0, max: 100, step: 0.25 } }] })).ok).toBe(true);
   });
 });
 
@@ -328,5 +335,37 @@ describe('only on this phone: by the ids the last backup held', () => {
       { id: 'live', gymId: 'g', startedAt: 4, imported: false },
     ] } as unknown as Parameters<typeof backedUpIds>[0]['tables'];
     expect(backedUpIds({ tables })).toEqual(['done', 'imp']);
+  });
+});
+
+describe('plate sizes (PLAN 1.7k: a restored 999 kg plate crashed loading)', () => {
+  const live = { id: 'live', gymId: 'g', startedAt: 30, imported: false };
+  const lbGym = { ...gym, id: 'lb', unit: 'lb' };
+  const odd = { ...set.load, perSide: [25, 999] };
+  it.each([
+    ['an enabled 999 kg plate', { gyms: [{ ...gym, plateInventory: [{ weight: 999, enabled: true }] }] }],
+    ['a disabled unknown plate', { gyms: [{ ...gym, plateInventory: [{ weight: 20, enabled: true }, { weight: 3, enabled: false }] }] }],
+    ['a 45 lb plate in a kg gym', { gyms: [{ ...gym, plateInventory: [{ weight: 45, enabled: true }] }] }],
+    ['a 20 kg plate in a lb gym', { gyms: [gym, { ...lbGym, plateInventory: [{ weight: 20, enabled: true }] }] }],
+    ['a saved set with an unknown plate', { sets: [{ ...set, load: odd }] }],
+    ['a saved kg set with a lb only plate', { sets: [{ ...set, load: { ...set.load, perSide: [45] } }] }],
+    ['a tombstone set with an unknown plate', { sessions: [session, live], tombstones: [{ id: 't', sessionId: 'live', set: { ...set, id: 't', sessionId: 'live', load: odd }, expiresAt: 1 }] }],
+    ['a journal draft load with an unknown plate', { sessions: [session, live], journal: [{ id: 'j', sessionId: 'live', exerciseId: 'bench', key: 'bench@0', rev: 1, draft: { id: 'j', load: odd }, at: 1 }] }],
+    ['journal draft plates unknown for the gym unit', { sessions: [session, live], journal: [{ id: 'j', sessionId: 'live', exerciseId: 'bench', key: 'bench@0', rev: 1, draft: { id: 'j', load: null, plates: [45] }, at: 1 }] }],
+  ])('refuses %s as damaged', (_, tables) => {
+    expect(parseBackup(file({}, tables))).toEqual({ ok: false, error: DAMAGED });
+  });
+  it('refuses drafts whose load or plates hold unknown sizes', () => {
+    const t = { sessions: [session, live] };
+    expect(parseBackup(file({ drafts: { live: { bench: { id: 'd', load: odd } } } }, t))).toEqual({ ok: false, error: DAMAGED });
+    expect(parseBackup(file({ drafts: { live: { bench: { id: 'd', load: null, plates: [7] } } } }, t))).toEqual({ ok: false, error: DAMAGED });
+    // Plates checked against the unit they were picked in: 45 is a lb plate, the gym is kg.
+    expect(parseBackup(file({ drafts: { live: { bench: { id: 'd', load: null, plates: [45] } } } }, t))).toEqual({ ok: false, error: DAMAGED });
+    expect(parseBackup(file({ drafts: { live: { bench: { id: 'd', load: null, plates: [45], unit: 'lb' } } } }, t)).ok).toBe(true);
+  });
+  it('accepts every real plate of each unit, enabled or not', () => {
+    const kg = [25, 20, 15, 10, 5, 2.5, 2, 1.5, 1.25, 1, 0.5].map((weight, i) => ({ weight, enabled: i % 2 === 0 }));
+    const lb = [100, 55, 45, 35, 25, 10, 5, 2.5, 1.25].map((weight) => ({ weight, enabled: false }));
+    expect(parseBackup(file({}, { gyms: [{ ...gym, plateInventory: kg }, { ...lbGym, plateInventory: lb }] })).ok).toBe(true);
   });
 });

@@ -7,7 +7,7 @@ import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
 import { dayWorkout } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';
-import { ANY_GYM, type BarId, type Load, type Session, type WorkoutSet } from './types';
+import { ANY_GYM, type BarId, type Gym, type Load, type Session, type WorkoutSet } from './types';
 
 /**
  * Which gym's history counts (SPEC 6): machines, cables, Smith and plate loaded machines are not
@@ -28,16 +28,65 @@ export type HistoryOptions = {
 
 type Usable = WorkoutSet & { load: Load };
 
+const FREE_BARS: readonly BarId[] = ['olympic', 'womens', 'ez_curl', 'trap'];
+
+/**
+ * The bar of an older barbell set saved without a barId (PLAN 1.7k), from stored evidence only.
+ * `nameBar` is the exercise's own bar (its plan entry or name rule, never the user's bar setting,
+ * which may have changed since). The set's bar weight is compared with the bars of the gym it was
+ * logged at (same unit only, stored numbers as they are, no arithmetic):
+ * - an exercise that is a Smith lift by name: Smith;
+ * - the weight is that gym's Smith answer and no free bar's (plates only Smith is 0): Smith;
+ * - the weight is a free bar's and not the Smith answer (a 45 lb set with a Smith answer of 0):
+ *   that free bar, never Smith;
+ * - the weight is both the Smith answer and a free bar's: null, ambiguous, left out of every
+ *   comparison (history, LAST TIME, targets, records) rather than guessed;
+ * - nothing to compare with (no gym, no weight, another unit, a weight no bar there has): the
+ *   exercise's own bar, as before 1.7k.
+ */
+export function legacyBarOf(load: Pick<Load, 'barWeight' | 'unit'>, nameBar: BarId, gym: Pick<Gym, 'bars' | 'unit'> | undefined): BarId | null {
+  if (nameBar === 'smith') return 'smith';
+  const w = load.barWeight;
+  if (!gym || w === undefined || w === null || load.unit !== gym.unit) return nameBar;
+  const smith = gym.bars.smith !== null && gym.bars.smith === w;
+  const free = FREE_BARS.filter((b) => gym.bars[b] !== null && gym.bars[b] === w);
+  if (smith) return free.length ? null : 'smith';
+  return free.length && !free.includes(nameBar) ? free[0]! : nameBar;
+}
+
 /** This exercise's usable sets of this load kind: not uncertain, with a load, on the right bar. */
 async function usableSets(exerciseId: string, loadKind: Load['kind'], opts: HistoryOptions, db: AnyGymDB): Promise<Usable[]> {
-  const barOf = (s: Usable) => s.load.barId ?? opts.defaultBar ?? 'olympic';
   // A duplicate list entry is the same exercise (lib/picker.ts PICKER_ALIASES): its sets count too.
   const ids = sameExerciseIds(exerciseId);
   const where = db.sets.where('exerciseId');
-  return (await (ids.length === 1 ? where.equals(exerciseId) : where.anyOf(ids)).toArray()).filter(
-    (s): s is Usable =>
-      !s.uncertain && !!s.load && s.load.kind === loadKind && (loadKind !== 'barbell' || (barOf(s as Usable) === 'smith') === !!opts.smith),
+  const sets = (await (ids.length === 1 ? where.equals(exerciseId) : where.anyOf(ids)).toArray()).filter(
+    (s): s is Usable => !s.uncertain && !!s.load && s.load.kind === loadKind,
   );
+  if (loadKind !== 'barbell') return sets;
+  const barOf = await legacyBars(sets, ids, opts.defaultBar ?? 'olympic', db);
+  // Ambiguous legacy sets (null) are in neither history.
+  return sets.filter((s) => {
+    const bar = barOf(s);
+    return bar !== null && (bar === 'smith') === !!opts.smith;
+  });
+}
+
+/**
+ * Bar identity for barbell sets: their own barId, else legacyBarOf with the gym of that set's
+ * workout, read once. null: an ambiguous legacy set.
+ */
+export async function legacyBars(sets: ReadonlyArray<Pick<WorkoutSet, 'sessionId' | 'exerciseId'> & { load: Load }>, ids: readonly string[], defaultBar: BarId, db: AnyGymDB): Promise<(s: { sessionId: string; exerciseId: string; load: Load }) => BarId | null> {
+  const legacy = sets.filter((s) => s.load.barId === undefined);
+  if (!legacy.length) return (s) => s.load.barId ?? null;
+  const sessions = await db.sessions.bulkGet([...new Set(legacy.map((s) => s.sessionId))]);
+  const gymOfSession = new Map(sessions.filter((x): x is Session => !!x).map((x) => [x.id, x.gymId]));
+  const gyms = new Map((await db.gyms.bulkGet([...new Set(gymOfSession.values())])).filter((g): g is Gym => !!g).map((g) => [g.id, g]));
+  void ids;
+  return (s) => {
+    if (s.load.barId !== undefined) return s.load.barId;
+    const gymId = gymOfSession.get(s.sessionId);
+    return legacyBarOf(s.load, defaultBar, gymId === undefined ? undefined : gyms.get(gymId));
+  };
 }
 
 /** Finished (or imported) sessions holding these sets at the right gym, newest first. */
@@ -154,9 +203,16 @@ export async function workoutRecords(
     const pick = (x: WorkoutSet & { load: Load }): PastSet => ({ kind: x.kind, load: x.load, ...(x.reps !== undefined ? { reps: x.reps } : {}) });
     // Same bar identity as "Last time" (PLAN 1.7f): Smith sets and free bar sets of one exercise
     // are separate lifts, each compared only with its own history (older sets: the default bar).
-    const isSmith = (x: WorkoutSet & { load: Load }) => x.load.kind === 'barbell' && (x.load.barId ?? defaultBar) === 'smith';
+    // Legacy sets (no barId) of this workout go through the same resolver as earlier workouts (PLAN
+    // 1.7k): a legacy Smith workout never earns Olympic records; an ambiguous set earns none.
+    const barOf = await legacyBars(today.filter((x) => x.load.kind === 'barbell'), [id], defaultBar, db);
+    const groupOf = (x: WorkoutSet & { load: Load }): 'smith' | 'free' | null => {
+      if (x.load.kind !== 'barbell') return 'free';
+      const bar = barOf(x);
+      return bar === null ? null : bar === 'smith' ? 'smith' : 'free';
+    };
     for (const smith of [false, true]) {
-      const group = today.filter((x) => isSmith(x) === smith);
+      const group = today.filter((x) => groupOf(x) === (smith ? 'smith' : 'free'));
       const firstWork = group.find((x) => x.kind === 'work');
       if (!firstWork) continue;
       const kind = firstWork.load.kind;

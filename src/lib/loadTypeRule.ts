@@ -63,6 +63,16 @@ export function heldPlateName(name: string): boolean {
   return has(name, ['Plate']) && !has(name, ['Dumbbell', 'Kettlebell', 'Goblet', 'Machine', 'Loaded', 'Barbell']);
 }
 
+/**
+ * One weight that is a dumbbell held in the hands (PLAN 1.7k): "Single Arm Dumbbell Row", "Goblet
+ * Squat". Its choices are the gym's dumbbell range. A kettlebell, or a name that does not say which
+ * implement (Sumo Squat: dumbbell or kettlebell), is never a dumbbell: its weight is typed exactly.
+ */
+export function heldDumbbellName(name: string): boolean {
+  if (has(name, ['Kettlebell'])) return false;
+  return has(name, ['Dumbbell', 'Goblet']);
+}
+
 /** A plan item's amount: reps, a hold in seconds, or the day's cardio finisher. */
 export type PlanAmount = { reps?: unknown; seconds?: unknown; finisher?: boolean };
 

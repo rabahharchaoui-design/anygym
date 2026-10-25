@@ -401,3 +401,46 @@ describe('beatLine: the one target line, words only from progress()', () => {
     expect(beatLine(noBar)).toBeNull();
   });
 });
+
+describe('equivalent loads in mixed units count as the same load (PLAN 1.7k)', () => {
+  it('20 kg and 44.09245 lb dumbbells both at the top step up to 22 kg', () => {
+    const p = progress({
+      exerciseId: 'x',
+      unit: 'kg',
+      gym: KG,
+      repRange: [8, 12],
+      loadKind: 'dumbbell_each',
+      history: [session(day(10), [[12, dumbbellLoad(20, 'kg')], [12, dumbbellLoad(44.09245, 'lb')]])],
+    });
+    expect(p.next.kind).toBe('increase');
+    expect(pickedWeight(p.next.load!)).toBe(22);
+  });
+  it('unequal resistance in mixed units does not step up', () => {
+    const p = progress({
+      exerciseId: 'x',
+      unit: 'kg',
+      gym: KG,
+      repRange: [8, 12],
+      loadKind: 'dumbbell_each',
+      history: [session(day(10), [[12, dumbbellLoad(20, 'kg')], [12, dumbbellLoad(40, 'lb')]])],
+    });
+    expect(p.next.kind).not.toBe('increase');
+  });
+  it('bodyweight with the same added weight in kg and lb reaches the three session nudge', () => {
+    const kg = bodyweightLoad('kg', 10);
+    const lb = bodyweightLoad('lb', 22.0462262);
+    const p = progress({
+      exerciseId: 'x',
+      unit: 'kg',
+      gym: KG,
+      repRange: [8, 12],
+      loadKind: 'bodyweight',
+      history: [session(day(12), same([12, 12], kg)), session(day(11), same([12, 12], lb)), session(day(10), [[12, kg], [12, lb]])],
+    });
+    expect(p.next.reason).toBe('3 sessions at the top: try adding weight');
+  });
+  it('a 100 + 25 stack and a 125 pin are the same load: the step up applies', () => {
+    const p = run({ loadKind: 'stack', history: [session(day(10), [[12, stackLoad(100, 'lb', 25)], [12, stackLoad(125, 'lb')]])] });
+    expect(p.next.kind).toBe('increase');
+  });
+});

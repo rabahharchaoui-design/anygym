@@ -21,7 +21,7 @@ import { Sheet } from '../../ui/Sheet';
 import { LoadError } from '../../components/LoadError';
 import { supportsViewTransitions, useNav } from '../../ui/nav';
 import { UndoUnresolvedError } from '../../lib/deleteUndo';
-import { deletesFor, disposeDeletes, recoverSession } from './sessionRecovery';
+import { deletesFor, disposeDeletes, recoverSession, recoveryReady } from './sessionRecovery';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
 import { clearExtraSets } from '../../lib/extraSets';
@@ -290,13 +290,31 @@ export function WorkoutScreen() {
 
   // ---------------------------------------------------------------- edit, delete, undo
 
+  // Finish started: no edit is saved any more, and a save already running is one Finish waits for
+  // (logQueue.mutate), so the finished workout's sets and total never change afterwards (PLAN 1.7k).
   const onSave = async (set: WorkoutSet, change: { reps?: number; seconds?: number; load: Load }) => {
-    try {
-      await updateSet(set.id, change);
+    if (finishing.current || logQueue.closed(sessionId)) {
       setEditing(null);
-    } catch {
-      notice('Could not save that. Try again.');
+      return;
     }
+    const write = logQueue.mutate(sessionId, () => updateSet(set.id, change));
+    if (!write) {
+      setEditing(null);
+      return;
+    }
+    try {
+      await write;
+      setEditing(null);
+    } catch (err) {
+      if (err instanceof WorkoutFinishedError) {
+        setEditing(null);
+        notice('That workout is already finished');
+      } else if (!logQueue.closed(sessionId)) notice('Could not save that. Try again.');
+    }
+  };
+  const openEdit = (set: WorkoutSet) => {
+    if (finishing.current || logQueue.closed(sessionId)) return;
+    setEditing(set);
   };
 
   const unhide = (id: string) =>
@@ -392,6 +410,9 @@ export function WorkoutScreen() {
       deletes.reopen();
     };
     try {
+      // The workout's recovery has run (PLAN 1.7k): an Undo asked for before a restart is back in
+      // the manager as unresolved, so close() below sees it. A recovery that fails refuses Finish.
+      await recoveryReady(sessionId);
       // No new delete or Undo from here; every write still running lands before the sets are counted.
       await deletes.close();
       // A set whose write failed is never dropped: Finish stops and asks (the drafts and the workout stay).
@@ -505,7 +526,7 @@ export function WorkoutScreen() {
       sessionId={sessionId}
       exerciseId={exerciseId}
       onLogged={onLogged}
-      onEditSet={setEditing}
+      onEditSet={openEdit}
       onAskLoadType={() => setAsking(exerciseId)}
       onMenu={() => setMenuFor(exerciseId)}
       onSwipeNext={swipeNext}
