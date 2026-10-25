@@ -26,7 +26,7 @@ describe('schema', () => {
   it('opens at the current version with the expected tables', () => {
     expect(db.verno).toBe(SCHEMA_VERSION);
     expect(db.tables.map((t) => t.name).sort()).toEqual(
-      ['exerciseSettings', 'gyms', 'orderCounters', 'planDays', 'planState', 'plans', 'profile', 'runs', 'sessions', 'sets', 'submissions', 'tombstones', 'kv', 'journal'].sort(),
+      ['exerciseSettings', 'gyms', 'orderCounters', 'planDays', 'planState', 'plans', 'profile', 'runs', 'sessions', 'sets', 'submissions', 'tombstones', 'kv', 'journal', 'reportQueue', 'crashSignatures', 'reportPreferences'].sort(),
     );
   });
 

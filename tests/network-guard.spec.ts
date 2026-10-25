@@ -47,3 +47,29 @@ test('a direct external request is aborted by the route guard', async ({ page })
   );
   expect(result).toBe('blocked');
 });
+
+test('the report API (SPEC 24) is answered by the guard mock and never reached', async ({ page }) => {
+  await page.goto('./');
+  const status = await page.evaluate(() =>
+    fetch('https://anygym-api.rabahharchaoui.workers.dev/crash', { method: 'POST', body: '{}', headers: { 'Content-Type': 'text/plain' } }).then((r) => r.status),
+  );
+  // The real Worker refuses '{}' (400) and any origin but the live site (403): 201 is the mock.
+  expect(status).toBe(201);
+  const res = await page.evaluate(() => fetch('https://anygym-api.rabahharchaoui.workers.dev/feedback', { method: 'POST', body: 'x' }).then((r) => r.text()));
+  expect(res).toBe('{"ok":true,"id":1}');
+});
+
+test('the report API stays mocked when the service worker controls the page', async ({ page }) => {
+  // WebKit sends fetches of a page controlled by a service worker past context.route: the guard's
+  // in-page layer must still answer them.
+  await page.goto('./');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  const status = await page.evaluate(() =>
+    fetch('https://anygym-api.rabahharchaoui.workers.dev/crash', { method: 'POST', body: '{}', headers: { 'Content-Type': 'text/plain;charset=UTF-8' } }).then((r) => r.status, (e) => String(e)),
+  );
+  expect(status).toBe(201);
+});

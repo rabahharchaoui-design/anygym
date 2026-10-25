@@ -21,6 +21,9 @@ import { parseBackup, workoutCount, type Backup } from '../lib/backup';
 import { RestoreSheet, type RestoreMode } from './settings/RestoreSheet';
 import { useBackup } from './settings/useBackup';
 import type { RestoreResult } from '../db/backup';
+import { ReportProblemSheet } from './settings/ReportProblemSheet';
+import { crashReports } from '../lib/reporting/preferences';
+import { gymFacts } from '../lib/reporting/feedback';
 import styles from './Settings.module.css';
 
 let toastSeq = 0;
@@ -43,6 +46,9 @@ export function SettingsScreen() {
   const [restoreError, setRestoreError] = useState('');
   const [restoring, setRestoring] = useState<Backup | null>(null);
   const backUp = useBackup(setToast);
+  const crashOn = useSyncExternalStore(crashReports.subscribe, crashReports.enabled, () => true);
+  const [reporting, setReporting] = useState(false);
+  const [privacyError, setPrivacyError] = useState(false);
 
   // Back from the review screen: "Imported N sets · Undo" (SPEC 13.1: undo, never a confirm).
   useEffect(() => {
@@ -257,6 +263,40 @@ export function SettingsScreen() {
           {restoreError || importError}
         </p>
       </section>
+      <section className={styles.group} aria-labelledby="set-privacy">
+        <h2 id="set-privacy" className={styles.groupTitle}>
+          Privacy
+        </h2>
+        <div className={styles.card}>
+          {/* SPEC 24: on by default; off also deletes crash reports still waiting to be sent. */}
+          <Switch
+            label="Send crash reports"
+            hint="If AnyGym breaks, it sends the builder a short note about what broke. Never your workouts or anything personal."
+            checked={crashOn}
+            onChange={(on) => {
+              setPrivacyError(false);
+              crashReports.setEnabled(on).catch(() => setPrivacyError(true));
+            }}
+          />
+        </div>
+        <p className={styles.error} role="status">
+          {privacyError ? 'Could not save that. Try again.' : ''}
+        </p>
+      </section>
+      <section className={styles.group} aria-labelledby="set-help">
+        <h2 id="set-help" className={styles.groupTitle}>
+          Help
+        </h2>
+        <div className={styles.card}>
+          <button type="button" className={`${styles.linkRow} pressable`} onClick={() => setReporting(true)} data-testid="report-problem">
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel}>Report a problem</span>
+              <span className={styles.unitHint}>Tell the builder what went wrong. Add a screenshot if it helps.</span>
+            </span>
+            <ChevronRight className={styles.chevron} aria-hidden="true" />
+          </button>
+        </div>
+      </section>
       <section className={styles.group} aria-labelledby="set-about">
         <h2 id="set-about" className={styles.groupTitle}>
           About
@@ -268,9 +308,10 @@ export function SettingsScreen() {
               Version {version}
             </span>
           </p>
-          <p className={styles.note}>Everything you log stays on this phone and works offline.</p>
+          <p className={styles.note}>Everything you log stays on this phone and works offline. Only reports you send and crash reports leave it.</p>
         </div>
       </section>
+      <ReportProblemSheet open={reporting} onClose={() => setReporting(false)} facts={gymFacts(gym)} />
       <RestoreSheet backup={restoring} onClose={() => setRestoring(null)} onDone={restored} />
       <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom))" />
     </>

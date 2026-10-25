@@ -43,11 +43,11 @@ describe('verify 1.7i: a v7 database opens at v8 with every record byte identica
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(SCHEMA_VERSION).toBe(8);
-    expect(db.verno).toBe(8);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(8);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray()), t).toBe(before[t]);
     expect(await db.journal.count()).toBe(0);
-    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'journal'].sort());
+    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'journal', 'reportQueue', 'crashSignatures', 'reportPreferences'].sort());
     db.close();
     // Reopening again changes nothing.
     const again = new AnyGymDB(name);

@@ -68,7 +68,7 @@ describe('verify 1.7h: v5 data byte identical after opening v6', () => {
     for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray())).toBe(before[t]);
     expect(await db.submissions.count()).toBe(0);
     expect(await db.tombstones.count()).toBe(0);
-    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'submissions', 'tombstones', 'kv', 'journal'].sort());
+    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'submissions', 'tombstones', 'kv', 'journal', 'reportQueue', 'crashSignatures', 'reportPreferences'].sort());
     db.close();
   });
 });

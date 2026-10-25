@@ -10,3 +10,6 @@ coverage/
 blob-report/
 playwright/.cache/
 *.tsbuildinfo
+.wrangler/
+.dev.vars
+workers/**/node_modules

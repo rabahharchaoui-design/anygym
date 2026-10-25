@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie';
+import type { CrashSignatureRow, ReportPreferencesRow, ReportQueueRow } from '../lib/reporting/types';
 import type { ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from './types';
 
 export const DB_NAME = 'anygym';
@@ -81,11 +82,25 @@ export const SCHEMA_V8 = {
   journal: 'id, sessionId',
 } as const;
 
+/**
+ * Version 9 (PLAN 1.11a, SPEC 24), additive: Report a problem and crash reports, all on this phone.
+ * - reportQueue: reports waiting to be sent (one row per report, keyed by its request id, so a
+ *   retry never makes a second row on the server). Sent rows are deleted.
+ * - crashSignatures: which crash signatures were already reported today ([signature+day]).
+ * - reportPreferences: one row, id 'privacy': the Send crash reports toggle.
+ * Never backed up (not in lib/backup.ts TABLE_NAMES): they belong to this phone, not the workouts.
+ */
+export const SCHEMA_V9 = {
+  reportQueue: 'id, createdAt',
+  crashSignatures: '[signature+day], day',
+  reportPreferences: 'id',
+} as const;
+
 /** One mirrored localStorage key (lib/durable.ts): its value (null = removed) and write stamp. */
 export type KvRow = { key: string; value: string | null; at: number };
 
 /** The current schema version (the highest this.version below). Backups record it (lib/backup.ts). */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
@@ -106,6 +121,9 @@ export class AnyGymDB extends Dexie {
   tombstones!: EntityTable<Tombstone, 'id'>;
   kv!: EntityTable<KvRow, 'key'>;
   journal!: EntityTable<JournalEntry, 'id'>;
+  reportQueue!: EntityTable<ReportQueueRow, 'id'>;
+  crashSignatures!: Table<CrashSignatureRow, [string, string]>;
+  reportPreferences!: EntityTable<ReportPreferencesRow, 'id'>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -130,6 +148,7 @@ export class AnyGymDB extends Dexie {
     this.version(6).stores(SCHEMA_V6);
     this.version(7).stores(SCHEMA_V7);
     this.version(8).stores(SCHEMA_V8);
+    this.version(9).stores(SCHEMA_V9);
   }
 }
 

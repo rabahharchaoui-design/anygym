@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_VERSION } from '../schema';
+import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_VERSION } from '../schema';
+import { enqueueCrash, readCrashPreference } from '../reports';
 import { makeGym } from '../gyms';
 import type { Run, Session, WorkoutSet } from '../types';
 import { ANY_GYM } from '../types';
@@ -267,7 +268,7 @@ describe('schema v7 → v8 migration (PLAN 1.7i: the pending write journal)', ()
     const db = new AnyGymDB(name);
     await db.open();
     expect(db.verno).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(8);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(8);
     for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray())).toBe(before[t]);
     expect(await db.journal.count()).toBe(0);
 
@@ -276,6 +277,48 @@ describe('schema v7 → v8 migration (PLAN 1.7i: the pending write journal)', ()
     await logSet({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', reps: 5, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] }, rev: 1 }, db);
     expect(await db.sets.get('after')).toMatchObject({ order: 5 });
     expect(await db.journal.count()).toBe(0);
+    db.close();
+  });
+});
+
+describe('schema v8 → v9 migration (PLAN 1.11a: the report queue, crash signatures, crash preference)', () => {
+  it('keeps every record byte for byte and adds the three reporting tables empty', async () => {
+    const name = `anygym-mig-${n++}`;
+    names.push(name);
+    const seeded = await seedV1(name);
+    const v8 = new Dexie(name);
+    v8.version(1).stores(SCHEMA_V1);
+    v8.version(2).stores(SCHEMA_V2);
+    v8.version(3).stores(SCHEMA_V3);
+    v8.version(4).stores(SCHEMA_V4);
+    v8.version(5).stores(SCHEMA_V5);
+    v8.version(6).stores(SCHEMA_V6);
+    v8.version(7).stores(SCHEMA_V7);
+    v8.version(8).stores(SCHEMA_V8);
+    await v8.open();
+    await v8.table('exerciseSettings').put({ exerciseId: 'barbell-back-squat', gymId: seeded.gym.id, loadType: 'barbell' });
+    await v8.table('planState').put({ id: 'active', planId: 'five-day-split', dayIndex: 2, doneDays: [0, 1] });
+    await v8.table('orderCounters').put({ sessionId: 'sess-2', next: 5 });
+    await v8.table('submissions').put({ id: 'set-20', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', rev: 1 });
+    await v8.table('tombstones').put({ id: 'gone', sessionId: 'sess-2', set: seeded.sets[21], expiresAt: 9e12 });
+    await v8.table('kv').put({ key: 'anygym-drafts', value: '{}', at: 7 });
+    await v8.table('journal').put({ id: 'j1', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', key: 'barbell-back-squat@0', rev: 1, draft: { id: 'j1', load: null }, at: 1 });
+    const before: Record<string, string> = {};
+    for (const t of v8.tables) before[t.name] = JSON.stringify(await t.toArray());
+    expect(Object.keys(before)).toHaveLength(14);
+    v8.close();
+
+    const db = new AnyGymDB(name);
+    await db.open();
+    expect(db.verno).toBe(SCHEMA_VERSION);
+    expect(SCHEMA_VERSION).toBe(9);
+    for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray()), t).toBe(before[t]);
+    expect(await db.reportQueue.count()).toBe(0);
+    expect(await db.crashSignatures.count()).toBe(0);
+    expect(await readCrashPreference(db)).toBe(true);
+    const device = { model: 'iPhone', os: 'iOS 18.2', viewport: '393x852', dpr: 3, standalone: false };
+    expect(await enqueueCrash({ requestId: 'r-1', signature: 's', message: 'm', stack: '', route: '/', appVersion: '0.1.0+dev', device }, 1000, db)).toBe(true);
+    expect(await db.reportQueue.count()).toBe(1);
     db.close();
   });
 });
