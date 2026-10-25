@@ -58,6 +58,9 @@ export const SCHEMA_V6 = {
   tombstones: 'id, sessionId',
 } as const;
 
+/** The current schema version (the highest this.version below). Backups record it (lib/backup.ts). */
+export const SCHEMA_VERSION = 6;
+
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
 

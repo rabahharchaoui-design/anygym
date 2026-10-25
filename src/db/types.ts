@@ -90,6 +90,10 @@ export type Profile = {
   daysPerWeek?: number;
   defaultUnit: Unit;
   createdAt: number;
+  /** When the last backup was handed to the share sheet or saved (PLAN 1.8, additive). */
+  lastBackupAt?: number;
+  /** "Not now" on the backup reminder: hidden until then (PLAN 1.8, additive). */
+  backupSnoozeUntil?: number;
 };
 
 export type Plan = {

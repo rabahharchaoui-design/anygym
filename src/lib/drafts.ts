@@ -28,6 +28,9 @@ export type Draft = {
 
 const KEY = 'anygym-drafts';
 
+/** Every stored draft: sessionId → exerciseId → draft (the shape of the anygym-drafts blob). */
+export type DraftsBlob = Record<string, Record<string, Draft>>;
+
 type Store = Record<string, Record<string, Draft>>;
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -200,5 +203,48 @@ export function clearSessionDrafts(sessionId: string, s = storage()): void {
     else s.removeItem(KEY);
   } catch {
     /* memory is already clear */
+  }
+}
+
+/**
+ * All drafts for a backup (PLAN 1.8): what storage holds, with the memory copy of the workout in
+ * progress on top (memory is the source of truth while the app is open, even when storage failed).
+ */
+export function exportDrafts(s = storage()): DraftsBlob {
+  const out: DraftsBlob = {};
+  if (s) for (const [sid, per] of Object.entries(read(s))) {
+    const valid = Object.entries(per ?? {}).filter(([, d]) => validDraft(d));
+    if (valid.length) out[sid] = Object.fromEntries(valid);
+  }
+  const m = memoryOf(s);
+  if (m.session) {
+    if (m.drafts.size) out[m.session] = Object.fromEntries(m.drafts);
+    else delete out[m.session];
+  }
+  return out;
+}
+
+/**
+ * Restore (PLAN 1.8): replaces every draft with the backup's (an empty blob clears them). The memory
+ * copy is dropped so the next read fills from what was written. False when storage could not take it
+ * (the memory copy of the backup's workout in progress still holds the drafts for this session).
+ */
+export function replaceDrafts(blob: DraftsBlob, s = storage()): boolean {
+  const m = memoryOf(s);
+  m.session = null;
+  m.drafts = new Map();
+  const sessions = Object.entries(blob).filter(([, per]) => Object.keys(per).length > 0);
+  if (sessions.length === 1) {
+    const [sid, per] = sessions[0]!;
+    m.session = sid;
+    m.drafts = new Map(Object.entries(per));
+  }
+  if (!s) return sessions.length === 0;
+  try {
+    if (sessions.length) s.setItem(KEY, JSON.stringify(Object.fromEntries(sessions)));
+    else s.removeItem(KEY);
+    return true;
+  } catch {
+    return false;
   }
 }

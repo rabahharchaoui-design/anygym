@@ -16,13 +16,18 @@ import { useActiveGym } from '../db/useActiveGym';
 import { setGymUnit, setPlateColors } from '../db/equipment';
 import type { Unit } from '../db/types';
 import { version } from '../../package.json';
+import { getActiveSession } from '../db/workouts';
+import { parseBackup, workoutCount, type Backup } from '../lib/backup';
+import { RestoreSheet, type RestoreMode } from './settings/RestoreSheet';
+import { useBackup } from './settings/useBackup';
+import type { RestoreResult } from '../db/backup';
 import styles from './Settings.module.css';
 
 let toastSeq = 0;
 
 /**
- * Settings (PLAN 1.7e): small and honest. Haptics on this phone, plate colors for this gym, import
- * history (SPEC 9.3) and which version is running. Gyms and backups come with their own items.
+ * Settings (PLAN 1.7e): small and honest. Haptics on this phone, plate colors for this gym, back up
+ * and restore (SPEC 9.1, 9.2, PLAN 1.8), import history (SPEC 9.3) and which version is running.
  */
 export function SettingsScreen() {
   const hapticsOn = useSyncExternalStore(haptics.subscribe, haptics.enabled, () => true);
@@ -34,6 +39,10 @@ export function SettingsScreen() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState('');
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const restoreRef = useRef<HTMLInputElement>(null);
+  const [restoreError, setRestoreError] = useState('');
+  const [restoring, setRestoring] = useState<Backup | null>(null);
+  const backUp = useBackup(setToast);
 
   // Back from the review screen: "Imported N sets · Undo" (SPEC 13.1: undo, never a confirm).
   useEffect(() => {
@@ -66,6 +75,7 @@ export function SettingsScreen() {
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
     setImportError('');
+    setRestoreError('');
     let text: string;
     try {
       text = await file.text();
@@ -80,6 +90,40 @@ export function SettingsScreen() {
     }
     importDraft.set(parsed);
     go('/settings/import', { kind: 'push' });
+  };
+
+  const pickBackup = async (file: File | undefined) => {
+    if (!file) return;
+    setRestoreError('');
+    setImportError('');
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setRestoreError('Could not open that file. Try again.');
+      return;
+    }
+    const parsed = parseBackup(text);
+    if (!parsed.ok) {
+      setRestoreError(parsed.error);
+      return;
+    }
+    try {
+      if (await getActiveSession()) {
+        setRestoreError('Finish your workout first, then restore.');
+        return;
+      }
+    } catch {
+      setRestoreError('Could not read your workouts. Try again.');
+      return;
+    }
+    setRestoring(parsed.backup);
+  };
+
+  const restored = (result: RestoreResult, mode: RestoreMode) => {
+    setRestoring(null);
+    const text = mode === 'merge' && result.workouts === 0 ? 'Nothing new. Every workout is already here.' : `Restored ${workoutCount(result.workouts)}`;
+    setToast({ id: ++toastSeq, text });
   };
 
   const units = async (unit: Unit) => {
@@ -159,6 +203,34 @@ export function SettingsScreen() {
           Your data
         </h2>
         <div className={styles.card}>
+          <button type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => void backUp()} data-testid="backup">
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel}>Back up</span>
+              <span className={styles.unitHint}>Save everything to one file you keep, in Files or anywhere you like.</span>
+            </span>
+            <ChevronRight className={styles.chevron} aria-hidden="true" />
+          </button>
+          <button type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => restoreRef.current?.click()} data-testid="restore">
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel}>Restore</span>
+              <span className={styles.unitHint}>Bring back your workouts from a backup file.</span>
+            </span>
+            <ChevronRight className={styles.chevron} aria-hidden="true" />
+          </button>
+          <input
+            ref={restoreRef}
+            type="file"
+            accept=".json,application/json"
+            className={styles.file}
+            tabIndex={-1}
+            aria-hidden="true"
+            data-testid="restore-file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              void pickBackup(file);
+            }}
+          />
           <button type="button" className={`${styles.linkRow} pressable`} disabled={!gym} onClick={() => fileRef.current?.click()} data-testid="import-history">
             <span className={styles.unitText}>
               <span className={styles.unitLabel}>Import history</span>
@@ -182,7 +254,7 @@ export function SettingsScreen() {
           />
         </div>
         <p className={styles.error} role="status" data-testid="import-error">
-          {importError}
+          {restoreError || importError}
         </p>
       </section>
       <section className={styles.group} aria-labelledby="set-about">
@@ -199,6 +271,7 @@ export function SettingsScreen() {
           <p className={styles.note}>Everything you log stays on this phone and works offline.</p>
         </div>
       </section>
+      <RestoreSheet backup={restoring} onClose={() => setRestoring(null)} onDone={restored} />
       <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom))" />
     </>
   );

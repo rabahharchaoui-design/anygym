@@ -24,6 +24,10 @@ import { applyUpdate, isUpdateReady, onUpdateReady } from '../lib/pwaUpdate';
 import { registerTap } from '../lib/secretTaps';
 import { DayCard } from './today/DayCard';
 import { ChangeDaySheet } from './today/ChangeDaySheet';
+import { BackupReminder } from './today/BackupReminder';
+import { useBackup } from './settings/useBackup';
+import { snoozeBackupReminder } from '../db/backup';
+import { shouldRemind, SNOOZE_MS } from '../lib/backup';
 import styles from './TodayScreen.module.css';
 
 export function TodayScreen() {
@@ -53,7 +57,10 @@ export function TodayScreen() {
     const active = await getActiveSession();
     const planState = await getPlanState();
     const activeSets = active ? await db.sets.where('sessionId').equals(active.id).count() : 0;
-    return { active: active ?? null, planState: planState ?? null, activeSets };
+    // The backup reminder (SPEC 9.1): finished workouts and when the last backup was.
+    const finished = await db.sessions.filter((s) => s.endedAt !== undefined || s.imported).count();
+    const profile = await db.profile.toCollection().first();
+    return { active: active ?? null, planState: planState ?? null, activeSets, finished, lastBackupAt: profile?.lastBackupAt, snoozeUntil: profile?.backupSnoozeUntil };
   }, [dbOpen]);
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
@@ -112,7 +119,12 @@ export function TodayScreen() {
     navigate('.', { replace: true, state: null });
   }, [location.state, navigate, go]);
 
+  const backUp = useBackup(setToast);
   const active = data.value?.active ?? null;
+  const remind =
+    data.ready &&
+    shouldRemind({ sessions: data.value?.finished ?? 0, lastBackupAt: data.value?.lastBackupAt, snoozeUntil: data.value?.snoozeUntil, activeWorkout: active !== null, now: Date.now() });
+  const later = () => void snoozeBackupReminder(Date.now() + SNOOZE_MS).catch(() => setToast({ id: Date.now(), text: 'Could not save that. Try again.' }));
   const planState = data.value?.planState ?? null;
   const plan = planById(planState?.planId);
 
@@ -209,6 +221,7 @@ export function TodayScreen() {
             <span className={styles.quickSub}>Start empty, add exercises as you go</span>
           </button>
         )}
+        <BackupReminder show={remind} onBackUp={() => void backUp()} onLater={later} />
         <p className={styles.error} role="status">
           {error ? 'Could not start a workout. Try again.' : ''}
         </p>
