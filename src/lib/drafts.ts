@@ -4,6 +4,7 @@
 // No weight math here: the card rebuilds the load through load.ts from what is stored.
 import type { Load } from '../db/types';
 import type { Stopwatch } from './timer';
+import { mirror as mirrorDurable } from './durable';
 
 export type Draft = {
   /** Id the set will be logged with (double tap safe across a reload). */
@@ -123,6 +124,7 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
     try {
       if (m.session && m.drafts.size) s.setItem(KEY, JSON.stringify({ [m.session]: Object.fromEntries(m.drafts) }));
       else s.removeItem(KEY);
+      void mirrorDurable(s, KEY);
       ok = true;
     } catch {
       ok = false;
@@ -201,6 +203,7 @@ export function clearSessionDrafts(sessionId: string, s = storage()): void {
   try {
     if (Object.keys(next).length) s.setItem(KEY, JSON.stringify(next));
     else s.removeItem(KEY);
+    void mirrorDurable(s, KEY);
   } catch {
     /* memory is already clear */
   }
@@ -243,6 +246,7 @@ export function replaceDrafts(blob: DraftsBlob, s = storage()): boolean {
   try {
     if (sessions.length) s.setItem(KEY, JSON.stringify(Object.fromEntries(sessions)));
     else s.removeItem(KEY);
+    void mirrorDurable(s, KEY);
     return true;
   } catch {
     return false;

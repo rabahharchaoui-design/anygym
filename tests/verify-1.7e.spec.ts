@@ -391,5 +391,5 @@ test('V9 stress: double tap, reload mid workout, offline', async ({ page, contex
   const n2 = (await dbAll(page, 'sets')).filter((s) => !(s as { id: string }).id.startsWith('seed-')).length;
   expect(n2).toBe(n1 + 1);
   await context.setOffline(false);
-  expect(errors.filter((e) => !/Failed to load resource|offline|network/i.test(e))).toEqual([]);
+  expect(errors).toEqual([]);
 });

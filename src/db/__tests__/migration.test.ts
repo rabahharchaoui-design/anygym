@@ -54,7 +54,7 @@ describe('schema v1 → v2 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     expect(await db.gyms.toArray()).toEqual([seeded.gym]);
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect(await db.sets.count()).toBe(25);
@@ -98,7 +98,7 @@ describe('schema v2 → v3 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     expect(await db.sets.count()).toBe(25);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
@@ -133,7 +133,7 @@ describe('schema v3 → v4 migration (PLAN 1.10c: set order counter)', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect((await getPlanState(db))!.nextDayIndex).toBe(2);
@@ -178,7 +178,7 @@ describe('schema v4 → v5 migration (PLAN 1.10f: plan renamed, old id ohrabah-s
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     expect(await getPlanState(db)).toEqual({ id: 'active', planId: 'five-day-split', startedAt: 1, weekIndex: 0, nextDayIndex: 3, doneDays: [0, 1, 2] });
     expect(await db.sessions.get('plan-1')).toEqual({ ...planSessions[0], planId: 'five-day-split' });
     expect(await db.sessions.get('plan-2')).toEqual({ ...planSessions[1], planId: 'five-day-split' });
@@ -221,7 +221,7 @@ describe('schema v5 → v6 migration (PLAN 1.7h: submissions and tombstones)', (
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     expect(await db.gyms.toArray()).toEqual([seeded.gym]);
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));

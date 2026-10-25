@@ -66,7 +66,7 @@ async function wipe(page: Page) {
   await expect(page.getByText('No workouts yet')).toBeVisible();
 }
 
-test('back up, wipe, restore with Replace: History shows the same workouts and sets; Merge adds nothing', async ({ page }) => {
+test('back up, wipe, restore with Replace: History shows the same workouts and sets; Merge adds nothing @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await noShare(page);
   await logWorkout(page);

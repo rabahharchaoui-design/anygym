@@ -3,9 +3,6 @@ import type { WorkoutSet } from '../src/db/types';
 import { bar185, checkCurrent, dbAll, exerciseView, fitsOneScreen, loggedRows, quickWith, seedFinished, watchErrors } from './workout-helpers';
 
 test.use({ viewport: { width: 375, height: 667 } });
-test.beforeEach(({ browserName }) => {
-  test.skip(browserName !== 'webkit', 'iPhone SE WebKit coverage');
-});
 
 // Check before tapping: Playwright's automatic scroll must not hide a layout failure.
 async function exposed(control: Locator) {

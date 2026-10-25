@@ -64,11 +64,11 @@ describe('verify 1.7h: v5 data byte identical after opening v6', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray())).toBe(before[t]);
     expect(await db.submissions.count()).toBe(0);
     expect(await db.tombstones.count()).toBe(0);
-    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'submissions', 'tombstones'].sort());
+    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'submissions', 'tombstones', 'kv'].sort());
     db.close();
   });
 });

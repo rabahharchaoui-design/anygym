@@ -58,7 +58,6 @@ test.describe('1.11 private history import (temp copy)', () => {
   test.skip(!existsSync(SOURCE), 'no private history file on this machine');
 
   test('every set written, no invented loads, order kept, no console errors', async ({ page }) => {
-    test.skip(test.info().project.name !== 'iPhone 15 Pro', 'one profile');
     const errors: string[] = [];
     page.on('console', (m) => {
       if (m.type() === 'error') errors.push(m.text());

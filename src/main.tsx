@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import { startDb } from './db/bootstrap';
+import { restoreMirrors } from './lib/durable';
 import { registerAppUpdates } from './pwa';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -15,14 +16,21 @@ registerAppUpdates();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
+const mount = root;
 
-createRoot(root).render(
-  <StrictMode>
-    <HashRouter>
-      <App />
-    </HashRouter>
-  </StrictMode>,
-);
+// Live workout state written just before an app kill is put back first (lib/durable.ts), so
+// nothing reads a stale draft or rest timer. Without storage the shell still starts.
+void restoreMirrors()
+  .catch(() => [])
+  .then(() =>
+    createRoot(mount).render(
+      <StrictMode>
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </StrictMode>,
+    ),
+  );
 
 // After first paint: open the database and create the first gym if needed.
 // Storage can be unavailable (e.g. some private modes); the shell still works.

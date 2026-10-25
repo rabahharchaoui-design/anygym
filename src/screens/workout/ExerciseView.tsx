@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Load, WorkoutSet } from '../../db/types';
 import { updateSetType } from '../../db/workouts';
 import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
@@ -12,7 +12,7 @@ import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeS
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio } from '../../lib/tone';
 import { useNow } from '../../hooks/useNow';
-import { TAP_GUARD_MS, useTapGuard } from '../../hooks/useTapGuard';
+import { useTapGuard } from '../../hooks/useTapGuard';
 import { Hint } from '../../components/hint/Hint';
 import { Sheet } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
@@ -132,14 +132,13 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const blockedOf = (row: PendingRow) => (kind ? blockedReason(kind, row, row.index === current?.index ? liveSeconds : 0, baseUnknown) : 'Pick a weight');
 
   // A double tap on one ✓ logs one set; checking the next row right after is fine (SPEC 13.3).
-  const lastTap = useRef<{ index: number; at: number } | null>(null);
-  // `at` is the input event's time stamp, not handler time: a busy main thread that delivers the
-  // second tap of a double tap late must not turn it into a second set.
-  const log = async (row: PendingRow, at: number = performance.now(), cap?: number) => {
-    if (lastTap.current && lastTap.current.index === row.index && at - lastTap.current.at < TAP_GUARD_MS) return;
-    lastTap.current = { index: row.index, at };
-    // Finish started (synchronous), or a write of this exercise is running: no new Log set.
-    if (!kind || logQueue.pending(key) || logQueue.closed(sessionId)) return;
+  // Race proof, never time based (PLAN 1.12): the row is claimed synchronously with its one
+  // submission (logQueue.claim), so a second tap in the same task, during the write, or on a stale
+  // render after the write landed resolves to that same submission.
+  useLayoutEffect(() => logQueue.release(key, logged.length), [key, logged.length]);
+  const log = (row: PendingRow, cap?: number): Promise<boolean> | undefined => {
+    // Finish started (synchronous), the row is claimed, or a write of this exercise is running.
+    if (!kind || logQueue.claimed(key, row.index) || logQueue.pending(key) || logQueue.closed(sessionId)) return;
     unlockAudio();
     let seconds = row.seconds;
     if (timed && row.index === current?.index && elapsedMs(watch, Date.now()) > 0) {
@@ -157,14 +156,15 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     writeDrafts(sessionId, slotChanges(exerciseId, before, marked.slots));
     setFresh((f) => new Set(f).add(marked.draft.id));
     tick();
-    await submitAndTell(marked.draft);
+    return logQueue.claim(key, row.index, () => submitAndTell(marked.draft));
   };
 
   /** Writes a submitted row; it lands even if this view closed meanwhile (rowLog.ts). */
-  const submitAndTell = async (draft: Draft) => {
+  const submitAndTell = async (draft: Draft): Promise<boolean> => {
     const ok = await submitRow(sessionId, exerciseId, draft, { onLanded: () => onLogged(exerciseId) });
     if (!ok && !logQueue.closed(sessionId)) onNotice('Could not save that set', () => void retry(draft.id));
     refresh();
+    return ok;
   };
   /** Try again on a failed set: the same row (same id), with its values as they are now. */
   const retry = async (id: string) => {
@@ -220,7 +220,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const holdTarget = timed ? current?.seconds : undefined;
   useEffect(() => {
     if (!timed || !running || !current || !holdTarget || liveSeconds < holdTarget) return;
-    void log(current, performance.now(), holdTarget);
+    void log(current, holdTarget);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timed, running, liveSeconds, holdTarget, current?.index]);
 
@@ -319,7 +319,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             liveSeconds={liveSeconds}
             fresh={fresh}
             editing={editing}
-            onCheck={(r, at) => void log(r, at)}
+            onCheck={(r) => void log(r)}
             onWeight={(r) => setPicking(r)}
             onAmount={(r) => setEditing((e) => (e === r.index ? null : r.index))}
             // A typed hold replaces the row's stopwatch with a stopped one of that length (PLAN 1.7h).

@@ -68,6 +68,17 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
   // Until the entrance settles, the content takes no taps (the sheet itself swallows them, so an
   // early tap never lands on a row that is still moving, nor falls through to the scrim).
   const [settled, setSettled] = useState(false);
+  // A sheet taller than a short phone (the 320 x 568 floor: the Type it pad, the Smith question
+  // over the plates) would run off the top: then its body scrolls and the grabber drags, like a
+  // `scroll` sheet. Measured once before the first paint.
+  const [tall, setTall] = useState(false);
+  const scrolling = scroll || tall;
+  useLayoutEffect(() => {
+    if (scroll) return;
+    const sheet = dialogRef.current;
+    const room = rootRef.current?.clientHeight ?? window.innerHeight;
+    if (sheet && sheet.offsetHeight > room * 0.88) setTall(true);
+  }, [scroll]);
   useEffect(() => {
     const t = window.setTimeout(() => setSettled(true), SETTLE_FALLBACK_MS);
     return () => window.clearTimeout(t);
@@ -127,7 +138,7 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
         aria-label={present ? label : undefined}
         tabIndex={-1}
         className={styles.sheet}
-        data-scroll={scroll}
+        data-scroll={scrolling}
         data-state={settled ? 'open' : 'opening'}
         onAnimationComplete={() => setSettled(true)}
         onKeyDown={trapTab}
@@ -138,7 +149,7 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
         exit={reduce ? { opacity: 0 } : { y: (dialogRef.current?.offsetHeight ?? 800) + SHADOW_CLEARANCE, transition: SHEET_CLOSE }}
         transition={reduce ? FADE : SHEET_SPRING}
         drag={reduce ? false : 'y'}
-        dragListener={!scroll}
+        dragListener={!scrolling}
         dragControls={controls}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={{ top: 0, bottom: 1 }}
@@ -146,7 +157,8 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
         onDragStart={() => (dragged.current = true)}
         onDragEnd={onDragEnd}
       >
-        {scroll ? <div className={styles.scrollBody}>{children}</div> : children}
+        {/* One wrapper either way, so switching to a scrolling body never remounts the content. */}
+        <div className={scrolling ? styles.scrollBody : styles.body}>{children}</div>
         {/* The grabber doubles as the labelled Close button: no extra chrome, no layout change. Last in
             the DOM (and the Tab order), drawn first (CSS order), its hit area reaching up over the scrim. */}
         <button
@@ -155,7 +167,7 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
           aria-label="Close"
           onPointerDown={(e) => {
             dragged.current = false;
-            if (scroll && !reduce) controls.start(e);
+            if (scrolling && !reduce) controls.start(e);
           }}
           onClick={() => {
             if (dragged.current) return;

@@ -8,7 +8,6 @@ const SQUAT = 'barbell-back-squat';
 const sets = async (page: Page) => (await dbAll<SetRow>(page, 'sets')).filter((s) => !s.id.startsWith('seed-')).sort((a, b) => a.order - b.order);
 const weightSheet = (page: Page) => page.getByRole('dialog', { name: 'Pick the weight' });
 const editSheet = (page: Page) => page.getByRole('dialog', { name: 'Edit set' });
-const only = (names: string[]) => test.skip(!names.includes(test.info().project.name), 'profile');
 const shot = async (page: Page, name: string) => {
   await page.waitForTimeout(500);
   await page.screenshot({ path: `reports/shots/1.7h/${test.info().project.name.replace(/ /g, '-')}-${name}.png` });
@@ -31,7 +30,6 @@ async function logOne(page: Page) {
   await expect(loggedRows(view)).toHaveCount(before + 1);
 }
 
-test.beforeEach(() => only(['iPhone 15 Pro', 'iPhone SE']));
 
 test('(a) real failing write: Finish refuses, Try again saves, Finish works', async ({ page }) => {
   const errors = watchErrors(page);
@@ -64,7 +62,7 @@ test('(a) real failing write: Finish refuses, Try again saves, Finish works', as
   const s = await sets(page);
   expect(s).toHaveLength(2);
   expect(new Set(s.map((x) => x.id)).size).toBe(2);
-  expect(errors.filter((e) => !/boom/.test(e))).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('(a2) Finish without it discards only that set', async ({ page }) => {
@@ -175,7 +173,7 @@ test('(e) failing reads: LoadError, ✓ and Finish disabled, no redirect; recove
   await expect(page.getByTestId('load-error')).toHaveCount(0);
   await expect(loggedRows(exerciseView(page, SQUAT))).toHaveCount(1);
   await logOne(page);
-  expect(errors.filter((e) => !/fail|Failed to load resource/i.test(e))).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('(f) pending set 3 at 17 reps stays with its row across delete set 1 and Undo', async ({ page }) => {

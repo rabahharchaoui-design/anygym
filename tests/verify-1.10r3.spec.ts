@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures';
+import { fullyShown } from './helpers/layout';
 import { readFileSync } from 'node:fs';
 
 const oh = JSON.parse(readFileSync('data/plans/five-day-split.json', 'utf8'));
@@ -61,7 +62,7 @@ test('r3: finisher in viewer and workout', async ({ page }) => {
     if (d.finisher.minutes === null) expect(t).not.toMatch(/\d/);
     else expect(t).toContain(String(d.finisher.minutes));
   }
-  if (test.info().project.name === 'iPhone 15 Pro') { await page.screenshot({ path: 'reports/shots/1.10/r3-viewer.png', fullPage: true }); }
+  if (test.info().project.name === 'iPhone 15') { await page.screenshot({ path: 'reports/shots/1.10/r3-viewer.png', fullPage: true }); }
   // workout: day 2 finisher (15 min) is the last row, and opens as a timed hold.
   await start(page, 2);
   const last = page.getByTestId('finisher');
@@ -88,7 +89,7 @@ test('r3: long title fits on SE', async ({ page }) => {
   const title = view.getByRole('heading', { name: 'Band Internal Shoulder Rotation (90 degrees)' });
   await expect(title).toBeVisible();
   await page.waitForTimeout(450);
-  expect(await title.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  expect(await fullyShown(title)).toBe(true);
   await page.screenshot({ path: `reports/shots/1.10/r3-title-${test.info().project.name.replace(/ /g, '-')}.png` });
   expect(await page.getByRole('main').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);

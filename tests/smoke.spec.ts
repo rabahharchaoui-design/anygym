@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures';
 
 test.describe('app shell', () => {
-  test('loads, shows 4 tabs, each tab opens its screen, no console errors', async ({ page }) => {
+  test('loads, shows 4 tabs, each tab opens its screen, no console errors @matrix', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);

@@ -58,8 +58,21 @@ export const SCHEMA_V6 = {
   tombstones: 'id, sessionId',
 } as const;
 
+/**
+ * Version 7 (PLAN 1.12), additive: kv, an IndexedDB mirror of the live workout state kept in
+ * localStorage (row drafts, the rest deadline, added rows: lib/durable.ts). Chromium writes
+ * localStorage to disk seconds late, so an app killed right after an edit lost it; IndexedDB
+ * writes survive. Never backed up (not in lib/backup.ts TABLE_NAMES): it is only a mirror.
+ */
+export const SCHEMA_V7 = {
+  kv: 'key',
+} as const;
+
+/** One mirrored localStorage key (lib/durable.ts): its value (null = removed) and write stamp. */
+export type KvRow = { key: string; value: string | null; at: number };
+
 /** The current schema version (the highest this.version below). Backups record it (lib/backup.ts). */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
@@ -78,6 +91,7 @@ export class AnyGymDB extends Dexie {
   orderCounters!: EntityTable<OrderCounter, 'sessionId'>;
   submissions!: EntityTable<Submission, 'id'>;
   tombstones!: EntityTable<Tombstone, 'id'>;
+  kv!: EntityTable<KvRow, 'key'>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -100,6 +114,7 @@ export class AnyGymDB extends Dexie {
         }
       });
     this.version(6).stores(SCHEMA_V6);
+    this.version(7).stores(SCHEMA_V7);
   }
 }
 

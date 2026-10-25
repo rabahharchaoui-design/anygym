@@ -49,11 +49,10 @@ async function plates(page: Page, card: Locator, labels: string[]) {
 }
 const label = (p: Page) => logBtn(p).getAttribute('aria-label');
 async function pad(scope: Locator, v: string) { for (const d of v) await scope.getByRole('button', { name: d, exact: true }).tap(); }
-const shot = async (p: Page, n: string) => { await p.waitForTimeout(700); await p.screenshot({ path: `reports/shots/1.10c/${n}.png` }); };
-const only15 = () => test.skip(test.info().project.name !== 'iPhone 15 Pro', 'one profile');
+// Report screenshots come from one profile; the checks run on every phone.
+const shot = async (p: Page, n: string) => { if (test.info().project.name !== 'iPhone 15') return; await p.waitForTimeout(700); await p.screenshot({ path: `reports/shots/1.10c/${n}.png` }); };
 
 test.describe('1.10c verify', () => {
-  test.beforeEach(() => only15());
 
   test('a timed hold: stop at ~2 s, Start again, 1.5 s, Log while running saves about 3.5 s', async ({ page }) => {
     const errors = watch(page);
@@ -307,6 +306,6 @@ test.describe('1.10c verify', () => {
     expect((await sets(page)).length).toBe(1);
     const open = (await dbAll<Session>(page, 'sessions')).filter((s) => s.endedAt === undefined);
     expect(open.length).toBe(1);
-    expect(errors.filter((e) => !/Failed to load resource|offline/i.test(e))).toEqual([]);
+    expect(errors).toEqual([]);
   });
 });

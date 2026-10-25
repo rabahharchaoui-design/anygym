@@ -1,7 +1,8 @@
 /* The set table (SPEC 20.2, 21.1): big numbers, thumb sized cells, one check per row. */
 
 .wrap {
-  --cols: 48px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr) 52px;
+  /* The reps cell never drops under a 48 px tap target (the 320 floor): LAST TIME gives way first. */
+  --cols: 48px minmax(0, 1.1fr) minmax(0, 1fr) minmax(48px, 0.8fr) 52px;
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -117,7 +118,7 @@
 }
 
 .wrap .loggedBody {
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(48px, 0.8fr);
   gap: 6px;
 }
 
@@ -389,3 +390,26 @@
 .holdRing {
   flex: none;
 }
+
+/* Short screens (the 320 x 568 floor, SPEC 13.4/13.5): a slimmer header and tighter rows so four
+   sets and the rest bar still fit; every target stays 48 pt. */
+@media (max-height: 600px) {
+  .head {
+    height: 18px;
+    padding-bottom: 2px;
+  }
+  .rows {
+    gap: 2px;
+  }
+}
+
+/* The narrowest phones: the running Hold (ring, time and "of 1:00") gets the room LAST TIME gives up. */
+@media (max-width: 359px) {
+  .wrap[data-timed] {
+    --cols: 48px minmax(0, 0.8fr) minmax(0, 1.4fr) 52px;
+  }
+  .wrap[data-timed] .loggedBody {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  }
+}
+

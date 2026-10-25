@@ -173,8 +173,10 @@ test('Smith first use: the bar question sits on top of the weight sheet; a chip 
   await expect(sheet.locator('[data-hint="plates"]')).toHaveCount(0);
   for (const name of ['Add 45 lb plate to each side', 'Add 2.5 lb plate to each side']) {
     const plate = sheet.getByRole('button', { name });
+    // Short phones (SE, the 320 floor): the sheet's body scrolls, so the plates are one scroll away.
+    if (page.viewportSize()!.height < 700) await plate.scrollIntoViewIfNeeded();
     const free = await plate.evaluate((el) => { const r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return r.bottom <= innerHeight && (hit === el || el.contains(hit)); });
-    if (test.info().project.name !== 'iPhone SE') expect(free, name).toBe(true);
+    expect(free, name).toBe(true);
   }
   await q.getByRole('button', { name: 'Bar weighs 25 lb' }).tap();
   await expect(q).toHaveCount(0);

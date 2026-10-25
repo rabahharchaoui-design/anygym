@@ -101,6 +101,11 @@
   touch-action: auto;
 }
 
+/* A sheet that fits: its content lays out as if the wrapper were not there. */
+.body {
+  display: contents;
+}
+
 .scrollBody {
   max-height: calc(88dvh - var(--safe-top) - 48px);
   overflow-y: auto;

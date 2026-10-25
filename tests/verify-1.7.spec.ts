@@ -35,7 +35,7 @@ const big = async (loc: Locator, what: string) => {
   expect.soft(Math.min(b.width, b.height), `${what} ${JSON.stringify(b)}`).toBeGreaterThanOrEqual(47.5);
 };
 const shot = async (page: Page, name: string) => {
-  if (test.info().project.name !== 'iPhone 15 Pro') return;
+  if (test.info().project.name !== 'iPhone 15') return;
   await page.waitForTimeout(500);
   await page.screenshot({ path: `reports/shots/1.7/v-${name}.png` });
 };

@@ -8,7 +8,6 @@ const watch = (page: Page) => {
 };
 
 test('tester: glossary entry shots + tap targets', async ({ page }) => {
-  test.skip(test.info().project.name !== 'iPhone 15 Pro', 'one profile');
   const errors = watch(page);
   await page.goto('./?dev#/dev/info');
   await page.waitForTimeout(500);
@@ -18,7 +17,7 @@ test('tester: glossary entry shots + tap targets', async ({ page }) => {
     const e = entries.nth(i);
     const id = (await e.getAttribute('data-testid'))!.replace('entry-', '');
     await e.scrollIntoViewIfNeeded();
-    await e.screenshot({ path: `reports/shots/1.7b/glossary/${id}.png` });
+    if (test.info().project.name === 'iPhone 15') await e.screenshot({ path: `reports/shots/1.7b/glossary/${id}.png` });
     const b = (await e.getByRole('button').first().boundingBox())!;
     expect(b.width, id).toBeGreaterThanOrEqual(48);
     expect(b.height, id).toBeGreaterThanOrEqual(48);
@@ -71,7 +70,7 @@ test('tester: plates presets labels + math', async ({ page }) => {
     });
     const m = await page.getByTestId('plate-math').innerText();
     console.log(test.info().project.name, t, '| math:', m, '|', JSON.stringify(info));
-    if (test.info().project.name === 'iPhone 15 Pro') await page.screenshot({ path: `reports/shots/1.7b/plates-${t.replace(' ', '-')}.png` });
+    if (test.info().project.name === 'iPhone 15') await page.screenshot({ path: `reports/shots/1.7b/plates-${t.replace(' ', '-')}.png` });
   }
   expect(errors).toEqual([]);
 });
@@ -102,7 +101,7 @@ test('tester: pickers, no held/stack labels, stretch, reload, double tap', async
   console.log('timer-clock count', await page.getByTestId('timer-clock').count());
   const titles = await page.locator('[data-testid="picker-title"]:visible').allInnerTexts();
   console.log('titles', titles);
-  if (test.info().project.name === 'iPhone 15 Pro') await page.screenshot({ path: 'reports/shots/1.7b/stretch.png' });
+  if (test.info().project.name === 'iPhone 15') await page.screenshot({ path: 'reports/shots/1.7b/stretch.png' });
   // scan all text + aria for old labels
   const all = await page.evaluate(() => [...document.querySelectorAll('body *')].flatMap((e) => [e.children.length === 0 ? e.textContent ?? '' : '', e.getAttribute('aria-label') ?? '']).filter(Boolean));
   const bad = all.filter((t) => /^(held|stack|each hand|\+ added.*)$/i.test(t.trim()));

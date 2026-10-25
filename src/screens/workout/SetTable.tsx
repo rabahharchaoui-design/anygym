@@ -26,8 +26,8 @@ type Props = {
   /** Ids logged while this view was open: their rows play the check animation once. */
   fresh: ReadonlySet<string>;
   editing: number | null;
-  /** `at` is the tap's own event time, so a double tap stays one tap even if the page was busy. */
-  onCheck: (row: PendingRow, at: number) => void;
+  /** A double tap stays one set: the view claims the row with one submission (logQueue.claim). */
+  onCheck: (row: PendingRow) => void;
   onWeight: (row: PendingRow) => void;
   onAmount: (row: PendingRow) => void;
   onAmountChange: (row: PendingRow, value: number) => void;
@@ -216,7 +216,7 @@ export function SetTable(props: Props) {
                     type="button"
                     className={`${styles.check} pressable`}
                     disabled={blocked !== null}
-                    onClick={(e) => props.onCheck(r, e.timeStamp)}
+                    onClick={() => props.onCheck(r)}
                     aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSetLine({ reps: r.reps, load: r.load ?? undefined })}`}
                     data-testid={isCurrent ? 'check-current' : 'check'}
                   >

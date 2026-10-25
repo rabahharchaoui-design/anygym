@@ -1,5 +1,6 @@
 // Rest timer (SPEC 5.1). Pure: the timer is an end timestamp, so the remaining time is right after
 // backgrounding, throttled intervals or a reload.
+import { mirror } from './durable';
 
 export const DEFAULT_REST_SEC = 90;
 export const REST_STEP_SEC = 15;
@@ -83,6 +84,7 @@ export function saveRest(rest: Rest | null, kv: KV | null = storage()): void {
   try {
     if (rest) kv?.setItem(REST_KEY, JSON.stringify(rest));
     else kv?.removeItem(REST_KEY);
+    void mirror(kv, REST_KEY);
   } catch {
     /* storage full or blocked: the timer still runs in memory */
   }

@@ -211,7 +211,7 @@ const big = async (loc: Locator, what: string) => {
   expect.soft(Math.min(b.width, b.height), `${what} ${JSON.stringify(b)}`).toBeGreaterThanOrEqual(47.5);
 };
 const vshot = async (page: Page, name: string) => {
-  if (test.info().project.name !== 'iPhone 15 Pro') return;
+  if (test.info().project.name !== 'iPhone 15') return;
   await page.waitForTimeout(500);
   await page.screenshot({ path: `reports/shots/1.10/v-${name}.png`, fullPage: false });
 };
@@ -420,7 +420,7 @@ test('break: double tap Use this plan and Start; switch plan mid workout; reload
   await page.waitForTimeout(500);
   console.log('offline viewer heading', await page.getByRole('heading', { name: 'Six Week Volume Builder' }).count());
   await context.setOffline(false);
-  expect(errors.filter((e) => !/offline|Failed to load resource|network/i.test(e))).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 for (const where of ['viewer', 'today']) {

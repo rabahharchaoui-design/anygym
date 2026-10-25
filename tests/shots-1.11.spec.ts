@@ -6,7 +6,7 @@ import { expect, test, type Page } from './fixtures';
 // PLAN 1.11 report: the import review on the synthetic fixture (invented numbers), SE and Pro Max.
 // On demand only: SHOTS_111=1 npx playwright test tests/shots-1.11.spec.ts
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'lib', 'import', '__tests__', 'fixtures', 'synthetic-import-v1.json');
-const PROFILES = ['iPhone SE', 'iPhone 17 Pro Max', 'iPhone 15 Pro'];
+const PROFILES = ['iPhone SE', 'iPhone 17 Pro Max', 'iPhone 15'];
 
 async function shot(page: Page, name: string) {
   const project = test.info().project.name.replace(/ /g, '-');
