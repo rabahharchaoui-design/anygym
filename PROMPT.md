@@ -59,6 +59,24 @@ REAL IPHONE SIMULATOR (added Oct 24 1:45 AM, Xcode 27.1 is installed on gmini)
 - Never open Simulator.app windows on top of G's work if avoidable, never install anything, and if xcrun or the simulator fails, note it in the report and continue (do not block the item on it).
 - The ux-critic must look at the simulator screenshots, not only the Playwright ones, before scoring feel (SPEC 23.4).
 
+CODEX MAX MODE (added Oct 25 2:20 AM, G: use Codex as much as possible, it saves Claude usage)
+- BRIEFS: Codex pre plans upcoming items into reports/codex/brief-<id>.md. Before you write the builder brief for an item, if that file exists, hand it to the builder as a second engineer's starting plan. Check it against SPEC.md (SPEC wins) and the current code (it may be a few commits old). This is meant to save builder thinking, so lean on it when it is sound.
+- TEST BATCHES now say in their report whether Codex already ran its Playwright specs on all iPhone profiles. If the report shows them all passing, merge, run the new specs once on one profile as a smoke check, and move on (the merge gate's full run still covers every profile). Only investigate when something fails.
+- Up to 3 test batches per item now. Never let merging them take more than about 10 minutes per batch.
+
+CODEX BACKUP BUILDER (added Oct 25 3:05 AM, G approved)
+- While you are paused on a usage limit, a helper has Codex build the SECOND open item in the current session (never the item you are on) in its own copy of the repo, on a branch codex-build-<id>-<stamp>. Its report is reports/codex/build-<id>-<stamp>.md. First line "STATUS: BUILDING" means Codex is still working; "STATUS: NEW" means it is ready for you.
+- When you are about to start an item that has a BUILDING report, skip ahead to the next item and come back to it later.
+- When you reach an item that has a NEW report, do not build it from scratch. Treat Codex as a second builder whose work you do not trust blindly: `git merge --no-ff --no-edit <branch>`, resolve any conflicts, then run the normal tester pass against SPEC and the item's acceptance checks (plus simulator checks for UI). Fix what is wrong with the builder, or `git merge --abort` / revert and build it yourself if it is poor. Only then check the item [x] as usual.
+- Set the report's first line to "STATUS: HANDLED merged" or "STATUS: HANDLED discarded <reason>". You may delete the merged codex-build-* branch with `git branch -d`.
+
+CLAUDE USAGE BUDGET (added Oct 25 3:15 AM, G: be smart with usage this week)
+G's Claude week was 72% used early Sunday and resets Thursday 3 AM. Builder tokens on Opus are most of the spend. Stretch the week without lowering the bar:
+- Builder model routing: when you delegate to the builder, pass model "sonnet" for routine work: Codex fix lists, test only items, data and script items, small bug fixes, items that already have a Codex brief, and reviewing or finishing a Codex backup build. Keep the builder on Opus (its default) for new screens and flows, SPEC 23 feel work, Dexie migrations, weight math, and any item Sonnet failed at the tester twice.
+- ux-critic (Opus) runs only at session merge gates and on items whose main deliverable is visual feel (like 1.7e). For other UI items, read Codex's visual QA report reports/codex/ui-<id>.md (written right after you check an item) and turn real BLOCKER or MAJOR findings into a short fix item; ignore taste nitpicks.
+- Keep your own turns lean: do not re-read big files you already read this run, keep test output short (line reporter, tail of failures), and do not run the full Playwright matrix for items that do not touch UI (the merge gate runs everything).
+- Lean on Codex: it has most of its week left. Briefs, audits, test batches, visual QA and backup builds all save Claude usage.
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 
