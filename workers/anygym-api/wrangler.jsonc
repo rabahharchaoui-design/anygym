@@ -1,0 +1,27 @@
+// anygym-api (SPEC 24): POST /feedback and POST /crash into the private D1 database anygym-feedback.
+// Secrets (never in the repo): NTFY_TOPIC, set with `npx wrangler secret put NTFY_TOPIC`.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "anygym-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "vars": { "ENVIRONMENT": "production" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "anygym-feedback", "database_id": "745c94d5-efb9-41bf-a4f4-f2e0b84d145f" }
+  ],
+  // Every 15 minutes: push "AnyGym: bug fixed" for rows that turned 'fixed', and prune old counters.
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "env": {
+    // Local preview only (`wrangler dev --env dev`): also accepts the vite preview origins.
+    // Production ignores DEV_ORIGINS whatever it holds.
+    "dev": {
+      "vars": { "ENVIRONMENT": "dev", "DEV_ORIGINS": "http://localhost:4173,http://localhost:4174" },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "anygym-feedback", "database_id": "745c94d5-efb9-41bf-a4f4-f2e0b84d145f" }
+      ],
+      "triggers": { "crons": [] }
+    }
+  }
+}

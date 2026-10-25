@@ -13,6 +13,40 @@ import { test as base, expect, type BrowserContext, type Page } from '@playwrigh
 // Everything blocked is appended to test-results/network-guard.log so a run can be audited.
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
+
+// SPEC 24: the report API (the anygym-api Worker). It never reaches the network in the normal suite:
+//   - an init script answers the app's fetch calls to it inside the page (a page controlled by the
+//     PWA service worker sends fetches past context.route in WebKit, so the route alone is not
+//     enough), through the __pwReportApi binding: offline (setOffline) it fails like no signal,
+//     otherwise a spec's own handler (tests/helpers/reportApi.ts) or the default mock answers 201;
+//   - context.route also answers the host with the mock, for anything else that tries.
+// Only a dedicated live test may ever talk to the real Worker.
+export const REPORT_API_ORIGIN = 'https://anygym-api.rabahharchaoui.workers.dev';
+const REPORT_API_HOST = new URL(REPORT_API_ORIGIN).hostname;
+export const REPORT_CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
+
+export type ReportApiCall = { path: string; method: string; body: string | null };
+export type ReportApiAnswer = { status: number; body: string };
+type ReportApiHandler = (call: ReportApiCall) => ReportApiAnswer;
+const reportHandlers = new WeakMap<BrowserContext, ReportApiHandler>();
+const DEFAULT_REPORT_ANSWER: ReportApiAnswer = { status: 201, body: '{"ok":true,"id":1}' };
+
+/** Lets a spec see and answer the report API calls of a context (tests/helpers/reportApi.ts). */
+export const onReportApi = (context: BrowserContext, handler: ReportApiHandler) => void reportHandlers.set(context, handler);
+
+// Runs in the page before the app.
+function mockReportApiInPage(origin: string) {
+  const original = window.fetch.bind(window);
+  const w = window as unknown as { __pwReportApi: (c: { path: string; method: string; body: string | null }) => Promise<{ offline?: boolean; status: number; body: string }> };
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith(origin)) return original(input, init);
+    const body = typeof init?.body === 'string' ? init.body : null;
+    const answer = await w.__pwReportApi({ path: new URL(url).pathname, method: init?.method ?? 'GET', body });
+    if (answer.offline) throw new TypeError('Load failed');
+    return new Response(answer.body, { status: answer.status, headers: { 'Content-Type': 'application/json' } });
+  };
+}
 const LOG = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-results', 'network-guard.log');
 
 export const isLocalUrl = (url: string): boolean => {
@@ -204,9 +238,22 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
   guarded.add(context);
   await trapErrors(context);
   await context.addInitScript(cancelExternalNavigation);
+  await context.exposeBinding('__pwReportApi', (_src, call: ReportApiCall) => {
+    log('mocked', `${REPORT_API_ORIGIN}${call.path}`);
+    if (offline.get(context)) return { offline: true, status: 0, body: '' };
+    return (reportHandlers.get(context) ?? (() => DEFAULT_REPORT_ANSWER))(call);
+  });
+  await context.addInitScript(mockReportApiInPage, REPORT_API_ORIGIN);
   await context.route('**/*', (route) => {
     const url = route.request().url();
     if (isLocalUrl(url)) return route.continue();
+    if (new URL(url).hostname === REPORT_API_HOST) {
+      log('mocked', url);
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: REPORT_CORS });
+      const call = { path: new URL(url).pathname, method: route.request().method(), body: route.request().postData() };
+      const answer = (reportHandlers.get(context) ?? (() => DEFAULT_REPORT_ANSWER))(call);
+      return route.fulfill({ status: answer.status, headers: REPORT_CORS, contentType: 'application/json', body: answer.body });
+    }
     log('blocked', url);
     currentCollector()?.failedUrls.add(url);
     return route.abort('blockedbyclient');

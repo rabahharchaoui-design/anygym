@@ -1,0 +1,178 @@
+/* Report a problem (SPEC 24): one text box, an optional screenshot, Send, and what is included. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.label {
+  font-weight: 600;
+}
+
+/* 16 px: iOS zooms into anything smaller. */
+.text {
+  width: 100%;
+  min-height: 132px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--glass-line);
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-base);
+  line-height: 1.4;
+  resize: none;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.text::placeholder {
+  color: var(--text-2);
+}
+
+.text:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.addShot,
+.removeShot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+}
+
+.addShot {
+  align-self: flex-start;
+  border: 1px solid var(--glass-line);
+  background: rgb(255 255 255 / 0.05);
+  color: var(--text);
+}
+
+.addIcon,
+.removeIcon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.shotRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.shot,
+.shotSkeleton {
+  width: 96px;
+  height: 128px;
+  flex: none;
+  border-radius: 12px;
+  border: 1px solid var(--glass-line);
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.shotSkeleton {
+  display: block;
+  animation: pulse 1.2s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shotSkeleton {
+    animation: none;
+  }
+}
+
+.removeShot {
+  color: var(--text-2);
+}
+
+.file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.error {
+  margin: 0;
+  min-height: 18px;
+  color: var(--red);
+  font-size: var(--text-sm);
+}
+
+.disclosure {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0 var(--space-2);
+  text-align: center;
+}
+
+.doneIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  animation: pop 260ms var(--ease-spring) both;
+}
+
+.doneIcon svg {
+  width: 28px;
+  height: 28px;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doneIcon {
+    animation: none;
+  }
+}
+
+.doneText {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  text-wrap: pretty;
+}

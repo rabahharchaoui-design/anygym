@@ -1,0 +1,16 @@
+{
+  "name": "anygym-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --root ../.. workers/anygym-api"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261025.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.152.0"
+  }
+}

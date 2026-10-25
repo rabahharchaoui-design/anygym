@@ -25,9 +25,12 @@ function walk(dir: string, out: string[]): string[] {
   return out;
 }
 
-/** The personal names found in `text`, after removing URLs on github.io / github.com. */
+/**
+ * The personal names found in `text`, after removing URLs on github.io / github.com and the
+ * public report API host on workers.dev (SPEC 24), which carry the account name.
+ */
 export function personalNames(text: string): string[] {
-  const clean = text.replace(/\S*github\.(io|com)\S*/gi, '');
+  const clean = text.replace(/\S*github\.(io|com)\S*/gi, '').replace(/\S*\.workers\.dev\S*/gi, '');
   return [...clean.matchAll(/ohrabah|harchaoui|\brabah\b/gi)].map((m) => m[0]);
 }
 
@@ -37,6 +40,7 @@ describe('personalNames', () => {
     expect(personalNames('by Rabah Harchaoui')).toEqual(['Rabah', 'Harchaoui']);
     expect(personalNames('https://rabahharchaoui-design.github.io/anygym/')).toEqual([]);
     expect(personalNames('github.com/rabahharchaoui-design/anygym')).toEqual([]);
+    expect(personalNames("'https://anygym-api.rabahharchaoui.workers.dev'")).toEqual([]);
     expect(personalNames('Classic 5 Day Split')).toEqual([]);
   });
 });

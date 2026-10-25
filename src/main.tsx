@@ -6,12 +6,17 @@ import { startDb } from './db/bootstrap';
 import { restoreMirrors } from './lib/durable';
 import { DRAFTS_KEY, hydrateDrafts } from './lib/drafts';
 import { registerAppUpdates } from './pwa';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { installReporting } from './lib/reporting/capture';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/transitions.css';
 
 // iOS Safari only applies :active styles when a touch listener exists.
 document.addEventListener('touchstart', () => {}, { passive: true });
+
+// SPEC 24: crash capture and the report queue, before anything else can fail.
+installReporting();
 
 registerAppUpdates();
 
@@ -27,9 +32,11 @@ void restoreMirrors(undefined, undefined, { [DRAFTS_KEY]: (v) => hydrateDrafts(v
   .then(() =>
     createRoot(mount).render(
       <StrictMode>
-        <HashRouter>
-          <App />
-        </HashRouter>
+        <AppErrorBoundary>
+          <HashRouter>
+            <App />
+          </HashRouter>
+        </AppErrorBoundary>
       </StrictMode>,
     ),
   );

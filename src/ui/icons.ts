@@ -15,6 +15,8 @@ export {
   Plus as PlusIcon,
   Info as InfoIcon,
   Play as PlayIcon,
+  ImagePlus as ImagePlusIcon,
+  X as XIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

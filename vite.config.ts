@@ -1,11 +1,23 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
 
 const BASE = '/anygym/';
 
+/** The git short sha of this build (SPEC 24: reports name the exact build); 'dev' without git. */
+function shortSha(): string {
+  try {
+    const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    return /^[0-9a-f]{4,12}$/.test(sha) ? sha : 'dev';
+  } catch {
+    return 'dev';
+  }
+}
+
 export default defineConfig({
   base: BASE,
+  define: { __APP_SHA__: JSON.stringify(shortSha()) },
   plugins: [
     react(),
     VitePWA({
