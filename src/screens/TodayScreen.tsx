@@ -16,6 +16,7 @@ import { setCount, workoutTitle } from './history/historyWords';
 import { startDb } from '../db/bootstrap';
 import { getPlanState, setNextDay } from '../db/planState';
 import { getActiveSession, reopenWorkout, startPlanDay, startWorkout } from '../db/workouts';
+import { logQueue } from '../lib/logQueue';
 import type { PlanState } from '../db/types';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
@@ -94,7 +95,11 @@ export function TodayScreen() {
                 setToast(null);
                 reopenWorkout(undo.sessionId, undo.planBefore)
                   .then((ok) => {
-                    if (ok) go(`/workout/${undo.sessionId}`, { kind: 'push' });
+                    if (ok) {
+                      // Finish closed its log queue; the workout is active again, so ✓ logs again (PLAN 1.7h).
+                      logQueue.reopen(undo.sessionId);
+                      go(`/workout/${undo.sessionId}`, { kind: 'push' });
+                    }
                     else setToast({ id: Date.now(), text: 'Could not undo. The workout is saved.' });
                   })
                   .catch(() => setToast({ id: Date.now(), text: 'Could not undo. The workout is saved.' }))

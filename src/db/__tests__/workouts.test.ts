@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
 import { ANY_GYM, type Load } from '../types';
-import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, getActiveSession, logSet, restoreSet, setsOf, startWorkout, updateSet } from '../workouts';
+import { AlreadyLoggedError, WorkoutFinishedError, addExercise, deleteSet, finishWorkout, getActiveSession, logSet, restoreSet, setsOf, startWorkout, updateSet } from '../workouts';
 import { isPerGym, loadTypeFor, pickBar, pickLoadType, saveBarChoice, saveLoadType } from '../exerciseSettings';
 import { createDeleteUndo } from '../../lib/deleteUndo';
 import type { WorkoutSet } from '../types';
@@ -251,5 +251,31 @@ describe('exerciseSettings', () => {
     expect(await db.exerciseSettings.get(['leg-press', 'gym-a'])).toEqual({ exerciseId: 'leg-press', gymId: 'gym-a', loadType: 'plate_machine', barId: 'olympic' });
     await saveBarChoice('leg-press', 'gym-a', 'womens', db);
     expect(await db.exerciseSettings.get(['leg-press', 'gym-a'])).toEqual({ exerciseId: 'leg-press', gymId: 'gym-a', loadType: 'plate_machine', barId: 'womens' });
+  });
+});
+
+describe('PLAN 1.7h (5): counts and load agree', () => {
+  it('logSet and updateSet reject a count that does not fit the load', async () => {
+    const s = await startWorkout('g', db);
+    const timed: Load = { kind: 'timed', unit: 'lb', total: 0 };
+    await expect(logSet({ id: 'x1', sessionId: s.id, exerciseId: 'squat', seconds: 1, load: bar185 }, db)).rejects.toThrow('Invalid set');
+    await expect(logSet({ id: 'x2', sessionId: s.id, exerciseId: 'plank', reps: 10, load: timed }, db)).rejects.toThrow('Invalid set');
+    await expect(logSet({ id: 'x3', sessionId: s.id, exerciseId: 'squat', reps: 5, seconds: 5, load: bar185 }, db)).rejects.toThrow('Invalid set');
+    await logSet(newSet('a', s.id), db);
+    // Codex 1149 (2): an old 10 rep set edited after the exercise turned Timed is never "1 second".
+    await expect(updateSet('a', { seconds: 1, load: bar185 }, db)).rejects.toThrow('Invalid set');
+    expect(await db.sets.get('a')).toMatchObject({ reps: 10 });
+    expect(await setsOf(s.id, db)).toHaveLength(1);
+  });
+
+  it('PLAN 1.7h (2): the submission commits with its set; a deleted set is never logged again under its id', async () => {
+    const s = await startWorkout('g', db);
+    await logSet({ ...newSet('a', s.id), rev: 4 }, db);
+    expect(await db.submissions.get('a')).toEqual({ id: 'a', sessionId: s.id, exerciseId: 'barbell-back-squat', rev: 4 });
+    await logSet(newSet('b', s.id), db);
+    expect(await db.submissions.get('b')).toMatchObject({ rev: 0 });
+    await deleteSet('a', db);
+    await expect(logSet(newSet('a', s.id), db)).rejects.toBeInstanceOf(AlreadyLoggedError);
+    expect((await setsOf(s.id, db)).map((x) => x.id)).toEqual(['b']);
   });
 });

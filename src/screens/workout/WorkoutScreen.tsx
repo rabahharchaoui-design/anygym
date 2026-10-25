@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, WorkoutSet } from '../../db/types';
-import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, removeExercise, restoreExercise, restoreSet, setExerciseOrder, updateSet } from '../../db/workouts';
+import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, removeExercise, restoreExercise, setExerciseOrder, updateSet } from '../../db/workouts';
+import { expireDelete, recoverDeletes, undoDelete } from '../../db/tombstones';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
 import { getPlanState } from '../../db/planState';
 import { moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
@@ -17,6 +18,8 @@ import { ChevronDown } from '../../ui/icons';
 import { EdgeSwipe } from '../../ui/EdgeSwipe';
 import { Odometer } from '../../ui/Odometer';
 import { Skeleton } from '../../ui/Skeleton';
+import { Sheet } from '../../ui/Sheet';
+import { LoadError } from '../../components/LoadError';
 import { supportsViewTransitions, useNav } from '../../ui/nav';
 import { createDeleteUndo } from '../../lib/deleteUndo';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
@@ -34,6 +37,7 @@ import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { RestDock } from './RestDock';
 import { useWorkout } from './useWorkout';
+import { discardFailed, prepareFinish, retryFailed } from './rowLog';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';
 
@@ -109,10 +113,19 @@ export function WorkoutScreen() {
     () =>
       createDeleteUndo<WorkoutSet>({
         remove: (s) => deleteSet(s.id),
-        restore: restoreSet,
+        // The Undo is stored as accepted before the set is written back (db/tombstones.ts).
+        restore: (s) => undoDelete(s.id),
+        expire: (s) => expireDelete(s.id),
       }),
     [],
   );
+  // Opening the workout (also after an app kill): an accepted Undo that never landed is retried,
+  // and deletes whose Undo window is over are cleared (PLAN 1.7h).
+  useEffect(() => {
+    recoverDeletes(sessionId).catch(() => undefined);
+  }, [sessionId]);
+  /** Sets whose Log set write failed, when Finish was refused because of them (PLAN 1.7h). */
+  const [unsaved, setUnsaved] = useState<number | null>(null);
 
   useEffect(() => onDraftStorageFail(() => setToast(toastOf(DRAFTS_NOT_SAVED))), []);
   useEffect(() => {
@@ -367,19 +380,36 @@ export function WorkoutScreen() {
 
   // ---------------------------------------------------------------- finish
 
-  const finish = useTapGuard(async () => {
+  const finishNow = async () => {
     if (finishing.current) return;
+    // Nothing is counted while a required read failed or is still loading (PLAN 1.7h).
+    if (!w.ready) {
+      notice(w.error ? 'Could not load this workout. Try again.' : 'Still loading. Try again in a moment.');
+      return;
+    }
     finishing.current = true;
+    // From this moment no new Log set starts (synchronous), so nothing lands after the count.
+    logQueue.close(sessionId);
+    const reopen = () => {
+      finishing.current = false;
+      logQueue.reopen(sessionId);
+      deletes.reopen();
+    };
     try {
       // No new delete or Undo from here; every write still running lands before the sets are counted.
       await deletes.close();
-      await logQueue.settle(sessionId);
+      // A set whose write failed is never dropped: Finish stops and asks (the drafts and the workout stay).
+      const failed = await prepareFinish(sessionId);
+      if (failed.length) {
+        reopen();
+        setUnsaved(failed.length);
+        return;
+      }
       // The plan pointer as it is now, so Undo on Today can put it back exactly.
       const planBefore = await getPlanState();
       const result = await finishWorkout(sessionId);
       setRest(null);
       clearSessionDrafts(sessionId);
-      logQueue.clearSession(sessionId);
       clearExtraSets();
       if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'fade', replace: true, state: { planBefore } });
       else
@@ -389,15 +419,43 @@ export function WorkoutScreen() {
           state: { toast: 'Nothing logged · Workout discarded' },
         });
     } catch {
-      finishing.current = false;
-      deletes.reopen();
+      reopen();
       notice('Could not finish. Try again.');
     }
-  });
+  };
+  const finish = useTapGuard(() => void finishNow());
+
+  /** The unsaved sets sheet: Try again writes them (then finishes), or finish without them. */
+  const unsavedBusy = useRef(false);
+  const retryUnsaved = async () => {
+    if (unsavedBusy.current) return;
+    unsavedBusy.current = true;
+    setUnsaved(null);
+    try {
+      if (await retryFailed(sessionId)) await finishNow();
+      else notice('Could not save that set. Try again.');
+    } finally {
+      unsavedBusy.current = false;
+    }
+  };
+  const finishWithout = async () => {
+    if (unsavedBusy.current) return;
+    unsavedBusy.current = true;
+    setUnsaved(null);
+    try {
+      await discardFailed(sessionId);
+      await finishNow();
+    } catch {
+      notice('Could not finish. Try again.');
+    } finally {
+      unsavedBusy.current = false;
+    }
+  };
 
   const now = useNow(1000);
 
-  if (w.sessionReady && (!w.session || w.session.endedAt !== undefined) && !finishing.current) {
+  // Home only when a read that worked says the workout is gone, never after a failed read.
+  if (w.sessionMissing && !finishing.current) {
     return <Navigate to="/" replace />;
   }
   // An exercise that is not in this workout (removed, or a stale link): the list.
@@ -443,20 +501,29 @@ export function WorkoutScreen() {
         )}
         <div className={styles.stats}>
           <span className={`${styles.clock} num`} data-testid="elapsed" role="timer" aria-live="off">
-            {startedAt ? formatElapsed((now - startedAt) / 1000) : '0:00'}
+            {startedAt ? formatElapsed((now - startedAt) / 1000) : w.error ? '' : '0:00'}
           </span>
           <span className={`${styles.statLine} num`} data-testid="live-stats">
-            <Odometer value={w.sets.length} /> {w.sets.length === 1 ? 'set' : 'sets'}
-            {lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}
+            {/* No count the app is not sure of while a read failed (PLAN 1.7h). */}
+            {w.error ? null : (
+              <>
+                <Odometer value={w.sets.length} /> {w.sets.length === 1 ? 'set' : 'sets'}
+                {lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}
+              </>
+            )}
           </span>
         </div>
-        <button type="button" className={`${styles.finish} pressable`} onClick={() => void finish()}>
+        <button type="button" className={`${styles.finish} pressable`} onClick={() => finish()}>
           Finish
         </button>
       </header>
 
       <div className={styles.stage} data-expand={expanding || undefined}>
-        {!w.ready ? (
+        {w.error ? (
+          <div className={styles.view}>
+            <LoadError text="Could not load this workout" onRetry={w.retry} />
+          </div>
+        ) : !w.ready ? (
           <Skeleton height={220} className={styles.skeleton} />
         ) : (
           <>
@@ -540,7 +607,7 @@ export function WorkoutScreen() {
           )}
         </AnimatePresence>
         <AnimatePresence>
-          {rest && (
+          {rest && !w.error && (
             <RestDock
               key="rest"
               rest={rest}
@@ -553,7 +620,7 @@ export function WorkoutScreen() {
         </AnimatePresence>
       </div>
 
-      <Toast toast={toast} bottom={rest ? 'calc(var(--rest-height) + 8px)' : '8px'} />
+      <Toast toast={toast} bottom={rest && !w.error ? 'calc(var(--rest-height) + 8px)' : '8px'} />
 
       <ExercisePicker open={picking || autoOpen} onClose={closePicker} gym={w.gym} added={ids} onAdd={(list) => void add(list)} />
       <LoadTypeSheet open={askingNow !== null} onClose={closeAsk} exerciseName={askingNow ? w.nameOf(askingNow) : ''} onPick={(k) => void answer(k)} />
@@ -570,6 +637,18 @@ export function WorkoutScreen() {
           onDelete={onDelete}
         />
       )}
+      <Sheet open={unsaved !== null} onClose={() => setUnsaved(null)} label="Set not saved">
+        <div className={styles.sheetBody} data-testid="unsaved-sheet">
+          <h2 className={styles.sheetTitle}>{unsaved === 1 || unsaved === null ? '1 set did not save' : `${unsaved} sets did not save`}</h2>
+          <p className={styles.sheetSub}>{unsaved === 1 || unsaved === null ? 'It is still on its row.' : 'They are still on their rows.'}</p>
+          <button type="button" className={`${styles.logButton} pressable`} onClick={() => void retryUnsaved()}>
+            Try again
+          </button>
+          <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => void finishWithout()}>
+            {unsaved === 1 || unsaved === null ? 'Finish without it' : 'Finish without them'}
+          </button>
+        </div>
+      </Sheet>
       <ExerciseMenu
         open={menuId !== null}
         onClose={() => setMenuFor(null)}

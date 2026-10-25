@@ -19,6 +19,7 @@ export default defineConfig({
         'src/lib/equipmentPrompt.ts': { lines: 100, branches: 100 },
         'src/db/equipment.ts': { lines: 100, branches: 100 },
         'src/db/workouts.ts': { lines: 100 },
+        'src/db/tombstones.ts': { lines: 100 },
         'src/db/exerciseSettings.ts': { lines: 100 },
         'src/lib/rest.ts': { lines: 100 },
         'src/lib/undoQueue.ts': { lines: 100, branches: 100 },

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Load, WorkoutSet } from '../../db/types';
-import { logSet, updateSetType } from '../../db/workouts';
-import { clearDraft, loadDraft, saveDraft, type Draft } from '../../lib/drafts';
+import { updateSetType } from '../../db/workouts';
+import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
 import { logKey, logQueue } from '../../lib/logQueue';
+import { newId } from '../../db/ids';
 import { formatNext, formatSets, formatWhen } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
 import { addExtraSet } from '../../lib/extraSets';
-import { blockedReason, nextSetType, pendingRows, rowKey, settleRows, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
-import { STOPPED, captureHold, elapsedMs, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
+import { blockedReason, markSubmitted, nextSetType, pendingRows, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio } from '../../lib/tone';
 import { useNow } from '../../hooks/useNow';
@@ -22,6 +23,7 @@ import { Thumb } from './Thumb';
 import { WeightSheet, type WeightPick } from './WeightSheet';
 import { currentLoad, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
+import { migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
 import styles from './Workout.module.css';
 
 type Props = {
@@ -69,30 +71,27 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
   useEffect(() => logQueue.subscribe(key, refresh), [key]);
 
-  const draftOf = (i: number) => loadDraft(sessionId, rowKey(exerciseId, i));
-
-  // Drafts saved by the set card before 1.7c live under the exercise id: move one into the first
-  // row still to do (its weight, reps, running hold, version and id), then drop the old key.
+  // Drafts from before 1.7h move to their pending row slot, once (rowLog.ts).
   const migrated = useRef(false);
   if (!migrated.current) {
     migrated.current = true;
-    const legacy = loadDraft(sessionId, exerciseId);
-    if (legacy) {
-      const first = rowKey(exerciseId, logged.length);
-      if (!logged.some((s) => s.id === legacy.id) && !loadDraft(sessionId, first)) {
-        logQueue.current(key, legacy.id);
-        saveDraft(sessionId, first, legacy);
-      }
-      clearDraft(sessionId, exerciseId);
-    }
+    migrateLegacyRows(sessionId, exerciseId, logged);
   }
+  // Rows whose write committed are used up before any pending row is shown (also after a kill
+  // between the commit and the cleanup), so a logged row can never be logged a second time.
+  reconcileExercise(sessionId, exerciseId, w.committed);
+  const slots = rowsOf(sessionId, exerciseId);
+  /** A pending row's draft as stored right now, by slot (0 = the first row still to do). */
+  const draftAt = (slot: number) => loadDraft(sessionId, rowKey(exerciseId, slot));
+  const slotOf = (row: PendingRow) => row.index - logged.length;
   const rebuild = (picked: Load | null, plates: readonly number[]) => (kind ? currentLoad(picked, plates, kind, gym, exerciseId, name, bar) : null);
   const rows: PendingRow[] = kind
     ? pendingRows({
-        count: Math.max(entry?.sets ?? 3, logged.length),
+        // Every drafted row stays visible (a newer edit kept after a delayed write adds a row).
+        count: Math.max(entry?.sets ?? 3, logged.length + slots.length),
         logged,
         progression,
-        draftOf,
+        draftOf: (i) => slots[i - logged.length] ?? null,
         rebuild,
         carry: (prev) => prefillLoad(prev, kind, gym, exerciseId, name, bar),
         certain: certainLoad(kind, gym.unit),
@@ -105,16 +104,16 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const current = rows[0];
 
   // Timed: the running hold belongs to the current row's draft, so it survives a reload.
-  const watch: Stopwatch = (current && draftOf(current.index)?.watch) ?? STOPPED;
+  const watch: Stopwatch = (current && draftAt(slotOf(current))?.watch) ?? STOPPED;
   const running = watch.startedAt !== null;
   const now = useNow(250, timed && running);
   const liveSeconds = wholeSeconds(elapsedMs(watch, running ? Math.max(now, Date.now()) : now));
 
   /** Every change is saved at once (SPEC 13.3), with a new version for the log queue. */
   const writeRow = (row: PendingRow, patch: Partial<Draft>) => {
-    const before = draftOf(row.index);
+    const before = draftAt(slotOf(row));
     const draft: Draft = {
-      id: logQueue.current(key),
+      id: before?.id ?? newId(),
       load: row.load,
       plates: row.plates,
       type: row.type,
@@ -124,7 +123,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...patch,
       rev: (before?.rev ?? 0) + 1,
     };
-    saveDraft(sessionId, rowKey(exerciseId, row.index), draft);
+    saveDraft(sessionId, rowKey(exerciseId, slotOf(row)), draft);
     refresh();
   };
 
@@ -139,7 +138,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const log = async (row: PendingRow, at: number = performance.now(), cap?: number) => {
     if (lastTap.current && lastTap.current.index === row.index && at - lastTap.current.at < TAP_GUARD_MS) return;
     lastTap.current = { index: row.index, at };
-    if (!kind || logQueue.pending(key)) return;
+    // Finish started (synchronous), or a write of this exercise is running: no new Log set.
+    if (!kind || logQueue.pending(key) || logQueue.closed(sessionId)) return;
     unlockAudio();
     let seconds = row.seconds;
     if (timed && row.index === current?.index && elapsedMs(watch, Date.now()) > 0) {
@@ -150,40 +150,30 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       writeRow(row, { watch: captured.watch, seconds });
     }
     if (row.load === null || (timed ? !seconds : !row.reps)) return;
-    const load = row.load;
-    const t = storedType(row.type);
-    const k = logged.length;
-    const snapshot = rows;
-    // Only this version of the row is used up when the write lands; newer edits stay (PLAN 1.7c).
-    const submittedRev = draftOf(row.index)?.rev;
-    const id = logQueue.current(key);
-    setFresh((f) => new Set(f).add(id));
+    // Stored before the write (PLAN 1.7h): the row's id, values and version with its submitted
+    // mark, and what the rows above show, so a kill at any point loses and duplicates nothing.
+    const before = rowsOf(sessionId, exerciseId);
+    const marked = markSubmitted(before, rows, slotOf(row), { load: row.load, type: row.type, ...(timed ? { seconds } : { reps: row.reps }) }, newId);
+    writeDrafts(sessionId, slotChanges(exerciseId, before, marked.slots));
+    setFresh((f) => new Set(f).add(marked.draft.id));
     tick();
-    const ok = await logQueue.submit(
-      key,
-      async (setId) => {
-        await logSet({
-          id: setId,
-          sessionId,
-          exerciseId,
-          ...(timed ? { seconds } : { reps: row.reps }),
-          load,
-          kind: t.kind,
-          failure: t.failure,
-        });
-        onLogged(exerciseId);
-        return true;
-      },
-      // Runs once even if this view closed during the write, against the drafts as they are now:
-      // the row's submitted version is used up, rows between move down one place (setTable.ts).
-      (nextId) => {
-        for (const w of settleRows(k, row.index, submittedRev, draftOf, snapshot, nextId)) {
-          if (w.draft) saveDraft(sessionId, rowKey(exerciseId, w.index), w.draft);
-          else clearDraft(sessionId, rowKey(exerciseId, w.index));
-        }
-      },
-    );
-    if (!ok) onNotice('Could not save that set. Try again.');
+    await submitAndTell(marked.draft);
+  };
+
+  /** Writes a submitted row; it lands even if this view closed meanwhile (rowLog.ts). */
+  const submitAndTell = async (draft: Draft) => {
+    const ok = await submitRow(sessionId, exerciseId, draft, { onLanded: () => onLogged(exerciseId) });
+    if (!ok && !logQueue.closed(sessionId)) onNotice('Could not save that set', () => void retry(draft.id));
+    refresh();
+  };
+  /** Try again on a failed set: the same row (same id), with its values as they are now. */
+  const retry = async (id: string) => {
+    const at = rowsOf(sessionId, exerciseId).findIndex((d) => d?.id === id);
+    const now = at >= 0 ? draftAt(at) : null;
+    if (!now || logQueue.pending(key) || logQueue.closed(sessionId)) return;
+    const again: Draft = { ...now, submitted: now.rev ?? 0 };
+    saveDraft(sessionId, rowKey(exerciseId, at), again);
+    await submitAndTell(again);
   };
 
   const applyWeight = (from: PendingRow, pick: WeightPick) => {
@@ -202,7 +192,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...(lastKind === 'warmup' || lastKind === 'drop' ? { type: lastKind } : {}),
       ...(load ? { load, plates: load.perSide ?? [] } : {}),
       ...(last.reps !== undefined ? { reps: last.reps } : {}),
-      ...(last.seconds !== undefined ? { seconds: last.seconds } : {}),
+      // A copied hold replaces the row's stopwatch, so the cell and Log agree (PLAN 1.7h).
+      ...(last.seconds !== undefined ? { seconds: last.seconds, ...(kind === 'timed' ? { watch: heldFor(last.seconds) } : {}) } : {}),
     });
   };
 
@@ -331,7 +322,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onCheck={(r, at) => void log(r, at)}
             onWeight={(r) => setPicking(r)}
             onAmount={(r) => setEditing((e) => (e === r.index ? null : r.index))}
-            onAmountChange={(r, v) => writeRow(r, timed ? { seconds: v } : { reps: v })}
+            // A typed hold replaces the row's stopwatch with a stopped one of that length (PLAN 1.7h).
+            onAmountChange={(r, v) => writeRow(r, timed ? { seconds: v, watch: heldFor(v) } : { reps: v })}
             onAmountDone={() => setEditing(null)}
             onType={cycleType}
             onLoggedType={(s) => void cycleLogged(s)}

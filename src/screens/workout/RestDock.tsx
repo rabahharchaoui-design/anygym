@@ -29,6 +29,10 @@ export function RestDock({ rest, onExtend, onShorten, onSkip, onDone }: Props) {
   const done = isRestDone(rest, now);
   // Tone only when we watched it reach 0, not when reopening the app long after.
   const sawRunning = useRef(!isRestDone(rest, Date.now()));
+  // The latest onDone, read when the linger ends: the screen passes a new callback on every render
+  // (its clock ticks each second), which must not restart the 2.5 s wait (PLAN 1.7h).
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     if (!done) {
@@ -40,9 +44,9 @@ export function RestDock({ rest, onExtend, onShorten, onSkip, onDone }: Props) {
       playTone();
       buzz([120, 80, 120]);
     }
-    const t = window.setTimeout(onDone, DONE_LINGER_MS);
+    const t = window.setTimeout(() => onDoneRef.current(), DONE_LINGER_MS);
     return () => window.clearTimeout(t);
-  }, [done, onDone]);
+  }, [done]);
 
   const left = remainingSec(rest, now);
   const fraction = restFraction(rest, now);

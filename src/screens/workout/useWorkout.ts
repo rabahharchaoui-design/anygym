@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { db } from '../../db/schema';
 import type { BarId, Gym, Load, Session, WorkoutSet } from '../../db/types';
 import { setsOf } from '../../db/workouts';
+import { committedOf } from './rowLog';
 import { getPastSessions, lastSessionSets } from '../../db/history';
 import { pickBar, pickLoadType, pickNote, pickRest } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
@@ -17,9 +18,18 @@ import { useLive } from '../../hooks/useLive';
 import { barIdFor, loadSetupFor } from './exerciseLoad';
 
 export type Workout = {
+  /** Every required read landed and none failed: logging and Finish may run. */
   ready: boolean;
+  /** A required read failed (PLAN 1.7h): show LoadError, block logging and Finish. */
+  error: unknown;
+  /** Starts every required read again. */
+  retry: () => void;
   session: Session | undefined;
   sessionReady: boolean;
+  /** A read that worked says the workout is gone or finished (only then the screen goes home). */
+  sessionMissing: boolean;
+  /** Committed Log set writes of this workout, set id → submitted version (rowLog.ts). */
+  committed: ReadonlyMap<string, number | undefined>;
   gym: Gym | undefined;
   plan: Plan | undefined;
   day: PlanDay | undefined;
@@ -48,9 +58,16 @@ export type Workout = {
   bump: () => void;
 };
 
+const EMPTY: ReadonlyMap<string, number | undefined> = new Map();
+
 export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Workout {
   const session = useLive(() => db.sessions.get(sessionId), [sessionId]);
-  const allSets = useLive(() => setsOf(sessionId), [sessionId]);
+  // The sets and their submissions in one read, so pending rows are reconciled against exactly the
+  // sets shown (PLAN 1.7h).
+  const allSets = useLive(
+    () => db.transaction('r', db.sets, db.submissions, async () => ({ sets: await setsOf(sessionId), committed: await committedOf(sessionId) })),
+    [sessionId],
+  );
   const gymId = session.data?.gymId;
   const gym = useLive(() => (gymId ? db.gyms.get(gymId) : Promise.resolve(undefined)), [gymId]);
   const settings = useLive(() => db.exerciseSettings.toArray(), []);
@@ -125,17 +142,26 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     });
   };
 
-  const sets = (allSets.data ?? []).filter((s) => !hidden.has(s.id));
+  const sets = (allSets.data?.sets ?? []).filter((s) => !hidden.has(s.id));
   const done: Record<string, number> = {};
   for (const s of sets) done[s.exerciseId] = (done[s.exerciseId] ?? 0) + 1;
 
   const userRestOf = (id: string) => pickRest(list, id);
   const restOf = (id: string) => userRestOf(id) ?? entryMap.get(id)?.restSec ?? 90;
 
+  const error = session.error ?? allSets.error ?? gym.error ?? settings.error ?? history.error ?? null;
+  const retry = () => {
+    for (const q of [session, allSets, gym, settings, history]) if (q.error) q.retry();
+  };
+
   return {
-    ready: !!(session.data && gym.data && allSets.ready && settings.ready && history.ready),
+    ready: !error && !!(session.data && gym.data && allSets.ready && settings.ready && history.ready),
+    error,
+    retry,
     session: session.data,
     sessionReady: session.ready,
+    sessionMissing: session.ready && !session.error && (!session.data || session.data.endedAt !== undefined),
+    committed: allSets.data?.committed ?? EMPTY,
     gym: gym.data,
     plan,
     day,

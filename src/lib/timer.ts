@@ -58,3 +58,11 @@ export function captureHold(w: Stopwatch, now: number): { watch: Stopwatch; seco
   const stopped = stopWatch(w, now);
   return { watch: stopped, seconds: wholeSeconds(stopped.accumulated) };
 }
+
+/**
+ * A stopped stopwatch reading exactly `seconds` (PLAN 1.7h): a hold typed or copied from LAST TIME
+ * replaces the row's watch with this, so the cell and Log set read the same seconds.
+ */
+export function heldFor(seconds: number): Stopwatch {
+  return { startedAt: null, accumulated: Math.max(0, Math.floor(seconds)) * 1000 };
+}

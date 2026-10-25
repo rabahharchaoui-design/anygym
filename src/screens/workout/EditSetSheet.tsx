@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import type { BarId, Gym, Load, WorkoutSet } from '../../db/types';
 import { collarsSettingOf, otherOf } from '../../lib/load';
+import { countModeOf } from '../../lib/setTable';
 import { RepsStepper } from './RepsStepper';
 import { SetLoadInput } from './SetLoadInput';
 import styles from './Workout.module.css';
@@ -46,7 +47,8 @@ function EditBody({
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
   const running = useRef(false);
   const mounted = useRef(true);
-  const timed = loadType === 'timed' || (set.reps === undefined && set.seconds !== undefined);
+  // Reps or seconds come from the saved set, never from today's load type (PLAN 1.7h).
+  const timed = countModeOf(set, loadType) === 'seconds';
   // The set's own load kind decides the input, so an old set never shows in a different input.
   const kind = set.load?.kind ?? loadType;
   const sameUnit = !set.load || set.load.unit === gym.unit;
