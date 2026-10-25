@@ -73,10 +73,12 @@ export function EdgeSwipe({ layerRef, onBack, under }: Props) {
       // A tap, not a swipe: hand it to whatever is under the strip.
       const strip = stripRef.current;
       if (strip) strip.style.pointerEvents = 'none';
-      const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      // The point may be on an icon (an SVG element has no click()): hand it to its HTML parent.
+      let target = document.elementFromPoint(e.clientX, e.clientY);
+      while (target && !(target instanceof HTMLElement)) target = target.parentElement;
       if (strip) strip.style.pointerEvents = '';
       reset();
-      target?.click();
+      (target as HTMLElement | null)?.click();
       return;
     }
     const [x1, t1] = d.samples[0]!;
@@ -120,6 +122,8 @@ export function EdgeSwipe({ layerRef, onBack, under }: Props) {
         ref={stripRef}
         className={styles.strip}
         data-testid="edge-swipe"
+        // A plain tap here goes to what is under the strip (onUp): checkers look through it.
+        data-tap-through="true"
         aria-hidden="true"
         onPointerDown={onDown}
         onPointerMove={onMove}

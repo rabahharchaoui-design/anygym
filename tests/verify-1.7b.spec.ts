@@ -13,7 +13,7 @@ const watchErrors = (page: Page) => {
 };
 
 const shot = async (page: Page, name: string, target?: Locator) => {
-  if (test.info().project.name !== 'iPhone 15 Pro') return;
+  if (test.info().project.name !== 'iPhone 15') return;
   await page.waitForTimeout(450); // let springs settle
   await (target ?? page).screenshot({ path: `reports/shots/1.7b/${name}.png` });
 };
@@ -232,7 +232,7 @@ test('first use prompts on #/dev/loads carry an ⓘ; the Olympic bar sheet shows
   await expect(sheet.getByTestId('info-weight')).toHaveText('Olympic bar: 45 lb / 20 kg');
   await shot(page, 'info-olympic-barbell');
   await sheet.getByRole('button', { name: 'Got it' }).tap();
-  if (test.info().project.name === 'iPhone 15 Pro') {
+  if (test.info().project.name === 'iPhone 15') {
     // The page scrolls inside a fixed layer: grow the viewport to see every drawing at once.
     await page.setViewportSize({ width: 393, height: 6300 });
     await page.waitForTimeout(400);

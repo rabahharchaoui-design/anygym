@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnyGymDB } from '../../db/schema';
 import type { Load, WorkoutSet } from '../../db/types';
 import { deleteSet, finishWorkout, logSet, restoreSet, setsOf, startWorkout } from '../../db/workouts';
-import { CLOSED, createDeleteUndo } from '../deleteUndo';
+import { CLOSED, createDeleteUndo, UndoUnresolvedError } from '../deleteUndo';
 import { UNDO_MS } from '../undoQueue';
 
 // PLAN 1.10c fix 3: deletes are durable at once, Undo puts back the same record, failures are
@@ -192,16 +192,55 @@ describe('createDeleteUndo with Dexie', () => {
     expect(restore).toHaveBeenCalledOnce();
   });
 
-  it('a failed restore gets a fresh Undo window, then expires', async () => {
+  it('cancel (PLAN 1.7i): unknown ids and running restores are left alone; without a cancel op the window just ends', async () => {
+    const expired: string[] = [];
+    let release!: () => void;
+    const d = createDeleteUndo<{ id: string }>({
+      remove: async () => {},
+      restore: () => new Promise<void>((r) => (release = r)),
+      expire: async (x) => void expired.push(x.id),
+    });
+    await d.cancel('nothing');
+    await d.remove({ id: 'a' });
+    const undoing = d.undo('a');
+    await d.cancel('a'); // a restore on its way is never cancelled
+    expect(d.canUndo('a')).toBe(true);
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    release();
+    await undoing;
+    await d.remove({ id: 'b' });
+    await d.cancel('b');
+    expect(d.canUndo('b')).toBe(false);
+    expect(expired).toEqual(['b']);
+    const bare = createDeleteUndo<{ id: string }>({ remove: async () => {}, restore: async () => {} });
+    await bare.remove({ id: 'c' });
+    await bare.cancel('c');
+    expect(bare.canUndo('c')).toBe(false);
+  });
+
+  it('a failed restore stays unresolved (PLAN 1.7i): it never expires, close refuses, cancel ends it', async () => {
     vi.useFakeTimers();
-    const d = createDeleteUndo<{ id: string }>({ remove: async () => {}, restore: () => Promise.reject(new Error('no')) });
+    const expired: string[] = [];
+    const cancelled: string[] = [];
+    const d = createDeleteUndo<{ id: string }>({
+      remove: async () => {},
+      restore: () => Promise.reject(new Error('no')),
+      expire: async (x) => void expired.push(x.id),
+      cancel: async (x) => void cancelled.push(x.id),
+    });
     await d.remove({ id: 'x' });
     await vi.advanceTimersByTimeAsync(UNDO_MS - 100);
     await expect(d.undo('x')).rejects.toThrow('no');
-    await vi.advanceTimersByTimeAsync(UNDO_MS - 100);
+    await vi.advanceTimersByTimeAsync(UNDO_MS * 10);
     expect(d.canUndo('x')).toBe(true);
-    await vi.advanceTimersByTimeAsync(100);
-    expect(d.canUndo('x')).toBe(false);
+    expect(expired).toEqual([]);
+    expect(d.unresolved()).toEqual(['x']);
+    await expect(d.close()).rejects.toBeInstanceOf(UndoUnresolvedError);
+    d.reopen();
+    await d.cancel('x');
+    expect(cancelled).toEqual(['x']);
+    expect(d.unresolved()).toEqual([]);
+    await expect(d.close()).resolves.toBeUndefined();
   });
 
   it('delete the last set, log another, Undo: every set keeps a distinct order', async () => {

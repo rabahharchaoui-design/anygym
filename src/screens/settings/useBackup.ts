@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { exportBackup, recordBackup } from '../../db/backup';
 import { backupFileName, serializeBackup } from '../../lib/backup';
 import { shareOrDownload } from '../../lib/shareFile';
+import { TAP_GUARD_MS } from '../../hooks/useTapGuard';
 import type { ToastMessage } from '../../ui/Toast';
 
 let seq = 0;
@@ -13,6 +14,8 @@ const toast = (text: string, action?: ToastMessage['action']): ToastMessage => (
  */
 export function useBackup(notify: (t: ToastMessage) => void): () => Promise<void> {
   const busy = useRef(false);
+  // A backup is quick: a double tap must not make a second file once the first is already out.
+  const lastStart = useRef(-Infinity);
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
 
@@ -32,8 +35,10 @@ export function useBackup(notify: (t: ToastMessage) => void): () => Promise<void
   }, []);
 
   return useCallback(async () => {
-    if (busy.current) return;
+    const now = performance.now();
+    if (busy.current || now - lastStart.current < TAP_GUARD_MS) return;
     busy.current = true;
+    lastStart.current = now;
     try {
       const now = Date.now();
       const text = serializeBackup(await exportBackup(undefined, now));

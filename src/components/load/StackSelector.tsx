@@ -42,7 +42,11 @@ export function StackSelector({ gym, machineId, value, onChange, padInSheet = fa
   const [max, setMax] = useState(() => Math.max(DISPLAY_STACK_MAX[unit], pin ?? 0));
   const pins = useMemo(() => stackValues(step, max), [step, max]);
   const pinIndex = pin === null ? -1 : pins.indexOf(pin);
-  const stale = pin !== null && !isStackPin(pin, step);
+  // The step when the picker opened. A saved set's own pin (Edit, PLAN 1.7i) stays as it was saved
+  // even if the machine's step changed since (15 lb on a 10 lb step): only a step changed while
+  // the picker is open drops a pin that is not on it.
+  const openedStep = useRef(step);
+  const stale = pin !== null && !isStackPin(pin, step) && step !== openedStep.current;
   const [addedOn, setAddedOn] = useState((own?.added ?? 0) > 0);
   const [added, setAdded] = useState(own?.added ?? 0);
   const [asking, setAsking] = useState(false);

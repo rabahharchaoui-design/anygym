@@ -2,9 +2,9 @@
 // entries in the workout's own order, load types, "Last time" and targets. No writes here.
 import { useMemo, useState } from 'react';
 import { db } from '../../db/schema';
-import type { BarId, Gym, Load, Session, WorkoutSet } from '../../db/types';
+import type { BarId, Gym, JournalEntry, Load, Session, WorkoutSet } from '../../db/types';
 import { setsOf } from '../../db/workouts';
-import { committedOf } from './rowLog';
+import { committedOf, journalOf } from './rowLog';
 import { getPastSessions, lastSessionSets } from '../../db/history';
 import { pickBar, pickLoadType, pickNote, pickRest } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
@@ -30,6 +30,8 @@ export type Workout = {
   sessionMissing: boolean;
   /** Committed Log set writes of this workout, set id → submitted version (rowLog.ts). */
   committed: ReadonlyMap<string, number | undefined>;
+  /** Log set writes that started and did not commit (the IndexedDB journal, PLAN 1.7i). */
+  journal: readonly JournalEntry[];
   gym: Gym | undefined;
   plan: Plan | undefined;
   day: PlanDay | undefined;
@@ -59,13 +61,19 @@ export type Workout = {
 };
 
 const EMPTY: ReadonlyMap<string, number | undefined> = new Map();
+const NO_JOURNAL: readonly JournalEntry[] = [];
 
 export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Workout {
   const session = useLive(() => db.sessions.get(sessionId), [sessionId]);
   // The sets and their submissions in one read, so pending rows are reconciled against exactly the
   // sets shown (PLAN 1.7h).
   const allSets = useLive(
-    () => db.transaction('r', db.sets, db.submissions, async () => ({ sets: await setsOf(sessionId), committed: await committedOf(sessionId) })),
+    () =>
+      db.transaction('r', db.sets, db.submissions, db.journal, async () => ({
+        sets: await setsOf(sessionId),
+        committed: await committedOf(sessionId),
+        journal: await journalOf(sessionId),
+      })),
     [sessionId],
   );
   const gymId = session.data?.gymId;
@@ -162,6 +170,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     sessionReady: session.ready,
     sessionMissing: session.ready && !session.error && (!session.data || session.data.endedAt !== undefined),
     committed: allSets.data?.committed ?? EMPTY,
+    journal: allSets.data?.journal ?? NO_JOURNAL,
     gym: gym.data,
     plan,
     day,

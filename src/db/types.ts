@@ -200,6 +200,12 @@ export type SetKind = 'warmup' | 'work' | 'drop';
 export type Submission = { id: string; sessionId: string; exerciseId: string; rev: number };
 
 /**
+ * A Log set write that started and has not committed (PLAN 1.7i, schema v8): the submitted row's
+ * id, its draft key, the version submitted and the row's complete values (a lib/drafts.ts Draft).
+ */
+export type JournalEntry = { id: string; sessionId: string; exerciseId: string; key: string; rev: number; draft: Record<string, unknown>; at: number };
+
+/**
  * A deleted set while its Undo can still happen (PLAN 1.7h): the record as it was deleted, when
  * the Undo window ends, and `undo` once an Undo was accepted but not yet written back.
  */

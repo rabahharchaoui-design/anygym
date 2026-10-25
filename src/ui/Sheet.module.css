@@ -67,7 +67,8 @@
   flex: none;
   display: block;
   width: 100%;
-  height: 49px;
+  /* At least 48 px of its own to tap, even where the next line sits a pixel close (PLAN 1.7i audit). */
+  height: 52px;
   margin-top: -32px;
   padding: 32px 0 0;
   border: 0;
@@ -99,6 +100,11 @@
 
 .sheet[data-scroll='true'] {
   touch-action: auto;
+}
+
+/* A sheet that fits: its content lays out as if the wrapper were not there. */
+.body {
+  display: contents;
 }
 
 .scrollBody {

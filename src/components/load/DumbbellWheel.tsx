@@ -70,19 +70,25 @@ function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props 
     el.scrollTo({ left, behavior: smooth && !reduce ? 'smooth' : 'auto' });
   };
 
+  /** The weight this wheel itself just published while the finger scrolls (never scrolled back to). */
+  const published = useRef<number | null>(null);
+
   // Keep the wheel on the selected weight when it changes from outside (and on mount).
   useLayoutEffect(() => {
     if (selectedIndex < 0 || programmatic.current) return;
     setCentered(selectedIndex);
+    // Our own publish during a scroll: the wheel is already there (or still gliding to it).
+    if (published.current !== null && weights[selectedIndex] === published.current) return;
     scrollToIndex(selectedIndex, false);
   }, [selectedIndex, weights]);
 
   useLayoutEffect(() => () => window.clearTimeout(settleTimer.current), []);
 
-  const pick = (i: number) => {
+  const pick = (i: number, fromScroll = false) => {
     const w = weights[i];
     if (w === undefined) return;
     setCentered(i);
+    published.current = fromScroll ? w : null;
     if (w !== selected) {
       onChange(mode === 'dumbbell_each' ? dumbbellLoad(w, unit) : singleLoad(w, unit));
     }
@@ -94,10 +100,12 @@ function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props 
     const el = trackRef.current!;
     const i = Math.min(weights.length - 1, Math.max(0, Math.round(el.scrollLeft / ITEM)));
     if (!programmatic.current) {
-      setCentered(i);
       // A tiny tick for each detent the wheel passes (SPEC 23.2).
       if (detent.current !== -1 && detent.current !== i) tick();
       detent.current = i;
+      // The weight in the notch is published at once (PLAN 1.7i): what the readout shows is
+      // always what Done or Save stores, never a value still waiting for the wheel to settle.
+      pick(i, true);
     }
     window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
@@ -112,6 +120,8 @@ function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props 
   const nearest = () => Math.min(weights.length - 1, Math.max(0, Math.round(trackRef.current!.scrollLeft / ITEM)));
 
   const onPointerDown = (e: PointerEvent) => {
+    // A finger or mouse on the wheel: whatever scrolls from now on is the user's, never ours.
+    programmatic.current = false;
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
     drag.current = { id: e.pointerId, x: e.clientX, left: trackRef.current!.scrollLeft, moved: false };
     dragged.current = false;

@@ -41,10 +41,12 @@ test('1.6 timer wall clock, spam, reload mid timer', async ({ page }) => {
 });
 
 test('1.6 tap targets and wheel snap', async ({ page }) => {
+  test.setTimeout(90_000); // measures every key of every pad, one by one
   const errors = watch(page);
   await open(page);
   const small: string[] = [];
   const check = async (loc: ReturnType<Page['locator']>, label: string) => {
+    await page.waitForTimeout(350); // a just tapped button is still in its pressed state (scale 0.97)
     const n = await loc.count();
     for (let i = 0; i < n; i++) {
       const el = loc.nth(i);
@@ -61,6 +63,8 @@ test('1.6 tap targets and wheel snap', async ({ page }) => {
   await check(sec(page, 'stack').getByRole('button'), 'stack btn2');
   await check(sec(page, 'bodyweight').getByRole('button'), 'bw btn');
   await sec(page, 'bodyweight').getByRole('button', { name: 'Add weight' }).tap();
+  // The tapped button is still in its pressed state (scale 0.97) for a moment: let it settle.
+  await page.waitForTimeout(400);
   await check(sec(page, 'bodyweight').getByRole('button'), 'bw btn2');
   await check(sec(page, 'plate-machine').getByRole('button'), 'pm btn');
   await check(sec(page, 'timed').getByRole('button'), 'timed btn');
@@ -72,13 +76,13 @@ test('1.6 tap targets and wheel snap', async ({ page }) => {
   // open/close sheet 10x
   for (let i = 0; i < 9; i++) {
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(250);
-    if (await sheet.count()) {
+    if (!(await expect(sheet).toHaveCount(0, { timeout: 2000 }).then(() => true, () => false))) {
       const close = sheet.getByRole('button', { name: /close|cancel|not now/i });
       if (await close.count()) await close.first().tap();
+      await expect(sheet).toHaveCount(0);
     }
-    await page.waitForTimeout(250);
-    await sec(page, 'plate-machine').getByRole('button', { name: 'Set starting weight' }).tap({ timeout: 3000 });
+    await sec(page, 'plate-machine').getByRole('button', { name: 'Set starting weight' }).tap();
+    await expect(sheet).toHaveCount(1);
   }
   expect(await page.getByRole('dialog').count()).toBe(1);
   expect(small).toEqual([]);

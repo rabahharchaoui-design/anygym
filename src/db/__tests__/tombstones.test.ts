@@ -105,7 +105,8 @@ describe('tombstones', () => {
     expect(await finishWorkout(session.id, db)).toMatchObject({ saved: true, sets: 2 });
     expect((await setsOf(session.id, db)).map((s) => s.id)).toEqual(['a', 'c']);
     expect(await db.tombstones.count()).toBe(0);
-    expect(await db.submissions.count()).toBe(0);
+    // Receipts stay for the workout's lifetime (PLAN 1.7i (13)): an undone Finish never relogs.
+    expect(await db.submissions.count()).toBe(3);
     // A workout no longer active drops what is left, without restoring.
     await db.tombstones.put({ id: 'c', sessionId: session.id, set: (await db.sets.get('c'))!, expiresAt: 0, undo: true });
     expect(await recoverDeletes(session.id, db)).toEqual({ restored: [], expired: ['c'], failed: [] });

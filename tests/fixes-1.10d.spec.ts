@@ -31,7 +31,7 @@ const savedSets = (page: Page) =>
   );
 
 const shot = async (page: Page, name: string) => {
-  if (test.info().project.name !== 'iPhone 15 Pro') return;
+  if (test.info().project.name !== 'iPhone 15') return;
   await page.waitForTimeout(500);
   await page.screenshot({ path: `reports/shots/1.10d/${name}.png` });
 };
@@ -249,5 +249,5 @@ test('Codex 1.10d (4): a bar choice that fails to save changes nothing and offer
   await page.getByRole('button', { name: 'Try again', exact: true }).tap();
   await expect(card.getByTestId('weight-cell').first()).toHaveText('125');
   await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 125 lb');
-  expect(errors.filter((e) => !e.includes('synthetic failure'))).toEqual([]);
+  expect(errors).toEqual([]);
 });

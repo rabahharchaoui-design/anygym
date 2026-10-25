@@ -100,9 +100,16 @@
 
 .weeks {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(48px, 1fr));
   gap: 6px;
   margin-bottom: var(--space-4);
+}
+
+/* Narrow phones (360 and the 320 floor): six 48 pt weeks do not fit one row, so two rows of three. */
+@media (max-width: 379px) {
+  .weeks {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .week {

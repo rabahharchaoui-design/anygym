@@ -27,7 +27,7 @@ const counter = () => {
 // Last time: 4 sets of 10 × 185 (plan range 8 to 12) → today's targets are already filled in.
 const seedSquat = (page: Page) => seedFinished(page, { 'barbell-back-squat': Array.from({ length: 4 }, () => ({ reps: 10, load: bar185 })) });
 
-test('1. start today\'s plan day and log all 4 squat sets at target in at most 6 taps', async ({ page }) => {
+test('1. start today\'s plan day and log all 4 squat sets at target in at most 6 taps @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await usePlan(page);
   await seedSquat(page);

@@ -133,3 +133,76 @@ describe('logQueue', () => {
     expect(calls).toBe(2);
   });
 });
+
+// PLAN 1.12: the double tap race. A ✓ claims its row with one submission; never time based.
+describe('row claims', () => {
+  const gate = () => {
+    let open!: (ok: boolean) => void;
+    const p = new Promise<boolean>((r) => (open = r));
+    return { p, open };
+  };
+
+  it('a second ✓ in the same task, during the write, or after it landed (stale view) gets the same submission', async () => {
+    const q = createLogQueue();
+    const g = gate();
+    let starts = 0;
+    const start = () => (starts++, g.p);
+    const a = q.claim('w:a', 0, start);
+    const b = q.claim('w:a', 0, start); // same task
+    expect(b).toBe(a);
+    expect(q.claimed('w:a', 0)).toBe(true);
+    await Promise.resolve();
+    expect(q.claim('w:a', 0, start)).toBe(a); // during the write
+    g.open(true);
+    expect(await a).toBe(true);
+    expect(q.claim('w:a', 0, start)).toBe(a); // landed, view not caught up yet
+    q.release('w:a', 0); // the view still shows 0 logged sets: kept
+    expect(q.claimed('w:a', 0)).toBe(true);
+    expect(starts).toBe(1);
+  });
+
+  it('release frees landed rows the view shows as logged; a deleted and redone row can log again', async () => {
+    const q = createLogQueue();
+    expect(await q.claim('w:a', 0, async () => true)).toBe(true);
+    q.release('w:a', 1);
+    expect(q.claimed('w:a', 0)).toBe(false);
+    let again = 0;
+    expect(await q.claim('w:a', 0, async () => (again++, true))).toBe(true);
+    expect(again).toBe(1);
+  });
+
+  it('the next row is its own claim; a running claim is never released', async () => {
+    const q = createLogQueue();
+    const g = gate();
+    const first = q.claim('w:a', 0, () => g.p);
+    let second = 0;
+    await q.claim('w:a', 1, async () => (second++, true));
+    expect(second).toBe(1);
+    q.release('w:a', 5);
+    expect(q.claimed('w:a', 0)).toBe(true); // still running
+    g.open(true);
+    await first;
+    q.release('w:a', 5);
+    expect(q.claimed('w:a', 0)).toBe(false);
+  });
+
+  it('a failed or throwing claim is dropped so ✓ again can log the row', async () => {
+    const q = createLogQueue();
+    expect(await q.claim('w:a', 0, async () => false)).toBe(false);
+    expect(q.claimed('w:a', 0)).toBe(false);
+    expect(await q.claim('w:a', 0, async () => {
+      throw new Error('boom');
+    })).toBe(false);
+    expect(q.claimed('w:a', 0)).toBe(false);
+    expect(await q.claim('w:a', 0, async () => true)).toBe(true);
+  });
+
+  it('keys are independent', async () => {
+    const q = createLogQueue();
+    const g = gate();
+    void q.claim('w:a', 0, () => g.p);
+    expect(q.claimed('w:b', 0)).toBe(false);
+    expect(await q.claim('w:b', 0, async () => true)).toBe(true);
+    g.open(true);
+  });
+});

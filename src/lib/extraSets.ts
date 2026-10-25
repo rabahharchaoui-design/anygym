@@ -1,5 +1,6 @@
 // "+ Add set" (PLAN 1.7c): rows added to an exercise beyond the plan's sets, per workout, so a
 // reload shows the same table (SPEC 13.3). Only one workout is in progress, so only one is kept.
+import { mirror } from './durable';
 const KEY = 'anygym-extra-sets';
 
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -40,6 +41,7 @@ export function addExtraSet(sessionId: string, exerciseId: string, kv: KV | null
   memory = { sessionId, extra };
   try {
     kv?.setItem(KEY, JSON.stringify(memory));
+    void mirror(kv, KEY);
   } catch {
     /* memory keeps it */
   }
@@ -50,6 +52,7 @@ export function clearExtraSets(kv: KV | null = storage()): void {
   memory = null;
   try {
     kv?.removeItem(KEY);
+    void mirror(kv, KEY);
   } catch {
     /* nothing to do */
   }

@@ -22,7 +22,7 @@ import {
 } from '../backup';
 import { SCHEMA_VERSION } from '../../db/schema';
 
-const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [] });
+const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [], journal: [] });
 
 const gym = { id: 'g', name: 'Home', type: 'home', unit: 'kg', equipment: [], dumbbellRange: null, bars: { olympic: 45, womens: 35, ez_curl: null, trap: null, smith: 0 }, stackStep: 2.5, equipmentWeights: {}, plateInventory: [], collars: 'none', plateColors: 'color', isActive: true, createdAt: 1 };
 const session = { id: 's', gymId: 'g', startedAt: 10, endedAt: 20, imported: false };
@@ -187,6 +187,7 @@ const good: Record<TableName, Record<string, unknown>> = {
   orderCounters: { sessionId: 's', next: 3 },
   submissions: { id: 'x', sessionId: 's', exerciseId: 'bench', rev: 1 },
   tombstones: { id: 'x', sessionId: 's', set, expiresAt: 5, undo: true },
+  journal: { id: 'j', sessionId: 's', exerciseId: 'bench', key: 'bench@0', rev: 2, draft: { id: 'j', load: set.load, plates: [25, 15, 1.25], reps: 5, rev: 2, unit: 'kg' }, at: 9 },
 };
 
 const without = (r: Record<string, unknown>, k: string) => {
@@ -225,6 +226,9 @@ const bad: Array<[TableName, string, Record<string, unknown>]> = [
   ['orderCounters', 'no next', without(good.orderCounters, 'next')],
   ['submissions', 'no rev', without(good.submissions, 'rev')],
   ['tombstones', 'bad set', { ...good.tombstones, set: { ...set, kind: 'x' } }],
+  ['journal', 'no rev', without(good.journal, 'rev')],
+  ['journal', 'bad draft', { ...good.journal, draft: { id: 'j', load: { kind: 'barbell' } } }],
+  ['journal', 'draft of another row', { ...good.journal, draft: { id: 'other', load: null } }],
 ];
 
 describe('RECORD_CHECKS', () => {
@@ -239,6 +243,22 @@ describe('RECORD_CHECKS', () => {
   });
 });
 
+describe('dumbbell ranges (PLAN 1.7i)', () => {
+  it.each([
+    ['a zero step', { min: 5, max: 100, step: 0 }],
+    ['a negative step', { min: 5, max: 100, step: -5 }],
+    ['a reversed range', { min: 100, max: 5, step: 5 }],
+    ['a negative minimum', { min: -5, max: 50, step: 5 }],
+    ['millions of dumbbells', { min: 0, max: 1e7, step: 0.5 }],
+  ])('refuses %s as damaged', (_, dumbbellRange) => {
+    expect(parseBackup(file({}, { gyms: [{ ...gym, dumbbellRange }] }))).toEqual({ ok: false, error: DAMAGED });
+  });
+  it('accepts a real rack, and a single dumbbell', () => {
+    expect(parseBackup(file({}, { gyms: [{ ...gym, dumbbellRange: { min: 2.5, max: 50, step: 2.5 } }] })).ok).toBe(true);
+    expect(parseBackup(file({}, { gyms: [{ ...gym, dumbbellRange: { min: 20, max: 20, step: 5 } }] })).ok).toBe(true);
+  });
+});
+
 describe('references', () => {
   it.each([
     ['a workout at a gym not in the file', { sessions: [{ ...session, gymId: 'gone' }] }],
@@ -246,6 +266,7 @@ describe('references', () => {
     ['a submission of a missing workout', { submissions: [{ id: 'x', sessionId: 'gone', exerciseId: 'bench', rev: 1 }] }],
     ['a tombstone of a missing workout', { tombstones: [{ id: 'x', sessionId: 'gone', set: { ...set, sessionId: 'gone' }, expiresAt: 1 }] }],
     ['a tombstone whose set has another id', { tombstones: [{ id: 'y', sessionId: 's', set, expiresAt: 1 }] }],
+    ['a pending journal entry of a missing workout', { journal: [{ ...good.journal, sessionId: 'gone' }] }],
     ['a tombstone whose set is in another workout', { tombstones: [{ id: 'x', sessionId: 's', set: { ...set, sessionId: 'other' }, expiresAt: 1 }] }],
   ])('refuses %s', (_, tables) => {
     expect(parseBackup(file({}, tables))).toEqual({ ok: false, error: DAMAGED });

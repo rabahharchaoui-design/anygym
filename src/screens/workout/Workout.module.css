@@ -468,6 +468,18 @@ button.nextChip {
   }
 }
 
+/* Short screens (the 320 x 568 floor, SPEC 13.4): tighter vertical rhythm so the set table
+   keeps its rows in view; tap targets are untouched. */
+@media (max-height: 600px) {
+  .exMain {
+    gap: 4px;
+    padding-top: var(--space-2);
+  }
+  .addSet {
+    margin-top: 2px;
+  }
+}
+
 /* ---------------------------------------------------------------- sheets */
 
 .sheetBody {

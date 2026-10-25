@@ -217,7 +217,7 @@ test('(3) delete is written at once, Undo restores the same id and order, a fail
   await expect(page.getByTestId('finish-sets')).toHaveText('2');
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
   await expect(page.getByRole('status').filter({ hasText: 'Workout saved · 2 sets' })).toBeVisible();
-  expect(errors.filter((e) => !e.includes('synthetic failure'))).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('(5) EZ Bar Curl asks for the EZ bar weight once, right in the weight sheet, and logs nothing until answered', async ({ page }) => {
@@ -423,7 +423,7 @@ test('(9) iPhone landscape shows "Turn your phone upright"; the workout keeps it
     return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest('[data-testid="landscape-guard"]') !== null;
   });
   expect(hit).toBe(true);
-  if (test.info().project.name === 'iPhone 15 Pro') await page.screenshot({ path: 'reports/shots/1.10c/landscape-guard.png' });
+  if (test.info().project.name === 'iPhone 15') await page.screenshot({ path: 'reports/shots/1.10c/landscape-guard.png' });
 
   await page.setViewportSize(portrait);
   await expect(guard).toBeHidden();

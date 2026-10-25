@@ -70,7 +70,7 @@ async function answer(page: Page) {
 }
 
 test.describe('1.11 import history', () => {
-  test('review: grouped by exercise, unsure sets amber with the reason, questions asked, then written in order', async ({ page }) => {
+  test('review: grouped by exercise, unsure sets amber with the reason, questions asked, then written in order @matrix', async ({ page }) => {
     const errors = watch(page);
     await openReview(page);
     await expect(page.getByTestId('import-exercise')).toHaveCount(4);
@@ -168,7 +168,6 @@ test.describe('1.11 import history', () => {
   });
 
   test('Last time and Next use the imported workouts', async ({ page }) => {
-    test.skip(test.info().project.name !== 'iPhone 15 Pro', 'one profile');
     const errors = watch(page);
     await openReview(page);
     await answer(page);
@@ -205,7 +204,7 @@ test.describe('1.11 import history', () => {
     expect(errors).toEqual([]);
   });
 
-  test('layout: nothing wider than the screen, the action always in reach', async ({ page }) => {
+  test('layout: nothing wider than the screen, the action always in reach @matrix', async ({ page }) => {
     const errors = watch(page);
     await openReview(page);
     const sizes = await page.evaluate(() => ({ w: document.documentElement.clientWidth, sw: document.documentElement.scrollWidth, h: window.innerHeight }));

@@ -108,6 +108,8 @@ test('V1 synthetic exactness, double tap, undo, real sessions untouched', async 
   expect(await dbAll<WorkoutSet>(page, 'sets')).toHaveLength(n);
   // History: Imported
   await page.goto('./#/history');
+  // The list reads the database first (a skeleton meanwhile): wait for the rows, then read them.
+  await expect(page.getByTestId('history-row')).toHaveCount(sessions.length);
   const hist = await page.getByTestId('history-row').allInnerTexts();
   expect(hist.every((h) => h.includes('Imported'))).toBe(true);
   expect(hist.length).toBe(sessions.length);
@@ -194,22 +196,25 @@ test('V3 undo removes exactly imported, real kept', async ({ page }) => {
     await expect(kind.or(pick)).toBeVisible();
     if (await kind.isVisible()) await kind.getByRole('button', { name: /Dumbbells/ }).tap();
     else await pick.getByRole('button', { name: /Skip/ }).tap();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   }
+  // The last answer updates the button a moment later (under load): import only once it says so.
+  await expect(page.getByTestId('import-confirm')).toHaveText(/^Import \d+ sets?$/);
   await page.getByTestId('import-confirm').tap();
   const toast = page.getByRole('status').filter({ hasText: /Imported \d+ sets/ });
   await expect(toast).toBeVisible();
   const withImp = await dbAll<Session>(page, 'sessions');
   await toast.getByRole('button', { name: 'Undo' }).tap();
   await expect(page.getByRole('status').filter({ hasText: 'Import undone' })).toBeVisible();
-  const after = await dbAll<Session>(page, 'sessions');
-  console.log('UNDO sessions with', withImp.length, 'after', after.length);
-  expect(after.map((s) => s.id)).toEqual(['real-1']);
-  expect((await dbAll<WorkoutSet>(page, 'sets')).map((s) => s.id)).toEqual(['real-set-1']);
+  // Under load the undo transaction can land after the toast: poll the stores until it has.
+  await expect.poll(async () => (await dbAll<Session>(page, 'sessions')).map((s) => s.id), { timeout: 10_000 }).toEqual(['real-1']);
+  await expect.poll(async () => (await dbAll<WorkoutSet>(page, 'sets')).map((s) => s.id), { timeout: 10_000 }).toEqual(['real-set-1']);
+  console.log('UNDO sessions with', withImp.length, 'after', (await dbAll<Session>(page, 'sessions')).length);
   expect(errors).toEqual([]);
 });
 
 test('V4 private totals explained (counts only)', async ({ page }) => {
-  test.skip(!existsSync(PRIVATE) || test.info().project.name !== 'iPhone 15 Pro', 'private/one profile');
+  test.skip(!existsSync(PRIVATE), 'no private history file on this machine');
   const dir = mkdtempSync(join(os.tmpdir(), 'ag-v-'));
   try {
     const copy = join(dir, 'h.json');

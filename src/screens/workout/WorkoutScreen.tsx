@@ -3,7 +3,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, WorkoutSet } from '../../db/types';
 import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, removeExercise, restoreExercise, setExerciseOrder, updateSet } from '../../db/workouts';
-import { expireDelete, recoverDeletes, undoDelete } from '../../db/tombstones';
+import { cancelUndo, expireDelete, recoverDeletes, undoDelete } from '../../db/tombstones';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
 import { getPlanState } from '../../db/planState';
 import { moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
@@ -21,7 +21,7 @@ import { Skeleton } from '../../ui/Skeleton';
 import { Sheet } from '../../ui/Sheet';
 import { LoadError } from '../../components/LoadError';
 import { supportsViewTransitions, useNav } from '../../ui/nav';
-import { createDeleteUndo } from '../../lib/deleteUndo';
+import { UndoUnresolvedError, createDeleteUndo } from '../../lib/deleteUndo';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
 import { clearExtraSets } from '../../lib/extraSets';
@@ -116,6 +116,8 @@ export function WorkoutScreen() {
         // The Undo is stored as accepted before the set is written back (db/tombstones.ts).
         restore: (s) => undoDelete(s.id),
         expire: (s) => expireDelete(s.id),
+        // A failed Undo the user gives up on: the set stays deleted (PLAN 1.7i).
+        cancel: (s) => cancelUndo(s.id),
       }),
     [],
   );
@@ -126,6 +128,8 @@ export function WorkoutScreen() {
   }, [sessionId]);
   /** Sets whose Log set write failed, when Finish was refused because of them (PLAN 1.7h). */
   const [unsaved, setUnsaved] = useState<number | null>(null);
+  /** Deleted sets whose Undo failed, when Finish was refused because of them (PLAN 1.7i). */
+  const [undoStuck, setUndoStuck] = useState<string[] | null>(null);
 
   useEffect(() => onDraftStorageFail(() => setToast(toastOf(DRAFTS_NOT_SAVED))), []);
   useEffect(() => {
@@ -418,12 +422,41 @@ export function WorkoutScreen() {
           replace: true,
           state: { toast: 'Nothing logged · Workout discarded' },
         });
-    } catch {
+    } catch (err) {
       reopen();
-      notice('Could not finish. Try again.');
+      // An Undo the user asked for never landed: Finish waits until it does or they cancel it.
+      if (err instanceof UndoUnresolvedError) setUndoStuck(err.ids);
+      else notice('Could not finish. Try again.');
     }
   };
   const finish = useTapGuard(() => void finishNow());
+
+  /** The Undo sheet: Try again puts the sets back (then finishes), or keep them deleted. */
+  const retryUndos = async () => {
+    const ids = undoStuck ?? [];
+    setUndoStuck(null);
+    const back = await Promise.all(
+      ids.map((id) =>
+        deletes.undo(id).then(
+          (item) => {
+            if (item) unhide(id);
+            return true;
+          },
+          () => false,
+        ),
+      ),
+    );
+    if (back.every(Boolean)) await finishNow();
+    else notice('Could not bring that set back. Try again.');
+  };
+  const keepDeleted = async () => {
+    const ids = undoStuck ?? [];
+    setUndoStuck(null);
+    // Finish only once every cancellation is stored, else it would put those sets back (PLAN 1.7i).
+    const done = await Promise.all(ids.map((id) => deletes.cancel(id).then(() => true, () => false)));
+    if (done.every(Boolean)) await finishNow();
+    else setToast(toastOf('Could not keep that set deleted', { label: 'Try again', onPress: () => void finishNow() }));
+  };
 
   /** The unsaved sets sheet: Try again writes them (then finishes), or finish without them. */
   const unsavedBusy = useRef(false);
@@ -646,6 +679,18 @@ export function WorkoutScreen() {
           </button>
           <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => void finishWithout()}>
             {unsaved === 1 || unsaved === null ? 'Finish without it' : 'Finish without them'}
+          </button>
+        </div>
+      </Sheet>
+      <Sheet open={undoStuck !== null} onClose={() => setUndoStuck(null)} label="Undo did not finish">
+        <div className={styles.sheetBody} data-testid="undo-stuck-sheet">
+          <h2 className={styles.sheetTitle}>{(undoStuck?.length ?? 1) === 1 ? 'A deleted set did not come back' : `${undoStuck!.length} deleted sets did not come back`}</h2>
+          <p className={styles.sheetSub}>You tapped Undo, but it did not save.</p>
+          <button type="button" className={`${styles.logButton} pressable`} onClick={() => void retryUndos()}>
+            Try again
+          </button>
+          <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => void keepDeleted()}>
+            {(undoStuck?.length ?? 1) === 1 ? 'Keep it deleted' : 'Keep them deleted'}
           </button>
         </div>
       </Sheet>

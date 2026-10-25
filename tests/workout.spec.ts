@@ -41,7 +41,7 @@ const elapsedSec = async (page: Page) => {
 
 const weightSheet = (page: Page) => page.getByRole('dialog', { name: 'Pick the weight' });
 
-test('quick workout: picker, first weight, check, double tap, edit, delete with undo, reload, finish', async ({ page }) => {
+test('quick workout: picker, first weight, check, double tap, edit, delete with undo, reload, finish @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await fakeWakeLock(page);
   await page.goto('./');
@@ -228,7 +228,7 @@ test('a deleted hold is gone from storage at once (1.10c), and a double tap on Q
   expect(errors).toEqual([]);
 });
 
-test('one screen exercise view on every phone: 5 rows, no page scroll, rest bar never covers a row', async ({ page }) => {
+test('one screen exercise view on every phone: 5 rows, no page scroll, rest bar never covers a row @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await seedFinished(page, { 'barbell-back-squat': Array.from({ length: 5 }, () => ({ reps: 10, load: bar185 })) });
@@ -257,7 +257,7 @@ test('one screen exercise view on every phone: 5 rows, no page scroll, rest bar 
   expect(errors).toEqual([]);
 });
 
-test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove with undo)', async ({ page }) => {
+test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove with undo) @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await seedFinished(page, { 'barbell-back-squat': [{ reps: 12, load: bar185 }, { reps: 9, load: { ...bar185, total: 135, perSide: [45] } }] });
@@ -330,7 +330,7 @@ test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove 
   expect(errors).toEqual([]);
 });
 
-test('finish screen calls out records from real history only', async ({ page }) => {
+test('finish screen calls out records from real history only @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await seedFinished(page, { 'barbell-back-squat': [{ reps: 8, load: bar185 }] });

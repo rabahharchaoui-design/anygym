@@ -12,9 +12,6 @@ const watchErrors = (page: Page) => {
   return errors;
 };
 
-test.beforeEach(async ({ browserName }) => {
-  test.skip(browserName !== 'webkit', 'iPhone WebKit regressions');
-});
 
 async function dbAll<T>(page: Page, store: string): Promise<T[]> {
   return page.evaluate((name) => new Promise<T[]>((resolve, reject) => {

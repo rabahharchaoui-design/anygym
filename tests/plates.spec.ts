@@ -55,7 +55,7 @@ const shot = async (page: Page, name: string, project: string) => {
     await page.screenshot({ path: `reports/shots/1.7a/bar-${name}-${project.replace(/ /g, '-')}.png` });
     return;
   }
-  if (project !== 'iPhone 15 Pro') return;
+  if (project !== 'iPhone 15') return;
   await page.waitForTimeout(450); // let the springs settle
   await page.screenshot({ path: `reports/shots/1.5/${name}.png` });
 };

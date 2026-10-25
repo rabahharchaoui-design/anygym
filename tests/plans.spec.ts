@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { fullyShown } from './helpers/layout';
 
 // G's programs, early (PLAN 1.10): curated plans, the Today day card, plan day workouts.
 
@@ -12,7 +13,7 @@ const watchErrors = (page: Page) => {
 };
 
 const shot = async (page: Page, name: string, target?: Locator) => {
-  if (test.info().project.name !== 'iPhone 15 Pro') return;
+  if (test.info().project.name !== 'iPhone 15') return;
   await page.waitForTimeout(450); // let springs settle
   await (target ?? page).screenshot({ path: `reports/shots/1.10/${name}.png` });
 };
@@ -37,7 +38,7 @@ const dbAll = (page: Page, store: string) =>
   );
 
 
-test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, finish', async ({ page }) => {
+test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, finish @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
 
@@ -266,7 +267,7 @@ test('Quick workout still starts empty while a plan is active', async ({ page })
   expect(errors).toEqual([]);
 });
 
-test('after a reload, Change day still updates Today and Start opens that day', async ({ page }) => {
+test('after a reload, Change day still updates Today and Start opens that day @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
@@ -304,23 +305,22 @@ test('Six Week: no invented rest, rests stated in notes shown, sprint in rounds'
   expect(errors).toEqual([]);
 });
 
-test('long names are fully readable: list title and exercise name wrap, the exercise view fits', async ({ page }) => {
+test('long names are fully readable: list title and exercise name wrap, the exercise view fits @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await page.getByRole('button', { name: 'Change day' }).tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 2 ·/ }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
-  const notClipped = (el: Element) => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1;
   const header = page.getByTestId('workout-title');
   await expect(header).toHaveText('Day 2 · Chest and triceps');
-  expect(await header.evaluate(notClipped)).toBe(true);
+  expect(await fullyShown(header)).toBe(true);
   await page.getByTestId('row-band-internal-shoulder-rotation-90-degrees').tap();
   const view = page.getByTestId('exercise-band-internal-shoulder-rotation-90-degrees');
   const title = view.getByRole('heading', { name: 'Band Internal Shoulder Rotation (90 degrees)' });
   await expect(title).toBeVisible();
   await page.waitForTimeout(400);
-  expect(await title.evaluate(notClipped)).toBe(true);
+  expect(await fullyShown(title)).toBe(true);
   expect((await title.boundingBox())!.height).toBeLessThanOrEqual(3 * 27 + 2);
   // SPEC 13.5: the exercise view fits on every phone, SE included.
   expect(await page.getByRole('main').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);

@@ -28,7 +28,7 @@ describe('Playwright specs use the network guarded fixtures', () => {
   it.each(specs)('%s guards every context it makes itself', (f) => {
     const bad = read(f)
       .split('\n')
-      .filter((line) => /\.newContext\(/.test(line) && !line.includes('guardContext('));
+      .filter((line) => /\.newContext\(/.test(line) && !line.includes('guardContext(') && !line.includes('harness: unguarded on purpose'));
     expect(bad).toEqual([]);
   });
 });

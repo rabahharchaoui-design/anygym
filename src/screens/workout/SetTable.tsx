@@ -7,7 +7,7 @@ import { formatElapsed } from '../../lib/timer';
 import { prefersReducedMotion } from '../../ui/motion';
 import type { Load, Unit, WorkoutSet } from '../../db/types';
 import { formatSetLine } from '../../lib/load';
-import { SET_TYPE_LETTER, SET_TYPE_WORDS, lastTimeCell, typeOfSet, weightCell, weightHeader, type PendingRow, type SetType } from '../../lib/setTable';
+import { SET_TYPE_LETTER, SET_TYPE_WORDS, keptCell, lastTimeCell, savedCells, typeOfSet, weightCell, weightHeader, type PendingRow, type SetType } from '../../lib/setTable';
 import type { PastSet, SetLine } from '../../lib/progression';
 import { RepsStepper } from './RepsStepper';
 import styles from './SetTable.module.css';
@@ -26,8 +26,8 @@ type Props = {
   /** Ids logged while this view was open: their rows play the check animation once. */
   fresh: ReadonlySet<string>;
   editing: number | null;
-  /** `at` is the tap's own event time, so a double tap stays one tap even if the page was busy. */
-  onCheck: (row: PendingRow, at: number) => void;
+  /** A double tap stays one set: the view claims the row with one submission (logQueue.claim). */
+  onCheck: (row: PendingRow) => void;
   onWeight: (row: PendingRow) => void;
   onAmount: (row: PendingRow) => void;
   onAmountChange: (row: PendingRow, value: number) => void;
@@ -112,6 +112,8 @@ export function SetTable(props: Props) {
         {logged.map((s, i) => {
           const t = typeOfSet(s);
           const last = lastTimeCell(props.lastTimeOf(i), unit);
+          // From the set's own record (unit, load kind, count), labelled where it differs from the heading.
+          const cells = savedCells(s, kind, unit);
           return (
             <li key={`row-${i}`} className={styles.row} data-state="logged" data-fresh={props.fresh.has(s.id) || undefined} data-testid="set-row">
               {typeButton(t, i + 1, () => props.onLoggedType(s))}
@@ -122,8 +124,14 @@ export function SetTable(props: Props) {
                 aria-label={`Set ${i + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSetLine(s)}. Edit`}
               >
                 <span className={`${styles.last} num`}>{last || '–'}</span>
-                {!timed && <span className={`${styles.cellValue} num`}>{s.load ? weightCell(kind, s.load, s.load.perSide ?? [], unit) || '–' : '–'}</span>}
-                <span className={`${styles.cellValue} num`}>{amountOf(kind, s) || '–'}</span>
+                {!timed && (
+                  <span className={`${styles.cellValue} num`} data-testid="saved-weight">
+                    {cells.weight || '–'}
+                  </span>
+                )}
+                <span className={`${styles.cellValue} num`} data-testid="saved-amount">
+                  {cells.amount || '–'}
+                </span>
               </button>
               <span className={styles.checkDone} aria-hidden="true">
                 <Check />
@@ -135,7 +143,7 @@ export function SetTable(props: Props) {
           const blocked = props.blockedOf(r);
           const n = r.index + 1;
           const isCurrent = r.index === current;
-          const weight = weightCell(kind, r.load, r.plates, unit);
+          const weight = r.kept ? keptCell(r.kept, kind, unit) : weightCell(kind, r.load, r.plates, unit);
           const shownSeconds = timed && isCurrent && props.liveSeconds > 0 ? props.liveSeconds : r.seconds;
           const amount = amountOf(kind, {
             reps: r.reps,
@@ -168,7 +176,9 @@ export function SetTable(props: Props) {
                     data-quiet={(!weight && !isCurrent) || undefined}
                     data-unknown={(r.load === null && !!weight) || undefined}
                     onClick={() => props.onWeight(r)}
-                    aria-label={r.load ? `Weight for set ${n}: ${weight} ${kind === 'bodyweight' ? '' : unit}. Change` : `Set ${n}: set the weight`}
+                    aria-label={
+                      r.load ? `Weight for set ${n}: ${weight} ${kind === 'bodyweight' ? '' : unit}. Change` : r.kept ? `Set ${n}: ${weight}, pick again` : `Set ${n}: set the weight`
+                    }
                     data-testid="weight-cell"
                   >
                     {weight ? <Odometer value={weight} /> : isCurrent ? 'Pick' : '–'}
@@ -216,7 +226,7 @@ export function SetTable(props: Props) {
                     type="button"
                     className={`${styles.check} pressable`}
                     disabled={blocked !== null}
-                    onClick={(e) => props.onCheck(r, e.timeStamp)}
+                    onClick={() => props.onCheck(r)}
                     aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSetLine({ reps: r.reps, load: r.load ?? undefined })}`}
                     data-testid={isCurrent ? 'check-current' : 'check'}
                   >

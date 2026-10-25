@@ -27,7 +27,7 @@ test('1.3 verify: one gym after fast reloads and concurrent tabs', async ({ page
   await expect(page.getByText('My Gym', { exact: true })).toBeVisible();
   expect(await title.boundingBox()).toEqual(before);
   await page.screenshot({ path: `reports/shots/1.3/today-${info.project.name.replace(/ /g, '-')}.png` });
-  if (info.project.name === 'iPhone 15 Pro') await page.screenshot({ path: 'reports/shots/1.3/today.png' });
+  if (info.project.name === 'iPhone 15') await page.screenshot({ path: 'reports/shots/1.3/today.png' });
   for (let i = 0; i < 3; i++) await page.reload({ waitUntil: 'commit' });
   await expect(page.getByText('My Gym', { exact: true })).toBeVisible();
   let gyms = await dump(page);

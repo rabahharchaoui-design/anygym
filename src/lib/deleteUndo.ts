@@ -3,6 +3,9 @@
 // the Undo window and until a restore actually lands; Undo writes it back unchanged (same id,
 // same order), using the record the delete read in its own transaction. Every write is tracked and a failed write is reported, never swallowed.
 // Finish calls close(): no new delete or Undo starts, and it waits until no write is left.
+// An Undo whose write failed is UNRESOLVED (PLAN 1.7i): it is kept apart from the running writes,
+// never expires (its stored record stays), and close() refuses (UndoUnresolvedError) until a
+// retry puts the item back or the user cancels it (cancel: the item stays deleted).
 // This is the in-memory half (the toast's Undo while the app runs). The stored half, so an
 // accepted Undo survives a kill, is db/tombstones.ts: `restore` accepts the Undo durably before
 // writing, and `expire` clears the stored record when the window ends.
@@ -26,9 +29,24 @@ export type DeleteUndo<T> = {
   reopen: () => void;
   /** Writes still running. */
   pending: () => number;
+  /** Ids whose Undo was asked for and failed: not put back, not cancelled. */
+  unresolved: () => string[];
+  /**
+   * The user gives up on a failed Undo: the item stays deleted. The stored record's removal is a
+   * tracked write: the Undo stays unresolved (Finish refuses) until it lands; rejects if it failed.
+   */
+  cancel: (id: string) => Promise<void>;
 };
 
 export const CLOSED = 'Workout is finishing';
+
+/** Finish refused: an Undo the user asked for has not been written back (or cancelled) yet. */
+export class UndoUnresolvedError extends Error {
+  constructor(readonly ids: string[]) {
+    super('An Undo did not finish');
+    this.name = 'UndoUnresolvedError';
+  }
+}
 
 export function createDeleteUndo<T extends { id: string }>(
   ops: {
@@ -37,10 +55,12 @@ export function createDeleteUndo<T extends { id: string }>(
     restore: (item: T) => Promise<unknown>;
     /** The Undo window ended without an Undo (the stored record can go). Failures are ignored. */
     expire?: (item: T) => Promise<unknown>;
+    /** The user cancelled a failed Undo: the stored record goes, the item stays deleted. Failures are ignored. */
+    cancel?: (item: T) => Promise<unknown>;
   },
   ms = UNDO_MS,
 ): DeleteUndo<T> {
-  type Record = { item: T; timer?: ReturnType<typeof setTimeout>; restoring: Promise<T> | null };
+  type Record = { item: T; timer?: ReturnType<typeof setTimeout>; restoring: Promise<T> | null; unresolved?: boolean };
   const records = new Map<string, Record>();
   const running = new Set<Promise<unknown>>();
   const lastWrite = new Map<string, Promise<unknown>>();
@@ -61,7 +81,7 @@ export function createDeleteUndo<T extends { id: string }>(
   const arm = (rec: Record, id: string) => {
     clearTimeout(rec.timer);
     rec.timer = setTimeout(() => {
-      if (rec.restoring) return;
+      if (rec.restoring || rec.unresolved) return;
       records.delete(id);
       ops.expire?.(rec.item).catch(() => undefined);
     }, ms);
@@ -107,9 +127,11 @@ export function createDeleteUndo<T extends { id: string }>(
           return rec.item;
         },
         (err: unknown) => {
-          // Kept for a retry of this exact record, with a fresh Undo window.
+          // Kept for a retry of this exact record: unresolved until a retry lands or the user
+          // cancels it. It never expires meanwhile, so its stored record is never dropped.
           rec.restoring = null;
-          arm(rec, id);
+          rec.unresolved = true;
+          clearTimeout(rec.timer);
           throw err;
         },
       );
@@ -120,10 +142,21 @@ export function createDeleteUndo<T extends { id: string }>(
     async close() {
       closed = true;
       await settle();
+      const open = [...records].filter(([, r]) => r.unresolved).map(([id]) => id);
+      if (open.length) throw new UndoUnresolvedError(open);
     },
     reopen() {
       closed = false;
     },
     pending: () => running.size,
+    unresolved: () => [...records].filter(([, r]) => r.unresolved).map(([id]) => id),
+    async cancel(id) {
+      const rec = records.get(id);
+      if (!rec || rec.restoring) return;
+      const drop = ops.cancel ?? ops.expire;
+      // Forgotten only once the stored record is gone: a failed removal keeps it unresolved.
+      if (drop) await track(id, Promise.resolve().then(() => drop(rec.item)));
+      forget(rec, id);
+    },
   };
 }

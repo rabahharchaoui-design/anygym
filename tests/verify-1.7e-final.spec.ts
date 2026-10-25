@@ -56,7 +56,8 @@ test('a Hold cell: 3 s stop logs 3, untouched logs the 45 s target, 60 s plank r
   expect(clipped).toBe(false);
   await shot(page, 'hold-running');
   await run.tap();
-  await expect(v2.getByRole('button', { name: 'Start timer' })).toContainText('3 s');
+  // The tap itself takes real time on top of the 3.1 s (longer under Chromium's view transitions).
+  await expect(v2.getByRole('button', { name: 'Start timer' })).toContainText(/^[34] s/);
   expect(await v2.getByTestId('check-current').getAttribute('aria-label')).toMatch(/^Log set 1: [2-4] s$/);
   await page.clock.runFor(600);
   await v2.getByTestId('check-current').tap();

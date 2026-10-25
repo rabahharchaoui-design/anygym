@@ -4,9 +4,9 @@
 //   → the last set logged in this workout (rebuilt on today's equipment) → the engine's next load
 //   → a load that is certain without asking (just you, a hold) → empty (the first tap asks).
 // No weight math here: every Load comes from load.ts through the callbacks the screen passes.
-import type { Load, SetKind } from '../db/types';
+import type { Load, SetKind, Unit } from '../db/types';
 import type { Draft } from './drafts';
-import { cellWeight, formatAmount, platesOnly } from './load';
+import { cellWeight, formatAmount, formatSetLine, platesOnly } from './load';
 import type { PastSet, Progression, SetLine } from './progression';
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
@@ -76,10 +76,11 @@ export type Committed = ReadonlyMap<string, number | undefined>;
 
 /**
  * Reconciles pending row drafts with committed writes (PLAN 1.7h). A draft whose id committed is
- * used up when it was not edited since it was submitted: its slot goes and the rows below move
- * up one. Edited during the write, those newer values stay where they are under a fresh id (they
- * become the next set), and the drafts below keep their own slots: nothing is overwritten or
- * dropped. Returns the new slots, or null when nothing changed.
+ * used up when its version is the committed one or OLDER (a stale copy storage kept after a newer
+ * version committed, PLAN 1.7i): its slot goes and the rows below move up one. Only a strictly
+ * newer version (edited during the write) stays where it is under a fresh id (it becomes the next
+ * set), and the drafts below keep their own slots: nothing is overwritten or dropped. Returns the
+ * new slots, or null when nothing changed.
  */
 export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Committed, newId: () => string): Array<Draft | null> | null {
   const out = [...slots];
@@ -89,7 +90,7 @@ export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Com
     if (!d || !committed.has(d.id)) continue;
     changed = true;
     const rev = committed.get(d.id) ?? d.submitted ?? d.rev ?? 0;
-    if ((d.rev ?? 0) === rev) out.splice(j, 1);
+    if ((d.rev ?? 0) <= rev) out.splice(j, 1);
     else {
       const { submitted: _done, ...kept } = d;
       out[j] = { ...kept, id: newId() };
@@ -118,7 +119,7 @@ export function markSubmitted(
   while (out.length <= slot) out.push(null);
   for (let j = 0; j < slot; j++) if (!out[j] && rows[j]) out[j] = rowDraft(rows[j]!, newId());
   const base = out[slot] ?? { id: newId(), load: values.load };
-  const draft: Draft = { ...base, load: values.load, plates: values.load.perSide ?? base.plates ?? [], type: values.type, submitted: base.rev ?? 0 };
+  const draft: Draft = { ...base, load: values.load, plates: values.load.perSide ?? base.plates ?? [], unit: values.load.unit, type: values.type, submitted: base.rev ?? 0 };
   delete draft.reps;
   delete draft.seconds;
   if (values.reps !== undefined) draft.reps = values.reps;
@@ -141,7 +142,15 @@ export type PendingRow = {
   lastTime?: SetLine | PastSet;
   /** True when the user changed this row (its draft). */
   edited: boolean;
+  /**
+   * The row's own pick, kept as it was because it cannot be used here now (PLAN 1.7i): picked in
+   * the other unit, or with a plate that is turned off. `load` is then null (nothing is logged)
+   * until the user picks again; the cell shows this pick with its unit.
+   */
+  kept?: KeptPick;
 };
+
+export type KeptPick = { why: 'unit' | 'plate'; load: Load | null; plates: number[]; unit: Unit };
 
 export type BuildInput = {
   /** Rows in the table: the plan's sets (or the quick default), more if more were logged or added. */
@@ -156,6 +165,10 @@ export type BuildInput = {
   carry: (prev: Load | undefined) => Load | null;
   /** A load certain without asking (bodyweight, a hold), else null. */
   certain: Load | null;
+  /** Today's unit (the gym's). */
+  unit?: Unit;
+  /** Why a row's own draft cannot be used here now (exerciseLoad.pickProblem), else null. */
+  stale?: (d: Draft) => 'unit' | 'plate' | null;
   /** Reps when nothing else says (the bottom of the plan's range, else the quick default). */
   defaultReps?: number;
   /** The plan's hold for timed rows, if it gives one. */
@@ -180,9 +193,15 @@ export function pendingRows(input: BuildInput): PendingRow[] {
     const d = draftOf(i);
     let load: Load | null;
     let plates: number[];
+    let kept: KeptPick | undefined;
     if (d) {
       plates = d.plates ?? d.load?.perSide ?? [];
-      load = rebuild(d.load, plates);
+      const why = input.stale?.(d) ?? null;
+      if (why) {
+        // Kept exactly as picked, never turned into a different loggable weight (PLAN 1.7i).
+        load = null;
+        kept = { why, load: d.load, plates: [...plates], unit: d.load?.unit ?? d.unit ?? input.unit ?? 'lb' };
+      } else load = rebuild(d.load, plates);
     } else {
       const fromTarget = target?.load ? rebuild(target.load, target.load.perSide ?? []) : null;
       load = fromTarget ?? carry(lastLogged?.load) ?? (progression?.next.load ? rebuild(progression.next.load, progression.next.load.perSide ?? []) : null) ?? certain;
@@ -192,6 +211,7 @@ export function pendingRows(input: BuildInput): PendingRow[] {
     // A hold the plan prescribes beats last time's hold (PLAN 1.7c); last time stays in LAST TIME.
     const seconds = d?.seconds ?? input.planSeconds ?? target?.seconds;
     const row: PendingRow = { index: i, load, plates, type: d?.type ?? input.defaultType, edited: !!d };
+    if (kept) row.kept = kept;
     if (reps !== undefined) row.reps = reps;
     if (seconds !== undefined) row.seconds = seconds;
     if (lastTime) row.lastTime = lastTime;
@@ -239,7 +259,8 @@ export function countModeOf(set: { reps?: number; seconds?: number; load?: Pick<
  * Why a row's ✓ cannot log yet, in one plain sentence; null when it can. `baseUnknown`: the bar
  * (or a plate machine's starting weight) is not known yet, so even plates cannot make a weight.
  */
-export function blockedReason(kind: Load['kind'], row: Pick<PendingRow, 'load' | 'reps' | 'seconds'>, liveSeconds = 0, baseUnknown = false): string | null {
+export function blockedReason(kind: Load['kind'], row: Pick<PendingRow, 'load' | 'reps' | 'seconds' | 'kept'>, liveSeconds = 0, baseUnknown = false): string | null {
+  if (row.kept) return row.kept.why === 'unit' ? `Picked in ${row.kept.unit}. Pick again` : 'A plate is turned off. Pick again';
   if (row.load === null) {
     if (baseUnknown && kind === 'barbell') return 'Set the bar weight first';
     if (baseUnknown && kind === 'plate_machine') return 'Set the starting weight first';
@@ -265,6 +286,46 @@ export function weightCell(kind: Load['kind'], load: Load | null, plates: readon
     return `${formatAmount(platesOnly(plates, unit))} + ${kind === 'barbell' ? 'bar' : 'start'}`;
   }
   return '';
+}
+
+/**
+ * The WEIGHT cell of a kept pick (PLAN 1.7i): what was picked, with its unit when that is not
+ * today's ("135 lb", "+25 lb", "90 lb + bar"), never converted.
+ */
+export function keptCell(kept: KeptPick, kind: Load['kind'], unit: Unit): string {
+  const tag = kept.unit !== unit ? ` ${kept.unit}` : '';
+  if (kept.load) {
+    if (kept.load.kind === 'bodyweight') return kept.load.added ? `+${formatAmount(kept.load.added)}${tag}` : 'Just you';
+    const w = cellWeight(kept.load);
+    return w === null ? '' : `${formatAmount(w)}${tag}`;
+  }
+  if (kept.plates.length) return `${formatAmount(platesOnly(kept.plates, kept.unit))}${tag} + ${kind === 'plate_machine' ? 'start' : 'bar'}`;
+  return '';
+}
+
+/**
+ * A saved row's cells (PLAN 1.7i), always from the set's own record: its unit, load kind and
+ * count. Anything that differs from today's column heading says so: "135 lb" under a kg heading,
+ * "30 each" under a plain heading, "60 total" under an "each" or "+ lb" heading, "10 reps" or
+ * "10 × 135 lb" in today's Hold column, "45 s" in today's Reps column.
+ */
+export function savedCells(set: { reps?: number; seconds?: number; load?: Load }, kind: Load['kind'], unit: Unit): { weight: string; amount: string } {
+  const load = set.load;
+  const mode = countModeOf(set, kind);
+  if (kind === 'timed') {
+    if (mode === 'seconds') return { weight: '', amount: set.seconds ? `${set.seconds} s` : '' };
+    return { weight: '', amount: formatSetLine(set) };
+  }
+  const amount = mode === 'seconds' ? `${set.seconds ?? 0} s` : set.reps ? `${set.reps}` : '';
+  if (!load) return { weight: '', amount };
+  const tag = load.unit !== unit ? ` ${load.unit}` : '';
+  if (load.kind === 'bodyweight') return { weight: load.added ? `+${formatAmount(load.added)}${tag}` : 'Just you', amount };
+  const w = cellWeight(load);
+  if (w === null) return { weight: '', amount };
+  // The heading says "each" (dumbbells) or "+ lb" (added to bodyweight): a set loaded another way says how.
+  const each = load.kind === 'dumbbell_each' && kind !== 'dumbbell_each' ? ' each' : '';
+  const total = load.kind !== 'dumbbell_each' && (kind === 'dumbbell_each' || kind === 'bodyweight') ? ' total' : '';
+  return { weight: `${formatAmount(w)}${tag}${each}${total}`, amount };
 }
 
 /**

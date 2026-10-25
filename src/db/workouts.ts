@@ -105,9 +105,12 @@ export class AlreadyLoggedError extends Error {
  */
 export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<WorkoutSet> {
   if (!validSet(input)) throw new Error('Invalid set');
-  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.submissions], async () => {
+  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.submissions, db.journal], async () => {
     const existing = await db.sets.get(input.id);
-    if (existing) return existing;
+    if (existing) {
+      await db.journal.delete(input.id);
+      return existing;
+    }
     if (await db.submissions.get(input.id)) throw new AlreadyLoggedError();
     const session = await db.sessions.get(input.sessionId);
     if (!session || session.endedAt !== undefined) throw new Error('Workout not active');
@@ -129,6 +132,8 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
     if (input.failure && set.kind === 'work') set.failure = true;
     await db.sets.add(set);
     await db.submissions.put({ id: input.id, sessionId: input.sessionId, exerciseId: input.exerciseId, rev: input.rev ?? 0 });
+    // Its pending write journal entry (PLAN 1.7i) is used up in the same transaction.
+    await db.journal.delete(input.id);
     if (!(session.exerciseIds ?? []).includes(input.exerciseId)) {
       await db.sessions.put({ ...session, exerciseIds: [...(session.exerciseIds ?? []), input.exerciseId] });
     }
@@ -283,7 +288,7 @@ export type FinishResult = { saved: true; sets: number; progress?: DayProgress }
  * empty session. Finishing twice is safe. A saved plan day moves the plan to the next day.
  */
 export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<FinishResult> {
-  return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions], async () => {
+  return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions, db.journal], async () => {
     const s = await db.sessions.get(sessionId);
     if (s && s.endedAt === undefined) {
       // An Undo that was accepted but never written back (PLAN 1.7h) lands now; every other
@@ -295,13 +300,18 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
         }
       }
       await db.tombstones.where('sessionId').equals(sessionId).delete();
-      await db.submissions.where('sessionId').equals(sessionId).delete();
+      // Finish runs only once no failed row is left (rowLog.prepareFinish): the journal is done.
+      await db.journal.where('sessionId').equals(sessionId).delete();
+      // Submission receipts stay for the workout's lifetime (PLAN 1.7i): if Finish is undone and
+      // stale drafts come back, they are reconciled against these and never logged a second time.
     }
     const count = await db.sets.where('sessionId').equals(sessionId).count();
     if (!s) return { saved: false };
     if (count === 0) {
+      // Discarded: nothing can reopen it, so its receipts and pending journal go with it.
       await db.sessions.delete(sessionId);
       await db.orderCounters.delete(sessionId);
+      await db.submissions.where('sessionId').equals(sessionId).delete();
       return { saved: false };
     }
     const progress = await planProgress(s, db);

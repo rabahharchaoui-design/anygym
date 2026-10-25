@@ -480,14 +480,18 @@ test('G. tap targets are at least 48pt', async ({ page }) => {
   await usePlan(page);
   await seedSquat(page);
   await page.reload();
+  // After a reload the Today screen reads IndexedDB first: wait for the button before counting it.
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   await measure('start', page.getByRole('button', { name: 'Start', exact: true }));
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.locator('[data-testid^="row-"]').first()).toBeVisible();
   await page.waitForTimeout(500);
   await measure('row', page.locator('[data-testid^="row-"]'));
   await measure('back', page.getByRole('button', { name: 'Back' }));
   await measure('finish', page.getByRole('button', { name: 'Finish' }));
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = page.getByTestId('exercise-barbell-back-squat');
+  await expect(view.getByTestId('check-current')).toBeVisible();
   await page.waitForTimeout(500);
   await measure('check', view.getByTestId('check-current'));
   await measure('check-other', view.getByTestId('check'));

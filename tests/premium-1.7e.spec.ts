@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { bar185, dbAll, seedFinished, usePlan, watchErrors } from './workout-helpers';
+import { bar185, dbAll, seedFinished, usePlan, watchErrors, navIdle } from './workout-helpers';
 
 // PLAN 1.7e (SPEC 23): iOS push and pop, tab crossfades, the interactive edge swipe back, the
 // large title bar, the sheet card stack, and the Settings screen.
@@ -73,14 +73,16 @@ test('edge swipe back: a fast flick finishes, a short slow drag cancels', async 
   await page.getByTestId('plan-five-day-split').tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Classic 5 Day Split' })).toBeVisible();
   await page.waitForTimeout(400);
+  await navIdle(page);
   // Short and slow: springs back, still on the plan.
   await edgeSwipe(page, 50, 500);
   await page.waitForTimeout(400);
   await expect(page).toHaveURL(/#\/plans\/five-day-split$/);
   await expect(page.locator('main')).toHaveCount(1);
   expect(await page.locator('main').evaluate((el) => (el as HTMLElement).style.transform)).toBe('');
-  // A quick flick: back to Plans.
-  await edgeSwipe(page, 160, 100);
+  // A quick flick: back to Plans. Moves sent back to back, so the flick stays fast even when a
+  // loaded machine stretches the timers (160 px is under 40% of a wide phone: speed decides).
+  await edgeSwipe(page, 160, 0);
   await expect(page).toHaveURL(/#\/plans$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Plans' })).toBeVisible();
   await expect(page.locator('main')).toHaveCount(1);
@@ -101,6 +103,7 @@ test('edge swipe back from the exercise view to the day list; a tap on the edge 
   const box = (await tile.boundingBox())!;
   expect(box.x).toBeLessThan(20);
   await page.waitForTimeout(400); // past the arrival guard (double tap protection)
+  await navIdle(page);
   await page.mouse.click(box.x + 2, box.y + box.height / 2);
   const how = page.getByRole('dialog', { name: 'How to' });
   await expect(how).toBeVisible();

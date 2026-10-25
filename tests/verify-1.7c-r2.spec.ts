@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { dbAll, dbPut, seedFinished, usePlan, watchErrors, quickWith } from './workout-helpers';
+import { dbAll, dbPut, navIdle, seedFinished, usePlan, watchErrors, quickWith } from './workout-helpers';
 
 // Round 2 independent recheck of PLAN 1.7c / 1.10e.
 const shot = async (page: Page, name: string) => {
@@ -37,11 +37,13 @@ test('H1. real hit areas', async ({ page }) => {
   await page.reload();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await page.waitForTimeout(500);
+  await navIdle(page);
   await hit(page.getByRole('button', { name: 'Finish' }), 'finish-list', bad);
   await hit(page.locator('[data-testid^="row-"]'), 'row', bad);
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = page.getByTestId('exercise-barbell-back-squat');
   await page.waitForTimeout(600);
+  await navIdle(page);
   await hit(view.getByRole('button', { name: /More for/ }), 'more', bad, true);
   await hit(view.getByRole('button', { name: '+ Add set' }), 'add-set', bad);
   await hit(page.getByRole('button', { name: 'Finish' }), 'finish', bad);
@@ -130,6 +132,7 @@ test('S-a. LAST TIME shows warm up with W tag first', async ({ page }) => {
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = page.getByTestId('exercise-barbell-back-squat');
   await page.waitForTimeout(600);
+  await navIdle(page);
   const lasts = await view.getByRole('button', { name: /Copy into set|no last time/ }).allInnerTexts();
   console.log('LAST cells', JSON.stringify(lasts), '| weights', await view.getByTestId('weight-cell').allInnerTexts(), '| types', await view.getByTestId('set-type').allInnerTexts());
   await shot(page, 'last-warmup');

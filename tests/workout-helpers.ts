@@ -130,3 +130,9 @@ export async function fitsOneScreen(page: Page) {
   await expect.poll(() => main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 }
+
+/**
+ * Waits until no view transition is running. Chromium runs the View Transitions API and holds
+ * input for about half a second per screen change (WebKit here has none, so this returns at once).
+ */
+export const navIdle = (page: Page) => page.waitForFunction(() => !document.documentElement.dataset.nav, null, { timeout: 5000 });

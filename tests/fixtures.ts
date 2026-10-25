@@ -75,6 +75,116 @@ function cancelExternalNavigation() {
   };
 }
 
+// ---------------------------------------------------------------------------------------------
+// SPEC 13.3: any console error or unhandled promise rejection during any test is a FAIL.
+// Every page of every guarded context (the test's own context, contexts made with
+// browser.newContext() + guardContext, persistent contexts in kill.ts, and every popup) reports
+// console.error, uncaught exceptions and unhandled rejections into the running test's collector.
+// The automatic `errorTrap` fixture asserts the collector is empty at teardown.
+//
+// Documented allowlist (the only exemptions; never broad substrings in app tests):
+//   - allowConsoleErrors(/pattern/) inside a test, for errors that test provokes on purpose
+//     (a deliberate rejection). Used by: loads.spec (the dev page's error log) and harness.spec.
+//   - "Failed to load resource" for a request the network guard aborted, or one that failed while
+//     the test had set its context offline (setOffline(true), or kill.ts's offline relaunch),
+//     matched by the exact URL of the message, and Chromium's service worker script check while
+//     offline. Any other failed request (online, not cancelled by a navigation) is an error.
+// ---------------------------------------------------------------------------------------------
+
+type Collector = { errors: string[]; allow: RegExp[]; failedUrls: Set<string> };
+const collectors = new Map<string, Collector>();
+
+const currentCollector = (): Collector | undefined => {
+  try {
+    return collectors.get(base.info().testId);
+  } catch {
+    return undefined;
+  }
+};
+
+/** Lets the running test emit errors matching these patterns (only for errors it provokes on purpose). */
+export function allowConsoleErrors(...patterns: RegExp[]) {
+  const c = currentCollector();
+  if (!c) throw new Error('allowConsoleErrors must be called inside a test');
+  c.allow.push(...patterns);
+}
+
+/** The errors collected so far in this test (after the allowlist). */
+export function collectedErrors(): string[] {
+  const c = currentCollector();
+  return c ? unexpected(c) : [];
+}
+
+const unexpected = (c: Collector) =>
+  c.errors.filter((e) => {
+    if (c.allow.some((r) => r.test(e))) return false;
+    // Browser noise for a request that was meant to fail (aborted by the guard, or sent while the
+    // test had the context offline), by the exact URL only. No URL, no exemption.
+    const m = /^console: Failed to load resource.* \[(.+)\]$/.exec(e);
+    return !(m && c.failedUrls.has(m[1]!));
+  });
+
+// Runs in the page before the app: unhandled rejections and uncaught errors go to the collector
+// through the __pwReportError binding, even in engines that do not raise `pageerror` for them.
+function reportRejections() {
+  const send = (text: string) => {
+    const w = window as unknown as { __pwReportError?: (t: string) => void };
+    try {
+      w.__pwReportError?.(text);
+    } catch {
+      // The binding is gone while the page closes.
+    }
+  };
+  const describe = (v: unknown) => (v instanceof Error ? `${v.name}: ${v.message}` : typeof v === 'string' ? v : (() => { try { return JSON.stringify(v); } catch { return String(v); } })());
+  window.addEventListener('unhandledrejection', (e) => send(`unhandledrejection: ${describe(e.reason)}`));
+}
+
+const watched = new WeakSet<BrowserContext>();
+const offline = new WeakMap<BrowserContext, boolean>();
+
+/** Marks a context as offline (kill.ts launches persistent contexts with `offline: true`). */
+export const markOffline = (context: BrowserContext, value = true) => void offline.set(context, value);
+
+/** Wires a context's pages into the running test's error collector (idempotent). */
+export async function trapErrors(context: BrowserContext): Promise<void> {
+  if (watched.has(context)) return;
+  watched.add(context);
+  const route = () => currentCollector();
+  // Requests that fail while the test set the context offline are expected to fail.
+  const setOffline = context.setOffline.bind(context);
+  context.setOffline = async (value: boolean) => {
+    offline.set(context, value);
+    return setOffline(value);
+  };
+  await context.exposeBinding('__pwReportError', (_src, text: string) => route()?.errors.push(String(text)));
+  await context.addInitScript(reportRejections);
+  const watchPage = (page: Page) => {
+    page.on('console', (m) => {
+      if (m.type() !== 'error') return;
+      // Chromium's service worker update check while the test has the context offline.
+      if (offline.get(context) && m.text() === 'An unknown error occurred when fetching the script.') return;
+      const url = m.location()?.url;
+      route()?.errors.push(`console: ${m.text()}${url && /^Failed to load resource/.test(m.text()) ? ` [${url}]` : ''}`);
+    });
+    page.on('pageerror', (e) => route()?.errors.push(`pageerror: ${e.message}`));
+    page.on('requestfailed', (r) => {
+      const c = route();
+      if (!c) return;
+      if (offline.get(context) || c.failedUrls.has(r.url())) {
+        c.failedUrls.add(r.url());
+        return;
+      }
+      // Online, not aborted by the guard: a failed request is an error (WebKit does not always log
+      // one to the console). A request the browser cancelled itself (navigation) is not a failure.
+      const why = r.failure()?.errorText ?? '';
+      if (/ERR_ABORTED|cancell?ed/i.test(why)) return;
+      c.errors.push(`requestfailed: ${r.url()} (${why})`);
+    });
+  };
+  for (const page of context.pages()) watchPage(page);
+  context.on('page', watchPage);
+}
+
 const guardPage = (page: Page) => {
   page.on('popup', (popup) => {
     log('popup', popup.url());
@@ -82,13 +192,23 @@ const guardPage = (page: Page) => {
   });
 };
 
-/** Applies the network guard to a context. Use it on contexts made with browser.newContext(). */
+const guarded = new WeakSet<BrowserContext>();
+
+/**
+ * Applies the network guard and the error trap to a context (idempotent). Contexts a test makes
+ * with browser.newContext() / browser.newPage() get it automatically (the `guardNewContexts`
+ * fixture); call it yourself only for persistent contexts (kill.ts does).
+ */
 export async function guardContext(context: BrowserContext): Promise<BrowserContext> {
+  if (guarded.has(context)) return context;
+  guarded.add(context);
+  await trapErrors(context);
   await context.addInitScript(cancelExternalNavigation);
   await context.route('**/*', (route) => {
     const url = route.request().url();
     if (isLocalUrl(url)) return route.continue();
     log('blocked', url);
+    currentCollector()?.failedUrls.add(url);
     return route.abort('blockedbyclient');
   });
   for (const page of context.pages()) guardPage(page);
@@ -96,9 +216,42 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
   return context;
 }
 
-export const test = base.extend<{ networkGuard: void }>({
+export const test = base.extend<{ errorTrap: void; guardNewContexts: void; networkGuard: void }>({
+  // Set up first, so the collector exists before any page or context of the test.
+  errorTrap: [
+    async ({}, use, info) => {
+      const c: Collector = { errors: [], allow: [], failedUrls: new Set() };
+      collectors.set(info.testId, c);
+      await use();
+      collectors.delete(info.testId);
+      const bad = unexpected(c);
+      if (bad.length) throw new Error(`SPEC 13.3: ${bad.length} console error(s) or unhandled rejection(s) during the test:\n  ${bad.join('\n  ')}`);
+    },
+    { auto: true },
+  ],
+  // Every context the test makes itself is guarded before any of its pages load.
+  guardNewContexts: [
+    async ({ browser, errorTrap: _ }, use) => {
+      const newContext = browser.newContext.bind(browser);
+      const newPage = browser.newPage.bind(browser);
+      browser.newContext = async (...args: Parameters<typeof newContext>) => guardContext(await newContext(...args));
+      browser.newPage = async (...args: Parameters<typeof newPage>) => {
+        const ctx = await browser.newContext(...args);
+        const page = await ctx.newPage();
+        page.once('close', () => void ctx.close().catch(() => {}));
+        return page;
+      };
+      try {
+        await use();
+      } finally {
+        browser.newContext = newContext;
+        browser.newPage = newPage;
+      }
+    },
+    { auto: true },
+  ],
   networkGuard: [
-    async ({ context }, use) => {
+    async ({ context, errorTrap: _ }, use) => {
       await guardContext(context);
       await use();
     },

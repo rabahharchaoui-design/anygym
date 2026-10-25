@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from './fixtures';
+import { allowConsoleErrors, expect, test, type Locator, type Page } from './fixtures';
 
 // Other load inputs (PLAN 1.6, SPEC 5.2 / 5.3 / 5.5) on the hidden dev harness #/dev/loads.
 
@@ -23,7 +23,7 @@ const expectJson = async (page: Page, id: string, expected: unknown) =>
   expect.poll(() => json(page, id)).toEqual(expected);
 
 const shot = async (target: Locator, name: string) => {
-  if (test.info().project.name !== 'iPhone 15 Pro') return;
+  if (test.info().project.name !== 'iPhone 15') return;
   await target.page().waitForTimeout(400); // let springs settle
   await target.screenshot({ path: `reports/shots/1.6/${name}.png` });
 };
@@ -344,10 +344,13 @@ test('first time hints on the loads page: one at a time, each once', async ({ pa
 
 test('dev page error tools are there and quiet', async ({ page }) => {
   const errors = watchErrors(page);
+  // The rejection below is provoked on purpose (documented allowlist, tests/fixtures.ts).
+  allowConsoleErrors(/^(unhandledrejection|pageerror): (Error: )?test rejection$/);
   await open(page);
   await expect(page.getByTestId('dev-error-log')).toHaveText('No errors');
   await page.evaluate(() => setTimeout(() => Promise.reject(new Error('test rejection')), 0));
   await expect(page.getByTestId('dev-error-log')).toContainText('Unhandled rejection: Error: test rejection');
   // The deliberate rejection above is the only error.
-  expect(errors.filter((e) => !e.includes('test rejection'))).toEqual([]);
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toMatch(/^pageerror: (Error: )?test rejection$/);
 });

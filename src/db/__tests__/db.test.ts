@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { AnyGymDB } from '../schema';
+import { AnyGymDB, SCHEMA_VERSION } from '../schema';
 import { ensureFirstGym, getActiveGym } from '../bootstrap';
 import { defaultBars, defaultPlateColors, defaultStackStep, stackStepFor, defaultPlateInventory, equipmentPreset, makeGym } from '../gyms';
 import { newId } from '../ids';
@@ -23,10 +23,10 @@ const disabled = (unit: 'lb' | 'kg') =>
   defaultPlateInventory(unit).filter((p) => !p.enabled).map((p) => p.weight).sort((a, b) => b - a);
 
 describe('schema', () => {
-  it('opens at version 6 with the expected tables', () => {
-    expect(db.verno).toBe(6);
+  it('opens at the current version with the expected tables', () => {
+    expect(db.verno).toBe(SCHEMA_VERSION);
     expect(db.tables.map((t) => t.name).sort()).toEqual(
-      ['exerciseSettings', 'gyms', 'orderCounters', 'planDays', 'planState', 'plans', 'profile', 'runs', 'sessions', 'sets', 'submissions', 'tombstones'].sort(),
+      ['exerciseSettings', 'gyms', 'orderCounters', 'planDays', 'planState', 'plans', 'profile', 'runs', 'sessions', 'sets', 'submissions', 'tombstones', 'kv', 'journal'].sort(),
     );
   });
 

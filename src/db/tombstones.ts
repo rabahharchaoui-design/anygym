@@ -83,3 +83,11 @@ export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb
   }
   return out;
 }
+
+/**
+ * The user cancelled an Undo that could not be written back (PLAN 1.7i): the set stays deleted and
+ * its tombstone goes, accepted or not, so Finish does not put it back after all.
+ */
+export async function cancelUndo(id: string, db: AnyGymDB = defaultDb): Promise<void> {
+  await db.tombstones.delete(id);
+}
