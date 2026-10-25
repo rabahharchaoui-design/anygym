@@ -33,7 +33,8 @@
 }
 
 .action {
-  min-height: 44px;
+  /* 48 pt touch target (SPEC 0, 13.3). */
+  min-height: var(--tap);
   min-width: var(--tap);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);

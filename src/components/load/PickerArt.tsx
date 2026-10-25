@@ -50,6 +50,16 @@ export function UprightDumbbellPicture() {
   );
 }
 
+/** One weight plate, face on, with its centre hole (held plate moves). */
+export function PlatePicture() {
+  return (
+    <Pic label="plate">
+      <circle cx={32} cy={20} r={17} />
+      <circle cx={32} cy={20} r={4} strokeWidth={3} style={ACC} />
+    </Pic>
+  );
+}
+
 /** One kettlebell. */
 export function KettlebellPicture() {
   return (

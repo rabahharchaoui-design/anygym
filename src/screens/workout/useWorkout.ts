@@ -10,7 +10,7 @@ import { pickBar, pickLoadType, pickNote, pickRest } from '../../db/exerciseSett
 import { planExercise } from '../../data/planExercises';
 import { planById } from '../../data/plans';
 import { dayIndexOf, estimateDayMinutes, type Plan, type PlanDay } from '../../lib/plans';
-import { dayWorkout, orderEntries, quickEntry, repRangeOf, upNext, type DoneCounts, type WorkoutEntry } from '../../lib/planWorkout';
+import { dayWorkout, doneCounts, orderEntries, quickEntry, repRangeOf, upNext, type DoneCounts, type WorkoutEntry } from '../../lib/planWorkout';
 import { barForName, planItemLoadType } from '../../lib/loadTypeRule';
 import { progress, type PastSession, type PastSet, type Progression } from '../../lib/progression';
 import { extraSets } from '../../lib/extraSets';
@@ -52,6 +52,7 @@ export type Workout = {
   restOf: (id: string) => number;
   userRestOf: (id: string) => number | undefined;
   noteOf: (id: string) => string | undefined;
+  /** Planned sets done per exercise (warm ups on a normal lift left out, planWorkout.doneCounts). */
   done: DoneCounts;
   /** The exercise to do next (the highlighted row), or null when every set is done. */
   nextId: string | null;
@@ -151,8 +152,8 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   };
 
   const sets = (allSets.data?.sets ?? []).filter((s) => !hidden.has(s.id));
-  const done: Record<string, number> = {};
-  for (const s of sets) done[s.exerciseId] = (done[s.exerciseId] ?? 0) + 1;
+  // Working sets only: a warm up on a normal lift leaves its planned rows to do (PLAN 1.7j).
+  const done = doneCounts(entries, sets);
 
   const userRestOf = (id: string) => pickRest(list, id);
   const restOf = (id: string) => userRestOf(id) ?? entryMap.get(id)?.restSec ?? 90;

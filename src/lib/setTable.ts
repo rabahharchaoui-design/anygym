@@ -75,26 +75,44 @@ export function slotChanges(exerciseId: string, before: ReadonlyArray<Draft | nu
 export type Committed = ReadonlyMap<string, number | undefined>;
 
 /**
+ * The identity a row edited during its own Log set write continues under (PLAN 1.7j): derived
+ * from the submitted id alone (A → A~1 → A~2), so it is durable by construction. A restart that
+ * reconciles a stale copy of the original draft lands on exactly the id the newer values were
+ * logged with, and finds it committed, instead of minting a fresh id that could log them again.
+ */
+export function successorOf(id: string): string {
+  const m = /^(.*)~(\d+)$/.exec(id);
+  return m ? `${m[1]}~${Number(m[2]) + 1}` : `${id}~1`;
+}
+
+/** Longest successor chain followed (a guard: real chains are one or two long). */
+const MAX_CHAIN = 64;
+
+/**
  * Reconciles pending row drafts with committed writes (PLAN 1.7h). A draft whose id committed is
  * used up when its version is the committed one or OLDER (a stale copy storage kept after a newer
  * version committed, PLAN 1.7i): its slot goes and the rows below move up one. Only a strictly
- * newer version (edited during the write) stays where it is under a fresh id (it becomes the next
- * set), and the drafts below keep their own slots: nothing is overwritten or dropped. Returns the
- * new slots, or null when nothing changed.
+ * newer version (edited during the write) stays where it is under its successor id (successorOf,
+ * PLAN 1.7j: it becomes the next set), and the drafts below keep their own slots: nothing is
+ * overwritten or dropped. The chain is followed: a successor that committed too is used up the
+ * same way. Returns the new slots, or null when nothing changed. `_newId` is unused (kept for callers).
  */
-export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Committed, newId: () => string): Array<Draft | null> | null {
+export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Committed, _newId?: () => string): Array<Draft | null> | null {
   const out = [...slots];
   let changed = false;
   for (let j = out.length - 1; j >= 0; j--) {
-    const d = out[j];
-    if (!d || !committed.has(d.id)) continue;
-    changed = true;
-    const rev = committed.get(d.id) ?? d.submitted ?? d.rev ?? 0;
-    if ((d.rev ?? 0) <= rev) out.splice(j, 1);
-    else {
-      const { submitted: _done, ...kept } = d;
-      out[j] = { ...kept, id: newId() };
+    let d = out[j] ?? null;
+    for (let hops = 0; d && committed.has(d.id) && hops < MAX_CHAIN; hops++) {
+      changed = true;
+      const rev = committed.get(d.id) ?? d.submitted ?? d.rev ?? 0;
+      if ((d.rev ?? 0) <= rev) d = null;
+      else {
+        const { submitted: _done, ...kept } = d;
+        d = { ...kept, id: successorOf(d.id) };
+      }
     }
+    if (out[j] && d === null) out.splice(j, 1);
+    else out[j] = d;
   }
   while (out.length && out[out.length - 1] === null) out.pop();
   return changed ? out : null;
@@ -157,6 +175,12 @@ export type BuildInput = {
   count: number;
   /** Sets already logged for this exercise in this workout, logged order. */
   logged: ReadonlyArray<{ reps?: number; seconds?: number; load?: Load }>;
+  /**
+   * How many of `logged` count toward the planned sets (PLAN 1.7j: warm ups on a normal lift do
+   * not), so the first row still to do gets the target of the first planned set not done yet.
+   * Default: every logged set.
+   */
+  workLogged?: number;
   progression: Progression | undefined;
   draftOf: (index: number) => Draft | null;
   /** Rebuilds a picked load on today's equipment (exerciseLoad.currentLoad): null when not loadable. */
@@ -186,9 +210,10 @@ export function pendingRows(input: BuildInput): PendingRow[] {
   const { count, logged, progression, draftOf, rebuild, carry, certain } = input;
   const perSet = progression?.perSet ?? [];
   const lastLogged = logged[logged.length - 1];
+  const shift = logged.length - Math.min(logged.length, Math.max(0, input.workLogged ?? logged.length));
   const out: PendingRow[] = [];
   for (let i = logged.length; i < count; i++) {
-    const target = perSet[i]?.target ?? perSet[perSet.length - 1]?.target;
+    const target = perSet[i - shift]?.target ?? perSet[perSet.length - 1]?.target;
     const lastTime = input.lastSets !== undefined ? (input.lastSets?.[i] ?? undefined) : (perSet[i]?.lastTime ?? progression?.lastTime?.sets[i]);
     const d = draftOf(i);
     let load: Load | null;
@@ -204,7 +229,10 @@ export function pendingRows(input: BuildInput): PendingRow[] {
       } else load = rebuild(d.load, plates);
     } else {
       const fromTarget = target?.load ? rebuild(target.load, target.load.perSide ?? []) : null;
-      load = fromTarget ?? carry(lastLogged?.load) ?? (progression?.next.load ? rebuild(progression.next.load, progression.next.load.perSide ?? []) : null) ?? certain;
+      // "Just you" or a hold only when no history asks for a weight it cannot give here (PLAN 1.7j:
+      // weighted dips last time in lb never become an unweighted row in a kg gym).
+      const historyBlocks = !!progression?.lastTime && !progression.next.load;
+      load = fromTarget ?? carry(lastLogged?.load) ?? (progression?.next.load ? rebuild(progression.next.load, progression.next.load.perSide ?? []) : null) ?? (historyBlocks ? null : certain);
       plates = load?.perSide ?? [];
     }
     const reps = d?.reps ?? target?.reps ?? lastLogged?.reps ?? input.defaultReps;

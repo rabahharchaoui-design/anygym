@@ -134,75 +134,138 @@ describe('logQueue', () => {
   });
 });
 
-// PLAN 1.12: the double tap race. A ✓ claims its row with one submission; never time based.
+// PLAN 1.12, 1.7j: the double tap race. A ✓ claims its row's stable identity with one
+// submission; never time based, never keyed by the row's displayed position.
 describe('row claims', () => {
   const gate = () => {
     let open!: (ok: boolean) => void;
     const p = new Promise<boolean>((r) => (open = r));
     return { p, open };
   };
+  const none = () => false;
+  const has = (...ids: string[]) => (id: string) => ids.includes(id);
 
   it('a second ✓ in the same task, during the write, or after it landed (stale view) gets the same submission', async () => {
     const q = createLogQueue();
     const g = gate();
     let starts = 0;
     const start = () => (starts++, g.p);
-    const a = q.claim('w:a', 0, start);
-    const b = q.claim('w:a', 0, start); // same task
+    const a = q.claim('w:a', 'x', start);
+    const b = q.claim('w:a', 'x', start); // same task
     expect(b).toBe(a);
-    expect(q.claimed('w:a', 0)).toBe(true);
+    expect(q.claimed('w:a', 'x')).toBe(true);
+    expect(q.stale('w:a')).toBe(false); // running, not landed
     await Promise.resolve();
-    expect(q.claim('w:a', 0, start)).toBe(a); // during the write
+    expect(q.claim('w:a', 'x', start)).toBe(a); // during the write
     g.open(true);
     expect(await a).toBe(true);
-    expect(q.claim('w:a', 0, start)).toBe(a); // landed, view not caught up yet
-    q.release('w:a', 0); // the view still shows 0 logged sets: kept
-    expect(q.claimed('w:a', 0)).toBe(true);
+    expect(q.claim('w:a', 'x', start)).toBe(a); // landed, view not caught up yet
+    expect(q.stale('w:a')).toBe(true); // every ✓ of the exercise waits for the view
+    q.release('w:a', none); // the view does not show it yet: kept
+    expect(q.claimed('w:a', 'x')).toBe(true);
     expect(starts).toBe(1);
+    q.release('w:a', has('x'));
+    expect(q.stale('w:a')).toBe(false);
   });
 
-  it('release frees landed rows the view shows as logged; a deleted and redone row can log again', async () => {
+  it('PLAN 1.7j: checking row 3 first, then the highlighted rows, logs all three (three writers)', async () => {
+    // Codex 1025 0635 #3: row 3 claimed index 2; after it landed the last pending row moved to
+    // index 2 and its enabled ✓ silently did nothing. Claims are keyed by draft identity now.
     const q = createLogQueue();
-    expect(await q.claim('w:a', 0, async () => true)).toBe(true);
-    q.release('w:a', 1);
-    expect(q.claimed('w:a', 0)).toBe(false);
-    let again = 0;
-    expect(await q.claim('w:a', 0, async () => (again++, true))).toBe(true);
-    expect(again).toBe(1);
+    const committed = new Set<string>();
+    let writers = 0;
+    const write = (id: string) => async () => {
+      writers++;
+      committed.add(id);
+      return true;
+    };
+    const view = () => q.release('w:a', (id) => committed.has(id));
+    // Row 3 (draft c) first.
+    expect(await q.claim('w:a', 'c', write('c'))).toBe(true);
+    view();
+    // Then the highlighted row (a), then the one left (b): rows moved up, identities did not.
+    expect(q.stale('w:a')).toBe(false);
+    expect(await q.claim('w:a', 'a', write('a'))).toBe(true);
+    view();
+    expect(q.stale('w:a') || q.claimed('w:a', 'b')).toBe(false);
+    expect(await q.claim('w:a', 'b', write('b'))).toBe(true);
+    view();
+    expect(writers).toBe(3);
+    expect([...committed].sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('a claim the view shows as committed while it still runs is released the moment it lands', async () => {
+    const q = createLogQueue();
+    const g = gate();
+    const first = q.claim('w:a', 'x', () => g.p);
+    q.release('w:a', has('x'));
+    expect(q.claimed('w:a', 'x')).toBe(true); // a running claim is never released
+    g.open(true);
+    await first;
+    expect(q.claimed('w:a', 'x')).toBe(false);
+    expect(q.stale('w:a')).toBe(false);
   });
 
   it('the next row is its own claim; a running claim is never released', async () => {
     const q = createLogQueue();
     const g = gate();
-    const first = q.claim('w:a', 0, () => g.p);
+    const first = q.claim('w:a', 'x', () => g.p);
     let second = 0;
-    await q.claim('w:a', 1, async () => (second++, true));
+    await q.claim('w:a', 'y', async () => (second++, true));
     expect(second).toBe(1);
-    q.release('w:a', 5);
-    expect(q.claimed('w:a', 0)).toBe(true); // still running
+    q.release('w:a', has('y'));
+    expect(q.claimed('w:a', 'x')).toBe(true); // still running
     g.open(true);
     await first;
-    q.release('w:a', 5);
-    expect(q.claimed('w:a', 0)).toBe(false);
+    q.release('w:a', has('x', 'y'));
+    expect(q.claimed('w:a', 'x')).toBe(false);
   });
 
-  it('a failed or throwing claim is dropped so ✓ again can log the row', async () => {
+  it('a failed or throwing claim is dropped so ✓ again can log the row with the same id', async () => {
     const q = createLogQueue();
-    expect(await q.claim('w:a', 0, async () => false)).toBe(false);
-    expect(q.claimed('w:a', 0)).toBe(false);
-    expect(await q.claim('w:a', 0, async () => {
+    expect(await q.claim('w:a', 'x', async () => false)).toBe(false);
+    expect(q.claimed('w:a', 'x')).toBe(false);
+    expect(q.stale('w:a')).toBe(false);
+    expect(await q.claim('w:a', 'x', async () => {
       throw new Error('boom');
     })).toBe(false);
-    expect(q.claimed('w:a', 0)).toBe(false);
-    expect(await q.claim('w:a', 0, async () => true)).toBe(true);
+    expect(q.claimed('w:a', 'x')).toBe(false);
+    expect(await q.claim('w:a', 'x', async () => true)).toBe(true);
   });
 
   it('keys are independent', async () => {
     const q = createLogQueue();
     const g = gate();
-    void q.claim('w:a', 0, () => g.p);
-    expect(q.claimed('w:b', 0)).toBe(false);
-    expect(await q.claim('w:b', 0, async () => true)).toBe(true);
+    void q.claim('w:a', 'x', () => g.p);
+    expect(q.claimed('w:b', 'x')).toBe(false);
+    expect(await q.claim('w:b', 'x', async () => true)).toBe(true);
+    expect(q.stale('w:a')).toBe(false);
     g.open(true);
+  });
+});
+
+// PLAN 1.7j: set type changes are writes Finish must count after.
+describe('mutate', () => {
+  it('runs and tracks a write; settle waits for it; refused once the workout is closed', async () => {
+    const q = createLogQueue();
+    let open!: () => void;
+    let landed = false;
+    const p = q.mutate('w1', () => new Promise<void>((r) => (open = r)).then(() => void (landed = true)));
+    expect(p).not.toBeNull();
+    q.close('w1');
+    let settled = false;
+    const s = q.settle('w1').then(() => (settled = true));
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    let ran = false;
+    expect(q.mutate('w1', async () => void (ran = true))).toBeNull();
+    expect(ran).toBe(false);
+    open();
+    await s;
+    expect(landed).toBe(true);
+    // A failed write never blocks settle.
+    q.reopen('w1');
+    await expect(q.mutate('w1', async () => Promise.reject(new Error('x')))).rejects.toThrow('x');
+    await q.settle('w1');
   });
 });

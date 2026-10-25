@@ -55,6 +55,14 @@ export function loadTypeFromName(name: string): ExerciseLoadType {
   return 'unknown';
 }
 
+/**
+ * One weight that is a plate held in the hands (PLAN 1.7j): "Plate Russian Twist", "Front and
+ * Lateral Plate Raise". Only for the 'single' load type; its choices are the gym's enabled plates.
+ */
+export function heldPlateName(name: string): boolean {
+  return has(name, ['Plate']) && !has(name, ['Dumbbell', 'Kettlebell', 'Goblet', 'Machine', 'Loaded', 'Barbell']);
+}
+
 /** A plan item's amount: reps, a hold in seconds, or the day's cardio finisher. */
 export type PlanAmount = { reps?: unknown; seconds?: unknown; finisher?: boolean };
 

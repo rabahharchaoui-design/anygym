@@ -6,6 +6,7 @@ import type { RepRange } from './progression';
 import { slugify } from './loadTypeRule';
 import { amountText, blockRest, itemLine, itemTarget, planRest, setsText, type Plan, type PlanReps, type PlanSeconds } from './plans';
 import type { ExerciseLoadType } from './loadTypeRule';
+import type { SetKind } from '../db/types';
 
 export type WorkoutEntry = {
   exerciseId: string;
@@ -118,6 +119,23 @@ export function setLine(e: Pick<WorkoutEntry, 'sets' | 'amount' | 'rounds'>, set
 }
 
 export type DoneCounts = Readonly<Record<string, number>>;
+
+/**
+ * Whether a logged set counts toward its exercise's planned sets (PLAN 1.7j, SPEC 20.1, 21.1): a
+ * warm up on a normal lift never does (its working rows stay to do); the sets of a dedicated warm
+ * up block count on their own. Drops and sets to failure count.
+ */
+export function countsToward(entry: Pick<WorkoutEntry, 'warmup'> | undefined, kind: SetKind): boolean {
+  return kind !== 'warmup' || entry?.warmup === true;
+}
+
+/** Planned sets done per exercise: the one count rings, rows left and what comes next use. */
+export function doneCounts(entries: readonly WorkoutEntry[], sets: ReadonlyArray<{ exerciseId: string; kind: SetKind }>): Record<string, number> {
+  const byId = new Map(entries.map((e) => [e.exerciseId, e]));
+  const out: Record<string, number> = {};
+  for (const s of sets) if (countsToward(byId.get(s.exerciseId), s.kind)) out[s.exerciseId] = (out[s.exerciseId] ?? 0) + 1;
+  return out;
+}
 
 const open = (e: WorkoutEntry, done: DoneCounts) => (done[e.exerciseId] ?? 0) < e.sets;
 

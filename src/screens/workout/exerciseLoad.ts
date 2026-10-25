@@ -5,9 +5,11 @@ import type { BarId, Gym, Load, Unit } from '../../db/types';
 import {
   barbellLoad,
   bodyweightLoad,
+  copyLoad,
   dumbbellLoad,
-  dumbbellsInRange,
   enabledPlates,
+  formatWeight,
+  heldChoices,
   heldWeightOf,
   plateMachineLoad,
   singleLoad,
@@ -16,7 +18,7 @@ import {
   timedLoad,
   type LoadSetup,
 } from '../../lib/load';
-import { barForName } from '../../lib/loadTypeRule';
+import { barForName, heldPlateName } from '../../lib/loadTypeRule';
 import type { PromptKind } from '../../lib/equipmentPrompt';
 
 /**
@@ -88,8 +90,9 @@ export function prefillLoad(
         : null;
     case 'dumbbell_each':
     case 'single': {
+      // Dumbbells from the range; a held plate from the enabled plates (PLAN 1.7j).
       const w = heldWeightOf(load);
-      if (w === null || !gym.dumbbellRange || !dumbbellsInRange(gym.dumbbellRange).includes(w)) return null;
+      if (w === null || !heldChoices(kind, heldSetup(gym, kind, exerciseName))!.includes(w)) return null;
       return kind === 'single' ? singleLoad(w, gym.unit) : dumbbellLoad(w, gym.unit);
     }
     case 'stack': {
@@ -156,6 +159,21 @@ export function pickProblem(picked: Load | null, plates: readonly number[], pick
   return null;
 }
 
+/** True when this exercise's one weight is a plate held in the hands (PLAN 1.7j). */
+export function isHeldPlate(kind: Load['kind'], exerciseName: string): boolean {
+  return kind === 'single' && heldPlateName(exerciseName);
+}
+
+/** The dumbbell range, and for a held plate the enabled plates (load.ts heldChoices). */
+function heldSetup(gym: Gym, kind: Load['kind'], exerciseName: string): Pick<LoadSetup, 'dumbbellRange' | 'heldPlates'> {
+  return isHeldPlate(kind, exerciseName) ? { dumbbellRange: gym.dumbbellRange, heldPlates: enabledPlates(gym.plateInventory) } : { dumbbellRange: gym.dumbbellRange };
+}
+
+/** The weights the one weight or dumbbell wheel offers for this exercise at this gym. */
+export function wheelWeights(gym: Gym, kind: Load['kind'], exerciseName: string): number[] {
+  return heldChoices(kind, heldSetup(gym, kind, exerciseName)) ?? [];
+}
+
 /** What this exercise can load at this gym, for the progression engine (SPEC 6). */
 export function loadSetupFor(gym: Gym, kind: Load['kind'], exerciseId: string, exerciseName: string, bar?: BarId): Omit<LoadSetup, 'unit'> {
   const machine = machineIdFor(exerciseId, exerciseName);
@@ -163,9 +181,30 @@ export function loadSetupFor(gym: Gym, kind: Load['kind'], exerciseId: string, e
     base: kind === 'barbell' ? gym.bars[barIdFor(exerciseName, bar)] : kind === 'plate_machine' ? machineStartFor(gym, machine) : null,
     plates: enabledPlates(gym.plateInventory),
     collars: kind === 'barbell' ? gym.collars : 'none',
-    dumbbellRange: gym.dumbbellRange,
     stackStep: stackStepFor(gym, machine),
+    ...heldSetup(gym, kind, exerciseName),
   };
+}
+
+/**
+ * LAST TIME copy (PLAN 1.7j, SPEC 21.1): the earlier set's total on today's equipment (load.ts
+ * copyLoad), or why it cannot be copied, in one plain sentence for the toast.
+ */
+export function copyLastLoad(prev: Load, kind: Load['kind'], gym: Gym, exerciseId: string, exerciseName: string, bar?: BarId): { load: Load } | { load: null; why: string } {
+  const barId = kind === 'barbell' ? barIdFor(exerciseName, bar) : undefined;
+  const r = copyLoad(prev, kind, { unit: gym.unit, ...loadSetupFor(gym, kind, exerciseId, exerciseName, bar) }, barId);
+  if (r.load) return r;
+  const weight = prev.kind === 'bodyweight' ? `+${formatWeight(prev.added ?? 0, prev.unit)}` : formatWeight(prev.total, prev.unit);
+  switch (r.why) {
+    case 'unit':
+      return { load: null, why: `Last time was in ${prev.unit}, so the weight was not copied. Reps copied.` };
+    case 'kind':
+      return { load: null, why: 'Last time was loaded another way, so the weight was not copied. Reps copied.' };
+    case 'base':
+      return { load: null, why: kind === 'barbell' ? 'Set the bar weight first to copy the weight. Reps copied.' : 'Set the starting weight first to copy the weight. Reps copied.' };
+    case 'inexact':
+      return { load: null, why: `${weight} cannot be made exactly with today's equipment. Reps copied.` };
+  }
 }
 
 export const LOAD_TYPE_CHOICES: Array<{ kind: Load['kind']; label: string; hint: string }> = [

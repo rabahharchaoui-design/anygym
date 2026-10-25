@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
-import type { Load, WorkoutSet } from '../../db/types';
-import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, removeExercise, restoreExercise, setExerciseOrder, updateSet } from '../../db/workouts';
-import { cancelUndo, expireDelete, recoverDeletes, undoDelete } from '../../db/tombstones';
+import type { Load, SetKind, WorkoutSet } from '../../db/types';
+import { WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder, updateSet } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
 import { getPlanState } from '../../db/planState';
-import { moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
+import { countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
@@ -21,7 +20,8 @@ import { Skeleton } from '../../ui/Skeleton';
 import { Sheet } from '../../ui/Sheet';
 import { LoadError } from '../../components/LoadError';
 import { supportsViewTransitions, useNav } from '../../ui/nav';
-import { UndoUnresolvedError, createDeleteUndo } from '../../lib/deleteUndo';
+import { UndoUnresolvedError } from '../../lib/deleteUndo';
+import { deletesFor, disposeDeletes, recoverSession } from './sessionRecovery';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
 import { clearExtraSets } from '../../lib/extraSets';
@@ -109,22 +109,12 @@ export function WorkoutScreen() {
   const routeRef = useRef(exerciseId);
   routeRef.current = exerciseId;
 
-  const deletes = useMemo(
-    () =>
-      createDeleteUndo<WorkoutSet>({
-        remove: (s) => deleteSet(s.id),
-        // The Undo is stored as accepted before the set is written back (db/tombstones.ts).
-        restore: (s) => undoDelete(s.id),
-        expire: (s) => expireDelete(s.id),
-        // A failed Undo the user gives up on: the set stays deleted (PLAN 1.7i).
-        cancel: (s) => cancelUndo(s.id),
-      }),
-    [],
-  );
+  // Owned by the workout, not this screen (PLAN 1.7j): minimize and resume keep an unresolved Undo.
+  const deletes = useMemo(() => deletesFor(sessionId), [sessionId]);
   // Opening the workout (also after an app kill): an accepted Undo that never landed is retried,
-  // and deletes whose Undo window is over are cleared (PLAN 1.7h).
+  // and deletes whose Undo window is over are cleared (PLAN 1.7h), never one still unresolved.
   useEffect(() => {
-    recoverDeletes(sessionId).catch(() => undefined);
+    recoverSession(sessionId).catch(() => undefined);
   }, [sessionId]);
   /** Sets whose Log set write failed, when Finish was refused because of them (PLAN 1.7h). */
   const [unsaved, setUnsaved] = useState<number | null>(null);
@@ -221,9 +211,11 @@ export function WorkoutScreen() {
 
   // ---------------------------------------------------------------- after a set
 
-  const onLogged = (id: string) => {
-    const done = { ...w.done, [id]: (w.done[id] ?? 0) + 1 };
+  const onLogged = (id: string, kind: SetKind) => {
     const entries = w.entries;
+    // A warm up on a normal lift uses up no planned set (PLAN 1.7j).
+    const counts = countsToward(entries.find((x) => x.exerciseId === id), kind);
+    const done = counts ? { ...w.done, [id]: (w.done[id] ?? 0) + 1 } : w.done;
     const r = restAfter(entries, done, id);
     const seconds = r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
     setRest(seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null);
@@ -412,6 +404,7 @@ export function WorkoutScreen() {
       // The plan pointer as it is now, so Undo on Today can put it back exactly.
       const planBefore = await getPlanState();
       const result = await finishWorkout(sessionId);
+      disposeDeletes(sessionId);
       setRest(null);
       clearSessionDrafts(sessionId);
       clearExtraSets();
@@ -701,7 +694,7 @@ export function WorkoutScreen() {
         canUp={!!menuId && moveInOrder(ids, menuId, -1, w.entryOf) !== null}
         canDown={!!menuId && moveInOrder(ids, menuId, 1, w.entryOf) !== null}
         moveNote={menuEntry?.kind === 'pair' ? 'A pair moves together' : undefined}
-        removeNote={menuId && (w.done[menuId] ?? 0) > 0 ? 'Delete its sets first' : undefined}
+        removeNote={menuId && w.setsOfExercise(menuId).length > 0 ? 'Delete its sets first' : undefined}
         rest={menuId ? w.restOf(menuId) : 90}
         note={(menuId && w.noteOf(menuId)) || ''}
         loadedWith={menuId ? LOAD_TYPE_CHOICES.find((c) => c.kind === w.loadTypeOf(menuId))?.label : undefined}

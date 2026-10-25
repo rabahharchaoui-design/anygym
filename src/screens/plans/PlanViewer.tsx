@@ -7,6 +7,7 @@ import { useNav } from '../../ui/nav';
 import { planById } from '../../data/plans';
 import { choosePlan, getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
+import { LoadError } from '../../components/LoadError';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { estimateDayMinutes, finisherText } from '../../lib/plans';
 import { PlanDayList } from './PlanDayList';
@@ -19,12 +20,15 @@ export function PlanViewer() {
   const plan = planById(planId);
   const go = useNav();
   const state = useLive(() => getPlanState(), []);
-  const active = state.data?.planId === plan?.id;
+  // Nothing is chosen until the active plan read worked (PLAN 1.7j): a pending or failed read
+  // must never make the plan in use look inactive and reset its progress.
+  const known = state.ready && !state.error;
+  const active = known && state.data?.planId === plan?.id;
   const [week, setWeek] = useState<number | null>(null);
   const [error, setError] = useState(false);
 
   const use = useTapGuard(async () => {
-    if (!plan) return;
+    if (!plan || !known) return;
     setError(false);
     try {
       if (!active) await choosePlan(plan.id);
@@ -78,10 +82,16 @@ export function PlanViewer() {
       ))}
 
       <div className={styles.useBar} data-testid="action-bar">
-        <p className={styles.error} role="status">
-          {error ? 'Could not save that. Try again.' : ''}
-        </p>
-        <Button onClick={() => void use()}>{active ? 'Go to Today' : 'Use this plan'}</Button>
+        {state.error ? (
+          <LoadError text="Could not check your current plan" onRetry={state.retry} />
+        ) : (
+          <p className={styles.error} role="status">
+            {error ? 'Could not save that. Try again.' : ''}
+          </p>
+        )}
+        <Button onClick={() => void use()} disabled={!known}>
+          {active ? 'Go to Today' : 'Use this plan'}
+        </Button>
       </div>
     </div>
   );

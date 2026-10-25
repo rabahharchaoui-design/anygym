@@ -11,7 +11,7 @@
 import type { DumbbellRange, ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
 import { RENAMED_PLAN_IDS, SCHEMA_VERSION } from '../db/schema';
 import type { DraftsBlob } from './drafts';
-import { validDumbbellRange } from './load';
+import { validDumbbellRange, validStackStep } from './load';
 
 export const BACKUP_FORMAT = 'anygym-backup-v1';
 
@@ -123,6 +123,14 @@ const isSet = shape({
 /** A dumbbell range that makes sense (positive step, min ≥ 0, max ≥ min, a bounded list): never a frozen picker. */
 const dumbbellRange: Check = (v) => shape({ req: { min: num, max: num, step: num } })(v) && validDumbbellRange(v as DumbbellRange);
 
+/** A machine's saved answer: a stack step that makes sense, any other weight a finite number ≥ 0. */
+const equipmentWeight: Check = (v) => {
+  if (!shape({ req: { kind: oneOf('plates_only', 'starting_resistance', 'stack_step', 'bar_weight'), value: orNull(num) } })(v)) return false;
+  const { kind, value } = v as { kind: string; value: number | null };
+  if (value === null) return true;
+  return kind === 'stack_step' ? validStackStep(value) : value >= 0;
+};
+
 const bars = shape({ req: Object.fromEntries(BAR_IDS.map((b) => [b, orNull(num)])) });
 
 /** What every stored record must look like, per table. Exported for the tests. */
@@ -140,8 +148,9 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
       equipment: listOf(str),
       dumbbellRange: orNull(dumbbellRange),
       bars,
-      stackStep: num,
-      equipmentWeights: recordOf(shape({ req: { kind: oneOf('plates_only', 'starting_resistance', 'stack_step', 'bar_weight'), value: orNull(num) } })),
+      // A step that would break the pin list (0, negative, 1e-12) is refused before anything is replaced (PLAN 1.7j).
+      stackStep: (v) => num(v) && validStackStep(v as number),
+      equipmentWeights: recordOf(equipmentWeight),
       plateInventory: listOf(shape({ req: { weight: num, enabled: bool } })),
       collars: oneOf('none', 'competition'),
       plateColors: oneOf('black', 'color'),
