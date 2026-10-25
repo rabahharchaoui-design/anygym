@@ -16,6 +16,7 @@ export function depthOf(path: string): number {
   if (p === '/' || p === '/run' || p === '/history' || p === '/plans') return 0;
   const workout = /^\/workout\/[^/]+(\/(.+))?$/.exec(p);
   if (workout) return workout[2] && workout[2] !== 'done' ? 2 : 1;
+  if (p.startsWith('/settings/')) return 2;
   return 1;
 }
 

@@ -14,6 +14,7 @@ import styles from './AppShell.module.css';
 /** The screen a pushed screen goes back to (null on a tab root). */
 export function parentOf(pathname: string): string | null {
   if (pathname === '/settings' || pathname.startsWith('/dev/')) return '/';
+  if (pathname.startsWith('/settings/')) return '/settings';
   if (pathname.startsWith('/plans/')) return '/plans';
   if (pathname.startsWith('/history/')) return '/history';
   return null;
@@ -35,7 +36,7 @@ export function AppShell() {
   const go = useNav();
   const layerRef = useRef<HTMLElement>(null);
   const parent = parentOf(pathname);
-  const pushed = pathname.startsWith('/plans/') || pathname.startsWith('/history/');
+  const pushed = pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
   const active = useLive(() => getActiveSession(), []);
   // Today has its own in progress card; the bar is for the other tabs.
   const resuming = !!active.data && !pushed && pathname !== '/';

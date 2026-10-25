@@ -9,6 +9,7 @@ import { HistoryDetail } from './screens/history/HistoryDetail';
 import { PlansScreen } from './screens/plans/PlansScreen';
 import { PlanViewer } from './screens/plans/PlanViewer';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { ImportReview } from './screens/settings/ImportReview';
 import { WorkoutScreen } from './screens/workout/WorkoutScreen';
 import { FinishScreen } from './screens/workout/FinishScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
@@ -37,6 +38,7 @@ export function App() {
           <Route path="plans" element={<PlansScreen />} />
           <Route path="plans/:planId" element={<PlanViewer />} />
           <Route path="settings" element={<SettingsScreen />} />
+          <Route path="settings/import" element={<ImportReview />} />
           {/* Always registered (device geometry only), reached by tapping the Today title 7 times. */}
           <Route path="dev/viewport" element={<ViewportDevScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />

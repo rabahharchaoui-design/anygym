@@ -5,17 +5,23 @@ import type { Session } from '../../db/types';
 import { dayIndexOf } from '../../lib/plans';
 import { dayWorkout } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
+import { IMPORTED_LABEL, isImportOrder } from '../../lib/import/importOrder';
 
-/** "Day 3 · Back and biceps" for a plan day, else "Quick workout". */
+/** "Day 3 · Back and biceps" for a plan day, the exercise for an imported one, else "Quick workout". */
 export function workoutTitle(session: Session): string {
+  if (session.imported) {
+    const ids = session.exerciseIds ?? [];
+    return ids.length === 1 ? (planExercise(ids[0]!)?.name ?? 'Imported workout') : 'Imported workout';
+  }
   const plan = planById(session.planId);
   const i = plan ? dayIndexOf(plan, session.dayId) : -1;
   const day = plan && i >= 0 ? plan.days[i] : undefined;
   return day ? dayTitle(day.n, day.name) : 'Quick workout';
 }
 
-/** "Fri, Oct 24", with the year when it is not this year. */
+/** "Fri, Oct 24", with the year when it is not this year. "Imported" for imported workouts (no date, SPEC 9.3). */
 export function workoutDate(ts: number, now = Date.now()): string {
+  if (isImportOrder(ts)) return IMPORTED_LABEL;
   const d = new Date(ts);
   const sameYear = d.getFullYear() === new Date(now).getFullYear();
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });

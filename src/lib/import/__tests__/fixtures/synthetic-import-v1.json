@@ -1,0 +1,68 @@
+{
+  "format": "anygym-import-v1",
+  "owner": "Test Lifter",
+  "unit": "lb",
+  "source": "Synthetic fixture for tests. Invented numbers.",
+  "conventions": {
+    "sessionOrder": "sessions are oldest first; no dates",
+    "weight": "weight is in lb unless the set says unit kg",
+    "loadTypes": { "barbell_per_side": "plates on one side", "unknown": "ask the user on import" },
+    "uncertain": "highlight on the review screen"
+  },
+  "exercises": [
+    {
+      "name": "Squats",
+      "planExercise": "barbell back-squat",
+      "loadType": "barbell_per_side",
+      "note": "High bar",
+      "sessions": [
+        { "sets": [
+          { "reps": 5, "weight": 45, "warmup": true },
+          { "reps": 8, "weight": 70, "plates": [45, 25] },
+          { "reps": 8, "weight": 70 }
+        ] },
+        { "note": "Felt strong", "sets": [
+          { "reps": 8, "weight": 70 },
+          { "reps": 8, "weight": 70 },
+          { "reps": 6, "weight": 70, "uncertain": true, "why": "Hard to read: 6 or 8" }
+        ] }
+      ]
+    },
+    {
+      "name": "Pushdowns",
+      "planExercise": "Cable Tricep Pushdown",
+      "loadType": "stack",
+      "sessions": [
+        { "sets": [
+          { "reps": 12, "weight": 50 },
+          { "reps": 12, "weight": 50, "note": "slow" },
+          { "reps": 10, "weight": 55, "dropTo": { "reps": 6, "weight": 30 } },
+          { "reps": 10, "weight": 20, "unit": "kg" }
+        ] }
+      ]
+    },
+    {
+      "name": "Lunges",
+      "planExercise": "Wide Lunge",
+      "loadType": "unknown",
+      "sessions": [
+        { "sets": [
+          { "reps": 10, "weight": 20 },
+          { "reps": 10, "weight": 20 },
+          { "reps": 10 }
+        ] }
+      ]
+    },
+    {
+      "name": "Moon press",
+      "planExercise": "Zercher Moon Press",
+      "loadType": "dumbbell_each",
+      "sessions": [
+        { "sets": [
+          { "reps": 10, "weight": 25 },
+          { "reps": 9, "weight": 25, "split": "5 wide, 4 narrow" }
+        ] }
+      ]
+    }
+  ]
+}

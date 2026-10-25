@@ -11,9 +11,9 @@
 // Precision: sums run on integers at 1e-9 resolution, so 2.5 + 1.25 is exactly 3.75
 // and never 3.7500000001. Nothing here rounds to display precision; only the format
 // helpers at the bottom do that.
-import { stackStepFor } from '../db/gyms';
+import { defaultPlateInventory, stackStepFor } from '../db/gyms';
 import type { BarId, Collars, DumbbellRange, Gym, Load, PlateToggle, Unit } from '../db/types';
-import { plateSpec, SLEEVE_LENGTH } from './plates';
+import { PLATE_SPECS, plateSpec, SLEEVE_LENGTH } from './plates';
 
 export { fitsSleeve } from './plates';
 
@@ -257,6 +257,22 @@ function nearestLoading(target: number, opts: SolveOptions): Loading {
   if (r.exact) return { total: r.total, perSide: r.perSide };
   if (r.below && (!r.above || r.diffBelow! <= r.diffAbove!)) return r.below;
   return r.above!;
+}
+
+/**
+ * Real plates for one side that weigh exactly `side` (an imported "per side" number, SPEC 9.3):
+ * the listed plates when they are all real plates and add up, else heaviest first from the usual
+ * plates (SPEC 5.3 defaults), then from every real plate of the unit (sleeve fit respected). null
+ * when no real loading weighs exactly that.
+ */
+export function platesForSide(side: number, unit: Unit, listed?: readonly number[]): number[] | null {
+  const real = PLATE_SPECS[unit].map((p) => p.weight);
+  if (listed && listed.length > 0 && listed.every((w) => real.includes(w)) && toInt(add(...listed)) === toInt(side)) return [...listed];
+  for (const inventory of [enabledPlates(defaultPlateInventory(unit)), real]) {
+    const r = solvePlates(times(side, 2), { bar: 0, inventory, unit });
+    if (r.exact) return r.perSide;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------- stacks and dumbbells
