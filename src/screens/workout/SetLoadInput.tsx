@@ -7,6 +7,7 @@ import { PlateMachineInput } from '../../components/load/PlateMachineInput';
 import { StackSelector } from '../../components/load/StackSelector';
 import { TimedInput } from '../../components/load/TimedInput';
 import { InfoButton } from '../../components/info/InfoButton';
+import { BarQuestion } from '../../components/load/BarQuestion';
 import base from '../../components/load/LoadInput.module.css';
 import type { BarId, Collars, Gym, Load } from '../../db/types';
 import { saveBarChoice } from '../../db/exerciseSettings';
@@ -195,6 +196,9 @@ function BarbellField({
       <span className={base.barChipAction}>Change</span>
     </button>
   );
+  // In a sheet, an unknown EZ, trap or Smith bar is asked right on top (BarQuestion); the link below
+  // then only changes which bar it is.
+  const question = unknown && !compact && !local;
   const link = compact ? (
     prompt && (
       <span className={base.linkWithInfo}>
@@ -204,16 +208,36 @@ function BarbellField({
         {info}
       </span>
     )
-  ) : (
-    <span className={base.linkWithInfo}>
-      <button type="button" className={`${base.link} pressable`} onClick={() => (unknown ? ask(barId) : setPicking(true))} data-testid="bar-link">
-        {unknown ? 'Set bar weight' : label}
+  ) : null;
+  // In a sheet the bar control sits on the math line, above the drawing, never behind Done (1.7e).
+  // While the bar question is up it is the one thing to answer; Change bar follows once it is.
+  const mathAction = !compact && !question && (
+    <span className={base.mathAction}>
+      <button
+        type="button"
+        className={`${base.mathLink} pressable`}
+        onClick={() => (unknown && !question ? ask(barId) : setPicking(true))}
+        aria-label={unknown && !question ? 'Set bar weight' : label}
+        data-testid="bar-link"
+      >
+        {unknown && !question ? 'Set bar weight' : 'Change bar'}
       </button>
-      {info}
+      {!question && info}
     </span>
   );
   return (
     <>
+      {question && prompt && (
+        <BarQuestion
+          gymId={gym.id}
+          unit={gym.unit}
+          machineId={prompt.machineId}
+          kind={prompt.kind}
+          info={prompt.info}
+          onSaved={(g) => change(perSide, g.bars[barId])}
+          onOther={() => ask(barId)}
+        />
+      )}
       <PlateDiagram
         unit={gym.unit}
         bar={bar}
@@ -225,6 +249,9 @@ function BarbellField({
         onChange={(next) => change(next)}
         compact={compact}
         extraLink={link || undefined}
+        mathAction={mathAction || undefined}
+        hint={!question}
+        tight={question}
         corner={chip || undefined}
       />
       <BarChoiceSheet

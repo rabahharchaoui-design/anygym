@@ -8,7 +8,8 @@ const errs = (page: Page) => {
 };
 const probe = (page: Page) =>
   page.evaluate(() => {
-    const nav = document.querySelector('nav[aria-label="Main"]');
+    // 1.7e: pushed screens hide the tab bar; their bottom dock owns the inset instead.
+    const nav = document.querySelector('nav[aria-label="Main"]:not([data-hidden])');
     const bar = document.querySelector('[data-testid="action-bar"]');
     const el = (nav ?? bar) as Element | null;
     return {

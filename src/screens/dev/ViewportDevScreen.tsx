@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScreenHeader } from '../../components/ScreenHeader';
+import { TopBar } from '../../ui/TopBar';
+import { BackButton } from '../../ui/BackButton';
 import { collectViewportInfo, formatViewportInfo, viewportRows, type ViewportInfo } from './viewportInfo';
 import styles from './ViewportDevScreen.module.css';
 
@@ -55,7 +56,7 @@ export function ViewportDevScreen() {
 
   return (
     <>
-      <ScreenHeader title="Viewport" />
+      <TopBar title="Viewport" leading={<BackButton to="/" label="Back to Today" />} />
       <div className={styles.actions}>
         <button type="button" className={`${styles.primary} pressable`} onClick={onCopy} data-testid="viewport-copy">
           {copied === 'done' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy'}

@@ -162,17 +162,17 @@ describe('itemTarget: week table lookup', () => {
 describe('plain words', () => {
   const squat = split5.days[0]!.blocks[4]!;
   it('item lines', () => {
-    expect(itemLine(squat, squat.items[0]!)).toBe('4 sets × 8 to 12 · 90 s rest');
+    expect(itemLine(squat, squat.items[0]!)).toBe('4 sets × 8 to 12 reps · 90 s rest');
     const stretch = split5.days[0]!.blocks[0]!;
     expect(itemLine(stretch, stretch.items[0]!)).toBe('45 sec');
     const front = sixWeek.days[0]!.blocks[0]!;
     // The six week table states no rest: no rest line (the timer still uses the 90 s default).
-    expect(itemLine(front, front.items[0]!, 0)).toBe('5 sets × 6');
-    expect(itemLine(front, front.items[0]!, 5)).toBe('5 sets × 11');
+    expect(itemLine(front, front.items[0]!, 0)).toBe('5 sets × 6 reps');
+    expect(itemLine(front, front.items[0]!, 5)).toBe('5 sets × 11 reps');
     expect(blockRest(front)).toBe(90);
     // A rest the plan states in a note is the plan's rest.
     const legExt = sixWeek.days[0]!.blocks[3]!;
-    expect(itemLine(legExt, legExt.items[0]!, 0)).toBe('10 sets × 10 · 10 s rest');
+    expect(itemLine(legExt, legExt.items[0]!, 0)).toBe('10 sets × 10 reps · 10 s rest');
     const legCurl = sixWeek.days[3]!.blocks.find((b) => b.items[0]!.exerciseId === 'leg-curl')!;
     expect(legCurl.restSec).toBe(10);
     expect(legCurl.items[0]!.note).toBe('10 seconds rest between sets');
@@ -182,7 +182,8 @@ describe('plain words', () => {
     expect(itemLine(sprint, sprint.items[0]!, 5)).toBe('20 rounds × 30 sec');
     // The 5 day split warm up pair states no rest either.
     const warm = split5.days[1]!.blocks[0]!;
-    expect(itemLine(warm, warm.items[0]!)).toBe('3 sets × 10 to 12');
+    expect(itemLine(warm, warm.items[0]!)).toBe('3 sets × 10 to 12 reps');
+    expect(setsText({ sets: 3, reps: [8, 12] }, true)).toBe('3 sets × 8 to 12 reps');
   });
   it('setsText and amountText', () => {
     expect(setsText({ sets: 3, seconds: [60, 90] })).toBe('3 sets × 60 to 90 sec');

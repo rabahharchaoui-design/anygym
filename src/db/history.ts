@@ -2,6 +2,9 @@
 import type { PastSession, PastSet } from '../lib/progression';
 import { recordsFor, type PersonalRecord } from '../lib/records';
 import { barForName } from '../lib/loadTypeRule';
+import { planById } from '../data/plans';
+import { dayIndexOf } from '../lib/plans';
+import { dayWorkout } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { ANY_GYM, type BarId, type Load, type Session, type WorkoutSet } from './types';
 
@@ -98,16 +101,26 @@ export async function finishedDetail(id: string, db: AnyGymDB = defaultDb): Prom
   return { session, sets };
 }
 
+/** The warm up items of a plan day workout (stretches, band work): never "Recent" lifts. */
+function warmUpIds(session: Session): Set<string> {
+  const plan = planById(session.planId);
+  const i = plan ? dayIndexOf(plan, session.dayId) : -1;
+  return new Set(plan && i >= 0 ? dayWorkout(plan, i, session.weekIndex ?? 0).filter((e) => e.warmup).map((e) => e.exerciseId) : []);
+}
+
 /**
  * Exercises from finished workouts, most recent first, each once (the "Recent" list of the
- * exercise picker, SPEC 20.3). Imported and uncertain sets count too: the user did them.
+ * exercise picker, SPEC 20.3). Imported and uncertain sets count too: the user did them. Warm ups
+ * stay out (a plan day's warm up items, and exercises done only as warm up sets).
  */
 export async function recentExerciseIds(limit = 8, db: AnyGymDB = defaultDb): Promise<string[]> {
   const sessions = (await db.sessions.orderBy('startedAt').reverse().toArray()).filter((s) => s.endedAt !== undefined || s.imported);
   const out: string[] = [];
   for (const s of sessions) {
     const sets = await db.sets.where('[sessionId+order]').between([s.id, -Infinity], [s.id, Infinity]).toArray();
+    const warm = warmUpIds(s);
     for (const x of sets) {
+      if (x.kind === 'warmup' || warm.has(x.exerciseId)) continue;
       if (!out.includes(x.exerciseId)) out.push(x.exerciseId);
       if (out.length >= limit) return out;
     }

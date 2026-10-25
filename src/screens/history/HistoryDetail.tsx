@@ -1,7 +1,7 @@
 import { Navigate, useParams } from 'react-router-dom';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { IconLink } from '../../components/IconButton';
-import { BackIcon } from '../../components/icons';
+import { TopBar } from '../../ui/TopBar';
+import { BackButton } from '../../ui/BackButton';
+import { Skeleton } from '../../ui/Skeleton';
 import { finishedDetail } from '../../db/history';
 import type { WorkoutSet } from '../../db/types';
 import { LoadError } from '../../components/LoadError';
@@ -28,22 +28,18 @@ export function HistoryDetail() {
 
   return (
     <>
-      <ScreenHeader
-        title={value ? workoutTitle(value.session) : 'Workout'}
-        leading={
-          <IconLink to="/history" label="Back to History">
-            <BackIcon />
-          </IconLink>
-        }
-      />
-      {detail.error ? <LoadError text="Could not load this workout" onRetry={detail.retry} /> : null}
-      {!value ? (
-        !detail.error && <div className={styles.skeleton} aria-hidden="true" />
-      ) : (
-        <>
+      <TopBar title={value ? workoutTitle(value.session) : 'Workout'} leading={<BackButton to="/history" label="Back to History" />}>
+        {value && (
           <p className={`${styles.meta} num`} data-testid="history-meta">
             {workoutDate(value.session.startedAt)} · {setCount(value.sets.length)}
           </p>
+        )}
+      </TopBar>
+      {detail.error ? <LoadError text="Could not load this workout" onRetry={detail.retry} /> : null}
+      {!value ? (
+        !detail.error && <Skeleton height={180} radius={20} />
+      ) : (
+        <>
           {groups.length === 0 ? (
             <p className={styles.meta}>No sets in this workout.</p>
           ) : (

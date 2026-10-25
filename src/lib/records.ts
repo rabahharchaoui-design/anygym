@@ -61,3 +61,28 @@ export function recordsFor(exerciseId: string, name: string, today: readonly Pas
   if (best) out.push({ exerciseId, kind: 'most_reps', text: `${name}: most reps at ${weightText(best.load)}, ${best.reps}` });
   return out;
 }
+
+/**
+ * The best set of one exercise in a workout, for the finish screen list (ux-critic, PLAN 1.7e):
+ * working sets when there are any (else every set); a hold is the longest, everything else the
+ * heaviest (compared through load.ts), then the most reps at that weight. Undefined for no sets.
+ */
+export function bestSetOf<T extends { kind: PastSet['kind']; reps?: number; seconds?: number; load?: Load }>(sets: readonly T[]): T | undefined {
+  const work = sets.filter((s) => s.kind === 'work');
+  const pool = work.length ? work : sets;
+  const first = pool[0];
+  if (!first) return undefined;
+  const unit = first.load?.unit ?? 'lb';
+  const weight = (s: T) => (s.load ? comparableWeight(s.load, unit) : 0);
+  let best = first;
+  for (const s of pool.slice(1)) {
+    if (first.load?.kind === 'timed' || (s.reps === undefined && s.seconds !== undefined)) {
+      if ((s.seconds ?? 0) > (best.seconds ?? 0)) best = s;
+      continue;
+    }
+    const w = weight(s);
+    const b = weight(best);
+    if (w > b || (w === b && (s.reps ?? 0) > (best.reps ?? 0))) best = s;
+  }
+  return best;
+}

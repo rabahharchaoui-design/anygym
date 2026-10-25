@@ -1,4 +1,5 @@
-import { Sheet } from '../Sheet';
+import { Sheet } from '../../ui/Sheet';
+import { Button } from '../../ui/Button';
 import type { GlossaryEntry } from '../../data/glossary';
 import styles from './Info.module.css';
 
@@ -8,7 +9,7 @@ type Props = { entry: GlossaryEntry; open: boolean; onClose: () => void };
 export function InfoSheet({ entry, open, onClose }: Props) {
   const Art = entry.illustration;
   return (
-    <Sheet open={open} onClose={onClose} label={entry.term}>
+    <Sheet open={open} onClose={onClose} label={entry.term} scroll>
       <div className={styles.body} data-testid={`info-${entry.id}`}>
         {Art && (
           <div className={styles.art} data-testid="info-art">
@@ -26,9 +27,7 @@ export function InfoSheet({ entry, open, onClose }: Props) {
             {entry.weightLine}
           </p>
         )}
-        <button type="button" className={`${styles.done} pressable`} onClick={onClose}>
-          Got it
-        </button>
+        <Button onClick={onClose}>Got it</Button>
       </div>
     </Sheet>
   );

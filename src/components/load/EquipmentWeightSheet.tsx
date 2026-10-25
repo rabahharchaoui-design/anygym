@@ -4,7 +4,7 @@ import type { EquipmentWeight, Gym, Unit } from '../../db/types';
 import { entryFor, promptFor, type PromptKind } from '../../lib/equipmentPrompt';
 import { formatWeight } from '../../lib/load';
 import { parseTyped, pressKey } from '../../lib/numpad';
-import { Sheet } from '../Sheet';
+import { Sheet } from '../../ui/Sheet';
 import { InfoButton } from '../info/InfoButton';
 import { NumPad } from './NumPad';
 import styles from './EquipmentWeightSheet.module.css';

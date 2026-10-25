@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import type { DumbbellRange, Load, Unit } from '../../db/types';
 import { dumbbellLoad, dumbbellsInRange, formatAmount, formatWeight, heldWeightOf, singleLoad } from '../../lib/load';
-import { SPRING } from '../motion';
+import { SPRING } from '../../ui/motion';
+import { tick } from '../../ui/haptics';
 import { DumbbellPicture, KettlebellPicture, UprightDumbbellPicture } from './PickerArt';
 import { Hint } from '../hint/Hint';
 import base from './LoadInput.module.css';
@@ -84,15 +85,20 @@ function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props 
     setCentered(i);
     if (w !== selected) {
       onChange(mode === 'dumbbell_each' ? dumbbellLoad(w, unit) : singleLoad(w, unit));
-      navigator.vibrate?.(6);
     }
   };
+  const detent = useRef(-1);
 
   const onScroll = () => {
     if (drag.current) return; // picked on release
     const el = trackRef.current!;
     const i = Math.min(weights.length - 1, Math.max(0, Math.round(el.scrollLeft / ITEM)));
-    if (!programmatic.current) setCentered(i);
+    if (!programmatic.current) {
+      setCentered(i);
+      // A tiny tick for each detent the wheel passes (SPEC 23.2).
+      if (detent.current !== -1 && detent.current !== i) tick();
+      detent.current = i;
+    }
     window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => {
       if (programmatic.current) {

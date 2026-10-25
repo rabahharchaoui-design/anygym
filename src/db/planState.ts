@@ -42,11 +42,59 @@ export function weekFor(state: PlanState | undefined, planId: string): number {
  * A workout from another plan, or with no plan, changes nothing.
  */
 export async function advanceAfter(session: Session, db: AnyGymDB): Promise<void> {
+  const at = await planDayOf(session, db);
+  if (!at) return;
+  const { state, plan, done } = at;
+  const pos = advancePlan(state, done, plan);
+  await db.planState.put(withPartial({ ...state, ...pos }, pos.doneDays.length === 0 ? {} : without(state.partial, done)));
+}
+
+/**
+ * A plan day saved with exercises left (1.7e): it stays up next ("Keep Day 1 up next") and its
+ * share of planned sets shows as a partial ring. Call inside a transaction with planState.
+ */
+export async function keepPartialDay(session: Session, share: number, db: AnyGymDB): Promise<void> {
+  const at = await planDayOf(session, db);
+  if (!at) return;
+  const { state, done } = at;
+  const prev = state.partial?.[done] ?? 0;
+  await db.planState.put(withPartial({ ...state, nextDayIndex: done }, { ...state.partial, [done]: Math.max(prev, Math.min(1, Math.max(0, share))) }));
+}
+
+/**
+ * "Move on to Day 2" after a partial day: the plan goes to the next day; the day just done keeps
+ * its partial ring, never a full tick. Returns false when there is nothing to move (not the plan's day).
+ */
+export async function moveOnFrom(sessionId: string, db: AnyGymDB = defaultDb): Promise<boolean> {
+  return db.transaction('rw', db.sessions, db.planState, async () => {
+    const session = await db.sessions.get(sessionId);
+    const at = session ? await planDayOf(session, db) : undefined;
+    if (!at) return false;
+    const { state, plan, done } = at;
+    const pos = advancePlan(state, done, plan);
+    const wrapped = pos.doneDays.length === 0;
+    const doneDays = wrapped ? [] : pos.doneDays.filter((d) => d !== done || state.doneDays.includes(done));
+    await db.planState.put(withPartial({ ...state, ...pos, doneDays }, wrapped ? {} : (state.partial ?? {})));
+    return true;
+  });
+}
+
+async function planDayOf(session: Session, db: AnyGymDB) {
   const state = await db.planState.get('active');
   const plan = planById(session.planId);
-  if (!state || !plan || state.planId !== plan.id) return;
+  if (!state || !plan || state.planId !== plan.id) return undefined;
   const done = dayIndexOf(plan, session.dayId);
-  if (done === -1) return;
-  const pos = advancePlan(state, done, plan);
-  await db.planState.put({ ...state, ...pos });
+  return done === -1 ? undefined : { state, plan, done };
+}
+
+function without(partial: PlanState['partial'], day: number): Record<number, number> {
+  const out = { ...partial };
+  delete out[day];
+  return out;
+}
+
+/** Stores `partial` only when it has entries (older states never had the field). */
+function withPartial(state: PlanState, partial: Record<number, number>): PlanState {
+  const { partial: _old, ...rest } = state;
+  return Object.keys(partial).length ? { ...rest, partial } : rest;
 }

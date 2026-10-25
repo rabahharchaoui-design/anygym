@@ -8,11 +8,73 @@
   overscroll-behavior: none;
 }
 
-.content {
+.stage {
+  position: relative;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* One screen: its own scroller, padded clear of the floating tab bar. */
+.page {
+  --page-pad-l: calc(var(--space-5) + var(--safe-left));
+  --page-pad-r: calc(var(--space-5) + var(--safe-right));
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 0 calc(var(--space-5) + var(--safe-right)) var(--space-6) calc(var(--space-5) + var(--safe-left));
+  background: var(--bg);
+  padding: 0 var(--page-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px) + var(--space-4)) var(--page-pad-l);
+}
+
+.content {
+  min-height: calc(100% + 32px);
+}
+
+/* A workout in progress: the resume bar floats above the tab bar, so pages keep clear of it too. */
+.shell[data-resume] {
+  --resume-space: 60px;
+}
+
+/* No View Transitions (older Safari): the new screen still arrives with the same motion. */
+:global(html[data-nav-fallback='push']) .page {
+  animation: fb-push var(--dur-base) var(--ease-drawer) both;
+}
+:global(html[data-nav-fallback='pop']) .page {
+  animation: fb-pop var(--dur-base) var(--ease-drawer) both;
+}
+:global(html[data-nav-fallback='tab']) .page,
+:global(html[data-nav-fallback='down']) .page {
+  animation: fb-rise var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes fb-push {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes fb-pop {
+  from {
+    transform: translateX(-30%);
+    opacity: 0.6;
+  }
+}
+@keyframes fb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(html[data-nav-fallback]) .page {
+    animation: fb-fade 150ms ease-out both;
+  }
+}
+@keyframes fb-fade {
+  from {
+    opacity: 0;
+  }
 }

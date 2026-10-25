@@ -10,9 +10,12 @@ import {
   removeExercise,
   restoreExercise,
   setExerciseOrder,
+  startPlanDay,
   startWorkout,
   updateSetType,
 } from '../workouts';
+import { planById } from '../../data/plans';
+import { dayWorkout } from '../../lib/planWorkout';
 import { pickBar, pickLoadType, pickNote, pickRest, saveBarChoice, saveExerciseNote, saveExerciseRest, saveLoadType } from '../exerciseSettings';
 import { recentExerciseIds, workoutRecords } from '../history';
 
@@ -105,6 +108,23 @@ describe('recentExerciseIds', () => {
     await finishWorkout(b.id, db, 4000);
     expect(await recentExerciseIds(8, db)).toEqual(['row', 'squat', 'bench']);
     expect(await recentExerciseIds(1, db)).toEqual(['row']);
+  });
+  it('warm ups stay out: warm up sets, and a plan day’s warm up items (1.7e)', async () => {
+    const a = await startWorkout('g', db, 1000);
+    await logSet({ id: '1', sessionId: a.id, exerciseId: 'squat', reps: 5, load: bar(95, [25]), kind: 'warmup' }, db);
+    await logSet({ id: '2', sessionId: a.id, exerciseId: 'bench', reps: 5, load: bar(135, [45]) }, db);
+    await finishWorkout(a.id, db, 2000);
+    expect(await recentExerciseIds(8, db)).toEqual(['bench']);
+    const plan = planById('five-day-split')!;
+    const day = plan.days.findIndex((d) => d.blocks.some((b) => b.warmup));
+    const entries = dayWorkout(plan, day, 0);
+    const warm = entries.find((e) => e.warmup)!;
+    const lift = entries.find((e) => !e.warmup && !e.finisher)!;
+    const p = await startPlanDay('g', 'five-day-split', day, db, 3000);
+    await logSet({ id: '3', sessionId: p.id, exerciseId: warm.exerciseId, reps: 10, load: bar(45, []) }, db);
+    await logSet({ id: '4', sessionId: p.id, exerciseId: lift.exerciseId, reps: 10, load: bar(135, [45]) }, db);
+    await finishWorkout(p.id, db, 4000);
+    expect(await recentExerciseIds(8, db)).toEqual([lift.exerciseId, 'bench']);
   });
 });
 

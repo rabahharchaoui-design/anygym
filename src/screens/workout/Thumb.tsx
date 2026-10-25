@@ -6,6 +6,8 @@ type Props = {
   /** Known load type: a simple drawing of the equipment (certain); unknown: the initials. */
   loadType: Load['kind'] | undefined;
   size?: 'row' | 'hero';
+  /** View transition name: the tile that grows into (or back from) the exercise hero. */
+  vtName?: string;
 };
 
 const initials = (name: string) =>
@@ -21,9 +23,9 @@ const initials = (name: string) =>
  * wrong picture is the worst bug (SPEC 4.3). So: a calm tile with the equipment it is done with,
  * which the load type makes certain, or the exercise's initials when that is not known.
  */
-export function Thumb({ name, loadType, size = 'row' }: Props) {
+export function Thumb({ name, loadType, size = 'row', vtName }: Props) {
   return (
-    <span className={styles.tile} data-size={size} aria-hidden="true" data-testid="thumb">
+    <span className={styles.tile} data-size={size} aria-hidden="true" data-testid="thumb" style={vtName ? { viewTransitionName: vtName } : undefined}>
       {loadType ? <Glyph kind={loadType} /> : <span className={styles.letters}>{initials(name)}</span>}
     </span>
   );

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Sheet } from '../../components/Sheet';
+import { Sheet } from '../../ui/Sheet';
 import { PLAN_EXERCISES } from '../../data/planExercises';
 import type { Gym } from '../../db/types';
 import { recentExerciseIds } from '../../db/history';

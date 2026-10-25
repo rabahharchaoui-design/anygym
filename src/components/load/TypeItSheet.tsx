@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Collars, Unit } from '../../db/types';
 import { formatAmount, formatWeight, solvePlates, type Loading } from '../../lib/load';
 import { parseTyped, pressKey } from '../../lib/numpad';
-import { Sheet } from '../Sheet';
+import { Sheet } from '../../ui/Sheet';
 import { NumPad } from './NumPad';
 import styles from './TypeItSheet.module.css';
 

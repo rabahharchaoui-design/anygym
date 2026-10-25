@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Sheet } from '../../components/Sheet';
+import { Sheet } from '../../ui/Sheet';
 import type { BarId, Gym } from '../../db/types';
 import { formatWeight } from '../../lib/load';
 import { BAR_NAMES, BAR_PROMPTS, knownBars } from './exerciseLoad';

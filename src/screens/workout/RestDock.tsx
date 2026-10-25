@@ -1,16 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { FADE, SHEET_SPRING } from '../../components/motion';
+import { FADE, SHEET_SPRING } from '../../ui/motion';
 import { useNow } from '../../hooks/useNow';
 import { REST_STEP_SEC, isRestDone, remainingSec, restFraction, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
 import { playTone } from '../../lib/tone';
+import { Ring } from '../../ui/Ring';
+import { Odometer } from '../../ui/Odometer';
+import { CheckIcon } from '../../ui/icons';
+import { buzz } from '../../ui/haptics';
 import styles from './Workout.module.css';
 
-type Props = { rest: Rest; onExtend: () => void; onShorten: () => void; onSkip: () => void; onDone: () => void };
+type Props = {
+  rest: Rest;
+  onExtend: () => void;
+  onShorten: () => void;
+  onSkip: () => void;
+  onDone: () => void;
+};
 
-const R = 19;
-const C = 2 * Math.PI * R;
 /** How long "Rest over" stays before the bar goes away. */
 const DONE_LINGER_MS = 2500;
 
@@ -30,7 +38,7 @@ export function RestDock({ rest, onExtend, onShorten, onSkip, onDone }: Props) {
     if (sawRunning.current) {
       sawRunning.current = false;
       playTone();
-      navigator.vibrate?.([120, 80, 120]);
+      buzz([120, 80, 120]);
     }
     const t = window.setTimeout(onDone, DONE_LINGER_MS);
     return () => window.clearTimeout(t);
@@ -51,22 +59,13 @@ export function RestDock({ rest, onExtend, onShorten, onSkip, onDone }: Props) {
       exit={reduce ? { opacity: 0 } : { opacity: 0, y: 24, transition: { duration: 0.16 } }}
       transition={reduce ? FADE : SHEET_SPRING}
     >
-      <svg className={styles.restRing} viewBox="0 0 48 48" aria-hidden="true">
-        <circle cx="24" cy="24" r={R} className={styles.restTrack} />
-        <circle
-          cx="24"
-          cy="24"
-          r={R}
-          className={styles.restProgress}
-          strokeDasharray={C}
-          strokeDashoffset={C * (1 - fraction)}
-          transform="rotate(-90 24 24)"
-        />
-      </svg>
+      <Ring fraction={fraction} size={44} stroke={5} glideMs={260} full={done}>
+        {done ? <CheckIcon width={20} height={20} strokeWidth={3} /> : null}
+      </Ring>
       <div className={styles.restText}>
         <span className={styles.restLabel}>{done ? 'Rest over' : 'Rest'}</span>
         <span className={`${styles.restClock} num`} data-testid="rest-clock">
-          {done ? 'Go' : formatElapsed(left)}
+          {done ? 'Go' : <Odometer value={formatElapsed(left)} />}
         </span>
       </div>
       <button type="button" className={`${styles.restButton} pressable`} onClick={onShorten} disabled={done} aria-label={`Take off ${REST_STEP_SEC} seconds`}>

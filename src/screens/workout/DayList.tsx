@@ -3,32 +3,38 @@ import { GymPill } from '../../components/GymPill';
 import type { WorkoutEntry } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
 import { Thumb } from './Thumb';
+import { Ring } from '../../ui/Ring';
+import { Button } from '../../ui/Button';
+import { CheckIcon } from '../../ui/icons';
 import type { Workout } from './useWorkout';
 import styles from './DayList.module.css';
 
 type Props = {
   w: Workout;
+  /** The exercise last opened: its tile is where the hero shrinks back to (view transition). */
+  heroId: string | null;
   onOpen: (exerciseId: string) => void;
   onAdd: () => void;
 };
-
-const R = 12;
-const C = 2 * Math.PI * R;
 
 /** Empty, a ring filling per set done, then a check (SPEC 20.1). */
 function Progress({ done, total }: { done: number; total: number }) {
   const full = total > 0 && done >= total;
   return (
-    <span className={styles.progress} data-full={full || undefined} aria-hidden="true">
-      <svg viewBox="0 0 32 32" className={styles.ring}>
-        <circle cx="16" cy="16" r={R} className={styles.ringTrack} />
-        {!full && done > 0 && (
-          <circle cx="16" cy="16" r={R} className={styles.ringFill} strokeDasharray={C} strokeDashoffset={C * (1 - Math.min(1, done / total))} transform="rotate(-90 16 16)" />
-        )}
-        {full && <path d="M10 16.5l4 4 8-9" className={styles.ringCheck} />}
-      </svg>
+    <span className={styles.progress} data-full={full || undefined}>
+      <Ring fraction={total > 0 ? done / total : 0} size={32} stroke={3} glideMs={240} full={full}>
+        {full ? <CheckIcon width={16} height={16} strokeWidth={3} /> : null}
+      </Ring>
     </span>
   );
+}
+
+/** Names the tapped row's tile so it grows into the exercise hero; only one tile has the name. */
+function nameHero(row: HTMLElement) {
+  const main = row.closest('main');
+  main?.querySelectorAll<HTMLElement>('[data-testid="thumb"]').forEach((t) => (t.style.viewTransitionName = ''));
+  const tile = row.querySelector<HTMLElement>('[data-testid="thumb"]');
+  if (tile) tile.style.viewTransitionName = 'ex-hero';
 }
 
 /**
@@ -36,7 +42,7 @@ function Progress({ done, total }: { done: number; total: number }) {
  * its demo tile, name, sets × reps and the plan's rest. Pairs share a colored rail. Done rows dim,
  * the next one is highlighted. Tap a row to open it; that is the only navigation needed.
  */
-export function DayList({ w, onOpen, onAdd }: Props) {
+export function DayList({ w, heroId, onOpen, onAdd }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   const title = w.day ? dayTitle(w.day.n, w.day.name) : 'Quick workout';
 
@@ -66,9 +72,12 @@ export function DayList({ w, onOpen, onAdd }: Props) {
           data-testid={e.finisher ? 'finisher' : `row-${e.exerciseId}`}
           aria-current={state === 'next' ? 'step' : undefined}
           aria-label={`${name}, ${e.setsText || 'finisher'}${done ? `, ${Math.min(done, e.sets)} of ${e.sets} done` : ''}${state === 'next' ? ', up next' : ''}`}
-          onClick={() => onOpen(e.exerciseId)}
+          onClick={(ev) => {
+            nameHero(ev.currentTarget);
+            onOpen(e.exerciseId);
+          }}
         >
-          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} />
+          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} vtName={e.exerciseId === heroId ? 'ex-hero' : undefined} />
           <span className={styles.text}>
             <span className={styles.name}>{name}</span>
             {e.setsText && <span className={`${styles.sets} num`}>{e.setsText}</span>}
@@ -114,7 +123,7 @@ export function DayList({ w, onOpen, onAdd }: Props) {
           {title}
         </h1>
         <p className={styles.meta}>
-          <GymPill />
+          <GymPill align="start" />
           {w.minutes !== undefined && <span className={`${styles.minutes} num`}>~{w.minutes} min</span>}
           <span className={styles.music}>
             <a className={`${styles.musicLink} pressable`} href="https://open.spotify.com/" target="_blank" rel="noopener" aria-label="Open Spotify">
@@ -137,9 +146,11 @@ export function DayList({ w, onOpen, onAdd }: Props) {
         </ol>
       )}
       {w.isQuick && (
-        <button type="button" className={`${styles.addRow} pressable`} onClick={onAdd}>
-          + Add exercise
-        </button>
+        <div className={styles.addRow}>
+          <Button variant="secondary" onClick={onAdd}>
+            + Add exercise
+          </Button>
+        </div>
       )}
     </main>
   );

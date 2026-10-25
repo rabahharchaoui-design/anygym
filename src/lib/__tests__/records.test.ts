@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Load } from '../../db/types';
 import { barbellLoad, bodyweightLoad, dumbbellLoad, timedLoad } from '../load';
 import type { PastSet } from '../progression';
-import { recordsFor } from '../records';
+import { bestSetOf, recordsFor } from '../records';
 
 const bar = (perSide: number[]): Load => barbellLoad(45, perSide, 'none', 'lb')!;
 const work = (reps: number, load: Load): PastSet => ({ kind: 'work', reps, load });
@@ -50,5 +50,30 @@ describe('records across units (PLAN 1.7c)', () => {
     const before = [work(8, bar([45])), work(10, kgBar([40]))];
     expect(recordsFor('sq', 'Squat', [work(9, bar([45]))], before)).toEqual([]);
     expect(recordsFor('sq', 'Squat', [work(11, bar([45]))], before).map((r) => r.text)).toEqual(['Squat: most reps at 135 lb, 11']);
+  });
+});
+
+describe('bestSetOf (finish screen list)', () => {
+  it('heaviest working set, then most reps; warm ups ignored when there are working sets', () => {
+    const warm: PastSet = { kind: 'warmup', reps: 20, load: bar([45, 45, 45]) };
+    const a = work(8, bar([45]));
+    const b = work(6, bar([45, 25]));
+    const c = work(7, bar([45, 25]));
+    expect(bestSetOf([warm, a, b, c])).toBe(c);
+    expect(bestSetOf([warm])).toBe(warm);
+    expect(bestSetOf([])).toBeUndefined();
+  });
+  it('kg and lb compared in the first set’s unit; holds by time; bodyweight by reps', () => {
+    const kg = work(5, barbellLoad(20, [40], 'none', 'kg')!); // 100 kg
+    const lb = work(5, bar([45, 25])); // 185 lb
+    expect(bestSetOf([lb, kg])).toBe(kg);
+    const h1: PastSet = { kind: 'work', seconds: 45, load: timedLoad('lb') };
+    const h2: PastSet = { kind: 'work', seconds: 60, load: timedLoad('lb') };
+    expect(bestSetOf([h1, h2])).toBe(h2);
+    expect(bestSetOf([h2, h1])).toBe(h2);
+    const p1 = work(10, bodyweightLoad('lb'));
+    const p2 = work(12, bodyweightLoad('lb'));
+    expect(bestSetOf([p1, p2])).toBe(p2);
+    expect(bestSetOf([{ kind: 'work' as const, reps: 3 }, { kind: 'work' as const, reps: 5 }])!.reps).toBe(5);
   });
 });

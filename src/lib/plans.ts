@@ -213,23 +213,26 @@ export function amountText(t: Pick<ItemTarget, 'reps' | 'seconds'>, eachSide = f
   return '';
 }
 
-/** "4 sets × 8 to 12", "5 sets × 6", "3 sets × 60 to 90 sec", "45 sec", "10 sets". */
-export function setsText(t: ItemTarget): string {
+/**
+ * "4 sets × 8 to 12", "5 sets × 6", "3 sets × 60 to 90 sec", "45 sec", "10 sets". With `reps`:
+ * "4 sets × 8 to 12 reps" (the plan viewer, where nothing else says what the number counts).
+ */
+export function setsText(t: ItemTarget, reps = false): string {
   const loneHold = t.sets === 1 && t.reps === undefined && t.seconds !== undefined && !t.rounds;
   if (loneHold) return `${span(t.seconds!)} sec`;
   const sets = t.rounds ? `${t.sets} ${t.sets === 1 ? 'round' : 'rounds'}` : `${t.sets} ${t.sets === 1 ? 'set' : 'sets'}`;
-  if (t.reps !== undefined) return `${sets} × ${span(t.reps)}`;
+  if (t.reps !== undefined) return `${sets} × ${span(t.reps)}${reps ? ' reps' : ''}`;
   if (t.seconds !== undefined) return `${sets} × ${span(t.seconds)} sec`;
   return sets;
 }
 
 /**
- * "4 sets × 8 to 12 · 90 s rest" (the line after the name). The rest shows only when the plan
+ * "4 sets × 8 to 12 reps · 90 s rest" (the line after the name). The rest shows only when the plan
  * states one; the app's default rest timer is never presented as the plan's.
  */
 export function itemLine(block: PlanBlock, it: PlanItem, weekIndex = 0): string {
   const rest = planRest(block);
-  const parts = [setsText(itemTarget(block, it, weekIndex))];
+  const parts = [setsText(itemTarget(block, it, weekIndex), true)];
   if (rest !== undefined) parts.push(`${rest} s rest`);
   return parts.join(' · ');
 }

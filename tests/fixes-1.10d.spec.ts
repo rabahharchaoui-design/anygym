@@ -52,6 +52,9 @@ async function quick(page: Page) {
 /** PLAN 1.7c picker: search, pick, "Add 1" (opens the exercise). From an exercise view it goes back to the list first. */
 async function addExercise(page: Page, query: string, name: string) {
   const sheet = page.getByRole('dialog', { name: 'Add exercise' });
+  // Wait for the workout to render (list or exercise): an empty quick workout's picker opens in the
+  // same frame as the list, so checking during the loading skeleton raced it (1.7e flake).
+  await expect(page.getByTestId('workout-title').or(page.getByRole('button', { name: 'Back to the list' })).first()).toBeVisible();
   if (!(await sheet.isVisible())) {
     if (await page.getByRole('button', { name: 'Back to the list' }).isVisible()) await page.getByRole('button', { name: 'Back to the list' }).tap();
     await page.getByRole('button', { name: '+ Add exercise' }).first().tap();

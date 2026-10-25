@@ -124,7 +124,7 @@ test('3b. first time ever: quick workout, one exercise, first weight picked, 3 s
   await t.tap(sheet.getByRole('button', { name: 'Barbell Back Squat', exact: true }));
   await t.tap(sheet.getByRole('button', { name: 'Add 1' }));
   const view = page.getByTestId('exercise-barbell-back-squat');
-  await expect(view.getByTestId('weight-cell')).toHaveText(['Set', 'Set', 'Set']);
+  await expect(view.getByTestId('weight-cell')).toHaveText(['Pick', '–', '–']);
   await t.tap(view.getByTestId('weight-cell').first());
   const w = page.getByRole('dialog', { name: 'Pick the weight' });
   await t.tap(w.getByRole('button', { name: 'Add 45 lb plate to each side' }));

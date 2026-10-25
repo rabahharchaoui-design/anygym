@@ -1,0 +1,65 @@
+.odo {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The exact value, once, for screen readers and copy. Hidden by clip-path (no overflow clipping,
+   so nothing measures it as cut off text). */
+.value {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  pointer-events: none;
+}
+
+.face {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+/* Non digit characters (comma, space, colon, unit) are drawn from data-c, so the face has no text nodes. */
+.char::before {
+  content: attr(data-c);
+}
+
+/* A hidden "0" sets each digit's box (tabular: every digit is as wide as 0); its face is the strip. */
+.digit {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.digit::after {
+  content: '0';
+  visibility: hidden;
+}
+
+.digit::before {
+  content: '0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  white-space: pre;
+  text-align: center;
+  transform: translateY(calc(var(--d, 0) * -10%));
+  transition: transform 260ms var(--ease-out) var(--delay, 0ms);
+}
+
+.odo[data-count] .digit::before {
+  transition-duration: 760ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .digit::before {
+    transition: none;
+  }
+}

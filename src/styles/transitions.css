@@ -1,0 +1,171 @@
+/* Screen transitions (SPEC 13.2, 23.1), driven by src/ui/nav.ts through the View Transitions API.
+   html[data-nav] says which kind is running. Durations 180 to 280 ms, the iOS drawer curve.
+   Bars that should stay put (tab bar, workout header and rest bar) have their own names and do
+   not move; the live page underneath takes every tap while the snapshots animate. */
+
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(*) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-drawer);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-drawer);
+  mix-blend-mode: normal;
+}
+
+/* push: the new screen slides in from the right over the old one, which moves 30% left and dims */
+html[data-nav='push']::view-transition-old(root) {
+  animation-name: vt-push-old;
+}
+html[data-nav='push']::view-transition-new(root) {
+  animation-name: vt-push-new;
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.55);
+}
+
+/* pop: the reverse, the leaving screen on top */
+html[data-nav='pop']::view-transition-old(root) {
+  animation-name: vt-pop-old;
+  z-index: 1;
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.55);
+}
+html[data-nav='pop']::view-transition-new(root) {
+  animation-name: vt-pop-new;
+}
+
+/* tab: a crossfade with a 7 px rise, never a slide */
+html[data-nav='tab']::view-transition-old(root) {
+  animation: vt-fade-out 140ms var(--ease-out) both;
+}
+html[data-nav='tab']::view-transition-new(root) {
+  animation: vt-rise-in 240ms var(--ease-out) both;
+}
+
+/* expand and fade: the page crossfades while named cards morph into place */
+html[data-nav='expand']::view-transition-old(root),
+html[data-nav='fade']::view-transition-old(root) {
+  animation: vt-fade-out 160ms var(--ease-out) both;
+}
+html[data-nav='expand']::view-transition-new(root),
+html[data-nav='fade']::view-transition-new(root) {
+  animation: vt-fade-in 240ms var(--ease-out) both;
+}
+
+/* Bars that stay put: no slide, the new state shows at once (the tab pill slides by itself). */
+::view-transition-old(tabbar) {
+  display: none;
+}
+::view-transition-new(tabbar) {
+  animation: none;
+}
+::view-transition-group(tabbar) {
+  animation: none;
+  z-index: 3;
+}
+::view-transition-group(workout-dock) {
+  z-index: 3;
+}
+::view-transition-group(workout-head) {
+  z-index: 3;
+}
+
+/* The tapped row's tile grows into the exercise hero (and back); Today's Start grows into the
+   workout header. Only the new picture is drawn while its box morphs, so nothing dims halfway. */
+::view-transition-group(ex-hero) {
+  z-index: 2;
+  animation-duration: 280ms;
+}
+::view-transition-old(ex-hero),
+::view-transition-old(workout-head),
+::view-transition-old(workout-dock) {
+  display: none;
+}
+::view-transition-new(ex-hero),
+::view-transition-new(workout-head),
+::view-transition-new(workout-dock) {
+  animation: none;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* down: minimize the workout. It slides down and off (header and rest bar with it) over Today. */
+html[data-nav='down']::view-transition-old(root) {
+  animation: vt-down-old 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  z-index: 2;
+}
+html[data-nav='down']::view-transition-new(root) {
+  animation: none;
+}
+html[data-nav='down']::view-transition-old(workout-head),
+html[data-nav='down']::view-transition-old(workout-dock) {
+  display: block;
+  animation: vt-down-old 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html[data-nav='down']::view-transition-group(workout-head),
+html[data-nav='down']::view-transition-group(workout-dock) {
+  animation: none;
+}
+
+@keyframes vt-down-old {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes vt-push-old {
+  to {
+    transform: translateX(-30%);
+    filter: brightness(0.6);
+  }
+}
+@keyframes vt-push-new {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes vt-pop-old {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes vt-pop-new {
+  from {
+    transform: translateX(-30%);
+    filter: brightness(0.6);
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+  }
+  ::view-transition-old(*) {
+    animation: vt-fade-out 150ms ease-out both !important;
+    filter: none !important;
+  }
+  ::view-transition-new(*) {
+    animation: vt-fade-in 150ms ease-out both !important;
+    box-shadow: none !important;
+  }
+}

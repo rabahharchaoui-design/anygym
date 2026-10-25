@@ -6,25 +6,17 @@ import { logKey, logQueue } from '../../lib/logQueue';
 import { formatNext, formatSets, formatWhen } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
 import { addExtraSet } from '../../lib/extraSets';
-import {
-  blockedReason,
-  nextSetType,
-  pendingRows,
-  rowKey,
-  settleRows,
-  storedType,
-  typeOfSet,
-  type PendingRow,
-  type SetType,
-} from '../../lib/setTable';
-import { STOPPED, captureHold, elapsedMs, formatClock, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
+import { blockedReason, nextSetType, pendingRows, rowKey, settleRows, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { STOPPED, captureHold, elapsedMs, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio } from '../../lib/tone';
 import { useNow } from '../../hooks/useNow';
 import { TAP_GUARD_MS, useTapGuard } from '../../hooks/useTapGuard';
 import { Hint } from '../../components/hint/Hint';
-import { Sheet } from '../../components/Sheet';
-import { MoreIcon } from './icons';
+import { Sheet } from '../../ui/Sheet';
+import { Button } from '../../ui/Button';
+import { MoreIcon } from '../../ui/icons';
+import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
 import { Thumb } from './Thumb';
 import { WeightSheet, type WeightPick } from './WeightSheet';
@@ -42,7 +34,6 @@ type Props = {
   onAskLoadType: () => void;
   onMenu: () => void;
   onSwipeNext: () => void;
-  onBack: () => void;
   onNotice: (text: string, retry?: () => void) => void;
 };
 
@@ -59,7 +50,7 @@ function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
  * The exercise view (SPEC 20.2, 21.1): the demo tile, name and note, "Last time", and the set
  * table already filled with today's targets. Logging a set is one tap on its ✓.
  */
-export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onBack, onNotice }: Props) {
+export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice }: Props) {
   const gym = w.gym!;
   const name = w.nameOf(exerciseId);
   const entry = w.entryOf(exerciseId);
@@ -105,7 +96,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         rebuild,
         carry: (prev) => prefillLoad(prev, kind, gym, exerciseId, name, bar),
         certain: certainLoad(kind, gym.unit),
-        defaultReps: timed ? undefined : (entry?.reps === undefined ? DEFAULT_REPS : typeof entry.reps === 'number' ? entry.reps : entry.reps[0]),
+        defaultReps: timed ? undefined : entry?.reps === undefined ? DEFAULT_REPS : typeof entry.reps === 'number' ? entry.reps : entry.reps[0],
         planSeconds: entry ? targetSecondsOf(entry) : undefined,
         defaultType: entry?.warmup ? 'warmup' : 'normal',
         lastSets: w.lastSetsOf(exerciseId),
@@ -143,8 +134,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
   // A double tap on one ✓ logs one set; checking the next row right after is fine (SPEC 13.3).
   const lastTap = useRef<{ index: number; at: number } | null>(null);
-  const log = async (row: PendingRow) => {
-    const at = performance.now();
+  // `at` is the input event's time stamp, not handler time: a busy main thread that delivers the
+  // second tap of a double tap late must not turn it into a second set.
+  const log = async (row: PendingRow, at: number = performance.now(), cap?: number) => {
     if (lastTap.current && lastTap.current.index === row.index && at - lastTap.current.at < TAP_GUARD_MS) return;
     lastTap.current = { index: row.index, at };
     if (!kind || logQueue.pending(key)) return;
@@ -153,8 +145,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (timed && row.index === current?.index && elapsedMs(watch, Date.now()) > 0) {
       // A running hold is stopped and read at this very moment, never a stale value (1.10c).
       const captured = captureHold(watch, Date.now());
-      seconds = captured.seconds;
-      writeRow(row, { watch: captured.watch, seconds: captured.seconds });
+      // An automatic check at the target logs the target, never a tick more.
+      seconds = cap !== undefined ? Math.min(cap, captured.seconds) : captured.seconds;
+      writeRow(row, { watch: captured.watch, seconds });
     }
     if (row.load === null || (timed ? !seconds : !row.reps)) return;
     const load = row.load;
@@ -165,11 +158,19 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     const submittedRev = draftOf(row.index)?.rev;
     const id = logQueue.current(key);
     setFresh((f) => new Set(f).add(id));
-    navigator.vibrate?.(8);
+    tick();
     const ok = await logQueue.submit(
       key,
       async (setId) => {
-        await logSet({ id: setId, sessionId, exerciseId, ...(timed ? { seconds } : { reps: row.reps }), load, kind: t.kind, failure: t.failure });
+        await logSet({
+          id: setId,
+          sessionId,
+          exerciseId,
+          ...(timed ? { seconds } : { reps: row.reps }),
+          load,
+          kind: t.kind,
+          failure: t.failure,
+        });
         onLogged(exerciseId);
         return true;
       },
@@ -219,11 +220,21 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const toggleWatch = useTapGuard(() => {
     if (!current) return;
     const t = Date.now();
-    writeRow(current, { watch: running ? stopWatch(watch, t) : startWatch(watch, t) });
+    writeRow(current, {
+      watch: running ? stopWatch(watch, t) : startWatch(watch, t),
+    });
   });
-  const resetWatch = () => current && writeRow(current, { watch: STOPPED });
 
-  // Swipe left: straight to the next exercise; swipe right from the edge: back (SPEC 20.2, 23.1).
+  // The hold reached its target: it checks itself, logging exactly the target (with the tick).
+  const holdTarget = timed ? current?.seconds : undefined;
+  useEffect(() => {
+    if (!timed || !running || !current || !holdTarget || liveSeconds < holdTarget) return;
+    void log(current, performance.now(), holdTarget);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timed, running, liveSeconds, holdTarget, current?.index]);
+
+  // Swipe left: straight to the next exercise (SPEC 20.2). Back from the left edge is the
+  // interactive EdgeSwipe the workout screen puts over this view (SPEC 23.1).
   const swipe = useRef<{ x: number; y: number } | null>(null);
   const onPointerDown = (e: ReactPointerEvent) => {
     swipe.current = { x: e.clientX, y: e.clientY };
@@ -236,11 +247,17 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     const dy = Math.abs(e.clientY - s.y);
     if (dy > 40) return;
     if (dx < -80) onSwipeNext();
-    else if (dx > 80 && s.x < 32) onBack();
   };
 
   const lastTime = progression?.lastTime;
-  const target = formatNext(progression?.next ?? { load: null, reps: null, reason: '', kind: 'first_time' });
+  const target = formatNext(
+    progression?.next ?? {
+      load: null,
+      reps: null,
+      reason: '',
+      kind: 'first_time',
+    },
+  );
   const showNext = progression && lastTime && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted');
   const note = [entry?.note, w.noteOf(exerciseId)].filter(Boolean).join(' · ');
   const setNumber = Math.min(logged.length + 1, Math.max(entry?.sets ?? 1, logged.length + 1));
@@ -250,12 +267,18 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     <main className={styles.exMain} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
       <div className={styles.hero}>
         <button type="button" className={`${styles.heroTile} pressable`} onClick={() => setDemo(true)} aria-label={`How to do ${name}`}>
-          <Thumb name={name} loadType={kind} size="hero" />
+          <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />
         </button>
         <div className={styles.heroText}>
           <h2 className={styles.exName}>{name}</h2>
           <p className={`${styles.exTarget} num`} data-testid="set-target">
-            {!kind ? (entry?.line ?? '') : rows.length === 0 && logged.length > 0 ? `All ${logged.length} ${logged.length === 1 ? 'set' : 'sets'} done` : entry ? setLine(entry, setNumber) : `Set ${setNumber}`}
+            {!kind
+              ? (entry?.line ?? '')
+              : rows.length === 0 && logged.length > 0
+                ? `All ${logged.length} ${logged.length === 1 ? 'set' : 'sets'} done`
+                : entry
+                  ? setLine(entry, setNumber)
+                  : `Set ${setNumber}`}
           </p>
           {note && (
             <p className={styles.exNote} data-testid="set-plan">
@@ -264,22 +287,16 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           )}
         </div>
         <button type="button" className={`${styles.moreButton} pressable`} onClick={onMenu} aria-label={`More for ${name}`}>
-          <MoreIcon />
+          <MoreIcon width={22} height={22} strokeWidth={2.4} aria-hidden="true" />
         </button>
       </div>
 
-      {kind && progression && (
+      {kind && progression && (lastTime || showNext) && (
         <div className={styles.guides}>
-          {lastTime ? (
+          {lastTime && (
             <p className={`${styles.guide} num`} data-testid="set-guide">
               Last time {formatSets(lastTime.sets)} <span className={styles.guideWhen}>· {formatWhen(lastTime.date, Date.now())}</span>
             </p>
-          ) : (
-            logged.length === 0 && (
-              <p className={`${styles.guide} num`} data-testid="set-guide">
-                {progression.next.reason}
-              </p>
-            )
           )}
           {showNext && (
             <p className={`${styles.guide} ${styles.guideNext} num`} data-testid="set-next">
@@ -293,9 +310,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       {!kind ? (
         <div className={styles.askBox}>
           <p className={styles.hint}>Tell AnyGym how this one is loaded, once.</p>
-          <button type="button" className={`${styles.secondaryButton} pressable`} onClick={onAskLoadType}>
+          <Button variant="secondary" onClick={onAskLoadType}>
             How do you load this?
-          </button>
+          </Button>
         </div>
       ) : !progression ? (
         <div className={styles.tableSkeleton} aria-hidden="true" />
@@ -311,7 +328,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             liveSeconds={liveSeconds}
             fresh={fresh}
             editing={editing}
-            onCheck={(r) => void log(r)}
+            onCheck={(r, at) => void log(r, at)}
             onWeight={(r) => setPicking(r)}
             onAmount={(r) => setEditing((e) => (e === r.index ? null : r.index))}
             onAmountChange={(r, v) => writeRow(r, timed ? { seconds: v } : { reps: v })}
@@ -320,6 +337,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onLoggedType={(s) => void cycleLogged(s)}
             onLastTime={copyLast}
             onEdit={onEditSet}
+            // First time: one line right under the row being filled, never a guessed weight (SPEC 6 rule 5).
+            currentNote={!lastTime && logged.length === 0 ? progression.next.reason : undefined}
+            hold={timed && current ? { running, onToggle: toggleWatch } : undefined}
             footer={
               <button
                 type="button"
@@ -333,19 +353,6 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
               </button>
             }
           />
-          {timed && current && (
-            <div className={styles.holdBar}>
-              <span className={`${styles.holdClock} num`} data-testid="timer-clock" role="timer" aria-live="off">
-                {formatClock(liveSeconds)}
-              </span>
-              <button type="button" className={`${styles.holdReset} pressable`} onClick={resetWatch} disabled={running || liveSeconds === 0}>
-                Reset
-              </button>
-              <button type="button" className={`${styles.holdButton} pressable`} data-running={running} onClick={toggleWatch} aria-label={running ? 'Stop timer' : 'Start timer'}>
-                {running ? 'Stop' : liveSeconds > 0 ? 'Start again' : 'Start'}
-              </button>
-            </div>
-          )}
           <div className={styles.statusLine}>
             <p className={styles.status} data-testid="set-status" role="status">
               {status && current ? `Set ${current.index + 1}: ${status}` : ''}
@@ -380,9 +387,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           <h2 className={styles.sheetTitle}>{name}</h2>
           <p className={styles.sheetSub}>Demo coming soon</p>
           {note ? <p className={styles.demoNote}>{note}</p> : null}
-          <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => setDemo(false)}>
+          <Button variant="secondary" onClick={() => setDemo(false)}>
             Close
-          </button>
+          </Button>
         </div>
       </Sheet>
     </main>
