@@ -36,3 +36,8 @@ export function startDb(): Promise<Gym> {
   started ??= ensureFirstGym();
   return started;
 }
+
+/** After a restore the gyms may have changed: the next startDb() looks again. */
+export function resetStartDb(): void {
+  started = null;
+}

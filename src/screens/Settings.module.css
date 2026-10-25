@@ -130,3 +130,8 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* Rows stacked in one card: a hairline between them. */
+.divided {
+  border-bottom: 1px solid var(--hairline);
+}
