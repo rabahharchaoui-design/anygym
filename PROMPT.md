@@ -77,6 +77,9 @@ G's Claude week was 72% used early Sunday and resets Thursday 3 AM. Builder toke
 - Keep your own turns lean: do not re-read big files you already read this run, keep test output short (line reporter, tail of failures), and do not run the full Playwright matrix for items that do not touch UI (the merge gate runs everything).
 - Lean on Codex: it has most of its week left. Briefs, audits, test batches, visual QA and backup builds all save Claude usage.
 
+FEEDBACK INTAKE (added Oct 25 4:05 AM, SPEC 24)
+- Once the anygym-api Worker is live: at the start of every run and after every item, read open reports: npx wrangler d1 execute anygym-feedback --remote --command "SELECT id,kind,seen_count,message,route,app_version,device,created_at FROM reports WHERE status='open' ORDER BY id" (look at screenshot_b64 only when needed, one row at a time). Turn real problems into a short fix item at the top of the remaining queue (group duplicates), then UPDATE status='queued', plan_item='<id>'. When the fix is live, UPDATE status='fixed', fix_commit='<sha>'. Spam: status='ignored'. Never copy personal looking text from reports into the public repo.
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 
