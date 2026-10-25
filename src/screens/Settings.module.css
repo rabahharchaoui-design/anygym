@@ -97,3 +97,36 @@
   background: var(--accent);
   color: var(--on-accent);
 }
+
+/* A row that opens something (Import history): the whole row is the button. */
+.linkRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  color: var(--text);
+}
+
+.linkRow:disabled {
+  opacity: 0.5;
+}
+
+.chevron {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--text-2);
+}
+
+/* The file picker is opened by the row; the input itself is never shown. */
+.file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

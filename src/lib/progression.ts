@@ -28,6 +28,7 @@
 // the last session's reps as the target ("Aim for 10, 10 or better"); a range is never invented.
 // Timed holds: no load progression, only "Beat your time". No estimated 1RM, ever.
 import type { Load, SetKind, Unit } from '../db/types';
+import { IMPORTED_LABEL, isImportOrder } from './import/importOrder';
 import {
   convertForGym,
   formatAmount,
@@ -102,9 +103,14 @@ const anyBelow = (sets: SetLine[], [lo]: RepRange) => sets.some((s) => repsOf(s)
 const clampTo = (n: number, r: RepTarget | undefined): number =>
   r === undefined ? n : typeof r === 'number' ? r : Math.min(r[1], Math.max(r[0], n));
 
-/** The heaviest working load: the one "same load" refers to. */
+/**
+ * The heaviest working load: the one "same load" refers to. Sets may be in different units
+ * (imported history), so each is compared in one unit through load.ts; the load keeps its own unit.
+ */
 function heaviest(sets: SetLine[]): Load {
-  return sets.reduce((a, b) => ((pickedWeight(b.load) ?? 0) > (pickedWeight(a.load) ?? 0) ? b : a)).load;
+  const unit = sets[0]!.load.unit;
+  const w = (l: Load) => convertForGym(pickedWeight(l) ?? 0, l.unit, unit);
+  return sets.reduce((a, b) => (w(b.load) > w(a.load) ? b : a)).load;
 }
 
 export function progress(input: ProgressionInput): Progression {
@@ -263,8 +269,9 @@ function setText(s: SetLine): string {
 const DAY = 24 * 60 * 60 * 1000;
 const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0);
 
-/** "today", "yesterday", "Tue" within the week, else "Oct 12". Local time. */
+/** "today", "yesterday", "Tue" within the week, else "Oct 12". Local time. "Imported" for imported history (no date). */
 export function formatWhen(date: number, now: number): string {
+  if (isImportOrder(date)) return IMPORTED_LABEL;
   const days = Math.round((startOfDay(now) - startOfDay(date)) / DAY);
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';

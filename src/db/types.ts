@@ -115,7 +115,12 @@ export type Session = {
   endedAt?: number;
   timeBudgetMin?: number;
   imported: boolean;
+  /** Imported workouts (SPEC 9.3): the file order. startedAt then holds the same number, never a date. */
   importSeq?: number;
+  /** Imported workouts: content hash of the file session, so importing a file twice adds nothing. Not indexed. */
+  importHash?: string;
+  /** Imported workouts: the file's note for that session. */
+  note?: string;
   /** Exercises in the workout, in order: added by hand (quick workout) or the plan day's (PLAN 1.10). Not indexed. */
   exerciseIds?: string[];
   /** weekly_table plans: the 0 based week this day was started in, so a reload shows the same targets. */

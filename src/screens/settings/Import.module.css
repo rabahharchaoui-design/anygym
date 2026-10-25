@@ -1,0 +1,298 @@
+/* Import history review (SPEC 9.3). A setup screen: it scrolls, one action in the bottom dock. */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  /* room for the Import dock */
+  padding-bottom: 96px;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.metaAmber {
+  margin: 2px 0 0;
+  color: var(--amber);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.notice {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.exercise {
+  margin-bottom: var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border: 1px solid var(--glass-line);
+  border-radius: 20px;
+  background: linear-gradient(to bottom, #141417, var(--surface-1));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  transition: opacity 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.exercise[data-skipped] {
+  opacity: 0.55;
+}
+
+.head {
+  padding: 0 var(--space-1) var(--space-2);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* A question for this exercise: amber, with its answer buttons. */
+.ask {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgb(255 176 32 / 0.1);
+  border: 1px solid rgb(255 176 32 / 0.35);
+}
+
+.askText {
+  margin: 0 0 var(--space-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.askRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.askButton {
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--amber);
+  color: #000;
+  font-weight: 700;
+}
+
+.askQuiet {
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.answer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  padding: 0 var(--space-1);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.link {
+  min-height: 48px;
+  padding: 0 var(--space-2);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.session {
+  margin-top: var(--space-2);
+}
+
+.session > .sub {
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-1);
+}
+
+.session[data-already] {
+  opacity: 0.55;
+}
+
+.sessionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-1);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.set {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  text-align: left;
+  color: var(--text);
+  transition:
+    background-color 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.set[data-uncertain] {
+  background: rgb(255 176 32 / 0.1);
+  border-color: rgb(255 176 32 / 0.45);
+}
+
+.set[data-skipped] .setLine > :first-child {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+
+.set:disabled {
+  opacity: 1;
+}
+
+.index {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.setMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-base);
+}
+
+.tag {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.tagOk {
+  composes: tag;
+  color: var(--accent);
+}
+
+.reason {
+  color: var(--amber);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.dock {
+  /* The tab bar is hidden here: the one action stays in reach, over a dark fade. It owns the bottom inset. */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: var(--space-6) calc(var(--space-5) + var(--safe-right)) calc(var(--space-3) + max(var(--safe-bottom), 8px)) calc(var(--space-5) + var(--safe-left));
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(10 10 12 / 0.94) 28px, rgb(10 10 12 / 0.98));
+  pointer-events: none;
+}
+
+.dock > * {
+  pointer-events: auto;
+}
+
+.error {
+  margin: 0 0 4px;
+  min-height: 18px;
+  color: var(--red);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* Sheets */
+.sheetFile {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.sheetReason {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: rgb(255 176 32 / 0.1);
+  color: var(--amber);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+}
+
+.secondary {
+  width: 100%;
+  min-height: 52px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 700;
+}
