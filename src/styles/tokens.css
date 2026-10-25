@@ -69,14 +69,31 @@
      height, never inset bottom 0, so one bottom inset is applied once by the frame's last bar. */
   --app-height: 100vh;
 
-  /* motion */
+  /* glass (SPEC 23.1): blurred translucent surfaces with a thin hairline */
+  /* dense enough that text never reads through it (ux-critic 1.7e): ~75% #0E0E10 */
+  --glass-bg: rgb(14 14 16 / 0.76);
+  --glass-bg-strong: rgb(14 14 16 / 0.86);
+  --glass-line: rgb(255 255 255 / 0.09);
+  --glass-blur: saturate(160%) blur(26px);
+  --accent-glow: 0 6px 22px rgb(212 255 58 / 0.28);
+  --accent-soft: rgb(212 255 58 / 0.13);
+
+  /* motion: mirrors src/ui/motion.ts */
   --press-scale: 0.97;
   --press-dim: 0.8;
   --dur-press: 80ms;
-  --dur-fast: 180ms;
+  --dur-fast: 160ms;
   --dur-base: 240ms;
+  --dur-slow: 300ms;
   --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* the floating tab bar: capsule height and its gap to the bottom edge */
+  --tabbar-capsule: 62px;
+  --tabbar-gap: max(var(--safe-bottom), 10px);
+  --tabbar-space: calc(var(--tabbar-capsule) + var(--tabbar-gap) + 12px);
 }
 
 @supports (height: 100dvh) {

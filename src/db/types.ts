@@ -133,6 +133,11 @@ export type PlanState = {
   nextDayIndex: number;
   /** Days finished in this pass through the plan (0 based), for the week strip checks. */
   doneDays: number[];
+  /**
+   * Days finished with exercises left in this pass (day index → share of planned sets done, 0 to
+   * 1), drawn as a partial ring on the week strip. Cleared when the pass starts over.
+   */
+  partial?: Record<number, number>;
 };
 
 /** Gym id used for answers that hold at every gym (free weights). IndexedDB keys cannot be null. */

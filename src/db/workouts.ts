@@ -1,11 +1,11 @@
 // Quick workout sessions and their sets (PLAN 1.7, SPEC 2, 5.1). Every write is transactional.
 import { planById } from '../data/plans';
-import { dayIdOf } from '../lib/plans';
-import { dayWorkout } from '../lib/planWorkout';
+import { dayIdOf, dayIndexOf } from '../lib/plans';
+import { dayProgress, dayWorkout, type DayProgress } from '../lib/planWorkout';
 import { newId } from './ids';
-import { advanceAfter, weekFor } from './planState';
+import { advanceAfter, keepPartialDay, weekFor } from './planState';
 import { db as defaultDb, type AnyGymDB } from './schema';
-import type { Load, Session, SetKind, WorkoutSet } from './types';
+import type { Load, PlanState, Session, SetKind, WorkoutSet } from './types';
 
 /** The workout in progress: started, not ended, not imported. Newest first if somehow several. */
 export async function getActiveSession(db: AnyGymDB = defaultDb): Promise<Session | undefined> {
@@ -240,7 +240,17 @@ export async function setsOf(sessionId: string, db: AnyGymDB = defaultDb): Promi
   return db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
 }
 
-export type FinishResult = { saved: true; sets: number } | { saved: false };
+/** `progress`: for a plan day, how much of it was done (a partial day stays up next). */
+/** How much of its plan day a session covered, or undefined for a quick workout or unknown day. */
+async function planProgress(s: Session, db: AnyGymDB): Promise<DayProgress | undefined> {
+  const plan = planById(s.planId);
+  const i = plan ? dayIndexOf(plan, s.dayId) : -1;
+  if (!plan || i < 0) return undefined;
+  const sets = (await db.sets.where('sessionId').equals(s.id).toArray()).filter((x) => x.kind !== 'warmup');
+  return dayProgress(dayWorkout(plan, i, s.weekIndex ?? 0), (id) => sets.filter((x) => x.exerciseId === id).length);
+}
+
+export type FinishResult = { saved: true; sets: number; progress?: DayProgress } | { saved: false };
 
 /**
  * Ends the workout. With sets it is saved (endedAt); with none it is deleted, never kept as an
@@ -256,10 +266,32 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       await db.orderCounters.delete(sessionId);
       return { saved: false };
     }
+    const progress = await planProgress(s, db);
     if (s.endedAt === undefined) {
       await db.sessions.put({ ...s, endedAt: now });
-      await advanceAfter(s, db);
+      // A full day moves the plan on; a day with exercises left stays up next (1.7e).
+      if (!progress || progress.complete) await advanceAfter(s, db);
+      else await keepPartialDay(s, progress.share, db);
     }
-    return { saved: true, sets: count };
+    return progress ? { saved: true, sets: count, progress } : { saved: true, sets: count };
+  });
+}
+
+/**
+ * Undo for "Workout saved" (SPEC 13.1: undo, never a confirm): the finished workout is active
+ * again, and the plan pointer goes back exactly to `planBefore` (day position, done days, week),
+ * taken just before Finish. Refused (false) when the workout is gone, still active, or another
+ * workout has started since; the plan is only restored when it is still the same plan.
+ */
+export async function reopenWorkout(sessionId: string, planBefore: PlanState | undefined, db: AnyGymDB = defaultDb): Promise<boolean> {
+  return db.transaction('rw', db.sessions, db.planState, async () => {
+    const s = await db.sessions.get(sessionId);
+    if (!s || s.endedAt === undefined || s.imported) return false;
+    if (await getActiveSession(db)) return false;
+    const { endedAt: _ended, ...open } = s;
+    await db.sessions.put(open);
+    const now = await db.planState.get('active');
+    if (planBefore && now && now.planId === planBefore.planId && s.planId === planBefore.planId) await db.planState.put(planBefore);
+    return true;
   });
 }

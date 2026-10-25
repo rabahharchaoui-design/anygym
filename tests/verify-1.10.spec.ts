@@ -254,6 +254,10 @@ const logOneSet = async (page: Page) => {
 const finishDay = async (page: Page) => {
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(/\/done$/);
+  // 1.7e: a day with lifts left stays up next unless you move on (this flow walks the week).
+  await expect(page.getByTestId('finish-title')).toBeVisible();
+  const move = page.getByRole('radio', { name: /^Go to Day/ });
+  if (await move.count()) await move.tap();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
 };
@@ -329,7 +333,7 @@ test('honest: no img, unknown asks once, timed Hold, one screen exercise view on
   await page.getByTestId('row-static-quadricep-stretch').tap();
   const stretch = page.getByTestId('exercise-static-quadricep-stretch');
   await expect(stretch).toContainText('Hold');
-  await expect(stretch.getByTestId('hold-cell')).toHaveText(['45 s']);
+  await expect(stretch.getByTestId('hold-cell')).toHaveText(['45 sTap to start']);
   await expect(stretch.getByRole('button', { name: 'Start timer' })).toBeVisible();
   await back();
   // plank target seconds
@@ -337,7 +341,7 @@ test('honest: no img, unknown asks once, timed Hold, one screen exercise view on
   const plank = page.getByTestId('exercise-elbow-plank');
   console.log('plank view:', (await plank.innerText()).replace(/\n+/g, ' / '));
   await expect(plank).toContainText('Hold');
-  await expect(plank.getByTestId('hold-cell').first()).toContainText(/60/);
+  await expect(plank.getByTestId('hold-cell').first()).toContainText('1:00'); // m:ss from a minute on (1.7e)
   await back();
   // squat: known (barbell), never asked
   await page.getByTestId('row-barbell-back-squat').tap();
@@ -464,9 +468,11 @@ test('shots: plans, both viewers, today day card, workout pair', async ({ page }
   await page.goto('./#/plans/six-week-volume');
   await vshot(page, 'viewer-sixweek');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
+  await expect(page.getByTestId('day-card-title')).toBeVisible(); // 1.7e: the screen changes on the next frame
   await vshot(page, 'today-sixweek');
   await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
+  await expect(page.getByTestId('day-card-title')).toBeVisible();
   await vshot(page, 'today-split5');
   await page.getByRole('button', { name: 'Change day' }).tap();
   await vshot(page, 'change-day');
@@ -484,6 +490,7 @@ test('change day works on a fresh app load (not only right after Use this plan)'
   const errors = watch(page);
   await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
+  await expect(page.getByTestId('day-card-title')).toBeVisible(); // 1.7e: the screen changes on the next frame
   await page.reload();
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   await page.getByRole('button', { name: 'Change day' }).tap();

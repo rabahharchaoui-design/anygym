@@ -7,7 +7,7 @@ import type { PlateColors, Unit } from '../../db/types';
 import { formatAmount, formatWeight } from '../../lib/load';
 import { plateSpec, type PlateSpec } from '../../lib/plates';
 import type { BarLayout, PlateRect, Rect, Side } from '../../lib/plateLayout';
-import { FADE } from '../motion';
+import { FADE } from '../../ui/motion';
 import styles from './PlateDiagram.module.css';
 
 /** Plate slide on: quick spring with a tiny settle bounce (damping ratio about 0.6). */

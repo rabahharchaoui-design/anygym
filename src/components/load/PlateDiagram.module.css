@@ -6,7 +6,7 @@
 
 /* Fixed height: the readout never pushes the bar around (no layout shift). */
 .readout {
-  height: 112px;
+  height: 96px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -16,6 +16,52 @@
 
 .readout p {
   margin: 0;
+}
+
+/* In a sheet: Type it | total | Clear, the math line under them, then the bar control's row. */
+.root:not([data-compact='true']) .readout {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas:
+    'a t c'
+    'm m m'
+    'x x x';
+  align-content: center;
+  align-items: center;
+  justify-items: center;
+}
+
+.root:not([data-compact='true']) .total {
+  grid-area: t;
+}
+
+.root:not([data-compact='true']) .math {
+  grid-area: m;
+}
+
+/* The bar control's own row under the math line (always in view, never on the text). */
+.mathAction {
+  grid-area: x;
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.root[data-action] .readout {
+  height: 136px;
+}
+
+/* A question above (unknown bar): "— lb" smaller, the readout shorter. */
+.root[data-tight] .readout {
+  height: 60px;
+}
+
+.root[data-tight] .total {
+  font-size: 34px;
+}
+
+.root[data-tight] .math {
+  margin-top: 2px !important;
 }
 
 /* Workout size: Type it | total | Clear on one row, the math line full width under it. */
@@ -179,10 +225,51 @@
   opacity: 1;
 }
 
+/* Every plate size in ONE row, always (ux-critic 1.7e): equal columns while they fit (six on the
+   SE), a sideways scroller with a soft edge fade when the gym has more sizes. */
 .tray {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-  gap: var(--space-2);
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+.tray::-webkit-scrollbar {
+  display: none;
+}
+
+.root:not([data-compact='true']) .trayPlate {
+  flex: 1 1 0;
+  min-width: 48px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 2px;
+}
+
+.root:not([data-compact='true']) .tray[data-many='true'] .trayPlate {
+  flex: 0 0 56px;
+}
+
+.root:not([data-compact='true']) .tray[data-many='true'] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  padding-right: 20px;
+}
+
+/* Six 48 pt plates fit a 320 pt phone: the tray borrows a little of the sheet's side padding. */
+@media (max-width: 340px) {
+  .root:not([data-compact='true']) .tray {
+    gap: 2px;
+    margin-inline: -6px;
+  }
+}
+
+.root:not([data-compact='true']) .swatch {
+  /* the plate seen from above: a bar as wide as the plate is big */
+  width: calc(12px + 24px * var(--size, 1));
+  height: 7px !important;
 }
 
 /* Workout size: every plate size in ONE row (SPEC 13.5); scrolls sideways only past 7 sizes. */

@@ -194,10 +194,10 @@ test('kg bar, unknown bar, and the report screenshots', async ({ page }) => {
     await shot(page, `${t}-lb`, project);
   }
 
-  // Honest unknown bar: "+ bar" form and no total number.
+  // Honest unknown bar: no total number ("— lb", 1.7e), the plates in the "+ bar" form under it.
   await page.getByRole('button', { name: 'Bar unknown' }).tap();
-  await expect(page.getByTestId('plate-total')).toHaveText('2 × (45 + 45 + 45) + bar');
-  await expect(math(page)).toHaveCount(0);
+  await expect(page.getByTestId('plate-total')).toHaveText('—lb');
+  await expect(math(page)).toHaveText('2 × (45 + 45 + 45) + bar');
   await expect(page.getByRole('button', { name: 'Type it' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Bar unknown' }).tap();
 

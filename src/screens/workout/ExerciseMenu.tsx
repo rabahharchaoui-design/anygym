@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sheet } from '../../components/Sheet';
+import { Sheet } from '../../ui/Sheet';
 import { MAX_REST_SEC } from '../../db/exerciseSettings';
 import { RepsStepper } from './RepsStepper';
 import styles from './Workout.module.css';
@@ -26,8 +26,8 @@ type Props = {
 };
 
 /**
- * The exercise ⋯ menu (SPEC 21.1). Replace and Make a pair arrive later, so they are shown
- * disabled with the reason rather than hidden or faked.
+ * The exercise ⋯ menu (SPEC 21.1). Replace and Make a pair are left out until they ship: no dead
+ * rows (ux-critic, PLAN 1.7e).
  */
 export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, removeNote, rest, note, loadedWith, onAction, onRest, onNote }: Props) {
   const [page, setPage] = useState<'menu' | 'rest' | 'note'>('menu');
@@ -41,13 +41,11 @@ export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, re
         <div className={styles.sheetBody}>
           <h2 className={styles.sheetTitle}>{name}</h2>
           <div className={styles.menu}>
-            <MenuItem label="Replace" sub="Coming with swaps" disabled />
             <MenuItem label={loadedWith ? `Loaded with: ${loadedWith}` : 'How do you load this?'} sub="Change" onPress={() => onAction('loadType')} />
             <div className={styles.menuPair}>
               <MenuItem label="Move up" sub={!canUp ? moveNote : undefined} disabled={!canUp} onPress={() => onAction('up')} />
               <MenuItem label="Move down" sub={!canDown ? moveNote : undefined} disabled={!canDown} onPress={() => onAction('down')} />
             </div>
-            <MenuItem label="Make a pair" sub="Coming later" disabled />
             <MenuItem label={note ? 'Edit note' : 'Add note'} sub={note || undefined} onPress={() => setPage('note')} />
             <MenuItem label="Rest time" sub={`${rest} s after each set`} onPress={() => setPage('rest')} />
             <MenuItem label="Remove" sub={removeNote} disabled={!!removeNote} danger onPress={() => onAction('remove')} />

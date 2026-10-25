@@ -212,7 +212,7 @@ test('D1. set types W D F, LAST TIME copy, and finish numbers match the db', asy
   expect(await page.getByTestId('finish-sets').innerText()).toBe(String(db.length));
   expect(Number(shown.replace(/[^\d.]/g, ''))).toBe(expectTotal);
   const dm = Math.round(((ss.endedAt ?? 0) - ss.startedAt) / 60000);
-  expect(mins).toBe(dm < 1 ? 'Under 1 min' : `${dm} min`);
+  expect(mins).toBe(dm < 1 ? '<1 min' : `${dm} min`);
   await expect(page.getByTestId('pr-chip')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -282,7 +282,7 @@ test('D3. no history: unknown exercise asks how it is loaded; answering gives a 
   expect(errors).toEqual([]);
 });
 
-test('D3b. Smith is a barbell on the Smith bar: no load question, honest "+ bar" form, check disabled until bar weight set', async ({ page }) => {
+test('D3b. Smith is a barbell on the Smith bar: no load question, the bar weight asked first, check disabled until it is set', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await page.getByRole('button', { name: /Quick workout/ }).tap();
@@ -301,10 +301,13 @@ test('D3b. Smith is a barbell on the Smith bar: no load question, honest "+ bar"
   await shot(page, 'd3b-smith-picker');
   console.log('smith picker', (await picker.innerText()).replace(/\n/g, ' | '));
   await picker.getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
-  await picker.getByRole('button', { name: 'Done', exact: true }).tap();
+  // 1.7e: the bar weight is asked in the sheet first; Done waits for it ("— lb", never a guess).
+  await expect(picker.getByTestId('plate-total')).toHaveText('—lb');
+  await expect(picker.getByRole('button', { name: 'Set the bar weight first', exact: true })).toBeDisabled();
+  await picker.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(view.getByTestId('check-current')).toBeDisabled();
   console.log('smith status', await view.getByTestId('set-status').innerText());
-  await expect(view.getByTestId('weight-cell').first()).toContainText('+ bar');
+  await expect(view.getByTestId('weight-cell').first()).toHaveText('Pick');
   expect(await mine(page)).toHaveLength(0);
   expect(errors).toEqual([]);
 });

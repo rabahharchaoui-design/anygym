@@ -30,9 +30,8 @@ async function exposed(locator: Locator) {
   })).toBe(true);
 }
 
-// CODEX FOUND BUG, fix in 1.7g: at 130% text on SE the long exercise heading (Workout.module.css -webkit-line-clamp: 3) is clipped
-// (scrollHeight 122 > clientHeight 92), so the exercise name is cut off; SPEC 23 says text up to 130% must not cut off.
-test.skip('SE at 130% text: long exercise title, current row, inline reps and rest remain exposed without scrolling', async ({ page }) => {
+// Was CODEX FOUND BUG, fixed in 1.7g: the exercise heading wraps instead of a 3 line clamp.
+test('SE at 130% text: long exercise title, current row, inline reps and rest remain exposed without scrolling', async ({ page }) => {
   const errors = watchErrors(page);
   await quickWith(page, [['internal shoulder', 'Band Internal Shoulder Rotation (90 degrees)']]);
   const view = exerciseView(page, 'band-internal-shoulder-rotation-90-degrees');

@@ -52,6 +52,9 @@ async function quick(page: Page) {
 /** PLAN 1.7c picker: search, pick, "Add 1" (opens the exercise). Opens the picker from the list if needed. */
 async function addExercise(page: Page, query: string, name: string) {
   const sheet = page.getByRole('dialog', { name: 'Add exercise' });
+  // Wait for the workout to render (list or exercise): an empty quick workout's picker opens in the
+  // same frame as the list, so checking during the loading skeleton raced it (1.7e flake).
+  await expect(page.getByTestId('workout-title').or(page.getByRole('button', { name: 'Back to the list' })).first()).toBeVisible();
   if (!(await sheet.isVisible())) {
     if (await page.getByRole('button', { name: 'Back to the list' }).isVisible()) await back(page);
     await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
@@ -98,7 +101,8 @@ test('(1) Log set during "Start again" saves the live hold, not the earlier stop
   await card.getByRole('button', { name: 'Start timer' }).tap();
   await page.waitForTimeout(1200);
   await card.getByRole('button', { name: 'Stop timer' }).tap();
-  await expect(card.getByTestId('timer-clock')).toHaveText('00:01');
+  // 1.7e: the Hold cell is the timer (no target here: it counts up).
+  await expect(card.getByTestId('timer-clock')).toHaveText('1 s');
   await pause(page);
   await card.getByRole('button', { name: 'Start timer' }).tap();
   await page.waitForTimeout(1500);
@@ -110,7 +114,7 @@ test('(1) Log set during "Start again" saves the live hold, not the earlier stop
   expect(set!.seconds).toBeGreaterThanOrEqual(2);
   expect(set!.load).toEqual({ kind: 'timed', unit: 'lb', total: 0 });
   // The stopwatch is reset for the next hold.
-  await expect(card.getByTestId('timer-clock')).toHaveText('00:00');
+  await expect(card.getByTestId('timer-clock')).toHaveText('Start');
   expect(errors).toEqual([]);
 });
 
@@ -143,10 +147,7 @@ test('(2) picked weight, reps and a running hold survive switching exercises and
   await back(page);
   await page.getByTestId('row-plank').tap();
   await expect(plank.getByRole('button', { name: 'Stop timer' })).toBeVisible();
-  await expect.poll(async () => {
-    const [m, s] = (await plank.getByTestId('timer-clock').textContent())!.split(':').map(Number);
-    return m! * 60 + s!;
-  }).toBeGreaterThanOrEqual(2);
+  await expect.poll(async () => parseInt((await plank.getByTestId('timer-clock').textContent())!, 10)).toBeGreaterThanOrEqual(2);
   expect(await savedSets(page)).toEqual([]);
 
   // Logged: that row's draft is cleared; the running hold's draft stays.
@@ -214,7 +215,7 @@ test('(3) delete is written at once, Undo restores the same id and order, a fail
   expect(errors.filter((e) => !e.includes('synthetic failure'))).toEqual([]);
 });
 
-test('(5) EZ Bar Curl asks for the EZ bar weight once and shows "+ bar" until answered', async ({ page }) => {
+test('(5) EZ Bar Curl asks for the EZ bar weight once, right in the weight sheet, and logs nothing until answered', async ({ page }) => {
   const errors = watchErrors(page);
   await quick(page);
   // No plan has an EZ bar move yet: put one in the workout in progress, then reload.
@@ -242,26 +243,32 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once and shows "+ bar" until an
   await page.getByTestId('row-ez-bar-curl').tap();
   const card = page.getByTestId('exercise-ez-bar-curl');
   const ask = page.getByRole('dialog', { name: 'How do you load this?' });
+  await expect(card).toBeVisible(); // 1.7e: screens change on the next frame (view transition)
   if (!(await ask.isVisible())) await card.getByRole('button', { name: 'How do you load this?' }).tap();
   await ask.getByRole('button', { name: /Plates on a bar/ }).tap();
 
-  // Unknown EZ bar: the honest "+ bar" form, no made up total, the ✓ waits.
+  // Unknown EZ bar (1.7e): the sheet asks first, no made up total ("— lb"), nothing can be logged.
   await card.getByTestId('weight-cell').first().tap();
-  await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
-  await expect(picker(page).getByTestId('plate-total')).toContainText('+ bar');
-  await expect(picker(page).getByTestId('plate-math')).toHaveCount(0);
+  await expect(picker(page).getByTestId('bar-question')).toBeVisible();
   await expect(picker(page).getByRole('button', { name: 'What is EZ curl bar?' })).toBeVisible();
-  await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(card.getByTestId('weight-cell').first()).toHaveText('20 + bar');
+  await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
+  await expect(picker(page).getByTestId('plate-total')).toHaveText('—lb');
+  await expect(picker(page).getByTestId('plate-math')).toContainText('+ bar');
+  await expect(picker(page).getByRole('button', { name: 'Set the bar weight first' })).toBeDisabled();
+  await picker(page).getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(card.getByTestId('set-status')).toHaveText('Set 1: Set the bar weight first');
   await expect(logButton(page)).toBeDisabled();
 
   await card.getByTestId('weight-cell').first().tap();
-  await picker(page).getByRole('button', { name: 'Set bar weight' }).tap();
+  // Reopened right away: a fresh sheet, the cancelled plate is gone.
+  await expect(picker(page).getByTestId('plate-math')).toHaveText('Bar weight not set');
+  await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
+  await picker(page).getByRole('button', { name: 'Other…' }).tap();
   const prompt = page.getByRole('dialog', { name: 'EZ curl bar' }).filter({ has: page.getByRole('button', { name: 'Save bar weight' }) });
   await typeOnPad(prompt, '25');
   await prompt.getByRole('button', { name: 'Save bar weight' }).tap();
   await expect(prompt).toHaveCount(0);
+  await expect(picker(page).getByTestId('bar-question')).toHaveCount(0);
   await expect(picker(page).getByTestId('plate-total')).toHaveText('45lb');
   await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
   await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 45 lb');

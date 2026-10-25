@@ -7,6 +7,7 @@ import type { Run, Session, WorkoutSet } from '../types';
 import { ANY_GYM } from '../types';
 import { finishWorkout, getActiveSession, logSet, startPlanDay } from '../workouts';
 import { choosePlan, getPlanState } from '../planState';
+import { fillPlanDay } from './fillPlanDay';
 
 // CHECKPOINT RULE: saved data is sacred. Data written by the shipped version 1 schema must all be
 // there after opening with the current schema.
@@ -109,9 +110,10 @@ describe('schema v2 → v3 migration', () => {
     await choosePlan('five-day-split', db, 10_000);
     const day = await startPlanDay(seeded.gym.id, 'five-day-split', 0, db, 11_000);
     await logSet({ id: 'p1', sessionId: day.id, exerciseId: 'barbell-back-squat', reps: 8, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] } }, db);
+    const filled = await fillPlanDay(db, day.id);
     await finishWorkout(day.id, db, 12_000);
     expect((await getPlanState(db))!.nextDayIndex).toBe(1);
-    expect(await db.sets.count()).toBe(26);
+    expect(await db.sets.count()).toBe(26 + filled);
     db.close();
   });
 });
@@ -193,6 +195,7 @@ describe('schema v4 → v5 migration (PLAN 1.10f: plan renamed, old id ohrabah-s
     const day = await startPlanDay(seeded.gym.id, 'five-day-split', 3, db, 15_000);
     expect(day).toMatchObject({ planId: 'five-day-split', dayId: '4' });
     await logSet({ id: 'p4', sessionId: day.id, exerciseId: 'barbell-back-squat', reps: 8, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] } }, db);
+    await fillPlanDay(db, day.id);
     await finishWorkout(day.id, db, 16_000);
     expect(await getPlanState(db)).toMatchObject({ planId: 'five-day-split', nextDayIndex: 4, doneDays: [0, 1, 2, 3] });
     db.close();

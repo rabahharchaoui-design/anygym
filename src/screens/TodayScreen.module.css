@@ -10,27 +10,23 @@
   gap: var(--space-2);
 }
 
-.start,
-.startSkeleton {
+.start {
   width: 100%;
   min-height: 96px;
-  border-radius: 24px;
-}
-
-.start {
+  border-radius: 28px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
   gap: 4px;
   padding: var(--space-4) var(--space-5);
-  background: var(--accent);
+  background: linear-gradient(to bottom, #e0ff6a, var(--accent) 60%);
   color: var(--on-accent);
   text-align: left;
-}
-
-.startSkeleton {
-  background: var(--surface-1);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    var(--accent-glow);
+  view-transition-name: workout-head;
 }
 
 .startLabel {
@@ -75,19 +71,24 @@
 
 .pick,
 .dayCard {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-5);
-  border: 1px solid var(--hairline);
-  border-radius: 24px;
-  background: var(--surface-1);
+  border: 1px solid var(--glass-line);
+  border-radius: 28px;
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgb(212 255 58 / 0.09), transparent 60%),
+    linear-gradient(to bottom, #141417, var(--surface-1));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
 }
 
 .pickTitle {
   font-size: var(--text-xl);
   font-weight: 700;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .pickSub {
@@ -96,28 +97,20 @@
   line-height: 1.4;
 }
 
-.pickButton {
-  min-height: 56px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 700;
-}
-
 /* Quick workout: the second, smaller action. */
 .quick {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  min-height: 64px;
+  min-height: 68px;
   padding: var(--space-3) var(--space-5);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-line);
+  border-radius: 22px;
+  background: rgb(255 255 255 / 0.04);
   color: var(--text);
   text-align: left;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
 }
 
 .quickLabel {
@@ -133,6 +126,7 @@
 
 .dayCard {
   view-transition-name: plan-day;
+  padding-bottom: var(--space-3);
 }
 
 .planName {
@@ -144,16 +138,19 @@
 
 .dayTitle {
   margin-top: -6px;
-  font-size: var(--text-lg);
+  font-size: clamp(22px, 6.2vw, 26px);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
   text-wrap: balance;
 }
 
-.dayStart {
-  min-height: 72px;
-  align-items: center;
-  border-radius: var(--radius-pill);
+.dayCard .dayStart {
+  min-height: 64px;
+  margin-top: var(--space-1);
+  font-size: 22px;
+  view-transition-name: workout-head;
 }
 
 .strip {
@@ -181,47 +178,79 @@
 .dayDot {
   flex: 1;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
-.dotCircle {
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
+/* Each pip opens Change day on its day: a 48pt target around a small mark and its label. */
+.pipBox {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  border: 1.5px solid var(--hairline);
-  color: var(--text-2);
-  font-family: var(--font-display);
+  gap: 4px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border-radius: 14px;
+  color: inherit;
+}
+
+/* One fixed box for every mark (dot or ring), so the labels share a baseline. */
+.pipMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.inProgress {
+  margin: -6px 0 0;
+  color: var(--accent);
+  font-size: var(--text-sm);
   font-weight: 700;
+}
+
+/* Small progress pips (not outlined): empty, up next, done; part done is a part filled disc. */
+.pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2a2a31;
   transition:
     background-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+    transform var(--dur-fast) var(--ease-out);
 }
 
-.dayDot[data-state='done'] .dotCircle {
-  background: rgba(212, 255, 58, 0.14);
-  border-color: transparent;
-  color: var(--accent);
-}
-
-.dayDot[data-state='next'] .dotCircle {
+.dayDot[data-state='done'] .pip {
   background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
 }
 
-.changeDay {
-  align-self: center;
-  min-height: var(--tap);
-  padding: 0 var(--space-4);
+.dayDot[data-state='next'] .pip {
+  background: var(--text);
+  transform: scale(1.15);
+}
+
+.pipRing {
+  width: 14px;
+  height: 14px;
+}
+
+.pipLabel {
   color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dayDot[data-state='next'] .pipLabel {
+  color: var(--text);
+}
+
+.dayCard .changeDay {
+  align-self: center;
   font-size: var(--text-sm);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .sheetBody {
@@ -249,13 +278,19 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid var(--glass-line);
   text-align: left;
 }
 
 .dayChoice[aria-current='true'] {
+  border-color: var(--accent);
+}
+
+/* The day whose pip was tapped: picked out, one tap to confirm. */
+.dayChoice[data-picked] {
+  background: rgb(212 255 58 / 0.14);
   border-color: var(--accent);
 }
 
@@ -272,7 +307,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dayCard {
+  .dayCard,
+  .dayStart,
+  .start {
     view-transition-name: none;
   }
 }

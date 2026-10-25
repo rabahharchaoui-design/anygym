@@ -6,6 +6,7 @@ import { startDb } from './db/bootstrap';
 import { registerAppUpdates } from './pwa';
 import './styles/tokens.css';
 import './styles/base.css';
+import './styles/transitions.css';
 
 // iOS Safari only applies :active styles when a touch listener exists.
 document.addEventListener('touchstart', () => {}, { passive: true });

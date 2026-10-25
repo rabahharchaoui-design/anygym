@@ -1,0 +1,74 @@
+import { useRef, useState } from 'react';
+import { setEquipmentWeight } from '../../db/equipment';
+import type { EquipmentWeight, Gym, Unit } from '../../db/types';
+import { entryFor, type PromptKind } from '../../lib/equipmentPrompt';
+import { formatWeight } from '../../lib/load';
+import { InfoButton } from '../info/InfoButton';
+import styles from './BarQuestion.module.css';
+
+/** Common bar weights to pick from. The user's answer, never a guess: nothing is preset. */
+export const BAR_CHIPS: Record<Unit, number[]> = { lb: [15, 20, 25, 35, 45], kg: [7, 10, 15, 20] };
+
+type Props = {
+  gymId: string;
+  unit: Unit;
+  machineId: string;
+  kind: PromptKind;
+  /** Glossary id for the ⓘ. */
+  info: string;
+  /** Saved: the gym with the answer (the bar is known from here on). */
+  onSaved: (gym: Gym) => void;
+  /** "Other…": a number pad for any other weight. */
+  onOther: () => void;
+};
+
+/**
+ * First use of a Smith, EZ or trap bar, on top of the weight sheet (ux-critic, SPEC 5.3): "What
+ * does this bar weigh?" with common weights, "Count plates only" and "Other…". Saved for this gym;
+ * nothing is logged until it is answered.
+ */
+export function BarQuestion({ gymId, unit, machineId, kind, info, onSaved, onOther }: Props) {
+  const [error, setError] = useState(false);
+  const saving = useRef(false);
+  const save = async (entry: EquipmentWeight) => {
+    if (saving.current) return; // a double tap saves once
+    saving.current = true;
+    setError(false);
+    try {
+      onSaved(await setEquipmentWeight(gymId, machineId, entry));
+    } catch {
+      setError(true);
+    } finally {
+      saving.current = false;
+    }
+  };
+  return (
+    <section className={styles.box} aria-labelledby="bar-question" data-testid="bar-question">
+      <div className={styles.titleRow}>
+        <h3 id="bar-question" className={styles.title}>
+          What does this bar weigh?
+        </h3>
+        <InfoButton id={info} className={styles.info} />
+      </div>
+      <div className={styles.chips} role="group" aria-label="Bar weight">
+        {BAR_CHIPS[unit].map((w) => (
+          <button key={w} type="button" className={`${styles.chip} num pressable`} aria-label={`Bar weighs ${formatWeight(w, unit)}`} onClick={() => void save(entryFor(kind, w))}>
+            {w}
+            <span className={styles.unit}>{unit}</span>
+          </button>
+        ))}
+      </div>
+      <div className={styles.row}>
+        <button type="button" className={`${styles.option} pressable`} onClick={() => void save({ kind: 'plates_only', value: 0 })}>
+          Count plates only
+        </button>
+        <button type="button" className={`${styles.option} pressable`} onClick={onOther}>
+          Other…
+        </button>
+      </div>
+      <p className={styles.error} role="status">
+        {error ? 'Could not save that. Try again.' : ''}
+      </p>
+    </section>
+  );
+}

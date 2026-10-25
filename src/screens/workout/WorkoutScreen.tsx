@@ -1,25 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, WorkoutSet } from '../../db/types';
-import {
-  WorkoutFinishedError,
-  addExercise,
-  deleteSet,
-  finishWorkout,
-  removeExercise,
-  restoreExercise,
-  restoreSet,
-  setExerciseOrder,
-  updateSet,
-} from '../../db/workouts';
+import { WorkoutFinishedError, addExercise, deleteSet, finishWorkout, removeExercise, restoreExercise, restoreSet, setExerciseOrder, updateSet } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
+import { getPlanState } from '../../db/planState';
 import { moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
-import { Toast, type ToastMessage } from '../../components/Toast';
-import { FADE, SHEET_SPRING } from '../../components/motion';
+import { Toast, type ToastMessage } from '../../ui/Toast';
+import { FADE, SHEET_SPRING } from '../../ui/motion';
+import { BackButton } from '../../ui/BackButton';
+import { IconButton } from '../../ui/IconButton';
+import { ChevronDown } from '../../ui/icons';
+import { EdgeSwipe } from '../../ui/EdgeSwipe';
+import { Odometer } from '../../ui/Odometer';
+import { Skeleton } from '../../ui/Skeleton';
+import { supportsViewTransitions, useNav } from '../../ui/nav';
 import { createDeleteUndo } from '../../lib/deleteUndo';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
@@ -35,24 +33,51 @@ import { ExercisePicker } from './ExercisePicker';
 import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { RestDock } from './RestDock';
-import { ChevronLeft } from './icons';
 import { useWorkout } from './useWorkout';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';
 
+/**
+ * Push and pop without the View Transitions API (older iOS, SPEC 13.2 and 23.1): the same iOS
+ * motion with Motion. dir 1 push: the new view slides in from the right over the old one, which
+ * moves 30% left and dims. dir -1 pop: the reverse, the leaving view on top. dir 0: no movement
+ * (the edge swipe or a sheet already covered the change).
+ */
+const FALLBACK_PUSH: Variants = {
+  enter: (dir: number) => (dir === 0 ? { x: 0, opacity: 1 } : dir > 0 ? { x: '100%', opacity: 1, zIndex: 2 } : { x: '-30%', opacity: 0.6, zIndex: 1 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => (dir === 0 ? { opacity: 0, transition: { duration: 0 } } : dir > 0 ? { x: '-30%', opacity: 0.6, zIndex: 1 } : { x: '100%', opacity: 1, zIndex: 2 }),
+};
+const FALLBACK_FADE: Variants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
+/** Which way the last go() moved, as nav.ts records it when it has to fall back. */
+const fallbackDir = (): number => {
+  const k = document.documentElement.dataset.navFallback;
+  return k === 'push' ? 1 : k === 'pop' ? -1 : 0;
+};
+
+/** A view on its way out is hidden from screen readers and takes no taps. */
+function Present({ children }: { children: ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <div className={styles.present} aria-hidden={present ? undefined : true} {...(present ? {} : { inert: '' })}>
+      {children}
+    </div>
+  );
+}
+
 let toastSeq = 0;
 const toastOf = (text: string, action?: ToastMessage['action']): ToastMessage => ({ id: ++toastSeq, text, action });
 
-/** iOS push (SPEC 13.2, 23.1): the new screen slides in from the right, the old one moves 30% left and dims. */
-/** dir 0: no movement (the picker sheet already covers the change). */
-const PUSH: Variants = {
-  enter: (dir: number) => (dir === 0 ? { x: 0, opacity: 1 } : { x: dir > 0 ? '100%' : '-30%', opacity: dir > 0 ? 1 : 0.6 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => (dir === 0 ? { opacity: 0, transition: { duration: 0 } } : { x: dir > 0 ? '-30%' : '100%', opacity: dir > 0 ? 0.6 : 1 }),
-};
-const CROSSFADE: Variants = { enter: { opacity: 0 }, center: { opacity: 1 }, exit: { opacity: 0 } };
+/** How long "Nice. Next" stays before the list comes back (SPEC 20.2). */
+const CHIP_MS = 2500;
 
-type Chip = { id: number; text: string };
+/** `open`: the chip is a button that opens this exercise. */
+type Chip = { id: number; text: string; open?: string };
 
 /**
  * The workout (SPEC 20, 21.1): the day list at #/workout/:id and one exercise at
@@ -62,7 +87,7 @@ type Chip = { id: number; text: string };
 export function WorkoutScreen() {
   const { sessionId = '', '*': sub = '' } = useParams();
   const exerciseId = sub ? decodeURIComponent(sub.split('/')[0]!) : null;
-  const navigate = useNavigate();
+  const go = useNav();
   const location = useLocation();
   const reduce = useReducedMotion();
   useWakeLock(true);
@@ -80,7 +105,14 @@ export function WorkoutScreen() {
   const routeRef = useRef(exerciseId);
   routeRef.current = exerciseId;
 
-  const deletes = useMemo(() => createDeleteUndo<WorkoutSet>({ remove: (s) => deleteSet(s.id), restore: restoreSet }), []);
+  const deletes = useMemo(
+    () =>
+      createDeleteUndo<WorkoutSet>({
+        remove: (s) => deleteSet(s.id),
+        restore: restoreSet,
+      }),
+    [],
+  );
 
   useEffect(() => onDraftStorageFail(() => setToast(toastOf(DRAFTS_NOT_SAVED))), []);
   useEffect(() => {
@@ -93,52 +125,76 @@ export function WorkoutScreen() {
   useEffect(() => hints.setBlocked(rest !== null), [rest]);
   useEffect(() => () => hints.setBlocked(false), []);
 
-  const setRest = useCallback(
-    (r: Rest | null) => {
-      setRestState(r);
-      saveRest(r);
-    },
-    [],
-  );
+  const setRest = useCallback((r: Rest | null) => {
+    setRestState(r);
+    saveRest(r);
+  }, []);
   const notice = (text: string, retry?: () => void) => setToast(toastOf(text, retry ? { label: 'Try again', onPress: retry } : undefined));
 
   // ---------------------------------------------------------------- navigation
 
-  const navState = location.state as { fromList?: boolean; instant?: boolean } | null;
+  // Screen changes are iOS push and pop view transitions (src/ui/nav.ts): the header and the rest
+  // bar have their own names so they stay put, and the tapped row's tile grows into the hero.
+  const navState = location.state as {
+    fromList?: boolean;
+    instant?: boolean;
+    expand?: boolean;
+  } | null;
   const fromList = navState?.fromList === true;
-  const prevView = useRef<string | null>(exerciseId);
   const order = w.entries.map((e) => e.exerciseId);
-  const dir = (() => {
-    const before = prevView.current;
-    if (navState?.instant && before !== exerciseId) return 0;
-    if (before === exerciseId) return 1;
-    if (exerciseId === null) return -1;
-    if (before === null) return 1;
-    return order.indexOf(exerciseId) >= order.indexOf(before) ? 1 : -1;
-  })();
+  // The exercise the list was last left from: its tile is the one the hero shrinks back into.
+  const [lastViewed, setLastViewed] = useState<string | null>(exerciseId);
   useEffect(() => {
-    prevView.current = exerciseId;
+    if (exerciseId) setLastViewed(exerciseId);
   }, [exerciseId]);
+  // Arriving from Today's Start: the day card expands into this screen (named for that one transition).
+  const [expanding, setExpanding] = useState(navState?.expand === true);
+  useEffect(() => {
+    if (!expanding) return;
+    const t = window.setTimeout(() => setExpanding(false), 600);
+    return () => window.clearTimeout(t);
+  }, [expanding]);
 
   const openExercise = (id: string, instant = false) =>
-    navigate(`/workout/${sessionId}/${encodeURIComponent(id)}`, { state: { fromList: true, ...(instant ? { instant: true } : {}) } });
-  const switchExercise = (id: string) => navigate(`/workout/${sessionId}/${encodeURIComponent(id)}`, { replace: true, state: { fromList } });
-  const goList = () => {
-    if (fromList) navigate(-1);
-    else navigate(`/workout/${sessionId}`, { replace: true });
+    go(`/workout/${sessionId}/${encodeURIComponent(id)}`, {
+      kind: instant ? 'none' : 'push',
+      state: { fromList: true, ...(instant ? { instant: true } : {}) },
+    });
+  const switchExercise = (id: string) =>
+    go(`/workout/${sessionId}/${encodeURIComponent(id)}`, {
+      kind: 'push',
+      replace: true,
+      state: { fromList },
+    });
+  const goList = (kind: 'pop' | 'none' = 'pop') => {
+    if (fromList) go(-1, { kind });
+    else go(`/workout/${sessionId}`, { kind, replace: true });
   };
+  const viewRef = useRef<HTMLDivElement | null>(null);
+  // No View Transitions here: the views move with Motion instead (read once; it never changes).
+  const [fallback] = useState(() => !supportsViewTransitions());
+  const dir = fallback ? fallbackDir() : 0;
 
   const chipTimer = useRef<number | undefined>(undefined);
   /** "Nice. Next: Romanian deadlift" for a moment, then `then` if the user is still on that exercise. */
-  const showChip = (text: string, ms: number, from: string, then: () => void) => {
+  const chipArm = useRef<((ms: number) => void) | null>(null);
+  const showChip = (text: string, ms: number, from: string, then: () => void, open?: string) => {
     window.clearTimeout(chipTimer.current);
-    const c = { id: ++toastSeq, text };
+    const c: Chip = { id: ++toastSeq, text, ...(open ? { open } : {}) };
     setChip(c);
-    chipTimer.current = window.setTimeout(() => {
-      setChip((cur) => (cur?.id === c.id ? null : cur));
-      if (routeRef.current === from) then();
-    }, ms);
+    const arm = (wait: number) => {
+      window.clearTimeout(chipTimer.current);
+      chipTimer.current = window.setTimeout(() => {
+        setChip((cur) => (cur?.id === c.id ? null : cur));
+        if (routeRef.current === from) then();
+      }, wait);
+    };
+    chipArm.current = arm;
+    arm(ms);
   };
+  // A finger on the chip holds the automatic return; lifted without a tap, it carries on.
+  const holdChip = () => window.clearTimeout(chipTimer.current);
+  const releaseChip = () => chipArm.current?.(900);
   useEffect(() => () => window.clearTimeout(chipTimer.current), []);
   useEffect(() => {
     // Leaving the exercise by hand ends its chip.
@@ -163,7 +219,8 @@ export function WorkoutScreen() {
       showChip(`Next: ${w.nameOf(next)}`, 900, id, () => switchExercise(next));
     } else if ((done[id] ?? 0) >= e.sets) {
       const after = upNext(entries, done, id);
-      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', 1500, id, goList);
+      // The chip is a button straight into the next exercise; untouched, it returns to the list (SPEC 20.2).
+      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', CHIP_MS, id, () => goList(), after ?? undefined);
     }
   };
 
@@ -250,7 +307,10 @@ export function WorkoutScreen() {
         setToast(
           err instanceof WorkoutFinishedError
             ? toastOf('That workout is already finished')
-            : toastOf('Could not bring that set back', { label: 'Try again', onPress: () => restore(set) }),
+            : toastOf('Could not bring that set back', {
+                label: 'Try again',
+                onPress: () => restore(set),
+              }),
         ),
     );
   };
@@ -263,7 +323,12 @@ export function WorkoutScreen() {
     await deletes.remove(set).catch(() => {
       if (deletes.canUndo(set.id)) return; // an Undo already put it back
       unhide(set.id);
-      setToast(toastOf('Could not delete that set', { label: 'Try again', onPress: () => void onDelete(set) }));
+      setToast(
+        toastOf('Could not delete that set', {
+          label: 'Try again',
+          onPress: () => void onDelete(set),
+        }),
+      );
     });
   };
 
@@ -309,13 +374,20 @@ export function WorkoutScreen() {
       // No new delete or Undo from here; every write still running lands before the sets are counted.
       await deletes.close();
       await logQueue.settle(sessionId);
+      // The plan pointer as it is now, so Undo on Today can put it back exactly.
+      const planBefore = await getPlanState();
       const result = await finishWorkout(sessionId);
       setRest(null);
       clearSessionDrafts(sessionId);
       logQueue.clearSession(sessionId);
       clearExtraSets();
-      if (result.saved) navigate(`/workout/${sessionId}/done`, { replace: true });
-      else navigate('/', { replace: true, state: { toast: 'Nothing logged · Workout discarded' } });
+      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'fade', replace: true, state: { planBefore } });
+      else
+        go('/', {
+          kind: 'pop',
+          replace: true,
+          state: { toast: 'Nothing logged · Workout discarded' },
+        });
     } catch {
       finishing.current = false;
       deletes.reopen();
@@ -341,22 +413,40 @@ export function WorkoutScreen() {
   const menuId = menuFor;
   const menuEntry = menuId ? w.entryOf(menuId) : undefined;
   const ids = w.session?.exerciseIds ?? [];
-  const variants = reduce ? CROSSFADE : PUSH;
+
+  const view = exerciseId ? (
+    <ExerciseView
+      w={w}
+      sessionId={sessionId}
+      exerciseId={exerciseId}
+      onLogged={onLogged}
+      onEditSet={setEditing}
+      onAskLoadType={() => setAsking(exerciseId)}
+      onMenu={() => setMenuFor(exerciseId)}
+      onSwipeNext={swipeNext}
+      onNotice={notice}
+    />
+  ) : (
+    <DayList w={w} heroId={lastViewed} onOpen={openExercise} onAdd={() => setPicking(true)} />
+  );
 
   return (
     <div className={styles.screen}>
       <header className={styles.topBar}>
         {exerciseId ? (
-          <button type="button" className={`${styles.back} pressable`} onClick={goList} aria-label="Back to the list">
-            <ChevronLeft />
-          </button>
-        ) : null}
+          <BackButton onPress={() => goList()} label="Back to the list" />
+        ) : (
+          // Back to the tabs; the workout keeps going (the resume bar brings it back).
+          <IconButton label="Minimize workout" onPress={() => go('/', { kind: 'down' })}>
+            <ChevronDown strokeWidth={2.4} />
+          </IconButton>
+        )}
         <div className={styles.stats}>
           <span className={`${styles.clock} num`} data-testid="elapsed" role="timer" aria-live="off">
             {startedAt ? formatElapsed((now - startedAt) / 1000) : '0:00'}
           </span>
           <span className={`${styles.statLine} num`} data-testid="live-stats">
-            {w.sets.length} {w.sets.length === 1 ? 'set' : 'sets'}
+            <Odometer value={w.sets.length} /> {w.sets.length === 1 ? 'set' : 'sets'}
             {lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}
           </span>
         </div>
@@ -365,41 +455,49 @@ export function WorkoutScreen() {
         </button>
       </header>
 
-      <div className={styles.stage}>
+      <div className={styles.stage} data-expand={expanding || undefined}>
         {!w.ready ? (
-          <div className={styles.skeleton} aria-hidden="true" />
+          <Skeleton height={220} className={styles.skeleton} />
         ) : (
-          <AnimatePresence initial={false} custom={dir}>
-            <motion.div
-              key={exerciseId ?? 'list'}
-              className={styles.view}
-              custom={dir}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={reduce ? FADE : SHEET_SPRING}
-            >
-              <Present>
-                {exerciseId ? (
-                  <ExerciseView
-                    w={w}
-                    sessionId={sessionId}
-                    exerciseId={exerciseId}
-                    onLogged={onLogged}
-                    onEditSet={setEditing}
-                    onAskLoadType={() => setAsking(exerciseId)}
-                    onMenu={() => setMenuFor(exerciseId)}
-                    onSwipeNext={swipeNext}
-                    onBack={goList}
-                    onNotice={notice}
-                  />
-                ) : (
-                  <DayList w={w} onOpen={openExercise} onAdd={() => setPicking(true)} />
+          <>
+            {fallback ? (
+              <AnimatePresence initial={false} custom={dir}>
+                <motion.div
+                  key={exerciseId ?? 'list'}
+                  ref={(el: HTMLDivElement | null) => {
+                    // Only the arriving view: the leaving one must never take the edge swipe layer away.
+                    if (el) viewRef.current = el;
+                  }}
+                  className={styles.view}
+                  data-motion-view="true"
+                  custom={dir}
+                  variants={reduce ? FALLBACK_FADE : FALLBACK_PUSH}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={reduce ? FADE : SHEET_SPRING}
+                >
+                  <Present>{view}</Present>
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              <div key={exerciseId ?? 'list'} ref={viewRef} className={styles.view}>
+                {view}
+              </div>
+            )}
+            {exerciseId && (
+              <EdgeSwipe
+                key={`swipe-${exerciseId}`}
+                layerRef={viewRef}
+                onBack={() => goList('none')}
+                under={() => (
+                  <div className={styles.view}>
+                    <DayList w={w} heroId={null} onOpen={() => undefined} onAdd={() => undefined} />
+                  </div>
                 )}
-              </Present>
-            </motion.div>
-          </AnimatePresence>
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -408,9 +506,9 @@ export function WorkoutScreen() {
       <div className={styles.dockWrap}>
         <AnimatePresence>
           {chip && (
-            <motion.p
+            <motion.div
               key={chip.id}
-              className={styles.nextChip}
+              className={styles.nextChipWrap}
               role="status"
               data-testid="next-chip"
               initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
@@ -418,8 +516,27 @@ export function WorkoutScreen() {
               exit={{ opacity: 0, transition: { duration: 0.15 } }}
               transition={reduce ? FADE : SHEET_SPRING}
             >
-              {chip.text}
-            </motion.p>
+              {chip.open ? (
+                <button
+                  type="button"
+                  className={`${styles.nextChip} pressable`}
+                  onPointerDown={holdChip}
+                  onPointerCancel={releaseChip}
+                  onPointerLeave={(e) => e.buttons && releaseChip()}
+                  onClick={() => {
+                    window.clearTimeout(chipTimer.current);
+                    const next = chip.open!;
+                    // It fades out first, so it never rides along with the view that slides in.
+                    setChip(null);
+                    window.setTimeout(() => switchExercise(next), 160);
+                  }}
+                >
+                  {chip.text}
+                </button>
+              ) : (
+                <span className={styles.nextChip}>{chip.text}</span>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
         <AnimatePresence>
@@ -468,16 +585,6 @@ export function WorkoutScreen() {
         onRest={(s) => menuId && saveExerciseRest(menuId, s).catch(() => notice('Could not save that. Try again.'))}
         onNote={(n) => menuId && saveExerciseNote(menuId, n).catch(() => notice('Could not save that. Try again.'))}
       />
-    </div>
-  );
-}
-
-/** A screen sliding away is hidden from screen readers and takes no taps (one main at a time). */
-function Present({ children }: { children: ReactNode }) {
-  const present = useIsPresent();
-  return (
-    <div className={styles.present} aria-hidden={present ? undefined : true} {...(present ? {} : { inert: '' })}>
-      {children}
     </div>
   );
 }

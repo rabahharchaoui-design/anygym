@@ -73,7 +73,7 @@ test('r3: finisher in viewer and workout', async ({ page }) => {
   const view = page.getByTestId('exercise-finisher-stair-climbing');
   await expect(view).toBeVisible();
   await expect(view.getByRole('button', { name: 'Start timer' })).toBeVisible();
-  await expect(view.getByTestId('hold-cell')).toHaveText([`${f.minutes * 60} s`]);
+  await expect(view.getByTestId('hold-cell')).toHaveText([`${f.minutes * 60 < 60 ? `${f.minutes * 60} s` : `${f.minutes}:00`}Tap to start`]);
   await page.waitForTimeout(450);
   await page.screenshot({ path: `reports/shots/1.10/r3-finisher-d2-${test.info().project.name.replace(/ /g, '-')}.png` });
   expect(errors).toEqual([]);

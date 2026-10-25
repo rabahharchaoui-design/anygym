@@ -1,4 +1,4 @@
-import { Sheet } from '../../components/Sheet';
+import { Sheet } from '../../ui/Sheet';
 import type { Load } from '../../db/types';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';

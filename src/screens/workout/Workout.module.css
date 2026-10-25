@@ -13,27 +13,19 @@
 /* ---------------------------------------------------------------- live header */
 
 .topBar {
+  position: relative;
+  z-index: 4;
   flex: none;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: calc(var(--safe-top) + 56px);
-  padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-3) + var(--safe-left));
-  border-bottom: 1px solid var(--hairline);
-  background: var(--bg);
-}
-
-.back {
-  flex: none;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--hairline);
-  color: var(--text);
+  padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-2) + var(--safe-left));
+  border-bottom: 1px solid var(--glass-line);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  view-transition-name: workout-head;
 }
 
 .stats {
@@ -42,7 +34,7 @@
   display: flex;
   flex-direction: column;
   line-height: 1.1;
-  padding-left: 4px;
+  padding-left: 8px;
 }
 
 .clock {
@@ -54,22 +46,24 @@
   color: var(--text-2);
   font-size: 13px;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* wraps at large text sizes instead of cutting off (PLAN 1.7g) */
+  overflow-wrap: anywhere;
 }
 
 .finish {
   flex: none;
   height: 48px;
-  min-width: 84px;
+  min-width: 88px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgb(212 255 58 / 0.55);
   color: var(--accent);
+  font-family: var(--font-display);
   font-weight: 700;
   position: relative;
 }
+
 
 /* ---------------------------------------------------------------- screens */
 
@@ -80,22 +74,25 @@
   overflow: hidden;
 }
 
+/* Today's day card expands into this screen (named only for that one transition). */
+.stage[data-expand] {
+  view-transition-name: plan-day;
+}
+
 .view {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: var(--bg);
-  will-change: transform;
-}
-
-.present {
-  height: 100%;
 }
 
 .skeleton {
   margin: var(--space-4);
-  height: 220px;
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
+}
+
+/* Wraps a view in the Motion fallback only to mark the leaving one inert; adds no box. */
+.present {
+  display: contents;
 }
 
 /* ---------------------------------------------------------------- exercise view */
@@ -131,14 +128,13 @@
 }
 
 .exName {
-  font-size: clamp(19px, 5.6vw, 23px);
+  /* Wraps, never clipped (PLAN 1.7g): long names step down a size instead of being cut off. */
+  font-size: clamp(18px, 5.4vw, 23px);
   font-weight: 700;
   line-height: 1.12;
+  letter-spacing: -0.015em;
   overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
+  text-wrap: balance;
 }
 
 .exTarget {
@@ -154,9 +150,7 @@
   color: var(--text-2);
   font-size: 13px;
   line-height: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .moreButton {
@@ -210,52 +204,6 @@
   font-size: 15px;
 }
 
-.holdBar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 6px 6px 6px var(--space-4);
-  border-radius: 18px;
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-}
-
-.holdClock {
-  flex: 1;
-  font-size: 30px;
-  font-weight: 700;
-}
-
-.holdReset {
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  color: var(--text-2);
-  font-weight: 600;
-}
-
-.holdReset:disabled {
-  opacity: 0.35;
-}
-
-.holdButton {
-  min-width: 110px;
-  height: 52px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.holdButton[data-running='true'] {
-  background: var(--surface-2);
-  color: var(--accent);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
 .statusLine {
   flex: none;
   position: relative;
@@ -297,31 +245,51 @@
 }
 
 /* "Nice. Next: Romanian deadlift" (SPEC 20.2): floats above the rest bar for a moment. */
-.nextChip {
+.nextChipWrap {
   position: absolute;
   left: 50%;
   bottom: calc(100% + var(--rest-height) + 10px);
   transform-origin: center bottom;
   translate: -50% 0;
   margin: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+
+.nextChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin: 0;
   padding: 10px 18px;
   border-radius: var(--radius-pill);
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 700;
-  white-space: nowrap;
+  text-align: center;
+  width: max-content;
   max-width: calc(100vw - 32px);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 3;
   pointer-events: none;
+}
+
+/* The "Nice. Next" chip as a button: it takes the tap (the plain status line does not). */
+button.nextChip {
+  pointer-events: auto;
+}
+
+.nextChipWrap {
+  z-index: 3;
 }
 
 /* The outermost bottom element: it alone adds the bottom inset; the rest bar sits just above it. */
 .dockWrap {
   flex: none;
   position: relative;
+  z-index: 4;
   padding-bottom: var(--safe-bottom);
   background: var(--bg);
 }
@@ -338,9 +306,7 @@
   font-family: var(--font-display);
   font-size: clamp(16px, 5vw, 20px);
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .logButton:disabled {
@@ -442,40 +408,16 @@
   align-items: center;
   gap: var(--space-2);
   padding: 6px calc(var(--space-3) + var(--safe-right)) 6px calc(var(--space-4) + var(--safe-left));
-  background: var(--surface-2);
-  border-top: 1px solid var(--hairline);
-}
-
-.restRing {
-  flex: none;
-  width: 44px;
-  height: 44px;
-}
-
-.restTrack {
-  fill: none;
-  stroke: var(--hairline);
-  stroke-width: 5;
-}
-
-.restProgress {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 5;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 250ms linear;
-}
-
-.rest[data-done='true'] .restProgress {
-  stroke: transparent;
-}
-
-.rest[data-done='true'] .restTrack {
-  stroke: var(--accent);
+  background: var(--glass-bg-strong);
+  border-top: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  view-transition-name: workout-dock;
 }
 
 .restText {
-  flex: 1;
+  /* never narrower than the clock itself (Codex 1.7e: at 130% text it ran into −15) */
+  flex: 1 0 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -491,6 +433,10 @@
 .restClock {
   font-size: 26px;
   font-weight: 700;
+  /* "0:00" in tabular numerals: the clock's own width is reserved, so it cannot shrink or shift */
+  min-width: 4ch;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .rest[data-done='true'] .restClock {
@@ -503,11 +449,23 @@
   height: var(--tap);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid var(--glass-line);
   font-weight: 700;
   font-size: var(--text-base);
   white-space: nowrap;
+}
+
+/* Narrow phones (SE, large text): tighter gaps and padding; every button keeps its 48pt target. */
+@media (max-width: 400px) {
+  .rest {
+    gap: 6px;
+    padding-left: calc(var(--space-3) + var(--safe-left));
+    padding-right: calc(var(--space-2) + var(--safe-right));
+  }
+  .restButton {
+    padding: 0 var(--space-2);
+  }
 }
 
 /* ---------------------------------------------------------------- sheets */

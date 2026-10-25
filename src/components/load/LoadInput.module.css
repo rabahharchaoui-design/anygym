@@ -209,3 +209,19 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+/* The bar control under the math line ("45 bar = 45 lb", then "Change bar"): a full 48pt button. */
+.mathAction {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.mathLink {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 var(--space-2);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}

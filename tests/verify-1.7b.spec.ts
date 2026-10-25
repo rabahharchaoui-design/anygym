@@ -177,7 +177,9 @@ test('Smith machine: ⓘ in the first use prompt opens the info sheet; 48 pt hit
   await expect(card.getByRole('button', { name: 'What is Smith machine?' })).toBeVisible();
   await expectNoDebugText(page);
 
-  await card.getByRole('button', { name: 'Set bar weight' }).tap();
+  // 1.7e: the bar question sits on top of the weight sheet; "Other…" opens the full prompt.
+  await expect(card.getByTestId('bar-question')).toBeVisible();
+  await card.getByRole('button', { name: 'Other…' }).tap();
   const prompt = page.getByRole('dialog', { name: 'Smith machine bar' });
   await expect(prompt).toBeVisible();
   const info = prompt.getByRole('button', { name: 'What is Smith machine?' });

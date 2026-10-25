@@ -79,15 +79,17 @@ a {
   outline-offset: 2px;
 }
 
-/* Instant press feedback (SPEC 13.2): scale + slight dim within one frame. */
+/* Instant press feedback (SPEC 13.2): scale + slight dim on the very first frame of the press (no
+   transition going in), then an ease out on release. */
 .pressable {
   transition:
-    transform var(--dur-press) var(--ease-out),
-    opacity var(--dur-press) var(--ease-out);
+    transform 160ms var(--ease-out),
+    opacity 160ms var(--ease-out);
 }
 .pressable:active {
   transform: scale(var(--press-scale));
   opacity: var(--press-dim);
+  transition-duration: 0ms;
 }
 
 @media (prefers-reduced-motion: reduce) {

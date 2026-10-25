@@ -1,0 +1,138 @@
+/* The nav reaches the bottom edge (PLAN 1.10b) and owns the one bottom inset; it is see through,
+   so content scrolls under it, and only the capsule takes taps. */
+.bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding: 0 calc(var(--space-4) + var(--safe-right)) var(--tabbar-gap) calc(var(--space-4) + var(--safe-left));
+  pointer-events: none;
+  view-transition-name: tabbar;
+  transition:
+    transform var(--dur-base) var(--ease-drawer),
+    opacity var(--dur-base) var(--ease-drawer);
+}
+
+/* Pushed screens (plan, history detail): slid below the screen edge. */
+.bar[data-hidden] {
+  transform: translateY(calc(100% + 24px));
+  opacity: 0;
+}
+
+.bar[data-hidden] .capsule {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: opacity var(--dur-fast) linear;
+  }
+  .bar[data-hidden] {
+    transform: none;
+  }
+}
+
+/* a soft fade so content never meets the capsule with a hard edge */
+.bar::before {
+  content: '';
+  position: absolute;
+  inset: -28px 0 0;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(0 0 0 / 0.75) 60%);
+  pointer-events: none;
+}
+
+.capsule {
+  position: relative;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 420px;
+  height: var(--tabbar-capsule);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 0.5),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  touch-action: none;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  min-width: var(--tap);
+  border-radius: var(--radius-pill);
+  color: var(--text-2);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+/* Held: the whole tab scales to 0.94 on the first frame (no transition in), eases back on release. */
+.tab:active {
+  transform: scale(0.94);
+  transition-duration: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab:active {
+    transform: none;
+  }
+}
+
+.tab[data-active] {
+  color: var(--on-accent);
+}
+
+.pill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 4px 16px rgb(212 255 58 / 0.25);
+}
+
+.iconWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+}
+
+.label {
+  position: relative;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* A view transition snapshot cannot blur what is behind it: keep the capsule solid while one runs. */
+:global(html[data-nav]) .capsule {
+  background: rgb(24 24 28 / 0.97);
+}
+
+.capsule {
+  transition: background-color var(--dur-base) var(--ease-out);
+}

@@ -4,6 +4,7 @@ import { AnyGymDB } from '../schema';
 import type { Load } from '../types';
 import { choosePlan, getPlanState, setNextDay } from '../planState';
 import { deleteSet, finishWorkout, getActiveSession, logSet, restoreSet, setsOf, startPlanDay, startWorkout, updateSet } from '../workouts';
+import { fillPlanDay } from './fillPlanDay';
 
 let db: AnyGymDB;
 let n = 0;
@@ -103,6 +104,7 @@ describe('write recovery and interleaved workout actions (SPEC 0, 2, 5, 13)', ()
     const state = await getPlanState(db);
     const session = await startPlanDay('synthetic-gym', 'six-week-volume', 4, db, 1000);
     await logSet(input('last-day', session.id), db);
+    await fillPlanDay(db, session.id);
     const before = await setsOf(session.id, db);
     const fail = () => { throw new Error('synthetic plan write failure'); };
     db.planState.hook('updating', fail);
@@ -112,11 +114,11 @@ describe('write recovery and interleaved workout actions (SPEC 0, 2, 5, 13)', ()
       db.planState.hook('updating').unsubscribe(fail);
     }
     await reopen();
-    expect(await getActiveSession(db)).toEqual({ ...session, exerciseIds: [...session.exerciseIds!, 'squat'] });
+    expect(await getActiveSession(db)).toMatchObject({ id: session.id, exerciseIds: [...session.exerciseIds!, 'squat'] });
     expect(await getPlanState(db)).toEqual(state);
     expect(await setsOf(session.id, db)).toEqual(before);
 
-    expect(await finishWorkout(session.id, db, 3000)).toEqual({ saved: true, sets: 1 });
+    expect(await finishWorkout(session.id, db, 3000)).toMatchObject({ saved: true, sets: before.length, progress: { complete: true } });
     await reopen();
     expect(await getActiveSession(db)).toBeUndefined();
     expect((await db.sessions.get(session.id))?.endedAt).toBe(3000);

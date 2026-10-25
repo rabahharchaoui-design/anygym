@@ -64,7 +64,8 @@ test.describe('1.10c verify', () => {
     await page.waitForTimeout(2000);
     await card.getByRole('button', { name: 'Stop timer' }).tap();
     await page.waitForTimeout(500);
-    await expect(card.getByRole('button', { name: 'Start timer' })).toHaveText('Start again');
+    // 1.7e: the Hold cell is the timer; paused, it shows the hold so far and starts again on a tap.
+    await expect(card.getByRole('button', { name: 'Start timer' })).toHaveText(/^[12] s$/);
     await card.getByRole('button', { name: 'Start timer' }).tap();
     await page.waitForTimeout(1500);
     await logBtn(page).tap();
@@ -134,16 +135,16 @@ test.describe('1.10c verify', () => {
     await page.getByRole('dialog', { name: 'Weight steps' }).getByRole('button', { name: 'Goes up by 10 lb', exact: true }).tap();
     await expect(picker(page).getByRole('radio', { checked: true })).toHaveCount(0);
     await picker(page).getByRole('button', { name: 'Close', exact: true }).tap();
-    await expect(card.getByTestId('weight-cell').first()).toHaveText('Set');
+    await expect(card.getByTestId('weight-cell').first()).toHaveText('Pick');
     await expect(logBtn(page)).toBeDisabled();
     await page.reload();
-    await expect(card.getByTestId('weight-cell').first()).toHaveText('Set');
+    await expect(card.getByTestId('weight-cell').first()).toHaveText('Pick');
     await expect(logBtn(page)).toBeDisabled();
     expect(await sets(page)).toEqual([]);
     expect(errors).toEqual([]);
   });
 
-  test('e Smith unknown bar: "+ bar", Set bar weight, diagram total = Log label = saved total', async ({ page }) => {
+  test('e Smith unknown bar: asked in the sheet, diagram total = Log label = saved total', async ({ page }) => {
     const errors = watch(page);
     await quick(page);
     await add(page, 'smith machine upright row', 'Smith Machine Upright Row');
@@ -152,14 +153,13 @@ test.describe('1.10c verify', () => {
     if (await ask.count()) await ask.getByRole('button', { name: /Plates on a bar/ }).tap();
     await card.getByTestId('weight-cell').first().tap();
     await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
-    await expect(picker(page).getByTestId('plate-total')).toContainText('+ bar');
-    await expect(picker(page).getByRole('button', { name: 'Set bar weight' })).toBeVisible();
-    await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
-    await expect(card.getByTestId('weight-cell').first()).toContainText('+ bar');
-    await expect(logBtn(page)).toBeDisabled();
+    // 1.7e: no number until the bar is known, the question on top, Done waits for the answer.
+    await expect(picker(page).getByTestId('plate-total')).toHaveText('—lb');
+    await expect(picker(page).getByTestId('plate-math')).toContainText('+ bar');
+    await expect(picker(page).getByTestId('bar-question')).toBeVisible();
+    await expect(picker(page).getByRole('button', { name: 'Set the bar weight first' })).toBeDisabled();
     await shot(page, 'smith-unknown');
-    await card.getByTestId('weight-cell').first().tap();
-    await picker(page).getByRole('button', { name: 'Set bar weight' }).tap();
+    await picker(page).getByRole('button', { name: 'Other…' }).tap();
     const prompt = page.getByRole('dialog', { name: 'Smith machine bar' });
     await pad(prompt, '15');
     await prompt.getByRole('button', { name: 'Save bar weight' }).tap();

@@ -1,3 +1,4 @@
+import { Odometer } from '../../ui/Odometer';
 import { useEffect, useRef, type PointerEvent } from 'react';
 import styles from './RepsStepper.module.css';
 
@@ -82,7 +83,7 @@ export function RepsStepper({ value, onChange, label = 'Reps', unit, min = 1, ma
       {button(-1, '−', `Fewer ${label.toLowerCase()}`, value <= min)}
       <div className={styles.readout}>
         <span className={`${styles.value} num`} data-testid={`stepper-${label.toLowerCase()}`} aria-live="polite">
-          {value}
+          <Odometer value={value} />
         </span>
         <span className={styles.label}>{unit ?? label.toLowerCase()}</span>
       </div>

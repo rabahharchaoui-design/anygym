@@ -1,11 +1,5 @@
 /* History (PLAN 1.10c minimal version; Session 7 does the full design). A setup screen: it may scroll. */
 
-.skeleton {
-  height: 72px;
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-
 .list {
   list-style: none;
   margin: 0;
@@ -19,11 +13,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 64px;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
+  min-height: 72px;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 1px solid var(--glass-line);
+  border-radius: 20px;
+  background: linear-gradient(to bottom, #141417, var(--surface-1));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
   color: var(--text);
   text-decoration: none;
 }
@@ -40,14 +35,20 @@
   font-family: var(--font-display);
   font-size: var(--text-base);
   font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .rowSub {
   color: var(--text-2);
   font-size: var(--text-sm);
+}
+
+.rowChevron {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--text-2);
 }
 
 .rowCount {
@@ -58,17 +59,17 @@
 }
 
 .meta {
-  margin: calc(var(--space-2) * -1) 0 var(--space-4);
+  margin: 0;
   color: var(--text-2);
   font-size: var(--text-sm);
 }
 
 .exercise {
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
+  margin-bottom: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--glass-line);
+  border-radius: 20px;
+  background: linear-gradient(to bottom, #141417, var(--surface-1));
 }
 
 .exerciseName {

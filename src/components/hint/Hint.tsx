@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { HINT_TEXT, hints, type HintId } from '../../lib/hints';
-import { FADE } from '../motion';
+import { FADE } from '../../ui/motion';
 import styles from './Hint.module.css';
 
 type Props = {

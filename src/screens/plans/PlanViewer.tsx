@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { IconLink } from '../../components/IconButton';
-import { BackIcon } from '../../components/icons';
+import { Navigate, useParams } from 'react-router-dom';
+import { TopBar } from '../../ui/TopBar';
+import { BackButton } from '../../ui/BackButton';
+import { Button } from '../../ui/Button';
+import { useNav } from '../../ui/nav';
 import { planById } from '../../data/plans';
 import { choosePlan, getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
@@ -16,7 +17,7 @@ import styles from './Plans.module.css';
 export function PlanViewer() {
   const { planId } = useParams();
   const plan = planById(planId);
-  const navigate = useNavigate();
+  const go = useNav();
   const state = useLive(() => getPlanState(), []);
   const active = state.data?.planId === plan?.id;
   const [week, setWeek] = useState<number | null>(null);
@@ -27,7 +28,7 @@ export function PlanViewer() {
     setError(false);
     try {
       if (!active) await choosePlan(plan.id);
-      navigate('/');
+      go('/', { kind: 'tab' });
     } catch {
       setError(true);
     }
@@ -38,16 +39,10 @@ export function PlanViewer() {
 
   return (
     <div className={styles.viewer}>
-      <ScreenHeader
-        title={plan.name}
-        leading={
-          <IconLink to="/plans" label="Back to Plans">
-            <BackIcon />
-          </IconLink>
-        }
-      />
-      <p className={styles.viewerMeta}>{planMeta(plan)}</p>
-      <p className={styles.viewerSummary}>{plan.summary}</p>
+      <TopBar title={plan.name} leading={<BackButton to="/plans" label="Back to Plans" />}>
+        <p className={styles.viewerMeta}>{planMeta(plan)}</p>
+        <p className={styles.viewerSummary}>{plan.summary}</p>
+      </TopBar>
 
       {plan.weeks && (
         <div className={styles.weeks} role="group" aria-label="Week">
@@ -82,13 +77,11 @@ export function PlanViewer() {
         </section>
       ))}
 
-      <div className={styles.useBar}>
+      <div className={styles.useBar} data-testid="action-bar">
         <p className={styles.error} role="status">
           {error ? 'Could not save that. Try again.' : ''}
         </p>
-        <button type="button" className={`${styles.useButton} pressable`} onClick={() => void use()}>
-          {active ? 'Go to Today' : 'Use this plan'}
-        </button>
+        <Button onClick={() => void use()}>{active ? 'Go to Today' : 'Use this plan'}</Button>
       </div>
     </div>
   );

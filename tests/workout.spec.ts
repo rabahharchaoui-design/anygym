@@ -58,7 +58,7 @@ test('quick workout: picker, first weight, check, double tap, edit, delete with 
   await expect(view.getByTestId('set-guide')).toHaveText('First time: pick a weight you could lift 2 more reps with');
   // 3 × 8 to 12 by default; no weight is invented for a first time.
   await expect(view.getByTestId('set-todo')).toHaveCount(3);
-  await expect(view.getByTestId('weight-cell')).toHaveText(['Set', 'Set', 'Set']);
+  await expect(view.getByTestId('weight-cell')).toHaveText(['Pick', '–', '–']);
   await expect(view.getByTestId('reps-cell')).toHaveText(['8', '8', '8']);
   await expect(checkCurrent(view)).toBeDisabled();
   await expect(view.getByTestId('set-status')).toHaveText('Set 1: Pick a weight');
@@ -141,7 +141,7 @@ test('quick workout: picker, first weight, check, double tap, edit, delete with 
 
   // Today shows Continue workout while it is active.
   await page.goto('./');
-  await page.getByRole('button', { name: /Continue workout/ }).tap();
+  await page.getByRole('button', { name: /Resume/ }).first().tap();
   await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}$`));
 
   // Finish → finish screen → Done → Today.
@@ -293,8 +293,9 @@ test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove 
   // ⋯ → Rest time 120 → the next set rests 2:00.
   await view.getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
   const menu = page.getByRole('dialog', { name: 'Barbell Back Squat options' });
-  await expect(menu.getByRole('button', { name: /Replace/ })).toBeDisabled();
-  await expect(menu.getByRole('button', { name: /Make a pair/ })).toBeDisabled();
+  // 1.7e critic: no dead rows until swaps and pairs ship.
+  await expect(menu.getByRole('button', { name: /Replace/ })).toHaveCount(0);
+  await expect(menu.getByRole('button', { name: /Make a pair/ })).toHaveCount(0);
   await expect(menu.getByRole('button', { name: /Remove/ })).toBeDisabled();
   await expect(menu.getByRole('button', { name: /Remove/ })).toContainText('Delete its sets first');
   await menu.getByRole('button', { name: /Rest time/ }).tap();

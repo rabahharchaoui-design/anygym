@@ -1,7 +1,7 @@
 /* Plans tab and plan viewer (SPEC 8.6, 10, 13.1). Setup screens: they may scroll. */
 
 .lead {
-  margin: calc(var(--space-4) * -1) 0 var(--space-4);
+  margin: 0;
   color: var(--text-2);
 }
 
@@ -15,30 +15,38 @@
 }
 
 .planCard {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
+  padding: var(--space-5) calc(var(--space-5) + 22px) var(--space-5) var(--space-5);
+  border: 1px solid var(--glass-line);
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgb(212 255 58 / 0.06), transparent 55%),
+    linear-gradient(to bottom, #141417, var(--surface-1));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
   color: var(--text);
   text-decoration: none;
 }
 
-.planTop {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.planChevron {
+  position: absolute;
+  right: var(--space-4);
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  color: var(--text-2);
 }
 
 .planName {
-  flex: 1;
   min-width: 0;
   font-family: var(--font-display);
-  font-size: var(--text-lg);
+  font-size: clamp(20px, 5.6vw, 22px);
   font-weight: 700;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .badge {
@@ -52,6 +60,10 @@
 }
 
 .planMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-2);
   color: var(--accent);
   font-size: var(--text-sm);
   font-weight: 700;
@@ -68,23 +80,19 @@
 .viewer {
   display: flex;
   flex-direction: column;
-  /* room for the pinned Use this plan bar */
-  padding-bottom: 92px;
-}
-
-.viewer > header {
-  margin-bottom: var(--space-2);
+  /* room for the Use this plan dock */
+  padding-bottom: 76px;
 }
 
 .viewerMeta {
-  margin: 0 0 6px;
+  margin: 4px 0 0;
   color: var(--accent);
   font-size: var(--text-sm);
   font-weight: 700;
 }
 
 .viewerSummary {
-  margin: 0 0 var(--space-4);
+  margin: 0;
   color: var(--text-2);
   font-size: var(--text-sm);
   line-height: 1.45;
@@ -132,6 +140,7 @@
 .dayTitle {
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1.25;
@@ -204,14 +213,16 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px var(--space-3);
-  border-radius: var(--radius-sm);
+  padding: 12px var(--space-4);
+  border-radius: 16px;
   background: var(--surface-1);
+  border: 1px solid rgb(255 255 255 / 0.04);
 }
 
 .itemName {
   font-weight: 700;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .itemLine {
@@ -227,29 +238,20 @@
 }
 
 .useBar {
-  /* Pinned just above the tab bar so the one primary action is always in reach. */
+  /* A bottom dock (the tab bar is hidden here): the one primary action always in reach, over a
+     dark gradient so the day list never reads through. It owns the bottom inset. */
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--tabbar-height) + 1px + var(--safe-bottom));
-  padding: var(--space-5) calc(var(--space-5) + var(--safe-right)) var(--space-3) calc(var(--space-5) + var(--safe-left));
-  background: linear-gradient(to bottom, transparent, var(--bg) 28px);
+  bottom: 0;
+  z-index: 5;
+  padding: var(--space-6) calc(var(--space-5) + var(--safe-right)) calc(var(--space-3) + max(var(--safe-bottom), 8px)) calc(var(--space-5) + var(--safe-left));
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(10 10 12 / 0.94) 28px, rgb(10 10 12 / 0.98));
   pointer-events: none;
 }
 
 .useBar > * {
   pointer-events: auto;
-}
-
-.useButton {
-  width: 100%;
-  min-height: 56px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 700;
 }
 
 .error {

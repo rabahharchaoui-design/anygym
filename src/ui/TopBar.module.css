@@ -1,0 +1,103 @@
+/* The bar spans the page edge to edge (the page pads its content by --page-pad-*). */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 calc(var(--page-pad-r, 0px) * -1) 0 calc(var(--page-pad-l, 0px) * -1);
+  /* exactly the status bar inset on top, nothing stacked on it (PLAN 1.10b) */
+  padding-top: var(--safe-top);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+/* The glass fades in exactly as far as the large title has slid under the bar (--collapse, 0 to 1). */
+.bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  opacity: var(--collapse, 0);
+  pointer-events: none;
+}
+
+.bar[data-compact='true'] {
+  border-bottom-color: var(--glass-line);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  padding: 0 calc(var(--page-pad-r, 0px) - var(--space-3)) 0 calc(var(--page-pad-l, 0px) - var(--space-3));
+}
+
+.leading,
+.trailing {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-width: var(--tap);
+  position: relative;
+  z-index: 1;
+}
+
+.trailing {
+  margin-left: auto;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* Centered compact title: a decorative copy of the large one, fades in once that has scrolled away. */
+.compact {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: calc(100% - 2 * 112px);
+  translate: -50% calc(-50% + 4px);
+  opacity: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    translate var(--dur-base) var(--ease-out);
+}
+
+.bar[data-compact='true'] .compact {
+  opacity: 1;
+  translate: -50% -50%;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 var(--space-5);
+}
+
+.large {
+  /* fast repeated taps never zoom or select (hidden diagnostics gesture on Today) */
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  font-size: clamp(30px, 8.6vw, 36px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compact {
+    translate: -50% -50%;
+  }
+}

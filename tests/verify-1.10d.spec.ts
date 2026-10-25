@@ -214,14 +214,13 @@ test.describe('1.10d verify', () => {
     const sm = page.getByTestId('exercise-smith-machine-upright-row');
     // PLAN 1.7c: hand mapped as plates on the Smith bar, so nothing is asked.
     await expect(page.getByRole('dialog', { name: 'How do you load this?' })).toHaveCount(0);
-    await plates(page, sm, '10 lb');
-    await expect(sm.getByTestId('weight-cell').first()).toContainText('+ bar');
+    // 1.7e: the unknown Smith bar is asked on top of the weight sheet; nothing logs until answered.
     await expect(logBtn(page)).toBeDisabled();
     await sm.getByTestId('weight-cell').first().tap();
-    await picker(page).getByRole('button', { name: 'Set bar weight' }).tap();
-    const prompt = page.getByRole('dialog', { name: 'Smith machine bar' });
-    for (const d of '15') await prompt.getByRole('button', { name: d, exact: true }).tap();
-    await prompt.getByRole('button', { name: 'Save bar weight' }).tap();
+    await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
+    await expect(picker(page).getByRole('button', { name: 'Set the bar weight first' })).toBeDisabled();
+    await picker(page).getByRole('button', { name: 'Bar weighs 15 lb' }).tap();
+    await expect(picker(page).getByTestId('bar-question')).toHaveCount(0);
     await expect(picker(page).getByTestId('plate-total')).toHaveText('35lb');
     await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(logBtn(page)).toHaveAccessibleName(/35 lb$/);

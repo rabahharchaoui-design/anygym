@@ -1,5 +1,5 @@
 import type { Unit } from '../../db/types';
-import { Sheet } from '../Sheet';
+import { Sheet } from '../../ui/Sheet';
 import { AddedWeightField } from './AddedWeightField';
 import styles from './EquipmentWeightSheet.module.css';
 

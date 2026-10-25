@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Sheet } from '../../components/Sheet';
+import { Sheet } from '../../ui/Sheet';
 import type { BarId, Gym, Load, WorkoutSet } from '../../db/types';
 import { collarsSettingOf, otherOf } from '../../lib/load';
 import { RepsStepper } from './RepsStepper';

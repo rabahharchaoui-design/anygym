@@ -135,7 +135,7 @@ test('SE: timed set controls stay unobscured when the next hold starts during re
   }
 });
 
-test('offline reload keeps plates and reps on an unknown EZ bar until its weight is answered', async ({ page, context }) => {
+test('offline reload keeps reps on an unknown EZ bar; its weight is asked in the sheet before anything logs', async ({ page, context }) => {
   const errors = watchErrors(page);
   try {
     await page.goto('./');
@@ -167,30 +167,34 @@ test('offline reload keeps plates and reps on an unknown EZ bar until its weight
     await page.getByTestId('row-ez-bar-curl').tap();
     const card = page.getByTestId('exercise-ez-bar-curl');
     const ask = page.getByRole('dialog', { name: 'How do you load this?' });
+    await expect(card).toBeVisible(); // 1.7e: screens change on the next frame (view transition)
     if (!(await ask.isVisible())) await card.getByRole('button', { name: 'How do you load this?' }).tap();
     await ask.getByRole('button', { name: /Plates on a bar/ }).tap();
     await context.setOffline(true);
     await card.getByTestId('weight-cell').first().tap();
     const picker = page.getByRole('dialog', { name: 'Pick the weight', exact: true });
+    // 1.7e: an unknown EZ bar is asked first; nothing goes to the row until it is answered.
     await picker.getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
-    await picker.getByRole('button', { name: 'Add 5 lb plate to each side' }).tap();
-    await picker.getByRole('button', { name: 'Done', exact: true }).tap();
+    await expect(picker.getByRole('button', { name: 'Set the bar weight first', exact: true })).toBeDisabled();
+    await picker.getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(picker).toHaveCount(0);
     await card.getByTestId('reps-cell').first().tap();
     await card.getByRole('button', { name: 'More reps' }).tap();
-    await expect(card.getByTestId('weight-cell').first()).toContainText('+ bar');
+    await expect(card.getByTestId('weight-cell').first()).toHaveText('Pick');
     await expect(logButton(page)).toBeDisabled();
     expect(await dbAll<WorkoutSet>(page, 'sets')).toEqual([]);
     await page.reload();
-    await expect(card.getByTestId('weight-cell').first()).toContainText('+ bar');
     await expect(card.getByTestId('reps-cell').first()).toHaveText('9');
     await expect(card.getByTestId('set-status')).toHaveText('Set 1: Set the bar weight first');
     await expect(logButton(page)).toBeDisabled();
     await card.getByTestId('weight-cell').first().tap();
-    await picker.getByRole('button', { name: 'Set bar weight', exact: true }).tap();
+    await picker.getByRole('button', { name: 'Other…', exact: true }).tap();
     const sheet = page.getByRole('dialog', { name: 'EZ curl bar', exact: true });
     for (const digit of '25') await sheet.getByRole('button', { name: digit, exact: true }).tap();
     await sheet.getByRole('button', { name: 'Save bar weight', exact: true }).tap();
     await expect(sheet).toHaveCount(0);
+    await picker.getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
+    await picker.getByRole('button', { name: 'Add 5 lb plate to each side' }).tap();
     await expect(picker.getByTestId('plate-total')).toHaveText('55lb');
     await picker.getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(card.getByTestId('weight-cell').first()).toHaveText('55');

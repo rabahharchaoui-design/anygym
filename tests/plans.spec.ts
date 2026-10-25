@@ -57,7 +57,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(page).toHaveURL(/#\/plans\/five-day-split$/);
   await expect(page.getByRole('heading', { name: 'Classic 5 Day Split' })).toBeVisible();
   const day1 = page.getByRole('region', { name: 'Day 1 · Legs (hamstring focus)' });
-  await expect(day1.getByTestId('plan-item-barbell-back-squat')).toHaveText(/Barbell Back Squat4 sets × 8 to 12 · 90 s restWide stance/);
+  await expect(day1.getByTestId('plan-item-barbell-back-squat')).toHaveText(/Barbell Back Squat4 sets × 8 to 12 reps · 90 s restWide stance/);
   await expect(day1.getByTestId('plan-item-static-quadricep-stretch')).toContainText('45 sec');
   await expect(day1).toContainText('~90 min');
   const day2 = page.getByRole('region', { name: 'Day 2 · Chest and triceps' });
@@ -125,9 +125,12 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   const last = await page.locator('[data-row]').last().getAttribute('data-row');
   expect(last).toBe('finisher-stair-climbing');
   await expect(page.getByRole('main').getByText('Finisher', { exact: true })).toBeVisible();
-  // Sets logged: finishing saves the day (finish screen) and moves the plan on to day 3.
+  // Sets logged: finishing saves the day (finish screen). Only warm ups were done, so it would stay
+  // up next (1.7e); moving on goes to day 3.
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(/\/done$/);
+  await expect(page.getByTestId('finish-title')).toHaveText(/^Saved · 0 of \d+ done$/);
+  await page.getByRole('radio', { name: 'Go to Day 3' }).tap();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 3 · Back and biceps/);
@@ -175,7 +178,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await page.getByTestId('row-static-quadricep-stretch').tap();
   const stretch = page.getByTestId('exercise-static-quadricep-stretch');
   await expect(stretch.getByTestId('set-target')).toHaveText('Set 1 of 1 · 45 sec');
-  await expect(stretch.getByTestId('hold-cell')).toHaveText(['45 s']);
+  await expect(stretch.getByTestId('hold-cell')).toHaveText(['45 sTap to start']);
   await page.getByRole('button', { name: 'Back to the list' }).tap();
 
   const squatRow = page.getByTestId('row-barbell-back-squat');
@@ -214,13 +217,14 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(page.getByRole('dialog', { name: 'How do you load this?' })).toHaveCount(0);
   await expect(page.getByTestId('exercise-angled-machine-leg-press').getByTestId('set-target')).toHaveText('Set 1 of 3 · 8 to 12 reps');
 
-  // Finish: Day 2 is next, Day 1 checked.
+  // Finish with lifts left: move on; Day 2 is next, Day 1 shows part done (a full tick needs every lift, 1.7e).
   await page.getByRole('button', { name: 'Finish' }).tap();
+  await page.getByRole('radio', { name: 'Go to Day 2' }).tap();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · Chest and triceps · ~\d+ min$/);
   await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'next');
-  await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'done');
+  await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
   expect(errors).toEqual([]);
 });
 
@@ -229,10 +233,10 @@ test('Six Week Volume Builder: week picker, Week 1 of 6, day 1 at 5 sets × 6', 
   await page.goto('./#/plans');
   await page.getByTestId('plan-six-week-volume').tap();
   const front = page.getByRole('region', { name: 'Day 1 · Quads' }).getByTestId('plan-item-front-squat');
-  await expect(front).toHaveText(/Front Squat5 sets × 6$/);
+  await expect(front).toHaveText(/Front Squat5 sets × 6 reps$/);
   await expect(page.getByRole('button', { name: 'Week 1' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Week 3' }).tap();
-  await expect(front).toHaveText(/Front Squat5 sets × 8$/);
+  await expect(front).toHaveText(/Front Squat5 sets × 8 reps$/);
   await expect(page.getByRole('button', { name: 'Week 3' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
 
@@ -288,7 +292,7 @@ test('Six Week: no invented rest, rests stated in notes shown, sprint in rounds'
   await page.goto('./#/plans/six-week-volume');
   const day1 = page.getByRole('region', { name: 'Day 1 · Quads' });
   await expect(day1.getByTestId('plan-item-front-squat')).not.toContainText('rest');
-  await expect(day1.getByTestId('plan-item-leg-extension')).toContainText('10 sets × 10 · 10 s rest');
+  await expect(day1.getByTestId('plan-item-leg-extension')).toContainText('10 sets × 10 reps · 10 s rest');
   await expect(day1.getByTestId('plan-item-leg-extension')).toContainText('10 seconds rest between sets');
   await expect(page.getByRole('region', { name: 'Day 4 · Hamstrings and glutes' }).getByTestId('plan-item-leg-curl')).toContainText('10 s rest');
   const sprint = page.getByRole('region', { name: 'Day 3 · HIIT cardio and abs' }).getByTestId('plan-item-30-second-interval-sprint');
