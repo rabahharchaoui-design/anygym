@@ -86,7 +86,7 @@ test.describe('1.11 private history import (temp copy)', () => {
         const pick = page.getByRole('dialog', { name: 'Pick the exercise' });
         await expect(kind.or(pick)).toBeVisible();
         if (await kind.isVisible()) await kind.getByRole('button', { name: /One weight/ }).tap();
-        else await pick.getByRole('button', { name: 'Skip these' }).tap();
+        else await pick.getByRole('button', { name: /^Skip (these \d+ sets|this set)$/ }).tap();
         await expect(kind.or(pick)).toHaveCount(0);
       }
       await expect(confirm).toHaveText(`Import ${fileSets} sets`);

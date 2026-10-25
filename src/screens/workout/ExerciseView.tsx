@@ -4,21 +4,21 @@ import { updateSetType } from '../../db/workouts';
 import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
 import { logKey, logQueue } from '../../lib/logQueue';
 import { newId } from '../../db/ids';
-import { formatNext, formatSets, formatWhen } from '../../lib/progression';
+import { beatLine } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
 import { addExtraSet } from '../../lib/extraSets';
-import { blockedReason, markSubmitted, nextSetType, pendingRows, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { blockedReason, lastTimeNote, markSubmitted, pendingRows, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
 import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio } from '../../lib/tone';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
-import { Hint } from '../../components/hint/Hint';
 import { Sheet } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
 import { MoreIcon } from '../../ui/icons';
 import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
+import { SetTypeSheet } from './SetTypeSheet';
 import { Thumb } from './Thumb';
 import { WeightSheet, type WeightPick } from './WeightSheet';
 import { copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
@@ -67,6 +67,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const [picking, setPicking] = useState<PendingRow | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
+  /** The "Set type" sheet: a row still to do, or a logged set. */
+  const [typing, setTyping] = useState<{ n: number; type: SetType; row?: PendingRow; set?: WorkoutSet } | null>(null);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => logQueue.subscribe(key, refresh), [key]);
@@ -119,7 +121,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const liveSeconds = wholeSeconds(elapsedMs(watch, running ? Math.max(now, Date.now()) : now));
 
   /** Every change is saved at once (SPEC 13.3), with a new version for the log queue. */
-  const writeRow = (row: PendingRow, patch: Partial<Draft>) => {
+  const writeRow = (row: PendingRow, patch: Partial<Draft>, own?: Draft['own']) => {
     const before = draftAt(slotOf(row));
     const draft: Draft = {
       id: before?.id ?? newId(),
@@ -134,6 +136,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...('load' in patch || 'plates' in patch || !before ? { unit: gym.unit } : {}),
       rev: (before?.rev ?? 0) + 1,
     };
+    if (own) draft.own = { ...before?.own, ...own };
+    if (draft.noTarget === undefined) delete draft.noTarget;
     saveDraft(sessionId, rowKey(exerciseId, slotOf(row)), draft);
     refresh();
   };
@@ -193,8 +197,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
   const applyWeight = (from: PendingRow, pick: WeightPick) => {
     setPicking(null);
-    // That row and every row below it that is not logged yet (SPEC 20.2).
-    for (const r of rows) if (r.index >= from.index) writeRow(r, { load: pick.load, plates: pick.plates });
+    // A warm up's weight is for that warm up only; a working row's weight goes to it and the
+    // working rows below it, never into a warm up (SPEC 20.2, gate 3).
+    const targets = from.type === 'warmup' ? [from] : rows.filter((r) => r.index >= from.index && r.type !== 'warmup');
+    for (const r of targets) writeRow(r, { load: pick.load, plates: pick.plates }, { load: true });
   };
 
   const copyLast = (row: PendingRow) => {
@@ -211,16 +217,18 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...(last.reps !== undefined ? { reps: last.reps } : {}),
       // A copied hold replaces the row's stopwatch, so the cell and Log agree (PLAN 1.7h).
       ...(last.seconds !== undefined ? { seconds: last.seconds, ...(kind === 'timed' ? { watch: heldFor(last.seconds) } : {}) } : {}),
-    });
+    }, { ...(load ? { load: true as const } : {}), ...(last.reps !== undefined ? { reps: true as const } : {}) });
   };
 
   // Finish started (synchronously closed): no type changes from here, also from a stale view (1.7j).
-  const cycleType = (row: PendingRow) => {
+  const setRowType = (row: PendingRow, t: SetType) => {
     if (logQueue.closed(sessionId)) return;
-    writeRow(row, { type: nextSetType(row.type) });
+    // A warm up drops the prefilled working target (only a weight or reps set by hand stay);
+    // any other type shows the target again (SPEC 21.1: warm ups never count toward progress).
+    writeRow(row, { type: t, noTarget: t === 'warmup' ? true : undefined });
   };
-  const cycleLogged = async (set: WorkoutSet) => {
-    const t: SetType = nextSetType(typeOfSet(set));
+  const setLoggedType = async (set: WorkoutSet, t: SetType) => {
+    if (t === typeOfSet(set)) return;
     const s = storedType(t);
     // Tracked by the queue, so Finish counts the sets only after a change already running lands.
     const write = logQueue.mutate(sessionId, () => updateSetType(set.id, s.kind, s.failure));
@@ -229,6 +237,17 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       await write;
     } catch {
       if (!logQueue.closed(sessionId)) onNotice('Could not change that set. Try again.');
+    }
+  };
+  const pickType = (t: SetType) => {
+    const target = typing;
+    setTyping(null);
+    if (!target) return;
+    if (target.set) void setLoggedType(target.set, t);
+    else if (target.row) {
+      // The row as it is now (a draft may have moved on while the sheet was open).
+      const row = rows.find((r) => r.index === target.row!.index);
+      if (row) setRowType(row, t);
     }
   };
 
@@ -265,18 +284,16 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   };
 
   const lastTime = progression?.lastTime;
-  const target = formatNext(
-    progression?.next ?? {
-      load: null,
-      reps: null,
-      reason: '',
-      kind: 'first_time',
-    },
-  );
-  const showNext = progression && lastTime && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted');
+  // One target line (the LAST TIME column already shows each set): "Beat last time: 11 reps at
+  // 185 lb", plus why when the weight moved; without a weight to beat, the reason alone.
+  const beat = progression && lastTime ? beatLine(progression) : null;
+  const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || !progression.next.load) ? progression.next.reason : '';
   const note = [entry?.note, w.noteOf(exerciseId)].filter(Boolean).join(' · ');
   const setNumber = Math.min(workDone + 1, Math.max(entry?.sets ?? 1, workDone + 1));
   const status = current ? blockedOf(current) : null;
+  // The number each row shows: "W" for a warm up, working sets 1 to n (SetTable shows the same).
+  const numbers = setNumbers([...logged.map((s) => typeOfSet(s)), ...rows.map((r) => r.type)]);
+  const rowName = (r: PendingRow) => (r.type === 'warmup' ? 'Warm up' : `Set ${numbers[r.index]}`);
 
   return (
     <main className={styles.exMain} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
@@ -306,19 +323,26 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         </button>
       </div>
 
-      {kind && progression && (lastTime || showNext) && (
+      {/* First time: one line above the table, never a guessed weight (SPEC 6 rule 5). */}
+      {kind && progression && !lastTime && logged.length === 0 && progression.next.reason && (
         <div className={styles.guides}>
-          {lastTime && (
-            <p className={`${styles.guide} num`} data-testid="set-guide">
-              Last time {formatSets(lastTime.sets)} <span className={styles.guideWhen}>· {formatWhen(lastTime.date, Date.now())}</span>
-            </p>
+          <p className={`${styles.guide} num`} data-testid="set-guide">
+            {progression.next.reason}
+          </p>
+        </div>
+      )}
+      {kind && progression && lastTime && (
+        <div className={styles.guides}>
+          {(beat || why) && (
+          <p className={`${styles.guide} ${styles.guideNext} num`} data-testid="set-next">
+            {beat}
+            {beat && why ? <span className={styles.guideWhen}> · {why}</span> : why}
+          </p>
           )}
-          {showNext && (
-            <p className={`${styles.guide} ${styles.guideNext} num`} data-testid="set-next">
-              {target ? `Next ${target} · ` : ''}
-              {progression.next.reason}
-            </p>
-          )}
+          {/* Last time in one line, with its day (SPEC 6): every set, exact. */}
+          <p className={`${styles.guide} num`} data-testid="set-last">
+            {lastTimeNote(lastTime.date, lastTime.sets, Date.now())}
+          </p>
         </div>
       )}
 
@@ -347,15 +371,14 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onWeight={(r) => setPicking(r)}
             onAmount={(r) => setEditing((e) => (e === r.index ? null : r.index))}
             // A typed hold replaces the row's stopwatch with a stopped one of that length (PLAN 1.7h).
-            onAmountChange={(r, v) => writeRow(r, timed ? { seconds: v, watch: heldFor(v) } : { reps: v })}
+            onAmountChange={(r, v) => writeRow(r, timed ? { seconds: v, watch: heldFor(v) } : { reps: v }, timed ? undefined : { reps: true })}
             onAmountDone={() => setEditing(null)}
-            onType={cycleType}
-            onLoggedType={(s) => void cycleLogged(s)}
+            onType={(r) => !logQueue.closed(sessionId) && setTyping({ n: r.index + 1, type: r.type, row: r })}
+            onLoggedType={(s) => !logQueue.closed(sessionId) && setTyping({ n: logged.indexOf(s) + 1, type: typeOfSet(s), set: s })}
             onLastTime={copyLast}
             onEdit={onEditSet}
-            // First time: one line right under the row being filled, never a guessed weight (SPEC 6 rule 5).
-            currentNote={!lastTime && logged.length === 0 ? progression.next.reason : undefined}
             hold={timed && current ? { running, onToggle: toggleWatch } : undefined}
+            checkHint={!timed && !!current && !status && logged.length === 0}
             footer={
               <button
                 type="button"
@@ -371,9 +394,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           />
           <div className={styles.statusLine}>
             <p className={styles.status} data-testid="set-status" role="status">
-              {status && current ? `Set ${current.index + 1}: ${status}` : ''}
+              {status && current ? `${rowName(current)}: ${status}` : ''}
             </p>
-            {!timed && current && !status && <Hint id="setCard" className={styles.checkHint} point="up" />}
           </div>
         </>
       )}
@@ -382,8 +404,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         <WeightSheet
           open={picking !== null}
           onClose={() => setPicking(null)}
-          title={picking ? `Set ${picking.index + 1}` : ''}
-          sub={picking ? (rows.filter((r) => r.index > picking.index).length ? `${name} · this set and the ones below` : name) : name}
+          title={picking ? rowName(picking) : ''}
+          sub={!picking ? '' : picking.type === 'warmup' ? 'Just this warm up' : rows.some((r) => r.index > picking.index && r.type !== 'warmup') ? 'This set and the ones below' : 'This set'}
           loadType={kind}
           gym={gym}
           exerciseId={exerciseId}
@@ -394,6 +416,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           onNotice={onNotice}
         />
       )}
+
+      <SetTypeSheet open={typing !== null} onClose={() => setTyping(null)} title={typing ? `Set ${typing.n}` : ''} value={typing?.type ?? 'normal'} onPick={pickType} />
 
       <Sheet open={demo} onClose={() => setDemo(false)} label="How to">
         <div className={styles.sheetBody}>

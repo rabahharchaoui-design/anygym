@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { exportBackup, recordBackup } from '../../db/backup';
-import { backupFileName, serializeBackup } from '../../lib/backup';
+import { backedUpIds, backupFileName, serializeBackup } from '../../lib/backup';
 import { shareOrDownload } from '../../lib/shareFile';
 import { TAP_GUARD_MS } from '../../hooks/useTapGuard';
 import type { ToastMessage } from '../../ui/Toast';
@@ -19,15 +19,15 @@ export function useBackup(notify: (t: ToastMessage) => void): () => Promise<void
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
 
-  const deliver = useCallback(async (file: File) => {
+  const deliver = useCallback(async (file: File, ids: string[]) => {
     const outcome = await shareOrDownload(file);
     if (outcome === 'cancelled') return;
     if (outcome === 'needs-tap') {
-      notifyRef.current(toast('Your backup is ready', { label: 'Share', onPress: () => void deliver(file) }));
+      notifyRef.current(toast('Your backup is ready', { label: 'Share', onPress: () => void deliver(file, ids) }));
       return;
     }
     try {
-      await recordBackup();
+      await recordBackup(ids);
     } catch {
       // The file is out; only the reminder date could not be saved.
     }
@@ -41,8 +41,9 @@ export function useBackup(notify: (t: ToastMessage) => void): () => Promise<void
     lastStart.current = now;
     try {
       const now = Date.now();
-      const text = serializeBackup(await exportBackup(undefined, now));
-      await deliver(new File([text], backupFileName(now), { type: 'application/json' }));
+      const backup = await exportBackup(undefined, now);
+      const text = serializeBackup(backup);
+      await deliver(new File([text], backupFileName(now), { type: 'application/json' }), backedUpIds(backup));
     } catch {
       notifyRef.current(toast('Could not make the backup. Try again.'));
     } finally {

@@ -137,7 +137,7 @@ const bars = shape({ req: Object.fromEntries(BAR_IDS.map((b) => [b, orNull(num)]
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
     req: { id: str, defaultUnit: unit, createdAt: num },
-    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backupSnoozeUntil: num },
+    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num },
   }),
   gyms: shape({
     req: {
@@ -344,4 +344,28 @@ export function shouldRemind({ sessions, lastBackupAt, snoozeUntil, activeWorkou
   if (activeWorkout || sessions < REMIND_MIN_SESSIONS) return false;
   if (snoozeUntil !== undefined && now < snoozeUntil) return false;
   return lastBackupAt === undefined || now - lastBackupAt >= REMIND_AFTER_MS;
+}
+
+/**
+ * The reason line under "Back up your workouts": "6 workouts are only on this phone. Last backup
+ * 15 days ago." or "… No backup yet." `onlyHere` counts finished workouts newer than the last
+ * backup (all of them when there is none).
+ */
+export function reminderReason({ onlyHere, lastBackupAt, now }: { onlyHere: number; lastBackupAt?: number; now: number }): string {
+  const count = onlyHere <= 0 ? '' : onlyHere === 1 ? '1 workout is only on this phone. ' : `${onlyHere} workouts are only on this phone. `;
+  if (lastBackupAt === undefined) return `${count}No backup yet.`;
+  const days = Math.max(0, Math.floor((now - lastBackupAt) / DAY));
+  const ago = days === 0 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`;
+  return `${count}Last backup ${ago}.`;
+}
+
+/** The finished (or imported) workouts a backup holds, by id: what "only on this phone" is measured against. */
+export function backedUpIds(backup: Pick<Backup, 'tables'>): string[] {
+  return backup.tables.sessions.filter((s) => s.endedAt !== undefined || s.imported).map((s) => s.id);
+}
+
+/** Finished workouts not in the last successful backup (all of them when no backup recorded which). */
+export function onlyOnPhone(finishedIds: readonly string[], backedUp: readonly string[] | undefined): number {
+  const held = new Set(backedUp ?? []);
+  return finishedIds.filter((id) => !held.has(id)).length;
 }

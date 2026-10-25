@@ -2,10 +2,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { FADE, SPRING } from '../../ui/motion';
 import styles from '../settings/Restore.module.css';
 
-type Props = { show: boolean; onBackUp: () => void; onLater: () => void };
+type Props = { show: boolean; reason: string; onBackUp: () => void; onLater: () => void };
 
-/** SPEC 9.1: one gentle line on Today when there is no recent backup. */
-export function BackupReminder({ show, onBackUp, onLater }: Props) {
+/** SPEC 9.1: one gentle card on Today when there is no recent backup, with why in one line. */
+export function BackupReminder({ show, reason, onBackUp, onLater }: Props) {
   const reduce = useReducedMotion();
   return (
     <AnimatePresence initial={false}>
@@ -20,7 +20,12 @@ export function BackupReminder({ show, onBackUp, onLater }: Props) {
           exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97, transition: { duration: 0.16 } }}
           transition={reduce ? FADE : SPRING}
         >
-          <span className={styles.reminderText}>Back up your workouts</span>
+          <span className={styles.reminderWords}>
+            <span className={styles.reminderText}>Back up your workouts</span>
+            <span className={`${styles.reminderReason} num`} data-testid="reminder-reason">
+              {reason}
+            </span>
+          </span>
           <span className={styles.reminderButtons}>
             <button type="button" className={`${styles.reminderLater} pressable`} onClick={onLater} data-testid="reminder-later">
               Not now

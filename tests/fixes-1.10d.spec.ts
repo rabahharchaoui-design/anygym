@@ -171,7 +171,7 @@ test('(5) storage that refuses drafts: a picked weight and reps survive switchin
   await squat.getByRole('button', { name: 'Done', exact: true }).tap();
   await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');
 
-  await addExercise(page, 'plank', 'Plank');
+  await addExercise(page, 'plank', 'Elbow Plank');
   await expect(squat).toHaveCount(0);
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   await page.getByTestId('row-barbell-back-squat').tap();

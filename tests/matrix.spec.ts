@@ -80,7 +80,8 @@ test.describe('every screen fits every phone @matrix', () => {
 
   test('the workout: day list, exercise view with the rest bar, weight sheet, picker, finish', async ({ page }) => {
     await startDay(page);
-    await checkLayout(page, { primary: page.getByTestId('row-barbell-back-squat') });
+    // Gate 2: the day list's one primary action is the Start pill in the thumb zone.
+    await checkLayout(page, { primary: page.getByTestId('start-next') });
     await checkControls(page);
     await checkContrast(page);
     await matrixShot(page, 'day-list');

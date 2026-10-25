@@ -1,6 +1,7 @@
 // Past sessions of one exercise for the progression engine (SPEC 6, src/lib/progression.ts).
 import type { PastSession, PastSet } from '../lib/progression';
 import { recordsFor, type PersonalRecord } from '../lib/records';
+import { sameExerciseIds } from '../lib/picker';
 import { barForName } from '../lib/loadTypeRule';
 import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
@@ -30,7 +31,10 @@ type Usable = WorkoutSet & { load: Load };
 /** This exercise's usable sets of this load kind: not uncertain, with a load, on the right bar. */
 async function usableSets(exerciseId: string, loadKind: Load['kind'], opts: HistoryOptions, db: AnyGymDB): Promise<Usable[]> {
   const barOf = (s: Usable) => s.load.barId ?? opts.defaultBar ?? 'olympic';
-  return (await db.sets.where('exerciseId').equals(exerciseId).toArray()).filter(
+  // A duplicate list entry is the same exercise (lib/picker.ts PICKER_ALIASES): its sets count too.
+  const ids = sameExerciseIds(exerciseId);
+  const where = db.sets.where('exerciseId');
+  return (await (ids.length === 1 ? where.equals(exerciseId) : where.anyOf(ids)).toArray()).filter(
     (s): s is Usable =>
       !s.uncertain && !!s.load && s.load.kind === loadKind && (loadKind !== 'barbell' || (barOf(s as Usable) === 'smith') === !!opts.smith),
   );

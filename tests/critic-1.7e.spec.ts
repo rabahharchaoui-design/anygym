@@ -24,8 +24,9 @@ test('Finish → Today: "Workout saved · Undo" reopens the workout and puts the
   await expect(view.getByTestId('set-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Finish' }).tap();
   // Not every exercise was done: the finish screen says so, and lists the best set.
-  await expect(page.getByTestId('finish-title')).toHaveText(/^Saved · 0 of \d+ done$/);
-  await expect(page.getByRole('radio', { name: 'Keep Day 1' })).toBeChecked();
+  await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await expect(page.getByRole('radio', { name: 'Next time: repeat Day 1' })).toBeChecked();
   await expect(page.getByTestId('finish-exercise')).toHaveText([/^Barbell Back Squat1 of 4 sets\d+ × \d+ lb$/]);
   await expect(page.getByTestId('finish-duration')).toHaveText('<1 min');
   await page.getByRole('button', { name: 'Done' }).tap();
@@ -59,7 +60,7 @@ test('the Undo toast stays 5 s, then goes', async ({ page }) => {
   await view.getByTestId('check-current').tap();
   await expect(view.getByTestId('set-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page.getByTestId('finish-title')).toHaveText('Workout done'); // a quick workout: no day to keep
+  await expect(page.getByTestId('finish-title')).toHaveText('Workout saved'); // a quick workout: no day to keep
   await page.getByRole('button', { name: 'Done' }).tap();
   const toast = page.getByRole('status').filter({ hasText: 'Workout saved' });
   await expect(toast.getByRole('button', { name: 'Undo' })).toBeVisible();
@@ -295,7 +296,7 @@ test('⋯ menu has no dead rows; the picker keeps its height while typing and le
   expect(errors).toEqual([]);
 });
 
-test('first time with weights: "Pick" cells and one first time line right under the active row', async ({ page }) => {
+test('first time with weights: "Pick" cells and one first time line above the table', async ({ page }) => {
   const errors = watchErrors(page);
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   const view = page.getByTestId('exercise-barbell-back-squat');
@@ -303,10 +304,11 @@ test('first time with weights: "Pick" cells and one first time line right under 
   const note = view.getByTestId('set-guide');
   await expect(note).toHaveText('First time: pick a weight you could lift 2 more reps with');
   await expect(note).toHaveCount(1);
+  // Gate 2: above the table (a coach mark may float over the header, never over this line).
   const row = (await view.getByTestId('set-todo').first().boundingBox())!;
   const n = (await note.boundingBox())!;
-  expect(n.y - (row.y + row.height)).toBeGreaterThanOrEqual(-1);
-  expect(n.y - (row.y + row.height)).toBeLessThan(12);
+  expect(n.y + n.height).toBeLessThanOrEqual(row.y);
+  expect(row.y - (n.y + n.height)).toBeLessThan(60);
   expect(errors).toEqual([]);
 });
 
@@ -330,9 +332,10 @@ test('finish with exercises left: Move on to Day 2, Day 1 keeps a partial pip, n
   await expect(page.getByRole('button', { name: /Quick workout/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Resume' }).tap();
   await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page.getByTestId('finish-title')).toHaveText(/^Saved · 0 of \d+ done$/);
-  await page.getByRole('radio', { name: 'Go to Day 2' }).tap();
-  await expect(page.getByRole('radio', { name: 'Go to Day 2' })).toBeChecked();
+  await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await page.getByRole('radio', { name: 'Next time: move on to Day 2' }).tap();
+  await expect(page.getByRole('radio', { name: 'Next time: move on to Day 2' })).toBeChecked();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · /);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
@@ -470,7 +473,8 @@ test('finish rows: an exercise with sets left reads "1 of 4 sets" and does not c
   await view.getByTestId('check-current').tap();
   await expect(view.getByTestId('set-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page.getByTestId('finish-title')).toHaveText(/^Saved · 0 of \d+ done$/);
+  await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-sets-left')).toHaveText('1 of 4 sets');
   // Both choices carry a radio dot; the unpicked one is plain white with a hairline.
   const looks = await page.getByRole('radio').evaluateAll((els) => els.map((e) => ({ dot: !!e.querySelector('[class*="dot"]'), color: getComputedStyle(e).color })));

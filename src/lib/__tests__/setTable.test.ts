@@ -1,3 +1,4 @@
+import { glossaryEntry } from '../../data/glossary';
 import { describe, expect, it } from 'vitest';
 import type { Draft } from '../drafts';
 import { barbellLoad, bodyweightLoad, dumbbellLoad, stackLoad, timedLoad } from '../load';
@@ -6,8 +7,13 @@ import {
   SET_TYPES,
   blockedReason,
   lastTimeCell,
-  nextSetType,
+  lastTimeNote,
+  SET_TYPE_CHIP,
+  SET_TYPE_INFO,
+  SET_TYPE_WORDS,
   pendingRows,
+  rowDraft,
+  setNumbers,
   countModeOf,
   legacyRowKey,
   markSubmitted,
@@ -41,8 +47,18 @@ const input = (over: Partial<BuildInput> = {}): BuildInput => ({
 });
 
 describe('set types', () => {
-  it('cycle normal → W → D → F → normal', () => {
-    expect(SET_TYPES.map(nextSetType)).toEqual(['warmup', 'drop', 'failure', 'normal']);
+  it('the sheet lists Normal, Warm up, Drop set, All out, each with one plain line and an ⓘ entry', () => {
+    expect(SET_TYPES).toEqual(['normal', 'warmup', 'drop', 'failure']);
+    expect(SET_TYPES.map((t) => SET_TYPE_WORDS[t])).toEqual(['Normal', 'Warm up', 'Drop set', 'All out']);
+    for (const t of SET_TYPES) {
+      expect(SET_TYPE_INFO[t].line.length).toBeGreaterThan(10);
+      expect(SET_TYPE_INFO[t].line.length).toBeLessThanOrEqual(60);
+      expect(glossaryEntry(SET_TYPE_INFO[t].glossary), t).toBeDefined();
+    }
+  });
+  it('rows show a word chip, never a bare letter (normal shows none)', () => {
+    expect(SET_TYPE_CHIP).toEqual({ normal: '', warmup: 'Warm up', drop: 'Drop set', failure: 'All out' });
+    for (const t of SET_TYPES) expect(SET_TYPE_CHIP[t]).not.toMatch(/^[A-Z]$/);
   });
   it('store as kind plus a failure flag, and read back', () => {
     for (const t of SET_TYPES) {
@@ -190,8 +206,8 @@ describe('PLAN 1.7c round 2', () => {
     expect(pendingRows(input({ lastSets: null }))[0]!.lastTime).toBeUndefined();
   });
   it('LAST TIME tags warm ups and drops and names another unit', () => {
-    expect(lastTimeCell({ kind: 'warmup', reps: 10, load: bar([25]) }, 'lb')).toBe('W 10 × 95');
-    expect(lastTimeCell({ kind: 'drop', reps: 12, load: b185 }, 'lb')).toBe('D 12 × 185');
+    expect(lastTimeCell({ kind: 'warmup', reps: 10, load: bar([25]) }, 'lb')).toBe('Warm up 10 × 95');
+    expect(lastTimeCell({ kind: 'drop', reps: 12, load: b185 }, 'lb')).toBe('Drop 12 × 185');
     expect(lastTimeCell({ kind: 'work', reps: 12, load: b185 }, 'kg')).toBe('12 × 185 lb');
     expect(lastTimeCell({ kind: 'work', reps: 8, load: bodyweightLoad('lb', 25) }, 'kg')).toBe('8 + 25 lb');
     expect(lastTimeCell({ kind: 'work', reps: 8, load: bodyweightLoad('lb') }, 'kg')).toBe('8 reps');
@@ -267,5 +283,42 @@ describe('PLAN 1.7h: stable pending rows', () => {
     expect(countModeOf({ load: timedLoad('lb') }, 'barbell')).toBe('seconds');
     expect(countModeOf({}, 'timed')).toBe('seconds');
     expect(countModeOf({}, undefined)).toBe('reps');
+  });
+});
+
+describe('lastTimeNote', () => {
+  const now = new Date(2026, 9, 25, 18).getTime();
+  const fri = new Date(2026, 9, 23, 18).getTime();
+  const b185 = barbellLoad(45, [45, 25], 'none', 'lb')!;
+  it('one line: when, then the sets in short words, exact numbers', () => {
+    expect(lastTimeNote(fri, [10, 10, 10, 10].map((reps) => ({ reps, load: b185 })), now)).toBe('Last time (Fri): 4 × 10 at 185 lb');
+    expect(lastTimeNote(fri, [12, 12, 10].map((reps) => ({ reps, load: b185 })), now)).toBe('Last time (Fri): 12 × 185 · 12 × 185 · 10 × 185 lb');
+    expect(lastTimeNote(now, [{ reps: 8, load: b185 }], now)).toBe('Last time (today): 8 × 185 lb');
+    expect(lastTimeNote(fri, [12, 12, 12].map((reps) => ({ reps, load: dumbbellLoad(30, 'lb') })), now)).toBe('Last time (Fri): 3 × 12 at 30 lb each');
+  });
+});
+
+describe('a row turned into a warm up drops the working target (gate 2)', () => {
+  const p = progress({ exerciseId: 'x', unit: 'lb', gym: setup, loadKind: 'barbell', repRange: [8, 12], history: [{ date: 1e12, gymId: 'g', unit: 'lb', sets: [10, 10].map((reps) => ({ kind: 'work' as const, reps, load: b185 })) }] });
+  it('weight shows Pick and reps are empty until set by hand', () => {
+    const rows = pendingRows(input({ count: 2, progression: p, draftOf: (i) => (i === 0 ? { id: 'w', load: b185, plates: [45, 25], reps: 11, type: 'warmup', noTarget: true } : null) }));
+    expect(rows[0]).toMatchObject({ type: 'warmup', load: null, plates: [] });
+    expect(rows[0]!.reps).toBeUndefined();
+    expect(rows[1]!.load).toEqual(b185);
+  });
+  it('a weight or reps the user set by hand stay', () => {
+    const own = pendingRows(input({ count: 1, progression: p, draftOf: () => ({ id: 'w', load: bar([25]), plates: [25], reps: 5, type: 'warmup', noTarget: true, own: { load: true, reps: true } }) }));
+    expect(own[0]).toMatchObject({ load: bar([25]), reps: 5 });
+  });
+  it('an empty row that moves stays empty (never an empty bar)', () => {
+    const d = rowDraft({ index: 1, load: null, plates: [], type: 'warmup', edited: true, reps: 6 }, 'n');
+    expect(d).toMatchObject({ noTarget: true, own: { reps: true }, reps: 6 });
+  });
+});
+
+describe('setNumbers (gate 3)', () => {
+  it('warm ups read W; working sets are numbered 1 to n in order', () => {
+    expect(setNumbers(['warmup', 'normal', 'drop', 'warmup', 'failure'])).toEqual(['W', '1', '2', 'W', '3']);
+    expect(setNumbers([])).toEqual([]);
   });
 });

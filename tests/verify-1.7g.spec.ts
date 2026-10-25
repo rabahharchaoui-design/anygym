@@ -31,13 +31,15 @@ async function problems(page: Page): Promise<string[]> {
     const vis = (e: HTMLElement) => { const r = e.getBoundingClientRect(); const s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && !e.closest('[aria-hidden="true"], [inert]'); };
     const leaves: Array<{ e: HTMLElement; r: DOMRect }> = [];
     for (const e of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
-      if (!vis(e) || /_digit_|_strip|data-skeleton/.test(e.className)) continue;
+      // First time coach marks float over the row they point at on purpose (no taps, gone on the first tap).
+      if (!vis(e) || /_digit_|_strip|data-skeleton/.test(e.className) || e.closest('[data-testid="hint"]')) continue;
       const s = getComputedStyle(e);
       const own = Array.from(e.childNodes).some((n) => n.nodeType === 3 && n.textContent!.trim());
       const clamp = (s as unknown as Record<string, string>).webkitLineClamp;
       if (clamp && clamp !== 'none') bad.push(`LINE-CLAMP ${clamp} on ${e.tagName}.${e.className}`);
       if (own || /^H[1-6]$/.test(e.tagName)) {
-        const hides = /(hidden|clip)/.test(s.overflowX) || /(hidden|clip)/.test(s.overflowY) || s.textOverflow === 'ellipsis';
+        // data-truncate-ok: a one line label that ends in "…" by design, its full text in the control's name.
+        const hides = !e.closest('[data-truncate-ok]') && (/(hidden|clip)/.test(s.overflowX) || /(hidden|clip)/.test(s.overflowY) || s.textOverflow === 'ellipsis');
         if (hides && (e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1)) bad.push(`CLIP ${e.tagName}.${e.className} "${(e.textContent ?? '').trim().slice(0, 30)}" ${e.scrollWidth}x${e.scrollHeight}>${e.clientWidth}x${e.clientHeight}`);
         // an ancestor that clips this text
         for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {

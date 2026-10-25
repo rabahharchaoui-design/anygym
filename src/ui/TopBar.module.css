@@ -18,7 +18,8 @@
   background: var(--glass-bg-strong);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  opacity: var(--collapse, 0);
+  /* Opaque quickly once anything scrolls under it (gate 3: never see-through over text). */
+  opacity: clamp(0, calc(var(--collapse, 0) * 4), 1);
   pointer-events: none;
 }
 

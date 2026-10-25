@@ -37,7 +37,7 @@ test('1. start today\'s plan day and log all 4 squat sets at target in at most 6
   await t.tap(page.getByRole('button', { name: 'Start', exact: true }));
   await t.tap(page.getByTestId('row-barbell-back-squat'));
   const view = page.getByTestId('exercise-barbell-back-squat');
-  await expect(view.getByTestId('set-guide')).toContainText('Last time 10 × 185 · 10 × 185 · 10 × 185 · 10 × 185 lb');
+  await expect(view.getByTestId('set-next')).toHaveText('Beat last time: 11 reps at 185 lb');
   for (let i = 0; i < 4; i++) {
     await t.tap(view.getByTestId('check-current'));
     await expect(view.getByTestId('set-row')).toHaveCount(i + 1);

@@ -76,6 +76,8 @@ test('share capture: name has local date; wipe, restore Replace with double tap 
   expect(gyms.filter((g) => g.isActive).map((g) => g.id)).toEqual(gymsBefore.filter((g) => g.isActive).map((g) => g.id));
   expect(gyms).toHaveLength(gymsBefore.length);
   await page.reload();
+  // Settings hides the tab bar (gate fix 12): back to Today, then History.
+  await page.getByRole('link', { name: 'Back to Today' }).tap();
   await page.getByRole('link', { name: /History/ }).tap();
   await expect(page.getByTestId('history-row')).toHaveCount(sessionsBefore);
   await expect(page.getByTestId('history-row').first()).toContainText('2 sets');

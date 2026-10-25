@@ -1,0 +1,74 @@
+[
+ {
+  "name": "tab-history",
+  "t": 2.24
+ },
+ {
+  "name": "tab-plans",
+  "t": 3.195
+ },
+ {
+  "name": "push-viewer",
+  "t": 4.129
+ },
+ {
+  "name": "back-viewer",
+  "t": 5.047
+ },
+ {
+  "name": "edge-swipe",
+  "t": 6.732
+ },
+ {
+  "name": "URL http://localhost:4173/anygym/#/plans",
+  "t": 0
+ },
+ {
+  "name": "start-workout",
+  "t": 8.909
+ },
+ {
+  "name": "open-exercise",
+  "t": 9.831
+ },
+ {
+  "name": "check-set",
+  "t": 10.779
+ },
+ {
+  "name": "open-weight-sheet",
+  "t": 12.122
+ },
+ {
+  "name": "add-plate",
+  "t": 13.088
+ },
+ {
+  "name": "drag-sheet-close",
+  "t": 13.83
+ },
+ {
+  "name": "reps-stepper",
+  "t": 15.115
+ },
+ {
+  "name": "back-to-list",
+  "t": 16.159
+ },
+ {
+  "name": "minimize",
+  "t": 17.098
+ },
+ {
+  "name": "resume",
+  "t": 18.047
+ },
+ {
+  "name": "finish",
+  "t": 18.979
+ },
+ {
+  "name": "done-toast",
+  "t": 20.516
+ }
+]

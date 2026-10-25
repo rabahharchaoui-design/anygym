@@ -319,6 +319,13 @@ const ENTRIES: Draft[] = [
     illustration: Art.PairArt,
   },
   {
+    id: 'normal-set',
+    term: 'Normal set',
+    sentences: ['A regular set at your target weight and reps.', 'It counts toward beating last time.'],
+    weightLine: null,
+    illustration: null,
+  },
+  {
     id: 'warm-up-set',
     term: 'Warm up set',
     sentences: [
@@ -337,6 +344,13 @@ const ENTRIES: Draft[] = [
     ],
     weightLine: null,
     illustration: Art.DropSetArt,
+  },
+  {
+    id: 'until-you-cant',
+    term: 'All out',
+    sentences: ['Do reps until you cannot do one more with good form.', 'Best kept for the last set of an exercise.'],
+    weightLine: null,
+    illustration: null,
   },
   {
     id: 'rest-timer',

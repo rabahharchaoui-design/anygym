@@ -96,8 +96,8 @@ const pause = (page: Page, ms = 400) => page.waitForTimeout(ms); // past the dou
 test('(1) Log set during "Start again" saves the live hold, not the earlier stop', async ({ page }) => {
   const errors = watchErrors(page);
   await quick(page);
-  await addExercise(page, 'plank', 'Plank');
-  const card = page.getByTestId('exercise-plank');
+  await addExercise(page, 'plank', 'Elbow Plank');
+  const card = page.getByTestId('exercise-elbow-plank');
   await card.getByRole('button', { name: 'Start timer' }).tap();
   await page.waitForTimeout(1200);
   await card.getByRole('button', { name: 'Stop timer' }).tap();
@@ -128,8 +128,8 @@ test('(2) picked weight, reps and a running hold survive switching exercises and
   await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');
 
   // Another exercise opens: the squat view unmounts.
-  await addExercise(page, 'plank', 'Plank');
-  const plank = page.getByTestId('exercise-plank');
+  await addExercise(page, 'plank', 'Elbow Plank');
+  const plank = page.getByTestId('exercise-elbow-plank');
   await expect(squat).toHaveCount(0);
   await plank.getByRole('button', { name: 'Start timer' }).tap();
   await page.waitForTimeout(1100);
@@ -145,7 +145,7 @@ test('(2) picked weight, reps and a running hold survive switching exercises and
   await expect(squat.getByTestId('reps-cell').first()).toHaveText('9');
   // The hold kept running through leaving its view and the reload.
   await back(page);
-  await page.getByTestId('row-plank').tap();
+  await page.getByTestId('row-elbow-plank').tap();
   await expect(plank.getByRole('button', { name: 'Stop timer' })).toBeVisible();
   await expect.poll(async () => parseInt((await plank.getByTestId('timer-clock').textContent())!, 10)).toBeGreaterThanOrEqual(2);
   expect(await savedSets(page)).toEqual([]);
@@ -164,7 +164,7 @@ test('(2) picked weight, reps and a running hold survive switching exercises and
   const squatDrafts = Object.entries(Object.values(drafts)[0] ?? {}).filter(([k]) => k.startsWith('barbell-back-squat'));
   expect(squatDrafts.map(([k]) => k).sort()).toEqual(['barbell-back-squat@0', 'barbell-back-squat@1']);
   expect(squatDrafts.map(([, d]) => (d as { id: string }).id)).not.toContain(loggedId);
-  expect(own).toContain('plank@0');
+  expect(own).toContain('elbow-plank@0');
   expect(errors).toEqual([]);
 });
 
@@ -388,7 +388,7 @@ test('(7) History lists finished workouts with date, name and sets; tap one for 
 
   await rows.nth(1).tap();
   await expect(page.getByRole('heading', { name: 'Quick workout' })).toBeVisible();
-  await expect(page.getByTestId('history-meta')).toHaveText(`${today} · 2 sets`);
+  await expect(page.getByTestId('history-meta')).toHaveText(new RegExp(`^${today} · 2 sets · (<1|\\d+) min · [\\d,.]+ lb lifted$`));
   const squat = page.getByRole('region', { name: 'Barbell Back Squat' });
   await expect(squat.getByTestId('history-set')).toHaveText([/8 × 135 lb/, /8 × 135 lb/]);
   await page.getByRole('link', { name: 'Back to History' }).tap();

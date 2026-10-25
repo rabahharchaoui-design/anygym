@@ -32,7 +32,8 @@ async function clipped(page: Page): Promise<string[]> {
       if (r.width === 0 || r.height === 0 || s.visibility === 'hidden') continue;
       const hasText = Array.from(el.childNodes).some((n) => n.nodeType === 3 && n.textContent!.trim()) || /^H[1-6]$/.test(el.tagName);
       if (!hasText) continue;
-      const hides = /(hidden|clip)/.test(s.overflowX + s.overflowY) || s.textOverflow === 'ellipsis';
+      // data-truncate-ok: a one line label that ends in "…" by design, its full text in the control's name.
+      const hides = !el.closest('[data-truncate-ok]') && (/(hidden|clip)/.test(s.overflowX + s.overflowY) || s.textOverflow === 'ellipsis');
       if (!hides && !/^H[1-6]$/.test(el.tagName)) continue;
       if (el.scrollWidth > el.clientWidth + 1 || (/(hidden|clip)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1)) {
         bad.push(`${el.tagName}.${el.className} "${(el.textContent ?? '').trim().slice(0, 40)}" ${el.scrollWidth}x${el.scrollHeight} > ${el.clientWidth}x${el.clientHeight}`);

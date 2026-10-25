@@ -154,8 +154,8 @@ test('workout: each exercise shows only its own picker with the SPEC 13.6 labels
   await closePicker(page);
 
   // Hold for: the timer, only here, and no weight picker at all.
-  await addExercise(page, 'plank', 'Plank');
-  const plank = page.getByTestId('exercise-plank');
+  await addExercise(page, 'plank', 'Elbow Plank');
+  const plank = page.getByTestId('exercise-elbow-plank');
   await expect(plank.getByTestId('weight-cell')).toHaveCount(0);
   await expect(plank.getByTestId('hold-cell')).toHaveCount(3);
   await expect(page.getByTestId('timer-clock')).toHaveCount(1);
@@ -226,7 +226,7 @@ test('first use prompts on #/dev/loads carry an ⓘ; the Olympic bar sheet shows
 
   await page.goto('./?dev#/dev/info');
   await expect(page.getByRole('heading', { level: 1, name: 'Glossary' })).toBeVisible();
-  await expect(page.locator('[data-testid^="entry-"]')).toHaveCount(34);
+  await expect(page.locator('[data-testid^="entry-"]')).toHaveCount(36);
   await page.getByTestId('entry-olympic-barbell').getByRole('button', { name: 'What is Olympic barbell?' }).tap();
   const sheet = page.getByRole('dialog', { name: 'Olympic barbell' });
   await expect(sheet.getByTestId('info-weight')).toHaveText('Olympic bar: 45 lb / 20 kg');

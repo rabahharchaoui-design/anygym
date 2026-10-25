@@ -10,7 +10,7 @@ type Props = { toast: ToastMessage | null; /** Extra space below, e.g. above a b
 export function Toast({ toast, bottom = '0px' }: Props) {
   const reduce = useReducedMotion();
   return (
-    <div className={styles.anchor} style={{ ['--toast-bottom' as string]: bottom }} aria-live="polite">
+    <div className={styles.anchor} style={{ ['--toast-bottom' as string]: bottom }} aria-live="polite" data-toast-anchor>
       <AnimatePresence>
         {toast && (
           <motion.div

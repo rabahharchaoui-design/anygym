@@ -54,7 +54,7 @@ test.describe('1.10d verify', () => {
   test('a double tap + switch exercises mid log: one set, next log gets a new id', async ({ page }) => {
     const errors = watch(page);
     await quick(page);
-    await add(page, ['back squat', 'Barbell Back Squat'], ['plank', 'Plank']);
+    await add(page, ['back squat', 'Barbell Back Squat'], ['plank', 'Elbow Plank']);
     await page.getByTestId('row-barbell-back-squat').tap();
     const sq = page.getByTestId('exercise-barbell-back-squat');
     await plates(page, sq, '45 lb');
@@ -65,7 +65,7 @@ test.describe('1.10d verify', () => {
     // tap then immediately leave for the other exercise and come back
     await logBtn(page).tap();
     await back(page);
-    await page.getByTestId('row-plank').tap({ noWaitAfter: true }).catch(() => {});
+    await page.getByTestId('row-elbow-plank').tap({ noWaitAfter: true }).catch(() => {});
     await page.waitForTimeout(300);
     await back(page).catch(() => {});
     await page.getByTestId('row-barbell-back-squat').tap();
@@ -183,7 +183,7 @@ test.describe('1.10d verify', () => {
       };
     });
     await quick(page);
-    await add(page, ['back squat', 'Barbell Back Squat'], ['plank', 'Plank']);
+    await add(page, ['back squat', 'Barbell Back Squat'], ['plank', 'Elbow Plank']);
     await page.getByTestId('row-barbell-back-squat').tap();
     const sq = page.getByTestId('exercise-barbell-back-squat');
     await plates(page, sq, '45 lb');
@@ -192,7 +192,7 @@ test.describe('1.10d verify', () => {
     const toast = page.getByRole('status').filter({ hasText: 'Drafts will not survive' });
     await expect(toast).toBeVisible();
     await back(page);
-    await page.getByTestId('row-plank').tap();
+    await page.getByTestId('row-elbow-plank').tap();
     await back(page);
     await page.getByTestId('row-barbell-back-squat').tap();
     await expect(logBtn(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');

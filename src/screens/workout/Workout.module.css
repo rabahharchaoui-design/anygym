@@ -188,6 +188,22 @@
   color: var(--accent);
 }
 
+.guideNext .guideWhen {
+  color: var(--text-2);
+  opacity: 1;
+}
+
+/* "Current" on the choice in use (lime check and word). */
+.choiceCurrent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
 .tableSkeleton {
   height: 220px;
   border-radius: 14px;
@@ -215,11 +231,6 @@
   color: var(--amber);
   font-size: 14px;
   line-height: 18px;
-}
-
-.checkHint {
-  right: 0;
-  top: calc(100% - 14px);
 }
 
 .askBox {

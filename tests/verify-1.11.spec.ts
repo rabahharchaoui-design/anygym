@@ -111,7 +111,8 @@ test('V1 synthetic exactness, double tap, undo, real sessions untouched', async 
   // The list reads the database first (a skeleton meanwhile): wait for the rows, then read them.
   await expect(page.getByTestId('history-row')).toHaveCount(sessions.length);
   const hist = await page.getByTestId('history-row').allInnerTexts();
-  expect(hist.every((h) => h.includes('Imported'))).toBe(true);
+  // Gate 2: imported rows sit under one "Imported · no dates" heading.
+  await expect(page.getByRole('region', { name: 'Imported workouts' }).getByTestId('history-row')).toHaveCount(sessions.length);
   expect(hist.length).toBe(sessions.length);
   expect(errors).toEqual([]);
   void expectRows;
@@ -155,10 +156,10 @@ test('V2 real session untouched by import and Undo, imported sort before real', 
   await page.goto('./#/history');
   const rows = page.getByTestId('history-row');
   const txt = await rows.allInnerTexts();
-  console.log('HIST order', JSON.stringify(txt.map((t) => (t.includes('Imported') ? 'I' : 'R'))));
-  // real first (newest), imported after
-  expect(txt[0]).not.toContain('Imported');
-  expect(txt.slice(1).every((t) => t.includes('Imported'))).toBe(true);
+  // real first (newest), imported after, under their own heading (gate 2)
+  await expect(page.getByRole('list', { name: 'Finished workouts' }).getByTestId('history-row')).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Imported workouts' }).getByTestId('history-row')).toHaveCount(txt.length - 1);
+  expect(await rows.first().evaluate((el) => !el.closest('[aria-label="Imported workouts"]'))).toBe(true);
   // Undo
   await page.goto('./#/settings');
   await page.getByTestId('import-file').setInputFiles(FIXTURE);

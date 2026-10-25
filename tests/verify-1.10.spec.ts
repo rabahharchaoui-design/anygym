@@ -256,7 +256,7 @@ const finishDay = async (page: Page) => {
   await expect(page).toHaveURL(/\/done$/);
   // 1.7e: a day with lifts left stays up next unless you move on (this flow walks the week).
   await expect(page.getByTestId('finish-title')).toBeVisible();
-  const move = page.getByRole('radio', { name: /^Go to Day/ });
+  const move = page.getByRole('radio', { name: /^Next time: move on to Day/ });
   if (await move.count()) await move.tap();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);

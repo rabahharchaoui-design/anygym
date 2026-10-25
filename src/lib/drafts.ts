@@ -31,6 +31,13 @@ export type Draft = {
    * runs and after it failed; gone once it landed (the draft is used up) or the user discarded it.
    */
   submitted?: number;
+  /**
+   * The row was turned into a warm up (ux-critic gate 2): it drops the prefilled working target,
+   * so only what the user set by hand (`own`) shows; the rest is empty until they set it.
+   */
+  noTarget?: true;
+  /** What the user set by hand on this row (a weight pick or LAST TIME copy, the reps stepper). */
+  own?: { load?: true; reps?: true };
 };
 
 const KEY = 'anygym-drafts';

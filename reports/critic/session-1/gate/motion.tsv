@@ -1,0 +1,48 @@
+iPhone SE	PRESS Start button	matrix(0.97, 0, 0, 0.97, 0, 0) op=1
+iPhone 15 Pro	PRESS Start button	matrix(0.97, 0, 0, 0.97, 0, 0) op=1
+iPhone 15 Pro	PRESS Tab History	matrix(0.94, 0, 0, 0.94, 0, 0) op=1
+iPhone SE	PRESS Tab History	matrix(0.94, 0, 0, 0.94, 0, 0) op=1
+iPhone SE	PRESS Change day	matrix(0.97, 0, 0, 0.97, 0, 0) op=0.8
+iPhone 15 Pro	PRESS Change day	matrix(0.97, 0, 0, 0.97, 0, 0) op=0.8
+iPhone SE	tab Today→History	firstChange=49ms	settled=332ms	maxFrameGapWhileMoving=33ms	changedFrames=2
+iPhone 15 Pro	tab Today→History	firstChange=47ms	settled=331ms	maxFrameGapWhileMoving=33ms	changedFrames=2
+iPhone SE	tab History→Plans	firstChange=45ms	settled=328ms	maxFrameGapWhileMoving=32ms	changedFrames=2
+iPhone 15 Pro	tab History→Plans	firstChange=45ms	settled=336ms	maxFrameGapWhileMoving=32ms	changedFrames=2
+iPhone SE	PRESS Plan card	matrix(0.97, 0, 0, 0.97, 0, 0) op=0.8
+iPhone 15 Pro	PRESS Plan card	matrix(0.97, 0, 0, 0.97, 0, 0) op=0.8
+iPhone SE	push plan viewer	firstChange=40ms	settled=340ms	maxFrameGapWhileMoving=35ms	changedFrames=16
+iPhone 15 Pro	push plan viewer	firstChange=41ms	settled=340ms	maxFrameGapWhileMoving=29ms	changedFrames=16
+iPhone SE	back (button) from viewer	firstChange=43ms	settled=328ms	maxFrameGapWhileMoving=30ms	changedFrames=17
+iPhone 15 Pro	back (button) from viewer	firstChange=45ms	settled=328ms	maxFrameGapWhileMoving=34ms	changedFrames=16
+iPhone 15 Pro	edge swipe back from viewer	firstChange=-1ms	settled=-1ms	maxFrameGapWhileMoving=0ms	changedFrames=0
+iPhone SE	edge swipe back from viewer	firstChange=-1ms	settled=-1ms	maxFrameGapWhileMoving=0ms	changedFrames=0
+iPhone SE	Start → day list	firstChange=46ms	settled=335ms	maxFrameGapWhileMoving=34ms	changedFrames=2
+iPhone 15 Pro	Start → day list	firstChange=46ms	settled=337ms	maxFrameGapWhileMoving=33ms	changedFrames=2
+iPhone 15 Pro	row → exercise view	firstChange=48ms	settled=348ms	maxFrameGapWhileMoving=33ms	changedFrames=2
+iPhone SE	row → exercise view	firstChange=48ms	settled=348ms	maxFrameGapWhileMoving=33ms	changedFrames=2
+iPhone SE	PRESS Set check	matrix(0.97, 0, 0, 0.97, 0, 0) op=0.8
+iPhone 15 Pro	PRESS Set check	matrix(0.97, 0, 0, 0.97, 0, 0) op=0.8
+iPhone SE	check set (fill + rest dock)	firstChange=27ms	settled=27ms	maxFrameGapWhileMoving=14ms	changedFrames=1
+iPhone 15 Pro	check set (fill + rest dock)	firstChange=27ms	settled=27ms	maxFrameGapWhileMoving=14ms	changedFrames=1
+iPhone 15 Pro	open weight sheet	firstChange=47ms	settled=327ms	maxFrameGapWhileMoving=27ms	changedFrames=18
+iPhone SE	open weight sheet	firstChange=46ms	settled=327ms	maxFrameGapWhileMoving=27ms	changedFrames=18
+iPhone 15 Pro	add plate	firstChange=-1ms	settled=-1ms	maxFrameGapWhileMoving=0ms	changedFrames=0
+iPhone SE	add plate	firstChange=-1ms	settled=-1ms	maxFrameGapWhileMoving=0ms	changedFrames=0
+iPhone SE	close sheet (Done)	firstChange=30ms	settled=380ms	maxFrameGapWhileMoving=22ms	changedFrames=20
+iPhone 15 Pro	close sheet (Done)	firstChange=30ms	settled=365ms	maxFrameGapWhileMoving=27ms	changedFrames=20
+iPhone 15 Pro	open ⋯ menu	firstChange=29ms	settled=329ms	maxFrameGapWhileMoving=18ms	changedFrames=19
+iPhone SE	open ⋯ menu	firstChange=28ms	settled=326ms	maxFrameGapWhileMoving=18ms	changedFrames=19
+iPhone SE	drag menu down to close	firstChange=31ms	settled=31ms	maxFrameGapWhileMoving=16ms	changedFrames=1
+iPhone 15 Pro	drag menu down to close	firstChange=31ms	settled=48ms	maxFrameGapWhileMoving=19ms	changedFrames=2
+iPhone SE	back to day list	firstChange=58ms	settled=325ms	maxFrameGapWhileMoving=51ms	changedFrames=2
+iPhone 15 Pro	back to day list	firstChange=45ms	settled=328ms	maxFrameGapWhileMoving=44ms	changedFrames=2
+iPhone SE	minimize workout	firstChange=45ms	settled=330ms	maxFrameGapWhileMoving=33ms	changedFrames=2
+iPhone 15 Pro	minimize workout	firstChange=45ms	settled=328ms	maxFrameGapWhileMoving=35ms	changedFrames=2
+iPhone 15 Pro	Resume	firstChange=46ms	settled=329ms	maxFrameGapWhileMoving=34ms	changedFrames=2
+iPhone SE	Resume	firstChange=46ms	settled=329ms	maxFrameGapWhileMoving=34ms	changedFrames=2
+iPhone 15 Pro	Finish → finish screen	firstChange=53ms	settled=330ms	maxFrameGapWhileMoving=40ms	changedFrames=2
+iPhone SE	Finish → finish screen	firstChange=56ms	settled=328ms	maxFrameGapWhileMoving=43ms	changedFrames=2
+iPhone SE	Done → Today + toast	firstChange=44ms	settled=327ms	maxFrameGapWhileMoving=34ms	changedFrames=18
+iPhone 15 Pro	Done → Today + toast	firstChange=44ms	settled=326ms	maxFrameGapWhileMoving=34ms	changedFrames=18
+iPhone SE	open Settings	firstChange=46ms	settled=328ms	maxFrameGapWhileMoving=34ms	changedFrames=2
+iPhone 15 Pro	open Settings	firstChange=48ms	settled=330ms	maxFrameGapWhileMoving=34ms	changedFrames=2

@@ -19,6 +19,7 @@ import {
   chooseKind,
   emptyChoices,
   fileSetText,
+  kindOf,
   planImport,
   type LoadContext,
   type PlannedExercise,
@@ -31,7 +32,7 @@ import { LOAD_TYPE_CHOICES, loadSetupFor, machineIdFor } from '../workout/exerci
 import { LoadTypeSheet } from '../workout/LoadTypeSheet';
 import { setCount } from '../history/historyWords';
 import { ImportSetSheet } from './ImportSetSheet';
-import { PickExerciseSheet } from './PickExerciseSheet';
+import { PickExerciseSheet, skipText } from './PickExerciseSheet';
 import { importDraft, type ImportDone } from './importDraft';
 import css from './Import.module.css';
 
@@ -45,6 +46,9 @@ function contextFor(gym: Gym) {
     setupFor: (kind) => ({ unit: gym.unit, ...loadSetupFor(gym, kind, exerciseId, name) }),
   });
 }
+
+/** The sets "Skip these" leaves out: every set of that exercise not imported before. */
+const setsToSkip = (e: PlannedExercise) => e.sessions.reduce((n, s) => n + (s.already ? 0 : s.sets.length), 0);
 
 const kindLabel = (kind: Load['kind']) => LOAD_TYPE_CHOICES.find((c) => c.kind === kind)?.label ?? kind;
 
@@ -122,7 +126,7 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
         : `Import ${setCount(plan.sets)}`;
 
   const asked = ask?.ex;
-  const askedName = asked ? (asked.target?.name ?? asked.ex.planExercise) : '';
+  const askedName = asked ? (asked.target?.name ?? asked.ex.name) : '';
   const barOf = (e: PlannedExercise): BarId | undefined =>
     e.ex.loadType === 'smith_per_side' ? 'smith' : e.ex.loadType === 'barbell_per_side' ? 'olympic' : e.target?.bar;
 
@@ -134,7 +138,7 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
         </p>
         {unsure > 0 && (
           <p className={`${css.metaAmber} num`} data-testid="import-unsure">
-            {unsure} to check (in amber)
+            {unsure} to check
           </p>
         )}
       </TopBar>
@@ -146,118 +150,122 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
         </p>
       )}
 
-      {plan.exercises.map((e) => (
-        <section key={e.ex.index} id={`import-ex-${e.ex.index}`} className={css.exercise} data-testid="import-exercise" data-skipped={e.skipped || undefined} aria-label={e.target?.name ?? e.ex.planExercise}>
-          <header className={css.head}>
-            <h2 className={css.name}>{e.target?.name ?? e.ex.planExercise}</h2>
-            {e.ex.name !== (e.target?.name ?? e.ex.planExercise) && <p className={css.sub}>In your file: {e.ex.name}</p>}
-            {e.ex.note && <p className={css.sub}>{e.ex.note}</p>}
-            {e.ex.gymNote && <p className={css.sub}>{e.ex.gymNote}</p>}
-          </header>
+      {plan.exercises.map((e) => {
+        // Not matched to an exercise (yet): the file's own name, said plainly.
+        const title = e.target?.name ?? `${e.ex.name} (not matched)`;
+        return (
+          <section key={e.ex.index} id={`import-ex-${e.ex.index}`} className={css.exercise} data-testid="import-exercise" data-skipped={e.skipped || undefined} aria-label={title}>
+            <header className={css.head}>
+              <h2 className={css.name}>{title}</h2>
+              {e.target && e.ex.name !== e.target.name && <p className={css.sub}>In your file: {e.ex.name}</p>}
+              {e.ex.note && <p className={css.sub}>{e.ex.note}</p>}
+              {e.ex.gymNote && <p className={css.sub}>{e.ex.gymNote}</p>}
+            </header>
 
-          {e.needsPick && (
-            <div className={css.ask} data-testid="ask-pick">
-              <p className={css.askText}>We could not match this name to an exercise.</p>
-              <div className={css.askRow}>
-                <button type="button" className={`${css.askButton} pressable`} onClick={() => setAsk({ type: 'pick', ex: e })}>
-                  Pick the exercise
-                </button>
-                <button type="button" className={`${css.askQuiet} pressable`} onClick={() => update((c) => ({ ...c, picks: { ...c.picks, [e.ex.index]: SKIP } }))}>
-                  Skip these
-                </button>
+            {e.needsPick && (
+              <div className={css.ask} data-testid="ask-pick">
+                <p className={css.askText}>We could not match this name to an exercise.</p>
+                <div className={css.askRow}>
+                  <button type="button" className={`${css.askButton} pressable`} onClick={() => setAsk({ type: 'pick', ex: e })}>
+                    Pick the exercise
+                  </button>
+                  <button type="button" className={`${css.askQuiet} pressable`} onClick={() => update((c) => ({ ...c, picks: { ...c.picks, [e.ex.index]: SKIP } }))}>
+                    {skipText(setsToSkip(e))}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-          {!e.matched && (e.target || e.skipped) && (
-            <p className={css.answer}>
-              {e.skipped ? 'Skipped: not imported' : 'Picked by you'}
-              <button
-                type="button"
-                className={`${css.link} pressable`}
-                onClick={() =>
-                  e.skipped
-                    ? update((c) => {
-                        const picks = { ...c.picks };
-                        delete picks[e.ex.index];
-                        return { ...c, picks };
-                      })
-                    : setAsk({ type: 'pick', ex: e })
-                }
-              >
-                {e.skipped ? 'Bring back' : 'Change'}
-              </button>
-            </p>
-          )}
-          {e.needsKind && (
-            <div className={css.ask} data-testid="ask-kind">
-              <p className={css.askText}>Your file does not say how this is loaded.</p>
-              <div className={css.askRow}>
-                <button type="button" className={`${css.askButton} pressable`} onClick={() => setAsk({ type: 'kind', ex: e })}>
-                  How do you load this?
+            )}
+            {!e.matched && (e.target || e.skipped) && (
+              <p className={css.answer}>
+                {e.skipped ? 'Skipped: not imported' : 'Picked by you'}
+                <button
+                  type="button"
+                  className={`${css.link} pressable`}
+                  onClick={() =>
+                    e.skipped
+                      ? update((c) => {
+                          const picks = { ...c.picks };
+                          delete picks[e.ex.index];
+                          return { ...c, picks };
+                        })
+                      : setAsk({ type: 'pick', ex: e })
+                  }
+                >
+                  {e.skipped ? 'Bring back' : 'Change'}
                 </button>
-              </div>
-            </div>
-          )}
-          {e.ex.loadType === 'unknown' && e.kind && !e.skipped && (
-            <p className={css.answer}>
-              Loaded with: {kindLabel(e.kind)}
-              <button type="button" className={`${css.link} pressable`} onClick={() => setAsk({ type: 'kind', ex: e })}>
-                Change
-              </button>
-            </p>
-          )}
-          {e.missingBase && !e.skipped && (
-            <div className={css.ask} data-testid="ask-base">
-              <p className={css.askText}>
-                {e.missingBase === 'smith' ? 'Set the Smith bar weight for this gym to count these sets.' : 'Set the starting weight of this machine to count these sets.'}
               </p>
-              <div className={css.askRow}>
-                <button type="button" className={`${css.askButton} pressable`} onClick={() => setAsk({ type: 'base', ex: e })}>
-                  {e.missingBase === 'smith' ? 'Set bar weight' : 'Set starting weight'}
-                </button>
+            )}
+            {e.needsKind && (
+              <div className={css.ask} data-testid="ask-kind">
+                <p className={css.askText}>Your file does not say how this is loaded.</p>
+                <div className={css.askRow}>
+                  <button type="button" className={`${css.askButton} pressable`} onClick={() => setAsk({ type: 'kind', ex: e })}>
+                    How do you load this?
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            {e.ex.loadType === 'unknown' && e.kind && !e.skipped && (
+              <p className={css.answer}>
+                Loaded with: {kindLabel(e.kind)}
+                <button type="button" className={`${css.link} pressable`} onClick={() => setAsk({ type: 'kind', ex: e })}>
+                  Change
+                </button>
+              </p>
+            )}
+            {e.missingBase && !e.skipped && (
+              <div className={css.ask} data-testid="ask-base">
+                <p className={css.askText}>
+                  {e.missingBase === 'smith' ? 'Set the Smith bar weight for this gym to count these sets.' : 'Set the starting weight of this machine to count these sets.'}
+                </p>
+                <div className={css.askRow}>
+                  <button type="button" className={`${css.askButton} pressable`} onClick={() => setAsk({ type: 'base', ex: e })}>
+                    {e.missingBase === 'smith' ? 'Set bar weight' : 'Set starting weight'}
+                  </button>
+                </div>
+              </div>
+            )}
 
-          {e.sessions.map((s, si) => (
-            <div key={s.source.hash + si} className={css.session} data-already={s.already || undefined}>
-              <p className={css.sessionTitle}>
-                Workout {si + 1} of {e.sessions.length}
-                {s.already && <span className={css.tag}>Already imported</span>}
-              </p>
-              {s.source.note && <p className={css.sub}>{s.source.note}</p>}
-              <ol className={css.sets}>
-                {s.sets.map((x, i) => (
-                  <li key={x.key}>
-                    <button
-                      type="button"
-                      className={`${css.set} pressable`}
-                      data-testid="import-set"
-                      data-uncertain={(flagged(x) && !e.skipped) || undefined}
-                      data-skipped={x.skipped || undefined}
-                      disabled={s.already || e.skipped}
-                      onClick={() => (e.needsPick ? setAsk({ type: 'pick', ex: e }) : e.needsKind ? setAsk({ type: 'kind', ex: e }) : setAsk({ type: 'set', ex: e, set: x, index: i }))}
-                    >
-                      <span className={`${css.index} num`}>{i + 1}</span>
-                      <span className={css.setMain}>
-                        <span className={css.setLine}>
-                          <span className="num">{x.load ? formatSetLine({ reps: x.reps, load: x.load }) : x.edited ? `${x.reps} reps` : fileSetText(x.source)}</span>
-                          {x.kind === 'warmup' && <span className={css.tag}>Warm up</span>}
-                          {x.kind === 'drop' && <span className={css.tag}>Drop</span>}
-                          {x.skipped && <span className={css.tag}>Skip</span>}
-                          {x.edited && !x.skipped && <span className={css.tagOk}>Checked</span>}
+            {e.sessions.map((s, si) => (
+              <div key={s.source.hash + si} className={css.session} data-already={s.already || undefined}>
+                <p className={css.sessionTitle}>
+                  Workout {si + 1} of {e.sessions.length}
+                  {s.already && <span className={css.tag}>Already imported</span>}
+                </p>
+                {s.source.note && <p className={css.sub}>{s.source.note}</p>}
+                <ol className={css.sets}>
+                  {s.sets.map((x, i) => (
+                    <li key={x.key}>
+                      <button
+                        type="button"
+                        className={`${css.set} pressable`}
+                        data-testid="import-set"
+                        data-uncertain={(flagged(x) && !e.skipped) || undefined}
+                        data-skipped={x.skipped || undefined}
+                        disabled={s.already || e.skipped}
+                        onClick={() => (e.needsPick ? setAsk({ type: 'pick', ex: e }) : e.needsKind ? setAsk({ type: 'kind', ex: e }) : setAsk({ type: 'set', ex: e, set: x, index: i }))}
+                      >
+                        <span className={`${css.index} num`}>{i + 1}</span>
+                        <span className={css.setMain}>
+                          <span className={css.setLine}>
+                            <span className="num">{x.load ? formatSetLine({ reps: x.reps, load: x.load }) : x.edited ? `${x.reps} reps` : fileSetText(x.source)}</span>
+                            {x.kind === 'warmup' && <span className={css.tag}>Warm up</span>}
+                            {x.kind === 'drop' && <span className={css.tag}>Drop</span>}
+                            {x.skipped && <span className={css.tag}>Skip</span>}
+                            {x.edited && !x.skipped && <span className={css.tagOk}>Checked</span>}
+                          </span>
+                          {flagged(x) && x.reason && <span className={css.reason}>{x.reason}</span>}
+                          {x.note && <span className={css.note}>{x.note}</span>}
                         </span>
-                        {flagged(x) && x.reason && <span className={css.reason}>{x.reason}</span>}
-                        {x.note && <span className={css.note}>{x.note}</span>}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ))}
-        </section>
-      ))}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </section>
+        );
+      })}
 
       <div className={css.dock} data-testid="import-dock">
         <p className={css.error} role="status">
@@ -276,7 +284,10 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
       <PickExerciseSheet
         open={ask?.type === 'pick'}
         onClose={() => setAsk(null)}
-        fileName={asked?.ex.planExercise ?? ''}
+        fileName={asked?.ex.name ?? ''}
+        startFrom={asked?.ex.planExercise ?? ''}
+        loadType={asked ? (asked.kind ?? kindOf(asked.ex.loadType)) : undefined}
+        skipCount={asked ? setsToSkip(asked) : 0}
         onPick={(id) => {
           if (asked) update((c) => ({ ...c, picks: { ...c.picks, [asked.ex.index]: id } }));
           setAsk(null);
@@ -291,6 +302,7 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
         onClose={() => setAsk(null)}
         exerciseName={askedName}
         without={['timed']}
+        current={asked?.kind}
         onPick={(kind) => {
           if (asked) update((c) => chooseKind(c, parsed, asked.ex.index, kind));
           setAsk(null);

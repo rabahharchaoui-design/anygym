@@ -132,8 +132,8 @@ test.describe('killed mid workout, relaunched offline', () => {
       ctx = await launchPersistent(info, dir);
       let page = await firstPage(ctx);
       await firstLaunch(page);
-      await addOne(page, 'plank', 'Plank');
-      const view = () => page.getByTestId('exercise-plank');
+      await addOne(page, 'plank', 'Elbow Plank');
+      const view = () => page.getByTestId('exercise-elbow-plank');
       await view().getByTestId('hold-cell').first().tap();
       await expect(view().getByTestId('hold-cell').first()).toHaveAttribute('data-hold', 'running');
       await page.waitForTimeout(2500);

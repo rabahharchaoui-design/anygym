@@ -140,8 +140,8 @@ test('(7) copying LAST TIME over a stopped hold: the cell and the saved set agre
   const errors = watchErrors(page);
   await page.goto('./');
   await seedFinished(page, { plank: [{ seconds: 60, load: { kind: 'timed', unit: 'lb', total: 0 } }] });
-  await quickWith(page, [['plank', 'Plank']]);
-  const view = exerciseView(page, 'plank');
+  await quickWith(page, [['plank', 'Elbow Plank']]);
+  const view = exerciseView(page, 'elbow-plank');
   await view.getByRole('button', { name: 'Start timer' }).tap();
   await page.waitForTimeout(1300);
   await view.getByRole('button', { name: 'Stop timer' }).tap();

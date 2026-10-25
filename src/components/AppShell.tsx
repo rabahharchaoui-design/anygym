@@ -36,7 +36,7 @@ export function AppShell() {
   const go = useNav();
   const layerRef = useRef<HTMLElement>(null);
   const parent = parentOf(pathname);
-  const pushed = pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
+  const pushed = pathname === '/settings' || pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
   const active = useLive(() => getActiveSession(), []);
   // Today has its own in progress card; the bar is for the other tabs.
   const resuming = !!active.data && !pushed && pathname !== '/';
@@ -63,7 +63,7 @@ export function AppShell() {
       </div>
       {/* A workout in progress floats above the tab bar on every tab (one tap back to its list). */}
       <ResumeBar session={active.data ?? null} hidden={!resuming} />
-      {/* Like iOS, pushed detail screens hide the tab bar (Settings keeps it: it is part of Today). */}
+      {/* Like iOS, pushed screens hide the tab bar (Settings too: it is pushed from Today). */}
       <TabBar hidden={pushed} />
     </div>
   );

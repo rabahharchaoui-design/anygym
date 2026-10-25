@@ -61,6 +61,7 @@ test('a Hold cell: 3 s stop logs 3, untouched logs the 45 s target, 60 s plank r
   expect(await v2.getByTestId('check-current').getAttribute('aria-label')).toMatch(/^Log set 1: [2-4] s$/);
   await page.clock.runFor(600);
   await v2.getByTestId('check-current').tap();
+  await expect.poll(async () => (await dbAll(page, 'sets')).length).toBe(2);
   const secs = (await dbAll<{ seconds?: number }>(page, 'sets')).map((x) => x.seconds).sort((x, y) => x! - y!);
   expect(secs.length).toBe(2);
   expect(secs[0]!).toBeGreaterThanOrEqual(2);
@@ -77,9 +78,9 @@ test('a 60 s plank target reads 1:00 in the Hold cell', async ({ page }) => {
   await page.getByRole('button', { name: /Quick workout/ }).tap();
   const sheet = page.getByRole('dialog', { name: 'Add exercise' });
   await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill('plank');
-  await sheet.getByRole('button', { name: 'Plank', exact: true }).tap();
+  await sheet.getByRole('button', { name: 'Elbow Plank', exact: true }).tap();
   await sheet.getByRole('button', { name: 'Add 1' }).tap();
-  const view = page.getByTestId('exercise-plank');
+  const view = page.getByTestId('exercise-elbow-plank');
   const cell = view.getByTestId('hold-cell').first();
   const t = (await cell.textContent())!;
   console.log('plank cell', t, await view.getByTestId('check-current').getAttribute('aria-label'));
@@ -98,7 +99,8 @@ test('finish 1 of 4: Saved 0 done, 1 of 4 sets; Keep keeps Day 1 with a partial 
   const before = (await dbAll<PlanState>(page, 'planState'))[0]!;
   await logSquat(page, 1);
   await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page.getByTestId('finish-title')).toHaveText(/^Saved · 0 of \d+ done$/);
+  await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-exercise')).toContainText('1 of 4 sets');
   await shot(page, 'finish-partial', 2200);
   await page.getByRole('button', { name: 'Done' }).dblclick();
@@ -127,9 +129,10 @@ test('finish with all 4 squat sets counts the squat as done; Go to Day 2 moves o
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   await page.getByRole('button', { name: 'Finish' }).tap();
   const title = page.getByTestId('finish-title');
-  await expect(title).toHaveText(/^Saved · 1 of \d+ done$/);
+  await expect(title).toHaveText('Workout saved · 4 sets');
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^1 of \d+ exercises finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-sets-left')).toHaveCount(0);
-  await page.getByRole('radio', { name: 'Go to Day 2' }).tap();
+  await page.getByRole('radio', { name: 'Next time: move on to Day 2' }).tap();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · /);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
@@ -219,7 +222,8 @@ test('Settings Units lb to kg: gym unit and kg plates in the sheet, 40 px scroll
   await scroller.evaluate((el) => { const s = [el, ...Array.from(el.querySelectorAll('*'))].find((e) => e.scrollHeight > e.clientHeight + 40 && getComputedStyle(e).overflowY !== 'visible'); (s ?? el).scrollTo({ top: 40 }); });
   await page.waitForTimeout(400);
   console.log('settings title opacity', op0, await big.evaluate((el) => +getComputedStyle(el).opacity));
-  await page.getByRole('link', { name: 'Today', exact: true }).tap();
+  // Settings is a pushed screen with no tab bar (gate fix 12): back to Today.
+  await page.getByRole('link', { name: 'Back to Today' }).tap();
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   const view = page.getByTestId('exercise-barbell-back-squat');
   await view.getByTestId('weight-cell').first().tap();

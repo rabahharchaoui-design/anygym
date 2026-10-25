@@ -26,7 +26,8 @@
 .hint {
   left: 0;
   right: 0;
-  bottom: calc(100% + 6px);
+  /* Below the wheel (72 px), in the space the prompt line keeps. */
+  top: calc(72px + 8px);
 }
 
 .wheelWrap {
@@ -50,6 +51,29 @@
   border: 1.5px solid var(--accent);
   background: rgba(212, 255, 58, 0.06);
   pointer-events: none;
+}
+
+.notch[data-empty] {
+  /* No frame around any number until one is picked. */
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Under the window until a weight is picked; its space stays so nothing below moves. */
+.prompt {
+  margin: var(--space-2) 0 0;
+  /* Room for the one time bubble that takes this place after a pick. */
+  min-height: 40px;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.prompt[data-hidden] {
+  opacity: 0;
 }
 
 .track {

@@ -103,7 +103,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   const first = page.getByTestId('exercise-band-internal-shoulder-rotation-0-degrees');
   await expect(first.getByTestId('set-target')).toHaveText('Set 1 of 3 · 10 to 12 reps');
   await expect(first.getByTestId('set-plan')).toHaveText('Warm up. Band, cable or dumbbell');
-  await expect(first.getByTestId('set-type').first()).toHaveText('W');
+  await expect(first.getByTestId('set-type').first().getByTestId('set-type-chip')).toHaveText('Warm up');
   // A pair goes back to back: logging the first one opens its partner with no rest.
   await first.getByTestId('check-current').tap();
   const partner = page.getByTestId('exercise-band-internal-shoulder-rotation-90-degrees');
@@ -115,7 +115,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await partner.getByTestId('check-current').tap();
   await expect(first).toBeVisible();
   await expect(first.getByTestId('set-row')).toHaveCount(1);
-  await expect(first.getByTestId('set-row').getByTestId('set-type')).toHaveText('W');
+  await expect(first.getByTestId('set-row').getByTestId('set-type').getByTestId('set-type-chip')).toHaveText('Warm up');
   await expect(page.getByTestId('rest-timer')).toBeVisible();
   // The finisher is the last row: plan minutes, no rest line.
   await page.getByRole('button', { name: 'Back to the list' }).tap();
@@ -130,8 +130,9 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   // up next (1.7e); moving on goes to day 3.
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(/\/done$/);
-  await expect(page.getByTestId('finish-title')).toHaveText(/^Saved · 0 of \d+ done$/);
-  await page.getByRole('radio', { name: 'Go to Day 3' }).tap();
+  await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await page.getByRole('radio', { name: 'Next time: move on to Day 3' }).tap();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 3 · Back and biceps/);
@@ -220,7 +221,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
 
   // Finish with lifts left: move on; Day 2 is next, Day 1 shows part done (a full tick needs every lift, 1.7e).
   await page.getByRole('button', { name: 'Finish' }).tap();
-  await page.getByRole('radio', { name: 'Go to Day 2' }).tap();
+  await page.getByRole('radio', { name: 'Next time: move on to Day 2' }).tap();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · Chest and triceps · ~\d+ min$/);

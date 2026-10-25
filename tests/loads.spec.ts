@@ -325,9 +325,9 @@ test('first time hints on the loads page: one at a time, each once', async ({ pa
   const errors = watchErrors(page);
   await open(page);
   const hint = page.getByTestId('hint');
-  await expect(hint).toHaveText('Spin to pick your dumbbells');
-  await expect(hint).toHaveCount(1);
-  await page.getByRole('heading', { level: 1, name: 'Loads' }).tap();
+  // Gate 2: an empty dumbbell wheel gives one instruction (the line under it), no bubble; the
+  // wheel bubble waits until a weight is there.
+  await expect(page.getByTestId('wheel-prompt').first()).toHaveText('Scroll to your dumbbell');
   await expect(hint).toHaveText('Tap the pin to pick the weight');
   await expect(hint).toHaveCount(1);
   await page.getByRole('heading', { level: 1, name: 'Loads' }).tap();

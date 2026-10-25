@@ -29,8 +29,13 @@ for (const r of ['./', './#/history', './#/plans', './#/settings', './#/plans/si
       await page.goto(r);
       await page.waitForTimeout(800);
       const p = await probe(page);
-      expect(p.bottom, JSON.stringify(p)).not.toBeNull();
-      expect(Math.abs(p.bottom! - p.ih)).toBeLessThanOrEqual(1);
+      if (r === './#/settings') {
+        // Settings is pushed from Today and hides the tab bar like every pushed screen (gate fix 12).
+        expect(p.bottom, JSON.stringify(p)).toBeNull();
+      } else {
+        expect(p.bottom, JSON.stringify(p)).not.toBeNull();
+        expect(Math.abs(p.bottom! - p.ih)).toBeLessThanOrEqual(1);
+      }
       expect(p.sw).toBeLessThanOrEqual(p.iw);
       expect(p.top).toBeGreaterThanOrEqual(0);
       expect(e).toEqual([]);

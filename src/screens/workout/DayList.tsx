@@ -5,7 +5,7 @@ import { dayTitle } from '../plans/planWords';
 import { Thumb } from './Thumb';
 import { Ring } from '../../ui/Ring';
 import { Button } from '../../ui/Button';
-import { CheckIcon } from '../../ui/icons';
+import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon } from '../../ui/icons';
 import type { Workout } from './useWorkout';
 import styles from './DayList.module.css';
 
@@ -15,6 +15,8 @@ type Props = {
   heroId: string | null;
   onOpen: (exerciseId: string) => void;
   onAdd: () => void;
+  /** A still copy (drawn under the edge swipe): no hint, no Start pill. */
+  still?: boolean;
 };
 
 /** Empty, a ring filling per set done, then a check (SPEC 20.1). */
@@ -42,17 +44,30 @@ function nameHero(row: HTMLElement) {
  * its demo tile, name, sets × reps and the plan's rest. Pairs share a colored rail. Done rows dim,
  * the next one is highlighted. Tap a row to open it; that is the only navigation needed.
  */
-export function DayList({ w, heroId, onOpen, onAdd }: Props) {
+export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
   const mainRef = useRef<HTMLElement>(null);
+  // The Start pill belongs to the live list, never the copy drawn under an edge swipe.
+  const nextEntry = w.nextId ? w.entries.find((e) => e.exerciseId === w.nextId) : undefined;
+  // "Start · Squat" before its first set, then "Continue · Squat · set 2 of 4" (gate 3).
+  const nextDone = nextEntry ? (w.done[nextEntry.exerciseId] ?? 0) : 0;
+  const pillLabel = !nextEntry
+    ? ''
+    : nextDone > 0
+      ? `Continue · ${w.nameOf(nextEntry.exerciseId)} · set ${Math.min(nextDone + 1, nextEntry.sets)} of ${nextEntry.sets}`
+      : `Start · ${w.nameOf(nextEntry.exerciseId)}`;
   const title = w.day ? dayTitle(w.day.n, w.day.name) : 'Quick workout';
 
-  // The next row comes into view when the list opens (and when it comes back after an exercise).
+  // The next row comes into view when the list opens (and when it comes back after an exercise or
+  // an Undo), above the Start pill and the rest bar, never under them.
   useLayoutEffect(() => {
     const main = mainRef.current;
     const row = w.nextId ? main?.querySelector<HTMLElement>(`[data-row="${CSS.escape(w.nextId)}"]`) : null;
     if (!main || !row) return;
-    const top = row.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop;
-    if (top + row.offsetHeight > main.clientHeight - 24) main.scrollTop = Math.max(0, top - 96);
+    const box = main.getBoundingClientRect();
+    const pill = main.querySelector<HTMLElement>('[data-testid="start-next"]');
+    const bottomCover = Math.max(parseFloat(getComputedStyle(main).paddingBottom) || 0, pill ? pill.offsetHeight + 24 : 0);
+    const top = row.getBoundingClientRect().top - box.top + main.scrollTop;
+    if (top + row.offsetHeight > main.scrollTop + main.clientHeight - bottomCover) main.scrollTop = Math.max(0, top - 96);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [w.ready]);
 
@@ -63,7 +78,7 @@ export function DayList({ w, heroId, onOpen, onAdd }: Props) {
     const rest = w.userRestOf(e.exerciseId) ?? e.statedRest;
     const name = w.nameOf(e.exerciseId);
     return (
-      <li key={e.exerciseId}>
+      <li key={e.exerciseId} className={styles.rowItem}>
         <button
           type="button"
           className={`${styles.row} pressable`}
@@ -117,23 +132,32 @@ export function DayList({ w, heroId, onOpen, onAdd }: Props) {
   }
 
   return (
-    <main className={styles.main} ref={mainRef} aria-label={title}>
+    <main className={styles.main} ref={mainRef} aria-label={title} data-pill={(!still && !w.isQuick && !!nextEntry) || undefined}>
       <header className={styles.titleBlock}>
         <h1 className={styles.title} data-testid="workout-title">
           {title}
         </h1>
-        <p className={styles.meta}>
-          <GymPill align="start" />
-          {w.minutes !== undefined && <span className={`${styles.minutes} num`}>~{w.minutes} min</span>}
+        <div className={styles.metaRow}>
+          {/* One quiet metadata line: "My Gym · ~90 min". */}
+          <p className={`${styles.meta} num`} data-testid="workout-meta">
+            <GymPill align="start" />
+            {w.minutes !== undefined && <span className={styles.minutes}>{'\u00a0· '}~{w.minutes} min</span>}
+          </p>
           <span className={styles.music}>
             <a className={`${styles.musicLink} pressable`} href="https://open.spotify.com/" target="_blank" rel="noopener" aria-label="Open Spotify">
-              Spotify
+              <span className={styles.musicPill}>
+                <AudioLinesIcon width={15} height={15} strokeWidth={2.2} aria-hidden="true" />
+                Spotify
+              </span>
             </a>
             <a className={`${styles.musicLink} pressable`} href="https://music.apple.com/" target="_blank" rel="noopener" aria-label="Open Apple Music">
-              Music
+              <span className={styles.musicPill}>
+                <MusicIcon width={15} height={15} strokeWidth={2.2} aria-hidden="true" />
+                Music
+              </span>
             </a>
           </span>
-        </p>
+        </div>
       </header>
       {entries.length === 0 ? (
         <div className={styles.empty}>
@@ -144,6 +168,28 @@ export function DayList({ w, heroId, onOpen, onAdd }: Props) {
         <ol className={styles.list} aria-label="Exercises">
           {blocks}
         </ol>
+      )}
+      {/* The one primary action, in the thumb zone: open the exercise up next (an extra path to the row). */}
+      {!still && !w.isQuick && nextEntry && (
+        <div className={styles.startDock}>
+          <button
+            type="button"
+            className={`${styles.startPill} pressable`}
+            aria-label={pillLabel.replace(' · ', ' ')}
+            data-testid="start-next"
+            onClick={() => {
+              const rowEl = mainRef.current?.querySelector<HTMLElement>(`[data-row="${CSS.escape(nextEntry.exerciseId)}"]`);
+              if (rowEl) nameHero(rowEl);
+              onOpen(nextEntry.exerciseId);
+            }}
+          >
+            <PlayIcon width={16} height={16} strokeWidth={2.6} fill="currentColor" aria-hidden="true" />
+            {/* One line; a long name ends in "…" on purpose (the full name is the button's label). */}
+            <span className={styles.startLabel} data-truncate-ok>
+              {pillLabel}
+            </span>
+          </button>
+        </div>
       )}
       {w.isQuick && (
         <div className={styles.addRow}>

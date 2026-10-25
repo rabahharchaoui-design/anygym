@@ -21,6 +21,7 @@ import {
   FIRST_TIME_BODYWEIGHT,
   FIRST_TIME_TIMED,
   RESET,
+  beatLine,
   formatNext,
   formatSets,
   formatWhen,
@@ -372,5 +373,31 @@ describe('load.ts progression helpers', () => {
     expect(stepUp('bodyweight', 0, s)).toBeNull();
     expect(stepUp('timed', 0, s)).toBeNull();
     expect(resetWeight('barbell', 225, s)).toBe(200); // 202.5: a tie between 200 and 205 goes lighter
+  });
+});
+
+describe('beatLine: the one target line, words only from progress()', () => {
+  it('"Beat last time: 11 reps at 185 lb" from the first set\'s target and next load', () => {
+    const p = run({ loadKind: 'barbell', history: [session(day(20), same([10, 10, 10, 10], bar(185)))] });
+    expect(beatLine(p)).toBe('Beat last time: 11 reps at 185 lb');
+  });
+  it('a step up quotes the new weight and the bottom of the range', () => {
+    const p = run({ loadKind: 'barbell', history: [session(day(20), same([12, 12], bar(185)))] });
+    expect(beatLine(p)).toBe('Beat last time: 8 reps at 190 lb');
+  });
+  it('dumbbells say each, bodyweight says reps (plus any added weight), holds say seconds', () => {
+    const db = run({ loadKind: 'dumbbell_each', history: [session(day(20), same([10, 10], dumbbellLoad(30, 'lb')))] });
+    expect(beatLine(db)).toBe('Beat last time: 11 reps at 30 lb each');
+    const bw = run({ loadKind: 'bodyweight', history: [session(day(20), same([9, 9], bodyweightLoad('lb')))] });
+    expect(beatLine(bw)).toBe('Beat last time: 10 reps');
+    const added = run({ loadKind: 'bodyweight', history: [session(day(20), same([9, 9], bodyweightLoad('lb', 25)))] });
+    expect(beatLine(added)).toBe('Beat last time: 10 reps + 25 lb');
+    const hold = progress({ exerciseId: 'x', unit: 'lb', gym: LB, repRange: null, loadKind: 'timed', history: [{ date: day(20), gymId: 'g1', unit: 'lb', sets: [{ kind: 'work', seconds: 45, load: timedLoad('lb') }] }] });
+    expect(beatLine(hold)).toBe('Beat last time: 45 s');
+  });
+  it('nothing to beat: first time, or no load (the reason says why)', () => {
+    expect(beatLine(run({ loadKind: 'barbell', history: [] }))).toBeNull();
+    const noBar = progress({ exerciseId: 'x', unit: 'lb', gym: { ...LB, base: null }, loadKind: 'barbell', repRange: [8, 12], history: [session(day(20), same([10], bar(185)))] });
+    expect(beatLine(noBar)).toBeNull();
   });
 });

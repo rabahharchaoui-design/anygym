@@ -199,7 +199,7 @@ test('Today error: flag, retry, last good plan card stays', async ({ page }) => 
   await page.addInitScript(() => { (window as any).__anygymFailReads = true; });
   await page.goto('./');
   const err = page.getByTestId('load-error');
-  await expect(err).toContainText('Could not load workouts');
+  await expect(err).toContainText("We couldn't read your saved workouts");
   expect((await err.getByRole('button', { name: 'Try again' }).boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
   await expect(page.getByRole('button', { name: 'See plans' })).toHaveCount(0);
   await shot(page, 'today-error');

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import type { WorkoutSet } from '../src/db/types';
-import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, shotOn, usePlan, watchErrors } from './workout-helpers';
+import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, shotOn, usePlan, watchErrors, pickSetType, fillReps } from './workout-helpers';
 
 // PLAN 1.7j: the Codex 1025 workout flow findings, reproduced by hand in the app.
 
@@ -76,8 +76,11 @@ test('(3) three W rows on a normal lift leave its three working rows to do @matr
   const view = await squat135(page);
   for (let i = 0; i < 3; i++) {
     // The highlighted row becomes a warm up (one tap on its set number), then ✓.
-    await view.getByTestId('set-todo').first().getByTestId('set-type').tap();
+    await pickSetType(page, view.getByTestId('set-todo').first().getByTestId('set-type'), 'warmup');
     await expect(view.getByTestId('set-todo').first().getByTestId('set-type')).toHaveAttribute('aria-label', /Warm up/);
+    // Gate 2: the weight picked by hand stays; the reps are set by hand on a warm up.
+    await expect(view.getByTestId('set-todo').first().getByTestId('weight-cell')).toHaveText('135');
+    await fillReps(view, view.getByTestId('set-todo').first(), 5);
     await logOne(view);
   }
   expect((await sets(page)).map((s) => s.kind)).toEqual(['warmup', 'warmup', 'warmup']);

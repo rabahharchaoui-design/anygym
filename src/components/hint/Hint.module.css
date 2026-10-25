@@ -46,3 +46,44 @@
   top: -6px;
   transform: translateX(-50%) rotate(225deg);
 }
+
+/* Arrow near the right end: points at a target on the right edge (the set row's check). */
+.bubble[data-arrow='end'] {
+  transform-origin: calc(100% - 26px) top;
+}
+
+.bubble[data-arrow='end']::after {
+  left: auto;
+  right: 21px;
+  transform: rotate(45deg);
+}
+
+.bubble[data-arrow='end'][data-point='up']::after {
+  transform: rotate(225deg);
+}
+
+/* One short line over a column header (the set table's SET · LAST TIME · … · DONE). */
+.bubble[data-compact] {
+  padding: 3px 10px;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.bubble[data-compact]::after {
+  width: 8px;
+  height: 8px;
+}
+
+.bubble[data-compact][data-point='down']::after {
+  bottom: -5px;
+}
+
+/* Short screens (the 320 x 568 floor): the set table's header is slimmer there, so the compact
+   bubble slims too and still ends at the first row's top, clear of its check. */
+@media (max-height: 600px) {
+  .bubble[data-compact] {
+    padding: 1px 10px;
+    line-height: 17px;
+  }
+}

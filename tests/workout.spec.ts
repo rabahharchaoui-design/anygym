@@ -11,6 +11,7 @@ import {
   seedFinished,
   shotOn,
   watchErrors,
+  pickSetType,
 } from './workout-helpers';
 
 // The workout flow of PLAN 1.7c (SPEC 20, 21.1): day list → exercise view → set table with a ✓
@@ -210,8 +211,8 @@ test('a deleted hold is gone from storage at once (1.10c), and a double tap on Q
   await page.getByRole('button', { name: /Quick workout/ }).dblclick();
   await expect(page).toHaveURL(/#\/workout\//);
   expect(await dbAll(page, 'sessions')).toHaveLength(1);
-  await pickExercises(page, [['plank', 'Plank']]);
-  const view = exerciseView(page, 'plank');
+  await pickExercises(page, [['plank', 'Elbow Plank']]);
+  const view = exerciseView(page, 'elbow-plank');
   // Timed: SET · LAST TIME · HOLD · ✓, the timer under the table.
   await expect(view.getByTestId('weight-cell')).toHaveCount(0);
   await expect(checkCurrent(view)).toBeDisabled();
@@ -244,7 +245,7 @@ test('one screen exercise view on every phone: 5 rows, no page scroll, rest bar 
   await fitsOneScreen(page);
   await shotOn(page, '1.7c', 'exercise-view');
   const rest = (await page.getByTestId('rest-timer').boundingBox())!;
-  for (const el of [view.getByRole('heading', { name: 'Barbell Back Squat' }), view.getByTestId('set-guide'), ...[0, 1].map((i) => loggedRows(view).nth(i)), ...[0, 1, 2].map((i) => view.getByTestId('set-todo').nth(i))]) {
+  for (const el of [view.getByRole('heading', { name: 'Barbell Back Squat' }), view.getByTestId('set-next'), ...[0, 1].map((i) => loggedRows(view).nth(i)), ...[0, 1, 2].map((i) => view.getByTestId('set-todo').nth(i))]) {
     await expect(el).toBeInViewport({ ratio: 1 });
     const box = (await el.boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(rest.y + 0.5);
@@ -263,21 +264,29 @@ test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove 
   await seedFinished(page, { 'barbell-back-squat': [{ reps: 12, load: bar185 }, { reps: 9, load: { ...bar185, total: 135, perSide: [45] } }] });
   await quickWith(page, [
     ['back squat', 'Barbell Back Squat'],
-    ['plank', 'Plank'],
+    ['plank', 'Elbow Plank'],
   ]);
   // Two added: the list, in order.
   await expect(page.getByRole('list', { name: 'Exercises' }).getByRole('button')).toHaveCount(2);
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = exerciseView(page, 'barbell-back-squat');
 
-  // Set type: normal → W → D → F, stored as kind + failure.
+  // Set type: tap the set number, a small sheet with four plain choices (each with an ⓘ); the row
+  // shows a word chip, never a bare letter. Stored as kind + failure.
   const type = view.getByTestId('set-type').first();
   await type.tap();
-  await expect(type).toHaveText('W');
-  await type.tap();
-  await expect(type).toHaveText('D');
-  await type.tap();
-  await expect(type).toHaveText('F');
+  const typeSheet = page.getByRole('dialog', { name: 'Set type' });
+  await expect(typeSheet.getByRole('radio')).toHaveText([/^Normal/, /^Warm up/, /^Drop set/, /^All out/]);
+  await expect(typeSheet.getByRole('radio', { name: /^Normal/ })).toHaveAttribute('aria-checked', 'true');
+  await expect(typeSheet.locator('[data-info]')).toHaveCount(4);
+  await typeSheet.getByTestId('set-type-warmup').tap();
+  await expect(typeSheet).toHaveCount(0);
+  await expect(type.getByTestId('set-type-chip')).toHaveText('Warm up');
+  await pickSetType(page, type, 'drop');
+  await expect(type.getByTestId('set-type-chip')).toHaveText('Drop set');
+  await pickSetType(page, type, 'failure');
+  await expect(type.getByTestId('set-type-chip')).toHaveText('All out');
+  await expect(type).not.toHaveText(/^\d?[WDF]$/);
 
   // LAST TIME copies that set into the row (row 2: 9 × 135).
   await expect(view.getByTestId('weight-cell').nth(1)).toHaveText('185');
@@ -316,17 +325,17 @@ test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove 
 
   // Plank: move up, then remove (no sets) with Undo.
   await page.getByRole('button', { name: 'Back to the list' }).tap();
-  await page.getByTestId('row-plank').tap();
-  await exerciseView(page, 'plank').getByRole('button', { name: 'More for Plank' }).tap();
+  await page.getByTestId('row-elbow-plank').tap();
+  await exerciseView(page, 'elbow-plank').getByRole('button', { name: 'More for Elbow Plank' }).tap();
   await page.getByRole('dialog', { name: 'Plank options' }).getByRole('button', { name: /Move up/ }).tap();
-  await expect.poll(async () => (await dbAll<{ exerciseIds: string[]; endedAt?: number }>(page, 'sessions')).find((s) => s.endedAt === undefined)!.exerciseIds).toEqual(['plank', 'barbell-back-squat']);
-  await exerciseView(page, 'plank').getByRole('button', { name: 'More for Plank' }).tap();
+  await expect.poll(async () => (await dbAll<{ exerciseIds: string[]; endedAt?: number }>(page, 'sessions')).find((s) => s.endedAt === undefined)!.exerciseIds).toEqual(['elbow-plank', 'barbell-back-squat']);
+  await exerciseView(page, 'elbow-plank').getByRole('button', { name: 'More for Elbow Plank' }).tap();
   await page.getByRole('dialog', { name: 'Plank options' }).getByRole('button', { name: /Remove/ }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
-  await expect(page.getByTestId('row-plank')).toHaveCount(0);
+  await expect(page.getByTestId('row-elbow-plank')).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo' }).tap();
-  await expect(page.getByTestId('row-plank')).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Exercises' }).getByRole('button').first()).toHaveAccessibleName(/^Plank/);
+  await expect(page.getByTestId('row-elbow-plank')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Exercises' }).getByRole('button').first()).toHaveAccessibleName(/^Elbow Plank/);
   expect(errors).toEqual([]);
 });
 
@@ -370,7 +379,7 @@ test('swipe left goes to the next exercise; reload keeps the route', async ({ pa
   const errors = watchErrors(page);
   await quickWith(page, [
     ['back squat', 'Barbell Back Squat'],
-    ['plank', 'Plank'],
+    ['plank', 'Elbow Plank'],
   ]);
   await page.getByTestId('row-barbell-back-squat').tap();
   const main = exerciseView(page, 'barbell-back-squat');
@@ -379,8 +388,8 @@ test('swipe left goes to the next exercise; reload keeps the route', async ({ pa
   // A finger swipe right to left (pointer events, as Safari sends them for touch).
   await main.dispatchEvent('pointerdown', { clientX: box.x + box.width - 40, clientY: y, pointerType: 'touch', isPrimary: true });
   await main.dispatchEvent('pointerup', { clientX: box.x + 60, clientY: y + 6, pointerType: 'touch', isPrimary: true });
-  await expect(page).toHaveURL(/\/plank$/);
+  await expect(page).toHaveURL(/\/elbow-plank$/);
   await page.reload();
-  await expect(exerciseView(page, 'plank')).toBeVisible();
+  await expect(exerciseView(page, 'elbow-plank')).toBeVisible();
   expect(errors).toEqual([]);
 });
