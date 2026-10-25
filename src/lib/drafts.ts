@@ -19,6 +19,11 @@ export type Draft = {
   watch?: Stopwatch;
   /** Edit count: a Log set write clears only the version it submitted, never newer edits (PLAN 1.10d). */
   rev?: number;
+  /**
+   * The version handed to Log set (PLAN 1.7h), stored before the write starts. Set while the write
+   * runs and after it failed; gone once it landed (the draft is used up) or the user discarded it.
+   */
+  submitted?: number;
 };
 
 const KEY = 'anygym-drafts';
@@ -45,6 +50,7 @@ function validDraft(v: unknown): v is Draft {
   if (d.plates !== undefined && !(Array.isArray(d.plates) && d.plates.every(isNum))) return false;
   if (d.reps !== undefined && !isNum(d.reps)) return false;
   if (d.rev !== undefined && !isNum(d.rev)) return false;
+  if (d.submitted !== undefined && !isNum(d.submitted)) return false;
   if (d.seconds !== undefined && !isNum(d.seconds)) return false;
   if (d.type !== undefined && !['normal', 'warmup', 'drop', 'failure'].includes(d.type as string)) return false;
   if (d.watch !== undefined) {
@@ -145,6 +151,22 @@ export function clearDraft(sessionId: string, exerciseId: string, s = storage())
   const m = memoryOf(s);
   sessionCopy(m, sessionId, s).delete(exerciseId);
   mirror(m, s);
+}
+
+/** Every draft of this workout, key → draft (the memory copy, filled from storage once). */
+export function sessionDrafts(sessionId: string, s = storage()): Map<string, Draft> {
+  return new Map(sessionCopy(memoryOf(s), sessionId, s));
+}
+
+/** Several drafts at once (null clears one), mirrored to storage in one write. False when only memory has them. */
+export function writeDrafts(sessionId: string, changes: ReadonlyMap<string, Draft | null>, s = storage()): boolean {
+  const m = memoryOf(s);
+  const copy = sessionCopy(m, sessionId, s);
+  for (const [k, d] of changes) {
+    if (d) copy.set(k, d);
+    else copy.delete(k);
+  }
+  return mirror(m, s);
 }
 
 /**

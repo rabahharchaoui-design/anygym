@@ -158,8 +158,13 @@ test('(2) picked weight, reps and a running hold survive switching exercises and
   expect((await savedSets(page))[0]).toMatchObject({ reps: 9, load: { total: 135 } });
   const drafts = await page.evaluate(() => JSON.parse(localStorage.getItem('anygym-drafts') ?? '{}') as Record<string, Record<string, unknown>>);
   const own = Object.keys(Object.values(drafts)[0] ?? {});
-  expect(own).not.toContain('barbell-back-squat#0');
-  expect(own).toContain('plank#0');
+  // PLAN 1.7h: drafts are keyed by pending row; the logged row's draft (its id) is used up and the
+  // two rows below it move up one slot.
+  const loggedId = (await savedSets(page))[0]!.id;
+  const squatDrafts = Object.entries(Object.values(drafts)[0] ?? {}).filter(([k]) => k.startsWith('barbell-back-squat'));
+  expect(squatDrafts.map(([k]) => k).sort()).toEqual(['barbell-back-squat@0', 'barbell-back-squat@1']);
+  expect(squatDrafts.map(([, d]) => (d as { id: string }).id)).not.toContain(loggedId);
+  expect(own).toContain('plank@0');
   expect(errors).toEqual([]);
 });
 

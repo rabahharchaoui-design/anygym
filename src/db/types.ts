@@ -184,6 +184,18 @@ export type OrderCounter = { sessionId: string; next: number };
 
 export type SetKind = 'warmup' | 'work' | 'drop';
 
+/**
+ * A Log set write that committed (PLAN 1.7h), stored in the set's own transaction: `id` is the set
+ * id (the pending row's id), `rev` the draft version that was submitted.
+ */
+export type Submission = { id: string; sessionId: string; exerciseId: string; rev: number };
+
+/**
+ * A deleted set while its Undo can still happen (PLAN 1.7h): the record as it was deleted, when
+ * the Undo window ends, and `undo` once an Undo was accepted but not yet written back.
+ */
+export type Tombstone = { id: string; sessionId: string; set: WorkoutSet; expiresAt: number; undo?: boolean };
+
 export type WorkoutSet = {
   id: string;
   sessionId: string;

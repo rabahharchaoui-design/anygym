@@ -3,6 +3,9 @@
 // the Undo window and until a restore actually lands; Undo writes it back unchanged (same id,
 // same order), using the record the delete read in its own transaction. Every write is tracked and a failed write is reported, never swallowed.
 // Finish calls close(): no new delete or Undo starts, and it waits until no write is left.
+// This is the in-memory half (the toast's Undo while the app runs). The stored half, so an
+// accepted Undo survives a kill, is db/tombstones.ts: `restore` accepts the Undo durably before
+// writing, and `expire` clears the stored record when the window ends.
 import { UNDO_MS } from './undoQueue';
 
 export type DeleteUndo<T> = {
@@ -32,6 +35,8 @@ export function createDeleteUndo<T extends { id: string }>(
     /** Deletes the item. When it resolves with the record it deleted (read inside its transaction), Undo writes that one back. */
     remove: (item: T) => Promise<T | undefined | void>;
     restore: (item: T) => Promise<unknown>;
+    /** The Undo window ended without an Undo (the stored record can go). Failures are ignored. */
+    expire?: (item: T) => Promise<unknown>;
   },
   ms = UNDO_MS,
 ): DeleteUndo<T> {
@@ -56,7 +61,9 @@ export function createDeleteUndo<T extends { id: string }>(
   const arm = (rec: Record, id: string) => {
     clearTimeout(rec.timer);
     rec.timer = setTimeout(() => {
-      if (!rec.restoring) records.delete(id);
+      if (rec.restoring) return;
+      records.delete(id);
+      ops.expire?.(rec.item).catch(() => undefined);
     }, ms);
   };
   const forget = (rec: Record, id: string) => {

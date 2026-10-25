@@ -2,6 +2,7 @@
 import { planById } from '../data/plans';
 import { dayIdOf, dayIndexOf } from '../lib/plans';
 import { dayProgress, dayWorkout, type DayProgress } from '../lib/planWorkout';
+import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
 import { advanceAfter, keepPartialDay, weekFor } from './planState';
 import { db as defaultDb, type AnyGymDB } from './schema';
@@ -71,26 +72,43 @@ export type NewSet = {
   kind?: SetKind;
   /** Set type F (PLAN 1.7c): a work set taken to failure. */
   failure?: boolean;
+  /** The pending row's draft version this write submits (PLAN 1.7h), kept in its submission. */
+  rev?: number;
 };
 
-function validSet(input: Pick<NewSet, 'reps' | 'seconds' | 'load'>): boolean {
+/**
+ * Counts and load agree (PLAN 1.7h): a hold (timed load) is seconds and never reps, every other
+ * load is reps and never seconds. So an edit can never store "1 second" on a rep based load.
+ */
+export function validSet(input: Pick<NewSet, 'reps' | 'seconds' | 'load'>): boolean {
   const okReps = input.reps === undefined || (Number.isInteger(input.reps) && input.reps > 0);
   const okSecs = input.seconds === undefined || (Number.isInteger(input.seconds) && input.seconds > 0);
-  const hasCount = input.reps !== undefined || input.seconds !== undefined;
-  return okReps && okSecs && hasCount && Number.isFinite(input.load.total) && input.load.total >= 0;
+  const timed = input.load.kind === 'timed';
+  const okCount = timed ? input.seconds !== undefined && input.reps === undefined : input.reps !== undefined && input.seconds === undefined;
+  return okReps && okSecs && okCount && Number.isFinite(input.load.total) && input.load.total >= 0;
+}
+
+/** The write of this id committed before and its set was deleted since: it is never logged again. */
+export class AlreadyLoggedError extends Error {
+  constructor() {
+    super('That set was already logged');
+    this.name = 'AlreadyLoggedError';
+  }
 }
 
 /**
  * Logs a work set at the end of the workout. Idempotent: if a set with this id exists it is
- * returned unchanged. Order comes from the workout's counter: one past the highest order ever
+ * returned unchanged; if it was logged and deleted since, AlreadyLoggedError (never a second
+ * copy). Its submission ({ id, rev }) commits in the same transaction (PLAN 1.7h). Order comes from the workout's counter: one past the highest order ever
  * used, deleted sets included, so a set put back by Undo never shares its order with a newer one.
  * Workouts from before the counter (schema v4) start from their highest saved order.
  */
 export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<WorkoutSet> {
   if (!validSet(input)) throw new Error('Invalid set');
-  return db.transaction('rw', db.sessions, db.sets, db.orderCounters, async () => {
+  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.submissions], async () => {
     const existing = await db.sets.get(input.id);
     if (existing) return existing;
+    if (await db.submissions.get(input.id)) throw new AlreadyLoggedError();
     const session = await db.sessions.get(input.sessionId);
     if (!session || session.endedAt !== undefined) throw new Error('Workout not active');
     const last = await db.sets.where('[sessionId+order]').between([input.sessionId, -Infinity], [input.sessionId, Infinity]).last();
@@ -110,6 +128,7 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
     if (input.seconds !== undefined) set.seconds = input.seconds;
     if (input.failure && set.kind === 'work') set.failure = true;
     await db.sets.add(set);
+    await db.submissions.put({ id: input.id, sessionId: input.sessionId, exerciseId: input.exerciseId, rev: input.rev ?? 0 });
     if (!(session.exerciseIds ?? []).includes(input.exerciseId)) {
       await db.sessions.put({ ...session, exerciseIds: [...(session.exerciseIds ?? []), input.exerciseId] });
     }
@@ -190,13 +209,18 @@ export async function restoreExercise(sessionId: string, exerciseId: string, at:
   });
 }
 
-/** Deletes a set for good. Returns the deleted record (for undo) or undefined if it was gone. */
-export async function deleteSet(id: string, db: AnyGymDB = defaultDb): Promise<WorkoutSet | undefined> {
-  return db.transaction('rw', db.sets, db.orderCounters, async () => {
+/**
+ * Deletes a set for good. Returns the deleted record (for undo) or undefined if it was gone. In
+ * the same transaction its tombstone keeps the record until the Undo window ends (PLAN 1.7h), so
+ * an Undo survives an app kill (db/tombstones.ts).
+ */
+export async function deleteSet(id: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<WorkoutSet | undefined> {
+  return db.transaction('rw', db.sets, db.orderCounters, db.tombstones, async () => {
     const set = await db.sets.get(id);
     if (!set) return undefined;
     await seedCounter(set.sessionId, db);
     await db.sets.delete(id);
+    await db.tombstones.put({ id, sessionId: set.sessionId, set, expiresAt: now + UNDO_MS });
     return set;
   });
 }
@@ -206,7 +230,7 @@ export async function deleteSet(id: string, db: AnyGymDB = defaultDb): Promise<W
  * the caller's transaction and before anything is deleted: so deleting its newest set, logging
  * another and Undo can never share an order.
  */
-async function seedCounter(sessionId: string, db: AnyGymDB, atLeast = 0): Promise<void> {
+export async function seedCounter(sessionId: string, db: AnyGymDB, atLeast = 0): Promise<void> {
   const counter = await db.orderCounters.get(sessionId);
   const last = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).last();
   const next = Math.max(counter?.next ?? 0, last ? last.order + 1 : 0, atLeast);
@@ -227,11 +251,13 @@ export class WorkoutFinishedError extends Error {
  * throws WorkoutFinishedError, so a set can never land in a finished or deleted workout.
  */
 export async function restoreSet(set: WorkoutSet, db: AnyGymDB = defaultDb): Promise<void> {
-  await db.transaction('rw', db.sessions, db.sets, db.orderCounters, async () => {
+  await db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.tombstones], async () => {
     const session = await db.sessions.get(set.sessionId);
     if (!session || session.endedAt != null) throw new WorkoutFinishedError();
     await seedCounter(set.sessionId, db, set.order + 1);
     await db.sets.put({ ...set });
+    // Restored: its tombstone is used up in the same transaction.
+    await db.tombstones.delete(set.id);
   });
 }
 
@@ -257,8 +283,20 @@ export type FinishResult = { saved: true; sets: number; progress?: DayProgress }
  * empty session. Finishing twice is safe. A saved plan day moves the plan to the next day.
  */
 export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<FinishResult> {
-  return db.transaction('rw', db.sessions, db.sets, db.planState, db.orderCounters, async () => {
+  return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions], async () => {
     const s = await db.sessions.get(sessionId);
+    if (s && s.endedAt === undefined) {
+      // An Undo that was accepted but never written back (PLAN 1.7h) lands now; every other
+      // deleted set stays deleted (no Undo after Finish).
+      for (const t of await db.tombstones.where('sessionId').equals(sessionId).toArray()) {
+        if (t.undo && !(await db.sets.get(t.id))) {
+          await seedCounter(sessionId, db, t.set.order + 1);
+          await db.sets.put({ ...t.set });
+        }
+      }
+      await db.tombstones.where('sessionId').equals(sessionId).delete();
+      await db.submissions.where('sessionId').equals(sessionId).delete();
+    }
     const count = await db.sets.where('sessionId').equals(sessionId).count();
     if (!s) return { saved: false };
     if (count === 0) {

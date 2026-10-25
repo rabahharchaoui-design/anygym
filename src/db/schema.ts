@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie';
-import type { ExerciseSetting, Gym, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, WorkoutSet } from './types';
+import type { ExerciseSetting, Gym, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from './types';
 
 export const DB_NAME = 'anygym';
 
@@ -44,6 +44,20 @@ export const SCHEMA_V4 = {
  */
 export const SCHEMA_V5 = {} as const;
 
+/**
+ * Version 6 (PLAN 1.7h), additive:
+ * - submissions: one row per Log set write, committed in the same transaction as its set
+ *   ({ id: the set id, sessionId, exerciseId, rev }). The pending row drafts in localStorage are a
+ *   mirror reconciled against it (screens/workout/rowLog.ts), so an app kill between the commit
+ *   and the draft cleanup can neither lose a draft nor log the same row twice.
+ * - tombstones: a deleted set and the end of its Undo window, written in the delete's own
+ *   transaction, plus an accepted Undo still to restore (db/tombstones.ts).
+ */
+export const SCHEMA_V6 = {
+  submissions: 'id, sessionId',
+  tombstones: 'id, sessionId',
+} as const;
+
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
 
@@ -59,6 +73,8 @@ export class AnyGymDB extends Dexie {
   exerciseSettings!: Table<ExerciseSetting, [string, string]>;
   planState!: EntityTable<PlanState, 'id'>;
   orderCounters!: EntityTable<OrderCounter, 'sessionId'>;
+  submissions!: EntityTable<Submission, 'id'>;
+  tombstones!: EntityTable<Tombstone, 'id'>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -80,6 +96,7 @@ export class AnyGymDB extends Dexie {
           await tx.table('planDays').where('planId').equals(from).modify({ planId: to });
         }
       });
+    this.version(6).stores(SCHEMA_V6);
   }
 }
 

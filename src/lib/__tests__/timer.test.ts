@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STOPPED, captureHold, elapsedMs, formatClock, ringProgress, startWatch, stopWatch, wholeSeconds } from '../timer';
+import { STOPPED, captureHold, elapsedMs, formatClock, heldFor, ringProgress, startWatch, stopWatch, wholeSeconds } from '../timer';
 
 describe('stopwatch', () => {
   it('measures from wall clock time, resumes, and ignores repeat start/stop', () => {
@@ -63,5 +63,16 @@ describe('captureHold (PLAN 1.10c fix 1: Log set reads the live hold)', () => {
 
   it('a stopped watch reads as is', () => {
     expect(captureHold({ startedAt: null, accumulated: 9_999 }, 50_000)).toEqual({ watch: { startedAt: null, accumulated: 9_999 }, seconds: 9 });
+  });
+});
+
+describe('heldFor (PLAN 1.7h (7): a typed or copied hold replaces the stopwatch)', () => {
+  it('stop at 30 s, type 60: the cell and Log set both read 60', () => {
+    const typed = heldFor(60);
+    expect(typed).toEqual({ startedAt: null, accumulated: 60_000 });
+    expect(wholeSeconds(elapsedMs(typed, 999_999))).toBe(60);
+    expect(captureHold(typed, 999_999).seconds).toBe(60);
+    expect(heldFor(-3)).toEqual(STOPPED);
+    expect(heldFor(12.7).accumulated).toBe(12_000);
   });
 });

@@ -8,9 +8,14 @@ import {
   lastTimeCell,
   nextSetType,
   pendingRows,
+  countModeOf,
+  legacyRowKey,
+  markSubmitted,
+  reconcileRows,
   rowKey,
-  settleRows,
   shiftAfterLog,
+  slotChanges,
+  slotsOf,
   storedType,
   typeOfSet,
   weightCell,
@@ -49,7 +54,8 @@ describe('set types', () => {
     expect(typeOfSet({ kind: 'work' })).toBe('normal');
   });
   it('row keys are per set number', () => {
-    expect(rowKey('squat', 2)).toBe('squat#2');
+    expect(rowKey('squat', 2)).toBe('squat@2');
+    expect(legacyRowKey('squat', 2)).toBe('squat#2');
   });
 });
 
@@ -190,23 +196,75 @@ describe('PLAN 1.7c round 2', () => {
     expect(lastTimeCell({ kind: 'work', reps: 8, load: bodyweightLoad('lb', 25) }, 'kg')).toBe('8 + 25 lb');
     expect(lastTimeCell({ kind: 'work', reps: 8, load: bodyweightLoad('lb') }, 'kg')).toBe('8 reps');
   });
-  it('settleRows: the submitted version is used up, newer edits are kept', () => {
-    const rows = pendingRows(input({ draftOf: () => null }));
-    const store = new Map<number, Draft>();
-    const read = (i: number) => store.get(i) ?? null;
-    // In order, not edited during the write: cleared.
-    store.set(0, { id: 'a', load: b185, reps: 8, rev: 2 });
-    expect(settleRows(0, 0, 2, read, rows, 'n')).toEqual([{ index: 0, draft: null }]);
-    // In order, edited during the write (rev 3): the edit moves on to the next set.
-    store.set(0, { id: 'a', load: b185, reps: 9, rev: 3 });
-    expect(settleRows(0, 0, 2, read, rows, 'n')).toEqual([{ index: 1, draft: { id: 'n', load: b185, reps: 9, rev: 3 } }, { index: 0, draft: null }]);
-    // A later row first: rows between move down, using their drafts as they are NOW.
-    store.clear();
-    store.set(1, { id: 'b', load: b185, reps: 12, rev: 5 }); // edited during the write
-    const out = settleRows(0, 2, undefined, read, rows, 'n');
-    expect(out.map((o) => o.index)).toEqual([2, 1, 0]);
-    expect(out[0]!.draft).toEqual({ id: 'b', load: b185, reps: 12, rev: 5 });
-    expect(out[1]!.draft).toMatchObject({ id: 'n', load: null, reps: 8 });
-    expect(out[2]!.draft).toBeNull();
+  it('reconcileRows: the submitted version is used up, newer edits are kept', () => {
+    let n = 0;
+    const id = () => `n${++n}`;
+    // In order, not edited during the write: used up, the next row moves up.
+    const x: Draft = { id: 'x', load: b185, reps: 6, rev: 1 };
+    expect(reconcileRows([{ id: 'a', load: b185, reps: 8, rev: 2, submitted: 2 }, x], new Map([['a', 2]]), id)).toEqual([x]);
+    // In order, edited during the write (rev 3): the edit stays on that row as the next set.
+    expect(reconcileRows([{ id: 'a', load: b185, reps: 9, rev: 3, submitted: 2 }], new Map([['a', 2]]), id)).toEqual([{ id: 'n1', load: b185, reps: 9, rev: 3 }]);
+    // Nothing committed: unchanged.
+    expect(reconcileRows([x], new Map([['other', 1]]), id)).toBeNull();
+  });
+});
+
+describe('PLAN 1.7h: stable pending rows', () => {
+  let n = 0;
+  const id = () => `id${++n}`;
+  const d = (i: string, reps: number, more: Partial<Draft> = {}): Draft => ({ id: i, load: b185, reps, rev: 1, ...more });
+
+  it('Codex 1219 (3) case 1: a later submitted row edited during its write keeps the newer revision', () => {
+    // Rows 7, 8, 19; row 3 (slot 2) checked first, then edited to 17 while the write runs.
+    const slots = [d('a', 7), d('b', 8), d('c', 17, { rev: 2, submitted: 1 })];
+    const out = reconcileRows(slots, new Map([['c', 1]]), id)!;
+    expect(out.map((r) => r?.reps)).toEqual([7, 8, 17]);
+    expect(out[2]!.id).not.toBe('c');
+    expect(out[2]!.submitted).toBeUndefined();
+  });
+
+  it('Codex 1219 (3) case 2: the current submitted row edited while the next row has a draft: both kept', () => {
+    const next = d('n', 12);
+    const out = reconcileRows([d('s', 17, { rev: 3, submitted: 2 }), next], new Map([['s', 2]]), id)!;
+    expect(out.map((r) => r?.reps)).toEqual([17, 12]);
+    expect(out[1]).toBe(next); // moved down one set (the logged count grew), not overwritten
+  });
+
+  it('a committed set without a submission (logged before 1.7h) uses the stored submitted mark', () => {
+    expect(reconcileRows([d('a', 5, { rev: 2, submitted: 2 })], new Map([['a', undefined]]), id)).toEqual([]);
+  });
+
+  it('markSubmitted stores the row values, version and mark; rows above keep what they show', () => {
+    const rows = pendingRows(input({ count: 3, defaultReps: 8, certain: b185 }));
+    const { slots, draft } = markSubmitted([null, null, d('c', 19, { rev: 4 })], rows, 2, { load: b185, reps: 19, type: 'normal' }, id);
+    expect(draft).toMatchObject({ id: 'c', reps: 19, rev: 4, submitted: 4, load: b185 });
+    expect(slots[0]).toMatchObject({ load: b185, reps: 8 });
+    expect(slots[1]).toMatchObject({ load: b185, reps: 8 });
+    expect(slots[0]!.id).not.toBe(slots[1]!.id);
+    // A row with no draft yet gets one with a fresh id.
+    const first = markSubmitted([], rows, 0, { load: b185, reps: 8, type: 'warmup' }, id);
+    expect(first.draft).toMatchObject({ reps: 8, type: 'warmup', submitted: 0 });
+    expect(first.slots).toHaveLength(1);
+  });
+
+  it('slots are pending rows only: the keys never depend on how many sets are logged', () => {
+    const drafts = new Map<string, Draft>([
+      [rowKey('squat', 0), d('a', 17)],
+      [rowKey('squat', 2), d('c', 5)],
+      [rowKey('bench', 0), d('z', 9)],
+      ['squat#1', d('old', 1)],
+    ]);
+    expect(slotsOf(drafts, 'squat').map((x) => x?.id ?? null)).toEqual(['a', null, 'c']);
+    const changes = slotChanges('squat', slotsOf(drafts, 'squat'), [d('c', 5)]);
+    expect([...changes.keys()].sort()).toEqual(['squat@0', 'squat@2']);
+    expect(changes.get('squat@2')).toBeNull();
+  });
+
+  it('countModeOf: from the saved set, never today\'s load type (Codex 1149 (2))', () => {
+    expect(countModeOf({ reps: 10, load: b185 }, 'timed')).toBe('reps');
+    expect(countModeOf({ seconds: 30, load: timedLoad('lb') }, 'barbell')).toBe('seconds');
+    expect(countModeOf({ load: timedLoad('lb') }, 'barbell')).toBe('seconds');
+    expect(countModeOf({}, 'timed')).toBe('seconds');
+    expect(countModeOf({}, undefined)).toBe('reps');
   });
 });

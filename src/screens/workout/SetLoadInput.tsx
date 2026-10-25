@@ -144,7 +144,9 @@ function BarbellField({
   // Edit set: this edit's own bar, starting from the weight the set was logged with.
   const local = ownBar !== undefined;
   const [localBar, setLocalBar] = useState<{ id?: BarId; weight: number | null }>(() => ({
-    id: ownBar === undefined ? undefined : ownBarId && gym.bars[ownBarId] === ownBar ? ownBarId : matchBar(gym, ownBar, barIdFor(exerciseName, chosen)),
+    // The set's own bar, even when that bar's weight here changed since (PLAN 1.7h); a record
+    // from before bar ids is matched by its weight.
+    id: ownBar === undefined ? undefined : (ownBarId ?? matchBar(gym, ownBar, barIdFor(exerciseName, chosen))),
     weight: ownBar ?? null,
   }));
   const barId = local ? (localBar.id ?? barIdFor(exerciseName, chosen)) : barIdFor(exerciseName, picked);
@@ -156,11 +158,11 @@ function BarbellField({
   const other = local && untouched ? (ownOther ?? 0) : 0;
   const prompt = BAR_PROMPTS[barId];
   const askPrompt = BAR_PROMPTS[askBar];
-  const change = (next: number[], b: number | null = bar) => {
+  // The bar it is lifted on goes with the load (PLAN 1.7c), so Smith sets keep their own history.
+  // A bar just picked is passed in with its weight (PLAN 1.7h): state set in the same tap is not read yet.
+  const change = (next: number[], b: number | null = bar, id: BarId = local ? (localBar.id ?? ownBarId ?? barIdFor(exerciseName, chosen)) : barIdFor(exerciseName, picked)) => {
     setPerSide(next);
     setUntouched(false);
-    // The bar it is lifted on goes with the load (PLAN 1.7c), so Smith sets keep their own history.
-    const id = local ? (localBar.id ?? ownBarId ?? barIdFor(exerciseName, chosen)) : barIdFor(exerciseName, picked);
     onChange(barbellLoad(b, next, collars, gym.unit, id), next);
   };
   /**
@@ -170,7 +172,7 @@ function BarbellField({
   const choose = async (id: BarId, weight: number | null) => {
     if (local) {
       setLocalBar({ id, weight });
-      change(perSide, weight);
+      change(perSide, weight, id);
       return;
     }
     try {
@@ -180,7 +182,7 @@ function BarbellField({
       return;
     }
     setPicked(id);
-    change(perSide, weight);
+    change(perSide, weight, id);
   };
   // EZ, trap and Smith weights are asked once (first use prompt); until then: "Set bar weight".
   const unknown = bar === null && !!prompt;

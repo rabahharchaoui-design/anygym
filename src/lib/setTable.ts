@@ -37,8 +37,95 @@ export function typeOfSet(set: { kind: SetKind; failure?: boolean }): SetType {
   return set.failure ? 'failure' : 'normal';
 }
 
-/** Drafts of one row: `${exerciseId}#${index}` in the draft store (index = 0 based set number). */
-export const rowKey = (exerciseId: string, index: number) => `${exerciseId}#${index}`;
+/**
+ * Draft key of a pending row (PLAN 1.7h): `${exerciseId}@${slot}`, slot 0 = the first row still to
+ * do. Slots count pending rows only, so deleting or putting back a logged set never moves a draft
+ * away from its row; the row's own draft id is its stable identity (and the id it is logged with).
+ */
+export const rowKey = (exerciseId: string, slot: number) => `${exerciseId}@${slot}`;
+
+/** Before 1.7h a row draft was keyed by its 0 based set number, logged sets included. */
+export const legacyRowKey = (exerciseId: string, index: number) => `${exerciseId}#${index}`;
+
+/** The exercise's pending row drafts by slot, from a workout's drafts; trailing empty slots dropped. */
+export function slotsOf(drafts: ReadonlyMap<string, Draft>, exerciseId: string): Array<Draft | null> {
+  const prefix = `${exerciseId}@`;
+  const out: Array<Draft | null> = [];
+  for (const [k, d] of drafts) {
+    if (!k.startsWith(prefix)) continue;
+    const slot = Number(k.slice(prefix.length));
+    if (!Number.isInteger(slot) || slot < 0) continue;
+    while (out.length <= slot) out.push(null);
+    out[slot] = d;
+  }
+  return out;
+}
+
+/** The draft writes (key → draft, null = clear) that turn `before` into `after`. */
+export function slotChanges(exerciseId: string, before: ReadonlyArray<Draft | null>, after: ReadonlyArray<Draft | null>): Map<string, Draft | null> {
+  const out = new Map<string, Draft | null>();
+  for (let j = 0; j < Math.max(before.length, after.length); j++) {
+    const a = after[j] ?? null;
+    if (a !== (before[j] ?? null)) out.set(rowKey(exerciseId, j), a);
+  }
+  return out;
+}
+
+/** Committed Log set writes: set id → the draft version it submitted (undefined: a set with no submission). */
+export type Committed = ReadonlyMap<string, number | undefined>;
+
+/**
+ * Reconciles pending row drafts with committed writes (PLAN 1.7h). A draft whose id committed is
+ * used up when it was not edited since it was submitted: its slot goes and the rows below move
+ * up one. Edited during the write, those newer values stay where they are under a fresh id (they
+ * become the next set), and the drafts below keep their own slots: nothing is overwritten or
+ * dropped. Returns the new slots, or null when nothing changed.
+ */
+export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Committed, newId: () => string): Array<Draft | null> | null {
+  const out = [...slots];
+  let changed = false;
+  for (let j = out.length - 1; j >= 0; j--) {
+    const d = out[j];
+    if (!d || !committed.has(d.id)) continue;
+    changed = true;
+    const rev = committed.get(d.id) ?? d.submitted ?? d.rev ?? 0;
+    if ((d.rev ?? 0) === rev) out.splice(j, 1);
+    else {
+      const { submitted: _done, ...kept } = d;
+      out[j] = { ...kept, id: newId() };
+    }
+  }
+  while (out.length && out[out.length - 1] === null) out.pop();
+  return changed ? out : null;
+}
+
+/** What a Log set write stores: the row's values at the tap. */
+export type RowValues = { load: Load; reps?: number; seconds?: number; type: SetType };
+
+/**
+ * Before a Log set write of pending slot `slot` (PLAN 1.7h): the rows above it keep what they
+ * show (rows with no draft get one with their values), and the row's id, values and version are
+ * stored with its `submitted` mark. Returns the new slots and the submitted draft.
+ */
+export function markSubmitted(
+  slots: ReadonlyArray<Draft | null>,
+  rows: readonly PendingRow[],
+  slot: number,
+  values: RowValues,
+  newId: () => string,
+): { slots: Array<Draft | null>; draft: Draft } {
+  const out = [...slots];
+  while (out.length <= slot) out.push(null);
+  for (let j = 0; j < slot; j++) if (!out[j] && rows[j]) out[j] = rowDraft(rows[j]!, newId());
+  const base = out[slot] ?? { id: newId(), load: values.load };
+  const draft: Draft = { ...base, load: values.load, plates: values.load.perSide ?? base.plates ?? [], type: values.type, submitted: base.rev ?? 0 };
+  delete draft.reps;
+  delete draft.seconds;
+  if (values.reps !== undefined) draft.reps = values.reps;
+  if (values.seconds !== undefined) draft.seconds = values.seconds;
+  out[slot] = draft;
+  return { slots: out, draft };
+}
 
 export type PendingRow = {
   /** 0 based set number. */
@@ -138,39 +225,14 @@ export function rowDraft(r: PendingRow, id: string): Draft {
 }
 
 /**
- * When a delayed write of pending row `n` lands (`k` sets were logged when it was checked), the
- * drafts to write, read from the drafts AS THEY ARE NOW (PLAN 1.7c): edits made during the write
- * are kept. The rows between move down one place (a row that had no draft keeps what it showed,
- * from `snapshot`). The logged row's own draft is used up, unless it was checked in order and
- * edited during the write: then that newer edit moves on to the next set, like the old card.
- * Returns index → draft (null = clear).
+ * Whether a logged set counts reps or seconds (PLAN 1.7h): from the set itself (its count, then its
+ * load kind). Today's load type is only used for a record that says neither.
  */
-export function settleRows(
-  k: number,
-  n: number,
-  submittedRev: number | undefined,
-  read: (index: number) => Draft | null,
-  snapshot: readonly PendingRow[],
-  nextId: string,
-): Array<{ index: number; draft: Draft | null }> {
-  const byIndex = new Map(snapshot.map((r) => [r.index, r]));
-  const now = new Map<number, Draft | null>();
-  for (let j = k; j <= n + 1; j++) now.set(j, read(j));
-  const out: Array<{ index: number; draft: Draft | null }> = [];
-  if (n > k) {
-    for (let j = n; j >= k + 1; j--) {
-      const prev = byIndex.get(j - 1);
-      const src = now.get(j - 1) ?? (prev ? rowDraft(prev, nextId) : null);
-      out.push({ index: j, draft: src });
-    }
-    out.push({ index: k, draft: null });
-    return out;
-  }
-  const mine = now.get(n);
-  const editedDuring = !!mine && mine.rev !== submittedRev;
-  if (editedDuring && !now.get(n + 1)) out.push({ index: n + 1, draft: { ...mine!, id: nextId } });
-  out.push({ index: n, draft: null });
-  return out;
+export function countModeOf(set: { reps?: number; seconds?: number; load?: Pick<Load, 'kind'> }, todayKind?: Load['kind']): 'reps' | 'seconds' {
+  if (set.reps !== undefined) return 'reps';
+  if (set.seconds !== undefined) return 'seconds';
+  const kind = set.load?.kind ?? todayKind;
+  return kind === 'timed' ? 'seconds' : 'reps';
 }
 
 /**
