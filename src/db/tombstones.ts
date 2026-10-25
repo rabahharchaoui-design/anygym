@@ -12,9 +12,12 @@
 // So the record is consumed only after a successful restore or once its window is over. On every
 // start of an active workout (recoverDeletes) an accepted Undo is retried and expired ones are
 // cleared; a delete still inside its window simply stays deleted (the toast is gone after a kill).
+// An Undo whose acceptance write failed leaves a durable intent instead (db/undoIntents.ts, PLAN
+// 1.7k): such a tombstone never expires, recovery retries it, and Finish puts it back.
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { WorkoutSet } from './types';
-import { WorkoutFinishedError, restoreSet } from './workouts';
+import { dropUndoIntent, forgetUndoFallback, hasUndoIntent } from './undoIntents';
+import { WorkoutFinishedError, restoreSet, seedCounter } from './workouts';
 
 /** Records that an Undo was accepted, before writing the set back. False when nothing is left to undo. */
 export async function acceptUndo(id: string, db: AnyGymDB = defaultDb): Promise<boolean> {
@@ -39,15 +42,21 @@ export async function undoDelete(id: string, db: AnyGymDB = defaultDb): Promise<
   }
   const t = await db.tombstones.get(id);
   if (!t) return db.sets.get(id);
-  await restoreSet(t.set, db);
+  // Only while the tombstone is still there: a "Keep it deleted" that landed first wins.
+  if (!(await restoreSet(t.set, db, { ifTombstone: true }))) return undefined;
+  forgetUndoFallback(t.sessionId, id);
   return t.set;
 }
 
-/** The Undo window of `id` is over: its tombstone goes, unless an Undo was accepted meanwhile. */
+/**
+ * The Undo window of `id` is over: its tombstone goes, unless an Undo was accepted meanwhile or
+ * the user asked for one whose acceptance only reached the durable intent (PLAN 1.7k), checked in
+ * the same transaction: an unresolved Undo never expires, in this app run or the next.
+ */
 export async function expireDelete(id: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<void> {
-  await db.transaction('rw', db.tombstones, async () => {
+  await db.transaction('rw', db.tombstones, db.kv, async () => {
     const t = await db.tombstones.get(id);
-    if (t && !t.undo && t.expiresAt <= now) await db.tombstones.delete(id);
+    if (t && !t.undo && t.expiresAt <= now && !(await hasUndoIntent(t.sessionId, id, db))) await db.tombstones.delete(id);
   });
 }
 
@@ -67,12 +76,16 @@ export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb
   const active = !!session && session.endedAt === undefined;
   for (const t of list) {
     if (!active) {
-      await db.tombstones.delete(t.id);
+      await db.transaction('rw', db.tombstones, db.kv, async () => {
+        await db.tombstones.delete(t.id);
+        await dropUndoIntent(sessionId, t.id, db);
+      });
+      forgetUndoFallback(sessionId, t.id);
       out.expired.push(t.id);
     } else if (t.undo) {
       try {
-        await restoreSet(t.set, db);
-        out.restored.push(t.id);
+        if (await restoreSet(t.set, db, { ifTombstone: true })) out.restored.push(t.id);
+        forgetUndoFallback(sessionId, t.id);
       } catch (err) {
         if (err instanceof WorkoutFinishedError) await db.tombstones.delete(t.id);
         out.failed.push(t.id);
@@ -88,8 +101,26 @@ export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb
 
 /**
  * The user cancelled an Undo that could not be written back (PLAN 1.7i): the set stays deleted and
- * its tombstone goes, accepted or not, so Finish does not put it back after all.
+ * its tombstone goes, accepted or not, so Finish does not put it back after all. One transaction
+ * with the Undo intent (PLAN 1.7k), and "Keep it deleted" means deleted: if an automatic recovery
+ * already put the set back meanwhile, it is taken out again (the user's last word wins), so Finish
+ * can never keep a set the user was told stays deleted.
  */
-export async function cancelUndo(id: string, db: AnyGymDB = defaultDb): Promise<void> {
-  await db.tombstones.delete(id);
+export async function cancelUndo(id: string, db: AnyGymDB = defaultDb, sessionId?: string): Promise<void> {
+  let sid = sessionId;
+  await db.transaction('rw', [db.tombstones, db.sets, db.sessions, db.orderCounters, db.kv], async () => {
+    const t = await db.tombstones.get(id);
+    const set = await db.sets.get(id);
+    sid = sid ?? t?.sessionId ?? set?.sessionId;
+    await db.tombstones.delete(id);
+    if (sid) await dropUndoIntent(sid, id, db);
+    if (set && (!sid || set.sessionId === sid)) {
+      const session = await db.sessions.get(set.sessionId);
+      if (session && session.endedAt === undefined) {
+        await seedCounter(set.sessionId, db);
+        await db.sets.delete(id);
+      }
+    }
+  });
+  if (sid) forgetUndoFallback(sid, id);
 }

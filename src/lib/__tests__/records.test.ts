@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Load } from '../../db/types';
-import { barbellLoad, bodyweightLoad, dumbbellLoad, timedLoad } from '../load';
+import { barbellLoad, bodyweightLoad, dumbbellLoad, sameResistance, stackLoad, timedLoad } from '../load';
 import type { PastSet } from '../progression';
 import { bestSetOf, recordsFor } from '../records';
 
@@ -75,5 +75,17 @@ describe('bestSetOf (finish screen list)', () => {
     const p2 = work(12, bodyweightLoad('lb'));
     expect(bestSetOf([p1, p2])).toBe(p2);
     expect(bestSetOf([{ kind: 'work' as const, reps: 3 }, { kind: 'work' as const, reps: 5 }])!.reps).toBe(5);
+  });
+});
+
+describe('stack resistance with another pin / add-on split (PLAN 1.7k)', () => {
+  it('a 125 pin after 100 pin + 25 added is the same 125 lb: 12 reps beats 10 for a rep record', () => {
+    const r = recordsFor('lp', 'Leg press', [work(12, stackLoad(125, 'lb'))], [work(10, stackLoad(100, 'lb', 25))]);
+    expect(r).toEqual([{ exerciseId: 'lp', kind: 'most_reps', text: 'Leg press: most reps at 125 lb, 12' }]);
+  });
+  it('sameResistance compares complete resistance; a different total is not the same', () => {
+    expect(sameResistance(stackLoad(100, 'lb', 25), stackLoad(125, 'lb'))).toBe(true);
+    expect(sameResistance(stackLoad(100, 'lb', 20), stackLoad(125, 'lb'))).toBe(false);
+    expect(sameResistance(bar([45]), bar([45]))).toBe(true);
   });
 });

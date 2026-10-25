@@ -7,7 +7,7 @@ import { newId } from '../../db/ids';
 import { beatLine } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
 import { addExtraSet } from '../../lib/extraSets';
-import { blockedReason, lastTimeNote, markSubmitted, pendingRows, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { blockedReason, lastTimeNote, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
 import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio } from '../../lib/tone';
@@ -64,11 +64,16 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const key = logKey(sessionId, exerciseId);
   const [, setVer] = useState(0);
   const refresh = () => setVer((v) => v + 1);
-  const [picking, setPicking] = useState<PendingRow | null>(null);
+  /**
+   * The weight sheet's row, by its stable draft id (PLAN 1.7k), never by its displayed position: a
+   * row that commits while the sheet is open moves the rows below it, and the change must still land
+   * on the row the sheet was opened for. `row` is that row as it was when the sheet opened.
+   */
+  const [picking, setPicking] = useState<{ id: string; row: PendingRow } | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   /** The "Set type" sheet: a row still to do, or a logged set. */
-  const [typing, setTyping] = useState<{ n: number; type: SetType; row?: PendingRow; set?: WorkoutSet } | null>(null);
+  const [typing, setTyping] = useState<{ n: number; type: SetType; rowId?: string; set?: WorkoutSet } | null>(null);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => logQueue.subscribe(key, refresh), [key]);
@@ -195,8 +200,28 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     await submitAndTell(again);
   };
 
-  const applyWeight = (from: PendingRow, pick: WeightPick) => {
+  /**
+   * The row's stable identity (PLAN 1.7k): its draft id, given to a row still showing its target
+   * when an editor opens on it (its values as shown, nothing marked as picked by hand).
+   */
+  const idOf = (row: PendingRow): string => {
+    const have = draftAt(slotOf(row));
+    if (have) return have.id;
+    const draft = rowDraft(row, newId());
+    saveDraft(sessionId, rowKey(exerciseId, slotOf(row)), draft);
+    return draft.id;
+  };
+  /** The row with this draft id as it is now, or undefined when it was logged or went meanwhile. */
+  const rowById = (id: string): PendingRow | undefined => {
+    const at = rowsOf(sessionId, exerciseId).findIndex((d) => d?.id === id);
+    return at < 0 ? undefined : rows.find((r) => slotOf(r) === at);
+  };
+  const gone = () => onNotice('That set was already logged. Nothing changed.');
+
+  const applyWeight = (id: string, pick: WeightPick) => {
     setPicking(null);
+    const from = rowById(id);
+    if (!from) return gone();
     // A warm up's weight is for that warm up only; a working row's weight goes to it and the
     // working rows below it, never into a warm up (SPEC 20.2, gate 3).
     const targets = from.type === 'warmup' ? [from] : rows.filter((r) => r.index >= from.index && r.type !== 'warmup');
@@ -244,10 +269,11 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     setTyping(null);
     if (!target) return;
     if (target.set) void setLoggedType(target.set, t);
-    else if (target.row) {
-      // The row as it is now (a draft may have moved on while the sheet was open).
-      const row = rows.find((r) => r.index === target.row!.index);
+    else if (target.rowId) {
+      // The row with that identity as it is now (rows may have moved while the sheet was open).
+      const row = rowById(target.rowId);
       if (row) setRowType(row, t);
+      else gone();
     }
   };
 
@@ -293,6 +319,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const status = current ? blockedOf(current) : null;
   // The number each row shows: "W" for a warm up, working sets 1 to n (SetTable shows the same).
   const numbers = setNumbers([...logged.map((s) => typeOfSet(s)), ...rows.map((r) => r.type)]);
+  // The weight sheet's row where it is now (its title follows it), else as it was when opened.
+  const pickRow = picking ? (rowById(picking.id) ?? picking.row) : null;
   const rowName = (r: PendingRow) => (r.type === 'warmup' ? 'Warm up' : `Set ${numbers[r.index]}`);
 
   return (
@@ -368,12 +396,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             fresh={fresh}
             editing={editing}
             onCheck={(r) => void log(r)}
-            onWeight={(r) => setPicking(r)}
+            onWeight={(r) => setPicking({ id: idOf(r), row: r })}
             onAmount={(r) => setEditing((e) => (e === r.index ? null : r.index))}
             // A typed hold replaces the row's stopwatch with a stopped one of that length (PLAN 1.7h).
             onAmountChange={(r, v) => writeRow(r, timed ? { seconds: v, watch: heldFor(v) } : { reps: v }, timed ? undefined : { reps: true })}
             onAmountDone={() => setEditing(null)}
-            onType={(r) => !logQueue.closed(sessionId) && setTyping({ n: r.index + 1, type: r.type, row: r })}
+            onType={(r) => !logQueue.closed(sessionId) && setTyping({ n: r.index + 1, type: r.type, rowId: idOf(r) })}
             onLoggedType={(s) => !logQueue.closed(sessionId) && setTyping({ n: logged.indexOf(s) + 1, type: typeOfSet(s), set: s })}
             onLastTime={copyLast}
             onEdit={onEditSet}
@@ -404,15 +432,15 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         <WeightSheet
           open={picking !== null}
           onClose={() => setPicking(null)}
-          title={picking ? rowName(picking) : ''}
-          sub={!picking ? '' : picking.type === 'warmup' ? 'Just this warm up' : rows.some((r) => r.index > picking.index && r.type !== 'warmup') ? 'This set and the ones below' : 'This set'}
+          title={pickRow ? rowName(pickRow) : ''}
+          sub={!pickRow ? '' : pickRow.type === 'warmup' ? 'Just this warm up' : rows.some((r) => r.index > pickRow.index && r.type !== 'warmup') ? 'This set and the ones below' : 'This set'}
           loadType={kind}
           gym={gym}
           exerciseId={exerciseId}
           exerciseName={name}
           bar={bar}
-          start={picking ? startPick(picking) : { load: null, plates: [] }}
-          onDone={(p) => picking && applyWeight(picking, p)}
+          start={picking ? startPick(picking.row) : { load: null, plates: [] }}
+          onDone={(p) => picking && applyWeight(picking.id, p)}
           onNotice={onNotice}
         />
       )}

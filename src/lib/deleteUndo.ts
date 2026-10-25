@@ -36,6 +36,13 @@ export type DeleteUndo<T> = {
    * tracked write: the Undo stays unresolved (Finish refuses) until it lands; rejects if it failed.
    */
   cancel: (id: string) => Promise<void>;
+  /**
+   * After a restart (PLAN 1.7k): a stored Undo the user asked for that has not landed comes back as
+   * unresolved, with the exact record its tombstone holds. No expiry timer: it never expires.
+   */
+  hydrate: (item: T) => void;
+  /** Recovery put the item back on its own: it is no longer unresolved (nothing left to cancel). */
+  resolve: (id: string) => void;
 };
 
 export const CLOSED = 'Workout is finishing';
@@ -150,6 +157,21 @@ export function createDeleteUndo<T extends { id: string }>(
     },
     pending: () => running.size,
     unresolved: () => [...records].filter(([, r]) => r.unresolved).map(([id]) => id),
+    hydrate(item) {
+      const rec = records.get(item.id);
+      if (rec) {
+        if (!rec.restoring) {
+          rec.unresolved = true;
+          clearTimeout(rec.timer);
+        }
+        return;
+      }
+      records.set(item.id, { item, restoring: null, unresolved: true });
+    },
+    resolve(id) {
+      const rec = records.get(id);
+      if (rec && !rec.restoring) forget(rec, id);
+    },
     async cancel(id) {
       const rec = records.get(id);
       if (!rec || rec.restoring) return;

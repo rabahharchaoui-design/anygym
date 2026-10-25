@@ -11,7 +11,7 @@
 import type { DumbbellRange, ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
 import { RENAMED_PLAN_IDS, SCHEMA_VERSION } from '../db/schema';
 import type { DraftsBlob } from './drafts';
-import { validDumbbellRange, validStackStep } from './load';
+import { isKnownPlate, validDumbbellRange, validStackStep } from './load';
 
 export const BACKUP_FORMAT = 'anygym-backup-v1';
 
@@ -109,11 +109,18 @@ const unit = oneOf('lb', 'kg');
 const LOAD_KINDS = ['barbell', 'dumbbell_each', 'single', 'stack', 'plate_machine', 'bodyweight', 'timed'] as const;
 const BAR_IDS = ['olympic', 'womens', 'ez_curl', 'trap', 'smith'] as const;
 
-/** A stored load (SPEC 5.5): kind, unit and a numeric total; every other number numeric when there. */
-export const isLoad = shape({
-  req: { kind: oneOf(...LOAD_KINDS), unit, total: num },
-  opt: { barWeight: num, barId: oneOf(...BAR_IDS), perSide: listOf(num), collars: num, stackValue: num, added: num },
-});
+/** Plates per side that are all real plates of that unit (PLATE_SPECS): an unknown size would crash drawing and solving. */
+const knownPlates = (u: unknown): Check => (v) => listOf(num)(v) && (u === 'lb' || u === 'kg') && (v as number[]).every((w) => isKnownPlate(w, u));
+
+/**
+ * A stored load (SPEC 5.5): kind, unit and a numeric total; every other number numeric when there,
+ * and its plates per side real plates of the load's own unit (PLAN 1.7k).
+ */
+export const isLoad: Check = (v) =>
+  shape({
+    req: { kind: oneOf(...LOAD_KINDS), unit, total: num },
+    opt: { barWeight: num, barId: oneOf(...BAR_IDS), perSide: listOf(num), collars: num, stackValue: num, added: num },
+  })(v) && ((v as Rec).perSide === undefined || knownPlates((v as Rec).unit)((v as Rec).perSide));
 
 const isSet = shape({
   req: { id: str, sessionId: str, exerciseId: str, order: num, kind: oneOf('warmup', 'work', 'drop'), uncertain: bool },
@@ -133,31 +140,36 @@ const equipmentWeight: Check = (v) => {
 
 const bars = shape({ req: Object.fromEntries(BAR_IDS.map((b) => [b, orNull(num)])) });
 
+const gymShape = shape({
+  req: {
+    id: str,
+    name: str,
+    type: oneOf('full', 'hotel', 'home', 'none'),
+    unit,
+    equipment: listOf(str),
+    dumbbellRange: orNull(dumbbellRange),
+    bars,
+    // A step that would break the pin list (0, negative, 1e-12) is refused before anything is replaced (PLAN 1.7j).
+    stackStep: (v) => num(v) && validStackStep(v as number),
+    equipmentWeights: recordOf(equipmentWeight),
+    plateInventory: listOf(shape({ req: { weight: num, enabled: bool } })),
+    collars: oneOf('none', 'competition'),
+    plateColors: oneOf('black', 'color'),
+    isActive: bool,
+    createdAt: num,
+  },
+});
+
+/** Every plate in a gym's inventory, enabled or not, is a real plate of the gym's unit (PLAN 1.7k: a 999 kg plate crashed loading). */
+const inventoryKnown = (g: Rec): boolean => (g.plateInventory as Array<{ weight: number }>).every((p) => isKnownPlate(p.weight, g.unit as 'lb' | 'kg'));
+
 /** What every stored record must look like, per table. Exported for the tests. */
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
     req: { id: str, defaultUnit: unit, createdAt: num },
     opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num },
   }),
-  gyms: shape({
-    req: {
-      id: str,
-      name: str,
-      type: oneOf('full', 'hotel', 'home', 'none'),
-      unit,
-      equipment: listOf(str),
-      dumbbellRange: orNull(dumbbellRange),
-      bars,
-      // A step that would break the pin list (0, negative, 1e-12) is refused before anything is replaced (PLAN 1.7j).
-      stackStep: (v) => num(v) && validStackStep(v as number),
-      equipmentWeights: recordOf(equipmentWeight),
-      plateInventory: listOf(shape({ req: { weight: num, enabled: bool } })),
-      collars: oneOf('none', 'competition'),
-      plateColors: oneOf('black', 'color'),
-      isActive: bool,
-      createdAt: num,
-    },
-  }),
+  gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
   plans: shape({ req: { id: str, name: str, source: oneOf('curated', 'generated'), createdAt: num } }),
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
@@ -255,6 +267,24 @@ function referencesHold(t: Record<TableName, Rec[]>): boolean {
   });
 }
 
+/**
+ * A draft's plates (kept even while the bar weight is unknown) are real plates of the unit they
+ * were picked in: the load's unit, else the draft's unit, else its workout's gym unit (older drafts).
+ */
+function draftPlatesKnown(draft: Rec, gymUnit: unknown): boolean {
+  if (draft.plates === undefined) return true;
+  const u = (isObj(draft.load) ? draft.load.unit : undefined) ?? draft.unit ?? gymUnit;
+  return knownPlates(u)(draft.plates);
+}
+
+/** Every draft (journal and per workout) has plates known for its unit (PLAN 1.7k). */
+function draftPlatesHold(t: Record<TableName, Rec[]>, drafts: Rec): boolean {
+  const gymUnit = new Map(t.gyms.map((g) => [g.id as string, g.unit]));
+  const unitOf = new Map(t.sessions.map((s) => [s.id as string, gymUnit.get(s.gymId as string)]));
+  if (!t.journal.every((j) => draftPlatesKnown(j.draft as Rec, unitOf.get(j.sessionId as string)))) return false;
+  return Object.entries(drafts).every(([sessionId, perExercise]) => Object.values(perExercise as Rec).every((d) => draftPlatesKnown(d as Rec, unitOf.get(sessionId))));
+}
+
 /** Drafts: only for workouts in progress in the same file, each a valid draft. */
 function draftsOk(drafts: unknown, sessions: Rec[]): boolean {
   if (!isObj(drafts)) return false;
@@ -303,6 +333,7 @@ export function parseBackup(text: string): ParseResult {
 
   const drafts = raw.drafts === undefined ? {} : raw.drafts;
   if (!draftsOk(drafts, upgraded.sessions)) return { ok: false, error: DAMAGED };
+  if (!draftPlatesHold(upgraded, drafts as Rec)) return { ok: false, error: DAMAGED };
 
   return {
     ok: true,

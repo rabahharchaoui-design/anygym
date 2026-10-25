@@ -3,7 +3,7 @@
 import { registerSW } from 'virtual:pwa-register';
 import { db } from './db/schema';
 import { getActiveSession } from './db/workouts';
-import { setUpdateReady, shouldApplyUpdateNow, type Activity } from './lib/pwaUpdate';
+import { reloadWhenIdle, setUpdateReady, shouldApplyUpdateNow, type Activity } from './lib/pwaUpdate';
 
 async function activity(): Promise<Activity> {
   try {
@@ -19,6 +19,11 @@ export function registerAppUpdates(): void {
   if (!('serviceWorker' in navigator)) return;
   const updateSW = registerSW({
     immediate: true,
+    // The plugin would reload unconditionally once the new version controls the page: the
+    // activity is checked again right there, so a workout started meanwhile is never reloaded.
+    onNeedReload() {
+      void reloadWhenIdle(activity, () => window.location.reload());
+    },
     onNeedRefresh() {
       void activity().then(({ workout, run }) => {
         const apply = () => void updateSW(true);

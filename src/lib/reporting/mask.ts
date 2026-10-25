@@ -1,9 +1,13 @@
-// Privacy masks for anything automatic that leaves the phone or reaches G's phone (SPEC 24): crash
-// messages, stacks, console errors and push notifications. Pure, no imports: the app and the
-// anygym-api Worker share this one file. Free text is reduced to what is safe to keep: lower case
-// words, code identifiers, known error words and our own script locations. Everything else
-// (names: First Last or after a title; emails, phone numbers, long numbers, ids, URLs, file
-// paths) becomes a placeholder.
+// Privacy masks for anything that leaves the phone or reaches G's phone (SPEC 24). Pure, no
+// imports: the app and the anygym-api Worker share this one file.
+//
+// Automatic text (crash messages, stacks, console errors, signatures) is allowlisted, never
+// heuristically masked: it becomes an approved error code, a fixed message and our own script
+// location ('TypeError: details hidden at index-Ab12.js:40:12'). Arbitrary error text, which can
+// hold lower case names or addresses, never passes.
+//
+// maskText is only for the user's own words in Report a problem: names (First Last or after a
+// title), emails, phone numbers, long numbers, ids, URLs and file paths become placeholders.
 
 export const MASK_MAX = 160;
 
@@ -85,28 +89,126 @@ export function maskText(input: string, max = MASK_MAX): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-/** A route with its ids replaced: '/workout/3f2…/done?x' → '/workout/:id/done'. */
-export function maskRoute(hashOrPath: string): string {
-  const path = (hashOrPath.startsWith('#') ? hashOrPath.slice(1) : hashOrPath).split(/[?#]/)[0] || '/';
-  const parts = path.split('/').filter(Boolean);
-  const out = parts.map((seg, i) => {
-    const prev = parts[i - 1];
-    if (prev === 'workout' || prev === 'history' || prev === 'plans') return ':id';
-    return /^[a-z][a-z-]{0,47}$/.test(seg) || seg === ':id' ? seg : ':id';
-  });
-  return `/${out.join('/')}`.slice(0, 120);
+// ---- Automatic text: allowlisted only -----------------------------------------------------------
+
+/** Error names that may appear in automatic reports. Any other name becomes 'Error'. */
+export const ERROR_CODES: ReadonlySet<string> = new Set([
+  'Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError', 'EvalError', 'URIError', 'AggregateError', 'InternalError',
+  'Warning', 'DOMException', 'QuotaExceededError', 'AbortError', 'NotFoundError', 'InvalidStateError', 'DataError', 'ConstraintError',
+  'TransactionInactiveError', 'ReadOnlyError', 'VersionError', 'UnknownError', 'TimeoutError', 'NetworkError', 'SecurityError',
+  'NotAllowedError', 'NotSupportedError', 'DataCloneError', 'InvalidAccessError', 'OperationError', 'EncodingError', 'NotReadableError',
+  'DatabaseClosedError', 'OpenFailedError', 'MissingAPIError', 'BulkError', 'ModifyError', 'PrematureCommitError', 'SubTransactionError',
+  'UpgradeError', 'SchemaError', 'InvalidTableError', 'ChunkLoadError',
+]);
+
+/** Exact browser messages that carry no personal text and help to tell bugs apart. */
+const SAFE_MESSAGES: ReadonlySet<string> = new Set([
+  'Load failed', 'Failed to fetch', 'NetworkError when attempting to fetch resource.', 'The operation was aborted.',
+  'The user aborted a request.', 'The quota has been exceeded.', 'QuotaExceededError', 'Script error.',
+  'Importing a module script failed.', 'Failed to fetch dynamically imported module', 'Database deleted by request of the user',
+  'Connection to Indexed Database server lost. Refresh the page to try again', 'Maximum call stack size exceeded.',
+]);
+
+export const HIDDEN = 'details hidden';
+
+// Only the scripts the app ships (PLAN 1.7k review): Vite's hashed bundles in assets/
+// ('index-Ab12Cd34.js', 'workbox-window.prod.es5-Bd17z0YL.js'), the Workbox runtime
+// ('workbox-2fbc6a65.js') and 'sw.js', always with :line:col. Any other file name (which could be
+// personal text, 'alice-smith.js') is never a location.
+const LOCATION = /^(?:index-[A-Za-z0-9_-]{8}|workbox-window\.prod\.es5-[A-Za-z0-9_-]{8}|workbox-[0-9a-f]{8}|sw)\.js:\d{1,7}:\d{1,7}$/;
+
+/** A script location ('index-Ab12.js:40:12') or null when it is anything else. */
+export function scriptLocation(loc: string | null | undefined): string | null {
+  const s = (loc ?? '').trim();
+  return LOCATION.test(s) ? s : null;
 }
 
-/** The stack frames that point into our own scripts, as 'fn@index-Ab12.js:40:12'. Others are dropped. */
+const CODES_RE = '[A-Za-z]{1,40}';
+const AUTO = new RegExp(`^(${CODES_RE}): (.+?)(?: at (\\S+))?$`);
+
+/** True when the text already is an automatic message this module produced. */
+function isAuto(text: string): boolean {
+  const m = AUTO.exec(text);
+  if (!m || !ERROR_CODES.has(m[1]!)) return false;
+  if (m[2] !== HIDDEN && !SAFE_MESSAGES.has(m[2]!)) return false;
+  return m[3] === undefined || scriptLocation(m[3]) !== null;
+}
+
+/**
+ * The automatic form of any error text: an approved code, a fixed message (an exact allowlisted
+ * browser message, otherwise 'details hidden') and an optional script location. Idempotent.
+ */
+export function autoMessage(text: string | null | undefined, location?: string | null): string {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim();
+  const loc = scriptLocation(location);
+  if (isAuto(s)) {
+    if (!loc || / at \S+$/.test(s)) return s;
+    return `${s} at ${loc}`;
+  }
+  const head = /^(?:Uncaught\s+)?(?:\(in promise\)\s+)?([A-Za-z]{1,40})(?::\s*([\s\S]*))?$/.exec(s);
+  const name = head?.[2] !== undefined ? head[1]! : undefined;
+  const code = name && ERROR_CODES.has(name) ? name : 'Error';
+  const rest = (head?.[2] !== undefined ? head[2] : s).trim();
+  const msg = SAFE_MESSAGES.has(rest) ? rest : SAFE_MESSAGES.has(s) ? s : HIDDEN;
+  return loc ? `${code}: ${msg} at ${loc}` : `${code}: ${msg}`;
+}
+
+/** Only the script locations of a stack, one per line ('index-Ab12.js:40:12'), at most `maxLines`. */
+export function stackRefs(stack: string | null | undefined, maxLines = 12): string {
+  const out: string[] = [];
+  for (const raw of String(stack ?? '').split('\n')) {
+    const line = raw.trim();
+    // Only stack frames ('fn@url:1:2', '@url:1:2', 'at f (url:1:2)', 'at url:1:2'), never an error
+    // header line ('Error: alice-smith.js:1:2' is the message, not a location).
+    // A line that is exactly a location is an already cleaned stack.
+    if (scriptLocation(line)) {
+      out.push(line);
+      if (out.length >= maxLines) break;
+      continue;
+    }
+    if (!/^at\s/.test(line) && !/^[^\s:]*@/.test(line)) continue;
+    // The script file at the end of the line ('fn@…/index-Ab12.js:40:12', 'at f (index-Ab12.js:1:2)').
+    const tail = /([^\s/@()]+)\)?\s*$/.exec(line.trim())?.[1]?.replace(/[?#][^:]*/, '');
+    const ref = scriptLocation(tail);
+    if (ref) out.push(ref);
+    if (out.length >= maxLines) break;
+  }
+  return out.join('\n');
+}
+
+/** The same bug gives the same signature: automatic message plus the first script location. */
+export function autoSignature(message: string, stack: string): string {
+  const first = stackRefs(stack, 1) || 'no-stack';
+  return `${autoMessage(message)} @ ${first}`.slice(0, 300);
+}
+
+/**
+ * The real screens of the app (src/App.tsx), with ids replaced: '/workout/3f2…/done?x' →
+ * '/workout/:id/done'. Anything else is '/unknown'.
+ */
+export function maskRoute(hashOrPath: string): string {
+  const path = (hashOrPath.startsWith('#') ? hashOrPath.slice(1) : hashOrPath).split(/[?#]/)[0] || '/';
+  const p = path.split('/').filter(Boolean);
+  const [a, b, c] = p;
+  if (p.length === 0) return '/';
+  if (p.length === 1 && (a === 'run' || a === 'history' || a === 'plans' || a === 'settings')) return `/${a}`;
+  if (p.length === 2 && (a === 'history' || a === 'plans')) return `/${a}/:id`;
+  if (p.length === 2 && a === 'settings' && b === 'import') return '/settings/import';
+  if (p.length === 2 && a === 'dev' && (b === 'plates' || b === 'loads' || b === 'info' || b === 'viewport')) return `/dev/${b}`;
+  if (a === 'workout' && p.length === 2) return '/workout/:id';
+  if (a === 'workout' && p.length === 3) return c === 'done' ? '/workout/:id/done' : '/workout/:id/:exercise';
+  return '/unknown';
+}
+
+/** The stack frames that point into our own scripts, as 'index-Ab12.js:40:12'. Others are dropped. */
 export function maskStack(stack: string, ownScript: (url: string) => boolean, maxLines = 12, max = 2000): string {
   const frames: string[] = [];
   for (const line of stack.split('\n')) {
     const m = /([a-z][a-z-]*:\/\/[^\s)]+?)(?::(\d+))?(?::(\d+))?\)?\s*$/i.exec(line.trim());
     if (!m || !ownScript(m[1]!)) continue;
-    const ref = scriptRef(m[1]!, [m[2], m[3]].filter(Boolean).map((n) => `:${n}`).join(''));
+    const ref = scriptLocation(scriptRef(m[1]!, [m[2], m[3]].filter(Boolean).map((n) => `:${n}`).join('')));
     if (!ref) continue;
-    const fn = /^(?:at\s+)?([\w$.<>]+)(?:@|\s+\()/.exec(line.trim())?.[1];
-    frames.push(fn && /^[\w$.<>]{1,60}$/.test(fn) ? `${fn}@${ref}` : ref);
+    frames.push(ref);
     if (frames.length >= maxLines) break;
   }
   return frames.join('\n').slice(0, max);
@@ -114,11 +216,16 @@ export function maskStack(stack: string, ownScript: (url: string) => boolean, ma
 
 export type PushKind = 'feedback' | 'crash' | 'fixed';
 
-/** The one formatter for every phone push (SPEC 24): masked, short, never personal. */
+/**
+ * The one formatter for every phone push (SPEC 24): fixed copy, the report number and the screen.
+ * A bug report adds the first line of the user's own words, masked; a crash only its automatic
+ * code and script location.
+ */
 export function formatPush(kind: PushKind, r: { id?: number; message?: string | null; route?: string | null }): { title: string; body: string } {
-  const screen = `Screen: ${maskRoute(r.route ?? '/')}`;
-  if (kind === 'fixed') return { title: 'AnyGym: bug fixed', body: `Report #${r.id ?? '?'} · ${screen}\nClose and reopen the app to get it.` };
+  const ref = `Report #${r.id ?? '?'} · Screen: ${maskRoute(r.route ?? '/')}`;
+  if (kind === 'fixed') return { title: 'AnyGym: bug fixed', body: `${ref}\nClose and reopen the app to get it.` };
+  if (kind === 'crash') return { title: 'AnyGym: new crash', body: `${autoMessage(r.message)}\n${ref}` };
   const first = (r.message ?? '').split('\n').find((l) => l.trim()) ?? '';
   const line = maskText(first, 80) || 'No text';
-  return { title: kind === 'feedback' ? 'AnyGym: new bug report' : 'AnyGym: new crash', body: `${line}\n${screen}` };
+  return { title: 'AnyGym: new bug report', body: `${line}\n${ref}` };
 }

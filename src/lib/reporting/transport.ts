@@ -5,8 +5,9 @@
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
 import { claimNext, enqueueFeedback, hasReport, nextDue, removeReport, retryLater } from '../../db/reports';
 import { API_BASE } from './config';
+import { autoMessage, autoSignature, maskRoute, stackRefs } from './mask';
 import { crashReports, type CrashPreference } from './preferences';
-import type { FeedbackPayload, ReportKind } from './types';
+import type { CrashPayload, FeedbackPayload, ReportKind } from './types';
 
 export type Outcome = { kind: 'done'; accepted: boolean } | { kind: 'retry'; offline: boolean; retryAfterMs?: number };
 
@@ -26,6 +27,23 @@ export function classify(status: number, retryAfter: string | null): Outcome {
   if (status === 408 || status === 409 || status === 425 || status === 429 || status >= 500) return { kind: 'retry', offline: false, retryAfterMs: after };
   // Refused for good (bad request, wrong origin, too large): retrying would never help.
   return { kind: 'done', accepted: false };
+}
+
+/**
+ * The allowlisted form of a payload, applied right before it is sent: a report queued by an older
+ * version of the app (with raw error text) leaves the phone exactly as a new one would. The
+ * user's own words in a bug report are theirs and stay as written.
+ */
+export function scrubPayload(kind: ReportKind, payload: unknown): unknown {
+  if (typeof payload !== 'object' || payload === null) return payload;
+  if (kind === 'crash') {
+    const p = payload as CrashPayload;
+    const stack = stackRefs(p.stack);
+    const message = autoMessage(p.message);
+    return { ...p, message, stack, signature: autoSignature(message, stack), route: maskRoute(String(p.route ?? '/')) };
+  }
+  const p = payload as FeedbackPayload;
+  return { ...p, route: maskRoute(String(p.route ?? '/')), errors: Array.isArray(p.errors) ? p.errors.map((e) => autoMessage(String(e))) : [] };
 }
 
 type Options = {
@@ -57,7 +75,7 @@ export function createTransport(opts: Options = {}) {
 
   async function post(kind: ReportKind, payload: unknown): Promise<Outcome> {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return { kind: 'retry', offline: true };
-    const body = JSON.stringify(payload);
+    const body = JSON.stringify(scrubPayload(kind, payload));
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {

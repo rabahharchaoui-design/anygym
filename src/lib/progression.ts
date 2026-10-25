@@ -40,6 +40,7 @@ import {
   pickedWeight,
   resetWeight,
   sameLoad,
+  sameResistance,
   stepUp,
   timedLoad,
   type LoadSetup,
@@ -151,7 +152,9 @@ export function progress(input: ProgressionInput): Progression {
   const added = !converted && ref.kind === 'stack' ? (ref.added ?? 0) : 0;
   const base = !converted && loadAt(loadKind, here, setup, added) ? here : nearestLoadable(loadKind, here, setup);
 
-  const sameAll = last.sets.every((s) => sameLoad(s.load, ref));
+  // Equivalent loads count as the same: 20 kg and 44.09 lb, a 100 + 25 stack and a 125 pin (PLAN 1.7k).
+  const exactHeld = loadKind === 'single' && !!setup.heldExact && !setup.heldPlates;
+  const sameAll = last.sets.every((s) => sameResistance(s.load, ref));
   const lastReps = last.sets.map(repsOf);
   const plusOne = (i: number) => (lastReps[i] ?? lastReps[lastReps.length - 1]!) + 1;
   // Rule 4: +1 on the first set that missed the top (with no range: the reps to beat as they were).
@@ -171,7 +174,7 @@ export function progress(input: ProgressionInput): Progression {
     if (loadKind === 'bodyweight') {
       kind = 'increase';
       repsFor = plusOne;
-      const miss = sessions.findIndex((s) => !(s.sets.every((x) => sameLoad(x.load, ref)) && allTop(s.sets, range)));
+      const miss = sessions.findIndex((s) => !(s.sets.every((x) => sameResistance(x.load, ref)) && allTop(s.sets, range)));
       const streak = miss === -1 ? sessions.length : miss;
       reason = streak >= 3 ? '3 sessions at the top: try adding weight' : `All sets hit ${range[1]}. Add 1 rep a set`;
       if (!prescription) nextReps = plusOne(0);
@@ -180,7 +183,9 @@ export function progress(input: ProgressionInput): Progression {
       if (up === null && value !== null) {
         kind = 'beat_reps';
         repsFor = plusOne;
-        reason = 'Heaviest weight here. Add a rep to each set';
+        // A weight typed exactly (a kettlebell, PLAN 1.7k): the gym's list is not known, so the
+        // next one up is never claimed or made up.
+        reason = exactHeld ? `All sets hit ${range[1]}. Go heavier if you have it, or add a rep to each set` : 'Heaviest weight here. Add a rep to each set';
       } else {
         kind = 'increase';
         value = up;
@@ -210,6 +215,14 @@ export function progress(input: ProgressionInput): Progression {
     reason = `≈ ${formatWeight(loadKind === 'stack' ? load.total : pickedWeight(load)!, unit)}, last time ${formatWeight(quoted, ref.unit)}`;
   }
   if (!load) reason = noLoadReason(loadKind, setup);
+  if (!load && exactHeld) {
+    // Typed exactly (PLAN 1.7k): no lighter or converted weight is made up; the user types it.
+    if (kind === 'reset') reason = `${RESET}: type a lighter weight you have`;
+    else if (converted) {
+      kind = 'converted';
+      reason = `Last time ${formatWeight(quoted, ref.unit)}. Type the weight in ${unit}`;
+    }
+  }
   if (!load && loadKind === 'bodyweight' && converted && quoted > 0) {
     // Weighted history in the other unit (PLAN 1.7j): never turned into "just you". The row waits
     // for the user to pick the added weight in today's unit, and says why.

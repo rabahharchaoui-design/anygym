@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BodyweightInput } from '../../components/load/BodyweightInput';
 import { DumbbellWheel } from '../../components/load/DumbbellWheel';
+import { ExactWeightInput } from '../../components/load/ExactWeightInput';
 import { EquipmentWeightSheet } from '../../components/load/EquipmentWeightSheet';
 import { PlateDiagram } from '../../components/load/PlateDiagram';
 import { PlateMachineInput } from '../../components/load/PlateMachineInput';
@@ -11,10 +12,11 @@ import { BarQuestion } from '../../components/load/BarQuestion';
 import base from '../../components/load/LoadInput.module.css';
 import type { BarId, Collars, Gym, Load } from '../../db/types';
 import { saveBarChoice } from '../../db/exerciseSettings';
+import { barForName } from '../../lib/loadTypeRule';
 import { barbellLoad, enabledPlates, formatWeight } from '../../lib/load';
 import type { Stopwatch } from '../../lib/timer';
 import { BarChoiceSheet } from './BarChoiceSheet';
-import { BAR_NAMES, BAR_PROMPTS, barIdFor, isHeldPlate, machineIdFor, wheelWeights } from './exerciseLoad';
+import { BAR_NAMES, BAR_PROMPTS, barIdFor, isExactHeld, isHeldPlate, machineIdFor, wheelWeights } from './exerciseLoad';
 
 type Props = {
   loadType: Load['kind'];
@@ -74,6 +76,8 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
       );
     case 'dumbbell_each':
     case 'single':
+      // A kettlebell (or an implement the name does not tell) is typed exactly, never the dumbbell range (PLAN 1.7k).
+      if (isExactHeld(loadType, exerciseName)) return <ExactWeightInput unit={gym.unit} exerciseName={exerciseName} value={value} onChange={onChange} />;
       return (
         <DumbbellWheel
           unit={gym.unit}
@@ -185,7 +189,7 @@ function BarbellField({
       return;
     }
     try {
-      await saveBarChoice(exerciseId, gym.id, id);
+      await saveBarChoice(exerciseId, gym.id, id, undefined, barForName(exerciseName));
     } catch {
       onNotice?.('Could not save the bar choice', () => void choose(id, weight));
       return;

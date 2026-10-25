@@ -58,12 +58,12 @@ export async function handleRequest(req: Request, env: Env, deps: Deps): Promise
     if (checked.kind === 'feedback' && checked.r.ok) {
       const f = checked.r.value;
       id = await insertFeedback(db, requestId, f, now);
-      push = formatPush('feedback', { message: f.message, route: f.route });
+      push = formatPush('feedback', { id, message: f.message, route: f.route });
     } else if (checked.kind === 'crash' && checked.r.ok) {
       const c = checked.r.value;
       const r = await upsertCrash(db, requestId, c, now);
       id = r.id;
-      if (r.isNew) push = formatPush('crash', { message: c.message, route: c.route });
+      if (r.isNew) push = formatPush('crash', { id, message: c.message, route: c.route });
     } else {
       throw new Error('unreachable');
     }

@@ -187,7 +187,9 @@ test.describe('crash reports', () => {
     const { path, body } = sent[0]!;
     expect(path).toBe('/crash');
     expect(Object.keys(body).sort()).toEqual(['appVersion', 'device', 'message', 'requestId', 'route', 'signature', 'stack']);
-    expect(body.message).toBe('Error: Test crash one');
+    // PLAN 1.7k: never the error's own words, only its code, fixed text and our script location.
+    expect(body.message).toBe('Error: details hidden');
+    expect(JSON.stringify(body)).not.toContain('Test crash one');
     expect(body.route).toBe('/history');
     await throwInPage(page, 'Test crash one');
     await page.reload();
@@ -230,8 +232,9 @@ test.describe('crash reports', () => {
     await expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeVisible();
     await expect(screen).toContainText('Your workout is saved. Reload to pick up where you left off.');
     await expect.poll(() => sent.filter((s) => s.path === '/crash').length).toBe(1);
-    expect(sent[0]!.body.message).toBe('Error: Crash probe');
-    expect(sent[0]!.body.route).toBe('/workout/:id/barbell-incline-bench-press');
+    expect(sent[0]!.body.message).toMatch(/^Error: details hidden at [\w.-]+\.js:\d+:\d+$/);
+    expect(JSON.stringify(sent[0]!.body)).not.toContain('Crash probe');
+    expect(sent[0]!.body.route).toBe('/workout/:id/:exercise');
     expect(JSON.stringify(sent[0]!.body)).not.toContain(url.split('/workout/')[1]!.split('/')[0]!);
 
     await screen.getByRole('button', { name: 'Reload' }).tap();

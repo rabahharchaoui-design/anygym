@@ -35,11 +35,18 @@ export function ReportProblemSheet({ open, onClose, facts }: Props) {
   const pick = useRef(0);
   // Busy guard that holds within one task (three taps before React re-renders: one report).
   const sending = useRef(false);
+  // Generation of the sheet itself: bumped on every open, close and unmount. A Send from an
+  // earlier opening never marks this one Sent, shows its error or unlocks its Send button.
+  const generation = useRef(0);
   const fieldId = useId();
 
   useEffect(() => {
     pick.current++;
-    return () => void pick.current++;
+    generation.current++;
+    return () => {
+      pick.current++;
+      generation.current++;
+    };
   }, [open]);
 
   // A fresh sheet every time it opens; the finished one keeps its words while it slides away.
@@ -84,11 +91,19 @@ export function ReportProblemSheet({ open, onClose, facts }: Props) {
       textRef.current?.focus();
       return;
     }
+    const mine = generation.current;
     sending.current = true;
     setBusy(true);
     setError('');
     const payload = buildFeedback(text, facts, shot.state === 'ready' ? shot.shot.base64 : undefined);
-    const r = await transport.sendFeedback(payload);
+    let r: SendResult;
+    try {
+      r = await transport.sendFeedback(payload);
+    } catch {
+      r = 'error';
+    }
+    // The sheet was closed (and maybe reopened for a new report) while this one was sending.
+    if (mine !== generation.current) return;
     setBusy(false);
     if (r === 'error') {
       sending.current = false;

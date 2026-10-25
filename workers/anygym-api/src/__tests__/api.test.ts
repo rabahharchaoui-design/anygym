@@ -22,9 +22,9 @@ const feedback = (over: Record<string, unknown> = {}) => ({
 });
 const crash = (over: Record<string, unknown> = {}) => ({
   requestId: rid(),
-  signature: 'TypeError: x is undefined @ index-abc.js:1:200',
+  signature: 'TypeError: x is undefined @ index-AbC12dEf.js:1:200',
   message: 'TypeError: x is undefined',
-  stack: 'at f (index-abc.js:1:200)',
+  stack: 'at f (index-AbC12dEf.js:1:200)',
   route: '/',
   appVersion: '0.1.0+abc1234',
   device,
@@ -107,7 +107,7 @@ describe('validation', () => {
     const [row] = db.rows('SELECT * FROM reports');
     expect(row).toMatchObject({ kind: 'feedback', status: 'open', seen_count: 1, route: '/workout/:id', app_version: '0.1.0+abc1234', screenshot_b64: 'QUJD' });
     expect(row!.device).toBe('iPhone · iOS 18.2 · 393x852 @3x · home screen');
-    expect(JSON.parse(String(row!.context_json))).toEqual({ unit: 'lb', gymType: 'full', errors: ['TypeError: x is undefined'], device });
+    expect(JSON.parse(String(row!.context_json))).toEqual({ unit: 'lb', gymType: 'full', errors: ['TypeError: details hidden'], device });
     expect(JSON.stringify(row)).not.toContain('someone@example.com');
   });
 
@@ -147,7 +147,7 @@ describe('validation', () => {
 
 describe('rate limit', () => {
   it('allows 20 requests per hashed IP per hour, then 429 with Retry-After; other IPs and the next hour are fine', async () => {
-    for (let i = 0; i < 20; i++) expect((await post('/crash', crash({ signature: `s${i}` }))).status).toBe(201);
+    for (let i = 0; i < 20; i++) expect((await post('/crash', crash({ stack: `index-AbC12dEf.js:${i + 1}:1` }))).status).toBe(201);
     const blocked = await post('/crash', crash({ signature: 'over' }));
     expect(blocked.status).toBe(429);
     expect(Number(blocked.headers.get('Retry-After'))).toBe(50 * 60);
@@ -200,12 +200,52 @@ describe('privacy of pushes', () => {
     const [fb, cr, fixed] = pushes;
     expect(fb!.body.split('\n')[0]!.length).toBeLessThanOrEqual(80);
     expect(fb!.body).toMatch(/^\[name\] \[name\], phone \[phone\], mail \[email\]/);
-    expect(fb!.body.endsWith('\nScreen: /workout/:id')).toBe(true);
-    expect(cr!.body).toContain('Screen: /');
+    expect(fb!.body.endsWith('\nReport #1 · Screen: /workout/:id')).toBe(true);
+    expect(cr!.body).toBe('Error: details hidden at index-AbC12dEf.js:1:200\nReport #2 · Screen: /');
     pushes = [];
     await post('/feedback', feedback({ message: 'Smith machine stuck' }));
-    expect(pushes[0]!.body).toBe('Smith machine stuck\nScreen: /workout/:id');
+    expect(pushes[0]!.body).toBe('Smith machine stuck\nReport #3 · Screen: /workout/:id');
     expect(fixed!.body).toBe('Report #1 · Screen: /workout/:id\nClose and reopen the app to get it.');
+  });
+});
+
+describe('1.7k: automatic fields are allowlisted on the server too', () => {
+  const SECRETS = ['alice', 'smith', 'oak', 'street', 'jane', 'doe', 'road', '14 ', '12 ', 'evil', 'token'];
+
+  it('raw unsafe crash and error text from an old or tampered client never reaches D1 or a push', async () => {
+    const raw = 'Error: account alice smith at 14 oak street failed';
+    await post('/crash', crash({
+      message: raw,
+      signature: `${raw} @ index-AbC12dEf.js:1:200`,
+      stack: 'boom for jane doe at 12 oak road\nf@https://evil.example/anygym/index-AbC12dEf.js?token=1:1:200\nalice smith 14 oak street',
+      route: '/workout/alice smith/14 oak street',
+    }));
+    await post('/feedback', feedback({ errors: ['workout for jane doe at 12 oak road failed', 'TypeError: account alice smith'], route: '/alice/oak' }));
+    const rows = JSON.stringify(db.rows('SELECT * FROM reports'));
+    for (const p of [rows, ...pushes.map((x) => x.body)]) for (const s of SECRETS) expect(p.toLowerCase(), s).not.toContain(s);
+    expect(db.rows("SELECT message, stack, signature, route FROM reports WHERE kind = 'crash'")).toEqual([
+      { message: 'Error: details hidden at index-AbC12dEf.js:1:200', stack: 'index-AbC12dEf.js:1:200', signature: 'Error: details hidden at index-AbC12dEf.js:1:200 @ index-AbC12dEf.js:1:200', route: '/workout/:id/:exercise' },
+    ]);
+    const ctx = db.rows("SELECT context_json, route FROM reports WHERE kind = 'feedback'")[0] as { context_json: string; route: string };
+    expect(ctx.route).toBe('/unknown');
+    expect(ctx.context_json).toContain('Error: details hidden');
+    expect(ctx.context_json).toContain('TypeError: details hidden');
+    expect(pushes[0]!.body).toBe('Error: details hidden at index-AbC12dEf.js:1:200\nReport #1 · Screen: /workout/:id/:exercise');
+  });
+
+  it('1.7k review: a fabricated script name in a message or an error header never becomes a location', async () => {
+    await post('/crash', crash({ message: 'Error: alice-smith.js', signature: 'x', stack: 'Error: alice-smith.js:1:2\nf@https://h/anygym/assets/jane-doe.js:3:4' }));
+    await post('/crash', crash({ message: 'Error: details hidden at alice-smith.js:1:2', signature: 'y', stack: '' }));
+    const rows = db.rows("SELECT message, stack, signature FROM reports WHERE kind = 'crash'");
+    expect(rows).toEqual([{ message: 'Error: details hidden', stack: '', signature: 'Error: details hidden @ no-stack' }]);
+    for (const p of [JSON.stringify(rows), ...pushes.map((x) => x.body)]) expect(p).not.toMatch(/alice|jane|smith|doe/);
+  });
+
+  it('the same bug from two clients with different raw words is one crash row (dedupe on the allowlisted signature)', async () => {
+    await post('/crash', crash({ message: 'TypeError: alice smith', signature: 'a' }));
+    await post('/crash', crash({ message: 'TypeError: jane doe', signature: 'b' }));
+    expect(db.rows('SELECT seen_count FROM reports')).toEqual([{ seen_count: 2 }]);
+    expect(pushes).toHaveLength(1);
   });
 });
 
@@ -267,7 +307,8 @@ describe('ntfy pushes', () => {
     await post('/crash', crash());
     await post('/crash', crash());
     expect(pushes.map((p) => p.title)).toEqual(['AnyGym: new bug report', 'AnyGym: new crash']);
-    expect(pushes[0]!.body).toBe('The plate picker froze\nScreen: /workout/:id');
+    expect(pushes[0]!.body).toBe('The plate picker froze\nReport #1 · Screen: /workout/:id');
+    expect(pushes[1]!.body).toBe('TypeError: details hidden at index-AbC12dEf.js:1:200\nReport #2 · Screen: /');
     expect(pushes[0]!.url).toBe('https://ntfy.sh/test-topic');
   });
 
@@ -278,7 +319,7 @@ describe('ntfy pushes', () => {
   });
 
   it('at most 10 pushes an hour in total', async () => {
-    for (let i = 0; i < 14; i++) await post('/crash', crash({ signature: `sig-${i}` }), { 'CF-Connecting-IP': `10.0.0.${i}` });
+    for (let i = 0; i < 14; i++) await post('/crash', crash({ stack: `index-AbC12dEf.js:${i + 1}:2` }), { 'CF-Connecting-IP': `10.0.0.${i}` });
     expect(pushes).toHaveLength(10);
     clock = new Date('2026-10-25T15:01:00Z');
     await post('/feedback', feedback());
@@ -308,7 +349,7 @@ describe('fixed cron', () => {
 
   it('respects the hourly budget and catches up on a later run', async () => {
     await handleCron(env, deps()); // baseline
-    for (let i = 0; i < 12; i++) await post('/crash', crash({ signature: `f-${i}` }), { 'CF-Connecting-IP': `10.1.0.${i}` });
+    for (let i = 0; i < 12; i++) await post('/crash', crash({ stack: `index-AbC12dEf.js:${i + 1}:3` }), { 'CF-Connecting-IP': `10.1.0.${i}` });
     clock = new Date('2026-10-25T16:00:00Z');
     pushes = [];
     db.raw.exec("UPDATE reports SET status = 'fixed'");

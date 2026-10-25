@@ -40,7 +40,7 @@ async function seed() {
     { id: 'b', sessionId: 's1', exerciseId: 'bench', order: 1, kind: 'work', reps: 8, load: L({ total: 185, perSide: [45, 25] }), uncertain: false, failure: true },
     { id: 'c', sessionId: 's1', exerciseId: 'bench', order: 2, kind: 'drop', reps: 12, load: L({ total: 135, perSide: [45] }), uncertain: false },
     { id: 'd', sessionId: 's2', exerciseId: 'squat', order: 0, kind: 'work', reps: 5, load: L({ unit: 'kg', total: 102.5, barWeight: 20, perSide: [20, 20], collars: 2.5, barId: 'smith' } as never), uncertain: false },
-    { id: 'e', sessionId: 's3', exerciseId: 'bench', order: 0, kind: 'work', reps: 6, load: L({ total: 175, perSide: [45, 20] }), uncertain: true, note: 'unclear' },
+    { id: 'e', sessionId: 's3', exerciseId: 'bench', order: 0, kind: 'work', reps: 6, load: L({ total: 175, perSide: [45, 10, 5, 5] }), uncertain: true, note: 'unclear' },
     { id: 'f', sessionId: 's4', exerciseId: 'plank', order: 0, kind: 'work', seconds: 60, load: { kind: 'timed', unit: 'kg', total: 0 }, uncertain: false },
   ];
   await db.sets.bulkAdd(sets);
