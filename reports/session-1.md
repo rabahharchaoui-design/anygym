@@ -61,4 +61,6 @@ None.
 
 ## Final runs
 
-Filled in at the end of the gate below.
+- Merge commit on master: `3b08594` (Oct 25, 2026).
+- Playwright on merged master: iPhone SE + iPhone 15 843 passed; iPhone 17 Pro Max + Pixel 7 + Galaxy compact + Small Android + 320 floor 665 passed; 0 failures, 0 console errors.
+- GitHub Pages deploy: green. Live check (`npm run test:live`): 1 passed against https://rabahharchaoui-design.github.io/anygym/ serving the merged bundle.
