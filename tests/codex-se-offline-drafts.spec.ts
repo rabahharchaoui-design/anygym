@@ -103,10 +103,10 @@ test('SE: timed set controls stay unobscured when the next hold starts during re
   try {
     await page.goto('./');
     await page.getByRole('button', { name: /Quick workout/ }).tap();
-    await addExercise(page, 'plank', 'Plank');
-    const card = page.getByTestId('exercise-plank');
+    await addExercise(page, 'plank', 'Elbow Plank');
+    const card = page.getByTestId('exercise-elbow-plank');
     const target = card.getByTestId('set-target');
-    const heading = card.getByRole('heading', { name: 'Plank', exact: true });
+    const heading = card.getByRole('heading', { name: 'Elbow Plank', exact: true });
     await fitsWithoutScrolling(page, [heading, target, card.getByRole('button', { name: 'Start timer', exact: true }), logButton(page)]);
     await card.getByRole('button', { name: 'Start timer', exact: true }).tap();
     await expect(logButton(page)).toBeEnabled();

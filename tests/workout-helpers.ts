@@ -136,3 +136,22 @@ export async function fitsOneScreen(page: Page) {
  * input for about half a second per screen change (WebKit here has none, so this returns at once).
  */
 export const navIdle = (page: Page) => page.waitForFunction(() => !document.documentElement.dataset.nav, null, { timeout: 5000 });
+
+/** Tap a set number, then a choice in the "Set type" sheet (gate fix 1); waits for the sheet to close. */
+export async function pickSetType(page: Page, typeButton: Locator, type: 'normal' | 'warmup' | 'drop' | 'failure') {
+  await typeButton.tap();
+  const sheet = page.getByRole('dialog', { name: 'Set type' });
+  await sheet.getByTestId(`set-type-${type}`).tap();
+  await expect(sheet).toHaveCount(0);
+}
+
+/** Sets a row's reps with its stepper (a warm up row starts with none, gate 2), then Done. */
+export async function fillReps(view: Locator, row: Locator, reps: number) {
+  await row.getByTestId('reps-cell').tap();
+  for (let i = 0; i < 40; i++) {
+    const now = Number((await row.getByTestId('reps-cell').innerText()).trim()) || 0;
+    if (now === reps) break;
+    await view.getByRole('button', { name: now < reps ? 'More reps' : 'Fewer reps' }).tap();
+  }
+  await view.getByRole('button', { name: 'Done', exact: true }).tap();
+}

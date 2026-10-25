@@ -24,7 +24,8 @@ import styles from './Finish.module.css';
 /**
  * The finish screen (SPEC 21.1, minimal): how long, how many sets, total lifted (when there is
  * any), each exercise with its best set, and records from real history only. A plan day with
- * exercises left reads "Saved · 1 of 16 done" and asks what is up next (keep the day, or move on). Done goes back to Today, where "Workout saved" offers Undo.
+ * exercises left reads "Workout saved · 3 sets" with "1 of 16 done" under it, and asks what is up next time
+ * (repeat the day, or move on). Done goes back to Today, where "Workout saved" offers Undo.
  */
 export function FinishScreen() {
   const { sessionId = '' } = useParams();
@@ -47,7 +48,8 @@ export function FinishScreen() {
   const d = v?.d;
 
   const minutes = d ? Math.round(((d.session.endedAt ?? d.session.startedAt) - d.session.startedAt) / 60000) : 0;
-  const lifted = d && v ? totalLifted(d.sets, v.unit) : 0;
+  // Warm ups never count toward Total lifted (SPEC 21.1).
+  const lifted = d && v ? totalLifted(d.sets.filter((s) => s.kind !== 'warmup'), v.unit) : 0;
   // The workout is saved whether or not this screen could read it back: Done always works, and
   // only claims a set count it actually read (PLAN 1.7f).
   // A plan day with exercises left (1.7e): "Saved · 1 of 16 done", and the choice of what is up
@@ -57,6 +59,8 @@ export function FinishScreen() {
   const progress =
     plan && d && dayIndex >= 0 ? dayProgress(dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0), (id) => d.sets.filter((x) => x.exerciseId === id && x.kind !== 'warmup').length) : undefined;
   const dayEntries = plan && d && dayIndex >= 0 ? dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0) : [];
+  // Exercises of the day with a set logged (a warm up too) that are not finished yet.
+  const started = progress && d ? dayEntries.filter((e) => !e.warmup && !e.finisher && d.sets.some((x) => x.exerciseId === e.exerciseId) && d.sets.filter((x) => x.exerciseId === e.exerciseId && x.kind !== 'warmup').length < Math.max(1, e.sets)).length : 0;
   const plannedOf = (id: string) => dayEntries.find((e) => e.exerciseId === id && !e.warmup)?.sets;
   const partialDay = !!progress && !progress.complete && planBefore?.planId === plan?.id;
   const thisDay = plan && dayIndex >= 0 ? plan.days[dayIndex]!.n : 0;
@@ -97,9 +101,16 @@ export function FinishScreen() {
           <>
             <motion.div className={styles.head} {...item(0)}>
               <p className={styles.kicker}>{workoutTitle(d.session)}</p>
+              {/* Saved first, always (ux-critic): "0 of 16 done" is never the headline. */}
               <h1 className={styles.title} data-testid="finish-title">
-                {partialDay && progress ? `Saved · ${progress.done} of ${progress.total} done` : 'Workout done'}
+                {partialDay ? `Workout saved · ${setCount(d.sets.length)}` : 'Workout saved'}
               </h1>
+              {progress && (planBefore?.planId === plan?.id || progress.complete) ? (
+                <p className={`${styles.subtitle} num`} data-testid="finish-progress">
+                  {progress.done} of {progress.total} exercises finished
+                  {started > 0 ? ` · ${started} started` : ''}
+                </p>
+              ) : null}
             </motion.div>
             <div className={styles.stats}>
               <motion.div className={styles.stat} {...item(1)}>
@@ -171,25 +182,30 @@ export function FinishScreen() {
             )}
           </>
         )}
-        {/* Inside the scroller, stuck to the bottom: the summary scrolls under it, never hidden for good. */}
-        <div className={styles.footer}>
-          {partialDay && (
-            <motion.div className={styles.choices} role="radiogroup" aria-label="What is up next" {...item(6)}>
+      </main>
+      {/* Pinned under the scroller (never over it): the summary scrolls above it, every row reachable. */}
+      <div className={styles.footer}>
+        {partialDay && (
+          <motion.div className={styles.choiceBlock} {...item(6)}>
+            <div className={styles.choices} role="radiogroup" aria-label="What is up next">
               <button type="button" role="radio" aria-checked={!moveOn} className={`${styles.choice} pressable`} onClick={() => setMoveOn(false)}>
                 <span className={styles.dot} aria-hidden="true" />
-                Keep Day {thisDay}
+                Next time: repeat Day {thisDay}
               </button>
               <button type="button" role="radio" aria-checked={moveOn} className={`${styles.choice} pressable`} onClick={() => setMoveOn(true)}>
                 <span className={styles.dot} aria-hidden="true" />
-                Go to Day {nextDay}
+                Next time: move on to Day {nextDay}
               </button>
-            </motion.div>
-          )}
-          <Button onClick={() => void done()} disabled={loading || saving}>
-            Done
-          </Button>
-        </div>
-      </main>
+            </div>
+            <p className={styles.choiceHelper} data-testid="finish-choice-helper">
+              {moveOn ? `Today will show Day ${nextDay} next.` : `Today will show Day ${thisDay} again.`}
+            </p>
+          </motion.div>
+        )}
+        <Button onClick={() => void done()} disabled={loading || saving}>
+          Done
+        </Button>
+      </div>
     </div>
   );
 }

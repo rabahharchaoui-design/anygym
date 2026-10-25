@@ -1,0 +1,94 @@
+/* The "Set type" sheet: four plain choices, the current one lime, an ⓘ on each. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.sub {
+  margin: -4px 0 var(--space-1);
+  color: var(--text-2);
+  text-align: center;
+  font-size: var(--text-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.option {
+  position: relative;
+}
+
+.choice {
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: center;
+  gap: 2px;
+  /* Room on the right for the check and the ⓘ, which sits over the row, not inside the button. */
+  padding: var(--space-2) 96px var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  text-align: left;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.choice[aria-checked='true'] {
+  border-color: rgb(212 255 58 / 0.6);
+  background: rgb(212 255 58 / 0.08);
+}
+
+.label {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.option[data-type='warmup'] .label {
+  color: var(--amber);
+}
+
+.option[data-type='failure'] .label {
+  color: var(--accent);
+}
+
+.line {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+
+.check {
+  position: absolute;
+  right: 60px;
+  top: 50%;
+  translate: 0 -50%;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.info {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  translate: 0 -50%;
+  display: inline-flex;
+}

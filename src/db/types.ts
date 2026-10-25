@@ -92,6 +92,8 @@ export type Profile = {
   createdAt: number;
   /** When the last backup was handed to the share sheet or saved (PLAN 1.8, additive). */
   lastBackupAt?: number;
+  /** Ids of the finished workouts in the last successful backup (ids only), for "N workouts are only on this phone". */
+  backedUpSessionIds?: string[];
   /** "Not now" on the backup reminder: hidden until then (PLAN 1.8, additive). */
   backupSnoozeUntil?: number;
 };

@@ -7,7 +7,7 @@ import { useNav } from '../ui/nav';
 import { LoadError } from '../components/LoadError';
 import { listFinished } from '../db/history';
 import { useLive } from '../hooks/useLive';
-import { setCount, workoutDate, workoutTitle } from './history/historyWords';
+import { importNumbers, setCount, workoutDate, workoutTitle } from './history/historyWords';
 import styles from './history/History.module.css';
 
 /**
@@ -19,6 +19,38 @@ export function HistoryScreen() {
   const list = useLive(() => listFinished(), []);
   const go = useNav();
   const items = list.data ?? [];
+  const numbers = importNumbers(items.map((x) => x.session));
+  const dated = items.filter((x) => !x.session.imported);
+  const imported = items.filter((x) => x.session.imported);
+  const row = ({ session, sets }: (typeof items)[number]) => {
+    const no = numbers.get(session.id);
+    const sub = session.imported ? (no ? `Workout ${no.n} of ${no.of}` : '') : workoutDate(session.startedAt);
+    return (
+      <li key={session.id}>
+        <Link
+          to={`/history/${session.id}`}
+          className={`${styles.row} pressable`}
+          data-testid="history-row"
+          onClick={(e) => {
+            e.preventDefault();
+            go(`/history/${session.id}`);
+          }}
+        >
+          <span className={styles.rowMain}>
+            <span className={styles.rowTitle}>{workoutTitle(session)}</span>
+            {sub && <span className={`${styles.rowSub} num`}>{sub}</span>}
+            {session.imported && session.note ? (
+              <span className={styles.rowNote} data-testid="history-note">
+                {session.note}
+              </span>
+            ) : null}
+          </span>
+          <span className={`${styles.rowCount} num`}>{setCount(sets)}</span>
+          <ChevronRight className={styles.rowChevron} aria-hidden="true" />
+        </Link>
+      </li>
+    );
+  };
   return (
     <>
       <TopBar title="History" />
@@ -33,28 +65,20 @@ export function HistoryScreen() {
           action={{ label: 'Go to Today', onPress: () => go('/', { kind: 'tab' }) }}
         />
       ) : (
-        <ul className={styles.list} aria-label="Finished workouts">
-          {items.map(({ session, sets }) => (
-            <li key={session.id}>
-              <Link
-                to={`/history/${session.id}`}
-                className={`${styles.row} pressable`}
-                data-testid="history-row"
-                onClick={(e) => {
-                  e.preventDefault();
-                  go(`/history/${session.id}`);
-                }}
-              >
-                <span className={styles.rowMain}>
-                  <span className={styles.rowTitle}>{workoutTitle(session)}</span>
-                  <span className={`${styles.rowSub} num`}>{workoutDate(session.startedAt)}</span>
-                </span>
-                <span className={`${styles.rowCount} num`}>{setCount(sets)}</span>
-                <ChevronRight className={styles.rowChevron} aria-hidden="true" />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          {dated.length > 0 && (
+            <ul className={styles.list} aria-label="Finished workouts">
+              {dated.map(row)}
+            </ul>
+          )}
+          {imported.length > 0 && (
+            <section className={styles.group} aria-label="Imported workouts">
+              {/* Imported workouts have no dates (SPEC 9.3): one heading says so, once. */}
+              <h2 className={styles.groupTitle}>Imported · no dates</h2>
+              <ul className={styles.list}>{imported.map(row)}</ul>
+            </section>
+          )}
+        </>
       )}
     </>
   );

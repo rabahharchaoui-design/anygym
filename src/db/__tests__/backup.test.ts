@@ -269,10 +269,10 @@ describe('merge', () => {
 describe('profile: last backup and snooze', () => {
   it('creates the profile when missing, then updates it', async () => {
     await db.gyms.add(makeGym({ name: 'Home', type: 'home', unit: 'kg', isActive: true }, 1));
-    await recordBackup(db, 1000);
-    expect(await db.profile.toArray()).toEqual([{ id: 'me', defaultUnit: 'kg', createdAt: 1000, lastBackupAt: 1000 }]);
+    await recordBackup(['s1'], db, 1000);
+    expect(await db.profile.toArray()).toEqual([{ id: 'me', defaultUnit: 'kg', createdAt: 1000, lastBackupAt: 1000, backedUpSessionIds: ['s1'] }]);
     await snoozeBackupReminder(5000, db, 2000);
-    await recordBackup(db, 3000);
-    expect(await db.profile.toArray()).toEqual([{ id: 'me', defaultUnit: 'kg', createdAt: 1000, lastBackupAt: 3000, backupSnoozeUntil: 5000 }]);
+    await recordBackup(['s1', 's2'], db, 3000);
+    expect(await db.profile.toArray()).toEqual([{ id: 'me', defaultUnit: 'kg', createdAt: 1000, lastBackupAt: 3000, backedUpSessionIds: ['s1', 's2'], backupSnoozeUntil: 5000 }]);
   });
 });

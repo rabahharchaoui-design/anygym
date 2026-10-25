@@ -271,7 +271,7 @@ export function SettingsScreen() {
           {/* SPEC 24: on by default; off also deletes crash reports still waiting to be sent. */}
           <Switch
             label="Send crash reports"
-            hint="If AnyGym breaks, it sends the builder a short note about what broke. Never your workouts or anything personal."
+            hint="If AnyGym breaks, it sends us a short note about what broke. Never your workouts or anything personal."
             checked={crashOn}
             onChange={(on) => {
               setPrivacyError(false);
@@ -291,7 +291,7 @@ export function SettingsScreen() {
           <button type="button" className={`${styles.linkRow} pressable`} onClick={() => setReporting(true)} data-testid="report-problem">
             <span className={styles.unitText}>
               <span className={styles.unitLabel}>Report a problem</span>
-              <span className={styles.unitHint}>Tell the builder what went wrong. Add a screenshot if it helps.</span>
+              <span className={styles.unitHint}>Tell us what went wrong. Add a screenshot if it helps.</span>
             </span>
             <ChevronRight className={styles.chevron} aria-hidden="true" />
           </button>
@@ -313,7 +313,8 @@ export function SettingsScreen() {
       </section>
       <ReportProblemSheet open={reporting} onClose={() => setReporting(false)} facts={gymFacts(gym)} />
       <RestoreSheet backup={restoring} onClose={() => setRestoring(null)} onDone={restored} />
-      <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom))" />
+      {/* No tab bar here (a pushed screen): the toast sits at the bottom safe area. */}
+      <Toast toast={toast} />
     </>
   );
 }

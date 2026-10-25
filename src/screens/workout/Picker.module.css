@@ -155,6 +155,18 @@
   margin: var(--space-3) 0;
   color: var(--text-2);
   text-align: center;
+  line-height: 1.4;
+}
+
+.noneLine {
+  display: block;
+}
+
+.noneLink {
+  min-height: var(--tap);
+  padding: 0 var(--space-1);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 /* "Add N" stays in reach at the bottom of the sheet while the list scrolls. */

@@ -7,9 +7,10 @@ import { formatElapsed } from '../../lib/timer';
 import { prefersReducedMotion } from '../../ui/motion';
 import type { Load, Unit, WorkoutSet } from '../../db/types';
 import { formatSetLine } from '../../lib/load';
-import { SET_TYPE_LETTER, SET_TYPE_WORDS, keptCell, lastTimeCell, savedCells, typeOfSet, weightCell, weightHeader, type PendingRow, type SetType } from '../../lib/setTable';
+import { SET_TYPE_CHIP, SET_TYPE_WORDS, setNumbers, keptCell, lastTimeCell, savedCells, typeOfSet, weightCell, weightHeader, type PendingRow, type SetType } from '../../lib/setTable';
 import type { PastSet, SetLine } from '../../lib/progression';
 import { RepsStepper } from './RepsStepper';
+import { Hint } from '../../components/hint/Hint';
 import styles from './SetTable.module.css';
 
 type Props = {
@@ -45,6 +46,8 @@ type Props = {
    * the row's target with a ring (or up, when there is no target).
    */
   hold?: { running: boolean; onToggle: () => void };
+  /** The first time hint "Tap the check when you finish a set", over the header, pointing at the first row's ✓. */
+  checkHint?: boolean;
 };
 
 const Check = () => <CheckGlyph className={styles.checkIcon} aria-hidden="true" />;
@@ -86,16 +89,24 @@ export function SetTable(props: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => keepInView(ref.current), [current, editing, logged.length]);
 
-  const typeButton = (t: SetType, n: number, onPress: () => void) => (
+  // Warm ups read "W"; working sets are numbered 1 to n (the header's "Set 2 of 3" agrees).
+  const numbers = setNumbers([...logged.map((s) => typeOfSet(s)), ...rows.map((r) => r.type)]);
+  const typeButton = (t: SetType, at: number, onPress: () => void) => (
     <button
       type="button"
       className={`${styles.setNo} pressable`}
       data-type={t}
       onClick={onPress}
-      aria-label={`Set ${n}, ${SET_TYPE_WORDS[t]}. Change set type`}
+      aria-label={t === 'warmup' ? 'Warm up set. Change set type' : `Set ${numbers[at]}, ${SET_TYPE_WORDS[t]}. Change set type`}
+      aria-haspopup="dialog"
       data-testid="set-type"
     >
-      {SET_TYPE_LETTER[t] || n}
+      <span className={`${styles.setNoNum} num`}>{numbers[at]}</span>
+      {SET_TYPE_CHIP[t] && (
+        <span className={styles.typeChip} data-testid="set-type-chip">
+          {SET_TYPE_CHIP[t]}
+        </span>
+      )}
     </button>
   );
 
@@ -108,6 +119,8 @@ export function SetTable(props: Props) {
         <span>{timed ? 'Hold' : 'Reps'}</span>
         <span className={styles.headCheck}>Done</span>
       </div>
+      {/* Over the column header (never over a row's text), its arrow down on the first row's ✓. */}
+      {props.checkHint && <Hint id="setCard" className={styles.hint} point="down" arrow="end" compact />}
       <ol className={styles.rows} aria-label="Sets">
         {logged.map((s, i) => {
           const t = typeOfSet(s);
@@ -116,7 +129,7 @@ export function SetTable(props: Props) {
           const cells = savedCells(s, kind, unit);
           return (
             <li key={`row-${i}`} className={styles.row} data-state="logged" data-fresh={props.fresh.has(s.id) || undefined} data-testid="set-row">
-              {typeButton(t, i + 1, () => props.onLoggedType(s))}
+              {typeButton(t, i, () => props.onLoggedType(s))}
               <button
                 type="button"
                 className={`${styles.loggedBody} pressable`}
@@ -157,7 +170,7 @@ export function SetTable(props: Props) {
           return (
             <li key={`row-${r.index}`} className={styles.rowGroup} data-current-group={(editing === null ? isCurrent : editing === r.index) || undefined}>
               <div className={styles.row} data-state={isCurrent ? 'current' : 'todo'} data-testid="set-todo">
-                {typeButton(r.type, n, () => props.onType(r))}
+                {typeButton(r.type, r.index, () => props.onType(r))}
                 <button
                   type="button"
                   className={`${styles.last} ${styles.cellButton} num pressable`}
@@ -218,7 +231,7 @@ export function SetTable(props: Props) {
                     aria-label={timed ? `Hold for set ${n}: ${shownSeconds ?? 0} seconds. Change` : `Reps for set ${n}: ${r.reps ?? 0}. Change`}
                     data-testid={timed ? 'hold-cell' : 'reps-cell'}
                   >
-                    {amount ? <Odometer value={amount} /> : timed ? '–' : '0'}
+                    {amount ? <Odometer value={amount} /> : '–'}
                   </button>
                 )}
                 <span className={styles.checkWrap}>

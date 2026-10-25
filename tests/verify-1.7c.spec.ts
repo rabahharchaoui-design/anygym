@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { collarsSettingOf, sumLoad } from '../src/lib/load';
-import { bar185, dbAll, seedFinished, usePlan, watchErrors } from './workout-helpers';
+import { bar185, dbAll, seedFinished, usePlan, watchErrors, pickSetType } from './workout-helpers';
 
 // Independent tester spec for PLAN 1.7c / 1.10e. Taps are counted by my own page-level listener
 // (capture phase "click" and "pointerdown"), not by the builder's helper.
@@ -42,7 +42,7 @@ test('A. SPEC 20 squat: Start, row, 4 checks, rest bar each time, Nice. Next chi
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = page.getByTestId('exercise-barbell-back-squat');
   await expect(view.getByTestId('weight-cell')).toHaveText(['185', '185', '185', '185']);
-  console.log('target text:', await view.getByTestId('set-guide').innerText().catch(() => ''), '|', await view.getByTestId('set-plan').innerText().catch(() => ''), '|', await view.getByTestId('set-target').first().innerText().catch(() => ''));
+  console.log('target text:', await view.getByTestId('set-next').innerText().catch(() => ''), '|', await view.getByTestId('set-plan').innerText().catch(() => ''), '|', await view.getByTestId('set-target').first().innerText().catch(() => ''));
   console.log('reps cells:', await view.getByTestId('reps-cell').allInnerTexts());
   const lastCells = await view.locator('[class*="last"]').allInnerTexts();
   console.log('last time cells:', lastCells);
@@ -173,8 +173,10 @@ test('D1. set types W D F, LAST TIME copy, and finish numbers match the db', asy
   // Row 1 → W, logged. Row 2 → D, logged. Row 3 → F, logged.
   for (const presses of [1, 2, 3]) {
     const row = view.getByTestId('set-todo').first();
-    for (let i = 0; i < presses; i++) await row.getByTestId('set-type').tap();
-    console.log('letter', presses, await row.getByTestId('set-type').innerText());
+    await pickSetType(page, row.getByTestId('set-type'), (['warmup', 'drop', 'failure'] as const)[presses - 1]!);
+    // Gate 2: a warm up drops the working target; fill it from LAST TIME (10 × 185).
+    if (presses === 1) await row.getByRole('button', { name: /^Last time .*Copy into set/ }).tap();
+    console.log('type', presses, await row.getByTestId('set-type').innerText());
     await view.getByTestId('check-current').tap();
     await expect(view.getByTestId('set-row')).toHaveCount(presses);
     await page.waitForTimeout(350);
@@ -205,7 +207,8 @@ test('D1. set types W D F, LAST TIME copy, and finish numbers match the db', asy
   await shot(page, 'd1-finish');
   const ss = (await sessionsOf(page))[0]!;
   const db = await mine(page);
-  const expectTotal = db.reduce((a, s) => a + (s.reps ?? 0) * s.load.total, 0);
+  // Warm ups never count toward Total lifted (SPEC 21.1, gate 2).
+  const expectTotal = db.filter((s) => s.kind !== 'warmup').reduce((a, s) => a + (s.reps ?? 0) * s.load.total, 0);
   const shown = await page.getByTestId('finish-total').innerText();
   const mins = await page.getByTestId('finish-duration').innerText();
   console.log('finish:', shown, '| expected', expectTotal, '| duration', mins, '| ms', (ss.endedAt ?? 0) - ss.startedAt, '| sets', await page.getByTestId('finish-sets').innerText());
@@ -384,11 +387,11 @@ test('E1. one screen: 4 sets with name, last time, rows, checks and the rest bar
       }
     }
     expect(overlaps(rest, await rect(view.getByRole('heading', { name: 'Barbell Back Squat' })))).toBe(false);
-    expect(overlaps(rest, await rect(view.getByTestId('set-guide')))).toBe(false);
+    expect(overlaps(rest, await rect(view.getByTestId('set-next')))).toBe(false);
     const vh = page.viewportSize()!.height;
     expect(rest.b).toBeLessThanOrEqual(vh);
     // Every visible control is fully in the viewport
-    for (const l of [view.getByTestId('check-current'), view.getByTestId('set-guide'), page.getByTestId('rest-timer')]) await expect(l).toBeInViewport({ ratio: 1 });
+    for (const l of [view.getByTestId('check-current'), view.getByTestId('set-next'), page.getByTestId('rest-timer')]) await expect(l).toBeInViewport({ ratio: 1 });
   }
   await shot(page, 'e1-three-logged-rest');
   expect(errors).toEqual([]);

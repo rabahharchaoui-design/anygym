@@ -313,3 +313,26 @@
     view-transition-name: none;
   }
 }
+
+/* Back from Finish: the page fades in as one, once its data is there (never piece by piece). */
+.stack[data-arrive] {
+  opacity: 0;
+}
+
+.stack[data-arrive][data-ready] {
+  animation: arrive 240ms var(--ease-out) forwards;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Room below the cards, so they can always scroll clear of a toast (no jump when it goes). */
+.stack {
+  padding-bottom: 88px;
+}

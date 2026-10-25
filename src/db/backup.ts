@@ -126,6 +126,7 @@ async function updateProfile(db: AnyGymDB, change: Partial<Profile>, now: number
   });
 }
 
-export const recordBackup = (db: AnyGymDB = defaultDb, now = Date.now()) => updateProfile(db, { lastBackupAt: now }, now);
+/** A backup went out: when, and which finished workouts it holds (ids only). */
+export const recordBackup = (sessionIds: string[], db: AnyGymDB = defaultDb, now = Date.now()) => updateProfile(db, { lastBackupAt: now, backedUpSessionIds: sessionIds }, now);
 
 export const snoozeBackupReminder = (until: number, db: AnyGymDB = defaultDb, now = Date.now()) => updateProfile(db, { backupSnoozeUntil: until }, now);

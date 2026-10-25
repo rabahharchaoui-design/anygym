@@ -82,7 +82,8 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
   /** Mouse drag (desktop, tests): touch scrolls natively, a mouse grabs and drags the wheel. */
   const drag = useRef<{ id: number; x: number; left: number; moved: boolean } | null>(null);
   const dragged = useRef(false);
-  const [centered, setCentered] = useState(Math.max(0, selectedIndex));
+  // No value yet: nothing is highlighted until the user scrolls or taps (never a suggested weight).
+  const [centered, setCentered] = useState(selectedIndex);
 
   const scrollToIndex = (i: number, smooth: boolean) => {
     const el = trackRef.current;
@@ -179,14 +180,16 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    const from = selectedIndex < 0 ? centered : selectedIndex;
     const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
     e.preventDefault();
+    // Nothing picked yet: the first arrow picks the weight in the notch.
+    const from = selectedIndex >= 0 ? selectedIndex : centered >= 0 ? centered : nearest() - step;
     tap(Math.min(weights.length - 1, Math.max(0, from + step)));
   };
 
-  const shown = selectedIndex >= 0 ? weights[centered] : null;
+  const shown = selectedIndex >= 0 && centered >= 0 ? weights[centered] : null;
+  const prompt = mode === 'dumbbell_each' ? 'Scroll to your dumbbell' : plate ? 'Scroll to your plate' : 'Scroll to your weight';
   const copy = plate && mode === 'single' ? WHEEL_COPY.plate : WHEEL_COPY[mode];
   const picture = mode === 'dumbbell_each' ? 'dumbbell' : plate ? 'plate' : /kettlebell/i.test(exerciseName) ? 'kettlebell' : 'upright';
 
@@ -207,9 +210,8 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
       </div>
 
       <div className={styles.wheelOuter}>
-        {mode === 'dumbbell_each' && <Hint id="wheel" className={styles.hint} point="down" />}
         <div className={styles.wheelWrap}>
-          <div className={styles.notch} aria-hidden="true" />
+          <div className={styles.notch} data-empty={selectedIndex < 0 || undefined} aria-hidden="true" />
           <div
             ref={trackRef}
             className={styles.track}
@@ -255,6 +257,13 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
           <div className={styles.fade} data-end="start" aria-hidden="true" />
           <div className={styles.fade} data-end="end" aria-hidden="true" />
         </div>
+        {/* One instruction at a time: before a pick the line under the wheel says it; after, the
+            one time bubble sits in that same space below the wheel, pointing up, over no text. */}
+        {mode === 'dumbbell_each' && selectedIndex >= 0 && <Hint id="wheel" className={styles.hint} point="up" />}
+        {/* Space kept after the pick, so nothing below moves (no layout shift). */}
+        <p className={styles.prompt} data-hidden={selectedIndex >= 0 || undefined} data-testid="wheel-prompt" aria-hidden={selectedIndex >= 0 || undefined}>
+          {prompt}
+        </p>
       </div>
     </div>
   );

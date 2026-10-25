@@ -295,7 +295,7 @@ const scrollWheelTo = (sheet: Locator, label: string) =>
   }, label);
 
 for (const [what, query, name, id, each] of [
-  ['dumbbells (each)', 'bicep curl', 'Bicep Curl', 'bicep-curl', true],
+  ['dumbbells (each)', 'bicep curl', 'Dumbbell Bicep Curl', 'bicep-curl', true],
   ['one weight', 'goblet', 'Kettlebell Goblet Squat', 'kettlebell-goblet-squat', false],
 ] as const) {
   test(`(d) ${what}: scroll 30 to 50 and Done at once with the debounce frozen saves the readout; Edit Save too`, async ({ page }) => {

@@ -11,6 +11,9 @@ import {
   parseBackup,
   serializeBackup,
   shouldRemind,
+  reminderReason,
+  onlyOnPhone,
+  backedUpIds,
   summarize,
   summaryLine,
   upgradeTables,
@@ -292,5 +295,38 @@ describe('drafts', () => {
     expect(parseBackup(file({ drafts: { live: { bench: { ...draft, watch: { startedAt: 1 } } } } }, { sessions: [session, live] }))).toEqual({ ok: false, error: DAMAGED });
     expect(parseBackup(file({ drafts: [] }))).toEqual({ ok: false, error: DAMAGED });
     expect(isDraft({ id: 'a', load: null })).toBe(true);
+  });
+});
+
+describe('reminderReason', () => {
+  const now = Date.UTC(2026, 9, 25, 12);
+  const DAY = 24 * 60 * 60 * 1000;
+  it('says how many workouts are only here and when the last backup was', () => {
+    expect(reminderReason({ onlyHere: 6, lastBackupAt: now - 15 * DAY, now })).toBe('6 workouts are only on this phone. Last backup 15 days ago.');
+    expect(reminderReason({ onlyHere: 1, lastBackupAt: now - DAY - 1, now })).toBe('1 workout is only on this phone. Last backup 1 day ago.');
+    expect(reminderReason({ onlyHere: 2, lastBackupAt: now - 1000, now })).toBe('2 workouts are only on this phone. Last backup today.');
+  });
+  it('every workout already backed up: only when the last backup was', () => {
+    expect(reminderReason({ onlyHere: 0, lastBackupAt: now - 20 * DAY, now })).toBe('Last backup 20 days ago.');
+  });
+  it('no backup yet', () => {
+    expect(reminderReason({ onlyHere: 8, now })).toBe('8 workouts are only on this phone. No backup yet.');
+  });
+});
+
+describe('only on this phone: by the ids the last backup held', () => {
+  it('counts finished workouts missing from the last backup, imported ones too', () => {
+    expect(onlyOnPhone(['a', 'b', 'c'], undefined)).toBe(3);
+    expect(onlyOnPhone(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(0);
+    // Three workouts imported after the backup count, whatever their dates.
+    expect(onlyOnPhone(['a', 'b', 'c', 'imp-1', 'imp-2', 'imp-3'], ['a', 'b', 'c'])).toBe(3);
+  });
+  it('a backup holds its finished and imported workouts, not the one in progress', () => {
+    const tables = { sessions: [
+      { id: 'done', gymId: 'g', startedAt: 1, endedAt: 2, imported: false },
+      { id: 'imp', gymId: 'g', startedAt: 3, imported: true },
+      { id: 'live', gymId: 'g', startedAt: 4, imported: false },
+    ] } as unknown as Parameters<typeof backedUpIds>[0]['tables'];
+    expect(backedUpIds({ tables })).toEqual(['done', 'imp']);
   });
 });

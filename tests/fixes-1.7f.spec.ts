@@ -99,9 +99,10 @@ test('Today: a failed read shows the error line instead of "Pick a plan", and ke
   });
   await page.goto('./');
   const error = page.getByTestId('load-error');
-  await expect(error).toHaveText('Could not load workoutsTry again');
+  await expect(error).toHaveText("We couldn't read your saved workouts. Try again, or start a quick workout.Try again");
   await expect(page.getByRole('button', { name: 'See plans' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Quick workout/ })).toHaveCount(0);
+  // Never a dead end (gate fix 14): a quick workout still starts while the saved ones cannot be read.
+  await expect(page.getByRole('button', { name: /Quick workout/ })).toBeVisible();
   await failReads(page, false);
   await error.getByRole('button', { name: 'Try again' }).tap();
   await expect(error).toHaveCount(0);

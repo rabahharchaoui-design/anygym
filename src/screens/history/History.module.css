@@ -9,6 +9,25 @@
   gap: var(--space-2);
 }
 
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.list + .group {
+  margin-top: var(--space-6);
+}
+
+.groupTitle {
+  margin: 0 4px;
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .row {
   display: flex;
   align-items: center;
@@ -42,6 +61,13 @@
 .rowSub {
   color: var(--text-2);
   font-size: var(--text-sm);
+}
+
+.rowNote {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-style: italic;
+  overflow-wrap: anywhere;
 }
 
 .rowChevron {

@@ -305,7 +305,8 @@ test('V7 Settings: Haptics persists on and off, colors change the diagram, versi
   await expect(hap).toBeChecked();
   await page.reload();
   await expect(page.getByRole('switch', { name: /Haptics/ })).toBeChecked();
-  // tabs tick through the switch path without throwing
+  // tabs tick through the switch path without throwing (Settings hides the tab bar: back to Today first)
+  await page.getByRole('link', { name: 'Back to Today' }).tap();
   await page.getByRole('link', { name: 'History' }).tap();
   await page.getByRole('link', { name: 'Today', exact: true }).tap();
   await expect(page).toHaveURL(/#\/$/);

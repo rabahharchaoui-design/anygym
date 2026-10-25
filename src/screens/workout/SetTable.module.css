@@ -1,6 +1,7 @@
 /* The set table (SPEC 20.2, 21.1): big numbers, thumb sized cells, one check per row. */
 
 .wrap {
+  position: relative;
   /* The reps cell never drops under a 48 px tap target (the 320 floor): LAST TIME gives way first. */
   --cols: 48px minmax(0, 1.1fr) minmax(0, 1fr) minmax(48px, 0.8fr) 52px;
   flex: 0 1 auto;
@@ -129,11 +130,44 @@
 .setNo {
   width: 48px;
   height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   border-radius: 12px;
+  color: var(--text-2);
+}
+
+.setNoNum {
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
-  color: var(--text-2);
+  line-height: 1;
+}
+
+/* A set type is a word chip under the number (SPEC 21.1 in plain words): never a bare letter. */
+.typeChip {
+  max-width: 48px;
+  padding: 1px 3px;
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* "Until you can't" is the one chip that takes two lines, broken between words only. */
+.setNo[data-type='failure'] .typeChip {
+  white-space: normal;
+  overflow-wrap: normal;
+}
+
+.setNo:has(.typeChip) .setNoNum {
+  font-size: 13px;
 }
 
 .setNo[data-type='warmup'] {
@@ -141,11 +175,11 @@
 }
 
 .setNo[data-type='drop'] {
-  color: var(--pair);
+  color: var(--text-2);
 }
 
 .setNo[data-type='failure'] {
-  color: var(--red);
+  color: var(--accent);
 }
 
 .last {
@@ -303,11 +337,12 @@
   }
 }
 
+/* The ✓ hint sits over the column header, right aligned, its arrow down on the first row's check. */
 .hint {
-  right: 0;
-  bottom: calc(100% + 8px);
-  width: max-content;
-  max-width: 220px;
+  top: 0;
+  right: calc(var(--space-2) + 4px);
+  z-index: 3;
+  justify-content: flex-end;
 }
 
 /* Inline reps (or hold) stepper under the row being changed. */

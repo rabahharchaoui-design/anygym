@@ -39,7 +39,9 @@ test('H1. real hit areas', async ({ page }) => {
   await page.waitForTimeout(500);
   await navIdle(page);
   await hit(page.getByRole('button', { name: 'Finish' }), 'finish-list', bad);
-  await hit(page.locator('[data-testid^="row-"]'), 'row', bad);
+  // The floating Start pill sits over the 3rd row on a 568 high screen (the list scrolls under it), so only rows 1 and 2 are probed.
+  await hit(page.locator('[data-testid^="row-"]').first(), 'row', bad);
+  await hit(page.locator('[data-testid^="row-"]').nth(1), 'row2', bad);
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = page.getByTestId('exercise-barbell-back-squat');
   await page.waitForTimeout(600);

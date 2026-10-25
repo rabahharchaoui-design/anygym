@@ -256,6 +256,25 @@ export function formatNext(next: Next): string | null {
 }
 
 /**
+ * The one target line on the exercise view (ux-critic, Session 1 gate): "Beat last time: 11 reps
+ * at 185 lb", "… 12 reps at 30 lb each", "… 13 reps", "… 8 reps + 25 lb", "… 45 s". Words only:
+ * the load and reps come from progress() as they are (next, and the first set's target). null
+ * when there is no load to beat (first time, or no matching weight: the reason says why).
+ */
+export function beatLine(p: Pick<Progression, 'next' | 'perSet'>): string | null {
+  const { load } = p.next;
+  if (!load) return null;
+  if (load.kind === 'timed') return p.next.seconds ? `Beat last time: ${p.next.seconds} s` : null;
+  const first = p.perSet[0]?.target.reps;
+  const reps: RepTarget | null = first ?? p.next.reps;
+  if (reps === null) return null;
+  const r = `${repsText(reps)} ${reps === 1 ? 'rep' : 'reps'}`;
+  if (load.kind === 'bodyweight') return `Beat last time: ${load.added ? `${r} + ${formatWeight(load.added, load.unit)}` : r}`;
+  if (load.kind === 'dumbbell_each') return `Beat last time: ${r} at ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
+  return `Beat last time: ${r} at ${formatWeight(load.total, load.unit)}`;
+}
+
+/**
  * Last time's sets, compact: "12 × 185 · 12 × 185 · 10 × 185 lb" (one unit at the end),
  * "10 × 30 · 10 × 30 lb each", "12 · 12 · 10 reps", "45 s · 40 s". Mixed units or added
  * bodyweight spell every set out.
@@ -268,6 +287,23 @@ export function formatSets(sets: SetLine[]): string {
   if (first.kind === 'bodyweight') return `${sets.map(repsOf).join(' · ')} reps`;
   const unit = first.kind === 'dumbbell_each' ? `${first.unit} each` : first.unit;
   return `${sets.map((s) => `${repsOf(s)} × ${formatAmount(pickedOrTotal(s.load))}`).join(' · ')} ${unit}`;
+}
+
+/**
+ * Last time in one short phrase (ux-critic gate 2): "4 × 10 at 185 lb" (4 sets of 10) when every
+ * set was the same, "3 × 12 at 30 lb each", "3 × 12 reps", "3 × 45 s"; otherwise formatSets as is.
+ * Exact numbers, words only.
+ */
+export function formatSetsShort(sets: SetLine[]): string {
+  const first = sets[0]!;
+  const same = sets.every((x) => sameLoad(x.load, first.load) && x.reps === first.reps && x.seconds === first.seconds);
+  if (!same || sets.length < 2) return formatSets(sets);
+  const n = sets.length;
+  const { load } = first;
+  if (load.kind === 'timed') return `${n} × ${first.seconds ?? 0} s`;
+  if (load.kind === 'bodyweight') return load.added ? `${n} × ${repsOf(first)} + ${formatWeight(load.added, load.unit)}` : `${n} × ${repsOf(first)} reps`;
+  const each = load.kind === 'dumbbell_each' ? ' each' : '';
+  return `${n} × ${repsOf(first)} at ${formatWeight(pickedOrTotal(load), load.unit)}${each}`;
 }
 
 const pickedOrTotal = (load: Load): number => (load.kind === 'dumbbell_each' ? heldWeightOf(load)! : load.total);

@@ -30,7 +30,7 @@ test('1.11 import review screens', async ({ page }) => {
   await page.getByRole('dialog', { name: 'How do you load this?' }).getByRole('button', { name: /Dumbbells/ }).tap();
   await page.getByTestId('import-confirm').tap();
   await shot(page, 'pick-sheet');
-  await page.getByRole('dialog', { name: 'Pick the exercise' }).getByRole('button', { name: 'Skip these' }).tap();
+  await page.getByRole('dialog', { name: 'Pick the exercise' }).getByRole('button', { name: /^Skip (these \d+ sets|this set)$/ }).tap();
   await page.locator('[data-testid="import-set"][data-uncertain]').first().tap();
   await shot(page, 'set-sheet');
   await page.getByRole('dialog', { name: 'Check this set' }).getByRole('button', { name: 'Looks right' }).tap();

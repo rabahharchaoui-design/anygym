@@ -7,22 +7,26 @@
 import type { Load, SetKind, Unit } from '../db/types';
 import type { Draft } from './drafts';
 import { cellWeight, formatAmount, formatSetLine, platesOnly } from './load';
-import type { PastSet, Progression, SetLine } from './progression';
+import { formatSetsShort, formatWhen, type PastSet, type Progression, type SetLine } from './progression';
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
 
-/** Tap order on the set number (SPEC 21.1): normal → W → D → F → normal. */
+/** The order of the choices in the "Set type" sheet (SPEC 21.1): Normal, Warm up, Drop set, Until you can't. */
 export const SET_TYPES: SetType[] = ['normal', 'warmup', 'drop', 'failure'];
 
-export function nextSetType(t: SetType): SetType {
-  return SET_TYPES[(SET_TYPES.indexOf(t) + 1) % SET_TYPES.length]!;
-}
-
-/** The letter on the set number: '' for a normal set. */
-export const SET_TYPE_LETTER: Record<SetType, string> = { normal: '', warmup: 'W', drop: 'D', failure: 'F' };
+/** The word chip on a row's set number: '' for a normal set (never a bare letter, SPEC 13.1). */
+export const SET_TYPE_CHIP: Record<SetType, string> = { normal: '', warmup: 'Warm up', drop: 'Drop set', failure: 'All out' };
 
 /** Plain words for screen readers and the type sheet. */
-export const SET_TYPE_WORDS: Record<SetType, string> = { normal: 'Normal set', warmup: 'Warm up', drop: 'Drop set', failure: 'To failure' };
+export const SET_TYPE_WORDS: Record<SetType, string> = { normal: 'Normal', warmup: 'Warm up', drop: 'Drop set', failure: 'All out' };
+
+/** One plain line per type for the "Set type" sheet, and the glossary entry its ⓘ opens. */
+export const SET_TYPE_INFO: Record<SetType, { line: string; glossary: string }> = {
+  normal: { line: 'A regular set. It counts toward beating last time.', glossary: 'normal-set' },
+  warmup: { line: 'Lighter, to get ready. It never counts toward progress.', glossary: 'warm-up-set' },
+  drop: { line: 'Lower the weight and keep going straight away.', glossary: 'drop-set' },
+  failure: { line: "Until you can't do another rep.", glossary: 'until-you-cant' },
+};
 
 /** How a type is stored (SPEC 2 kinds plus the failure flag). Warm ups never count for progress. */
 export function storedType(t: SetType): { kind: SetKind; failure: boolean } {
@@ -219,7 +223,11 @@ export function pendingRows(input: BuildInput): PendingRow[] {
     let load: Load | null;
     let plates: number[];
     let kept: KeptPick | undefined;
-    if (d) {
+    if (d?.noTarget && !d.own?.load) {
+      // A warm up row the user has not picked a weight for: empty (never the working target).
+      load = null;
+      plates = [];
+    } else if (d) {
       plates = d.plates ?? d.load?.perSide ?? [];
       const why = input.stale?.(d) ?? null;
       if (why) {
@@ -235,7 +243,7 @@ export function pendingRows(input: BuildInput): PendingRow[] {
       load = fromTarget ?? carry(lastLogged?.load) ?? (progression?.next.load ? rebuild(progression.next.load, progression.next.load.perSide ?? []) : null) ?? (historyBlocks ? null : certain);
       plates = load?.perSide ?? [];
     }
-    const reps = d?.reps ?? target?.reps ?? lastLogged?.reps ?? input.defaultReps;
+    const reps = d?.noTarget ? (d.own?.reps ? d.reps : undefined) : (d?.reps ?? target?.reps ?? lastLogged?.reps ?? input.defaultReps);
     // A hold the plan prescribes beats last time's hold (PLAN 1.7c); last time stays in LAST TIME.
     const seconds = d?.seconds ?? input.planSeconds ?? target?.seconds;
     const row: PendingRow = { index: i, load, plates, type: d?.type ?? input.defaultType, edited: !!d };
@@ -267,7 +275,12 @@ export function shiftAfterLog(rows: PendingRow[], k: number, n: number): Array<{
 /** A row's values as a draft (to move a row that was showing its target). */
 export function rowDraft(r: PendingRow, id: string): Draft {
   const d: Draft = { id, load: r.load, plates: r.plates, type: r.type };
-  if (r.reps !== undefined) d.reps = r.reps;
+  // An empty weight stays empty when the row moves (never rebuilt into an empty bar).
+  if (r.load === null && !r.kept && r.plates.length === 0) d.noTarget = true;
+  if (r.reps !== undefined) {
+    d.reps = r.reps;
+    if (d.noTarget) d.own = { reps: true };
+  }
   if (r.seconds !== undefined) d.seconds = r.seconds;
   return d;
 }
@@ -363,7 +376,8 @@ export function savedCells(set: { reps?: number; seconds?: number; load?: Load }
 export function lastTimeCell(s: SetLine | PastSet | undefined, activeUnit?: Load['unit']): string {
   if (!s) return '';
   const kind = 'kind' in s ? s.kind : 'work';
-  const tag = kind === 'warmup' ? 'W ' : kind === 'drop' ? 'D ' : '';
+  // Words, never a bare letter (gate fix 1): the cell may wrap onto a second line.
+  const tag = kind === 'warmup' ? 'Warm up ' : kind === 'drop' ? 'Drop ' : '';
   const unit = activeUnit && s.load.unit !== activeUnit ? ` ${s.load.unit}` : '';
   if (s.load.kind === 'timed') return `${tag}${s.seconds ?? 0} s`;
   const reps = s.reps ?? 0;
@@ -377,4 +391,23 @@ export function weightHeader(kind: Load['kind'], unit: Load['unit']): string {
   if (kind === 'dumbbell_each') return `${unit} each`;
   if (kind === 'bodyweight') return `+ ${unit}`;
   return unit;
+}
+
+/**
+ * The one Last time line above the table (SPEC 6, 20.2): "Last time (Fri): 4 × 10 at 185 lb", or
+ * every set when they differ ("Last time (Fri): 12 × 185 · 12 × 185 · 10 × 185 lb"). Exact
+ * numbers, through progression's words.
+ */
+export function lastTimeNote(date: number, sets: SetLine[], now: number): string {
+  return `Last time (${formatWhen(date, now)}): ${formatSetsShort(sets)}`;
+}
+
+/**
+ * What each row's set number shows (gate 3): warm ups read "W", working sets are numbered 1 to n
+ * in order, so "Set 2 of 3" in the header matches the row numbers. Input: every row's type, logged
+ * rows first, in table order.
+ */
+export function setNumbers(types: readonly SetType[]): string[] {
+  let n = 0;
+  return types.map((t) => (t === 'warmup' ? 'W' : String(++n)));
 }

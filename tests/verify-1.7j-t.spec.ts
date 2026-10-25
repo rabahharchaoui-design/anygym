@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { bar185, checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, seedFinished, shotOn, usePlan, watchErrors } from './workout-helpers';
+import { bar185, checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, seedFinished, shotOn, usePlan, watchErrors, pickSetType } from './workout-helpers';
 
 const SQUAT = 'barbell-back-squat';
 type S = { id: string; order: number; kind: string; sessionId: string; reps?: number; load?: { total: number; unit: string } };
@@ -71,8 +71,10 @@ test('c: 4 set lift, all W: ring not complete, no advance, 4 working rows remain
   await page.getByTestId(`row-${SQUAT}`).tap();
   const view = exerciseView(page, SQUAT);
   for (let i = 0; i < 4; i++) {
-    await view.getByTestId('set-todo').first().getByTestId('set-type').tap();
+    await pickSetType(page, view.getByTestId('set-todo').first().getByTestId('set-type'), 'warmup');
     await expect(view.getByTestId('set-todo').first().getByTestId('set-type')).toHaveAttribute('aria-label', /Warm up/);
+    // Gate 2: a warm up drops the working target; fill it from LAST TIME.
+    await view.getByTestId('set-todo').first().getByRole('button', { name: /^Last time .*Copy into set/ }).tap();
     await page.waitForTimeout(500);
     await checkCurrent(view).tap();
     await expect(loggedRows(view)).toHaveCount(i + 1);
@@ -397,8 +399,10 @@ test('g2: progression from a 5 kg plate twist targets 5 kg (an enabled plate), a
     if (reps === 10) expect(cells.every((c) => c.trim() === '5')).toBe(true);
     await page.goto('./');
     // abandon this quick workout so the next one starts clean
-    const resume = page.getByRole('button', { name: /^Resume\b/ }).first();
-    if (await resume.count()) { await resume.tap(); await page.getByRole('button', { name: 'Finish', exact: true }).tap().catch(() => undefined); await page.goto('./'); }
+    // wait for Today to render before looking for Resume (it is empty right after goto)
+    await expect(page.getByRole('button', { name: /Quick workout/ }).first()).toBeVisible();
+    const resume = page.getByRole('button', { name: /in progress/ }).first();
+    if (await resume.count()) { await resume.tap(); await page.getByRole('button', { name: 'Finish', exact: true }).tap().catch(() => undefined); await expect(page.getByRole('status').filter({ hasText: 'Workout discarded' })).toBeVisible(); await page.goto('./'); }
   }
   expect(errors).toEqual([]);
 });

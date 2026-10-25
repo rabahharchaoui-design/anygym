@@ -121,8 +121,8 @@ test('(b)(c) Edit after switching to Timed keeps reps; changing bar to Smith sav
 
 test('(d) typed hold of 60 on a row logs 60; stopwatch 3 s then typed 60 logs 60', async ({ page }) => {
   const errors = watchErrors(page);
-  await quickWith(page, [['plank', 'Plank']]);
-  const view = exerciseView(page, 'plank');
+  await quickWith(page, [['plank', 'Elbow Plank']]);
+  const view = exerciseView(page, 'elbow-plank');
   // type 60 on row 2 (30 s steps), log row 1 by stopwatch ~3 s
   await view.getByTestId('hold-cell').nth(1).tap();
   for (let i = 0; i < 30; i++) await view.getByRole('button', { name: 'More seconds' }).tap();

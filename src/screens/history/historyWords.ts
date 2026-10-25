@@ -36,3 +36,23 @@ export function exerciseNamer(session: Session): (id: string) => string {
   const names = new Map(plan && i >= 0 ? dayWorkout(plan, i, session.weekIndex ?? 0).map((e) => [e.exerciseId, e.name]) : []);
   return (id) => names.get(id) ?? planExercise(id)?.name ?? id;
 }
+
+/**
+ * Imported workouts of the same exercise, numbered in file order ("Workout 1 of 2"), so rows with
+ * the same name tell apart. Only groups of two or more get a number.
+ */
+export function importNumbers(sessions: readonly Session[]): Map<string, { n: number; of: number }> {
+  const groups = new Map<string, Session[]>();
+  for (const s of sessions) {
+    if (!s.imported) continue;
+    const key = workoutTitle(s);
+    groups.set(key, [...(groups.get(key) ?? []), s]);
+  }
+  const out = new Map<string, { n: number; of: number }>();
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const ordered = [...list].sort((a, b) => (a.importSeq ?? a.startedAt) - (b.importSeq ?? b.startedAt));
+    ordered.forEach((s, i) => out.set(s.id, { n: i + 1, of: ordered.length }));
+  }
+  return out;
+}

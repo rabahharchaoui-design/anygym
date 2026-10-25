@@ -104,7 +104,8 @@ test.describe('two years of history @matrix', () => {
     const sessions = new Map(h.sessions.map((s) => [s.id, s]));
     const newestId = [...new Set(squat.map((s) => s.sessionId))].sort((a, b) => sessions.get(b)!.startedAt - sessions.get(a)!.startedAt)[0]!;
     const last = squat.filter((s) => s.sessionId === newestId).sort((a, b) => a.order - b.order);
-    const expected = `Last time ${last.map((s) => `${s.reps} × ${s.load!.total}`).join(' · ')} ${last[0]!.load!.unit}`;
+    // The LAST TIME column: each row shows that set of the newest session (gate fix 8: no summary line).
+    const expected = last.slice(0, 3).map((s, i) => `Last time ${s.reps} × ${s.load!.total}. Copy into set ${i + 1}`);
 
     const t0 = Date.now();
     await page.getByRole('button', { name: /Quick workout/ }).tap();
@@ -113,7 +114,7 @@ test.describe('two years of history @matrix', () => {
     await sheet.getByRole('button', { name: 'Barbell Back Squat', exact: true }).tap();
     await sheet.getByRole('button', { name: 'Add 1' }).tap();
     const view = page.getByTestId('exercise-barbell-back-squat');
-    await expect(view.getByTestId('set-guide')).toContainText(expected);
+    for (const name of expected) await expect(view.getByRole('button', { name, exact: true })).toBeVisible();
     await expect(view.getByTestId('check-current')).toBeEnabled();
     console.log(`progression with 2 years: ${Date.now() - t0} ms to a ready exercise view`);
   });

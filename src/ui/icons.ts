@@ -17,6 +17,8 @@ export {
   Play as PlayIcon,
   ImagePlus as ImagePlusIcon,
   X as XIcon,
+  Music as MusicIcon,
+  AudioLines as AudioLinesIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

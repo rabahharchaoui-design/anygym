@@ -27,7 +27,7 @@ import { ChangeDaySheet } from './today/ChangeDaySheet';
 import { BackupReminder } from './today/BackupReminder';
 import { useBackup } from './settings/useBackup';
 import { snoozeBackupReminder } from '../db/backup';
-import { shouldRemind, SNOOZE_MS } from '../lib/backup';
+import { onlyOnPhone, reminderReason, shouldRemind, SNOOZE_MS } from '../lib/backup';
 import styles from './TodayScreen.module.css';
 
 export function TodayScreen() {
@@ -58,9 +58,13 @@ export function TodayScreen() {
     const planState = await getPlanState();
     const activeSets = active ? await db.sets.where('sessionId').equals(active.id).count() : 0;
     // The backup reminder (SPEC 9.1): finished workouts and when the last backup was.
-    const finished = await db.sessions.filter((s) => s.endedAt !== undefined || s.imported).count();
     const profile = await db.profile.toCollection().first();
-    return { active: active ?? null, planState: planState ?? null, activeSets, finished, lastBackupAt: profile?.lastBackupAt, snoozeUntil: profile?.backupSnoozeUntil };
+    const done = await db.sessions.filter((s) => s.endedAt !== undefined || s.imported).toArray();
+    const last = profile?.lastBackupAt;
+    // Only on this phone: finished workouts the last successful backup did not hold, by id (never
+    // guessed from dates or from being imported).
+    const onlyHere = onlyOnPhone(done.map((s) => s.id), profile?.backedUpSessionIds);
+    return { active: active ?? null, planState: planState ?? null, activeSets, finished: done.length, onlyHere, lastBackupAt: last, snoozeUntil: profile?.backupSnoozeUntil };
   }, [dbOpen]);
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
@@ -73,6 +77,26 @@ export function TodayScreen() {
   const [changing, setChanging] = useState<boolean | number>(false);
 
   useEffect(() => onUpdateReady(setUpdateReady), []);
+
+  // The toast sits just above the tab bar (gate 3), opaque, never over the cards' buttons.
+  const quickRef = useRef<HTMLButtonElement>(null);
+  const toastBottom = 'calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)';
+  // When the cards reach down to it, the page makes room and scrolls them clear of the toast.
+  useEffect(() => {
+    if (!toast || !data.ready) return;
+    const frame = requestAnimationFrame(() => {
+      const card = quickRef.current;
+      const anchor = document.querySelector<HTMLElement>('[data-toast-anchor]');
+      const scroller = card?.closest<HTMLElement>('[data-scroller]');
+      if (!card || !anchor || !scroller) return;
+      const overlap = card.getBoundingClientRect().bottom + 8 - anchor.getBoundingClientRect().top;
+      if (overlap > 0) scroller.scrollBy({ top: overlap, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [toast, data.ready]);
+
+  // Back from Finish (a toast in the state): the whole page fades in together, once it has its data.
+  const [arrived] = useState(() => !!(location.state as { toast?: string } | null)?.toast);
   useEffect(() => {
     if (!toast) return;
     // An Undo stays for 5 s (SPEC 13.1), a plain message 3 s.
@@ -186,8 +210,10 @@ export function TodayScreen() {
           </div>
         }
       />
-      <div className={styles.stack}>
-        {live.error && dbOpen ? <LoadError text="Could not load workouts" onRetry={live.retry} /> : null}
+      <div className={styles.stack} data-arrive={arrived || undefined} data-ready={data.ready || failed || undefined}>
+        {live.error && dbOpen ? (
+          <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={live.retry} />
+        ) : null}
         {failed ? null : !data.ready ? (
           <Skeleton height={248} radius={28} />
         ) : active && plan && planState && active.planId === plan.id && dayIndexOf(plan, active.dayId) >= 0 ? (
@@ -215,13 +241,19 @@ export function TodayScreen() {
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
           </section>
         )}
-        {data.ready && !active && (
-          <button type="button" className={`${styles.quick} pressable`} onClick={() => void quick()}>
+        {/* Also when the saved workouts could not be read: a quick workout still works (no dead end). */}
+        {((data.ready && !active) || failed) && (
+          <button type="button" ref={quickRef} className={`${styles.quick} pressable`} onClick={() => void quick()} data-testid="quick-card">
             <span className={styles.quickLabel}>Quick workout</span>
             <span className={styles.quickSub}>Start empty, add exercises as you go</span>
           </button>
         )}
-        <BackupReminder show={remind} onBackUp={() => void backUp()} onLater={later} />
+        <BackupReminder
+          show={remind}
+          reason={reminderReason({ onlyHere: data.value?.onlyHere ?? 0, lastBackupAt: data.value?.lastBackupAt, now: Date.now() })}
+          onBackUp={() => void backUp()}
+          onLater={later}
+        />
         <p className={styles.error} role="status">
           {error ? 'Could not start a workout. Try again.' : ''}
         </p>
@@ -236,7 +268,7 @@ export function TodayScreen() {
           onPick={(i) => void pickDay(i)}
         />
       )}
-      <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom))" />
+      <Toast toast={toast} bottom={toastBottom} />
     </>
   );
 }

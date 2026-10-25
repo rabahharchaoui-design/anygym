@@ -57,8 +57,8 @@ test.describe('1.10c verify', () => {
   test('a timed hold: stop at ~2 s, Start again, 1.5 s, Log while running saves about 3.5 s', async ({ page }) => {
     const errors = watch(page);
     await quick(page);
-    await add(page, 'plank', 'Plank');
-    const card = page.getByTestId('exercise-plank');
+    await add(page, 'plank', 'Elbow Plank');
+    const card = page.getByTestId('exercise-elbow-plank');
     await card.getByRole('button', { name: 'Start timer' }).tap();
     await page.waitForTimeout(2000);
     await card.getByRole('button', { name: 'Stop timer' }).tap();
@@ -89,7 +89,7 @@ test.describe('1.10c verify', () => {
     const lab = await label(page);
     console.log('draft label', lab);
     expect(lab).toBe('Log set 1: 10 × 95 lb');
-    await add(page, 'plank', 'Plank');
+    await add(page, 'plank', 'Elbow Plank');
     await page.getByRole('button', { name: 'Back to the list' }).tap();
     await page.getByTestId('row-barbell-back-squat').tap();
     expect(await label(page)).toBe(lab);

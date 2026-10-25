@@ -491,7 +491,8 @@ export function WorkoutScreen() {
 
   const startedAt = w.session?.startedAt;
   const unit = w.gym?.unit ?? 'lb';
-  const lifted = totalLifted(w.sets, unit);
+  // Warm ups never count toward Total lifted (SPEC 21.1).
+  const lifted = totalLifted(w.sets.filter((s) => s.kind !== 'warmup'), unit);
   const editList = editing ? w.setsOfExercise(editing.exerciseId) : [];
   const editIndex = editing ? editList.findIndex((s) => s.id === editing.id) : 0;
   const menuId = menuFor;
@@ -515,7 +516,7 @@ export function WorkoutScreen() {
   );
 
   return (
-    <div className={styles.screen}>
+    <div className={styles.screen} data-resting={(rest && !w.error) || undefined}>
       <header className={styles.topBar}>
         {exerciseId ? (
           <BackButton onPress={() => goList()} label="Back to the list" />
@@ -585,7 +586,7 @@ export function WorkoutScreen() {
                 onBack={() => goList('none')}
                 under={() => (
                   <div className={styles.view}>
-                    <DayList w={w} heroId={null} onOpen={() => undefined} onAdd={() => undefined} />
+                    <DayList w={w} heroId={null} onOpen={() => undefined} onAdd={() => undefined} still />
                   </div>
                 )}
               />
@@ -649,7 +650,13 @@ export function WorkoutScreen() {
       <Toast toast={toast} bottom={rest && !w.error ? 'calc(var(--rest-height) + 8px)' : '8px'} />
 
       <ExercisePicker open={picking || autoOpen} onClose={closePicker} gym={w.gym} added={ids} onAdd={(list) => void add(list)} />
-      <LoadTypeSheet open={askingNow !== null} onClose={closeAsk} exerciseName={askingNow ? w.nameOf(askingNow) : ''} onPick={(k) => void answer(k)} />
+      <LoadTypeSheet
+        open={askingNow !== null}
+        onClose={closeAsk}
+        exerciseName={askingNow ? w.nameOf(askingNow) : ''}
+        current={askingNow ? w.loadTypeOf(askingNow) : undefined}
+        onPick={(k) => void answer(k)}
+      />
       {w.gym && (
         <EditSetSheet
           set={editing}

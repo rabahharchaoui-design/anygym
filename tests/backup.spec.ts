@@ -197,7 +197,8 @@ test('the reminder shows with 6 workouts and an old backup, and goes away after 
     return { left: words.left - c.left, right: c.right - pill.right };
   });
   expect(Math.abs(inset.left - inset.right)).toBeLessThanOrEqual(1);
-  for (const id of ['reminder-backup', 'reminder-later']) expect((await page.getByTestId(id).boundingBox())!.height).toBeGreaterThanOrEqual(48);
+  // 47.5: the card may still be gliding in (a subpixel transform), like the other 48 pt checks.
+  for (const id of ['reminder-backup', 'reminder-later']) expect((await page.getByTestId(id).boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   await shotOn(page, '1.8', 'today-reminder');
 

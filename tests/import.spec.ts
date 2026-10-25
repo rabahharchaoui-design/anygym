@@ -63,6 +63,9 @@ async function answer(page: Page) {
   await confirm.tap();
   const pick = page.getByRole('dialog', { name: 'Pick the exercise' });
   await expect(pick).toBeVisible();
+  // One "In your file" name (the file's name); the list starts with the closest names, not A to Z.
+  await expect(pick.getByText('In your file: “Moon press”')).toBeVisible();
+  await expect(pick.getByRole('list', { name: 'Exercises' }).getByRole('button').first()).toHaveText(/Press/);
   await pick.getByRole('searchbox', { name: 'Search exercises' }).fill('dumbbell bench');
   await pick.getByRole('button', { name: 'Dumbbell Bench Press', exact: true }).tap();
   await expect(pick).toHaveCount(0);
@@ -77,6 +80,10 @@ test.describe('1.11 import history', () => {
     await expect(page.getByTestId('import-set')).toHaveCount(16);
     await expect(page.getByTestId('ask-pick')).toHaveCount(1);
     await expect(page.getByTestId('ask-kind')).toHaveCount(1);
+    // A name we could not match is titled with the file's own name, said plainly (gate fix 15).
+    await expect(page.locator('[data-testid="import-exercise"]', { has: page.getByTestId('ask-pick') }).getByRole('heading', { level: 2 })).toHaveText('Moon press (not matched)');
+    await expect(page.getByTestId('ask-pick').getByRole('button', { name: /^Skip these \d+ sets$/ })).toBeVisible();
+    await expect(page.getByTestId('import-unsure')).toHaveText(/^\d+ to check$/);
     // Every set as "12 × 50 lb", or reps only when the file has no weight.
     const squat = page.getByRole('region', { name: 'Barbell Back Squat' });
     await expect(squat.getByTestId('import-set').nth(1)).toContainText('8 × 185 lb');
@@ -140,9 +147,11 @@ test.describe('1.11 import history', () => {
     // History says "Imported" instead of a date.
     await page.goto('./#/history');
     await expect(page.getByTestId('history-row')).toHaveCount(5);
-    await expect(page.getByTestId('history-row').first()).toContainText('Imported');
+    // Imported workouts sit under one "Imported · no dates" heading (gate 2), no date on each row.
+    await expect(page.getByRole('heading', { name: 'Imported · no dates' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Imported workouts' }).getByTestId('history-row')).toHaveCount(5);
     await page.getByTestId('history-row').filter({ hasText: 'Cable Tricep Pushdown' }).tap();
-    await expect(page.getByTestId('history-meta')).toHaveText('Imported · 4 sets');
+    await expect(page.getByTestId('history-meta')).toHaveText(/^Imported · 4 sets · [\d,.]+ lb lifted$/);
 
     // The same file again: nothing new.
     await openReview(page);
@@ -186,9 +195,10 @@ test.describe('1.11 import history', () => {
     await expect(sheet).toHaveCount(0);
     const back = page.getByRole('button', { name: 'Back to the list' });
     if (!(await back.isVisible())) await page.getByText('Barbell Back Squat').first().tap();
-    // Last time: the newest imported workout (the unsure 6 is left out), labelled Imported, no date.
-    await expect(page.getByText(/Last time 8 × 185 · 8 × 185 lb/)).toBeVisible();
-    await expect(page.getByText('· Imported')).toBeVisible();
+    // LAST TIME: the newest imported workout set by set (the unsure 6 is left out); one target line.
+    await expect(page.getByRole('button', { name: 'Last time 8 × 185. Copy into set 1', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Last time 8 × 185. Copy into set 2', exact: true })).toBeVisible();
+    await expect(page.getByTestId('set-next')).toContainText('Beat last time:');
     expect(errors).toEqual([]);
   });
 

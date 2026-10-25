@@ -25,18 +25,30 @@
   text-wrap: balance;
 }
 
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-2);
+  min-height: 36px;
+}
+
+/* "My Gym · ~90 min": one quiet metadata line. */
 .meta {
+  /* Never squeezed: at large text sizes the music pills move under it instead. */
+  flex: 1 0 auto;
+  max-width: 100%;
   margin: 0;
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 28px;
+  align-items: baseline;
   color: var(--text-2);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .minutes {
-  font-size: 15px;
-  font-weight: 600;
+  flex: none;
+  white-space: nowrap;
 }
 
 .list,
@@ -166,20 +178,111 @@
 }
 
 .music {
+  flex: none;
   margin-left: auto;
   display: flex;
-  gap: 2px;
+  /* The 48 pt hit areas overlap the gap a little; the pills themselves stay apart. */
+  margin-right: -6px;
 }
 
+/* A 48 pt hit area around a small glass pill. */
 .musicLink {
   display: inline-flex;
   align-items: center;
-  /* a real 48pt hit area; the negative margin keeps the meta row as compact as before */
+  justify-content: center;
   min-height: 48px;
-  margin: -2px 0;
-  padding: 0 10px;
+  min-width: 48px;
+  margin: -6px 0;
+  padding: 0 3px;
   border-radius: var(--radius-pill);
-  color: var(--text-2);
-  font-size: 14px;
+}
+
+.musicPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 11px 0 9px;
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--text);
+  font-size: 13px;
   font-weight: 600;
+}
+
+/* The row up next carries the one time hint right under it (pointer events off, no layout space). */
+.rowItem {
+  position: relative;
+}
+
+/* Start: <exercise>, the one primary action in the thumb zone; it rides the bottom of the list. */
+.startDock {
+  position: sticky;
+  bottom: var(--space-2);
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+  pointer-events: none;
+}
+
+.startPill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  min-width: 0;
+  height: 52px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to bottom, #e0ff6a, var(--accent) 55%);
+  color: var(--on-accent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 0 rgb(0 0 0 / 0.08),
+    var(--accent-glow),
+    0 10px 28px rgb(0 0 0 / 0.45);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  transition: transform 160ms var(--ease-out);
+}
+
+.startPill:active {
+  transform: scale(var(--press-scale));
+  transition-duration: 0ms;
+}
+
+.startLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* With the pill, the list keeps the pill's room plus the safe area below its last row. */
+.main[data-pill] {
+  /* The rest bar's height below the last row (it floats over the bottom when a rest runs). */
+  padding-bottom: calc(var(--rest-height) + var(--space-2));
+  /* Anything scrolled into view lands above the pill, never under it. */
+  scroll-padding-bottom: 84px;
+}
+
+/* A sticky inset counts from the list's padding edge, and that padding already keeps the rest bar's
+   room (plus the safe area, which sits below the stage). So the pill's plain bottom inset keeps it
+   above the rest bar during a rest, and at full scroll the last row ends above the pill: no extra
+   offset while resting, or the pill would ride a rest bar higher than its flow spot and cover rows. */
+
+/* The gym name sits inline in the metadata line (no reserved pill width here). */
+.meta > :first-child {
+  min-width: 0;
+  height: auto;
+  font-size: inherit;
+  padding: 0;
 }
