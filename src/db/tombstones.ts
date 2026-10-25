@@ -56,9 +56,10 @@ export type Recovery = { restored: string[]; expired: string[]; failed: string[]
 /**
  * App start with a workout in progress: retries every accepted Undo of that workout and clears
  * the tombstones whose window is over. A workout that is no longer active drops its tombstones.
- * Never rejects on a single failed restore: it stays stored and is retried next time.
+ * Never rejects on a single failed restore: it stays stored and is retried next time. Ids `keep`
+ * says yes to are left alone while their window is over (sessionRecovery.ts).
  */
-export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Recovery> {
+export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now(), keep: (id: string) => boolean = () => false): Promise<Recovery> {
   const out: Recovery = { restored: [], expired: [], failed: [] };
   const list = await db.tombstones.where('sessionId').equals(sessionId).toArray();
   if (!list.length) return out;
@@ -76,7 +77,8 @@ export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb
         if (err instanceof WorkoutFinishedError) await db.tombstones.delete(t.id);
         out.failed.push(t.id);
       }
-    } else if (t.expiresAt <= now) {
+    } else if (t.expiresAt <= now && !keep(t.id)) {
+      // `keep`: an Undo the running app holds as unresolved (PLAN 1.7j) is never expired here.
       await expireDelete(t.id, db, now);
       out.expired.push(t.id);
     }

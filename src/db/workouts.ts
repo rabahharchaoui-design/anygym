@@ -1,7 +1,7 @@
 // Quick workout sessions and their sets (PLAN 1.7, SPEC 2, 5.1). Every write is transactional.
 import { planById } from '../data/plans';
 import { dayIdOf, dayIndexOf } from '../lib/plans';
-import { dayProgress, dayWorkout, type DayProgress } from '../lib/planWorkout';
+import { dayProgress, dayWorkout, doneCounts, type DayProgress } from '../lib/planWorkout';
 import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
 import { advanceAfter, keepPartialDay, weekFor } from './planState';
@@ -161,11 +161,17 @@ export async function updateSet(
   });
 }
 
-/** Changes a logged set's type (PLAN 1.7c): warm up, work, drop, or work to failure. */
+/**
+ * Changes a logged set's type (PLAN 1.7c): warm up, work, drop, or work to failure. In one
+ * transaction with its workout (PLAN 1.7j): a workout that has ended is never changed afterwards
+ * (WorkoutFinishedError), so Finish's count and the plan it moved on always match the saved sets.
+ */
 export async function updateSetType(id: string, kind: SetKind, failure = false, db: AnyGymDB = defaultDb): Promise<WorkoutSet> {
-  return db.transaction('rw', db.sets, async () => {
+  return db.transaction('rw', db.sessions, db.sets, async () => {
     const set = await db.sets.get(id);
     if (!set) throw new Error('Set not found');
+    const session = await db.sessions.get(set.sessionId);
+    if (!session || session.endedAt !== undefined) throw new WorkoutFinishedError();
     const next: WorkoutSet = { ...set, kind };
     delete next.failure;
     if (failure && kind === 'work') next.failure = true;
@@ -277,8 +283,9 @@ async function planProgress(s: Session, db: AnyGymDB): Promise<DayProgress | und
   const plan = planById(s.planId);
   const i = plan ? dayIndexOf(plan, s.dayId) : -1;
   if (!plan || i < 0) return undefined;
-  const sets = (await db.sets.where('sessionId').equals(s.id).toArray()).filter((x) => x.kind !== 'warmup');
-  return dayProgress(dayWorkout(plan, i, s.weekIndex ?? 0), (id) => sets.filter((x) => x.exerciseId === id).length);
+  const entries = dayWorkout(plan, i, s.weekIndex ?? 0);
+  const done = doneCounts(entries, await db.sets.where('sessionId').equals(s.id).toArray());
+  return dayProgress(entries, (id) => done[id] ?? 0);
 }
 
 export type FinishResult = { saved: true; sets: number; progress?: DayProgress } | { saved: false };

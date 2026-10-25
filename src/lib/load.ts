@@ -346,7 +346,20 @@ export const DISPLAY_STACK_MAX: Record<Unit, number> = { lb: 300, kg: 140 };
  * list grows past DISPLAY_STACK_MAX with "More", so validity never depends on the display range).
  */
 export function isStackPin(value: number, step: number): boolean {
-  return step > 0 && value > 0 && toInt(value) % toInt(step) === 0;
+  return validStackStep(step) && value > 0 && toInt(value) % toInt(step) === 0;
+}
+
+/** The most pins a generated pin list holds: bounds every list, whatever a damaged step says. */
+export const MAX_STACK_PINS = 2000;
+
+/**
+ * A stack step that makes sense (PLAN 1.7j): a finite number from 0.01 to 10000, exact to 2
+ * decimals (what the number pad can type). Anything else (0, negative, 1e-12 from a damaged
+ * backup) is never used to build a pin list.
+ */
+export function validStackStep(step: number): boolean {
+  if (!Number.isFinite(step) || step < 0.01 || step > 10000) return false;
+  return Math.abs(Math.round(step * 100) - step * 100) < 1e-6;
 }
 
 /** The pin list after "More": `pins` more steps past `max` (PLAN 1.7c). */
@@ -354,10 +367,13 @@ export function morePins(max: number, step: number, pins = 10): number {
   return add(max, times(step, pins));
 }
 
-/** Every pin position of a stack, lightest first: step, 2 × step, ... up to max. Empty for a step that is not positive. */
+/**
+ * Every pin position of a stack, lightest first: step, 2 × step, ... up to max (at most
+ * MAX_STACK_PINS). Empty for a step that is not valid (validStackStep) or a max that is not finite.
+ */
 export function stackValues(step: number, max: number): number[] {
-  if (!(step > 0)) return [];
-  const count = Math.max(1, Math.floor(toInt(max) / toInt(step) + EPS));
+  if (!validStackStep(step) || !Number.isFinite(max)) return [];
+  const count = Math.min(MAX_STACK_PINS, Math.max(1, Math.floor(toInt(max) / toInt(step) + EPS)));
   return Array.from({ length: count }, (_, i) => times(step, i + 1));
 }
 
@@ -513,7 +529,29 @@ export type LoadSetup = {
   dumbbellRange: DumbbellRange | null;
   /** This machine's stack step. */
   stackStep: number;
+  /**
+   * One weight that is a plate held in the hands (plate twists, plate raises, PLAN 1.7j): the
+   * gym's enabled plate weights are the choices, never the dumbbell range.
+   */
+  heldPlates?: readonly number[];
 };
+
+/**
+ * The weights a dumbbell pair or one held weight can be at this gym, lightest first: the enabled
+ * plates for a held plate (LoadSetup.heldPlates), else the dumbbell range. null for other kinds.
+ */
+export function heldChoices(kind: Load['kind'], s: Pick<LoadSetup, 'dumbbellRange' | 'heldPlates'>): number[] | null {
+  if (kind === 'single' && s.heldPlates) return [...new Set(s.heldPlates.filter((w) => Number.isFinite(w) && w > 0))].sort((a, b) => a - b);
+  if (kind !== 'single' && kind !== 'dumbbell_each') return null;
+  return s.dumbbellRange ? dumbbellsInRange(s.dumbbellRange) : [];
+}
+
+/** Nearest of a list (ties lighter), or null for an empty list. */
+function nearestOf(value: number, list: readonly number[]): number | null {
+  let best: number | null = null;
+  for (const w of list) if (best === null || Math.abs(toInt(w) - toInt(value)) < Math.abs(toInt(best) - toInt(value))) best = w;
+  return best;
+}
 
 /** The picked weight of a stored load (see above), or null for a timed hold. */
 export function pickedWeight(load: Load): number | null {
@@ -575,7 +613,7 @@ export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 
     }
     case 'dumbbell_each':
     case 'single': {
-      if (!s.dumbbellRange || !dumbbellsInRange(s.dumbbellRange).some((w) => toInt(w) === toInt(value))) return null;
+      if (!heldChoices(kind, s)!.some((w) => toInt(w) === toInt(value))) return null;
       return kind === 'single' ? singleLoad(value, s.unit) : dumbbellLoad(value, s.unit);
     }
     case 'stack':
@@ -584,6 +622,56 @@ export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 
       return bodyweightLoad(s.unit, value);
     case 'timed':
       return timedLoad(s.unit);
+  }
+}
+
+/** Why an earlier load cannot be copied exactly here (copyLoad), in the words the toast uses. */
+export type CopyRefusal = 'unit' | 'kind' | 'base' | 'inexact';
+
+/**
+ * LAST TIME copy (PLAN 1.7j, SPEC 21.1): the earlier set's TOTAL made again on today's equipment
+ * (today's bar or starting weight, collars, plates, dumbbells, stack step), never a silently
+ * different total. The earlier plates are kept when they still make that total; otherwise the
+ * total is solved again (135 lb on a 35 lb bar → 50 per side). `barId` is today's bar. Refused
+ * (with the reason) when the unit or load kind differ, the base weight is unknown, or no exact
+ * loading exists here.
+ */
+export function copyLoad(prev: Load, kind: Load['kind'], s: LoadSetup, barId?: BarId): { load: Load } | { load: null; why: CopyRefusal } {
+  if (prev.kind !== kind) return { load: null, why: 'kind' };
+  if (kind === 'timed') return { load: timedLoad(s.unit) };
+  if (prev.unit !== s.unit) {
+    // Just you is the same in any unit; any number is not (never converted silently).
+    if (kind === 'bodyweight' && !(prev.added ?? 0)) return { load: bodyweightLoad(s.unit) };
+    return { load: null, why: 'unit' };
+  }
+  switch (kind) {
+    case 'barbell':
+    case 'plate_machine': {
+      if (s.base === null) return { load: null, why: 'base' };
+      const collars = kind === 'barbell' ? s.collars : 'none';
+      const own = prev.perSide && prev.perSide.every((w) => s.plates.includes(w)) ? prev.perSide : null;
+      let perSide: number[] | null = null;
+      if (own && toInt(sumLoad({ bar: s.base, perSide: own, collars, unit: s.unit }).total ?? NaN) === toInt(prev.total)) perSide = [...own];
+      else {
+        const r = solvePlates(prev.total, plateOpts(kind, s, s.base));
+        if (r.exact) perSide = r.perSide;
+      }
+      if (!perSide) return { load: null, why: 'inexact' };
+      const load = kind === 'barbell' ? barbellLoad(s.base, perSide, s.collars, s.unit, barId) : plateMachineLoad(s.base, perSide, s.unit);
+      return load && toInt(load.total) === toInt(prev.total) ? { load } : { load: null, why: 'inexact' };
+    }
+    case 'stack': {
+      const pin = prev.stackValue ?? prev.total;
+      const load = loadAt('stack', pin, s, prev.added ?? 0);
+      return load && toInt(load.total) === toInt(prev.total) ? { load } : { load: null, why: 'inexact' };
+    }
+    case 'bodyweight':
+      return { load: bodyweightLoad(s.unit, prev.added ?? 0) };
+    default: {
+      const w = heldWeightOf(prev);
+      const load = w === null ? null : loadAt(kind, w, s);
+      return load ? { load } : { load: null, why: 'inexact' };
+    }
   }
 }
 
@@ -596,8 +684,10 @@ export function nearestLoadable(kind: Load['kind'], value: number, s: LoadSetup)
     case 'barbell':
     case 'plate_machine':
       return s.base === null ? null : roundToLoadable(value, { kind: 'plates', ...plateOpts(kind, s, s.base) });
-    case 'dumbbell_each':
     case 'single':
+      if (s.heldPlates) return nearestOf(value, heldChoices(kind, s)!);
+      return s.dumbbellRange && validDumbbellRange(s.dumbbellRange) ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
+    case 'dumbbell_each':
       return s.dumbbellRange && validDumbbellRange(s.dumbbellRange) ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
     case 'stack':
       return roundToLoadable(value, { kind: 'stack', step: s.stackStep });
@@ -625,7 +715,8 @@ export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number 
     }
     case 'dumbbell_each':
     case 'single':
-      return s.dumbbellRange ? nextDumbbell(value, s.dumbbellRange) : null;
+      // The next dumbbell up, or the next enabled plate up for a held plate.
+      return heldChoices(kind, s)!.find((w) => w > value + EPS) ?? null;
     case 'stack':
       // The real stack size is not known: the next pin up (the user picks "More" if needed).
       return add(value, s.stackStep);

@@ -5,6 +5,7 @@ import { App } from './App';
 import { startDb } from './db/bootstrap';
 import { restoreMirrors } from './lib/durable';
 import { DRAFTS_KEY, hydrateDrafts } from './lib/drafts';
+import { REST_KEY, hydrateRest } from './lib/rest';
 import { registerAppUpdates } from './pwa';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { installReporting } from './lib/reporting/capture';
@@ -27,7 +28,7 @@ const mount = root;
 // Live workout state written just before an app kill is put back first (lib/durable.ts), so
 // nothing reads a stale draft or rest timer. If localStorage still refuses them, the drafts are
 // taken straight from IndexedDB (PLAN 1.7i). Without storage the shell still starts.
-void restoreMirrors(undefined, undefined, { [DRAFTS_KEY]: (v) => hydrateDrafts(v) })
+void restoreMirrors(undefined, undefined, { [DRAFTS_KEY]: (v) => hydrateDrafts(v), [REST_KEY]: (v) => hydrateRest(v) })
   .catch(() => [])
   .then(() =>
     createRoot(mount).render(

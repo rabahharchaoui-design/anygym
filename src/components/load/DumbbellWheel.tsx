@@ -5,7 +5,7 @@ import type { DumbbellRange, Load, Unit } from '../../db/types';
 import { dumbbellLoad, dumbbellsInRange, formatAmount, formatWeight, heldWeightOf, singleLoad } from '../../lib/load';
 import { SPRING } from '../../ui/motion';
 import { tick } from '../../ui/haptics';
-import { DumbbellPicture, KettlebellPicture, UprightDumbbellPicture } from './PickerArt';
+import { DumbbellPicture, KettlebellPicture, PlatePicture, UprightDumbbellPicture } from './PickerArt';
 import { Hint } from '../hint/Hint';
 import base from './LoadInput.module.css';
 import styles from './DumbbellWheel.module.css';
@@ -20,6 +20,13 @@ type Props = {
   exerciseName?: string;
   value: Load | null;
   onChange: (load: Load) => void;
+  /**
+   * The exact weights to offer instead of the range (PLAN 1.7j): a held plate offers the gym's
+   * enabled plates. Never a made up range around them.
+   */
+  weights?: readonly number[];
+  /** The one weight is a plate held in both hands (plate twists, plate raises). */
+  plate?: boolean;
 };
 
 /** Item pitch in px. The wheel pads half the track on each side so every item can sit centered. */
@@ -31,9 +38,23 @@ const SETTLE_MS = 110;
 export const WHEEL_COPY = {
   dumbbell_each: { title: 'Dumbbells · weight of one', helper: 'You hold one in each hand' },
   single: { title: 'One weight · both hands', helper: 'Goblet squat, kettlebell swing' },
+  plate: { title: 'One plate · both hands', helper: 'The plates turned on for this gym' },
 } as const;
 
-export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName }: Props) {
+export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName, weights, plate }: Props) {
+  if (weights) {
+    if (!weights.length) {
+      return (
+        <div className={base.empty}>
+          <p>{plate ? 'No plates turned on for this gym' : 'No weights set for this gym'}</p>
+          <Link to="/settings" className={`${base.emptyLink} pressable`}>
+            Set them in Settings
+          </Link>
+        </div>
+      );
+    }
+    return <Wheel unit={unit} list={weights} mode={mode} value={value} onChange={onChange} exerciseName={exerciseName} plate={plate} />;
+  }
   if (!range) {
     return (
       <div className={base.empty}>
@@ -47,9 +68,11 @@ export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName
   return <Wheel unit={unit} range={range} mode={mode} value={value} onChange={onChange} exerciseName={exerciseName} />;
 }
 
-function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props & { range: DumbbellRange }) {
+function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', plate = false }: Omit<Props, 'range' | 'weights'> & { range?: DumbbellRange; list?: readonly number[] }) {
   const reduce = useReducedMotion();
-  const weights = useMemo(() => dumbbellsInRange(range), [range]);
+  const listKey = list?.join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const weights = useMemo(() => (list ? [...list] : range ? dumbbellsInRange(range) : []), [range, listKey]);
   const selected = value?.kind === mode ? heldWeightOf(value) : null;
   const selectedIndex = selected === null ? -1 : weights.indexOf(selected);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -164,8 +187,8 @@ function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props 
   };
 
   const shown = selectedIndex >= 0 ? weights[centered] : null;
-  const copy = WHEEL_COPY[mode];
-  const picture = mode === 'dumbbell_each' ? 'dumbbell' : /kettlebell/i.test(exerciseName) ? 'kettlebell' : 'upright';
+  const copy = plate && mode === 'single' ? WHEEL_COPY.plate : WHEEL_COPY[mode];
+  const picture = mode === 'dumbbell_each' ? 'dumbbell' : plate ? 'plate' : /kettlebell/i.test(exerciseName) ? 'kettlebell' : 'upright';
 
   return (
     <div className={base.root}>
@@ -238,7 +261,7 @@ function Wheel({ unit, range, mode, value, onChange, exerciseName = '' }: Props 
 }
 
 /** The one picture for this picker. Pops slightly each time the weight changes. */
-function Picture({ kind, bump, reduce }: { kind: 'dumbbell' | 'kettlebell' | 'upright'; bump: number; reduce: boolean }) {
+function Picture({ kind, bump, reduce }: { kind: 'dumbbell' | 'kettlebell' | 'upright' | 'plate'; bump: number; reduce: boolean }) {
   return (
     <motion.span
       key={bump}
@@ -247,7 +270,7 @@ function Picture({ kind, bump, reduce }: { kind: 'dumbbell' | 'kettlebell' | 'up
       animate={{ scale: 1 }}
       transition={SPRING}
     >
-      {kind === 'dumbbell' ? <DumbbellPicture /> : kind === 'kettlebell' ? <KettlebellPicture /> : <UprightDumbbellPicture />}
+      {kind === 'dumbbell' ? <DumbbellPicture /> : kind === 'kettlebell' ? <KettlebellPicture /> : kind === 'plate' ? <PlatePicture /> : <UprightDumbbellPicture />}
     </motion.span>
   );
 }

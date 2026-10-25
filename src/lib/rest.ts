@@ -1,6 +1,6 @@
 // Rest timer (SPEC 5.1). Pure: the timer is an end timestamp, so the remaining time is right after
 // backgrounding, throttled intervals or a reload.
-import { mirror } from './durable';
+import { mirror, mirrorValue } from './durable';
 
 export const DEFAULT_REST_SEC = 90;
 export const REST_STEP_SEC = 15;
@@ -75,17 +75,36 @@ export function parseRest(text: string | null): Rest | null {
   return null;
 }
 
+/**
+ * The rest as the app knows it right now, per storage (PLAN 1.7j): written on every save before
+ * storage is touched, so a localStorage that refuses the write (full or blocked) never loses the
+ * countdown when the workout screen closes and opens again (minimize and resume). undefined: not
+ * set since launch (storage, or the IndexedDB copy handed to hydrateRest, says).
+ */
+const runtime = new WeakMap<object, Rest | null>();
+const NO_STORAGE = {};
+
 export function loadRest(sessionId: string, kv: KV | null = storage()): Rest | null {
-  const r = parseRest(kv?.getItem(REST_KEY) ?? null);
+  const k = kv ?? NO_STORAGE;
+  const r = runtime.has(k) ? runtime.get(k)! : parseRest(kv?.getItem(REST_KEY) ?? null);
   return r && r.sessionId === sessionId ? r : null;
 }
 
 export function saveRest(rest: Rest | null, kv: KV | null = storage()): void {
+  runtime.set(kv ?? NO_STORAGE, rest);
+  const value = rest ? JSON.stringify(rest) : null;
   try {
-    if (rest) kv?.setItem(REST_KEY, JSON.stringify(rest));
+    if (value !== null) kv?.setItem(REST_KEY, value);
     else kv?.removeItem(REST_KEY);
     void mirror(kv, REST_KEY);
   } catch {
-    /* storage full or blocked: the timer still runs in memory */
+    // Storage full or blocked: the runtime copy keeps the timer while the app runs, and the
+    // IndexedDB mirror alone keeps it for the next start (with its original end time).
+    void mirrorValue(kv, REST_KEY, value);
   }
+}
+
+/** Startup with localStorage refusing the rest (durable.restoreMirrors): its IndexedDB copy is used. */
+export function hydrateRest(value: string | null, kv: KV | null = storage()): void {
+  runtime.set(kv ?? NO_STORAGE, parseRest(value));
 }

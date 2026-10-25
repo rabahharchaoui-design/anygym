@@ -9,12 +9,20 @@ export async function getPlanState(db: AnyGymDB = defaultDb): Promise<PlanState 
   return db.planState.get('active');
 }
 
-/** "Use this plan": starts it at Day 1 (week 1). Throws for a plan that is not shipped. */
+/**
+ * "Use this plan": starts it at Day 1 (week 1). Throws for a plan that is not shipped. Choosing the
+ * plan that is already active changes nothing (PLAN 1.7j): its week, next day and done marks stay,
+ * read inside the same write transaction so a stale screen can never reset them.
+ */
 export async function choosePlan(planId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<PlanState> {
   if (!planById(planId)) throw new Error('Plan not found');
-  const state: PlanState = { id: 'active', planId, startedAt: now, weekIndex: 0, nextDayIndex: 0, doneDays: [] };
-  await db.transaction('rw', db.planState, () => db.planState.put(state));
-  return state;
+  return db.transaction('rw', db.planState, async () => {
+    const current = await db.planState.get('active');
+    if (current?.planId === planId) return current;
+    const state: PlanState = { id: 'active', planId, startedAt: now, weekIndex: 0, nextDayIndex: 0, doneDays: [] };
+    await db.planState.put(state);
+    return state;
+  });
 }
 
 /** "Change day": the day the Start button opens next. */

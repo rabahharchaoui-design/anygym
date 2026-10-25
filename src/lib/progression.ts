@@ -210,6 +210,12 @@ export function progress(input: ProgressionInput): Progression {
     reason = `≈ ${formatWeight(loadKind === 'stack' ? load.total : pickedWeight(load)!, unit)}, last time ${formatWeight(quoted, ref.unit)}`;
   }
   if (!load) reason = noLoadReason(loadKind, setup);
+  if (!load && loadKind === 'bodyweight' && converted && quoted > 0) {
+    // Weighted history in the other unit (PLAN 1.7j): never turned into "just you". The row waits
+    // for the user to pick the added weight in today's unit, and says why.
+    kind = 'converted';
+    reason = `Last time +${formatWeight(quoted, ref.unit)}. Pick the added weight in ${unit}`;
+  }
 
   return {
     lastTime,

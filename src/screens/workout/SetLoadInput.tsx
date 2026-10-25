@@ -14,7 +14,7 @@ import { saveBarChoice } from '../../db/exerciseSettings';
 import { barbellLoad, enabledPlates, formatWeight } from '../../lib/load';
 import type { Stopwatch } from '../../lib/timer';
 import { BarChoiceSheet } from './BarChoiceSheet';
-import { BAR_NAMES, BAR_PROMPTS, barIdFor, machineIdFor } from './exerciseLoad';
+import { BAR_NAMES, BAR_PROMPTS, barIdFor, isHeldPlate, machineIdFor, wheelWeights } from './exerciseLoad';
 
 type Props = {
   loadType: Load['kind'];
@@ -75,7 +75,16 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
     case 'dumbbell_each':
     case 'single':
       return (
-        <DumbbellWheel unit={gym.unit} range={gym.dumbbellRange} mode={loadType} value={value} onChange={onChange} exerciseName={exerciseName} />
+        <DumbbellWheel
+          unit={gym.unit}
+          range={gym.dumbbellRange}
+          mode={loadType}
+          value={value}
+          onChange={onChange}
+          exerciseName={exerciseName}
+          // A held plate picks from the enabled plates, never the dumbbell range (PLAN 1.7j).
+          {...(isHeldPlate(loadType, exerciseName) ? { weights: wheelWeights(gym, loadType, exerciseName), plate: true } : {})}
+        />
       );
     case 'stack':
       return <StackSelector gym={gym} machineId={machineIdFor(exerciseId, exerciseName)} value={value} onChange={onChange} padInSheet={padInSheet} />;

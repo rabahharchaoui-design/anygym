@@ -202,8 +202,9 @@ describe('PLAN 1.7c round 2', () => {
     // In order, not edited during the write: used up, the next row moves up.
     const x: Draft = { id: 'x', load: b185, reps: 6, rev: 1 };
     expect(reconcileRows([{ id: 'a', load: b185, reps: 8, rev: 2, submitted: 2 }, x], new Map([['a', 2]]), id)).toEqual([x]);
-    // In order, edited during the write (rev 3): the edit stays on that row as the next set.
-    expect(reconcileRows([{ id: 'a', load: b185, reps: 9, rev: 3, submitted: 2 }], new Map([['a', 2]]), id)).toEqual([{ id: 'n1', load: b185, reps: 9, rev: 3 }]);
+    // In order, edited during the write (rev 3): the edit stays on that row as the next set, under
+    // the submitted id's durable successor (PLAN 1.7j), never a fresh random id.
+    expect(reconcileRows([{ id: 'a', load: b185, reps: 9, rev: 3, submitted: 2 }], new Map([['a', 2]]), id)).toEqual([{ id: 'a~1', load: b185, reps: 9, rev: 3 }]);
     // Nothing committed: unchanged.
     expect(reconcileRows([x], new Map([['other', 1]]), id)).toBeNull();
   });

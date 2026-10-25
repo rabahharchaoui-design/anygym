@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { Load, WorkoutSet } from '../../db/types';
+import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { updateSetType } from '../../db/workouts';
 import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
 import { logKey, logQueue } from '../../lib/logQueue';
@@ -21,7 +21,7 @@ import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
 import { Thumb } from './Thumb';
 import { WeightSheet, type WeightPick } from './WeightSheet';
-import { currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
+import { copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
 import styles from './Workout.module.css';
@@ -30,8 +30,8 @@ type Props = {
   w: Workout;
   sessionId: string;
   exerciseId: string;
-  /** After a set landed: rest and what comes next (the screen decides). */
-  onLogged: (exerciseId: string) => void;
+  /** After a set landed (with its stored kind): rest and what comes next (the screen decides). */
+  onLogged: (exerciseId: string, kind: SetKind) => void;
   onEditSet: (set: WorkoutSet) => void;
   onAskLoadType: () => void;
   onMenu: () => void;
@@ -88,11 +88,14 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const draftAt = (slot: number) => loadDraft(sessionId, rowKey(exerciseId, slot));
   const slotOf = (row: PendingRow) => row.index - logged.length;
   const rebuild = (picked: Load | null, plates: readonly number[]) => (kind ? currentLoad(picked, plates, kind, gym, exerciseId, name, bar) : null);
+  // Planned rows left: a warm up logged on a normal lift never uses one up (PLAN 1.7j).
+  const workDone = w.done[exerciseId] ?? 0;
   const rows: PendingRow[] = kind
     ? pendingRows({
         // Every drafted row stays visible (a newer edit kept after a delayed write adds a row).
-        count: Math.max(entry?.sets ?? 3, logged.length + slots.length),
+        count: logged.length + Math.max((entry?.sets ?? 3) - workDone, slots.length),
         logged,
+        workLogged: workDone,
         progression,
         draftOf: (i) => slots[i - logged.length] ?? null,
         rebuild,
@@ -143,10 +146,14 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // Race proof, never time based (PLAN 1.12): the row is claimed synchronously with its one
   // submission (logQueue.claim), so a second tap in the same task, during the write, or on a stale
   // render after the write landed resolves to that same submission.
-  useLayoutEffect(() => logQueue.release(key, logged.length), [key, logged.length]);
+  // Claims are released by the identity the view shows as committed, never by row position (1.7j).
+  useLayoutEffect(() => logQueue.release(key, (id) => w.committed.has(id)), [key, w.committed]);
   const log = (row: PendingRow, cap?: number): Promise<boolean> | undefined => {
-    // Finish started (synchronous), the row is claimed, or a write of this exercise is running.
-    if (!kind || logQueue.claimed(key, row.index) || logQueue.pending(key) || logQueue.closed(sessionId)) return;
+    // Finish started (synchronous), a write of this exercise is running, or one landed that this
+    // render does not show yet (a stale row could be the one just logged).
+    if (!kind || logQueue.pending(key) || logQueue.stale(key) || logQueue.closed(sessionId)) return;
+    const heldId = draftAt(slotOf(row))?.id;
+    if (heldId && logQueue.claimed(key, heldId)) return;
     unlockAudio();
     let seconds = row.seconds;
     if (timed && row.index === current?.index && elapsedMs(watch, Date.now()) > 0) {
@@ -164,12 +171,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     writeDrafts(sessionId, slotChanges(exerciseId, before, marked.slots));
     setFresh((f) => new Set(f).add(marked.draft.id));
     tick();
-    return logQueue.claim(key, row.index, () => submitAndTell(marked.draft));
+    return logQueue.claim(key, marked.draft.id, () => submitAndTell(marked.draft));
   };
 
   /** Writes a submitted row; it lands even if this view closed meanwhile (rowLog.ts). */
   const submitAndTell = async (draft: Draft): Promise<boolean> => {
-    const ok = await submitRow(sessionId, exerciseId, draft, { onLanded: () => onLogged(exerciseId) });
+    const ok = await submitRow(sessionId, exerciseId, draft, { onLanded: () => onLogged(exerciseId, storedType(draft.type ?? 'normal').kind) });
     if (!ok && !logQueue.closed(sessionId)) onNotice('Could not save that set', () => void retry(draft.id));
     refresh();
     return ok;
@@ -193,8 +200,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const copyLast = (row: PendingRow) => {
     const last = row.lastTime;
     if (!last || !kind) return;
-    const load = prefillLoad(last.load, kind, gym, exerciseId, name, bar);
-    if (!load && kind !== 'timed') onNotice('That weight cannot be made here. Reps copied.');
+    // The stored total on today's bar, collars and plates, or a plain reason (never another total, 1.7j).
+    const copy = copyLastLoad(last.load, kind, gym, exerciseId, name, bar);
+    const load = copy.load;
+    if (!copy.load) onNotice(copy.why);
     const lastKind = 'kind' in last ? last.kind : 'work';
     writeRow(row, {
       ...(lastKind === 'warmup' || lastKind === 'drop' ? { type: lastKind } : {}),
@@ -205,14 +214,21 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     });
   };
 
-  const cycleType = (row: PendingRow) => writeRow(row, { type: nextSetType(row.type) });
+  // Finish started (synchronously closed): no type changes from here, also from a stale view (1.7j).
+  const cycleType = (row: PendingRow) => {
+    if (logQueue.closed(sessionId)) return;
+    writeRow(row, { type: nextSetType(row.type) });
+  };
   const cycleLogged = async (set: WorkoutSet) => {
     const t: SetType = nextSetType(typeOfSet(set));
     const s = storedType(t);
+    // Tracked by the queue, so Finish counts the sets only after a change already running lands.
+    const write = logQueue.mutate(sessionId, () => updateSetType(set.id, s.kind, s.failure));
+    if (!write) return;
     try {
-      await updateSetType(set.id, s.kind, s.failure);
+      await write;
     } catch {
-      onNotice('Could not change that set. Try again.');
+      if (!logQueue.closed(sessionId)) onNotice('Could not change that set. Try again.');
     }
   };
 
@@ -259,7 +275,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   );
   const showNext = progression && lastTime && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted');
   const note = [entry?.note, w.noteOf(exerciseId)].filter(Boolean).join(' · ');
-  const setNumber = Math.min(logged.length + 1, Math.max(entry?.sets ?? 1, logged.length + 1));
+  const setNumber = Math.min(workDone + 1, Math.max(entry?.sets ?? 1, workDone + 1));
   const status = current ? blockedOf(current) : null;
 
   return (
