@@ -13,6 +13,14 @@
 //     --✓ again / Try again--> SUBMITTED (same id: one set at most)
 //     --Finish without it--> IDLE (the mark is discarded explicitly)
 //
+// The pending write journal (PLAN 1.7i, db.journal): before logSet starts, the submitted row (id,
+// draft key, version, every value) is put in IndexedDB; logSet's own transaction removes it when
+// the set commits. A journal entry that is not committed is a FAILED row even when localStorage
+// lost the draft or its mark: it is put back into the drafts (adoptJournal) before rows are shown
+// and before Finish counts, so the row is visible again, Finish refuses, and a retry logs it once.
+// Submission receipts (db.submissions) stay for the workout's lifetime (PLAN 1.7i): drafts that
+// come back after an undone Finish are reconciled against them before any retry is offered.
+//
 // localStorage is only a mirror: reconciliation reads the committed submissions from IndexedDB,
 // runs after every landed write and again before pending rows are shown (every render of the
 // exercise view, so on startup too). A kill between the commit and the draft cleanup therefore
@@ -21,7 +29,8 @@
 import { newId } from '../../db/ids';
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
 import { AlreadyLoggedError, logSet } from '../../db/workouts';
-import { saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
+import { isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
+import type { JournalEntry } from '../../db/types';
 import { logKey, logQueue as defaultQueue, type LogQueue } from '../../lib/logQueue';
 import { legacyRowKey, reconcileRows, rowKey, slotChanges, slotsOf, storedType, type Committed } from '../../lib/setTable';
 
@@ -40,6 +49,67 @@ export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): 
     for (const sub of await db.submissions.where('sessionId').equals(sessionId).toArray()) out.set(sub.id, sub.rev);
     return out;
   });
+}
+
+/** The pending write journal of a workout (entries whose write has not committed yet). */
+export async function journalOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<JournalEntry[]> {
+  return db.journal.where('sessionId').equals(sessionId).toArray();
+}
+
+/**
+ * Ids whose write landed or that the user discarded while the app runs: a journal read from before
+ * that (a live query a moment behind) is never adopted again.
+ */
+const landedIds = new Set<string>();
+
+/**
+ * Puts journal entries back into the drafts (PLAN 1.7i): an entry that did not commit is a failed
+ * submission. Missing from the drafts (localStorage lost it), it comes back at its key (the rows
+ * from that slot down move one place, nothing is overwritten); present without its submitted mark
+ * (an older copy), it gets the mark back, with the newer of the two versions. Committed ids and
+ * writes that landed meanwhile are skipped. `exerciseId` limits it to one exercise. True when
+ * something changed.
+ */
+export function adoptJournal(
+  sessionId: string,
+  entries: readonly JournalEntry[],
+  committed: Committed,
+  deps: Deps = {},
+  exerciseId?: string,
+): boolean {
+  const all = sessionDrafts(sessionId, ...storageArg(deps));
+  const byExercise = new Map<string, Array<Draft | null>>();
+  const slotsFor = (ex: string) => {
+    let slots = byExercise.get(ex);
+    if (!slots) byExercise.set(ex, (slots = slotsOf(all, ex)));
+    return slots;
+  };
+  const before = new Map<string, Array<Draft | null>>();
+  for (const e of entries) {
+    if (e.sessionId !== sessionId || (exerciseId !== undefined && e.exerciseId !== exerciseId)) continue;
+    if (committed.has(e.id) || landedIds.has(`${sessionId}:${e.id}`) || !isDraft(e.draft)) continue;
+    const slots = slotsFor(e.exerciseId);
+    if (!before.has(e.exerciseId)) before.set(e.exerciseId, [...slots]);
+    const at = slots.findIndex((d) => d?.id === e.id);
+    const kept = e.draft as Draft;
+    if (at >= 0) {
+      const now = slots[at]!;
+      if (now.submitted !== undefined) continue;
+      const base = (now.rev ?? 0) >= e.rev ? now : kept;
+      slots[at] = { ...base, submitted: e.rev };
+      continue;
+    }
+    const slot = Number(e.key.slice(e.key.lastIndexOf('@') + 1));
+    const where = Number.isInteger(slot) && slot >= 0 ? slot : slots.length;
+    while (slots.length < where) slots.push(null);
+    if (slots[where] === null || slots[where] === undefined) slots[where] = { ...kept, submitted: e.rev };
+    else slots.splice(where, 0, { ...kept, submitted: e.rev });
+  }
+  const changes = new Map<string, Draft | null>();
+  for (const [ex, was] of before) for (const [k, d] of slotChanges(ex, was, byExercise.get(ex)!)) changes.set(k, d);
+  if (!changes.size) return false;
+  writeDrafts(sessionId, changes, ...storageArg(deps));
+  return true;
 }
 
 /** The exercise's pending row drafts by slot. */
@@ -70,9 +140,17 @@ export function draftedExercises(sessionId: string, deps: Deps = {}): string[] {
   return [...out];
 }
 
-/** Startup and Finish: reconciles every exercise of the workout against the database. */
+/**
+ * Startup and Finish: puts failed journal entries back into the drafts, then reconciles every
+ * exercise of the workout against the committed writes (receipts first, then any retry).
+ */
 export async function reconcileSession(sessionId: string, deps: Deps = {}): Promise<void> {
-  const committed = await committedOf(sessionId, parts(deps).db);
+  const { db } = parts(deps);
+  const { committed, journal } = await db.transaction('r', db.sets, db.submissions, db.journal, async () => ({
+    committed: await committedOf(sessionId, db),
+    journal: await journalOf(sessionId, db),
+  }));
+  adoptJournal(sessionId, journal, committed, deps);
   for (const ex of draftedExercises(sessionId, deps)) reconcileExercise(sessionId, ex, committed, deps);
 }
 
@@ -128,13 +206,22 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
     logKey(sessionId, exerciseId),
     draft.id,
     async () => {
+      // Journaled in IndexedDB before the write (PLAN 1.7i). If this fails, nothing is written and
+      // the row reports the failure (its mark stays, Finish refuses), never a silent acceptance.
+      const key = [...sessionDrafts(sessionId, ...storageArg(deps))].find(([, d]) => d.id === draft.id)?.[0] ?? rowKey(exerciseId, 0);
+      const { submitted: _mark, ...values } = draft;
+      landedIds.delete(`${sessionId}:${draft.id}`); // submitted again (after a discard): journaled again
+      await db.journal.put({ id: draft.id, sessionId, exerciseId, key, rev: set.rev, draft: values as Record<string, unknown>, at: Date.now() });
       try {
         await logSet(set, db);
       } catch (err) {
         // Logged before and deleted since: committed, so the row is used up, never logged again.
         if (!(err instanceof AlreadyLoggedError)) throw err;
+        landedIds.add(`${sessionId}:${draft.id}`);
+        await db.journal.delete(draft.id).catch(() => undefined);
         return true;
       }
+      landedIds.add(`${sessionId}:${draft.id}`);
       deps.onLanded?.();
       return true;
     },
@@ -181,10 +268,17 @@ export async function retryFailed(sessionId: string, deps: Deps = {}): Promise<b
   }
 }
 
-/** "Finish without it": the failed rows lose their mark (their values stay until Finish clears them). */
+/**
+ * "Finish without it": the failed rows lose their mark and their journal entries (their values
+ * stay until Finish clears them). The journal goes first: if that fails, nothing is discarded.
+ */
 export async function discardFailed(sessionId: string, deps: Deps = {}): Promise<void> {
+  const { db } = parts(deps);
+  const failed = await failedRows(sessionId, deps);
+  if (failed.length) await db.journal.bulkDelete(failed.map((f) => f.draft.id));
+  for (const f of failed) landedIds.add(`${sessionId}:${f.draft.id}`);
   const changes = new Map<string, Draft | null>();
-  for (const f of await failedRows(sessionId, deps)) {
+  for (const f of failed) {
     const { submitted: _gone, ...rest } = f.draft;
     changes.set(f.key, rest);
   }

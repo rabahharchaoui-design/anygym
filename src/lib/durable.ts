@@ -7,7 +7,7 @@
 //   2. mirrored to IndexedDB (db.kv: { key, value, at }), whose writes survive a kill.
 // At startup, before the first render, `restoreMirrors` puts back every mirror that is newer than
 // what localStorage has (a lost write, or a lost removal).
-import { db as defaultDb, type AnyGymDB } from '../db/schema';
+import { db as defaultDb, type AnyGymDB, type KvRow } from '../db/schema';
 
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -55,20 +55,70 @@ export function mirror(s: unknown, key: string, ls: KV | null = phone(), db: Any
   }
 }
 
-/** Startup: every mirror newer than localStorage's stamp goes back into localStorage. Returns the keys restored. */
-export async function restoreMirrors(ls: KV | null = phone(), db: AnyGymDB = defaultDb): Promise<string[]> {
-  if (!ls) return [];
+/**
+ * A mirror row for `key` with a fresh stamp, for a caller that writes it inside its own IndexedDB
+ * transaction (Restore, PLAN 1.7i: the restored drafts are durable once the restore commits, even
+ * if localStorage then refuses them; `restoreMirrors` puts them back at the next start).
+ */
+export function durableRow(key: string, value: string | null): KvRow {
+  return { key, value, at: nextStamp() };
+}
+
+/**
+ * localStorage refused a write of `key` (full or blocked, PLAN 1.7i): the value goes to its
+ * IndexedDB mirror alone, with a fresh stamp, so the next start finds it newer than what
+ * localStorage holds and puts it back (or hydrates the runtime store from it). Never throws.
+ */
+export function mirrorValue(s: unknown, key: string, value: string | null, ls: KV | null = phone(), db: AnyGymDB = defaultDb): Promise<void> {
+  if (!ls || s !== ls || !DURABLE_KEYS.has(key)) return Promise.resolve();
+  try {
+    return db.kv.put({ key, value, at: nextStamp() }).then(
+      () => undefined,
+      () => undefined,
+    );
+  } catch {
+    return Promise.resolve();
+  }
+}
+
+/** Takes a mirrored value straight into a runtime store when localStorage cannot hold it. */
+export type Hydrators = Partial<Record<string, (value: string | null) => void>>;
+
+/**
+ * Startup: every mirror newer than localStorage's stamp goes back into localStorage. Returns the
+ * keys restored. When localStorage refuses it (still full or blocked after a restart), or there is
+ * no localStorage at all, the IndexedDB copy is authoritative (PLAN 1.7i): it is handed to that
+ * key's hydrator, so the runtime store (drafts.ts) shows it and Finish inspects it.
+ */
+export async function restoreMirrors(ls: KV | null = phone(), db: AnyGymDB = defaultDb, hydrate: Hydrators = {}): Promise<string[]> {
   const rows = await db.kv.toArray();
-  const stamps = readStamps(ls);
+  if (!ls) {
+    for (const r of rows) if (DURABLE_KEYS.has(r.key)) hydrate[r.key]?.(r.value);
+    return [];
+  }
+  let stamps: Record<string, number> = {};
+  try {
+    stamps = readStamps(ls);
+  } catch {
+    stamps = {};
+  }
   const restored: string[] = [];
   for (const r of rows) {
     last = Math.max(last, r.at);
     if (!DURABLE_KEYS.has(r.key) || r.at <= (stamps[r.key] ?? 0)) continue;
-    if (r.value === null) ls.removeItem(r.key);
-    else ls.setItem(r.key, r.value);
-    stamps[r.key] = r.at;
-    restored.push(r.key);
+    try {
+      if (r.value === null) ls.removeItem(r.key);
+      else ls.setItem(r.key, r.value);
+      stamps[r.key] = r.at;
+      restored.push(r.key);
+    } catch {
+      hydrate[r.key]?.(r.value);
+    }
   }
-  if (restored.length) ls.setItem(STAMPS_KEY, JSON.stringify(stamps));
+  try {
+    if (restored.length) ls.setItem(STAMPS_KEY, JSON.stringify(stamps));
+  } catch {
+    /* the values are back; their stamps are written again next time */
+  }
   return restored;
 }

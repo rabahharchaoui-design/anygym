@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from '../schema';
+import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_VERSION } from '../schema';
 import type { Load } from '../types';
 import { deleteSet, logSet, setsOf, startWorkout, finishWorkout } from '../workouts';
 import { acceptUndo, recoverDeletes, undoDelete } from '../tombstones';
@@ -64,11 +64,11 @@ describe('verify 1.7h: v5 data byte identical after opening v6', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray())).toBe(before[t]);
     expect(await db.submissions.count()).toBe(0);
     expect(await db.tombstones.count()).toBe(0);
-    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'submissions', 'tombstones', 'kv'].sort());
+    expect(db.tables.map((t) => t.name).sort()).toEqual([...Object.keys(before), 'submissions', 'tombstones', 'kv', 'journal'].sort());
     db.close();
   });
 });

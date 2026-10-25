@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from '../schema';
+import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_VERSION } from '../schema';
 import { makeGym } from '../gyms';
 import type { Run, Session, WorkoutSet } from '../types';
 import { ANY_GYM } from '../types';
@@ -54,7 +54,7 @@ describe('schema v1 → v2 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     expect(await db.gyms.toArray()).toEqual([seeded.gym]);
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect(await db.sets.count()).toBe(25);
@@ -98,7 +98,7 @@ describe('schema v2 → v3 migration', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     expect(await db.sets.count()).toBe(25);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
@@ -133,7 +133,7 @@ describe('schema v3 → v4 migration (PLAN 1.10c: set order counter)', () => {
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     expect((await getPlanState(db))!.nextDayIndex).toBe(2);
@@ -178,7 +178,7 @@ describe('schema v4 → v5 migration (PLAN 1.10f: plan renamed, old id ohrabah-s
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     expect(await getPlanState(db)).toEqual({ id: 'active', planId: 'five-day-split', startedAt: 1, weekIndex: 0, nextDayIndex: 3, doneDays: [0, 1, 2] });
     expect(await db.sessions.get('plan-1')).toEqual({ ...planSessions[0], planId: 'five-day-split' });
     expect(await db.sessions.get('plan-2')).toEqual({ ...planSessions[1], planId: 'five-day-split' });
@@ -221,7 +221,7 @@ describe('schema v5 → v6 migration (PLAN 1.7h: submissions and tombstones)', (
 
     const db = new AnyGymDB(name);
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     expect(await db.gyms.toArray()).toEqual([seeded.gym]);
     expect(await db.sessions.orderBy('startedAt').toArray()).toEqual(seeded.sessions);
     for (const s of seeded.sets) expect(await db.sets.get(s.id)).toEqual(JSON.parse(JSON.stringify(s)));
@@ -238,6 +238,44 @@ describe('schema v5 → v6 migration (PLAN 1.7h: submissions and tombstones)', (
     expect(await db.submissions.get('after')).toEqual({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', rev: 2 });
     await deleteSet('set-20', db, 1000);
     expect(await db.tombstones.get('set-20')).toMatchObject({ sessionId: 'sess-2', expiresAt: 6000 });
+    db.close();
+  });
+});
+
+describe('schema v7 → v8 migration (PLAN 1.7i: the pending write journal)', () => {
+  it('keeps every record byte for byte, adds an empty journal, and the open workout journals and logs', async () => {
+    const name = `anygym-mig-${n++}`;
+    names.push(name);
+    const seeded = await seedV1(name);
+    const v7 = new Dexie(name);
+    v7.version(1).stores(SCHEMA_V1);
+    v7.version(2).stores(SCHEMA_V2);
+    v7.version(3).stores(SCHEMA_V3);
+    v7.version(4).stores(SCHEMA_V4);
+    v7.version(5).stores(SCHEMA_V5);
+    v7.version(6).stores(SCHEMA_V6);
+    v7.version(7).stores(SCHEMA_V7);
+    await v7.open();
+    await v7.table('orderCounters').put({ sessionId: 'sess-2', next: 5 });
+    await v7.table('submissions').put({ id: 'set-20', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', rev: 1 });
+    await v7.table('tombstones').put({ id: 'gone', sessionId: 'sess-2', set: seeded.sets[21], expiresAt: 9e12 });
+    await v7.table('kv').put({ key: 'anygym-drafts', value: '{}', at: 7 });
+    const before: Record<string, string> = {};
+    for (const t of v7.tables) before[t.name] = JSON.stringify(await t.toArray());
+    v7.close();
+
+    const db = new AnyGymDB(name);
+    await db.open();
+    expect(db.verno).toBe(SCHEMA_VERSION);
+    expect(SCHEMA_VERSION).toBe(8);
+    for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray())).toBe(before[t]);
+    expect(await db.journal.count()).toBe(0);
+
+    // A Log set write in progress is journaled; its commit uses the entry up in the same transaction.
+    await db.journal.put({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', key: 'barbell-back-squat@0', rev: 1, draft: { id: 'after', load: null }, at: 1 });
+    await logSet({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', reps: 5, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] }, rev: 1 }, db);
+    expect(await db.sets.get('after')).toMatchObject({ order: 5 });
+    expect(await db.journal.count()).toBe(0);
     db.close();
   });
 });

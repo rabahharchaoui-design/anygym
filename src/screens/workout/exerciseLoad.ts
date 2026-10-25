@@ -1,7 +1,7 @@
 // Which load input and equipment ids an exercise uses at a gym (PLAN 1.7). No weight math here:
 // every Load is built by load.ts.
 import { machineStartFor, stackStepFor } from '../../db/gyms';
-import type { BarId, Gym, Load } from '../../db/types';
+import type { BarId, Gym, Load, Unit } from '../../db/types';
 import {
   barbellLoad,
   bodyweightLoad,
@@ -120,6 +120,9 @@ export function currentLoad(
   exerciseName: string,
   bar?: BarId,
 ): Load | null {
+  // Picked in the other unit, or with a plate this gym has turned off: never rebuilt into a
+  // different loggable weight (PLAN 1.7i). It waits for the user to pick again.
+  if (pickProblem(picked, plates, undefined, kind, gym)) return null;
   switch (kind) {
     case 'barbell':
       return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar));
@@ -132,6 +135,25 @@ export function currentLoad(
     default:
       return prefillLoad(picked ?? undefined, kind, gym, exerciseId, exerciseName, bar);
   }
+}
+
+/**
+ * Why a pending pick cannot be used as it is at this gym now (PLAN 1.7i), or null when it can:
+ * 'unit' when it was picked in the other unit (the gym's unit changed since: plates, a pin or an
+ * added weight in lb are not kg), 'plate' when a plate on it is turned off in this gym. `pickUnit`
+ * is the draft's own unit when its load is not known yet (plates on a bar of unknown weight).
+ * Just you (bodyweight with nothing added) and holds are the same in any unit.
+ */
+export function pickProblem(picked: Load | null, plates: readonly number[], pickUnit: Unit | undefined, kind: Load['kind'], gym: Pick<Gym, 'unit' | 'plateInventory'>): 'unit' | 'plate' | null {
+  if (kind === 'timed') return null;
+  const unit = picked?.unit ?? pickUnit;
+  if (kind === 'bodyweight') return picked?.kind === 'bodyweight' && (picked.added ?? 0) > 0 && unit !== gym.unit ? 'unit' : null;
+  if (unit !== undefined && unit !== gym.unit && (picked !== null || plates.length > 0)) return 'unit';
+  if ((kind === 'barbell' || kind === 'plate_machine') && plates.length > 0) {
+    const have = enabledPlates(gym.plateInventory);
+    if (!plates.every((w) => have.includes(w))) return 'plate';
+  }
+  return null;
 }
 
 /** What this exercise can load at this gym, for the progression engine (SPEC 6). */

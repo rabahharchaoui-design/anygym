@@ -2,14 +2,16 @@
 // (src/db/backup.ts reads and writes). Records are copied as they are stored: no unit conversion,
 // no rounding, numbers go through JSON unchanged (finite doubles round trip exactly).
 //
-// submissions and tombstones are transient (one Log set write, one Undo window). They are in a
+// submissions, tombstones and journal are transient (one Log set write, one Undo window, one Log
+// set write that did not commit, PLAN 1.7i: a failed Log kept only in IndexedDB). They are in a
 // backup only when it holds a workout in progress, so restoring a backup made mid workout puts the
 // workout back exactly as it was; otherwise they are left out (empty arrays). The same goes for
 // `drafts`: the sets being entered in a workout in progress (lib/drafts.ts, kept in localStorage),
 // stored per workout and exercise with their ids, revisions, submission markers and stopwatches.
-import type { ExerciseSetting, Gym, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
+import type { DumbbellRange, ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
 import { RENAMED_PLAN_IDS, SCHEMA_VERSION } from '../db/schema';
 import type { DraftsBlob } from './drafts';
+import { validDumbbellRange } from './load';
 
 export const BACKUP_FORMAT = 'anygym-backup-v1';
 
@@ -26,12 +28,13 @@ export type BackupTables = {
   orderCounters: OrderCounter[];
   submissions: Submission[];
   tombstones: Tombstone[];
+  journal: JournalEntry[];
 };
 
 export type TableName = keyof BackupTables;
 
 /** Every table a backup carries, in write order. */
-export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones'];
+export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones', 'journal'];
 
 export type Backup = {
   format: typeof BACKUP_FORMAT;
@@ -63,7 +66,12 @@ export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersi
     appVersion,
     schemaVersion: SCHEMA_VERSION,
     exportedAt,
-    tables: { ...tables, submissions: active ? tables.submissions : [], tombstones: active ? tables.tombstones : [] },
+    tables: {
+      ...tables,
+      submissions: active ? tables.submissions : [],
+      tombstones: active ? tables.tombstones : [],
+      journal: active ? tables.journal.filter((j) => activeIds.has(j.sessionId)) : [],
+    },
     drafts: Object.fromEntries(Object.entries(drafts).filter(([id, d]) => activeIds.has(id) && Object.keys(d).length > 0)),
   };
 }
@@ -112,6 +120,9 @@ const isSet = shape({
   opt: { reps: num, seconds: num, load: isLoad, rpe: num, note: str, failure: bool },
 });
 
+/** A dumbbell range that makes sense (positive step, min ≥ 0, max ≥ min, a bounded list): never a frozen picker. */
+const dumbbellRange: Check = (v) => shape({ req: { min: num, max: num, step: num } })(v) && validDumbbellRange(v as DumbbellRange);
+
 const bars = shape({ req: Object.fromEntries(BAR_IDS.map((b) => [b, orNull(num)])) });
 
 /** What every stored record must look like, per table. Exported for the tests. */
@@ -127,7 +138,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
       type: oneOf('full', 'hotel', 'home', 'none'),
       unit,
       equipment: listOf(str),
-      dumbbellRange: orNull(shape({ req: { min: num, max: num, step: num } })),
+      dumbbellRange: orNull(dumbbellRange),
       bars,
       stackStep: num,
       equipmentWeights: recordOf(shape({ req: { kind: oneOf('plates_only', 'starting_resistance', 'stack_step', 'bar_weight'), value: orNull(num) } })),
@@ -157,6 +168,8 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   orderCounters: shape({ req: { sessionId: str, next: num } }),
   submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num } }),
   tombstones: shape({ req: { id: str, sessionId: str, set: isSet, expiresAt: num }, opt: { undo: bool } }),
+  // A pending Log set write (PLAN 1.7i): its id, draft key, revision and every value of the row.
+  journal: (v) => shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: num, draft: isDraft, at: num } })(v) && (v as Rec).id === ((v as Rec).draft as Rec).id,
 };
 
 /** A pending set draft (lib/drafts.ts): ids, revisions, submission marker and stopwatch kept as they are. */
@@ -170,6 +183,7 @@ export const isDraft = shape({
     watch: shape({ req: { startedAt: orNull(num), accumulated: num } }),
     rev: num,
     submitted: num,
+    unit,
   },
 });
 
@@ -187,6 +201,7 @@ export const TABLE_SINCE: Record<TableName, number> = {
   orderCounters: 4,
   submissions: 6,
   tombstones: 6,
+  journal: 8,
 };
 
 /** The primary key of a record, as a string, so duplicates can be found. */
@@ -199,7 +214,8 @@ export function keyOf(table: TableName, r: Rec): string {
 /**
  * Tables that did not exist in an older schema start empty, and data written before a version's
  * upgrade gets that upgrade (the same rules as the Dexie upgraders in db/schema.ts):
- * v2 exerciseSettings, v3 planState, v4 orderCounters, v5 renamed plan ids, v6 submissions and tombstones.
+ * v2 exerciseSettings, v3 planState, v4 orderCounters, v5 renamed plan ids, v6 submissions and tombstones,
+ * v8 journal.
  */
 export function upgradeTables(raw: Partial<Record<TableName, Rec[]>>, fromVersion: number): Record<TableName, Rec[]> {
   const out = {} as Record<TableName, Rec[]>;
@@ -221,7 +237,7 @@ function referencesHold(t: Record<TableName, Rec[]>): boolean {
   const sessions = new Set(t.sessions.map((s) => s.id as string));
   const gyms = new Set(t.gyms.map((g) => g.id as string));
   if (!t.sessions.every((s) => gyms.has(s.gymId as string))) return false;
-  for (const name of ['sets', 'orderCounters', 'submissions', 'tombstones'] as const) {
+  for (const name of ['sets', 'orderCounters', 'submissions', 'tombstones', 'journal'] as const) {
     if (!t[name].every((r) => sessions.has(r.sessionId as string))) return false;
   }
   return t.tombstones.every((x) => {

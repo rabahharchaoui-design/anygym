@@ -299,8 +299,22 @@ export function dumbbellTotal(each: number): number {
   return times(each, 2);
 }
 
-/** Every dumbbell in the range, lightest first. */
+/** The most dumbbells a range may list (a real rack has far fewer): bounds every generated list. */
+export const MAX_DUMBBELLS = 400;
+
+/**
+ * A range that makes sense (PLAN 1.7i): finite numbers, a positive step, min ≥ 0, max ≥ min and
+ * at most MAX_DUMBBELLS weights. Anything else (step 0 from a damaged backup) lists nothing.
+ */
+export function validDumbbellRange(range: DumbbellRange): boolean {
+  const { min, max, step } = range;
+  if (![min, max, step].every(Number.isFinite) || step <= 0 || min < 0 || max < min) return false;
+  return Math.floor(add(max, -min) / step + EPS) + 1 <= MAX_DUMBBELLS;
+}
+
+/** Every dumbbell in the range, lightest first; none for a range that is not valid (never loops). */
 export function dumbbellsInRange(range: DumbbellRange): number[] {
+  if (!validDumbbellRange(range)) return [];
   const out: number[] = [];
   for (let n = 0; ; n++) {
     const w = add(range.min, times(range.step, n));
@@ -523,6 +537,21 @@ export function sameLoad(a: Load, b: Load): boolean {
   return a.kind === b.kind && a.unit === b.unit && toInt(a.total) === toInt(b.total) && toInt(a.added ?? 0) === toInt(b.added ?? 0);
 }
 
+/** How close two loads in different units must be to count as the same resistance (in the first load's unit). */
+export const SAME_RESISTANCE_TOLERANCE = 0.01;
+
+/**
+ * The same resistance, in any unit (PLAN 1.7i, records): same load kind and the same compared
+ * weight (comparableWeight) after converting the second into the first one's unit, within
+ * SAME_RESISTANCE_TOLERANCE. Bodyweight with nothing added is the same in lb and kg.
+ */
+export function sameResistance(a: Load, b: Load): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.unit === b.unit) return sameLoad(a, b);
+  if (a.kind === 'bodyweight' && !(a.added ?? 0) && !(b.added ?? 0)) return true;
+  return Math.abs(comparableWeight(a, a.unit) - comparableWeight(b, a.unit)) <= SAME_RESISTANCE_TOLERANCE;
+}
+
 const plateOpts = (kind: Load['kind'], s: LoadSetup, base: number): SolveOptions => ({
   bar: base,
   inventory: s.plates,
@@ -569,7 +598,7 @@ export function nearestLoadable(kind: Load['kind'], value: number, s: LoadSetup)
       return s.base === null ? null : roundToLoadable(value, { kind: 'plates', ...plateOpts(kind, s, s.base) });
     case 'dumbbell_each':
     case 'single':
-      return s.dumbbellRange ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
+      return s.dumbbellRange && validDumbbellRange(s.dumbbellRange) ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
     case 'stack':
       return roundToLoadable(value, { kind: 'stack', step: s.stackStep });
     case 'bodyweight':
@@ -606,8 +635,16 @@ export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number 
   }
 }
 
-/** About 10% lighter, rounded to a weight this gym can load (SPEC 6 rule 3). */
-export function resetWeight(kind: Load['kind'], value: number, s: LoadSetup): number | null {
+/**
+ * About 10% lighter, rounded to a weight this gym can load (SPEC 6 rule 3). A stack with `added`
+ * weight on the pin (PLAN 1.7i): 10% off the TOTAL resistance, the added weight kept, and the pin
+ * that is left rounded to a loadable pin (100 pin + 100 added → 180 total → an 80 pin).
+ */
+export function resetWeight(kind: Load['kind'], value: number, s: LoadSetup, added = 0): number | null {
+  if (kind === 'stack' && added > 0) {
+    const total = fromInt(Math.round(toInt(add(value, added)) * 0.9));
+    return nearestLoadable(kind, add(total, -added), s);
+  }
   return nearestLoadable(kind, fromInt(Math.round(toInt(value) * 0.9)), s);
 }
 

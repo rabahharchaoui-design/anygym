@@ -10,6 +10,12 @@
 //   - at the end the app must still respond: no sheet left, back to the tabs through the UI, the
 //     tab bar navigates. The page is never reloaded or re-opened: a stuck screen stays stuck and
 //     fails the test.
+//   - counts what was OBSERVABLY done (PLAN 1.7i (10)): an action counts as effective only when
+//     the page reacted (the DOM changed outside the running clocks, something scrolled, or the
+//     route changed), not when it was merely attempted,
+//   - every few actions checks the page still takes taps in place: when the screen has controls
+//     but a layer on top takes every tap meant for them (a transparent overlay), it fails at once,
+//     in the same document, before any way back is tried.
 // Swipes use mouse drags (pointer events): Playwright has no touch move API in WebKit
 // (touchscreen only taps), so native touch panning is not exercised here.
 import { collectedErrors, expect, type Page } from '../fixtures';
@@ -68,6 +74,74 @@ async function closeSheets(page: Page) {
   await expect(openSheets(page)).toHaveCount(0);
 }
 
+/** Installs the reaction counter in the page (once per document): DOM changes outside clocks, scrolls, route changes. */
+const installCounter = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __monkeySeen?: number };
+    if (w.__monkeySeen !== undefined) return;
+    w.__monkeySeen = 0;
+    const clock = '[role="timer"], [data-testid="rest-timer"], [data-testid="timer-clock"], [data-testid="elapsed"]';
+    new MutationObserver((list) => {
+      for (const m of list) {
+        const t = m.target instanceof Element ? m.target : m.target.parentElement;
+        if (t && !t.closest(clock)) {
+          w.__monkeySeen!++;
+          return;
+        }
+      }
+    }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+    addEventListener('scroll', () => w.__monkeySeen!++, { capture: true, passive: true });
+    addEventListener('hashchange', () => w.__monkeySeen!++);
+  });
+
+/** The page's reaction count: -1 in a new document (the counter is gone: a reload), null while it cannot be read. */
+const reactions = (page: Page) => page.evaluate(() => (window as unknown as { __monkeySeen?: number }).__monkeySeen ?? -1).catch(() => null);
+
+/**
+ * Runs in the page: null when the screen takes taps, else what takes them instead. The screen is
+ * blocked when it shows enabled controls (in the top sheet, if one is open) and the element at the
+ * middle of EVERY one of them is something else that is not part of a sheet: a layer over the page.
+ */
+function tapBlocker(): string | null {
+  if (document.documentElement.dataset.nav) return null; // a view transition holds input on purpose
+  const visible = (el: Element) => {
+    for (let e: Element | null = el; e; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
+    }
+    return true;
+  };
+  const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible);
+  const scope = dialogs.length ? dialogs[dialogs.length - 1]! : document.body;
+  const controls = [...scope.querySelectorAll<HTMLElement>('button, a[href], [role="button"], [role="tab"], [role="radio"]')].filter((el) => {
+    if (!visible(el) || el.closest('[inert]') || (el as HTMLButtonElement).disabled || getComputedStyle(el).pointerEvents === 'none') return false;
+    const r = el.getBoundingClientRect();
+    const x = (r.left + r.right) / 2;
+    const y = (r.top + r.bottom) / 2;
+    return r.width > 0 && r.height > 0 && x > 0 && y > 0 && x < innerWidth && y < innerHeight;
+  });
+  if (!controls.length) return null;
+  let blocker: Element | null = null;
+  for (const el of controls) {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+    if (!top || top === el || el.contains(top) || top.closest('[role="dialog"]')) return null;
+    blocker ??= top;
+  }
+  return `${blocker!.tagName.toLowerCase()}${blocker!.id ? `#${blocker!.id}` : ''}.${String(blocker!.className).slice(0, 30)} takes every tap meant for the ${controls.length} controls on the screen`;
+}
+
+/** Fails at once when a layer takes every tap and does not go within 2 s (never reloads first). */
+async function assertTakesTaps(page: Page) {
+  let blocked: string | null = null;
+  for (let t = 0; t < 20; t++) {
+    blocked = await page.evaluate(tapBlocker).catch(() => null);
+    if (!blocked) return;
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`stuck screen at ${await page.evaluate(() => location.hash).catch(() => '?')}: ${blocked}`);
+}
+
 const failOnErrors = () => {
   const errors = collectedErrors();
   if (errors.length) throw new Error(`console errors during the monkey test:\n  ${errors.join('\n  ')}`);
@@ -79,8 +153,9 @@ export async function monkey(page: Page, { home, durationMs = 90_000, seed = 1 }
   const vp = page.viewportSize()!;
   const norm = (h: string) => (h === '' ? '#/' : h);
   let homeUrl = norm(new URL(home, 'http://localhost/anygym/').hash);
-  const stats = { taps: 0, swipes: 0, skipped: 0, sheetsClosed: 0, returns: 0, escapes: 0 };
+  const stats = { taps: 0, swipes: 0, skipped: 0, sheetsClosed: 0, returns: 0, escapes: 0, effective: 0 };
   const end = Date.now() + durationMs;
+  await installCounter(page);
   let away = 0;
   let step = 0;
   while (Date.now() < end) {
@@ -88,6 +163,7 @@ export async function monkey(page: Page, { home, durationMs = 90_000, seed = 1 }
     const x = Math.round(4 + r.next() * (vp.width - 8));
     const y = Math.round(4 + r.next() * (vp.height - 8));
     const roll = r.next();
+    const seenBefore = await reactions(page);
     if (roll < 0.72) {
       const verdict = await page.evaluate(judge, [x, y, AVOID.source] as [number, number, string]).catch(() => 'navigating');
       if (verdict === 'ok') {
@@ -115,6 +191,11 @@ export async function monkey(page: Page, { home, durationMs = 90_000, seed = 1 }
     // A human's pace (and time for the screen to react), 20 to 120 ms between actions.
     await page.waitForTimeout(20 + Math.floor(r.next() * 100));
     failOnErrors();
+    // Only what the page visibly did counts (a new document after a reload would read -1).
+    const seenAfter = await reactions(page);
+    if (roll < 0.92 && seenBefore !== null && seenAfter !== null && seenBefore >= 0 && seenAfter > seenBefore) stats.effective++;
+    if (seenAfter === -1) throw new Error('the page was reloaded or replaced during the monkey test (a recovery reload is a failure)');
+    if (step % 6 === 0) await assertTakesTaps(page);
     if (step % 12 === 0 && (await openSheets(page).count()) > 0) {
       await closeSheets(page);
       stats.sheetsClosed++;
@@ -124,6 +205,7 @@ export async function monkey(page: Page, { home, durationMs = 90_000, seed = 1 }
     away = hash === homeUrl ? 0 : away + 1;
     if (away > 25) {
       await settle(page);
+      await assertTakesTaps(page);
       await closeSheets(page);
       await goHome(page, homeUrl);
       homeUrl = norm(await page.evaluate(() => location.hash)); // a new workout's id, if it changed
@@ -133,6 +215,7 @@ export async function monkey(page: Page, { home, durationMs = 90_000, seed = 1 }
   }
   // Still responsive: no sheet left, back to the tabs through the UI, the tab bar navigates.
   await settle(page);
+  await assertTakesTaps(page);
   await closeSheets(page);
   failOnErrors();
   await toTabs(page);

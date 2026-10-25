@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie';
-import type { ExerciseSetting, Gym, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from './types';
+import type { ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from './types';
 
 export const DB_NAME = 'anygym';
 
@@ -68,11 +68,24 @@ export const SCHEMA_V7 = {
   kv: 'key',
 } as const;
 
+/**
+ * Version 8 (PLAN 1.7i), additive: journal, the pending Log set writes. Before a Log set write
+ * starts, the submitted row (its id, version and every value) is stored here in IndexedDB, and the
+ * write's own transaction removes it when the set commits. So a write that failed (or an app kill
+ * mid write) leaves its row here even when localStorage lost the draft: on the next start it is
+ * visible again, Finish refuses until it is retried or discarded (screens/workout/rowLog.ts).
+ * Backed up with a workout in progress (lib/backup.ts), so a failed Log kept only here survives
+ * export and restore on another phone.
+ */
+export const SCHEMA_V8 = {
+  journal: 'id, sessionId',
+} as const;
+
 /** One mirrored localStorage key (lib/durable.ts): its value (null = removed) and write stamp. */
 export type KvRow = { key: string; value: string | null; at: number };
 
 /** The current schema version (the highest this.version below). Backups record it (lib/backup.ts). */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
@@ -92,6 +105,7 @@ export class AnyGymDB extends Dexie {
   submissions!: EntityTable<Submission, 'id'>;
   tombstones!: EntityTable<Tombstone, 'id'>;
   kv!: EntityTable<KvRow, 'key'>;
+  journal!: EntityTable<JournalEntry, 'id'>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -115,6 +129,7 @@ export class AnyGymDB extends Dexie {
       });
     this.version(6).stores(SCHEMA_V6);
     this.version(7).stores(SCHEMA_V7);
+    this.version(8).stores(SCHEMA_V8);
   }
 }
 

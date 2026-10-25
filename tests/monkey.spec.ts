@@ -57,5 +57,7 @@ for (const [name, seed, setup] of SCREENS) {
     const stats = await monkey(page, { home, durationMs: DURATION, seed });
     console.log(`monkey ${name}: ${JSON.stringify(stats)}`);
     expect(stats.taps + stats.swipes).toBeGreaterThan(50);
+    // PLAN 1.7i (10): what the app visibly did, not what was attempted.
+    expect(stats.effective, 'taps and swipes the app visibly reacted to').toBeGreaterThan(Math.min(40, DURATION / 2000));
   });
 }

@@ -21,9 +21,9 @@ import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
 import { Thumb } from './Thumb';
 import { WeightSheet, type WeightPick } from './WeightSheet';
-import { currentLoad, prefillLoad } from './exerciseLoad';
+import { currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
-import { migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
+import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
 import styles from './Workout.module.css';
 
 type Props = {
@@ -77,8 +77,11 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     migrated.current = true;
     migrateLegacyRows(sessionId, exerciseId, logged);
   }
-  // Rows whose write committed are used up before any pending row is shown (also after a kill
-  // between the commit and the cleanup), so a logged row can never be logged a second time.
+  // A write that started and never committed (the IndexedDB journal) is a failed row again, even
+  // when localStorage lost it (PLAN 1.7i). Then rows whose write committed are used up before any
+  // pending row is shown (also after a kill between the commit and the cleanup), so a logged row
+  // can never be logged a second time.
+  adoptJournal(sessionId, w.journal, w.committed, {}, exerciseId);
   reconcileExercise(sessionId, exerciseId, w.committed);
   const slots = rowsOf(sessionId, exerciseId);
   /** A pending row's draft as stored right now, by slot (0 = the first row still to do). */
@@ -95,6 +98,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         rebuild,
         carry: (prev) => prefillLoad(prev, kind, gym, exerciseId, name, bar),
         certain: certainLoad(kind, gym.unit),
+        unit: gym.unit,
+        // A draft picked in the other unit or with a plate now turned off stays as picked (PLAN 1.7i).
+        stale: (d) => pickProblem(d.load, d.plates ?? d.load?.perSide ?? [], d.unit, kind, gym),
         defaultReps: timed ? undefined : entry?.reps === undefined ? DEFAULT_REPS : typeof entry.reps === 'number' ? entry.reps : entry.reps[0],
         planSeconds: entry ? targetSecondsOf(entry) : undefined,
         defaultType: entry?.warmup ? 'warmup' : 'normal',
@@ -121,6 +127,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...(row.seconds !== undefined ? { seconds: row.seconds } : {}),
       ...(before ?? {}),
       ...patch,
+      // The unit the weight was picked in (PLAN 1.7i): today's when this write picks it.
+      ...('load' in patch || 'plates' in patch || !before ? { unit: gym.unit } : {}),
       rev: (before?.rev ?? 0) + 1,
     };
     saveDraft(sessionId, rowKey(exerciseId, slotOf(row)), draft);
@@ -390,5 +398,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
 /** What the picker starts from: the row's weight, or its plates while the base weight is unknown. */
 function startPick(row: PendingRow): WeightPick {
+  // A kept pick (other unit, a plate turned off) is never handed to today's picker as if it were today's.
+  if (row.kept) return { load: null, plates: [] };
   return { load: row.load, plates: row.plates };
 }

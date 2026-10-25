@@ -2,9 +2,9 @@
 // never loses it). Holds what the user picked (weight, plates, reps) and a running hold as
 // stopwatch timestamps, so the time stays right across a reload. Cleared once the set is logged.
 // No weight math here: the card rebuilds the load through load.ts from what is stored.
-import type { Load } from '../db/types';
+import type { Load, Unit } from '../db/types';
 import type { Stopwatch } from './timer';
-import { mirror as mirrorDurable } from './durable';
+import { mirror as mirrorDurable, mirrorValue } from './durable';
 
 export type Draft = {
   /** Id the set will be logged with (double tap safe across a reload). */
@@ -12,6 +12,12 @@ export type Draft = {
   load: Load | null;
   /** Plates per side on a bar or machine horn, kept even while the bar weight is unknown. */
   plates?: number[];
+  /**
+   * The unit the weight was picked in (PLAN 1.7i), kept even while the base weight is unknown
+   * (load null, plates only). A draft in another unit than the gym's is never rebuilt in the new
+   * unit: it stays as picked until the user picks again.
+   */
+  unit?: Unit;
   reps?: number;
   /** Timed rows (PLAN 1.7c): the hold typed or kept for this row. */
   seconds?: number;
@@ -46,6 +52,9 @@ const storage = (): StorageLike | null => {
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
+/** A stored value that is a complete draft (also used for the IndexedDB journal, PLAN 1.7i). */
+export const isDraft = (v: unknown): v is Draft => validDraft(v);
+
 function validDraft(v: unknown): v is Draft {
   if (!v || typeof v !== 'object') return false;
   const d = v as Record<string, unknown>;
@@ -53,6 +62,7 @@ function validDraft(v: unknown): v is Draft {
   if (d.load !== null && (typeof d.load !== 'object' || !isNum((d.load as Load).total))) return false;
   if (d.plates !== undefined && !(Array.isArray(d.plates) && d.plates.every(isNum))) return false;
   if (d.reps !== undefined && !isNum(d.reps)) return false;
+  if (d.unit !== undefined && d.unit !== 'lb' && d.unit !== 'kg') return false;
   if (d.rev !== undefined && !isNum(d.rev)) return false;
   if (d.submitted !== undefined && !isNum(d.submitted)) return false;
   if (d.seconds !== undefined && !isNum(d.seconds)) return false;
@@ -64,7 +74,15 @@ function validDraft(v: unknown): v is Draft {
   return true;
 }
 
+/**
+ * Drafts taken straight from their IndexedDB mirror at startup because localStorage refused them
+ * (PLAN 1.7i, hydrateDrafts): authoritative over what localStorage holds until a write to it works.
+ */
+const hydrated = new WeakMap<object, Store>();
+
 function read(s: StorageLike): Store {
+  const h = hydrated.get(s);
+  if (h) return h;
   try {
     const v = JSON.parse(s.getItem(KEY) ?? '{}') as unknown;
     return v && typeof v === 'object' && !Array.isArray(v) ? (v as Store) : {};
@@ -100,7 +118,7 @@ function sessionCopy(m: Memory, sessionId: string, s: StorageLike | null): Map<s
   if (m.session !== sessionId) {
     m.session = sessionId;
     m.drafts = new Map();
-    const stored = s ? (read(s)[sessionId] ?? {}) : {};
+    const stored = s ? (read(s)[sessionId] ?? {}) : (hydrated.get(NO_STORAGE)?.[sessionId] ?? {});
     for (const [ex, d] of Object.entries(stored)) if (validDraft(d)) m.drafts.set(ex, d);
   }
   return m.drafts;
@@ -120,13 +138,17 @@ export const DRAFTS_NOT_SAVED = 'Drafts will not survive a reload on this phone'
 /** Mirrors the whole memory copy to storage. False when that failed (storage full, blocked or missing). */
 function mirror(m: Memory, s: StorageLike | null): boolean {
   let ok = false;
+  const value = m.session && m.drafts.size ? JSON.stringify({ [m.session]: Object.fromEntries(m.drafts) }) : null;
   if (s) {
     try {
-      if (m.session && m.drafts.size) s.setItem(KEY, JSON.stringify({ [m.session]: Object.fromEntries(m.drafts) }));
+      if (value !== null) s.setItem(KEY, value);
       else s.removeItem(KEY);
       void mirrorDurable(s, KEY);
+      hydrated.delete(s);
       ok = true;
     } catch {
+      // localStorage refused it: the IndexedDB mirror alone keeps it for the next start (PLAN 1.7i).
+      void mirrorValue(s, KEY, value);
       ok = false;
     }
   }
@@ -137,10 +159,32 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
   return ok;
 }
 
+/**
+ * Startup with localStorage still refusing writes (PLAN 1.7i): the drafts' IndexedDB copy (the
+ * anygym-drafts value) becomes this storage's source, so pending and restored rows stay visible
+ * and Finish inspects them. Cleared by the first write localStorage takes.
+ */
+export function hydrateDrafts(value: string | null, s = storage()): void {
+  let store: Store = {};
+  try {
+    const v = JSON.parse(value ?? '{}') as unknown;
+    if (v && typeof v === 'object' && !Array.isArray(v)) store = v as Store;
+  } catch {
+    store = {};
+  }
+  hydrated.set(s ?? NO_STORAGE, store);
+  const m = memoryOf(s);
+  m.session = null;
+  m.drafts = new Map();
+}
+
 export function loadDraft(sessionId: string, exerciseId: string, s = storage()): Draft | null {
   const m = memoryOf(s);
   if (m.session === sessionId) return m.drafts.get(exerciseId) ?? null;
-  if (!s) return null;
+  if (!s) {
+    const d = hydrated.get(NO_STORAGE)?.[sessionId]?.[exerciseId];
+    return validDraft(d) ? d : null;
+  }
   const d = read(s)[sessionId]?.[exerciseId];
   return validDraft(d) ? d : null;
 }
@@ -197,15 +241,19 @@ export function clearSessionDrafts(sessionId: string, s = storage()): void {
     m.session = null;
     m.drafts = new Map();
   }
+  delete hydrated.get(s ?? NO_STORAGE)?.[sessionId];
   if (!s) return;
   const next = { ...read(s) };
   delete next[sessionId];
+  const value = Object.keys(next).length ? JSON.stringify(next) : null;
   try {
-    if (Object.keys(next).length) s.setItem(KEY, JSON.stringify(next));
+    if (value !== null) s.setItem(KEY, value);
     else s.removeItem(KEY);
     void mirrorDurable(s, KEY);
+    hydrated.delete(s);
   } catch {
-    /* memory is already clear */
+    // Memory is already clear; the IndexedDB copy drops it too.
+    void mirrorValue(s, KEY, value);
   }
 }
 
@@ -227,6 +275,15 @@ export function exportDrafts(s = storage()): DraftsBlob {
   return out;
 }
 
+/** The anygym-drafts value `replaceDrafts(blob)` stores (null: none), for the durable copy (PLAN 1.7i). */
+export function draftsValue(blob: DraftsBlob): string | null {
+  const sessions = Object.entries(blob).filter(([, per]) => Object.keys(per).length > 0);
+  return sessions.length ? JSON.stringify(Object.fromEntries(sessions)) : null;
+}
+
+/** The localStorage key drafts live under (mirrored to IndexedDB by durable.ts). */
+export const DRAFTS_KEY = KEY;
+
 /**
  * Restore (PLAN 1.8): replaces every draft with the backup's (an empty blob clears them). The memory
  * copy is dropped so the next read fills from what was written. False when storage could not take it
@@ -242,6 +299,7 @@ export function replaceDrafts(blob: DraftsBlob, s = storage()): boolean {
     m.session = sid;
     m.drafts = new Map(Object.entries(per));
   }
+  hydrated.delete(s ?? NO_STORAGE);
   if (!s) return sessions.length === 0;
   try {
     if (sessions.length) s.setItem(KEY, JSON.stringify(Object.fromEntries(sessions)));

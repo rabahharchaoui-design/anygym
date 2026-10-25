@@ -122,6 +122,8 @@ export function EdgeSwipe({ layerRef, onBack, under }: Props) {
         ref={stripRef}
         className={styles.strip}
         data-testid="edge-swipe"
+        // A plain tap here goes to what is under the strip (onUp): checkers look through it.
+        data-tap-through="true"
         aria-hidden="true"
         onPointerDown={onDown}
         onPointerMove={onMove}

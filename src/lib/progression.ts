@@ -30,6 +30,7 @@
 import type { Load, SetKind, Unit } from '../db/types';
 import { IMPORTED_LABEL, isImportOrder } from './import/importOrder';
 import {
+  comparableWeight,
   convertForGym,
   formatAmount,
   formatWeight,
@@ -106,10 +107,11 @@ const clampTo = (n: number, r: RepTarget | undefined): number =>
 /**
  * The heaviest working load: the one "same load" refers to. Sets may be in different units
  * (imported history), so each is compared in one unit through load.ts; the load keeps its own unit.
+ * A stack compares its TOTAL resistance (pin + added, PLAN 1.7i): 100 + 25 outranks 110 + 0.
  */
 function heaviest(sets: SetLine[]): Load {
   const unit = sets[0]!.load.unit;
-  const w = (l: Load) => convertForGym(pickedWeight(l) ?? 0, l.unit, unit);
+  const w = (l: Load) => comparableWeight(l, unit);
   return sets.reduce((a, b) => (w(b.load) > w(a.load) ? b : a)).load;
 }
 
@@ -142,7 +144,10 @@ export function progress(input: ProgressionInput): Progression {
   const ref = heaviest(last.sets);
   const converted = ref.unit !== unit;
   const picked = pickedWeight(ref)!;
-  const here = converted ? convertForGym(picked, ref.unit, unit) : picked;
+  // What last time really was: a stack's total resistance (pin + added), else the picked weight.
+  // A conversion converts all of it and the reason quotes all of it; the pin is only for stepping.
+  const quoted = ref.kind === 'stack' ? ref.total : picked;
+  const here = converted ? convertForGym(quoted, ref.unit, unit) : picked;
   const added = !converted && ref.kind === 'stack' ? (ref.added ?? 0) : 0;
   const base = !converted && loadAt(loadKind, here, setup, added) ? here : nearestLoadable(loadKind, here, setup);
 
@@ -185,7 +190,8 @@ export function progress(input: ProgressionInput): Progression {
     }
   } else if (range && loadKind !== 'bodyweight' && sessions[1] && anyBelow(last.sets, range) && anyBelow(sessions[1].sets, range)) {
     kind = 'reset';
-    value = value === null ? null : resetWeight(loadKind, value, setup);
+    // A stack resets its total resistance (pin + added); only the pin moves (PLAN 1.7i).
+    value = value === null ? null : resetWeight(loadKind, value, setup, added);
     repsFor = () => range[1];
     reason = RESET;
   } else {
@@ -201,7 +207,7 @@ export function progress(input: ProgressionInput): Progression {
   const load = value === null ? null : loadAt(loadKind, value, setup, added);
   if (load && converted && loadKind !== 'bodyweight') {
     kind = 'converted';
-    reason = `≈ ${formatWeight(pickedWeight(load)!, unit)}, last time ${formatWeight(picked, ref.unit)}`;
+    reason = `≈ ${formatWeight(loadKind === 'stack' ? load.total : pickedWeight(load)!, unit)}, last time ${formatWeight(quoted, ref.unit)}`;
   }
   if (!load) reason = noLoadReason(loadKind, setup);
 

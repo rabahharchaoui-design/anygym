@@ -3,7 +3,8 @@
 // transaction over every table: if anything throws, nothing changes.
 import { version } from '../../package.json';
 import { buildBackup, isActiveSession, keyOf, TABLE_NAMES, type Backup, type BackupTables, type TableName } from '../lib/backup';
-import { exportDrafts, replaceDrafts } from '../lib/drafts';
+import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob } from '../lib/drafts';
+import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { Profile } from './types';
@@ -42,17 +43,28 @@ async function refuseIfActive(db: AnyGymDB): Promise<void> {
 export type RestoreResult = { workouts: number; sets: number };
 
 /**
- * Replace everything: clear every table, then write the backup's records as they are. The drafts
- * are written once the transaction has committed (localStorage is not part of it).
+ * The restored drafts, stored durably INSIDE the restore transaction (PLAN 1.7i): the IndexedDB
+ * copy of anygym-drafts (lib/durable.ts). If it cannot be written the whole restore rolls back;
+ * once it committed, localStorage is filled from it (and if localStorage refuses, the next start
+ * puts the durable copy back), so a restore never reports success with drafts only in memory.
+ */
+async function storeDraftsDurably(db: AnyGymDB, blob: DraftsBlob): Promise<void> {
+  await db.kv.put(durableRow(DRAFTS_KEY, draftsValue(blob)));
+}
+
+/**
+ * Replace everything: clear every table, then write the backup's records as they are, and the
+ * backup's drafts durably, all in one transaction. localStorage is filled once it committed.
  */
 export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, drafts: DraftStorage = undefined): Promise<RestoreResult> {
-  const result = await db.transaction('rw', tablesOf(db), async () => {
+  const result = await db.transaction('rw', [...tablesOf(db), db.kv], async () => {
     await refuseIfActive(db);
     for (const t of TABLE_NAMES) await db.table(t).clear();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
       if (rows.length) await db.table(t).bulkAdd(rows);
     }
+    await storeDraftsDurably(db, backup.drafts);
     return { workouts: backup.tables.sessions.length, sets: backup.tables.sets.length };
   });
   replaceDrafts(backup.drafts, drafts);
@@ -67,7 +79,7 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
  * when the phone already has an active gym.
  */
 export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, drafts: DraftStorage = undefined): Promise<RestoreResult> {
-  const result = await db.transaction('rw', tablesOf(db), async () => {
+  const result = await db.transaction('rw', [...tablesOf(db), db.kv], async () => {
     await refuseIfActive(db);
     const added = new Set<string>();
     for (const s of backup.tables.sessions) {
@@ -81,22 +93,21 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
       if ((t === 'profile' || t === 'planState') && (await db.table(t).count()) > 0) continue;
       const table = db.table(t);
       const have = new Set((await table.toArray()).map((r: Record<string, unknown>) => keyOf(t, r)));
-      const perSession = t === 'sets' || t === 'orderCounters' || t === 'submissions' || t === 'tombstones';
+      const perSession = t === 'sets' || t === 'orderCounters' || t === 'submissions' || t === 'tombstones' || t === 'journal';
       let fresh = rows.filter((r) => !have.has(keyOf(t, r)) && (!perSession || added.has(r.sessionId as string)));
       // The phone keeps its own active gym: added gyms come in inactive.
       if (t === 'gyms' && (await db.gyms.filter((g) => g.isActive).count()) > 0) fresh = fresh.map((g) => ({ ...g, isActive: false }));
       if (fresh.length) await table.bulkAdd(fresh);
       if (t === 'sets') sets = fresh.length;
     }
-    return { workouts: added.size, sets, added: [...added] };
+    // Drafts of the workouts it added come along (the phone has none for them: they were not
+    // here), stored durably in this same transaction (PLAN 1.7i).
+    const incoming = Object.entries(backup.drafts).filter(([id]) => added.has(id));
+    const next = incoming.length ? { ...exportDrafts(drafts), ...Object.fromEntries(incoming) } : null;
+    if (next) await storeDraftsDurably(db, next);
+    return { workouts: added.size, sets, next };
   });
-  // Drafts of the workouts it added come along (the phone has none for them: they were not here).
-  const incoming = Object.entries(backup.drafts).filter(([id]) => result.added.includes(id));
-  if (incoming.length) {
-    const have = exportDrafts(drafts);
-    const next = { ...have, ...Object.fromEntries(incoming) };
-    replaceDrafts(next, drafts);
-  }
+  if (result.next) replaceDrafts(result.next, drafts);
   resetStartDb();
   return { workouts: result.workouts, sets: result.sets };
 }

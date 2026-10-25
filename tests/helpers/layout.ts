@@ -207,3 +207,207 @@ export async function matrixShot(page: Page, name: string) {
   if (!process.env.SHOTS_112) return;
   await page.screenshot({ path: `reports/shots/1.12/${name}-${test.info().project.name.replace(/ /g, '-')}.png` });
 }
+
+// ---------------------------------------------------------------- active workout (SPEC 13.5)
+
+/** What an active workout must show on one screen: [name, CSS selector]. */
+export type ActivePart = [name: string, selector: string];
+
+/** The title, the current row, its reps (or hold) and its ✓ (PLAN 1.7i (9)). */
+export const ACTIVE_PARTS: ActivePart[] = [
+  ['title', 'main[data-testid^="exercise-"] h2'],
+  ['current row', '[data-state="current"]'],
+  ['reps', '[data-state="current"] [data-testid="reps-cell"], [data-state="current"] [data-testid="hold-cell"]'],
+  ['✓', '[data-testid="check-current"]'],
+];
+
+/**
+ * Runs in the page and never scrolls anything: each part's FULL box must be inside the safe area,
+ * inside every ancestor that clips it (a row scrolled below the fold of the table is cut off), and
+ * on top at its middle (nothing covers it). Every scroll position must be the same afterwards.
+ */
+function inspectActive([insets, parts]: [Insets, ActivePart[]]): string[] {
+  const W = innerWidth;
+  const H = innerHeight;
+  const scrolls = () => [document.scrollingElement, ...document.querySelectorAll('*')].map((e) => (e ? `${e.scrollTop},${e.scrollLeft}` : '')).join('|');
+  const before = scrolls();
+  const problems: string[] = [];
+  for (const [name, sel] of parts) {
+    const el = document.querySelector(sel);
+    if (!el) {
+      problems.push(`${name}: not on the screen (${sel})`);
+      continue;
+    }
+    const r = el.getBoundingClientRect();
+    const at = `${name} ${Math.round(r.left)},${Math.round(r.top)}..${Math.round(r.right)},${Math.round(r.bottom)}`;
+    if (r.width === 0 || r.height === 0) {
+      problems.push(`${at} has no size`);
+      continue;
+    }
+    if (r.top < insets.top - 0.5 || r.bottom > H - insets.bottom + 0.5 || r.left < insets.left - 0.5 || r.right > W - insets.right + 0.5) {
+      problems.push(`${at} is not fully inside the screen's safe area ${insets.left},${insets.top}..${W - insets.right},${H - insets.bottom} (it needs scrolling)`);
+      continue;
+    }
+    let cut = false;
+    for (let p = el.parentElement; p && !cut; p = p.parentElement) {
+      const s = getComputedStyle(p);
+      const q = p.getBoundingClientRect();
+      if (s.overflowY !== 'visible' && (r.top < q.top - 1 || r.bottom > q.bottom + 1)) cut = true;
+      if (s.overflowX !== 'visible' && (r.left < q.left - 1 || r.right > q.right + 1)) cut = true;
+      if (cut) problems.push(`${at} is cut off by ${p.tagName.toLowerCase()}.${String(p.className).slice(0, 30)} ${Math.round(q.top)}..${Math.round(q.bottom)} (scrolled out of view)`);
+    }
+    if (cut) continue;
+    const top = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+    if (!top || !(top === el || el.contains(top) || top.contains(el))) problems.push(`${at} is covered by ${top?.tagName.toLowerCase()}.${String(top?.className ?? '').slice(0, 30)}`);
+  }
+  if (scrolls() !== before) problems.push('the check moved a scroll position');
+  return problems;
+}
+
+/** The problems of the active workout as it is now (no scrolling, see inspectActive). */
+export async function activeWorkoutProblems(page: Page, parts: ActivePart[] = ACTIVE_PARTS): Promise<string[]> {
+  return page.evaluate(inspectActive, [insetsOf(), parts] as [Insets, ActivePart[]]);
+}
+
+/**
+ * SPEC 13.5 on this phone, BEFORE anything scrolls: the exercise title, the current row, its reps
+ * and its ✓ are fully on the screen, uncut and uncovered (call right after opening the workout or
+ * starting rest, before checkLayout, which scrolls controls into view).
+ */
+export async function checkActiveWorkout(page: Page) {
+  // Springs settled: the parts stay put for 150 ms.
+  await page
+    .waitForFunction(
+      (sels) =>
+        new Promise<boolean>((resolve) => {
+          const at = () => sels.map((s) => document.querySelector(s)?.getBoundingClientRect()).map((r) => (r ? `${r.x},${r.y},${r.width},${r.height}` : '-')).join('|');
+          const a = at();
+          setTimeout(() => resolve(at() === a), 150);
+        }),
+      ACTIVE_PARTS.map(([, s]) => s),
+      { timeout: 4000 },
+    )
+    .catch(() => {});
+  expect(await activeWorkoutProblems(page), 'SPEC 13.5: title, current row, reps and ✓ on one screen with no scrolling').toEqual([]);
+}
+
+// ---------------------------------------------------------------- controls (SPEC 13.3)
+
+/**
+ * Runs in the page: every visible control (in the top sheet when one is open) has a non empty
+ * accessible name, and every enabled one a reachable hit area of at least 48 × 48: scrolled into
+ * view, its middle and the four edge midpoints of a 48 px square around it all hit the control
+ * itself (its padding and pseudo elements count, a neighbour or an overlay does not). Scroll positions are put back.
+ */
+function auditControls([scopeSel]: [string | null]): string[] {
+  const visible = (el: Element) => {
+    for (let e: Element | null = el; e; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
+    }
+    return true;
+  };
+  const textOf = (el: Element): string => {
+    let out = '';
+    for (const n of el.childNodes) {
+      if (n.nodeType === Node.TEXT_NODE) out += n.textContent ?? '';
+      else if (n instanceof Element && n.getAttribute('aria-hidden') !== 'true') {
+        out += n instanceof HTMLImageElement ? (n.alt ?? '') : n.getAttribute('aria-label') ?? textOf(n);
+      }
+    }
+    return out;
+  };
+  const nameOf = (el: Element): string => {
+    const by = el.getAttribute('aria-labelledby');
+    if (by) {
+      const t = by.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
+      if (t) return t;
+    }
+    const aria = el.getAttribute('aria-label')?.trim();
+    if (aria) return aria;
+    if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+      const labels = [...(el.labels ?? [])].map((l) => l.textContent ?? '').join(' ').trim();
+      if (labels) return labels;
+      if ('placeholder' in el && el.placeholder) return el.placeholder;
+    }
+    const text = textOf(el).trim();
+    if (text) return text;
+    return el.getAttribute('title')?.trim() ?? '';
+  };
+  const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible);
+  const root = scopeSel ? [...document.querySelectorAll(scopeSel)].pop() ?? document.body : dialogs.length ? dialogs[dialogs.length - 1]! : document.body;
+  const controls = [
+    ...root.querySelectorAll<HTMLElement>(
+      'button, a[href], input:not([type="hidden"]), select, textarea, [role="button"], [role="link"], [role="radio"], [role="tab"], [role="slider"], [role="option"], [role="switch"], [role="checkbox"]',
+    ),
+  ].filter((el) => visible(el) && !el.closest('[inert]') && el.getBoundingClientRect().width > 0);
+  const label = (el: Element) => `${el.tagName.toLowerCase()}${el.getAttribute('data-testid') ? `[${el.getAttribute('data-testid')}]` : ''}.${String(el.className).split(' ')[0]?.slice(0, 24)} "${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 30)}"`;
+  const saved = new Map<HTMLElement, [number, number, string]>();
+  const problems: string[] = [];
+  try {
+    for (const el of controls) {
+      if (!nameOf(el)) problems.push(`${label(el)} has no accessible name`);
+      if ((el as HTMLButtonElement).disabled || getComputedStyle(el).pointerEvents === 'none') continue;
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const s = getComputedStyle(p);
+        if (/(auto|scroll)/.test(s.overflowY + s.overflowX) && !saved.has(p)) {
+          saved.set(p, [p.scrollTop, p.scrollLeft, p.style.scrollBehavior]);
+          p.style.scrollBehavior = 'auto';
+        }
+      }
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' as ScrollBehavior });
+      const r = el.getBoundingClientRect();
+      const cx = (r.left + r.right) / 2;
+      const cy = (r.top + r.bottom) / 2;
+      // The edges of a 48 px target around the middle (a 48 px round button reaches all four; its
+      // rounded corners are not part of any shape's extent).
+      const misses = [
+        [cx, cy],
+        [cx - 23.5, cy],
+        [cx + 23.5, cy],
+        [cx, cy - 23.5],
+        [cx, cy + 23.5],
+      ]
+        // A layer that hands plain taps on to what is under it (the edge swipe strip) is looked through.
+        .map(([x, y]) => document.elementsFromPoint(x!, y!).find((e) => !e.closest('[data-tap-through]')) ?? null)
+        .filter((hit) => !hit || !(hit === el || el.contains(hit)));
+      if (misses.length) {
+        const hit = misses[0];
+        const h = hit?.getBoundingClientRect();
+        problems.push(
+          `${label(el)} ${Math.round(r.width)}×${Math.round(r.height)} at ${Math.round(r.top)}..${Math.round(r.bottom)}: its hit area is smaller than 48 × 48 (${misses.length} of 5 probe points hit ${hit ? `${hit.tagName.toLowerCase()}.${String(hit.className).split(' ')[0]?.slice(0, 24)} ${Math.round(h!.top)}..${Math.round(h!.bottom)}` : 'nothing'})`,
+        );
+      }
+    }
+  } finally {
+    for (const [sc, [top, left, behavior]] of saved) {
+      sc.scrollTop = top;
+      sc.scrollLeft = left;
+      sc.style.scrollBehavior = behavior;
+    }
+  }
+  return problems;
+}
+
+/** The control problems of the screen as it is now (see auditControls). */
+export async function controlProblems(page: Page, scope?: string): Promise<string[]> {
+  return page.evaluate(auditControls, [scope ?? null] as [string | null]);
+}
+
+/** SPEC 13.3 on this screen: every control is named and has a 48 × 48 hit area. */
+export async function checkControls(page: Page, scope?: string) {
+  // Staggered entrances wait still before they move: every control must hold its place for 600 ms.
+  await page
+    .waitForFunction(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const at = () => [...document.querySelectorAll('button, a[href], [role="radio"], [role="option"]')].map((e) => { const r = e.getBoundingClientRect(); return `${r.x},${r.y},${r.width},${r.height}`; }).join('|');
+          const a = at();
+          setTimeout(() => resolve(at() === a), 600);
+        }),
+      null,
+      { timeout: 6000 },
+    )
+    .catch(() => {});
+  expect(await controlProblems(page, scope), 'every control has an accessible name and a 48 × 48 hit area').toEqual([]);
+}
