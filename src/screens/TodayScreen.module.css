@@ -235,6 +235,12 @@
 .pipRing {
   width: 14px;
   height: 14px;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+/* Up next and part done (PLAN 2.0a): the ring keeps the up next lift. */
+.dayDot[data-state='next'] .pipRing {
+  transform: scale(1.15);
 }
 
 .pipLabel {

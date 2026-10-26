@@ -244,7 +244,7 @@ test('d. dumbbell sheet first open: the hint is below the wheel and overlaps not
   expect(errors).toEqual([]);
 });
 
-test('f. partial finish: title, "0 of 16 exercises finished · 1 started", first row above pinned choices at 360x640', async ({ page }) => {
+test('f. partial finish: title, "0 of 12 exercises finished · 1 started", first row above the pinned Next up line at 360x640', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 360, height: 640 });
   await usePlan(page);
@@ -257,10 +257,11 @@ test('f. partial finish: title, "0 of 16 exercises finished · 1 started", first
   await expect(loggedRows(view)).toHaveCount(1);
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page.getByTestId('finish-title')).toHaveText('Workout saved · 1 set');
-  await expect(page.getByTestId('finish-progress')).toHaveText('0 of 16 exercises finished · 1 started');
+  // PLAN 2.0a: the 4 stretches are not counted (12 working exercises).
+  await expect(page.getByTestId('finish-progress')).toHaveText('0 of 12 exercises finished · 1 started');
   await page.waitForTimeout(1500);
   const first = (await page.getByTestId('finish-exercise').first().boundingBox())!;
-  const choices = (await page.getByRole('radio', { name: 'Next time: repeat Day 1' }).boundingBox())!;
+  const choices = (await page.getByTestId('finish-next').boundingBox())!;
   expect(first.y).toBeGreaterThanOrEqual(0);
   expect(first.y + first.height).toBeLessThanOrEqual(choices.y);
   const done = (await page.getByRole('button', { name: 'Done', exact: true }).boundingBox())!;

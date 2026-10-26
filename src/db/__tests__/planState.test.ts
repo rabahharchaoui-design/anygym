@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
 import type { Load } from '../types';
-import { advanceAfter, choosePlan, getPlanState, moveOnFrom, setNextDay, weekFor } from '../planState';
+import { applyFinishProgress, choosePlan, getPlanState, NextDayRefusedError, setFinishNextDay, setNextDay, weekFor } from '../planState';
 import { fillPlanDay } from './fillPlanDay';
 import { finishWorkout, getActiveSession, logSet, reopenWorkout, startPlanDay, startWorkout } from '../workouts';
 
@@ -114,8 +114,10 @@ describe('finishing a plan day advances the plan', () => {
     await logOne(quick.id);
     await finishWorkout(quick.id, db);
     expect((await getPlanState(db))!.nextDayIndex).toBe(0);
-    await advanceAfter({ id: 'x', gymId: 'g', planId: 'six-week-volume', dayId: '1', startedAt: 0, imported: false }, db);
-    await advanceAfter({ id: 'x', gymId: 'g', planId: 'five-day-split', dayId: '42', startedAt: 0, imported: false }, db);
+    const all = { share: 1, complete: true };
+    await applyFinishProgress({ id: 'x', gymId: 'g', planId: 'six-week-volume', dayId: '1', startedAt: 0, imported: false }, all, db);
+    await applyFinishProgress({ id: 'x', gymId: 'g', planId: 'five-day-split', dayId: '42', startedAt: 0, imported: false }, all, db);
+    await applyFinishProgress({ id: 'x', gymId: 'g', planId: 'five-day-split', dayId: '1', startedAt: 0, imported: false }, undefined, db);
     expect((await getPlanState(db))!.nextDayIndex).toBe(0);
     expect(await getActiveSession(db)).toBeUndefined();
   });
@@ -164,49 +166,105 @@ describe('finishing a plan day advances the plan', () => {
     expect(await reopenWorkout(s.id, undefined, db)).toBe(false);
   });
 
-  it('a day with exercises left stays up next with a partial ring; "Move on" goes ahead without a tick (1.7e)', async () => {
+  it('below 60% of the working sets the day stays up next with a partial ring (PLAN 2.0a)', async () => {
     await choosePlan('five-day-split', db);
     const s1 = await startPlanDay('gym-1', 'five-day-split', 0, db);
-    await logOne(s1.id);
+    // Classic Day 1: 12 working exercises, 37 working sets. 22 sets = 59.5%: keeps Day 1.
+    expect(await fillPlanDay(db, s1.id, undefined, 22)).toBe(22);
     const r = await finishWorkout(s1.id, db);
-    expect(r).toMatchObject({ saved: true, sets: 1, progress: { done: 0, complete: false } }); // 1 of 4 sets is not done
+    expect(r).toMatchObject({ saved: true, sets: 22, progress: { total: 12, complete: false } });
     const kept = await getPlanState(db);
     expect(kept).toMatchObject({ nextDayIndex: 0, doneDays: [] });
-    expect(kept!.partial![0]).toBeGreaterThan(0);
-    expect(kept!.partial![0]).toBeLessThan(1);
-    // Move on: Day 2 is next, Day 1 keeps its partial ring and gets no tick.
-    expect(await moveOnFrom(s1.id, db)).toBe(true);
-    expect(await getPlanState(db)).toMatchObject({ nextDayIndex: 1, doneDays: [], partial: { 0: kept!.partial![0] } });
-    // Day 2 done in full: its tick, Day 1 still partial.
+    expect(kept!.partial![0]).toBeCloseTo(22 / 37);
+  });
+
+  it('60 to 99% moves on with a partial ring and no tick; 100% earns the tick (PLAN 2.0a)', async () => {
+    await choosePlan('five-day-split', db);
+    const s1 = await startPlanDay('gym-1', 'five-day-split', 0, db);
+    expect(await fillPlanDay(db, s1.id, undefined, 23)).toBe(23); // 62%
+    await finishWorkout(s1.id, db);
+    expect(await getPlanState(db)).toMatchObject({ nextDayIndex: 1, doneDays: [], partial: { 0: 23 / 37 } });
+    // Finishing again never moves it twice.
+    await finishWorkout(s1.id, db);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(1);
+    // Day 2 in full: its tick, Day 1 keeps its partial ring.
     const s2 = await startPlanDay('gym-1', 'five-day-split', 1, db);
-    await logOne(s2.id, 's2');
     await fillPlanDay(db, s2.id);
     await finishWorkout(s2.id, db);
-    expect(await getPlanState(db)).toMatchObject({ nextDayIndex: 2, doneDays: [1], partial: { 0: kept!.partial![0] } });
-    // Day 1 again, finished in full: tick, and its partial ring goes.
-    await setNextDay(0, db);
-    const s3 = await startPlanDay('gym-1', 'five-day-split', 0, db);
-    await fillPlanDay(db, s3.id);
-    await finishWorkout(s3.id, db);
-    const full = await getPlanState(db);
-    expect(full).toMatchObject({ nextDayIndex: 1, doneDays: [0, 1] });
-    expect(full!.partial).toBeUndefined();
-    // The last day kept partial, then Move on wraps: the pass starts over, nothing carried.
+    expect(await getPlanState(db)).toMatchObject({ nextDayIndex: 2, doneDays: [1], partial: { 0: 23 / 37 } });
+    // The last day at 80% wraps to Day 1: the pass starts over, nothing carried.
     await setNextDay(4, db);
     const s5 = await startPlanDay('gym-1', 'five-day-split', 4, db);
-    await logOne(s5.id, 's5');
-    await finishWorkout(s5.id, db);
-    expect((await getPlanState(db))!.nextDayIndex).toBe(4);
-    await moveOnFrom(s5.id, db);
+    await fillPlanDay(db, s5.id, undefined, 20); // 20 of 27
+    const r5 = await finishWorkout(s5.id, db);
+    if (!r5.saved || !r5.progress) throw new Error('no progress');
+    expect(r5.progress.share).toBeGreaterThanOrEqual(0.6);
+    expect(r5.progress.complete).toBe(false);
     const wrapped = await getPlanState(db);
-    expect(wrapped).toMatchObject({ nextDayIndex: 0, doneDays: [] });
+    expect(wrapped).toMatchObject({ nextDayIndex: 0, doneDays: [], weekIndex: 0 });
     expect(wrapped!.partial).toBeUndefined();
-    // Nothing to move for a quick workout or a missing session.
-    const quick = await startWorkout('gym-1', db);
-    await logOne(quick.id, 'q');
-    await finishWorkout(quick.id, db);
-    expect(await moveOnFrom(quick.id, db)).toBe(false);
-    expect(await moveOnFrom('missing', db)).toBe(false);
+  });
+
+  it('a session below 60% repeats even when an earlier pass of the day had more', async () => {
+    await choosePlan('five-day-split', db);
+    await db.planState.update('active', { partial: { 0: 0.9 } });
+    const s = await startPlanDay('gym-1', 'five-day-split', 0, db);
+    await fillPlanDay(db, s.id, undefined, 5);
+    await finishWorkout(s.id, db);
+    expect(await getPlanState(db)).toMatchObject({ nextDayIndex: 0, partial: { 0: 0.9 } });
+  });
+
+  it('Undo after a moved on finish restores the day, week, ticks and partial marks exactly', async () => {
+    await choosePlan('five-day-split', db);
+    await db.planState.update('active', { doneDays: [3], partial: { 2: 0.4 }, nextDayIndex: 0 });
+    const before = await getPlanState(db);
+    const s = await startPlanDay('gym-1', 'five-day-split', 0, db);
+    await fillPlanDay(db, s.id, undefined, 30);
+    await finishWorkout(s.id, db);
+    expect(await getPlanState(db)).toMatchObject({ nextDayIndex: 1, doneDays: [3], partial: { 0: 30 / 37, 2: 0.4 } });
+    await setFinishNextDay(s.id, 3, db);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(3);
+    expect(await reopenWorkout(s.id, before, db)).toBe(true);
+    expect(await getPlanState(db)).toEqual(before);
+  });
+
+  it('setFinishNextDay: only a finished workout of the active plan, a real day, no workout in progress', async () => {
+    await choosePlan('six-week-volume', db);
+    await setNextDay(4, db);
+    const s = await startPlanDay('gym-1', 'six-week-volume', 4, db);
+    // Still active: refused.
+    await expect(setFinishNextDay(s.id, 2, db)).rejects.toBeInstanceOf(NextDayRefusedError);
+    await fillPlanDay(db, s.id);
+    await finishWorkout(s.id, db);
+    expect(await getPlanState(db)).toMatchObject({ nextDayIndex: 0, weekIndex: 1 });
+    // Change keeps the week Finish moved to.
+    expect(await setFinishNextDay(s.id, 2, db)).toMatchObject({ nextDayIndex: 2, weekIndex: 1 });
+    for (const bad of [-1, 5, 1.5, NaN]) await expect(setFinishNextDay(s.id, bad, db)).rejects.toBeInstanceOf(NextDayRefusedError);
+    await expect(setFinishNextDay('missing', 1, db)).rejects.toBeInstanceOf(NextDayRefusedError);
+    // Another workout in progress: refused.
+    const other = await startWorkout('gym-1', db);
+    await expect(setFinishNextDay(s.id, 1, db)).rejects.toBeInstanceOf(NextDayRefusedError);
+    await logOne(other.id, 'o1');
+    await finishWorkout(other.id, db);
+    // A quick workout has no plan day.
+    await expect(setFinishNextDay(other.id, 1, db)).rejects.toBeInstanceOf(NextDayRefusedError);
+    // Another plan is active now: never touched.
+    await choosePlan('five-day-split', db);
+    await expect(setFinishNextDay(s.id, 1, db)).rejects.toBeInstanceOf(NextDayRefusedError);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(0);
+  });
+
+  it('a failed plan write rolls Finish back: the workout stays active and the plan unchanged', async () => {
+    await choosePlan('five-day-split', db);
+    const before = await getPlanState(db);
+    const s = await startPlanDay('gym-1', 'five-day-split', 0, db);
+    await fillPlanDay(db, s.id);
+    const put = db.planState.put.bind(db.planState);
+    db.planState.put = (() => Promise.reject(new Error('disk full'))) as unknown as typeof db.planState.put;
+    await expect(finishWorkout(s.id, db)).rejects.toThrow();
+    db.planState.put = put;
+    expect((await db.sessions.get(s.id))!.endedAt).toBeUndefined();
+    expect(await getPlanState(db)).toEqual(before);
   });
 
   it('a second partial finish of the same day keeps the larger share; a weekly plan day keeps its week', async () => {

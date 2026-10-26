@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { barbellLoad, formatSetLine } from '../load';
+import { barbellLoad, formatSetLine, machineBase, plateMachineLoad, sumLoad } from '../load';
+import { lastTimeCell, savedCells } from '../setTable';
 
 describe('barbellLoad', () => {
   it('bar + 2 × plates + collars, stored with its breakdown', () => {
@@ -32,5 +33,23 @@ describe('formatSetLine', () => {
     expect(formatSetLine({ seconds: 30 })).toBe('30 s');
     expect(formatSetLine({ reps: 6 })).toBe('6 reps');
     expect(formatSetLine({ load: { kind: 'stack', unit: 'lb', total: 50 } })).toBe('0 × 50 lb');
+  });
+});
+
+describe('plate loaded machine lines show the real total (PLAN 2.0a, SPEC 5.4)', () => {
+  it('start + 2 × plates per side, never one plate', () => {
+    const legPress = plateMachineLoad(machineBase(50), [25], 'lb')!;
+    expect(sumLoad({ bar: 50, perSide: [25], unit: 'lb' }).total).toBe(100);
+    expect(legPress).toMatchObject({ kind: 'plate_machine', total: 100, barWeight: 50, perSide: [25] });
+    // Finish screen and History detail.
+    expect(formatSetLine({ reps: 8, load: legPress })).toBe('8 × 100 lb');
+    // Saved row and LAST TIME cell on the exercise view.
+    expect(savedCells({ reps: 8, load: legPress }, 'plate_machine', 'lb').weight).toBe('100');
+    expect(lastTimeCell({ reps: 8, load: legPress, kind: 'work' } as never)).toBe('8 × 100');
+    // Plates only: just the plates, both sides.
+    expect(formatSetLine({ reps: 8, load: plateMachineLoad(0, [25], 'lb')! })).toBe('8 × 50 lb');
+    expect(formatSetLine({ reps: 10, load: plateMachineLoad(40, [20, 10], 'kg')! })).toBe('10 × 100 kg');
+    // An unknown starting weight is never a guessed load.
+    expect(plateMachineLoad(machineBase(null), [25], 'lb')).toBeNull();
   });
 });

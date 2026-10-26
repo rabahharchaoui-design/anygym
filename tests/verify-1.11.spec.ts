@@ -143,8 +143,13 @@ test('V2 real session untouched by import and Undo, imported sort before real', 
   await page.goto('./#/settings');
   await page.getByTestId('import-file').setInputFiles(FIXTURE);
   await expect(page.getByTestId('import-summary')).toBeVisible();
-  for (let i = 0; i < 6 && /^Answer/.test(await page.getByTestId('import-confirm').innerText()); i++) {
-    await page.getByTestId('import-confirm').tap();
+  // The review settles first: the button reads "Checking…" (disabled) until the existing history has loaded.
+  const confirmBtn = page.getByTestId('import-confirm');
+  await expect(confirmBtn).toBeEnabled();
+  await expect(confirmBtn).toHaveText(/^(Answer \d+ questions?|Import \d+ sets?)$/);
+  for (let i = 0; i < 6 && /^Answer/.test(await confirmBtn.innerText()); i++) {
+    await expect(confirmBtn).toBeEnabled();
+    await confirmBtn.tap();
     const kind = page.getByRole('dialog', { name: 'How do you load this?' });
     const pick = page.getByRole('dialog', { name: 'Pick the exercise' });
     await expect(kind.or(pick)).toBeVisible();
@@ -190,14 +195,21 @@ test('V3 undo removes exactly imported, real kept', async ({ page }) => {
   await page.reload();
   await page.getByTestId('import-file').setInputFiles(FIXTURE);
   await expect(page.getByTestId('import-summary')).toBeVisible();
-  for (let i = 0; i < 6 && /^Answer/.test(await page.getByTestId('import-confirm').innerText()); i++) {
-    await page.getByTestId('import-confirm').tap();
+  // The review settles first: the button reads "Checking…" (disabled) until the existing history has loaded.
+  const confirmBtn = page.getByTestId('import-confirm');
+  await expect(confirmBtn).toBeEnabled();
+  await expect(confirmBtn).toHaveText(/^(Answer \d+ questions?|Import \d+ sets?)$/);
+  for (let i = 0; i < 6 && /^Answer/.test(await confirmBtn.innerText()); i++) {
+    await expect(confirmBtn).toBeEnabled();
+    await confirmBtn.tap();
     const kind = page.getByRole('dialog', { name: 'How do you load this?' });
     const pick = page.getByRole('dialog', { name: 'Pick the exercise' });
     await expect(kind.or(pick)).toBeVisible();
     if (await kind.isVisible()) await kind.getByRole('button', { name: /Dumbbells/ }).tap();
     else await pick.getByRole('button', { name: /Skip/ }).tap();
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    // Let the plan recompute before reading the button again.
+    await expect(confirmBtn).toBeEnabled();
   }
   // The last answer updates the button a moment later (under load): import only once it says so.
   await expect(page.getByTestId('import-confirm')).toHaveText(/^Import \d+ sets?$/);
