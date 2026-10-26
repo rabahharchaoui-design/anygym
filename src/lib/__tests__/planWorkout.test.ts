@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { planById } from '../../data/plans';
-import { dayProgress, dayWorkout, finisherId, firstOpen, nextCurrent, repRangeOf, restAfter, setLine, targetSecondsOf, type WorkoutEntry } from '../planWorkout';
+import { dayProgress, dayWorkout, doneCounts, finisherId, firstOpen, isStretchName, isWorkingEntry, nextCurrent, repRangeOf, restAfter, setLine, startedCount, targetSecondsOf, type WorkoutEntry } from '../planWorkout';
 
 const split5 = planById('five-day-split')!;
 const sixWeek = planById('six-week-volume')!;
@@ -234,5 +234,55 @@ describe('dayProgress (1.7e: partial days)', () => {
     expect(dayProgress(day, (id) => lifts.find((e) => e.exerciseId === id)?.sets ?? 0).complete).toBe(true);
     expect(dayProgress(day, () => 99).share).toBe(1);
     expect(dayProgress([], () => 1)).toEqual({ done: 0, total: 0, share: 0, complete: false });
+  });
+});
+
+describe('working exercises (PLAN 2.0a)', () => {
+  it('stretches, warm up blocks and finishers are not working exercises; timed holds are', () => {
+    expect(isStretchName('Static Pigeon Stretch')).toBe(true);
+    expect(isStretchName('Stretching Band Row')).toBe(false);
+    const d1 = dayWorkout(split5, 0);
+    expect(d1.filter((e) => !isWorkingEntry(e)).map((e) => e.name)).toEqual([
+      'Static Quadricep Stretch',
+      'Dynamic Hip Flexor Stretch',
+      'Static Proximal Hamstring Stretch',
+      'Static Pigeon Stretch',
+    ]);
+    expect(isWorkingEntry(d1.find((e) => e.name === 'Elbow Plank')!)).toBe(true);
+    const d2 = dayWorkout(split5, 1);
+    expect(d2.filter((e) => !isWorkingEntry(e)).every((e) => e.warmup || e.finisher)).toBe(true);
+  });
+
+  it('Classic Day 1 counts 12 exercises and 37 sets; Day 4 counts 13 and 40', () => {
+    const none = () => 0;
+    const p1 = dayProgress(dayWorkout(split5, 0), none);
+    expect(p1.total).toBe(12);
+    // One set short of 60% (22 of 37) and exactly enough (23 of 37: 62%).
+    const day1 = dayWorkout(split5, 0).filter(isWorkingEntry);
+    expect(day1.reduce((a, e) => a + e.sets, 0)).toBe(37);
+    expect(dayProgress(dayWorkout(split5, 3), none).total).toBe(13);
+    expect(dayWorkout(split5, 3).filter(isWorkingEntry).reduce((a, e) => a + e.sets, 0)).toBe(40);
+  });
+
+  it('stretches and warm ups add nothing; extra sets never make up for skipped ones', () => {
+    const d1 = dayWorkout(split5, 0);
+    const stretchesOnly = dayProgress(d1, (id) => (d1.find((e) => e.exerciseId === id)!.name.includes('Stretch') ? 5 : 0));
+    expect(stretchesOnly).toMatchObject({ done: 0, total: 12, share: 0, complete: false });
+    const squatsOnly = dayProgress(d1, (id) => (id === 'barbell-back-squat' ? 30 : 0));
+    expect(squatsOnly.share).toBeCloseTo(4 / 37);
+    expect(squatsOnly.done).toBe(1);
+    const all = dayProgress(d1, (id) => d1.find((e) => e.exerciseId === id)!.sets);
+    expect(all).toMatchObject({ done: 12, share: 1, complete: true });
+    const warmDay = dayWorkout(split5, 1);
+    const warm = warmDay.find((e) => e.warmup)!;
+    const counts = doneCounts(warmDay, [{ exerciseId: warm.exerciseId, kind: 'warmup' }, { exerciseId: 'dumbbell-bench-press', kind: 'warmup' }]);
+    expect(dayProgress(warmDay, (id) => counts[id] ?? 0).share).toBe(0);
+  });
+
+  it('startedCount: working exercises begun but not finished', () => {
+    const d1 = dayWorkout(split5, 0);
+    const done = { 'barbell-back-squat': 4, 'angled-machine-leg-press': 1 };
+    const logged = (id: string) => id in done || id === 'static-pigeon-stretch' || id === 'machine-lying-leg-curl';
+    expect(startedCount(d1, done, logged)).toBe(2); // leg press 1 of 3, leg curl warm up only
   });
 });

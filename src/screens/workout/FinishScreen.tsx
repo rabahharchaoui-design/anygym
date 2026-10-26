@@ -7,10 +7,12 @@ import { finishedDetail, workoutRecords } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
 import { formatSetLine, formatTotal, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
-import { dayProgress, dayWorkout } from '../../lib/planWorkout';
+import { dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
 import { dayIndexOf } from '../../lib/plans';
 import { planById } from '../../data/plans';
-import { moveOnFrom } from '../../db/planState';
+import { getPlanState, setFinishNextDay } from '../../db/planState';
+import { ChangeDaySheet } from '../today/ChangeDaySheet';
+import { dayTitle } from '../plans/planWords';
 import { FADE, GENTLE, STAGGER } from '../../ui/motion';
 import { Button } from '../../ui/Button';
 import { Odometer } from '../../ui/Odometer';
@@ -24,8 +26,10 @@ import styles from './Finish.module.css';
 /**
  * The finish screen (SPEC 21.1, minimal): how long, how many sets, total lifted (when there is
  * any), each exercise with its best set, and records from real history only. A plan day with
- * exercises left reads "Workout saved · 3 sets" with "1 of 16 done" under it, and asks what is up next time
- * (repeat the day, or move on). Done goes back to Today, where "Workout saved" offers Undo.
+ * exercises left reads "Workout saved · 3 sets" with "1 of 12 exercises finished" under it
+ * (working exercises only: no warm ups, stretches or finisher). Finish already moved the plan
+ * (60% of the working sets moves on, PLAN 2.0a); one quiet line above Done says what is up next,
+ * with Change to pick another day. Done goes back to Today, where "Workout saved" offers Undo.
  */
 export function FinishScreen() {
   const { sessionId = '' } = useParams();
@@ -33,8 +37,9 @@ export function FinishScreen() {
   // Where the plan stood just before Finish, for Undo on Today.
   const planBefore = (useLocation().state as { planBefore?: PlanState } | null)?.planBefore;
   const reduce = useReducedMotion();
-  const [moveOn, setMoveOn] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [changeFailed, setChangeFailed] = useState(false);
   const detail = useLive(async () => {
     const d = await finishedDetail(sessionId);
     if (!d) return { d: null, unit: 'lb' as const, records: [] };
@@ -42,6 +47,8 @@ export function FinishScreen() {
     const records = await workoutRecords(sessionId, exerciseNamer(d.session));
     return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records };
   }, [sessionId]);
+  // The plan as Finish left it (read, never written on mount): the next up line shows this, live.
+  const planLive = useLive(() => getPlanState(), []);
 
   if (detail.ready && !detail.error && !detail.data?.d) return <Navigate to="/" replace />;
   const v = detail.data;
@@ -52,27 +59,31 @@ export function FinishScreen() {
   const lifted = d && v ? totalLifted(d.sets.filter((s) => s.kind !== 'warmup'), v.unit) : 0;
   // The workout is saved whether or not this screen could read it back: Done always works, and
   // only claims a set count it actually read (PLAN 1.7f).
-  // A plan day with exercises left (1.7e): "Saved · 1 of 16 done", and the choice of what is up
-  // next. Keep is the default (Finish already left the day up next); Move on goes to the next day.
+  // A plan day: "1 of 12 exercises finished", working exercises only (PLAN 2.0a).
   const plan = d ? planById(d.session.planId) : undefined;
   const dayIndex = plan && d ? dayIndexOf(plan, d.session.dayId) : -1;
-  const progress =
-    plan && d && dayIndex >= 0 ? dayProgress(dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0), (id) => d.sets.filter((x) => x.exerciseId === id && x.kind !== 'warmup').length) : undefined;
   const dayEntries = plan && d && dayIndex >= 0 ? dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0) : [];
-  // Exercises of the day with a set logged (a warm up too) that are not finished yet.
-  const started = progress && d ? dayEntries.filter((e) => !e.warmup && !e.finisher && d.sets.some((x) => x.exerciseId === e.exerciseId) && d.sets.filter((x) => x.exerciseId === e.exerciseId && x.kind !== 'warmup').length < Math.max(1, e.sets)).length : 0;
+  const counted = d ? doneCounts(dayEntries, d.sets) : {};
+  const progress = plan && d && dayIndex >= 0 ? dayProgress(dayEntries, (id) => counted[id] ?? 0) : undefined;
+  // Working exercises with a set logged (a warm up too) that are not finished yet.
+  const started = progress && d ? startedCount(dayEntries, counted, (id) => d.sets.some((x) => x.exerciseId === id)) : 0;
   const plannedOf = (id: string) => dayEntries.find((e) => e.exerciseId === id && !e.warmup)?.sets;
-  const partialDay = !!progress && !progress.complete && planBefore?.planId === plan?.id;
-  const thisDay = plan && dayIndex >= 0 ? plan.days[dayIndex]!.n : 0;
-  const nextDay = plan && dayIndex >= 0 ? plan.days[(dayIndex + 1) % plan.days.length]!.n : 0;
-  const done = async () => {
+  const partialDay = !!progress && !progress.complete;
+  // What is up next: only while this workout's plan is still the active one (never another plan).
+  const state = planLive.data;
+  const nextDay = plan && state && state.planId === plan.id && dayIndex >= 0 ? plan.days[state.nextDayIndex] : undefined;
+  const pickNext = async (i: number) => {
+    setChanging(false);
+    try {
+      await setFinishNextDay(sessionId, i);
+      setChangeFailed(false);
+    } catch {
+      setChangeFailed(true);
+    }
+  };
+  const done = () => {
     if (saving) return;
     setSaving(true);
-    try {
-      if (partialDay && moveOn) await moveOnFrom(sessionId);
-    } catch {
-      // The workout is saved either way; the day stays up next (the safe default).
-    }
     go('/', { kind: 'fade', replace: true, state: d ? { toast: `Workout saved · ${setCount(d.sets.length)}`, undo: { sessionId, planBefore } } : null });
   };
   const loading = !detail.error && (!d || !v);
@@ -105,7 +116,7 @@ export function FinishScreen() {
               <h1 className={styles.title} data-testid="finish-title">
                 {partialDay ? `Workout saved · ${setCount(d.sets.length)}` : 'Workout saved'}
               </h1>
-              {progress && (planBefore?.planId === plan?.id || progress.complete) ? (
+              {progress && progress.total > 0 ? (
                 <p className={`${styles.subtitle} num`} data-testid="finish-progress">
                   {progress.done} of {progress.total} exercises finished
                   {started > 0 ? ` · ${started} started` : ''}
@@ -185,27 +196,31 @@ export function FinishScreen() {
       </main>
       {/* Pinned under the scroller (never over it): the summary scrolls above it, every row reachable. */}
       <div className={styles.footer}>
-        {partialDay && (
-          <motion.div className={styles.choiceBlock} {...item(6)}>
-            <div className={styles.choices} role="radiogroup" aria-label="What is up next">
-              <button type="button" role="radio" aria-checked={!moveOn} className={`${styles.choice} pressable`} onClick={() => setMoveOn(false)}>
-                <span className={styles.dot} aria-hidden="true" />
-                Next time: repeat Day {thisDay}
-              </button>
-              <button type="button" role="radio" aria-checked={moveOn} className={`${styles.choice} pressable`} onClick={() => setMoveOn(true)}>
-                <span className={styles.dot} aria-hidden="true" />
-                Next time: move on to Day {nextDay}
-              </button>
-            </div>
-            <p className={styles.choiceHelper} data-testid="finish-choice-helper">
-              {moveOn ? `Today will show Day ${nextDay} next.` : `Today will show Day ${thisDay} again.`}
+        {nextDay && d && (
+          <motion.div
+            className={styles.next}
+            {...(reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
+          >
+            <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
+              Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
             </p>
+            <button type="button" className={`${styles.change} pressable`} onClick={() => setChanging(true)} aria-label={`Change the next day, now Day ${nextDay.n}`} data-testid="finish-change">
+              Change
+            </button>
           </motion.div>
         )}
-        <Button onClick={() => void done()} disabled={loading || saving}>
+        {changeFailed && (
+          <p className={styles.nextError} role="status">
+            Could not change the day. Try again.
+          </p>
+        )}
+        <Button onClick={done} disabled={loading || saving}>
           Done
         </Button>
       </div>
+      {plan && state && nextDay && (
+        <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={plan} state={state} onPick={(i) => void pickNext(i)} title="Which day next?" />
+      )}
     </div>
   );
 }

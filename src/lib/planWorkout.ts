@@ -262,16 +262,33 @@ export function upNext(entries: WorkoutEntry[], done: DoneCounts, lastLogged?: s
 /** How much of a plan day a finished workout covered (Today's week strip, the finish screen). */
 export type DayProgress = { done: number; total: number; share: number; complete: boolean };
 
+/** A stretch: the plan's name says so as a whole word ("Static Pigeon Stretch"; never "Stretching band row"). */
+export const isStretchName = (name: string): boolean => /\bstretch\b/i.test(name);
+
 /**
- * The day's lifts are its exercises that are not warm ups or the cardio finisher. `done` counts
- * those with every planned set logged (1 of 4 is not done); `share` is sets logged over sets
- * planned (0 to 1); `complete` (the full tick on Today) only when every lift is done, the same
- * rule as the finish screen.
+ * A working exercise of the day (PLAN 2.0a): not a warm up block, not a stretch, not the cardio
+ * finisher. Only these count toward "1 of 12 exercises finished" and the share that decides the
+ * next day. Timed working holds (a plank) do count.
+ */
+export function isWorkingEntry(entry: Pick<WorkoutEntry, 'warmup' | 'finisher' | 'name'>): boolean {
+  return !entry.warmup && !entry.finisher && !isStretchName(entry.name);
+}
+
+/**
+ * The day's working exercises (isWorkingEntry). `done` counts those with every planned set logged
+ * (1 of 4 is not done); `share` is working sets logged over working sets planned (0 to 1), each
+ * exercise capped at its plan so extra sets never make up for skipped ones; `complete` (the full
+ * tick on Today) only when every working exercise is done.
  */
 export function dayProgress(entries: readonly WorkoutEntry[], setsOf: (exerciseId: string) => number): DayProgress {
-  const lifts = entries.filter((e) => !e.warmup && !e.finisher);
+  const lifts = entries.filter(isWorkingEntry);
   const planned = lifts.reduce((a, e) => a + Math.max(1, e.sets), 0);
   const logged = lifts.reduce((a, e) => a + Math.min(Math.max(1, e.sets), setsOf(e.exerciseId)), 0);
   const done = lifts.filter((e) => setsOf(e.exerciseId) >= Math.max(1, e.sets)).length;
   return { done, total: lifts.length, share: planned ? logged / planned : 0, complete: lifts.length > 0 && done === lifts.length };
+}
+
+/** Working exercises with a set logged (a warm up set too) that are not finished yet: "· 2 started". */
+export function startedCount(entries: readonly WorkoutEntry[], done: DoneCounts, logged: (exerciseId: string) => boolean): number {
+  return entries.filter((e) => isWorkingEntry(e) && logged(e.exerciseId) && (done[e.exerciseId] ?? 0) < Math.max(1, e.sets)).length;
 }

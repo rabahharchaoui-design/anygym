@@ -12,15 +12,17 @@ type Props = {
   onPick: (dayIndex: number) => void;
   /** Opened from a week pip: that day is picked out (one tap to confirm). */
   picked?: number;
+  /** The question on top; Today asks "Which day today?", the finish screen "Which day next?". */
+  title?: string;
 };
 
-/** "Change day": pick which plan day Start opens. */
-export function ChangeDaySheet({ open, onClose, plan, state, onPick, picked }: Props) {
+/** "Change day": pick which plan day Start opens (Today, and the finish screen's Change). */
+export function ChangeDaySheet({ open, onClose, plan, state, onPick, picked, title = 'Which day today?' }: Props) {
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
   return (
     <Sheet open={open} onClose={onClose} label="Change day" scroll>
       <div className={styles.sheetBody}>
-        <h2 className={styles.sheetTitle}>Which day today?</h2>
+        <h2 className={styles.sheetTitle}>{title}</h2>
         <div className={styles.dayChoices}>
           {plan.days.map((d, i) => (
             <button

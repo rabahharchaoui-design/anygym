@@ -48,11 +48,13 @@ export function DayCard({ plan, state, onStart, onChangeDay, active }: Props) {
           {plan.days.map((d, i) => {
             const share = state.partial?.[i];
             const status = i === dayIndex ? 'next' : done.has(i) ? 'done' : share !== undefined ? 'partial' : 'todo';
-            const words = status === 'next' ? (active ? ', in progress' : ', up next') : status === 'done' ? ', done' : status === 'partial' ? ', part done' : '';
+            // A day kept up next after a part done finish (PLAN 2.0a) is both: up next, with its ring.
+            const ring = share !== undefined && (status === 'partial' || (status === 'next' && !done.has(i)));
+            const words = status === 'next' ? (active ? ', in progress' : ring ? ', up next, part done' : ', up next') : status === 'done' ? ', done' : status === 'partial' ? ', part done' : '';
             const face = (
               <>
-                <span className={styles.pipMark} aria-hidden="true">
-                  {status === 'partial' ? (
+                <span className={styles.pipMark} aria-hidden="true" data-share={ring ? share : undefined}>
+                  {ring ? (
                     // Part done: at least a quarter of the ring shows, so it never reads as empty.
                     <Ring fraction={Math.max(0.25, share ?? 0)} size={14} stroke={7} glideMs={0} className={styles.pipRing} />
                   ) : (

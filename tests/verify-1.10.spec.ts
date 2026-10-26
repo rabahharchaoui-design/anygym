@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { seedWorkingSets, workingSetsOfActive } from './helpers/planSeed';
 import { readFileSync } from 'node:fs';
 
 // Tester for PLAN 1.10: data fidelity of plan viewer + started workout against the JSON.
@@ -252,12 +253,13 @@ const logOneSet = async (page: Page) => {
   throw new Error('no row could be logged');
 };
 const finishDay = async (page: Page) => {
+  // PLAN 2.0a: 60% of the working sets moves the plan on (this flow walks the week).
+  const { planned } = await workingSetsOfActive(page);
+  await seedWorkingSets(page, Math.ceil(planned * 0.6));
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(/\/done$/);
-  // 1.7e: a day with lifts left stays up next unless you move on (this flow walks the week).
   await expect(page.getByTestId('finish-title')).toBeVisible();
-  const move = page.getByRole('radio', { name: /^Next time: move on to Day/ });
-  if (await move.count()) await move.tap();
+  await expect(page.getByTestId('finish-next')).toBeVisible();
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
 };

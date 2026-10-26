@@ -51,7 +51,7 @@ test('1 set type sheet: 4 choices, chip words, stored kinds work/warmup/drop/wor
   expect(errors).toEqual([]);
 });
 
-test('4 partial finish: copy, data identical whichever choice is made', async ({ page }) => {
+test('4 partial finish: copy, one Next up line, data untouched', async ({ page }) => {
   const errors = watchErrors(page);
   await planDay(page);
   await page.getByTestId('row-barbell-back-squat').tap();
@@ -63,10 +63,9 @@ test('4 partial finish: copy, data identical whichever choice is made', async ({
   await page.waitForTimeout(1500);
   await shot(page, 'finish-partial');
   const before = { sets: await mine(page, 'sets'), sessions: (await mine(page, 'sessions')).length };
-  await page.getByRole('radio', { name: 'Next time: move on to Day 2' }).tap();
-  await expect(page.getByTestId('finish-choice-helper')).toContainText('Day 2');
-  await page.getByRole('radio', { name: 'Next time: repeat Day 1' }).tap();
-  await expect(page.getByTestId('finish-choice-helper')).toContainText('Day 1');
+  // PLAN 2.0a: no choices on screen; 1 set keeps Day 1, the line says so, and the sets are untouched.
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
   const after = { sets: await mine(page, 'sets'), sessions: (await mine(page, 'sessions')).length };
   expect(after).toEqual(before);
   expect(before.sets).toHaveLength(1);

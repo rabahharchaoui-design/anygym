@@ -9,7 +9,7 @@ import { createLogQueue } from '../../lib/logQueue';
 import { saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
 import { UndoUnresolvedError } from '../../lib/deleteUndo';
 import { markSubmitted, pendingRows, rowKey, slotChanges } from '../../lib/setTable';
-import { dayWorkout } from '../../lib/planWorkout';
+import { dayWorkout, isWorkingEntry } from '../../lib/planWorkout';
 import { planById } from '../../data/plans';
 import { failedRows, prepareFinish, reconcileSession, rowsOf, submitRow, type Deps } from '../../screens/workout/rowLog';
 import { deletesFor, disposeDeletes, recoverSession } from '../../screens/workout/sessionRecovery';
@@ -50,7 +50,7 @@ describe('(3) warm ups never complete a plan day', () => {
   it('a lift done only as warm ups leaves the day partial; its working sets complete it', async () => {
     await choosePlan('five-day-split', db, 1);
     const s = await startPlanDay('g', 'five-day-split', 0, db, 10);
-    const lifts = dayWorkout(planById('five-day-split')!, 0, 0).filter((e) => !e.warmup && !e.finisher);
+    const lifts = dayWorkout(planById('five-day-split')!, 0, 0).filter(isWorkingEntry); // PLAN 2.0a: stretches are not lifts
     let k = 0;
     for (const e of lifts) for (let i = 0; i < e.sets; i++) await logSet({ id: `s${k++}`, sessionId: s.id, exerciseId: e.exerciseId, reps: 8, load: b135, kind: e === lifts[0] ? 'warmup' : 'work' }, db);
     const r = await finishWorkout(s.id, db, 20);

@@ -126,13 +126,16 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   const last = await page.locator('[data-row]').last().getAttribute('data-row');
   expect(last).toBe('finisher-stair-climbing');
   await expect(page.getByRole('main').getByText('Finisher', { exact: true })).toBeVisible();
-  // Sets logged: finishing saves the day (finish screen). Only warm ups were done, so it would stay
-  // up next (1.7e); moving on goes to day 3.
+  // Sets logged: finishing saves the day (finish screen). Only warm ups were done, so it stays up
+  // next (PLAN 2.0a: below 60%); Change picks day 3.
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(/\/done$/);
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
   await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
-  await page.getByRole('radio', { name: 'Next time: move on to Day 3' }).tap();
+  await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 2 · Chest and triceps');
+  await page.getByTestId('finish-change').tap();
+  await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 3 · / }).tap();
+  await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 3 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 3 · Back and biceps/);
@@ -219,9 +222,13 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(page.getByRole('dialog', { name: 'How do you load this?' })).toHaveCount(0);
   await expect(page.getByTestId('exercise-angled-machine-leg-press').getByTestId('set-target')).toHaveText('Set 1 of 3 · 8 to 12 reps');
 
-  // Finish with lifts left: move on; Day 2 is next, Day 1 shows part done (a full tick needs every lift, 1.7e).
+  // Finish with lifts left (4 of 37 sets keeps Day 1, PLAN 2.0a): Change to Day 2; Day 1 shows part
+  // done (a full tick needs every lift, 1.7e).
   await page.getByRole('button', { name: 'Finish' }).tap();
-  await page.getByRole('radio', { name: 'Next time: move on to Day 2' }).tap();
+  await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
+  await page.getByTestId('finish-change').tap();
+  await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 2 · / }).tap();
+  await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 2 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · Chest and triceps · ~\d+ min$/);

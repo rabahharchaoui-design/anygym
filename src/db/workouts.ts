@@ -4,7 +4,7 @@ import { dayIdOf, dayIndexOf } from '../lib/plans';
 import { dayProgress, dayWorkout, doneCounts, type DayProgress } from '../lib/planWorkout';
 import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
-import { advanceAfter, keepPartialDay, weekFor } from './planState';
+import { applyFinishProgress, weekFor } from './planState';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { dropSessionIntents, dropUndoIntent, hasUndoIntent } from './undoIntents';
 import type { Load, PlanState, Session, SetKind, WorkoutSet } from './types';
@@ -291,7 +291,6 @@ export async function setsOf(sessionId: string, db: AnyGymDB = defaultDb): Promi
   return db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
 }
 
-/** `progress`: for a plan day, how much of it was done (a partial day stays up next). */
 /** How much of its plan day a session covered, or undefined for a quick workout or unknown day. */
 async function planProgress(s: Session, db: AnyGymDB): Promise<DayProgress | undefined> {
   const plan = planById(s.planId);
@@ -306,7 +305,7 @@ export type FinishResult = { saved: true; sets: number; progress?: DayProgress }
 
 /**
  * Ends the workout. With sets it is saved (endedAt); with none it is deleted, never kept as an
- * empty session. Finishing twice is safe. A saved plan day moves the plan to the next day.
+ * empty session. Finishing twice is safe. A saved plan day moves the plan on (applyFinishProgress).
  */
 export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<FinishResult> {
   return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions, db.journal, db.kv], async () => {
@@ -341,9 +340,9 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
     const progress = await planProgress(s, db);
     if (s.endedAt === undefined) {
       await db.sessions.put({ ...s, endedAt: now });
-      // A full day moves the plan on; a day with exercises left stays up next (1.7e).
-      if (!progress || progress.complete) await advanceAfter(s, db);
-      else await keepPartialDay(s, progress.share, db);
+      // 60% or more of the day's working sets moves the plan on, less keeps the day (PLAN 2.0a).
+      // Only here, as the workout ends: finishing again never moves it twice.
+      await applyFinishProgress(s, progress, db);
     }
     return progress ? { saved: true, sets: count, progress } : { saved: true, sets: count };
   });

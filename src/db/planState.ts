@@ -1,7 +1,9 @@
 // Where the user is in their curated plan (PLAN 1.10): one planState row, id 'active'.
 // The plans are static JSON (src/data/plans.ts); only this small pointer is stored.
 import { planById } from '../data/plans';
-import { advancePlan, clampWeek, dayIndexOf } from '../lib/plans';
+import { clampWeek, dayIndexOf } from '../lib/plans';
+import { finishPlanPosition } from '../lib/finishPlan';
+import type { DayProgress } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { PlanState, Session } from './types';
 
@@ -45,45 +47,43 @@ export function weekFor(state: PlanState | undefined, planId: string): number {
 }
 
 /**
- * A saved plan workout moves the plan on (call inside a transaction that includes planState):
- * the next day is the one after the day just done, wrapping (and for a weekly table, one week on).
- * A workout from another plan, or with no plan, changes nothing.
+ * A saved plan workout moves the plan (PLAN 2.0a; call inside Finish's transaction, which includes
+ * planState): 60% or more of the day's working sets moves on to the next day, less keeps the day
+ * up next (lib/finishPlan.ts). A workout from another plan, or with no plan, changes nothing.
  */
-export async function advanceAfter(session: Session, db: AnyGymDB): Promise<void> {
+export async function applyFinishProgress(session: Session, progress: Pick<DayProgress, 'share' | 'complete'> | undefined, db: AnyGymDB): Promise<void> {
+  if (!progress) return;
   const at = await planDayOf(session, db);
   if (!at) return;
   const { state, plan, done } = at;
-  const pos = advancePlan(state, done, plan);
-  await db.planState.put(withPartial({ ...state, ...pos }, pos.doneDays.length === 0 ? {} : without(state.partial, done)));
+  const pos = finishPlanPosition(state, plan, done, progress);
+  await db.planState.put(withPartial({ ...state, nextDayIndex: pos.nextDayIndex, weekIndex: pos.weekIndex, doneDays: pos.doneDays }, pos.partial));
+}
+
+/** Why the finish screen's "Change" could not set the next day. */
+export class NextDayRefusedError extends Error {
+  constructor() {
+    super('The next day cannot be changed from this workout');
+    this.name = 'NextDayRefusedError';
+  }
 }
 
 /**
- * A plan day saved with exercises left (1.7e): it stays up next ("Keep Day 1 up next") and its
- * share of planned sets shows as a partial ring. Call inside a transaction with planState.
+ * "Change" on the finish screen (PLAN 2.0a): the day Today opens next, saved at once. Only for a
+ * finished workout of the active plan while no other workout is in progress, and only a real day
+ * of that plan; the week stays as Finish left it. Otherwise NextDayRefusedError and nothing changes.
  */
-export async function keepPartialDay(session: Session, share: number, db: AnyGymDB): Promise<void> {
-  const at = await planDayOf(session, db);
-  if (!at) return;
-  const { state, done } = at;
-  const prev = state.partial?.[done] ?? 0;
-  await db.planState.put(withPartial({ ...state, nextDayIndex: done }, { ...state.partial, [done]: Math.max(prev, Math.min(1, Math.max(0, share))) }));
-}
-
-/**
- * "Move on to Day 2" after a partial day: the plan goes to the next day; the day just done keeps
- * its partial ring, never a full tick. Returns false when there is nothing to move (not the plan's day).
- */
-export async function moveOnFrom(sessionId: string, db: AnyGymDB = defaultDb): Promise<boolean> {
+export async function setFinishNextDay(sessionId: string, dayIndex: number, db: AnyGymDB = defaultDb): Promise<PlanState> {
   return db.transaction('rw', db.sessions, db.planState, async () => {
     const session = await db.sessions.get(sessionId);
-    const at = session ? await planDayOf(session, db) : undefined;
-    if (!at) return false;
-    const { state, plan, done } = at;
-    const pos = advancePlan(state, done, plan);
-    const wrapped = pos.doneDays.length === 0;
-    const doneDays = wrapped ? [] : pos.doneDays.filter((d) => d !== done || state.doneDays.includes(done));
-    await db.planState.put(withPartial({ ...state, ...pos, doneDays }, wrapped ? {} : (state.partial ?? {})));
-    return true;
+    if (!session || session.endedAt === undefined || session.imported) throw new NextDayRefusedError();
+    const active = await db.sessions.filter((s) => s.endedAt === undefined && !s.imported).first();
+    if (active) throw new NextDayRefusedError();
+    const at = await planDayOf(session, db);
+    if (!at || !Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex >= at.plan.days.length) throw new NextDayRefusedError();
+    const next = { ...at.state, nextDayIndex: dayIndex };
+    await db.planState.put(next);
+    return next;
   });
 }
 
@@ -93,12 +93,6 @@ async function planDayOf(session: Session, db: AnyGymDB) {
   if (!state || !plan || state.planId !== plan.id) return undefined;
   const done = dayIndexOf(plan, session.dayId);
   return done === -1 ? undefined : { state, plan, done };
-}
-
-function without(partial: PlanState['partial'], day: number): Record<number, number> {
-  const out = { ...partial };
-  delete out[day];
-  return out;
 }
 
 /** Stores `partial` only when it has entries (older states never had the field). */

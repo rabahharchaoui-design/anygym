@@ -122,7 +122,7 @@ test('finish 1 of 4: Saved 0 done, 1 of 4 sets; Keep keeps Day 1 with a partial 
   expect(errors).toEqual([]);
 });
 
-test('finish with all 4 squat sets counts the squat as done; Go to Day 2 moves on', async ({ page }) => {
+test('finish with all 4 squat sets counts the squat as done; Change to Day 2 moves on', async ({ page }) => {
   const errors = watchErrors(page);
   await startSquat(page);
   await logSquat(page, 4);
@@ -132,7 +132,11 @@ test('finish with all 4 squat sets counts the squat as done; Go to Day 2 moves o
   await expect(title).toHaveText('Workout saved · 4 sets');
   await expect(page.getByTestId('finish-progress')).toHaveText(/^1 of \d+ exercises finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-sets-left')).toHaveCount(0);
-  await page.getByRole('radio', { name: 'Next time: move on to Day 2' }).tap();
+  // PLAN 2.0a: 4 of 37 working sets keeps Day 1; Change picks Day 2.
+  await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
+  await page.getByTestId('finish-change').tap();
+  await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 2 · / }).tap();
+  await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 2 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · /);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');

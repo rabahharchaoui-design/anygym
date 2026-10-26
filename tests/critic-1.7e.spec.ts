@@ -26,7 +26,9 @@ test('Finish → Today: "Workout saved · Undo" reopens the workout and puts the
   // Not every exercise was done: the finish screen says so, and lists the best set.
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
   await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
-  await expect(page.getByRole('radio', { name: 'Next time: repeat Day 1' })).toBeChecked();
+  // PLAN 2.0a: no radios; below 60% the day stays up next, said in one quiet line.
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
   await expect(page.getByTestId('finish-exercise')).toHaveText([/^Barbell Back Squat1 of 4 sets\d+ × \d+ lb$/]);
   await expect(page.getByTestId('finish-duration')).toHaveText('<1 min');
   await page.getByRole('button', { name: 'Done' }).tap();
@@ -334,8 +336,10 @@ test('finish with exercises left: Move on to Day 2, Day 1 keeps a partial pip, n
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
   await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
-  await page.getByRole('radio', { name: 'Next time: move on to Day 2' }).tap();
-  await expect(page.getByRole('radio', { name: 'Next time: move on to Day 2' })).toBeChecked();
+  // PLAN 2.0a: 1 set keeps Day 1; Change picks Day 2 instead.
+  await page.getByTestId('finish-change').tap();
+  await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 2 · / }).tap();
+  await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 2 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · /);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
@@ -476,9 +480,9 @@ test('finish rows: an exercise with sets left reads "1 of 4 sets" and does not c
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
   await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-sets-left')).toHaveText('1 of 4 sets');
-  // Both choices carry a radio dot; the unpicked one is plain white with a hairline.
-  const looks = await page.getByRole('radio').evaluateAll((els) => els.map((e) => ({ dot: !!e.querySelector('[class*="dot"]'), color: getComputedStyle(e).color })));
-  expect(looks.every((l) => l.dot)).toBe(true);
-  expect(looks[1]!.color).toBe('rgb(245, 245, 247)');
+  // PLAN 2.0a: no radio choices; Change is small text with a 48 pt hit area.
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  const change = page.getByTestId('finish-change');
+  await expect.poll(async () => { const b = (await change.boundingBox())!; return Math.min(b.width, b.height); }).toBeGreaterThanOrEqual(48);
   expect(errors).toEqual([]);
 });

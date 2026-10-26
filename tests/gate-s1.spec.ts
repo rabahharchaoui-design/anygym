@@ -247,7 +247,7 @@ test('first time: the helper sits above the table, not under a row', async ({ pa
   expect(errors).toEqual([]);
 });
 
-test('finish with exercises left: "Workout saved · N sets", progress quiet, plain Next time choices with a helper @matrix', async ({ page }) => {
+test('finish with exercises left: "Workout saved · N sets", progress quiet, one Next up line (PLAN 2.0a) @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await dayList(page);
   await page.getByTestId('row-barbell-back-squat').tap();
@@ -258,21 +258,18 @@ test('finish with exercises left: "Workout saved · N sets", progress quiet, pla
   await expect(page.getByTestId('finish-title')).toHaveText('Workout saved · 1 set');
   // Never "1 set" against "0 of 16 done": plain, exact.
   await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished · 1 started$/);
-  // The first exercise row is in full view above the pinned choices and Done.
+  // The first exercise row is in full view above the pinned Next up line and Done.
   const firstRow = (await page.getByTestId('finish-exercise').first().boundingBox())!;
-  const footerTop = (await page.getByRole('radio', { name: 'Next time: repeat Day 1' }).boundingBox())!.y;
+  const footerTop = (await page.getByTestId('finish-next').boundingBox())!.y;
   expect(firstRow.y + firstRow.height).toBeLessThanOrEqual(footerTop);
   const left = page.getByTestId('finish-sets-left').first();
   await expect(left).toHaveText('1 of 4 sets');
   const [leftColor, quiet] = await left.evaluate((el) => [getComputedStyle(el).color, getComputedStyle(document.querySelector('[data-testid="finish-progress"]')!).color]);
   expect(leftColor).toBe(quiet);
-  const repeat = page.getByRole('radio', { name: 'Next time: repeat Day 1' });
-  const move = page.getByRole('radio', { name: 'Next time: move on to Day 2' });
-  await expect(repeat).toBeChecked();
-  await expect(page.getByTestId('finish-choice-helper')).toHaveText('Today will show Day 1 again.');
-  await move.tap();
-  await expect(move).toBeChecked();
-  await expect(page.getByTestId('finish-choice-helper')).toHaveText('Today will show Day 2 next.');
+  // PLAN 2.0a: no radios or helper; 1 set (below 60%) keeps Day 1 up next.
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.getByTestId('finish-choice-helper')).toHaveCount(0);
+  await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
   expect(errors).toEqual([]);
 });
 
