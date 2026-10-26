@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { useAnimate, useReducedMotion } from 'motion/react';
 import { tick } from '../../ui/haptics';
-import type { Collars, PlateColors, Unit } from '../../db/types';
+import type { BarId, Collars, PlateColors, Unit } from '../../db/types';
 import { fitsSleeve, formatAmount, formatMathLine, formatWeight, sumLoad } from '../../lib/load';
-import { plateSpec } from '../../lib/plates';
-import { LABEL_BAND, barLayout, hornLayout, outermost, withPlates, withoutOutermost } from '../../lib/plateLayout';
+import { barSpec, plateSpec } from '../../lib/plates';
+import { barLayout, hornLayout, outermost, withPlates, withoutOutermost } from '../../lib/plateLayout';
 import { Hint } from '../hint/Hint';
 import { BarSvg, plateLook } from './BarSvg';
 import { TypeItSheet } from './TypeItSheet';
@@ -37,17 +37,15 @@ type Props = {
   compact?: boolean;
   /** A small control in the free top left corner of the drawing (the bar picker), taking no extra height. */
   corner?: ReactNode;
+  /** Which bar, for its real dimensions and sleeve length (SPEC 5.6). Default Olympic. */
+  barId?: BarId;
 };
 
-const HEIGHT = 136;
-const COMPACT_HEIGHT = 96;
-/** In a sheet with a question above it (unknown bar). */
-const TIGHT_HEIGHT = 84;
 const LONG_PRESS_MS = 400;
 const FULL_MS = 1500;
 
 /** Plate diagram (SPEC 5.3): tap plates on, tap the bar to take the outermost off, live total and math. */
-export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner, mathAction, hint = true, tight = false }: Props) {
+export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner, mathAction, hint = true, tight = false, barId = 'olympic' }: Props) {
   const reduce = useReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(340);
@@ -72,8 +70,10 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
   const horn = variant === 'horn';
   const baseLabel = horn ? 'start' : 'bar';
   const makeLayout = horn ? hornLayout : barLayout;
-  const height = compact ? COMPACT_HEIGHT : tight ? TIGHT_HEIGHT : HEIGHT;
-  const layout = makeLayout({ unit, perSide: value, inventory: sizes, width, height, labelOf: formatAmount, labelBand: LABEL_BAND });
+  // True scale (SPEC 5.6): the width alone sets the scale and the height; never the loaded plates.
+  const layout = makeLayout({ unit, perSide: value, width, labelOf: formatAmount, bar: barId });
+  // A horn is one Olympic sleeve long; a bar uses its own sleeve.
+  const sleeve = barSpec(horn ? 'olympic' : barId, unit).sleeve;
   const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
   const { total } = sumLoad({ bar, perSide: value, collars, unit, other });
   const math = formatMathLine(bar, value, collars, unit, baseLabel, other);
@@ -90,7 +90,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
 
   const add = (weight: number, count: number) => {
     const next = withPlates(value, weight, count);
-    if (!fitsSleeve(next, unit)) return sleeveFull();
+    if (!fitsSleeve(next, unit, sleeve)) return sleeveFull();
     tick();
     onChange(next);
   };
@@ -150,15 +150,14 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
         </div>
       </div>
 
+      {corner && <div className={styles.corner}>{corner}</div>}
       <div ref={wrapRef} className={styles.stage}>
-        {corner && <div className={styles.corner}>{corner}</div>}
         <div ref={scope}>
           <BarSvg
             layout={layout}
             unit={unit}
             colorMode={colorMode}
             reduce={!!reduce}
-            band={LABEL_BAND}
             outer={outer}
             onRemove={removeOuter}
           />
@@ -168,6 +167,12 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
         </p>
         {hint && <Hint id="plates" className={styles.hint} point="down" />}
       </div>
+      {/* The marker can print only two lines and "+N": this line names every plate it stands for. */}
+      {layout.breakdown && (
+        <p className={`${styles.breakdown} num`} data-testid="plate-breakdown">
+          {layout.breakdown}
+        </p>
+      )}
       {horn && (
         <p className={styles.perSide} data-testid="picker-title">
           Machine · plates per side
@@ -191,6 +196,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
           baseLabel={baseLabel}
           inventory={sizes}
           collars={collars}
+          sleeveLength={sleeve}
           onApply={onChange}
         />
       )}

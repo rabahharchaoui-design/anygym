@@ -11,7 +11,8 @@ const open = async (page: Page) => {
   await expect(page.getByRole('heading', { name: 'Plates' })).toBeVisible();
 };
 const tray = (p: Page, l: string) => p.getByRole('button', { name: `Add ${l} plate to each side` });
-const count = (p: Page, s: string) => p.locator(`[data-plate][data-side="${s}"]`).count();
+// 2.0b: a fat "×3" plate stands for three, so count what the plates stand for.
+const count = (p: Page, s: string) => p.locator(`[data-plate][data-side="${s}"]`).evaluateAll((e) => e.reduce((n, x) => n + Number(x.getAttribute('data-count')), 0));
 
 test('1.5 audit: presets DOM counts, tray sizes', async ({ page }) => {
   const errors = watch(page);

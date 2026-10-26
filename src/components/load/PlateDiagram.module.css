@@ -70,10 +70,12 @@
 }
 
 .root[data-compact='true'] .readout {
-  height: 64px;
+  /* Grows when the math line wraps (2.0b): every plate stays named, never cut off. */
+  height: auto;
+  min-height: 64px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  grid-template-rows: 44px 20px;
+  grid-template-rows: 44px auto;
   grid-template-areas:
     'a t c'
     'm m m';
@@ -98,9 +100,6 @@
 .root[data-compact='true'] .math {
   grid-area: m;
   margin-top: 0 !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
 }
 
@@ -159,12 +158,11 @@
   width: 100%;
 }
 
-/* The bar's sleeves end well inside the stage, so this corner is always free (PLAN 1.10d). */
+/* The bar picker gets its own row above the drawing: the true scale bar fills the width, so no
+   corner of the drawing is free (2.0b), and it must never catch a tap meant for the plates. */
 .corner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .svg {
@@ -184,23 +182,18 @@
   top: -6px;
 }
 
-.underLabel {
-  font-family: var(--font-display);
-  font-weight: 700;
-  fill: var(--text-2);
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
 
 .side:focus-visible rect:first-child {
   stroke: var(--accent);
   stroke-width: 2;
 }
 
-.plateLabel {
+.plateLabel,
+.plateBadge {
   font-family: var(--font-display);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -364,4 +357,15 @@
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.01em;
+}
+
+
+/* Under the bar when the overflow marker cannot print every plate it stands for. */
+.breakdown {
+  margin: 0;
+  text-align: center;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
 }

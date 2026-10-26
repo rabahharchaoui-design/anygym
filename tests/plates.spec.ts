@@ -21,11 +21,14 @@ const tray = (page: Page, label: string) => page.getByRole('button', { name: `Ad
 const plates = (page: Page, side: 'left' | 'right') => page.locator(`[data-plate][data-side="${side}"]`);
 const math = (page: Page) => page.getByTestId('plate-math');
 
+/** Every plate a side's drawing stands for (a fat "×3" plate stands for three, 2.0b). */
+const covered = (page: Page, side: 'left' | 'right') =>
+  plates(page, side).evaluateAll((els) => els.flatMap((e) => (e.getAttribute('data-weights') ?? '').split(',').filter(Boolean).map(Number)));
+const plateCount = async (page: Page, side: 'left' | 'right') => (await covered(page, side)).length;
+
 const expectPerSide = async (page: Page, weights: number[]) => {
   for (const side of ['left', 'right'] as const) {
-    await expect(plates(page, side)).toHaveCount(weights.length);
-    const drawn = await plates(page, side).evaluateAll((els) => els.map((e) => Number(e.getAttribute('data-weight'))));
-    expect(drawn).toEqual(weights);
+    await expect.poll(() => covered(page, side)).toEqual(weights);
   }
 };
 
@@ -66,20 +69,22 @@ const expectRealBar = async (page: Page) => {
   expect(await svg.locator('text[transform*="rotate"]').count()).toBe(0);
   expect(await svg.locator('pattern[id$="-knurl"]').count()).toBe(1);
   expect(await svg.locator('linearGradient[id$="-chrome"]').count()).toBe(1);
-  // Every plate is named: upright on the plate or in the band under it, once per run of a size.
+  // Every plate is named on its own face (2.0b fat numbered plates): no label row under the bar.
+  expect(await svg.locator('[data-under-label]').count()).toBe(0);
   const naming = () =>
     page.evaluate(() => {
       const right = [...document.querySelectorAll('[data-plate][data-side="right"]')];
-      const drawn = [...new Set(right.map((e) => e.getAttribute('data-weight')))].sort();
-      const onPlate = right.filter((e) => e.querySelector('text')).map((e) => e.getAttribute('data-weight'));
-      const underEls = [...document.querySelectorAll('[data-testid="remove-right"] [data-under-label]')];
-      const under = underEls.map((e) => e.getAttribute('data-weight'));
-      // Never fewer labels than plates: an upright label names its plate, an under label its count.
-      const labelled = right.filter((e) => e.querySelector('text')).length + underEls.reduce((n, e) => n + Number(e.getAttribute('data-count')), 0);
-      if (labelled !== right.length) return { drawn, named: [`${labelled} labels for ${right.length} plates`] };
-      return { drawn, named: [...new Set([...onPlate, ...under])].sort() };
+      return right.every((e) => {
+        // The overflow marker prints every weight it stands for, stacked (2.0b round 3).
+        if (e.hasAttribute('data-more')) return (e.getAttribute('aria-label') ?? '').startsWith('then ') && !!e.getAttribute('data-lines');
+        const face = e.querySelector('[data-face]')?.textContent ?? '';
+        const badge = e.querySelector('[data-badge]')?.textContent ?? '';
+        return e.getAttribute('data-label') === (badge ? `${badge.slice(1)}×${face}` : face);
+      })
+        ? 'ok'
+        : right.map((e) => e.getAttribute('data-label')).join();
     });
-  await expect.poll(async () => { const n = await naming(); return n.named.join() === n.drawn.join() ? 'ok' : JSON.stringify(n); }).toBe('ok');
+  await expect.poll(naming).toBe('ok');
 };
 
 // Note: the brief listed taps "45, 45, 25" with 3 plates per side, but a tap adds one plate to
@@ -169,14 +174,16 @@ test('sleeve full blocks the add', async ({ page }) => {
     await tray(page, '45 lb').tap();
     if (await full.isVisible()) break;
     count++;
-    await expect(plates(page, 'right')).toHaveCount(count);
+    await expect.poll(() => plateCount(page, 'right')).toBe(count);
   }
   await expect(full).toBeVisible();
   // 16.4 in sleeve / 1.81 in per 45 = 9 plates.
   expect(count).toBe(9);
   await tray(page, '45 lb').tap();
-  await expect(plates(page, 'right')).toHaveCount(9);
-  await expect(plates(page, 'left')).toHaveCount(9);
+  await expect.poll(() => plateCount(page, 'right')).toBe(9);
+  await expect.poll(() => plateCount(page, 'left')).toBe(9);
+  // Nine 45s on a fat numbered bar: one plate with "45" and "×9".
+  await expect(plates(page, 'right')).toHaveAttribute('data-label', '9×45');
   await expect(full).toBeHidden({ timeout: 4000 });
   expect(errors).toEqual([]);
 });
@@ -252,7 +259,7 @@ test('reduced motion: the hint still shows (as a fade) and plates still load', a
   await expect(page.getByTestId('hint')).toBeVisible();
   await tray(page, '25 lb').tap();
   await expect(math(page)).toHaveText('45 bar + 2 × 25 = 95 lb');
-  await expect(plates(page, 'right')).toHaveCount(1);
+  await expect.poll(() => plateCount(page, 'right')).toBe(1);
   expect(errors).toEqual([]);
   await context.close();
 });

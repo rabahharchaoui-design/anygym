@@ -268,6 +268,7 @@ function BarbellField({
         hint={!question}
         tight={question}
         corner={chip || undefined}
+        barId={barId}
       />
       <BarChoiceSheet
         open={picking}
