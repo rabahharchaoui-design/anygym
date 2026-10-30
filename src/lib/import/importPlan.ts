@@ -36,8 +36,15 @@ export type ReviewChoices = {
   edits: Record<string, SetEdit>;
 };
 
-/** `ok`: looked at and saved as right. */
-export type SetEdit = { reps?: number; load?: Load; skip?: boolean; ok?: boolean };
+/**
+ * `ok`: looked at and saved as right. `load` (PLAN 2.0c): absent = the weight is unchanged (the
+ * file's); a Load = the user's replacement; null = cleared on purpose (written as reps only and
+ * still uncertain). A changed weight never falls back to the file's.
+ */
+export type SetEdit = { reps?: number; load?: Load | null; skip?: boolean; ok?: boolean };
+
+/** The reason a set whose weight the user cleared stays highlighted (PLAN 2.0c). */
+export const WEIGHT_CLEARED = 'Weight cleared: saved as reps only';
 
 /**
  * A new answer to "How do you load this?" for one exercise: its weights are rebuilt from the file,
@@ -259,14 +266,18 @@ export function planImport(parsed: ParsedImport, choices: ReviewChoices, deps: P
         const key = setKey(s, i);
         const edit = choices.edits[key] ?? {};
         const built: BuiltLoad = ctx ? buildLoad(set, choices.kinds[ex.index], ctx) : {};
-        const load = edit.load ?? built.load;
+        // A weight the user changed is theirs, also when cleared: never the file's again (PLAN 2.0c).
+        const loadEdited = 'load' in edit && edit.load !== undefined;
+        const load = loadEdited ? (edit.load ?? undefined) : built.load;
         const fileReason = set.uncertain ? set.reason : built.reason;
         // Not matched to an exercise yet: only the file's own doubts show (nothing is built).
         const reason = !ctx
           ? set.reason
           : !load
-            ? (built.reason ?? set.reason ?? NO_WEIGHT)
-            : edit.ok || edit.load
+            ? loadEdited
+              ? WEIGHT_CLEARED
+              : (built.reason ?? set.reason ?? NO_WEIGHT)
+            : edit.ok || loadEdited
               ? undefined
               : fileReason;
         const p: PlannedSet = {
@@ -276,11 +287,11 @@ export function planImport(parsed: ParsedImport, choices: ReviewChoices, deps: P
           reps: edit.reps ?? set.reps,
           uncertain: reason !== undefined,
           skipped: !!edit.skip,
-          edited: edit.reps !== undefined || edit.load !== undefined || !!edit.ok,
+          edited: edit.reps !== undefined || loadEdited || !!edit.ok,
         };
         if (load) p.load = load;
         if (reason) p.reason = reason;
-        const note = [set.note, !edit.load ? built.note : undefined].filter(Boolean).join(' · ');
+        const note = [set.note, !loadEdited ? built.note : undefined].filter(Boolean).join(' · ');
         if (note) p.note = note;
         ps.sets.push(p);
       });

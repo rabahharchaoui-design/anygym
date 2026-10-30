@@ -147,7 +147,9 @@ test('S-a. LAST TIME shows warm up with W tag first', async ({ page }) => {
 test('S-b. no PR chip when a heavier lift exists in the other unit', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
-  await seedFinished(page, { 'barbell-back-squat': [{ reps: 5, load: { kind: 'barbell', unit: 'kg', total: 100, barWeight: 20, perSide: [25, 15] } }] });
+  // Logged on an Olympic bar (barId, as every set since 1.7c). A legacy kg set without a barId at
+  // this lb gym is left out of history since 2.0c (its gym's bar answers are gone, never guessed).
+  await seedFinished(page, { 'barbell-back-squat': [{ reps: 5, load: { kind: 'barbell', unit: 'kg', total: 100, barWeight: 20, barId: 'olympic', perSide: [25, 15] } }] });
   await page.reload();
   await page.getByRole('button', { name: /Quick workout/ }).tap();
   const sheet = page.getByRole('dialog', { name: 'Add exercise' });

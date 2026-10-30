@@ -38,15 +38,32 @@ const phone = (): KV | null => {
 /**
  * Call right after writing (or removing) `key` in storage `s`. Only the phone's own localStorage is
  * mirrored (tests pass their own storage, or none). Never throws; the IndexedDB write runs behind.
+ * `value`: what was just written (null: removed); read back from storage when not given. The stamp
+ * and the IndexedDB copy are attempted separately (PLAN 2.0c): a stamp localStorage refuses never
+ * keeps the durable copy from being written.
  */
-export function mirror(s: unknown, key: string, ls: KV | null = phone(), db: AnyGymDB = defaultDb): Promise<void> {
+export function mirror(s: unknown, key: string, ls: KV | null = phone(), db: AnyGymDB = defaultDb, value?: string | null): Promise<void> {
   if (!ls || s !== ls || !DURABLE_KEYS.has(key)) return Promise.resolve();
+  const at = nextStamp();
+  let v: string | null;
   try {
-    const at = nextStamp();
+    v = value !== undefined ? value : ls.getItem(key);
+  } catch {
+    return Promise.resolve();
+  }
+  try {
     const stamps = readStamps(ls);
     stamps[key] = at;
     ls.setItem(STAMPS_KEY, JSON.stringify(stamps));
-    return db.kv.put({ key, value: ls.getItem(key), at }).then(
+  } catch {
+    // The stamp is lost: localStorage looks older than the copy below, which only puts the same value back.
+  }
+  return putRow(db, { key, value: v, at });
+}
+
+function putRow(db: AnyGymDB, row: KvRow): Promise<void> {
+  try {
+    return db.kv.put(row).then(
       () => undefined,
       () => undefined,
     );
@@ -54,6 +71,13 @@ export function mirror(s: unknown, key: string, ls: KV | null = phone(), db: Any
     return Promise.resolve();
   }
 }
+
+/**
+ * True when `s` is the storage whose writes are mirrored: the phone's localStorage, or no storage
+ * at all when the phone has none (localStorage access throws, PLAN 2.0c). A test's own storage, or
+ * none passed while the phone has one, is never mirrored.
+ */
+const mirrored = (s: unknown, ls: KV | null): boolean => (s === null || s === undefined ? ls === null : s === ls);
 
 /**
  * A mirror row for `key` with a fresh stamp, for a caller that writes it inside its own IndexedDB
@@ -65,20 +89,22 @@ export function durableRow(key: string, value: string | null): KvRow {
 }
 
 /**
- * localStorage refused a write of `key` (full or blocked, PLAN 1.7i): the value goes to its
- * IndexedDB mirror alone, with a fresh stamp, so the next start finds it newer than what
+ * localStorage refused a write of `key` (full or blocked, PLAN 1.7i), or there is no localStorage
+ * at all (access throws, PLAN 2.0c: `s` and the phone's storage are both null): the value goes to
+ * its IndexedDB mirror alone, with a fresh stamp, so the next start finds it newer than what
  * localStorage holds and puts it back (or hydrates the runtime store from it). Never throws.
  */
 export function mirrorValue(s: unknown, key: string, value: string | null, ls: KV | null = phone(), db: AnyGymDB = defaultDb): Promise<void> {
-  if (!ls || s !== ls || !DURABLE_KEYS.has(key)) return Promise.resolve();
-  try {
-    return db.kv.put({ key, value, at: nextStamp() }).then(
-      () => undefined,
-      () => undefined,
-    );
-  } catch {
-    return Promise.resolve();
-  }
+  if (!mirrored(s, ls) || !DURABLE_KEYS.has(key)) return Promise.resolve();
+  return putRow(db, { key, value, at: nextStamp() });
+}
+
+/**
+ * The mirror row for a caller's own IndexedDB transaction (PLAN 2.0c, Log set), or null when `s`
+ * is not mirrored storage (see `mirrored`).
+ */
+export function mirrorRow(s: unknown, key: string, value: string | null, ls: KV | null = phone()): KvRow | null {
+  return mirrored(s, ls) && DURABLE_KEYS.has(key) ? durableRow(key, value) : null;
 }
 
 /** Takes a mirrored value straight into a runtime store when localStorage cannot hold it. */
@@ -92,6 +118,8 @@ export type Hydrators = Partial<Record<string, (value: string | null) => void>>;
  */
 export async function restoreMirrors(ls: KV | null = phone(), db: AnyGymDB = defaultDb, hydrate: Hydrators = {}): Promise<string[]> {
   const rows = await db.kv.toArray();
+  // Stamps keep increasing across launches, also without localStorage (PLAN 2.0c).
+  for (const r of rows) last = Math.max(last, r.at);
   if (!ls) {
     for (const r of rows) if (DURABLE_KEYS.has(r.key)) hydrate[r.key]?.(r.value);
     return [];
@@ -104,7 +132,6 @@ export async function restoreMirrors(ls: KV | null = phone(), db: AnyGymDB = def
   }
   const restored: string[] = [];
   for (const r of rows) {
-    last = Math.max(last, r.at);
     if (!DURABLE_KEYS.has(r.key) || r.at <= (stamps[r.key] ?? 0)) continue;
     try {
       if (r.value === null) ls.removeItem(r.key);

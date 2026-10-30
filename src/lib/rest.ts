@@ -1,5 +1,6 @@
 // Rest timer (SPEC 5.1). Pure: the timer is an end timestamp, so the remaining time is right after
 // backgrounding, throttled intervals or a reload.
+import { db as defaultDb, type AnyGymDB } from '../db/schema';
 import { mirror, mirrorValue } from './durable';
 
 export const DEFAULT_REST_SEC = 90;
@@ -86,22 +87,56 @@ const NO_STORAGE = {};
 
 export function loadRest(sessionId: string, kv: KV | null = storage()): Rest | null {
   const k = kv ?? NO_STORAGE;
-  const r = runtime.has(k) ? runtime.get(k)! : parseRest(kv?.getItem(REST_KEY) ?? null);
+  let r: Rest | null;
+  if (runtime.has(k)) r = runtime.get(k)!;
+  else {
+    try {
+      r = parseRest(kv?.getItem(REST_KEY) ?? null);
+    } catch {
+      // Storage there but unreadable (PLAN 2.0c): never a crash opening the workout. The screen
+      // asks the IndexedDB copy (durableRest); until then there is no rest.
+      unreadable.add(k);
+      r = null;
+    }
+  }
   return r && r.sessionId === sessionId ? r : null;
+}
+
+const unreadable = new WeakSet<object>();
+
+/** True when the last loadRest could not read storage, so the durable copy should be asked. */
+export function restUnreadable(kv: KV | null = storage()): boolean {
+  return unreadable.has(kv ?? NO_STORAGE);
+}
+
+/** The rest's IndexedDB copy (PLAN 2.0c): the fallback when storage cannot be read. Never rejects. */
+export async function durableRest(sessionId: string, db: AnyGymDB = defaultDb): Promise<Rest | null> {
+  try {
+    const r = parseRest((await db.kv.get(REST_KEY))?.value ?? null);
+    return r && r.sessionId === sessionId ? r : null;
+  } catch {
+    return null;
+  }
 }
 
 export function saveRest(rest: Rest | null, kv: KV | null = storage()): void {
   runtime.set(kv ?? NO_STORAGE, rest);
   const value = rest ? JSON.stringify(rest) : null;
+  if (!kv) {
+    // No localStorage at all (access throws, PLAN 2.0c): straight to the IndexedDB copy.
+    void mirrorValue(null, REST_KEY, value);
+    return;
+  }
   try {
-    if (value !== null) kv?.setItem(REST_KEY, value);
-    else kv?.removeItem(REST_KEY);
-    void mirror(kv, REST_KEY);
+    if (value !== null) kv.setItem(REST_KEY, value);
+    else kv.removeItem(REST_KEY);
   } catch {
     // Storage full or blocked: the runtime copy keeps the timer while the app runs, and the
     // IndexedDB mirror alone keeps it for the next start (with its original end time).
     void mirrorValue(kv, REST_KEY, value);
+    return;
   }
+  void mirror(kv, REST_KEY, undefined, undefined, value);
 }
 
 /** Startup with localStorage refusing the rest (durable.restoreMirrors): its IndexedDB copy is used. */

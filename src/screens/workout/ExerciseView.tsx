@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
-import { updateSetType } from '../../db/workouts';
+import { saveMutation } from '../../db/mutations';
 import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
 import { logKey, logQueue } from '../../lib/logQueue';
 import { newId } from '../../db/ids';
@@ -21,7 +21,7 @@ import { SetTable } from './SetTable';
 import { SetTypeSheet } from './SetTypeSheet';
 import { Thumb } from './Thumb';
 import { WeightSheet, type WeightPick } from './WeightSheet';
-import { copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
+import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
 import styles from './Workout.module.css';
@@ -137,8 +137,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...(row.seconds !== undefined ? { seconds: row.seconds } : {}),
       ...(before ?? {}),
       ...patch,
-      // The unit the weight was picked in (PLAN 1.7i): today's when this write picks it.
-      ...('load' in patch || 'plates' in patch || !before ? { unit: gym.unit } : {}),
+      // The unit the weight was picked in (PLAN 1.7i): the pick's own unit when it says (PLAN
+      // 2.0c), else today's when this write picks it.
+      ...('load' in patch || 'plates' in patch || !before ? { unit: patch.unit ?? gym.unit } : {}),
       rev: (before?.rev ?? 0) + 1,
     };
     if (own) draft.own = { ...before?.own, ...own };
@@ -222,10 +223,14 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     setPicking(null);
     const from = rowById(id);
     if (!from) return gone();
+    // Checked again against the gym as it is now (PLAN 2.0c): a pick from another unit, or one this
+    // gym cannot load any more, changes no row.
+    const ok = kind ? confirmablePick(pick, kind, gym, exerciseId, name, bar) : null;
+    if (!ok) return onNotice(pick.unit !== gym.unit ? `Units changed to ${gym.unit}. Pick the weight again.` : 'That weight cannot be loaded here now. Pick it again.');
     // A warm up's weight is for that warm up only; a working row's weight goes to it and the
     // working rows below it, never into a warm up (SPEC 20.2, gate 3).
     const targets = from.type === 'warmup' ? [from] : rows.filter((r) => r.index >= from.index && r.type !== 'warmup');
-    for (const r of targets) writeRow(r, { load: pick.load, plates: pick.plates }, { load: true });
+    for (const r of targets) writeRow(r, { load: ok.load, plates: ok.plates, unit: ok.unit }, { load: true });
   };
 
   const copyLast = (row: PendingRow) => {
@@ -256,7 +261,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (t === typeOfSet(set)) return;
     const s = storedType(t);
     // Tracked by the queue, so Finish counts the sets only after a change already running lands.
-    const write = logQueue.mutate(sessionId, () => updateSetType(set.id, s.kind, s.failure));
+    // Journaled with its values before the write (PLAN 2.0c), like an Edit set save.
+    const write = logQueue.mutate(sessionId, () => saveMutation(sessionId, set.exerciseId, { kind: 'type', setId: set.id, setKind: s.kind, failure: s.failure }));
     if (!write) return;
     try {
       await write;
@@ -439,7 +445,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           exerciseId={exerciseId}
           exerciseName={name}
           bar={bar}
-          start={picking ? startPick(picking.row) : { load: null, plates: [] }}
+          start={picking ? startPick(picking.row, gym.unit) : { load: null, plates: [], unit: gym.unit }}
           onDone={(p) => picking && applyWeight(picking.id, p)}
           onNotice={onNotice}
         />
@@ -465,8 +471,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 }
 
 /** What the picker starts from: the row's weight, or its plates while the base weight is unknown. */
-function startPick(row: PendingRow): WeightPick {
+function startPick(row: PendingRow, unit: WeightPick['unit']): WeightPick {
   // A kept pick (other unit, a plate turned off) is never handed to today's picker as if it were today's.
-  if (row.kept) return { load: null, plates: [] };
-  return { load: row.load, plates: row.plates };
+  if (row.kept) return { load: null, plates: [], unit };
+  // A row's shown weight is rebuilt on today's gym, so it is in today's unit (PLAN 2.0c).
+  return { load: row.load, plates: row.plates, unit: row.load?.unit ?? unit };
 }

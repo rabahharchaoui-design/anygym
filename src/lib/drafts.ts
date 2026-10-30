@@ -4,7 +4,7 @@
 // No weight math here: the card rebuilds the load through load.ts from what is stored.
 import type { Load, Unit } from '../db/types';
 import type { Stopwatch } from './timer';
-import { mirror as mirrorDurable, mirrorValue } from './durable';
+import { mirror as mirrorDurable, mirrorRow, mirrorValue } from './durable';
 
 export type Draft = {
   /** Id the set will be logged with (double tap safe across a reload). */
@@ -142,22 +142,44 @@ export function onDraftStorageFail(fn: FailListener): () => void {
 
 export const DRAFTS_NOT_SAVED = 'Drafts will not survive a reload on this phone';
 
+/** The anygym-drafts value the memory copy stands for (null: no drafts). */
+function memoryValue(m: Memory): string | null {
+  return m.session && m.drafts.size ? JSON.stringify({ [m.session]: Object.fromEntries(m.drafts) }) : null;
+}
+
+/**
+ * The anygym-drafts value as the app holds it right now and the durable row for it, for a write
+ * that must make every pending row durable in its own transaction (PLAN 2.0c, Log set). null when
+ * this storage is not mirrored (a test's own storage).
+ */
+export function draftsMirrorRow(s = storage()) {
+  return mirrorRow(s, KEY, memoryValue(memoryOf(s)));
+}
+
 /** Mirrors the whole memory copy to storage. False when that failed (storage full, blocked or missing). */
 function mirror(m: Memory, s: StorageLike | null): boolean {
   let ok = false;
-  const value = m.session && m.drafts.size ? JSON.stringify({ [m.session]: Object.fromEntries(m.drafts) }) : null;
+  const value = memoryValue(m);
   if (s) {
+    let wrote = false;
     try {
       if (value !== null) s.setItem(KEY, value);
       else s.removeItem(KEY);
-      void mirrorDurable(s, KEY);
-      hydrated.delete(s);
-      ok = true;
+      wrote = true;
     } catch {
       // localStorage refused it: the IndexedDB mirror alone keeps it for the next start (PLAN 1.7i).
       void mirrorValue(s, KEY, value);
-      ok = false;
     }
+    if (wrote) {
+      void mirrorDurable(s, KEY, undefined, undefined, value);
+      hydrated.delete(s);
+      ok = true;
+    }
+  } else {
+    // No localStorage at all (access throws, PLAN 2.0c): the IndexedDB copy alone keeps it, also
+    // a removal (null), and startup hands it back (hydrateDrafts).
+    hydrated.set(NO_STORAGE, value === null ? {} : (JSON.parse(value) as Store));
+    void mirrorValue(null, KEY, value);
   }
   if (!ok && !m.failed) {
     m.failed = true;
@@ -249,19 +271,26 @@ export function clearSessionDrafts(sessionId: string, s = storage()): void {
     m.drafts = new Map();
   }
   delete hydrated.get(s ?? NO_STORAGE)?.[sessionId];
-  if (!s) return;
+  if (!s) {
+    // No localStorage at all (PLAN 2.0c): the clear reaches the IndexedDB copy, so a restart never
+    // brings the finished workout's drafts back.
+    const left = hydrated.get(NO_STORAGE) ?? {};
+    void mirrorValue(null, KEY, Object.keys(left).length ? JSON.stringify(left) : null);
+    return;
+  }
   const next = { ...read(s) };
   delete next[sessionId];
   const value = Object.keys(next).length ? JSON.stringify(next) : null;
   try {
     if (value !== null) s.setItem(KEY, value);
     else s.removeItem(KEY);
-    void mirrorDurable(s, KEY);
-    hydrated.delete(s);
   } catch {
     // Memory is already clear; the IndexedDB copy drops it too.
     void mirrorValue(s, KEY, value);
+    return;
   }
+  void mirrorDurable(s, KEY, undefined, undefined, value);
+  hydrated.delete(s);
 }
 
 /**
@@ -307,13 +336,20 @@ export function replaceDrafts(blob: DraftsBlob, s = storage()): boolean {
     m.drafts = new Map(Object.entries(per));
   }
   hydrated.delete(s ?? NO_STORAGE);
-  if (!s) return sessions.length === 0;
+  const value = sessions.length ? JSON.stringify(Object.fromEntries(sessions)) : null;
+  if (!s) {
+    // No localStorage at all (PLAN 2.0c): the IndexedDB copy holds them for the next start.
+    if (value !== null) hydrated.set(NO_STORAGE, JSON.parse(value) as Store);
+    void mirrorValue(null, KEY, value);
+    return sessions.length === 0;
+  }
   try {
-    if (sessions.length) s.setItem(KEY, JSON.stringify(Object.fromEntries(sessions)));
+    if (value !== null) s.setItem(KEY, value);
     else s.removeItem(KEY);
-    void mirrorDurable(s, KEY);
-    return true;
   } catch {
+    void mirrorValue(s, KEY, value);
     return false;
   }
+  void mirrorDurable(s, KEY, undefined, undefined, value);
+  return true;
 }

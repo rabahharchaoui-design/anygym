@@ -354,7 +354,8 @@ describe('(8) Restore stores the drafts durably inside the restore', () => {
     target.break();
     expect(await restoreReplace(backup, db, target.storage())).toMatchObject({ workouts: 1 });
     const fresh = phone();
-    expect(await restoreMirrors(fresh.storage(), db)).toEqual(['anygym-drafts']);
+    // PLAN 2.0c: the restore also stores the rest and added rows (here none: durable removals).
+    expect((await restoreMirrors(fresh.storage(), db)).sort()).toEqual(['anygym-drafts', 'anygym-extra-sets', 'anygym-rest']);
     expect(loadDraft('live', rowKey('bench', 0), fresh.storage())).toMatchObject({ id: 'p', reps: 17, watch: { accumulated: 0, startedAt: 9 } });
   });
 });

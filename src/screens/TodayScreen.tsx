@@ -15,7 +15,8 @@ import { db } from '../db/schema';
 import { setCount, workoutTitle } from './history/historyWords';
 import { startDb } from '../db/bootstrap';
 import { getPlanState, setNextDay } from '../db/planState';
-import { getActiveSession, reopenWorkout, startPlanDay, startWorkout } from '../db/workouts';
+import { getActiveSession, reopenWorkoutWithPending, startPlanDay, startWorkout } from '../db/workouts';
+import { restorePending } from '../lib/finishPending';
 import { logQueue } from '../lib/logQueue';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
@@ -123,9 +124,11 @@ export function TodayScreen() {
                 if (undoing.current) return;
                 undoing.current = true;
                 setToast(null);
-                reopenWorkout(undo.sessionId)
-                  .then((ok) => {
+                reopenWorkoutWithPending(undo.sessionId)
+                  .then(({ ok, pending }) => {
                     if (ok) {
+                      // The rows still to do and the added rows come back exactly as they were (PLAN 2.0c).
+                      if (pending) restorePending(pending);
                       // Finish closed its log queue; the workout is active again, so ✓ logs again (PLAN 1.7h).
                       logQueue.reopen(undo.sessionId);
                       go(`/workout/${undo.sessionId}`, { kind: 'push' });

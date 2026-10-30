@@ -29,7 +29,7 @@
 import { newId } from '../../db/ids';
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
 import { AlreadyLoggedError, logSet } from '../../db/workouts';
-import { isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
+import { draftsMirrorRow, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
 import type { JournalEntry } from '../../db/types';
 import { logKey, logQueue as defaultQueue, type LogQueue } from '../../lib/logQueue';
 import { legacyRowKey, reconcileRows, rowKey, slotChanges, slotsOf, storedType, type Committed } from '../../lib/setTable';
@@ -53,7 +53,8 @@ export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): 
 
 /** The pending write journal of a workout (entries whose write has not committed yet). */
 export async function journalOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<JournalEntry[]> {
-  return db.journal.where('sessionId').equals(sessionId).toArray();
+  // Changes to logged sets (PLAN 2.0c, db/mutations.ts) share the table but are not rows.
+  return db.journal.where('sessionId').equals(sessionId).filter((j) => !j.mutation).toArray();
 }
 
 /**
@@ -211,7 +212,14 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
       const key = [...sessionDrafts(sessionId, ...storageArg(deps))].find(([, d]) => d.id === draft.id)?.[0] ?? rowKey(exerciseId, 0);
       const { submitted: _mark, ...values } = draft;
       landedIds.delete(`${sessionId}:${draft.id}`); // submitted again (after a discard): journaled again
-      await db.journal.put({ id: draft.id, sessionId, exerciseId, key, rev: set.rev, draft: values as Record<string, unknown>, at: Date.now() });
+      // Every pending row of the workout (the rows above and below this one, with their weights and
+      // reps) is made durable in the same transaction (PLAN 2.0c), so logging a later row never
+      // loses earlier pending rows even when localStorage and its mirror failed.
+      const pending = draftsMirrorRow(...storageArg(deps));
+      await db.transaction('rw', db.journal, db.kv, async () => {
+        await db.journal.put({ id: draft.id, sessionId, exerciseId, key, rev: set.rev, draft: values as Record<string, unknown>, at: Date.now() });
+        if (pending) await db.kv.put(pending);
+      });
       try {
         await logSet(set, db);
       } catch (err) {

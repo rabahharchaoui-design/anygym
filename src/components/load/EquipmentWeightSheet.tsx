@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { setEquipmentWeight } from '../../db/equipment';
+import { UnitChangedError, setEquipmentWeight } from '../../db/equipment';
 import type { EquipmentWeight, Gym, Unit } from '../../db/types';
 import { entryFor, promptFor, type PromptKind } from '../../lib/equipmentPrompt';
 import { formatWeight } from '../../lib/load';
@@ -24,7 +24,7 @@ export function EquipmentWeightSheet({ open, onClose, gymId, unit, machineId, ki
   const prompt = promptFor(kind, unit);
   const [text, setText] = useState('');
   const [other, setOther] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<false | 'save' | 'unit'>(false);
   const saving = useRef(false);
 
   useEffect(() => {
@@ -34,6 +34,14 @@ export function EquipmentWeightSheet({ open, onClose, gymId, unit, machineId, ki
     setError(false);
     saving.current = false;
   }, [open]);
+  // The gym's unit changed while this was open (another tab, PLAN 2.0c): a number typed in the old
+  // unit is cleared, never saved as the new one.
+  const typedIn = useRef(unit);
+  useEffect(() => {
+    if (typedIn.current === unit) return;
+    typedIn.current = unit;
+    setText('');
+  }, [unit]);
 
   const typed = parseTyped(text);
   const showPad = !prompt.chips || other;
@@ -43,12 +51,13 @@ export function EquipmentWeightSheet({ open, onClose, gymId, unit, machineId, ki
     saving.current = true;
     setError(false);
     try {
-      const gym = await setEquipmentWeight(gymId, machineId, entry);
+      const gym = await setEquipmentWeight(gymId, machineId, entry, undefined, unit);
       onSaved?.(gym);
       onClose();
-    } catch {
+    } catch (err) {
       saving.current = false;
-      setError(true);
+      if (err instanceof UnitChangedError) setText('');
+      setError(err instanceof UnitChangedError ? 'unit' : 'save');
     }
   };
 
@@ -116,7 +125,7 @@ export function EquipmentWeightSheet({ open, onClose, gymId, unit, machineId, ki
         )}
 
         <p className={styles.error} role="status">
-          {error ? 'Could not save that. Try again.' : ''}
+          {error === 'unit' ? 'The gym units changed. Answer again.' : error ? 'Could not save that. Try again.' : ''}
         </p>
       </div>
     </Sheet>

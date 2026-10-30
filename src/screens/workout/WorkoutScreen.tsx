@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
-import { WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder, updateSet } from '../../db/workouts';
+import { WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder} from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
 import { countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
@@ -24,8 +24,10 @@ import { deletesFor, disposeDeletes, recoverSession, recoveryReady } from './ses
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
 import { clearExtraSets } from '../../lib/extraSets';
+import { snapshotPending } from '../../lib/finishPending';
+import { dropMutations, pendingMutations, retryMutations, saveMutation } from '../../db/mutations';
 import { hints } from '../../lib/hints';
-import { extendRest, loadRest, saveRest, shortenRest, startRest, type Rest } from '../../lib/rest';
+import { durableRest, extendRest, loadRest, restUnreadable, saveRest, shortenRest, startRest, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
 import { formatTotal, totalLifted } from '../../lib/load';
 import { DayList } from './DayList';
@@ -98,6 +100,18 @@ export function WorkoutScreen() {
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const w = useWorkout(sessionId, hidden);
   const [rest, setRestState] = useState<Rest | null>(() => loadRest(sessionId));
+  // localStorage there but unreadable (PLAN 2.0c): the workout still opens; the rest comes from its
+  // IndexedDB copy, else there is none.
+  useEffect(() => {
+    if (!restUnreadable()) return;
+    let live = true;
+    void durableRest(sessionId).then((r) => {
+      if (live && r) setRestState((cur) => cur ?? r);
+    });
+    return () => {
+      live = false;
+    };
+  }, [sessionId]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [chip, setChip] = useState<Chip | null>(null);
   const [editing, setEditing] = useState<WorkoutSet | null>(null);
@@ -115,8 +129,11 @@ export function WorkoutScreen() {
   useEffect(() => {
     recoverSession(sessionId).catch(() => undefined);
   }, [sessionId]);
-  /** Sets whose Log set write failed, when Finish was refused because of them (PLAN 1.7h). */
-  const [unsaved, setUnsaved] = useState<number | null>(null);
+  /**
+   * Sets whose Log set write failed (PLAN 1.7h) and edits or set type changes whose write failed
+   * (PLAN 2.0c), when Finish was refused because of them.
+   */
+  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number } | null>(null);
   /** Deleted sets whose Undo failed, when Finish was refused because of them (PLAN 1.7i). */
   const [undoStuck, setUndoStuck] = useState<string[] | null>(null);
 
@@ -296,7 +313,8 @@ export function WorkoutScreen() {
       setEditing(null);
       return;
     }
-    const write = logQueue.mutate(sessionId, () => updateSet(set.id, change));
+    // Journaled with its values before the write (PLAN 2.0c): a failure survives a restart and blocks Finish.
+    const write = logQueue.mutate(sessionId, () => saveMutation(sessionId, set.exerciseId, { kind: 'edit', setId: set.id, change }));
     if (!write) {
       setEditing(null);
       return;
@@ -416,13 +434,16 @@ export function WorkoutScreen() {
       await deletes.close();
       // A set whose write failed is never dropped: Finish stops and asks (the drafts and the workout stay).
       const failed = await prepareFinish(sessionId);
-      if (failed.length) {
+      // An edit or set type change that failed is never dropped silently either (PLAN 2.0c).
+      const edits = (await pendingMutations(sessionId)).length;
+      if (failed.length || edits) {
         reopen();
-        setUnsaved(failed.length);
+        setUnsaved({ rows: failed.length, edits });
         return;
       }
       // Finish keeps the plan pointer as it was, inside its own transaction, for Undo on Today.
-      const result = await finishWorkout(sessionId);
+      // The pending and added rows are kept with it for Undo on Today (PLAN 2.0c).
+      const result = await finishWorkout(sessionId, undefined, undefined, snapshotPending(sessionId));
       disposeDeletes(sessionId);
       setRest(null);
       clearSessionDrafts(sessionId);
@@ -477,8 +498,10 @@ export function WorkoutScreen() {
     unsavedBusy.current = true;
     setUnsaved(null);
     try {
-      if (await retryFailed(sessionId)) await finishNow();
-      else notice('Could not save that set. Try again.');
+      const rows = await retryFailed(sessionId);
+      const edits = await retryMutations(sessionId);
+      if (rows && edits) await finishNow();
+      else notice(rows ? 'Could not save that change. Try again.' : 'Could not save that set. Try again.');
     } finally {
       unsavedBusy.current = false;
     }
@@ -489,6 +512,7 @@ export function WorkoutScreen() {
     setUnsaved(null);
     try {
       await discardFailed(sessionId);
+      await dropMutations(sessionId);
       await finishNow();
     } catch {
       notice('Could not finish. Try again.');
@@ -689,15 +713,15 @@ export function WorkoutScreen() {
           onDelete={onDelete}
         />
       )}
-      <Sheet open={unsaved !== null} onClose={() => setUnsaved(null)} label="Set not saved">
+      <Sheet open={unsaved !== null} onClose={() => setUnsaved(null)} label={unsaved && unsaved.rows === 0 ? 'Change not saved' : 'Set not saved'}>
         <div className={styles.sheetBody} data-testid="unsaved-sheet">
-          <h2 className={styles.sheetTitle}>{unsaved === 1 || unsaved === null ? '1 set did not save' : `${unsaved} sets did not save`}</h2>
-          <p className={styles.sheetSub}>{unsaved === 1 || unsaved === null ? 'It is still on its row.' : 'They are still on their rows.'}</p>
+          <h2 className={styles.sheetTitle}>{unsavedTitle(unsaved)}</h2>
+          <p className={styles.sheetSub}>{unsavedSub(unsaved)}</p>
           <button type="button" className={`${styles.logButton} pressable`} onClick={() => void retryUnsaved()}>
             Try again
           </button>
           <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => void finishWithout()}>
-            {unsaved === 1 || unsaved === null ? 'Finish without it' : 'Finish without them'}
+            {(unsaved?.rows ?? 1) + (unsaved?.edits ?? 0) === 1 ? 'Finish without it' : 'Finish without them'}
           </button>
         </div>
       </Sheet>
@@ -730,4 +754,22 @@ export function WorkoutScreen() {
       />
     </div>
   );
+}
+
+/** "1 set did not save", "2 changes did not save", "1 set and 1 change did not save" (PLAN 2.0c). */
+function unsavedTitle(u: { rows: number; edits: number } | null): string {
+  const rows = u?.rows ?? 1;
+  const edits = u?.edits ?? 0;
+  const part = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  if (edits === 0) return `${part(rows, 'set', 'sets')} did not save`;
+  if (rows === 0) return `${part(edits, 'change', 'changes')} did not save`;
+  return `${part(rows, 'set', 'sets')} and ${part(edits, 'change', 'changes')} did not save`;
+}
+
+function unsavedSub(u: { rows: number; edits: number } | null): string {
+  const rows = u?.rows ?? 1;
+  const edits = u?.edits ?? 0;
+  if (edits === 0) return rows === 1 ? 'It is still on its row.' : 'They are still on their rows.';
+  if (rows === 0) return edits === 1 ? 'Your edit is not saved yet.' : 'Your edits are not saved yet.';
+  return 'Nothing is lost yet.';
 }

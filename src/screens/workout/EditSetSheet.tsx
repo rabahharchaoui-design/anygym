@@ -45,6 +45,8 @@ function EditBody({
   const [seconds, setSeconds] = useState(set.seconds ?? 1);
   // Save and Delete never run together (PLAN 1.10d): while one runs, the other is disabled.
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
+  // A bar choice still being saved (PLAN 2.0c): Save waits until it settles.
+  const [settling, setSettling] = useState(false);
   const running = useRef(false);
   const mounted = useRef(true);
   // Reps or seconds come from the saved set, never from today's load type (PLAN 1.7h).
@@ -69,7 +71,7 @@ function EditBody({
       if (mounted.current) setBusy(null);
     }
   };
-  const save = () => (load ? run('save', () => onSave(set, timed ? { seconds, load } : { reps, load })) : undefined);
+  const save = () => (load && !settling ? run('save', () => onSave(set, timed ? { seconds, load } : { reps, load })) : undefined);
   const remove = () => run('delete', () => onDelete(set));
 
   return (
@@ -85,6 +87,7 @@ function EditBody({
           exerciseName={exerciseName}
           value={load}
           onChange={setLoad}
+          onPending={setSettling}
           bar={bar}
           ownBar={set.load?.kind === 'barbell' || set.load?.kind === 'plate_machine' ? set.load.barWeight : undefined}
           ownBarId={set.load?.kind === 'barbell' ? set.load.barId : undefined}
@@ -101,8 +104,8 @@ function EditBody({
       <button
         type="button"
         className={`${styles.logButton} pressable`}
-        disabled={!load || busy !== null}
-        aria-disabled={!load || busy !== null}
+        disabled={!load || settling || busy !== null}
+        aria-disabled={!load || settling || busy !== null}
         aria-busy={busy === 'save'}
         onClick={() => void save()}
       >

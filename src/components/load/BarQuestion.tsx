@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { setEquipmentWeight } from '../../db/equipment';
+import { UnitChangedError, setEquipmentWeight } from '../../db/equipment';
 import type { EquipmentWeight, Gym, Unit } from '../../db/types';
 import { entryFor, type PromptKind } from '../../lib/equipmentPrompt';
 import { formatWeight } from '../../lib/load';
@@ -28,16 +28,17 @@ type Props = {
  * nothing is logged until it is answered.
  */
 export function BarQuestion({ gymId, unit, machineId, kind, info, onSaved, onOther }: Props) {
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<false | 'save' | 'unit'>(false);
   const saving = useRef(false);
   const save = async (entry: EquipmentWeight) => {
     if (saving.current) return; // a double tap saves once
     saving.current = true;
     setError(false);
     try {
-      onSaved(await setEquipmentWeight(gymId, machineId, entry));
-    } catch {
-      setError(true);
+      // Typed in this unit: refused when the gym switched units meanwhile (PLAN 2.0c).
+      onSaved(await setEquipmentWeight(gymId, machineId, entry, undefined, unit));
+    } catch (err) {
+      setError(err instanceof UnitChangedError ? 'unit' : 'save');
     } finally {
       saving.current = false;
     }
@@ -67,7 +68,7 @@ export function BarQuestion({ gymId, unit, machineId, kind, info, onSaved, onOth
         </button>
       </div>
       <p className={styles.error} role="status">
-        {error ? 'Could not save that. Try again.' : ''}
+        {error === 'unit' ? 'The gym units changed. Answer again.' : error ? 'Could not save that. Try again.' : ''}
       </p>
     </section>
   );
