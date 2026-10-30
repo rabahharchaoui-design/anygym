@@ -31,7 +31,7 @@ ntfy(){ local t=$(cat "$HOME/.config/anygym/ntfy-topic" 2>/dev/null); [ -n "$t" 
 # One summary push when the day's building ends: what shipped and what to check on the phone.
 DAYSTART=$(git rev-parse master 2>/dev/null); RANTODAY=0
 daydone(){ [ $RANTODAY -eq 1 ] || return; RANTODAY=0
-  local shipped=$(git log --first-parent --format=%s "$DAYSTART"..master 2>/dev/null | grep -i '^Checkpoint' | sed 's/^Checkpoint //' | tac 2>/dev/null || git log --reverse --first-parent --format=%s "$DAYSTART"..master | grep -i '^Checkpoint' | sed 's/^Checkpoint //')
+  local shipped=$(git log --reverse --first-parent --format=%s "$DAYSTART"..master 2>/dev/null | grep -i '^Checkpoint' | sed 's/^Checkpoint //')
   local now=$(awk '/=== STOP HERE/{exit} /^- \[ \] [0-9]/{sub(/^- \[ \] /,""); print substr($0,1,60); exit}' PLAN.md)
   if [ -n "$shipped" ]; then ntfy "AnyGym: done for today" "Live now, open the app and check: $(echo "$shipped" | tr '\n' ';' | sed 's/;$//; s/;/; /g'). The test now pushes above say exactly what to tap. Next up: $now" "sparkles"
   else ntfy "AnyGym: done for today" "Nothing new to check on your phone yet. Still working on: $now" "hourglass"; fi

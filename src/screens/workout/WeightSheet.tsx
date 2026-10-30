@@ -1,5 +1,5 @@
 import { useRef, useState, type MutableRefObject } from 'react';
-import { Sheet } from '../../ui/Sheet';
+import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load } from '../../db/types';
 import { SetLoadInput } from './SetLoadInput';
 import { BAR_PROMPTS, barIdFor, currentLoad } from './exerciseLoad';
@@ -32,7 +32,7 @@ export function WeightSheet({ open, onClose, title, sub, loadType, gym, exercise
   // A swipe down with changed plates keeps them, like Done (no silent loss); unchanged it just closes.
   const commit = useRef<(() => boolean) | null>(null);
   return (
-    <Sheet open={open} onClose={onClose} onDragClose={() => (commit.current?.() ? undefined : onClose())} label="Pick the weight" scroll>
+    <Sheet open={open} onClose={onClose} onDragClose={() => (commit.current?.() ? undefined : onClose())} label="Pick the weight" scroll footer>
       {open && (
         <WeightBody
           commit={commit}
@@ -94,11 +94,11 @@ function WeightBody({
         onNotice={onNotice}
         padInSheet
       />
-      <div className={styles.sheetFooter}>
+      <SheetFooter>
         <button type="button" className={`${styles.logButton} pressable`} disabled={!canDone} onClick={() => onDone({ load, plates: pick.plates })}>
           {barUnknown ? 'Set the bar weight first' : 'Done'}
         </button>
-      </div>
+      </SheetFooter>
     </div>
   );
 }

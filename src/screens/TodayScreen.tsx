@@ -17,7 +17,6 @@ import { startDb } from '../db/bootstrap';
 import { getPlanState, setNextDay } from '../db/planState';
 import { getActiveSession, reopenWorkout, startPlanDay, startWorkout } from '../db/workouts';
 import { logQueue } from '../lib/logQueue';
-import type { PlanState } from '../db/types';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
 import { applyUpdate, isUpdateReady, onUpdateReady } from '../lib/pwaUpdate';
@@ -108,7 +107,7 @@ export function TodayScreen() {
   // carries Undo: the workout opens again and the plan goes back to where it was (SPEC 13.1).
   const undoing = useRef(false);
   useEffect(() => {
-    const st = location.state as { toast?: string; undo?: { sessionId: string; planBefore?: PlanState } } | null;
+    const st = location.state as { toast?: string; undo?: { sessionId: string } } | null;
     const text = st?.toast;
     if (!text) return;
     const undo = st?.undo;
@@ -124,7 +123,7 @@ export function TodayScreen() {
                 if (undoing.current) return;
                 undoing.current = true;
                 setToast(null);
-                reopenWorkout(undo.sessionId, undo.planBefore)
+                reopenWorkout(undo.sessionId)
                   .then((ok) => {
                     if (ok) {
                       // Finish closed its log queue; the workout is active again, so ✓ logs again (PLAN 1.7h).

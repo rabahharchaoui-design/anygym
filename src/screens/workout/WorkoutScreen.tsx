@@ -4,7 +4,6 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants 
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder, updateSet } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
-import { getPlanState } from '../../db/planState';
 import { countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
@@ -422,14 +421,13 @@ export function WorkoutScreen() {
         setUnsaved(failed.length);
         return;
       }
-      // The plan pointer as it is now, so Undo on Today can put it back exactly.
-      const planBefore = await getPlanState();
+      // Finish keeps the plan pointer as it was, inside its own transaction, for Undo on Today.
       const result = await finishWorkout(sessionId);
       disposeDeletes(sessionId);
       setRest(null);
       clearSessionDrafts(sessionId);
       clearExtraSets();
-      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'fade', replace: true, state: { planBefore } });
+      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'fade', replace: true });
       else
         go('/', {
           kind: 'pop',

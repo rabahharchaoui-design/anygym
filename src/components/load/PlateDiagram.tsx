@@ -8,6 +8,7 @@ import { barLayout, hornLayout, outermost, withPlates, withoutOutermost } from '
 import { Hint } from '../hint/Hint';
 import { BarSvg, plateLook } from './BarSvg';
 import { TypeItSheet } from './TypeItSheet';
+import { useReadoutFit } from './useReadoutFit';
 import styles from './PlateDiagram.module.css';
 
 type Props = {
@@ -78,6 +79,8 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
   const { total } = sumLoad({ bar, perSide: value, collars, unit, other });
   const math = formatMathLine(bar, value, collars, unit, baseLabel, other);
   const outer = outermost(value);
+  const readoutRef = useRef<HTMLDivElement>(null);
+  const fit = useReadoutFit(readoutRef, `${total}|${unit}|${!!mathAction}|${bar !== null}`);
 
   const sleeveFull = () => {
     setFull(true);
@@ -113,9 +116,11 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
 
   return (
     <div className={styles.root} data-compact={compact} data-tight={tight || undefined} data-action={mathAction ? 'true' : undefined}>
-      <div className={styles.readout}>
+      <div ref={readoutRef} className={styles.readout} data-fit-level={fit || undefined}>
         {/* Type it | total | Clear on one row in every size: never down by the Done button (1.7e). */}
-        <div className={styles.readoutSide}>{typeIt}</div>
+        <div className={styles.readoutSide} data-fit="side">
+          {typeIt}
+        </div>
         <div className={styles.readoutMain}>
           {total === null && horn ? (
             <p className={`${styles.total} ${styles.unknown} num`} aria-live="polite" data-testid="plate-total">
@@ -124,28 +129,36 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
           ) : total === null ? (
             // Unknown bar: no number yet, never the word "bar" on its own; the plates stay listed below.
             <>
-              <p className={`${styles.total} num`} aria-live="polite" aria-label={`Total not known yet: ${math}`} data-testid="plate-total">
+              <p className={`${styles.total} num`} aria-live="polite" aria-label={`Total not known yet: ${math}`} data-testid="plate-total" data-fit="total">
                 —<span className={styles.unit}>{unit}</span>
               </p>
               <p className={`${styles.math} num`}>
                 <span data-testid="plate-math">{value.length ? math : 'Bar weight not set'}</span>
               </p>
-              {mathAction && <div className={styles.mathAction}>{mathAction}</div>}
+              {mathAction && (
+                <div className={styles.mathAction} data-fit="action">
+                  {mathAction}
+                </div>
+              )}
             </>
           ) : (
             <>
-              <p className={`${styles.total} num`} aria-live="polite" data-testid="plate-total">
+              <p className={`${styles.total} num`} aria-live="polite" data-testid="plate-total" data-fit="total">
                 {formatAmount(total)}
                 <span className={styles.unit}>{unit}</span>
               </p>
               <p className={`${styles.math} num`}>
                 <span data-testid="plate-math">{math}</span>
               </p>
-              {mathAction && <div className={styles.mathAction}>{mathAction}</div>}
+              {mathAction && (
+                <div className={styles.mathAction} data-fit="action">
+                  {mathAction}
+                </div>
+              )}
             </>
           )}
         </div>
-        <div className={styles.readoutSide} data-end="">
+        <div className={styles.readoutSide} data-end="" data-fit="side">
           {clear}
         </div>
       </div>
