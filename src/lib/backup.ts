@@ -44,7 +44,19 @@ export type Backup = {
   tables: BackupTables;
   /** sessionId → exerciseId → draft, only for workouts in progress. */
   drafts: BackupDrafts;
+  /**
+   * The rest of the drafts snapshot (PLAN 2.0c, optional, additive): the workout in progress's
+   * running rest (its deadline as it is) and its "+ Add set" counts per exercise. Only for a
+   * workout in progress in the same file; absent in older backups and without one.
+   */
+  rest?: BackupRest;
+  extraSets?: BackupExtraSets;
 };
+
+export type BackupRest = { sessionId: string; endsAt: number; totalSec: number };
+export type BackupExtraSets = { sessionId: string; extra: Record<string, number> };
+/** What a backup carries beside the tables and drafts (PLAN 2.0c). */
+export type BackupLive = { rest?: BackupRest | null; extraSets?: BackupExtraSets | null };
 
 export type BackupDrafts = DraftsBlob;
 
@@ -58,10 +70,13 @@ export type ParseResult = { ok: true; backup: Backup } | { ok: false; error: str
 export const isActiveSession = (s: Pick<Session, 'endedAt' | 'imported'>): boolean => s.endedAt === undefined && !s.imported;
 
 /** Builds the backup object from the stored tables. Transient tables only with a workout in progress. */
-export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersion: string, exportedAt: number): Backup {
+export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersion: string, exportedAt: number, live: BackupLive = {}): Backup {
   const activeIds = new Set(tables.sessions.filter(isActiveSession).map((s) => s.id));
   const active = activeIds.size > 0;
+  const extra = live.extraSets && activeIds.has(live.extraSets.sessionId) && Object.keys(live.extraSets.extra).length ? live.extraSets : null;
   return {
+    ...(live.rest && activeIds.has(live.rest.sessionId) ? { rest: { ...live.rest } } : {}),
+    ...(extra ? { extraSets: { sessionId: extra.sessionId, extra: { ...extra.extra } } } : {}),
     format: BACKUP_FORMAT,
     appVersion,
     schemaVersion: SCHEMA_VERSION,
@@ -119,8 +134,11 @@ const knownPlates = (u: unknown): Check => (v) => listOf(num)(v) && (u === 'lb' 
 export const isLoad: Check = (v) =>
   shape({
     req: { kind: oneOf(...LOAD_KINDS), unit, total: num },
-    opt: { barWeight: num, barId: oneOf(...BAR_IDS), perSide: listOf(num), collars: num, stackValue: num, added: num },
-  })(v) && ((v as Rec).perSide === undefined || knownPlates((v as Rec).unit)((v as Rec).perSide));
+    opt: { barWeight: num, barId: oneOf(...BAR_IDS), legacyBarUnresolved: oneOf(true), perSide: listOf(num), collars: num, stackValue: num, added: num },
+  })(v) &&
+  ((v as Rec).perSide === undefined || knownPlates((v as Rec).unit)((v as Rec).perSide)) &&
+  // An unresolved legacy bar (PLAN 2.0c) is a barbell set without a barId: never both.
+  ((v as Rec).legacyBarUnresolved === undefined || ((v as Rec).kind === 'barbell' && (v as Rec).barId === undefined));
 
 const isSet = shape({
   req: { id: str, sessionId: str, exerciseId: str, order: num, kind: oneOf('warmup', 'work', 'drop'), uncertain: bool },
@@ -190,8 +208,17 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num } }),
   tombstones: shape({ req: { id: str, sessionId: str, set: isSet, expiresAt: num }, opt: { undo: bool } }),
   // A pending Log set write (PLAN 1.7i): its id, draft key, revision and every value of the row.
-  journal: (v) => shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: num, draft: isDraft, at: num } })(v) && (v as Rec).id === ((v as Rec).draft as Rec).id,
+  // With `mutation` (PLAN 2.0c): a change to a logged set not landed yet (db/mutations.ts).
+  journal: (v) =>
+    shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: num, draft: isDraft, at: num }, opt: { mutation: isMutation } })(v) &&
+    (v as Rec).id === ((v as Rec).draft as Rec).id &&
+    ((v as Rec).mutation === undefined || (v as Rec).id === `mut:${((v as Rec).mutation as Rec).kind}:${((v as Rec).mutation as Rec).setId}`),
 };
+
+/** A change to a logged set (PLAN 2.0c, db/types.ts MutationIntent): an edit's values or a set type. */
+const isMutation: Check = (v) =>
+  shape({ req: { kind: oneOf('edit'), setId: str, change: shape({ req: { load: (x) => isLoad(x) }, opt: { reps: num, seconds: num } }) } })(v) ||
+  shape({ req: { kind: oneOf('type'), setId: str, setKind: oneOf('warmup', 'work', 'drop'), failure: bool } })(v);
 
 /** A pending set draft (lib/drafts.ts): ids, revisions, submission marker and stopwatch kept as they are. */
 export const isDraft = shape({
@@ -292,6 +319,17 @@ function draftsOk(drafts: unknown, sessions: Rec[]): boolean {
   return Object.entries(drafts).every(([sessionId, perExercise]) => active.has(sessionId) && recordOf(isDraft)(perExercise));
 }
 
+const positiveInt: Check = (v) => Number.isInteger(v) && (v as number) > 0;
+const isRest = shape({ req: { sessionId: str, endsAt: num, totalSec: num } });
+const isExtraSets = shape({ req: { sessionId: str, extra: recordOf(positiveInt) } });
+
+/** Rest and added rows (PLAN 2.0c): absent, or valid and for a workout in progress in the same file. */
+function liveOk(v: unknown, check: Check, sessions: Rec[]): boolean {
+  if (v === undefined) return true;
+  if (!check(v)) return false;
+  return sessions.some((s) => s.id === (v as Rec).sessionId && isActiveSession(s as Pick<Session, 'endedAt' | 'imported'>));
+}
+
 /** Reads a backup file's text. Strict: anything off is refused with one plain sentence. */
 export function parseBackup(text: string): ParseResult {
   let raw: unknown;
@@ -334,10 +372,14 @@ export function parseBackup(text: string): ParseResult {
   const drafts = raw.drafts === undefined ? {} : raw.drafts;
   if (!draftsOk(drafts, upgraded.sessions)) return { ok: false, error: DAMAGED };
   if (!draftPlatesHold(upgraded, drafts as Rec)) return { ok: false, error: DAMAGED };
+  if (!liveOk(raw.rest, isRest, upgraded.sessions) || !liveOk(raw.extraSets, isExtraSets, upgraded.sessions)) return { ok: false, error: DAMAGED };
 
   return {
     ok: true,
-    backup: { format: BACKUP_FORMAT, appVersion: raw.appVersion as string, schemaVersion: version, exportedAt: raw.exportedAt as number, tables: upgraded as unknown as BackupTables, drafts: drafts as BackupDrafts },
+    backup: { format: BACKUP_FORMAT, appVersion: raw.appVersion as string, schemaVersion: version, exportedAt: raw.exportedAt as number, tables: upgraded as unknown as BackupTables, drafts: drafts as BackupDrafts,
+      ...(raw.rest !== undefined ? { rest: raw.rest as BackupRest } : {}),
+      ...(raw.extraSets !== undefined ? { extraSets: raw.extraSets as BackupExtraSets } : {}),
+    },
   };
 }
 

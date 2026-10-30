@@ -79,6 +79,7 @@ describe('origin and CORS', () => {
       const res = await post('/feedback', feedback(), { Origin: o });
       expect(res.status).toBe(403);
       expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+      expect(res.headers.get('Access-Control-Expose-Headers')).toBeNull();
     }
     expect(db.rows('SELECT * FROM reports')).toHaveLength(0);
   });
@@ -151,6 +152,9 @@ describe('rate limit', () => {
     const blocked = await post('/crash', crash({ signature: 'over' }));
     expect(blocked.status).toBe(429);
     expect(Number(blocked.headers.get('Retry-After'))).toBe(50 * 60);
+    // PLAN 2.0c: the browser may read it (CORS hides response headers that are not exposed).
+    expect(blocked.headers.get('Access-Control-Allow-Origin')).toBe('https://rabahharchaoui-design.github.io');
+    expect(blocked.headers.get('Access-Control-Expose-Headers')).toBe('Retry-After');
     expect((await post('/crash', crash({ signature: 'other-ip' }), { 'CF-Connecting-IP': '198.51.100.1' })).status).toBe(201);
     clock = new Date('2026-10-25T15:00:01Z');
     expect((await post('/crash', crash({ signature: 'next-hour' }))).status).toBe(201);

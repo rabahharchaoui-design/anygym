@@ -16,6 +16,8 @@ export const corsHeaders = (origin: string): Record<string, string> => ({
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
+  // The app reads Retry-After on a 429 to wait as long as asked (PLAN 2.0c); CORS hides it otherwise.
+  'Access-Control-Expose-Headers': 'Retry-After',
   Vary: 'Origin',
 });
 

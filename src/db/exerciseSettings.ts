@@ -1,5 +1,5 @@
 // How the user loads an exercise (PLAN 1.7): asked once for 'unknown' exercises.
-import { legacyBarOf } from './history';
+import { preserveLegacyBars } from './history';
 import { sameExerciseIds } from '../lib/picker';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { ANY_GYM, type BarId, type ExerciseSetting, type Load } from './types';
@@ -44,24 +44,17 @@ export function pickLoadType(settings: ExerciseSetting[], exerciseId: string, gy
 /**
  * Saves which bar a barbell exercise uses at this gym (PLAN 1.10d), on the exercise's record for
  * this gym; its load type answer, if any, is kept. Schema unchanged: barId is not indexed.
- * In the same transaction (PLAN 1.7k), older sets of this exercise at this gym saved without a
- * barId get the bar their stored evidence resolves to (db/history.ts legacyBarOf, with
+ * In the same transaction (PLAN 1.7k, 2.0c), older sets of this exercise at this gym saved without
+ * a barId get the bar their stored evidence resolves to (db/history.ts preserveLegacyBars, with
  * `exerciseBar`, the exercise's own bar by plan or name), one additive field each, so changing the
- * setting can never move them between histories later. Ambiguous ones stay without a barId.
+ * setting can never move them between histories later. Ambiguous ones get the unresolved mark.
  */
 export async function saveBarChoice(exerciseId: string, gymId: string, barId: BarId, db: AnyGymDB = defaultDb, exerciseBar?: BarId): Promise<ExerciseSetting> {
   return db.transaction('rw', [db.exerciseSettings, db.sets, db.sessions, db.gyms], async () => {
     if (exerciseBar) {
       const gym = await db.gyms.get(gymId);
-      const ids = sameExerciseIds(exerciseId);
-      const legacy = (await db.sets.where('exerciseId').anyOf([...ids]).toArray()).filter((x) => x.load?.kind === 'barbell' && x.load.barId === undefined);
-      const sessions = await db.sessions.bulkGet([...new Set(legacy.map((x) => x.sessionId))]);
-      const here = new Set(sessions.filter((x) => !!x && x.gymId === gymId).map((x) => x!.id));
-      for (const x of legacy) {
-        if (!here.has(x.sessionId) || !x.load) continue;
-        const bar = legacyBarOf(x.load, exerciseBar, gym);
-        if (bar !== null) await db.sets.put({ ...x, load: { ...x.load, barId: bar } });
-      }
+      // Same resolver and marks as a unit or bar change (PLAN 2.0c); aliases of the exercise too.
+      if (gym) await preserveLegacyBars(db, gym, sameExerciseIds(exerciseId), exerciseBar);
     }
     const setting: ExerciseSetting = { ...(await db.exerciseSettings.get([exerciseId, gymId])), exerciseId, gymId, barId };
     await db.exerciseSettings.put(setting);

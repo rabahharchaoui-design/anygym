@@ -112,7 +112,9 @@ export function createTransport(opts: Options = {}) {
         if (!out.accepted) refused.add(row.id);
         await removeReport(row.id, db);
       } else {
-        await retryLater(row.id, now() + backoff(row.attempts, out.retryAfterMs), db);
+        const wait = backoff(row.attempts, out.retryAfterMs);
+        // A server's Retry-After is a minimum even a forced drain waits out (PLAN 2.0c).
+        await retryLater(row.id, now() + wait, db, out.retryAfterMs !== undefined && out.retryAfterMs > 0 ? now() + wait : undefined);
         if (out.offline) return;
       }
     }

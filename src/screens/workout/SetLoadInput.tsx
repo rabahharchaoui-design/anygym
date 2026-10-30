@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BodyweightInput } from '../../components/load/BodyweightInput';
 import { DumbbellWheel } from '../../components/load/DumbbellWheel';
 import { ExactWeightInput } from '../../components/load/ExactWeightInput';
@@ -52,10 +52,15 @@ type Props = {
   onNotice?: (text: string, retry?: () => void) => void;
   /** Added weight pads (bodyweight, stack) open in their own sheet (SPEC 13.5, PLAN 1.10e). Default: compact. */
   padInSheet?: boolean;
+  /**
+   * PLAN 2.0c: true while a bar choice is being saved, false once it settled (landed or failed).
+   * The sheet holds Done/Save until then, so the load it confirms is the one the choice ends with.
+   */
+  onPending?: (pending: boolean) => void;
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact, onPending }: Props) {
   switch (loadType) {
     case 'barbell':
       return (
@@ -72,6 +77,7 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
           plates={plates ?? value?.perSide ?? []}
           onChange={onChange}
           compact={compact}
+          onPending={onPending}
         />
       );
     case 'dumbbell_each':
@@ -129,6 +135,7 @@ function BarbellField({
   plates,
   onChange,
   compact,
+  onPending,
 }: {
   gym: Gym;
   exerciseId: string;
@@ -142,8 +149,13 @@ function BarbellField({
   plates: readonly number[];
   onChange: (l: Load | null, plates: number[]) => void;
   compact: boolean;
+  onPending?: (pending: boolean) => void;
 }) {
   const [perSide, setPerSide] = useState<number[]>([...plates]);
+  // The plates as the user has them right now, updated in the same step as every change (PLAN
+  // 2.0c): a bar choice or bar answer that completes later reads these, never the plates captured
+  // when it started, so plates added meanwhile are kept.
+  const platesNow = useRef<number[]>([...plates]);
   const [picking, setPicking] = useState(false);
   // The brand dependent bar whose weight is asked (SPEC 5.3); stays set while the sheet slides away.
   const [asking, setAsking] = useState(false);
@@ -174,9 +186,40 @@ function BarbellField({
   // The bar it is lifted on goes with the load (PLAN 1.7c), so Smith sets keep their own history.
   // A bar just picked is passed in with its weight (PLAN 1.7h): state set in the same tap is not read yet.
   const change = (next: number[], b: number | null = bar, id: BarId = local ? (localBar.id ?? ownBarId ?? barIdFor(exerciseName, chosen)) : barIdFor(exerciseName, picked)) => {
+    platesNow.current = next;
     setPerSide(next);
     setUntouched(false);
     onChange(barbellLoad(b, next, collars, gym.unit, id), next);
+  };
+  // Bar choices are saved one after another and only the latest one is applied (PLAN 2.0c): an
+  // older choice that completes late never overwrites a newer one, in the picker or in Dexie.
+  const chain = useRef<Promise<unknown>>(Promise.resolve());
+  const latest = useRef(0);
+  const alive = useRef(true);
+  const gymNow = useRef(gym);
+  gymNow.current = gym;
+  // The latest render's change (its collars and unit), for completions that land later.
+  const changeNow = useRef(change);
+  changeNow.current = change;
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      // Gone while a choice was saving (closed, or started over): the sheet is not held for it.
+      if (pendingCount.current > 0) {
+        pendingCount.current = 0;
+        onPendingNow.current?.(false);
+      }
+    };
+  }, []);
+  const onPendingNow = useRef(onPending);
+  onPendingNow.current = onPending;
+  const pendingCount = useRef(0);
+  const setPending = (delta: number) => {
+    const was = pendingCount.current > 0;
+    pendingCount.current += delta;
+    const is = pendingCount.current > 0;
+    if (was !== is && alive.current) onPending?.(is);
   };
   /**
    * Workout: saved per exercise and gym first; only once that landed do the picker and the load
@@ -185,17 +228,26 @@ function BarbellField({
   const choose = async (id: BarId, weight: number | null) => {
     if (local) {
       setLocalBar({ id, weight });
-      change(perSide, weight, id);
+      change(platesNow.current, weight, id);
       return;
     }
+    const mine = ++latest.current;
+    setPending(1);
+    const unit = gym.unit;
+    const save = chain.current.then(() => (mine === latest.current ? saveBarChoice(exerciseId, gym.id, id, undefined, barForName(exerciseName)) : undefined));
+    chain.current = save.catch(() => undefined);
     try {
-      await saveBarChoice(exerciseId, gym.id, id, undefined, barForName(exerciseName));
+      await save;
     } catch {
-      onNotice?.('Could not save the bar choice', () => void choose(id, weight));
+      if (alive.current && mine === latest.current) onNotice?.('Could not save the bar choice', () => void choose(id, weight));
       return;
+    } finally {
+      setPending(-1);
     }
+    // Closed, a newer choice, or the gym's unit changed meanwhile: this completion changes nothing.
+    if (!alive.current || mine !== latest.current || unit !== gymNow.current.unit) return;
     setPicked(id);
-    change(perSide, weight, id);
+    changeNow.current(platesNow.current, weight, id);
   };
   // EZ, trap and Smith weights are asked once (first use prompt); until then: "Set bar weight".
   const unknown = bar === null && !!prompt;
@@ -249,7 +301,7 @@ function BarbellField({
           machineId={prompt.machineId}
           kind={prompt.kind}
           info={prompt.info}
-          onSaved={(g) => change(perSide, g.bars[barId])}
+          onSaved={(g) => alive.current && g.unit === gymNow.current.unit && changeNow.current(platesNow.current, g.bars[barId])}
           onOther={() => ask(barId)}
         />
       )}
@@ -293,7 +345,12 @@ function BarbellField({
           unit={gym.unit}
           machineId={askPrompt.machineId}
           kind={askPrompt.kind}
-          onSaved={(g) => (askBar === barId && !local ? change(perSide, g.bars[askBar]) : void choose(askBar, g.bars[askBar]))}
+          onSaved={(g) => {
+            // The latest plates; an answer for a gym whose unit changed since is not applied here (PLAN 2.0c).
+            if (!alive.current || g.unit !== gymNow.current.unit) return;
+            if (askBar === barId && !local) changeNow.current(platesNow.current, g.bars[askBar]);
+            else void choose(askBar, g.bars[askBar]);
+          }}
         />
       )}
     </>

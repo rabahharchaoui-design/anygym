@@ -6,11 +6,25 @@ import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
 import { applyFinishProgress, weekFor } from './planState';
 import { db as defaultDb, type AnyGymDB } from './schema';
+import { durableRow } from '../lib/durable';
+
+// The localStorage keys of the live tables (lib/drafts.ts, lib/extraSets.ts), mirrored in db.kv.
+const DRAFTS_KEY = 'anygym-drafts';
+const EXTRA_SETS_KEY = 'anygym-extra-sets';
+const REST_KEY = 'anygym-rest';
 import { dropSessionIntents, dropUndoIntent, hasUndoIntent } from './undoIntents';
 import type { Load, PlanState, Session, SetKind, WorkoutSet } from './types';
 
 /** kv row Finish writes (one at a time): the plan state just before that Finish, for its Undo. */
 export const FINISH_PLAN_PREFIX = 'anygym-finish-plan:';
+/** PLAN 2.0c: the pending rows (drafts) and added rows a Finish cleared, kept for its Undo. */
+export const FINISH_PENDING_PREFIX = 'anygym-finish-pending:';
+
+/**
+ * What was still on the workout's tables when it was finished (PLAN 2.0c): the anygym-drafts and
+ * anygym-extra-sets values of that workout (null: none). Undo on Today puts them back exactly.
+ */
+export type FinishPending = { drafts: string | null; extra: string | null; rest?: string | null };
 
 /** The workout in progress: started, not ended, not imported. Newest first if somehow several. */
 export async function getActiveSession(db: AnyGymDB = defaultDb): Promise<Session | undefined> {
@@ -159,6 +173,8 @@ export async function updateSet(
     const session = await db.sessions.get(set.sessionId);
     if (!session || session.endedAt !== undefined) throw new WorkoutFinishedError();
     const next: WorkoutSet = { ...set, load: { ...change.load } };
+    // A bar picked for it explicitly resolves an unresolved legacy bar (PLAN 2.0c); otherwise the mark stays.
+    if (next.load!.barId !== undefined) delete next.load!.legacyBarUnresolved;
     delete next.reps;
     delete next.seconds;
     if (change.reps !== undefined) next.reps = change.reps;
@@ -310,7 +326,7 @@ export type FinishResult = { saved: true; sets: number; progress?: DayProgress }
  * Ends the workout. With sets it is saved (endedAt); with none it is deleted, never kept as an
  * empty session. Finishing twice is safe. A saved plan day moves the plan on (applyFinishProgress).
  */
-export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<FinishResult> {
+export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now(), pending?: FinishPending): Promise<FinishResult> {
   return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions, db.journal, db.kv], async () => {
     const s = await db.sessions.get(sessionId);
     if (s && s.endedAt === undefined) {
@@ -346,8 +362,11 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       // "Workout saved · Undo" puts it back exactly, however the finish screen was reached (a
       // reload or a link loses the screen's own state). Only the latest Finish can be undone.
       await db.kv.where('key').startsWith(FINISH_PLAN_PREFIX).delete();
+      await db.kv.where('key').startsWith(FINISH_PENDING_PREFIX).delete();
       const before = await db.planState.get('active');
       if (before) await db.kv.put({ key: FINISH_PLAN_PREFIX + sessionId, value: JSON.stringify(before), at: now });
+      // The pending and added rows go with the plan state, so Undo restores the tables exactly (PLAN 2.0c).
+      if (pending && (pending.drafts !== null || pending.extra !== null || (pending.rest ?? null) !== null)) await db.kv.put({ key: FINISH_PENDING_PREFIX + sessionId, value: JSON.stringify(pending), at: now });
       await db.sessions.put({ ...s, endedAt: now });
       // 60% or more of the day's working sets moves the plan on, less keeps the day (PLAN 2.0a).
       // Only here, as the workout ends: finishing again never moves it twice.
@@ -364,10 +383,20 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
  * workout has started since; the plan is only restored when it is still the same plan.
  */
 export async function reopenWorkout(sessionId: string, given?: PlanState, db: AnyGymDB = defaultDb): Promise<boolean> {
+  return (await reopenWorkoutWithPending(sessionId, given, db)).ok;
+}
+
+/**
+ * reopenWorkout, also handing back the pending and added rows Finish kept (PLAN 2.0c), taken out
+ * in the same transaction. Their durable copies (db.kv anygym-drafts, anygym-extra-sets) are
+ * written there too, so they survive a kill right after Undo even when localStorage refuses them;
+ * the caller puts them into the runtime stores (lib/finishPending.ts restorePending).
+ */
+export async function reopenWorkoutWithPending(sessionId: string, given?: PlanState, db: AnyGymDB = defaultDb): Promise<{ ok: boolean; pending: FinishPending | null }> {
   return db.transaction('rw', db.sessions, db.planState, db.kv, async () => {
     const s = await db.sessions.get(sessionId);
-    if (!s || s.endedAt === undefined || s.imported) return false;
-    if (await getActiveSession(db)) return false;
+    if (!s || s.endedAt === undefined || s.imported) return { ok: false, pending: null };
+    if (await getActiveSession(db)) return { ok: false, pending: null };
     const { endedAt: _ended, ...open } = s;
     await db.sessions.put(open);
     // The copy Finish kept in its own transaction wins; `given` only for a Finish from before it existed.
@@ -376,6 +405,27 @@ export async function reopenWorkout(sessionId: string, given?: PlanState, db: An
     const planBefore = kept?.value ? (JSON.parse(kept.value) as PlanState) : given;
     const now = await db.planState.get('active');
     if (planBefore && now && now.planId === planBefore.planId && s.planId === planBefore.planId) await db.planState.put(planBefore);
-    return true;
+    const row = await db.kv.get(FINISH_PENDING_PREFIX + sessionId);
+    await db.kv.delete(FINISH_PENDING_PREFIX + sessionId);
+    const pending = parsePending(row?.value ?? null);
+    if (pending) {
+      if (pending.drafts !== null) await db.kv.put(durableRow(DRAFTS_KEY, pending.drafts));
+      if (pending.extra !== null) await db.kv.put(durableRow(EXTRA_SETS_KEY, pending.extra));
+      // The running rest with its original deadline (PLAN 2.0c), never a fresh countdown.
+      if (pending.rest) await db.kv.put(durableRow(REST_KEY, pending.rest));
+    }
+    return { ok: true, pending };
   });
+}
+
+function parsePending(value: string | null): FinishPending | null {
+  if (!value) return null;
+  try {
+    const v = JSON.parse(value) as Partial<FinishPending>;
+    const str = (x: unknown) => (typeof x === 'string' ? x : null);
+    const p = { drafts: str(v.drafts), extra: str(v.extra), rest: str(v.rest) };
+    return p.drafts === null && p.extra === null && p.rest === null ? null : p;
+  } catch {
+    return null;
+  }
 }

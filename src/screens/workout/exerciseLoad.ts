@@ -124,10 +124,11 @@ export function currentLoad(
   exerciseId: string,
   exerciseName: string,
   bar?: BarId,
+  pickUnit?: Unit,
 ): Load | null {
   // Picked in the other unit, or with a plate this gym has turned off: never rebuilt into a
   // different loggable weight (PLAN 1.7i). It waits for the user to pick again.
-  if (pickProblem(picked, plates, undefined, kind, gym)) return null;
+  if (pickProblem(picked, plates, pickUnit, kind, gym)) return null;
   switch (kind) {
     case 'barbell':
       return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar));
@@ -157,6 +158,35 @@ export function pickProblem(picked: Load | null, plates: readonly number[], pick
   if ((kind === 'barbell' || kind === 'plate_machine') && plates.length > 0) {
     const have = enabledPlates(gym.plateInventory);
     if (!plates.every((w) => have.includes(w))) return 'plate';
+  }
+  return null;
+}
+
+/** A weight picker's selection, with the unit it was picked in (PLAN 2.0c). */
+export type WeightSelection = { load: Load | null; plates: readonly number[]; unit: Unit };
+
+/**
+ * What a weight picker may confirm (Done, or a swipe down that keeps a change), or null when it
+ * may not (PLAN 2.0c). The selection must be in the gym's unit right now (picked in lb, the gym
+ * switched to kg in another tab: never rebuilt as kg) with plates this gym has. Then it is either a
+ * loadable weight rebuilt through load.ts, or plates on a bar or machine whose base weight is
+ * genuinely not known here yet (an EZ, trap or Smith bar is answered first, never confirmed
+ * unknown). A Smith bar answered "plates only" is a known base of 0, not unknown.
+ */
+export function confirmablePick(pick: WeightSelection, kind: Load['kind'], gym: Gym, exerciseId: string, exerciseName: string, bar?: BarId): { load: Load | null; plates: number[]; unit: Unit } | null {
+  if (pick.unit !== gym.unit) return null;
+  if (pickProblem(pick.load, pick.plates, pick.unit, kind, gym)) return null;
+  const load = currentLoad(pick.load, pick.plates, kind, gym, exerciseId, exerciseName, bar, pick.unit);
+  if (load) return { load, plates: [...pick.plates], unit: pick.unit };
+  if (pick.plates.length === 0) return null;
+  if (kind === 'barbell') {
+    const id = barIdFor(exerciseName, bar);
+    if (gym.bars[id] !== null || BAR_PROMPTS[id]) return null;
+    return { load: null, plates: [...pick.plates], unit: pick.unit };
+  }
+  if (kind === 'plate_machine') {
+    if (machineStartFor(gym, machineIdFor(exerciseId, exerciseName)) !== null) return null;
+    return { load: null, plates: [...pick.plates], unit: pick.unit };
   }
   return null;
 }

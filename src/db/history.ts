@@ -4,6 +4,7 @@ import { recordsFor, type PersonalRecord } from '../lib/records';
 import { sameExerciseIds } from '../lib/picker';
 import { barForName } from '../lib/loadTypeRule';
 import { planById } from '../data/plans';
+import { planExercise } from '../data/planExercises';
 import { dayIndexOf } from '../lib/plans';
 import { dayWorkout } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';
@@ -31,27 +32,67 @@ type Usable = WorkoutSet & { load: Load };
 const FREE_BARS: readonly BarId[] = ['olympic', 'womens', 'ez_curl', 'trap'];
 
 /**
- * The bar of an older barbell set saved without a barId (PLAN 1.7k), from stored evidence only.
+ * The bar of an older barbell set saved without a barId (PLAN 1.7k, 2.0c), from stored evidence only.
  * `nameBar` is the exercise's own bar (its plan entry or name rule, never the user's bar setting,
  * which may have changed since). The set's bar weight is compared with the bars of the gym it was
  * logged at (same unit only, stored numbers as they are, no arithmetic):
  * - an exercise that is a Smith lift by name: Smith;
+ * - marked unresolved when its gym changed (PLAN 2.0c): null;
+ * - the gym is in another unit now (its answers were reset): null, the evidence is gone, so it is
+ *   left out rather than guessed (resolved ids are stored before a unit or bar change,
+ *   preserveLegacyBars, so this only meets sets from before PLAN 2.0c);
+ * - no gym record to compare with: the exercise's own bar (nothing there can change any more);
  * - the weight is that gym's Smith answer and no free bar's (plates only Smith is 0): Smith;
  * - the weight is a free bar's and not the Smith answer (a 45 lb set with a Smith answer of 0):
  *   that free bar, never Smith;
  * - the weight is both the Smith answer and a free bar's: null, ambiguous, left out of every
  *   comparison (history, LAST TIME, targets, records) rather than guessed;
- * - nothing to compare with (no gym, no weight, another unit, a weight no bar there has): the
- *   exercise's own bar, as before 1.7k.
+ * - no bar weight stored: the exercise's own bar when the gym has no Smith answer (it could not
+ *   have been a Smith bar), else null;
+ * - a weight no bar there has: the exercise's own bar.
  */
-export function legacyBarOf(load: Pick<Load, 'barWeight' | 'unit'>, nameBar: BarId, gym: Pick<Gym, 'bars' | 'unit'> | undefined): BarId | null {
+export function legacyBarOf(load: Pick<Load, 'barWeight' | 'unit' | 'legacyBarUnresolved'>, nameBar: BarId, gym: Pick<Gym, 'bars' | 'unit'> | undefined): BarId | null {
   if (nameBar === 'smith') return 'smith';
+  if (load.legacyBarUnresolved) return null;
+  if (!gym) return nameBar;
+  if (load.unit !== gym.unit) return null;
   const w = load.barWeight;
-  if (!gym || w === undefined || w === null || load.unit !== gym.unit) return nameBar;
+  if (w === undefined || w === null) return gym.bars.smith === null ? nameBar : null;
   const smith = gym.bars.smith !== null && gym.bars.smith === w;
   const free = FREE_BARS.filter((b) => gym.bars[b] !== null && gym.bars[b] === w);
   if (smith) return free.length ? null : 'smith';
   return free.length && !free.includes(nameBar) ? free[0]! : nameBar;
+}
+
+/** The exercise's own bar for legacy sets: its plan entry's bar, else the name rule (as useWorkout). */
+export function exerciseBarOf(exerciseId: string): BarId {
+  const p = planExercise(exerciseId);
+  return p?.bar ?? barForName(p?.name ?? exerciseId);
+}
+
+/**
+ * PLAN 2.0c: before a gym's unit or bar answers change, every older barbell set logged there
+ * without a barId gets the bar its stored evidence resolves to against the gym AS IT IS NOW
+ * (`gymBefore`), or the unresolved mark when the evidence is ambiguous or missing. One additive
+ * field per set; totals, units, plates, ids and order stay. Call inside the caller's transaction
+ * (sets, sessions), before the gym is written, so both commit or neither does. `only`: just these
+ * exercise ids (a bar choice), `exerciseBar`: their own bar when the caller knows it.
+ */
+export async function preserveLegacyBars(db: AnyGymDB, gymBefore: Gym, only?: readonly string[], exerciseBar?: BarId): Promise<number> {
+  const sessions = await db.sessions.where('gymId').equals(gymBefore.id).toArray();
+  if (!sessions.length) return 0;
+  const here = new Set(sessions.map((x) => x.id));
+  const sets = only
+    ? await db.sets.where('exerciseId').anyOf([...only]).toArray()
+    : await db.sets.where('sessionId').anyOf([...here]).toArray();
+  let n = 0;
+  for (const x of sets) {
+    if (!here.has(x.sessionId) || x.load?.kind !== 'barbell' || x.load.barId !== undefined || x.load.legacyBarUnresolved) continue;
+    const bar = legacyBarOf(x.load, exerciseBar ?? exerciseBarOf(x.exerciseId), gymBefore);
+    await db.sets.put({ ...x, load: bar === null ? { ...x.load, legacyBarUnresolved: true } : { ...x.load, barId: bar } });
+    n++;
+  }
+  return n;
 }
 
 /** This exercise's usable sets of this load kind: not uncertain, with a load, on the right bar. */

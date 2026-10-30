@@ -71,9 +71,11 @@ describe('legacy Smith sets without barId (PLAN 1.7k)', () => {
     expect(legacyBarOf(lb(0), 'olympic', { ...gym, bars: { ...bars, smith: null } })).toBe('olympic');
     // A Smith exercise by name stays Smith.
     expect(legacyBarOf(lb(45), 'smith', gym)).toBe('smith');
-    // Nothing to compare with: the exercise's own bar.
+    // No gym record at all: the exercise's own bar (nothing there can change any more).
     expect(legacyBarOf(lb(0), 'olympic', undefined)).toBe('olympic');
-    expect(legacyBarOf({ barWeight: 20, unit: 'kg' }, 'olympic', gym)).toBe('olympic');
+    // PLAN 2.0c: the gym is in another unit now, its answers were reset: the evidence is gone, so
+    // the set is left out (null), never guessed as the exercise's own bar.
+    expect(legacyBarOf({ barWeight: 20, unit: 'kg' }, 'olympic', gym)).toBeNull();
   });
 
   it('review: a legacy 45 lb Olympic set stays Olympic when Smith is selected today (Smith answer 0); the bar change persists it', async () => {

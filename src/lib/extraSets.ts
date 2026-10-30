@@ -109,6 +109,29 @@ export function hydrateExtraSets(value: string | null): void {
   }
 }
 
+/** This workout's added rows as stored (the anygym-extra-sets value), or null when it has none (PLAN 2.0c). */
+export function extraSetsValue(sessionId: string, kv: KV | null = storage()): string | null {
+  const s = read(kv);
+  return s && s.sessionId === sessionId && Object.keys(s.extra).length ? JSON.stringify(s) : null;
+}
+
+/** Puts back added rows kept by a Finish that was undone (PLAN 2.0c, lib/finishPending.ts). */
+export function restoreExtraSets(value: string, kv: KV | null = storage()): void {
+  hydrateExtraSets(value);
+  if (!memory) return;
+  cleared = false;
+  if (!kv) {
+    storeWithoutLocalStorage(value);
+    return;
+  }
+  try {
+    kv.setItem(KEY, value);
+    void mirror(kv, KEY);
+  } catch {
+    void mirrorValue(kv, KEY, value);
+  }
+}
+
 /** Tests only. */
 export function resetExtraSetsMemory(): void {
   memory = null;

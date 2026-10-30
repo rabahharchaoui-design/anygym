@@ -2,7 +2,9 @@
 // src/lib/backup.ts. Restores are refused while a workout is in progress, and each runs in ONE
 // transaction over every table: if anything throws, nothing changes.
 import { version } from '../../package.json';
-import { buildBackup, isActiveSession, keyOf, TABLE_NAMES, type Backup, type BackupTables, type TableName } from '../lib/backup';
+import { buildBackup, isActiveSession, keyOf, TABLE_NAMES, type Backup, type BackupLive, type BackupTables, type TableName } from '../lib/backup';
+import { EXTRA_SETS_KEY, clearExtraSets, extraSetsValue, restoreExtraSets } from '../lib/extraSets';
+import { REST_KEY, loadRest, saveRest } from '../lib/rest';
 import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob } from '../lib/drafts';
 import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
@@ -41,7 +43,30 @@ export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), d
     const wanted = !t.undo && (await readUndoIntents(t.sessionId, db).catch(() => [] as string[])).includes(t.id);
     marked.tombstones.push(wanted ? { ...t, undo: true } : t);
   }
-  return buildBackup(marked, exportDrafts(drafts), version, now);
+  return buildBackup(marked, exportDrafts(drafts), version, now, liveOf(tables, drafts));
+}
+
+/** The running rest and added rows of the workout in progress (PLAN 2.0c), as the app holds them. */
+function liveOf(tables: BackupTables, kv: DraftStorage): BackupLive {
+  const active = tables.sessions.find(isActiveSession);
+  if (!active) return {};
+  const extra = extraSetsValue(active.id, kv);
+  return { rest: loadRest(active.id, kv), extraSets: extra ? (JSON.parse(extra) as BackupLive['extraSets']) : null };
+}
+
+/** The rest and added rows of a backup as their durable values (null: none, a removal). */
+function liveValues(backup: Backup): { rest: string | null; extra: string | null } {
+  return { rest: backup.rest ? JSON.stringify(backup.rest) : null, extra: backup.extraSets ? JSON.stringify(backup.extraSets) : null };
+}
+
+/**
+ * After a restore committed (its durable rows are written inside it): the running rest and added
+ * rows become the live ones, or are cleared so nothing stale of this phone stays (PLAN 2.0c).
+ */
+function applyLive(backup: Backup, kv: DraftStorage): void {
+  saveRest(backup.rest ? { ...backup.rest } : null, kv);
+  if (backup.extraSets) restoreExtraSets(JSON.stringify(backup.extraSets), kv);
+  else clearExtraSets(kv);
 }
 
 async function refuseIfActive(db: AnyGymDB): Promise<void> {
@@ -75,9 +100,14 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
       if (rows.length) await db.table(t).bulkAdd(rows);
     }
     await storeDraftsDurably(db, backup.drafts);
+    // The rest and added rows too (PLAN 2.0c), also as removals: a stale one never stays.
+    const live = liveValues(backup);
+    await db.kv.put(durableRow(REST_KEY, live.rest));
+    await db.kv.put(durableRow(EXTRA_SETS_KEY, live.extra));
     return { workouts: backup.tables.sessions.length, sets: backup.tables.sets.length };
   });
   replaceDrafts(backup.drafts, drafts);
+  applyLive(backup, drafts);
   resetStartDb();
   return result;
 }
@@ -115,9 +145,18 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
     const incoming = Object.entries(backup.drafts).filter(([id]) => added.has(id));
     const next = incoming.length ? { ...exportDrafts(drafts), ...Object.fromEntries(incoming) } : null;
     if (next) await storeDraftsDurably(db, next);
-    return { workouts: added.size, sets, next };
+    // The added workout's running rest and added rows (PLAN 2.0c). The phone has no workout in
+    // progress (refused above), so they replace whatever stale copy it has.
+    const live = (backup.rest && added.has(backup.rest.sessionId)) || (backup.extraSets && added.has(backup.extraSets.sessionId));
+    if (live) {
+      const v = liveValues(backup);
+      await db.kv.put(durableRow(REST_KEY, v.rest));
+      await db.kv.put(durableRow(EXTRA_SETS_KEY, v.extra));
+    }
+    return { workouts: added.size, sets, next, live };
   });
   if (result.next) replaceDrafts(result.next, drafts);
+  if (result.live) applyLive(backup, drafts);
   resetStartDb();
   return { workouts: result.workouts, sets: result.sets };
 }

@@ -184,6 +184,12 @@ export type Load = {
   total: number;
   barWeight?: number;
   barId?: BarId;
+  /**
+   * PLAN 2.0c (additive, barbell only): an older set without a barId whose bar could not be told
+   * from its stored evidence when its gym's bars or unit changed. It stays out of every equipment
+   * comparison (history, LAST TIME, targets, records) until a bar is picked for it explicitly.
+   */
+  legacyBarUnresolved?: true;
   perSide?: number[];
   collars?: number;
   stackValue?: number;
@@ -205,7 +211,20 @@ export type Submission = { id: string; sessionId: string; exerciseId: string; re
  * A Log set write that started and has not committed (PLAN 1.7i, schema v8): the submitted row's
  * id, its draft key, the version submitted and the row's complete values (a lib/drafts.ts Draft).
  */
-export type JournalEntry = { id: string; sessionId: string; exerciseId: string; key: string; rev: number; draft: Record<string, unknown>; at: number };
+/**
+ * A failed (or still running) change to a logged set (PLAN 2.0c): an Edit set save or a set type
+ * change, with the values it writes. Journaled before the write like a Log set, so a failure that
+ * outlives a restart still blocks Finish until it is retried or given up (db/mutations.ts).
+ */
+export type MutationIntent =
+  | { kind: 'edit'; setId: string; change: { reps?: number; seconds?: number; load: Load } }
+  | { kind: 'type'; setId: string; setKind: SetKind; failure: boolean };
+
+/**
+ * A pending write (PLAN 1.7i): a Log set (its draft), or with `mutation` (PLAN 2.0c, additive,
+ * not indexed) a change to a logged set; its draft is then just `{ id, load: null }`.
+ */
+export type JournalEntry = { id: string; sessionId: string; exerciseId: string; key: string; rev: number; draft: Record<string, unknown>; at: number; mutation?: MutationIntent };
 
 /**
  * A deleted set while its Undo can still happen (PLAN 1.7h): the record as it was deleted, when

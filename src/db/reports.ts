@@ -35,13 +35,14 @@ export async function enqueueCrash(payload: CrashPayload, now = Date.now(), db: 
 
 /**
  * Reserves the oldest report due by `dueBy` (Infinity: also those waiting out a backoff) that no
- * other sender holds at `now`, skipping the ids in `skip`.
+ * other sender holds at `now`, skipping the ids in `skip`. A server's Retry-After deadline
+ * (`retryAfterUntil`, PLAN 2.0c) is respected even for `dueBy = Infinity`.
  */
 export async function claimNext(dueBy = Date.now(), db: AnyGymDB = defaultDb, skip: ReadonlySet<string> = new Set(), now = Math.min(dueBy, Date.now())): Promise<ReportQueueRow | undefined> {
   return db.transaction('rw', db.reportQueue, async () => {
     const row = await db.reportQueue
       .orderBy('createdAt')
-      .filter((r) => r.nextAttemptAt <= dueBy && r.leaseUntil <= now && !skip.has(r.id))
+      .filter((r) => r.nextAttemptAt <= dueBy && r.leaseUntil <= now && (r.retryAfterUntil ?? 0) <= now && !skip.has(r.id))
       .first();
     if (!row) return undefined;
     const leased = { ...row, leaseUntil: now + LEASE_MS };
@@ -55,11 +56,18 @@ export async function removeReport(id: string, db: AnyGymDB = defaultDb): Promis
   await db.reportQueue.delete(id);
 }
 
-/** Not delivered: try again at `at`, keeping the same request id. */
-export async function retryLater(id: string, at: number, db: AnyGymDB = defaultDb): Promise<void> {
+/**
+ * Not delivered: try again at `at`, keeping the same request id. `retryAfterUntil`: the server's
+ * Retry-After deadline (PLAN 2.0c), persisted so no send starts before it, forced or not.
+ */
+export async function retryLater(id: string, at: number, db: AnyGymDB = defaultDb, retryAfterUntil?: number): Promise<void> {
   await db.transaction('rw', db.reportQueue, async () => {
     const row = await db.reportQueue.get(id);
-    if (row) await db.reportQueue.put({ ...row, attempts: row.attempts + 1, nextAttemptAt: at, leaseUntil: 0 });
+    if (!row) return;
+    const next = { ...row, attempts: row.attempts + 1, nextAttemptAt: at, leaseUntil: 0 };
+    if (retryAfterUntil !== undefined) next.retryAfterUntil = retryAfterUntil;
+    else delete next.retryAfterUntil;
+    await db.reportQueue.put(next);
   });
 }
 
@@ -69,7 +77,7 @@ export const hasReport = async (id: string, db: AnyGymDB = defaultDb): Promise<b
 export async function nextDue(db: AnyGymDB = defaultDb): Promise<number | undefined> {
   const rows = await db.reportQueue.toArray();
   if (rows.length === 0) return undefined;
-  return Math.min(...rows.map((r) => Math.max(r.nextAttemptAt, r.leaseUntil)));
+  return Math.min(...rows.map((r) => Math.max(r.nextAttemptAt, r.leaseUntil, r.retryAfterUntil ?? 0)));
 }
 
 /** Crash reports turned off: the crashes still waiting are deleted, never sent. */

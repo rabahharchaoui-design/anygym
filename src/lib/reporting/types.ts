@@ -45,9 +45,12 @@ export type CrashPayload = {
 
 export type ReportKind = 'feedback' | 'crash';
 
-export type ReportQueueRow =
-  | { id: string; kind: 'feedback'; payload: FeedbackPayload; createdAt: number; attempts: number; nextAttemptAt: number; leaseUntil: number }
-  | { id: string; kind: 'crash'; payload: CrashPayload; createdAt: number; attempts: number; nextAttemptAt: number; leaseUntil: number };
+/**
+ * `retryAfterUntil` (PLAN 2.0c, additive, not indexed): the server asked to wait (Retry-After) until
+ * then. No send starts before it, not even a forced one (back online, app reopened, Send).
+ */
+type QueueFields = { id: string; createdAt: number; attempts: number; nextAttemptAt: number; leaseUntil: number; retryAfterUntil?: number };
+export type ReportQueueRow = (QueueFields & { kind: 'feedback'; payload: FeedbackPayload }) | (QueueFields & { kind: 'crash'; payload: CrashPayload });
 
 /** A crash signature already reported on this local day (YYYY-MM-DD). */
 export type CrashSignatureRow = { signature: string; day: string; reportId: string };
