@@ -134,8 +134,8 @@ test('workout: each exercise shows only its own picker with the SPEC 13.6 labels
   await expectOnePicker(page, 'Machine · plates per side');
   await expect(press.getByRole('button', { name: 'What is Plate loaded machine?' })).toBeVisible();
   await press.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
-  // Breathing room: the plate label sits at least 8px above the title.
-  const label = (await press.locator('[data-under-label]').first().boundingBox())!;
+  // Breathing room: the plate (its number is on its face since 2.0b) sits at least 8px above the title.
+  const label = (await press.locator('[data-plate]').first().boundingBox())!;
   const title = (await press.getByTestId('picker-title').boundingBox())!;
   expect(title.y - (label.y + label.height)).toBeGreaterThanOrEqual(8);
   // The last tray tile does not touch the sheet edge.

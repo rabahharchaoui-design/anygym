@@ -146,6 +146,26 @@ describe('finishing a plan day advances the plan', () => {
     expect(await reopenWorkout('missing', before, db)).toBe(false);
   });
 
+  it('Undo needs no state from the screen: Finish keeps the plan before, a second Finish never moves it again (2.0b)', async () => {
+    await choosePlan('five-day-split', db);
+    const before = await getPlanState(db);
+    const s = await startPlanDay('gym-1', 'five-day-split', 0, db);
+    await logOne(s.id);
+    await fillPlanDay(db, s.id);
+    await finishWorkout(s.id, db);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(1);
+    // A second Finish of the ended workout (finish screen reopened by a link or a reload): no-op.
+    await Promise.all([finishWorkout(s.id, db), finishWorkout(s.id, db)]);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(1);
+    await setFinishNextDay(s.id, 3, db);
+    // Undo without the plan state the finish screen used to carry: back exactly to before Finish.
+    expect(await reopenWorkout(s.id, undefined, db)).toBe(true);
+    expect(await getPlanState(db)).toEqual(before);
+    // Finishing again moves the plan once, from where it was.
+    await finishWorkout(s.id, db);
+    expect((await getPlanState(db))!.nextDayIndex).toBe(1);
+  });
+
   it('Undo of a quick workout reopens it and leaves the plan alone; a changed plan is not overwritten', async () => {
     await choosePlan('five-day-split', db);
     const quick = await startWorkout('gym-1', db);

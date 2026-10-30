@@ -15,6 +15,8 @@ type Props = {
   baseLabel?: string;
   inventory: readonly number[];
   collars: Collars;
+  /** The drawn bar's loadable sleeve, so a solved load always fits it (SPEC 5.3). */
+  sleeveLength?: number;
   onApply: (perSide: number[]) => void;
 };
 
@@ -22,7 +24,7 @@ const perSideText = (perSide: readonly number[], baseLabel: string): string =>
   perSide.length ? perSide.map(formatAmount).join(' + ') : baseLabel === 'bar' ? 'Empty bar' : 'No plates';
 
 /** "Type it" (SPEC 5.2, 5.4): type a total, the solver picks the plates. */
-export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inventory, collars, onApply }: Props) {
+export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inventory, collars, sleeveLength, onApply }: Props) {
   const [text, setText] = useState('');
   useEffect(() => {
     if (open) setText('');
@@ -30,8 +32,8 @@ export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inven
 
   const target = parseTyped(text);
   const result = useMemo(
-    () => (target === null ? null : solvePlates(target, { bar, inventory, collars, unit })),
-    [target, bar, inventory, collars, unit],
+    () => (target === null ? null : solvePlates(target, { bar, inventory, collars, unit, sleeveLength })),
+    [target, bar, inventory, collars, unit, sleeveLength],
   );
 
   const apply = (perSide: number[]) => {

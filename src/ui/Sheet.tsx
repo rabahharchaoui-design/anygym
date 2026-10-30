@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useState, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls, useIsPresent, useReducedMotion, type PanInfo } from 'motion/react';
 import { FADE, SHEET_SPRING } from './motion';
@@ -16,14 +16,27 @@ type Props = {
   scroll?: boolean;
   /** Pulled down to close: instead of onClose (the weight sheet keeps changed plates, like Done). */
   onDragClose?: () => void;
+  /** A pinned action bar (Done) under the scrolling body: content scrolls above it, never under it. Fill it with SheetFooter. */
+  footer?: boolean;
 };
+
+const FooterSlot = createContext<HTMLElement | null>(null);
+
+/**
+ * The sheet's pinned action bar (2.0b). Its room (the bar plus the safe area) is reserved under
+ * the body at every text size, so a plate tray or any other control never sits under Done.
+ */
+export function SheetFooter({ children }: { children: ReactNode }) {
+  const slot = useContext(FooterSlot);
+  return slot ? createPortal(children, slot) : null;
+}
 
 /**
  * Bottom sheet (SPEC 10): springs up; pull down, tap the scrim or tap the grabber ("Close") to
  * close. A real modal dialog: focus moves in on open and back out on close, Tab stays inside, the
  * app behind is inert, and Escape or the Back button closes only the top sheet.
  */
-export function Sheet({ open, onClose, label, children, scroll = false, onDragClose }: Props) {
+export function Sheet({ open, onClose, label, children, scroll = false, onDragClose, footer = false }: Props) {
   // Every open is a new frame: reopened while the last one is still sliding away, it starts fresh
   // (its content never keeps the cancelled state of the closing one).
   const opens = useRef(0);
@@ -33,7 +46,7 @@ export function Sheet({ open, onClose, label, children, scroll = false, onDragCl
   return createPortal(
     <AnimatePresence>
       {open && (
-        <SheetFrame key={`sheet-${opens.current}`} onClose={onClose} onDragClose={onDragClose} label={label} scroll={scroll}>
+        <SheetFrame key={`sheet-${opens.current}`} onClose={onClose} onDragClose={onDragClose} label={label} scroll={scroll} footer={footer}>
           {children}
         </SheetFrame>
       )}
@@ -55,7 +68,7 @@ const SHADOW_CLEARANCE = 64;
 /** Longest the entrance can take before the content takes taps anyway (the spring settles in ~240 ms). */
 const SETTLE_FALLBACK_MS = 600;
 
-function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Props, 'open'> & { scroll: boolean }) {
+function SheetFrame({ onClose, onDragClose, label, children, scroll, footer }: Omit<Props, 'open'> & { scroll: boolean }) {
   const reduce = useReducedMotion();
   const controls = useDragControls();
   // While it slides away, a closing sheet is no longer a dialog and takes no taps.
@@ -72,6 +85,7 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
   // over the plates) would run off the top: then its body scrolls and the grabber drags, like a
   // `scroll` sheet. Measured once before the first paint.
   const [tall, setTall] = useState(false);
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const scrolling = scroll || tall;
   useLayoutEffect(() => {
     if (scroll) return;
@@ -139,6 +153,7 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
         tabIndex={-1}
         className={styles.sheet}
         data-scroll={scrolling}
+        data-footer={footer || undefined}
         data-state={settled ? 'open' : 'opening'}
         onAnimationComplete={() => setSettled(true)}
         onKeyDown={trapTab}
@@ -158,7 +173,10 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll }: Omit<Prop
         onDragEnd={onDragEnd}
       >
         {/* One wrapper either way, so switching to a scrolling body never remounts the content. */}
-        <div className={scrolling ? styles.scrollBody : styles.body}>{children}</div>
+        <FooterSlot.Provider value={slot}>
+          <div className={scrolling ? styles.scrollBody : styles.body}>{children}</div>
+        </FooterSlot.Provider>
+        {footer && <div ref={setSlot} className={styles.footer} />}
         {/* The grabber doubles as the labelled Close button: no extra chrome, no layout change. Last in
             the DOM (and the Tab order), drawn first (CSS order), its hit area reaching up over the scrim. */}
         <button

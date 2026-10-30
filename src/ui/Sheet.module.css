@@ -118,6 +118,36 @@
   padding: 0 var(--space-4);
 }
 
+/* A sheet with a pinned action bar (2.0b): the sheet itself has the height cap, the body takes
+   what is left above the bar and scrolls, the bar (and the safe area under it) is always clear. */
+.sheet[data-footer][data-scroll='true'] {
+  max-height: calc(var(--app-height) - var(--safe-top) - 12px);
+}
+
+.sheet[data-footer] .scrollBody {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.footer {
+  position: relative;
+  flex: none;
+  padding-top: var(--space-3);
+}
+
+/* Content cut off above the bar fades out instead of ending on a hard line (never catches taps). */
+.sheet[data-scroll='true'] .footer::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-4) * -1);
+  right: calc(var(--space-4) * -1);
+  top: calc(var(--space-3) * -1);
+  height: var(--space-3);
+  background: linear-gradient(to bottom, rgba(23, 23, 26, 0), var(--surface-2));
+  pointer-events: none;
+}
+
 /* iOS card stack (SPEC 23.1): while a sheet is open the app behind scales to 0.94 with rounded
    corners and drops a little (the scrim dims it). Reduced motion: only the dim. */
 :global(#root) {

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import type { PlateColors, Unit } from '../../db/types';
 import { formatAmount, formatWeight } from '../../lib/load';
 import { plateSpec, type PlateSpec } from '../../lib/plates';
-import type { BarLayout, PlateRect, Rect, Side } from '../../lib/plateLayout';
+import { BADGE, FACE, MARKER_LINE, TALL, type BarLayout, type PlateRect, type Rect, type Side } from '../../lib/plateLayout';
 import { FADE } from '../../ui/motion';
 import styles from './PlateDiagram.module.css';
 
@@ -17,7 +17,7 @@ const PLATE_OFF = { type: 'tween', duration: 0.18, ease: [0.4, 0, 1, 1] } as con
 
 /** Plate body colours. Black iron reads as rubber coated iron; colour coded follows IWF. */
 const FILL: Record<PlateSpec['color'], { fill: string; ink: string }> = {
-  black: { fill: '#1C1C1F', ink: '#B9B9C0' },
+  black: { fill: '#1C1C1F', ink: '#F4F4F6' },
   red: { fill: '#D2302B', ink: '#FFFFFF' },
   blue: { fill: '#2C5FD0', ink: '#FFFFFF' },
   yellow: { fill: '#EDBE2C', ink: '#1A1A1A' },
@@ -29,7 +29,7 @@ const FILL: Record<PlateSpec['color'], { fill: string; ink: string }> = {
 export function plateLook(weight: number, unit: Unit, mode: PlateColors) {
   if (mode === 'black') {
     // The 45 carries the raised white label (SPEC 5.3).
-    return { fill: FILL.black.fill, ink: unit === 'lb' && weight === 45 ? '#FFFFFF' : FILL.black.ink, matte: true, edge: '#3A3A40' };
+    return { fill: FILL.black.fill, ink: FILL.black.ink, matte: true, edge: '#3A3A40' };
   }
   return { ...FILL[plateSpec(weight, unit).color], matte: false, edge: 'rgba(255,255,255,0.28)' };
 }
@@ -39,42 +39,47 @@ type Props = {
   unit: Unit;
   colorMode: PlateColors;
   reduce: boolean;
-  /** Pixels at the bottom reserved for labels under thin plates. */
-  band: number;
   outer: number | null;
   onRemove: () => void;
 };
 
-export function BarSvg({ layout, unit, colorMode, reduce, band, outer, onRemove }: Props) {
+/** Knurl on a men's shaft, as shares of the shaft length from its centre (IWF style marks). */
+const GRIP_IN = 210 / 1310;
+const GRIP_OUT = 610 / 1310;
+const CENTRE_KNURL = 60 / 1310;
+
+export function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: Props) {
   const raw = useId();
   const uid = `bar${raw.replace(/[^a-zA-Z0-9]/g, '')}`;
   const ref = (name: string) => `url(#${uid}-${name})`;
-  const { width, height, sleeves, shoulders, caps, shaft, plates, labels, sides, frame } = layout;
+  const { width, height, sleeves, shoulders, caps, shaft, plates, sides, frame, overflow } = layout;
 
   // Every plate of a size gets a stable key (its nth occurrence), so a heavier plate added later
   // slides in at its place while lighter ones glide outward.
   const seen = new Map<string, number>();
   const keyed = plates.map((p) => {
-    const k = `${p.side}-${p.weight}`;
+    const k = p.more ? `${p.side}-more` : `${p.side}-${p.weight}`;
     const n = seen.get(k) ?? 0;
     seen.set(k, n + 1);
     return { p, key: `${k}-${n}` };
   });
   const removeLabel = outer === null ? undefined : `Remove outermost ${formatWeight(outer, unit)} plate`;
-  const floor = height - band;
-  const cy = floor / 2;
+  const cy = sleeves.right.y + sleeves.right.height / 2;
   const tallest = Math.max(sleeves.right.height, ...plates.map((p) => p.height));
 
   const sideHit = (side: Side) => {
+    // The whole side, from the collar to the drawing's edge, top to bottom: one big target.
     const s = sleeves[side];
-    const top = Math.min(...plates.map((p) => p.y), s.y - 24);
-    const bottom = Math.max(...plates.map((p) => p.y + p.height), s.y + s.height + 24, floor + band);
-    return { x: s.x, y: top, width: s.width + caps[side].width, height: bottom - top };
+    const xs = [s.x, s.x + s.width + caps[side].width, side === 'right' ? width : 0, ...plates.filter((p) => p.side === side).flatMap((p) => [p.x, p.x + p.width])];
+    const lo = Math.min(...xs);
+    const hi = Math.max(...xs);
+    return { x: lo, y: 0, width: hi - lo, height };
   };
 
-  // Knurl zones on the visible shaft: a grip zone at each end and the centre knurl.
-  const grip = Math.min(14, shaft.width * 0.3);
-  const centre = Math.min(9, shaft.width * 0.18);
+  // Knurl zones at their real places: two grip zones and, on a men's bar, the centre knurl.
+  const mid = shaft.x + shaft.width / 2;
+  const gripW = (GRIP_OUT - GRIP_IN) * shaft.width;
+  const centreW = layout.bar === 'womens' ? 0 : 2 * CENTRE_KNURL * shaft.width;
 
   return (
     <svg
@@ -166,23 +171,18 @@ export function BarSvg({ layout, unit, colorMode, reduce, band, outer, onRemove 
         <rect {...frame} rx={5} fill={ref('frame')} stroke="#4A4B52" strokeWidth={1} />
       ) : (
         <g>
-          <rect {...shaft} fill={ref('steel')} />
-          <rect x={shaft.x + 1} y={shaft.y} width={grip} height={shaft.height} fill={ref('knurl')} />
-          <rect x={shaft.x + shaft.width - 1 - grip} y={shaft.y} width={grip} height={shaft.height} fill={ref('knurl')} />
-          <rect x={shaft.x + shaft.width / 2 - centre / 2} y={shaft.y} width={centre} height={shaft.height} fill={ref('knurl')} />
-          {/* Break marks: the shaft between the sleeves is shortened, not to scale. */}
-          <path
-            d={`M${shaft.x + shaft.width * 0.36} ${shaft.y - 3} l2 ${shaft.height + 6} M${shaft.x + shaft.width * 0.64 - 2} ${shaft.y - 3} l2 ${shaft.height + 6}`}
-            stroke="var(--surface-1)"
-            strokeWidth="1.5"
-          />
+          <rect {...shaft} fill={ref('steel')} data-bar-part="shaft" />
+          <rect x={mid - GRIP_OUT * shaft.width} y={shaft.y} width={gripW} height={shaft.height} fill={ref('knurl')} />
+          <rect x={mid + GRIP_IN * shaft.width} y={shaft.y} width={gripW} height={shaft.height} fill={ref('knurl')} />
+          {centreW > 0 && <rect x={mid - centreW / 2} y={shaft.y} width={centreW} height={shaft.height} fill={ref('knurl')} />}
         </g>
       )}
       {sides.map((side) => (
         <g key={side}>
-          <rect {...sleeves[side]} fill={ref('chrome')} />
+          <rect {...sleeves[side]} fill={ref('chrome')} data-bar-part="sleeve" data-side={side} />
           <Flange rect={shoulders[side]} side={side} fill={ref('collar')} />
-          <rect {...caps[side]} rx={Math.min(1.5, caps[side].width / 2)} fill={ref('collar')} />
+          <rect {...caps[side]} rx={Math.min(1.5, caps[side].width / 2)} fill={overflow ? 'var(--amber)' : ref('collar')} />
+          {overflow > 0 && <Overflow cap={caps[side]} side={side} />}
         </g>
       ))}
 
@@ -210,33 +210,19 @@ export function BarSvg({ layout, unit, colorMode, reduce, band, outer, onRemove 
                 <Plate key={key} plate={p} layout={layout} unit={unit} colorMode={colorMode} reduce={reduce} uid={uid} />
               ))}
           </AnimatePresence>
-          <AnimatePresence initial={false}>
-            {labels
-              .filter((l) => l.side === side)
-              .map((l) => (
-                <motion.text
-                  key={`${l.side}-${l.weight}`}
-                  className={styles.underLabel}
-                  data-under-label={l.text}
-                  data-weight={l.weight}
-                  data-count={l.count}
-                  y={l.y}
-                  fontSize={l.size}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  initial={{ x: l.x, opacity: 0 }}
-                  animate={{ x: l.x, opacity: 1 }}
-                  exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                  transition={reduce ? FADE : PLATE_SPRING}
-                >
-                  {l.text}
-                </motion.text>
-              ))}
-          </AnimatePresence>
         </g>
       ))}
     </svg>
   );
+}
+
+/** Past the sleeve end: a small amber arrow beyond the end cap (SPEC 5.3 overflow state). */
+function Overflow({ cap, side }: { cap: Rect; side: Side }) {
+  const h = Math.max(6, cap.height * 0.9);
+  const cy = cap.y + cap.height / 2;
+  const x0 = side === 'right' ? cap.x + cap.width + 1 : cap.x - 1;
+  const tip = side === 'right' ? x0 + 4 : x0 - 4;
+  return <path data-testid="sleeve-overflow" d={`M${x0} ${cy - h / 2}L${tip} ${cy}L${x0} ${cy + h / 2}Z`} fill="var(--amber)" />;
 }
 
 /** Inner collar: a raised flange where the shaft meets the sleeve, with a lip toward the plates. */
@@ -270,56 +256,96 @@ function Plate({ plate, layout, unit, colorMode, reduce, uid }: PlateProps) {
   const offX = plate.side === 'right' ? s.x + s.width + 10 : s.x - w - 10;
   const from = reduce ? { x: plate.x, opacity: 0 } : { x: offX, opacity: 0 };
   const rx = Math.min(w * 0.32, 4);
-  const lip = Math.max(1.2, h * 0.022);
+  // Details scale with the plate, so a thin plate at true scale is not all outline.
+  const stroke = Math.min(1.2, w * 0.14);
+  const lip = Math.min(Math.max(1, h * 0.022), w * 0.3);
   const rim = h * 0.085; // the raised outer rim, then the recessed face
   const hubH = Math.min(h * 0.6, s.height * 2);
   const cy = y + h / 2;
+  // Tall plates carry the number above the hub (and the badge below it); short ones across the middle.
+  const tall = h >= TALL;
+  const numberY = tall ? (y + rim + cy - hubH / 2) / 2 : cy;
+  const badgeY = (y + h - rim + cy + hubH / 2) / 2;
   return (
     <motion.g
       data-plate=""
       data-side={plate.side}
       data-weight={plate.weight}
+      data-weights={plate.weights.join(',')}
+      data-count={plate.weights.length}
+      data-label={plate.text}
+      data-more={plate.more || undefined}
+      data-lines={plate.more ? plate.lines.join('|') : undefined}
+      aria-label={plate.more ? `then ${andList(plate.weights.map(formatAmount))} ${unit}` : plate.weights.length > 1 ? `${plate.weights.length} × ${formatWeight(plate.weight, unit)}` : formatWeight(plate.weight, unit)}
       initial={from}
       animate={{ x: plate.x, opacity: 1 }}
       exit={reduce ? { opacity: 0, transition: FADE } : { x: offX, opacity: 0, transition: PLATE_OFF }}
       transition={reduce ? FADE : PLATE_SPRING}
     >
-      <rect x={0} y={y} width={w} height={h} rx={rx} fill={look.fill} />
-      <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-${look.matte ? 'cylMatte' : 'cyl'})`} />
-      <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-bevel)`} />
-      {/* Lighter lip on the rim, top and bottom, and the line where the rim meets the face. */}
-      {/* Specular band across the top third: the rim catching the light. */}
-      <rect x={w * 0.08} y={y + h * 0.07} width={w * 0.84} height={h * 0.26} rx={Math.min(w * 0.3, 3)} fill={`url(#${uid}-spec)`} />
-      {/* Beveled rim lip: a clear lighter edge all round. */}
-      <rect x={0.6} y={y + 0.6} width={Math.max(0, w - 1.2)} height={h - 1.2} rx={Math.max(0, rx - 0.6)} fill="none" stroke={look.edge} strokeWidth={1.2} />
-      <rect x={w * 0.12} y={y + 0.4} width={w * 0.76} height={lip} rx={lip / 2} fill="#FFFFFF" opacity={look.matte ? 0.28 : 0.32} />
-      <rect x={w * 0.12} y={y + h - lip - 0.4} width={w * 0.76} height={lip} rx={lip / 2} fill="#FFFFFF" opacity={0.08} />
-      <path d={`M${w * 0.1} ${y + rim}H${w * 0.9}M${w * 0.1} ${y + h - rim}H${w * 0.9}`} stroke="#000" strokeOpacity={0.35} strokeWidth={0.75} />
-      {/* Darker steel hub ring around the sleeve, standing a hair proud of the faces. */}
-      <rect
-        x={-0.6}
-        y={cy - hubH / 2}
-        width={w + 1.2}
-        height={hubH}
-        rx={Math.min(1.5, w * 0.2)}
-        fill={`url(#${uid}-hub)`}
-        stroke="#0A0A0C"
-        strokeWidth={0.8}
-      />
-      <path d={`M0 ${cy - hubH / 2 + 0.8}H${w}`} stroke="#9EA2A9" strokeOpacity={0.55} strokeWidth={0.8} />
-      {plate.label !== null && (
-        <text
-          className={styles.plateLabel}
-          x={w / 2}
-          y={y + Math.max(rim + plate.label * 0.7, (cy - hubH / 2 - y) / 2)}
-          fill={look.ink}
-          fontSize={plate.label}
-          textAnchor="middle"
-          dominantBaseline="central"
-        >
-          {formatAmount(plate.weight)}
-        </text>
+      {plate.more ? (
+        <Marker plate={plate} overflow={layout.overflow > 0} />
+      ) : (
+        <>
+          <rect x={0} y={y} width={w} height={h} rx={rx} fill={look.fill} />
+          <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-${look.matte ? 'cylMatte' : 'cyl'})`} />
+          <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-bevel)`} />
+          {/* Lighter lip on the rim, top and bottom, and the line where the rim meets the face. */}
+          {/* Specular band across the top third: the rim catching the light. */}
+          <rect x={w * 0.08} y={y + h * 0.07} width={w * 0.84} height={h * 0.26} rx={Math.min(w * 0.3, 3)} fill={`url(#${uid}-spec)`} />
+          {/* Beveled rim lip: a clear lighter edge all round. */}
+          <rect x={stroke / 2} y={y + stroke / 2} width={Math.max(0, w - stroke)} height={h - stroke} rx={Math.max(0, rx - stroke / 2)} fill="none" stroke={look.edge} strokeWidth={stroke} />
+          <rect x={w * 0.12} y={y + 0.4} width={w * 0.76} height={lip} rx={lip / 2} fill="#FFFFFF" opacity={look.matte ? 0.28 : 0.32} />
+          <rect x={w * 0.12} y={y + h - lip - 0.4} width={w * 0.76} height={lip} rx={lip / 2} fill="#FFFFFF" opacity={0.08} />
+          <path d={`M${w * 0.1} ${y + rim}H${w * 0.9}M${w * 0.1} ${y + h - rim}H${w * 0.9}`} stroke="#000" strokeOpacity={0.35} strokeWidth={Math.min(0.75, stroke)} />
+          {/* Darker steel hub ring around the sleeve, standing a hair proud of the faces (tall plates). */}
+          {tall && (
+            <rect
+              x={-0.6}
+              y={cy - hubH / 2}
+              width={w + 1.2}
+              height={hubH}
+              rx={Math.min(1.5, w * 0.2)}
+              fill={`url(#${uid}-hub)`}
+              stroke="#0A0A0C"
+              strokeWidth={Math.min(0.8, stroke)}
+            />
+          )}
+          {tall && <path d={`M0 ${cy - hubH / 2 + 0.8}H${w}`} stroke="#9EA2A9" strokeOpacity={0.55} strokeWidth={Math.min(0.8, stroke)} />}
+          {/* The weight printed on the face (SPEC 5.6: fat numbered plates), "×3" under it for a run. */}
+          <text className={styles.plateLabel} x={w / 2} y={numberY} fill={look.ink} fontSize={FACE} textAnchor="middle" dominantBaseline="central" data-face="">
+            {plate.face}
+          </text>
+          {plate.badge && (
+            <text className={styles.plateBadge} x={w / 2} y={badgeY} fill={look.ink} fontSize={BADGE} textAnchor="middle" dominantBaseline="central" data-badge="">
+              {plate.badge}
+            </text>
+          )}
+        </>
       )}
     </motion.g>
+  );
+}
+
+/** "25, 10 and 5" */
+function andList(items: string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : (items[0] ?? '');
+}
+
+/**
+ * The overflow marker on the sleeve: a dark disc edge on with the weights it stands for stacked on
+ * its face ("25" over "10"), amber edged when plates run past the real sleeve end (SPEC 5.3).
+ */
+function Marker({ plate, overflow }: { plate: PlateRect; overflow: boolean }) {
+  const { width: w, height: h, y, lines } = plate;
+  const top = y + h / 2 - ((lines.length - 1) * MARKER_LINE) / 2;
+  return (
+    <>
+      <rect x={0.5} y={y + 0.5} width={w - 1} height={h - 1} rx={Math.min(4, w * 0.3)} fill="#26272C" stroke={overflow ? 'var(--amber)' : '#6B6E76'} strokeWidth={1} strokeDasharray="3 2" />
+      {lines.map((line, i) => (
+        <text key={i} className={styles.plateBadge} x={w / 2} y={top + i * MARKER_LINE} fill={overflow ? 'var(--amber)' : '#F4F4F6'} fontSize={BADGE} textAnchor="middle" dominantBaseline="central" {...(i === 0 ? { 'data-face': '' } : { 'data-line': '' })}>
+          {line}
+        </text>
+      ))}
+    </>
   );
 }

@@ -3,7 +3,7 @@
 // Lengths are in the gym's length unit: inches for lb plates, millimetres for kg plates.
 // These numbers only decide how plates are drawn and whether they fit on the sleeve.
 // Weight math lives in load.ts and never reads this file's dimensions.
-import type { Unit } from '../db/types';
+import type { BarId, Unit } from '../db/types';
 
 export type LengthUnit = 'in' | 'mm';
 
@@ -24,13 +24,18 @@ export const LENGTH_UNIT: Record<Unit, LengthUnit> = { lb: 'in', kg: 'mm' };
 export const SLEEVE_LENGTH: Record<Unit, number> = { lb: 16.4, kg: 415 };
 
 const LB45_THICKNESS = 1.81;
+/**
+ * Drawn diameter of the 45 lb plate and up. SPEC 5.6 TRUE SCALE (newer than the 17.01 in table in
+ * 5.3, so it wins for drawing): 450 mm for 45 lb / 20 kg and up, the same disc as a kg bumper.
+ */
+const LB_BIG_DIAMETER = 450 / 25.4;
 
 /** Heaviest first. Hammer Strength round rubber Olympic plates (SPEC 5.3). */
 const LB_PLATES: PlateSpec[] = [
-  // SPEC: 55 and 100 lb drawn at 17.7 in, thickness of a 45 times 2.2 and 1.2.
-  { weight: 100, diameter: 17.7, thickness: LB45_THICKNESS * 2.2, approx: true, color: 'black' },
-  { weight: 55, diameter: 17.7, thickness: LB45_THICKNESS * 1.2, approx: true, color: 'black' },
-  { weight: 45, diameter: 17.01, thickness: LB45_THICKNESS, approx: false, color: 'black' },
+  // SPEC: 55 and 100 lb drawn at the big disc size, thickness of a 45 times 2.2 and 1.2.
+  { weight: 100, diameter: LB_BIG_DIAMETER, thickness: LB45_THICKNESS * 2.2, approx: true, color: 'black' },
+  { weight: 55, diameter: LB_BIG_DIAMETER, thickness: LB45_THICKNESS * 1.2, approx: true, color: 'black' },
+  { weight: 45, diameter: LB_BIG_DIAMETER, thickness: LB45_THICKNESS, approx: false, color: 'black' },
   { weight: 35, diameter: 14.92, thickness: 1.8, approx: false, color: 'black' },
   { weight: 25, diameter: 12.6, thickness: 1.81, approx: false, color: 'black' },
   { weight: 10, diameter: 10.04, thickness: 1.52, approx: false, color: 'black' },
@@ -73,4 +78,69 @@ export function stackThickness(perSide: readonly number[], unit: Unit): number {
 /** True when one side's plates fit on the loadable sleeve (default 16.4 in / 415 mm). */
 export function fitsSleeve(perSide: readonly number[], unit: Unit, sleeveLength = SLEEVE_LENGTH[unit]): boolean {
   return stackThickness(perSide, unit) <= sleeveLength + 1e-9;
+}
+
+// ---------------------------------------------------------------- bar geometry (SPEC 5.6 TRUE SCALE)
+
+/**
+ * Real bar dimensions for drawing, in the unit's length unit (in for lb, mm for kg). Drawing and
+ * sleeve fit only; the bar's weight is a separate, user owned number (load.ts never reads this).
+ * `shaft` is the grip shaft between the inner collars, `sleeve` one loadable sleeve, `collar` one
+ * inner collar. total = shaft + 2 × (collar + sleeve).
+ */
+export type BarSpec = {
+  id: BarId;
+  total: number;
+  shaft: number;
+  sleeve: number;
+  collar: number;
+  shaftDiameter: number;
+  sleeveDiameter: number;
+  collarDiameter: number;
+  /** End cap on the free end of each sleeve, drawn just past it. */
+  capWidth: number;
+  capDiameter: number;
+  /** True when SPEC gives no dimensions for this bar and Olympic proportions stand in for it. */
+  schematic: boolean;
+};
+
+type MmBar = Omit<BarSpec, 'id' | 'total' | 'schematic'>;
+
+/** Men's Olympic bar: 2200 mm = 1310 shaft + 2 × (30 collar + 415 sleeve); 28 mm shaft, 50 mm sleeves. */
+const OLYMPIC_MM: MmBar = { shaft: 1310, sleeve: 415, collar: 30, shaftDiameter: 28, sleeveDiameter: 50, collarDiameter: 74, capWidth: 10, capDiameter: 55 };
+/** Women's 15 kg bar: 2010 mm = 1310 shaft + 2 × (30 collar + 320 sleeve); 25 mm shaft. */
+const WOMENS_MM: MmBar = { ...OLYMPIC_MM, sleeve: 320, shaftDiameter: 25 };
+
+/**
+ * EZ curl, trap and Smith bars: SPEC 5.6 points to "their own real dimensions from SPEC 5.3", but
+ * 5.3 lists no dimensions for them and they vary by brand. Rather than invent a size, they are
+ * drawn with Olympic proportions (marked schematic) and keep the Olympic sleeve for the fit check,
+ * so a load that fits today still fits. Revisit when SPEC gives real numbers.
+ */
+const BAR_MM: Record<BarId, { mm: MmBar; schematic: boolean }> = {
+  olympic: { mm: OLYMPIC_MM, schematic: false },
+  womens: { mm: WOMENS_MM, schematic: false },
+  ez_curl: { mm: OLYMPIC_MM, schematic: true },
+  trap: { mm: OLYMPIC_MM, schematic: true },
+  smith: { mm: OLYMPIC_MM, schematic: true },
+};
+
+/** Bar dimensions in the unit's length unit. The Olympic lb sleeve is SLEEVE_LENGTH.lb (16.4 in), the SPEC figure. */
+export function barSpec(barId: BarId = 'olympic', unit: Unit): BarSpec {
+  const { mm, schematic } = BAR_MM[barId];
+  const k = unit === 'kg' ? 1 : 1 / 25.4;
+  const sleeve = mm.sleeve === OLYMPIC_MM.sleeve ? SLEEVE_LENGTH[unit] : mm.sleeve * k;
+  const out = {
+    id: barId,
+    shaft: mm.shaft * k,
+    sleeve,
+    collar: mm.collar * k,
+    shaftDiameter: mm.shaftDiameter * k,
+    sleeveDiameter: mm.sleeveDiameter * k,
+    collarDiameter: mm.collarDiameter * k,
+    capWidth: mm.capWidth * k,
+    capDiameter: mm.capDiameter * k,
+    schematic,
+  };
+  return { ...out, total: out.shaft + 2 * (out.collar + out.sleeve) };
 }

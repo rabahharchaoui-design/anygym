@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useLocation, useParams } from 'react-router-dom';
-import type { PlanState } from '../../db/types';
+import { Navigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { db } from '../../db/schema';
 import { finishedDetail, workoutRecords } from '../../db/history';
@@ -34,8 +33,6 @@ import styles from './Finish.module.css';
 export function FinishScreen() {
   const { sessionId = '' } = useParams();
   const go = useNav();
-  // Where the plan stood just before Finish, for Undo on Today.
-  const planBefore = (useLocation().state as { planBefore?: PlanState } | null)?.planBefore;
   const reduce = useReducedMotion();
   const [saving, setSaving] = useState(false);
   const [changing, setChanging] = useState(false);
@@ -84,7 +81,7 @@ export function FinishScreen() {
   const done = () => {
     if (saving) return;
     setSaving(true);
-    go('/', { kind: 'fade', replace: true, state: d ? { toast: `Workout saved · ${setCount(d.sets.length)}`, undo: { sessionId, planBefore } } : null });
+    go('/', { kind: 'fade', replace: true, state: d ? { toast: `Workout saved · ${setCount(d.sets.length)}`, undo: { sessionId } } : null });
   };
   const loading = !detail.error && (!d || !v);
   // Each exercise of the workout with its best set; "3 of 5 exercises done" when some were skipped.

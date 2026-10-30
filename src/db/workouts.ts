@@ -9,6 +9,9 @@ import { db as defaultDb, type AnyGymDB } from './schema';
 import { dropSessionIntents, dropUndoIntent, hasUndoIntent } from './undoIntents';
 import type { Load, PlanState, Session, SetKind, WorkoutSet } from './types';
 
+/** kv row Finish writes (one at a time): the plan state just before that Finish, for its Undo. */
+export const FINISH_PLAN_PREFIX = 'anygym-finish-plan:';
+
 /** The workout in progress: started, not ended, not imported. Newest first if somehow several. */
 export async function getActiveSession(db: AnyGymDB = defaultDb): Promise<Session | undefined> {
   return db.sessions
@@ -339,6 +342,12 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
     }
     const progress = await planProgress(s, db);
     if (s.endedAt === undefined) {
+      // Where the plan stood just before this Finish, read and kept in the same transaction, so
+      // "Workout saved · Undo" puts it back exactly, however the finish screen was reached (a
+      // reload or a link loses the screen's own state). Only the latest Finish can be undone.
+      await db.kv.where('key').startsWith(FINISH_PLAN_PREFIX).delete();
+      const before = await db.planState.get('active');
+      if (before) await db.kv.put({ key: FINISH_PLAN_PREFIX + sessionId, value: JSON.stringify(before), at: now });
       await db.sessions.put({ ...s, endedAt: now });
       // 60% or more of the day's working sets moves the plan on, less keeps the day (PLAN 2.0a).
       // Only here, as the workout ends: finishing again never moves it twice.
@@ -354,13 +363,17 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
  * taken just before Finish. Refused (false) when the workout is gone, still active, or another
  * workout has started since; the plan is only restored when it is still the same plan.
  */
-export async function reopenWorkout(sessionId: string, planBefore: PlanState | undefined, db: AnyGymDB = defaultDb): Promise<boolean> {
-  return db.transaction('rw', db.sessions, db.planState, async () => {
+export async function reopenWorkout(sessionId: string, given?: PlanState, db: AnyGymDB = defaultDb): Promise<boolean> {
+  return db.transaction('rw', db.sessions, db.planState, db.kv, async () => {
     const s = await db.sessions.get(sessionId);
     if (!s || s.endedAt === undefined || s.imported) return false;
     if (await getActiveSession(db)) return false;
     const { endedAt: _ended, ...open } = s;
     await db.sessions.put(open);
+    // The copy Finish kept in its own transaction wins; `given` only for a Finish from before it existed.
+    const kept = await db.kv.get(FINISH_PLAN_PREFIX + sessionId);
+    await db.kv.delete(FINISH_PLAN_PREFIX + sessionId);
+    const planBefore = kept?.value ? (JSON.parse(kept.value) as PlanState) : given;
     const now = await db.planState.get('active');
     if (planBefore && now && now.planId === planBefore.planId && s.planId === planBefore.planId) await db.planState.put(planBefore);
     return true;
