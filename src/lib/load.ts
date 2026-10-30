@@ -570,6 +570,16 @@ export function heldChoices(kind: Load['kind'], s: Pick<LoadSetup, 'dumbbellRang
 export const MAX_EXACT_HELD: Record<Unit, number> = { lb: 500, kg: 250 };
 
 /**
+ * Why a typed exact weight cannot be used (PLAN 2.0d follow up): nothing typed ('empty'), past
+ * MAX_EXACT_HELD ('over'), or not a weight above 0 ('zero'); null when exactHeldLoad accepts it.
+ */
+export function exactHeldProblem(value: number | null, unit: Unit): 'empty' | 'over' | 'zero' | null {
+  if (value === null) return 'empty';
+  if (value > MAX_EXACT_HELD[unit]) return 'over';
+  return exactHeldLoad(value, unit) ? null : 'zero';
+}
+
+/**
  * A dumbbell or one held weight this gym can be at: one of its choices (heldChoices), or for a
  * weight typed exactly any real weight above 0 up to MAX_EXACT_HELD, to the 1e-9.
  */

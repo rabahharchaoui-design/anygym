@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { useAnimate, useReducedMotion } from 'motion/react';
 import { tick } from '../../ui/haptics';
 import type { BarId, Collars, PlateColors, Unit } from '../../db/types';
@@ -6,13 +6,15 @@ import { fitsSleeve, formatAmount, formatMathLine, formatWeight, sumLoad } from 
 import { barSpec, plateSpec } from '../../lib/plates';
 import { barLayout, hornLayout, outermost, withPlates, withoutOutermost } from '../../lib/plateLayout';
 import { Hint } from '../hint/Hint';
-import { BarSvg, plateLook } from './BarSvg';
+import { PAINT, plateColor } from '../../lib/plateColors';
+import { BarSvg } from './BarSvg';
+import { PlateChips } from './PlateChips';
 import { TypeItSheet } from './TypeItSheet';
 import { useReadoutFit } from './useReadoutFit';
 import styles from './PlateDiagram.module.css';
 
 type Props = {
-  /** Next to the math line ("45 bar = 45 lb · Change bar"): the bar control, always in view. */
+  /** Under the total ("Change bar"): the bar control, always in view. */
   mathAction?: ReactNode;
   /** The first time "tap plates" hint; off while a question above must be answered first. */
   hint?: boolean;
@@ -45,7 +47,11 @@ type Props = {
 const LONG_PRESS_MS = 400;
 const FULL_MS = 1500;
 
-/** Plate diagram (SPEC 5.3): tap plates on, tap the bar to take the outermost off, live total and math. */
+/**
+ * Plate diagram (SPEC 5.3, 5.6, PLAN 2.0d): tap plates on, tap a sleeve to take the outermost pair
+ * off, the big live total over a picture of the loaded bar and one quiet "Each side" line. The math
+ * line is not shown; it stays exact underneath (data-math on the total, for the exactness tests).
+ */
 export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner, mathAction, hint = true, tight = false, barId = 'olympic' }: Props) {
   const reduce = useReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -71,14 +77,16 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
   const horn = variant === 'horn';
   const baseLabel = horn ? 'start' : 'bar';
   const makeLayout = horn ? hornLayout : barLayout;
-  // True scale (SPEC 5.6): the width alone sets the scale and the height; never the loaded plates.
-  const layout = makeLayout({ unit, perSide: value, width, labelOf: formatAmount, bar: barId });
+  // True scale (SPEC 5.6): the width sets the scale and the height; the plates only move the camera.
+  const layout = makeLayout({ unit, perSide: value, width, bar: barId });
   // A horn is one Olympic sleeve long; a bar uses its own sleeve.
   const sleeve = barSpec(horn ? 'olympic' : barId, unit).sleeve;
   const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
   const { total } = sumLoad({ bar, perSide: value, collars, unit, other });
   const math = formatMathLine(bar, value, collars, unit, baseLabel, other);
   const outer = outermost(value);
+  // The exact breakdown stays readable by screen readers (Codex 2.0d): hidden on screen, described by the total.
+  const mathId = `math${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const readoutRef = useRef<HTMLDivElement>(null);
   const fit = useReadoutFit(readoutRef, `${total}|${unit}|${!!mathAction}|${bar !== null}`);
 
@@ -99,7 +107,9 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
   };
 
   const removeOuter = () => {
-    if (value.length) onChange(withoutOutermost(value));
+    if (!value.length) return;
+    tick();
+    onChange(withoutOutermost(value));
   };
 
   const typeIt =
@@ -121,19 +131,18 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
         <div className={styles.readoutSide} data-fit="side">
           {typeIt}
         </div>
+        <span id={mathId} className={styles.srOnly} data-sr-math="">
+          {math}
+        </span>
         <div className={styles.readoutMain}>
-          {total === null && horn ? (
-            <p className={`${styles.total} ${styles.unknown} num`} aria-live="polite" data-testid="plate-total">
-              {math}
-            </p>
-          ) : total === null ? (
-            // Unknown bar: no number yet, never the word "bar" on its own; the plates stay listed below.
+          {total === null ? (
+            // Unknown bar or start: no number yet, never a guessed total; the plates stay drawn below.
             <>
-              <p className={`${styles.total} num`} aria-live="polite" aria-label={`Total not known yet: ${math}`} data-testid="plate-total" data-fit="total">
+              <p className={`${styles.total} num`} aria-live="polite" aria-label="Total not known yet" aria-describedby={mathId} data-testid="plate-total" data-math={math} data-fit="total">
                 —<span className={styles.unit}>{unit}</span>
               </p>
-              <p className={`${styles.math} num`}>
-                <span data-testid="plate-math">{value.length ? math : 'Bar weight not set'}</span>
+              <p className={styles.note} data-testid="plate-note">
+                {horn ? 'Starting weight not set' : 'Bar weight not set'}
               </p>
               {mathAction && (
                 <div className={styles.mathAction} data-fit="action">
@@ -143,12 +152,9 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
             </>
           ) : (
             <>
-              <p className={`${styles.total} num`} aria-live="polite" data-testid="plate-total" data-fit="total">
+              <p className={`${styles.total} num`} aria-live="polite" aria-describedby={mathId} data-testid="plate-total" data-math={math} data-fit="total">
                 {formatAmount(total)}
                 <span className={styles.unit}>{unit}</span>
-              </p>
-              <p className={`${styles.math} num`}>
-                <span data-testid="plate-math">{math}</span>
               </p>
               {mathAction && (
                 <div className={styles.mathAction} data-fit="action">
@@ -175,17 +181,15 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
             onRemove={removeOuter}
           />
         </div>
+        {hint && <Hint id="plates" className={styles.hint} point="down" />}
+      </div>
+      {/* One quiet line: the plates on each side as coloured chips; "Sleeve is full" takes its place for a moment. */}
+      <div className={styles.below} data-full={full || undefined}>
+        <PlateChips unit={unit} perSide={value} label="Each side" className={styles.chips} />
         <p className={styles.full} role="status" data-visible={full}>
           {full ? (horn ? 'Horn is full' : 'Sleeve is full') : ''}
         </p>
-        {hint && <Hint id="plates" className={styles.hint} point="down" />}
       </div>
-      {/* The marker can print only two lines and "+N": this line names every plate it stands for. */}
-      {layout.breakdown && (
-        <p className={`${styles.breakdown} num`} data-testid="plate-breakdown">
-          {layout.breakdown}
-        </p>
-      )}
       {horn && (
         <p className={styles.perSide} data-testid="picker-title">
           Machine · plates per side
@@ -194,7 +198,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
 
       <div className={styles.tray} role="group" aria-label="Plates" data-scroll={sizes.length > 7} data-many={sizes.length > 6} {...(sizes.length > 6 ? { 'data-scroller-x': '' } : {})}>
         {sizes.map((w) => (
-          <TrayPlate key={w} weight={w} unit={unit} colorMode={colorMode} size={plateSpec(w, unit).diameter / biggest} onAdd={add} />
+          <TrayPlate key={w} weight={w} unit={unit} size={plateSpec(w, unit).diameter / biggest} onAdd={add} />
         ))}
       </div>
 
@@ -220,17 +224,17 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
 type TrayProps = {
   weight: number;
   unit: Unit;
-  colorMode: PlateColors;
   /** Diameter relative to the biggest plate in the tray (0 to 1), for the little swatch. */
   size: number;
   onAdd: (weight: number, count: number) => void;
 };
 
 /** Tray plate: tap adds one to each side, long press (400 ms) adds two to each side. */
-function TrayPlate({ weight, unit, colorMode, size, onAdd }: TrayProps) {
+function TrayPlate({ weight, unit, size, onAdd }: TrayProps) {
   const timer = useRef<number>(undefined);
   const longPressed = useRef(false);
-  const look = plateLook(weight, unit, colorMode);
+  // The tray keeps its numbers and wears the plate's colour as a stripe (PLAN 2.0d).
+  const color = plateColor(weight, unit);
   const label = formatWeight(weight, unit);
 
   const cancel = () => window.clearTimeout(timer.current);
@@ -252,6 +256,7 @@ function TrayPlate({ weight, unit, colorMode, size, onAdd }: TrayProps) {
       className={`${styles.trayPlate} pressable`}
       aria-label={`Add ${label} plate to each side`}
       data-weight={weight}
+      data-color={color}
       onPointerDown={down}
       onPointerUp={cancel}
       onPointerLeave={cancel}
@@ -267,7 +272,7 @@ function TrayPlate({ weight, unit, colorMode, size, onAdd }: TrayProps) {
     >
       <span
         className={styles.swatch}
-        style={{ ['--plate' as string]: look.fill, ['--size' as string]: size.toFixed(3), height: `${Math.round(12 + 18 * size)}px` }}
+        style={{ ['--plate' as string]: PAINT[color].fill, ['--size' as string]: size.toFixed(3), height: `${Math.round(12 + 18 * size)}px` }}
         aria-hidden="true"
       />
       <span className={`${styles.trayWeight} num`}>{formatAmount(weight)}</span>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load, Unit } from '../../db/types';
-import { collarsSettingOf, formatSetLine, otherOf } from '../../lib/load';
+import { collarsSettingOf, exactHeldProblem, formatSetLine, formatWeight, MAX_EXACT_HELD, otherOf, pickedWeight } from '../../lib/load';
+import { isExactHeld } from '../workout/exerciseLoad';
 import { fileSetText, type PlannedSet, type SetEdit } from '../../lib/import/importPlan';
 import { RepsStepper } from '../workout/RepsStepper';
 import { SetLoadInput } from '../workout/SetLoadInput';
@@ -41,6 +42,8 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
   // another tab) it cannot be saved until it is picked again or put back to the file's.
   const [touchedIn, setTouchedIn] = useState<Unit | null>(null);
   const [settling, setSettling] = useState(false);
+  // The number typed in an exact weight (kettlebell), so the warning says the real reason.
+  const [typed, setTyped] = useState<number | null>(null);
   // A weight in the other unit is kept exactly as in the file (never converted): only reps change.
   const sameUnit = !set.load ? set.source.unit === gym.unit : set.load.unit === gym.unit;
   const pickable = !!kind && kind !== 'timed' && sameUnit;
@@ -48,8 +51,24 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
   const staleUnit = changedLoad && touchedIn !== gym.unit;
   const invalid = changedLoad && (load === null || staleUnit);
   const blocked = settling || invalid;
+  const exact = !!kind && isExactHeld(kind, exerciseName);
+  const problem = exact ? exactHeldProblem(typed, gym.unit) : null;
+  const reason = staleUnit
+    ? `Units changed to ${gym.unit}. Restore the file's weight to save.`
+    : problem === 'empty'
+      ? /kettlebell/i.test(exerciseName)
+        ? 'Enter the weight on your kettlebell.'
+        : 'Enter the weight you hold.'
+      : problem === 'over'
+        ? `Enter a weight up to ${formatWeight(MAX_EXACT_HELD[gym.unit], gym.unit)}.`
+        : problem === 'zero'
+          ? 'Enter a weight above 0.'
+          : 'Pick a weight this gym can load to save.';
+  const fileWeight = set.load ? pickedWeight(set.load) : null;
+  const restoreText = fileWeight !== null && set.load ? `Restore ${formatWeight(fileWeight, set.load.unit)}` : "Use the file's weight";
   const revert = () => {
     setTouchedIn(null);
+    setTyped(null);
     setLoad(set.load ?? null);
   };
   const save = () => {
@@ -60,12 +79,17 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
     onSave(edit);
   };
   return (
-    <div className={styles.sheetBody}>
-      <h2 className={styles.sheetTitle}>Set {index + 1}</h2>
-      <p className={styles.sheetSub}>{exerciseName}</p>
-      <p className={css.sheetFile}>
-        In your file: <span className="num">{fileSetText(set.source)}</span>
-      </p>
+    <div className={`${styles.sheetBody} ${css.editor}`}>
+      {/* Pinned while the keypad and reps scroll (PLAN 2.0d follow up): which set, which exercise, the file's line. */}
+      <div className={css.editorContext} data-testid="import-context">
+        <div className={css.editorHead}>
+          <h2 className={css.editorTitle}>Set {index + 1}</h2>
+          <p className={css.editorName}>{exerciseName}</p>
+        </div>
+        <p className={css.sheetFile}>
+          In your file: <span className="num">{fileSetText(set.source)}</span>
+        </p>
+      </div>
       {set.reason && (
         <p className={css.sheetReason} role="note">
           {set.reason}
@@ -83,6 +107,8 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
             setLoad(l);
           }}
           onPending={setSettling}
+          onTyped={setTyped}
+          dense
           bar={bar}
           ownBar={set.load?.kind === 'barbell' || set.load?.kind === 'plate_machine' ? set.load.barWeight : undefined}
           ownBarId={set.load?.kind === 'barbell' ? set.load.barId : undefined}
@@ -93,25 +119,32 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
       ) : (
         set.load && !changedLoad && <p className={`${css.sheetFile} num`}>Weight stays as in your file: {formatSetLine({ reps: set.reps, load: set.load })}</p>
       )}
-      <RepsStepper value={reps} onChange={setReps} />
+      <RepsStepper value={reps} onChange={setReps} compact />
       <SheetFooter>
-        <div className={styles.sheetBody}>
+        <div className={css.editorFooter}>
           {invalid && !settling && (
-            <p className={css.sheetReason} role="status" data-testid="import-weight-invalid">
-              {staleUnit ? `Units changed to ${gym.unit}. Use the file's weight to save.` : 'Pick a weight this gym can load to save.'}
+            <p className={css.editorReason} role="status" data-testid="import-weight-invalid">
+              {reason}
             </p>
           )}
-          <button type="button" className={`${styles.logButton} pressable`} onClick={save} disabled={blocked}>
-            {set.uncertain && !changedLoad && reps === set.reps && load ? 'Looks right' : 'Save'}
-          </button>
           {invalid && !settling ? (
-            <button type="button" className={`${css.link} pressable`} onClick={revert} data-testid="import-weight-revert">
-              Use the file's weight
-            </button>
+            <div className={css.editorActions}>
+              <button type="button" className={`${css.restore} pressable`} onClick={revert} data-testid="import-weight-revert">
+                {restoreText}
+              </button>
+              <button type="button" className={`${styles.logButton} pressable`} onClick={save} disabled={blocked}>
+                Save
+              </button>
+            </div>
           ) : (
-            <button type="button" className={`${styles.deleteButton} pressable`} onClick={() => onSkip(!set.skipped)}>
-              {set.skipped ? 'Import this set' : 'Skip this set'}
-            </button>
+            <>
+              <button type="button" className={`${styles.logButton} pressable`} onClick={save} disabled={blocked}>
+                {set.uncertain && !changedLoad && reps === set.reps && load ? 'Looks right' : 'Save'}
+              </button>
+              <button type="button" className={`${styles.deleteButton} pressable`} onClick={() => onSkip(!set.skipped)}>
+                {set.skipped ? 'Import this set' : 'Skip this set'}
+              </button>
+            </>
           )}
         </div>
       </SheetFooter>

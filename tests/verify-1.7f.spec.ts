@@ -39,7 +39,7 @@ test('kg: competition collars log 65, survive switching the gym to none; new set
   const picker = page.getByRole('dialog', { name: 'Pick the weight' });
   await view.getByTestId('weight-cell').first().tap();
   await picker.getByRole('button', { name: 'Add 20 kg plate to each side' }).tap();
-  console.log('PICKER math:', await picker.getByTestId('plate-math').innerText().catch(() => 'n/a'), '| total', await picker.getByTestId('plate-total').innerText().catch(() => 'n/a'));
+  console.log('PICKER math:', await picker.getByTestId('plate-total').getAttribute('data-math').catch(() => 'n/a'), '| total', await picker.getByTestId('plate-total').innerText().catch(() => 'n/a'));
   await shot(page, 'picker-comp');
   await picker.getByRole('button', { name: 'Done', exact: true }).tap();
   await view.getByTestId('check-current').tap();
@@ -52,8 +52,8 @@ test('kg: competition collars log 65, survive switching the gym to none; new set
   const edit = page.getByRole('dialog', { name: 'Edit set' });
   await loggedRows(exerciseView(page, 'barbell-back-squat')).first().tap();
   await expect(edit.getByTestId('plate-total')).toHaveText('65kg');
-  console.log('EDIT math (gym none):', await edit.getByTestId('plate-math').innerText());
-  await expect(edit.getByTestId('plate-math')).toContainText('5 collars');
+  console.log('EDIT math (gym none):', await edit.getByTestId('plate-total').getAttribute('data-math'));
+  await expect(edit.getByTestId('plate-total')).toHaveAttribute('data-math', /5\ collars/);
   await shot(page, 'edit-65');
   await edit.getByRole('button', { name: 'More reps' }).tap();
   await edit.getByRole('button', { name: 'Save' }).tap();
@@ -91,12 +91,12 @@ test('legacy: no collars field, 65 recovers 5; impossible leftover 63 keeps 63 w
   const edit = page.getByRole('dialog', { name: 'Edit set' });
   await loggedRows(view).nth(0).tap();
   await expect(edit.getByTestId('plate-total')).toHaveText('65kg');
-  console.log('LEGACY 65 math:', await edit.getByTestId('plate-math').innerText());
+  console.log('LEGACY 65 math:', await edit.getByTestId('plate-total').getAttribute('data-math'));
   await edit.getByRole('button', { name: 'Save' }).tap();
   await loggedRows(view).nth(1).tap();
-  console.log('LEGACY 63 total:', await edit.getByTestId('plate-total').innerText(), '| math:', await edit.getByTestId('plate-math').innerText());
+  console.log('LEGACY 63 total:', await edit.getByTestId('plate-total').innerText(), '| math:', await edit.getByTestId('plate-total').getAttribute('data-math'));
   await expect(edit.getByTestId('plate-total')).toHaveText('63kg');
-  await expect(edit.getByTestId('plate-math')).toHaveText('20 bar + 2 × 20 + 3 other = 63 kg');
+  await expect(edit.getByTestId('plate-total')).toHaveAttribute('data-math', '20 bar + 2 × 20 + 3 other = 63 kg');
   await shot(page, 'edit-63');
   await edit.getByRole('button', { name: 'More reps' }).tap();
   await edit.getByRole('button', { name: 'Save' }).tap();
@@ -107,7 +107,7 @@ test('legacy: no collars field, 65 recovers 5; impossible leftover 63 keeps 63 w
   await loggedRows(view).nth(1).tap();
   await edit.getByRole('button', { name: 'Add 2.5 kg plate to each side' }).tap();
   await expect(edit.getByTestId('plate-total')).toHaveText('65kg');
-  await expect(edit.getByTestId('plate-math')).toHaveText('20 bar + 2 × (20 + 2.5) = 65 kg');
+  await expect(edit.getByTestId('plate-total')).toHaveAttribute('data-math', '20 bar + 2 × (20 + 2.5) = 65 kg');
   await edit.getByRole('button', { name: 'Save' }).tap();
   await expect(edit).toHaveCount(0);
   await expect.poll(async () => (await sets(page))[1]!.load.total).toBe(65);
@@ -128,7 +128,7 @@ test('lb gym: competition collars are 5 kg exactly in lb', async ({ page }) => {
   const picker = page.getByRole('dialog', { name: 'Pick the weight' });
   await view.getByTestId('weight-cell').first().tap();
   await picker.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
-  console.log('LB picker total/math:', await picker.getByTestId('plate-total').innerText(), '|', await picker.getByTestId('plate-math').innerText());
+  console.log('LB picker total/math:', await picker.getByTestId('plate-total').innerText(), '|', await picker.getByTestId('plate-total').getAttribute('data-math'));
   await shot(page, 'picker-lb');
   await picker.getByRole('button', { name: 'Done', exact: true }).tap();
   await view.getByTestId('check-current').tap();
@@ -140,7 +140,7 @@ test('lb gym: competition collars are 5 kg exactly in lb', async ({ page }) => {
   await page.reload();
   const edit = page.getByRole('dialog', { name: 'Edit set' });
   await loggedRows(exerciseView(page, 'barbell-back-squat')).first().tap();
-  console.log('LB edit total/math:', await edit.getByTestId('plate-total').innerText(), '|', await edit.getByTestId('plate-math').innerText());
+  console.log('LB edit total/math:', await edit.getByTestId('plate-total').innerText(), '|', await edit.getByTestId('plate-total').getAttribute('data-math'));
   await shot(page, 'edit-lb');
   await edit.getByRole('button', { name: 'Save' }).tap();
   expect((await sets(page))[0]!.load.total).toBeCloseTo(45 + 90 + 11.023113109, 6);

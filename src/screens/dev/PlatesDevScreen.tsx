@@ -8,8 +8,8 @@ import { barSpec } from '../../lib/plates';
 import { DevErrorBoundary, DevErrorLog } from './DevErrors';
 import styles from './PlatesDevScreen.module.css';
 
-// The 2.0b true scale check loads, plus the older 185 lb and 102.5 kg ones.
-const PRESETS: Record<Unit, number[]> = { lb: [45, 135, 185, 225, 315, 405], kg: [60, 100, 102.5, 140] };
+// The 2.0d picture check loads, plus the older 185 lb and 102.5 kg ones.
+const PRESETS: Record<Unit, number[]> = { lb: [45, 135, 185, 225, 315, 400, 495, 700], kg: [60, 100, 102.5, 140, 220] };
 
 /** URL presets for screenshots: #/dev/plates?dev&unit=kg&load=100&bar=womens&nohint. */
 function urlSetup(): { unit: Unit; load: number | null; bar: BarId; hint: boolean } {

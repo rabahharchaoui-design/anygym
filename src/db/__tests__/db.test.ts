@@ -146,9 +146,10 @@ describe('bars and plates (SPEC 5.3)', () => {
     expect(disabled('kg')).toEqual([2, 1.5, 1, 0.5]);
   });
 
-  it('collars none by default; plate colors black for lb, color for kg', () => {
+  it('collars none by default; plate colors color coded for lb and kg (PLAN 2.0d)', () => {
     expect(makeGym({ name: 'x', type: 'full', unit: 'lb' }).collars).toBe('none');
-    expect(defaultPlateColors('lb')).toBe('black');
+    expect(defaultPlateColors('lb')).toBe('color');
+    expect(makeGym({ name: 'x', type: 'full', unit: 'lb' }).plateColors).toBe('color');
     expect(defaultPlateColors('kg')).toBe('color');
     expect(makeGym({ name: 'x', type: 'full', unit: 'kg' }).plateColors).toBe('color');
   });

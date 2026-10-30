@@ -68,8 +68,9 @@ export function machineStartFor(gym: Pick<Gym, 'equipmentWeights'>, machineId: s
   return null;
 }
 
-export function defaultPlateColors(unit: Unit): PlateColors {
-  return unit === 'lb' ? 'black' : 'color';
+export function defaultPlateColors(_unit: Unit): PlateColors {
+  // PLAN 2.0d: picture first plates are colour coded in every unit; black iron stays a Settings choice.
+  return 'color';
 }
 
 /** Full gym dumbbell range. A starting point the user edits, like every preset. */

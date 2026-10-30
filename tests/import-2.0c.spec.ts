@@ -36,11 +36,14 @@ test('acceptance B: a cleared or 501 weight keeps Save disabled; a valid replace
   // Clear it: Save is disabled, the set stays unconfirmed.
   for (let i = 0; i < 2; i++) await sheet.getByRole('button', { name: 'Delete', exact: true }).tap();
   await expect(save).toBeDisabled();
-  await expect(sheet.getByTestId('import-weight-invalid')).toBeVisible();
+  // The real reason, and a recovery that says what it does (PLAN 2.0d follow up).
+  await expect(sheet.getByTestId('import-weight-invalid')).toHaveText('Enter the weight on your kettlebell.');
+  await expect(sheet.getByTestId('import-weight-revert')).toHaveText('Restore 53 lb');
   await shotOn(page, '2.0c', 'b-cleared');
   // 501 is refused: still disabled.
   for (const k of ['5', '0', '1']) await sheet.getByRole('button', { name: k, exact: true }).tap();
   await expect(save).toBeDisabled();
+  await expect(sheet.getByTestId('import-weight-invalid')).toHaveText('Enter a weight up to 500 lb.');
   await save.tap({ force: true }).catch(() => undefined);
   await expect(sheet).toBeVisible();
   // Close without saving: the file's set is unchanged, not marked checked.
@@ -108,6 +111,10 @@ for (const k of [1, 1.3]) {
       const total = d.querySelector('[data-testid="wheel-total"]')!;
       const save = [...d.querySelectorAll('button')].find((b) => b.textContent === 'Save')!;
       const box = (e: Element) => [r(e).top, r(e).bottom];
+      // Compact editor (PLAN 2.0d follow up): all four keypad rows and the reps stepper above the footer, 48 pt keys.
+      const pad = [...d.querySelectorAll('[role="group"][aria-label="Weight"] button')];
+      const reps = [...d.querySelectorAll('[role="group"][aria-label="Reps"] button')];
+      const context = d.querySelector('[data-testid="import-context"]')!;
       return {
         grabBottom: grab.bottom,
         bodyTop: r(body).top,
@@ -119,6 +126,9 @@ for (const k of [1, 1.3]) {
         saveInFooter: footer.contains(save),
         sideways: document.documentElement.scrollWidth - innerWidth,
         viewport: innerHeight,
+        controls: [...pad, ...reps].map((b) => ({ top: r(b).top, bottom: r(b).bottom, h: r(b).height, w: r(b).width })),
+        keys: pad.length,
+        contextBottom: r(context).bottom,
       };
     });
     expect(m.totalText).toContain('501');
@@ -128,6 +138,23 @@ for (const k of [1, 1.3]) {
       expect(bottom!).toBeLessThanOrEqual(m.footerTop + 0.5);
     }
     expect(m.footerTop).toBeLessThan(m.viewport);
+    expect(m.keys).toBe(12);
+    for (const c of m.controls) {
+      expect(Math.min(c.h, c.w)).toBeGreaterThanOrEqual(48);
+      // On an SE (667 tall) and up everything fits above the footer, at 100% and 130%.
+      if (m.viewport >= 660) {
+        expect(c.top).toBeGreaterThanOrEqual(m.contextBottom - 0.5);
+        expect(c.bottom).toBeLessThanOrEqual(m.footerTop + 0.5);
+      }
+    }
+    if (m.viewport < 660) {
+      // Shorter: the reps scroll into view and the set and exercise stay pinned above them.
+      await sheet.getByRole('button', { name: 'More reps' }).scrollIntoViewIfNeeded();
+      await expect(sheet.getByTestId('import-context')).toBeInViewport();
+      await expect(sheet.getByTestId('import-context')).toContainText('Kettlebell Goblet Squat');
+    }
+    await expect(sheet.getByTestId('import-weight-invalid')).toHaveText('Enter a weight up to 500 lb.');
+    await expect(sheet.getByTestId('import-weight-revert')).toHaveText('Restore 53 lb');
     expect(m.sideways).toBeLessThanOrEqual(0);
     await shotOn(page, '2.0c', `v-b-501-${k * 100}`);
     expect(errors).toEqual([]);
@@ -154,7 +181,7 @@ test('a touched import weight is never dropped by a unit change in another tab: 
   await other.close();
 
   // The edit is not silently replaced by the file's 53 lb: Save is held, with a way back.
-  await expect(sheet.getByTestId('import-weight-invalid')).toHaveText("Units changed to kg. Use the file's weight to save.");
+  await expect(sheet.getByTestId('import-weight-invalid')).toHaveText("Units changed to kg. Restore the file's weight to save.");
   await expect(save).toBeDisabled();
   await save.tap({ force: true }).catch(() => undefined);
   await expect(sheet).toBeVisible();

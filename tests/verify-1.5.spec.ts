@@ -11,8 +11,8 @@ const open = async (page: Page) => {
   await expect(page.getByRole('heading', { name: 'Plates' })).toBeVisible();
 };
 const tray = (p: Page, l: string) => p.getByRole('button', { name: `Add ${l} plate to each side` });
-// 2.0b: a fat "×3" plate stands for three, so count what the plates stand for.
-const count = (p: Page, s: string) => p.locator(`[data-plate][data-side="${s}"]`).evaluateAll((e) => e.reduce((n, x) => n + Number(x.getAttribute('data-count')), 0));
+// PLAN 2.0d: every plate is drawn on its own, so the count is the number of plates.
+const count = (p: Page, s: string) => p.locator(`[data-plate][data-side="${s}"]`).count();
 
 test('1.5 audit: presets DOM counts, tray sizes', async ({ page }) => {
   const errors = watch(page);
@@ -23,7 +23,7 @@ test('1.5 audit: presets DOM counts, tray sizes', async ({ page }) => {
     const l = await page.locator('[data-plate][data-side="left"]').evaluateAll((e) => e.map((x) => x.getAttribute('data-weight')));
     const r = await page.locator('[data-plate][data-side="right"]').evaluateAll((e) => e.map((x) => x.getAttribute('data-weight')));
     const fills = await page.locator('[data-plate][data-side="right"] rect:first-child').evaluateAll((e) => e.map((x) => x.getAttribute('fill')));
-    report.push(`${tag} L=${l} R=${r} fills=${fills} math=${await page.getByTestId('plate-math').textContent()} total=${await page.getByTestId('plate-total').textContent()}`);
+    report.push(`${tag} L=${l} R=${r} fills=${fills} math=${await page.getByTestId('plate-total').getAttribute('data-math')} total=${await page.getByTestId('plate-total').textContent()}`);
   };
   for (const t of [135, 185, 315]) { await page.getByRole('button', { name: `${t} lb`, exact: true }).tap(); await audit(`${t}lb`); }
   await page.getByRole('button', { name: 'kg', exact: true }).tap();
@@ -41,7 +41,7 @@ test('1.5 break it', async ({ page }) => {
   // fast double taps
   await tray(page, '45 lb').dblclick();
   await page.waitForTimeout(500);
-  console.log('after dblclick', await count(page, 'left'), await count(page, 'right'), await page.getByTestId('plate-math').textContent());
+  console.log('after dblclick', await count(page, 'left'), await count(page, 'right'), await page.getByTestId('plate-total').getAttribute('data-math'));
   expect(await count(page, 'left')).toBe(2);
   await tray(page, '25 lb').tap(); await tray(page, '25 lb').tap(); await tray(page, '10 lb').tap();
   await page.waitForTimeout(500);
@@ -65,7 +65,7 @@ test('1.5 break it', async ({ page }) => {
   // unit rotate with plates
   await page.getByRole('button', { name: 'kg', exact: true }).tap();
   await page.waitForTimeout(800); expect(await count(page, 'right')).toBe(0);
-  await expect(page.getByTestId('plate-math')).toHaveText('20 bar = 20 kg');
+  await expect(page.getByTestId('plate-total')).toHaveAttribute('data-math', '20 bar = 20 kg');
   await tray(page, '25 kg').tap();
   await page.getByRole('button', { name: 'lb', exact: true }).tap();
   await page.waitForTimeout(800); expect(await count(page, 'right')).toBe(0);
@@ -76,7 +76,7 @@ test('1.5 break it', async ({ page }) => {
   // go offline
   await page.context().setOffline(true);
   await tray(page, '45 lb').tap();
-  await expect(page.getByTestId('plate-math')).toHaveText('45 bar + 2 × 45 = 135 lb');
+  await expect(page.getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × 45 = 135 lb');
   await page.context().setOffline(false);
   expect(errors).toEqual([]);
 });
@@ -87,8 +87,8 @@ test('1.5 reduced motion', async ({ page }) => {
   await open(page);
   await tray(page, '45 lb').tap();
   await tray(page, '25 lb').tap();
-  await expect(page.getByTestId('plate-math')).toHaveText('45 bar + 2 × (45 + 25) = 185 lb');
-  await page.locator('[data-plate][data-side="right"]').last().tap();
-  await expect(page.getByTestId('plate-math')).toHaveText('45 bar + 2 × 45 = 135 lb');
+  await expect(page.getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × (45 + 25) = 185 lb');
+  await page.getByTestId('remove-right').tap();
+  await expect(page.getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × 45 = 135 lb');
   expect(errors).toEqual([]);
 });

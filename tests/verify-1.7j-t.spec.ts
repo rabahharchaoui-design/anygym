@@ -283,7 +283,7 @@ test('f1: LAST TIME 135 lb Olympic, today women\'s bar: exact 135 or a plain ref
   const w = await view.getByTestId('weight-cell').first().textContent();
   await view.getByTestId('weight-cell').first().tap();
   const sheet = weightSheet(page);
-  console.log('f1 math', await sheet.getByTestId('plate-math').textContent().catch(() => null), 'total', await sheet.getByTestId('plate-total').textContent().catch(() => null));
+  console.log('f1 math', await sheet.getByTestId('plate-total').getAttribute('data-math').catch(() => null), 'total', await sheet.getByTestId('plate-total').textContent().catch(() => null));
   await shotOn(page, '1.7j-t', 'f1-picker');
   await sheet.getByRole('button', { name: 'Done' }).tap();
   void w;
@@ -307,7 +307,7 @@ test('f2: LAST TIME 90 plate machine start 0, today start 50: 90 (20 per side) o
   await shotOn(page, '1.7j-t', 'f2-machine');
   const before = await view.getByTestId('weight-cell').first().textContent();
   await view.getByTestId('weight-cell').first().tap();
-  console.log('f2 math', await weightSheet(page).getByTestId('plate-math').textContent().catch(() => null));
+  console.log('f2 math', await weightSheet(page).getByTestId('plate-total').getAttribute('data-math').catch(() => null));
   await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
   void before;
   // log it and read the stored load

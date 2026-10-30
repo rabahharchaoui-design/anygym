@@ -66,3 +66,15 @@ describe('kettlebells use exact entry, never the dumbbell range', () => {
     expect(exactHeldLoad(251, 'kg')).toBeNull();
   });
 });
+
+describe('exactHeldProblem (PLAN 2.0d follow up): the real reason a typed weight cannot be used', () => {
+  it('empty, over the limit, zero, or fine', async () => {
+    const { exactHeldProblem } = await import('../load');
+    expect(exactHeldProblem(null, 'lb')).toBe('empty');
+    expect(exactHeldProblem(501, 'lb')).toBe('over');
+    expect(exactHeldProblem(500, 'lb')).toBeNull();
+    expect(exactHeldProblem(251, 'kg')).toBe('over');
+    expect(exactHeldProblem(0, 'kg')).toBe('zero');
+    expect(exactHeldProblem(53, 'lb')).toBeNull();
+  });
+});

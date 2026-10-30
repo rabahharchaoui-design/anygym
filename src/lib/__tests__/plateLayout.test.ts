@@ -1,38 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { formatAmount } from '../load';
+import { solvePlates, sumLoad } from '../load';
 import { barSpec, plateSpec, SLEEVE_LENGTH } from '../plates';
+import { plateColor, sideChips } from '../plateColors';
 import {
-  BADGE,
-  FACE,
+  BIG_MM,
   FRAME_WIDTH,
-  MARKER_LINE,
-  MIN_FACE_PAD,
-  MIN_PLATE,
-  TALL,
-  MIN_LABEL,
+  MIN_HIT,
   PAD,
   PAD_Y,
+  SMALL_MM,
   barLayout,
   barScale,
   drawingHeight,
   hornLayout,
   outermost,
-  plateWidth,
-  runLabel,
-  textWidth,
+  plateThickness,
+  thinFor,
   withPlates,
   withoutOutermost,
+  zoomFor,
   type BarLayout,
 } from '../plateLayout';
 
 // Card widths of the SPEC 13.4 phones (viewport minus the sheet's side padding): 320 floor, SE, 15, Pro Max.
 const PHONES = [288, 343, 361, 408];
-const lay = (unit: 'lb' | 'kg', perSide: number[], width = 343, bar: 'olympic' | 'womens' = 'olympic') =>
-  barLayout({ unit, perSide, width, labelOf: formatAmount, bar });
+const lay = (unit: 'lb' | 'kg', perSide: number[], width = 343, bar: 'olympic' | 'womens' = 'olympic') => barLayout({ unit, perSide, width, bar });
 
-/** Every plate one side's drawing stands for, heaviest first. */
-const covered = (l: BarLayout, side: 'left' | 'right') => l.plates.filter((p) => p.side === side).flatMap((p) => p.weights);
-const faces = (l: BarLayout) => l.plates.filter((p) => p.side === 'right').map((p) => p.text);
+/** One side's drawn plates, innermost first. */
+const drawn = (l: BarLayout, side: 'left' | 'right' = 'right') => l.plates.filter((p) => p.side === side);
+
+const LB = [45, 35, 25, 10, 5, 2.5];
+const KG = [25, 20, 15, 10, 5, 2.5, 1.25];
+
+/** Every multiset of up to `max` plates from `sizes`, heaviest first. */
+function combos(sizes: readonly number[], max: number): number[][] {
+  const out: number[][] = [[]];
+  const walk = (from: number, acc: number[]) => {
+    if (acc.length === max) return;
+    for (let i = from; i < sizes.length; i++) {
+      const next = [...acc, sizes[i]!];
+      out.push(next);
+      walk(i, next);
+    }
+  };
+  walk(0, []);
+  return out;
+}
 
 describe('true scale bar (SPEC 5.6 TRUE SCALE)', () => {
   it('shaft ÷ sleeve is within 5% of 1310/415 on every phone width, lb and kg (the ratio test)', () => {
@@ -68,10 +81,10 @@ describe('true scale bar (SPEC 5.6 TRUE SCALE)', () => {
     expect(l.sleeves.right.width).toBeCloseTo(415 * l.scale, 9);
     expect(l.sleeves.right.height).toBeCloseTo(50 * l.scale, 9);
     expect(l.shoulders.right.width).toBeCloseTo(spec.collar * l.scale, 9);
-    // Diameters at the bar's scale; thickness is the one exception (fat numbered plates).
+    // Diameters at the bar's scale; thickness is the one exception (stylized, consistent).
     for (const p of l.plates) {
       expect(p.height).toBeCloseTo(plateSpec(p.weight, 'kg').diameter * l.scale, 9);
-      expect(p.width).toBeGreaterThanOrEqual(plateWidth(343) - 1e-9);
+      expect(p.width).toBeCloseTo(plateThickness(p.weight, 'kg') * l.scale, 9);
     }
     // SPEC 5.3 table: 15 and 25 kg are both 450 mm discs (44 and 64 mm thick).
     expect(plateSpec(15, 'kg').diameter).toBe(plateSpec(25, 'kg').diameter);
@@ -89,7 +102,7 @@ describe('true scale bar (SPEC 5.6 TRUE SCALE)', () => {
     expect(lb.plates.find((p) => p.weight === 10)!.height / p45.height).toBeCloseTo(10.04 / (450 / 25.4), 9);
   });
 
-  it('the bar fills the width with side margins, mirrored about the centre', () => {
+  it('at zoom 1 the whole bar fills the width with side margins, mirrored about the centre', () => {
     for (const width of PHONES) {
       const l = lay('lb', [45, 25], width);
       expect(l.caps.left.x).toBeCloseTo(PAD, 9);
@@ -104,7 +117,7 @@ describe('true scale bar (SPEC 5.6 TRUE SCALE)', () => {
     }
   });
 
-  it('scale and height come from the width alone: empty, one plate and heavy stacks match', () => {
+  it('scale and height come from the width alone (only the camera zoom follows the plates)', () => {
     const heights = new Set<number>();
     const scales = new Set<number>();
     for (const perSide of [[], [45], [45, 45, 45, 45], [45, 35, 25, 10, 5, 2.5]]) {
@@ -115,17 +128,23 @@ describe('true scale bar (SPEC 5.6 TRUE SCALE)', () => {
     expect(scales.size).toBe(1);
     expect(heights.size).toBe(1);
     expect(lay('lb', []).scale).toBe(barScale(343, 'lb'));
-    expect(lay('lb', []).height).toBeCloseTo(drawingHeight(barScale(343, 'lb'), 'lb'), 9);
+    expect(lay('lb', []).height).toBeCloseTo(drawingHeight(343, 'lb'), 9);
   });
 
-  it('reserves the biggest plate: the 450 mm plate sits inside the drawing', () => {
+  it('reserves the biggest plate at its closest zoom: one 450 mm plate fills the height exactly', () => {
     for (const width of PHONES) {
-      const l = lay('kg', [25], width);
-      const p = l.plates[0]!;
-      expect(p.y).toBeCloseTo(PAD_Y, 9);
-      expect(p.y + p.height).toBeCloseTo(l.floor, 9);
-      // No number row under the plates any more.
-      expect(l.height).toBeCloseTo(l.floor + PAD_Y, 9);
+      for (const unit of ['lb', 'kg'] as const) {
+        const l = lay(unit, [unit === 'lb' ? 45 : 25], width);
+        const p = l.plates[0]!;
+        // On screen (after the zoom about cy) the plate spans PAD_Y to height - PAD_Y.
+        expect(l.cy + (p.y - l.cy) * l.zoom).toBeCloseTo(PAD_Y, 6);
+        expect(l.cy + (p.y + p.height - l.cy) * l.zoom).toBeCloseTo(l.height - PAD_Y, 6);
+        // Any heavier load is further away: never taller than the drawing.
+        for (const perSide of [[45, 45], [45, 35, 25, 10, 5, 2.5], [5], [2.5], []]) {
+          const m = lay(unit, unit === 'lb' ? perSide : perSide.map(() => 20), width);
+          for (const q of m.plates) expect(q.height * m.zoom).toBeLessThanOrEqual(l.height - 2 * PAD_Y + 1e-6);
+        }
+      }
     }
   });
 
@@ -149,179 +168,194 @@ describe('true scale bar (SPEC 5.6 TRUE SCALE)', () => {
 
   it('never returns a negative scale for a tiny width', () => {
     expect(lay('lb', [45], 10).scale).toBe(0);
-    expect(hornLayout({ unit: 'lb', perSide: [45], width: 10, labelOf: formatAmount }).scale).toBe(0);
+    expect(hornLayout({ unit: 'lb', perSide: [45], width: 10 }).scale).toBe(0);
   });
 });
 
-describe('fat numbered plates (SPEC 5.6, G Oct 25 6:13 PM)', () => {
-  it('plate width: 24 px on the 320 floor, growing to 28 px on a Pro Max', () => {
-    expect(plateWidth(288)).toBe(24);
-    expect(plateWidth(343)).toBeCloseTo(25.83, 2);
-    expect(plateWidth(408)).toBe(28);
-    expect(plateWidth(200)).toBe(24);
-    expect(plateWidth(600)).toBe(28);
-  });
-
-  it('every number fits inside its plate face, bold and at least 11 px', () => {
-    expect(FACE).toBeGreaterThanOrEqual(MIN_LABEL);
-    expect(BADGE).toBeGreaterThanOrEqual(MIN_LABEL);
-    for (const width of PHONES) {
-      for (const [unit, perSide] of [
-        ['lb', [45, 35, 25, 10, 5, 2.5, 1.25]],
-        ['kg', [25, 20, 15, 10, 5, 2.5, 1.25, 0.5]],
-        ['lb', [45, 45, 45, 45]],
-        ['kg', [2.5, 2.5, 2.5]],
-      ] as const) {
-        const l = lay(unit, [...perSide], width);
-        for (const p of l.plates) {
-          if (p.more) for (const line of p.lines) expect(textWidth(line, BADGE) + MIN_FACE_PAD).toBeLessThanOrEqual(p.width + 1e-9);
-          else expect(textWidth(p.face, FACE) + MIN_FACE_PAD).toBeLessThanOrEqual(p.width + 1e-9);
-          if (p.badge) expect(textWidth(p.badge, BADGE) + MIN_FACE_PAD).toBeLessThanOrEqual(p.width + 1e-9);
-          expect(p.width).toBeGreaterThanOrEqual(MIN_PLATE - 1e-9);
-          // Stacked marker lines fit its height.
-          if (p.more) expect(p.lines.length * MARKER_LINE).toBeLessThanOrEqual(p.height);
+describe('picture first (PLAN 2.0d): every plate drawn, the camera zooms out', () => {
+  it('every plate is drawn on both sides for every combination of up to 7 plates (lb and kg), never grouped', () => {
+    for (const [unit, sizes] of [['lb', LB], ['kg', KG]] as const) {
+      for (const perSide of combos(sizes, 7)) {
+        for (const width of [288, 343, 408]) {
+          const l = lay(unit, perSide, width);
+          expect(drawn(l, 'right').map((p) => p.weight)).toEqual(perSide);
+          expect(drawn(l, 'left').map((p) => p.weight)).toEqual(perSide);
+          // Touching, inside the drawn sleeve, never past its end.
+          const r = drawn(l);
+          r.forEach((p, i) => {
+            expect(p.x).toBeCloseTo(i === 0 ? l.sleeves.right.x : r[i - 1]!.x + r[i - 1]!.width, 6);
+            expect(p.width).toBeGreaterThan(0);
+          });
+          if (r.length) expect(r[r.length - 1]!.x + r[r.length - 1]!.width).toBeLessThanOrEqual(l.sleeves.right.x + l.sleeves.right.width + 1e-6);
         }
-        // Every plate is accounted for, on both sides.
-        expect(covered(l, 'right')).toEqual([...perSide].sort((a, b) => b - a));
-        expect(covered(l, 'left')).toEqual(covered(l, 'right'));
       }
     }
   });
 
-  it('the check loads on 320, 375 and 440: single plates while they fit, then one plate per run', () => {
-    const expected: Array<['lb' | 'kg', number[], string[]]> = [
-      ['lb', [], []],
-      ['lb', [45], ['45']],
-      ['lb', [45, 45], ['45', '45']],
-      ['lb', [45, 45, 45], ['3×45']],
-      ['lb', [45, 45, 45, 45], ['4×45']],
-      ['kg', [20], ['20']],
-      ['kg', [25, 15], ['25', '15']],
-      ['kg', [25, 25, 10], ['2×25', '10']],
+  it('the zoom never grows as a plate is added (monotonic), from a close empty bar down to the whole bar (1)', () => {
+    for (const [unit, sizes] of [['lb', LB], ['kg', KG]] as const) {
+      for (const perSide of combos(sizes, 6)) {
+        const z = zoomFor(perSide, unit);
+        expect(z).toBeGreaterThanOrEqual(1);
+        for (const w of sizes) expect(zoomFor(withPlates(perSide, w, 1), unit)).toBeLessThanOrEqual(z + 1e-12);
+      }
+      expect(zoomFor([], unit)).toBeGreaterThan(zoomFor([sizes[0]!], unit));
+      expect(zoomFor(Array(7).fill(sizes[0]), unit)).toBe(1);
+    }
+  });
+
+  it('the empty bar fills the width: zoomed in, the sleeves run on past the edges', () => {
+    for (const width of PHONES) {
+      const l = lay('lb', [], width);
+      expect(l.zoom).toBeGreaterThan(1.2);
+      expect(l.cropped).toBe(true);
+      const screenCap = l.cx + (l.caps.right.x + l.caps.right.width - l.cx) * l.zoom;
+      expect(screenCap).toBeGreaterThan(width);
+      // The shaft and collars stay in view.
+      expect(l.cx + (l.shoulders.right.x + l.shoulders.right.width - l.cx) * l.zoom).toBeLessThan(width - PAD);
+    }
+  });
+
+  it('320 px floor at 700 lb (7 × 45, 10 and 2.5 each side) and 7 × 45 + 2 × 2.5: whole bar, thinner plates, all drawn', () => {
+    const r = solvePlates(700, { bar: 45, inventory: LB, collars: 'none', unit: 'lb' });
+    expect(r.exact).toBe(true);
+    if (!r.exact) return;
+    for (const perSide of [r.perSide, [45, 45, 45, 45, 45, 45, 45, 2.5, 2.5]]) {
+      for (const width of [320, 288]) {
+        const l = lay('lb', perSide, width);
+        expect(l.zoom).toBe(1);
+        expect(l.thin).toBeLessThan(1);
+        expect(drawn(l).length).toBe(perSide.length);
+        expect(drawn(l, 'left').length).toBe(perSide.length);
+        const last = drawn(l)[perSide.length - 1]!;
+        expect(last.x + last.width).toBeCloseTo(l.sleeves.right.x + l.sleeves.right.width, 6);
+        // Still a visible plate each: at least 2.5 px on the narrowest card.
+        for (const p of drawn(l)) expect(p.width).toBeGreaterThan(2.5);
+      }
+    }
+    // 7 × 25 kg is past the real sleeve (capacity says no), but the drawing still shows all seven.
+    const k = lay('kg', Array(7).fill(25), 288);
+    expect(drawn(k).length).toBe(7);
+    expect(k.zoom).toBe(1);
+  });
+
+  it('shaft ÷ sleeve stays within 5% of 1310/415 at every zoom (the whole scene scales as one)', () => {
+    for (const [unit, sizes] of [['lb', LB], ['kg', KG]] as const) {
+      for (const perSide of combos(sizes, 4)) {
+        const l = lay(unit, perSide, 320);
+        const ratio = (l.shaft.width * l.zoom) / (l.sleeves.right.width * l.zoom);
+        expect(Math.abs(ratio / (1310 / 415) - 1)).toBeLessThan(0.05);
+      }
+    }
+  });
+
+  it('stylized thickness: one size for the big plates, thinner for 5 and under', () => {
+    expect(plateThickness(45, 'lb')).toBeCloseTo(BIG_MM / 25.4, 9);
+    expect(plateThickness(10, 'lb')).toBe(plateThickness(55, 'lb'));
+    expect(plateThickness(5, 'lb')).toBeCloseTo(SMALL_MM / 25.4, 9);
+    expect(plateThickness(2.5, 'lb')).toBe(plateThickness(5, 'lb'));
+    expect(plateThickness(25, 'kg')).toBe(BIG_MM);
+    expect(plateThickness(5, 'kg')).toBe(SMALL_MM);
+    expect(SMALL_MM).toBeLessThan(BIG_MM);
+    expect(() => plateThickness(7, 'lb')).toThrow();
+    expect(thinFor([45, 45], 'lb')).toBe(1);
+  });
+
+  it('each side is a big tap target from the sleeve out, at least 48 px, at every zoom', () => {
+    for (const width of PHONES) {
+      for (const perSide of [[2.5], [45], [45, 45, 45], [45, 45, 45, 45, 45, 45, 45]]) {
+        const l = lay('lb', perSide, width);
+        expect(l.hits.right!.width).toBeGreaterThanOrEqual(MIN_HIT);
+        expect(l.hits.right!.x + l.hits.right!.width).toBe(width);
+        expect(l.hits.right!.height).toBe(l.height);
+        expect(l.hits.left!.x).toBe(0);
+        expect(l.hits.left!.width).toBeCloseTo(l.hits.right!.width, 9);
+        // It covers every drawn plate on screen.
+        for (const p of drawn(l)) expect(l.cx + (p.x - l.cx) * l.zoom).toBeGreaterThanOrEqual(l.hits.right!.x - 1e-6);
+      }
+    }
+  });
+
+  it('colours per the table, and the drawn plates carry them', () => {
+    const lb: Array<[number, string]> = [[55, 'red'], [45, 'blue'], [35, 'yellow'], [25, 'green'], [10, 'white'], [5, 'gray'], [2.5, 'gray']];
+    const kg: Array<[number, string]> = [[25, 'red'], [20, 'blue'], [15, 'yellow'], [10, 'green'], [5, 'white'], [2.5, 'black'], [1.25, 'chrome']];
+    for (const [w, c] of lb) expect(plateColor(w, 'lb')).toBe(c);
+    for (const [w, c] of kg) expect(plateColor(w, 'kg')).toBe(c);
+    expect(drawn(lay('lb', [45, 35, 2.5])).map((p) => p.color)).toEqual(['blue', 'yellow', 'gray']);
+    expect(() => plateColor(3, 'kg')).toThrow();
+  });
+
+  it('the chips line is the side grouped by weight, heaviest first, with its colour', () => {
+    expect(sideChips([2.5, 45, 10, 35, 45, 5, 35], 'lb')).toEqual([
+      { weight: 45, count: 2, color: 'blue' },
+      { weight: 35, count: 2, color: 'yellow' },
+      { weight: 10, count: 1, color: 'white' },
+      { weight: 5, count: 1, color: 'gray' },
+      { weight: 2.5, count: 1, color: 'gray' },
+    ]);
+    expect(sideChips([], 'kg')).toEqual([]);
+    for (const [unit, sizes] of [['lb', LB], ['kg', KG]] as const) {
+      for (const perSide of combos(sizes, 5)) {
+        const chips = sideChips(perSide, unit);
+        // The chips stand for exactly the drawn multiset.
+        expect(chips.flatMap((c) => Array<number>(c.count).fill(c.weight))).toEqual(perSide);
+        expect(chips.map((c) => c.weight)).toEqual([...new Set(perSide)]);
+      }
+    }
+  });
+
+  it('SPEC 5.4 unchanged: sumLoad of what is drawn equals the solver total (45 to 700 lb, 60 to 220 kg)', () => {
+    const cases: Array<['lb' | 'kg', number, number, number[]]> = [
+      ...[45, 135, 225, 315, 400, 495, 700].map((t) => ['lb', t, 45, LB] as ['lb', number, number, number[]]),
+      ...[60, 100, 140, 220].map((t) => ['kg', t, 20, KG] as ['kg', number, number, number[]]),
     ];
-    for (const width of [288, 343, 408]) {
-      for (const [unit, perSide, texts] of expected) {
-        const l = lay(unit, perSide, width);
-        expect(faces(l), `${unit} ${perSide.join('+')} @${width}`).toEqual(texts);
-        // Fat plates stay on the drawn sleeve.
-        const end = l.sleeves.right.x + l.sleeves.right.width;
-        for (const p of l.plates.filter((q) => q.side === 'right')) expect(p.x + p.width).toBeLessThanOrEqual(end + 1e-6);
+    for (const [unit, target, bar, inventory] of cases) {
+      const r = solvePlates(target, { bar, inventory, collars: 'none', unit });
+      expect(r.exact, `${target} ${unit}`).toBe(true);
+      if (!r.exact) continue;
+      for (const width of [288, 408]) {
+        const l = lay(unit, r.perSide, width);
+        const right = drawn(l).map((p) => p.weight);
+        expect(right).toEqual(r.perSide);
+        expect(sumLoad({ bar, perSide: right, collars: 'none', unit }).total).toBe(target);
       }
     }
-    // A run on a tall plate: the number on the face, "×3" under it.
-    const p = lay('lb', [45, 45, 45]).plates[0]!;
-    expect([p.face, p.badge]).toEqual(['45', '×3']);
-    // A run on a short plate: one line.
-    const q = lay('kg', [2.5, 2.5, 2.5], 288).plates[0]!;
-    expect([q.face, q.badge, q.text]).toEqual(['3×2.5', null, '3×2.5']);
-  });
-
-  it('every number equals what is drawn: 205 lb and 102.5 kg on 320, 375 and 440', () => {
-    // 320: 45, then the marker printing "25" over "10". 375 and 440: three squeezed fat plates.
-    const l320 = lay('lb', [45, 25, 10], 288);
-    expect(faces(l320)).toEqual(['45', 'then 25 · 10']);
-    const m = l320.plates.find((p) => p.side === 'right' && p.more)!;
-    expect(m.lines).toEqual(['25', '10']);
-    expect(m.weights).toEqual([25, 10]);
-    expect(l320.breakdown).toBeNull();
-    for (const width of [343, 408]) {
-      const l = lay('lb', [45, 25, 10], width);
-      expect(faces(l)).toEqual(['45', '25', '10']);
-      expect(Math.min(...l.plates.map((p) => p.width))).toBeGreaterThanOrEqual(MIN_PLATE);
-    }
-    expect(faces(lay('kg', [25, 15, 1.25], 288))).toEqual(['25', 'then 15 · 1.25']);
-    expect(faces(lay('kg', [25, 15, 1.25], 343))).toEqual(['25', 'then 15 · 1.25']);
-    expect(faces(lay('kg', [25, 15, 1.25], 408))).toEqual(['25', '15', '1.25']);
-    expect(l320.shaft).toEqual(lay('lb', [], 288).shaft);
-  });
-
-  it('more than 3 runs on the marker: two lines and "+N", and a breakdown line names every plate', () => {
-    const l = lay('lb', [45, 45, 35, 25, 10, 5, 2.5], 288);
-    const m = l.plates.find((p) => p.side === 'right' && p.more)!;
-    expect(m.lines).toEqual(['35', '25', '+3']);
-    expect(l.breakdown).toBe('then 35 · 25 · 10 · 5 · 2.5');
-    expect(covered(l, 'right')).toEqual([45, 45, 35, 25, 10, 5, 2.5]);
-  });
-
-  it('one badge rule: under TALL px "3×25" on one line, at TALL and up "25" with "×3" under it', () => {
-    const short = lay('lb', [25, 25, 25], 288).plates[0]!;
-    expect(short.height).toBeLessThan(TALL);
-    expect([short.face, short.badge]).toEqual(['3×25', null]);
-    expect(textWidth('3×25', FACE) + MIN_FACE_PAD).toBeLessThanOrEqual(short.width);
-    const tall = lay('lb', [25, 25, 25], 343).plates[0]!;
-    expect(tall.height).toBeGreaterThanOrEqual(TALL);
-    expect([tall.face, tall.badge]).toEqual(['25', '×3']);
-  });
-});
-
-describe('overflow (SPEC 5.3): never a shrunken shaft', () => {
-  it('plates past the real sleeve end keep the shaft and scale and are counted', () => {
-    const ok = lay('lb', Array(9).fill(45));
-    const over = lay('lb', [...Array(9).fill(45), 10, 10]);
-    expect(over.shaft).toEqual(ok.shaft);
-    expect(over.scale).toBe(ok.scale);
-    expect(over.height).toBe(ok.height);
-    expect(ok.overflow).toBe(0);
-    expect(faces(ok)).toEqual(['9×45']);
-    expect(over.overflow).toBe(2);
-    expect(faces(over)).toEqual(['9×45', 'then 2×10']);
-    expect(over.plates.find((p) => p.more)!.lines).toEqual(['2×10']);
-    expect(covered(over, 'right')).toEqual([...Array(9).fill(45), 10, 10]);
-  });
-
-  it("women's 320 mm sleeve holds five 25 kg plates exactly; the sixth overflows", () => {
-    expect(lay('kg', Array(5).fill(25), 343, 'womens').overflow).toBe(0);
-    const six = lay('kg', [...Array(6).fill(25), 5, 2.5], 343, 'womens');
-    expect(six.overflow).toBe(3);
-    expect(faces(six)).toEqual(['5×25', 'then 25 · 5 · 2.5']);
-    expect(lay('kg', Array(6).fill(25)).overflow).toBe(0);
-    expect(lay('kg', Array(7).fill(25)).overflow).toBe(1);
-  });
-
-  it('a mixed overfull sleeve folds into the marker as far as needed', () => {
-    const l = lay('kg', [25, 25, 25, 25, 25, 20, 15, 10, 5], 288, 'womens');
-    expect(l.overflow).toBeGreaterThan(0);
-    expect(l.plates.filter((p) => p.side === 'right').length).toBeLessThanOrEqual(2);
-    expect(covered(l, 'right')).toEqual([25, 25, 25, 25, 25, 20, 15, 10, 5]);
-    // Not even one run fits beside the rest: one plate for everything.
-    const tiny = barLayout({ unit: 'kg', perSide: Array(8).fill(25), width: 100, labelOf: formatAmount });
-    expect(tiny.plates.filter((p) => p.side === 'right').map((p) => p.text)).toEqual(['then 8×25']);
-  });
-
-  it('runLabel', () => {
-    expect(runLabel(1, '45')).toBe('45');
-    expect(runLabel(3, '2.5')).toBe('3×2.5');
   });
 });
 
 describe('hornLayout', () => {
-  const horn = (unit: 'lb' | 'kg', perSide: number[], width = 343) => hornLayout({ unit, perSide, width, labelOf: formatAmount });
+  const horn = (unit: 'lb' | 'kg', perSide: number[], width = 343) => hornLayout({ unit, perSide, width });
 
-  it('one horn = one Olympic sleeve at the same scale as the bar, the same fat numbered plates', () => {
+  it('one horn = one Olympic sleeve at the same scale, height and zoom as the bar, the same picture style', () => {
     for (const width of PHONES) {
       const h = horn('lb', [25, 45], width);
-      const b = lay('lb', [], width);
+      const b = lay('lb', [25, 45], width);
       expect(h.scale).toBe(b.scale);
       expect(h.height).toBe(b.height);
+      expect(h.zoom).toBe(b.zoom);
       expect(h.sleeves.right.width).toBeCloseTo(SLEEVE_LENGTH.lb * h.scale, 9);
       expect(h.sides).toEqual(['right']);
       expect(h.frame!.width).toBe(FRAME_WIDTH);
-      expect(h.plates.map((p) => p.text)).toEqual(['45', '25']);
+      expect(h.plates.map((p) => p.weight)).toEqual([45, 25]);
+      expect(h.plates.map((p) => p.color)).toEqual(['blue', 'green']);
       expect(h.plates[0]!.x).toBeCloseTo(h.sleeves.right.x, 9);
       expect(h.plates[1]!.x).toBeCloseTo(h.plates[0]!.x + h.plates[0]!.width, 9);
-      expect(h.plates[0]!.width).toBeGreaterThanOrEqual(plateWidth(width));
       expect(h.shoulders.right.x).toBeCloseTo(h.frame!.x + FRAME_WIDTH, 9);
       expect(h.caps.right.x).toBeCloseTo(h.sleeves.right.x + h.sleeves.right.width, 9);
       expect(h.sleeves.left.width).toBe(0);
       expect(h.shaft.width).toBe(0);
+      expect(h.hits.left).toBeUndefined();
+      expect(h.hits.right!.width).toBeGreaterThanOrEqual(MIN_HIT);
+      // The whole horn stays in view, even zoomed in.
+      expect(h.cx + (h.frame!.x - h.cx) * h.zoom).toBeGreaterThanOrEqual(0);
+      expect(h.cx + (h.caps.right.x + h.caps.right.width - h.cx) * h.zoom).toBeLessThanOrEqual(width);
     }
   });
 
-  it('a full horn groups, then shows the overflow', () => {
-    expect(horn('lb', [45, 45, 45, 45]).plates.map((p) => p.text)).toEqual(['4×45']);
+  it('a full horn draws every plate, thinner, never grouped', () => {
     const h = horn('kg', Array(8).fill(25));
-    expect(h.overflow).toBe(2);
-    expect(h.plates.map((p) => p.text)).toEqual(['6×25', 'then 2×25']);
+    expect(h.plates.length).toBe(8);
+    expect(h.thin).toBeLessThan(1);
     expect(horn('lb', []).plates).toEqual([]);
   });
 });

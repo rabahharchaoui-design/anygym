@@ -65,13 +65,14 @@ describe('setEquipmentWeight', () => {
 
 describe('setPlateColors (Settings, PLAN 1.7e)', () => {
   it('switches between colored and black plates and keeps everything else', async () => {
-    expect(gym.plateColors).toBe('black');
-    const out = await setPlateColors(gym.id, 'color', db);
-    expect(out.plateColors).toBe('color');
+    // PLAN 2.0d: lb gyms start colour coded too.
+    expect(gym.plateColors).toBe('color');
+    const out = await setPlateColors(gym.id, 'black', db);
+    expect(out.plateColors).toBe('black');
     const stored = (await db.gyms.get(gym.id))!;
-    expect(stored).toEqual({ ...gym, plateColors: 'color' });
-    await setPlateColors(gym.id, 'black', db);
-    expect((await db.gyms.get(gym.id))!.plateColors).toBe('black');
+    expect(stored).toEqual({ ...gym, plateColors: 'black' });
+    await setPlateColors(gym.id, 'color', db);
+    expect((await db.gyms.get(gym.id))!.plateColors).toBe('color');
   });
 
   it('rejects an unknown mode or gym', async () => {

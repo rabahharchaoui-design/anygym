@@ -42,7 +42,7 @@ test('a 65 kg set lifted with collars still shows and saves 65 when the gym now 
   // Set 1, legacy record: the collars are recovered from its own numbers. Reps only Save keeps 65.
   await loggedRows(view).nth(0).tap();
   await expect(edit.getByTestId('plate-total')).toHaveText('65kg');
-  await expect(edit.getByTestId('plate-math')).toHaveText('20 bar + 2 × 20 + 5 collars = 65 kg');
+  await expect(edit.getByTestId('plate-total')).toHaveAttribute('data-math', '20 bar + 2 × 20 + 5 collars = 65 kg');
   await edit.getByRole('button', { name: 'More reps' }).tap();
   await edit.getByRole('button', { name: 'Save' }).tap();
   await expect(edit).toHaveCount(0);

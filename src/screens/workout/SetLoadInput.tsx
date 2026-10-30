@@ -57,10 +57,14 @@ type Props = {
    * The sheet holds Done/Save until then, so the load it confirms is the one the choice ends with.
    */
   onPending?: (pending: boolean) => void;
+  /** Exact held weight only: the number typed, so a sheet can say why it cannot be saved. */
+  onTyped?: (value: number | null) => void;
+  /** Exact held weight only: the short screen layout (import editor). */
+  dense?: boolean;
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact, onPending }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact, onPending, onTyped, dense }: Props) {
   switch (loadType) {
     case 'barbell':
       return (
@@ -83,7 +87,7 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
     case 'dumbbell_each':
     case 'single':
       // A kettlebell (or an implement the name does not tell) is typed exactly, never the dumbbell range (PLAN 1.7k).
-      if (isExactHeld(loadType, exerciseName)) return <ExactWeightInput unit={gym.unit} exerciseName={exerciseName} value={value} onChange={onChange} />;
+      if (isExactHeld(loadType, exerciseName)) return <ExactWeightInput unit={gym.unit} exerciseName={exerciseName} value={value} onChange={onChange} onTyped={onTyped} dense={dense} />;
       return (
         <DumbbellWheel
           unit={gym.unit}
@@ -276,7 +280,7 @@ function BarbellField({
       </span>
     )
   ) : null;
-  // In a sheet the bar control sits on the math line, above the drawing, never behind Done (1.7e).
+  // In a sheet the bar control sits under the total, above the drawing, never behind Done (1.7e).
   // While the bar question is up it is the one thing to answer; Change bar follows once it is.
   const mathAction = !compact && !question && (
     <span className={base.mathAction}>

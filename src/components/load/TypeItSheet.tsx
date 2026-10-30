@@ -4,6 +4,7 @@ import { formatAmount, formatWeight, solvePlates, type Loading } from '../../lib
 import { parseTyped, pressKey } from '../../lib/numpad';
 import { Sheet } from '../../ui/Sheet';
 import { NumPad } from './NumPad';
+import { PlateChips } from './PlateChips';
 import styles from './TypeItSheet.module.css';
 
 type Props = {
@@ -20,8 +21,10 @@ type Props = {
   onApply: (perSide: number[]) => void;
 };
 
-const perSideText = (perSide: readonly number[], baseLabel: string): string =>
-  perSide.length ? perSide.map(formatAmount).join(' + ') : baseLabel === 'bar' ? 'Empty bar' : 'No plates';
+/** Each side as coloured chips (PLAN 2.0d): "● 45 ×2 ● 25", never a sum. */
+const PerSide = ({ perSide, unit, baseLabel, label }: { perSide: readonly number[]; unit: Unit; baseLabel: string; label?: string }) => (
+  <PlateChips unit={unit} perSide={perSide} label={label} empty={baseLabel === 'bar' ? 'Empty bar' : 'No plates'} className={styles.per} testId="solve-chips" as="span" />
+);
 
 /** "Type it" (SPEC 5.2, 5.4): type a total, the solver picks the plates. */
 export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inventory, collars, sleeveLength, onApply }: Props) {
@@ -56,7 +59,8 @@ export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inven
         {result === null && <p className={styles.hint}>Type the total, {baseLabel} included.</p>}
         {result?.exact && (
           <p className={styles.exact}>
-            <strong>Exact</strong> <span className={styles.per}>Each side: {perSideText(result.perSide, baseLabel)}</span>
+            <strong>Exact</strong>
+            <PerSide perSide={result.perSide} unit={unit} baseLabel={baseLabel} label="Each side" />
           </p>
         )}
         {result && !result.exact && (
@@ -72,7 +76,7 @@ export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inven
                   aria-label={`Use ${formatWeight(c.total, unit)}`}
                 >
                   <span className={`${styles.choiceTotal} num`}>{formatWeight(c.total, unit)}</span>
-                  <span className={styles.per}>{perSideText(c.perSide, baseLabel)}</span>
+                  <PerSide perSide={c.perSide} unit={unit} baseLabel={baseLabel} />
                 </button>
               ))}
             </div>

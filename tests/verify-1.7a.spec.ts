@@ -13,7 +13,7 @@ test('1.7a verify: hints persist, tap targets, double tap, reload, offline', asy
   await card.getByTestId('weight-cell').first().tap();
   const picker = page.getByRole('dialog', { name: 'Pick the weight' });
   await expect(page.getByTestId('hint')).toHaveCount(1);
-  await expect(page.getByTestId('hint')).toHaveText('Tap plates to load the bar. We add it up.');
+  await expect(page.getByTestId('hint')).toHaveText('Tap plates to load the bar. Tap a sleeve to take one off.');
   await page.screenshot({ path: `reports/shots/1.7a/v-hint-${info.project.name.replace(/ /g, '-')}.png` });
   // every tray button in the picker at least 48pt
   for (const b of await picker.getByRole('group', { name: 'Plates' }).getByRole('button').all()) {
