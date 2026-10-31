@@ -38,16 +38,17 @@ async function threeSets() {
 }
 
 describe('tombstones', () => {
-  it('delete then kill during the Undo window: the set stays deleted, the record goes only once the window is over', async () => {
+  it('delete then kill during the Undo window: the set stays deleted, and the record is never dropped by time alone (PLAN 2.0e)', async () => {
     const { session, sets } = await threeSets();
     await deleteSet('b', db, 10_000);
-    expect(await db.tombstones.get('b')).toEqual({ id: 'b', sessionId: session.id, set: sets[1], expiresAt: 10_000 + UNDO_MS });
+    expect(await db.tombstones.get('b')).toEqual({ id: 'b', sessionId: session.id, set: sets[1], expiresAt: 10_000 + UNDO_MS, token: expect.any(String) });
     await kill();
     expect(await recoverDeletes(session.id, db, 11_000)).toEqual({ restored: [], expired: [], failed: [] });
     expect((await setsOf(session.id, db)).map((s) => s.id)).toEqual(['a', 'c']);
     expect(await db.tombstones.count()).toBe(1);
-    expect(await recoverDeletes(session.id, db, 10_000 + UNDO_MS)).toEqual({ restored: [], expired: ['b'], failed: [] });
-    expect(await db.tombstones.count()).toBe(0);
+    // After the window too: only Restore, Keep deleted (sessionRecovery.ts) or Finish ends it.
+    expect(await recoverDeletes(session.id, db, 10_000 + UNDO_MS * 100)).toEqual({ restored: [], expired: [], failed: [] });
+    expect(await db.tombstones.count()).toBe(1);
     expect((await setsOf(session.id, db)).map((s) => s.id)).toEqual(['a', 'c']);
   });
 

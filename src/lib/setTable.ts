@@ -215,6 +215,9 @@ export function pendingRows(input: BuildInput): PendingRow[] {
   const perSet = progression?.perSet ?? [];
   const lastLogged = logged[logged.length - 1];
   const shift = logged.length - Math.min(logged.length, Math.max(0, input.workLogged ?? logged.length));
+  // "Just you" or a hold only when no history asks for a weight it cannot give here (PLAN 1.7j:
+  // weighted dips last time in lb never become an unweighted row in a kg gym).
+  const historyBlocks = !!progression?.lastTime && !progression.next.load;
   const out: PendingRow[] = [];
   for (let i = logged.length; i < count; i++) {
     const target = perSet[i - shift]?.target ?? perSet[perSet.length - 1]?.target;
@@ -234,12 +237,14 @@ export function pendingRows(input: BuildInput): PendingRow[] {
         // Kept exactly as picked, never turned into a different loggable weight (PLAN 1.7i).
         load = null;
         kept = { why, load: d.load, plates: [...plates], unit: d.load?.unit ?? d.unit ?? input.unit ?? 'lb' };
+      } else if (d.load === null && plates.length === 0 && !d.own?.load) {
+        // Nothing picked on this row yet (PLAN 2.0e): reps or a type changed on a row showing
+        // "Pick" never turn it into the bare bar or a machine's start. Only "just you" or a hold
+        // are certain without asking.
+        load = historyBlocks ? null : certain;
       } else load = rebuild(d.load, plates);
     } else {
       const fromTarget = target?.load ? rebuild(target.load, target.load.perSide ?? []) : null;
-      // "Just you" or a hold only when no history asks for a weight it cannot give here (PLAN 1.7j:
-      // weighted dips last time in lb never become an unweighted row in a kg gym).
-      const historyBlocks = !!progression?.lastTime && !progression.next.load;
       load = fromTarget ?? carry(lastLogged?.load) ?? (progression?.next.load ? rebuild(progression.next.load, progression.next.load.perSide ?? []) : null) ?? (historyBlocks ? null : certain);
       plates = load?.perSide ?? [];
     }

@@ -27,6 +27,11 @@ type Props = {
   /** Ids logged while this view was open: their rows play the check animation once. */
   fresh: ReadonlySet<string>;
   editing: number | null;
+  /**
+   * The open editor's own identity (its row's draft id, PLAN 2.0e): its stepper is keyed by it, so
+   * a row moving under it remounts the stepper (ending a held repeat) instead of handing it over.
+   */
+  editingKey?: string;
   /** A double tap stays one set: the view claims the row with one submission (logQueue.claim). */
   onCheck: (row: PendingRow) => void;
   onWeight: (row: PendingRow) => void;
@@ -255,7 +260,7 @@ export function SetTable(props: Props) {
                 </p>
               )}
               {editing === r.index && (
-                <div className={styles.stepperRow}>
+                <div className={styles.stepperRow} key={props.editingKey ?? 'stepper'}>
                   {timed ? (
                     <RepsStepper label="Seconds" unit="seconds" value={r.seconds ?? 30} onChange={(v) => props.onAmountChange(r, v)} max={3600} compact />
                   ) : (

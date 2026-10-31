@@ -8,15 +8,34 @@
 // (db/undoIntents.ts). Recovery reads those intents, retries them, never expires their tombstones,
 // and hands what is still not back to the manager as unresolved, so Finish stays blocked and the
 // Undo sheet can retry or cancel it. Recovery and Finish share one readiness promise per workout.
+// PLAN 2.0e: a tombstone this app run does not hold (left by an earlier run, whose Undo may have been
+// tapped with every store failing) is never expired by time: it comes back as unresolved too, so
+// Finish refuses until the user picks Restore or Keep deleted. Each deletion's token is kept, so a
+// delayed Undo or expiry never touches a newer deletion of the same set.
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
 import type { WorkoutSet } from '../../db/types';
-import { WorkoutFinishedError, deleteSet } from '../../db/workouts';
+import { WorkoutFinishedError, deleteSetToken } from '../../db/workouts';
 import { acceptUndo, cancelUndo, expireDelete, recoverDeletes, undoDelete, type Recovery } from '../../db/tombstones';
 import { dropUndoIntent, forgetUndoFallback, readUndoIntents, rememberUndo } from '../../db/undoIntents';
 import { createDeleteUndo, type DeleteUndo } from '../../lib/deleteUndo';
 
 const managers = new Map<string, DeleteUndo<WorkoutSet>>();
 const recoveries = new Map<string, { run: Promise<Recovery>; failed: boolean }>();
+/** Per workout: the token of each set's latest deletion in this app run (PLAN 2.0e). */
+const tokens = new Map<string, Map<string, string>>();
+/** Per workout: deleted sets left by an earlier app run with no Undo asked for (only the wording differs). */
+const leftOver = new Map<string, Set<string>>();
+
+const tokensOf = (sessionId: string) => {
+  let t = tokens.get(sessionId);
+  if (!t) tokens.set(sessionId, (t = new Map()));
+  return t;
+};
+
+/** True when this deleted set came back from an earlier app run without an Undo asked for (PLAN 2.0e). */
+export function isLeftOver(sessionId: string, setId: string): boolean {
+  return leftOver.get(sessionId)?.has(setId) ?? false;
+}
 
 /** The intent of an Undo that has nothing left to do (its window was over, or Finish came first). */
 async function dropIntent(s: WorkoutSet, db: AnyGymDB): Promise<void> {
@@ -28,8 +47,13 @@ async function dropIntent(s: WorkoutSet, db: AnyGymDB): Promise<void> {
 export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteUndo<WorkoutSet> {
   let m = managers.get(sessionId);
   if (!m) {
+    const own = tokensOf(sessionId);
     m = createDeleteUndo<WorkoutSet>({
-      remove: (s) => deleteSet(s.id, db),
+      remove: async (s) => {
+        const gone = await deleteSetToken(s.id, db);
+        if (gone) own.set(s.id, gone.token);
+        return gone?.set;
+      },
       // The intent is stored first (PLAN 1.7k), then the Undo is stored as accepted before the set
       // is written back (db/tombstones.ts): a failed acceptance still survives a restart.
       restore: async (s) => {
@@ -38,7 +62,7 @@ export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteU
           () => false,
         );
         try {
-          const back = await undoDelete(s.id, db);
+          const back = await undoDelete(s.id, db, own.get(s.id));
           if (!back) await dropIntent(s, db);
           return back;
         } catch (err) {
@@ -47,9 +71,12 @@ export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteU
           throw err;
         }
       },
-      expire: (s) => expireDelete(s.id, db),
+      expire: (s) => expireDelete(s.id, db, Date.now(), own.get(s.id)),
       // A failed Undo the user gives up on: the set stays deleted (PLAN 1.7i), for sure (1.7k).
-      cancel: (s) => cancelUndo(s.id, db, s.sessionId),
+      cancel: async (s) => {
+        await cancelUndo(s.id, db, s.sessionId);
+        leftOver.get(sessionId)?.delete(s.id);
+      },
     });
     managers.set(sessionId, m);
   }
@@ -62,14 +89,26 @@ async function recoverNow(sessionId: string, db: AnyGymDB, now: number): Promise
   // An Undo the user asked for whose acceptance never reached the tombstone: accepted now, so the
   // restore below retries it. A failed acceptance is fine: its intent still holds the tombstone.
   for (const id of intents) await acceptUndo(id, db).catch(() => false);
-  const held = new Set([...m.unresolved(), ...intents]);
-  const out = await recoverDeletes(sessionId, db, now, (id) => held.has(id));
+  const out = await recoverDeletes(sessionId, db, now);
   // Put back by recovery: nothing is left to retry or to cancel ("Keep it deleted" never shows for it).
-  for (const id of out.restored) m.resolve(id);
+  for (const id of out.restored) {
+    m.resolve(id);
+    leftOver.get(sessionId)?.delete(id);
+  }
   const left = await db.tombstones.where('sessionId').equals(sessionId).toArray();
   const leftIds = new Set(left.map((t) => t.id));
-  // Asked for and still not back: unresolved, so Finish waits and the Undo sheet offers a choice.
-  for (const t of left) if (t.undo || intents.has(t.id)) m.hydrate(t.set);
+  for (const t of left) {
+    // Asked for and still not back: unresolved, so Finish waits and the Undo sheet offers a choice.
+    if (t.undo || intents.has(t.id)) m.hydrate(t.set);
+    else if (!m.canUndo(t.id)) {
+      // Not held by this app run (PLAN 2.0e): an earlier run deleted it and may have been asked to
+      // undo it with every store failing. Never dropped by time: Restore or Keep deleted decides.
+      m.hydrate(t.set);
+      const set = leftOver.get(sessionId) ?? new Set<string>();
+      set.add(t.id);
+      leftOver.set(sessionId, set);
+    }
+  }
   // An intent whose tombstone is gone (restored, cancelled or cleared): used up.
   for (const id of intents) if (!leftIds.has(id)) await dropIntent({ id, sessionId } as WorkoutSet, db);
   return out;
@@ -104,4 +143,6 @@ export function recoveryReady(sessionId: string, db: AnyGymDB = defaultDb): Prom
 export function disposeDeletes(sessionId: string): void {
   managers.delete(sessionId);
   recoveries.delete(sessionId);
+  tokens.delete(sessionId);
+  leftOver.delete(sessionId);
 }

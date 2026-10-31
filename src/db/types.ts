@@ -225,12 +225,25 @@ export type MutationIntent =
  * not indexed) a change to a logged set; its draft is then just `{ id, load: null }`.
  */
 export type JournalEntry = { id: string; sessionId: string; exerciseId: string; key: string; rev: number; draft: Record<string, unknown>; at: number; mutation?: MutationIntent };
+// PLAN 2.0e: a change's id is `mut:<kind>:<setId>:<rev>`, one per operation, `rev` allocated in the
+// journal write's own transaction; `mut:<kind>:<setId>` (before 2.0e) reads as revision 0.
 
 /**
  * A deleted set while its Undo can still happen (PLAN 1.7h): the record as it was deleted, when
  * the Undo window ends, and `undo` once an Undo was accepted but not yet written back.
  */
-export type Tombstone = { id: string; sessionId: string; set: WorkoutSet; expiresAt: number; undo?: boolean };
+export type Tombstone = {
+  id: string;
+  sessionId: string;
+  set: WorkoutSet;
+  expiresAt: number;
+  undo?: boolean;
+  /**
+   * This deletion's own identity (PLAN 2.0e, additive, not indexed): a new one each time the set is
+   * deleted. A restore that read an older tombstone only lands while this still matches.
+   */
+  token?: string;
+};
 
 export type WorkoutSet = {
   id: string;

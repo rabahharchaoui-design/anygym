@@ -10,6 +10,7 @@ import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, readUndoIntents } from './undoIntents';
+import { MUTATION_REV_PREFIX } from './workouts';
 import type { Profile } from './types';
 
 export class ActiveWorkoutError extends Error {
@@ -95,6 +96,8 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
     for (const t of TABLE_NAMES) await db.table(t).clear();
     // Undo intents of workouts that are gone with the old data (PLAN 1.7k); other kv rows stay.
     await db.kv.where('key').startsWith(UNDO_PREFIX).delete();
+    // The change revision counters of the old data (PLAN 2.0e): the restored journal's own revisions count from here.
+    await db.kv.where('key').startsWith(MUTATION_REV_PREFIX).delete();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
       if (rows.length) await db.table(t).bulkAdd(rows);

@@ -7,6 +7,12 @@ import { RepsStepper } from './RepsStepper';
 import { SetLoadInput } from './SetLoadInput';
 import styles from './Workout.module.css';
 
+/** How a Save ended (PLAN 2.0e): saved (the sheet closes), failed (it stays, says so), or closed by the screen. */
+export type SaveResult = 'saved' | 'failed' | 'closed';
+
+/** Said inside the sheet when a Save failed (SPEC 13.1: what happened and what to do). */
+export const SAVE_FAILED = 'Could not save that. Try again.';
+
 type Props = {
   set: WorkoutSet | null;
   index: number;
@@ -14,7 +20,7 @@ type Props = {
   loadType: Load['kind'] | undefined;
   gym: Gym;
   onClose: () => void;
-  onSave: (set: WorkoutSet, change: { reps?: number; seconds?: number; load: Load }) => Promise<void>;
+  onSave: (set: WorkoutSet, change: { reps?: number; seconds?: number; load: Load }) => Promise<SaveResult>;
   /** Resolves once the delete is written (or failed; the screen reports it). */
   onDelete: (set: WorkoutSet) => Promise<void>;
   /** Barbell: the bar picked for this exercise at this gym (PLAN 1.10d). */
@@ -47,6 +53,8 @@ function EditBody({
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
   // A bar choice still being saved (PLAN 2.0c): Save waits until it settles.
   const [settling, setSettling] = useState(false);
+  // A failed Save, announced inside the dialog (PLAN 2.0e); the values stay for Try again.
+  const [error, setError] = useState('');
   const running = useRef(false);
   const mounted = useRef(true);
   // Reps or seconds come from the saved set, never from today's load type (PLAN 1.7h).
@@ -60,15 +68,23 @@ function EditBody({
     return () => void (mounted.current = false);
   }, []);
 
-  const run = async (what: 'save' | 'delete', write: () => Promise<void>) => {
+  // Never rejects (no unhandled rejection from a tap): a failure is said in the sheet.
+  const run = async (what: 'save' | 'delete', write: () => Promise<SaveResult | void>) => {
     if (running.current) return;
     running.current = true;
     setBusy(what);
+    setError('');
+    let failed = false;
     try {
-      await write();
+      failed = (await write()) === 'failed';
+    } catch {
+      failed = what === 'save';
     } finally {
       running.current = false;
-      if (mounted.current) setBusy(null);
+      if (mounted.current) {
+        setBusy(null);
+        if (failed) setError(SAVE_FAILED);
+      }
     }
   };
   const save = () => (load && !settling ? run('save', () => onSave(set, timed ? { seconds, load } : { reps, load })) : undefined);
@@ -111,6 +127,9 @@ function EditBody({
       >
         Save
       </button>
+      <p className={styles.sheetError} role="status" aria-live="polite" data-testid="edit-error">
+        {error}
+      </p>
       <button
         type="button"
         className={`${styles.deleteButton} pressable`}
