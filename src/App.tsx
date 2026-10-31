@@ -17,6 +17,7 @@ import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
 import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { InfoDevScreen } from './screens/dev/InfoDevScreen';
 import { ViewportDevScreen } from './screens/dev/ViewportDevScreen';
+import { ReviewScreen } from './screens/review/ReviewScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
 
 const DEV_TOOLS = devToolsEnabled();
@@ -41,6 +42,7 @@ export function App() {
             }
           />
         )}
+        <Route path="review" element={<ReviewScreen />} />
         <Route path="workout/:sessionId/done" element={<FinishScreen />} />
         <Route path="workout/:sessionId/*" element={<WorkoutScreen />} />
         <Route element={<AppShell />}>

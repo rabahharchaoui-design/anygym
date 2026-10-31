@@ -2,7 +2,7 @@
 import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import { exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
-import { EXERCISE_MAP, musclesForPlan } from './muscles';
+import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
 
 const CUES = cueFile as CueFile;
 const CATALOG = new Map((catalog as { exercises: CatalogImages[] }).exercises.map((e) => [e.id, e]));
@@ -18,3 +18,12 @@ export function infoForPlan(planId: string, notes: string[] = []): ExerciseInfo 
 
 /** Image paths are relative to the app base (/anygym/ on Pages). */
 export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+
+export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
+
+/** The sheet content for a bare catalog exercise (the Review screen): photos, muscles, cues if written. */
+export function infoForCatalog(id: string): ExerciseInfo {
+  const cat = CATALOG.get(id);
+  const entry = { planId: id, name: id, match: 'exact' as const, catalogId: id, reason: 'review' };
+  return exerciseInfo(entry, cat, CUES.exercises[id], musclesForCatalog(id));
+}
