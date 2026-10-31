@@ -4,7 +4,8 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants 
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
-import { countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
+import { extraSets } from '../../lib/extraSets';
+import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
@@ -237,15 +238,23 @@ export function WorkoutScreen() {
     setRest(seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null);
     const e = entries.find((x) => x.exerciseId === id);
     if (!e) return;
-    const next = nextCurrent(entries, done, id);
-    const partner = entries.find((x) => x.exerciseId === next);
-    if (next !== id && e.kind === 'pair' && partner?.block === e.block) {
-      // A pair: straight on to the other exercise of the round (SPEC 13.1: back to back).
-      showChip(`Next: ${w.nameOf(next)}`, 900, id, () => switchExercise(next));
-    } else if ((done[id] ?? 0) >= e.sets) {
+    // PLAN 2.0g: the screen stays on this exercise for its next set. Only the set that completes its
+    // last working set moves on (never a warm up, a stretch, or an extra set after going back).
+    if (advancesAfterLog(entries, w.done, id, kind, extraSets(sessionId, id))) {
       const after = upNext(entries, done, id);
       // The chip is a button straight into the next exercise; untouched, it returns to the list (SPEC 20.2).
       showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', CHIP_MS, id, () => goList(), after ?? undefined);
+      return;
+    }
+    // Still here for another set: a "Nice. Next" chip from the last working set never pulls the
+    // view away mid action (an extra set checked within its 2.5 s).
+    window.clearTimeout(chipTimer.current);
+    setChip(null);
+    const next = nextCurrent(entries, done, id);
+    const partner = entries.find((x) => x.exerciseId === next);
+    if (next !== id && e.kind === 'pair' && partner?.block === e.block) {
+      // A pair: its partner is one tap away on the chip, never an automatic jump (PLAN 2.0g).
+      showChip(`Pair: ${w.nameOf(next)} next`, CHIP_MS, id, () => undefined, next);
     }
   };
 

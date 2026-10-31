@@ -104,19 +104,24 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(first.getByTestId('set-target')).toHaveText('Set 1 of 3 · 10 to 12 reps');
   await expect(first.getByTestId('set-plan')).toHaveText('Warm up. Band, cable or dumbbell');
   await expect(first.getByTestId('set-type').first().getByTestId('set-type-chip')).toHaveText('Warm up');
-  // A pair goes back to back: logging the first one opens its partner with no rest.
+  // A pair (PLAN 2.0g): logging a set stays on that exercise; the partner is one tap away on the chip.
   await first.getByTestId('check-current').tap();
-  const partner = page.getByTestId('exercise-band-internal-shoulder-rotation-90-degrees');
-  await expect(partner).toBeVisible();
-  await expect(page.getByTestId('rest-timer')).toHaveCount(0);
+  await expect(first.getByTestId('set-row')).toHaveCount(1);
+  const toPartner = page.getByTestId('next-chip').getByRole('button', { name: 'Pair: Band Internal Shoulder Rotation (90 degrees) next' });
+  await expect(toPartner).toBeVisible();
+  await expect(first).toBeVisible();
   // Warm up block sets are stored as warm ups (SPEC 6 rule 1).
   await expect.poll(async () => (await dbAll(page, 'sets')).map((x) => x.kind)).toEqual(['warmup']);
-  // The partner's set ends the round: rest, then back to the first one, its warm up set tagged.
+  await toPartner.tap();
+  const partner = page.getByTestId('exercise-band-internal-shoulder-rotation-90-degrees');
+  await expect(partner).toBeVisible();
+  // The partner's set: it stays there too, and the chip leads back to the first one, its warm up set tagged.
   await partner.getByTestId('check-current').tap();
+  await expect(partner.getByTestId('set-row')).toHaveCount(1);
+  await page.getByTestId('next-chip').getByRole('button', { name: /^Pair: Band Internal Shoulder Rotation \(0 degrees\) next$/ }).tap();
   await expect(first).toBeVisible();
   await expect(first.getByTestId('set-row')).toHaveCount(1);
   await expect(first.getByTestId('set-row').getByTestId('set-type').getByTestId('set-type-chip')).toHaveText('Warm up');
-  await expect(page.getByTestId('rest-timer')).toBeVisible();
   // The finisher is the last row: plan minutes, no rest line.
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   const finisher = page.getByTestId('finisher');
@@ -158,6 +163,8 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(page.getByTestId('day-card-title')).toHaveText('Day 1 · Legs (hamstring focus) · ~90 min');
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
+  // The rows render a frame after the URL changes (a slow machine read them too early).
+  await expect(page.locator('[data-row]').first()).toBeVisible();
   const ids = await page.locator('[data-row]').evaluateAll((els) => els.map((e) => e.getAttribute('data-row')!));
   expect(ids).toEqual([
     'static-quadricep-stretch',
