@@ -1,0 +1,612 @@
+[
+  {
+    "planId": "28-method-squat",
+    "name": "28 Method Squat",
+    "match": "none",
+    "catalogId": null,
+    "reason": "A special 28 rep protocol, not a plain squat."
+  },
+  {
+    "planId": "30-second-interval-sprint",
+    "name": "30 Second Interval Sprint",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Sprint intervals; no matching movement photo."
+  },
+  {
+    "planId": "angled-machine-leg-press",
+    "name": "Angled Machine Leg Press",
+    "match": "variant",
+    "catalogId": "Leg_Press",
+    "reason": "Same machine movement.",
+    "cue": "Plan uses a wide stance; the photos show shoulder width feet."
+  },
+  {
+    "planId": "band-internal-shoulder-rotation-0-degrees",
+    "name": "Band Internal Shoulder Rotation (0 degrees)",
+    "match": "exact",
+    "catalogId": "Internal_Rotation_with_Band",
+    "reason": "Band internal rotation with the elbow at the side is the 0 degree version."
+  },
+  {
+    "planId": "band-internal-shoulder-rotation-90-degrees",
+    "name": "Band Internal Shoulder Rotation (90 degrees)",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source only shows the elbow at the side, not the 90 degree position."
+  },
+  {
+    "planId": "barbell-back-squat",
+    "name": "Barbell Back Squat",
+    "match": "variant",
+    "catalogId": "Barbell_Squat",
+    "reason": "Same barbell back squat.",
+    "cue": "Plan uses a wide stance; the photos show a normal stance."
+  },
+  {
+    "planId": "barbell-bent-over-row",
+    "name": "Barbell Bent Over Row",
+    "match": "exact",
+    "catalogId": "Bent_Over_Barbell_Row",
+    "reason": "Same barbell overhand row."
+  },
+  {
+    "planId": "barbell-bicep-curl",
+    "name": "Barbell Bicep Curl",
+    "match": "variant",
+    "catalogId": "Barbell_Curl",
+    "reason": "Same barbell curl.",
+    "cue": "Plan does wide then narrow grip; the photos show shoulder width."
+  },
+  {
+    "planId": "barbell-incline-bench-press",
+    "name": "Barbell Incline Bench Press",
+    "match": "exact",
+    "catalogId": "Barbell_Incline_Bench_Press_-_Medium_Grip",
+    "reason": "Same barbell incline press."
+  },
+  {
+    "planId": "barbell-straight-leg-romanian-deadlift",
+    "name": "Barbell Straight Leg Romanian Deadlift",
+    "match": "variant",
+    "catalogId": "Stiff-Legged_Barbell_Deadlift",
+    "reason": "Barbell hinge with nearly straight legs.",
+    "cue": "Keep a soft knee bend; the plan name mixes straight leg and Romanian styles."
+  },
+  {
+    "planId": "bent-over-barbell-row",
+    "name": "Bent Over Barbell Row",
+    "match": "exact",
+    "catalogId": "Bent_Over_Barbell_Row",
+    "reason": "Same barbell overhand row."
+  },
+  {
+    "planId": "bicep-curl",
+    "name": "Bicep Curl",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Name does not say which implement."
+  },
+  {
+    "planId": "bird-dog",
+    "name": "Bird Dog",
+    "match": "none",
+    "catalogId": null,
+    "reason": "No bird dog in the source."
+  },
+  {
+    "planId": "bulgarian-split-squat",
+    "name": "Bulgarian Split Squat",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source has no rear foot elevated split squat."
+  },
+  {
+    "planId": "cable-overhead-tricep-extension",
+    "name": "Cable Overhead Tricep Extension",
+    "match": "variant",
+    "catalogId": "Cable_Rope_Overhead_Triceps_Extension",
+    "reason": "Cable overhead triceps extension.",
+    "cue": "Photos use a rope; any cable handle works the same way."
+  },
+  {
+    "planId": "cable-reverse-grip-tricep-pulldown",
+    "name": "Cable Reverse Grip Tricep Pulldown",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Plan does it one arm with a single handle; the source photos show a two hand bar (different implement), so no demo."
+  },
+  {
+    "planId": "cable-rope-tricep-extension",
+    "name": "Cable Rope Tricep Extension",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Unclear if this is a pushdown or an overhead extension."
+  },
+  {
+    "planId": "cable-seated-close-grip-row",
+    "name": "Cable Seated Close Grip Row",
+    "match": "exact",
+    "catalogId": "Seated_Cable_Rows",
+    "reason": "Seated cable row with a close V handle."
+  },
+  {
+    "planId": "cable-single-arm-bicep-curl",
+    "name": "Cable Single Arm Bicep Curl",
+    "match": "exact",
+    "catalogId": "Standing_One-Arm_Cable_Curl",
+    "reason": "Same one arm cable curl."
+  },
+  {
+    "planId": "cable-tricep-pushdown",
+    "name": "Cable Tricep Pushdown",
+    "match": "exact",
+    "catalogId": "Triceps_Pushdown",
+    "reason": "Same cable pushdown."
+  },
+  {
+    "planId": "chest-fly",
+    "name": "Chest Fly",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Name does not say which implement."
+  },
+  {
+    "planId": "cross-body-mountain-climber",
+    "name": "Cross Body Mountain Climber",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source mountain climber is not the cross body version."
+  },
+  {
+    "planId": "crunch",
+    "name": "Crunch",
+    "match": "exact",
+    "catalogId": "Crunches",
+    "reason": "Same floor crunch."
+  },
+  {
+    "planId": "curl-up-crunch",
+    "name": "Curl Up Crunch",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Not sure this is the same as a plain crunch."
+  },
+  {
+    "planId": "dead-bug",
+    "name": "Dead Bug",
+    "match": "exact",
+    "catalogId": "Dead_Bug",
+    "reason": "Same bodyweight dead bug."
+  },
+  {
+    "planId": "deadlift",
+    "name": "Deadlift",
+    "match": "exact",
+    "catalogId": "Barbell_Deadlift",
+    "reason": "Standard barbell deadlift."
+  },
+  {
+    "planId": "decline-bench-sit-up",
+    "name": "Decline Bench Sit Up",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source only has a decline crunch, not a sit up."
+  },
+  {
+    "planId": "dumbbell-arnold-shoulder-press",
+    "name": "Dumbbell Arnold Shoulder Press",
+    "match": "exact",
+    "catalogId": "Arnold_Dumbbell_Press",
+    "reason": "Same Arnold press."
+  },
+  {
+    "planId": "dumbbell-bench-press",
+    "name": "Dumbbell Bench Press",
+    "match": "exact",
+    "catalogId": "Dumbbell_Bench_Press",
+    "reason": "Same dumbbell bench press."
+  },
+  {
+    "planId": "dumbbell-front-raise",
+    "name": "Dumbbell Front Raise",
+    "match": "variant",
+    "catalogId": "Front_Two-Dumbbell_Raise",
+    "reason": "Same dumbbell front raise.",
+    "cue": "Photos show two dumbbells together; the plan also allows a plate."
+  },
+  {
+    "planId": "dumbbell-lateral-raise",
+    "name": "Dumbbell Lateral Raise",
+    "match": "exact",
+    "catalogId": "Side_Lateral_Raise",
+    "reason": "Same dumbbell lateral raise."
+  },
+  {
+    "planId": "dumbbell-shrug",
+    "name": "Dumbbell Shrug",
+    "match": "exact",
+    "catalogId": "Dumbbell_Shrug",
+    "reason": "Same dumbbell shrug."
+  },
+  {
+    "planId": "dumbbell-single-arm-overhead-tricep-extension",
+    "name": "Dumbbell Single Arm Overhead Tricep Extension",
+    "match": "exact",
+    "catalogId": "Standing_One-Arm_Dumbbell_Triceps_Extension",
+    "reason": "One arm overhead dumbbell extension."
+  },
+  {
+    "planId": "dumbbell-single-arm-preacher-curl",
+    "name": "Dumbbell Single Arm Preacher Curl",
+    "match": "exact",
+    "catalogId": "One_Arm_Dumbbell_Preacher_Curl",
+    "reason": "Same one arm preacher curl."
+  },
+  {
+    "planId": "dumbbell-stationary-lunge",
+    "name": "Dumbbell Stationary Lunge",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source has no stationary lunge."
+  },
+  {
+    "planId": "dumbbell-walking-lunge",
+    "name": "Dumbbell Walking Lunge",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source has only a barbell walking lunge."
+  },
+  {
+    "planId": "dynamic-hip-flexor-stretch",
+    "name": "Dynamic Hip Flexor Stretch",
+    "match": "none",
+    "catalogId": null,
+    "reason": "No dynamic hip flexor stretch in the source."
+  },
+  {
+    "planId": "elbow-plank",
+    "name": "Elbow Plank",
+    "match": "exact",
+    "catalogId": "Plank",
+    "reason": "Same forearm plank."
+  },
+  {
+    "planId": "forearm-finger-roll",
+    "name": "Forearm Finger Roll",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Implement is not known."
+  },
+  {
+    "planId": "front-and-lateral-plate-raise",
+    "name": "Front and Lateral Plate Raise",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source has no combined front and lateral plate raise."
+  },
+  {
+    "planId": "front-squat",
+    "name": "Front Squat",
+    "match": "exact",
+    "catalogId": "Front_Barbell_Squat",
+    "reason": "Same barbell front squat."
+  },
+  {
+    "planId": "hip-abductor",
+    "name": "Hip Abductor",
+    "match": "exact",
+    "catalogId": "Thigh_Abductor",
+    "reason": "Same abductor machine."
+  },
+  {
+    "planId": "hip-adductor",
+    "name": "Hip Adductor",
+    "match": "exact",
+    "catalogId": "Thigh_Adductor",
+    "reason": "Same adductor machine."
+  },
+  {
+    "planId": "hip-thrust",
+    "name": "Hip Thrust",
+    "match": "exact",
+    "catalogId": "Barbell_Hip_Thrust",
+    "reason": "Same barbell hip thrust."
+  },
+  {
+    "planId": "hyperextension-roman-chair-back-extension",
+    "name": "Hyperextension Roman Chair Back Extension",
+    "match": "exact",
+    "catalogId": "Hyperextensions_Back_Extensions",
+    "reason": "Same back extension bench."
+  },
+  {
+    "planId": "incline-plate-press",
+    "name": "Incline Plate Press",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Unsure it is the same plate loaded machine."
+  },
+  {
+    "planId": "kettlebell-goblet-squat",
+    "name": "Kettlebell Goblet Squat",
+    "match": "exact",
+    "catalogId": "Goblet_Squat",
+    "reason": "Same goblet squat."
+  },
+  {
+    "planId": "knee-hug",
+    "name": "Knee Hug",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Unsure it matches the stretch in the source."
+  },
+  {
+    "planId": "lat-machine-wide-grip-pulldown",
+    "name": "Lat Machine Wide Grip Pulldown",
+    "match": "exact",
+    "catalogId": "Wide-Grip_Lat_Pulldown",
+    "reason": "Same wide grip pulldown."
+  },
+  {
+    "planId": "leg-curl",
+    "name": "Leg Curl",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Name does not say lying or seated."
+  },
+  {
+    "planId": "leg-extension",
+    "name": "Leg Extension",
+    "match": "exact",
+    "catalogId": "Leg_Extensions",
+    "reason": "Same leg extension machine."
+  },
+  {
+    "planId": "leg-press",
+    "name": "Leg Press",
+    "match": "exact",
+    "catalogId": "Leg_Press",
+    "reason": "Same leg press machine."
+  },
+  {
+    "planId": "leg-press-machine-calf-raise",
+    "name": "Leg Press Machine Calf Raise",
+    "match": "exact",
+    "catalogId": "Calf_Press_On_The_Leg_Press_Machine",
+    "reason": "Same calf press on the leg press."
+  },
+  {
+    "planId": "lying-straight-leg-raise",
+    "name": "Lying Straight Leg Raise",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source raise is done on a bench, not the floor."
+  },
+  {
+    "planId": "machine-leg-press",
+    "name": "Machine Leg Press",
+    "match": "exact",
+    "catalogId": "Narrow_Stance_Leg_Press",
+    "reason": "Leg press machine with the narrow stance the plan asks for (plan note: Narrow stance)."
+  },
+  {
+    "planId": "machine-lying-leg-curl",
+    "name": "Machine Lying Leg Curl",
+    "match": "exact",
+    "catalogId": "Lying_Leg_Curls",
+    "reason": "Same lying leg curl machine."
+  },
+  {
+    "planId": "machine-seated-calf-raise",
+    "name": "Machine Seated Calf Raise",
+    "match": "exact",
+    "catalogId": "Seated_Calf_Raise",
+    "reason": "Same seated calf machine."
+  },
+  {
+    "planId": "machine-seated-chest-fly",
+    "name": "Machine Seated Chest Fly",
+    "match": "exact",
+    "catalogId": "Butterfly",
+    "reason": "Same seated chest fly machine."
+  },
+  {
+    "planId": "machine-seated-leg-extension",
+    "name": "Machine Seated Leg Extension",
+    "match": "exact",
+    "catalogId": "Leg_Extensions",
+    "reason": "Same leg extension machine."
+  },
+  {
+    "planId": "machine-seated-reverse-fly",
+    "name": "Machine Seated Reverse Fly",
+    "match": "exact",
+    "catalogId": "Reverse_Machine_Flyes",
+    "reason": "Same reverse fly machine."
+  },
+  {
+    "planId": "narrow-grip-lat-pulldown",
+    "name": "Narrow Grip Lat Pulldown",
+    "match": "exact",
+    "catalogId": "Close-Grip_Front_Lat_Pulldown",
+    "reason": "Same close grip pulldown."
+  },
+  {
+    "planId": "oblique-crunch",
+    "name": "Oblique Crunch",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source has two different oblique crunches."
+  },
+  {
+    "planId": "overhead-press",
+    "name": "Overhead Press",
+    "match": "exact",
+    "catalogId": "Standing_Military_Press",
+    "reason": "Standing barbell overhead press."
+  },
+  {
+    "planId": "plank",
+    "name": "Plank",
+    "match": "exact",
+    "catalogId": "Plank",
+    "reason": "Same plank."
+  },
+  {
+    "planId": "plate-russian-twist",
+    "name": "Plate Russian Twist",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source plate twist is lying, not seated."
+  },
+  {
+    "planId": "rear-delt-fly",
+    "name": "Rear Delt Fly",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Name does not say which implement."
+  },
+  {
+    "planId": "reverse-bicep-curl",
+    "name": "Reverse Bicep Curl",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Name does not say which implement."
+  },
+  {
+    "planId": "romanian-deadlift",
+    "name": "Romanian Deadlift",
+    "match": "exact",
+    "catalogId": "Romanian_Deadlift",
+    "reason": "Same barbell Romanian deadlift."
+  },
+  {
+    "planId": "russian-twist",
+    "name": "Russian Twist",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source photos use a weight plate with feet hooked under a bench, not the plan setup (cloud tester audit), so no demo."
+  },
+  {
+    "planId": "single-arm-dumbbell-row",
+    "name": "Single Arm Dumbbell Row",
+    "match": "exact",
+    "catalogId": "One-Arm_Dumbbell_Row",
+    "reason": "Same one arm dumbbell row."
+  },
+  {
+    "planId": "single-leg-romanian-deadlift",
+    "name": "Single Leg Romanian Deadlift",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Implement is not known."
+  },
+  {
+    "planId": "smith-machine-upright-row",
+    "name": "Smith Machine Upright Row",
+    "match": "exact",
+    "catalogId": "Smith_Machine_Upright_Row",
+    "reason": "Same Smith machine upright row."
+  },
+  {
+    "planId": "spider-plank",
+    "name": "Spider Plank",
+    "match": "none",
+    "catalogId": null,
+    "reason": "No spider plank in the source."
+  },
+  {
+    "planId": "static-pigeon-stretch",
+    "name": "Static Pigeon Stretch",
+    "match": "none",
+    "catalogId": null,
+    "reason": "No pigeon stretch in the source."
+  },
+  {
+    "planId": "static-proximal-hamstring-stretch",
+    "name": "Static Proximal Hamstring Stretch",
+    "match": "none",
+    "catalogId": null,
+    "reason": "No matching hamstring stretch in the source."
+  },
+  {
+    "planId": "static-quadricep-stretch",
+    "name": "Static Quadricep Stretch",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Source quad stretch is done lying with a strap."
+  },
+  {
+    "planId": "sumo-squat",
+    "name": "Sumo Squat",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Name does not say which implement."
+  },
+  {
+    "planId": "toe-touch",
+    "name": "Toe Touch",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Unsure which toe touch the plan means."
+  },
+  {
+    "planId": "upright-row",
+    "name": "Upright Row",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Name does not say which implement."
+  },
+  {
+    "planId": "v-up",
+    "name": "V Up",
+    "match": "variant",
+    "catalogId": "Jackknife_Sit-Up",
+    "reason": "Same V shaped sit up, arms and legs meet.",
+    "cue": "Source calls it a jackknife sit up."
+  },
+  {
+    "planId": "wide-grip-pull-up",
+    "name": "Wide Grip Pull Up",
+    "match": "variant",
+    "catalogId": "Pullups",
+    "reason": "Same pull up.",
+    "cue": "Hands wider than shoulders; the photos may show a different width."
+  },
+  {
+    "planId": "wide-lunge",
+    "name": "Wide Lunge",
+    "match": "none",
+    "catalogId": null,
+    "reason": "No clear match in the source."
+  },
+  {
+    "planId": "wrist-twist",
+    "name": "Wrist Twist",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Implement is not known."
+  },
+  {
+    "planId": "finisher-stair-climbing",
+    "name": "Stair climbing",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Could be real stairs or a machine."
+  },
+  {
+    "planId": "finisher-jump-rope",
+    "name": "Jump rope",
+    "match": "exact",
+    "catalogId": "Rope_Jumping",
+    "reason": "Same rope jumping."
+  },
+  {
+    "planId": "finisher-cycling",
+    "name": "Cycling",
+    "match": "none",
+    "catalogId": null,
+    "reason": "Could be road or a stationary bike."
+  }
+]

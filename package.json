@@ -13,7 +13,8 @@
     "test:live": "playwright test -c playwright.live.config.ts",
     "icons": "node scripts/make-icons.mjs",
     "test:coverage": "vitest run --coverage",
-    "plan-exercises": "node scripts/build-plan-exercises.ts"
+    "plan-exercises": "node scripts/build-plan-exercises.ts",
+    "catalog": "node scripts/build-catalog.ts"
   },
   "dependencies": {
     "dexie": "^4.4.7",
