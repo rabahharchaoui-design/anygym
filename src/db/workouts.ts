@@ -13,7 +13,8 @@ const DRAFTS_KEY = 'anygym-drafts';
 const EXTRA_SETS_KEY = 'anygym-extra-sets';
 const REST_KEY = 'anygym-rest';
 import { dropSessionIntents, dropUndoIntent, hasUndoIntent } from './undoIntents';
-import type { Load, PlanState, Session, SetKind, WorkoutSet } from './types';
+import { phone, readFallback, type KV } from './mutationFallback';
+import type { JournalEntry, Load, PlanState, Session, SetKind, WorkoutSet } from './types';
 
 /** kv row Finish writes (one at a time): the plan state just before that Finish, for its Undo. */
 export const FINISH_PLAN_PREFIX = 'anygym-finish-plan:';
@@ -359,6 +360,29 @@ export type FinishResult = { saved: true; sets: number; progress?: DayProgress }
 export const MUTATION_REV_PREFIX = 'anygym-mutrev:';
 /** kv rows of the supersession markers (db/mutations.ts), one per workout, set and kind. */
 export const MUTATION_DONE_PREFIX = 'anygym-mutdone:';
+/** kv rows of the corrections a restore stored durably (db/mutations.ts, PLAN 2.0i), one per held change. */
+export const MUTATION_HELD_PREFIX = 'anygym-mutheld:';
+
+/**
+ * A change of this workout that is held outside the journal (the localStorage fallback another tab
+ * may have just written, or a restored one stored durably) and is not superseded by a change that
+ * landed (PLAN 2.0i). Read inside Finish's transaction, so it sees what the screen's checks missed.
+ */
+async function hasHeldChange(sessionId: string, db: AnyGymDB, ls: KV | null): Promise<boolean> {
+  const held: JournalEntry[] = readFallback(ls).filter((e) => e.sessionId === sessionId);
+  for (const row of await db.kv.where('key').startsWith(`${MUTATION_HELD_PREFIX}${sessionId}:`).toArray()) {
+    try {
+      held.push(JSON.parse(row.value ?? '') as JournalEntry);
+    } catch {
+      /* an unreadable row holds nothing */
+    }
+  }
+  if (!held.length) return false;
+  const done = new Map<string, number>();
+  const prefix = `${MUTATION_DONE_PREFIX}${sessionId}:`;
+  for (const row of await db.kv.where('key').startsWith(prefix).toArray()) done.set(String(row.key).slice(prefix.length), Number(row.value));
+  return held.some((e) => !!e.mutation && !(e.at < (done.get(`${e.mutation.kind}:${e.mutation.setId}`) ?? -Infinity)));
+}
 
 /**
  * Delete refused (PLAN 2.0f): a change to this set (an edit or set type change) is journaled and
@@ -397,7 +421,7 @@ export class UnsavedWritesError extends Error {
  * Given, a stored tombstone it does not know (another tab's, whose Undo may have failed) is never
  * discarded: Finish throws UnresolvedDeletesError until Restore or Keep deleted resolves it.
  */
-export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now(), pending?: FinishPending, owned?: ReadonlyMap<string, string>): Promise<FinishResult> {
+export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now(), pending?: FinishPending, owned?: ReadonlyMap<string, string>, ls: KV | null = phone()): Promise<FinishResult> {
   return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions, db.journal, db.kv], async () => {
     const s = await db.sessions.get(sessionId);
     if (s && s.endedAt === undefined) {
@@ -406,13 +430,16 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       for (const j of await db.journal.where('sessionId').equals(sessionId).toArray()) {
         if (j.mutation || !((await db.sets.get(j.id)) || (await db.submissions.get(j.id)))) throw new UnsavedWritesError();
       }
+      // A correction another tab could not journal waits in the shared fallback (PLAN 2.0i): finishing
+      // now would end the workout under it and Try again would then discard it.
+      if (await hasHeldChange(sessionId, db, ls)) throw new UnsavedWritesError();
       // An Undo that was accepted but never written back (PLAN 1.7h) lands now, and so does one
       // the user asked for whose acceptance only reached the durable intent (PLAN 1.7k); every
       // other deleted set stays deleted (no Undo after Finish).
       const tombs = await db.tombstones.where('sessionId').equals(sessionId).toArray();
       if (owned) {
         const unknown: string[] = [];
-        for (const t of tombs) if (!t.undo && owned.get(t.id) !== t.token && !(await hasUndoIntent(sessionId, t.id, db, undefined, t.token))) unknown.push(t.id);
+        for (const t of tombs) if (!t.undo && !(owned.has(t.id) && owned.get(t.id) === t.token) && !(await hasUndoIntent(sessionId, t.id, db, undefined, t.token))) unknown.push(t.id);
         if (unknown.length) throw new UnresolvedDeletesError(unknown);
       }
       for (const t of tombs) {
@@ -428,7 +455,9 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       // Finish runs only once no failed row is left (rowLog.prepareFinish): the journal is done.
       await db.journal.where('sessionId').equals(sessionId).delete();
       await db.kv.where('key').startsWith(`${MUTATION_REV_PREFIX}${sessionId}:`).delete();
-      await db.kv.where('key').startsWith(`${MUTATION_DONE_PREFIX}${sessionId}:`).delete();
+      await db.kv.where('key').startsWith(`${MUTATION_HELD_PREFIX}${sessionId}:`).delete();
+      // The supersession markers stay (PLAN 2.0i): Finish then Undo reopens the workout, and a held copy
+      // a later save superseded must stay superseded. They go with the workout (discarded below).
       // Submission receipts stay for the workout's lifetime (PLAN 1.7i): if Finish is undone and
       // stale drafts come back, they are reconciled against these and never logged a second time.
     }
@@ -439,6 +468,7 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       await db.sessions.delete(sessionId);
       await db.orderCounters.delete(sessionId);
       await db.submissions.where('sessionId').equals(sessionId).delete();
+      await db.kv.where('key').startsWith(`${MUTATION_DONE_PREFIX}${sessionId}:`).delete();
       return { saved: false };
     }
     const progress = await planProgress(s, db);

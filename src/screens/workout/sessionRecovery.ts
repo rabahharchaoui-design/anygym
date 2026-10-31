@@ -17,7 +17,7 @@ import type { WorkoutSet } from '../../db/types';
 import { pendingMutations } from '../../db/mutations';
 import { SetHasPendingChangesError, WorkoutFinishedError, deleteSetToken } from '../../db/workouts';
 import { acceptUndo, cancelUndo, expireDelete, recoverDeletes, undoDelete, type Recovery } from '../../db/tombstones';
-import { dropUndoIntent, forgetUndoFallback, readUndoIntentList, rememberUndo } from '../../db/undoIntents';
+import { dropUndoIntent, forgetUndoFallback, intentMatches, readUndoIntentList, rememberUndo } from '../../db/undoIntents';
 import { createDeleteUndo, type DeleteUndo } from '../../lib/deleteUndo';
 
 const managers = new Map<string, DeleteUndo<WorkoutSet>>();
@@ -60,8 +60,10 @@ export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteU
         // blocks the delete (PLAN 2.0f); journaled ones are checked in the delete's own transaction.
         if ((await pendingMutations(s.sessionId, db)).some((j) => j.mutation?.setId === s.id)) throw new SetHasPendingChangesError();
         const gone = await deleteSetToken(s.id, db);
-        if (gone) own.set(s.id, gone.token);
-        return gone?.set;
+        // Nothing was deleted (another tab did, PLAN 2.0i): null, so no Undo record is kept for it.
+        if (!gone) return null;
+        own.set(s.id, gone.token);
+        return gone.set;
       },
       // The intent is stored first (PLAN 1.7k), then the Undo is stored as accepted before the set
       // is written back (db/tombstones.ts): a failed acceptance still survives a restart.
@@ -71,7 +73,7 @@ export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteU
           () => false,
         );
         try {
-          const back = await undoDelete(s.id, db, own.get(s.id));
+          const back = await undoDelete(s.id, db, own.get(s.id), true);
           if (!back) await dropIntent(s, db, own.get(s.id));
           return back;
         } catch (err) {
@@ -95,11 +97,10 @@ export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteU
 async function recoverNow(sessionId: string, db: AnyGymDB, now: number): Promise<Recovery> {
   const m = deletesFor(sessionId, db);
   const intentList = await readUndoIntentList(sessionId, db);
-  const intents = new Set(intentList.map((x) => x.setId));
   // An Undo the user asked for whose acceptance never reached the tombstone: accepted now, so the
   // restore below retries it. A failed acceptance is fine: its intent still holds the tombstone.
   // Only for the deletion the intent was made for (PLAN 2.0f).
-  for (const x of intentList) await acceptUndo(x.setId, db, x.token).catch(() => false);
+  for (const x of intentList) await acceptUndo(x.setId, db, x.token, true).catch(() => false);
   const out = await recoverDeletes(sessionId, db, now);
   // Put back by recovery: nothing is left to retry or to cancel ("Keep it deleted" never shows for it).
   for (const id of out.restored) {
@@ -111,9 +112,9 @@ async function recoverNow(sessionId: string, db: AnyGymDB, now: number): Promise
   for (const t of left) {
     // Every held record keeps its deletion's token (PLAN 2.0f), so Restore and Keep deleted from it
     // can never reach a newer deletion.
-    if (t.token !== undefined && (t.undo || intents.has(t.id) || !m.canUndo(t.id))) own.set(t.id, t.token);
+    if (t.token !== undefined && (t.undo || intentMatches(intentList, t.id, t.token) || !m.canUndo(t.id))) own.set(t.id, t.token);
     // Asked for and still not back: unresolved, so Finish waits and the Undo sheet offers a choice.
-    const asked = t.undo || intentList.some((x) => x.setId === t.id && (x.token === undefined || t.token === undefined || x.token === t.token));
+    const asked = t.undo || intentMatches(intentList, t.id, t.token);
     if (asked) m.hydrate(t.set);
     else if (!m.canUndo(t.id)) {
       // Not held by this app run (PLAN 2.0e): an earlier run deleted it and may have been asked to

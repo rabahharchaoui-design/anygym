@@ -19,7 +19,10 @@
 //     Finish without it. A later change of the same set and kind that journals replaces it.
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { JournalEntry, MutationIntent } from './types';
-import { MUTATION_DONE_PREFIX, MUTATION_REV_PREFIX, WorkoutFinishedError, updateSet, updateSetType } from './workouts';
+import { MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, WorkoutFinishedError, updateSet, updateSetType } from './workouts';
+import { MEMORY_PREFIX, MUTATION_FALLBACK_KEY, isEntry, phone, readFallback, writeFallback, type KV } from './mutationFallback';
+
+export { MUTATION_FALLBACK_KEY };
 
 /**
  * The set is deleted (its tombstone is stored) while a change to it is applied (PLAN 2.0f): the
@@ -60,20 +63,6 @@ function nextAt(db: AnyGymDB, now: number): number {
   return at;
 }
 
-/** localStorage key of the changes whose journal write failed (the durable fallback). */
-export const MUTATION_FALLBACK_KEY = 'anygym-pending-changes';
-/** Ids of changes held only in memory or the fallback (never a journal id). */
-const MEMORY_PREFIX = 'mem:';
-
-type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-const phone = (): KV | null => {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
-};
-
 /** Changes whose journal write failed, per database, while the app runs. */
 const memories = new WeakMap<AnyGymDB, Map<string, JournalEntry>>();
 const memoryOf = (db: AnyGymDB) => {
@@ -86,28 +75,8 @@ let seq = 0;
 const seqOf = (e: JournalEntry) => Number(e.id.slice(e.id.lastIndexOf(':') + 1)) || 0;
 const notNewer = (e: JournalEntry, at: number, n: number) => e.at < at || (e.at === at && seqOf(e) <= n);
 
-const isEntry = (v: unknown): v is JournalEntry => {
-  const e = v as JournalEntry;
-  return !!e && typeof e.id === 'string' && e.id.startsWith(MEMORY_PREFIX) && typeof e.sessionId === 'string' && typeof e.exerciseId === 'string' && !!e.mutation && typeof e.at === 'number';
-};
-
-function readFallback(ls: KV | null): JournalEntry[] {
-  try {
-    const v = JSON.parse(ls?.getItem(MUTATION_FALLBACK_KEY) ?? '[]') as unknown;
-    return Array.isArray(v) ? v.filter(isEntry) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeFallback(ls: KV | null, list: JournalEntry[]): void {
-  if (!ls) throw new Error('No storage');
-  if (list.length) ls.setItem(MUTATION_FALLBACK_KEY, JSON.stringify(list));
-  else ls.removeItem(MUTATION_FALLBACK_KEY);
-}
-
 /** Forgets memory and fallback copies matching `drop` (a fallback that cannot be written is left). */
-function forget(db: AnyGymDB, ls: KV | null, drop: (e: JournalEntry) => boolean): void {
+function forgetLocal(db: AnyGymDB, ls: KV | null, drop: (e: JournalEntry) => boolean): void {
   const mem = memoryOf(db);
   for (const [id, e] of mem) if (drop(e)) mem.delete(id);
   try {
@@ -119,6 +88,52 @@ function forget(db: AnyGymDB, ls: KV | null, drop: (e: JournalEntry) => boolean)
   }
 }
 
+const heldKey = (e: JournalEntry) => `${MUTATION_HELD_PREFIX}${e.sessionId}:${e.id}`;
+
+/** The corrections a restore stored durably in IndexedDB (PLAN 2.0i), readable after a restart. */
+async function storedHeld(sessionId: string, db: AnyGymDB): Promise<JournalEntry[]> {
+  const out: JournalEntry[] = [];
+  try {
+    for (const row of await db.kv.where('key').startsWith(`${MUTATION_HELD_PREFIX}${sessionId}:`).toArray()) {
+      try {
+        const e = JSON.parse(row.value ?? '') as unknown;
+        if (isEntry(e)) out.push(e);
+      } catch {
+        /* an unreadable row holds nothing */
+      }
+    }
+  } catch {
+    /* IndexedDB unreadable: memory and the fallback still answer */
+  }
+  return out;
+}
+
+/** The rows a restore writes inside its own transaction, so a restored correction survives a restart (PLAN 2.0i). */
+export const heldRows = (entries: readonly JournalEntry[]) => entries.map((e) => ({ key: heldKey(e), value: JSON.stringify(e), at: e.at }));
+
+/** forgetLocal, and the durable copies of a restore too. */
+async function forget(db: AnyGymDB, ls: KV | null, drop: (e: JournalEntry) => boolean): Promise<void> {
+  forgetLocal(db, ls, drop);
+  try {
+    for (const e of await allStoredHeld(db)) if (drop(e)) await db.kv.delete(heldKey(e));
+  } catch {
+    /* the superseded copy is filtered by the markers; Finish clears the rest */
+  }
+}
+
+async function allStoredHeld(db: AnyGymDB): Promise<JournalEntry[]> {
+  const out: JournalEntry[] = [];
+  for (const row of await db.kv.where('key').startsWith(MUTATION_HELD_PREFIX).toArray()) {
+    try {
+      const e = JSON.parse(row.value ?? '') as unknown;
+      if (isEntry(e)) out.push(e);
+    } catch {
+      /* skipped */
+    }
+  }
+  return out;
+}
+
 /**
  * This workout's changes that have not landed (failed, cut off by a kill, or never journaled),
  * oldest first: every stored entry, so an explicit discard covers exactly what was shown.
@@ -128,9 +143,11 @@ export async function pendingMutations(sessionId: string, db: AnyGymDB = default
   const done = new Map<string, number>();
   for (const row of await db.kv.where('key').startsWith(doneKey(sessionId, '')).toArray()) done.set(String(row.key).slice(doneKey(sessionId, '').length), Number(row.value));
   const held = new Map<string, JournalEntry>();
-  for (const e of [...readFallback(ls), ...memoryOf(db).values()]) {
-    // A copy older than a change that landed is superseded, even if its own removal failed.
-    if (e.sessionId === sessionId && !(e.at <= (done.get(mutationKey(e.mutation!)) ?? -Infinity))) held.set(e.id, e);
+  for (const e of [...(await storedHeld(sessionId, db)), ...readFallback(ls), ...memoryOf(db).values()]) {
+    // A copy older than a change that landed is superseded, even if its own removal failed. Strictly
+    // older (PLAN 2.0i): two tabs can stamp the same instant, and then the order is unknown, so the
+    // held copy is shown rather than hidden behind a save that may have come first.
+    if (e.sessionId === sessionId && !(e.at < (done.get(mutationKey(e.mutation!)) ?? -Infinity))) held.set(e.id, e);
   }
   // Operations are ordered by when they were made; a held copy made in the same instant as a stored
   // one is the later (it only exists because the journal write after it failed).
@@ -259,7 +276,7 @@ export async function saveMutation(sessionId: string, exerciseId: string, m: Mut
     throw err;
   }
   // Journaled: it and every older held copy of the same set and kind are covered by the journal.
-  forget(db, ls, (e) => e.sessionId === sessionId && mutationKey(e.mutation!) === key && notNewer(e, now, n));
+  await forget(db, ls, (e) => e.sessionId === sessionId && mutationKey(e.mutation!) === key && notNewer(e, now, n));
   mem.delete(memId);
   await apply(id, db);
 }
@@ -277,15 +294,15 @@ export async function retryMutations(sessionId: string, db: AnyGymDB = defaultDb
       if (e.id.startsWith(MEMORY_PREFIX)) {
         // Never journaled: journaled now (a new revision), then written. Its held copy goes once the
         // new one is journaled; if that fails again, the new held copy replaces it (one change).
-        await saveMutation(sessionId, e.exerciseId, e.mutation!, db, Math.max(Date.now(), e.at), ls).catch(() => undefined);
-        forget(db, ls, (x) => x.id === e.id);
+        await saveMutation(sessionId, e.exerciseId, e.mutation!, db, Math.max(Date.now(), e.at + 1), ls).catch(() => undefined);
+        await forget(db, ls, (x) => x.id === e.id);
       } else {
         const ok = await apply(e.id, db).then(
           () => true,
           (err: unknown) => err instanceof WorkoutFinishedError,
         );
         // Landed: the older held copies of the same set and kind are covered by it.
-        if (ok) forget(db, ls, (x) => x.sessionId === sessionId && mutationKey(x.mutation!) === key && x.at <= e.at);
+        if (ok) await forget(db, ls, (x) => x.sessionId === sessionId && mutationKey(x.mutation!) === key && x.at <= e.at);
       }
     }
     return (await pendingMutations(sessionId, db, ls)).length === 0;
@@ -303,5 +320,5 @@ export async function dropMutations(sessionId: string, db: AnyGymDB = defaultDb,
   const covered = new Set(ids ?? all);
   const stored = all.filter((id) => covered.has(id) && !id.startsWith(MEMORY_PREFIX));
   if (stored.length) await db.journal.bulkDelete(stored);
-  forget(db, ls, (e) => e.sessionId === sessionId && covered.has(e.id));
+  await forget(db, ls, (e) => e.sessionId === sessionId && covered.has(e.id));
 }
