@@ -70,7 +70,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
    * on the row the sheet was opened for. `row` is that row as it was when the sheet opened.
    */
   const [picking, setPicking] = useState<{ id: string; row: PendingRow } | null>(null);
-  const [editing, setEditing] = useState<number | null>(null);
+  /**
+   * The open reps (or hold) editor's row, by its stable draft id (PLAN 2.0e), like the weight sheet:
+   * a delayed Log that moves the rows never hands the editor to another row. It closes when its
+   * draft commits or goes.
+   */
+  const [editing, setEditing] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
   /** The "Set type" sheet: a row still to do, or a logged set. */
   const [typing, setTyping] = useState<{ n: number; type: SetType; rowId?: string; set?: WorkoutSet } | null>(null);
@@ -129,20 +134,16 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const writeRow = (row: PendingRow, patch: Partial<Draft>, own?: Draft['own']) => {
     const before = draftAt(slotOf(row));
     const draft: Draft = {
-      id: before?.id ?? newId(),
-      load: row.load,
-      plates: row.plates,
-      type: row.type,
-      ...(row.reps !== undefined ? { reps: row.reps } : {}),
-      ...(row.seconds !== undefined ? { seconds: row.seconds } : {}),
-      ...(before ?? {}),
+      // A row still showing its target (or "Pick") starts from its values as shown; an empty weight
+      // stays empty (PLAN 2.0e: changing reps or the type never picks the bare bar).
+      ...(before ?? rowDraft(row, newId())),
       ...patch,
       // The unit the weight was picked in (PLAN 1.7i): the pick's own unit when it says (PLAN
       // 2.0c), else today's when this write picks it.
       ...('load' in patch || 'plates' in patch || !before ? { unit: patch.unit ?? gym.unit } : {}),
       rev: (before?.rev ?? 0) + 1,
     };
-    if (own) draft.own = { ...before?.own, ...own };
+    if (own) draft.own = { ...draft.own, ...own };
     if (draft.noTarget === undefined) delete draft.noTarget;
     saveDraft(sessionId, rowKey(exerciseId, slotOf(row)), draft);
     refresh();
@@ -218,6 +219,40 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     return at < 0 ? undefined : rows.find((r) => slotOf(r) === at);
   };
   const gone = () => onNotice('That set was already logged. Nothing changed.');
+
+  // The reps editor's row where it is now (PLAN 2.0e): found by its draft id at every render.
+  const editRow = editing ? rowById(editing) : undefined;
+  // Its draft committed (or went): the editor closes, and nothing it sends changes another row.
+  useLayoutEffect(() => {
+    if (editing && !editRow) setEditing(null);
+  }, [editing, editRow]);
+  /**
+   * A reps or hold change from the editor opened on draft `id`: written to that draft as it is
+   * stored right now, wherever its row moved meanwhile. A held + or − keeps the id it started
+   * with, so a repeat can never move to another row. Nothing once Finish started or the draft went.
+   */
+  const changeAmount = (id: string, v: number) => {
+    if (logQueue.closed(sessionId)) return;
+    const at = rowsOf(sessionId, exerciseId).findIndex((d) => d?.id === id);
+    const before = at >= 0 ? draftAt(at) : null;
+    if (!before) return setEditing((e) => (e === id ? null : e));
+    const draft: Draft = {
+      ...before,
+      ...(timed ? { seconds: v, watch: heldFor(v) } : { reps: v }),
+      rev: (before.rev ?? 0) + 1,
+    };
+    if (!timed) draft.own = { ...before.own, reps: true };
+    saveDraft(sessionId, rowKey(exerciseId, at), draft);
+    refresh();
+  };
+  // Every render's changeAmount, for a stepper whose repeat started in an earlier render.
+  const latest = useRef(changeAmount);
+  latest.current = changeAmount;
+  const toggleEditor = (r: PendingRow) => {
+    if (logQueue.closed(sessionId)) return;
+    const id = idOf(r);
+    setEditing((e) => (e === id ? null : id));
+  };
 
   const applyWeight = (id: string, pick: WeightPick) => {
     setPicking(null);
@@ -308,7 +343,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const onPointerUp = (e: ReactPointerEvent) => {
     const s = swipe.current;
     swipe.current = null;
-    if (!s || picking || editing !== null) return;
+    if (!s || picking || editing) return;
     const dx = e.clientX - s.x;
     const dy = Math.abs(e.clientY - s.y);
     if (dy > 40) return;
@@ -316,6 +351,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   };
 
   const lastTime = progression?.lastTime;
+  // The first time line stays for as long as this view is open once it showed (PLAN 2.0e): it going
+  // away with the first logged set moved every row up under the thumb, so the second tap of a fast
+  // double tap landed on the next row's ✓ and logged it (the 1.7a and 1.10d double tap flakes).
+  const guideShown = useRef(false);
+  const showGuide = !!kind && !!progression && !lastTime && !!progression.next.reason && (logged.length === 0 || guideShown.current);
+  if (showGuide) guideShown.current = true;
   // One target line (the LAST TIME column already shows each set): "Beat last time: 11 reps at
   // 185 lb", plus why when the weight moved; without a weight to beat, the reason alone.
   const beat = progression && lastTime ? beatLine(progression) : null;
@@ -358,7 +399,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       </div>
 
       {/* First time: one line above the table, never a guessed weight (SPEC 6 rule 5). */}
-      {kind && progression && !lastTime && logged.length === 0 && progression.next.reason && (
+      {showGuide && progression && (
         <div className={styles.guides}>
           <p className={`${styles.guide} num`} data-testid="set-guide">
             {progression.next.reason}
@@ -400,12 +441,14 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             blockedOf={blockedOf}
             liveSeconds={liveSeconds}
             fresh={fresh}
-            editing={editing}
+            editing={editRow?.index ?? null}
+            editingKey={editing ?? undefined}
             onCheck={(r) => void log(r)}
             onWeight={(r) => setPicking({ id: idOf(r), row: r })}
-            onAmount={(r) => setEditing((e) => (e === r.index ? null : r.index))}
-            // A typed hold replaces the row's stopwatch with a stopped one of that length (PLAN 1.7h).
-            onAmountChange={(r, v) => writeRow(r, timed ? { seconds: v, watch: heldFor(v) } : { reps: v }, timed ? undefined : { reps: true })}
+            onAmount={toggleEditor}
+            // Bound to the editor's draft id (PLAN 2.0e). A typed hold replaces the row's stopwatch
+            // with a stopped one of that length (PLAN 1.7h).
+            onAmountChange={((id) => (_r: PendingRow, v: number) => id && latest.current(id, v))(editing)}
             onAmountDone={() => setEditing(null)}
             onType={(r) => !logQueue.closed(sessionId) && setTyping({ n: r.index + 1, type: r.type, rowId: idOf(r) })}
             onLoggedType={(s) => !logQueue.closed(sessionId) && setTyping({ n: logged.indexOf(s) + 1, type: typeOfSet(s), set: s })}

@@ -206,14 +206,26 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   }),
   orderCounters: shape({ req: { sessionId: str, next: num } }),
   submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num } }),
-  tombstones: shape({ req: { id: str, sessionId: str, set: isSet, expiresAt: num }, opt: { undo: bool } }),
+  tombstones: shape({ req: { id: str, sessionId: str, set: isSet, expiresAt: num }, opt: { undo: bool, token: str } }),
   // A pending Log set write (PLAN 1.7i): its id, draft key, revision and every value of the row.
   // With `mutation` (PLAN 2.0c): a change to a logged set not landed yet (db/mutations.ts).
   journal: (v) =>
     shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: num, draft: isDraft, at: num }, opt: { mutation: isMutation } })(v) &&
     (v as Rec).id === ((v as Rec).draft as Rec).id &&
-    ((v as Rec).mutation === undefined || (v as Rec).id === `mut:${((v as Rec).mutation as Rec).kind}:${((v as Rec).mutation as Rec).setId}`),
+    ((v as Rec).mutation === undefined || mutationIdOk(v as Rec)),
 };
+
+/**
+ * A change's id names its own set, kind and revision (PLAN 2.0e): `mut:<kind>:<setId>:<rev>` with
+ * the entry's whole revision 1 or more, or `mut:<kind>:<setId>` with revision 0 (before 2.0e).
+ */
+function mutationIdOk(j: Rec): boolean {
+  const m = j.mutation as Rec;
+  const base = `mut:${m.kind as string}:${m.setId as string}`;
+  const rev = j.rev as number;
+  if (j.id === base) return rev === 0;
+  return Number.isInteger(rev) && rev >= 1 && j.id === `${base}:${rev}`;
+}
 
 /** A change to a logged set (PLAN 2.0c, db/types.ts MutationIntent): an edit's values or a set type. */
 const isMutation: Check = (v) =>

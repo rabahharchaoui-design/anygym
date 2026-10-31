@@ -349,6 +349,28 @@ button.nextChip {
   opacity: 0.4;
 }
 
+/* A failed Save, said inside the Edit set sheet (PLAN 2.0e). Empty it takes no room: the live
+   region stays in the tree (so it is announced) but cancels the gap it would add. */
+.sheetError {
+  margin: 0;
+  color: var(--red);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.sheetError:empty {
+  margin-top: calc(var(--space-3) * -1);
+}
+
+@media (max-height: 640px) {
+  .sheetError:empty {
+    margin-top: calc(var(--space-2) * -1);
+  }
+}
+
 /* ---------------------------------------------------------------- exercise menu */
 
 .menu {

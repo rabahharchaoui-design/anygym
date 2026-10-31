@@ -296,10 +296,13 @@ export function clearSessionDrafts(sessionId: string, s = storage()): void {
 /**
  * All drafts for a backup (PLAN 1.8): what storage holds, with the memory copy of the workout in
  * progress on top (memory is the source of truth while the app is open, even when storage failed).
+ * Without any localStorage the drafts handed back at startup from IndexedDB are that base (PLAN
+ * 2.0e), so a backup right after startup has them before any exercise was opened.
  */
 export function exportDrafts(s = storage()): DraftsBlob {
   const out: DraftsBlob = {};
-  if (s) for (const [sid, per] of Object.entries(read(s))) {
+  const base = s ? read(s) : (hydrated.get(NO_STORAGE) ?? {});
+  for (const [sid, per] of Object.entries(base)) {
     const valid = Object.entries(per ?? {}).filter(([, d]) => validDraft(d));
     if (valid.length) out[sid] = Object.fromEntries(valid);
   }

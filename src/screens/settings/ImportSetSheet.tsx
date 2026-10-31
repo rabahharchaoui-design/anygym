@@ -45,6 +45,9 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
   const [settling, setSettling] = useState(false);
   // The number typed in an exact weight (kettlebell), so the warning says the real reason.
   const [typed, setTyped] = useState<number | null>(null);
+  // Restoring the file's weight starts the picker afresh (PLAN 2.0e): its own typed text (a refused
+  // 501) never stays on screen over the restored number.
+  const [reset, setReset] = useState(0);
   // A weight in the other unit is kept exactly as in the file (never converted) unless another
   // weight is picked on purpose ("Pick another weight").
   const sameUnit = !set.load ? set.source.unit === gym.unit : set.load.unit === gym.unit;
@@ -74,6 +77,7 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
     setTouchedIn(null);
     setTyped(null);
     setLoad(set.load ?? null);
+    setReset((n) => n + 1);
     if (!sameUnit) setPicking(false);
   };
   // "Pick another weight" in the other unit: start at the loadable weight here nearest to the
@@ -120,6 +124,7 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
       <RepsStepper value={reps} onChange={setReps} compact />
       {pickable ? (
         <SetLoadInput
+          key={reset}
           loadType={kind}
           gym={gym}
           exerciseId={exerciseId}

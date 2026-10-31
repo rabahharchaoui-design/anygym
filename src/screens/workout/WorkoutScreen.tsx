@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
-import { WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder} from '../../db/workouts';
+import { UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
 import { countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
@@ -20,25 +20,25 @@ import { Sheet } from '../../ui/Sheet';
 import { LoadError } from '../../components/LoadError';
 import { supportsViewTransitions, useNav } from '../../ui/nav';
 import { UndoUnresolvedError } from '../../lib/deleteUndo';
-import { deletesFor, disposeDeletes, recoverSession, recoveryReady } from './sessionRecovery';
+import { deletesFor, disposeDeletes, isLeftOver, recoverSession, recoveryReady } from './sessionRecovery';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
 import { clearExtraSets } from '../../lib/extraSets';
 import { snapshotPending } from '../../lib/finishPending';
-import { dropMutations, pendingMutations, retryMutations, saveMutation } from '../../db/mutations';
+import { changeCount, dropMutations, pendingMutations, retryMutations, saveMutation } from '../../db/mutations';
 import { hints } from '../../lib/hints';
 import { durableRest, extendRest, loadRest, restUnreadable, saveRest, shortenRest, startRest, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
 import { formatTotal, totalLifted } from '../../lib/load';
 import { DayList } from './DayList';
-import { EditSetSheet } from './EditSetSheet';
+import { EditSetSheet, type SaveResult } from './EditSetSheet';
 import { ExerciseMenu, type MenuAction } from './ExerciseMenu';
 import { ExercisePicker } from './ExercisePicker';
 import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { RestDock } from './RestDock';
 import { useWorkout } from './useWorkout';
-import { discardFailed, prepareFinish, retryFailed } from './rowLog';
+import { discardFailed, failedRows, prepareFinish, retryFailed } from './rowLog';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';
 
@@ -133,7 +133,7 @@ export function WorkoutScreen() {
    * Sets whose Log set write failed (PLAN 1.7h) and edits or set type changes whose write failed
    * (PLAN 2.0c), when Finish was refused because of them.
    */
-  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number } | null>(null);
+  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number; editIds: string[] } | null>(null);
   /** Deleted sets whose Undo failed, when Finish was refused because of them (PLAN 1.7i). */
   const [undoStuck, setUndoStuck] = useState<string[] | null>(null);
 
@@ -278,8 +278,8 @@ export function WorkoutScreen() {
       }
       // One exercise: straight into it, ready to log (SPEC 20.4 tap count).
       if (ids.length === 1) openExercise(ids[0]!, true);
-    } catch {
-      notice('Could not add that. Try again.');
+    } catch (err) {
+      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not add that. Try again.');
     }
   };
 
@@ -308,25 +308,34 @@ export function WorkoutScreen() {
 
   // Finish started: no edit is saved any more, and a save already running is one Finish waits for
   // (logQueue.mutate), so the finished workout's sets and total never change afterwards (PLAN 1.7k).
-  const onSave = async (set: WorkoutSet, change: { reps?: number; seconds?: number; load: Load }) => {
+  // A failed save keeps the sheet open with its values and says so inside it (PLAN 2.0e): the toast
+  // behind a sheet is inert, so it could not be heard or tapped there.
+  const onSave = async (set: WorkoutSet, change: { reps?: number; seconds?: number; load: Load }): Promise<SaveResult> => {
     if (finishing.current || logQueue.closed(sessionId)) {
       setEditing(null);
-      return;
+      return 'closed';
     }
     // Journaled with its values before the write (PLAN 2.0c): a failure survives a restart and blocks Finish.
     const write = logQueue.mutate(sessionId, () => saveMutation(sessionId, set.exerciseId, { kind: 'edit', setId: set.id, change }));
     if (!write) {
       setEditing(null);
-      return;
+      return 'closed';
     }
     try {
       await write;
       setEditing(null);
+      return 'saved';
     } catch (err) {
       if (err instanceof WorkoutFinishedError) {
         setEditing(null);
         notice('That workout is already finished');
-      } else if (!logQueue.closed(sessionId)) notice('Could not save that. Try again.');
+        return 'closed';
+      }
+      if (logQueue.closed(sessionId)) {
+        setEditing(null);
+        return 'closed';
+      }
+      return 'failed';
     }
   };
   const openEdit = (set: WorkoutSet) => {
@@ -364,9 +373,11 @@ export function WorkoutScreen() {
     setEditing(null);
     setHidden((h) => new Set(h).add(set.id));
     setToast(toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) }));
-    await deletes.remove(set).catch(() => {
+    await deletes.remove(set).catch((err: unknown) => {
       if (deletes.canUndo(set.id)) return; // an Undo already put it back
       unhide(set.id);
+      // Finished meanwhile (another tab, PLAN 2.0e): nothing was deleted, and there is nothing to retry.
+      if (err instanceof WorkoutFinishedError) return notice('That workout is already finished');
       setToast(
         toastOf('Could not delete that set', {
           label: 'Try again',
@@ -434,11 +445,12 @@ export function WorkoutScreen() {
       await deletes.close();
       // A set whose write failed is never dropped: Finish stops and asks (the drafts and the workout stay).
       const failed = await prepareFinish(sessionId);
-      // An edit or set type change that failed is never dropped silently either (PLAN 2.0c).
-      const edits = (await pendingMutations(sessionId)).length;
-      if (failed.length || edits) {
+      // An edit or set type change that failed is never dropped silently either (PLAN 2.0c), also
+      // one whose journal write failed (held in memory, PLAN 2.0e).
+      const changes = await pendingMutations(sessionId);
+      if (failed.length || changes.length) {
         reopen();
-        setUnsaved({ rows: failed.length, edits });
+        setUnsaved({ rows: failed.length, edits: changeCount(changes), editIds: changes.map((c) => c.id) });
         return;
       }
       // Finish keeps the plan pointer as it was, inside its own transaction, for Undo on Today.
@@ -459,7 +471,13 @@ export function WorkoutScreen() {
       reopen();
       // An Undo the user asked for never landed: Finish waits until it does or they cancel it.
       if (err instanceof UndoUnresolvedError) setUndoStuck(err.ids);
-      else notice('Could not finish. Try again.');
+      else if (err instanceof UnsavedWritesError) {
+        // Journaled after the checks above (another tab, PLAN 2.0e): Finish refused in its own
+        // transaction, nothing changed. The same choice as above.
+        const rows = await failedRows(sessionId).catch(() => []);
+        const changes = await pendingMutations(sessionId).catch(() => []);
+        setUnsaved({ rows: rows.length, edits: changeCount(changes), editIds: changes.map((c) => c.id) });
+      } else notice('Could not finish. Try again.');
     }
   };
   const finish = useTapGuard(() => void finishNow());
@@ -509,10 +527,12 @@ export function WorkoutScreen() {
   const finishWithout = async () => {
     if (unsavedBusy.current) return;
     unsavedBusy.current = true;
+    // Only the changes the sheet told about (PLAN 2.0e): one made after that still asks.
+    const shown = unsaved?.editIds ?? [];
     setUnsaved(null);
     try {
       await discardFailed(sessionId);
-      await dropMutations(sessionId);
+      await dropMutations(sessionId, undefined, shown);
       await finishNow();
     } catch {
       notice('Could not finish. Try again.');
@@ -539,6 +559,8 @@ export function WorkoutScreen() {
   const editList = editing ? w.setsOfExercise(editing.exerciseId) : [];
   const editIndex = editing ? editList.findIndex((s) => s.id === editing.id) : 0;
   const menuId = menuFor;
+  // Deleted sets an earlier app run left without an Undo asked for (PLAN 2.0e): asked plainly.
+  const leftOver = !!undoStuck?.length && undoStuck.every((id) => isLeftOver(sessionId, id));
   const menuEntry = menuId ? w.entryOf(menuId) : undefined;
   const ids = w.session?.exerciseIds ?? [];
 
@@ -725,12 +747,12 @@ export function WorkoutScreen() {
           </button>
         </div>
       </Sheet>
-      <Sheet open={undoStuck !== null} onClose={() => setUndoStuck(null)} label="Undo did not finish">
+      <Sheet open={undoStuck !== null} onClose={() => setUndoStuck(null)} label={leftOver ? 'Keep it deleted?' : 'Undo did not finish'}>
         <div className={styles.sheetBody} data-testid="undo-stuck-sheet">
-          <h2 className={styles.sheetTitle}>{(undoStuck?.length ?? 1) === 1 ? 'A deleted set did not come back' : `${undoStuck!.length} deleted sets did not come back`}</h2>
-          <p className={styles.sheetSub}>You tapped Undo, but it did not save.</p>
+          <h2 className={styles.sheetTitle}>{undoStuckTitle(undoStuck, leftOver)}</h2>
+          <p className={styles.sheetSub}>{leftOver ? 'The app closed right after it was deleted.' : 'You tapped Undo, but it did not save.'}</p>
           <button type="button" className={`${styles.logButton} pressable`} onClick={() => void retryUndos()}>
-            Try again
+            {leftOver ? ((undoStuck?.length ?? 1) === 1 ? 'Bring it back' : 'Bring them back') : 'Try again'}
           </button>
           <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => void keepDeleted()}>
             {(undoStuck?.length ?? 1) === 1 ? 'Keep it deleted' : 'Keep them deleted'}
@@ -754,6 +776,12 @@ export function WorkoutScreen() {
       />
     </div>
   );
+}
+
+function undoStuckTitle(ids: string[] | null, leftOver: boolean): string {
+  const n = ids?.length ?? 1;
+  if (leftOver) return n === 1 ? 'Keep the set you deleted?' : `Keep the ${n} sets you deleted?`;
+  return n === 1 ? 'A deleted set did not come back' : `${n} deleted sets did not come back`;
 }
 
 /** "1 set did not save", "2 changes did not save", "1 set and 1 change did not save" (PLAN 2.0c). */
