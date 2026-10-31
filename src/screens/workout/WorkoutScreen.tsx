@@ -381,21 +381,28 @@ export function WorkoutScreen() {
     if (finishing.current) return;
     setEditing(null);
     setHidden((h) => new Set(h).add(set.id));
-    setToast(toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) }));
-    await deletes.remove(set).catch((err: unknown) => {
-      if (deletes.canUndo(set.id)) return; // an Undo already put it back
-      unhide(set.id);
-      // Finished meanwhile (another tab, PLAN 2.0e): nothing was deleted, and there is nothing to retry.
-      if (err instanceof WorkoutFinishedError) return notice('That workout is already finished');
-      // A change to this set has not saved yet (PLAN 2.0f): deleting now would lose it on Undo.
-      if (err instanceof SetHasPendingChangesError) return notice('A change to that set is not saved yet. Try again after it saves.');
-      setToast(
-        toastOf('Could not delete that set', {
-          label: 'Try again',
-          onPress: () => void onDelete(set),
-        }),
-      );
-    });
+    const shown = toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) });
+    setToast(shown);
+    await deletes
+      .remove(set)
+      // Another tab had already deleted it (PLAN 2.0i): nothing here to undo, so no Undo is offered.
+      .then(() => {
+        if (!deletes.canUndo(set.id)) setToast((cur) => (cur?.id === shown.id ? null : cur));
+      })
+      .catch((err: unknown) => {
+        if (deletes.canUndo(set.id)) return; // an Undo already put it back
+        unhide(set.id);
+        // Finished meanwhile (another tab, PLAN 2.0e): nothing was deleted, and there is nothing to retry.
+        if (err instanceof WorkoutFinishedError) return notice('That workout is already finished');
+        // A change to this set has not saved yet (PLAN 2.0f): deleting now would lose it on Undo.
+        if (err instanceof SetHasPendingChangesError) return notice('A change to that set is not saved yet. Try again after it saves.');
+        setToast(
+          toastOf('Could not delete that set', {
+            label: 'Try again',
+            onPress: () => void onDelete(set),
+          }),
+        );
+      });
   };
 
   // ---------------------------------------------------------------- the ⋯ menu

@@ -177,7 +177,9 @@ function mergeFromStorage(m: Memory, s: StorageLike | null): void {
   for (const [k, d] of Object.entries(stored)) {
     if (m.dirty.has(k) || !validDraft(d)) continue;
     const mine = m.drafts.get(k);
-    if (!mine || (d.rev ?? 0) > (mine.rev ?? 0) || (d.rev ?? 0) === (mine.rev ?? 0) && d.id !== mine.id) m.drafts.set(k, d);
+    // Storage is the authority for a row this tab has not changed: it wins when newer, and at the same
+    // revision when its contents differ (two tabs can reach the same revision on their own, PLAN 2.0i).
+    if (!mine || (d.rev ?? 0) > (mine.rev ?? 0) || ((d.rev ?? 0) === (mine.rev ?? 0) && JSON.stringify(d) !== JSON.stringify(mine))) m.drafts.set(k, d);
   }
   for (const k of [...m.drafts.keys()]) if (!m.dirty.has(k) && !(k in stored)) m.drafts.delete(k);
 }

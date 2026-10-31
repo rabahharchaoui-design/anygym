@@ -9,9 +9,9 @@ import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob }
 import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { db as defaultDb, type AnyGymDB } from './schema';
-import { UNDO_PREFIX, readUndoIntents } from './undoIntents';
-import { MUTATION_DONE_PREFIX, MUTATION_REV_PREFIX } from './workouts';
-import { heldMutations, restoreHeldMutations } from './mutations';
+import { UNDO_PREFIX, intentMatches, readUndoIntentList } from './undoIntents';
+import { MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX } from './workouts';
+import { heldMutations, heldRows, restoreHeldMutations } from './mutations';
 import type { Profile } from './types';
 
 export class ActiveWorkoutError extends Error {
@@ -42,7 +42,8 @@ export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), d
   // accepted Undo: restored elsewhere, it is put back and never expires as a plain delete.
   const marked: BackupTables = { ...tables, tombstones: [] };
   for (const t of tables.tombstones) {
-    const wanted = !t.undo && (await readUndoIntents(t.sessionId, db).catch(() => [] as string[])).includes(t.id);
+    // Only the intent of this very deletion counts (PLAN 2.0i): an older one never accepts a newer deletion.
+    const wanted = !t.undo && intentMatches(await readUndoIntentList(t.sessionId, db).catch(() => []), t.id, t.token);
     marked.tombstones.push(wanted ? { ...t, undo: true } : t);
   }
   const active = tables.sessions.find(isActiveSession);
@@ -104,11 +105,14 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
     await db.kv.where('key').startsWith(MUTATION_REV_PREFIX).delete();
     // And their supersession markers (PLAN 2.0f): a restored held change is never hidden by the old data's.
     await db.kv.where('key').startsWith(MUTATION_DONE_PREFIX).delete();
+    await db.kv.where('key').startsWith(MUTATION_HELD_PREFIX).delete();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
       if (rows.length) await db.table(t).bulkAdd(rows);
     }
     await storeDraftsDurably(db, backup.drafts);
+    // The held corrections too (PLAN 2.0i), so they survive a restart even when localStorage refuses them.
+    await db.kv.bulkPut(heldRows(backup.pendingChanges ?? []));
     // The rest and added rows too (PLAN 2.0c), also as removals: a stale one never stays.
     const live = liveValues(backup);
     await db.kv.put(durableRow(REST_KEY, live.rest));
@@ -158,6 +162,7 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
     if (next) await storeDraftsDurably(db, next);
     // The added workout's running rest and added rows (PLAN 2.0c). The phone has no workout in
     // progress (refused above), so they replace whatever stale copy it has.
+    await db.kv.bulkPut(heldRows((backup.pendingChanges ?? []).filter((e) => added.has(e.sessionId))));
     const live = (backup.rest && added.has(backup.rest.sessionId)) || (backup.extraSets && added.has(backup.extraSets.sessionId));
     if (live) {
       const v = liveValues(backup);

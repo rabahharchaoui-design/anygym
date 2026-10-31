@@ -24,18 +24,20 @@ import { dropUndoIntent, forgetUndoFallback, hasUndoIntent } from './undoIntents
 import { WorkoutFinishedError, restoreSet, restoredKey, seedCounter } from './workouts';
 
 /** Records that an Undo was accepted, before writing the set back. False when nothing is left to undo. */
-export async function acceptUndo(id: string, db: AnyGymDB = defaultDb, token?: string): Promise<boolean> {
-  return (await acceptToken(id, db, token)) !== false;
+export async function acceptUndo(id: string, db: AnyGymDB = defaultDb, token?: string, exact = false): Promise<boolean> {
+  return (await acceptToken(id, db, token, exact)) !== false;
 }
 
 /**
  * acceptUndo, handing back the accepted deletion's token (undefined for a tombstone from before
  * 2.0e). With `token`, only that deletion is accepted (false for a newer one of the same set).
+ * `exact` (PLAN 2.0i): a missing `token` means "the tokenless legacy deletion", never "any": a
+ * caller that holds no token cannot accept another tab's or a newer deletion.
  */
-async function acceptToken(id: string, db: AnyGymDB, token?: string): Promise<{ token: string | undefined; set: WorkoutSet } | false> {
+async function acceptToken(id: string, db: AnyGymDB, token?: string, exact = false): Promise<{ token: string | undefined; set: WorkoutSet } | false> {
   return db.transaction('rw', db.tombstones, async () => {
     const t = await db.tombstones.get(id);
-    if (!t || (token !== undefined && t.token !== token)) return false;
+    if (!t || ((exact || token !== undefined) && t.token !== token)) return false;
     if (!t.undo) await db.tombstones.put({ ...t, undo: true });
     return { token: t.token, set: t.set };
   });
@@ -47,8 +49,8 @@ async function acceptToken(id: string, db: AnyGymDB, token?: string): Promise<{ 
  * was nothing to undo (the window is over). Rejects when the write failed (WorkoutFinishedError
  * after Finish); the accepted Undo stays stored for a retry. `token`: only that deletion (PLAN 2.0e).
  */
-export async function undoDelete(id: string, db: AnyGymDB = defaultDb, token?: string): Promise<WorkoutSet | undefined> {
-  const accepted = await acceptToken(id, db, token);
+export async function undoDelete(id: string, db: AnyGymDB = defaultDb, token?: string, exact = false): Promise<WorkoutSet | undefined> {
+  const accepted = await acceptToken(id, db, token, exact);
   // Already back (an earlier attempt landed), nothing to undo, or a newer deletion of the set.
   if (!accepted) return (await db.tombstones.get(id)) ? undefined : db.sets.get(id);
   // Only while this very deletion is still stored: a "Keep it deleted" that landed first, or a

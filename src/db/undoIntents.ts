@@ -18,10 +18,14 @@ type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type Intent = { sessionId: string; setId: string; token?: string };
 
 /**
- * An intent belongs to one deletion (PLAN 2.0f): it counts for a tombstone only when the tokens are
- * equal. An intent or tombstone from before tokens existed (undefined) matches any, the legacy case.
+ * An intent belongs to one deletion (PLAN 2.0f, 2.0i): it counts for a tombstone only when the
+ * tokens are exactly equal. A tokenless intent (an older app version) belongs to a tokenless
+ * tombstone only, never to a newer tokenized deletion of the same set.
  */
-const sameDeletion = (intent: string | undefined, token: string | undefined) => intent === undefined || token === undefined || intent === token;
+const sameDeletion = (intent: string | undefined, token: string | undefined) => intent === token;
+
+/** True when a stored intent of this workout is for exactly this deletion (a pure check of a list read earlier). */
+export const intentMatches = (list: readonly { setId: string; token?: string }[], setId: string, token: string | undefined) => list.some((x) => x.setId === setId && sameDeletion(x.token, token));
 
 export const undoKey = (sessionId: string, setId: string) => `${UNDO_PREFIX}${sessionId}:${setId}`;
 

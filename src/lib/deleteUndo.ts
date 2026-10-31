@@ -57,8 +57,12 @@ export class UndoUnresolvedError extends Error {
 
 export function createDeleteUndo<T extends { id: string }>(
   ops: {
-    /** Deletes the item. When it resolves with the record it deleted (read inside its transaction), Undo writes that one back. */
-    remove: (item: T) => Promise<T | undefined | void>;
+    /**
+     * Deletes the item. When it resolves with the record it deleted (read inside its transaction), Undo
+     * writes that one back. `null` (PLAN 2.0i): nothing was deleted (it was already gone, another tab
+     * deleted it): no Undo record is kept, so Undo can never reverse that other deletion.
+     */
+    remove: (item: T) => Promise<T | null | undefined | void>;
     restore: (item: T) => Promise<unknown>;
     /** The Undo window ended without an Undo (the stored record can go). Failures are ignored. */
     expire?: (item: T) => Promise<unknown>;
@@ -113,6 +117,7 @@ export function createDeleteUndo<T extends { id: string }>(
         const gone = await track(item.id, Promise.resolve().then(() => ops.remove(item)));
         // The record as it was saved at the delete, never the caller's possibly stale copy.
         if (gone) rec.item = gone;
+        else if (gone === null && !rec.restoring) forget(rec, item.id);
       } catch (err) {
         if (!rec.restoring) forget(rec, item.id);
         throw err;
