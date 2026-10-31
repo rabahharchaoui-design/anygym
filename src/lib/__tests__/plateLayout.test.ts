@@ -4,7 +4,11 @@ import { barSpec, plateSpec, SLEEVE_LENGTH } from '../plates';
 import { plateColor, sideChips } from '../plateColors';
 import {
   BIG_MM,
-  FRAME_WIDTH,
+  EDGE_PX,
+  FRAME_MM,
+  HORN_CLOSE,
+  HORN_FIRST,
+  HORN_FULL,
   MIN_HIT,
   PAD,
   PAD_Y,
@@ -12,12 +16,14 @@ import {
   barLayout,
   barScale,
   drawingHeight,
+  hornHeight,
   hornLayout,
   outermost,
   plateThickness,
   thinFor,
   withPlates,
   withoutOutermost,
+  ZOOM_CLOSE,
   zoomFor,
   type BarLayout,
 } from '../plateLayout';
@@ -168,7 +174,8 @@ describe('true scale bar (SPEC 5.6 TRUE SCALE)', () => {
 
   it('never returns a negative scale for a tiny width', () => {
     expect(lay('lb', [45], 10).scale).toBe(0);
-    expect(hornLayout({ unit: 'lb', perSide: [45], width: 10 }).scale).toBe(0);
+    expect(hornLayout({ unit: 'lb', perSide: [45], width: 10 }).scale).toBeGreaterThanOrEqual(0);
+    expect(hornLayout({ unit: 'lb', perSide: [45], width: 0 }).zoom).toBe(1);
   });
 });
 
@@ -204,15 +211,91 @@ describe('picture first (PLAN 2.0d): every plate drawn, the camera zooms out', (
     }
   });
 
-  it('the empty bar fills the width: zoomed in, the sleeves run on past the edges', () => {
+  it('the empty bar is seen close (about 2.2×): the right sleeve big and whole, the bar runs off to the left', () => {
     for (const width of PHONES) {
       const l = lay('lb', [], width);
-      expect(l.zoom).toBeGreaterThan(1.2);
+      expect(l.zoom).toBeCloseTo(ZOOM_CLOSE, 9);
       expect(l.cropped).toBe(true);
-      const screenCap = l.cx + (l.caps.right.x + l.caps.right.width - l.cx) * l.zoom;
-      expect(screenCap).toBeGreaterThan(width);
-      // The shaft and collars stay in view.
-      expect(l.cx + (l.shoulders.right.x + l.shoulders.right.width - l.cx) * l.zoom).toBeLessThan(width - PAD);
+      const sx = (x: number) => l.cx + (x - l.cx) * l.zoom;
+      // The right end stays in the drawing, the sleeve fills a good third of the width.
+      const capEnd = sx(l.caps.right.x + l.caps.right.width);
+      expect(capEnd).toBeLessThanOrEqual(width);
+      expect(capEnd).toBeGreaterThan(width - 3 * PAD);
+      expect((sx(l.sleeves.right.x + l.sleeves.right.width) - sx(l.sleeves.right.x)) / width).toBeGreaterThan(0.33);
+      // The left end is past the edge (a photo's crop).
+      expect(sx(l.caps.left.x)).toBeLessThan(0);
+    }
+  });
+
+  it('from the first plate the camera is centred and BOTH outermost plates fit with a margin, for every load', () => {
+    for (const [unit, sizes] of [['lb', LB], ['kg', KG]] as const) {
+      for (const perSide of combos(sizes, 7)) {
+        if (!perSide.length) continue;
+        for (const width of [288, 343, 408, 428]) {
+          const l = lay(unit, perSide, width);
+          expect(l.cx).toBe(width / 2);
+          expect(l.cropped).toBe(false);
+          const sx = (x: number) => l.cx + (x - l.cx) * l.zoom;
+          const r = drawn(l);
+          const m = drawn(l, 'left');
+          const outR = sx(r[r.length - 1]!.x + r[r.length - 1]!.width);
+          const outL = sx(m[m.length - 1]!.x);
+          // Inside the viewBox with a margin, and mirror images of each other.
+          expect(outR).toBeLessThanOrEqual(width - Math.min(EDGE_PX, PAD) + 1e-6);
+          expect(outL).toBeGreaterThanOrEqual(Math.min(EDGE_PX, PAD) - 1e-6);
+          expect(outL).toBeCloseTo(width - outR, 6);
+          for (const p of l.plates) expect(p.height * l.zoom).toBeLessThanOrEqual(l.height - 2 * PAD_Y + 1e-6);
+        }
+      }
+    }
+  });
+
+  it('about 1.3× for one plate per side, easing to 1× at a full sleeve, monotonic from the first plate', () => {
+    for (const width of [288, 343, 408]) {
+      for (const unit of ['lb', 'kg'] as const) {
+        const big = unit === 'lb' ? 45 : 20;
+        const zs = [1, 2, 3, 4, 5, 6, 7].map((n) => lay(unit, Array(n).fill(big), width).zoom);
+        expect(zs[0]).toBeGreaterThan(1.2);
+        expect(zs[0]).toBeLessThan(1.4);
+        expect(zs[6]).toBe(1);
+        for (let i = 1; i < zs.length; i++) expect(zs[i]!).toBeLessThanOrEqual(zs[i - 1]! + 1e-12);
+        // Every plate added from any load never zooms in.
+        for (const perSide of combos(unit === 'lb' ? LB : KG, 4)) {
+          if (!perSide.length) continue;
+          const z = lay(unit, perSide, width).zoom;
+          for (const w of unit === 'lb' ? LB : KG) expect(lay(unit, withPlates(perSide, w, 1), width).zoom).toBeLessThanOrEqual(z + 1e-12);
+        }
+      }
+    }
+  });
+
+  it('a removal never zooms in: the held zoom stays, while every plate still fits', () => {
+    const before = lay('lb', [45, 45, 45, 45]);
+    const after = barLayout({ unit: 'lb', perSide: [45, 45, 45], width: 343, hold: before.zoom });
+    expect(after.zoom).toBeCloseTo(before.zoom, 12);
+    expect(lay('lb', [45, 45, 45]).zoom).toBeGreaterThan(before.zoom);
+    // Emptied: the close up again; a held zoom never pushes below 1.
+    expect(barLayout({ unit: 'lb', perSide: [], width: 343, hold: 1 }).zoom).toBe(ZOOM_CLOSE);
+    expect(barLayout({ unit: 'lb', perSide: [45], width: 343, hold: 0.5 }).zoom).toBe(1);
+  });
+
+  it('a short drawing (maxHeight) pulls back sooner so the tallest plate always fits, still monotonic', () => {
+    for (const width of PHONES) {
+      for (const unit of ['lb', 'kg'] as const) {
+        const natural = drawingHeight(width, unit);
+        const height = drawingHeight(width, unit, natural * 0.8);
+        expect(height).toBeCloseTo(natural * 0.8, 9);
+        // Never shorter than the whole bar's view of a big plate.
+        expect(drawingHeight(width, unit, 10)).toBeCloseTo(2 * PAD_Y + (unit === 'lb' ? 450 / 25.4 : 450) * barScale(width, unit), 6);
+        let last = Infinity;
+        for (const perSide of [[], [unit === 'lb' ? 2.5 : 1.25], [unit === 'lb' ? 45 : 20], [unit === 'lb' ? 45 : 20, unit === 'lb' ? 45 : 20]]) {
+          const l = barLayout({ unit, perSide, width, maxHeight: natural * 0.8 });
+          expect(l.height).toBeCloseTo(height, 9);
+          for (const p of l.plates) expect(p.height * l.zoom).toBeLessThanOrEqual(l.height - 2 * PAD_Y + 1e-6);
+          expect(l.zoom).toBeLessThanOrEqual(last + 1e-12);
+          last = l.zoom;
+        }
+      }
     }
   });
 
@@ -263,25 +346,33 @@ describe('picture first (PLAN 2.0d): every plate drawn, the camera zooms out', (
 
   it('each side is a big tap target from the sleeve out, at least 48 px, at every zoom', () => {
     for (const width of PHONES) {
-      for (const perSide of [[2.5], [45], [45, 45, 45], [45, 45, 45, 45, 45, 45, 45]]) {
+      for (const perSide of [[], [2.5], [45], [45, 45, 45], [45, 45, 45, 45, 45, 45, 45]]) {
         const l = lay('lb', perSide, width);
         expect(l.hits.right!.width).toBeGreaterThanOrEqual(MIN_HIT);
         expect(l.hits.right!.x + l.hits.right!.width).toBe(width);
         expect(l.hits.right!.height).toBe(l.height);
         expect(l.hits.left!.x).toBe(0);
-        expect(l.hits.left!.width).toBeCloseTo(l.hits.right!.width, 9);
-        // It covers every drawn plate on screen.
+        expect(l.hits.left!.width).toBeGreaterThanOrEqual(MIN_HIT);
+        expect(l.hits.left!.width).toBeLessThanOrEqual(l.hits.right!.x);
+        // It covers every drawn plate on screen, both sides.
         for (const p of drawn(l)) expect(l.cx + (p.x - l.cx) * l.zoom).toBeGreaterThanOrEqual(l.hits.right!.x - 1e-6);
+        for (const p of drawn(l, 'left')) {
+          const right = l.cx + (p.x + p.width - l.cx) * l.zoom;
+          if (right > 0) expect(right).toBeLessThanOrEqual(l.hits.left!.width + 1e-6);
+        }
       }
     }
+    // At the whole bar the two sides are mirror images.
+    const full = lay('lb', Array(7).fill(45));
+    expect(full.hits.left!.width).toBeCloseTo(full.hits.right!.width, 9);
   });
 
   it('colours per the table, and the drawn plates carry them', () => {
-    const lb: Array<[number, string]> = [[55, 'red'], [45, 'blue'], [35, 'yellow'], [25, 'green'], [10, 'white'], [5, 'gray'], [2.5, 'gray']];
+    const lb: Array<[number, string]> = [[55, 'red'], [45, 'blue'], [35, 'yellow'], [25, 'green'], [10, 'white'], [5, 'gray'], [2.5, 'graphite']];
     const kg: Array<[number, string]> = [[25, 'red'], [20, 'blue'], [15, 'yellow'], [10, 'green'], [5, 'white'], [2.5, 'black'], [1.25, 'chrome']];
     for (const [w, c] of lb) expect(plateColor(w, 'lb')).toBe(c);
     for (const [w, c] of kg) expect(plateColor(w, 'kg')).toBe(c);
-    expect(drawn(lay('lb', [45, 35, 2.5])).map((p) => p.color)).toEqual(['blue', 'yellow', 'gray']);
+    expect(drawn(lay('lb', [45, 35, 5, 2.5])).map((p) => p.color)).toEqual(['blue', 'yellow', 'gray', 'graphite']);
     expect(() => plateColor(3, 'kg')).toThrow();
   });
 
@@ -291,7 +382,7 @@ describe('picture first (PLAN 2.0d): every plate drawn, the camera zooms out', (
       { weight: 35, count: 2, color: 'yellow' },
       { weight: 10, count: 1, color: 'white' },
       { weight: 5, count: 1, color: 'gray' },
-      { weight: 2.5, count: 1, color: 'gray' },
+      { weight: 2.5, count: 1, color: 'graphite' },
     ]);
     expect(sideChips([], 'kg')).toEqual([]);
     for (const [unit, sizes] of [['lb', LB], ['kg', KG]] as const) {
@@ -326,29 +417,59 @@ describe('picture first (PLAN 2.0d): every plate drawn, the camera zooms out', (
 describe('hornLayout', () => {
   const horn = (unit: 'lb' | 'kg', perSide: number[], width = 343) => hornLayout({ unit, perSide, width });
 
-  it('one horn = one Olympic sleeve at the same scale, height and zoom as the bar, the same picture style', () => {
+  it('one horn = one Olympic sleeve on a machine post, the same picture style, its own camera', () => {
     for (const width of PHONES) {
       const h = horn('lb', [25, 45], width);
-      const b = lay('lb', [25, 45], width);
-      expect(h.scale).toBe(b.scale);
-      expect(h.height).toBe(b.height);
-      expect(h.zoom).toBe(b.zoom);
       expect(h.sleeves.right.width).toBeCloseTo(SLEEVE_LENGTH.lb * h.scale, 9);
       expect(h.sides).toEqual(['right']);
-      expect(h.frame!.width).toBe(FRAME_WIDTH);
+      expect(h.frame!.width).toBeCloseTo((FRAME_MM / 25.4) * h.scale, 9);
       expect(h.plates.map((p) => p.weight)).toEqual([45, 25]);
       expect(h.plates.map((p) => p.color)).toEqual(['blue', 'green']);
       expect(h.plates[0]!.x).toBeCloseTo(h.sleeves.right.x, 9);
       expect(h.plates[1]!.x).toBeCloseTo(h.plates[0]!.x + h.plates[0]!.width, 9);
-      expect(h.shoulders.right.x).toBeCloseTo(h.frame!.x + FRAME_WIDTH, 9);
+      expect(h.shoulders.right.x).toBeCloseTo(h.frame!.x + h.frame!.width, 9);
       expect(h.caps.right.x).toBeCloseTo(h.sleeves.right.x + h.sleeves.right.width, 9);
       expect(h.sleeves.left.width).toBe(0);
       expect(h.shaft.width).toBe(0);
       expect(h.hits.left).toBeUndefined();
       expect(h.hits.right!.width).toBeGreaterThanOrEqual(MIN_HIT);
-      // The whole horn stays in view, even zoomed in.
-      expect(h.cx + (h.frame!.x - h.cx) * h.zoom).toBeGreaterThanOrEqual(0);
-      expect(h.cx + (h.caps.right.x + h.caps.right.width - h.cx) * h.zoom).toBeLessThanOrEqual(width);
+      expect(h.height).toBe(hornHeight(width, 'lb'));
+      // Every plate inside the drawing's height at its zoom.
+      for (const p of h.plates) expect(p.height * h.zoom).toBeLessThanOrEqual(h.height - 2 * PAD_Y + 1e-6);
+    }
+  });
+
+  it('horn camera: a close up when empty, HORN_FIRST with the first plate, easing to 1 at a full horn, no jump', () => {
+    for (const width of PHONES) {
+      for (const unit of ['lb', 'kg'] as const) {
+        for (const maxHeight of [undefined, 120, 90]) {
+          const at = (perSide: number[]) => hornLayout({ unit, perSide, width, maxHeight });
+          const e = at([]);
+          const sx = (x: number) => e.cx + (x - e.cx) * e.zoom;
+          // The empty horn whole and big, at most HORN_CLOSE.
+          expect(sx(e.frame!.x)).toBeGreaterThanOrEqual(0);
+          expect(sx(e.caps.right.x + e.caps.right.width)).toBeLessThanOrEqual(width);
+          expect(e.zoom).toBeLessThanOrEqual(HORN_CLOSE);
+          // A full horn at zoom 1 is at most HORN_FULL of the width.
+          const full = e.caps.right.x + e.caps.right.width - e.frame!.x;
+          expect(full / width).toBeLessThanOrEqual(HORN_FULL + 1e-9);
+          const big = unit === 'lb' ? 45 : 20;
+          const zs = [1, 2, 3, 4, 5, 6].map((n) => at(Array(n).fill(big)).zoom);
+          expect(zs[0]).toBeCloseTo(HORN_FIRST, 9);
+          expect(zs[5]).toBe(1);
+          const steps = zs.slice(1).map((z, i) => zs[i]! - z);
+          // Even steps (no single jump) until full.
+          for (const d of steps.slice(0, 4)) expect(d).toBeCloseTo(steps[0]!, 9);
+          const sizes = unit === 'lb' ? LB : KG;
+          for (const perSide of combos(sizes, 4)) {
+            const l = at(perSide);
+            for (const p of l.plates) expect(p.height * l.zoom).toBeLessThanOrEqual(l.height - 2 * PAD_Y + 1e-6);
+            if (!perSide.length) continue;
+            for (const w of sizes) expect(at(withPlates(perSide, w, 1)).zoom).toBeLessThanOrEqual(l.zoom + 1e-12);
+          }
+          expect(at(Array(8).fill(sizes[0])).zoom).toBe(1);
+        }
+      }
     }
   });
 

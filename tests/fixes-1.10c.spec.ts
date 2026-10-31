@@ -284,7 +284,7 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once, right in the weight sheet
   // Answered once: after a reload it is remembered, never asked again.
   await page.reload();
   await card.getByTestId('weight-cell').first().tap();
-  await expect(picker(page).getByRole('button', { name: 'Bar: EZ curl 25 lb · Change' })).toBeVisible(); // PLAN 1.10d: the bar link names the bar
+  await expect(picker(page).getByRole('button', { name: 'Change bar, EZ curl 25 lb' })).toBeVisible(); // PLAN 1.10d: the bar link names the bar
   await expect(picker(page).getByRole('button', { name: 'Set bar weight' })).toHaveCount(0);
   await picker(page).getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(picker(page)).toHaveCount(0);

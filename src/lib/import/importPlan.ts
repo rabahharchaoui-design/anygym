@@ -156,6 +156,27 @@ export function fileSetText(set: ImportedSet): string {
   return set.loadType === 'bodyweight' ? `${set.reps} reps + ${formatAmount(set.weight)} ${set.unit}` : w;
 }
 
+/** The file's reps on their own ("5 reps", "1 rep"): the import editor shows the weight as a picture. */
+export function fileRepsText(set: ImportedSet): string {
+  return `${set.reps} ${set.reps === 1 ? 'rep' : 'reps'}`;
+}
+
+/** The file's weight on its own, in plain words ("45 lb per side", "30 lb each"), or null for none. No × math. */
+export function fileWeightText(set: ImportedSet): string | null {
+  if (set.weight === undefined) return null;
+  const w = `${formatAmount(set.weight)} ${set.unit}`;
+  if (set.loadType === 'dumbbell_each') return `${w} each`;
+  if (set.loadType.endsWith('_per_side')) return `${w} per side`;
+  if (set.loadType === 'fixed_bar_total' || set.loadType === 'unknown') return `${w} total`;
+  return set.loadType === 'bodyweight' ? `Bodyweight + ${w}` : w;
+}
+
+/** The file's whole line, plain words, no × math: "5 reps · 45 lb per side", or "5 reps" with no weight. */
+export function fileLineText(set: ImportedSet): string {
+  const w = fileWeightText(set);
+  return w ? `${fileRepsText(set)} · ${w}` : fileRepsText(set);
+}
+
 export type BuiltLoad = { load?: Load; reason?: string; note?: string };
 
 /**

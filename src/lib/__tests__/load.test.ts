@@ -563,6 +563,7 @@ describe('totals (PLAN 1.7c)', () => {
     expect(platesOnly([10, 5], 'lb')).toBe(30);
     expect(platesOnly([1.25, 0.5], 'kg')).toBe(3.5);
   });
+
 });
 
 describe('isStackPin (PLAN 1.7c: no ceiling)', () => {

@@ -27,10 +27,22 @@
   margin: -12px -12px -12px -4px;
 }
 
+/* Common weights in one row; on a 320 pt phone five of them go 3 + 2, centred (2.0d critic). */
 .chips {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
+}
+
+.chips > * {
+  flex: 1 1 0;
+}
+
+@media (max-width: 340px) {
+  .chips[data-count='5'] > * {
+    flex: 0 0 calc((100% - 12px) / 3);
+  }
 }
 
 .chip {
@@ -68,6 +80,63 @@
   border: 1px solid var(--hairline);
   color: var(--accent);
   font-weight: 600;
+}
+
+/* The machine's two answers: short, one line each where the width allows. */
+.row[data-start] .option {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+/* Short screens (320 x 568): a slimmer card, so the tray and Done still fit (2.0d critic r3). */
+@media (max-height: 600px) {
+  .box {
+    gap: 4px;
+    padding: 6px var(--space-2);
+  }
+
+  .title {
+    font-size: var(--text-base);
+  }
+
+  .option,
+  .chip {
+    min-height: 44px;
+  }
+
+  .chip {
+    padding-top: 10px;
+  }
+
+  .chips,
+  .row {
+    gap: 4px;
+  }
+
+  .chips[data-count='5'] > * {
+    flex-basis: calc((100% - 8px) / 3);
+  }
+
+  /* One line each ("Count plates only" fits at 15 pt). */
+  .option {
+    padding: 0 6px;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+}
+
+/* The import editor's card: the slimmest that still reads as a question. */
+.box[data-dense] {
+  gap: 2px;
+  padding: 4px var(--space-2) 6px;
+}
+
+.box[data-dense] .title {
+  font-size: 15px;
+}
+
+.box[data-dense] .info {
+  margin-block: -14px;
 }
 
 .error {

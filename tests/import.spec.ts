@@ -177,6 +177,8 @@ test.describe('1.11 import history', () => {
   });
 
   test('Last time and Next use the imported workouts', async ({ page }) => {
+    // A long flow (import, review, two workouts); under the full parallel matrix it can pass 30 s.
+    test.setTimeout(60_000);
     const errors = watch(page);
     await openReview(page);
     await answer(page);
@@ -186,7 +188,8 @@ test.describe('1.11 import history', () => {
     await page.getByRole('button', { name: /Quick workout/ }).tap();
     await expect(page).toHaveURL(/#\/workout\//);
     const sheet = page.getByRole('dialog', { name: 'Add exercise' });
-    if (!(await sheet.isVisible())) await page.getByRole('button', { name: '+ Add exercise' }).first().tap();
+    // The empty workout opens the sheet by itself; only when it did not, open it (no double tap race).
+    await sheet.waitFor({ state: 'visible', timeout: 3000 }).catch(() => page.getByRole('button', { name: '+ Add exercise' }).first().tap());
     // Imported exercises are recent.
     await expect(sheet.getByRole('region', { name: 'Recent' })).toContainText('Barbell Back Squat');
     await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill('barbell back squat');

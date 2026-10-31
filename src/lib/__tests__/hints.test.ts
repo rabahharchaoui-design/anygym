@@ -20,6 +20,7 @@ describe('hint store', () => {
   it('uses the SPEC 13.5 texts (set card hint reworded for the 1.7c check)', () => {
     expect(HINT_TEXT).toEqual({
       plates: 'Tap plates to load the bar. Tap a sleeve to take one off.',
+      machine: 'Tap plates to load the machine. Tap the horn to take one off.',
       wheel: 'Spin to pick your dumbbells',
       stack: 'Tap the pin to pick the weight',
       setCard: 'Tap the check when you finish a set',

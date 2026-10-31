@@ -8,7 +8,8 @@ import { defaultPlateInventory } from '../src/db/gyms';
 const DEVICES = ['iPhone SE', 'iPhone 17 Pro Max', '320 floor'];
 const FILL: Record<string, Record<number, string>> = {
   kg: { 25: '#D7322C', 20: '#2D63D8', 15: '#EFC12F', 10: '#2E9E4F', 5: '#E8E8EB', 2.5: '#232327', 1.25: '#B4B9C1' },
-  lb: { 55: '#D7322C', 45: '#2D63D8', 35: '#EFC12F', 25: '#2E9E4F', 10: '#E8E8EB', 5: '#55585F', 2.5: '#55585F' },
+  // 2.0d critic: lb 5 and 2.5 are two distinct, lighter grays.
+  lb: { 55: '#D7322C', 45: '#2D63D8', 35: '#EFC12F', 25: '#2E9E4F', 10: '#E8E8EB', 5: '#8C9098', 2.5: '#6B6F77' },
 };
 const LOADS = { lb: [45, 135, 225, 315, 400, 495, 700], kg: [60, 100, 140, 220] } as const;
 
@@ -203,7 +204,7 @@ test.describe('2.0d tester: sheet and hit areas @matrix', () => {
     await page.screenshot({ path: `reports/shots/2.0d/audit-sheet-reduced-${dev}.png` });
     // Sleeve is full on the women's bar (320 mm sleeve): keep adding 45s until it blocks.
     await sheet.getByRole('button', { name: 'Clear' }).tap();
-    const barBtn = sheet.getByRole('button', { name: /^Bar:/ });
+    const barBtn = sheet.getByRole('button', { name: /^Change bar/ });
     if (await barBtn.count()) {
       await barBtn.tap();
       await page.getByRole('dialog', { name: 'Which bar?' }).getByRole('button', { name: /Women's bar/ }).tap();

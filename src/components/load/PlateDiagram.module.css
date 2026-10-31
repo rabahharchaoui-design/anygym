@@ -195,10 +195,10 @@
   overflow: hidden;
 }
 
-/* Zoomed in, the sleeves run on past the edges: a soft fade, like a photo's crop (PLAN 2.0d). */
+/* Zoomed in, the bar runs on past the left edge: a soft fade, like a photo's crop (PLAN 2.0d). */
 .svg[data-cropped] {
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  mask-image: linear-gradient(to right, transparent 0, #000 28px);
 }
 
 /* Plates never catch taps: the whole side above them does (remove-left / remove-right). */
@@ -212,52 +212,78 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Sleeve press feedback: a soft light wash, on at once, fading out quickly (2.0d critic). */
+.flash {
+  fill: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.side[data-pressed] .flash {
+  opacity: 0.07;
+  transition: none;
+}
+
+/* The drawing's host: the reduced motion crossfade lays the old drawing over it. */
+.host {
+  position: relative;
+}
+
+/* The tray and, only on an empty picture, the first time hint just above it (no layout space). */
+.trayWrap {
+  position: relative;
+}
+
 .hint {
   left: 0;
   right: 0;
-  top: -6px;
+  bottom: calc(100% + 2px);
 }
-
 
 .side:focus-visible rect:first-child {
   stroke: var(--accent);
   stroke-width: 2;
 }
 
-/* Under the bar: the "Each side" chips, or "Sleeve is full" in their place for a moment. */
+/* Under the bar: the "Each side" chips, one line, its height reserved. */
 .below {
   position: relative;
-  min-height: 20px;
+  height: 20px;
 }
 
-.chips {
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-
-.below[data-full] .chips {
-  opacity: 0;
-}
-
+/* "Sleeve is full": a small pill at the drawing's foot, just above the chips and tray, for a moment. */
 .full {
   position: absolute;
-  inset: 0;
-  line-height: 20px;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
   margin: 0;
-  text-align: center;
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  background: rgb(23 23 26 / 0.92);
+  border: 1px solid rgb(255 176 32 / 0.45);
   color: var(--amber);
   font-size: var(--text-sm);
   font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-out);
   pointer-events: none;
+}
+
+.full:empty {
+  padding: 0;
+  border: 0;
 }
 
 .full[data-visible='true'] {
   opacity: 1;
 }
 
-/* Every plate size in ONE row, always (ux-critic 1.7e): equal columns while they fit (six on the
-   SE), a sideways scroller with a soft edge fade when the gym has more sizes. */
+/* Every plate size in ONE row, always (ux-critic 1.7e): equal columns that fit up to seven sizes
+   (kg 25 to 1.25) without scrolling (2.0d critic); a sideways scroller only past seven. */
 .tray {
   display: flex;
   gap: 6px;
@@ -279,21 +305,53 @@
   padding: 6px 2px;
 }
 
-.root:not([data-compact='true']) .tray[data-many='true'] .trayPlate {
-  flex: 0 0 56px;
+.root:not([data-compact='true']) .tray[data-many='true'] {
+  gap: 0;
+  /* The tiles' own 1.5 pt inset stands in for the gap: borrow it back from the side padding. */
+  margin-inline: -3px;
 }
 
-.root:not([data-compact='true']) .tray[data-many='true'] {
+/* Seven sizes: tighter tiles, a smaller label, still 56 pt tall. Each button takes its whole
+   seventh of the row (48 pt and up from the SE) and draws its tile 1.5 pt in from each side, so
+   the tiles look apart while every tap between them still lands on one. */
+.root:not([data-compact='true']) .tray[data-many='true'] .trayPlate {
+  min-width: 0;
+  padding: 6px 0;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.root:not([data-compact='true']) .tray[data-many='true'] .trayWeight {
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.root:not([data-compact='true']) .tray[data-many='true'] .swatch {
+  width: calc(10px + 20px * var(--size, 1));
+}
+
+/* More than seven sizes: fixed tiles in a sideways scroller with a soft edge fade. */
+.root:not([data-compact='true']) .tray[data-scroll='true'] .trayPlate {
+  flex: 0 0 52px;
+}
+
+.root:not([data-compact='true']) .tray[data-scroll='true'] {
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   padding-right: 20px;
 }
 
-/* Six 48 pt plates fit a 320 pt phone: the tray borrows a little of the sheet's side padding. */
+/* A 320 pt phone: the tray borrows some of the sheet's side padding, so six or seven sizes fit. */
 @media (max-width: 340px) {
   .root:not([data-compact='true']) .tray {
     gap: 2px;
-    margin-inline: -6px;
+    margin-inline: -10px;
+  }
+
+  .root:not([data-compact='true']) .tray[data-many='true'] {
+    gap: 0;
+    margin-inline: -10px;
   }
 }
 
@@ -356,7 +414,8 @@
     linear-gradient(90deg, rgba(0, 0, 0, 0.45), transparent 30%, transparent 70%, rgba(0, 0, 0, 0.5)),
     linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 40%, rgba(0, 0, 0, 0.4)),
     var(--plate);
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+  /* Dark plates (the grays, kg 2.5 black) get the same light edge as on the bar. */
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 0 0 1px var(--edge, transparent);
 }
 
 .trayWeight {
@@ -387,6 +446,15 @@
   opacity: 0.5;
 }
 
+/* Secondary text action (Clear): gray, so lime means "the main way to change the weight". */
+.quiet {
+  color: var(--text-2);
+}
+
+.quiet:disabled {
+  opacity: 0.4;
+}
+
 .perSide {
   margin: 0;
   text-align: center;
@@ -407,4 +475,68 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* The picture on its own (import review): the drawing and the chips line, nothing to tap. */
+.picture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.picture .side {
+  cursor: default;
+}
+
+/* A smaller picker inside a busy sheet (the import editor): tighter rows, a smaller total. */
+.root[data-dense] {
+  gap: var(--space-1);
+}
+
+.root[data-dense] .readout,
+.root[data-dense][data-action] .readout {
+  min-height: 0;
+}
+
+.root[data-dense] .total {
+  font-size: 44px;
+}
+
+@media (max-height: 600px) {
+  .root[data-dense] .total {
+    font-size: 34px;
+  }
+
+  .root[data-dense] .mathAction {
+    margin-top: -8px;
+    margin-bottom: -4px;
+  }
+
+  .root[data-dense] .note {
+    margin-top: 0 !important;
+    line-height: 1.15;
+  }
+}
+
+/* 320 x 568 with a question on top: the question says it all, the note steps aside (2.0d critic r3). */
+@media (max-height: 600px) {
+  .root[data-tight]:not([data-horn]) .note {
+    display: none;
+  }
+
+  .root[data-tight] .readout {
+    min-height: 44px;
+  }
+}
+
+/* 320 x 568: rows a little closer and the tray a little shorter (still 50 pt), so a question on
+   top, the drawing, the chips, the tray and Done all fit without the body scrolling. */
+@media (max-height: 600px) {
+  .root:not([data-compact='true']) {
+    gap: 4px;
+  }
+
+  .root:not([data-compact='true']) .trayPlate {
+    min-height: 50px;
+  }
 }

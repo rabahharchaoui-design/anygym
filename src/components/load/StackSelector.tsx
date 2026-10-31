@@ -58,10 +58,13 @@ export function StackSelector({ gym, machineId, value, onChange, padInSheet = fa
     if (stale) onChange(null);
   }, [stale]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Bring the pin into view on mount.
+  // Bring the pin into view on mount, with as many rows above it as the list's height allows
+  // (two in the full list, none in the import editor's short one on a 320 x 568 screen).
   useLayoutEffect(() => {
     const el = listRef.current;
-    if (el && pinIndex > 2) el.scrollTop = (pinIndex - 2) * ROW;
+    if (!el || pinIndex < 0) return;
+    const above = Math.min(2, Math.max(0, Math.floor((el.clientHeight - ROW) / 2 / ROW)));
+    if (pinIndex > above) el.scrollTop = (pinIndex - above) * ROW;
   }, []);
 
   const emit = (stackValue: number, extra: number) => onChange(stackLoad(stackValue, unit, extra));

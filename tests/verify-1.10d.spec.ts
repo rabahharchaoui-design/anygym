@@ -148,7 +148,7 @@ test.describe('1.10d verify', () => {
     const card = page.getByTestId('exercise-barbell-incline-bench-press');
     await card.getByTestId('weight-cell').first().tap();
     await picker(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
-    const bar = picker(page).getByRole('button', { name: /^Bar: Olympic/ });
+    const bar = picker(page).getByRole('button', { name: /^Change bar, Olympic/ });
     const bb = (await bar.boundingBox())!;
     console.log('bar control box', bb.width, bb.height);
     expect(bb.height).toBeGreaterThanOrEqual(44);
@@ -167,8 +167,8 @@ test.describe('1.10d verify', () => {
     expect((await dump(page, 'sets'))[0].load).toMatchObject({ total: 125, barWeight: 35, perSide: [45] });
     await page.reload();
     await card.getByTestId('weight-cell').first().tap();
-    await expect(picker(page).getByRole('button', { name: /^Bar: Women's/ })).toBeVisible();
-    await picker(page).getByRole('button', { name: /^Bar: Women's/ }).tap();
+    await expect(picker(page).getByRole('button', { name: /^Change bar, Women's/ })).toBeVisible();
+    await picker(page).getByRole('button', { name: /^Change bar, Women's/ }).tap();
     await page.getByRole('dialog', { name: 'Which bar?' }).getByRole('button', { name: /Olympic bar/ }).tap();
     await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × 45 = 135 lb');
     expect(errors).toEqual([]);

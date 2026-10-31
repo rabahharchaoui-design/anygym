@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load, Unit } from '../../db/types';
-import { collarsSettingOf, exactHeldProblem, formatSetLine, formatWeight, MAX_EXACT_HELD, otherOf, pickedWeight } from '../../lib/load';
-import { isExactHeld } from '../workout/exerciseLoad';
-import { fileSetText, type PlannedSet, type SetEdit } from '../../lib/import/importPlan';
+import { collarsSettingOf, convertForGym, exactHeldProblem, formatAmount, formatWeight, loadAt, MAX_EXACT_HELD, nearestLoadable, otherOf, pickedWeight } from '../../lib/load';
+import { isExactHeld, loadSetupFor } from '../workout/exerciseLoad';
+import { fileLineText, type PlannedSet, type SetEdit } from '../../lib/import/importPlan';
+import { BarPicture } from '../../components/load/BarPicture';
 import { RepsStepper } from '../workout/RepsStepper';
 import { SetLoadInput } from '../workout/SetLoadInput';
 import styles from '../workout/Workout.module.css';
@@ -44,9 +45,12 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
   const [settling, setSettling] = useState(false);
   // The number typed in an exact weight (kettlebell), so the warning says the real reason.
   const [typed, setTyped] = useState<number | null>(null);
-  // A weight in the other unit is kept exactly as in the file (never converted): only reps change.
+  // A weight in the other unit is kept exactly as in the file (never converted) unless another
+  // weight is picked on purpose ("Pick another weight").
   const sameUnit = !set.load ? set.source.unit === gym.unit : set.load.unit === gym.unit;
-  const pickable = !!kind && kind !== 'timed' && sameUnit;
+  const [picking, setPicking] = useState(false);
+  const canPick = !!kind && kind !== 'timed';
+  const pickable = canPick && (sameUnit || picking);
   const changedLoad = touchedIn !== null;
   const staleUnit = changedLoad && touchedIn !== gym.unit;
   const invalid = changedLoad && (load === null || staleUnit);
@@ -70,6 +74,21 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
     setTouchedIn(null);
     setTyped(null);
     setLoad(set.load ?? null);
+    if (!sameUnit) setPicking(false);
+  };
+  // "Pick another weight" in the other unit: start at the loadable weight here nearest to the
+  // file's (converted and rounded by load.ts), never at an empty bar.
+  const pickOther = () => {
+    setPicking(true);
+    if (!set.load || !kind) return;
+    const setup = { ...loadSetupFor(gym, kind, exerciseId, exerciseName, bar), unit: gym.unit };
+    const own = set.load.kind === 'stack' ? set.load.total : pickedWeight(set.load);
+    const near = own === null ? null : nearestLoadable(kind, convertForGym(own, set.load.unit, gym.unit), setup);
+    const start = near === null ? null : loadAt(kind, near, setup);
+    if (start) {
+      setTouchedIn(gym.unit);
+      setLoad(start);
+    }
   };
   const save = () => {
     if (blocked) return;
@@ -80,14 +99,16 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
   };
   return (
     <div className={`${styles.sheetBody} ${css.editor}`}>
-      {/* Pinned while the keypad and reps scroll (PLAN 2.0d follow up): which set, which exercise, the file's line. */}
+      {/* Pinned while the picker and reps scroll (PLAN 2.0d follow up): which set, which exercise, and
+          the file's reps on their own line; the weight is shown as the picture below, never as math. */}
       <div className={css.editorContext} data-testid="import-context">
         <div className={css.editorHead}>
           <h2 className={css.editorTitle}>Set {index + 1}</h2>
           <p className={css.editorName}>{exerciseName}</p>
         </div>
-        <p className={css.sheetFile}>
-          In your file: <span className="num">{fileSetText(set.source)}</span>
+        {/* The file's line in plain words, always with its weight as the file wrote it (2.0d critic r3). */}
+        <p className={css.sheetFile} data-testid="import-file-reps">
+          In your file: <span className="num">{fileLineText(set.source)}</span>
         </p>
       </div>
       {set.reason && (
@@ -95,13 +116,15 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
           {set.reason}
         </p>
       )}
+      {/* Reps first, then the weight picture (2.0d critic r2): both stay above the footer. */}
+      <RepsStepper value={reps} onChange={setReps} compact />
       {pickable ? (
         <SetLoadInput
           loadType={kind}
           gym={gym}
           exerciseId={exerciseId}
           exerciseName={exerciseName}
-          value={load}
+          value={sameUnit ? load : changedLoad ? load : null}
           onChange={(l) => {
             setTouchedIn(gym.unit);
             setLoad(l);
@@ -109,17 +132,29 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
           onPending={setSettling}
           onTyped={setTyped}
           dense
+          hints={false}
+          drawingShare={0.1}
           bar={bar}
-          ownBar={set.load?.kind === 'barbell' || set.load?.kind === 'plate_machine' ? set.load.barWeight : undefined}
-          ownBarId={set.load?.kind === 'barbell' ? set.load.barId : undefined}
-          ownCollars={set.load?.kind === 'barbell' ? collarsSettingOf(set.load) : undefined}
-          ownOther={set.load?.kind === 'barbell' ? otherOf(set.load) : undefined}
+          ownBar={sameUnit && (set.load?.kind === 'barbell' || set.load?.kind === 'plate_machine') ? set.load.barWeight : undefined}
+          ownBarId={sameUnit && set.load?.kind === 'barbell' ? set.load.barId : undefined}
+          ownCollars={sameUnit && set.load?.kind === 'barbell' ? collarsSettingOf(set.load) : undefined}
+          ownOther={sameUnit && set.load?.kind === 'barbell' ? otherOf(set.load) : undefined}
           padInSheet
         />
       ) : (
-        set.load && !changedLoad && <p className={`${css.sheetFile} num`}>Weight stays as in your file: {formatSetLine({ reps: set.reps, load: set.load })}</p>
+        set.load &&
+        !changedLoad && (
+          <div className={css.fileWeight} data-testid="import-file-load">
+            <FileLoad load={set.load} colorMode={gym.plateColors} />
+            <p className={css.fileKept}>Kept as in your file ({set.load.unit})</p>
+            {canPick && (
+              <button type="button" className={`${css.pickOther} pressable`} onClick={pickOther}>
+                Pick another weight
+              </button>
+            )}
+          </div>
+        )
       )}
-      <RepsStepper value={reps} onChange={setReps} compact />
       <SheetFooter>
         <div className={css.editorFooter}>
           {invalid && !settling && (
@@ -149,5 +184,28 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
         </div>
       </SheetFooter>
     </div>
+  );
+}
+
+/**
+ * The file's weight, kept as it is (another unit): the big total and, for plates, the same small
+ * picture and "Each side" chips as the picker. No × math (2.0d critic).
+ */
+function FileLoad({ load, colorMode }: { load: Load; colorMode: Gym['plateColors'] }) {
+  const shown = load.kind === 'stack' ? load.total : pickedWeight(load);
+  const plates = (load.kind === 'barbell' || load.kind === 'plate_machine') && load.perSide ? load.perSide : null;
+  return (
+    <>
+      {shown !== null && (
+        <p className={`${css.fileTotal} num`} data-testid="import-file-total">
+          {formatAmount(shown)}
+          <span className={css.fileUnit}>
+            {load.unit}
+            {load.kind === 'dumbbell_each' ? ' each' : ''}
+          </span>
+        </p>
+      )}
+      {plates && <BarPicture unit={load.unit} perSide={plates} colorMode={colorMode} horn={load.kind === 'plate_machine'} barId={load.kind === 'barbell' ? load.barId : undefined} />}
+    </>
   );
 }
