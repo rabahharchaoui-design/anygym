@@ -35,7 +35,11 @@ cloudcheck(){ git fetch -q origin 2>/dev/null || return
   [ -z "$last" ] && return; local seen=$(cat .cloud-seen 2>/dev/null); [ "$last" = "$seen" ] && return
   echo "$last" > .cloud-seen; [ -z "$seen" ] && seen=$(git log -1 --format=%H --before="12 hours ago" "$br")
   local items=$(git log --author="AnyGym cloud builder" --format=%s "$seen".."$br" origin/master 2>/dev/null | grep -iE '^Checkpoint|^[0-9]+\.[0-9]+[a-z]? ' | sed 's/^Checkpoint //' | sort -u | head -5 | tr '\n' ';' | sed 's/;$//; s/;/; /g')
-  ntfy "AnyGym: cloud builder worked" "The free cloud credit built ${items:-work in progress (nothing finished yet)}. Check Settings, Usage: cloud credit should be under \$249 and your weekly % about the same." "cloud"
+  # Estimated credit left: cloud build hours (lock taken to released, from GitHub) x CLOUD_RATE dollars per hour from .loop-budget.
+  local mins=$(git log --reverse --format='%ct %s' origin/cloud-builder-lock 2>/dev/null | awk '/lock taken/{t=$1} /lock released/{if(t){m+=($1-t)/60; t=0}} END{print int(m)}')
+  local money=""
+  if [ -n "$CLOUD_RATE" ] && [ -n "$CLOUD_START" ]; then money=$(awk -v r="$CLOUD_RATE" -v s="$CLOUD_START" -v m="$mins" 'BEGIN{printf " About $%.0f of the cloud credit left (estimate, %.1f cloud hours so far).", s-r*m/60, m/60}'); fi
+  ntfy "AnyGym: cloud builder worked" "The free cloud credit built ${items:-work in progress (nothing finished yet)}.$money" "cloud"
   say "cloud builder work seen ($last)"; }
 # One summary push when the day's building ends: what shipped and what to check on the phone.
 DAYSTART=$(git rev-parse master 2>/dev/null); RANTODAY=0
