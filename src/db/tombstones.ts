@@ -21,7 +21,7 @@
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { WorkoutSet } from './types';
 import { dropUndoIntent, forgetUndoFallback, hasUndoIntent } from './undoIntents';
-import { WorkoutFinishedError, restoreSet, seedCounter } from './workouts';
+import { WorkoutFinishedError, restoreSet, restoredKey, seedCounter } from './workouts';
 
 /** Records that an Undo was accepted, before writing the set back. False when nothing is left to undo. */
 export async function acceptUndo(id: string, db: AnyGymDB = defaultDb, token?: string): Promise<boolean> {
@@ -54,7 +54,7 @@ export async function undoDelete(id: string, db: AnyGymDB = defaultDb, token?: s
   // Only while this very deletion is still stored: a "Keep it deleted" that landed first, or a
   // newer deletion of the same set (PLAN 2.0e), wins.
   if (!(await restoreSet(accepted.set, db, { ifTombstone: true, token: accepted.token }))) return undefined;
-  forgetUndoFallback(accepted.set.sessionId, id);
+  forgetUndoFallback(accepted.set.sessionId, id, undefined, accepted.token);
   return accepted.set;
 }
 
@@ -68,7 +68,7 @@ export async function expireDelete(id: string, db: AnyGymDB = defaultDb, now = D
   await db.transaction('rw', db.tombstones, db.kv, async () => {
     const t = await db.tombstones.get(id);
     if (!t || (token !== undefined && t.token !== token)) return;
-    if (!t.undo && t.expiresAt <= now && !(await hasUndoIntent(t.sessionId, id, db))) await db.tombstones.delete(id);
+    if (!t.undo && t.expiresAt <= now && !(await hasUndoIntent(t.sessionId, id, db, undefined, t.token))) await db.tombstones.delete(id);
   });
 }
 
@@ -93,18 +93,20 @@ export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb
         const now = await db.tombstones.get(t.id);
         if (now && now.token !== t.token) return;
         await db.tombstones.delete(t.id);
-        await dropUndoIntent(sessionId, t.id, db);
+        await dropUndoIntent(sessionId, t.id, db, t.token);
       });
-      forgetUndoFallback(sessionId, t.id);
+      forgetUndoFallback(sessionId, t.id, undefined, t.token);
       out.expired.push(t.id);
     } else if (t.undo) {
       try {
         if (await restoreSet(t.set, db, { ifTombstone: true, token: t.token })) {
           out.restored.push(t.id);
-          forgetUndoFallback(sessionId, t.id);
+          forgetUndoFallback(sessionId, t.id, undefined, t.token);
         }
       } catch (err) {
-        if (err instanceof WorkoutFinishedError) await db.tombstones.delete(t.id);
+        if (err instanceof WorkoutFinishedError) await db.transaction('rw', db.tombstones, async () => {
+          if ((await db.tombstones.get(t.id))?.token === t.token) await db.tombstones.delete(t.id);
+        });
         out.failed.push(t.id);
       }
     }
@@ -118,22 +120,37 @@ export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb
  * with the Undo intent (PLAN 1.7k), and "Keep it deleted" means deleted: if an automatic recovery
  * already put the set back meanwhile, it is taken out again (the user's last word wins), so Finish
  * can never keep a set the user was told stays deleted.
+ * With `token` (PLAN 2.0f) only that deletion: a newer deletion of the same set (its tombstone, its
+ * intent) is never touched, and a set is taken out again only when it was put back from that very
+ * deletion (kv restoredKey), never a later restored copy.
  */
-export async function cancelUndo(id: string, db: AnyGymDB = defaultDb, sessionId?: string): Promise<void> {
+export async function cancelUndo(id: string, db: AnyGymDB = defaultDb, sessionId?: string, token?: string): Promise<void> {
   let sid = sessionId;
   await db.transaction('rw', [db.tombstones, db.sets, db.sessions, db.orderCounters, db.kv], async () => {
     const t = await db.tombstones.get(id);
     const set = await db.sets.get(id);
     sid = sid ?? t?.sessionId ?? set?.sessionId;
-    await db.tombstones.delete(id);
-    if (sid) await dropUndoIntent(sid, id, db);
+    if (t) {
+      if (token !== undefined && t.token !== token) return;
+      await db.tombstones.delete(id);
+      if (sid) await dropUndoIntent(sid, id, db, token ?? t.token);
+      if (!set) return;
+    } else if (token !== undefined) {
+      // No tombstone: only a copy put back from this very deletion is taken out again.
+      const from = sid ? await db.kv.get(restoredKey(sid, id)) : undefined;
+      if (!sid || !set || from?.value !== token) {
+        if (sid) await dropUndoIntent(sid, id, db, token);
+        return;
+      }
+    } else if (sid) await dropUndoIntent(sid, id, db);
     if (set && (!sid || set.sessionId === sid)) {
       const session = await db.sessions.get(set.sessionId);
       if (session && session.endedAt === undefined) {
         await seedCounter(set.sessionId, db);
         await db.sets.delete(id);
+        if (sid) await db.kv.delete(restoredKey(sid, id));
       }
     }
   });
-  if (sid) forgetUndoFallback(sid, id);
+  if (sid) forgetUndoFallback(sid, id, undefined, token);
 }

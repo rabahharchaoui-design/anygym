@@ -13,7 +13,7 @@
 // helpers at the bottom do that.
 import { defaultPlateInventory, stackStepFor } from '../db/gyms';
 import type { BarId, Collars, DumbbellRange, Gym, Load, PlateToggle, Unit } from '../db/types';
-import { PLATE_SPECS, plateSpec, SLEEVE_LENGTH } from './plates';
+import { PLATE_SPECS, barSpec, fitsSleeve, plateSpec, SLEEVE_LENGTH } from './plates';
 
 export { fitsSleeve } from './plates';
 
@@ -392,9 +392,11 @@ export function stackValues(step: number, max: number): number[] {
 // ---------------------------------------------------------------- Load records (SPEC 5.5)
 
 /** Barbell: bar + 2 × perSide + collars. null while the bar weight is unknown (never a guess). */
-export function barbellLoad(bar: number | null, perSide: readonly number[], collars: Collars, unit: Unit, barId?: BarId): Load | null {
+export function barbellLoad(bar: number | null, perSide: readonly number[], collars: Collars, unit: Unit, barId?: BarId, sleeveLength?: number): Load | null {
   const { total, collarsTotal } = sumLoad({ bar, perSide, collars, unit });
   if (bar === null || total === null) return null;
+  // Plates that do not fit this bar's sleeve are not a loading (PLAN 2.0f, SPEC 5.3).
+  if (sleeveLength !== undefined && !fitsSleeve(perSide, unit, sleeveLength)) return null;
   const load: Load = { kind: 'barbell', unit, total, barWeight: bar, perSide: [...perSide], collars: collarsTotal };
   if (barId) load.barId = barId;
   return load;
@@ -425,8 +427,9 @@ export function stackLoad(stackValue: number, unit: Unit, added = 0): Load {
 }
 
 /** Plate loaded machine: start + 2 × sum(perSide). null while the starting resistance is unknown (never a guess). */
-export function plateMachineLoad(start: number | null, perSide: readonly number[], unit: Unit): Load | null {
+export function plateMachineLoad(start: number | null, perSide: readonly number[], unit: Unit, sleeveLength?: number): Load | null {
   if (start === null) return null;
+  if (sleeveLength !== undefined && !fitsSleeve(perSide, unit, sleeveLength)) return null;
   const total = sumLoad({ bar: start, perSide, unit }).total!;
   return { kind: 'plate_machine', unit, total, barWeight: start, perSide: [...perSide], collars: 0 };
 }
@@ -529,6 +532,11 @@ export function roundToLoadable(value: number, opts: LoadableOptions): number {
 //   barbell, plate machine: the total · dumbbells and one weight: one dumbbell · stack: the pin ·
 //   bodyweight: the added weight (0 = just you) · timed: none.
 
+/** The loadable sleeve of a bar in the unit's length unit (a plate machine horn is an Olympic sleeve). */
+export function sleeveOf(barId: BarId | 'horn', unit: Unit): number {
+  return barSpec(barId === 'horn' ? 'olympic' : barId, unit).sleeve;
+}
+
 /** What one exercise can load at this gym, already resolved for that exercise. */
 export type LoadSetup = {
   unit: Unit;
@@ -552,6 +560,8 @@ export type LoadSetup = {
    * rounded to the dumbbell range. Nothing is suggested above or below it (no step is known).
    */
   heldExact?: boolean;
+  /** Loadable sleeve of the selected bar (load.ts sleeveOf); every plate solve and load respects it (PLAN 2.0f). */
+  sleeveLength?: number;
 };
 
 /**
@@ -645,6 +655,7 @@ const plateOpts = (kind: Load['kind'], s: LoadSetup, base: number): SolveOptions
   inventory: s.plates,
   collars: kind === 'barbell' ? s.collars : 'none',
   unit: s.unit,
+  sleeveLength: s.sleeveLength,
 });
 
 /**
@@ -659,7 +670,7 @@ export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 
       if (s.base === null) return null;
       const r = solvePlates(value, plateOpts(kind, s, s.base));
       if (!r.exact) return null;
-      return kind === 'barbell' ? barbellLoad(s.base, r.perSide, s.collars, s.unit) : plateMachineLoad(s.base, r.perSide, s.unit);
+      return kind === 'barbell' ? barbellLoad(s.base, r.perSide, s.collars, s.unit, undefined, s.sleeveLength) : plateMachineLoad(s.base, r.perSide, s.unit, s.sleeveLength);
     }
     case 'dumbbell_each':
     case 'single': {
@@ -707,7 +718,7 @@ export function copyLoad(prev: Load, kind: Load['kind'], s: LoadSetup, barId?: B
         if (r.exact) perSide = r.perSide;
       }
       if (!perSide) return { load: null, why: 'inexact' };
-      const load = kind === 'barbell' ? barbellLoad(s.base, perSide, s.collars, s.unit, barId) : plateMachineLoad(s.base, perSide, s.unit);
+      const load = kind === 'barbell' ? barbellLoad(s.base, perSide, s.collars, s.unit, barId, s.sleeveLength) : plateMachineLoad(s.base, perSide, s.unit, s.sleeveLength);
       return load && toInt(load.total) === toInt(prev.total) ? { load } : { load: null, why: 'inexact' };
     }
     case 'stack': {

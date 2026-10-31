@@ -20,7 +20,8 @@ function sync(): void {
   const want = new Set<Element>();
   if (top) {
     for (const el of Array.from(document.body.children)) {
-      if (el !== top && !el.contains(top) && !(el instanceof HTMLScriptElement)) want.add(el);
+      // data-keep-live: the landscape guard must stay tappable and readable above any sheet (PLAN 2.0f).
+      if (el !== top && !el.contains(top) && !(el instanceof HTMLScriptElement) && !el.hasAttribute('data-keep-live')) want.add(el);
     }
   }
   for (const el of ours) {

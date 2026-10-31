@@ -13,7 +13,7 @@ import base from '../../components/load/LoadInput.module.css';
 import type { BarId, Collars, Gym, Load } from '../../db/types';
 import { saveBarChoice } from '../../db/exerciseSettings';
 import { barForName } from '../../lib/loadTypeRule';
-import { barbellLoad, enabledPlates, formatWeight } from '../../lib/load';
+import { barbellLoad, enabledPlates, fitsSleeve, formatWeight, sleeveOf } from '../../lib/load';
 import type { Stopwatch } from '../../lib/timer';
 import { BarChoiceSheet } from './BarChoiceSheet';
 import { BAR_NAMES, BAR_PROMPTS, barIdFor, isExactHeld, isHeldPlate, machineIdFor, wheelWeights } from './exerciseLoad';
@@ -205,7 +205,7 @@ function BarbellField({
     platesNow.current = next;
     setPerSide(next);
     setUntouched(false);
-    onChange(barbellLoad(b, next, collars, gym.unit, id), next);
+    onChange(barbellLoad(b, next, collars, gym.unit, id, sleeveOf(id, gym.unit)), next);
   };
   // Bar choices are saved one after another and only the latest one is applied (PLAN 2.0c): an
   // older choice that completes late never overwrites a newer one, in the picker or in Dexie.
@@ -242,6 +242,11 @@ function BarbellField({
    * change, so a failed save leaves both as they were and says so. Edit set: this edit only.
    */
   const choose = async (id: BarId, weight: number | null) => {
+    // The plates already on do not fit the other bar's sleeve: the change is refused, not rebuilt (PLAN 2.0f).
+    if (!fitsSleeve(platesNow.current, gym.unit, sleeveOf(id, gym.unit))) {
+      onNotice?.('Those plates do not fit that bar. Take some off first.');
+      return;
+    }
     if (local) {
       setLocalBar({ id, weight });
       change(platesNow.current, weight, id);

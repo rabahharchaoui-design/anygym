@@ -14,6 +14,7 @@ import {
   heldWeightOf,
   plateMachineLoad,
   singleLoad,
+  sleeveOf,
   stackLoad,
   isStackPin,
   timedLoad,
@@ -84,10 +85,10 @@ export function prefillLoad(
   };
   switch (kind) {
     case 'barbell':
-      return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName, bar)], load.perSide, gym.collars, gym.unit, barIdFor(exerciseName, bar)) : null;
+      return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName, bar)], load.perSide, gym.collars, gym.unit, barIdFor(exerciseName, bar), sleeveOf(barIdFor(exerciseName, bar), gym.unit)) : null;
     case 'plate_machine':
       return platesOk(load.perSide)
-        ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit)
+        ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit, sleeveOf('horn', gym.unit))
         : null;
     case 'dumbbell_each':
     case 'single': {
@@ -131,9 +132,9 @@ export function currentLoad(
   if (pickProblem(picked, plates, pickUnit, kind, gym)) return null;
   switch (kind) {
     case 'barbell':
-      return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar));
+      return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar), sleeveOf(barIdFor(exerciseName, bar), gym.unit));
     case 'plate_machine':
-      return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit);
+      return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit, sleeveOf('horn', gym.unit));
     case 'bodyweight':
       return bodyweightLoad(gym.unit, reusable(picked ?? undefined, kind, gym)?.added ?? 0);
     case 'timed':
@@ -223,6 +224,7 @@ export function loadSetupFor(gym: Gym, kind: Load['kind'], exerciseId: string, e
     base: kind === 'barbell' ? gym.bars[barIdFor(exerciseName, bar)] : kind === 'plate_machine' ? machineStartFor(gym, machine) : null,
     plates: enabledPlates(gym.plateInventory),
     collars: kind === 'barbell' ? gym.collars : 'none',
+    sleeveLength: kind === 'barbell' ? sleeveOf(barIdFor(exerciseName, bar), gym.unit) : kind === 'plate_machine' ? sleeveOf('horn', gym.unit) : undefined,
     stackStep: stackStepFor(gym, machine),
     ...heldSetup(gym, kind, exerciseName),
   };

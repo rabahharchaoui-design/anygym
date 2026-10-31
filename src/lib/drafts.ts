@@ -106,7 +106,7 @@ function read(s: StorageLike): Store {
  * into what storage held: a draft only memory kept comes back after a reload once storage works
  * again, and a cleared draft stays cleared.
  */
-type Memory = { session: string | null; drafts: Map<string, Draft>; failed: boolean };
+type Memory = { session: string | null; drafts: Map<string, Draft>; failed: boolean; dirty: Set<string> };
 const memories = new WeakMap<object, Memory>();
 const NO_STORAGE = {};
 
@@ -114,7 +114,7 @@ function memoryOf(s: StorageLike | null): Memory {
   const k = s ?? NO_STORAGE;
   let m = memories.get(k);
   if (!m) {
-    m = { session: null, drafts: new Map(), failed: false };
+    m = { session: null, drafts: new Map(), failed: false, dirty: new Set() };
     memories.set(k, m);
   }
   return m;
@@ -125,6 +125,7 @@ function sessionCopy(m: Memory, sessionId: string, s: StorageLike | null): Map<s
   if (m.session !== sessionId) {
     m.session = sessionId;
     m.drafts = new Map();
+    m.dirty = new Set();
     const stored = s ? (read(s)[sessionId] ?? {}) : (hydrated.get(NO_STORAGE)?.[sessionId] ?? {});
     for (const [ex, d] of Object.entries(stored)) if (validDraft(d)) m.drafts.set(ex, d);
   }
@@ -156,9 +157,45 @@ export function draftsMirrorRow(s = storage()) {
   return mirrorRow(s, KEY, memoryValue(memoryOf(s)));
 }
 
+/**
+ * Another tab's rows (PLAN 2.0f): before this tab writes, and when storage tells it another tab
+ * did, what storage holds is merged row by row into the memory copy. A row this tab changed since
+ * its last successful write (`dirty`) keeps this tab's value; any other row takes storage's when
+ * that has the higher revision, is added when this tab lacks it, and is dropped when storage no
+ * longer has it (logged or cleared in the other tab). So a write never replaces the whole workout
+ * with this tab's possibly stale snapshot.
+ */
+function mergeFromStorage(m: Memory, s: StorageLike | null): void {
+  if (!s || !m.session || hydrated.get(s)) return;
+  let stored: Record<string, Draft> = {};
+  try {
+    const v = JSON.parse(s.getItem(KEY) ?? '{}') as Store;
+    stored = (v && typeof v === 'object' && !Array.isArray(v) ? v[m.session] : undefined) ?? {};
+  } catch {
+    return;
+  }
+  for (const [k, d] of Object.entries(stored)) {
+    if (m.dirty.has(k) || !validDraft(d)) continue;
+    const mine = m.drafts.get(k);
+    if (!mine || (d.rev ?? 0) > (mine.rev ?? 0) || (d.rev ?? 0) === (mine.rev ?? 0) && d.id !== mine.id) m.drafts.set(k, d);
+  }
+  for (const k of [...m.drafts.keys()]) if (!m.dirty.has(k) && !(k in stored)) m.drafts.delete(k);
+}
+
+// Another tab wrote the drafts: take its rows into this tab's memory copy right away.
+try {
+  globalThis.addEventListener?.('storage', (e) => {
+    const s = storage();
+    if (s && (e as StorageEvent).key === KEY) mergeFromStorage(memoryOf(s), s);
+  });
+} catch {
+  /* no window (tests, workers) */
+}
+
 /** Mirrors the whole memory copy to storage. False when that failed (storage full, blocked or missing). */
 function mirror(m: Memory, s: StorageLike | null): boolean {
   let ok = false;
+  mergeFromStorage(m, s);
   const value = memoryValue(m);
   if (s) {
     let wrote = false;
@@ -173,6 +210,7 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
     if (wrote) {
       void mirrorDurable(s, KEY, undefined, undefined, value);
       hydrated.delete(s);
+      m.dirty.clear();
       ok = true;
     }
   } else {
@@ -205,6 +243,7 @@ export function hydrateDrafts(value: string | null, s = storage()): void {
   const m = memoryOf(s);
   m.session = null;
   m.drafts = new Map();
+  m.dirty = new Set();
 }
 
 export function loadDraft(sessionId: string, exerciseId: string, s = storage()): Draft | null {
@@ -222,12 +261,14 @@ export function loadDraft(sessionId: string, exerciseId: string, s = storage()):
 export function saveDraft(sessionId: string, exerciseId: string, draft: Draft, s = storage()): boolean {
   const m = memoryOf(s);
   sessionCopy(m, sessionId, s).set(exerciseId, draft);
+  m.dirty.add(exerciseId);
   return mirror(m, s);
 }
 
 export function clearDraft(sessionId: string, exerciseId: string, s = storage()): void {
   const m = memoryOf(s);
   sessionCopy(m, sessionId, s).delete(exerciseId);
+  m.dirty.add(exerciseId);
   mirror(m, s);
 }
 
@@ -243,6 +284,7 @@ export function writeDrafts(sessionId: string, changes: ReadonlyMap<string, Draf
   for (const [k, d] of changes) {
     if (d) copy.set(k, d);
     else copy.delete(k);
+    m.dirty.add(k);
   }
   return mirror(m, s);
 }
@@ -269,6 +311,7 @@ export function clearSessionDrafts(sessionId: string, s = storage()): void {
   if (m.session === sessionId) {
     m.session = null;
     m.drafts = new Map();
+    m.dirty = new Set();
   }
   delete hydrated.get(s ?? NO_STORAGE)?.[sessionId];
   if (!s) {
@@ -332,11 +375,14 @@ export function replaceDrafts(blob: DraftsBlob, s = storage()): boolean {
   const m = memoryOf(s);
   m.session = null;
   m.drafts = new Map();
+  m.dirty = new Set();
   const sessions = Object.entries(blob).filter(([, per]) => Object.keys(per).length > 0);
   if (sessions.length === 1) {
     const [sid, per] = sessions[0]!;
     m.session = sid;
     m.drafts = new Map(Object.entries(per));
+    // Not yet known to be stored: kept by this tab until a write lands (PLAN 2.0f).
+    m.dirty = new Set(Object.keys(per));
   }
   hydrated.delete(s ?? NO_STORAGE);
   const value = sessions.length ? JSON.stringify(Object.fromEntries(sessions)) : null;

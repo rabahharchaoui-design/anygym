@@ -11,6 +11,9 @@
 import type { DumbbellRange, ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
 import { RENAMED_PLAN_IDS, SCHEMA_VERSION } from '../db/schema';
 import type { DraftsBlob } from './drafts';
+import { planById } from '../data/plans';
+import { MAX_EXTRA_SETS } from './extraSets';
+import { MAX_ROW_SLOT } from './setTable';
 import { isKnownPlate, validDumbbellRange, validStackStep } from './load';
 
 export const BACKUP_FORMAT = 'anygym-backup-v1';
@@ -328,10 +331,36 @@ function draftPlatesHold(t: Record<TableName, Rec[]>, drafts: Rec): boolean {
 function draftsOk(drafts: unknown, sessions: Rec[]): boolean {
   if (!isObj(drafts)) return false;
   const active = new Set(sessions.filter((s) => isActiveSession(s as Pick<Session, 'endedAt' | 'imported'>)).map((s) => s.id as string));
-  return Object.entries(drafts).every(([sessionId, perExercise]) => active.has(sessionId) && recordOf(isDraft)(perExercise));
+  return Object.entries(drafts).every(([sessionId, perExercise]) => active.has(sessionId) && recordOf(isDraft)(perExercise) && Object.keys(perExercise as Rec).every(draftKeyOk));
 }
 
-const positiveInt: Check = (v) => Number.isInteger(v) && (v as number) > 0;
+
+const positiveInt: Check = (v) => Number.isInteger(v) && (v as number) > 0 && (v as number) <= MAX_EXTRA_SETS;
+const dayIndex: Check = (v) => Number.isInteger(v) && (v as number) >= 0;
+
+/** A pending row's draft key is `exercise@slot` (or the older `exercise#index`) with a sane position. */
+function draftKeyOk(key: string): boolean {
+  const m = /^(.+)[@#](\d+)$/.exec(key);
+  return !m || Number(m[2]) <= MAX_ROW_SLOT;
+}
+
+/**
+ * The plan pointer (PLAN 2.0f): whole day positions, and for a plan this app knows, inside that
+ * plan, so Replace never leaves Today pointing at a day that is not there. A plan it does not
+ * know keeps its numbers (a newer app's plan), only whole and not negative.
+ */
+function planStateOk(rows: Rec[]): boolean {
+  return rows.every((r) => {
+    const doneDays = r.doneDays as number[];
+    const partial = (r.partial ?? {}) as Record<string, number>;
+    if (!dayIndex(r.nextDayIndex) || !dayIndex(r.weekIndex) || !doneDays.every(dayIndex)) return false;
+    if (!Object.keys(partial).every((k) => dayIndex(Number(k)) && /^\d+$/.test(k))) return false;
+    const plan = planById((RENAMED_PLAN_IDS as Record<string, string>)[r.planId as string] ?? (r.planId as string));
+    if (!plan) return true;
+    const n = plan.days.length;
+    return (r.nextDayIndex as number) < n && doneDays.every((d) => d < n) && Object.keys(partial).every((k) => Number(k) < n);
+  });
+}
 const isRest = shape({ req: { sessionId: str, endsAt: num, totalSec: num } });
 const isExtraSets = shape({ req: { sessionId: str, extra: recordOf(positiveInt) } });
 
@@ -379,7 +408,7 @@ export function parseBackup(text: string): ParseResult {
       seen.add(k);
     }
   }
-  if (!referencesHold(upgraded)) return { ok: false, error: DAMAGED };
+  if (!referencesHold(upgraded) || !planStateOk(upgraded.planState)) return { ok: false, error: DAMAGED };
 
   const drafts = raw.drafts === undefined ? {} : raw.drafts;
   if (!draftsOk(drafts, upgraded.sessions)) return { ok: false, error: DAMAGED };

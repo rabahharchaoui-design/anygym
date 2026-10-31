@@ -19,7 +19,19 @@
 //     Finish without it. A later change of the same set and kind that journals replaces it.
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { JournalEntry, MutationIntent } from './types';
-import { MUTATION_REV_PREFIX, WorkoutFinishedError, updateSet, updateSetType } from './workouts';
+import { MUTATION_DONE_PREFIX, MUTATION_REV_PREFIX, WorkoutFinishedError, updateSet, updateSetType } from './workouts';
+
+/**
+ * The set is deleted (its tombstone is stored) while a change to it is applied (PLAN 2.0f): the
+ * change is not consumed. It stays journaled as a retryable conflict, so Undo of the deletion
+ * brings the set back and Try again still writes the correction.
+ */
+export class MutationConflictError extends Error {
+  constructor() {
+    super('That set was deleted before the change landed');
+    this.name = 'MutationConflictError';
+  }
+}
 
 /** The logical change an entry belongs to: one set and one kind (edit or type), never both. */
 export const mutationKey = (m: MutationIntent): string => `${m.kind}:${m.setId}`;
@@ -33,6 +45,20 @@ export const mutationId = (m: MutationIntent, rev: number): string => `${legacyM
 /** The kv row holding the highest revision handed out for this workout, set and kind. */
 export { MUTATION_REV_PREFIX };
 const revKey = (sessionId: string, m: MutationIntent) => `${MUTATION_REV_PREFIX}${sessionId}:${mutationKey(m)}`;
+/**
+ * The supersession marker (PLAN 2.0f): the `at` of the newest change of this set and kind that
+ * landed, written in that change's own transaction. A held or fallback copy made at or before it is
+ * superseded, whether or not removing the copy itself succeeded, so a stale one is never shown or replayed.
+ */
+const doneKey = (sessionId: string, key: string) => `${MUTATION_DONE_PREFIX}${sessionId}:${key}`;
+
+/** Operation times are strictly increasing per database, so two changes never share an order (PLAN 2.0f). */
+const lastAts = new WeakMap<AnyGymDB, number>();
+function nextAt(db: AnyGymDB, now: number): number {
+  const at = Math.max(now, (lastAts.get(db) ?? -Infinity) + 1);
+  lastAts.set(db, at);
+  return at;
+}
 
 /** localStorage key of the changes whose journal write failed (the durable fallback). */
 export const MUTATION_FALLBACK_KEY = 'anygym-pending-changes';
@@ -99,9 +125,17 @@ function forget(db: AnyGymDB, ls: KV | null, drop: (e: JournalEntry) => boolean)
  */
 export async function pendingMutations(sessionId: string, db: AnyGymDB = defaultDb, ls: KV | null = phone()): Promise<JournalEntry[]> {
   const stored = (await db.journal.where('sessionId').equals(sessionId).toArray()).filter((j) => !!j.mutation);
+  const done = new Map<string, number>();
+  for (const row of await db.kv.where('key').startsWith(doneKey(sessionId, '')).toArray()) done.set(String(row.key).slice(doneKey(sessionId, '').length), Number(row.value));
   const held = new Map<string, JournalEntry>();
-  for (const e of [...readFallback(ls), ...memoryOf(db).values()]) if (e.sessionId === sessionId) held.set(e.id, e);
-  return [...stored, ...held.values()].sort((a, b) => a.at - b.at || a.rev - b.rev);
+  for (const e of [...readFallback(ls), ...memoryOf(db).values()]) {
+    // A copy older than a change that landed is superseded, even if its own removal failed.
+    if (e.sessionId === sessionId && !(e.at <= (done.get(mutationKey(e.mutation!)) ?? -Infinity))) held.set(e.id, e);
+  }
+  // Operations are ordered by when they were made; a held copy made in the same instant as a stored
+  // one is the later (it only exists because the journal write after it failed).
+  const order = (e: JournalEntry) => (e.rev < 0 ? 1 : 0);
+  return [...stored, ...held.values()].sort((a, b) => a.at - b.at || order(a) - order(b) || a.rev - b.rev);
 }
 
 /** How many changes the user made that did not land: one per set and kind, however many tries. */
@@ -116,7 +150,7 @@ export function changeCount(entries: readonly JournalEntry[]): number {
  * (WorkoutFinishedError), and the entry goes too.
  */
 async function apply(id: string, db: AnyGymDB): Promise<void> {
-  const finished = await db.transaction('rw', db.sessions, db.sets, db.journal, async () => {
+  const finished = await db.transaction('rw', [db.sessions, db.sets, db.journal, db.tombstones, db.kv], async () => {
     const entry = await db.journal.get(id);
     const m = entry?.mutation;
     if (!entry || !m) return false;
@@ -130,6 +164,8 @@ async function apply(id: string, db: AnyGymDB): Promise<void> {
       return false;
     }
     const set = await db.sets.get(m.setId);
+    // Deleted and still within Undo (or Keep deleted pending): the change is kept, not consumed.
+    if (!set && (await db.tombstones.get(m.setId))) throw new MutationConflictError();
     const session = set ? await db.sessions.get(set.sessionId) : undefined;
     if (!set || !session) {
       await done();
@@ -142,6 +178,9 @@ async function apply(id: string, db: AnyGymDB): Promise<void> {
     if (m.kind === 'edit') await updateSet(m.setId, m.change, db);
     else await updateSetType(m.setId, m.setKind, m.failure, db);
     await done();
+    // Landed: the marker that supersedes every copy of this set and kind made up to now.
+    const marker = await db.kv.get(doneKey(entry.sessionId, mutationKey(m)));
+    if (Number(marker?.value ?? -Infinity) < entry.at) await db.kv.put({ key: doneKey(entry.sessionId, mutationKey(m)), value: String(entry.at), at: entry.at });
     return false;
   });
   if (finished) throw new WorkoutFinishedError();
@@ -168,8 +207,9 @@ async function journal(sessionId: string, exerciseId: string, m: MutationIntent,
  * entry stays for Finish to ask about; when the journal write failed nothing was written and the
  * change is held in memory (and the localStorage fallback when it takes it), so Finish still asks.
  */
-export async function saveMutation(sessionId: string, exerciseId: string, m: MutationIntent, db: AnyGymDB = defaultDb, now = Date.now(), ls: KV | null = phone()): Promise<void> {
+export async function saveMutation(sessionId: string, exerciseId: string, m: MutationIntent, db: AnyGymDB = defaultDb, requested = Date.now(), ls: KV | null = phone()): Promise<void> {
   const key = mutationKey(m);
+  const now = nextAt(db, requested);
   // Held in memory before the journal write starts (PLAN 2.0e): a failure there never loses it.
   const n = ++seq;
   const memId = `${MEMORY_PREFIX}${key}:${now}:${n}`;

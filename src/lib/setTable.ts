@@ -46,6 +46,8 @@ export function typeOfSet(set: { kind: SetKind; failure?: boolean }): SetType {
  * do. Slots count pending rows only, so deleting or putting back a logged set never moves a draft
  * away from its row; the row's own draft id is its stable identity (and the id it is logged with).
  */
+/** The highest pending row slot read from storage or a backup (PLAN 2.0f). */
+export const MAX_ROW_SLOT = 200;
 export const rowKey = (exerciseId: string, slot: number) => `${exerciseId}@${slot}`;
 
 /** Before 1.7h a row draft was keyed by its 0 based set number, logged sets included. */
@@ -58,7 +60,7 @@ export function slotsOf(drafts: ReadonlyMap<string, Draft>, exerciseId: string):
   for (const [k, d] of drafts) {
     if (!k.startsWith(prefix)) continue;
     const slot = Number(k.slice(prefix.length));
-    if (!Number.isInteger(slot) || slot < 0) continue;
+    if (!Number.isInteger(slot) || slot < 0 || slot > MAX_ROW_SLOT) continue;
     while (out.length <= slot) out.push(null);
     out[slot] = d;
   }
