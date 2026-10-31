@@ -44,14 +44,16 @@ export default defineConfig({
       },
       workbox: {
         // Precache the whole app shell so it works in a basement with no signal.
-        // Exercise demos (PLAN 2.1): the WebP photos are precached (iOS 14+ reads WebP), so every
-        // demo works offline. The JPG twins are only a fallback and are cached when first used.
-        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest,webp}'],
+        // Exercise demos (PLAN 2.1, cloud run): the photos are NOT precached, so a first visit only
+        // downloads the app shell and is offline ready in seconds. Each photo (WebP or its JPG twin)
+        // is cached the first time it shows and then works offline.
+        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}'],
+        globIgnores: ['**/ex/**'],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith(`${BASE}ex/`) && url.pathname.endsWith('.jpg'),
+            urlPattern: ({ url }) => url.pathname.startsWith(`${BASE}ex/`),
             handler: 'CacheFirst',
-            options: { cacheName: 'exercise-jpg', expiration: { maxEntries: 400 } },
+            options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600 } },
           },
         ],
         // HashRouter: every route is index.html, so any navigation falls back to it.

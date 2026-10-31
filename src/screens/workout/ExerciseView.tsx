@@ -13,13 +13,16 @@ import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio } from '../../lib/tone';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
-import { Sheet } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
 import { MoreIcon } from '../../ui/icons';
 import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
 import { SetTypeSheet } from './SetTypeSheet';
 import { Thumb } from './Thumb';
+import { FormDemo } from '../../components/exercise/FormDemo';
+import { ExerciseSheet } from '../../components/exercise/ExerciseSheet';
+import { infoForPlan } from '../../data/exerciseInfo';
+import { firstLine } from '../../lib/exerciseInfo';
 import { WeightSheet, type WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
@@ -361,7 +364,11 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // 185 lb", plus why when the weight moved; without a weight to beat, the reason alone.
   const beat = progression && lastTime ? beatLine(progression) : null;
   const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || !progression.next.load) ? progression.next.reason : '';
-  const note = [entry?.note, w.noteOf(exerciseId)].filter(Boolean).join(' · ');
+  const notes = [entry?.note, w.noteOf(exerciseId)].filter((n): n is string => !!n);
+  const note = notes.join(' · ');
+  // SPEC 4.4: photos, muscles and cues only when the match is sure (SPEC 4.3).
+  const info = infoForPlan(exerciseId, notes);
+  const cueLine = info.demo ? firstLine(info) : null;
   const setNumber = Math.min(workDone + 1, Math.max(entry?.sets ?? 1, workDone + 1));
   const status = current ? blockedOf(current) : null;
   // The number each row shows: "W" for a warm up, working sets 1 to n (SetTable shows the same).
@@ -374,7 +381,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     <main className={styles.exMain} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
       <div className={styles.hero}>
         <button type="button" className={`${styles.heroTile} pressable`} onClick={() => setDemo(true)} aria-label={`How to do ${name}`}>
-          <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />
+          {info.demo ? <FormDemo demo={info.demo} name={name} compact vtName="ex-hero" /> : <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />}
         </button>
         <div className={styles.heroText}>
           <h2 className={styles.exName}>{name}</h2>
@@ -391,6 +398,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             <p className={styles.exNote} data-testid="set-plan">
               {note}
             </p>
+          )}
+          {cueLine && (
+            <button type="button" className={`${styles.cueLine} pressable`} onClick={() => setDemo(true)} data-testid="cue-line">
+              <span className={styles.cueText}>{cueLine}</span>
+              <span className={styles.cueMore}>More</span>
+            </button>
           )}
         </div>
         <button type="button" className={`${styles.moreButton} pressable`} onClick={onMenu} aria-label={`More for ${name}`}>
@@ -496,19 +509,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
       <SetTypeSheet open={typing !== null} onClose={() => setTyping(null)} title={typing ? `Set ${typing.n}` : ''} value={typing?.type ?? 'normal'} onPick={pickType} />
 
-      <Sheet open={demo} onClose={() => setDemo(false)} label="How to">
-        <div className={styles.sheetBody}>
-          <div className={styles.demoTile}>
-            <Thumb name={name} loadType={kind} size="hero" />
-          </div>
-          <h2 className={styles.sheetTitle}>{name}</h2>
-          <p className={styles.sheetSub}>Demo coming soon</p>
-          {note ? <p className={styles.demoNote}>{note}</p> : null}
-          <Button variant="secondary" onClick={() => setDemo(false)}>
-            Close
-          </Button>
-        </div>
-      </Sheet>
+      <ExerciseSheet open={demo} onClose={() => setDemo(false)} name={name} info={info} placeholder={<Thumb name={name} loadType={kind} size="hero" />} />
     </main>
   );
 }
