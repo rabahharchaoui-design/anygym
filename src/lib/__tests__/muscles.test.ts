@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BACK, FRONT, REGIONS, VIEWBOX } from '../bodyPolygons';
+import { REGIONS } from '../bodyArt';
 import type { MapEntry } from '../catalog';
 import {
   MUSCLE_LABELS,
@@ -21,26 +21,6 @@ const map = read<MapEntry[]>('data/exercise-map.json');
 const byId = new Map(catalog.map((e) => [e.id, e]));
 const ex = (id: string) => byId.get(id)!;
 const NONE: MuscleOverrides = { exercises: {} };
-
-describe('body polygons (ported from react-body-highlighter)', () => {
-  it('every polygon has finite points inside the viewBox, and every region id is listed', () => {
-    for (const shape of [...FRONT, ...BACK]) {
-      expect(REGIONS).toContain(shape.region);
-      for (const p of shape.polygons) {
-        const n = p.split(' ').map(Number);
-        expect(n.length % 2).toBe(0);
-        expect(n.length).toBeGreaterThanOrEqual(6);
-        for (let i = 0; i < n.length; i += 2) {
-          expect(n[i]! >= 0 && n[i]! <= VIEWBOX.width).toBe(true);
-          expect(n[i + 1]! >= 0 && n[i + 1]! <= VIEWBOX.height).toBe(true);
-        }
-      }
-    }
-  });
-  it('front and back together draw every region', () => {
-    expect(new Set([...FRONT, ...BACK].map((s) => s.region))).toEqual(new Set(REGIONS));
-  });
-});
 
 describe('SPEC 4.5 table', () => {
   it.each([

@@ -1,46 +1,107 @@
-/* Muscle map (SPEC 4.4, 4.5, 10). Colors only from tokens. */
+/* Muscle map (SPEC 4.4, 4.5 PREMIUM MAP, 10, 13). Colors only from tokens. */
 .map {
   margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-}
-
-.bodies {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-5);
   width: 100%;
 }
 
-.view {
+.controls {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  /* Two bodies side by side stay readable from 320 px up, and never grow huge on a Max. */
-  width: min(38%, 132px);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* One body, large, in a fixed box: switching views or bodies never moves the page. */
+.stage {
+  position: relative;
+  /* Body height at most about half the screen so controls, line and body fit at 375 x 667. */
+  width: min(220px, 64%, 26vh);
+  width: min(220px, 64%, 26svh);
+  aspect-ratio: 1 / 2;
+}
+
+.defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .svg {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 100 / 220; /* reserves the space before paint: no layout shift */
+  height: 100%;
   overflow: visible;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.svg polygon {
+/* 2D crossfade: the new body fades in over the old one, which fades out underneath. */
+.entering {
+  animation: fadeIn var(--dur-base) var(--ease-out) both;
+}
+
+.leaving {
+  animation: fadeOut var(--dur-base) var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
+.outline {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.svg path {
+  stroke: var(--bg);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.svg .outline {
+  stroke: var(--hairline);
+  stroke-width: 3;
+}
+
+.muscle,
+.rest,
+.head {
   transition:
     fill var(--dur-base) var(--ease-out),
     fill-opacity var(--dur-base) var(--ease-out);
 }
 
-/* Unlit body: a quiet silhouette on the dark surfaces. */
-.body {
-  fill: var(--text-2);
-  fill-opacity: 0.22;
+.muscle {
+  cursor: pointer;
+}
+
+/* Resting body: dark graphite. */
+.body,
+.rest {
+  fill: color-mix(in srgb, var(--text-2) 30%, var(--bg));
+  fill-opacity: 1;
+}
+
+.head {
+  fill: color-mix(in srgb, var(--text-2) 20%, var(--bg));
 }
 
 .primary {
@@ -53,10 +114,50 @@
   fill-opacity: 0.4;
 }
 
-.caption {
+/* Soft accent glow behind the primary muscles only. */
+.glow {
+  fill: var(--accent);
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.svg .glow path {
+  stroke: var(--accent);
+  stroke-width: 6;
+}
+
+/* The tapped muscle: a light outline. */
+.svg .picked path {
+  stroke: var(--text);
+  stroke-width: 5;
+}
+
+.readout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 44px; /* reserved: the line never pushes the body */
+  max-width: 100%;
   color: var(--text-2);
   font-size: var(--text-sm);
-  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.picking {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.showOther {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
 }
 
 .legend {
@@ -80,7 +181,11 @@
   background: var(--accent);
 }
 
-.swatch.secondary {
+.swatchPrimary {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.swatchSecondary {
   opacity: 0.4;
 }
 
@@ -115,7 +220,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .svg polygon {
+  .entering,
+  .leaving {
+    animation: none;
+  }
+  .muscle,
+  .rest,
+  .head {
     transition: none;
   }
 }

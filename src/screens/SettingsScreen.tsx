@@ -12,6 +12,8 @@ import { importDraft, isImportDone } from './settings/importDraft';
 import { BackButton } from '../ui/BackButton';
 import { Switch } from '../ui/Switch';
 import { haptics } from '../ui/haptics';
+import { Segmented } from '../ui/Segmented';
+import { bodyPref } from '../lib/bodyPref';
 import { useActiveGym } from '../db/useActiveGym';
 import { setGymUnit, setPlateColors } from '../db/equipment';
 import type { Unit } from '../db/types';
@@ -35,6 +37,7 @@ let toastSeq = 0;
  */
 export function SettingsScreen() {
   const hapticsOn = useSyncExternalStore(haptics.subscribe, haptics.enabled, () => true);
+  const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as const);
   const gym = useActiveGym();
   const [error, setError] = useState(false);
   const go = useNav();
@@ -169,6 +172,24 @@ export function SettingsScreen() {
         </h2>
         <div className={styles.card}>
           <Switch label="Haptics" hint="A light tap when you check a set, add a plate or switch tabs." checked={hapticsOn} onChange={(on) => haptics.setEnabled(on)} />
+          <div className={`${styles.unitRow} ${styles.feelRow}`}>
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel} id="body-label">
+                Muscle map body
+              </span>
+              <span className={styles.unitHint}>Which body the muscle map shows.</span>
+            </span>
+            <Segmented
+              labelledBy="body-label"
+              testId="settings-body"
+              options={[
+                { value: 'male', label: 'Male' },
+                { value: 'female', label: 'Female' },
+              ]}
+              value={body}
+              onChange={(b) => bodyPref.set(b)}
+            />
+          </div>
         </div>
       </section>
       <section className={styles.group} aria-labelledby="set-plates">
@@ -317,7 +338,7 @@ export function SettingsScreen() {
             </span>
           </p>
           <p className={styles.note}>Everything you log stays on this phone and works offline. Only reports you send and crash reports leave it.</p>
-          <p className={styles.note}>Exercise photos and instructions: free-exercise-db (public domain). Muscle map drawing: react-body-highlighter (MIT).</p>
+          <p className={styles.note}>Exercise photos and instructions: free-exercise-db (public domain). Muscle map drawing: react-native-body-highlighter by ELABBASSI Hicham (MIT).</p>
         </div>
       </section>
       <ReportProblemSheet open={reporting} onClose={() => setReporting(false)} facts={gymFacts(gym)} />
