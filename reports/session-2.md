@@ -42,3 +42,23 @@ Decisions made unattended:
 SIM CHECK PENDING (cloud, Chromium only) for 2.0g (the pair chip over the rest bar on SE).
 
 Not done here: 2.6 merge gate (still needs WebKit, the Simulator, the full matrix and the ux-critic).
+
+## Cloud run, Oct 31 2026, 21:16 to 22:10 UTC
+
+Shipped and live (each merged to master, deploy green, live check green in Chromium):
+- 2.2a Premium muscle map (G's Nov 1 brief, council rules applied). SIM CHECK PENDING (cloud, Chromium only).
+  - Chosen: react-native-body-highlighter 3.2.0, commit 8ed39ac2ae9cb46fb79d77eedec7e5b029a75174, MIT, Copyright (c) 2022 ELABBASSI Hicham. Only its vector path data is used (src/lib/bodyArt/), inside our own React SVG. License in third_party/react-native-body-highlighter-LICENSE.txt, credit in Settings → About. The old react-body-highlighter polygons and license are removed. The art is vector data authored in that repo under its MIT license; no images, no AI generated anatomy.
+  - Rejected (full table in reports/briefs/2.2a-muscle-map.md): js-rich-body-highlighter (raster bodies with no stated origin or artist, may be generated, heavy), react-muscle-highlighter (byte identical copy of the chosen art with the original copyright notice dropped), @emmorts/body-muscles (male only), MuscleMap (paths traced over OpenAI generated photos), Sasha's Body Map (no license). Research took about 20 minutes.
+  - What changed: one large body at a time; Front | Back opens on the side with the primary muscles; Male | Female (separate drawings) saved on the phone and in Settings → Feel → Muscle map body; primary in the accent with a soft glow, secondary at 40%, the rest graphite; 240 ms 2D crossfade, instant with reduced motion; tap a muscle and a line above the body names it ("Upper chest · primary", "Quads · not used here"); a side with nothing lit offers "Show front"/"Show back". Exercise to muscle data unchanged (src/lib/muscles.ts logic untouched). Deltoid split by view: front views light front delts, back views rear delts.
+  - Exercises for a tapped muscle: split to 2.2b (council rule d). The catalog has the data but the app has no exercise browser to open them in yet, so a list would be a dead end.
+  - Screenshots: reports/shots/2.2a/ (all four views at iPhone SE and 17 Pro Max, plus critic shots).
+  - Tests: Vitest 1472 then 1490 green; muscles-2.2a, tester-2.2a, exercise-sheet-2.3, review-2.4, smoke on iPhone SE, 17 Pro Max and 320 floor (Chromium) green.
+  - ux-critic first pass 7/10 (target 8). Fixed: tap readout was below the fold (now pinned above the body, body capped to fit at 375 x 667), tap names now match the text line, an empty side explains itself, tapping outside clears, Settings row stacks below 360 px. Rejected: "make deadlift glutes and hamstrings primary and cap secondaries at 3" (that would edit source muscle data by taste; SPEC 0). Left as polish: secondary over large areas reads olive, the female triceps is a thin sliver, a one frame double body during the Male/Female crossfade, the male viewBox has spare space above and below. No second critic pass this run; gmini's gate pass should score it again on the Simulator.
+- 2.0i Codex carry over: all 9 data findings from the Nov 1 bughunts reproduced with a failing test, then fixed in the shared layer (see PLAN note). Left: the 3 test gap findings; no true cross tab lock.
+- Codex tests 1024-2037 merged: kept 7, dropped 1 (written against the Oct 24 Finish), bugs 0.
+
+Decisions: 2.2b left unchecked (waits for an exercise browser). codex-active-workout tests at lines 62 and 188 and codex-se-edit-finish's offline test fail identically before and after this run's changes in cloud Chromium (ERR_INTERNET_DISCONNECTED console noise, layout); gmini should confirm in WebKit.
+
+Not done here: 2.6 merge gate (needs WebKit, the Simulator, the full matrix and the ux-critic).
+
+iPhone checks for G: open https://rabahharchaoui-design.github.io/anygym/?dev#/dev/muscles in Safari, pick a bench press, switch Front/Back and Male/Female, tap a muscle; then Settings → Feel → Muscle map body.
