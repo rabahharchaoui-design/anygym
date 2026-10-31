@@ -267,9 +267,9 @@
   {
     "planId": "elbow-plank",
     "name": "Elbow Plank",
-    "match": "exact",
-    "catalogId": "Plank",
-    "reason": "Same forearm plank."
+    "match": "none",
+    "catalogId": null,
+    "reason": "2.5 audit: first photo is a kneeling setup, not a plank; doubt means none."
   },
   {
     "planId": "forearm-finger-roll",
@@ -428,9 +428,9 @@
   {
     "planId": "narrow-grip-lat-pulldown",
     "name": "Narrow Grip Lat Pulldown",
-    "match": "exact",
-    "catalogId": "Close-Grip_Front_Lat_Pulldown",
-    "reason": "Same close grip pulldown."
+    "match": "none",
+    "catalogId": null,
+    "reason": "2.5 audit: grip width cannot be confirmed from the rear view photos; doubt means none."
   },
   {
     "planId": "oblique-crunch",
@@ -449,9 +449,9 @@
   {
     "planId": "plank",
     "name": "Plank",
-    "match": "exact",
-    "catalogId": "Plank",
-    "reason": "Same plank."
+    "match": "none",
+    "catalogId": null,
+    "reason": "2.5 audit: first photo is a kneeling setup, not a plank; doubt means none."
   },
   {
     "planId": "plate-russian-twist",
