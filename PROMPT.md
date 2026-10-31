@@ -32,7 +32,7 @@ TEST NOW PUSHES (G wants to know when to open the app and what to try)
 - Start <steps> with one plain sentence saying what the feature is for a normal person (never jargon like "load inputs" or file names). If the feature only lives on a hidden dev screen so far, put that exact link in the Click header (for example https://rabahharchaoui-design.github.io/anygym/?dev#/dev/loads) and say "Open in Safari". Then max 3 short steps, what to tap and what he should see, ending with how long it takes. Example: "1. Open AnyGym and tap Quick workout. 2. Add Bench press, tap a 45 on each side. 3. Total should read 135 lb with the math under it. 2 min."
 - If the update needs a fresh install (new icon or name), say so: "Delete AnyGym from your Home Screen, then add it again from Safari."
 - Skip test now pushes for behind the scenes items (math libraries, test harness, data schema) unless they change what he sees.
-- Also append each test now message, with the time and item id, to reports/test-now.md so he can scroll back through them.
+- For EVERY shipped item append exactly one line to reports/test-now.md and commit it with the checkpoint: `<item id> | <one plain sentence saying what changed for G, then what to tap and what he should see, under 40 words>` or `<item id> | Nothing to test, behind the scenes.` No file names, no jargon. gmini's phone watcher sends each new line to G as the "test now" push, so this line is what G reads.
 
 CODEX (second opinion from G's ChatGPT plan, optional)
 - If `command -v codex` succeeds: after the tester PASSES an item and before you commit it, ask Codex for an independent read only review, running in the foreground with a 10 minute Bash timeout:

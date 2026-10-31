@@ -170,17 +170,30 @@ export function nextCurrent(entries: WorkoutEntry[], done: DoneCounts, logged: s
 }
 
 /**
- * Rest after a set of `logged`, in seconds (0 = no rest): the block's rest, except inside a pair
- * when the next exercise of the same round is up (do them back to back), and after the very last
- * set of the day. null for an exercise that is not in the plan day (added by hand).
+ * Rest after a set of `logged`, in seconds (0 = no rest): the block's rest, also inside a pair
+ * (PLAN 2.0g: checking a set keeps the user on that exercise with the rest running; the partner is
+ * one tap away), and none after the very last set of the day. null for an exercise that is not in
+ * the plan day (added by hand).
  */
 export function restAfter(entries: WorkoutEntry[], done: DoneCounts, logged: string): number | null {
   const e = entries.find((x) => x.exerciseId === logged);
   if (!e) return null;
   if (firstOpen(entries, done) === null) return 0;
-  const next = entries.find((x) => x.exerciseId === nextCurrent(entries, done, logged));
-  if (e.kind === 'pair' && next && next.block === e.block && next.pairIndex > e.pairIndex) return 0;
   return e.restSec;
+}
+
+/**
+ * Whether logging a set of `logged` moves the user on from that exercise (PLAN 2.0g, SPEC 20.2):
+ * only the set that completes its LAST planned working set. `doneBefore` is the planned sets done
+ * before this one; `extra` is how many of the entry's sets were added by hand (+ Add set). Never for
+ * a warm up set, a warm up block or a stretch, never once the plan's own sets were already done
+ * (going back to the exercise for an extra set), and never mid exercise, also in a pair.
+ */
+export function advancesAfterLog(entries: readonly WorkoutEntry[], doneBefore: DoneCounts, logged: string, kind: SetKind, extra = 0): boolean {
+  const e = entries.find((x) => x.exerciseId === logged);
+  if (!e || e.warmup || isStretchName(e.name) || !countsToward(e, kind)) return false;
+  const before = doneBefore[logged] ?? 0;
+  return before < e.sets - Math.max(0, extra) && before + 1 >= e.sets;
 }
 
 // ---------------------------------------------------------------- quick workout (SPEC 20.3)

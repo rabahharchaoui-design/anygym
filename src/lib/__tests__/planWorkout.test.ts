@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { planById } from '../../data/plans';
-import { dayProgress, dayWorkout, doneCounts, finisherId, firstOpen, isStretchName, isWorkingEntry, nextCurrent, repRangeOf, restAfter, setLine, startedCount, targetSecondsOf, type WorkoutEntry } from '../planWorkout';
+import { advancesAfterLog, dayProgress, dayWorkout, doneCounts, finisherId, firstOpen, isStretchName, isWorkingEntry, nextCurrent, repRangeOf, restAfter, setLine, startedCount, targetSecondsOf, type WorkoutEntry } from '../planWorkout';
 
 const split5 = planById('five-day-split')!;
 const sixWeek = planById('six-week-volume')!;
@@ -131,9 +131,9 @@ describe('nextCurrent and restAfter', () => {
     expect(restAfter(day, { a: 2 }, 'a')).toBe(60);
   });
 
-  it('pair: back to back, rest after the round, then on', () => {
+  it('pair: partner up next, the block rest still runs (PLAN 2.0g), then on', () => {
     expect(nextCurrent(day, { a: 2, p1: 1 }, 'p1')).toBe('p2');
-    expect(restAfter(day, { a: 2, p1: 1 }, 'p1')).toBe(0);
+    expect(restAfter(day, { a: 2, p1: 1 }, 'p1')).toBe(90);
     expect(nextCurrent(day, { a: 2, p1: 1, p2: 1 }, 'p2')).toBe('p1');
     expect(restAfter(day, { a: 2, p1: 1, p2: 1 }, 'p2')).toBe(90);
     expect(nextCurrent(day, { a: 2, p1: 2, p2: 2 }, 'p2')).toBe('b');
@@ -155,6 +155,35 @@ describe('nextCurrent and restAfter', () => {
     expect(restAfter(day, all, 'b')).toBe(0);
     expect(nextCurrent(day, {}, 'zz')).toBe('zz');
     expect(restAfter(day, {}, 'zz')).toBeNull();
+  });
+});
+
+describe('advancesAfterLog (PLAN 2.0g)', () => {
+  const four = [
+    e('inc', { block: 0, kind: 'pair', pairIndex: 0, pairSize: 2, sets: 4, name: 'Barbell Incline Bench Press' }),
+    e('plate', { block: 0, kind: 'pair', pairIndex: 1, pairSize: 2, sets: 4, name: 'Incline Plate Press' }),
+    e('sq', { block: 1, sets: 4, name: 'Barbell Back Squat' }),
+    e('wu', { block: 2, warmup: true, sets: 2, name: 'Band Rotation' }),
+    e('st', { block: 3, sets: 1, name: 'Static Pigeon Stretch' }),
+  ];
+  it('stays on sets 1 to 3 of a 4 set exercise, single or pair', () => {
+    for (const id of ['inc', 'sq']) for (const n of [0, 1, 2]) expect(advancesAfterLog(four, { [id]: n }, id, 'work')).toBe(false);
+  });
+  it('moves on only with the last working set', () => {
+    expect(advancesAfterLog(four, { inc: 3 }, 'inc', 'work')).toBe(true);
+    expect(advancesAfterLog(four, { sq: 3 }, 'sq', 'drop')).toBe(true);
+  });
+  it('never on an extra set after going back, a warm up set, a warm up block, a stretch, or a hand added exercise', () => {
+    expect(advancesAfterLog(four, { sq: 4 }, 'sq', 'work')).toBe(false);
+    expect(advancesAfterLog(four, { sq: 5 }, 'sq', 'work')).toBe(false);
+    // Back on a done exercise, + Add set (5 sets, 1 extra), then its check: stays.
+    const extra = four.map((x) => (x.exerciseId === 'sq' ? { ...x, sets: 5 } : x));
+    expect(advancesAfterLog(extra, { sq: 4 }, 'sq', 'work', 1)).toBe(false);
+    expect(advancesAfterLog(extra, { sq: 3 }, 'sq', 'work', 1)).toBe(false);
+    expect(advancesAfterLog(four, { sq: 3 }, 'sq', 'warmup')).toBe(false);
+    expect(advancesAfterLog(four, { wu: 1 }, 'wu', 'warmup')).toBe(false);
+    expect(advancesAfterLog(four, {}, 'st', 'work')).toBe(false);
+    expect(advancesAfterLog(four, {}, 'zz', 'work')).toBe(false);
   });
 });
 
