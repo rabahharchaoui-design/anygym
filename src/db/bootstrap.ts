@@ -32,8 +32,16 @@ async function activeGymIn(db: AnyGymDB): Promise<Gym | undefined> {
 let started: Promise<Gym> | null = null;
 
 /** App start: run ensureFirstGym once per page load and share the result. */
-export function startDb(): Promise<Gym> {
-  started ??= ensureFirstGym();
+export function startDb(db: AnyGymDB = defaultDb): Promise<Gym> {
+  if (!started) {
+    const attempt: Promise<Gym> = ensureFirstGym(db);
+    started = attempt;
+    // A failed start is not kept (PLAN 2.0f): the next call tries again, so one transient storage
+    // error never blocks starting a workout until a reload. Only this attempt clears itself.
+    attempt.catch(() => {
+      if (started === attempt) started = null;
+    });
+  }
   return started;
 }
 

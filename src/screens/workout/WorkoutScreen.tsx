@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
-import { UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
+import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
 import { countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
@@ -20,7 +20,7 @@ import { Sheet } from '../../ui/Sheet';
 import { LoadError } from '../../components/LoadError';
 import { supportsViewTransitions, useNav } from '../../ui/nav';
 import { UndoUnresolvedError } from '../../lib/deleteUndo';
-import { deletesFor, disposeDeletes, isLeftOver, recoverSession, recoveryReady } from './sessionRecovery';
+import { deletesFor, disposeDeletes, isLeftOver, ownedDeletes, recoverSession, recoveryReady } from './sessionRecovery';
 import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
 import { logQueue } from '../../lib/logQueue';
 import { clearExtraSets } from '../../lib/extraSets';
@@ -378,6 +378,8 @@ export function WorkoutScreen() {
       unhide(set.id);
       // Finished meanwhile (another tab, PLAN 2.0e): nothing was deleted, and there is nothing to retry.
       if (err instanceof WorkoutFinishedError) return notice('That workout is already finished');
+      // A change to this set has not saved yet (PLAN 2.0f): deleting now would lose it on Undo.
+      if (err instanceof SetHasPendingChangesError) return notice('A change to that set is not saved yet. Try again after it saves.');
       setToast(
         toastOf('Could not delete that set', {
           label: 'Try again',
@@ -455,7 +457,7 @@ export function WorkoutScreen() {
       }
       // Finish keeps the plan pointer as it was, inside its own transaction, for Undo on Today.
       // The pending and added rows are kept with it for Undo on Today (PLAN 2.0c).
-      const result = await finishWorkout(sessionId, undefined, undefined, snapshotPending(sessionId));
+      const result = await finishWorkout(sessionId, undefined, undefined, snapshotPending(sessionId), ownedDeletes(sessionId));
       disposeDeletes(sessionId);
       setRest(null);
       clearSessionDrafts(sessionId);
@@ -471,7 +473,12 @@ export function WorkoutScreen() {
       reopen();
       // An Undo the user asked for never landed: Finish waits until it does or they cancel it.
       if (err instanceof UndoUnresolvedError) setUndoStuck(err.ids);
-      else if (err instanceof UnsavedWritesError) {
+      else if (err instanceof UnresolvedDeletesError) {
+        // A deletion this app run does not know (another tab's): brought in as unresolved, so the
+        // same Restore or Keep deleted choice applies and Finish never discards it (PLAN 2.0f).
+        await recoverSession(sessionId).catch(() => undefined);
+        setUndoStuck(err.ids);
+      } else if (err instanceof UnsavedWritesError) {
         // Journaled after the checks above (another tab, PLAN 2.0e): Finish refused in its own
         // transaction, nothing changed. The same choice as above.
         const rows = await failedRows(sessionId).catch(() => []);

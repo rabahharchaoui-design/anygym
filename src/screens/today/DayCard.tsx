@@ -21,7 +21,7 @@ type Props = {
  * one card on Today: "Day 1 · in progress · 2 sets" with Resume.
  */
 export function DayCard({ plan, state, onStart, onChangeDay, active }: Props) {
-  const dayIndex = Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1);
+  const dayIndex = Math.max(0, Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1));
   const day = plan.days[dayIndex]!;
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
   const done = new Set(state.doneDays);

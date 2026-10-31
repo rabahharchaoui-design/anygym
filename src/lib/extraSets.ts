@@ -6,6 +6,8 @@ import { db } from '../db/schema';
 import { durableRow, mirror, mirrorValue } from './durable';
 export const EXTRA_SETS_KEY = 'anygym-extra-sets';
 const KEY = EXTRA_SETS_KEY;
+/** Most rows one exercise can have beyond its plan (PLAN 2.0f): a restored or corrupt count never builds more. */
+export const MAX_EXTRA_SETS = 100;
 
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type Stored = { sessionId: string; extra: Record<string, number> };
@@ -50,13 +52,13 @@ function read(kv: KV | null): Stored | null {
 export function extraSets(sessionId: string, exerciseId: string, kv: KV | null = storage()): number {
   const s = read(kv);
   const n = s?.sessionId === sessionId ? s.extra[exerciseId] : undefined;
-  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : 0;
+  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? Math.min(n, MAX_EXTRA_SETS) : 0;
 }
 
 export function addExtraSet(sessionId: string, exerciseId: string, kv: KV | null = storage()): number {
   const s = read(kv);
   const extra = s?.sessionId === sessionId ? { ...s.extra } : {};
-  extra[exerciseId] = (extra[exerciseId] ?? 0) + 1;
+  extra[exerciseId] = Math.min(MAX_EXTRA_SETS, (extra[exerciseId] ?? 0) + 1);
   memory = { sessionId, extra };
   cleared = false;
   const value = JSON.stringify(memory);

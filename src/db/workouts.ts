@@ -261,11 +261,12 @@ export async function deleteSet(id: string, db: AnyGymDB = defaultDb, now = Date
  * deletion of the same set (db/tombstones.ts).
  */
 export async function deleteSetToken(id: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<{ set: WorkoutSet; token: string } | undefined> {
-  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.tombstones], async () => {
+  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.tombstones, db.journal], async () => {
     const set = await db.sets.get(id);
     if (!set) return undefined;
     const session = await db.sessions.get(set.sessionId);
     if (!session || session.endedAt !== undefined) throw new WorkoutFinishedError();
+    if ((await db.journal.where('sessionId').equals(set.sessionId).toArray()).some((j) => j.mutation?.setId === id)) throw new SetHasPendingChangesError();
     await seedCounter(set.sessionId, db);
     await db.sets.delete(id);
     const token = newId();
@@ -314,7 +315,7 @@ export async function restoreSet(set: WorkoutSet, db: AnyGymDB = defaultDb, opts
     if (opts.ifTombstone) {
       const t = await db.tombstones.get(set.id);
       if (!t) {
-        await dropUndoIntent(set.sessionId, set.id, db);
+        await dropUndoIntent(set.sessionId, set.id, db, opts.token);
         return !!(await db.sets.get(set.id));
       }
       if ('token' in opts && t.token !== opts.token) return false;
@@ -323,11 +324,19 @@ export async function restoreSet(set: WorkoutSet, db: AnyGymDB = defaultDb, opts
     await seedCounter(record.sessionId, db, record.order + 1);
     await db.sets.put({ ...record });
     // Restored: its tombstone and Undo intent are used up in the same transaction.
+    const deletion = opts.ifTombstone ? (await db.tombstones.get(record.id))?.token : undefined;
     await db.tombstones.delete(record.id);
-    await dropUndoIntent(record.sessionId, record.id, db);
+    await dropUndoIntent(record.sessionId, record.id, db, deletion);
+    // Which deletion this copy came back from (PLAN 2.0f): a late "Keep it deleted" for that very
+    // deletion may take the copy out again, one for any other never does.
+    if (deletion !== undefined) await db.kv.put({ key: restoredKey(record.sessionId, record.id), value: deletion, at: Date.now() });
     return true;
   });
 }
+
+export const RESTORED_PREFIX = 'anygym-restored:';
+/** kv row: the token of the deletion a set was last put back from (db/tombstones.ts cancelUndo). */
+export const restoredKey = (sessionId: string, setId: string) => `${RESTORED_PREFIX}${sessionId}:${setId}`;
 
 /** Sets of a workout in logged order. */
 export async function setsOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<WorkoutSet[]> {
@@ -348,12 +357,32 @@ export type FinishResult = { saved: true; sets: number; progress?: DayProgress }
 
 /** kv rows of the change revision counters (db/mutations.ts), one per workout, set and kind. */
 export const MUTATION_REV_PREFIX = 'anygym-mutrev:';
+/** kv rows of the supersession markers (db/mutations.ts), one per workout, set and kind. */
+export const MUTATION_DONE_PREFIX = 'anygym-mutdone:';
+
+/**
+ * Delete refused (PLAN 2.0f): a change to this set (an edit or set type change) is journaled and
+ * has not landed. Deleting would let Undo bring back the old values while the correction is lost.
+ */
+export class SetHasPendingChangesError extends Error {
+  constructor() {
+    super('A change to this set is not saved yet');
+    this.name = 'SetHasPendingChangesError';
+  }
+}
 
 /**
  * Finish refused inside its own transaction (PLAN 2.0e): a write of this workout is still pending
  * (an edit or set type change, or a Log set that did not commit), for example journaled by another
  * tab after this tab's checks. Nothing was changed; the screen asks Try again or Finish without it.
  */
+export class UnresolvedDeletesError extends Error {
+  constructor(public ids: string[]) {
+    super('A deleted set is still waiting for Restore or Keep deleted');
+    this.name = 'UnresolvedDeletesError';
+  }
+}
+
 export class UnsavedWritesError extends Error {
   constructor() {
     super('A change of this workout is not saved yet');
@@ -364,8 +393,11 @@ export class UnsavedWritesError extends Error {
 /**
  * Ends the workout. With sets it is saved (endedAt); with none it is deleted, never kept as an
  * empty session. Finishing twice is safe. A saved plan day moves the plan on (applyFinishProgress).
+ * `owned` (PLAN 2.0f): set id -> token of each deletion the caller knows and has resolved or holds.
+ * Given, a stored tombstone it does not know (another tab's, whose Undo may have failed) is never
+ * discarded: Finish throws UnresolvedDeletesError until Restore or Keep deleted resolves it.
  */
-export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now(), pending?: FinishPending): Promise<FinishResult> {
+export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb, now = Date.now(), pending?: FinishPending, owned?: ReadonlyMap<string, string>): Promise<FinishResult> {
   return db.transaction('rw', [db.sessions, db.sets, db.planState, db.orderCounters, db.tombstones, db.submissions, db.journal, db.kv], async () => {
     const s = await db.sessions.get(sessionId);
     if (s && s.endedAt === undefined) {
@@ -377,8 +409,14 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       // An Undo that was accepted but never written back (PLAN 1.7h) lands now, and so does one
       // the user asked for whose acceptance only reached the durable intent (PLAN 1.7k); every
       // other deleted set stays deleted (no Undo after Finish).
-      for (const t of await db.tombstones.where('sessionId').equals(sessionId).toArray()) {
-        const wanted = t.undo || (await hasUndoIntent(sessionId, t.id, db));
+      const tombs = await db.tombstones.where('sessionId').equals(sessionId).toArray();
+      if (owned) {
+        const unknown: string[] = [];
+        for (const t of tombs) if (!t.undo && owned.get(t.id) !== t.token && !(await hasUndoIntent(sessionId, t.id, db, undefined, t.token))) unknown.push(t.id);
+        if (unknown.length) throw new UnresolvedDeletesError(unknown);
+      }
+      for (const t of tombs) {
+        const wanted = t.undo || (await hasUndoIntent(sessionId, t.id, db, undefined, t.token));
         if (wanted && !(await db.sets.get(t.id))) {
           await seedCounter(sessionId, db, t.set.order + 1);
           await db.sets.put({ ...t.set });
@@ -386,9 +424,11 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       }
       await db.tombstones.where('sessionId').equals(sessionId).delete();
       await dropSessionIntents(sessionId, db);
+      await db.kv.where('key').startsWith(`${RESTORED_PREFIX}${sessionId}:`).delete();
       // Finish runs only once no failed row is left (rowLog.prepareFinish): the journal is done.
       await db.journal.where('sessionId').equals(sessionId).delete();
       await db.kv.where('key').startsWith(`${MUTATION_REV_PREFIX}${sessionId}:`).delete();
+      await db.kv.where('key').startsWith(`${MUTATION_DONE_PREFIX}${sessionId}:`).delete();
       // Submission receipts stay for the workout's lifetime (PLAN 1.7i): if Finish is undone and
       // stale drafts come back, they are reconciled against these and never logged a second time.
     }

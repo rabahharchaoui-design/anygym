@@ -125,7 +125,7 @@ describe('(1) an unresolved Undo survives a restart', () => {
     await expect(m.undo('b')).rejects.toThrow();
     unhook();
     db.kv.hook('creating').unsubscribe(failKv);
-    expect(JSON.parse(disk.get(UNDO_LS_KEY)!)).toEqual([{ sessionId: s.id, setId: 'b' }]);
+    expect(JSON.parse(disk.get(UNDO_LS_KEY)!)).toEqual([{ sessionId: s.id, setId: 'b', token: expect.any(String) }]);
     await restart(s.id);
     const unhook2 = failUpdates(db);
     await recoverSession(s.id, db, Date.now() + 60_000);

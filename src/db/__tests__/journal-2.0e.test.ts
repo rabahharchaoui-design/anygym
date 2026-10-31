@@ -71,7 +71,7 @@ function gateApply(d: AnyGymDB) {
   (d as unknown as { transaction: unknown }).transaction = (...a: unknown[]) => {
     const tables = a.slice(1, -1).flat() as Array<{ name: string }>;
     const names = tables.map((t) => t?.name);
-    if (armed && a[0] === 'rw' && names.includes('sets') && names.includes('journal') && !names.includes('kv')) {
+    if (armed && a[0] === 'rw' && names.includes('sets') && names.includes('journal') && names.includes('tombstones') && !names.includes('planState')) {
       armed = false;
       reached();
       return gate.then(() => real(...a));
