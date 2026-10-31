@@ -1,3 +1,5 @@
+Codex brief for PLAN item 3.1, written Nov 01 03:36 at commit e05ce2e. SPEC.md wins if they disagree; code may have moved since.
+
 Item [3.1, PLAN.md:70](/Users/rabah/projects/anygym/PLAN.md:70) is mostly built. The main remaining UI gap is catalog thumbnails in the workout day list; exercise-view demos already work.
 No files changed. This brief is based on source inspection; tests were not run.
 
