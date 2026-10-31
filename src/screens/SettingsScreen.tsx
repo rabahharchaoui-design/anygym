@@ -15,6 +15,7 @@ import { haptics } from '../ui/haptics';
 import { useActiveGym } from '../db/useActiveGym';
 import { setGymUnit, setPlateColors } from '../db/equipment';
 import type { Unit } from '../db/types';
+import { registerTap } from '../lib/secretTaps';
 import { version } from '../../package.json';
 import { getActiveSession } from '../db/workouts';
 import { parseBackup, workoutCount, type Backup } from '../lib/backup';
@@ -39,6 +40,13 @@ export function SettingsScreen() {
   const go = useNav();
   const navigate = useNavigate();
   const location = useLocation();
+  // Hidden (SPEC 9.4): 5 taps on the version number open the Review screen.
+  const versionTaps = useRef<number[]>([]);
+  const onVersionTap = () => {
+    const r = registerTap(versionTaps.current, Date.now(), 5);
+    versionTaps.current = r.taps;
+    if (r.fired) navigate('/review');
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState('');
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -304,11 +312,12 @@ export function SettingsScreen() {
         <div className={styles.card}>
           <p className={styles.row}>
             <span>AnyGym</span>
-            <span className={`${styles.value} num`} data-testid="app-version">
+            <span className={`${styles.value} num`} data-testid="app-version" onClick={onVersionTap}>
               Version {version}
             </span>
           </p>
           <p className={styles.note}>Everything you log stays on this phone and works offline. Only reports you send and crash reports leave it.</p>
+          <p className={styles.note}>Exercise photos and instructions: free-exercise-db (public domain). Muscle map drawing: react-body-highlighter (MIT).</p>
         </div>
       </section>
       <ReportProblemSheet open={reporting} onClose={() => setReporting(false)} facts={gymFacts(gym)} />
