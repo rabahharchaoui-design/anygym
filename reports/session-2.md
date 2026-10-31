@@ -26,3 +26,19 @@ Polish for the gate:
 - 94 of 138 catalog exercises (ladder only) have no cues yet; Review says so.
 
 Not done here: 2.6 merge gate (needs WebKit, the Simulator, the full matrix and the ux-critic).
+
+## Cloud run, Oct 31 2026, 18:57 to 19:50 UTC
+
+| Item | What | Notes |
+|---|---|---|
+| 2.0g | G's urgent bug: a check jumped to the next exercise | Root cause: Barbell Incline Bench Press is in a pair with Incline Plate Press, and every check in a pair auto switched to the partner after 900 ms with no rest. Now `advancesAfterLog` (planWorkout.ts) moves on only after the last planned working set; the pair partner is a tappable "Pair: X next" chip; the block rest runs inside pairs; an extra set after going back never moves on and cancels a pending "Nice. Next" return. tests/stay-2.0g.spec.ts on SE and 17 Pro Max. |
+| 2.0h | Codex 1101 bughunt carry over | Backup carries edits held in the mutation fallback; restore makes them pending again. The other findings in the three 1101 reports were written against pre 2.0f code and are the 2.0f groups. |
+
+Decisions made unattended:
+- Pairs no longer go back to back automatically (G's 2.0g expectation overrides SPEC 13.1's automatic hop). The day list still lights the partner as next, and the chip is one tap. SPEC 22 already flags the incline pair as two chest presses back to back.
+- Warm up blocks and stretches never move on by themselves.
+- plans.spec.ts: waits for the day 1 rows before reading their order (it read them a frame early on a slow machine).
+
+SIM CHECK PENDING (cloud, Chromium only) for 2.0g (the pair chip over the rest bar on SE).
+
+Not done here: 2.6 merge gate (still needs WebKit, the Simulator, the full matrix and the ux-critic).
