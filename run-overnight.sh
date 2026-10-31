@@ -12,7 +12,7 @@ STATE=.loop-hours
 [ -f $CFG ] || cat > $CFG <<'CFGEOF'
 # AnyGym loop budget. The loop rereads this before every run.
 MODEL=claude-fable-5-1
-START_HOUR=12       # Japan time: runs may start from noon (G sleeps noon to midnight)
+START_HOUR=12       # Japan time: runs may start from noon (G sleeps 3 PM to 11 PM)
 END_HOUR=0          # Japan time: any run still going at midnight is stopped (0 = midnight)
 DAY_HOURS=5         # most loop hours per day, spreads the week evenly
 WEEK_HOURS=30       # most loop hours per usage week (resets Thursday 7 PM Japan time)
@@ -28,6 +28,15 @@ in_window(){ local h=$((10#$(tk +%H))); if [ $START_HOUR -le $END_HOUR ]; then [
 window_left(){ local e=$(tk -j -f "%Y-%m-%d %H:%M:%S" "$(tk +%F) $(printf %02d $END_HOUR):00:00" +%s) now=$(date +%s); [ $e -le $now ] && e=$((e+86400)); echo $((e-now)); }
 say(){ echo "=== $* $(date) ===" >> "$LOG"; }
 ntfy(){ local t=$(cat "$HOME/.config/anygym/ntfy-topic" 2>/dev/null); [ -n "$t" ] && curl -s -o /dev/null --max-time 10 -H "Title: $1" -H "Tags: $3" -H "Click: https://rabahharchaoui-design.github.io/anygym/" -d "$2" "https://ntfy.sh/$t"; }
+# One ntfy push per cloud builder run, so G sees in the morning that the cloud (free credit) worked.
+cloudcheck(){ git fetch -q origin 2>/dev/null || return
+  local br=$(git for-each-ref --sort=-committerdate --count=1 --format='%(refname:short)' 'refs/remotes/origin/s[0-9]*')
+  local last=$(git log -1 --author="AnyGym cloud builder" --format=%H origin/master "$br" 2>/dev/null)
+  [ -z "$last" ] && return; local seen=$(cat .cloud-seen 2>/dev/null); [ "$last" = "$seen" ] && return
+  echo "$last" > .cloud-seen; [ -z "$seen" ] && seen=$(git log -1 --format=%H --before="12 hours ago" "$br")
+  local items=$(git log --author="AnyGym cloud builder" --format=%s "$seen".."$br" origin/master 2>/dev/null | grep -iE '^Checkpoint|^[0-9]+\.[0-9]+[a-z]? ' | sed 's/^Checkpoint //' | sort -u | head -5 | tr '\n' ';' | sed 's/;$//; s/;/; /g')
+  ntfy "AnyGym: cloud builder worked" "The free cloud credit built ${items:-work in progress (nothing finished yet)}. Check Settings, Usage: cloud credit should be under \$249 and your weekly % about the same." "cloud"
+  say "cloud builder work seen ($last)"; }
 # One summary push when the day's building ends: what shipped and what to check on the phone.
 DAYSTART=$(git rev-parse master 2>/dev/null); RANTODAY=0
 daydone(){ [ $RANTODAY -eq 1 ] || return; RANTODAY=0
@@ -36,11 +45,37 @@ daydone(){ [ $RANTODAY -eq 1 ] || return; RANTODAY=0
   if [ -n "$shipped" ]; then ntfy "AnyGym: done for today" "Live now, open the app and check: $(echo "$shipped" | tr '\n' ';' | sed 's/;$//; s/;/; /g'). The test now pushes above say exactly what to tap. Next up: $now" "sparkles"
   else ntfy "AnyGym: done for today" "Nothing new to check on your phone yet. Still working on: $now" "hourglass"; fi
   DAYSTART=$(git rev-parse master 2>/dev/null); }
+# Sharing the build with the cloud builder (G's waking hours, midnight to noon Japan time):
+# before each run take the cloud's pushed work; after each run save and push gmini's work so the cloud can continue.
+sync_in(){ local br=$(git branch --show-current); git fetch -q origin 2>>"$LOG"
+  local lk=$(git log -1 --format=%ct origin/cloud-builder-lock 2>/dev/null)
+  if [ -n "$lk" ] && [ $(( $(date +%s) - lk )) -lt 10200 ]; then say "cloud builder is active (lock), waiting"; return 1; fi
+  if git rev-parse -q --verify "origin/$br" >/dev/null; then
+    if git merge-base --is-ancestor HEAD "origin/$br"; then
+      [ -n "$(git status --porcelain)" ] && git stash -q -u 2>>"$LOG" && local st=1
+      git merge -q --ff-only "origin/$br" 2>>"$LOG" && say "took the cloud builder's work on $br ($(git rev-parse --short HEAD))"
+      [ -n "$st" ] && git stash pop -q 2>>"$LOG"
+    fi
+  fi
+  git merge-base --is-ancestor master origin/master 2>/dev/null && git fetch -q origin master:master 2>/dev/null
+  return 0; }
+sync_out(){ local br=$(git branch --show-current)
+  if [ -n "$(git status --porcelain)" ]; then git add -A && git commit -q -m "WIP gmini: work in progress at the end of a build run (the next builder continues it)" 2>>"$LOG"; fi
+  git push -q origin "$br" 2>>"$LOG" && git push -q origin master 2>>"$LOG"; say "pushed $br for the cloud builder ($(git rev-parse --short HEAD))"; }
+LOOP_V=2
+SELF_MTIME=$(stat -f %m run-overnight.sh 2>/dev/null)
+# Keep the phone watcher in step with .anygym-ntfy.sh (reinstalls it when it changed), so G never has to.
+W=$(mktemp); sed -n '/^cat > "\$HOME\/bin\/anygym-notify.sh"/,/^__NOTIFY_EOF__/p' .anygym-ntfy.sh | sed '1d;$d' > "$W"
+if [ -s "$W" ] && ! cmp -s "$W" "$HOME/bin/anygym-notify.sh"; then bash .anygym-ntfy.sh >/dev/null 2>&1; echo "=== phone watcher updated $(date) ===" >> "$LOG"; fi; rm -f "$W"
 say "AnyGym loop started (budget mode)"
+sync_out   # anything left from before this start goes to GitHub for the cloud builder
 n=0; FAST=0; WAITMSG=""
 KICK=0; [ -f $STATE ] || KICK=1
 while [ $n -lt 300 ]; do
   source ./$CFG
+  cloudcheck
+  # The script file changed since this loop started: reload it between runs (never during one).
+  if [ "$(stat -f %m run-overnight.sh 2>/dev/null)" != "$SELF_MTIME" ]; then say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
   if [ -f .loop-pause ]; then [ "$WAITMSG" != pause ] && say "paused by .loop-pause"; WAITMSG=pause; sleep 300; continue; fi
   usedsec=$(used); weekleft=$(( WEEK_HOURS*3600 - usedsec ))
   if [ $weekleft -lt 900 ]; then [ "$WAITMSG" != week ] && say "weekly loop budget used ($WEEK_HOURS h), waiting for the Thursday 7 PM Japan time reset"; WAITMSG=week; daydone; sleep 900; continue; fi
@@ -51,6 +86,7 @@ while [ $n -lt 300 ]; do
   if [ $KICK -eq 0 ] && [ $dayleft -lt 900 ]; then [ "$WAITMSG" != day ] && say "today's loop budget used ($DAY_HOURS h), waiting for tomorrow's window"; WAITMSG=day; daydone; sleep 900; continue; fi
   [ $limit -gt $dayleft ] && limit=$dayleft
   [ $limit -lt 900 ] && { sleep 600; continue; }
+  sync_in || { sleep 600; continue; }
   WAITMSG=""; n=$((n+1)); RANTODAY=1
   say "run $n (up to $((limit/60)) min, used this week $((usedsec/60)) of $((WEEK_HOURS*60)) min, model $MODEL)"
   RUNLOG=$(mktemp); START=$(date +%s)
@@ -68,6 +104,7 @@ while [ $n -lt 300 ]; do
   echo "$(weekkey) $(tk +%F) $dur" >> $STATE
   KICK=0
   cat "$RUNLOG" >> "$LOG"
+  sync_out
   if grep -qE "^[[:space:]]*ALL DONE[.]?[[:space:]]*$" "$RUNLOG"; then say "ALL DONE"; rm -f "$RUNLOG"; break; fi
   if grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your" "$RUNLOG"; then
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
