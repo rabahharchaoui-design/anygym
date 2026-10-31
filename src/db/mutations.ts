@@ -138,6 +138,34 @@ export async function pendingMutations(sessionId: string, db: AnyGymDB = default
   return [...stored, ...held.values()].sort((a, b) => a.at - b.at || order(a) - order(b) || a.rev - b.rev);
 }
 
+/**
+ * This workout's changes held only in memory or the fallback (their journal write failed), not
+ * superseded, oldest first: what a backup carries so they stay retryable after a restore (PLAN 2.0h).
+ */
+export async function heldMutations(sessionId: string, db: AnyGymDB = defaultDb, ls: KV | null = phone()): Promise<JournalEntry[]> {
+  return (await pendingMutations(sessionId, db, ls)).filter((e) => e.id.startsWith(MEMORY_PREFIX));
+}
+
+/**
+ * Restore (PLAN 2.0h): a backup's held changes are put back, with their ids, times and values, in
+ * memory and (when it takes them) the fallback, before Try again or Finish can run. `replace`: the
+ * held copies of the replaced data go (no workout was in progress, so none is the user's word).
+ * Changes made here after the restore are ordered after them.
+ */
+export function restoreHeldMutations(entries: readonly JournalEntry[], db: AnyGymDB = defaultDb, ls: KV | null = phone(), replace = false): void {
+  const mem = memoryOf(db);
+  if (replace) mem.clear();
+  for (const e of entries) mem.set(e.id, structuredClone(e));
+  lastAts.set(db, Math.max(lastAts.get(db) ?? -Infinity, ...entries.map((e) => e.at)));
+  try {
+    const ids = new Set(entries.map((e) => e.id));
+    const keep = replace ? [] : readFallback(ls).filter((e) => !ids.has(e.id));
+    if (replace || entries.length) writeFallback(ls, [...keep, ...entries]);
+  } catch {
+    /* memory alone holds them for this app run */
+  }
+}
+
 /** How many changes the user made that did not land: one per set and kind, however many tries. */
 export function changeCount(entries: readonly JournalEntry[]): number {
   return new Set(entries.filter((e) => e.mutation).map((e) => mutationKey(e.mutation!))).size;

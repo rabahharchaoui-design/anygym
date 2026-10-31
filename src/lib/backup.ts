@@ -54,12 +54,21 @@ export type Backup = {
    */
   rest?: BackupRest;
   extraSets?: BackupExtraSets;
+  /**
+   * Changes to logged sets of the workout in progress whose journal write failed (PLAN 2.0h,
+   * optional, additive): held in memory or the localStorage fallback, never in a table. Each with
+   * its id, time and full values, oldest first; restored, they stay pending for Try again.
+   */
+  pendingChanges?: JournalEntry[];
 };
+
+/** At most this many held changes in a backup (one per tap that failed; a real workout has a few). */
+export const MAX_PENDING_CHANGES = 500;
 
 export type BackupRest = { sessionId: string; endsAt: number; totalSec: number };
 export type BackupExtraSets = { sessionId: string; extra: Record<string, number> };
 /** What a backup carries beside the tables and drafts (PLAN 2.0c). */
-export type BackupLive = { rest?: BackupRest | null; extraSets?: BackupExtraSets | null };
+export type BackupLive = { rest?: BackupRest | null; extraSets?: BackupExtraSets | null; pendingChanges?: readonly JournalEntry[] };
 
 export type BackupDrafts = DraftsBlob;
 
@@ -77,7 +86,10 @@ export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersi
   const activeIds = new Set(tables.sessions.filter(isActiveSession).map((s) => s.id));
   const active = activeIds.size > 0;
   const extra = live.extraSets && activeIds.has(live.extraSets.sessionId) && Object.keys(live.extraSets.extra).length ? live.extraSets : null;
+  // Held changes of a workout in progress whose set is in the file (a set gone needs nothing any more).
+  const held = (live.pendingChanges ?? []).filter((e) => activeIds.has(e.sessionId) && heldSetHere(e, tables as unknown as Record<TableName, Rec[]>)).slice(-MAX_PENDING_CHANGES);
   return {
+    ...(held.length ? { pendingChanges: held.map((e) => structuredClone(e)) } : {}),
     ...(live.rest && activeIds.has(live.rest.sessionId) ? { rest: { ...live.rest } } : {}),
     ...(extra ? { extraSets: { sessionId: extra.sessionId, extra: { ...extra.extra } } } : {}),
     format: BACKUP_FORMAT,
@@ -371,6 +383,37 @@ function liveOk(v: unknown, check: Check, sessions: Rec[]): boolean {
   return sessions.some((s) => s.id === (v as Rec).sessionId && isActiveSession(s as Pick<Session, 'endedAt' | 'imported'>));
 }
 
+/** A held change's set (logged or deleted within Undo) belongs to the change's own workout in the file. */
+function heldSetHere(e: Pick<JournalEntry, 'sessionId' | 'mutation'>, t: Record<TableName, Rec[]>): boolean {
+  const setId = e.mutation?.setId;
+  return [...t.sets, ...t.tombstones].some((r) => r.id === setId && r.sessionId === e.sessionId);
+}
+
+/**
+ * A held change (PLAN 2.0h, db/mutations.ts): id `mem:<kind>:<setId>:<at>:<n>` naming its own
+ * change and time, revision -1, its key and placeholder draft agreeing, valid values.
+ */
+const isHeld: Check = (v) => {
+  if (!shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: oneOf(-1), draft: shape({ req: { id: str, load: oneOf(null) } }), at: num, mutation: isMutation } })(v)) return false;
+  const e = v as Rec;
+  const m = e.mutation as Rec;
+  const base = `mem:${m.kind as string}:${m.setId as string}:${String(e.at)}:`;
+  const id = e.id as string;
+  const draft = e.draft as Rec;
+  return e.key === `${m.kind as string}:${m.setId as string}` && draft.id === id && Object.keys(draft).length === 2 && id.startsWith(base) && /^[1-9]\d{0,15}$/.test(id.slice(base.length));
+};
+
+/** Held changes: absent, or a bounded list of distinct valid ones of a workout in progress in the file, oldest first. */
+function heldOk(v: unknown, t: Record<TableName, Rec[]>): boolean {
+  if (v === undefined) return true;
+  if (!Array.isArray(v) || v.length > MAX_PENDING_CHANGES || !v.every(isHeld)) return false;
+  const list = v as Array<JournalEntry & Rec>;
+  if (new Set(list.map((e) => e.id)).size !== list.length) return false;
+  if (!list.every((e, i) => i === 0 || list[i - 1]!.at <= e.at)) return false;
+  const active = new Set(t.sessions.filter((s) => isActiveSession(s as Pick<Session, 'endedAt' | 'imported'>)).map((s) => s.id as string));
+  return list.every((e) => active.has(e.sessionId) && heldSetHere(e, t));
+}
+
 /** Reads a backup file's text. Strict: anything off is refused with one plain sentence. */
 export function parseBackup(text: string): ParseResult {
   let raw: unknown;
@@ -414,12 +457,14 @@ export function parseBackup(text: string): ParseResult {
   if (!draftsOk(drafts, upgraded.sessions)) return { ok: false, error: DAMAGED };
   if (!draftPlatesHold(upgraded, drafts as Rec)) return { ok: false, error: DAMAGED };
   if (!liveOk(raw.rest, isRest, upgraded.sessions) || !liveOk(raw.extraSets, isExtraSets, upgraded.sessions)) return { ok: false, error: DAMAGED };
+  if (!heldOk(raw.pendingChanges, upgraded)) return { ok: false, error: DAMAGED };
 
   return {
     ok: true,
     backup: { format: BACKUP_FORMAT, appVersion: raw.appVersion as string, schemaVersion: version, exportedAt: raw.exportedAt as number, tables: upgraded as unknown as BackupTables, drafts: drafts as BackupDrafts,
       ...(raw.rest !== undefined ? { rest: raw.rest as BackupRest } : {}),
       ...(raw.extraSets !== undefined ? { extraSets: raw.extraSets as BackupExtraSets } : {}),
+      ...(raw.pendingChanges !== undefined ? { pendingChanges: raw.pendingChanges as JournalEntry[] } : {}),
     },
   };
 }
