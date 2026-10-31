@@ -73,6 +73,7 @@ Collapsed by default during a workout: only the demo and one line of cues show; 
 ### 4.5 Muscle map
 Port the SVG polygon data from `giavinh79/react-body-highlighter` (MIT; keep its license file in `third_party/`) into our own small React component. Map catalog muscles to regions:
 abdominals→abs, obliques→obliques, abductors→abductors, adductors→adductor, biceps→biceps, calves→calves, chest→chest, forearms→forearm, glutes→gluteal, hamstrings→hamstring, lats→upper-back, middle back→upper-back, lower back→lower-back, neck→neck, quadriceps→quadriceps, traps→trapezius, triceps→triceps, shoulders→ **must be resolved per exercise** to front-deltoids or back-deltoids (presses and front raises: front; reverse fly, face pulls, rear delt rows: back). The diagram has no side delt region, so lateral raises highlight front-deltoids and the text label says "Side delts".
+PREMIUM MAP (PLAN 2.2a, G Nov 1, supersedes the react-body-highlighter drawing above): the drawing is the vector art of react-native-body-highlighter 3.2.0 (MIT, Copyright (c) 2022 ELABBASSI Hicham; license in `third_party/`), ported as path data into our own React SVG component. Four bodies with equal quality: male front, male back, female front, female back (the female body is its own drawing, never the male one reused). One body at a time, large, with a Front/Back switch (opens on the side where the primary muscles are) and a Male/Female switch; the choice is saved on the phone (Settings → Feel → "Muscle map body", and the intake question in 14). Colors only from tokens: primary `--accent` with a subtle glow, secondary `--accent` at reduced opacity, every other muscle dark graphite, outlines in `--bg`. Tap a muscle to show its name and whether this exercise works it (primary, secondary or not here); exercises for a tapped muscle are PLAN 2.2b. Highlight and view changes take 200 to 300 ms, a 2D crossfade (no 3D flip), none with reduced motion. The same region table as above lights the same muscles on both bodies; the deltoid is split by view: front view = front delts, back view = rear delts.
 Under the diagram, always list the primary muscles as text ("Upper chest, front delts · Triceps"), because text can be precise where the drawing is coarse. Ambiguous mappings go in `data/muscle-overrides.json` and are listed in CATALOG_REPORT.md.
 
 ## 5. Logging and the plate diagram
@@ -229,7 +230,7 @@ Bottom tabs: **Today · Run · History · Plans**. Settings opens from a profile
 4. **Finish summary:** total sets, volume, PRs (rep PR at a load, load PR), duration. A clean shareable card (Web Share API image) with the AnyGym mark.
 5. **History:** calendar dots + list; tap a session to see sets. Per exercise history chart (load over time).
 6. **Plans:** curated list + "Generate a new plan".
-7. **Settings:** profile, gyms (add, edit, set active), units, plate colors, rest timer defaults, Backup (export JSON via share sheet), Restore (import JSON), Import history (9.3), About and credits.
+7. **Settings:** profile, gyms (add, edit, set active), units, plate colors, muscle map body (Male / Female), rest timer defaults, Backup (export JSON via share sheet), Restore (import JSON), Import history (9.3), About and credits.
 
 Music: two small buttons in the workout top bar that open Spotify (`spotify://`) or Apple Music (`music://`). No API, no login. If the app is not installed, fail silently.
 
@@ -402,7 +403,7 @@ Replaces the short onboarding in 7.1. Every screen is big tappable prompt chips 
 10. Anything to go easy on? Lower back · Knees · Shoulders · Wrists · Neck · Hips · None. (Stored only on the phone; used to avoid or swap exercises; never shown as medical advice; plain note: "If something hurts, stop and check with a professional.")
 11. Exercises you love / never want to see (searchable chips, optional)
 12. When do you usually work out? Early morning · Lunch · After work · Night (used for reminder timing)
-13. About you (optional, Skip button prominent): name for the passport, units, bodyweight, height, age range. Used only to suggest starting weights and calorie neutral targets.
+13. About you (optional, Skip button prominent): name for the passport, units, bodyweight, height, age range, and "Body for the muscle map: Male / Female" (PLAN 2.2a; the same phone preference the muscle map and Settings use). Used only to suggest starting weights and calorie neutral targets.
 14. Your plan reveal: animated build of their week ("Mon Push · Wed Pull · Fri Legs"), why it fits them in 2 lines ("4 days, 45 min, hotel friendly, extra arm and glute work, easy on knees"), and "Or pick a curated plan" with matching curated plans.
 Everything is editable later in Settings → My profile, and "Rebuild my plan" reruns the generator.
 

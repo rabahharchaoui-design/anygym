@@ -1,8 +1,8 @@
 // Muscle map data (SPEC 4.5): turns a catalog exercise's muscle lists into the body regions to
 // light up and the text line shown under the drawing. Pure: no I/O, so the app, the report script
-// and the tests share one definition. Only `import type` from bodyPolygons so Node can run the
+// and the tests share one definition. Only `import type` from bodyArt so Node can run the
 // report script straight from TypeScript.
-import type { Region } from './bodyPolygons';
+import type { Region } from './bodyArt';
 
 /** What "shoulders" means for one exercise (data/muscle-overrides.json). */
 export type ShoulderPart = 'front' | 'rear' | 'side' | 'rotator cuff' | 'leave out';
@@ -47,7 +47,7 @@ export const MUSCLE_REGIONS: Record<string, Region[]> = {
   abdominals: ['abs'],
   obliques: ['obliques'],
   // SPEC 4.5 says abductors→abductors, but the upstream polygon with that name sits on the inner
-  // thigh (it is filed under adductor in bodyPolygons.ts). The hip abductors are the side glutes,
+  // thigh (the PLAN 2.2 drawing filed it under adductor). The hip abductors are the side glutes,
   // so lighting the glute shape is the honest choice (SPEC 0: no wrong muscles).
   abductors: ['gluteal'],
   adductors: ['adductor'],
