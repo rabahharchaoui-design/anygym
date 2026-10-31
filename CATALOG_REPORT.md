@@ -117,8 +117,65 @@ Source: yuhonas/free-exercise-db at commit `f00c92c7dcf1216a928a52c3706c7ce8e2f7
 - calves: Standing_Calf_Raises, Seated_Calf_Raise, Standing_Dumbbell_Calf_Raise, Smith_Machine_Calf_Raise, Calf_Press_On_The_Leg_Press_Machine, Standing_Barbell_Calf_Raise, Calf_Raises_-_With_Bands
 - core: Plank, Crunches, Cable_Crunch, Hanging_Leg_Raise, Sit-Up, Russian_Twist, Dead_Bug, Ab_Crunch_Machine, Reverse_Crunch, Side_Bridge, Ab_Roller
 
-## Muscles to resolve (SPEC 4.5)
+## Muscle map (SPEC 4.5)
 
-Exercises listing "shoulders" need front or back deltoid chosen per exercise in data/muscle-overrides.json:
+The source only says "shoulders"; every exercise that lists them is resolved in data/muscle-overrides.json
+(checked by src/lib/__tests__/muscles.test.ts). Side delts light the front delt shape because the drawing has none;
+the text under the map says side delts. Hip abductors light the glute shape (the upstream "abductors" polygon sits
+on the inner thigh and is drawn as adductor). Plan exercises with match none show no muscle map.
 
-Ab_Roller, Arnold_Dumbbell_Press, Back_Flyes_-_With_Bands, Barbell_Bench_Press_-_Medium_Grip, Barbell_Incline_Bench_Press_-_Medium_Grip, Bench_Dips, Bent_Over_Barbell_Row, Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench, Bent_Over_Two-Dumbbell_Row, Cable_Chest_Press, Cable_Crossover, Cable_Rear_Delt_Fly, Cable_Seated_Lateral_Raise, Close-Grip_Barbell_Bench_Press, Close-Grip_Front_Lat_Pulldown, Dips_-_Triceps_Version, Dumbbell_Bench_Press, Dumbbell_Shoulder_Press, Face_Pull, Front_Two-Dumbbell_Raise, Goblet_Squat, Handstand_Push-Ups, Incline_Cable_Flye, Incline_Dumbbell_Flyes, Incline_Push-Up, Internal_Rotation_with_Band, Lateral_Raise_-_With_Bands, Leverage_Chest_Press, Lying_Dumbbell_Tricep_Extension, Machine_Bench_Press, Machine_Shoulder_Military_Press, One-Arm_Dumbbell_Row, Pushups, Reverse_Flyes, Reverse_Machine_Flyes, Seated_Barbell_Military_Press, Seated_Cable_Rows, Seated_Dumbbell_Press, Seated_Side_Lateral_Raise, Side_Bridge, Side_Lateral_Raise, Smith_Machine_Bench_Press, Smith_Machine_Bent_Over_Row, Smith_Machine_Overhead_Shoulder_Press, Smith_Machine_Upright_Row, Standing_Low-Pulley_Deltoid_Raise, Standing_Military_Press, Standing_One-Arm_Dumbbell_Triceps_Extension, Underhand_Cable_Pulldowns, V-Bar_Pulldown, Wide-Grip_Lat_Pulldown
+| Catalog id | Shoulders in source | Shown as | Text under the map | Why |
+|---|---|---|---|---|
+| Ab_Roller | secondary | left out | Abs | The shoulders hold the position but are not what this trains, and the source does not say which part. |
+| Arnold_Dumbbell_Press | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| Back_Flyes_-_With_Bands | primary | rear delts (back-deltoids) | Rear delts · Mid back, triceps | Pulling the arms back works the rear delts. |
+| Barbell_Bench_Press_-_Medium_Grip | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Barbell_Incline_Bench_Press_-_Medium_Grip | secondary | front delts (front-deltoids) | Upper chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. The incline aims the work at the upper chest. |
+| Bench_Dips | secondary | front delts (front-deltoids) | Triceps · Chest, front delts | Dips push the body up with the hands behind, which loads the front delts. |
+| Bent_Over_Barbell_Row | secondary | rear delts (back-deltoids) | Mid back · Biceps, lats, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench | primary | rear delts (back-deltoids) | Rear delts | Pulling the arms back works the rear delts. |
+| Bent_Over_Two-Dumbbell_Row | secondary | rear delts (back-deltoids) | Mid back · Biceps, lats, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| Cable_Chest_Press | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Cable_Crossover | secondary | front delts (front-deltoids) | Chest · Front delts | Fly and crossover movements bring the arms forward and together, which the front delts help with. |
+| Cable_Rear_Delt_Fly | primary | rear delts (back-deltoids) | Rear delts | Pulling the arms back works the rear delts. |
+| Cable_Seated_Lateral_Raise | primary | side delts (front-deltoids) | Side delts · Mid back, traps | Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts. |
+| Close-Grip_Barbell_Bench_Press | secondary | front delts (front-deltoids) | Triceps · Chest, front delts | Pressing or pushing forward or overhead works the front delts. |
+| Close-Grip_Front_Lat_Pulldown | secondary | rear delts (back-deltoids) | Lats · Biceps, mid back, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| Dips_-_Triceps_Version | secondary | front delts (front-deltoids) | Triceps · Chest, front delts | Dips push the body up, which loads the front delts. |
+| Dumbbell_Bench_Press | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Dumbbell_Shoulder_Press | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| Face_Pull | primary | rear delts (back-deltoids) | Rear delts · Mid back | Pulling the arms back works the rear delts. |
+| Front_Two-Dumbbell_Raise | primary | front delts (front-deltoids) | Front delts | Raising the arms to the front is what the front delts do. |
+| Goblet_Squat | secondary | left out | Quads · Calves, glutes, hamstrings | The shoulders only hold the weight in place; they are not a target of the squat. |
+| Handstand_Push-Ups | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| Incline_Cable_Flye | secondary | front delts (front-deltoids) | Upper chest · Front delts | Fly and crossover movements bring the arms forward and together, which the front delts help with. The incline aims the work at the upper chest. |
+| Incline_Dumbbell_Flyes | secondary | front delts (front-deltoids) | Upper chest · Front delts | Fly and crossover movements bring the arms forward and together, which the front delts help with. The incline aims the work at the upper chest. |
+| Incline_Push-Up | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Internal_Rotation_with_Band | primary | rotator cuff (text only) | Rotator cuff | Turning the forearm in with the elbow at the side works the rotator cuff. The drawing has no rotator cuff shape, so only the text names it. |
+| Lateral_Raise_-_With_Bands | primary | side delts (front-deltoids) | Side delts | Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts. |
+| Leverage_Chest_Press | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Lying_Dumbbell_Tricep_Extension | secondary | left out | Triceps · Chest | The upper arm stays still, so the shoulders only steady it; not a target. |
+| Machine_Bench_Press | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Machine_Shoulder_Military_Press | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| One-Arm_Dumbbell_Row | secondary | rear delts (back-deltoids) | Mid back · Biceps, lats, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| Pushups | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Reverse_Flyes | primary | rear delts (back-deltoids) | Rear delts | Pulling the arms back works the rear delts. |
+| Reverse_Machine_Flyes | primary | rear delts (back-deltoids) | Rear delts | Pulling the arms back works the rear delts. |
+| Seated_Barbell_Military_Press | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| Seated_Cable_Rows | secondary | rear delts (back-deltoids) | Mid back · Biceps, lats, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| Seated_Dumbbell_Press | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| Seated_Side_Lateral_Raise | primary | side delts (front-deltoids) | Side delts | Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts. |
+| Side_Bridge | secondary | left out | Abs | The shoulder holds the body up but is not what this trains, and the source does not say which part. |
+| Side_Lateral_Raise | primary | side delts (front-deltoids) | Side delts | Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts. |
+| Smith_Machine_Bench_Press | secondary | front delts (front-deltoids) | Chest · Front delts, triceps | Pressing or pushing forward or overhead works the front delts. |
+| Smith_Machine_Bent_Over_Row | secondary | rear delts (back-deltoids) | Mid back · Biceps, lats, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| Smith_Machine_Overhead_Shoulder_Press | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| Smith_Machine_Upright_Row | secondary | side delts (front-deltoids) | Traps · Biceps, mid back, side delts | Pulling the elbows up and out works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts. |
+| Standing_Low-Pulley_Deltoid_Raise | primary | side delts (front-deltoids) | Side delts · Forearms | A one arm cable raise out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts. |
+| Standing_Military_Press | primary | front delts (front-deltoids) | Front delts · Triceps | Pressing or pushing forward or overhead works the front delts. |
+| Standing_One-Arm_Dumbbell_Triceps_Extension | secondary | left out | Triceps · Chest | The upper arm stays still overhead, so the shoulder only steadies it; not a target. |
+| Underhand_Cable_Pulldowns | secondary | rear delts (back-deltoids) | Lats · Biceps, mid back, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| V-Bar_Pulldown | secondary | rear delts (back-deltoids) | Lats · Biceps, mid back, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+| Wide-Grip_Lat_Pulldown | secondary | rear delts (back-deltoids) | Lats · Biceps, mid back, rear delts | Rowing and pulling down bring the upper arm back, which the rear delts help with. |
+
+Text overrides: Barbell_Incline_Bench_Press_-_Medium_Grip (chest → upper chest), Incline_Cable_Flye (chest → upper chest), Incline_Dumbbell_Flyes (chest → upper chest).

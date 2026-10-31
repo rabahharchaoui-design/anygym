@@ -14,7 +14,8 @@
     "icons": "node scripts/make-icons.mjs",
     "test:coverage": "vitest run --coverage",
     "plan-exercises": "node scripts/build-plan-exercises.ts",
-    "catalog": "node scripts/build-catalog.ts"
+    "catalog": "node scripts/build-catalog.ts",
+    "muscle-report": "node scripts/muscle-report.ts"
   },
   "dependencies": {
     "dexie": "^4.4.7",

@@ -1,0 +1,218 @@
+{
+ "about": "SPEC 4.5. The source data only says \"shoulders\"; the drawing has front and rear delt shapes. Every catalog exercise that lists shoulders says here which part it means: front, rear, side (drawn on the front delt shape, text says side delts), rotator cuff (text only), or leave out when the shoulders only steady the weight. labels replaces the text for one muscle when the exercise is more specific than the source (upper chest on an incline). Checked by src/lib/__tests__/muscles.test.ts.",
+ "exercises": {
+  "Ab_Roller": {
+   "shoulders": "leave out",
+   "why": "The shoulders hold the position but are not what this trains, and the source does not say which part."
+  },
+  "Arnold_Dumbbell_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Back_Flyes_-_With_Bands": {
+   "shoulders": "rear",
+   "why": "Pulling the arms back works the rear delts."
+  },
+  "Barbell_Bench_Press_-_Medium_Grip": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Barbell_Incline_Bench_Press_-_Medium_Grip": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts. The incline aims the work at the upper chest.",
+   "labels": {
+    "chest": "upper chest"
+   }
+  },
+  "Bench_Dips": {
+   "shoulders": "front",
+   "why": "Dips push the body up with the hands behind, which loads the front delts."
+  },
+  "Bent_Over_Barbell_Row": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench": {
+   "shoulders": "rear",
+   "why": "Pulling the arms back works the rear delts."
+  },
+  "Bent_Over_Two-Dumbbell_Row": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "Cable_Chest_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Cable_Crossover": {
+   "shoulders": "front",
+   "why": "Fly and crossover movements bring the arms forward and together, which the front delts help with."
+  },
+  "Cable_Rear_Delt_Fly": {
+   "shoulders": "rear",
+   "why": "Pulling the arms back works the rear delts."
+  },
+  "Cable_Seated_Lateral_Raise": {
+   "shoulders": "side",
+   "why": "Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts."
+  },
+  "Close-Grip_Barbell_Bench_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Close-Grip_Front_Lat_Pulldown": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "Dips_-_Triceps_Version": {
+   "shoulders": "front",
+   "why": "Dips push the body up, which loads the front delts."
+  },
+  "Dumbbell_Bench_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Dumbbell_Shoulder_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Face_Pull": {
+   "shoulders": "rear",
+   "why": "Pulling the arms back works the rear delts."
+  },
+  "Front_Two-Dumbbell_Raise": {
+   "shoulders": "front",
+   "why": "Raising the arms to the front is what the front delts do."
+  },
+  "Goblet_Squat": {
+   "shoulders": "leave out",
+   "why": "The shoulders only hold the weight in place; they are not a target of the squat."
+  },
+  "Handstand_Push-Ups": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Incline_Cable_Flye": {
+   "shoulders": "front",
+   "why": "Fly and crossover movements bring the arms forward and together, which the front delts help with. The incline aims the work at the upper chest.",
+   "labels": {
+    "chest": "upper chest"
+   }
+  },
+  "Incline_Dumbbell_Flyes": {
+   "shoulders": "front",
+   "why": "Fly and crossover movements bring the arms forward and together, which the front delts help with. The incline aims the work at the upper chest.",
+   "labels": {
+    "chest": "upper chest"
+   }
+  },
+  "Incline_Push-Up": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Internal_Rotation_with_Band": {
+   "shoulders": "rotator cuff",
+   "why": "Turning the forearm in with the elbow at the side works the rotator cuff. The drawing has no rotator cuff shape, so only the text names it."
+  },
+  "Lateral_Raise_-_With_Bands": {
+   "shoulders": "side",
+   "why": "Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts."
+  },
+  "Leverage_Chest_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Lying_Dumbbell_Tricep_Extension": {
+   "shoulders": "leave out",
+   "why": "The upper arm stays still, so the shoulders only steady it; not a target."
+  },
+  "Machine_Bench_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Machine_Shoulder_Military_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "One-Arm_Dumbbell_Row": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "Pushups": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Reverse_Flyes": {
+   "shoulders": "rear",
+   "why": "Pulling the arms back works the rear delts."
+  },
+  "Reverse_Machine_Flyes": {
+   "shoulders": "rear",
+   "why": "Pulling the arms back works the rear delts."
+  },
+  "Seated_Barbell_Military_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Seated_Cable_Rows": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "Seated_Dumbbell_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Seated_Side_Lateral_Raise": {
+   "shoulders": "side",
+   "why": "Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts."
+  },
+  "Side_Bridge": {
+   "shoulders": "leave out",
+   "why": "The shoulder holds the body up but is not what this trains, and the source does not say which part."
+  },
+  "Side_Lateral_Raise": {
+   "shoulders": "side",
+   "why": "Raising the arms out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts."
+  },
+  "Smith_Machine_Bench_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Smith_Machine_Bent_Over_Row": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "Smith_Machine_Overhead_Shoulder_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Smith_Machine_Upright_Row": {
+   "shoulders": "side",
+   "why": "Pulling the elbows up and out works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts."
+  },
+  "Standing_Low-Pulley_Deltoid_Raise": {
+   "shoulders": "side",
+   "why": "A one arm cable raise out to the side works the side delts. The drawing has no side delt shape, so the front delt shape lights up and the text says side delts."
+  },
+  "Standing_Military_Press": {
+   "shoulders": "front",
+   "why": "Pressing or pushing forward or overhead works the front delts."
+  },
+  "Standing_One-Arm_Dumbbell_Triceps_Extension": {
+   "shoulders": "leave out",
+   "why": "The upper arm stays still overhead, so the shoulder only steadies it; not a target."
+  },
+  "Underhand_Cable_Pulldowns": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "V-Bar_Pulldown": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  },
+  "Wide-Grip_Lat_Pulldown": {
+   "shoulders": "rear",
+   "why": "Rowing and pulling down bring the upper arm back, which the rear delts help with."
+  }
+ }
+}
