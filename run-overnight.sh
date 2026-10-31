@@ -34,12 +34,12 @@ cloudcheck(){ git fetch -q origin 2>/dev/null || return
   local last=$(git log -1 --author="AnyGym cloud builder" --format=%H origin/master "$br" 2>/dev/null)
   [ -z "$last" ] && return; local seen=$(cat .cloud-seen 2>/dev/null); [ "$last" = "$seen" ] && return
   echo "$last" > .cloud-seen; [ -z "$seen" ] && seen=$(git log -1 --format=%H --before="12 hours ago" "$br")
-  local items=$(git log --author="AnyGym cloud builder" --format=%s "$seen".."$br" origin/master 2>/dev/null | grep -iE '^Checkpoint|^[0-9]+\.[0-9]+[a-z]? ' | sed 's/^Checkpoint //' | sort -u | head -5 | tr '\n' ';' | sed 's/;$//; s/;/; /g')
+  local items=$(git log --author="AnyGym cloud builder" --format=%s "$seen".."$br" origin/master 2>/dev/null | grep -iE '^Checkpoint ' | sed 's/^Checkpoint //; s/: .*//' | sort -u | head -6 | tr '\n' ';' | sed 's/;$//; s/;/; /g')
   # Estimated credit left: cloud build hours (lock taken to released, from GitHub) x CLOUD_RATE dollars per hour from .loop-budget.
   local mins=$(git log --reverse --format='%ct %s' origin/cloud-builder-lock 2>/dev/null | awk '/lock taken/{t=$1} /lock released/{if(t){m+=($1-t)/60; t=0}} END{print int(m)}')
   local money=""
   if [ -n "$CLOUD_RATE" ] && [ -n "$CLOUD_START" ]; then money=$(awk -v r="$CLOUD_RATE" -v s="$CLOUD_START" -v m="$mins" 'BEGIN{printf " About $%.0f of the cloud credit left (estimate, %.1f cloud hours so far).", s-r*m/60, m/60}'); fi
-  ntfy "AnyGym: cloud builder worked" "The free cloud credit built ${items:-work in progress (nothing finished yet)}.$money" "cloud"
+  ntfy "AnyGym: cloud builder worked" "Shipped on the free cloud credit: ${items:-nothing finished yet, work in progress saved}. The test now pushes say what to try.$money" "cloud"
   say "cloud builder work seen ($last)"; }
 # One summary push when the day's building ends: what shipped and what to check on the phone.
 DAYSTART=$(git rev-parse master 2>/dev/null); RANTODAY=0
@@ -51,27 +51,27 @@ daydone(){ [ $RANTODAY -eq 1 ] || return; RANTODAY=0
   DAYSTART=$(git rev-parse master 2>/dev/null); }
 # Sharing the build with the cloud builder (G's waking hours, midnight to noon Japan time):
 # before each run take the cloud's pushed work; after each run save and push gmini's work so the cloud can continue.
-sync_in(){ local br=$(git branch --show-current); git fetch -q origin 2>>"$LOG"
-  local lk=$(git log -1 --format=%ct origin/cloud-builder-lock 2>/dev/null)
-  local lkm=$(git log -1 --format=%s origin/cloud-builder-lock 2>/dev/null)
-  if [ -n "$lk" ] && [ $(( $(date +%s) - lk )) -lt 10200 ] && ! echo "$lkm" | grep -qi released; then say "cloud builder is active (lock), waiting"; return 1; fi
-  if git rev-parse -q --verify "origin/$br" >/dev/null; then
-    if git merge-base --is-ancestor HEAD "origin/$br"; then
-      [ -n "$(git status --porcelain)" ] && git stash -q -u 2>>"$LOG" && local st=1
-      git merge -q --ff-only "origin/$br" 2>>"$LOG" && say "took the cloud builder's work on $br ($(git rev-parse --short HEAD))"
-      [ -n "$st" ] && git stash pop -q 2>>"$LOG"
-    fi
+cloud_busy(){ local lk=$(git log -1 --format=%ct origin/cloud-builder-lock 2>/dev/null) lkm=$(git log -1 --format=%s origin/cloud-builder-lock 2>/dev/null)
+  [ -n "$lk" ] && [ $(( $(date +%s) - lk )) -lt 10200 ] && ! echo "$lkm" | grep -qi released; }
+# Bring gmini up to date with GitHub (the cloud builder's work), keeping gmini's own unsaved and unpushed work on top.
+catch_up(){ local br=$(git branch --show-current); git fetch -q origin 2>>"$LOG"
+  git rev-parse -q --verify "origin/$br" >/dev/null || return 0
+  git merge-base --is-ancestor "origin/$br" HEAD && return 0          # nothing new on GitHub
+  local st=""; [ -n "$(git status --porcelain)" ] && git stash -q -u 2>>"$LOG" && st=1
+  if git merge-base --is-ancestor HEAD "origin/$br"; then git merge -q --ff-only "origin/$br" 2>>"$LOG"
+  else git rebase -q "origin/$br" 2>>"$LOG" || { git rebase --abort 2>/dev/null; say "could not combine gmini's unpushed work with the cloud's, left as is"; ntfy "AnyGym: needs Claude" "gmini and the cloud builder changed the same thing. Ask Claude to look at overnight-loop.log." "warning"; }
   fi
-  git merge-base --is-ancestor master origin/master 2>/dev/null && git fetch -q origin master:master 2>/dev/null
-  return 0; }
-sync_out(){ local br=$(git branch --show-current)
+  [ -n "$st" ] && { git stash pop -q 2>>"$LOG" || say "stash pop conflict, gmini's local edits are kept in git stash"; }
+  [ "$(git branch --show-current)" = "$br" ] && git merge-base --is-ancestor master origin/master 2>/dev/null && git fetch -q origin master:master 2>/dev/null
+  say "up to date with GitHub on $br ($(git rev-parse --short HEAD))"; return 0; }
+sync_in(){ git fetch -q origin 2>>"$LOG"
+  if cloud_busy; then say "cloud builder is active (lock), waiting"; return 1; fi
+  catch_up; return 0; }
+sync_out(){ local br=$(git branch --show-current); git fetch -q origin 2>>"$LOG"
+  if cloud_busy; then say "cloud builder is active, gmini's work stays on gmini until it finishes"; return 0; fi
+  catch_up
   if [ -n "$(git status --porcelain)" ]; then git add -A && git commit -q -m "WIP gmini: work in progress at the end of a build run (the next builder continues it)" 2>>"$LOG"; fi
-  git push -q origin "$br" 2>>"$LOG" && git push -q origin master 2>>"$LOG"; say "pushed $br for the cloud builder ($(git rev-parse --short HEAD))"; }
-LOOP_V=2
-SELF_MTIME=$(stat -f %m run-overnight.sh 2>/dev/null)
-# Keep the phone watcher in step with .anygym-ntfy.sh (reinstalls it when it changed), so G never has to.
-W=$(mktemp); sed -n '/^cat > "\$HOME\/bin\/anygym-notify.sh"/,/^__NOTIFY_EOF__/p' .anygym-ntfy.sh | sed '1d;$d' > "$W"
-if [ -s "$W" ] && ! cmp -s "$W" "$HOME/bin/anygym-notify.sh"; then bash .anygym-ntfy.sh >/dev/null 2>&1; echo "=== phone watcher updated $(date) ===" >> "$LOG"; fi; rm -f "$W"
+  if git push -q origin "$br" 2>>"$LOG" && git push -q origin master 2>>"$LOG"; then say "pushed $br for the cloud builder ($(git rev-parse --short HEAD))"; else say "push to GitHub failed, will retry after the next run"; fi; }
 say "AnyGym loop started (budget mode)"
 sync_out   # anything left from before this start goes to GitHub for the cloud builder
 n=0; FAST=0; WAITMSG=""
