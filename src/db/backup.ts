@@ -10,7 +10,8 @@ import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, readUndoIntents } from './undoIntents';
-import { MUTATION_REV_PREFIX } from './workouts';
+import { MUTATION_DONE_PREFIX, MUTATION_REV_PREFIX } from './workouts';
+import { heldMutations, restoreHeldMutations } from './mutations';
 import type { Profile } from './types';
 
 export class ActiveWorkoutError extends Error {
@@ -44,7 +45,10 @@ export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), d
     const wanted = !t.undo && (await readUndoIntents(t.sessionId, db).catch(() => [] as string[])).includes(t.id);
     marked.tombstones.push(wanted ? { ...t, undo: true } : t);
   }
-  return buildBackup(marked, exportDrafts(drafts), version, now, liveOf(tables, drafts));
+  const active = tables.sessions.find(isActiveSession);
+  // Changes whose journal write failed (PLAN 2.0h): held in memory or the fallback, not in a table.
+  const pendingChanges = active ? await heldMutations(active.id, db, drafts) : [];
+  return buildBackup(marked, exportDrafts(drafts), version, now, { ...liveOf(tables, drafts), pendingChanges });
 }
 
 /** The running rest and added rows of the workout in progress (PLAN 2.0c), as the app holds them. */
@@ -98,6 +102,8 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
     await db.kv.where('key').startsWith(UNDO_PREFIX).delete();
     // The change revision counters of the old data (PLAN 2.0e): the restored journal's own revisions count from here.
     await db.kv.where('key').startsWith(MUTATION_REV_PREFIX).delete();
+    // And their supersession markers (PLAN 2.0f): a restored held change is never hidden by the old data's.
+    await db.kv.where('key').startsWith(MUTATION_DONE_PREFIX).delete();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
       if (rows.length) await db.table(t).bulkAdd(rows);
@@ -111,6 +117,8 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
   });
   replaceDrafts(backup.drafts, drafts);
   applyLive(backup, drafts);
+  // Before anything can Try again or Finish (PLAN 2.0h): the backup's held changes are pending here.
+  restoreHeldMutations(backup.pendingChanges ?? [], db, drafts, true);
   resetStartDb();
   return result;
 }
@@ -156,10 +164,12 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
       await db.kv.put(durableRow(REST_KEY, v.rest));
       await db.kv.put(durableRow(EXTRA_SETS_KEY, v.extra));
     }
-    return { workouts: added.size, sets, next, live };
+    return { workouts: added.size, sets, next, live, added };
   });
   if (result.next) replaceDrafts(result.next, drafts);
   if (result.live) applyLive(backup, drafts);
+  const held = (backup.pendingChanges ?? []).filter((e) => result.added.has(e.sessionId));
+  if (held.length) restoreHeldMutations(held, db, drafts);
   resetStartDb();
   return { workouts: result.workouts, sets: result.sets };
 }
