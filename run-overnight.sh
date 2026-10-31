@@ -49,7 +49,8 @@ daydone(){ [ $RANTODAY -eq 1 ] || return; RANTODAY=0
 # before each run take the cloud's pushed work; after each run save and push gmini's work so the cloud can continue.
 sync_in(){ local br=$(git branch --show-current); git fetch -q origin 2>>"$LOG"
   local lk=$(git log -1 --format=%ct origin/cloud-builder-lock 2>/dev/null)
-  if [ -n "$lk" ] && [ $(( $(date +%s) - lk )) -lt 10200 ]; then say "cloud builder is active (lock), waiting"; return 1; fi
+  local lkm=$(git log -1 --format=%s origin/cloud-builder-lock 2>/dev/null)
+  if [ -n "$lk" ] && [ $(( $(date +%s) - lk )) -lt 10200 ] && ! echo "$lkm" | grep -qi released; then say "cloud builder is active (lock), waiting"; return 1; fi
   if git rev-parse -q --verify "origin/$br" >/dev/null; then
     if git merge-base --is-ancestor HEAD "origin/$br"; then
       [ -n "$(git status --porcelain)" ] && git stash -q -u 2>>"$LOG" && local st=1
