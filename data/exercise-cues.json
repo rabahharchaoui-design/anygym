@@ -1,0 +1,383 @@
+{
+  "about": "Form cues for the exercise sheet (SPEC 4.4). Written by hand from the source instructions in data/catalog.json, never invented. Each cue is under 12 words and lists the source instruction lines it came from (0 based). watchOut only where a source line names the mistake.",
+  "exercises": {
+    "Arnold_Dumbbell_Press": {
+      "cues": [
+        { "text": "Start with dumbbells at upper chest, palms facing you.", "from": [0] },
+        { "text": "Press up, turning your palms to face forward.", "from": [1, 2] },
+        { "text": "Lower, turning your palms back toward you.", "from": [3] }
+      ],
+      "goodFor": "Builds the shoulders."
+    },
+    "Barbell_Curl": {
+      "cues": [
+        { "text": "Stand tall, shoulder width grip, elbows close to your body.", "from": [0] },
+        { "text": "Curl the bar to shoulder level; only your forearms move.", "from": [1, 2] },
+        { "text": "Lower the bar slowly back down.", "from": [3] }
+      ],
+      "goodFor": "Builds the biceps, the front of the upper arm."
+    },
+    "Barbell_Deadlift": {
+      "cues": [
+        { "text": "Grip the bar shoulder width, back as straight as possible.", "from": [1] },
+        { "text": "Push with your legs as your torso comes upright.", "from": [2] },
+        { "text": "Bend knees and hips to lower; keep your back straight.", "from": [3] }
+      ],
+      "goodFor": "Builds the whole back side: legs, hips and back."
+    },
+    "Barbell_Hip_Thrust": {
+      "cues": [
+        { "text": "Sit against a bench, bar rolled over your hips.", "from": [0, 1] },
+        { "text": "Shoulder blades rest near the top of the bench.", "from": [1] },
+        { "text": "Drive through your feet and push your hips up.", "from": [2] }
+      ],
+      "goodFor": "Builds the glutes; a pad on the bar makes it comfier."
+    },
+    "Barbell_Incline_Bench_Press_-_Medium_Grip": {
+      "cues": [
+        { "text": "Lie on an incline bench, bar straight over you.", "from": [0] },
+        { "text": "Lower slowly until the bar touches your upper chest.", "from": [1] },
+        { "text": "Press back up; take twice as long going down.", "from": [2] }
+      ],
+      "goodFor": "Builds the upper chest and the front of the shoulders."
+    },
+    "Barbell_Squat": {
+      "cues": [
+        { "text": "Bar across the back of your shoulders, just below the neck.", "from": [0] },
+        { "text": "Head up, back straight, toes slightly out.", "from": [2] },
+        { "text": "Sit down to just below parallel, then push through your heels.", "from": [3, 4] }
+      ],
+      "watchOut": { "text": "Knees stay in line with your toes.", "from": [3] },
+      "goodFor": "Builds the thighs and glutes."
+    },
+    "Bent_Over_Barbell_Row": {
+      "cues": [
+        { "text": "Bend forward until your back is almost flat, knees soft.", "from": [0] },
+        { "text": "Pull the bar to you, elbows close to your body.", "from": [1] },
+        { "text": "Squeeze your back at the top, then lower slowly.", "from": [1, 2] }
+      ],
+      "watchOut": { "text": "Keep your back straight and your torso still.", "from": [0, 1] },
+      "goodFor": "Builds the middle back and lats."
+    },
+    "Butterfly": {
+      "cues": [
+        { "text": "Back flat on the pad, upper arms level with the floor.", "from": [0, 1] },
+        { "text": "Push the handles together slowly and squeeze your chest.", "from": [2] },
+        { "text": "Open back slowly until your chest is stretched.", "from": [3] }
+      ],
+      "goodFor": "Builds the chest."
+    },
+    "Cable_Rope_Overhead_Triceps_Extension": {
+      "cues": [
+        { "text": "Rope on the low pulley, hands straight above your head.", "from": [0, 1] },
+        { "text": "Keep elbows close to your head; lower the rope behind it.", "from": [1, 2] },
+        { "text": "Straighten your arms back up using your triceps.", "from": [3] }
+      ],
+      "goodFor": "Builds the triceps, the back of the upper arm."
+    },
+    "Calf_Press_On_The_Leg_Press_Machine": {
+      "cues": [
+        { "text": "Balls of your feet low on the platform, heels off.", "from": [1] },
+        { "text": "Push the platform by raising your heels as high as possible.", "from": [2] },
+        { "text": "Lower your heels slowly until your calves stretch.", "from": [3] }
+      ],
+      "watchOut": { "text": "Keep your knees still; do not bend them.", "from": [2] },
+      "goodFor": "Builds the calves."
+    },
+    "Close-Grip_Front_Lat_Pulldown": {
+      "cues": [
+        { "text": "Knee pad snug, hands closer than shoulder width.", "from": [0, 1] },
+        { "text": "Lean back slightly, chest up.", "from": [2] },
+        { "text": "Pull the bar to your upper chest, then return slowly.", "from": [3, 4] }
+      ],
+      "watchOut": { "text": "Keep your upper body still; only your arms move.", "from": [3] },
+      "goodFor": "Builds the lats, the wide muscles of the back."
+    },
+    "Crunches": {
+      "cues": [
+        { "text": "Lie on your back, knees bent, hands lightly by your head.", "from": [0, 1] },
+        { "text": "Press your lower back down and lift your shoulders.", "from": [2, 3] },
+        { "text": "Squeeze for a second, then lower slowly.", "from": [3, 4] }
+      ],
+      "watchOut": { "text": "Move slowly; do not use momentum.", "from": [3] },
+      "goodFor": "Works the abs; needs no equipment."
+    },
+    "Dead_Bug": {
+      "cues": [
+        { "text": "On your back, arms up, hips and knees at 90 degrees.", "from": [0, 1] },
+        { "text": "Breathe out and press your lower back into the floor.", "from": [2] },
+        { "text": "Straighten one leg just above the floor, then switch.", "from": [3, 5, 6] }
+      ],
+      "watchOut": { "text": "Do not let your lower back arch.", "from": [4] },
+      "goodFor": "Trains the abs to keep your back steady."
+    },
+    "Dumbbell_Bench_Press": {
+      "cues": [
+        { "text": "Lie flat, dumbbells at the sides of your chest.", "from": [0, 2] },
+        { "text": "Push the dumbbells up and squeeze your chest.", "from": [3] },
+        { "text": "Lower slowly, about twice as long as going up.", "from": [3] }
+      ],
+      "goodFor": "Builds the chest, front shoulders and triceps."
+    },
+    "Dumbbell_Shrug": {
+      "cues": [
+        { "text": "Stand tall, dumbbells at your sides, palms facing you.", "from": [0] },
+        { "text": "Lift your shoulders as high as you can, hold a second.", "from": [1] },
+        { "text": "Lower the dumbbells back down.", "from": [2] }
+      ],
+      "watchOut": { "text": "Keep your arms straight; only your shoulders move.", "from": [1] },
+      "goodFor": "Builds the traps, the muscles between neck and shoulders."
+    },
+    "Front_Barbell_Squat": {
+      "cues": [
+        { "text": "Bar on the front of your shoulders, elbows high.", "from": [0] },
+        { "text": "Head up, back straight, toes slightly out.", "from": [2] },
+        { "text": "Sit down below parallel, then push through mid foot.", "from": [3, 4] }
+      ],
+      "watchOut": { "text": "Knees stay in line with your toes.", "from": [3] },
+      "goodFor": "Builds the front of the thighs."
+    },
+    "Front_Two-Dumbbell_Raise": {
+      "cues": [
+        { "text": "Stand tall, dumbbells in front of your thighs.", "from": [0] },
+        { "text": "Raise them forward to just above shoulder height.", "from": [1] },
+        { "text": "Lower slowly back down.", "from": [2] }
+      ],
+      "watchOut": { "text": "Keep your body still; no swinging.", "from": [1] },
+      "goodFor": "Builds the front of the shoulders."
+    },
+    "Goblet_Squat": {
+      "cues": [
+        { "text": "Hold the weight close to your chest.", "from": [0] },
+        { "text": "Squat down deep, chest and head up, back straight.", "from": [1] },
+        { "text": "At the bottom, push your knees out with your elbows.", "from": [2] }
+      ],
+      "goodFor": "Builds the legs and teaches a good squat with one weight."
+    },
+    "Hyperextensions_Back_Extensions": {
+      "cues": [
+        { "text": "Ankles under the pads, thighs flat on the wide pad.", "from": [0, 1] },
+        { "text": "Bend forward slowly at the waist, back flat.", "from": [3] },
+        { "text": "Rise back up slowly to a straight line.", "from": [4] }
+      ],
+      "watchOut": { "text": "Never round your back, and do not swing.", "from": [3, 4] },
+      "goodFor": "Builds the lower back, glutes and hamstrings."
+    },
+    "Internal_Rotation_with_Band": {
+      "cues": [
+        { "text": "Band at elbow height, elbow pressed to your side.", "from": [0, 1] },
+        { "text": "Elbow bent to 90 degrees, hand reaching out.", "from": [2] },
+        { "text": "Rotate your forearm in across your body, then return.", "from": [3, 4] }
+      ],
+      "watchOut": { "text": "Keep your elbow in place against your side.", "from": [1, 3] },
+      "goodFor": "Strengthens the small muscles that turn the shoulder."
+    },
+    "Jackknife_Sit-Up": {
+      "cues": [
+        { "text": "Lie flat, arms straight behind your head, legs straight.", "from": [0] },
+        { "text": "Lift your arms and legs to meet above you.", "from": [1] },
+        { "text": "Lower both back to the start.", "from": [2] }
+      ],
+      "goodFor": "Works the abs; needs no equipment."
+    },
+    "Leg_Extensions": {
+      "cues": [
+        { "text": "Pad on your lower shins, knees at 90 degrees.", "from": [0] },
+        { "text": "Straighten your legs fully, pause a second.", "from": [1] },
+        { "text": "Lower slowly, no further than 90 degrees.", "from": [2] }
+      ],
+      "watchOut": { "text": "Keep the rest of your body still on the seat.", "from": [1] },
+      "goodFor": "Builds the quads, the front of the thighs."
+    },
+    "Leg_Press": {
+      "cues": [
+        { "text": "Feet shoulder width on the platform.", "from": [0] },
+        { "text": "Lower slowly until your knees reach 90 degrees.", "from": [2] },
+        { "text": "Push through your heels back up.", "from": [3] }
+      ],
+      "watchOut": { "text": "Do not lock your knees at the top.", "from": [1] },
+      "goodFor": "Builds the legs with your back supported."
+    },
+    "Lying_Leg_Curls": {
+      "cues": [
+        { "text": "Lie face down, pad just under your calves.", "from": [0] },
+        { "text": "Curl your legs up as far as possible, hold a second.", "from": [2] },
+        { "text": "Lower back to straight legs.", "from": [3] }
+      ],
+      "watchOut": { "text": "Keep your upper legs flat on the pad.", "from": [2] },
+      "goodFor": "Builds the hamstrings, the back of the thighs."
+    },
+    "Narrow_Stance_Leg_Press": {
+      "cues": [
+        { "text": "Feet close together on the platform, toes slightly out.", "from": [0] },
+        { "text": "Lower slowly until your knees reach 90 degrees.", "from": [2] },
+        { "text": "Push through your heels back up.", "from": [3] }
+      ],
+      "watchOut": { "text": "Do not lock your knees at the top.", "from": [1] },
+      "goodFor": "Builds the front of the thighs with your back supported."
+    },
+    "One-Arm_Dumbbell_Row": {
+      "cues": [
+        { "text": "One knee and hand on the bench, back flat.", "from": [1, 2] },
+        { "text": "Pull the dumbbell up to the side of your chest.", "from": [3] },
+        { "text": "Lower it straight down, then switch sides.", "from": [4, 6] }
+      ],
+      "watchOut": { "text": "Keep your torso still; pull with your back.", "from": [3] },
+      "goodFor": "Builds the back one side at a time."
+    },
+    "One_Arm_Dumbbell_Preacher_Curl": {
+      "cues": [
+        { "text": "Upper arm flat on the preacher pad.", "from": [0] },
+        { "text": "Lower slowly until your arm is straight.", "from": [1] },
+        { "text": "Curl up and squeeze, then switch arms.", "from": [2, 3, 4] }
+      ],
+      "goodFor": "Builds the biceps without help from the body."
+    },
+    "Plank": {
+      "cues": [
+        { "text": "Forearms on the floor, elbows under your shoulders.", "from": [0] },
+        { "text": "Up on your toes, body in one straight line.", "from": [0, 1] },
+        { "text": "Hold as long as you can.", "from": [1] }
+      ],
+      "goodFor": "Trains the abs to hold your body steady."
+    },
+    "Pullups": {
+      "cues": [
+        { "text": "Hang from the bar, palms facing forward.", "from": [0] },
+        { "text": "Chest up, pull until the bar reaches your upper chest.", "from": [1, 2] },
+        { "text": "Lower slowly until your arms are straight.", "from": [3] }
+      ],
+      "goodFor": "Builds the back and arms with just your bodyweight."
+    },
+    "Reverse_Machine_Flyes": {
+      "cues": [
+        { "text": "Seat set so the handles are at shoulder height.", "from": [0] },
+        { "text": "Pull your hands out and back in a wide arc.", "from": [1] },
+        { "text": "Arms slightly bent; pause, then return slowly.", "from": [2, 3] }
+      ],
+      "goodFor": "Builds the back of the shoulders; good for posture."
+    },
+    "Romanian_Deadlift": {
+      "cues": [
+        { "text": "Knees slightly bent, shins vertical, back straight.", "from": [1] },
+        { "text": "Lower the bar by pushing your hips back.", "from": [3] },
+        { "text": "Stand up with your hips, steady and controlled.", "from": [2] }
+      ],
+      "watchOut": { "text": "Keep your back and arms straight the whole time.", "from": [2] },
+      "goodFor": "Builds the hamstrings and glutes."
+    },
+    "Rope_Jumping": {
+      "cues": [
+        { "text": "One rope end in each hand, rope behind you.", "from": [0] },
+        { "text": "Swing it over your head and jump as it lands.", "from": [0] },
+        { "text": "Find a pace you can keep going.", "from": [0] }
+      ],
+      "goodFor": "Gets your heart going and trains coordination."
+    },
+    "Seated_Cable_Rows": {
+      "cues": [
+        { "text": "Feet on the platform, knees slightly bent.", "from": [0] },
+        { "text": "Sit upright, chest out, arms straight.", "from": [2] },
+        { "text": "Pull the handle to your belly, squeeze, return slowly.", "from": [3] }
+      ],
+      "watchOut": { "text": "Keep your torso still as you pull.", "from": [3] },
+      "goodFor": "Builds the middle back."
+    },
+    "Seated_Calf_Raise": {
+      "cues": [
+        { "text": "Toes on the platform edge, heels hanging off.", "from": [0] },
+        { "text": "Lower your heels slowly until your calves stretch.", "from": [3] },
+        { "text": "Raise your heels as high as possible, hold a second.", "from": [4] }
+      ],
+      "goodFor": "Builds the calves, mostly the lower part."
+    },
+    "Side_Lateral_Raise": {
+      "cues": [
+        { "text": "Stand tall, dumbbells at your sides.", "from": [0] },
+        { "text": "Raise them out to the side until arms are level.", "from": [1] },
+        { "text": "Lower slowly back down.", "from": [2] }
+      ],
+      "watchOut": { "text": "Keep your body still; no swinging.", "from": [1] },
+      "goodFor": "Builds the side of the shoulders for a wider look."
+    },
+    "Smith_Machine_Upright_Row": {
+      "cues": [
+        { "text": "Overhand grip on the bar, hands shoulder width.", "from": [0] },
+        { "text": "Lead with your elbows; lift the bar close to your body.", "from": [2] },
+        { "text": "Stop near your chin, pause, lower slowly.", "from": [2, 3] }
+      ],
+      "watchOut": { "text": "Keep your elbows higher than your forearms.", "from": [2] },
+      "goodFor": "Builds the shoulders and traps."
+    },
+    "Standing_Military_Press": {
+      "cues": [
+        { "text": "Grip a little wider than shoulders, bar on your collarbone.", "from": [0, 1] },
+        { "text": "Feet shoulder width; press the bar overhead.", "from": [1, 2] },
+        { "text": "Lower slowly to your collarbone, then press again.", "from": [3, 4] }
+      ],
+      "goodFor": "Builds the shoulders and overhead strength."
+    },
+    "Standing_One-Arm_Cable_Curl": {
+      "cues": [
+        { "text": "Hold the low pulley handle, elbow at your side.", "from": [0, 1] },
+        { "text": "Curl the handle up; only your forearm moves.", "from": [2] },
+        { "text": "Squeeze, lower, then switch arms.", "from": [3, 5] }
+      ],
+      "goodFor": "Builds the biceps one arm at a time."
+    },
+    "Standing_One-Arm_Dumbbell_Triceps_Extension": {
+      "cues": [
+        { "text": "Hold one dumbbell straight up over your head.", "from": [0] },
+        { "text": "Keep your elbow by your head; lower it behind.", "from": [2] },
+        { "text": "Straighten your arm back up, then switch arms.", "from": [3, 5] }
+      ],
+      "watchOut": { "text": "Keep your upper arm still; only the forearm moves.", "from": [2] },
+      "goodFor": "Builds the triceps, the back of the upper arm."
+    },
+    "Stiff-Legged_Barbell_Deadlift": {
+      "cues": [
+        { "text": "Overhand grip, feet shoulder width, knees slightly bent.", "from": [0, 1] },
+        { "text": "Bend at the hips until your hamstrings stretch.", "from": [2] },
+        { "text": "Stand back up by pushing your hips forward.", "from": [3] }
+      ],
+      "watchOut": { "text": "Keep your back straight and your knees still.", "from": [2] },
+      "goodFor": "Builds the hamstrings and lower back."
+    },
+    "Thigh_Abductor": {
+      "cues": [
+        { "text": "Sit on the machine and hold the side handles.", "from": [0] },
+        { "text": "Push your legs apart slowly.", "from": [1] },
+        { "text": "Hold a second, then bring them back.", "from": [2] }
+      ],
+      "watchOut": { "text": "Keep your upper body still.", "from": [2] },
+      "goodFor": "Builds the outer hips."
+    },
+    "Thigh_Adductor": {
+      "cues": [
+        { "text": "Sit on the machine and hold the side handles.", "from": [0] },
+        { "text": "Squeeze your legs together slowly.", "from": [1] },
+        { "text": "Hold a second, then let them open.", "from": [2] }
+      ],
+      "watchOut": { "text": "Keep your upper body still; no jerking.", "from": [2] },
+      "goodFor": "Builds the inner thighs."
+    },
+    "Triceps_Pushdown": {
+      "cues": [
+        { "text": "Bar on the high pulley, overhand grip, elbows at your sides.", "from": [0, 1] },
+        { "text": "Push the bar down until your arms are straight.", "from": [2] },
+        { "text": "Hold a second, then let it rise slowly.", "from": [3] }
+      ],
+      "watchOut": { "text": "Keep your upper arms still; only forearms move.", "from": [2] },
+      "goodFor": "Builds the triceps, the back of the upper arm."
+    },
+    "Wide-Grip_Lat_Pulldown": {
+      "cues": [
+        { "text": "Knee pad snug, hands wider than shoulder width.", "from": [0, 1] },
+        { "text": "Lean back slightly, chest up.", "from": [2] },
+        { "text": "Pull the bar to your upper chest, then return slowly.", "from": [3, 4] }
+      ],
+      "watchOut": { "text": "Keep your upper body still; only your arms move.", "from": [3] },
+      "goodFor": "Builds the lats, the wide muscles of the back."
+    }
+  }
+}

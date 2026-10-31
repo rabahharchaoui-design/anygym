@@ -1,0 +1,160 @@
+/* Form demo (SPEC 4.4): a fixed 3:2 box (no layout shift), two stacked photos, CSS crossfade.
+   One cycle is 3.1 s: start 1.2 s, fade 0.35 s, end 1.2 s, fade 0.35 s. */
+.wrap {
+  --demo-cycle: 3.1s;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.tile {
+  --demo-cycle: 3.1s;
+  position: relative;
+  flex: none;
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--surface-2);
+}
+
+.tile .frame img {
+  object-fit: cover;
+}
+
+.end {
+  opacity: 0;
+  animation: demo-end var(--demo-cycle) ease-in-out infinite;
+}
+
+@keyframes demo-end {
+  0%,
+  38.71% {
+    opacity: 0;
+  }
+  50%,
+  88.71% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.wrap[data-paused] .end,
+.wrap[data-paused] .dotEnd,
+.wrap[data-paused] .dot {
+  animation-play-state: paused;
+}
+
+.dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 16px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text);
+  animation: demo-start-dot var(--demo-cycle) ease-in-out infinite;
+}
+
+.dotEnd {
+  animation-name: demo-end-dot;
+}
+
+@keyframes demo-start-dot {
+  0%,
+  38.71% {
+    opacity: 1;
+  }
+  50%,
+  88.71% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes demo-end-dot {
+  0%,
+  38.71% {
+    opacity: 0.3;
+  }
+  50%,
+  88.71% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.count {
+  margin-left: 4px;
+  min-width: 48px;
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion (SPEC 4.4): both photos side by side, still. The tile keeps the start photo. */
+@media (prefers-reduced-motion: reduce) {
+  .end,
+  .dot {
+    animation: none;
+  }
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    aspect-ratio: 3 / 1;
+  }
+  .stage .frame {
+    position: relative;
+    inset: auto;
+  }
+  .stage .end {
+    opacity: 1;
+  }
+  .tile .end {
+    opacity: 0;
+  }
+  .dots {
+    display: none;
+  }
+}

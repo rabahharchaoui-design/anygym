@@ -631,3 +631,44 @@ button.nextChip {
 }
 
 /* A sheet's main button stays in reach while its body scrolls (the weight picker on iPhone SE). */
+
+/* The collapsed exercise sheet (SPEC 4.4, 13.5): one cue line and "More", never a second line. */
+.cueLine {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cueText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cueMore {
+  flex: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* A 48 pt hit area (SPEC 13.3) without a taller line: the tap zone reaches over the quiet text
+   around it (the note above, the table labels below), never over another control. */
+.cueLine::after {
+  content: '';
+  position: absolute;
+  inset: -16px 0;
+}
