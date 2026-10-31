@@ -44,7 +44,16 @@ export default defineConfig({
       },
       workbox: {
         // Precache the whole app shell so it works in a basement with no signal.
-        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}'],
+        // Exercise demos (PLAN 2.1): the WebP photos are precached (iOS 14+ reads WebP), so every
+        // demo works offline. The JPG twins are only a fallback and are cached when first used.
+        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest,webp}'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith(`${BASE}ex/`) && url.pathname.endsWith('.jpg'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'exercise-jpg', expiration: { maxEntries: 400 } },
+          },
+        ],
         // HashRouter: every route is index.html, so any navigation falls back to it.
         navigateFallback: `${BASE}index.html`,
         cleanupOutdatedCaches: true,
