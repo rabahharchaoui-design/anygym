@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { ArrivalGuard } from './components/ArrivalGuard';
@@ -19,6 +20,8 @@ import { ViewportDevScreen } from './screens/dev/ViewportDevScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
 
 const DEV_TOOLS = devToolsEnabled();
+// Lazy, so the catalog JSON it reads stays out of the main bundle.
+const MusclesDevScreen = lazy(() => import('./screens/dev/MusclesDevScreen').then((m) => ({ default: m.MusclesDevScreen })));
 
 export function App() {
   return (
@@ -28,6 +31,16 @@ export function App() {
         {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/info" element={<InfoDevScreen />} />}
+        {DEV_TOOLS && (
+          <Route
+            path="dev/muscles"
+            element={
+              <Suspense fallback={null}>
+                <MusclesDevScreen />
+              </Suspense>
+            }
+          />
+        )}
         <Route path="workout/:sessionId/done" element={<FinishScreen />} />
         <Route path="workout/:sessionId/*" element={<WorkoutScreen />} />
         <Route element={<AppShell />}>

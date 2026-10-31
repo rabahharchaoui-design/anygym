@@ -1,0 +1,73 @@
+.page {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  padding: calc(var(--safe-top) + var(--space-4)) calc(var(--space-4) + var(--safe-right))
+    calc(var(--safe-bottom) + var(--space-6)) calc(var(--space-4) + var(--safe-left));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.count,
+.label {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.select {
+  min-height: var(--tap);
+  width: 100%;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: var(--text-base); /* 16 px: no zoom on focus */
+}
+
+.card {
+  margin-top: var(--space-3);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.id {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  color: var(--text-2);
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}

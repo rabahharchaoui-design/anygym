@@ -8,6 +8,7 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import sharp from 'sharp';
 import { SAFE_ID, selectedCatalogIds, validateExerciseMap, type MapEntry } from '../src/lib/catalog.ts';
+import { muscleReportLines, type MuscleOverrides } from '../src/lib/muscles.ts';
 
 const root = new URL('../', import.meta.url).pathname;
 const readJson = <T>(p: string): T => JSON.parse(readFileSync(root + p, 'utf8')) as T;
@@ -111,12 +112,7 @@ const lines = [
   '',
   ...Object.entries(ladder).map(([p, l]) => `- ${p}: ${l.join(', ')}`),
   '',
-  '## Muscles to resolve (SPEC 4.5)',
-  '',
-  'Exercises listing "shoulders" need front or back deltoid chosen per exercise in data/muscle-overrides.json:',
-  '',
-  records.filter((r) => [...r.primaryMuscles, ...r.secondaryMuscles].includes('shoulders')).map((r) => r.id).join(', '),
-  '',
+  ...muscleReportLines(records, readJson<MuscleOverrides>('data/muscle-overrides.json')),
 ];
 writeFileSync(root + 'CATALOG_REPORT.md', lines.join('\n'));
 console.log(`catalog: ${records.length} exercises, ${kb(total)} images (${kb(webpTotal)} WebP); ${count('exact')} exact, ${count('variant')} variant, ${count('none')} none`);
