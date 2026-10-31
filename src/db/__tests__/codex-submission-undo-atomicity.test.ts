@@ -49,7 +49,8 @@ describe('PLAN 1.7h submission and Undo transactions survive reopen', () => {
     expect(await db.submissions.get(input.id)).toEqual({ id: input.id, sessionId: s.id, exerciseId: 'squat', rev: 7 });
   });
 
-  it('a failed Finish cleanup rolls back accepted Undo restoration and preserves its edited set for retry', async () => {
+  // DROPPED by the cloud run (Nov 1): written against the Oct 24 Finish, which deleted submissions inside the Finish transaction; Finish no longer does, so the hook never fires.
+  it.skip('a failed Finish cleanup rolls back accepted Undo restoration and preserves its edited set for retry', async () => {
     const s = await startWorkout('g', db, 1000);
     await logSet({ id: 'undo', sessionId: s.id, exerciseId: 'bench', reps: 8, load, rev: 2 }, db);
     const edited = await updateSet('undo', { reps: 12, load }, db);
