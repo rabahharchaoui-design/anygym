@@ -68,7 +68,7 @@ test('tester: plates presets labels + math', async ({ page }) => {
       const svgText = [...document.querySelectorAll('[data-testid="plate-svg"] text')].map((e) => e.textContent);
       return { under, svgText, right: right.length };
     });
-    const m = await page.getByTestId('plate-math').innerText();
+    const m = await page.getByTestId('plate-total').getAttribute('data-math');
     console.log(test.info().project.name, t, '| math:', m, '|', JSON.stringify(info));
     if (test.info().project.name === 'iPhone 15') await page.screenshot({ path: `reports/shots/1.7b/plates-${t.replace(' ', '-')}.png` });
   }

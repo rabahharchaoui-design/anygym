@@ -225,3 +225,37 @@
   font-size: var(--text-sm);
   font-weight: 700;
 }
+
+/* Short screens (import editor, PLAN 2.0d follow up): the readout shrinks so the whole keypad fits. */
+.root[data-dense] {
+  gap: var(--space-2);
+}
+
+.root[data-dense] .readout {
+  min-height: 0;
+  gap: 2px;
+}
+
+.root[data-dense] .total {
+  font-size: 40px;
+}
+
+/* 320 x 568 import editor: a shorter readout and 48 pt keys, so all four rows fit (2.0d final). */
+@media (max-height: 600px) {
+  .root[data-dense] .total {
+    font-size: 30px;
+    line-height: 1;
+  }
+
+  .root[data-dense] {
+    gap: var(--space-1);
+  }
+
+  .root[data-dense] button[class*='_key_'] {
+    height: 48px;
+  }
+
+  .root[data-dense] [class*='_pad_'] {
+    gap: 4px;
+  }
+}

@@ -134,6 +134,7 @@ test('workout: each exercise shows only its own picker with the SPEC 13.6 labels
   await expectOnePicker(page, 'Machine · plates per side');
   await expect(press.getByRole('button', { name: 'What is Plate loaded machine?' })).toBeVisible();
   await press.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+  await page.waitForTimeout(450); // the camera settles (2.0d: the empty horn is seen close)
   // Breathing room: the plate (its number is on its face since 2.0b) sits at least 8px above the title.
   const label = (await press.locator('[data-plate]').first().boundingBox())!;
   const title = (await press.getByTestId('picker-title').boundingBox())!;

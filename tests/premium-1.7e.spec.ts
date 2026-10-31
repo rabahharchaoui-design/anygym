@@ -144,13 +144,14 @@ test('Settings: Haptics and Colored plates switches save, version shows', async 
   expect(await page.evaluate(() => localStorage.getItem('anygym.haptics'))).toBe('off');
   const plates = page.getByRole('switch', { name: /Colored plates/ });
   await expect(plates).toBeEnabled();
-  await expect(plates).not.toBeChecked();
-  await page.getByText('Colored plates', { exact: true }).tap();
+  // PLAN 2.0d: lb gyms start colour coded; black iron is the Settings choice.
   await expect(plates).toBeChecked();
-  await expect.poll(async () => (await dbAll<{ isActive: boolean; plateColors: string }>(page, 'gyms')).find((g) => g.isActive)?.plateColors).toBe('color');
+  await page.getByText('Colored plates', { exact: true }).tap();
+  await expect(plates).not.toBeChecked();
+  await expect.poll(async () => (await dbAll<{ isActive: boolean; plateColors: string }>(page, 'gyms')).find((g) => g.isActive)?.plateColors).toBe('black');
   await page.reload();
   await expect(page.getByRole('switch', { name: /Haptics/ })).not.toBeChecked();
-  await expect(page.getByRole('switch', { name: /Colored plates/ })).toBeChecked();
+  await expect(page.getByRole('switch', { name: /Colored plates/ })).not.toBeChecked();
   expect(errors).toEqual([]);
 });
 

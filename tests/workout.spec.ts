@@ -68,7 +68,7 @@ test('quick workout: picker, first weight, check, double tap, edit, delete with 
   await view.getByTestId('weight-cell').first().tap();
   await weightSheet(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
   await weightSheet(page).getByRole('button', { name: 'Add 25 lb plate to each side' }).tap();
-  await expect(weightSheet(page).getByTestId('plate-math')).toHaveText('45 bar + 2 × (45 + 25) = 185 lb');
+  await expect(weightSheet(page).getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × (45 + 25) = 185 lb');
   await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
   await expect(view.getByTestId('weight-cell')).toHaveText(['185', '185', '185']);
 
@@ -362,7 +362,7 @@ test('first time hints: plates in the picker, then the check, never during rest'
   const view = exerciseView(page, 'barbell-back-squat');
   const hint = page.getByTestId('hint');
   await view.getByTestId('weight-cell').first().tap();
-  await expect(hint).toHaveText('Tap plates to load the bar. We add it up.');
+  await expect(hint).toHaveText('Tap plates to load the bar. Tap a sleeve to take one off.');
   await weightSheet(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
   await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
   await expect(hint).toHaveText('Tap the check when you finish a set');

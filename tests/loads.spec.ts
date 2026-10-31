@@ -137,8 +137,11 @@ test('plate machine: honest "+ start" until answered, then Plates only and a typ
 
   await s.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
   await s.getByRole('button', { name: 'Add 25 lb plate to each side' }).tap();
-  await expect(s.getByTestId('plate-total')).toHaveText('2 × (45 + 25) + start');
-  await expect(s.getByTestId('plate-math')).toHaveCount(0);
+  // PLAN 2.0d critic r3: no math on screen; the plates on both horns and "+ start" until the start is known.
+  await expect(s.getByTestId('start-question')).toBeVisible();
+  await expect(s.getByTestId('plate-total')).toHaveText('140lb');
+  await expect(s.getByTestId('plate-total')).toHaveAttribute('data-math', '2 × (45 + 25) + start');
+  await expect(s.getByTestId('plate-note')).toHaveText('+ start');
   await expectJson(page, 'plate-machine', null);
   await expect(s.locator('[data-plate]')).toHaveCount(2); // one horn, not two sleeves
   await shot(s, 'plate-machine-unknown');
@@ -150,7 +153,7 @@ test('plate machine: honest "+ start" until answered, then Plates only and a typ
   await sheet.getByRole('button', { name: 'Plates only' }).dblclick();
   await expect(sheet).toBeHidden();
   await expectJson(page, 'plate-machine', { kind: 'plate_machine', unit: 'lb', total: 140, barWeight: 0, perSide: [45, 25], collars: 0 });
-  await expect(s.getByTestId('plate-math')).toHaveText('2 × (45 + 25) = 140 lb');
+  await expect(s.getByTestId('plate-total')).toHaveAttribute('data-math', '2 × (45 + 25) = 140 lb');
   await expect(s.getByTestId('plate-total')).toHaveText('140lb');
   await shot(s, 'plate-machine-plates-only');
 
@@ -161,7 +164,7 @@ test('plate machine: honest "+ start" until answered, then Plates only and a typ
   await expect(sheet.getByTestId('equipment-typed')).toHaveText('110');
   await sheet.getByRole('button', { name: 'Save starting weight' }).tap();
   await expect(sheet).toBeHidden();
-  await expect(s.getByTestId('plate-math')).toHaveText('110 start + 2 × (45 + 25) = 250 lb');
+  await expect(s.getByTestId('plate-total')).toHaveAttribute('data-math', '110 start + 2 × (45 + 25) = 250 lb');
   await expectJson(page, 'plate-machine', { kind: 'plate_machine', unit: 'lb', total: 250, barWeight: 110, perSide: [45, 25], collars: 0 });
   await expect(s.getByRole('button', { name: 'Start 110 lb · Change' })).toBeVisible();
 
@@ -331,7 +334,12 @@ test('first time hints on the loads page: one at a time, each once', async ({ pa
   await expect(hint).toHaveText('Tap the pin to pick the weight');
   await expect(hint).toHaveCount(1);
   await page.getByRole('heading', { level: 1, name: 'Loads' }).tap();
-  await expect(hint).toHaveText('Tap plates to load the bar. We add it up.');
+  // 2.0d critic: the plate loaded machine asks its starting weight first (no hint meanwhile);
+  // once answered it gets its own words, once.
+  await page.waitForTimeout(900);
+  await expect(hint).toHaveCount(0);
+  await page.getByTestId('section-plate-machine').getByRole('button', { name: 'Plates only', exact: true }).tap();
+  await expect(hint).toHaveText('Tap plates to load the machine. Tap the horn to take one off.');
   await page.getByRole('heading', { level: 1, name: 'Loads' }).tap();
   await page.waitForTimeout(900);
   await expect(hint).toHaveCount(0);

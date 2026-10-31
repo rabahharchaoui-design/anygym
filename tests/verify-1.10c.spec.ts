@@ -154,7 +154,7 @@ test.describe('1.10c verify', () => {
     await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
     // 1.7e: no number until the bar is known, the question on top, Done waits for the answer.
     await expect(picker(page).getByTestId('plate-total')).toHaveText('—lb');
-    await expect(picker(page).getByTestId('plate-math')).toContainText('+ bar');
+    await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', /\+\ bar/);
     await expect(picker(page).getByTestId('bar-question')).toBeVisible();
     await expect(picker(page).getByRole('button', { name: 'Set the bar weight first' })).toBeDisabled();
     await shot(page, 'smith-unknown');

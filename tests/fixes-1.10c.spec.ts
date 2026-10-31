@@ -258,7 +258,7 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once, right in the weight sheet
   await expect(picker(page).getByRole('button', { name: 'What is EZ curl bar?' })).toBeVisible();
   await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
   await expect(picker(page).getByTestId('plate-total')).toHaveText('—lb');
-  await expect(picker(page).getByTestId('plate-math')).toContainText('+ bar');
+  await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', /\+\ bar/);
   await expect(picker(page).getByRole('button', { name: 'Set the bar weight first' })).toBeDisabled();
   await picker(page).getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(card.getByTestId('set-status')).toHaveText('Set 1: Set the bar weight first');
@@ -266,7 +266,7 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once, right in the weight sheet
 
   await card.getByTestId('weight-cell').first().tap();
   // Reopened right away: a fresh sheet, the cancelled plate is gone.
-  await expect(picker(page).getByTestId('plate-math')).toHaveText('Bar weight not set');
+  await expect(picker(page).getByTestId('plate-note')).toHaveText('Bar weight not set');
   await picker(page).getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
   await picker(page).getByRole('button', { name: 'Other…' }).tap();
   const prompt = page.getByRole('dialog', { name: 'EZ curl bar' }).filter({ has: page.getByRole('button', { name: 'Save bar weight' }) });
@@ -284,7 +284,7 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once, right in the weight sheet
   // Answered once: after a reload it is remembered, never asked again.
   await page.reload();
   await card.getByTestId('weight-cell').first().tap();
-  await expect(picker(page).getByRole('button', { name: 'Bar: EZ curl 25 lb · Change' })).toBeVisible(); // PLAN 1.10d: the bar link names the bar
+  await expect(picker(page).getByRole('button', { name: 'Change bar, EZ curl 25 lb' })).toBeVisible(); // PLAN 1.10d: the bar link names the bar
   await expect(picker(page).getByRole('button', { name: 'Set bar weight' })).toHaveCount(0);
   await picker(page).getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(picker(page)).toHaveCount(0);

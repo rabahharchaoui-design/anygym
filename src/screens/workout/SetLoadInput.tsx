@@ -57,10 +57,18 @@ type Props = {
    * The sheet holds Done/Save until then, so the load it confirms is the one the choice ends with.
    */
   onPending?: (pending: boolean) => void;
+  /** Exact held weight only: the number typed, so a sheet can say why it cannot be saved. */
+  onTyped?: (value: number | null) => void;
+  /** Exact held weight only: the short screen layout (import editor). */
+  dense?: boolean;
+  /** First time hints on the plate picture (off in the import editor: it would cover the chips there). */
+  hints?: boolean;
+  /** Share of the screen's height the plate drawing may take (the import editor's is smaller). */
+  drawingShare?: number;
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact, onPending }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact, onPending, onTyped, dense, hints = true, drawingShare }: Props) {
   switch (loadType) {
     case 'barbell':
       return (
@@ -78,12 +86,14 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
           onChange={onChange}
           compact={compact}
           onPending={onPending}
+          hints={hints}
+          drawingShare={drawingShare}
         />
       );
     case 'dumbbell_each':
     case 'single':
       // A kettlebell (or an implement the name does not tell) is typed exactly, never the dumbbell range (PLAN 1.7k).
-      if (isExactHeld(loadType, exerciseName)) return <ExactWeightInput unit={gym.unit} exerciseName={exerciseName} value={value} onChange={onChange} />;
+      if (isExactHeld(loadType, exerciseName)) return <ExactWeightInput unit={gym.unit} exerciseName={exerciseName} value={value} onChange={onChange} onTyped={onTyped} dense={dense} />;
       return (
         <DumbbellWheel
           unit={gym.unit}
@@ -107,6 +117,8 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
           plates={plates ?? value?.perSide ?? []}
           onChange={onChange}
           compact={compact}
+          hints={hints}
+          drawingShare={drawingShare}
         />
       );
     case 'bodyweight':
@@ -136,6 +148,8 @@ function BarbellField({
   onChange,
   compact,
   onPending,
+  hints,
+  drawingShare,
 }: {
   gym: Gym;
   exerciseId: string;
@@ -150,6 +164,8 @@ function BarbellField({
   onChange: (l: Load | null, plates: number[]) => void;
   compact: boolean;
   onPending?: (pending: boolean) => void;
+  hints: boolean;
+  drawingShare?: number;
 }) {
   const [perSide, setPerSide] = useState<number[]>([...plates]);
   // The plates as the user has them right now, updated in the same step as every change (PLAN
@@ -251,8 +267,9 @@ function BarbellField({
   };
   // EZ, trap and Smith weights are asked once (first use prompt); until then: "Set bar weight".
   const unknown = bar === null && !!prompt;
-  const name = local && !localBar.id ? 'Bar' : `Bar: ${BAR_NAMES[barId]}`;
-  const label = `${name}${bar === null ? '' : ` ${formatWeight(bar, gym.unit)}`} · Change`;
+  // Read as "Change bar, Olympic 45 lb": the action first, then which bar it is now (2.0d critic r3).
+  const what = [local && !localBar.id ? null : BAR_NAMES[barId], bar === null ? null : formatWeight(bar, gym.unit)].filter(Boolean).join(' ');
+  const label = what ? `Change bar, ${what}` : 'Change bar';
   const info = prompt && <InfoButton id={prompt.info} />;
   // Workout size: the bar picker sits in the drawing's free corner (the card still fits one
   // screen); EZ, trap and Smith keep their weight link and ⓘ under the tray.
@@ -276,7 +293,7 @@ function BarbellField({
       </span>
     )
   ) : null;
-  // In a sheet the bar control sits on the math line, above the drawing, never behind Done (1.7e).
+  // In a sheet the bar control sits under the total, above the drawing, never behind Done (1.7e).
   // While the bar question is up it is the one thing to answer; Change bar follows once it is.
   const mathAction = !compact && !question && (
     <span className={base.mathAction}>
@@ -303,6 +320,7 @@ function BarbellField({
           info={prompt.info}
           onSaved={(g) => alive.current && g.unit === gymNow.current.unit && changeNow.current(platesNow.current, g.bars[barId])}
           onOther={() => ask(barId)}
+          dense={drawingShare !== undefined}
         />
       )}
       <PlateDiagram
@@ -317,8 +335,9 @@ function BarbellField({
         compact={compact}
         extraLink={link || undefined}
         mathAction={mathAction || undefined}
-        hint={!question}
+        hint={!question && hints}
         tight={question}
+        drawingShare={drawingShare}
         corner={chip || undefined}
         barId={barId}
       />
@@ -364,6 +383,8 @@ function PlateMachineField({
   plates,
   onChange,
   compact,
+  hints,
+  drawingShare,
 }: {
   gym: Gym;
   /** Edit set: the starting resistance the set was logged with (PLAN 1.7c), used for this edit. */
@@ -372,10 +393,14 @@ function PlateMachineField({
   plates: readonly number[];
   onChange: (l: Load | null, plates: number[]) => void;
   compact: boolean;
+  hints: boolean;
+  drawingShare?: number;
 }) {
   const [perSide, setPerSide] = useState<number[]>([...plates]);
   return (
     <PlateMachineInput
+      hints={hints}
+      drawingShare={drawingShare}
       gym={gym}
       ownStart={ownStart}
       machineId={machineId}

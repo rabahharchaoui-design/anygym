@@ -160,7 +160,7 @@ test('weight sheet: controls uncovered, one row of plates, swipe down keeps plat
   expect(await sheet.getByTestId('bar-link').evaluate((el) => { const r = el.getBoundingClientRect(); const h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return r.bottom <= innerHeight && (h === el || el.contains(h)); })).toBe(true);
   const tops = await sheet.getByRole('group', { name: 'Plates' }).getByRole('button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
   expect(new Set(tops).size).toBe(1);
-  const math = await sheet.getByTestId('plate-math').textContent();
+  const math = await sheet.getByTestId('plate-total').getAttribute('data-math');
   const total = await sheet.getByTestId('plate-total').textContent();
   console.log('math', math, total);
   await shot(page, 'weight-sheet');
@@ -195,7 +195,7 @@ test('Smith first use: question on top, nothing logged until answered, diagram =
   await shot(page, 'smith-question');
   await q.getByRole('button', { name: 'Bar weighs 25 lb' }).tap();
   await sheet.getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
-  const math = (await sheet.getByTestId('plate-math').textContent())!;
+  const math = (await sheet.getByTestId('plate-total').getAttribute('data-math'))!;
   const total = (await sheet.getByTestId('plate-total').textContent())!;
   expect(total).toBe('45lb');
   expect(math).toContain('= 45 lb');

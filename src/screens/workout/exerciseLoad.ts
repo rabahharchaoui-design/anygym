@@ -30,7 +30,7 @@ export function barIdFor(exerciseName: string, chosen?: BarId): BarId {
   return chosen ?? barForName(exerciseName);
 }
 
-/** Plain names for the bar picker ("Bar: Olympic 45 lb · Change"). */
+/** Plain names for the bar picker ("Change bar, Olympic 45 lb"). */
 export const BAR_NAMES: Record<BarId, string> = {
   olympic: 'Olympic',
   womens: "Women's",

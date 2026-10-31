@@ -296,3 +296,184 @@
   color: var(--text);
   font-weight: 700;
 }
+
+/* Import set editor (PLAN 2.0d follow up, Codex ui-2.0c): compact so the four keypad rows and the
+   reps fit above the footer on an SE at 130% text; the set and exercise stay pinned on scroll. */
+.editor {
+  gap: var(--space-2);
+  /* The last row clears the pinned footer's fade (2.0d critic r2). */
+  padding-bottom: var(--space-3);
+}
+
+/* The pinned header band: the sheet's own colour, a hairline and rounded corners, so it reads as
+   part of the sheet when the picker scrolls under it (2.0d critic). */
+.editorContext {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 16px;
+  background: #1b1b1f;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 8px 16px -10px rgb(0 0 0 / 0.6);
+}
+
+/* The file's weight kept as it is: big total, the plate picture and its chips, then a way to pick another. */
+.fileWeight {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.fileTotal {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.fileUnit {
+  margin-left: 6px;
+  color: var(--text-2);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.fileKept {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.pickOther {
+  align-self: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.editorHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  column-gap: var(--space-2);
+}
+
+.editorTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.editorName {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-base);
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.editorFooter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* One short line, no box: the footer stays small. */
+.editorReason {
+  margin: 0;
+  color: var(--amber);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+}
+
+.editorActions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2);
+}
+
+.restore {
+  min-height: 56px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  color: var(--accent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Very short screens (568 tall): tighter still; whatever must scroll keeps the context pinned. */
+@media (max-height: 600px) {
+  .editor {
+    gap: var(--space-1);
+  }
+
+  .editorContext {
+    padding: 4px var(--space-3);
+  }
+
+  .sheetReason {
+    padding: 4px var(--space-3);
+  }
+
+  /* No spare room: the body must not scroll at 320 x 568 (2.0d critic r3). */
+  .editor {
+    padding-bottom: 0;
+  }
+
+  .editor [role='group'][aria-label='Reps'] button {
+    height: 48px;
+  }
+
+  .editor [role='group'][aria-label='Reps'] [class*='value'] {
+    font-size: 32px;
+  }
+
+  /* A weight stack: a smaller readout and a shorter pin list (it scrolls inside), so the sheet does not. */
+  .editor [data-testid='stack-total'] {
+    font-size: 32px;
+    line-height: 1.05;
+  }
+
+  .editor [data-testid='stack-sub'],
+  .editor [data-hint='stack'] {
+    display: none;
+  }
+
+  .editor [role='radiogroup'][aria-label='Pin position'] {
+    height: 96px;
+  }
+
+  .editor [class*='_readout_'] {
+    min-height: 0;
+  }
+
+  /* "Add weight" and "Steps of 5 · Change" on one row. */
+  .editor [class*='_links_'] {
+    flex-wrap: nowrap;
+    column-gap: 4px;
+  }
+
+  .editor [class*='_links_'] button {
+    padding-inline: 8px;
+    font-size: 14px;
+  }
+
+  .editor [data-testid='wheel-total'] {
+    font-size: 34px;
+  }
+}

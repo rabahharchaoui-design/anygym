@@ -102,9 +102,9 @@ test('(4) Bench switches to the women\'s bar: math, the ✓ and the saved set ag
   const card = page.getByTestId('exercise-barbell-incline-bench-press');
   await openPicker(card);
   await picker(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
-  await expect(picker(page).getByTestId('plate-math')).toHaveText('45 bar + 2 × 45 = 135 lb');
+  await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × 45 = 135 lb');
 
-  await picker(page).getByRole('button', { name: 'Bar: Olympic 45 lb · Change' }).tap();
+  await picker(page).getByRole('button', { name: 'Change bar, Olympic 45 lb' }).tap();
   const sheet = page.getByRole('dialog', { name: 'Which bar?' });
   await expect(sheet.getByRole('button', { name: /Olympic bar/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(sheet.getByRole('button', { name: 'Enter another bar weight' })).toBeVisible();
@@ -112,8 +112,8 @@ test('(4) Bench switches to the women\'s bar: math, the ✓ and the saved set ag
   await sheet.getByRole('button', { name: /Women's bar/ }).tap();
   await expect(sheet).toHaveCount(0);
 
-  await expect(picker(page).getByTestId('plate-math')).toHaveText('35 bar + 2 × 45 = 125 lb');
-  await expect(picker(page).getByRole('button', { name: "Bar: Women's 35 lb · Change" })).toBeVisible();
+  await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '35 bar + 2 × 45 = 125 lb');
+  await expect(picker(page).getByRole('button', { name: "Change bar, Women's 35 lb" })).toBeVisible();
   await done(page);
   await expect(card.getByTestId('weight-cell')).toHaveText(['125', '125', '125']);
   await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 125 lb');
@@ -125,8 +125,8 @@ test('(4) Bench switches to the women\'s bar: math, the ✓ and the saved set ag
   await page.reload();
   await expect(logButton(page)).toHaveAccessibleName('Log set 2: 8 × 125 lb');
   await openPicker(card);
-  await expect(picker(page).getByRole('button', { name: "Bar: Women's 35 lb · Change" })).toBeVisible();
-  await expect(picker(page).getByTestId('plate-math')).toHaveText('35 bar + 2 × 45 = 125 lb');
+  await expect(picker(page).getByRole('button', { name: "Change bar, Women's 35 lb" })).toBeVisible();
+  await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '35 bar + 2 × 45 = 125 lb');
   expect(errors).toEqual([]);
 });
 
@@ -136,7 +136,7 @@ test('(4) "Enter another bar weight" asks for a brand bar once, then uses it', a
   await addExercise(page, 'back squat', 'Barbell Back Squat');
   const card = page.getByTestId('exercise-barbell-back-squat');
   await openPicker(card);
-  await picker(page).getByRole('button', { name: 'Bar: Olympic 45 lb · Change' }).tap();
+  await picker(page).getByRole('button', { name: 'Change bar, Olympic 45 lb' }).tap();
   const sheet = page.getByRole('dialog', { name: 'Which bar?' });
   await sheet.getByRole('button', { name: 'Enter another bar weight' }).tap();
   await sheet.getByRole('button', { name: /Trap bar/ }).tap();
@@ -144,7 +144,7 @@ test('(4) "Enter another bar weight" asks for a brand bar once, then uses it', a
   for (const d of '55') await prompt.getByRole('button', { name: d, exact: true }).tap();
   await prompt.getByRole('button', { name: 'Save bar weight' }).tap();
   await expect(prompt).toHaveCount(0);
-  await expect(picker(page).getByRole('button', { name: 'Bar: Trap 55 lb · Change' })).toBeVisible();
+  await expect(picker(page).getByRole('button', { name: 'Change bar, Trap 55 lb' })).toBeVisible();
   await done(page);
   await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 55 lb');
   expect(errors).toEqual([]);
@@ -194,17 +194,17 @@ test('Codex 1.10d (1): editing a set logged on the Olympic bar after switching t
   await expect(card.getByTestId('set-row')).toHaveCount(1);
   await pause(page);
   await openPicker(card);
-  await picker(page).getByRole('button', { name: 'Bar: Olympic 45 lb · Change' }).tap();
+  await picker(page).getByRole('button', { name: 'Change bar, Olympic 45 lb' }).tap();
   await page.getByRole('dialog', { name: 'Which bar?' }).getByRole('button', { name: /Women's bar/ }).tap();
-  await expect(picker(page).getByTestId('plate-math')).toHaveText('35 bar + 2 × 45 = 125 lb');
+  await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '35 bar + 2 × 45 = 125 lb');
   await done(page);
   await expect(card.getByTestId('weight-cell').first()).toHaveText('125');
 
   await card.getByTestId('set-row').tap();
   const edit = page.getByRole('dialog', { name: 'Edit set' });
   await expect(edit.getByTestId('plate-total')).toHaveText('135lb');
-  await expect(edit.getByTestId('plate-math')).toHaveText('45 bar + 2 × 45 = 135 lb');
-  await expect(edit.getByRole('button', { name: 'Bar: Olympic 45 lb · Change' })).toBeVisible();
+  await expect(edit.getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × 45 = 135 lb');
+  await expect(edit.getByRole('button', { name: 'Change bar, Olympic 45 lb' })).toBeVisible();
   await edit.getByRole('button', { name: 'More reps' }).tap();
   await edit.getByRole('button', { name: 'Save' }).tap();
   await expect(edit).toHaveCount(0);
@@ -232,11 +232,11 @@ test('Codex 1.10d (4): a bar choice that fails to save changes nothing and offer
     };
   });
   await openPicker(card);
-  await picker(page).getByRole('button', { name: 'Bar: Olympic 45 lb · Change' }).tap();
+  await picker(page).getByRole('button', { name: 'Change bar, Olympic 45 lb' }).tap();
   await page.getByRole('dialog', { name: 'Which bar?' }).getByRole('button', { name: /Women's bar/ }).tap();
   await expect(page.getByRole('status').filter({ hasText: 'Could not save the bar choice' })).toBeVisible();
-  await expect(picker(page).getByTestId('plate-math')).toHaveText('45 bar + 2 × 45 = 135 lb');
-  await expect(picker(page).getByRole('button', { name: 'Bar: Olympic 45 lb · Change' })).toBeVisible();
+  await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × 45 = 135 lb');
+  await expect(picker(page).getByRole('button', { name: 'Change bar, Olympic 45 lb' })).toBeVisible();
   // Close the picker without applying: the rows are unchanged.
   await picker(page).getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(picker(page)).toHaveCount(0);

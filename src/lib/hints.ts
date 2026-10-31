@@ -1,10 +1,12 @@
 // First time hints (SPEC 13.1, 13.5): each shown once, never two at once, never while blocked
 // (a rest countdown). Seen flags persist in localStorage under one key. No React here.
 
-export type HintId = 'plates' | 'wheel' | 'stack' | 'setCard';
+export type HintId = 'plates' | 'machine' | 'wheel' | 'stack' | 'setCard';
 
 export const HINT_TEXT: Record<HintId, string> = {
-  plates: 'Tap plates to load the bar. We add it up.',
+  plates: 'Tap plates to load the bar. Tap a sleeve to take one off.',
+  // A plate loaded machine gets its own words, once (2.0d critic): there is no bar or sleeve.
+  machine: 'Tap plates to load the machine. Tap the horn to take one off.',
   wheel: 'Spin to pick your dumbbells',
   stack: 'Tap the pin to pick the weight',
   setCard: 'Tap the check when you finish a set',

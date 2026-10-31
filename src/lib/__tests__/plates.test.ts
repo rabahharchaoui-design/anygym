@@ -21,12 +21,12 @@ describe('plate dimension tables (SPEC 5.3)', () => {
   });
 
   it('has the SPEC kg dimensions and IWF colours, approx for change plates', () => {
-    expect(plateSpec(25, 'kg')).toMatchObject({ diameter: 450, thickness: 64, color: 'red', approx: false });
-    expect(plateSpec(20, 'kg')).toMatchObject({ diameter: 450, thickness: 54, color: 'blue' });
-    expect(plateSpec(15, 'kg')).toMatchObject({ diameter: 450, thickness: 44, color: 'yellow' });
-    expect(plateSpec(10, 'kg')).toMatchObject({ diameter: 450, thickness: 32, color: 'green' });
-    expect(plateSpec(5, 'kg')).toMatchObject({ diameter: 230, thickness: 26, color: 'white', approx: true });
-    expect(plateSpec(1.25, 'kg')).toMatchObject({ diameter: 160, thickness: 16, color: 'chrome', approx: true });
+    expect(plateSpec(25, 'kg')).toMatchObject({ diameter: 450, thickness: 64, approx: false });
+    expect(plateSpec(20, 'kg')).toMatchObject({ diameter: 450, thickness: 54 });
+    expect(plateSpec(15, 'kg')).toMatchObject({ diameter: 450, thickness: 44 });
+    expect(plateSpec(10, 'kg')).toMatchObject({ diameter: 450, thickness: 32 });
+    expect(plateSpec(5, 'kg')).toMatchObject({ diameter: 230, thickness: 26, approx: true });
+    expect(plateSpec(1.25, 'kg')).toMatchObject({ diameter: 160, thickness: 16, approx: true });
     expect(plateSpec(0.5, 'kg')).toMatchObject({ diameter: 135, thickness: 12, approx: true });
   });
 

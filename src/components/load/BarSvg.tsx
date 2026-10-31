@@ -1,38 +1,23 @@
-// The drawn bar (SPEC 5.3, 5.6): a premium Olympic bar edge on. Every position and size comes
-// from plateLayout.ts; this file only paints. Gradients and one pattern are defined once and
-// shared by every plate, so the drawing stays cheap (no filters).
-import { useId } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+// The drawn bar (SPEC 5.3, 5.6, PLAN 2.0d): a premium Olympic bar edge on, colour coded plates with
+// no numbers, every plate drawn. Every position and size comes from plateLayout.ts; this file only
+// paints and runs the camera zoom. Gradients and one pattern are defined once and shared by every
+// plate, so the drawing stays cheap (no filters).
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react';
 import type { PlateColors, Unit } from '../../db/types';
 import { formatAmount, formatWeight } from '../../lib/load';
-import { plateSpec, type PlateSpec } from '../../lib/plates';
-import { BADGE, FACE, MARKER_LINE, TALL, type BarLayout, type PlateRect, type Rect, type Side } from '../../lib/plateLayout';
-import { FADE } from '../../ui/motion';
+import { IRON_EDGE, PAINT } from '../../lib/plateColors';
+import type { BarLayout, PlateRect, Rect, Side } from '../../lib/plateLayout';
 import styles from './PlateDiagram.module.css';
 
-/** Plate slide on: quick spring with a tiny settle bounce (damping ratio about 0.6). */
-const PLATE_SPRING = { type: 'spring', stiffness: 520, damping: 27, opacity: { duration: 0.1 } } as const;
-/** Plate slide off: fast and clean. */
-const PLATE_OFF = { type: 'tween', duration: 0.18, ease: [0.4, 0, 1, 1] } as const;
-
-/** Plate body colours. Black iron reads as rubber coated iron; colour coded follows IWF. */
-const FILL: Record<PlateSpec['color'], { fill: string; ink: string }> = {
-  black: { fill: '#1C1C1F', ink: '#F4F4F6' },
-  red: { fill: '#D2302B', ink: '#FFFFFF' },
-  blue: { fill: '#2C5FD0', ink: '#FFFFFF' },
-  yellow: { fill: '#EDBE2C', ink: '#1A1A1A' },
-  green: { fill: '#2A9A4B', ink: '#FFFFFF' },
-  white: { fill: '#E6E6E9', ink: '#1A1A1A' },
-  chrome: { fill: '#AEB3BB', ink: '#1A1A1A' },
-};
-
-export function plateLook(weight: number, unit: Unit, mode: PlateColors) {
-  if (mode === 'black') {
-    // The 45 carries the raised white label (SPEC 5.3).
-    return { fill: FILL.black.fill, ink: FILL.black.ink, matte: true, edge: '#3A3A40' };
-  }
-  return { ...FILL[plateSpec(weight, unit).color], matte: false, edge: 'rgba(255,255,255,0.28)' };
-}
+/** Plate slide on: a quick spring with a tiny settle (about 250 ms), drawn from its first frame. */
+const PLATE_SPRING = { type: 'spring', visualDuration: 0.24, bounce: 0.18 } as const;
+/** Plate slide off: fast and clean, outward. */
+const PLATE_OFF = { type: 'tween', duration: 0.18, ease: [0.23, 1, 0.32, 1] } as const;
+/** The camera zoom: settles in about 250 ms, barely any bounce (PLAN 2.0d). */
+const ZOOM_SPRING = { type: 'spring', visualDuration: 0.25, bounce: 0.08 } as const;
+/** A plate slides this far (screen px) on and off, at any zoom, so even a thin one is seen moving. */
+const SLIDE_PX = 14;
 
 type Props = {
   layout: BarLayout;
@@ -48,36 +33,77 @@ const GRIP_IN = 210 / 1310;
 const GRIP_OUT = 610 / 1310;
 const CENTRE_KNURL = 60 / 1310;
 
+/** "45, 45, 25 and 10" */
+function andList(items: string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : (items[0] ?? '');
+}
+
+/** What a screen reader hears: every plate on one side, heaviest first (SPEC 0, PLAN 2.0d). */
+export function barLabel(perSide: readonly number[], unit: Unit, horn: boolean): string {
+  const what = horn ? 'Machine horn' : 'Barbell';
+  if (!perSide.length) return `${what}, ${horn ? 'no plates' : 'empty'}`;
+  const list = andList([...perSide].sort((a, b) => b - a).map(formatAmount));
+  return `${what}. ${horn ? 'Plates' : 'Each side'}: ${list} ${unit}`;
+}
+
+const sceneTransform = (z: number, cx: number, cy: number) => `translate(${cx} ${cy}) scale(${z}) translate(${-cx} ${-cy})`;
+
 export function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: Props) {
   const raw = useId();
   const uid = `bar${raw.replace(/[^a-zA-Z0-9]/g, '')}`;
   const ref = (name: string) => `url(#${uid}-${name})`;
-  const { width, height, sleeves, shoulders, caps, shaft, plates, sides, frame, overflow } = layout;
+  const { width, height, sleeves, shoulders, caps, shaft, plates, sides, frame, zoom, cx, cy, mid, hits } = layout;
+  const horn = !!frame;
+  // A side pressed right now: a soft light flash under the finger, within the first frame.
+  const [pressed, setPressed] = useState<Side | null>(null);
+
+  // The camera: two motion values (zoom and its anchor) drive the scene's transform and spring
+  // together, so the empty close up pulls back AND centres in one move when the first plate goes on.
+  const scene = useRef<SVGGElement>(null);
+  const z = useMotionValue(zoom);
+  const ax = useMotionValue(cx);
+  const cyRef = useRef(cy);
+  cyRef.current = cy;
+  const paint = () => scene.current?.setAttribute('transform', sceneTransform(z.get(), ax.get(), cyRef.current));
+  useMotionValueEvent(z, 'change', paint);
+  useMotionValueEvent(ax, 'change', paint);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (reduce) {
+      // Reduced motion: the camera cuts; the picture crossfades (PlateDiagram overlays the old one).
+      z.jump(zoom);
+      ax.jump(cx);
+      paint();
+      return;
+    }
+    const a1 = animate(z, zoom, ZOOM_SPRING);
+    const a2 = animate(ax, cx, ZOOM_SPRING);
+    return () => {
+      a1.stop();
+      a2.stop();
+    };
+  }, [zoom, cx, reduce, z, ax]);
+  useLayoutEffect(paint, [cy]);
 
   // Every plate of a size gets a stable key (its nth occurrence), so a heavier plate added later
   // slides in at its place while lighter ones glide outward.
   const seen = new Map<string, number>();
   const keyed = plates.map((p) => {
-    const k = p.more ? `${p.side}-more` : `${p.side}-${p.weight}`;
+    const k = `${p.side}-${p.weight}`;
     const n = seen.get(k) ?? 0;
     seen.set(k, n + 1);
     return { p, key: `${k}-${n}` };
   });
   const removeLabel = outer === null ? undefined : `Remove outermost ${formatWeight(outer, unit)} plate`;
-  const cy = sleeves.right.y + sleeves.right.height / 2;
-  const tallest = Math.max(sleeves.right.height, ...plates.map((p) => p.height));
-
-  const sideHit = (side: Side) => {
-    // The whole side, from the collar to the drawing's edge, top to bottom: one big target.
-    const s = sleeves[side];
-    const xs = [s.x, s.x + s.width + caps[side].width, side === 'right' ? width : 0, ...plates.filter((p) => p.side === side).flatMap((p) => [p.x, p.x + p.width])];
-    const lo = Math.min(...xs);
-    const hi = Math.max(...xs);
-    return { x: lo, y: 0, width: hi - lo, height };
-  };
+  const perSide = plates.filter((p) => p.side === 'right').map((p) => p.weight);
+  const tallest = Math.max(0, ...plates.map((p) => p.height));
 
   // Knurl zones at their real places: two grip zones and, on a men's bar, the centre knurl.
-  const mid = shaft.x + shaft.width / 2;
+  const shaftMid = shaft.x + shaft.width / 2;
   const gripW = (GRIP_OUT - GRIP_IN) * shaft.width;
   const centreW = layout.bar === 'womens' ? 0 : 2 * CENTRE_KNURL * shaft.width;
 
@@ -88,8 +114,12 @@ export function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: Pro
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       data-testid="plate-svg"
+      data-zoom={zoom.toFixed(4)}
+      data-thin={layout.thin.toFixed(4)}
+      data-cropped={layout.cropped || undefined}
+      data-reduce={reduce || undefined}
       role="img"
-      aria-label={frame ? 'Machine horn' : 'Barbell'}
+      aria-label={barLabel(perSide, unit, horn)}
     >
       <defs>
         {/* Brushed steel shaft: soft, satin. */}
@@ -125,37 +155,26 @@ export function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: Pro
         </pattern>
         {/* Plate rim: lit from above, falls off toward the floor (a disc seen edge on). */}
         <linearGradient id={`${uid}-cyl`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.30" />
-          <stop offset="0.1" stopColor="#FFFFFF" stopOpacity="0.10" />
-          <stop offset="0.42" stopColor="#FFFFFF" stopOpacity="0" />
-          <stop offset="0.82" stopColor="#000000" stopOpacity="0.26" />
-          <stop offset="1" stopColor="#000000" stopOpacity="0.48" />
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.34" />
+          <stop offset="0.08" stopColor="#FFFFFF" stopOpacity="0.12" />
+          <stop offset="0.4" stopColor="#FFFFFF" stopOpacity="0" />
+          <stop offset="0.8" stopColor="#000000" stopOpacity="0.22" />
+          <stop offset="1" stopColor="#000000" stopOpacity="0.5" />
         </linearGradient>
-        <linearGradient id={`${uid}-cylMatte`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.22" />
-          <stop offset="0.2" stopColor="#FFFFFF" stopOpacity="0.1" />
-          <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.03" />
-          <stop offset="1" stopColor="#000000" stopOpacity="0.45" />
-        </linearGradient>
-        {/* Beveled faces: both plate faces roll off into shadow. */}
+        {/* Rounded faces: both faces roll off into shadow, so touching plates read as separate discs. */}
         <linearGradient id={`${uid}-bevel`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#000000" stopOpacity="0.5" />
-          <stop offset="0.22" stopColor="#000000" stopOpacity="0" />
-          <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.07" />
-          <stop offset="0.78" stopColor="#000000" stopOpacity="0" />
-          <stop offset="1" stopColor="#000000" stopOpacity="0.55" />
+          <stop offset="0" stopColor="#000000" stopOpacity="0.55" />
+          <stop offset="0.18" stopColor="#000000" stopOpacity="0.08" />
+          <stop offset="0.45" stopColor="#FFFFFF" stopOpacity="0.1" />
+          <stop offset="0.8" stopColor="#000000" stopOpacity="0.1" />
+          <stop offset="1" stopColor="#000000" stopOpacity="0.6" />
         </linearGradient>
         {/* Steel hub insert around the sleeve. */}
         <linearGradient id={`${uid}-hub`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#3A3D43" />
-          <stop offset="0.28" stopColor="#8C9097" />
-          <stop offset="0.55" stopColor="#3C3F45" />
-          <stop offset="1" stopColor="#101113" />
-        </linearGradient>
-        <linearGradient id={`${uid}-spec`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
-          <stop offset="0.35" stopColor="#FFFFFF" stopOpacity="0.16" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+          <stop offset="0.28" stopColor="#A2A6AD" />
+          <stop offset="0.55" stopColor="#4A4D54" />
+          <stop offset="1" stopColor="#141518" />
         </linearGradient>
         <radialGradient id={`${uid}-shadow`} cx="0.5" cy="0.5" r="0.5">
           <stop offset="0" stopColor="#000000" stopOpacity="0.85" />
@@ -163,66 +182,79 @@ export function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: Pro
         </radialGradient>
       </defs>
 
-      {/* Soft floor shadow under the bar. */}
-      <ellipse cx={width / 2} cy={cy + tallest / 2 + 1.5} rx={width * 0.46} ry={4.5} fill={ref('shadow')} />
-      <ellipse cx={width / 2} cy={cy + tallest / 2 + 1} rx={width * 0.3} ry={2.2} fill={ref('shadow')} />
+      <g ref={scene} transform={sceneTransform(z.get(), ax.get(), cy)} data-scene="" aria-hidden="true">
+        {/* Soft floor shadow where the plates stand (none under an empty bar or horn: it hangs in a rack). */}
+        {plates.length > 0 && (
+          <>
+            <ellipse cx={mid} cy={cy + tallest / 2 + 1.5} rx={width * 0.46} ry={4} fill={ref('shadow')} />
+            <ellipse cx={mid} cy={cy + tallest / 2 + 1} rx={width * 0.3} ry={2} fill={ref('shadow')} />
+          </>
+        )}
 
-      {frame ? (
-        <rect {...frame} rx={5} fill={ref('frame')} stroke="#4A4B52" strokeWidth={1} />
-      ) : (
-        <g>
-          <rect {...shaft} fill={ref('steel')} data-bar-part="shaft" />
-          <rect x={mid - GRIP_OUT * shaft.width} y={shaft.y} width={gripW} height={shaft.height} fill={ref('knurl')} />
-          <rect x={mid + GRIP_IN * shaft.width} y={shaft.y} width={gripW} height={shaft.height} fill={ref('knurl')} />
-          {centreW > 0 && <rect x={mid - centreW / 2} y={shaft.y} width={centreW} height={shaft.height} fill={ref('knurl')} />}
-        </g>
-      )}
-      {sides.map((side) => (
-        <g key={side}>
-          <rect {...sleeves[side]} fill={ref('chrome')} data-bar-part="sleeve" data-side={side} />
-          <Flange rect={shoulders[side]} side={side} fill={ref('collar')} />
-          <rect {...caps[side]} rx={Math.min(1.5, caps[side].width / 2)} fill={overflow ? 'var(--amber)' : ref('collar')} />
-          {overflow > 0 && <Overflow cap={caps[side]} side={side} />}
-        </g>
-      ))}
+        {frame ? (
+          <rect {...frame} data-bar-part="frame" rx={Math.min(6, frame.width / 4)} fill={ref('frame')} stroke="#4A4B52" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        ) : (
+          <g>
+            <rect {...shaft} fill={ref('steel')} data-bar-part="shaft" />
+            <rect x={shaftMid - GRIP_OUT * shaft.width} y={shaft.y} width={gripW} height={shaft.height} fill={ref('knurl')} />
+            <rect x={shaftMid + GRIP_IN * shaft.width} y={shaft.y} width={gripW} height={shaft.height} fill={ref('knurl')} />
+            {centreW > 0 && <rect x={shaftMid - centreW / 2} y={shaft.y} width={centreW} height={shaft.height} fill={ref('knurl')} />}
+          </g>
+        )}
+        {sides.map((side) => (
+          <g key={side}>
+            <rect {...sleeves[side]} fill={ref('chrome')} data-bar-part="sleeve" data-side={side} />
+            <Flange rect={shoulders[side]} side={side} fill={ref('collar')} />
+            <rect {...caps[side]} rx={Math.min(1.5, caps[side].width / 2)} fill={ref('collar')} data-bar-part="cap" data-side={side} />
+          </g>
+        ))}
 
-      {sides.map((side) => (
-        <g
-          key={side}
-          className={styles.side}
-          role={outer === null ? undefined : 'button'}
-          tabIndex={outer === null ? undefined : 0}
-          aria-label={removeLabel}
-          data-testid={`remove-${side}`}
-          onClick={onRemove}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onRemove();
-            }
-          }}
-        >
-          <rect {...sideHit(side)} fill="transparent" />
-          <AnimatePresence initial={false}>
-            {keyed
-              .filter(({ p }) => p.side === side)
-              .map(({ p, key }) => (
-                <Plate key={key} plate={p} layout={layout} unit={unit} colorMode={colorMode} reduce={reduce} uid={uid} />
-              ))}
-          </AnimatePresence>
-        </g>
-      ))}
+        {sides.map((side) => (
+          <g key={side} className={styles.plates} aria-hidden="true">
+            <AnimatePresence initial={false}>
+              {keyed
+                .filter(({ p }) => p.side === side)
+                .map(({ p, key }, i, all) => (
+                  <Plate key={key} plate={p} sleeve={sleeves[side]} colorMode={colorMode} reduce={reduce} uid={uid} zoom={zoom} outermost={i === all.length - 1} />
+                ))}
+            </AnimatePresence>
+          </g>
+        ))}
+      </g>
+
+      {/* Tap anywhere on a side, from the sleeve out: the outermost pair comes off (PLAN 2.0d). */}
+      {sides.map((side) => {
+        const hit = hits[side];
+        if (!hit) return null;
+        return (
+          <g
+            key={side}
+            className={styles.side}
+            role={outer === null ? undefined : 'button'}
+            tabIndex={outer === null ? undefined : 0}
+            aria-label={removeLabel}
+            data-testid={`remove-${side}`}
+            data-pressed={(pressed === side && outer !== null) || undefined}
+            onClick={onRemove}
+            onPointerDown={(e) => e.button === 0 && setPressed(side)}
+            onPointerUp={() => setPressed(null)}
+            onPointerLeave={() => setPressed(null)}
+            onPointerCancel={() => setPressed(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onRemove();
+              }
+            }}
+          >
+            <rect {...hit} fill="transparent" />
+            {/* The press: a soft light wash over the side, shown within one frame. */}
+            <rect x={hit.x + 2} y={2} width={Math.max(0, hit.width - 4)} height={Math.max(0, height - 4)} rx={14} className={styles.flash} />
+          </g>
+        );
+      })}
     </svg>
   );
-}
-
-/** Past the sleeve end: a small amber arrow beyond the end cap (SPEC 5.3 overflow state). */
-function Overflow({ cap, side }: { cap: Rect; side: Side }) {
-  const h = Math.max(6, cap.height * 0.9);
-  const cy = cap.y + cap.height / 2;
-  const x0 = side === 'right' ? cap.x + cap.width + 1 : cap.x - 1;
-  const tip = side === 'right' ? x0 + 4 : x0 - 4;
-  return <path data-testid="sleeve-overflow" d={`M${x0} ${cy - h / 2}L${tip} ${cy}L${x0} ${cy + h / 2}Z`} fill="var(--amber)" />;
 }
 
 /** Inner collar: a raised flange where the shaft meets the sleeve, with a lip toward the plates. */
@@ -241,111 +273,64 @@ function Flange({ rect, side, fill }: { rect: Rect; side: Side; fill: string }) 
 
 type PlateProps = {
   plate: PlateRect;
-  layout: BarLayout;
-  unit: Unit;
+  sleeve: Rect;
   colorMode: PlateColors;
   reduce: boolean;
   uid: string;
+  /** The camera's zoom now: slides are a set distance on screen at any zoom. */
+  zoom: number;
+  /** The last plate on the side: the sleeve comes out of its outer face (a hub ring there only). */
+  outermost: boolean;
 };
 
-function Plate({ plate, layout, unit, colorMode, reduce, uid }: PlateProps) {
-  const look = plateLook(plate.weight, unit, colorMode);
-  const s = layout.sleeves[plate.side];
+/**
+ * One plate edge on, no number: the colour coded rim with a lit top edge, shading toward the
+ * floor and rounded faces. The plates hide the sleeve; only the outermost shows the steel hub where
+ * the sleeve comes out. Dark plates (black, the grays, every black iron plate) wear a 1 px light
+ * edge so they never sink into the sheet. Black iron mode keeps the rubber body and shows the
+ * plate's colour as a band around the rim.
+ */
+function Plate({ plate, sleeve, colorMode, reduce, uid, zoom, outermost }: PlateProps) {
+  const paint = PAINT[plate.color];
+  const iron = colorMode === 'black';
   const { width: w, height: h, y } = plate;
-  // Slides on from the free end of the sleeve, off the same way.
-  const offX = plate.side === 'right' ? s.x + s.width + 10 : s.x - w - 10;
-  const from = reduce ? { x: plate.x, opacity: 0 } : { x: offX, opacity: 0 };
-  const rx = Math.min(w * 0.32, 4);
-  // Details scale with the plate, so a thin plate at true scale is not all outline.
-  const stroke = Math.min(1.2, w * 0.14);
-  const lip = Math.min(Math.max(1, h * 0.022), w * 0.3);
-  const rim = h * 0.085; // the raised outer rim, then the recessed face
-  const hubH = Math.min(h * 0.6, s.height * 2);
+  // Slides on from just outward of its place, and off the same way, by SLIDE_PX on screen.
+  const out = (plate.side === 'right' ? 1 : -1) * (SLIDE_PX / Math.max(zoom, 1e-6));
+  // Reduced motion: no slide; the whole picture crossfades (PlateDiagram overlays the old drawing).
+  const from = reduce ? { x: plate.x, opacity: 1 } : { x: plate.x + out, opacity: 1 };
+  const rx = Math.min(w * 0.38, 2.4);
+  const lip = Math.max(0.6, Math.min(h * 0.018, 1.4));
   const cy = y + h / 2;
-  // Tall plates carry the number above the hub (and the badge below it); short ones across the middle.
-  const tall = h >= TALL;
-  const numberY = tall ? (y + rim + cy - hubH / 2) / 2 : cy;
-  const badgeY = (y + h - rim + cy + hubH / 2) / 2;
+  const edge = iron ? IRON_EDGE : paint.edge;
+  // The hub ring on the outer face: a little proud of the plate, a bit fatter than the sleeve.
+  const hubW = Math.max(1.2, Math.min(w * 0.35, sleeve.height * 0.45));
+  const hubH = Math.min(h * 0.5, sleeve.height * 1.45);
+  const hubX = plate.side === 'right' ? w - hubW * 0.55 : -hubW * 0.45;
   return (
     <motion.g
       data-plate=""
       data-side={plate.side}
       data-weight={plate.weight}
-      data-weights={plate.weights.join(',')}
-      data-count={plate.weights.length}
-      data-label={plate.text}
-      data-more={plate.more || undefined}
-      data-lines={plate.more ? plate.lines.join('|') : undefined}
-      aria-label={plate.more ? `then ${andList(plate.weights.map(formatAmount))} ${unit}` : plate.weights.length > 1 ? `${plate.weights.length} × ${formatWeight(plate.weight, unit)}` : formatWeight(plate.weight, unit)}
+      data-color={plate.color}
+      data-index={plate.index}
       initial={from}
       animate={{ x: plate.x, opacity: 1 }}
-      exit={reduce ? { opacity: 0, transition: FADE } : { x: offX, opacity: 0, transition: PLATE_OFF }}
-      transition={reduce ? FADE : PLATE_SPRING}
+      exit={reduce ? { opacity: 0, transition: { duration: 0 } } : { x: plate.x + out, opacity: 0, transition: PLATE_OFF }}
+      transition={reduce ? { duration: 0 } : PLATE_SPRING}
     >
-      {plate.more ? (
-        <Marker plate={plate} overflow={layout.overflow > 0} />
-      ) : (
-        <>
-          <rect x={0} y={y} width={w} height={h} rx={rx} fill={look.fill} />
-          <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-${look.matte ? 'cylMatte' : 'cyl'})`} />
-          <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-bevel)`} />
-          {/* Lighter lip on the rim, top and bottom, and the line where the rim meets the face. */}
-          {/* Specular band across the top third: the rim catching the light. */}
-          <rect x={w * 0.08} y={y + h * 0.07} width={w * 0.84} height={h * 0.26} rx={Math.min(w * 0.3, 3)} fill={`url(#${uid}-spec)`} />
-          {/* Beveled rim lip: a clear lighter edge all round. */}
-          <rect x={stroke / 2} y={y + stroke / 2} width={Math.max(0, w - stroke)} height={h - stroke} rx={Math.max(0, rx - stroke / 2)} fill="none" stroke={look.edge} strokeWidth={stroke} />
-          <rect x={w * 0.12} y={y + 0.4} width={w * 0.76} height={lip} rx={lip / 2} fill="#FFFFFF" opacity={look.matte ? 0.28 : 0.32} />
-          <rect x={w * 0.12} y={y + h - lip - 0.4} width={w * 0.76} height={lip} rx={lip / 2} fill="#FFFFFF" opacity={0.08} />
-          <path d={`M${w * 0.1} ${y + rim}H${w * 0.9}M${w * 0.1} ${y + h - rim}H${w * 0.9}`} stroke="#000" strokeOpacity={0.35} strokeWidth={Math.min(0.75, stroke)} />
-          {/* Darker steel hub ring around the sleeve, standing a hair proud of the faces (tall plates). */}
-          {tall && (
-            <rect
-              x={-0.6}
-              y={cy - hubH / 2}
-              width={w + 1.2}
-              height={hubH}
-              rx={Math.min(1.5, w * 0.2)}
-              fill={`url(#${uid}-hub)`}
-              stroke="#0A0A0C"
-              strokeWidth={Math.min(0.8, stroke)}
-            />
-          )}
-          {tall && <path d={`M0 ${cy - hubH / 2 + 0.8}H${w}`} stroke="#9EA2A9" strokeOpacity={0.55} strokeWidth={Math.min(0.8, stroke)} />}
-          {/* The weight printed on the face (SPEC 5.6: fat numbered plates), "×3" under it for a run. */}
-          <text className={styles.plateLabel} x={w / 2} y={numberY} fill={look.ink} fontSize={FACE} textAnchor="middle" dominantBaseline="central" data-face="">
-            {plate.face}
-          </text>
-          {plate.badge && (
-            <text className={styles.plateBadge} x={w / 2} y={badgeY} fill={look.ink} fontSize={BADGE} textAnchor="middle" dominantBaseline="central" data-badge="">
-              {plate.badge}
-            </text>
-          )}
-        </>
-      )}
+      <rect x={0} y={y} width={w} height={h} rx={rx} fill={iron ? PAINT.black.fill : paint.fill} />
+      {iron && <rect x={w * 0.28} y={y + h * 0.05} width={w * 0.44} height={h * 0.9} rx={Math.min(1, w * 0.1)} fill={paint.fill} />}
+      <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-cyl)`} />
+      <rect x={0} y={y} width={w} height={h} rx={rx} fill={`url(#${uid}-bevel)`} />
+      {/* Lit lip along the top of the rim, a faint one along the bottom. */}
+      <rect x={w * 0.14} y={y + 0.3} width={w * 0.72} height={lip} rx={lip / 2} fill={iron ? '#FFFFFF' : paint.rim} opacity={0.75} />
+      <rect x={w * 0.14} y={y + h - lip - 0.3} width={w * 0.72} height={lip} rx={lip / 2} fill="#FFFFFF" opacity={0.08} />
+      {/* A hairline where the plate meets the next one. */}
+      <rect x={w - Math.min(0.5, w * 0.08)} y={y + rx} width={Math.min(0.5, w * 0.08)} height={Math.max(0, h - 2 * rx)} fill={paint.shade} opacity={0.7} />
+      {/* Dark plates: a 1 px light edge (on screen, at any zoom). */}
+      {edge && <rect x={0.25} y={y + 0.25} width={Math.max(0, w - 0.5)} height={Math.max(0, h - 0.5)} rx={rx} fill="none" stroke={edge} strokeWidth={1} strokeOpacity={0.9} vectorEffect="non-scaling-stroke" data-edge="" />}
+      {/* The steel hub where the sleeve comes out of the outermost plate. */}
+      {outermost && <rect x={hubX} y={cy - hubH / 2} width={hubW} height={hubH} rx={Math.min(1, hubW * 0.3)} fill={`url(#${uid}-hub)`} data-hub="" />}
     </motion.g>
-  );
-}
-
-/** "25, 10 and 5" */
-function andList(items: string[]): string {
-  return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : (items[0] ?? '');
-}
-
-/**
- * The overflow marker on the sleeve: a dark disc edge on with the weights it stands for stacked on
- * its face ("25" over "10"), amber edged when plates run past the real sleeve end (SPEC 5.3).
- */
-function Marker({ plate, overflow }: { plate: PlateRect; overflow: boolean }) {
-  const { width: w, height: h, y, lines } = plate;
-  const top = y + h / 2 - ((lines.length - 1) * MARKER_LINE) / 2;
-  return (
-    <>
-      <rect x={0.5} y={y + 0.5} width={w - 1} height={h - 1} rx={Math.min(4, w * 0.3)} fill="#26272C" stroke={overflow ? 'var(--amber)' : '#6B6E76'} strokeWidth={1} strokeDasharray="3 2" />
-      {lines.map((line, i) => (
-        <text key={i} className={styles.plateBadge} x={w / 2} y={top + i * MARKER_LINE} fill={overflow ? 'var(--amber)' : '#F4F4F6'} fontSize={BADGE} textAnchor="middle" dominantBaseline="central" {...(i === 0 ? { 'data-face': '' } : { 'data-line': '' })}>
-          {line}
-        </text>
-      ))}
-    </>
   );
 }

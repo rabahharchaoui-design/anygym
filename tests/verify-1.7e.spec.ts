@@ -326,8 +326,13 @@ test('V7 Settings: Haptics persists on and off, colors change the diagram, versi
   await expect(plates).toBeVisible();
   const before = await plates.evaluate((el) => el.outerHTML);
   await page.goto('./#/settings');
+  // lb gyms start with coloured plates since 2.0d: the switch flips whichever way it is.
+  const colored = page.getByRole('switch', { name: /Colored plates/ });
+  await expect(colored).toBeEnabled();
+  await page.waitForTimeout(300);
+  const was = (await colored.getAttribute('aria-checked')) === 'true';
   await page.getByText('Colored plates', { exact: true }).tap();
-  await expect(page.getByRole('switch', { name: /Colored plates/ })).toBeChecked();
+  await expect(colored).toHaveAttribute('aria-checked', String(!was));
   await page.goBack();
   await page.waitForTimeout(500);
   const sheetStill = page.getByRole('dialog', { name: 'Pick the weight' });

@@ -37,13 +37,13 @@ test.describe('verify 2.0b v3 layout', () => {
         return { ok: !!top && (el === top || el.contains(top) || top.contains(el)), inView: r.top >= 0 && r.bottom <= vh && r.left >= 0 && r.right <= vw, w: r.width, h: r.height, text: (el.textContent || '').trim().slice(0, 20) };
       };
       const btn = (t: RegExp) => [...sheet.querySelectorAll('button')].find((b) => t.test((b.textContent || '') + (b.getAttribute('aria-label') || '')));
-      const math = sheet.querySelector('[data-testid="plate-math"]') as HTMLElement;
+      const total = sheet.querySelector('[data-testid="plate-total"]') as HTMLElement;
       return {
         bar: hit(sheet.querySelector('[data-testid="plate-svg"]')),
         change: hit(btn(/Change/)!), typeit: hit(btn(/^Type it$/)!), clear: hit(btn(/^Clear$/)!), done: hit(btn(/^Done$/)!),
         tray: [...sheet.querySelectorAll('button[data-weight]')].map((b) => ({ ...(hit(b) as object) })),
         removeL: hit(sheet.querySelector('[data-testid="remove-left"]')), removeR: hit(sheet.querySelector('[data-testid="remove-right"]')),
-        math: { text: math.textContent, lines: Math.round(math.getBoundingClientRect().height / parseFloat(getComputedStyle(math).lineHeight)), sw: math.scrollWidth, cw: math.clientWidth, ell: getComputedStyle(math).textOverflow, ws: getComputedStyle(math).whiteSpace },
+        math: total.getAttribute('data-math'),
         sheetScroll: (sheet.querySelector('[data-scroller]') ?? sheet).scrollHeight > (sheet.querySelector('[data-scroller]') ?? sheet).clientHeight + 1,
         card: (() => { const c = sheet.querySelector('[data-testid="plate-svg"]')!.closest('section, div')!.getBoundingClientRect(); return [c.left, c.right]; })(),
         txt: ['Type it', 'Clear'].map((t) => { const b = btn(new RegExp(`^${t}$`))!; const r = b.getBoundingClientRect(); const s = sheet.querySelector('[data-testid="plate-svg"]')!.closest('section')?.getBoundingClientRect(); return { t, l: r.left, r: r.right, cardL: s?.left, cardR: s?.right }; }),

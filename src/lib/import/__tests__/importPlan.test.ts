@@ -17,7 +17,10 @@ import {
   buildLoad,
   chooseKind,
   emptyChoices,
+  fileLineText,
+  fileRepsText,
   fileSetText,
+  fileWeightText,
   kindOf,
   planImport,
   setKey,
@@ -117,6 +120,18 @@ describe('buildLoad: loads only from the file numbers, through load.ts', () => {
     expect(fileSetText(set({ loadType: 'dumbbell_each', weight: 30 }))).toBe('10 × 30 lb each');
     expect(fileSetText(set({ loadType: 'smith_per_side', weight: 45 }))).toBe('10 × 45 lb per side');
     expect(fileSetText(set({ loadType: 'bodyweight', weight: 10 }))).toBe('10 reps + 10 lb');
+    // The import editor: reps on their own line, the weight in plain words, never "5 × 45" math.
+    expect(fileRepsText(set({}))).toBe('10 reps');
+    expect(fileRepsText(set({ reps: 1 }))).toBe('1 rep');
+    expect(fileWeightText(set({ weight: 50 }))).toBe('50 lb');
+    expect(fileWeightText(set({ loadType: 'dumbbell_each', weight: 30 }))).toBe('30 lb each');
+    expect(fileWeightText(set({ loadType: 'barbell_per_side', weight: 45 }))).toBe('45 lb per side');
+    expect(fileWeightText(set({ loadType: 'bodyweight', weight: 10 }))).toBe('Bodyweight + 10 lb');
+    expect(fileWeightText(set({ weight: undefined }))).toBeNull();
+    expect(fileWeightText(set({ loadType: 'fixed_bar_total', weight: 65 }))).toBe('65 lb total');
+    expect(fileWeightText(set({ loadType: 'unknown', weight: 136 }))).toBe('136 lb total');
+    expect(fileLineText(set({ reps: 5, loadType: 'barbell_per_side', weight: 45 }))).toBe('5 reps · 45 lb per side');
+    expect(fileLineText(set({ reps: 8 }))).toBe('8 reps');
     expect(fileSetText(set({}))).toBe('10 reps');
   });
 });

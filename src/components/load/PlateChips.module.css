@@ -1,0 +1,92 @@
+/* "Each side ● 45 ×2 ● 35 ×2 ● 10": quiet, one line, centred, no math (PLAN 2.0d). */
+.line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  min-height: 20px;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.label {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.45), transparent 60%),
+    var(--dot);
+  /* A hairline ring, light on every dot (the dark ones in their plate's edge colour), so a gray or
+     black dot never sinks into the sheet (2.0d critic). */
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.22), 0 0 0 1px var(--edge);
+}
+
+/* The plate picker's line: one line always, its height reserved, nothing below ever moves. When
+   it does not fit: tighter gaps and dots first (1), then a short "Each:" label (2), then smaller
+   text (3). The label never goes, so the chips never read as the whole load (2.0d critic r3). */
+.line[data-one] {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  height: 20px;
+  white-space: nowrap;
+}
+
+.line[data-one][data-fit='1'],
+.line[data-one][data-fit='2'],
+.line[data-one][data-fit='3'] {
+  column-gap: 6px;
+}
+
+.line[data-one][data-fit='1'] .chip,
+.line[data-one][data-fit='2'] .chip,
+.line[data-one][data-fit='3'] .chip {
+  gap: 3px;
+}
+
+.line[data-one][data-fit='1'] .dot,
+.line[data-one][data-fit='2'] .dot,
+.line[data-one][data-fit='3'] .dot {
+  width: 7px;
+  height: 7px;
+}
+
+.line[data-one][data-fit='2'] .label,
+.line[data-one][data-fit='3'] .label {
+  font-size: 0;
+}
+
+.line[data-one][data-fit='2'] .label::before,
+.line[data-one][data-fit='3'] .label::before {
+  content: 'Each:';
+  font-size: var(--text-sm);
+}
+
+.line[data-one][data-fit='3'] {
+  column-gap: 5px;
+  font-size: 12px;
+}
+
+.line[data-one][data-fit='3'] .label::before {
+  font-size: 12px;
+}

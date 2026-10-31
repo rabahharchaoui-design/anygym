@@ -379,7 +379,7 @@ test('weight sheet: "Change bar" sits on the math line above the drawing, visibl
   await page.getByTestId('exercise-barbell-back-squat').getByTestId('weight-cell').first().tap();
   const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
   await expect(sheet).toHaveAttribute('data-state', 'open');
-  const bar = sheet.getByRole('button', { name: 'Bar: Olympic 45 lb · Change' });
+  const bar = sheet.getByRole('button', { name: 'Change bar, Olympic 45 lb' });
   await expect(bar).toHaveText('Change bar');
   await expect(bar).toBeInViewport();
   const covered = await bar.evaluate((el) => { const r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !(hit === el || el.contains(hit)); });

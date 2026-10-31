@@ -92,7 +92,8 @@ test.describe('1.10d verify', () => {
       const put = IDBObjectStore.prototype.put;
       IDBObjectStore.prototype.put = function (this: IDBObjectStore, v: any, k?: any) {
         const store = this; const t0 = Date.now();
-        const spin = () => { if (Date.now() - t0 < 1500) store.count().onsuccess = spin; };
+        // Dexie commits a single-op temp transaction (db.journal.put) with idbtrans.commit() once the put resolves, so the chain may end early: not an app error.
+        const spin = () => { if (Date.now() - t0 < 1500) try { store.count().onsuccess = spin; } catch { /* transaction already committing */ } };
         spin();
         return put.call(store, v, k);
       } as any;
@@ -147,7 +148,7 @@ test.describe('1.10d verify', () => {
     const card = page.getByTestId('exercise-barbell-incline-bench-press');
     await card.getByTestId('weight-cell').first().tap();
     await picker(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
-    const bar = picker(page).getByRole('button', { name: /^Bar: Olympic/ });
+    const bar = picker(page).getByRole('button', { name: /^Change bar, Olympic/ });
     const bb = (await bar.boundingBox())!;
     console.log('bar control box', bb.width, bb.height);
     expect(bb.height).toBeGreaterThanOrEqual(44);
@@ -158,7 +159,7 @@ test.describe('1.10d verify', () => {
     await page.waitForTimeout(900);
     await shot(page, 'bar-sheet');
     await sheet.getByRole('button', { name: /Women's bar/ }).tap();
-    await expect(picker(page).getByTestId('plate-math')).toHaveText('35 bar + 2 × 45 = 125 lb');
+    await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '35 bar + 2 × 45 = 125 lb');
     await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(logBtn(page)).toHaveAccessibleName('Log set 1: 8 × 125 lb');
     await logBtn(page).tap();
@@ -166,10 +167,10 @@ test.describe('1.10d verify', () => {
     expect((await dump(page, 'sets'))[0].load).toMatchObject({ total: 125, barWeight: 35, perSide: [45] });
     await page.reload();
     await card.getByTestId('weight-cell').first().tap();
-    await expect(picker(page).getByRole('button', { name: /^Bar: Women's/ })).toBeVisible();
-    await picker(page).getByRole('button', { name: /^Bar: Women's/ }).tap();
+    await expect(picker(page).getByRole('button', { name: /^Change bar, Women's/ })).toBeVisible();
+    await picker(page).getByRole('button', { name: /^Change bar, Women's/ }).tap();
     await page.getByRole('dialog', { name: 'Which bar?' }).getByRole('button', { name: /Olympic bar/ }).tap();
-    await expect(picker(page).getByTestId('plate-math')).toHaveText('45 bar + 2 × 45 = 135 lb');
+    await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '45 bar + 2 × 45 = 135 lb');
     expect(errors).toEqual([]);
   });
 
