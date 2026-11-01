@@ -273,6 +273,13 @@
   }
 }
 
+/* 360 x 640 class phones: a touch less again, so five rows clear the rest bar. */
+@media (max-height: 660px) {
+  .hero {
+    --hero-h: clamp(120px, 24svh, 190px);
+  }
+}
+
 /* ---- no sure demo: the compact header */
 .head {
   display: flex;

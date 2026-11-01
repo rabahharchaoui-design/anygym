@@ -26,6 +26,7 @@ import { MusclePair } from '../../components/muscles/MuscleMap';
 import { FormTips } from '../../components/exercise/FormTips';
 import { DemoViewer } from '../../components/exercise/DemoViewer';
 import { useDemoPhotos } from '../../hooks/usePhotos';
+import { useMedia } from '../../hooks/useMedia';
 import { WeightSheet, type WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
@@ -46,6 +47,8 @@ type Props = {
 };
 
 const DEFAULT_REPS = 10;
+/** Screens too short for the demo hero above the set table (gate s2 round 2). */
+const SHORT_SCREEN = '(max-height: 600px)';
 
 /** A load that is certain without asking anything: just you, or a hold (SPEC 0: no fake numbers). */
 function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
@@ -95,7 +98,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // Offline and never kept, the photos cannot show: the compact header instead (gate s2), never a
   // broken or empty picture.
   const photos = useDemoPhotos(infoForPlan(exerciseId).demo);
-  const hasDemo = !!infoForPlan(exerciseId).demo && photos.kind !== 'none';
+  const photosOk = !!infoForPlan(exerciseId).demo && photos.kind !== 'none';
+  // Short screens (the 360 x 640 small Android, the 320 x 568 floor): no room for a hero above five
+  // rows (SPEC 13.5, PLAN 2.2b: the whole set table in the first screen), so the compact header
+  // with the demo as its tile instead; a tap opens the form sheet with the photos.
+  const short = useMedia(SHORT_SCREEN);
+  const hasDemo = photosOk && !short;
   const heroRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -498,7 +506,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         // No sure demo (SPEC 4.3): a compact header, never a broken or empty picture.
         <div className={styles.head} data-testid="ex-head">
           <button type="button" className={`${styles.heroTile} pressable`} onClick={() => setDemo(true)} aria-label={`How to do ${name}`}>
-            <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />
+            {photosOk && info.demo ? <FormDemo demo={info.demo} name={name} compact vtName="ex-hero" /> : <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />}
           </button>
           {titleBlock(true)}
           {moreButton}
@@ -625,7 +633,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         </section>
       )}
       {/* Nothing sure to show: an honest card, never a guessed step or muscle (SPEC 0, 4.3). */}
-      {!hasDemo && !info.muscles && tips.length === 0 && kind && (
+      {!photosOk && !info.muscles && tips.length === 0 && kind && (
         <p className={styles.unknown} data-testid="no-demo">
           Form guide coming soon. We only show form we're sure of.
         </p>

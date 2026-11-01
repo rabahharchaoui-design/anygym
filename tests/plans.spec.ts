@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { setTableInFirstScreen } from './workout-helpers';
 import { fullyShown } from './helpers/layout';
 
 // G's programs, early (PLAN 1.10): curated plans, the Today day card, plan day workouts.
@@ -337,7 +338,8 @@ test('long names are fully readable: list title and exercise name wrap, the exer
   await page.waitForTimeout(400);
   expect(await fullyShown(title)).toBe(true);
   expect((await title.boundingBox())!.height).toBeLessThanOrEqual(3 * 27 + 2);
-  // SPEC 13.5: the exercise view fits on every phone, SE included.
-  expect(await page.getByRole('main').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  // SPEC 13.5 as PLAN 2.2b set it: the view may scroll below the set table (muscles, tips); the
+  // name, every set row and every ✓ fit the first screen on every phone, SE and the 320 floor included.
+  await setTableInFirstScreen(page);
   expect(errors).toEqual([]);
 });

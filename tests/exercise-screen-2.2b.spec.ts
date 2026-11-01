@@ -271,7 +271,10 @@ test('320 wide: nothing sideways', async ({ page }) => {
   test.skip(test.info().project.name !== 'iPhone SE', 'one width floor run is enough');
   await page.setViewportSize({ width: 320, height: 568 });
   const view = await openExercise(page, 'barbell-back-squat');
-  await expect(view.getByTestId('ex-hero')).toBeVisible();
+  // Gate s2 round 2: a screen under 600 pt tall has no room for the hero above five rows, so the
+  // compact header carries the demo as its tile (the form sheet has the photos).
+  await expect(view.getByTestId('ex-hero')).toHaveCount(0);
+  await expect(view.getByTestId('ex-head').getByTestId('demo-tile')).toBeVisible();
   await noSideScroll(page);
   await view.getByTestId('form-tips').scrollIntoViewIfNeeded();
   await noSideScroll(page);
@@ -318,8 +321,10 @@ test('offline with photos never kept: the compact header, no broken picture, no 
   } finally {
     await context.setOffline(false);
   }
-  // Back online: the hero and its photos return, and the service worker keeps them.
-  const hero = page.getByTestId('exercise-barbell-back-squat').getByTestId('ex-hero');
+  // Back online: the hero and its photos return, and the service worker keeps them. Under 600 pt
+  // tall (gate s2 round 2) the photos live in the compact header's demo tile instead of a hero.
+  const view = page.getByTestId('exercise-barbell-back-squat');
+  const hero = page.viewportSize()!.height <= 600 ? view.getByTestId('ex-head').getByTestId('demo-tile') : view.getByTestId('ex-hero');
   await expect(hero).toBeVisible();
   await expect.poll(() => hero.locator('[data-frame] img').evaluateAll((imgs) => imgs.every((i) => (i as HTMLImageElement).naturalWidth > 0))).toBe(true);
   await expect
