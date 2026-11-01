@@ -56,7 +56,7 @@ test('quick workout: picker, first weight, check, double tap, edit, delete with 
   await pickExercises(page, [['back squat', 'Barbell Back Squat']]);
   await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}/barbell-back-squat$`));
   const view = exerciseView(page, 'barbell-back-squat');
-  await expect(view.getByTestId('set-guide')).toHaveText('First time: pick a weight you could lift 2 more reps with');
+  await expect(view.getByTestId('set-guide')).toHaveText('First time: pick a weight you could do 2 more reps with');
   // 3 × 8 to 12 by default; no weight is invented for a first time.
   await expect(view.getByTestId('set-todo')).toHaveCount(3);
   await expect(view.getByTestId('weight-cell')).toHaveText(['Pick', '–', '–']);
@@ -229,7 +229,7 @@ test('a deleted hold is gone from storage at once (1.10c), and a double tap on Q
   expect(errors).toEqual([]);
 });
 
-test('one screen exercise view on every phone: 5 rows, no page scroll, rest bar never covers a row @matrix', async ({ page }) => {
+test('exercise view on every phone: 5 rows, every row and ✓ in the first screen (the page may scroll below the table), rest bar never covers a row @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await seedFinished(page, { 'barbell-back-squat': Array.from({ length: 5 }, () => ({ reps: 10, load: bar185 })) });

@@ -58,6 +58,7 @@ function Body({
   glowId,
   leaving,
   onGone,
+  still = false,
 }: {
   body: BodyKind;
   view: View;
@@ -66,18 +67,21 @@ function Body({
   glowId: string;
   leaving?: boolean;
   onGone?: () => void;
+  /** Drawn once, not tappable, no entrance fade (the compact pair). */
+  still?: boolean;
 }) {
   const art = BODIES[body][view];
   const primaryPaths = art.shapes.filter((s) => s.region && data.shading[s.region] === 'primary');
   return (
     <svg
-      className={`${styles.svg} ${leaving ? styles.leaving : styles.entering}`}
+      className={`${styles.svg} ${still ? styles.still : leaving ? styles.leaving : styles.entering}`}
       viewBox={art.viewBox}
-      role={leaving ? undefined : 'img'}
-      aria-label={leaving ? undefined : `Muscle map, ${view} view, ${body} body. Tap a muscle to name it.`}
-      aria-hidden={leaving ? true : undefined}
+      role={leaving || still ? undefined : 'img'}
+      aria-label={leaving || still ? undefined : `Muscle map, ${view} view, ${body} body. Tap a muscle to name it.`}
+      aria-hidden={leaving || still ? true : undefined}
       focusable="false"
       data-view={leaving ? undefined : view}
+      data-still={still || undefined}
       data-body={leaving ? undefined : body}
       onAnimationEnd={leaving ? onGone : undefined}
     >
@@ -217,6 +221,45 @@ export function MuscleMap({ data }: { data: MuscleMapData | null }) {
         </>
       )}
       <figcaption className={styles.text} data-testid="muscle-text">
+        <span className={styles.textPrimary}>{primaryText}</span>
+        {secondaryText && <span className={styles.textSecondary}>{secondaryText}</span>}
+      </figcaption>
+    </figure>
+  );
+}
+
+/**
+ * The compact card in the workout (PLAN 2.2b): front and back side by side, small and still, in the
+ * body chosen in Settings, with the plain text line. Nothing for an exercise without sure muscles
+ * (SPEC 4.3): no drawing, no "coming soon", no guess. Tapping a muscle is for the full sheet.
+ */
+export function MusclePair({ data }: { data: MuscleMapData | null }) {
+  const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as BodyKind);
+  const glowId = `glow${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  if (!data || !data.text) return null;
+  const drawn = Object.keys(data.shading).length > 0;
+  const primaryText = data.text.split(' · ')[0] ?? '';
+  const secondaryText = data.text.slice(primaryText.length);
+  return (
+    <figure className={styles.pair} data-testid="muscle-pair">
+      {drawn && (
+        <div className={styles.pairStage} role="img" aria-label={`Muscles worked: ${data.text}`}>
+          <svg width="0" height="0" className={styles.defs} aria-hidden="true" focusable="false">
+            <defs>
+              <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="14" />
+              </filter>
+            </defs>
+          </svg>
+          {(['front', 'back'] as const).map((view) => (
+            <div key={view} className={styles.pairBody} aria-hidden="true">
+              <Body body={body} view={view} data={data} picked={null} glowId={glowId} still />
+              <span className={styles.pairLabel}>{view === 'front' ? 'Front' : 'Back'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <figcaption className={styles.pairText} data-testid="muscle-line">
         <span className={styles.textPrimary}>{primaryText}</span>
         {secondaryText && <span className={styles.textSecondary}>{secondaryText}</span>}
       </figcaption>

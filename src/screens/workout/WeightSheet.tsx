@@ -17,6 +17,8 @@ type Props = {
   /** "Set 2" and how many rows below it change too. */
   title: string;
   sub: string;
+  /** Shown instead of `sub` until something is picked (a blocked ✓: "Pick a weight first"). */
+  untilPicked?: string;
   loadType: Load['kind'];
   gym: Gym;
   exerciseId: string;
@@ -32,7 +34,7 @@ type Props = {
  * Tap a weight cell (SPEC 20.2): the one picker for this exercise slides up, already set to the
  * row's weight. Done applies it to that row and the rows below that are not logged yet.
  */
-export function WeightSheet({ open, onClose, title, sub, loadType, gym, exerciseId, exerciseName, bar, start, onDone, onNotice }: Props) {
+export function WeightSheet({ open, onClose, title, sub, untilPicked, loadType, gym, exerciseId, exerciseName, bar, start, onDone, onNotice }: Props) {
   // A swipe down with changed plates keeps them, like Done (no silent loss); unchanged it just closes.
   // While a bar choice is still saving it waits (PLAN 2.0c): the sheet stays until the choice
   // settles, then applies the plates as they are by then and closes.
@@ -44,6 +46,7 @@ export function WeightSheet({ open, onClose, title, sub, loadType, gym, exercise
           commit={commit}
           title={title}
           sub={sub}
+          untilPicked={untilPicked}
           loadType={loadType}
           gym={gym}
           exerciseId={exerciseId}
@@ -62,6 +65,7 @@ export function WeightSheet({ open, onClose, title, sub, loadType, gym, exercise
 function WeightBody({
   title,
   sub,
+  untilPicked,
   loadType,
   gym,
   exerciseId,
@@ -118,7 +122,7 @@ function WeightBody({
       {/* While the bar question is up the sub line steps aside, so the plates stay in view. */}
       {!barUnknown && (
         <p className={styles.sheetSub} data-testid="weight-sheet-sub">
-          {stale ? `Units changed to ${gym.unit}. Pick the weight again.` : sub}
+          {stale ? `Units changed to ${gym.unit}. Pick the weight again.` : untilPicked && !changed ? untilPicked : sub}
         </p>
       )}
       <SetLoadInput

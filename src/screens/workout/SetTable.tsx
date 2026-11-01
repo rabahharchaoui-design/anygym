@@ -44,16 +44,26 @@ type Props = {
   onEdit: (set: WorkoutSet) => void;
   /** Under the rows, inside the scroll (the "+ Add set" button). */
   footer?: ReactNode;
-  /** One line right under the current row ("First time: pick a weight you could lift 2 more reps with"). */
+  /** Right under the rows, above the tip slot (the quiet first time line), so a tip never covers it. */
+  underRows?: ReactNode;
+  /** One line right under the current row ("First time: pick a weight you could do 2 more reps with"). */
   currentNote?: string;
   /**
    * Timed: the current row's Hold cell is the timer. A tap starts or pauses it; it counts down from
    * the row's target with a ring (or up, when there is no target).
    */
   hold?: { running: boolean; onToggle: () => void };
-  /** The first time hint "Tap the check when you finish a set", over the header, pointing at the first row's ✓. */
+  /** The first time hint "Tap the check when you finish a set", under the first row, pointing up at its ✓. */
   checkHint?: boolean;
+  /** A tap on a ✓ that cannot log yet (SPEC 23.2): the view says why. */
+  onBlocked?: (row: PendingRow) => void;
+  /** The short "why" shown in place on that row for a moment, and its weight cell pulses (n restarts it). */
+  nudge?: { index: number; text: string; n: number } | null;
 };
+
+/** Words ("Just you", "40 + bar") wrap onto two short lines in the cell; numbers roll (PLAN 2.2b). */
+const isWord = (v: string) => /[a-z]/i.test(v);
+const WeightFace = ({ value }: { value: string }) => (isWord(value) ? <span className={styles.word}>{value}</span> : <Odometer value={value} />);
 
 const Check = () => <CheckGlyph className={styles.checkIcon} aria-hidden="true" />;
 
@@ -81,7 +91,7 @@ function keepInView(wrap: HTMLElement | null) {
 /** One hold format everywhere: "45 s" under a minute, "1:05" from a minute on. */
 const holdText = (seconds: number) => (seconds < 60 ? `${Math.max(0, Math.floor(seconds))} s` : formatElapsed(seconds));
 
-const amountOf = (kind: Load['kind'], r: { reps?: number; seconds?: number }) => (kind === 'timed' ? (r.seconds ? `${r.seconds} s` : '') : r.reps ? `${r.reps}` : '');
+const amountOf = (kind: Load['kind'], r: { reps?: number; seconds?: number }) => (kind === 'timed' ? (r.seconds ? holdText(r.seconds) : '') : r.reps ? `${r.reps}` : '');
 
 /**
  * The set table (SPEC 20.2, 21.1): SET · LAST TIME · WEIGHT · REPS · ✓ (timed: SET · LAST TIME ·
@@ -92,6 +102,8 @@ export function SetTable(props: Props) {
   const timed = kind === 'timed';
   const current = rows[0]?.index;
   const ref = useRef<HTMLDivElement>(null);
+  const hintRoom = useRef(false);
+  if (props.checkHint) hintRoom.current = true;
   useLayoutEffect(() => keepInView(ref.current), [current, editing, logged.length]);
 
   // Warm ups read "W"; working sets are numbered 1 to n (the header's "Set 2 of 3" agrees).
@@ -125,7 +137,6 @@ export function SetTable(props: Props) {
         <span className={styles.headCheck}>Done</span>
       </div>
       {/* Over the column header (never over a row's text), its arrow down on the first row's ✓. */}
-      {props.checkHint && <Hint id="setCard" className={styles.hint} point="down" arrow="end" compact />}
       <ol className={styles.rows} aria-label="Sets">
         {logged.map((s, i) => {
           const t = typeOfSet(s);
@@ -143,7 +154,7 @@ export function SetTable(props: Props) {
               >
                 <span className={`${styles.last} num`}>{last || '–'}</span>
                 {!timed && (
-                  <span className={`${styles.cellValue} num`} data-testid="saved-weight">
+                  <span className={`${styles.cellValue} num`} data-word={(cells.weight && isWord(cells.weight)) || undefined} data-testid="saved-weight">
                     {cells.weight || '–'}
                   </span>
                 )}
@@ -193,13 +204,15 @@ export function SetTable(props: Props) {
                     data-empty={(!weight && isCurrent) || undefined}
                     data-quiet={(!weight && !isCurrent) || undefined}
                     data-unknown={(r.load === null && !!weight) || undefined}
+                    data-word={(weight && isWord(weight)) || undefined}
+                    data-nudge={props.nudge?.index === r.index ? props.nudge.n % 2 : undefined}
                     onClick={() => props.onWeight(r)}
                     aria-label={
                       r.load ? `Weight for set ${n}: ${weight} ${kind === 'bodyweight' ? '' : unit}. Change` : r.kept ? `Set ${n}: ${weight}, pick again` : `Set ${n}: set the weight`
                     }
                     data-testid="weight-cell"
                   >
-                    {weight ? <Odometer value={weight} /> : isCurrent ? 'Pick' : '–'}
+                    {weight ? <WeightFace value={weight} /> : isCurrent ? 'Pick' : '–'}
                   </button>
                 )}
                 {timer ? (
@@ -239,7 +252,8 @@ export function SetTable(props: Props) {
                     {amount ? <Odometer value={amount} /> : '–'}
                   </button>
                 )}
-                <span className={styles.checkWrap}>
+                {/* A disabled ✓ takes no taps itself; the wrap under it hears them and the view says why. */}
+                <span className={styles.checkWrap} onClick={blocked !== null && props.onBlocked ? () => props.onBlocked!(r) : undefined} data-testid={blocked !== null ? 'check-blocked' : undefined}>
                   <button
                     type="button"
                     className={`${styles.check} pressable`}
@@ -275,6 +289,24 @@ export function SetTable(props: Props) {
           );
         })}
       </ol>
+      {props.underRows}
+      {/* The tip slot under the rows (PLAN 2.2b): the ✓ coach mark and a blocked ✓'s reason float
+          here, pointing up at the ✓ column. Absolute, so nothing moves, and never over a number
+          or a column header. */}
+      {/* The coach mark is in the flow here, where it pushes "+ Add set" down instead of covering it. */}
+      {/* Its room stays once it showed in this view, so nothing jumps under a fast second tap when it goes. */}
+      {hintRoom.current && (
+        <div className={styles.hintRow}>
+          {props.checkHint && <Hint id="setCard" className={styles.hint} point="up" arrow="end" compact />}
+        </div>
+      )}
+      <div className={styles.tipSlot}>
+        {props.nudge && (
+          <span key={props.nudge.n} className={styles.nudge} role="status" data-testid="check-why">
+            {props.nudge.text}
+          </span>
+        )}
+      </div>
       {props.footer}
     </div>
   );

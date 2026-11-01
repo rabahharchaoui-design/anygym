@@ -62,3 +62,17 @@ Decisions: 2.2b left unchecked (waits for an exercise browser). codex-active-wor
 Not done here: 2.6 merge gate (needs WebKit, the Simulator, the full matrix and the ux-critic).
 
 iPhone checks for G: open https://rabahharchaoui-design.github.io/anygym/?dev#/dev/muscles in Safari, pick a bench press, switch Front/Back and Male/Female, tap a muscle; then Settings → Feel → Muscle map body.
+
+## Cloud run, Nov 1 2026, 23:37 to about 01:30 UTC
+
+Shipped and live:
+- 2.2b Exercise screen fills the screen (G's Nov 1 3:22 AM item, added to PLAN after 2.2a; the old 2.2b "Exercises for a tapped muscle" is renumbered 2.2c). SIM CHECK PENDING (cloud, Chromium only).
+  - Demo hero on top (26svh, capped on SE so the set table and every ✓ stay in the first screen), slow crossfade between the two demo photos, reduced motion shows the start photo still. Name and "Set 1 of 4 · 8 to 12 reps" on a dark fade at its foot; on scroll the hero folds into a compact title bar with ⋯ (CSS scroll timeline; older Safari keeps a plain sticky hero).
+  - Tap the hero: new full screen demo viewer (close with ✕, tap, swipe down, Escape or Back). The info sheet's "1 / 2" counter and dots are gone.
+  - Below the table: front and back muscle maps side by side with "Primary · secondaries", numbered form tips from the catalog cues (variant caveat as a quiet note), Watch out and Good for inline.
+  - Removed: orange "Pick a weight" line, cue line with More. A tap on a ✓ that cannot log opens the weight picker with "Pick a weight first". First time line shortened and hidden once a weight is picked. Weight cells with words ("Just you") no longer clip.
+  - No demo and nothing sure: compact header plus one quiet line "Form guide coming soon. We only show form we're sure of." Nothing invented (SPEC 0).
+  - Tests: Vitest 1493 green; exercise-screen-2.2b (new), exercise-sheet-2.3, workout, stay-2.0g, smoke, doubletap, critic-1.7e green on iPhone SE, 15, 17 Pro Max (Chromium). workout.spec:232 retitled to the 2.2b rule (rows and ✓ in the first screen, page may scroll below, rest bar never covers a row).
+  - ux-critic: 6, then 7, then 7/10 (target 8 not reached in 3 rounds). Left for gmini's gate: the full screen viewer is a letterboxed photo with a fade, not a shared element grow and no steps under it; timed stretches show both a timer and a ✓ of equal weight; "+ lb" header and the Last time column of dashes for new users (SPEC 13.6 wording kept on purpose); muscle line wraps at 375 and Front/Back labels sit tight under the sticky bar; More sheet "Remove / Delete its sets first" dead end; empty bar in the picker drawn as a close up looks cropped (2.0d behavior). Rejected: inventing steps for stretches, frame dots in the viewer (G asked to remove them), dropping calves from the squat (source data).
+  - The coach mark keeps its 48 px slot after it is dismissed so a fast second ✓ tap never lands on a moved row; a small gap remains visible.
+  - Screenshots: reports/shots/2.2b/, critic shots reports/critic/2.2b/.

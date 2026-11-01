@@ -124,10 +124,19 @@ export async function shotOn(page: Page, dir: string, name: string, profiles = [
   await page.screenshot({ path: `reports/shots/${dir}/${name}-${project.replace(/ /g, '-')}.png` });
 }
 
-/** The page never scrolls sideways and the main area does not scroll (SPEC 13.5). */
+/**
+ * The page never scrolls sideways and the current set fits the first screen (SPEC 13.5). The
+ * exercise view scrolls on to the muscles and form tips below its table (PLAN 2.2b), so there the
+ * check is that the current row's ✓ is fully in view; any other main area does not scroll.
+ */
 export async function fitsOneScreen(page: Page) {
   const main = page.getByRole('main');
-  await expect.poll(() => main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  const exercise = (await main.getAttribute('data-testid'))?.startsWith('exercise-');
+  if (exercise && (await page.getByTestId('check-current').count()) > 0) {
+    await expect(page.getByTestId('check-current')).toBeInViewport({ ratio: 1 });
+  } else {
+    await expect.poll(() => main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  }
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 }
 

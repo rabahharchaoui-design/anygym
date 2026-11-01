@@ -298,19 +298,20 @@ test('⋯ menu has no dead rows; the picker keeps its height while typing and le
   expect(errors).toEqual([]);
 });
 
-test('first time with weights: "Pick" cells and one first time line above the table', async ({ page }) => {
+test('first time with weights: "Pick" cells and one first time line under the rows', async ({ page }) => {
   const errors = watchErrors(page);
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   const view = page.getByTestId('exercise-barbell-back-squat');
   await expect(view.getByTestId('weight-cell')).toHaveText(['Pick', '–', '–']);
   const note = view.getByTestId('set-guide');
-  await expect(note).toHaveText('First time: pick a weight you could lift 2 more reps with');
+  await expect(note).toHaveText('First time: pick a weight you could do 2 more reps with');
   await expect(note).toHaveCount(1);
-  // Gate 2: above the table (a coach mark may float over the header, never over this line).
-  const row = (await view.getByTestId('set-todo').first().boundingBox())!;
+  // PLAN 2.2b: one quiet line right under the rows (it never moves a ✓), on one line.
+  const last = (await view.getByTestId('set-todo').last().boundingBox())!;
   const n = (await note.boundingBox())!;
-  expect(n.y + n.height).toBeLessThanOrEqual(row.y);
-  expect(row.y - (n.y + n.height)).toBeLessThan(60);
+  expect(n.y).toBeGreaterThanOrEqual(last.y + last.height);
+  expect(n.y - (last.y + last.height)).toBeLessThan(30);
+  expect(n.height).toBeLessThanOrEqual(20);
   expect(errors).toEqual([]);
 });
 

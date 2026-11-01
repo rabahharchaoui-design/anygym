@@ -72,7 +72,7 @@ describe('rule 5: first time', () => {
     const p = run({ loadKind: 'barbell', history: [] });
     expect(p.lastTime).toBeNull();
     expect(p.next).toEqual({ load: null, reps: [8, 12], reason: FIRST_TIME, kind: 'first_time' });
-    expect(p.next.reason).toBe('First time: pick a weight you could lift 2 more reps with');
+    expect(p.next.reason).toBe('First time: pick a weight you could do 2 more reps with');
     expect(p.perSet).toEqual([]);
   });
   it('a prescription gives empty rows to fill; bodyweight and timed have their own first time line', () => {
