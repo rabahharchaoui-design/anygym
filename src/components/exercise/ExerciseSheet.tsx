@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
+import { BackButton } from '../../ui/BackButton';
 import { MusclePair } from '../muscles/MuscleMap';
 import type { ExerciseInfo } from '../../lib/exerciseInfo';
 import { FormDemo } from './FormDemo';
@@ -15,6 +16,8 @@ type Props = {
   info: ExerciseInfo;
   /** Drawn in place of the photos for match none: the calm equipment tile (never another exercise). */
   placeholder?: ReactNode;
+  /** Opened on top of another sheet (PLAN 2.2c, SPEC 23.1 nested sheets): a glass Back button returns to it. */
+  back?: { label: string; onPress: () => void };
 };
 
 /**
@@ -22,13 +25,18 @@ type Props = {
  * Watch out, Good for. Match none (SPEC 4.3): "Demo coming soon", no photos, no muscle map, and
  * only the plan's own notes as text cues.
  */
-export function ExerciseSheet({ open, onClose, name, info, placeholder }: Props) {
+export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: Props) {
   const [full, setFull] = useState(false);
   const howTo = info.cues;
   return (
     <>
     <Sheet open={open} onClose={onClose} label={`How to do ${name}`} scroll>
       <div className={styles.body} data-testid="exercise-sheet" data-match={info.match}>
+        {back && (
+          <div className={styles.backRow}>
+            <BackButton label={back.label} onPress={back.onPress} />
+          </div>
+        )}
         {info.demo ? (
           <FormDemo demo={info.demo} name={name} onOpen={() => setFull(true)} />
         ) : (

@@ -581,7 +581,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       {/* Below the table, nothing hidden (PLAN 2.2b): the muscles and the form tips, only when sure. */}
       {info.muscles && (
         <section className={styles.card} aria-label="Muscles" data-testid="muscle-card">
-          <MusclePair data={info.muscles} />
+          <MusclePair data={info.muscles} exercises />
         </section>
       )}
       {(tips.length > 0 || variantNote) && (

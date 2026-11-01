@@ -4,11 +4,13 @@ import { bodyPref } from '../../lib/bodyPref';
 import type { MuscleMapData } from '../../lib/muscles';
 import { Segmented } from '../../ui/Segmented';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
+import { MuscleExercisesLink, MuscleExercisesSheet } from './MuscleExercises';
 import styles from './MuscleMap.module.css';
 
 // SPEC 4.4 and 4.5 (PREMIUM MAP, PLAN 2.2a): one large body at a time with Front | Back and
 // Male | Female switches, primary muscles in the accent with a soft glow, secondary at 40%, tap a
-// muscle to name it, and the precise text line under the drawing. The component only draws what
+// muscle to name it (and, PLAN 2.2c, open the catalog exercises that work it), and the precise text
+// line under the drawing. The component only draws what
 // src/lib/muscles.ts resolved; null is the honest empty state (SPEC 4.3), never a guessed map.
 
 const VIEWS = [
@@ -126,6 +128,7 @@ function Drawing({ data }: { data: MuscleMapData }) {
   const picked = state.key === key ? state.picked : null;
   const other: View = view === 'front' ? 'back' : 'front';
   const [leaving, setLeaving] = useState<{ body: BodyKind; view: View; n: number } | null>(null);
+  const [listFor, setListFor] = useState<Region | null>(null);
 
   const swap = (next: { body?: BodyKind; view?: View }) => {
     if (!reduced) setLeaving((l) => ({ body, view, n: (l?.n ?? 0) + 1 }));
@@ -146,19 +149,22 @@ function Drawing({ data }: { data: MuscleMapData }) {
         <Segmented label="Side" options={VIEWS} value={view} onChange={(v) => swap({ view: v })} testId="muscle-view" />
         <Segmented label="Body" options={BODY_OPTIONS} value={body} onChange={(b) => swap({ body: b })} testId="muscle-body" />
       </div>
-      <div className={styles.readout} data-testid="muscle-pick" aria-live="polite">
-        {picked ? (
-          <span className={styles.picking}>{pickLine(picked, data)}</span>
-        ) : !lit(data, body, view) && lit(data, body, other) ? (
-          <>
-            <span>Worked on the {other}</span>
-            <button type="button" className={`${styles.showOther} pressable`} onClick={() => swap({ view: other })}>
-              Show {other}
-            </button>
-          </>
-        ) : (
-          <span>Tap a muscle to name it</span>
-        )}
+      <div className={styles.readoutRow}>
+        <div className={styles.readout} data-testid="muscle-pick" aria-live="polite">
+          {picked ? (
+            <span className={styles.picking}>{pickLine(picked, data)}</span>
+          ) : !lit(data, body, view) && lit(data, body, other) ? (
+            <>
+              <span>Worked on the {other}</span>
+              <button type="button" className={`${styles.showOther} pressable`} onClick={() => swap({ view: other })}>
+                Show {other}
+              </button>
+            </>
+          ) : (
+            <span>Tap a muscle to name it</span>
+          )}
+        </div>
+        {picked && <MuscleExercisesLink region={picked} onOpen={setListFor} />}
       </div>
       <div className={styles.stage} onClick={onTap}>
         <svg width="0" height="0" className={styles.defs} aria-hidden="true" focusable="false">
@@ -182,6 +188,7 @@ function Drawing({ data }: { data: MuscleMapData }) {
         )}
         <Body key={`${body}-${view}`} body={body} view={view} data={data} picked={picked} glowId={glowId} />
       </div>
+      <MuscleExercisesSheet region={listFor} onClose={() => setListFor(null)} />
     </>
   );
 }
@@ -231,19 +238,36 @@ export function MuscleMap({ data }: { data: MuscleMapData | null }) {
 /**
  * The compact card in the workout (PLAN 2.2b): front and back side by side, small and still, in the
  * body chosen in Settings, with the plain text line. Nothing for an exercise without sure muscles
- * (SPEC 4.3): no drawing, no "coming soon", no guess. Tapping a muscle is for the full sheet.
+ * (SPEC 4.3): no drawing, no "coming soon", no guess. With `exercises` (the workout's muscle card,
+ * PLAN 2.2c) a tap on a muscle names it under the line and links to the exercises that work it.
  */
-export function MusclePair({ data }: { data: MuscleMapData | null }) {
+export function MusclePair({ data, exercises = false }: { data: MuscleMapData | null; exercises?: boolean }) {
   const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as BodyKind);
   const glowId = `glow${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const key = data ? data.text + JSON.stringify(data.shading) : '';
+  const [pick, setPick] = useState<{ key: string; region: Region | null }>({ key, region: null });
+  const [listFor, setListFor] = useState<Region | null>(null);
   if (!data || !data.text) return null;
   const drawn = Object.keys(data.shading).length > 0;
+  const tappable = exercises && drawn;
+  // Another exercise starts with nothing tapped.
+  const picked = tappable && pick.key === key ? pick.region : null;
   const primaryText = data.text.split(' · ')[0] ?? '';
   const secondaryText = data.text.slice(primaryText.length);
+  const onTap = (e: MouseEvent<HTMLDivElement>) => {
+    const el = (e.target as Element).closest('svg [data-region]');
+    const region = (el?.getAttribute('data-region') ?? null) as Region | null;
+    setPick({ key, region: region && region !== picked ? region : null });
+  };
   return (
-    <figure className={styles.pair} data-testid="muscle-pair">
+    <figure className={`${styles.pair} ${tappable ? styles.pairTappable : ''}`} data-testid="muscle-pair">
       {drawn && (
-        <div className={styles.pairStage} role="img" aria-label={`Muscles worked: ${data.text}`}>
+        <div
+          className={styles.pairStage}
+          role="img"
+          aria-label={`Muscles worked: ${data.text}`}
+          onClick={tappable ? onTap : undefined}
+        >
           <svg width="0" height="0" className={styles.defs} aria-hidden="true" focusable="false">
             <defs>
               <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
@@ -253,7 +277,7 @@ export function MusclePair({ data }: { data: MuscleMapData | null }) {
           </svg>
           {(['front', 'back'] as const).map((view) => (
             <div key={view} className={styles.pairBody} aria-hidden="true">
-              <Body body={body} view={view} data={data} picked={null} glowId={glowId} still />
+              <Body body={body} view={view} data={data} picked={picked} glowId={glowId} still />
               <span className={styles.pairLabel}>{view === 'front' ? 'Front' : 'Back'}</span>
             </div>
           ))}
@@ -263,6 +287,15 @@ export function MusclePair({ data }: { data: MuscleMapData | null }) {
         <span className={styles.textPrimary}>{primaryText}</span>
         {secondaryText && <span className={styles.textSecondary}>{secondaryText}</span>}
       </figcaption>
+      {tappable && (
+        <div className={styles.readoutRow}>
+          <div className={styles.readout} data-testid="muscle-pick" aria-live="polite">
+            {picked ? <span className={styles.picking}>{pickLine(picked, data)}</span> : <span>Tap a muscle to see its exercises</span>}
+          </div>
+          {picked && <MuscleExercisesLink region={picked} onOpen={setListFor} />}
+        </div>
+      )}
+      {exercises && <MuscleExercisesSheet region={listFor} onClose={() => setListFor(null)} />}
     </figure>
   );
 }

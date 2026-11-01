@@ -132,12 +132,22 @@
   stroke-width: 5;
 }
 
+.readoutRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px; /* reserved: the line (and its exercises link) never pushes the body */
+  max-width: 100%;
+  min-width: 0;
+}
+
 .readout {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  height: 44px; /* reserved: the line never pushes the body */
+  height: 44px;
+  min-width: 0;
   max-width: 100%;
   color: var(--text-2);
   font-size: var(--text-sm);
@@ -148,8 +158,11 @@
 .picking {
   color: var(--text);
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Up to two lines inside the reserved 44 px (big text, 320 wide, beside the exercises link). */
+  white-space: normal;
+  line-height: 1.2;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .showOther {
@@ -256,6 +269,20 @@
 
 .still .muscle {
   cursor: default;
+}
+
+/* The workout's card (PLAN 2.2c): the small bodies take taps to name a muscle. */
+.pairTappable .pairBody .svg {
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pairTappable .still .muscle {
+  cursor: pointer;
+}
+
+.pairTappable .pairStage {
+  touch-action: manipulation;
 }
 
 .pairLabel {
