@@ -20,7 +20,7 @@
 //     rounded to a loadable weight, "Reset and build back up". Not for bodyweight or timed.
 //   4 else same load, beat the reps: +1 rep on the first set that missed the top.
 //   5 no history (the caller keys it: machines per gym, free weights shared) → load null,
-//     "First time: pick a weight you could lift 2 more reps with".
+//     "First time: pick a weight you could do 2 more reps with".
 //   6 a prescription sets the reps (and the number of rows); the load still follows 2 to 4.
 //   7 history in another unit → converted and rounded to the nearest loadable weight here,
 //     reason "≈ 27.5 kg, last time 60 lb".
@@ -87,7 +87,7 @@ export type Progression = {
   perSet: Array<{ lastTime?: SetLine; target: SetTarget }>;
 };
 
-export const FIRST_TIME = 'First time: pick a weight you could lift 2 more reps with';
+export const FIRST_TIME = 'First time: pick a weight you could do 2 more reps with';
 export const FIRST_TIME_BODYWEIGHT = 'First time: stop when you could do 2 more reps';
 export const FIRST_TIME_TIMED = 'First time: hold while your form stays good';
 export const RESET = 'Reset and build back up';

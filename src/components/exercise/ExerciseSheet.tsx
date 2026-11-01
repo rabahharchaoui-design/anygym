@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
-import { MuscleMap } from '../muscles/MuscleMap';
+import { MusclePair } from '../muscles/MuscleMap';
 import type { ExerciseInfo } from '../../lib/exerciseInfo';
 import { FormDemo } from './FormDemo';
+import { FormTips } from './FormTips';
+import { DemoViewer } from './DemoViewer';
 import styles from './ExerciseSheet.module.css';
 
 type Props = {
@@ -21,12 +23,14 @@ type Props = {
  * only the plan's own notes as text cues.
  */
 export function ExerciseSheet({ open, onClose, name, info, placeholder }: Props) {
-  const howTo = [...(info.variantNote ? [info.variantNote] : []), ...info.cues];
+  const [full, setFull] = useState(false);
+  const howTo = info.cues;
   return (
+    <>
     <Sheet open={open} onClose={onClose} label={`How to do ${name}`} scroll>
       <div className={styles.body} data-testid="exercise-sheet" data-match={info.match}>
         {info.demo ? (
-          <FormDemo demo={info.demo} name={name} />
+          <FormDemo demo={info.demo} name={name} onOpen={() => setFull(true)} />
         ) : (
           <div className={styles.soon} data-testid="demo-soon">
             {placeholder}
@@ -34,17 +38,11 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder }: Props)
           </div>
         )}
         <h2 className={styles.title}>{name}</h2>
-        {info.muscles && <MuscleMap data={info.muscles} />}
-        {howTo.length > 0 && (
+        {info.muscles && <MusclePair data={info.muscles} />}
+        {(howTo.length > 0 || info.variantNote) && (
           <section className={styles.section} aria-label="How to">
             <h3 className={styles.heading}>How to</h3>
-            <ol className={styles.cues} data-testid="cues">
-              {howTo.map((c, i) => (
-                <li key={i} className={styles.cue} data-variant={i === 0 && !!info.variantNote ? '' : undefined}>
-                  {c}
-                </li>
-              ))}
-            </ol>
+            <FormTips note={info.variantNote} tips={howTo} testId="cues" />
           </section>
         )}
         {info.watchOut && (
@@ -68,5 +66,7 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder }: Props)
         </Button>
       </div>
     </Sheet>
+    {info.demo && <DemoViewer open={full} onClose={() => setFull(false)} name={name} demo={info.demo} />}
+    </>
   );
 }

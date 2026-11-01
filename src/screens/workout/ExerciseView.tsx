@@ -22,7 +22,9 @@ import { Thumb } from './Thumb';
 import { FormDemo } from '../../components/exercise/FormDemo';
 import { ExerciseSheet } from '../../components/exercise/ExerciseSheet';
 import { infoForPlan } from '../../data/exerciseInfo';
-import { firstLine } from '../../lib/exerciseInfo';
+import { MusclePair } from '../../components/muscles/MuscleMap';
+import { FormTips } from '../../components/exercise/FormTips';
+import { DemoViewer } from '../../components/exercise/DemoViewer';
 import { WeightSheet, type WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
@@ -72,7 +74,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
    * row that commits while the sheet is open moves the rows below it, and the change must still land
    * on the row the sheet was opened for. `row` is that row as it was when the sheet opened.
    */
-  const [picking, setPicking] = useState<{ id: string; row: PendingRow } | null>(null);
+  const [picking, setPicking] = useState<{ id: string; row: PendingRow; why?: string } | null>(null);
   /**
    * The open reps (or hold) editor's row, by its stable draft id (PLAN 2.0e), like the weight sheet:
    * a delayed Log that moves the rows never hands the editor to another row. It closes when its
@@ -80,6 +82,40 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
    */
   const [editing, setEditing] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
+  /** The full screen demo (the hero's tap). */
+  const [full, setFull] = useState(false);
+  /** A tap on a ✓ that cannot log yet: the row, its why, and a count that restarts the pulse. */
+  const [nudge, setNudge] = useState<{ index: number; text: string; n: number } | null>(null);
+  const nudgeTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(nudgeTimer.current), []);
+  /** The hero folded into its compact title bar (scrolled past the picture). */
+  const [folded, setFolded] = useState(false);
+  /** The hero's foot (name, set, ⋯) stays pinned when the picture scrolls away: its height, measured. */
+  const hasDemo = !!infoForPlan(exerciseId).demo;
+  const heroRef = useRef<HTMLDivElement>(null);
+  const captionRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const hero = heroRef.current;
+    const cap = captionRef.current;
+    if (!hero || !cap) return;
+    const scroller = hero.parentElement!;
+    let pinPx = 0;
+    const pin = () => {
+      // The bar keeps 8 px of the fade above the name; the rest of the fade scrolls away.
+      pinPx = Math.ceil(cap.getBoundingClientRect().height - Math.max(0, parseFloat(getComputedStyle(cap).paddingTop) - 8));
+      hero.style.setProperty('--pin', `${pinPx}px`);
+    };
+    pin();
+    // Folded once the picture has scrolled away: one attribute flip, CSS does the rest.
+    const onScroll = () => setFolded(scroller.scrollTop > hero.offsetHeight - pinPx - 24);
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(pin);
+    ro?.observe(cap);
+    return () => {
+      ro?.disconnect();
+      scroller.removeEventListener('scroll', onScroll);
+    };
+  }, [hasDemo]);
   /** The "Set type" sheet: a row still to do, or a logged set. */
   const [typing, setTyping] = useState<{ n: number; type: SetType; rowId?: string; set?: WorkoutSet } | null>(null);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
@@ -357,9 +393,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // The first time line stays for as long as this view is open once it showed (PLAN 2.0e): it going
   // away with the first logged set moved every row up under the thumb, so the second tap of a fast
   // double tap landed on the next row's ✓ and logged it (the 1.7a and 1.10d double tap flakes).
-  const guideShown = useRef(false);
-  const showGuide = !!kind && !!progression && !lastTime && !!progression.next.reason && (logged.length === 0 || guideShown.current);
-  if (showGuide) guideShown.current = true;
+  // PLAN 2.2b: it sits under the rows now (it never moves a ✓), so it goes as soon as it is done
+  // with: a weight picked or a set logged.
+  const picked = !!current?.load && kind !== 'bodyweight' && kind !== 'timed';
+  const showGuide = !!kind && !!progression && !lastTime && !!progression.next.reason && logged.length === 0 && !picked;
   // One target line (the LAST TIME column already shows each set): "Beat last time: 11 reps at
   // 185 lb", plus why when the weight moved; without a weight to beat, the reason alone.
   const beat = progression && lastTime ? beatLine(progression) : null;
@@ -368,7 +405,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const note = notes.join(' · ');
   // SPEC 4.4: photos, muscles and cues only when the match is sure (SPEC 4.3).
   const info = infoForPlan(exerciseId, notes);
-  const cueLine = info.demo ? firstLine(info) : null;
+  // Form tips: the catalog's own cues (a variant's difference first), only for a sure match.
+  const sure = info.match === 'exact' || info.match === 'variant';
+  const tips = sure ? info.cues.slice(0, 3) : [];
+  const variantNote = sure ? info.variantNote : null;
   const setNumber = Math.min(workDone + 1, Math.max(entry?.sets ?? 1, workDone + 1));
   const status = current ? blockedOf(current) : null;
   // The number each row shows: "W" for a warm up, working sets 1 to n (SetTable shows the same).
@@ -377,48 +417,83 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const pickRow = picking ? (rowById(picking.id) ?? picking.row) : null;
   const rowName = (r: PendingRow) => (r.type === 'warmup' ? 'Warm up' : `Set ${numbers[r.index]}`);
 
-  return (
-    <main className={styles.exMain} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-      <div className={styles.hero}>
-        <button type="button" className={`${styles.heroTile} pressable`} onClick={() => setDemo(true)} aria-label={`How to do ${name}`}>
-          {info.demo ? <FormDemo demo={info.demo} name={name} compact vtName="ex-hero" /> : <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />}
-        </button>
-        <div className={styles.heroText}>
-          <h2 className={styles.exName}>{name}</h2>
-          <p className={`${styles.exTarget} num`} data-testid="set-target">
-            {!kind
-              ? (entry?.line ?? '')
-              : rows.length === 0 && logged.length > 0
-                ? `All ${logged.length} ${logged.length === 1 ? 'set' : 'sets'} done`
-                : entry
-                  ? setLine(entry, setNumber)
-                  : `Set ${setNumber}`}
-          </p>
-          {note && (
-            <p className={styles.exNote} data-testid="set-plan">
-              {note}
-            </p>
-          )}
-          {cueLine && (
-            <button type="button" className={`${styles.cueLine} pressable`} onClick={() => setDemo(true)} data-testid="cue-line">
-              <span className={styles.cueText}>{cueLine}</span>
-              <span className={styles.cueMore}>More</span>
-            </button>
-          )}
-        </div>
-        <button type="button" className={`${styles.moreButton} pressable`} onClick={onMenu} aria-label={`More for ${name}`}>
-          <MoreIcon width={22} height={22} strokeWidth={2.4} aria-hidden="true" />
-        </button>
-      </div>
+  const targetText = !kind
+    ? (entry?.line ?? '')
+    : rows.length === 0 && logged.length > 0
+      ? `All ${logged.length} ${logged.length === 1 ? 'set' : 'sets'} done`
+      : entry
+        ? setLine(entry, setNumber)
+        : `Set ${setNumber}`;
+  const titleBlock = (withNote: boolean) => (
+    <div className={styles.heroText}>
+      <h2 className={styles.exName}>{name}</h2>
+      <p className={`${styles.exTarget} num`} data-testid="set-target">
+        {targetText}
+      </p>
+      {withNote && note && (
+        <p className={styles.exNote} data-testid="set-plan">
+          {note}
+        </p>
+      )}
+    </div>
+  );
+  const onBlocked = (r: PendingRow) => {
+    const why = blockedOf(r);
+    if (!why || logQueue.closed(sessionId)) return;
+    tick();
+    // No weight yet (or a pick to redo, or a bar or start weight to set): straight to the picker for
+    // that row, saying why. It never logs without a weight (SPEC 0).
+    if (kind && kind !== 'timed' && (r.load === null || r.kept)) {
+      setPicking({ id: idOf(r), row: r, why: why === 'Pick a weight' ? 'Pick a weight first' : why });
+      return;
+    }
+    window.clearTimeout(nudgeTimer.current);
+    setNudge((n) => ({ index: r.index, text: why, n: (n?.n ?? 0) + 1 }));
+    nudgeTimer.current = window.setTimeout(() => setNudge(null), 1700);
+  };
+  const moreButton = (
+    <button type="button" className={`${styles.moreButton} pressable`} onClick={onMenu} aria-label={`More for ${name}`}>
+      <MoreIcon width={22} height={22} strokeWidth={2.4} aria-hidden="true" />
+    </button>
+  );
+  // "Pick a weight" is what the lime Pick button already says (PLAN 2.2b); any other reason (a bar
+  // weight to set first, a pick in the other unit) stays as a quiet line. Screen readers hear all.
+  const statusText = status && current ? `${rowName(current)}: ${status}` : '';
+  const statusShown = !!status && status !== 'Pick a weight';
 
-      {/* First time: one line above the table, never a guessed weight (SPEC 6 rule 5). */}
-      {showGuide && progression && (
-        <div className={styles.guides}>
-          <p className={`${styles.guide} num`} data-testid="set-guide">
-            {progression.next.reason}
-          </p>
+  return (
+    <main className={styles.exMain} data-hero={info.demo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
+      {info.demo ? (
+        // The demo hero (PLAN 2.2b): the photos loop like a gif; the name and set ride on its foot,
+        // which stays pinned (with the ⋯) while the picture scrolls away above it.
+        <div className={styles.hero} ref={heroRef} data-testid="ex-hero" data-folded={folded || undefined}>
+          <button type="button" className={styles.heroStage} onClick={() => setFull(true)} aria-label={`Show ${name} full screen`} tabIndex={folded ? -1 : undefined}>
+            <span className={styles.heroMedia}>
+              <FormDemo demo={info.demo} name={name} hero />
+            </span>
+          </button>
+          <div className={styles.heroCaption} ref={captionRef}>
+            {titleBlock(false)}
+            {moreButton}
+          </div>
+        </div>
+      ) : (
+        // No sure demo (SPEC 4.3): a compact header, never a broken or empty picture.
+        <div className={styles.head} data-testid="ex-head">
+          <button type="button" className={`${styles.heroTile} pressable`} onClick={() => setDemo(true)} aria-label={`How to do ${name}`}>
+            <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />
+          </button>
+          {titleBlock(true)}
+          {moreButton}
         </div>
       )}
+      {/* The plan's own note, under the picture (the hero's foot stays two lines). */}
+      {info.demo && note && (
+        <p className={`${styles.exNote} ${styles.planNote}`} data-testid="set-plan">
+          {note}
+        </p>
+      )}
+
       {kind && progression && lastTime && (
         <div className={styles.guides}>
           {(beat || why) && (
@@ -444,7 +519,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ) : !progression ? (
         <div className={styles.tableSkeleton} aria-hidden="true" />
       ) : (
-        <>
+        <div className={styles.tableArea}>
           <SetTable
             kind={kind}
             unit={gym.unit}
@@ -469,25 +544,74 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onEdit={onEditSet}
             hold={timed && current ? { running, onToggle: toggleWatch } : undefined}
             checkHint={!timed && !!current && !status && logged.length === 0}
+            onBlocked={onBlocked}
+            nudge={nudge}
+            underRows={
+              <>
+                {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
+                    Under the rows, so it never moves a ✓ (PLAN 2.0e). */}
+                {showGuide && progression && (
+                  <p className={`${styles.firstTime} num`} data-testid="set-guide">
+                    {progression.next.reason}
+                  </p>
+                )}
+              </>
+            }
             footer={
-              <button
-                type="button"
-                className={`${styles.addSet} pressable`}
-                onClick={() => {
-                  addExtraSet(sessionId, exerciseId);
-                  w.bump();
-                }}
-              >
-                + Add set
-              </button>
+              <>
+                <button
+                  type="button"
+                  className={`${styles.addSet} pressable`}
+                  onClick={() => {
+                    addExtraSet(sessionId, exerciseId);
+                    w.bump();
+                  }}
+                >
+                  + Add set
+                </button>
+              </>
             }
           />
-          <div className={styles.statusLine}>
-            <p className={styles.status} data-testid="set-status" role="status">
-              {status && current ? `${rowName(current)}: ${status}` : ''}
-            </p>
-          </div>
-        </>
+          <p className={statusShown ? styles.status : styles.srOnly} data-testid="set-status" role="status">
+            {statusText}
+          </p>
+        </div>
+      )}
+
+      {/* Below the table, nothing hidden (PLAN 2.2b): the muscles and the form tips, only when sure. */}
+      {info.muscles && (
+        <section className={styles.card} aria-label="Muscles" data-testid="muscle-card">
+          <MusclePair data={info.muscles} />
+        </section>
+      )}
+      {(tips.length > 0 || variantNote) && (
+        <section className={styles.card} aria-label="How to" data-testid="form-tips">
+          <h3 className={styles.cardHeading}>How to</h3>
+          <FormTips note={variantNote} tips={tips} />
+          {/* The catalog's watch out and good for lines, when it has them: on the page, nothing hidden. */}
+          {sure && info.watchOut && (
+            <div className={styles.extra}>
+              <h3 className={`${styles.cardHeading} ${styles.warnHeading}`}>Watch out</h3>
+              <p className={styles.extraLine} data-testid="watch-out">
+                {info.watchOut}
+              </p>
+            </div>
+          )}
+          {sure && info.goodFor && (
+            <div className={styles.extra}>
+              <h3 className={styles.cardHeading}>Good for</h3>
+              <p className={styles.extraLine} data-testid="good-for">
+                {info.goodFor}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+      {/* Nothing sure to show: an honest card, never a guessed step or muscle (SPEC 0, 4.3). */}
+      {!info.demo && !info.muscles && tips.length === 0 && kind && (
+        <p className={styles.unknown} data-testid="no-demo">
+          Form guide coming soon. We only show form we're sure of.
+        </p>
       )}
 
       {kind && kind !== 'timed' && (
@@ -495,6 +619,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           open={picking !== null}
           onClose={() => setPicking(null)}
           title={pickRow ? rowName(pickRow) : ''}
+          untilPicked={picking?.why && pickRow?.load === null ? picking.why : undefined}
           sub={!pickRow ? '' : pickRow.type === 'warmup' ? 'Just this warm up' : rows.some((r) => r.index > pickRow.index && r.type !== 'warmup') ? 'This set and the ones below' : 'This set'}
           loadType={kind}
           gym={gym}
@@ -509,6 +634,14 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
       <SetTypeSheet open={typing !== null} onClose={() => setTyping(null)} title={typing ? `Set ${typing.n}` : ''} value={typing?.type ?? 'normal'} onPick={pickType} />
 
+      {info.demo && (
+        <DemoViewer
+          open={full}
+          onClose={() => setFull(false)}
+          name={name}
+          demo={info.demo}
+        />
+      )}
       <ExerciseSheet open={demo} onClose={() => setDemo(false)} name={name} info={info} placeholder={<Thumb name={name} loadType={kind} size="hero" />} />
     </main>
   );

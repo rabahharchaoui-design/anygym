@@ -6,9 +6,8 @@
   --cols: 48px minmax(0, 1.1fr) minmax(0, 1fr) minmax(48px, 0.8fr) 52px;
   flex: 0 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  /* The exercise view scrolls as a whole (PLAN 2.2b); the table never clips its own bubbles. */
+  overflow: visible;
   margin: 0 calc(var(--space-2) * -1);
   padding: 0 var(--space-2);
 }
@@ -227,6 +226,114 @@
   color: var(--text-2);
 }
 
+/* Words in a number cell ("Just you", "40 + bar"): smaller, up to two lines, never cut off. */
+.cellValue[data-word] {
+  white-space: normal;
+  text-overflow: clip;
+  font-size: clamp(13px, 3.9vw, 16px);
+  line-height: 1.05;
+  padding: 0 2px;
+}
+
+.word {
+  display: block;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* A tap on a ✓ that cannot log yet: the cell that needs a pick pulses once (SPEC 23.2). */
+.cellValue[data-nudge='0'] {
+  animation: nudge-a 420ms var(--ease-out);
+}
+
+.cellValue[data-nudge='1'] {
+  animation: nudge-b 420ms var(--ease-out);
+}
+
+@keyframes nudge-a {
+  30% {
+    transform: scale(1.06);
+    box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-soft);
+  }
+}
+
+@keyframes nudge-b {
+  30% {
+    transform: scale(1.06);
+    box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-soft);
+  }
+}
+
+/* The short why, in place over the row's left side (absolute: nothing moves), gone in 1.6 s. */
+.nudge {
+  position: absolute;
+  right: calc(var(--space-2) + 4px);
+  top: 8px;
+  z-index: 4;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: #2a2412;
+  border: 1px solid rgb(255 176 32 / 0.5);
+  color: var(--amber);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.55);
+  transform-origin: calc(100% - 24px) top;
+  animation: why 1600ms var(--ease-out) both;
+}
+
+.nudge::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 21px;
+  width: 10px;
+  height: 10px;
+  background: #2a2412;
+  border: 1px solid rgb(255 176 32 / 0.5);
+  border-bottom: 0;
+  border-right: 0;
+  transform: rotate(45deg);
+}
+
+@keyframes why {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.94);
+  }
+  12%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cellValue[data-nudge] {
+    animation: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .nudge {
+    animation-name: why-fade;
+  }
+  @keyframes why-fade {
+    0%,
+    100% {
+      opacity: 0;
+    }
+    10%,
+    85% {
+      opacity: 1;
+    }
+  }
+}
+
 .cellValue[data-unknown] {
   font-size: 14px;
   color: var(--amber);
@@ -267,8 +374,13 @@
   color: var(--accent);
 }
 
+.check:disabled {
+  /* Taps go to the wrap under it, which says why it cannot log yet. */
+  pointer-events: none;
+}
+
 .check:disabled .checkCircle {
-  opacity: 0.35;
+  opacity: 0.28;
 }
 
 .checkDone {
@@ -337,11 +449,21 @@
   }
 }
 
-/* The ✓ hint sits over the column header, right aligned, its arrow down on the first row's check. */
-.hint {
-  top: 0;
-  right: calc(var(--space-2) + 4px);
-  z-index: 3;
+/* The tip slot under the rows: zero height, its bubbles hang below it over the quiet first time
+   line and "+ Add set", right aligned with their arrow up at the ✓ column. */
+.tipSlot {
+  position: relative;
+  height: 0;
+  z-index: 4;
+}
+
+.hintRow {
+  min-height: 48px;
+}
+
+.hintRow .hint {
+  position: relative;
+  margin: 10px calc(var(--space-2) + 4px) 0 0;
   justify-content: flex-end;
 }
 

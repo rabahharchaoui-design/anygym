@@ -2,6 +2,7 @@
    One cycle is 3.1 s: start 1.2 s, fade 0.35 s, end 1.2 s, fade 0.35 s. */
 .wrap {
   --demo-cycle: 3.1s;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -70,72 +71,83 @@
   }
 }
 
-.wrap[data-paused] .end,
-.wrap[data-paused] .dotEnd,
-.wrap[data-paused] .dot {
+.wrap[data-paused] .end {
   animation-play-state: paused;
 }
 
-.dots {
-  display: flex;
+/* Pause: a small glass glyph in the photo's corner, 44 pt hit area around a 30 pt circle. */
+.pause {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 16px;
+  color: var(--text);
 }
 
-.dot {
-  width: 6px;
-  height: 6px;
+.pause::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
   border-radius: 50%;
-  background: var(--text);
-  animation: demo-start-dot var(--demo-cycle) ease-in-out infinite;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 
-.dotEnd {
-  animation-name: demo-end-dot;
+.pause svg {
+  position: relative;
 }
 
-@keyframes demo-start-dot {
-  0%,
-  38.71% {
-    opacity: 1;
-  }
-  50%,
-  88.71% {
-    opacity: 0.3;
-  }
-  100% {
-    opacity: 1;
-  }
+/* The workout hero (PLAN 2.2b): fills the box it is given; a slower, calmer loop like a gif. */
+.hero {
+  --demo-cycle: 3.1s;
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: var(--surface-2);
 }
 
-@keyframes demo-end-dot {
-  0%,
-  38.71% {
-    opacity: 0.3;
-  }
-  50%,
-  88.71% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.3;
-  }
+.heroFill {
+  position: absolute;
+  inset: -20%;
+  display: block;
+  filter: blur(32px) brightness(0.42) saturate(1.2);
+  transform: translateZ(0);
 }
 
-.count {
-  margin-left: 4px;
-  min-width: 48px;
-  font-size: 12px;
-  color: var(--text-2);
-  font-variant-numeric: tabular-nums;
+/* The sharp photo is its own 3:2 box, centered, and melts into the blurred bands at its sides
+   (with --seam set by the page): no hard seams. */
+.hero .frame {
+  inset: 0 auto;
+  left: 50%;
+  height: 100%;
+  aspect-ratio: 3 / 2;
+  max-width: 100%;
+  transform: translateX(-50%);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--seam, 0px), #000 calc(100% - var(--seam, 0px)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--seam, 0px), #000 calc(100% - var(--seam, 0px)), transparent);
+}
+
+.heroFill img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero .frame img {
+  background: transparent;
 }
 
 /* Reduced motion (SPEC 4.4): both photos side by side, still. The tile keeps the start photo. */
 @media (prefers-reduced-motion: reduce) {
-  .end,
-  .dot {
+  .end {
     animation: none;
   }
   .stage {
@@ -151,10 +163,11 @@
   .stage .end {
     opacity: 1;
   }
-  .tile .end {
+  .tile .end,
+  .hero .end {
     opacity: 0;
   }
-  .dots {
+  .pause {
     display: none;
   }
 }

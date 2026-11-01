@@ -44,7 +44,7 @@ test('first time: honest advice and no weight until one is picked; next workout 
   const errors = watchErrors(page);
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   let view = exerciseView(page, 'barbell-back-squat');
-  await expect(view.getByTestId('set-guide')).toHaveText('First time: pick a weight you could lift 2 more reps with');
+  await expect(view.getByTestId('set-guide')).toHaveText('First time: pick a weight you could do 2 more reps with');
   await expect(view.getByTestId('set-next')).toHaveCount(0);
   await view.getByTestId('weight-cell').first().tap();
   const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
