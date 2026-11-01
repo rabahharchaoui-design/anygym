@@ -11,13 +11,15 @@ type Props = {
   title: string;
   value: SetType;
   onPick: (t: SetType) => void;
+  /** PLAN 2.2d: the row's menu also removes it (long press, or a tap on the set number). */
+  onRemove?: () => void;
 };
 
 /**
  * Tap a set number (SPEC 21.1, in plain words): a small sheet with the four set types, one line
  * each and an ⓘ for more. The current one carries the lime check. One tap picks and closes.
  */
-export function SetTypeSheet({ open, onClose, title, value, onPick }: Props) {
+export function SetTypeSheet({ open, onClose, title, value, onPick, onRemove }: Props) {
   return (
     <Sheet open={open} onClose={onClose} label="Set type">
       <div className={styles.body}>
@@ -46,6 +48,11 @@ export function SetTypeSheet({ open, onClose, title, value, onPick }: Props) {
             </div>
           ))}
         </div>
+        {onRemove && (
+          <button type="button" className={`${styles.remove} pressable`} onClick={onRemove} data-testid="remove-set">
+            Remove set
+          </button>
+        )}
       </div>
     </Sheet>
   );

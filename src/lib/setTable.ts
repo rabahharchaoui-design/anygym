@@ -77,6 +77,21 @@ export function slotChanges(exerciseId: string, before: ReadonlyArray<Draft | nu
   return out;
 }
 
+/**
+ * PLAN 2.2d "Remove set" on a row still to do: its slot goes and the slots below move up one, so
+ * every other row keeps what it showed. Nothing else changes.
+ */
+export function dropSlot(slots: ReadonlyArray<Draft | null>, at: number): Array<Draft | null> {
+  return slots.filter((_, j) => j !== at);
+}
+
+/** The Undo of dropSlot: the removed draft (or an untouched row, null) back at its place, or last. */
+export function insertSlot(slots: ReadonlyArray<Draft | null>, at: number, draft: Draft | null): Array<Draft | null> {
+  const out = [...slots];
+  out.splice(Math.max(0, Math.min(at, out.length)), 0, draft);
+  return out;
+}
+
 /** Committed Log set writes: set id → the draft version it submitted (undefined: a set with no submission). */
 export type Committed = ReadonlyMap<string, number | undefined>;
 

@@ -100,10 +100,12 @@
 .exMain {
   --pad-l: calc(var(--space-4) + var(--safe-left));
   --pad-r: calc(var(--space-4) + var(--safe-right));
+  --page-gap: 10px;
+  --row-gap: 4px;
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--page-gap);
   /* One screen with nothing hidden (PLAN 2.2b): the table sits in the first screen, the muscles
      and form tips follow below it. Never sideways. */
   overflow-x: hidden;
@@ -111,7 +113,8 @@
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   /* The end of the page (the tips) always clears the rest bar and the home indicator. */
-  padding: var(--space-3) var(--pad-r) calc(var(--rest-height) + var(--safe-bottom) + var(--space-5)) var(--pad-l);
+  /* No rest bar, no room kept for it (PLAN 2.2d: no empty black band at the end). */
+  padding: var(--space-3) var(--pad-r) calc(var(--safe-bottom) + var(--space-4)) var(--pad-l);
   touch-action: pan-y;
 }
 
@@ -122,6 +125,11 @@
 
 .exMain[data-hero] {
   padding-top: 0;
+}
+
+/* The rest bar floats over the end of the page while it counts: the page keeps room for it then. */
+.screen[data-resting] .exMain {
+  padding-bottom: calc(var(--rest-height) + var(--safe-bottom) + var(--space-4));
 }
 
 /* ---- the demo hero (PLAN 2.2b): about 30% of the screen, less on short phones */
@@ -339,6 +347,17 @@
 }
 
 /* ---- below the table: the muscles and the form tips */
+/* They mount a frame after the table (PLAN 2.2d): a short fade, nothing above them moves. */
+.arrive {
+  animation: arrive 200ms var(--ease-out) both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+}
+
 .card {
   display: flex;
   flex-direction: column;
@@ -394,6 +413,8 @@
 .tableArea {
   display: flex;
   flex-direction: column;
+  /* The muscle card follows one row gap under the table (PLAN 2.2d), not the page gap. */
+  margin-bottom: calc(var(--row-gap) - var(--page-gap));
 }
 
 .firstTime {
@@ -462,11 +483,13 @@
   background: var(--surface-1);
 }
 
+/* PLAN 2.2d (G: "dead space"): a quiet slot shaped like a row, one row gap under the last row. */
 .addSet {
   width: 100%;
   min-height: 48px;
-  margin-top: 6px;
+  margin-top: var(--row-gap);
   border-radius: 14px;
+  border: 1px dashed #2e2e35;
   color: var(--text-2);
   font-weight: 600;
   font-size: 15px;
@@ -645,6 +668,13 @@ button.nextChip {
   text-align: left;
 }
 
+.menuSwitch {
+  padding: 0;
+  border-radius: 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+}
+
 .menuItem:disabled {
   opacity: 0.5;
   cursor: default;
@@ -752,11 +782,9 @@ button.nextChip {
    keeps its rows in view; tap targets are untouched. */
 @media (max-height: 600px) {
   .exMain {
-    gap: 4px;
+    --page-gap: 4px;
+    --row-gap: 2px;
     padding-top: var(--space-2);
-  }
-  .addSet {
-    margin-top: 2px;
   }
 }
 

@@ -49,22 +49,38 @@ function read(kv: KV | null): Stored | null {
   return memory;
 }
 
+/**
+ * Rows added (positive) or removed (negative, PLAN 2.2d: "Remove set" on a row) beyond the plan's
+ * sets, for this workout. Never past MAX_EXTRA_SETS either way.
+ */
 export function extraSets(sessionId: string, exerciseId: string, kv: KV | null = storage()): number {
   const s = read(kv);
   const n = s?.sessionId === sessionId ? s.extra[exerciseId] : undefined;
-  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? Math.min(n, MAX_EXTRA_SETS) : 0;
+  return typeof n === 'number' && Number.isInteger(n) && n !== 0 ? Math.max(-MAX_EXTRA_SETS, Math.min(n, MAX_EXTRA_SETS)) : 0;
 }
 
+/** One more row (+ Add set, or the Undo of a removed row). Returns the new count. */
 export function addExtraSet(sessionId: string, exerciseId: string, kv: KV | null = storage()): number {
+  return changeExtraSets(sessionId, exerciseId, 1, kv);
+}
+
+/** One row fewer (PLAN 2.2d "Remove set"). Returns the new count (negative: planned rows removed). */
+export function removeExtraSet(sessionId: string, exerciseId: string, kv: KV | null = storage()): number {
+  return changeExtraSets(sessionId, exerciseId, -1, kv);
+}
+
+function changeExtraSets(sessionId: string, exerciseId: string, by: 1 | -1, kv: KV | null): number {
   const s = read(kv);
   const extra = s?.sessionId === sessionId ? { ...s.extra } : {};
-  extra[exerciseId] = Math.min(MAX_EXTRA_SETS, (extra[exerciseId] ?? 0) + 1);
+  const n = Math.max(-MAX_EXTRA_SETS, Math.min(MAX_EXTRA_SETS, extraSets(sessionId, exerciseId, kv) + by));
+  if (n === 0) delete extra[exerciseId];
+  else extra[exerciseId] = n;
   memory = { sessionId, extra };
   cleared = false;
   const value = JSON.stringify(memory);
   if (!kv) {
     storeWithoutLocalStorage(value);
-    return extra[exerciseId]!;
+    return n;
   }
   try {
     kv?.setItem(KEY, value);
@@ -73,7 +89,7 @@ export function addExtraSet(sessionId: string, exerciseId: string, kv: KV | null
     // Memory keeps it for this run; IndexedDB keeps it for the next one.
     void mirrorValue(kv, KEY, value);
   }
-  return extra[exerciseId]!;
+  return n;
 }
 
 export function clearExtraSets(kv: KV | null = storage()): void {

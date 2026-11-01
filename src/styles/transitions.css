@@ -19,6 +19,17 @@
   mix-blend-mode: normal;
 }
 
+/* push and pop ride the nav spring (PLAN 2.2d), with the shared ex-hero morph on the same spring */
+html[data-nav='push']::view-transition-old(root),
+html[data-nav='push']::view-transition-new(root),
+html[data-nav='pop']::view-transition-old(root),
+html[data-nav='pop']::view-transition-new(root),
+html[data-nav='push']::view-transition-group(ex-hero),
+html[data-nav='pop']::view-transition-group(ex-hero) {
+  animation-duration: var(--dur-nav);
+  animation-timing-function: var(--ease-nav-spring);
+}
+
 /* push: the new screen slides in from the right over the old one, which moves 30% left and dims */
 html[data-nav='push']::view-transition-old(root) {
   animation-name: vt-push-old;

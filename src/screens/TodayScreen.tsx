@@ -14,7 +14,8 @@ import { dayIndexOf } from '../lib/plans';
 import { db } from '../db/schema';
 import { setCount, workoutTitle } from './history/historyWords';
 import { startDb } from '../db/bootstrap';
-import { getPlanState, setNextDay } from '../db/planState';
+import { getPlanState, setNextDay, undoChoosePlan } from '../db/planState';
+import type { PlanState } from '../db/types';
 import { getActiveSession, reopenWorkoutWithPending, startPlanDay, startWorkout } from '../db/workouts';
 import { restorePending } from '../lib/finishPending';
 import { logQueue } from '../lib/logQueue';
@@ -108,14 +109,29 @@ export function TodayScreen() {
   // carries Undo: the workout opens again and the plan goes back to where it was (SPEC 13.1).
   const undoing = useRef(false);
   useEffect(() => {
-    const st = location.state as { toast?: string; undo?: { sessionId: string } } | null;
+    const st = location.state as { toast?: string; undo?: { sessionId: string }; planUndo?: { chosen: PlanState; previous: PlanState | null } } | null;
     const text = st?.toast;
     if (!text) return;
     const undo = st?.undo;
+    const planUndo = st?.planUndo;
     const id = Date.now();
     setToast({
       id,
       text,
+      // "Plan saved" (PLAN 2.2d): Undo puts back the plan that was in use, only if nothing moved since.
+      ...(planUndo
+        ? {
+            action: {
+              label: 'Undo',
+              onPress: () => {
+                setToast(null);
+                undoChoosePlan(planUndo.chosen, planUndo.previous ?? undefined)
+                  .then((ok) => !ok && setToast({ id: Date.now(), text: 'Could not undo. The plan is saved.' }))
+                  .catch(() => setToast({ id: Date.now(), text: 'Could not undo. The plan is saved.' }));
+              },
+            },
+          }
+        : {}),
       ...(undo
         ? {
             action: {

@@ -3,14 +3,14 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
-import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
-import { extraSets } from '../../lib/extraSets';
+import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
+import { addExtraSet, extraSets, removeExtraSet } from '../../lib/extraSets';
 import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../ui/Toast';
-import { FADE, SHEET_SPRING } from '../../ui/motion';
+import { FADE, NAV_SPRING, SHEET_SPRING } from '../../ui/motion';
 import { BackButton } from '../../ui/BackButton';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown } from '../../ui/icons';
@@ -49,10 +49,18 @@ import styles from './Workout.module.css';
  * moves 30% left and dims. dir -1 pop: the reverse, the leaving view on top. dir 0: no movement
  * (the edge swipe or a sheet already covered the change).
  */
+// Full transform strings (PLAN 2.2d): Motion runs them on the compositor (WAAPI), so a busy main
+// thread (a view mounting) never drops frames; x shorthands would animate on the main thread.
 const FALLBACK_PUSH: Variants = {
-  enter: (dir: number) => (dir === 0 ? { x: 0, opacity: 1 } : dir > 0 ? { x: '100%', opacity: 1, zIndex: 2 } : { x: '-30%', opacity: 0.6, zIndex: 1 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => (dir === 0 ? { opacity: 0, transition: { duration: 0 } } : dir > 0 ? { x: '-30%', opacity: 0.6, zIndex: 1 } : { x: '100%', opacity: 1, zIndex: 2 }),
+  enter: (dir: number) =>
+    dir === 0 ? { transform: 'translateX(0%)', opacity: 1 } : dir > 0 ? { transform: 'translateX(100%)', opacity: 1, zIndex: 2 } : { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 },
+  center: { transform: 'translateX(0%)', opacity: 1 },
+  exit: (dir: number) =>
+    dir === 0
+      ? { opacity: 0, transition: { duration: 0 } }
+      : dir > 0
+        ? { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 }
+        : { transform: 'translateX(100%)', opacity: 1, zIndex: 2 },
 };
 const FALLBACK_FADE: Variants = {
   enter: { opacity: 0 },
@@ -359,12 +367,36 @@ export function WorkoutScreen() {
       return next;
     });
 
+  /**
+   * PLAN 2.2d: rows removed with their logged set (swipe or Remove set), by set id. The exercise has
+   * one row fewer while the set is deleted; Undo puts the row back with the set.
+   */
+  const droppedRows = useRef(new Map<string, string>());
+  const dropRow = (set: WorkoutSet) => {
+    // Only a set that used up a planned row frees one (a warm up on a normal lift never did, 1.7j).
+    if (!countsToward(w.entryOf(set.exerciseId), set.kind)) return;
+    removeExtraSet(sessionId, set.exerciseId);
+    droppedRows.current.set(set.id, set.exerciseId);
+    w.bump();
+  };
+  const keepRow = (id: string) => {
+    const ex = droppedRows.current.get(id);
+    if (!ex) return;
+    droppedRows.current.delete(id);
+    addExtraSet(sessionId, ex);
+    w.bump();
+  };
+
   /** Undo, and Try again after a failed Undo: writes back that exact record (same id and order). */
   const restore = (set: WorkoutSet) => {
     if (finishing.current) return;
     setToast(null);
     deletes.undo(set.id).then(
-      (item) => item && unhide(set.id),
+      (item) => {
+        if (!item) return;
+        keepRow(set.id);
+        unhide(set.id);
+      },
       (err: unknown) =>
         setToast(
           err instanceof WorkoutFinishedError
@@ -377,10 +409,11 @@ export function WorkoutScreen() {
     );
   };
 
-  const onDelete = async (set: WorkoutSet): Promise<void> => {
+  const onDelete = async (set: WorkoutSet, removeRow = false): Promise<void> => {
     if (finishing.current) return;
     setEditing(null);
     setHidden((h) => new Set(h).add(set.id));
+    if (removeRow) dropRow(set);
     const shown = toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) });
     setToast(shown);
     await deletes
@@ -391,6 +424,7 @@ export function WorkoutScreen() {
       })
       .catch((err: unknown) => {
         if (deletes.canUndo(set.id)) return; // an Undo already put it back
+        keepRow(set.id);
         unhide(set.id);
         // Finished meanwhile (another tab, PLAN 2.0e): nothing was deleted, and there is nothing to retry.
         if (err instanceof WorkoutFinishedError) return notice('That workout is already finished');
@@ -399,7 +433,7 @@ export function WorkoutScreen() {
         setToast(
           toastOf('Could not delete that set', {
             label: 'Try again',
-            onPress: () => void onDelete(set),
+            onPress: () => void onDelete(set, removeRow),
           }),
         );
       });
@@ -598,6 +632,17 @@ export function WorkoutScreen() {
       onMenu={() => setMenuFor(exerciseId)}
       onSwipeNext={swipeNext}
       onNotice={notice}
+      onRemoveSet={(set) => void onDelete(set, true)}
+      onUndoable={(text, undo) => {
+        const shown = toastOf(text, {
+          label: 'Undo',
+          onPress: () => {
+            setToast((cur) => (cur?.id === shown.id ? null : cur));
+            undo();
+          },
+        });
+        setToast(shown);
+      }}
     />
   ) : (
     <DayList w={w} heroId={lastViewed} onOpen={openExercise} onAdd={() => setPicking(true)} />
@@ -657,7 +702,7 @@ export function WorkoutScreen() {
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={reduce ? FADE : SHEET_SPRING}
+                  transition={reduce ? FADE : NAV_SPRING}
                 >
                   <Present>{view}</Present>
                 </motion.div>
@@ -790,11 +835,13 @@ export function WorkoutScreen() {
         canDown={!!menuId && moveInOrder(ids, menuId, 1, w.entryOf) !== null}
         moveNote={menuEntry?.kind === 'pair' ? 'A pair moves together' : undefined}
         removeNote={menuId && w.setsOfExercise(menuId).length > 0 ? 'Delete its sets first' : undefined}
-        rest={menuId ? w.restOf(menuId) : 90}
+        rest={menuId ? w.restTimeOf(menuId) : 90}
+        restOff={menuId ? w.restOffOf(menuId) : false}
         note={(menuId && w.noteOf(menuId)) || ''}
         loadedWith={menuId ? LOAD_TYPE_CHOICES.find((c) => c.kind === w.loadTypeOf(menuId))?.label : undefined}
         onAction={(a) => menuId && void menuAction(menuId, a)}
         onRest={(s) => menuId && saveExerciseRest(menuId, s).catch(() => notice('Could not save that. Try again.'))}
+        onRestOff={(off) => menuId && saveExerciseRestOff(menuId, off).catch(() => notice('Could not save that. Try again.'))}
         onNote={(n) => menuId && saveExerciseNote(menuId, n).catch(() => notice('Could not save that. Try again.'))}
       />
     </div>

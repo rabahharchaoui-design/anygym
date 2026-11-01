@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { MAX_REST_SEC } from '../../db/exerciseSettings';
 import { RepsStepper } from './RepsStepper';
+import { Switch } from '../../ui/Switch';
 import styles from './Workout.module.css';
 
 export type MenuAction = 'up' | 'down' | 'remove' | 'loadType';
@@ -17,11 +18,14 @@ type Props = {
   /** Why it cannot be removed (it has logged sets), or undefined. */
   removeNote?: string;
   rest: number;
+  /** Rest timer Off for this exercise (PLAN 2.2d): no countdown after its sets (supersets). */
+  restOff: boolean;
   note: string;
   /** How it is loaded now, in plain words ("Plates on a bar"), or undefined when not known. */
   loadedWith?: string;
   onAction: (a: MenuAction) => void;
   onRest: (seconds: number) => void;
+  onRestOff: (off: boolean) => void;
   onNote: (note: string) => void;
 };
 
@@ -29,7 +33,7 @@ type Props = {
  * The exercise ⋯ menu (SPEC 21.1). Replace and Make a pair are left out until they ship: no dead
  * rows (ux-critic, PLAN 1.7e).
  */
-export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, removeNote, rest, note, loadedWith, onAction, onRest, onNote }: Props) {
+export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, removeNote, rest, restOff, note, loadedWith, onAction, onRest, onRestOff, onNote }: Props) {
   const [page, setPage] = useState<'menu' | 'rest' | 'note'>('menu');
   const close = () => {
     onClose();
@@ -47,7 +51,11 @@ export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, re
               <MenuItem label="Move down" sub={!canDown ? moveNote : undefined} disabled={!canDown} onPress={() => onAction('down')} />
             </div>
             <MenuItem label={note ? 'Edit note' : 'Add note'} sub={note || undefined} onPress={() => setPage('note')} />
-            <MenuItem label="Rest time" sub={`${rest} s after each set`} onPress={() => setPage('rest')} />
+            {/* Hevy research item 2 (PLAN 2.2d): Off for supersets and circuits, one tap. */}
+            <div className={styles.menuSwitch} data-testid="rest-switch">
+              <Switch label="Rest timer" hint={restOff ? 'Off. No countdown after a set' : `${rest} s after each set`} checked={!restOff} onChange={(on) => onRestOff(!on)} />
+            </div>
+            {!restOff && <MenuItem label="Rest time" sub={`${rest} s after each set`} onPress={() => setPage('rest')} />}
             <MenuItem label="Remove" sub={removeNote} disabled={!!removeNote} danger onPress={() => onAction('remove')} />
           </div>
         </div>

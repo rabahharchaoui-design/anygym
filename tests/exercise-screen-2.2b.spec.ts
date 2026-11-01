@@ -149,10 +149,12 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   await expect(view.getByRole('button', { name: 'More for Barbell Back Squat' })).toBeInViewport();
   await expect(name).toBeInViewport();
   expect(Number(await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.05);
-  // (9) The end of the page clears the rest bar's room.
-  const rest = await view.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--rest-height')) || 0);
+  // (9) The end of the page is in view. PLAN 2.2d (G: no dead black space): with no rest running the
+  // page keeps no rest bar room, so the tips end just above the bottom (the rest bar case is in
+  // tests/polish-2.2d.spec.ts).
   const tipsBox = (await view.getByTestId('form-tips').boundingBox())!;
-  expect(tipsBox.y + tipsBox.height).toBeLessThanOrEqual(page.viewportSize()!.height - rest);
+  expect(tipsBox.y + tipsBox.height).toBeLessThanOrEqual(vh);
+  expect(vh - (tipsBox.y + tipsBox.height)).toBeLessThanOrEqual(32);
   await shot(page, 'demo-scrolled');
   await view.evaluate((el) => el.scrollTo({ top: 0 }));
   await expect(hero).not.toHaveAttribute('data-folded');

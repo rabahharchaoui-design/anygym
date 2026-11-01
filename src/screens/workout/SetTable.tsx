@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Check as CheckGlyph } from 'lucide-react';
 import { Odometer } from '../../ui/Odometer';
 import { Ring } from '../../ui/Ring';
@@ -11,6 +11,7 @@ import { SET_TYPE_CHIP, SET_TYPE_WORDS, setNumbers, keptCell, lastTimeCell, save
 import type { PastSet, SetLine } from '../../lib/progression';
 import { RepsStepper } from './RepsStepper';
 import { Hint } from '../../components/hint/Hint';
+import { SwipeRow } from './SwipeRow';
 import styles from './SetTable.module.css';
 
 type Props = {
@@ -24,8 +25,10 @@ type Props = {
   blockedOf: (row: PendingRow) => string | null;
   /** Timed: the live seconds of the running hold on the current row. */
   liveSeconds: number;
-  /** Ids logged while this view was open: their rows play the check animation once. */
-  fresh: ReadonlySet<string>;
+  /** Ids logged while this view was open (→ when the ✓ was tapped): their rows play the check animation once. */
+  fresh: ReadonlyMap<string, number>;
+  /** Rows whose ✓ was tapped and whose write is running (row index → tap time): shown checked at once. */
+  sending?: ReadonlyMap<number, number>;
   editing: number | null;
   /**
    * The open editor's own identity (its row's draft id, PLAN 2.0e): its stepper is keyed by it, so
@@ -59,6 +62,14 @@ type Props = {
   onBlocked?: (row: PendingRow) => void;
   /** The short "why" shown in place on that row for a moment, and its weight cell pulses (n restarts it). */
   nudge?: { index: number; text: string; n: number } | null;
+  /**
+   * PLAN 2.2d: remove a row (swipe left to Delete, or Remove set in its long press menu). A row
+   * still to do drops its draft; a logged set goes through the workout's delete with Undo.
+   */
+  onRemove?: (row: PendingRow) => void;
+  onRemoveLogged?: (set: WorkoutSet) => void;
+  /** False while rows cannot be removed (Finish started). */
+  removable?: boolean;
 };
 
 /** Words ("Just you", "40 + bar") wrap onto two short lines in the cell; numbers roll (PLAN 2.2b). */
@@ -103,9 +114,241 @@ const holdText = (seconds: number) => (seconds < 60 ? `${Math.max(0, Math.floor(
 
 const amountOf = (kind: Load['kind'], r: { reps?: number; seconds?: number }) => (kind === 'timed' ? (r.seconds ? holdText(r.seconds) : '') : r.reps ? `${r.reps}` : '');
 
+/** Every handler a row may call, stable for the table's life: rows re-render only when their own data changes. */
+type Api = {
+  check: (r: PendingRow) => void;
+  weight: (r: PendingRow) => void;
+  amount: (r: PendingRow) => void;
+  amountChange: (r: PendingRow, v: number) => void;
+  amountDone: () => void;
+  type: (r: PendingRow) => void;
+  loggedType: (s: WorkoutSet) => void;
+  lastTime: (r: PendingRow) => void;
+  edit: (s: WorkoutSet) => void;
+  blocked: (r: PendingRow) => void;
+  toggleHold: () => void;
+  remove: (r: PendingRow) => void;
+  removeLogged: (s: WorkoutSet) => void;
+};
+
+type Shared = { kind: Load['kind']; unit: Unit; timed: boolean; api: Api; removable: boolean };
+
+/** The set number with its type chip; a tap opens the set's menu (its type, and Remove set). */
+function TypeButton({ t, number, onPress }: { t: SetType; number: string; onPress: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`${styles.setNo} pressable`}
+      data-type={t}
+      onClick={onPress}
+      aria-label={t === 'warmup' ? 'Warm up set. Change set type' : `Set ${number}, ${SET_TYPE_WORDS[t]}. Change set type`}
+      aria-haspopup="dialog"
+      data-testid="set-type"
+    >
+      <span className={`${styles.setNoNum} num`}>{number}</span>
+      {SET_TYPE_CHIP[t] && (
+        <span className={styles.typeChip} data-testid="set-type-chip">
+          {SET_TYPE_CHIP[t]}
+        </span>
+      )}
+    </button>
+  );
+}
+
+type LoggedProps = Shared & { set: WorkoutSet; at: number; number: string; last: string; fresh?: number; sig: string };
+
+/** The check animation, carried on from the ✓ tap (a negative delay): one animation across the row's two states. */
+const since = (at: number | undefined) => (at === undefined ? undefined : ({ '--since': `${Math.max(0, Math.round(performance.now() - at))}ms` } as CSSProperties));
+
+/** A logged row: tap the middle to edit, swipe left to delete (with Undo), long press for its menu. */
+const LoggedRow = memo(
+  function LoggedRow({ set: s, at, number, last, fresh, kind, unit, timed, api, removable }: LoggedProps) {
+    const t = typeOfSet(s);
+    // From the set's own record (unit, load kind, count), labelled where it differs from the heading.
+    const cells = savedCells(s, kind, unit);
+    return (
+      <li data-testid="set-row" data-set-id={s.id}>
+        <SwipeRow
+          deleteLabel={`Delete set ${number}`}
+          onDelete={() => api.removeLogged(s)}
+          onLongPress={() => api.loggedType(s)}
+          enabled={removable}
+          face={{ className: styles.row, 'data-state': 'logged', 'data-fresh': fresh !== undefined || undefined, style: since(fresh) }}
+        >
+          <TypeButton t={t} number={number} onPress={() => api.loggedType(s)} />
+          <button
+            type="button"
+            className={`${styles.loggedBody} pressable`}
+            onClick={() => api.edit(s)}
+            aria-label={`Set ${at + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSetLine(s)}. Edit`}
+          >
+            <span className={`${styles.last} num`}>{last || '–'}</span>
+            {!timed && (
+              <span className={`${styles.cellValue} num`} data-word={(cells.weight && isWord(cells.weight)) || undefined} data-testid="saved-weight">
+                {cells.weight || '–'}
+              </span>
+            )}
+            <span className={`${styles.cellValue} num`} data-testid="saved-amount">
+              {cells.amount || '–'}
+            </span>
+          </button>
+          <span className={styles.checkDone} aria-hidden="true">
+            <Check />
+          </span>
+        </SwipeRow>
+      </li>
+    );
+  },
+  (a, b) => a.sig === b.sig && a.api === b.api,
+);
+
+type TodoProps = Shared & {
+  row: PendingRow;
+  number: string;
+  isCurrent: boolean;
+  blocked: string | null;
+  /** This row holds the open reps (or hold) editor. */
+  editingHere: boolean;
+  editingKey?: string;
+  liveSeconds: number;
+  hold?: { running: boolean };
+  nudge: { text: string; n: number } | null;
+  currentNote?: string;
+  groupMark: boolean;
+  /** Its ✓ was tapped at this time and the write is running: shown checked already. */
+  sendingAt?: number;
+  sig: string;
+};
+
+/** A row still to do, already filled: weight, reps (or the hold timer) and its ✓. */
+const TodoRow = memo(
+  function TodoRow(p: TodoProps) {
+    const { row: r, kind, unit, timed, api, isCurrent, blocked, number } = p;
+    const n = r.index + 1;
+    const weight = r.kept ? keptCell(r.kept, kind, unit) : weightCell(kind, r.load, r.plates, unit);
+    const shownSeconds = timed && isCurrent && p.liveSeconds > 0 ? p.liveSeconds : r.seconds;
+    const amount = amountOf(kind, { reps: r.reps, seconds: shownSeconds });
+    const last = lastTimeCell(r.lastTime, unit);
+    // Timed current row: the Hold cell is the timer (counts down from the target, else up).
+    const timer = timed && isCurrent && p.hold !== undefined;
+    const target = r.seconds ?? 0;
+    const holdState: 'ready' | 'running' | 'stopped' = p.hold?.running ? 'running' : p.liveSeconds > 0 ? 'stopped' : 'ready';
+    return (
+      <li className={styles.rowGroup} data-current-group={p.groupMark || undefined}>
+        <SwipeRow
+          deleteLabel={`Delete set ${number}`}
+          onDelete={() => api.remove(r)}
+          onLongPress={() => api.type(r)}
+          enabled={p.removable}
+          face={{ className: styles.row, 'data-state': isCurrent ? 'current' : 'todo', 'data-testid': 'set-todo', 'data-sending': p.sendingAt !== undefined || undefined, style: since(p.sendingAt) }}
+        >
+          <TypeButton t={r.type} number={number} onPress={() => api.type(r)} />
+          <button
+            type="button"
+            className={`${styles.last} ${styles.cellButton} num pressable`}
+            disabled={!r.lastTime}
+            onClick={() => api.lastTime(r)}
+            aria-label={r.lastTime ? `Last time ${last}. Copy into set ${n}` : `Set ${n}: no last time`}
+          >
+            {last || '–'}
+          </button>
+          {!timed && (
+            <button
+              type="button"
+              className={`${styles.cellButton} ${styles.cellValue} num pressable`}
+              // Only the current row asks for a pick (lime); rows further down stay quiet.
+              data-empty={(!weight && isCurrent) || undefined}
+              data-quiet={(!weight && !isCurrent) || undefined}
+              data-unknown={(r.load === null && !!weight) || undefined}
+              data-word={(weight && isWord(weight)) || undefined}
+              data-nudge={p.nudge ? p.nudge.n % 2 : undefined}
+              onClick={() => api.weight(r)}
+              aria-label={r.load ? `Weight for set ${n}: ${weight} ${kind === 'bodyweight' ? '' : unit}. Change` : r.kept ? `Set ${n}: ${weight}, pick again` : `Set ${n}: set the weight`}
+              data-testid="weight-cell"
+            >
+              {weight ? <WeightFace value={weight} /> : isCurrent ? 'Pick' : '–'}
+            </button>
+          )}
+          {timer ? (
+            // Always exactly what the ✓ will log: before the start the target (or a tap to
+            // start), running the time so far against the target, stopped the time held.
+            <button
+              type="button"
+              className={`${styles.cellButton} ${styles.holdCell} num pressable`}
+              data-running={p.hold!.running || undefined}
+              data-hold={holdState}
+              onClick={api.toggleHold}
+              aria-label={p.hold!.running ? 'Stop timer' : 'Start timer'}
+              data-testid="hold-cell"
+            >
+              <Ring fraction={target ? p.liveSeconds / target : 0} size={26} stroke={3} glideMs={250} className={styles.holdRing}>
+                {holdState === 'ready' ? <PlayIcon className={styles.holdPlay} width={13} height={13} strokeWidth={2.6} fill="currentColor" /> : null}
+              </Ring>
+              <span className={styles.holdText}>
+                <span className={styles.holdMain} data-testid="timer-clock">
+                  {holdState === 'ready' ? (target ? holdText(target) : 'Start') : holdText(p.liveSeconds)}
+                </span>
+                {holdState === 'ready' && target ? <span className={styles.holdSub}>Tap to start</span> : null}
+                {holdState === 'running' && target ? <span className={styles.holdSub}>of {holdText(target)}</span> : null}
+                {holdState === 'stopped' && target ? <span className={styles.holdSub}>target {holdText(target)}</span> : null}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.cellButton} ${styles.cellValue} num pressable`}
+              data-empty={!amount || undefined}
+              aria-expanded={p.editingHere}
+              onClick={() => api.amount(r)}
+              aria-label={timed ? `Hold for set ${n}: ${shownSeconds ?? 0} seconds. Change` : `Reps for set ${n}: ${r.reps ?? 0}. Change`}
+              data-testid={timed ? 'hold-cell' : 'reps-cell'}
+            >
+              {amount ? <Odometer value={amount} /> : '–'}
+            </button>
+          )}
+          {/* A disabled ✓ takes no taps itself; the wrap under it hears them and the view says why. */}
+          <span className={styles.checkWrap} onClick={blocked !== null ? () => api.blocked(r) : undefined} data-testid={blocked !== null ? 'check-blocked' : undefined}>
+            <button
+              type="button"
+              className={`${styles.check} pressable`}
+              disabled={blocked !== null}
+              onClick={() => api.check(r)}
+              aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSetLine({ reps: r.reps, load: r.load ?? undefined })}`}
+              data-testid={isCurrent ? 'check-current' : 'check'}
+            >
+              <span className={styles.checkCircle}>
+                <Check />
+              </span>
+            </button>
+          </span>
+        </SwipeRow>
+        {isCurrent && p.currentNote && (
+          <p className={`${styles.rowNote} num`} data-testid="set-guide">
+            {p.currentNote}
+          </p>
+        )}
+        {p.editingHere && (
+          <div className={styles.stepperRow} key={p.editingKey ?? 'stepper'}>
+            {timed ? (
+              <RepsStepper label="Seconds" unit="seconds" value={r.seconds ?? 30} onChange={(v) => api.amountChange(r, v)} max={3600} compact />
+            ) : (
+              <RepsStepper value={r.reps ?? 1} onChange={(v) => api.amountChange(r, v)} compact />
+            )}
+            <button type="button" className={`${styles.stepperDone} pressable`} onClick={api.amountDone}>
+              Done
+            </button>
+          </div>
+        )}
+      </li>
+    );
+  },
+  (a, b) => a.sig === b.sig && a.api === b.api,
+);
+
 /**
  * The set table (SPEC 20.2, 21.1): SET · LAST TIME · WEIGHT · REPS · ✓ (timed: SET · LAST TIME ·
- * HOLD · ✓). Logged rows first, then the rows still to do, already filled. Scrolls inside itself.
+ * HOLD · ✓). Logged rows first, then the rows still to do, already filled. PLAN 2.2d: each row is
+ * memoized on its own data, so a tap re-renders that row, not the table; rows swipe left to delete.
  */
 export function SetTable(props: Props) {
   const { kind, unit, logged, rows, editing } = props;
@@ -114,26 +357,32 @@ export function SetTable(props: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => keepInView(ref.current), [current, editing, logged.length]);
 
+  // The latest props for the stable handlers below.
+  const latest = useRef(props);
+  latest.current = props;
+  const api = useMemo<Api>(
+    () => ({
+      check: (r) => latest.current.onCheck(r),
+      weight: (r) => latest.current.onWeight(r),
+      amount: (r) => latest.current.onAmount(r),
+      amountChange: (r, v) => latest.current.onAmountChange(r, v),
+      amountDone: () => latest.current.onAmountDone(),
+      type: (r) => latest.current.onType(r),
+      loggedType: (s) => latest.current.onLoggedType(s),
+      lastTime: (r) => latest.current.onLastTime(r),
+      edit: (s) => latest.current.onEdit(s),
+      blocked: (r) => latest.current.onBlocked?.(r),
+      toggleHold: () => latest.current.hold?.onToggle(),
+      remove: (r) => latest.current.onRemove?.(r),
+      removeLogged: (s) => latest.current.onRemoveLogged?.(s),
+    }),
+    [],
+  );
+  const removable = props.removable !== false && !!props.onRemove;
+  const shared: Shared = { kind, unit, timed, api, removable };
+
   // Warm ups read "W"; working sets are numbered 1 to n (the header's "Set 2 of 3" agrees).
   const numbers = setNumbers([...logged.map((s) => typeOfSet(s)), ...rows.map((r) => r.type)]);
-  const typeButton = (t: SetType, at: number, onPress: () => void) => (
-    <button
-      type="button"
-      className={`${styles.setNo} pressable`}
-      data-type={t}
-      onClick={onPress}
-      aria-label={t === 'warmup' ? 'Warm up set. Change set type' : `Set ${numbers[at]}, ${SET_TYPE_WORDS[t]}. Change set type`}
-      aria-haspopup="dialog"
-      data-testid="set-type"
-    >
-      <span className={`${styles.setNoNum} num`}>{numbers[at]}</span>
-      {SET_TYPE_CHIP[t] && (
-        <span className={styles.typeChip} data-testid="set-type-chip">
-          {SET_TYPE_CHIP[t]}
-        </span>
-      )}
-    </button>
-  );
 
   return (
     <div className={styles.wrap} ref={ref} data-timed={timed || undefined}>
@@ -149,157 +398,47 @@ export function SetTable(props: Props) {
       {props.checkHint && <Hint id="setCard" className={styles.hint} point="down" arrow="end" compact />}
       <ol className={styles.rows} aria-label="Sets">
         {logged.map((s, i) => {
-          const t = typeOfSet(s);
           const last = lastTimeCell(props.lastTimeOf(i), unit);
-          // From the set's own record (unit, load kind, count), labelled where it differs from the heading.
-          const cells = savedCells(s, kind, unit);
-          return (
-            <li key={`row-${i}`} className={styles.row} data-state="logged" data-fresh={props.fresh.has(s.id) || undefined} data-testid="set-row">
-              {typeButton(t, i, () => props.onLoggedType(s))}
-              <button
-                type="button"
-                className={`${styles.loggedBody} pressable`}
-                onClick={() => props.onEdit(s)}
-                aria-label={`Set ${i + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSetLine(s)}. Edit`}
-              >
-                <span className={`${styles.last} num`}>{last || '–'}</span>
-                {!timed && (
-                  <span className={`${styles.cellValue} num`} data-word={(cells.weight && isWord(cells.weight)) || undefined} data-testid="saved-weight">
-                    {cells.weight || '–'}
-                  </span>
-                )}
-                <span className={`${styles.cellValue} num`} data-testid="saved-amount">
-                  {cells.amount || '–'}
-                </span>
-              </button>
-              <span className={styles.checkDone} aria-hidden="true">
-                <Check />
-              </span>
-            </li>
-          );
+          const fresh = props.fresh.get(s.id);
+          const number = String(numbers[i]);
+          const sig = JSON.stringify([s, i, number, last, fresh !== undefined, kind, unit, removable]);
+          return <LoggedRow key={`row-${i}`} {...shared} set={s} at={i} number={number} last={last} fresh={fresh} sig={sig} />;
         })}
         {rows.map((r) => {
-          const blocked = props.blockedOf(r);
-          const n = r.index + 1;
           const isCurrent = r.index === current;
-          const weight = r.kept ? keptCell(r.kept, kind, unit) : weightCell(kind, r.load, r.plates, unit);
-          const shownSeconds = timed && isCurrent && props.liveSeconds > 0 ? props.liveSeconds : r.seconds;
-          const amount = amountOf(kind, {
-            reps: r.reps,
-            seconds: shownSeconds,
-          });
-          const last = lastTimeCell(r.lastTime, unit);
-          // Timed current row: the Hold cell is the timer (counts down from the target, else up).
-          const timer = timed && isCurrent && props.hold !== undefined;
-          const target = r.seconds ?? 0;
-          const holdState: 'ready' | 'running' | 'stopped' = props.hold?.running ? 'running' : props.liveSeconds > 0 ? 'stopped' : 'ready';
+          const blocked = props.blockedOf(r);
+          const editingHere = editing === r.index;
+          const number = String(numbers[r.index]);
+          const nudge = props.nudge?.index === r.index ? { text: props.nudge.text, n: props.nudge.n } : null;
+          // Only the current row of a timed exercise follows the running clock.
+          const liveSeconds = timed && isCurrent ? props.liveSeconds : 0;
+          const hold = timed && isCurrent && props.hold ? { running: props.hold.running } : undefined;
+          const currentNote = isCurrent ? props.currentNote : undefined;
+          const groupMark = editing === null ? isCurrent : editingHere;
+          const editingKey = editingHere ? props.editingKey : undefined;
+          const sendingAt = props.sending?.get(r.index);
+          const sig = JSON.stringify([r, number, isCurrent, blocked, editingHere, editingKey, liveSeconds, hold, nudge, currentNote, groupMark, kind, unit, removable, sendingAt]);
           return (
-            <li key={`row-${r.index}`} className={styles.rowGroup} data-current-group={(editing === null ? isCurrent : editing === r.index) || undefined}>
-              <div className={styles.row} data-state={isCurrent ? 'current' : 'todo'} data-testid="set-todo">
-                {typeButton(r.type, r.index, () => props.onType(r))}
-                <button
-                  type="button"
-                  className={`${styles.last} ${styles.cellButton} num pressable`}
-                  disabled={!r.lastTime}
-                  onClick={() => props.onLastTime(r)}
-                  aria-label={r.lastTime ? `Last time ${last}. Copy into set ${n}` : `Set ${n}: no last time`}
-                >
-                  {last || '–'}
-                </button>
-                {!timed && (
-                  <button
-                    type="button"
-                    className={`${styles.cellButton} ${styles.cellValue} num pressable`}
-                    // Only the current row asks for a pick (lime); rows further down stay quiet.
-                    data-empty={(!weight && isCurrent) || undefined}
-                    data-quiet={(!weight && !isCurrent) || undefined}
-                    data-unknown={(r.load === null && !!weight) || undefined}
-                    data-word={(weight && isWord(weight)) || undefined}
-                    data-nudge={props.nudge?.index === r.index ? props.nudge.n % 2 : undefined}
-                    onClick={() => props.onWeight(r)}
-                    aria-label={
-                      r.load ? `Weight for set ${n}: ${weight} ${kind === 'bodyweight' ? '' : unit}. Change` : r.kept ? `Set ${n}: ${weight}, pick again` : `Set ${n}: set the weight`
-                    }
-                    data-testid="weight-cell"
-                  >
-                    {weight ? <WeightFace value={weight} /> : isCurrent ? 'Pick' : '–'}
-                  </button>
-                )}
-                {timer ? (
-                  // Always exactly what the ✓ will log: before the start the target (or a tap to
-                  // start), running the time so far against the target, stopped the time held.
-                  <button
-                    type="button"
-                    className={`${styles.cellButton} ${styles.holdCell} num pressable`}
-                    data-running={props.hold!.running || undefined}
-                    data-hold={holdState}
-                    onClick={props.hold!.onToggle}
-                    aria-label={props.hold!.running ? 'Stop timer' : 'Start timer'}
-                    data-testid="hold-cell"
-                  >
-                    <Ring fraction={target ? props.liveSeconds / target : 0} size={26} stroke={3} glideMs={250} className={styles.holdRing}>
-                      {holdState === 'ready' ? <PlayIcon className={styles.holdPlay} width={13} height={13} strokeWidth={2.6} fill="currentColor" /> : null}
-                    </Ring>
-                    <span className={styles.holdText}>
-                      <span className={styles.holdMain} data-testid="timer-clock">
-                        {holdState === 'ready' ? (target ? holdText(target) : 'Start') : holdText(props.liveSeconds)}
-                      </span>
-                      {holdState === 'ready' && target ? <span className={styles.holdSub}>Tap to start</span> : null}
-                      {holdState === 'running' && target ? <span className={styles.holdSub}>of {holdText(target)}</span> : null}
-                      {holdState === 'stopped' && target ? <span className={styles.holdSub}>target {holdText(target)}</span> : null}
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className={`${styles.cellButton} ${styles.cellValue} num pressable`}
-                    data-empty={!amount || undefined}
-                    aria-expanded={editing === r.index}
-                    onClick={() => props.onAmount(r)}
-                    aria-label={timed ? `Hold for set ${n}: ${shownSeconds ?? 0} seconds. Change` : `Reps for set ${n}: ${r.reps ?? 0}. Change`}
-                    data-testid={timed ? 'hold-cell' : 'reps-cell'}
-                  >
-                    {amount ? <Odometer value={amount} /> : '–'}
-                  </button>
-                )}
-                {/* A disabled ✓ takes no taps itself; the wrap under it hears them and the view says why. */}
-                <span className={styles.checkWrap} onClick={blocked !== null && props.onBlocked ? () => props.onBlocked!(r) : undefined} data-testid={blocked !== null ? 'check-blocked' : undefined}>
-                  <button
-                    type="button"
-                    className={`${styles.check} pressable`}
-                    disabled={blocked !== null}
-                    onClick={() => props.onCheck(r)}
-                    aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSetLine({ reps: r.reps, load: r.load ?? undefined })}`}
-                    data-testid={isCurrent ? 'check-current' : 'check'}
-                  >
-                    <span className={styles.checkCircle}>
-                      <Check />
-                    </span>
-                  </button>
-                </span>
-              </div>
-              {isCurrent && props.currentNote && (
-                <p className={`${styles.rowNote} num`} data-testid="set-guide">
-                  {props.currentNote}
-                </p>
-              )}
-              {editing === r.index && (
-                <div className={styles.stepperRow} key={props.editingKey ?? 'stepper'}>
-                  {timed ? (
-                    <RepsStepper label="Seconds" unit="seconds" value={r.seconds ?? 30} onChange={(v) => props.onAmountChange(r, v)} max={3600} compact />
-                  ) : (
-                    <RepsStepper value={r.reps ?? 1} onChange={(v) => props.onAmountChange(r, v)} compact />
-                  )}
-                  <button type="button" className={`${styles.stepperDone} pressable`} onClick={props.onAmountDone}>
-                    Done
-                  </button>
-                </div>
-              )}
-            </li>
+            <TodoRow
+              key={`row-${r.index}`}
+              {...shared}
+              row={r}
+              number={number}
+              isCurrent={isCurrent}
+              blocked={blocked}
+              editingHere={editingHere}
+              editingKey={editingKey}
+              liveSeconds={liveSeconds}
+              hold={hold}
+              nudge={nudge}
+              currentNote={currentNote}
+              groupMark={groupMark}
+              sendingAt={sendingAt}
+              sig={sig}
+            />
           );
         })}
       </ol>
-      {props.underRows}
       {/* The tip slot under the rows (PLAN 2.2b): a blocked ✓'s reason floats here, pointing up at
           the ✓ column. Absolute, so nothing moves, and never over a number or a column header. */}
       <div className={styles.tipSlot}>
@@ -309,7 +448,10 @@ export function SetTable(props: Props) {
           </span>
         )}
       </div>
+      {/* PLAN 2.2d (G): "+ Add set" right under the last row at the row gap, no dead space; the
+          quiet first time line goes under it. */}
       {props.footer}
+      {props.underRows}
     </div>
   );
 }

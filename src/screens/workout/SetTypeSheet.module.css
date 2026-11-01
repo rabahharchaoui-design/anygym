@@ -92,3 +92,16 @@
   translate: 0 -50%;
   display: inline-flex;
 }
+
+/* PLAN 2.2d: Remove set, in the row's menu. Red text (SPEC 23.2 destructive), Undo instead of a dialog. */
+.remove {
+  width: 100%;
+  min-height: 52px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  color: var(--red);
+  font-size: 17px;
+  font-weight: 600;
+}

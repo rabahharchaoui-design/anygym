@@ -5,7 +5,7 @@ import { BackButton } from '../../ui/BackButton';
 import { Button } from '../../ui/Button';
 import { useNav } from '../../ui/nav';
 import { planById } from '../../data/plans';
-import { choosePlan, getPlanState } from '../../db/planState';
+import { choosePlanUndoable, getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
 import { LoadError } from '../../components/LoadError';
 import { useTapGuard } from '../../hooks/useTapGuard';
@@ -31,8 +31,10 @@ export function PlanViewer() {
     if (!plan || !known) return;
     setError(false);
     try {
-      if (!active) await choosePlan(plan.id);
-      go('/', { kind: 'tab' });
+      if (active) return go('/', { kind: 'tab' });
+      // Saved, with Undo on Today (PLAN 2.2d, Hevy research item 5: a save always says so).
+      const chosen = await choosePlanUndoable(plan.id);
+      go('/', { kind: 'tab', state: chosen.changed ? { toast: 'Plan saved', planUndo: { chosen: chosen.state, previous: chosen.previous ?? null } } : undefined });
     } catch {
       setError(true);
     }

@@ -76,10 +76,11 @@ export async function loadTypeFor(exerciseId: string, gymId: string, db: AnyGymD
  * own note. Kept on the every-gym record (ANY_GYM), so they follow the exercise everywhere. A
  * load type or bar choice on the same record is kept. Schema unchanged: neither field is indexed.
  */
-async function savePreference(exerciseId: string, patch: Pick<ExerciseSetting, 'restSec' | 'note'>, db: AnyGymDB): Promise<ExerciseSetting> {
+async function savePreference(exerciseId: string, patch: Pick<ExerciseSetting, 'restSec' | 'note' | 'restOff'>, db: AnyGymDB): Promise<ExerciseSetting> {
   return db.transaction('rw', db.exerciseSettings, async () => {
     const setting: ExerciseSetting = { ...(await db.exerciseSettings.get([exerciseId, ANY_GYM])), exerciseId, gymId: ANY_GYM, ...patch };
     if (setting.note !== undefined && !setting.note.trim()) delete setting.note;
+    if (!setting.restOff) delete setting.restOff;
     await db.exerciseSettings.put(setting);
     return setting;
   });
@@ -94,6 +95,14 @@ export async function saveExerciseRest(exerciseId: string, restSec: number, db: 
   return savePreference(exerciseId, { restSec }, db);
 }
 
+/**
+ * Rest timer Off (or back on) for this exercise (PLAN 2.2d). The rest time picked before is kept,
+ * so turning it back on brings that time back.
+ */
+export async function saveExerciseRestOff(exerciseId: string, off: boolean, db: AnyGymDB = defaultDb): Promise<ExerciseSetting> {
+  return savePreference(exerciseId, { restOff: off }, db);
+}
+
 /** Saves the user's note (trimmed; empty removes it). */
 export async function saveExerciseNote(exerciseId: string, note: string, db: AnyGymDB = defaultDb): Promise<ExerciseSetting> {
   return savePreference(exerciseId, { note: note.trim().slice(0, 200) }, db);
@@ -102,6 +111,11 @@ export async function saveExerciseNote(exerciseId: string, note: string, db: Any
 /** The rest the user picked for this exercise, or undefined (the plan's or the default). */
 export function pickRest(settings: ExerciseSetting[], exerciseId: string): number | undefined {
   return settings.find((s) => s.exerciseId === exerciseId && s.gymId === ANY_GYM)?.restSec;
+}
+
+/** True when the user turned the rest timer off for this exercise (PLAN 2.2d). */
+export function pickRestOff(settings: ExerciseSetting[], exerciseId: string): boolean {
+  return settings.find((s) => s.exerciseId === exerciseId && s.gymId === ANY_GYM)?.restOff === true;
 }
 
 /** The user's note for this exercise, or undefined. */

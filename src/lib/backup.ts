@@ -214,7 +214,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
     req: { id: str, startedAt: num, type: str, movingSec: num, elapsedSec: num, distanceM: num, points: listOf(tuple(num, num, num, num)), gaps: listOf(tuple(num, num)), splits: listOf(num) },
     opt: { endedAt: num, goal: str, city: str, country: str, ghostOfRunId: str, intervalPreset: str },
   }),
-  exerciseSettings: shape({ req: { exerciseId: str, gymId: str }, opt: { loadType: oneOf(...LOAD_KINDS), barId: oneOf(...BAR_IDS), restSec: num, note: str } }),
+  exerciseSettings: shape({ req: { exerciseId: str, gymId: str }, opt: { loadType: oneOf(...LOAD_KINDS), barId: oneOf(...BAR_IDS), restSec: num, restOff: bool, note: str } }),
   planState: shape({
     req: { id: oneOf('active'), planId: str, startedAt: num, weekIndex: num, nextDayIndex: num, doneDays: listOf(num) },
     opt: { partial: recordOf(num) },
@@ -347,7 +347,8 @@ function draftsOk(drafts: unknown, sessions: Rec[]): boolean {
 }
 
 
-const positiveInt: Check = (v) => Number.isInteger(v) && (v as number) > 0 && (v as number) <= MAX_EXTRA_SETS;
+// Rows added (positive) or removed (negative, PLAN 2.2d), never zero, never past the limit either way.
+const extraCount: Check = (v) => Number.isInteger(v) && (v as number) !== 0 && Math.abs(v as number) <= MAX_EXTRA_SETS;
 const dayIndex: Check = (v) => Number.isInteger(v) && (v as number) >= 0;
 
 /** A pending row's draft key is `exercise@slot` (or the older `exercise#index`) with a sane position. */
@@ -374,7 +375,7 @@ function planStateOk(rows: Rec[]): boolean {
   });
 }
 const isRest = shape({ req: { sessionId: str, endsAt: num, totalSec: num } });
-const isExtraSets = shape({ req: { sessionId: str, extra: recordOf(positiveInt) } });
+const isExtraSets = shape({ req: { sessionId: str, extra: recordOf(extraCount) } });
 
 /** Rest and added rows (PLAN 2.0c): absent, or valid and for a workout in progress in the same file. */
 function liveOk(v: unknown, check: Check, sessions: Rec[]): boolean {

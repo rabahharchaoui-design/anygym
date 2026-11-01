@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { saveMutation } from '../../db/mutations';
 import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
@@ -6,11 +6,11 @@ import { logKey, logQueue } from '../../lib/logQueue';
 import { newId } from '../../db/ids';
 import { beatLine } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
-import { addExtraSet } from '../../lib/extraSets';
-import { blockedReason, lastTimeNote, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { addExtraSet, removeExtraSet } from '../../lib/extraSets';
+import { blockedReason, dropSlot, insertSlot, lastTimeNote, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
 import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
-import { unlockAudio } from '../../lib/tone';
+import { unlockAudio, warmAudio } from '../../lib/tone';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { Button } from '../../ui/Button';
@@ -22,16 +22,18 @@ import { Thumb } from './Thumb';
 import { FormDemo } from '../../components/exercise/FormDemo';
 import { ExerciseSheet } from '../../components/exercise/ExerciseSheet';
 import { infoForPlan } from '../../data/exerciseInfo';
-import { MusclePair } from '../../components/muscles/MuscleMap';
-import { FormTips } from '../../components/exercise/FormTips';
 import { DemoViewer } from '../../components/exercise/DemoViewer';
 import { useDemoPhotos } from '../../hooks/usePhotos';
 import { useMedia } from '../../hooks/useMedia';
+import { useAfterPaint } from '../../hooks/useAfterPaint';
 import { WeightSheet, type WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
 import styles from './Workout.module.css';
+
+// The muscles and form tips: their own chunk (body maps), loaded after the table (PLAN 2.2d).
+const ExerciseExtras = lazy(() => import('./ExerciseExtras'));
 
 type Props = {
   w: Workout;
@@ -44,6 +46,10 @@ type Props = {
   onMenu: () => void;
   onSwipeNext: () => void;
   onNotice: (text: string, retry?: () => void) => void;
+  /** PLAN 2.2d: a logged set removed from its row (swipe or Remove set): deleted with Undo, its row goes. */
+  onRemoveSet: (set: WorkoutSet) => void;
+  /** A short message with Undo (a row still to do was removed). */
+  onUndoable: (text: string, undo: () => void) => void;
 };
 
 const DEFAULT_REPS = 10;
@@ -61,7 +67,7 @@ function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
  * The exercise view (SPEC 20.2, 21.1): the demo tile, name and note, "Last time", and the set
  * table already filled with today's targets. Logging a set is one tap on its ✓.
  */
-export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice }: Props) {
+export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable }: Props) {
   const gym = w.gym!;
   const name = w.nameOf(exerciseId);
   const entry = w.entryOf(exerciseId);
@@ -97,8 +103,11 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   /** The hero's foot (name, set, ⋯) stays pinned when the picture scrolls away: its height, measured. */
   // Offline and never kept, the photos cannot show: the compact header instead (gate s2), never a
   // broken or empty picture.
-  const photos = useDemoPhotos(infoForPlan(exerciseId).demo);
-  const photosOk = !!infoForPlan(exerciseId).demo && photos.kind !== 'none';
+  const baseDemo = useMemo(() => infoForPlan(exerciseId).demo, [exerciseId]);
+  const photos = useDemoPhotos(baseDemo);
+  const photosOk = !!baseDemo && photos.kind !== 'none';
+  // The heavy parts below the table mount once the first frame is painted (PLAN 2.2d).
+  const painted = useAfterPaint();
   // Short screens (the 360 x 640 small Android, the 320 x 568 floor): no room for a hero above five
   // rows (SPEC 13.5, PLAN 2.2b: the whole set table in the first screen), so the compact header
   // with the demo as its tile instead; a tap opens the form sheet with the photos.
@@ -130,9 +139,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       scroller.removeEventListener('scroll', onScroll);
     };
   }, [hasDemo]);
+  // The rest tone's audio context, made while idle so the first ✓ stays light (PLAN 2.2d).
+  useEffect(() => warmAudio(), []);
   /** The "Set type" sheet: a row still to do, or a logged set. */
   const [typing, setTyping] = useState<{ n: number; type: SetType; rowId?: string; set?: WorkoutSet } | null>(null);
-  const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
+  /** Rows checked while this view is open: draft (and set) id → when the ✓ was tapped (performance.now). */
+  const [fresh, setFresh] = useState<ReadonlyMap<string, number>>(new Map());
 
   useEffect(() => logQueue.subscribe(key, refresh), [key]);
 
@@ -176,6 +188,15 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       })
     : [];
   const current = rows[0];
+  // PLAN 2.2d: a ✓ shows checked the moment it is tapped, while its write runs (the row is claimed
+  // and its submission stored, logQueue); the logged row carries the same animation on when it lands.
+  const writing = logQueue.pending(key);
+  const sending = new Map<number, number>();
+  if (writing) for (const r of rows) {
+    const id = slots[r.index - logged.length]?.id;
+    const at = id ? fresh.get(id) : undefined;
+    if (at !== undefined) sending.set(r.index, at);
+  }
 
   // Timed: the running hold belongs to the current row's draft, so it survives a reload.
   const watch: Stopwatch = (current && draftAt(slotOf(current))?.watch) ?? STOPPED;
@@ -233,7 +254,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     const before = rowsOf(sessionId, exerciseId);
     const marked = markSubmitted(before, rows, slotOf(row), { load: row.load, type: row.type, ...(timed ? { seconds } : { reps: row.reps }) }, newId);
     writeDrafts(sessionId, slotChanges(exerciseId, before, marked.slots));
-    setFresh((f) => new Set(f).add(marked.draft.id));
+    const at = performance.now();
+    setFresh((f) => new Map(f).set(marked.draft.id, at));
     tick();
     return logQueue.claim(key, marked.draft.id, () => submitAndTell(marked.draft));
   };
@@ -371,6 +393,41 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     }
   };
 
+  /**
+   * PLAN 2.2d "Remove set" on a row still to do: its draft goes (nothing was logged, no history is
+   * touched) and the exercise has one row fewer, with Undo. A row whose Log set write is running
+   * is never removed.
+   */
+  const removeRow = (row: PendingRow) => {
+    setTyping(null);
+    if (logQueue.closed(sessionId)) return;
+    if (logQueue.pending(key)) return onNotice('That set is still saving. Try again in a moment.');
+    const at = slotOf(row);
+    const before = rowsOf(sessionId, exerciseId);
+    const draft = before[at] ?? null;
+    if (draft?.submitted !== undefined) return onNotice('That set is still saving. Try again in a moment.');
+    writeDrafts(sessionId, slotChanges(exerciseId, before, dropSlot(before, at)));
+    removeExtraSet(sessionId, exerciseId);
+    if (draft && (editing === draft.id || picking?.id === draft.id)) {
+      setEditing(null);
+      setPicking(null);
+    }
+    w.bump();
+    refresh();
+    onUndoable('Set removed', () => {
+      if (logQueue.closed(sessionId)) return;
+      const now = rowsOf(sessionId, exerciseId);
+      writeDrafts(sessionId, slotChanges(exerciseId, now, insertSlot(now, at, draft)));
+      addExtraSet(sessionId, exerciseId);
+      w.bump();
+    });
+  };
+  const removeLogged = (set: WorkoutSet) => {
+    setTyping(null);
+    if (logQueue.closed(sessionId)) return;
+    onRemoveSet(set);
+  };
+
   const toggleWatch = useTapGuard(() => {
     if (!current) return;
     const t = Date.now();
@@ -417,12 +474,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || !progression.next.load) ? progression.next.reason : '';
   const notes = [entry?.note, w.noteOf(exerciseId)].filter((n): n is string => !!n);
   const note = notes.join(' · ');
-  // SPEC 4.4: photos, muscles and cues only when the match is sure (SPEC 4.3).
-  const info = infoForPlan(exerciseId, notes);
-  // Form tips: the catalog's own cues (a variant's difference first), only for a sure match.
-  const sure = info.match === 'exact' || info.match === 'variant';
-  const tips = sure ? info.cues.slice(0, 3) : [];
-  const variantNote = sure ? info.variantNote : null;
+  // SPEC 4.4: photos, muscles and cues only when the match is sure (SPEC 4.3). One object per
+  // exercise and note (PLAN 2.2d), so the memoized parts below keep it between taps.
+  const notesKey = JSON.stringify(notes);
+  const info = useMemo(() => infoForPlan(exerciseId, JSON.parse(notesKey) as string[]), [exerciseId, notesKey]);
   const setNumber = Math.min(workDone + 1, Math.max(entry?.sets ?? 1, workDone + 1));
   const status = current ? blockedOf(current) : null;
   // The number each row shows: "W" for a warm up, working sets 1 to n (SetTable shows the same).
@@ -465,6 +520,13 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     setNudge((n) => ({ index: r.index, text: why, n: (n?.n ?? 0) + 1 }));
     nudgeTimer.current = window.setTimeout(() => setNudge(null), 1700);
   };
+  // The pictures are memoized elements (PLAN 2.2d): a tap on a row never re-renders them. The
+  // tapped day list tile grows into them (the shared "ex-hero" view transition, SPEC 23.1).
+  const heroArt = useMemo(() => (info.demo ? <FormDemo demo={info.demo} name={name} hero vtName="ex-hero" /> : null), [info.demo, name]);
+  const tileArt = useMemo(
+    () => (photosOk && info.demo ? <FormDemo demo={info.demo} name={name} compact vtName="ex-hero" /> : <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />),
+    [photosOk, info.demo, name, kind],
+  );
   const moreButton = (
     <button type="button" className={`${styles.moreButton} pressable`} onClick={onMenu} aria-label={`More for ${name}`}>
       <MoreIcon width={22} height={22} strokeWidth={2.4} aria-hidden="true" />
@@ -483,7 +545,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         <div className={styles.hero} ref={heroRef} data-testid="ex-hero" data-folded={folded || undefined}>
           <span className={styles.heroArt} aria-hidden="true">
             <span className={styles.heroMedia}>
-              <FormDemo demo={info.demo} name={name} hero />
+              {heroArt}
             </span>
           </span>
           {/* The picture's tap target ends where the foot starts, so each has its own whole hit area
@@ -506,7 +568,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         // No sure demo (SPEC 4.3): a compact header, never a broken or empty picture.
         <div className={styles.head} data-testid="ex-head">
           <button type="button" className={`${styles.heroTile} pressable`} onClick={() => setDemo(true)} aria-label={`How to do ${name}`}>
-            {photosOk && info.demo ? <FormDemo demo={info.demo} name={name} compact vtName="ex-hero" /> : <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />}
+            {tileArt}
           </button>
           {titleBlock(true)}
           {moreButton}
@@ -544,7 +606,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ) : !progression ? (
         <div className={styles.tableSkeleton} aria-hidden="true" />
       ) : (
-        <div className={styles.tableArea}>
+        <div className={styles.tableArea} data-testid="table-area">
           <SetTable
             kind={kind}
             unit={gym.unit}
@@ -554,6 +616,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             blockedOf={blockedOf}
             liveSeconds={liveSeconds}
             fresh={fresh}
+            sending={sending}
             editing={editRow?.index ?? null}
             editingKey={editing ?? undefined}
             onCheck={(r) => void log(r)}
@@ -571,6 +634,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             checkHint={!timed && !!current && !status && logged.length === 0}
             onBlocked={onBlocked}
             nudge={nudge}
+            onRemove={removeRow}
+            onRemoveLogged={removeLogged}
+            removable={!logQueue.closed(sessionId)}
             underRows={
               <>
                 {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
@@ -587,6 +653,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
                 <button
                   type="button"
                   className={`${styles.addSet} pressable`}
+                  data-testid="add-set"
                   onClick={() => {
                     addExtraSet(sessionId, exerciseId);
                     w.bump();
@@ -603,41 +670,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         </div>
       )}
 
-      {/* Below the table, nothing hidden (PLAN 2.2b): the muscles and the form tips, only when sure. */}
-      {info.muscles && (
-        <section className={styles.card} aria-label="Muscles" data-testid="muscle-card">
-          <MusclePair data={info.muscles} exercises />
-        </section>
-      )}
-      {(tips.length > 0 || variantNote) && (
-        <section className={styles.card} aria-label="How to" data-testid="form-tips">
-          <h3 className={styles.cardHeading}>How to</h3>
-          <FormTips note={variantNote} tips={tips} />
-          {/* The catalog's watch out and good for lines, when it has them: on the page, nothing hidden. */}
-          {sure && info.watchOut && (
-            <div className={styles.extra}>
-              <h3 className={`${styles.cardHeading} ${styles.warnHeading}`}>Watch out</h3>
-              <p className={styles.extraLine} data-testid="watch-out">
-                {info.watchOut}
-              </p>
-            </div>
-          )}
-          {sure && info.goodFor && (
-            <div className={styles.extra}>
-              <h3 className={styles.cardHeading}>Good for</h3>
-              <p className={styles.extraLine} data-testid="good-for">
-                {info.goodFor}
-              </p>
-            </div>
-          )}
-        </section>
-      )}
-      {/* Nothing sure to show: an honest card, never a guessed step or muscle (SPEC 0, 4.3). */}
-      {!photosOk && !info.muscles && tips.length === 0 && kind && (
-        <p className={styles.unknown} data-testid="no-demo">
-          Form guide coming soon. We only show form we're sure of.
-        </p>
-      )}
+      {/* Below the table, nothing hidden (PLAN 2.2b): the muscles and the form tips, only when sure.
+          PLAN 2.2d: a lazy chunk mounted after the first paint, memoized (a row tap never redraws it). */}
+      <Suspense fallback={null}>{painted && <ExerciseExtras info={info} photosOk={photosOk} known={!!kind} />}</Suspense>
 
       {kind && kind !== 'timed' && (
         <WeightSheet
@@ -657,7 +692,24 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         />
       )}
 
-      <SetTypeSheet open={typing !== null} onClose={() => setTyping(null)} title={typing ? `Set ${typing.n}` : ''} value={typing?.type ?? 'normal'} onPick={pickType} />
+      <SetTypeSheet
+        open={typing !== null}
+        onClose={() => setTyping(null)}
+        title={typing ? `Set ${typing.n}` : ''}
+        value={typing?.type ?? 'normal'}
+        onPick={pickType}
+        onRemove={() => {
+          const target = typing;
+          if (!target) return;
+          if (target.set) return removeLogged(target.set);
+          const row = target.rowId ? rowById(target.rowId) : undefined;
+          if (row) removeRow(row);
+          else {
+            setTyping(null);
+            gone();
+          }
+        }}
+      />
 
       {hasDemo && info.demo && (
         <DemoViewer

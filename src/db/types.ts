@@ -167,6 +167,12 @@ export type ExerciseSetting = {
   barId?: BarId;
   /** Rest after each set in seconds, set by the user from the exercise menu (PLAN 1.7c). Stored on the every-gym record. */
   restSec?: number;
+  /**
+   * Rest timer Off for this exercise (PLAN 2.2d, Hevy research item 2): logging a set starts no
+   * countdown, so a superset pair goes back to back. Additive, not indexed; restSec is kept for
+   * when it is turned back on. Stored on the every-gym record.
+   */
+  restOff?: boolean;
   /** The user's own note for this exercise (PLAN 1.7c). Stored on the every-gym record. */
   note?: string;
 };
