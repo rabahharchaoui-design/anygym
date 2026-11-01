@@ -237,13 +237,17 @@ test('coach mark floats over the column header with its arrow on the first row\'
   expect(errors).toEqual([]);
 });
 
-test('first time: the helper sits above the table, not under a row', async ({ page }) => {
+// PLAN 2.2b (G, Nov 1) moved the first time line into the table area: "keep 'First time: pick a
+// weight you could lift 2 more reps with' only as a subtle line inside the table area". It sits
+// right under the rows (so it never moves a ✓), never over or between them.
+test('first time: the helper sits in the table area under the rows, never over a row', async ({ page }) => {
   const errors = watchErrors(page);
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   const view = exerciseView(page, 'barbell-back-squat');
   const guide = (await view.getByTestId('set-guide').boundingBox())!;
-  const head = (await view.locator('[data-head]').boundingBox())!;
-  expect(guide.y + guide.height).toBeLessThanOrEqual(head.y + 1);
+  const rows = (await view.getByRole('list', { name: 'Sets' }).boundingBox())!;
+  expect(guide.y).toBeGreaterThanOrEqual(rows.y + rows.height - 1);
+  await expect(view.getByTestId('set-guide')).toBeInViewport({ ratio: 1 });
   expect(errors).toEqual([]);
 });
 

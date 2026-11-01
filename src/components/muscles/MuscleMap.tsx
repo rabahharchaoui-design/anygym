@@ -259,6 +259,15 @@ export function MusclePair({ data, exercises = false }: { data: MuscleMapData | 
     const region = (el?.getAttribute('data-region') ?? null) as Region | null;
     setPick({ key, region: region && region !== picked ? region : null });
   };
+  // The drawing is tap only and hidden from assistive tech, so the lit muscles are also a labelled
+  // native picker (SPEC 13.3, gate s2): VoiceOver and keyboards reach the same pick, and its
+  // exercises link, without the drawing. Primary first, in the readout's own words.
+  const drawnRegions = new Set([...regionsIn(body, 'front'), ...regionsIn(body, 'back')]);
+  const litRegions = tappable
+    ? (Object.keys(data.shading) as Region[])
+        .filter((r) => drawnRegions.has(r))
+        .sort((a, b) => Number(data.shading[a] !== 'primary') - Number(data.shading[b] !== 'primary'))
+    : [];
   return (
     <figure className={`${styles.pair} ${tappable ? styles.pairTappable : ''}`} data-testid="muscle-pair">
       {drawn && (
@@ -287,6 +296,22 @@ export function MusclePair({ data, exercises = false }: { data: MuscleMapData | 
         <span className={styles.textPrimary}>{primaryText}</span>
         {secondaryText && <span className={styles.textSecondary}>{secondaryText}</span>}
       </figcaption>
+      {tappable && litRegions.length > 0 && (
+        <select
+          className={styles.a11yPick}
+          aria-label="Pick a muscle to see its exercises"
+          value={picked ?? ''}
+          onChange={(e) => setPick({ key, region: (e.target.value || null) as Region | null })}
+          data-testid="muscle-a11y-pick"
+        >
+          <option value="">No muscle picked</option>
+          {litRegions.map((r) => (
+            <option key={r} value={r}>
+              {pickLine(r, data)}
+            </option>
+          ))}
+        </select>
+      )}
       {tappable && (
         <div className={styles.readoutRow}>
           <div className={styles.readout} data-testid="muscle-pick" aria-live="polite">

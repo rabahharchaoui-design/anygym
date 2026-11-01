@@ -285,6 +285,35 @@
   touch-action: manipulation;
 }
 
+/* The muscle picker for VoiceOver and keyboards (SPEC 13.3): invisible and untouchable for a
+   finger (the drawing takes the taps), a full size 48 pt control when focused from a keyboard. */
+.pair {
+  position: relative;
+}
+
+.a11yPick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 48px;
+  opacity: 0;
+  pointer-events: none;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  padding: 0 var(--space-3);
+}
+
+.a11yPick:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 2;
+}
+
 .pairLabel {
   color: var(--text-2);
   font-size: 12px;

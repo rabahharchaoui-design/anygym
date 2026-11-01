@@ -53,7 +53,7 @@ type Props = {
    * the row's target with a ring (or up, when there is no target).
    */
   hold?: { running: boolean; onToggle: () => void };
-  /** The first time hint "Tap the check when you finish a set", under the first row, pointing up at its ✓. */
+  /** The first time hint "Tap the check when you finish a set", over the header, pointing down at the first row's ✓. */
   checkHint?: boolean;
   /** A tap on a ✓ that cannot log yet (SPEC 23.2): the view says why. */
   onBlocked?: (row: PendingRow) => void;
@@ -68,22 +68,32 @@ const WeightFace = ({ value }: { value: string }) => (isWord(value) ? <span clas
 const Check = () => <CheckGlyph className={styles.checkIcon} aria-hidden="true" />;
 
 /**
- * Keeps the current row (and its open stepper) in view inside the table's own scroll, never
- * scrolling the screen (SPEC 13.5: on SE at 130% text the table scrolls, the screen does not).
+ * Keeps the current row (and its open stepper) in view. Since PLAN 2.2b the exercise view scrolls
+ * as a whole (the table no longer has its own scroll), so the view is scrolled, only as far as
+ * needed: below the hero's pinned foot and the column header, above the rest bar. Nothing moves
+ * when the row is already in view (the usual case: the table fits the first screen).
  */
 function keepInView(wrap: HTMLElement | null) {
   if (!wrap) return;
   const target = wrap.querySelector<HTMLElement>('[data-current-group]');
-  if (!target) return;
+  const scroller = wrap.closest<HTMLElement>('main');
+  if (!target || !scroller) return;
   const head = wrap.querySelector<HTMLElement>('[data-head]')?.offsetHeight ?? 0;
-  const w = wrap.getBoundingClientRect();
+  const hero = scroller.querySelector<HTMLElement>('[data-testid="ex-hero"]');
+  const pin = hero ? parseFloat(getComputedStyle(hero).getPropertyValue('--pin')) || 0 : 0;
+  const s = scroller.getBoundingClientRect();
+  const rest = document.querySelector('[data-testid="rest-timer"]')?.getBoundingClientRect();
+  const bottom = Math.min(s.bottom, rest && rest.height > 0 ? rest.top : Infinity) - 4;
+  const top = s.top + (hero && scroller.scrollTop > 0 ? pin : 0) + head + 4;
   const t = target.getBoundingClientRect();
   let delta = 0;
-  if (t.bottom > w.bottom) delta = t.bottom - w.bottom + 4;
-  if (t.top - delta < w.top + head) delta = t.top - (w.top + head) - 4;
+  if (t.bottom > bottom) delta = t.bottom - bottom;
+  // Scrolled down, the hero folds to its foot: the row must stay below it.
+  if (delta > 0 && hero) delta = Math.min(delta, t.top - (s.top + pin + head + 4));
+  else if (t.top < top) delta = t.top - top;
   if (Math.abs(delta) < 1) return;
-  wrap.scrollTo({
-    top: wrap.scrollTop + delta,
+  scroller.scrollTo({
+    top: scroller.scrollTop + delta,
     behavior: prefersReducedMotion() ? 'auto' : 'smooth',
   });
 }
@@ -102,8 +112,6 @@ export function SetTable(props: Props) {
   const timed = kind === 'timed';
   const current = rows[0]?.index;
   const ref = useRef<HTMLDivElement>(null);
-  const hintRoom = useRef(false);
-  if (props.checkHint) hintRoom.current = true;
   useLayoutEffect(() => keepInView(ref.current), [current, editing, logged.length]);
 
   // Warm ups read "W"; working sets are numbered 1 to n (the header's "Set 2 of 3" agrees).
@@ -136,7 +144,9 @@ export function SetTable(props: Props) {
         <span>{timed ? 'Hold' : 'Reps'}</span>
         <span className={styles.headCheck}>Done</span>
       </div>
-      {/* Over the column header (never over a row's text), its arrow down on the first row's ✓. */}
+      {/* Over the column header (never over a row's text), its arrow down on the first row's ✓ (gate
+          s2: under the rows it pointed at the last row's ✓). Absolute, so nothing moves when it goes. */}
+      {props.checkHint && <Hint id="setCard" className={styles.hint} point="down" arrow="end" compact />}
       <ol className={styles.rows} aria-label="Sets">
         {logged.map((s, i) => {
           const t = typeOfSet(s);
@@ -290,16 +300,8 @@ export function SetTable(props: Props) {
         })}
       </ol>
       {props.underRows}
-      {/* The tip slot under the rows (PLAN 2.2b): the ✓ coach mark and a blocked ✓'s reason float
-          here, pointing up at the ✓ column. Absolute, so nothing moves, and never over a number
-          or a column header. */}
-      {/* The coach mark is in the flow here, where it pushes "+ Add set" down instead of covering it. */}
-      {/* Its room stays once it showed in this view, so nothing jumps under a fast second tap when it goes. */}
-      {hintRoom.current && (
-        <div className={styles.hintRow}>
-          {props.checkHint && <Hint id="setCard" className={styles.hint} point="up" arrow="end" compact />}
-        </div>
-      )}
+      {/* The tip slot under the rows (PLAN 2.2b): a blocked ✓'s reason floats here, pointing up at
+          the ✓ column. Absolute, so nothing moves, and never over a number or a column header. */}
       <div className={styles.tipSlot}>
         {props.nudge && (
           <span key={props.nudge.n} className={styles.nudge} role="status" data-testid="check-why">

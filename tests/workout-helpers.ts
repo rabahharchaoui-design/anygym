@@ -141,6 +141,19 @@ export async function fitsOneScreen(page: Page) {
 }
 
 /**
+ * PLAN 2.2b (G, Nov 1): the exercise view may scroll below the set table (the muscle card and the
+ * form tips), so "main never scrolls" no longer holds. What must hold, unscrolled: the exercise
+ * name, every set row and every ✓ fully in the first screen, and no sideways scroll.
+ */
+export async function setTableInFirstScreen(page: Page) {
+  const main = page.getByRole('main');
+  expect(await main.evaluate((el) => el.scrollTop)).toBe(0);
+  const parts = main.locator('h2, [data-testid="set-todo"], [data-testid="set-row"], [data-testid="check-current"], [data-testid="check"]');
+  for (const part of await parts.all()) await expect(part).toBeInViewport({ ratio: 1 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+}
+
+/**
  * Waits until no view transition is running. Chromium runs the View Transitions API and holds
  * input for about half a second per screen change (WebKit here has none, so this returns at once).
  */

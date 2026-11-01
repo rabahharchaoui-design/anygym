@@ -12,6 +12,11 @@
   flex-direction: column;
   gap: var(--space-3);
 }
+/* In this fixed height scrolling column nothing gives way (gate s2): a shrunk card let its photo,
+   map and cues spill under the Approve stack. Every block keeps its own height and the page scrolls. */
+.page > * {
+  flex: none;
+}
 .header,
 .nav,
 .titleRow {

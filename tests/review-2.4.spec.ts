@@ -54,3 +54,28 @@ test('5 version taps open Review; approve advances; fix cues needs a note; expor
   await expect(page.getByTestId('review-progress')).toHaveText(`2 / ${total} reviewed`);
   expect(errors).toEqual([]);
 });
+
+// Gate s2 (iOS Simulator): the card's blocks shrank in the fixed height page, so the photo, map and
+// "Tap a muscle to name it" slid under the Approve stack. Nothing in the card may overlap the actions.
+test('review: the card never runs under the action buttons; everything scrolls into view @matrix', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('./#/review');
+  const card = page.getByTestId('review-card');
+  await expect(card).toBeVisible();
+  const approve = page.getByRole('button', { name: 'Approve' });
+  const parts = [card.getByTestId('muscle-pick'), card.getByTestId('muscle-text'), card.getByRole('radiogroup').first()];
+  for (const part of parts) {
+    const a = (await part.boundingBox())!;
+    const b = (await approve.boundingBox())!;
+    expect(a.y + a.height, 'card part ends above Approve').toBeLessThanOrEqual(b.y + 0.5);
+  }
+  const cardBox = (await card.boundingBox())!;
+  const lastInCard = await card.evaluate((el) => Math.max(...[...el.querySelectorAll('*')].map((c) => c.getBoundingClientRect().bottom)));
+  expect(lastInCard).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+  await approve.scrollIntoViewIfNeeded();
+  await expect(approve).toBeInViewport({ ratio: 1 });
+  await page.getByRole('button', { name: 'Export review' }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: 'Export review' })).toBeInViewport({ ratio: 1 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  expect(errors).toEqual([]);
+});

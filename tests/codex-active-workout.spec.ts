@@ -207,7 +207,8 @@ test('iPhone SE: adding bodyweight resistance keeps the set controls visible wit
     const fits = async () => {
       const main = page.getByRole('main');
       // Check before tapping Log set: Playwright's automatic scrolling must not mask overflow.
-      await expect.poll(() => main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+      // PLAN 2.2b: the view may scroll below the set table (muscles, tips); unscrolled, the controls
+      // below must all be in the first screen, so main's own scroll height is no longer asserted.
       expect(await main.evaluate((el) => el.scrollTop)).toBe(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
       for (const control of [card.getByRole('heading', { name: 'Wide Grip Pull Up' }), card.getByTestId('set-target'), card.getByTestId('weight-cell').first(), card.getByTestId('reps-cell').first(), logButton(page)]) {

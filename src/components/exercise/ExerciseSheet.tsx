@@ -7,6 +7,7 @@ import type { ExerciseInfo } from '../../lib/exerciseInfo';
 import { FormDemo } from './FormDemo';
 import { FormTips } from './FormTips';
 import { DemoViewer } from './DemoViewer';
+import { useDemoPhotos } from '../../hooks/usePhotos';
 import styles from './ExerciseSheet.module.css';
 
 type Props = {
@@ -28,6 +29,9 @@ type Props = {
 export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: Props) {
   const [full, setFull] = useState(false);
   const howTo = info.cues;
+  // Offline and never kept: the photos cannot load, so say so instead of a broken picture (gate s2).
+  const photos = useDemoPhotos(info.demo);
+  const offline = !!info.demo && photos.kind === 'none';
   return (
     <>
     <Sheet open={open} onClose={onClose} label={`How to do ${name}`} scroll>
@@ -37,12 +41,12 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: 
             <BackButton label={back.label} onPress={back.onPress} />
           </div>
         )}
-        {info.demo ? (
+        {info.demo && !offline ? (
           <FormDemo demo={info.demo} name={name} onOpen={() => setFull(true)} />
         ) : (
           <div className={styles.soon} data-testid="demo-soon">
             {placeholder}
-            <p className={styles.soonText}>Demo coming soon</p>
+            <p className={styles.soonText}>{offline ? 'Photos show when you are back online' : 'Demo coming soon'}</p>
           </div>
         )}
         <h2 className={styles.title}>{name}</h2>
@@ -74,7 +78,7 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: 
         </Button>
       </div>
     </Sheet>
-    {info.demo && <DemoViewer open={full} onClose={() => setFull(false)} name={name} demo={info.demo} />}
+    {info.demo && !offline && <DemoViewer open={full} onClose={() => setFull(false)} name={name} demo={info.demo} />}
     </>
   );
 }

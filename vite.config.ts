@@ -51,7 +51,9 @@ export default defineConfig({
         globIgnores: ['**/ex/**'],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith(`${BASE}ex/`),
+            // A RegExp, never a closure: the matcher is copied into sw.js as source text, where BASE
+            // does not exist (gate s2: `${BASE}` threw there, so no photo was ever kept or served).
+            urlPattern: /\/ex\/[^/]+\/[01]\.(?:webp|jpg)$/,
             handler: 'CacheFirst',
             options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600 } },
           },

@@ -219,3 +219,30 @@ test.describe('reduced motion', () => {
     expect(errors).toEqual([]);
   });
 });
+
+// Gate s2 (Codex 2.2c review, SPEC 13.3): the drawing is tap only, so VoiceOver and keyboards pick a
+// lit muscle from a labelled native picker wired to the same pick, then reach its exercises link.
+test('workout: the lit muscles are also a labelled picker for VoiceOver and keyboards @matrix', async ({ page }) => {
+  const errors = watchErrors(page);
+  const { card } = await openSquat(page);
+  const picker = card.getByRole('combobox', { name: 'Pick a muscle to see its exercises' });
+  await expect(picker).toHaveCount(1);
+  const options = await picker.locator('option').allTextContents();
+  expect(options[0]).toBe('No muscle picked');
+  expect(options[1]).toMatch(/· primary$/);
+  // Invisible to a finger: the drawing keeps every tap.
+  expect(await picker.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  await picker.selectOption('quadriceps');
+  await expect(card.getByTestId('muscle-pick')).toHaveText(/· primary$/);
+  const link = card.getByTestId('muscle-exercises-link');
+  await expect(link).toBeVisible();
+  await link.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('muscle-exercises')).toBeVisible();
+  await expect(page.getByTestId('muscle-exercises')).toHaveAttribute('data-region', 'quadriceps');
+  // The drawn pick and the picker agree.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('muscle-exercises')).toHaveCount(0);
+  await expect(picker).toHaveValue('quadriceps');
+  expect(errors).toEqual([]);
+});

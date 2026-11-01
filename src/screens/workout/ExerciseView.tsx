@@ -25,6 +25,7 @@ import { infoForPlan } from '../../data/exerciseInfo';
 import { MusclePair } from '../../components/muscles/MuscleMap';
 import { FormTips } from '../../components/exercise/FormTips';
 import { DemoViewer } from '../../components/exercise/DemoViewer';
+import { useDemoPhotos } from '../../hooks/usePhotos';
 import { WeightSheet, type WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
@@ -91,7 +92,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   /** The hero folded into its compact title bar (scrolled past the picture). */
   const [folded, setFolded] = useState(false);
   /** The hero's foot (name, set, ⋯) stays pinned when the picture scrolls away: its height, measured. */
-  const hasDemo = !!infoForPlan(exerciseId).demo;
+  // Offline and never kept, the photos cannot show: the compact header instead (gate s2), never a
+  // broken or empty picture.
+  const photos = useDemoPhotos(infoForPlan(exerciseId).demo);
+  const hasDemo = !!infoForPlan(exerciseId).demo && photos.kind !== 'none';
   const heroRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -102,8 +106,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     let pinPx = 0;
     const pin = () => {
       // The bar keeps 8 px of the fade above the name; the rest of the fade scrolls away.
-      pinPx = Math.ceil(cap.getBoundingClientRect().height - Math.max(0, parseFloat(getComputedStyle(cap).paddingTop) - 8));
+      const capPx = cap.getBoundingClientRect().height;
+      pinPx = Math.ceil(capPx - Math.max(0, parseFloat(getComputedStyle(cap).paddingTop) - 8));
       hero.style.setProperty('--pin', `${pinPx}px`);
+      hero.style.setProperty('--cap', `${Math.floor(capPx)}px`);
     };
     pin();
     // Folded once the picture has scrolled away: one attribute flip, CSS does the rest.
@@ -462,17 +468,28 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const statusShown = !!status && status !== 'Pick a weight';
 
   return (
-    <main className={styles.exMain} data-hero={info.demo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-      {info.demo ? (
+    <main className={styles.exMain} data-hero={hasDemo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
+      {hasDemo && info.demo ? (
         // The demo hero (PLAN 2.2b): the photos loop like a gif; the name and set ride on its foot,
         // which stays pinned (with the ⋯) while the picture scrolls away above it.
         <div className={styles.hero} ref={heroRef} data-testid="ex-hero" data-folded={folded || undefined}>
-          <button type="button" className={styles.heroStage} onClick={() => setFull(true)} aria-label={`Show ${name} full screen`} tabIndex={folded ? -1 : undefined}>
+          <span className={styles.heroArt} aria-hidden="true">
             <span className={styles.heroMedia}>
               <FormDemo demo={info.demo} name={name} hero />
             </span>
-          </button>
-          <div className={styles.heroCaption} ref={captionRef}>
+          </span>
+          {/* The picture's tap target ends where the foot starts, so each has its own whole hit area
+              (SPEC 13.3); a tap on the foot opens the demo too. */}
+          <button type="button" className={styles.heroStage} onClick={() => setFull(true)} aria-label={`How to do ${name}`} tabIndex={folded ? -1 : undefined} />
+          {/* The foot is on top of the picture (the name is what a tap lands on, SPEC 13.5) and a tap
+              on it opens the demo like the picture does; the ⋯ keeps its own tap. */}
+          <div
+            className={styles.heroCaption}
+            ref={captionRef}
+            onClick={(e) => {
+              if (!folded && !(e.target as Element).closest('button')) setFull(true);
+            }}
+          >
             {titleBlock(false)}
             {moreButton}
           </div>
@@ -488,7 +505,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         </div>
       )}
       {/* The plan's own note, under the picture (the hero's foot stays two lines). */}
-      {info.demo && note && (
+      {hasDemo && note && (
         <p className={`${styles.exNote} ${styles.planNote}`} data-testid="set-plan">
           {note}
         </p>
@@ -608,7 +625,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         </section>
       )}
       {/* Nothing sure to show: an honest card, never a guessed step or muscle (SPEC 0, 4.3). */}
-      {!info.demo && !info.muscles && tips.length === 0 && kind && (
+      {!hasDemo && !info.muscles && tips.length === 0 && kind && (
         <p className={styles.unknown} data-testid="no-demo">
           Form guide coming soon. We only show form we're sure of.
         </p>
@@ -634,7 +651,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
       <SetTypeSheet open={typing !== null} onClose={() => setTyping(null)} title={typing ? `Set ${typing.n}` : ''} value={typing?.type ?? 'normal'} onPick={pickType} />
 
-      {info.demo && (
+      {hasDemo && info.demo && (
         <DemoViewer
           open={full}
           onClose={() => setFull(false)}

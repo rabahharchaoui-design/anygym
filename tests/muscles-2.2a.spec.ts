@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { expect, test, type Locator, type Page } from './fixtures';
 
 // PLAN 2.2a: the premium muscle map on its dev route (SPEC 4.5 PREMIUM MAP, 10, 13).
 const watch = (page: Page) => {
@@ -13,6 +13,30 @@ const settled = async (page: Page) => {
   // The crossfade's leaving body is gone once it has faded.
   await expect(page.locator('[data-testid="muscle-map"] svg[aria-hidden="true"]:not([data-view]) path')).toHaveCount(0);
 };
+
+/**
+ * A point inside a drawn muscle's fill, as a click position. A thin crescent (the front triceps)
+ * does not cover the middle of its own box, so a plain click there lands on the body around it
+ * (gate s2: WebKit on SE and Pro Max; nothing covers the muscle).
+ */
+const inside = (l: Locator) =>
+  l.evaluate((el) => {
+    const p = el as SVGGeometryElement;
+    const b = p.getBBox();
+    const m = p.getScreenCTM()!;
+    const r = p.getBoundingClientRect();
+    for (let fy = 0.5, i = 0; i < 40; i++, fy = 0.5 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.025) {
+      for (let fx = 0.02; fx <= 0.98; fx += 0.02) {
+        const pt = new DOMPoint(b.x + b.width * fx, b.y + b.height * fy);
+        if (!p.isPointInFill(pt)) continue;
+        const sc = pt.matrixTransform(m);
+        // Well inside: the point and 2 px around it all land on the muscle (no rounding misses).
+        const around = [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]];
+        if (around.every(([dx, dy]) => document.elementFromPoint(sc.x + dx!, sc.y + dy!) === el)) return { x: sc.x - r.left, y: sc.y - r.top };
+      }
+    }
+    return { x: r.width / 2, y: r.height / 2 };
+  });
 
 test('muscle map: one body, incline press on the front, Front/Back and Male/Female, tap to name @matrix', async ({ page }) => {
   const errors = watch(page);
@@ -59,7 +83,8 @@ test('muscle map: one body, incline press on the front, Front/Back and Male/Fema
   await expect(pick).toHaveText('Quads · not used here');
   await front.locator('[data-region="quadriceps"]').first().click();
   await expect(pick).toHaveText('Tap a muscle to name it');
-  await front.locator('[data-region="triceps"]').first().click();
+  const triceps = front.locator('[data-region="triceps"]').first();
+  await triceps.click({ position: await inside(triceps) });
   await expect(pick).toHaveText('Triceps · secondary');
   // A tap beside the body (not a muscle) clears it.
   await front.click({ position: { x: 4, y: 4 } });

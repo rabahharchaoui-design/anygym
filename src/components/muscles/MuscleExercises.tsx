@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { usePhotos } from '../../hooks/usePhotos';
 import { REGION_NAMES, type Region } from '../../lib/bodyArt';
 import { exercisesLinkText } from '../../lib/muscleExercises';
 import { exerciseCount, exercisesForMuscle, type MuscleExerciseRow } from '../../data/muscleExercises';
@@ -35,7 +36,20 @@ export function MuscleExercisesLink({ region, onOpen }: { region: Region; onOpen
 }
 
 function Thumb({ row }: { row: MuscleExerciseRow }) {
+  const frames = useMemo(() => (row.thumb ? [[assetUrl(row.thumb.webp), assetUrl(row.thumb.jpg)]] : null), [row.thumb]);
+  // Offline, only a photo the phone kept is drawn (gate s2: a failed load logs an error in WebKit).
+  const photos = usePhotos(frames);
   if (!row.thumb) return <span className={styles.thumb} aria-hidden="true" data-testid="muscle-exercise-nothumb" />;
+  if (photos.kind !== 'net') {
+    const url = photos.kind === 'cache' ? photos.urls[0] : null;
+    return url ? (
+      <picture className={styles.thumb} aria-hidden="true">
+        <img src={url} alt="" width={56} height={56} decoding="async" draggable={false} />
+      </picture>
+    ) : (
+      <span className={styles.thumb} aria-hidden="true" />
+    );
+  }
   return (
     <picture className={styles.thumb} aria-hidden="true">
       <source type="image/webp" srcSet={assetUrl(row.thumb.webp)} />

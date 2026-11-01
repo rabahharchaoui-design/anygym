@@ -129,6 +129,9 @@ test('(b2) Undo failed, user keeps it deleted: finishes without it, no tombstone
   await logOne(view);
   await loggedRows(view).first().getByRole('button', { name: /Edit$/ }).tap();
   await editSheet(page).getByRole('dialog').or(editSheet(page)).getByRole('button', { name: 'Delete set' }).tap();
+  // The delete's own tombstone lands a moment after the tap returns (gate s2: on a busier screen it
+  // landed after the patch below and failed instead of the Undo). Patch only once it is stored.
+  await expect.poll(async () => (await dbAll(page, 'tombstones')).length).toBe(1);
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
     let once = true;

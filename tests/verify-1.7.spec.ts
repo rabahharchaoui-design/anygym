@@ -64,8 +64,9 @@ test('1.7 verify: plate machine unknown type, single arm, tap targets, rest bar'
   await expect(card.getByTestId('set-status')).toContainText('starting weight');
   await log.tap({ force: true, timeout: 1000 }).catch(() => {});
   expect(await dbAll(page, 'sets')).toHaveLength(0);
-  await card.getByTestId('weight-cell').first().tap();
+  // PLAN 2.2b: a blocked ✓ opens the weight picker for its row (saying why) instead of doing nothing.
   const picker = page.getByRole('dialog', { name: 'Pick the weight' });
+  await expect(picker).toBeVisible();
   await picker.getByRole('button', { name: /Set starting weight/ }).tap();
   const sheet = page.getByRole('dialog').last();
   await shot(page, 'start-sheet');

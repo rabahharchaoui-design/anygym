@@ -35,7 +35,7 @@ async function tableOnScreen(page: Page) {
 }
 
 const openViewer = async (page: Page, name: string) => {
-  await page.getByRole('button', { name: `Show ${name} full screen` }).tap();
+  await page.getByRole('button', { name: `How to do ${name}` }).tap();
   const viewer = page.getByTestId('demo-viewer');
   await expect(viewer).toBeVisible();
   return viewer;
@@ -67,7 +67,7 @@ test('variant: photos, the map caveat as a note, numbered cues, watch out and go
   await expect(viewer.getByTestId('demo-dots')).toHaveCount(0);
   await expect(viewer.getByRole('button', { name: 'Form details' })).toHaveCount(0);
   await shot(page, 'sheet-variant');
-  await viewer.getByRole('button', { name: 'Close demo' }).tap();
+  await viewer.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(viewer).toHaveCount(0);
   expect(errors).toEqual([]);
 });

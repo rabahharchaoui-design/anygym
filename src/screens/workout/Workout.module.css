@@ -138,9 +138,18 @@
   contain: layout paint;
 }
 
-.heroStage {
+.heroArt {
   position: absolute;
   inset: 0;
+  display: block;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* The picture's tap target: the hero above its foot (the foot opens the demo on its own). */
+.heroStage {
+  position: absolute;
+  inset: 0 0 var(--cap, 0px);
   display: block;
   width: 100%;
   padding: 0;
@@ -160,7 +169,7 @@
 }
 
 /* Instant press feedback (SPEC 13.2): a slight dim, no scale on a full width picture. */
-.heroStage:active .heroMedia {
+.hero:has(.heroStage:active) .heroArt {
   opacity: var(--press-dim);
 }
 
@@ -175,7 +184,19 @@
   gap: var(--space-2);
   padding: 28px var(--pad-r) 8px var(--pad-l);
   background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 72%, transparent) 42%, var(--bg));
-  pointer-events: none;
+  /* Above the picture's button, so the name is the top hit target (gate s2); a tap here opens the
+     demo too (ExerciseView), and the press dim follows. */
+  z-index: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero:not([data-folded]):has(.heroCaption:active:not(:has(button:active))) .heroArt {
+  opacity: var(--press-dim);
+}
+
+.hero[data-folded] .heroCaption {
+  cursor: default;
 }
 
 /* Folded: the picture fades out and the foot becomes a clean dark title bar (name, set, ⋯). */
@@ -198,7 +219,8 @@
   transition: opacity var(--dur-base) var(--ease-out);
 }
 
-.hero[data-folded] .heroStage {
+.hero[data-folded] .heroStage,
+.hero[data-folded] .heroArt {
   opacity: 0;
   pointer-events: none;
 }

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { setTableInFirstScreen } from './workout-helpers';
 import { seedWorkingSets, workingSetsOfActive } from './helpers/planSeed';
 import { readFileSync } from 'node:fs';
 
@@ -362,10 +363,9 @@ test('honest: no img, unknown asks once, timed Hold, one screen exercise view on
   await expect(ask).toHaveCount(0);
   await expect(press.getByTestId('set-status')).toContainText('starting weight');
   console.log('press view:', (await press.innerText()).replace(/\n+/g, ' / ').slice(0, 500));
-  // one screen rule on SE: the exercise view never scrolls
-  const sh = await press.evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight }));
-  console.log('press view', JSON.stringify(sh));
-  expect.soft(sh.sh - sh.ch).toBeLessThanOrEqual(1);
+  // One screen rule on SE, as PLAN 2.2b set it: the view may scroll below the set table (muscles,
+  // tips); the name, every set row and every ✓ are in the first screen.
+  await setTableInFirstScreen(page);
   await vshot(page, 'card-plan-target');
   await page.reload();
   await press.waitFor();

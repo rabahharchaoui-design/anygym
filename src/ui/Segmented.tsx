@@ -2,7 +2,7 @@ import { tick } from './haptics';
 import styles from './Segmented.module.css';
 
 // A small segmented control (the Settings Units pattern, SPEC 10): a radiogroup of pill buttons,
-// each at least 44 px tall, the chosen one in the accent.
+// each at least 48 px tall, the chosen one in the accent.
 export interface SegmentedOption<T extends string> {
   value: T;
   label: string;
