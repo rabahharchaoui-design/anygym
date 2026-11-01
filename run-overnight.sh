@@ -2,7 +2,7 @@
 # AnyGym Fable Loop with a Claude usage budget (G, Oct 30: leave usage for G all week).
 # Fable orchestrates, Opus builds, Sonnet tests. Resumes from PLAN.md, stops at ALL DONE.
 # Budget lives in .loop-budget (reread before every run, edit any time):
-#   runs only while G sleeps (noon to midnight Japan time), at most DAY_HOURS a day, and at most WEEK_HOURS of loop time per usage week
+#   runs only while G sleeps (3 PM to 11 PM Japan time), at most DAY_HOURS a day, and at most WEEK_HOURS of loop time per usage week
 #   (the week resets Thursday 7 PM Tokyo). The first start gets a KICKOFF run right away.
 # Pause any time: touch .loop-pause    Resume: rm .loop-pause
 cd "$(dirname "$0")"
@@ -72,15 +72,20 @@ sync_out(){ local br=$(git branch --show-current); git fetch -q origin 2>>"$LOG"
   catch_up
   if [ -n "$(git status --porcelain)" ]; then git add -A && git commit -q -m "WIP gmini: work in progress at the end of a build run (the next builder continues it)" 2>>"$LOG"; fi
   if git push -q origin "$br" 2>>"$LOG" && git push -q origin master 2>>"$LOG"; then say "pushed $br for the cloud builder ($(git rev-parse --short HEAD))"; else say "push to GitHub failed, will retry after the next run"; fi; }
+LOOP_V=2
+# Keep the phone watcher in step with .anygym-ntfy.sh (reinstalls it when it changed), so G never has to.
+W=$(mktemp); sed -n '/^cat > "\$HOME\/bin\/anygym-notify.sh"/,/^__NOTIFY_EOF__/p' .anygym-ntfy.sh | sed '1d;$d' > "$W"
+if [ -s "$W" ] && ! cmp -s "$W" "$HOME/bin/anygym-notify.sh"; then bash .anygym-ntfy.sh >/dev/null 2>&1; echo "=== phone watcher updated $(date) ===" >> "$LOG"; fi; rm -f "$W"
 say "AnyGym loop started (budget mode)"
 sync_out   # anything left from before this start goes to GitHub for the cloud builder
+SELF_HASH=$(md5 -q run-overnight.sh 2>/dev/null)
 n=0; FAST=0; WAITMSG=""
 KICK=0; [ -f $STATE ] || KICK=1
 while [ $n -lt 300 ]; do
   source ./$CFG
   cloudcheck
   # The script file changed since this loop started: reload it between runs (never during one).
-  if [ "$(stat -f %m run-overnight.sh 2>/dev/null)" != "$SELF_MTIME" ]; then say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
+  if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
   if [ -f .loop-pause ]; then [ "$WAITMSG" != pause ] && say "paused by .loop-pause"; WAITMSG=pause; sleep 300; continue; fi
   usedsec=$(used); weekleft=$(( WEEK_HOURS*3600 - usedsec ))
   if [ $weekleft -lt 900 ]; then [ "$WAITMSG" != week ] && say "weekly loop budget used ($WEEK_HOURS h), waiting for the Thursday 7 PM Japan time reset"; WAITMSG=week; daydone; sleep 900; continue; fi
