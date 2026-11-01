@@ -2,3 +2,4 @@
 2.0h | Nothing to test, behind the scenes.
 2.2a | New premium muscle map with male and female bodies. Open Safari to the muscle preview page, pick Bench press: chest glows bright, shoulders and triceps softer. Tap to switch front and back.
 2.0i | Nothing to test, behind the scenes.
+2.2b | The exercise screen now uses the whole screen: moving demo on top, your sets in the middle, muscles and form tips below. Start a workout and open any exercise.
