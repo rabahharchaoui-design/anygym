@@ -55,8 +55,12 @@ test('SE 130% text: four plan sets remain exposed beside the demo with rest runn
   const rows = page.getByRole('list', { name: 'Sets', exact: true });
   const box = (await rows.boundingBox())!;
   expect(box.y + box.height).toBeLessThanOrEqual(rest.y + 0.5);
-  await exposed(view.getByRole('heading', { name: 'Barbell Back Squat', exact: true }));
-  await exposed(view.getByTestId('set-target'));
+  // Hero text lets taps pass through to the demo button (pointer-events: none).
+  // It must be visible on screen, but is intentionally not a hit-test target.
+  for (const text of [view.getByRole('heading', { name: 'Barbell Back Squat', exact: true }), view.getByTestId('set-target')]) {
+    await expect(text).toBeVisible();
+    await expect(text).toBeInViewport({ ratio: 1 });
+  }
   for (const control of await rows.locator('[data-testid="weight-cell"], [data-testid="reps-cell"], [data-testid="check-current"], [data-testid="check"]').all()) {
     await exposed(control);
   }
@@ -83,7 +87,13 @@ test('offline demo Close and Back preserve a changed pending row, saved sets and
   for (const photo of await photos.all()) {
     await expect.poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     // Wait for the real runtime cache write; do not populate the cache in the test.
-    await expect.poll(() => photo.evaluate(async (img: HTMLImageElement) => !!(await caches.match(img.currentSrc)))).toBe(true);
+    // Inspect URL presence: matching a URL-only request also compares Vary headers
+    // (the preview server sends Vary: Origin), unlike the original image request.
+    // The viewer and reload assertions below verify actual offline image loading.
+    await expect.poll(() => photo.evaluate(async (img: HTMLImageElement) => {
+      const cache = await caches.open('exercise-photos');
+      return (await cache.keys()).some((request) => request.url === img.currentSrc);
+    })).toBe(true);
   }
   await checkCurrent(view).tap();
   await expect(loggedRows(view)).toHaveCount(1);
