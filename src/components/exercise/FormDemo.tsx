@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PauseIcon, PlayIcon } from '../../ui/icons';
 import { assetUrl } from '../../data/exerciseInfo';
 import type { DemoImages } from '../../lib/exerciseInfo';
+import { useDemoPhotos, type Photos } from '../../hooks/usePhotos';
 import styles from './FormDemo.module.css';
 
 type Props = {
@@ -17,39 +18,66 @@ type Props = {
   onOpen?: () => void;
 };
 
-/** One photo: WebP with a JPG fallback, lazy, sized up front so nothing shifts when it loads. */
-function Photo({ demo, i, name, className }: { demo: DemoImages; i: 0 | 1; name: string; className: string }) {
+/**
+ * One picture: WebP with a JPG fallback online; offline only the URL the cache holds, so nothing
+ * ever fails to load (gate s2: a failed load logs an error in WebKit). Sized by its box, so nothing
+ * shifts when it loads.
+ */
+function Picture({ demo, i, photos, className, alt, lazy = true, fill = false, sync = false }: { demo: DemoImages; i: 0 | 1; photos: Photos; className: string; alt: string; lazy?: boolean; fill?: boolean; sync?: boolean }) {
+  // The blurred fill behind the hero is not a frame of the demo.
+  const frame = fill ? undefined : i;
+  // The hero's sharp photo decodes with the page (round 3): it is in the screen change's snapshot.
+  const decoding = sync ? 'sync' : 'async';
+  if (photos.kind === 'net') {
+    return (
+      <picture className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden={alt ? undefined : true}>
+        <source srcSet={assetUrl(demo.webp[i])} type="image/webp" />
+        <img src={assetUrl(demo.jpg[i])} alt={alt} loading={lazy ? 'lazy' : undefined} decoding={decoding} width={640} height={427} draggable={false} />
+      </picture>
+    );
+  }
+  const url = photos.kind === 'cache' ? photos.urls[i] : null;
+  // Not kept (or still asking the cache): the frame stays empty, never a broken picture.
+  if (!url) return i === 0 ? <span className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden="true" /> : null;
   return (
-    <picture className={className} data-frame={i}>
-      <source srcSet={assetUrl(demo.webp[i])} type="image/webp" />
-      <img src={assetUrl(demo.jpg[i])} alt={`${name}, ${i === 0 ? 'start' : 'end'} position`} loading="lazy" decoding="async" width={640} height={427} draggable={false} />
+    <picture className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden={alt ? undefined : true}>
+      <img src={url} alt={alt} decoding={decoding} width={640} height={427} draggable={false} />
     </picture>
   );
 }
 
 /**
- * The form demo (SPEC 4.4): start and end photos crossfading in a loop (1.2 s, 0.35 s fade,
- * 1.2 s, ease in out), tap to pause. No position counter or dots (PLAN 2.2b). Reduced motion shows
+ * The form demo (SPEC 4.4): start and end photos crossfading in a loop (1.35 s, 0.15 s fade,
+ * 1.35 s; round 2 P4: a short fade never shows a double exposure in a still), tap to pause. No position counter or dots (PLAN 2.2b). Reduced motion shows
  * both side by side (the tile and the hero then show the start photo still). The loop is pure CSS,
  * so it costs no renders and stays on the compositor.
  */
 export function FormDemo({ demo, name, compact = false, hero = false, vtName, onOpen }: Props) {
   const [paused, setPaused] = useState(false);
+  const photos = useDemoPhotos(demo);
   const frames = (
     <>
-      <Photo demo={demo} i={0} name={name} className={styles.frame ?? ''} />
-      <Photo demo={demo} i={1} name={name} className={`${styles.frame} ${styles.end ?? ''}`} />
+      <Picture demo={demo} i={0} photos={photos} alt={`${name}, start position`} className={styles.frame ?? ''} />
+      <Picture demo={demo} i={1} photos={photos} alt={`${name}, end position`} className={`${styles.frame} ${styles.end ?? ''}`} />
+    </>
+  );
+  // The hero's frames load at once (the list tile already fetched frame 1): never lazy, never late.
+  const heroFrames = (
+    <>
+      <Picture demo={demo} i={0} photos={photos} alt={`${name}, start position`} lazy={false} sync className={styles.frame ?? ''} />
+      <Picture demo={demo} i={1} photos={photos} alt={`${name}, end position`} lazy={false} className={`${styles.frame} ${styles.end ?? ''}`} />
     </>
   );
   if (hero) {
     // The whole photo, never cropped (feet and bar stay in), over a soft blurred copy that fills the box.
     return (
-      <span className={styles.hero} data-testid="demo-hero" style={vtName ? { viewTransitionName: vtName } : undefined}>
-        <picture className={styles.heroFill} aria-hidden="true">
-          <source srcSet={assetUrl(demo.webp[0])} type="image/webp" />
-          <img src={assetUrl(demo.jpg[0])} alt="" decoding="async" draggable={false} />
-        </picture>
-        {frames}
+      <span className={styles.hero} data-testid="demo-hero">
+        <Picture demo={demo} i={0} photos={photos} alt="" lazy={false} fill className={styles.heroFill ?? ''} />
+        {/* Only the sharp photo carries the shared name (critic B1): the blurred bands stay in the
+            page, so the slot is never an empty black box while the photo flies in. */}
+        <span className={styles.heroPhoto} data-testid="hero-photo" style={vtName ? { viewTransitionName: vtName } : undefined}>
+          {heroFrames}
+        </span>
       </span>
     );
   }

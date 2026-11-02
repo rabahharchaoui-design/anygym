@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { setTableInFirstScreen } from './workout-helpers';
 import { seedWorkingSets, workingSetsOfActive } from './helpers/planSeed';
 import { readFileSync } from 'node:fs';
 
@@ -326,7 +327,13 @@ test('honest: no img, unknown asks once, timed Hold, one screen exercise view on
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await page.locator('[data-row]').first().waitFor();
-  await expect(page.getByRole('main').locator('img')).toHaveCount(0);
+  // PLAN 2.2d round 2 (B1): a row's tile shows the demo's start photo only for a sure catalog match
+  // (exact or variant), never otherwise: every picture is in a photo tile, and the exercise with no
+  // sure match (Decline Bench Sit Up, match none) has none.
+  const main = page.getByRole('main');
+  expect(await main.locator('img').count()).toBe(await main.locator('[data-testid="thumb"][data-photo] img').count());
+  await expect(page.getByTestId('row-decline-bench-sit-up').locator('img')).toHaveCount(0);
+  await expect(page.getByTestId('row-static-quadricep-stretch').locator('img')).toHaveCount(0);
   const back = async () => {
     await page.getByRole('button', { name: 'Back to the list' }).tap();
     await expect(page.getByTestId('arrival-guard')).toHaveCount(0);
@@ -362,10 +369,9 @@ test('honest: no img, unknown asks once, timed Hold, one screen exercise view on
   await expect(ask).toHaveCount(0);
   await expect(press.getByTestId('set-status')).toContainText('starting weight');
   console.log('press view:', (await press.innerText()).replace(/\n+/g, ' / ').slice(0, 500));
-  // one screen rule on SE: the exercise view never scrolls
-  const sh = await press.evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight }));
-  console.log('press view', JSON.stringify(sh));
-  expect.soft(sh.sh - sh.ch).toBeLessThanOrEqual(1);
+  // One screen rule on SE, as PLAN 2.2b set it: the view may scroll below the set table (muscles,
+  // tips); the name, every set row and every ✓ are in the first screen.
+  await setTableInFirstScreen(page);
   await vshot(page, 'card-plan-target');
   await page.reload();
   await press.waitFor();

@@ -131,6 +131,12 @@ export type Session = {
   exerciseIds?: string[];
   /** weekly_table plans: the 0 based week this day was started in, so a reload shows the same targets. */
   weekIndex?: number;
+  /**
+   * PLAN 2.2d round 2: rows added (+) or removed (−) per exercise, as the workout ended (Finish), so
+   * the finish lines, the finished count and the plan's 60% rule use the rows the lifter really had.
+   * Additive, not indexed; missing = the plan's sets.
+   */
+  rowAdjust?: Record<string, number>;
 };
 
 /** Where the user is in their curated plan (PLAN 1.10). One row with id 'active'. */
@@ -167,6 +173,12 @@ export type ExerciseSetting = {
   barId?: BarId;
   /** Rest after each set in seconds, set by the user from the exercise menu (PLAN 1.7c). Stored on the every-gym record. */
   restSec?: number;
+  /**
+   * Rest timer Off for this exercise (PLAN 2.2d, Hevy research item 2): logging a set starts no
+   * countdown, so a superset pair goes back to back. Additive, not indexed; restSec is kept for
+   * when it is turned back on. Stored on the every-gym record.
+   */
+  restOff?: boolean;
   /** The user's own note for this exercise (PLAN 1.7c). Stored on the every-gym record. */
   note?: string;
 };

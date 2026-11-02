@@ -16,6 +16,22 @@ function context(): AudioContext | null {
   }
 }
 
+/**
+ * Makes the (suspended) audio context ahead of time, when the phone is idle (PLAN 2.2d): creating
+ * it took about 50 ms of the first ✓ tap on a mid range phone. The tap then only resumes it, which
+ * is what iOS needs inside the gesture.
+ */
+export function warmAudio(): () => void {
+  const w = globalThis as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+  if (ctx) return () => undefined;
+  if (w.requestIdleCallback) {
+    const id = w.requestIdleCallback(() => void context(), { timeout: 1500 });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const t = setTimeout(() => void context(), 600);
+  return () => clearTimeout(t);
+}
+
 /** Call from a tap (e.g. Log set) so iOS lets the later tone play. */
 export function unlockAudio(): void {
   const c = context();

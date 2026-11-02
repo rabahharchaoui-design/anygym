@@ -55,7 +55,9 @@ async function problems(page: Page): Promise<string[]> {
     for (let i = 0; i < leaves.length; i++) for (let j = i + 1; j < leaves.length; j++) {
       const a = leaves[i]!, b = leaves[j]!;
       if (a.e.contains(b.e) || b.e.contains(a.e)) continue;
-      const layer = (e: HTMLElement) => { for (let p: HTMLElement | null = e; p; p = p.parentElement) { const ps = getComputedStyle(p).position; if (ps === 'fixed' || ps === 'sticky' || p.tagName === 'NAV' || p.tagName === 'HEADER') return p; } return null; };
+      // PLAN 2.2b: the exercise view scrolls below the set table, under the glass rest bar (an
+      // overlay docked over the screen's foot, like a fixed bar), so the bar is its own layer.
+      const layer = (e: HTMLElement) => { for (let p: HTMLElement | null = e; p; p = p.parentElement) { const ps = getComputedStyle(p).position; if (ps === 'fixed' || ps === 'sticky' || p.tagName === 'NAV' || p.tagName === 'HEADER' || p.dataset.testid === 'rest-timer') return p; } return null; };
       if (layer(a.e) !== layer(b.e)) continue;
       if (a.r.bottom <= 0 || a.r.top >= innerHeight || b.r.bottom <= 0 || b.r.top >= innerHeight) continue;
       const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);

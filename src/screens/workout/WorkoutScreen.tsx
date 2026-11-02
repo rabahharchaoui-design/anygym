@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
-import { saveExerciseNote, saveExerciseRest, saveLoadType } from '../../db/exerciseSettings';
-import { extraSets } from '../../lib/extraSets';
+import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
+import { extraSets, markDeleted } from '../../lib/extraSets';
 import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../ui/Toast';
-import { FADE, SHEET_SPRING } from '../../ui/motion';
+import { FADE, NAV_SPRING, SHEET_SPRING } from '../../ui/motion';
 import { BackButton } from '../../ui/BackButton';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown } from '../../ui/icons';
@@ -49,10 +49,18 @@ import styles from './Workout.module.css';
  * moves 30% left and dims. dir -1 pop: the reverse, the leaving view on top. dir 0: no movement
  * (the edge swipe or a sheet already covered the change).
  */
+// Full transform strings (PLAN 2.2d): Motion runs them on the compositor (WAAPI), so a busy main
+// thread (a view mounting) never drops frames; x shorthands would animate on the main thread.
 const FALLBACK_PUSH: Variants = {
-  enter: (dir: number) => (dir === 0 ? { x: 0, opacity: 1 } : dir > 0 ? { x: '100%', opacity: 1, zIndex: 2 } : { x: '-30%', opacity: 0.6, zIndex: 1 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => (dir === 0 ? { opacity: 0, transition: { duration: 0 } } : dir > 0 ? { x: '-30%', opacity: 0.6, zIndex: 1 } : { x: '100%', opacity: 1, zIndex: 2 }),
+  enter: (dir: number) =>
+    dir === 0 ? { transform: 'translateX(0%)', opacity: 1 } : dir > 0 ? { transform: 'translateX(100%)', opacity: 1, zIndex: 2 } : { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 },
+  center: { transform: 'translateX(0%)', opacity: 1 },
+  exit: (dir: number) =>
+    dir === 0
+      ? { opacity: 0, transition: { duration: 0 } }
+      : dir > 0
+        ? { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 }
+        : { transform: 'translateX(100%)', opacity: 1, zIndex: 2 },
 };
 const FALLBACK_FADE: Variants = {
   enter: { opacity: 0 },
@@ -377,9 +385,13 @@ export function WorkoutScreen() {
     );
   };
 
-  const onDelete = async (set: WorkoutSet): Promise<void> => {
+  const onDelete = async (set: WorkoutSet, removeRow = false): Promise<void> => {
     if (finishing.current) return;
     setEditing(null);
+    // PLAN 2.2d round 2: whether its row goes with it is stored with this delete (durably), and holds
+    // only while the set is deleted: every Undo path (here, recovery after a restart, Finish's retry)
+    // brings the row back with the set. A warm up on a normal lift never used a planned row (1.7j).
+    markDeleted(sessionId, set.id, removeRow && countsToward(w.entryOf(set.exerciseId), set.kind) ? set.exerciseId : null);
     setHidden((h) => new Set(h).add(set.id));
     const shown = toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) });
     setToast(shown);
@@ -399,7 +411,7 @@ export function WorkoutScreen() {
         setToast(
           toastOf('Could not delete that set', {
             label: 'Try again',
-            onPress: () => void onDelete(set),
+            onPress: () => void onDelete(set, removeRow),
           }),
         );
       });
@@ -416,6 +428,8 @@ export function WorkoutScreen() {
     const ids = w.session?.exerciseIds ?? [];
     try {
       if (a === 'remove') {
+        const own = w.setsOfExercise(id);
+        if (own.length) return void removeWithSets(id, own);
         const at = await removeExercise(sessionId, id);
         justAdded.current.delete(id);
         if (routeRef.current === id) goList();
@@ -435,6 +449,56 @@ export function WorkoutScreen() {
       if (next) await setExerciseOrder(sessionId, next);
     } catch {
       notice('Could not change that. Try again.');
+    }
+  };
+
+  /**
+   * PLAN 2.2d P2 (SPEC 13.1: Undo, never a refusal): an exercise with logged sets is removed with
+   * them. Each set goes through the workout's transactional delete (its tombstone and token, so an
+   * Undo survives a kill), then the exercise leaves the list; Undo puts the exercise back at its
+   * place and every set back exactly (same ids and order). Anything failing midway is put back.
+   */
+  const removeWithSets = async (id: string, own: WorkoutSet[]) => {
+    if (finishing.current) return;
+    const ids = own.map((x) => x.id);
+    const unhideAll = () =>
+      setHidden((h) => {
+        const next = new Set(h);
+        for (const x of ids) next.delete(x);
+        return next;
+      });
+    for (const x of own) markDeleted(sessionId, x.id, null);
+    setHidden((h) => new Set([...h, ...ids]));
+    const gone: WorkoutSet[] = [];
+    try {
+      for (const x of own) {
+        await deletes.remove(x);
+        gone.push(x);
+      }
+      const at = await removeExercise(sessionId, id);
+      justAdded.current.delete(id);
+      if (routeRef.current === id) goList();
+      const n = gone.length;
+      const shown = toastOf(`${w.nameOf(id)} removed · ${n} ${n === 1 ? 'set' : 'sets'}`, {
+        label: 'Undo',
+        onPress: () => {
+          setToast((cur) => (cur?.id === shown.id ? null : cur));
+          void (async () => {
+            try {
+              await restoreExercise(sessionId, id, at);
+              for (const x of gone) await deletes.undo(x.id);
+              unhideAll();
+            } catch {
+              notice('Could not put it back');
+            }
+          })();
+        },
+      });
+      setToast(shown);
+    } catch (err) {
+      for (const x of gone) await deletes.undo(x.id).catch(() => undefined);
+      unhideAll();
+      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not remove that. Try again.');
     }
   };
 
@@ -566,6 +630,25 @@ export function WorkoutScreen() {
 
   const now = useNow(1000);
 
+  // The stats line drops the words "Total lifted" when the full line would wrap (round 2, P5).
+  const statsRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [tight, setTight] = useState(false);
+  useLayoutEffect(() => {
+    const box = statsRef.current;
+    const m = measureRef.current;
+    if (!box || !m || typeof ResizeObserver === 'undefined') return;
+    const fit = () => {
+      const room = box.clientWidth - (parseFloat(getComputedStyle(box).paddingLeft) || 0);
+      setTight(m.scrollWidth > room + 0.5);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(box);
+    ro.observe(m);
+    return () => ro.disconnect();
+  }, [w.ready]);
+
   // Home only when a read that worked says the workout is gone, never after a failed read.
   if (w.sessionMissing && !finishing.current) {
     return <Navigate to="/" replace />;
@@ -598,6 +681,17 @@ export function WorkoutScreen() {
       onMenu={() => setMenuFor(exerciseId)}
       onSwipeNext={swipeNext}
       onNotice={notice}
+      onRemoveSet={(set) => void onDelete(set, true)}
+      onUndoable={(text, undo) => {
+        const shown = toastOf(text, {
+          label: 'Undo',
+          onPress: () => {
+            setToast((cur) => (cur?.id === shown.id ? null : cur));
+            undo();
+          },
+        });
+        setToast(shown);
+      }}
     />
   ) : (
     <DayList w={w} heroId={lastViewed} onOpen={openExercise} onAdd={() => setPicking(true)} />
@@ -614,7 +708,7 @@ export function WorkoutScreen() {
             <ChevronDown strokeWidth={2.4} />
           </IconButton>
         )}
-        <div className={styles.stats}>
+        <div className={styles.stats} ref={statsRef}>
           <span className={`${styles.clock} num`} data-testid="elapsed" role="timer" aria-live="off">
             {startedAt ? formatElapsed((now - startedAt) / 1000) : w.error ? '' : '0:00'}
           </span>
@@ -623,9 +717,24 @@ export function WorkoutScreen() {
             {w.error ? null : (
               <>
                 <Odometer value={w.sets.length} /> {w.sets.length === 1 ? 'set' : 'sets'}
-                {lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}
+                {lifted > 0 ? (
+                  <>
+                    {' · '}
+                    {/* Large text on a narrow phone: "1 set · 1,080 lb" on screen, one line (round 2, P5);
+                        the words stay for screen readers, hidden by clip-path (round 4: not an
+                        overflow clip, which would read as cut off text). */}
+                    {tight ? <span className={styles.srText}>Total lifted </span> : 'Total lifted '}
+                    {formatTotal(lifted, unit)}
+                  </>
+                ) : (
+                  ''
+                )}
               </>
             )}
+          </span>
+          {/* The full line as plain text, unseen: does it fit on one line? */}
+          <span ref={measureRef} className={`${styles.statLine} ${styles.statMeasure} num`} aria-hidden="true">
+            {`${w.sets.length} ${w.sets.length === 1 ? 'set' : 'sets'}${lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}`}
           </span>
         </div>
         <button type="button" className={`${styles.finish} pressable`} onClick={() => finish()}>
@@ -657,7 +766,7 @@ export function WorkoutScreen() {
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={reduce ? FADE : SHEET_SPRING}
+                  transition={reduce ? FADE : NAV_SPRING}
                 >
                   <Present>{view}</Present>
                 </motion.div>
@@ -735,7 +844,12 @@ export function WorkoutScreen() {
         </AnimatePresence>
       </div>
 
-      <Toast toast={toast} bottom={rest && !w.error ? 'calc(var(--rest-height) + 8px)' : '8px'} />
+      {/* On the day list the toast stacks above the floating Start pill, never over it (round 3, P3;
+          the pill rides var(--rest-height) + 2 × 8 px above the bottom and is 52 px tall). */}
+      <Toast
+        toast={toast}
+        bottom={!exerciseId && !w.isQuick && !!w.nextId && !w.error ? 'calc(var(--rest-height) + 2 * var(--space-2) + 52px + 8px)' : rest && !w.error ? 'calc(var(--rest-height) + 8px)' : '8px'}
+      />
 
       <ExercisePicker open={picking || autoOpen} onClose={closePicker} gym={w.gym} added={ids} onAdd={(list) => void add(list)} />
       <LoadTypeSheet
@@ -789,12 +903,15 @@ export function WorkoutScreen() {
         canUp={!!menuId && moveInOrder(ids, menuId, -1, w.entryOf) !== null}
         canDown={!!menuId && moveInOrder(ids, menuId, 1, w.entryOf) !== null}
         moveNote={menuEntry?.kind === 'pair' ? 'A pair moves together' : undefined}
-        removeNote={menuId && w.setsOfExercise(menuId).length > 0 ? 'Delete its sets first' : undefined}
-        rest={menuId ? w.restOf(menuId) : 90}
+        removeNote={menuId && w.setsOfExercise(menuId).length > 0 ? `With its ${w.setsOfExercise(menuId).length} ${w.setsOfExercise(menuId).length === 1 ? 'set' : 'sets'}, Undo puts them back` : undefined}
+        rest={menuId ? w.restTimeOf(menuId) : 90}
+        restOff={menuId ? w.restOffOf(menuId) : false}
         note={(menuId && w.noteOf(menuId)) || ''}
         loadedWith={menuId ? LOAD_TYPE_CHOICES.find((c) => c.kind === w.loadTypeOf(menuId))?.label : undefined}
         onAction={(a) => menuId && void menuAction(menuId, a)}
         onRest={(s) => menuId && saveExerciseRest(menuId, s).catch(() => notice('Could not save that. Try again.'))}
+        onRestOff={(off) => menuId && saveExerciseRestOff(menuId, off).catch(() => notice('Could not save that. Try again.'))}
+        onRestSaved={(text) => setToast(toastOf(text))}
         onNote={(n) => menuId && saveExerciseNote(menuId, n).catch(() => notice('Could not save that. Try again.'))}
       />
     </div>

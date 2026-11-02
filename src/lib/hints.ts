@@ -1,7 +1,7 @@
 // First time hints (SPEC 13.1, 13.5): each shown once, never two at once, never while blocked
 // (a rest countdown). Seen flags persist in localStorage under one key. No React here.
 
-export type HintId = 'plates' | 'machine' | 'wheel' | 'stack' | 'setCard';
+export type HintId = 'plates' | 'machine' | 'wheel' | 'stack' | 'setCard' | 'swipeSet';
 
 export const HINT_TEXT: Record<HintId, string> = {
   plates: 'Tap plates to load the bar. Tap a sleeve to take one off.',
@@ -10,6 +10,8 @@ export const HINT_TEXT: Record<HintId, string> = {
   wheel: 'Spin to pick your dumbbells',
   stack: 'Tap the pin to pick the weight',
   setCard: 'Tap the check when you finish a set',
+  // PLAN 2.2d P1: once, after the first logged set (the set's own sheet also has Remove set).
+  swipeSet: 'Swipe a set left to delete it',
 };
 
 export const HINTS_KEY = 'anygym-hints';

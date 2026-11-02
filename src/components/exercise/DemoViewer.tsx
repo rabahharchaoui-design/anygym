@@ -70,7 +70,7 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
       className={styles.root}
       role="dialog"
       aria-modal="true"
-      aria-label={`${name}, demo`}
+      aria-label={`How to do ${name}`}
       data-testid="demo-viewer"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -94,7 +94,7 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
         <FormDemo demo={demo} name={name} hero />
       </motion.div>
       <p className={styles.title}>{name}</p>
-      <button type="button" className={`${styles.close} pressable`} data-close onClick={onClose} aria-label="Close demo">
+      <button type="button" className={`${styles.close} pressable`} data-close onClick={onClose} aria-label="Close">
         <XIcon width={22} height={22} strokeWidth={2.4} aria-hidden="true" />
       </button>
       {onDetails && (

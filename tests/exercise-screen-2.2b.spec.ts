@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { navIdle, usePlan, watchErrors } from './workout-helpers';
+import { navIdle, pickExercises, usePlan, watchErrors } from './workout-helpers';
 
 // PLAN 2.2b: the exercise screen fills the screen, nothing hidden. Day 1 of the five day split:
 // Barbell Back Squat (variant, demo, 4 sets), Machine Lying Leg Curl (exact, demo, 3 sets) and
@@ -83,12 +83,15 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   const guide = view.getByTestId('set-guide').first();
   await expect(guide).toHaveText('First time: pick a weight you could do 2 more reps with');
   expect((await guide.boundingBox())!.height).toBeLessThanOrEqual(20);
-  // The ✓ coach mark never covers the table header or the title.
+  // The ✓ coach mark (gate s2: back over the column header, its arrow on the first row's ✓) never
+  // covers the title or a number of the first row.
   const coach = page.getByTestId('hint');
   if (await coach.count()) {
     const cb = (await coach.boundingBox())!;
-    const headBottom = (await page.getByRole('list', { name: 'Sets' }).boundingBox())!.y;
-    expect(cb.y).toBeGreaterThanOrEqual(headBottom);
+    const title = (await view.getByRole('heading', { name: 'Barbell Back Squat' }).boundingBox())!;
+    expect(cb.y).toBeGreaterThanOrEqual(title.y + title.height);
+    const firstWeight = (await view.getByTestId('weight-cell').first().boundingBox())!;
+    expect(cb.y + cb.height).toBeLessThanOrEqual(firstWeight.y + 6);
   }
   await noSideScroll(page);
   await shot(page, 'demo');
@@ -145,17 +148,19 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   expect(barHeight).toBeLessThanOrEqual(80);
   await expect(view.getByRole('button', { name: 'More for Barbell Back Squat' })).toBeInViewport();
   await expect(name).toBeInViewport();
-  expect(Number(await hero.getByRole('button', { name: 'Show Barbell Back Squat full screen' }).evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.05);
-  // (9) The end of the page clears the rest bar's room.
-  const rest = await view.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--rest-height')) || 0);
+  expect(Number(await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.05);
+  // (9) The end of the page is in view. PLAN 2.2d (G: no dead black space): with no rest running the
+  // page keeps no rest bar room, so the tips end just above the bottom (the rest bar case is in
+  // tests/polish-2.2d.spec.ts).
   const tipsBox = (await view.getByTestId('form-tips').boundingBox())!;
-  expect(tipsBox.y + tipsBox.height).toBeLessThanOrEqual(page.viewportSize()!.height - rest);
+  expect(tipsBox.y + tipsBox.height).toBeLessThanOrEqual(vh);
+  expect(vh - (tipsBox.y + tipsBox.height)).toBeLessThanOrEqual(32);
   await shot(page, 'demo-scrolled');
   await view.evaluate((el) => el.scrollTo({ top: 0 }));
   await expect(hero).not.toHaveAttribute('data-folded');
 
   // (3) Tap the hero: a real full screen viewer, photo uncropped at full width, crossfade running.
-  await hero.getByRole('button', { name: 'Show Barbell Back Squat full screen' }).tap();
+  await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).tap();
   const viewer = page.getByTestId('demo-viewer');
   await expect(viewer).toBeVisible();
   await page.waitForTimeout(350);
@@ -164,10 +169,10 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   expect(vb.width / vb.height).toBeCloseTo(1.5, 1);
   expect(await viewer.locator('[data-frame="1"]').evaluate((el) => getComputedStyle(el).animationName)).not.toBe('none');
   await shot(page, 'viewer');
-  await viewer.getByRole('button', { name: 'Close demo' }).tap();
+  await viewer.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(viewer).toHaveCount(0);
   // A tap anywhere closes it too.
-  await hero.getByRole('button', { name: 'Show Barbell Back Squat full screen' }).tap();
+  await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).tap();
   await expect(viewer).toBeVisible();
   await page.waitForTimeout(350);
   await page.touchscreen.tap(20, page.viewportSize()!.height / 2 + 200);
@@ -181,7 +186,7 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
 
 test('swipe down closes the full screen demo', async ({ page }) => {
   const view = await openExercise(page, 'machine-lying-leg-curl');
-  await view.getByRole('button', { name: 'Show Machine Lying Leg Curl full screen' }).tap();
+  await view.getByRole('button', { name: 'How to do Machine Lying Leg Curl' }).tap();
   const viewer = page.getByTestId('demo-viewer');
   await expect(viewer).toBeVisible();
   await page.waitForTimeout(350);
@@ -229,17 +234,24 @@ test('no demo: a compact header, no picture, no guessed muscles', async ({ page 
   }
   // Nothing sure to show: one small honest card, never a guessed step or muscle.
   await expect(view.getByTestId('no-demo')).toHaveText("Form guide coming soon. We only show form we're sure of.");
-  // The ✓ coach mark hangs under the rows: never over a number or a column header.
+  // The ✓ coach mark (gate s2: the 2.2b slot under the rows pointed at the LAST row's ✓): over the
+  // column header, its arrow on the first row's ✓, never over a number, "+ Add set" or the first
+  // time line. Absolute, so nothing moves when it goes.
   const coach = page.getByTestId('hint');
   await expect(coach).toBeVisible();
-  const rowsBox = (await page.getByRole('list', { name: 'Sets' }).boundingBox())!;
   const cbox = (await coach.boundingBox())!;
-  expect(cbox.y).toBeGreaterThanOrEqual(rowsBox.y + rowsBox.height);
-  // In the flow: it pushes "+ Add set" down, never covers it or the first time line.
+  const check = (await view.getByTestId('check-current').boundingBox())!;
+  expect(cbox.y + cbox.height).toBeLessThanOrEqual(check.y + 4);
+  expect(Math.abs(cbox.x + cbox.width - 26 - (check.x + check.width / 2))).toBeLessThanOrEqual(8);
+  for (const cell of [view.getByTestId('weight-cell').first(), view.getByTestId('reps-cell').first()]) {
+    expect(cbox.y + cbox.height).toBeLessThanOrEqual((await cell.boundingBox())!.y + 6);
+  }
   const add = (await view.getByRole('button', { name: '+ Add set' }).boundingBox())!;
-  expect(add.y).toBeGreaterThanOrEqual(cbox.y + cbox.height - 1);
-  const firstTime = (await view.getByTestId('set-guide').first().boundingBox())!;
-  expect(cbox.y).toBeGreaterThanOrEqual(firstTime.y + firstTime.height - 1);
+  expect(add.y).toBeGreaterThanOrEqual(cbox.y + cbox.height);
+  if (await view.getByTestId('set-guide').count()) {
+    const firstTime = (await view.getByTestId('set-guide').first().boundingBox())!;
+    expect(firstTime.y).toBeGreaterThanOrEqual(cbox.y + cbox.height);
+  }
   await shot(page, 'no-demo');
   expect(errors).toEqual([]);
 });
@@ -261,7 +273,10 @@ test('320 wide: nothing sideways', async ({ page }) => {
   test.skip(test.info().project.name !== 'iPhone SE', 'one width floor run is enough');
   await page.setViewportSize({ width: 320, height: 568 });
   const view = await openExercise(page, 'barbell-back-squat');
-  await expect(view.getByTestId('ex-hero')).toBeVisible();
+  // Gate s2 round 2: a screen under 600 pt tall has no room for the hero above five rows, so the
+  // compact header carries the demo as its tile (the form sheet has the photos).
+  await expect(view.getByTestId('ex-hero')).toHaveCount(0);
+  await expect(view.getByTestId('ex-head').getByTestId('demo-tile')).toBeVisible();
   await noSideScroll(page);
   await view.getByTestId('form-tips').scrollIntoViewIfNeeded();
   await noSideScroll(page);
@@ -278,4 +293,53 @@ test('320 wide: "Just you" still fits', async ({ page }) => {
   expect(await cell.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
   await noSideScroll(page);
   await shot(page, '320-no-demo');
+});
+
+// Gate s2: the demo photos are not precached (PLAN 2.3). Offline, a photo the phone never kept is
+// not drawn at all: the compact header instead of a broken or empty hero, and nothing logged (a
+// failed load is a console error in WebKit). Back online, the hero comes back.
+test('offline with photos never kept: the compact header, no broken picture, no console error @matrix', async ({ page, context }) => {
+  const errors = watchErrors(page);
+  await page.goto('./');
+  await page.waitForFunction(() => navigator.serviceWorker?.ready.then(() => true));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await context.setOffline(true);
+  try {
+    await page.getByRole('button', { name: /Quick workout/ }).tap();
+    await pickExercises(page, [['back squat', 'Barbell Back Squat']]);
+    const view = page.getByTestId('exercise-barbell-back-squat');
+    await expect(view.getByTestId('ex-head')).toBeVisible();
+    await expect(view.getByTestId('ex-hero')).toHaveCount(0);
+    await expect(view.locator('img, picture')).toHaveCount(0);
+    await expect(view.getByTestId('check-current')).toBeInViewport({ ratio: 1 });
+    // The form sheet says why there is no picture, honestly.
+    await view.getByRole('button', { name: 'How to do Barbell Back Squat' }).tap();
+    const sheet = page.getByRole('dialog', { name: 'How to do Barbell Back Squat' });
+    await expect(sheet.getByTestId('demo-soon')).toHaveText('Photos show when you are back online');
+    await expect(sheet.locator('img')).toHaveCount(0);
+    await sheet.getByTestId('exercise-sheet').getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(sheet).toHaveCount(0);
+  } finally {
+    await context.setOffline(false);
+  }
+  // Back online: the hero and its photos return, and the service worker keeps them. Under 600 pt
+  // tall (gate s2 round 2) the photos live in the compact header's demo tile instead of a hero.
+  const view = page.getByTestId('exercise-barbell-back-squat');
+  const hero = page.viewportSize()!.height <= 600 ? view.getByTestId('ex-head').getByTestId('demo-tile') : view.getByTestId('ex-hero');
+  await expect(hero).toBeVisible();
+  await expect.poll(() => hero.locator('[data-frame] img').evaluateAll((imgs) => imgs.every((i) => (i as HTMLImageElement).naturalWidth > 0))).toBe(true);
+  await expect
+    .poll(() => page.evaluate(async () => (await (await caches.open('exercise-photos')).keys()).filter((r) => r.url.includes('/ex/Barbell_Squat/')).length))
+    .toBeGreaterThanOrEqual(2);
+  // Offline again after a reload: the kept photos draw from the cache, still silent.
+  await context.setOffline(true);
+  try {
+    await page.reload();
+    await expect(hero).toBeVisible();
+    await expect.poll(() => hero.locator('[data-frame] img').evaluateAll((imgs) => imgs.length > 0 && imgs.every((i) => (i as HTMLImageElement).naturalWidth > 0))).toBe(true);
+  } finally {
+    await context.setOffline(false);
+  }
+  expect(errors).toEqual([]);
 });

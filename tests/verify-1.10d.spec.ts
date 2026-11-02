@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures';
+import { setTableInFirstScreen } from './workout-helpers';
 
 const watch = (page: Page) => {
   const errors: string[] = [];
@@ -207,8 +208,8 @@ test.describe('1.10d verify', () => {
     const card = page.getByTestId('exercise-barbell-back-squat');
     await plates(page, card, '45 lb');
     await page.waitForTimeout(500);
-    const m = await page.getByRole('main').evaluate((el) => ({ s: el.scrollHeight, c: el.clientHeight }));
-    expect(m.s).toBeLessThanOrEqual(m.c);
+    // PLAN 2.2b: the view may scroll below the set table; the name, rows and every ✓ fit unscrolled.
+    await setTableInFirstScreen(page);
     await shot(page, 'barbell-card');
     await back(page);
     await add(page, ['smith machine upright row', 'Smith Machine Upright Row']);

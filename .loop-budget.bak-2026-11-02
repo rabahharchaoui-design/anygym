@@ -1,0 +1,9 @@
+# AnyGym loop budget. The loop rereads this before every run.
+MODEL=claude-fable-5-1
+START_HOUR=15       # Japan time: runs may start from 3 PM (G sleeps 3 PM to 11 PM)
+END_HOUR=23         # Japan time: any run still going at 11 PM is stopped
+DAY_HOURS=2         # most gmini loop hours per day (cut Nov 1: cloud runs share the same weekly usage)
+WEEK_HOURS=30       # most loop hours per usage week (resets Thursday 7 PM Japan time)
+KICKOFF_HOURS=2     # one run right away the first time the loop starts, counts toward the week
+CLOUD_START=249     # cloud credit in dollars when the cloud builder started (Oct 31)
+CLOUD_RATE=         # dollars per cloud build hour, filled in once measured from G's Usage screen

@@ -19,6 +19,41 @@
   mix-blend-mode: normal;
 }
 
+/* push and pop ride the nav spring (PLAN 2.2d), with the shared ex-hero morph on the same spring */
+html[data-nav='push']::view-transition-old(root),
+html[data-nav='push']::view-transition-new(root),
+html[data-nav='pop']::view-transition-old(root),
+html[data-nav='pop']::view-transition-new(root),
+html[data-nav='push']::view-transition-group(*),
+html[data-nav='pop']::view-transition-group(*) {
+  animation-duration: var(--dur-nav);
+  animation-timing-function: var(--ease-nav-spring);
+}
+
+/* The hero's caption (name, set line, gradient, ⋯) rides with its page above the flying photo, so
+   it never vanishes under it (round 2, critic B1). Only on push and pop; otherwise a plain fade. */
+::view-transition-group(ex-caption) {
+  z-index: 3;
+}
+html[data-nav='push']::view-transition-new(ex-caption) {
+  animation: vt-push-new var(--dur-nav) var(--ease-nav-spring) both;
+}
+html[data-nav='push']::view-transition-old(ex-caption) {
+  display: none;
+}
+html[data-nav='pop']::view-transition-old(ex-caption) {
+  animation: vt-pop-old var(--dur-nav) var(--ease-nav-spring) both;
+}
+html[data-nav='pop']::view-transition-new(ex-caption) {
+  display: none;
+}
+
+/* The photo morphs from the list tile's crop to the hero's 3:2 box: both cover, both centered. */
+::view-transition-new(ex-hero) {
+  width: 100%;
+  object-position: center;
+}
+
 /* push: the new screen slides in from the right over the old one, which moves 30% left and dims */
 html[data-nav='push']::view-transition-old(root) {
   animation-name: vt-push-old;

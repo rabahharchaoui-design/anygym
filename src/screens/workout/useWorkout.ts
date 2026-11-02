@@ -6,14 +6,14 @@ import type { BarId, Gym, JournalEntry, Load, Session, WorkoutSet } from '../../
 import { setsOf } from '../../db/workouts';
 import { committedOf, journalOf } from './rowLog';
 import { getPastSessions, lastSessionSets } from '../../db/history';
-import { pickBar, pickLoadType, pickNote, pickRest } from '../../db/exerciseSettings';
+import { pickBar, pickLoadType, pickNote, pickRest, pickRestOff } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
 import { planById } from '../../data/plans';
 import { dayIndexOf, estimateDayMinutes, type Plan, type PlanDay } from '../../lib/plans';
-import { dayWorkout, doneCounts, orderEntries, quickEntry, repRangeOf, upNext, type DoneCounts, type WorkoutEntry } from '../../lib/planWorkout';
+import { adjustEntries, dayWorkout, doneCounts, orderEntries, quickEntry, repRangeOf, upNext, type DoneCounts, type WorkoutEntry } from '../../lib/planWorkout';
 import { barForName, planItemLoadType } from '../../lib/loadTypeRule';
 import { progress, type PastSession, type PastSet, type Progression } from '../../lib/progression';
-import { extraSets } from '../../lib/extraSets';
+import { liveRowAdjustments } from '../../lib/extraSets';
 import { useLive } from '../../hooks/useLive';
 import { barIdFor, loadSetupFor } from './exerciseLoad';
 
@@ -51,6 +51,10 @@ export type Workout = {
   /** Rest after a set: the user's pick, else the plan's (or the 90 s default). */
   restOf: (id: string) => number;
   userRestOf: (id: string) => number | undefined;
+  /** Rest timer Off for this exercise (PLAN 2.2d). */
+  restOffOf: (id: string) => boolean;
+  /** The rest time picked (or the plan's), also while the timer is off. */
+  restTimeOf: (id: string) => number;
   noteOf: (id: string) => string | undefined;
   /** Planned sets done per exercise (warm ups on a normal lift left out, planWorkout.doneCounts). */
   done: DoneCounts;
@@ -107,14 +111,16 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   // The bar picked here, else the exercise list's bar (Smith machine lifts), else the name rule.
   const barOf = (id: string) => (gym.data ? pickBar(list, id, gym.data.id) : undefined) ?? planExercise(id)?.bar;
 
+  // The sets shown (a set being deleted is already gone): rows removed with a logged set stay removed
+  // only while that set is (PLAN 2.2d round 2, lib/extraSets.ts rowAdjustments).
+  const sets = (allSets.data?.sets ?? []).filter((s) => !hidden.has(s.id));
+  const presentKey = sets.map((s) => s.id).join('|');
   const entries = useMemo(() => {
     const base = orderEntries(planEntries, exerciseIds, (id, block) => quickEntry(id, nameOf(id), loadTypeOf(id), block));
-    return base.map((e) => {
-      const extra = extraSets(sessionId, e.exerciseId);
-      return extra ? { ...e, sets: e.sets + extra } : e;
-    });
+    // Rows added or removed by hand (PLAN 2.2d): one rule for every surface (adjustEntries).
+    return adjustEntries(base, liveRowAdjustments(sessionId, new Set(presentKey ? presentKey.split('|') : [])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planEntries, exerciseIds, sessionId, extraTick, settings.data, gym.data]);
+  }, [planEntries, exerciseIds, sessionId, extraTick, settings.data, gym.data, presentKey]);
   const entryMap = useMemo(() => new Map(entries.map((e) => [e.exerciseId, e])), [entries]);
 
   // Earlier workouts of each exercise whose load type is known (SPEC 6): working sets for "Last
@@ -151,12 +157,15 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     });
   };
 
-  const sets = (allSets.data?.sets ?? []).filter((s) => !hidden.has(s.id));
   // Working sets only: a warm up on a normal lift leaves its planned rows to do (PLAN 1.7j).
   const done = doneCounts(entries, sets);
 
-  const userRestOf = (id: string) => pickRest(list, id);
+  // Rest timer Off (PLAN 2.2d) is a user rest of none: logging a set starts no countdown.
+  const restOffOf = (id: string) => pickRestOff(list, id);
+  const userRestOf = (id: string) => (restOffOf(id) ? 0 : pickRest(list, id));
   const restOf = (id: string) => userRestOf(id) ?? entryMap.get(id)?.restSec ?? 90;
+  /** The rest time to show and edit (kept while the timer is off). */
+  const restTimeOf = (id: string) => pickRest(list, id) ?? entryMap.get(id)?.restSec ?? 90;
 
   const error = session.error ?? allSets.error ?? gym.error ?? settings.error ?? history.error ?? null;
   const retry = () => {
@@ -187,6 +196,8 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     lastSetsOf: (id) => history.data?.get(id)?.last?.sets ?? null,
     restOf,
     userRestOf,
+    restOffOf,
+    restTimeOf,
     noteOf: (id) => pickNote(list, id),
     done,
     nextId: upNext(entries, done, sets[sets.length - 1]?.exerciseId),

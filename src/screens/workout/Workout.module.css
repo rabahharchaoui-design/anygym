@@ -29,12 +29,26 @@
 }
 
 .stats {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   line-height: 1.1;
   padding-left: 8px;
+  /* A swipe from the edge never selects the clock (round 2, P6). */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The unseen copy of the stats line that says whether the full line fits (round 2, P5). */
+.statMeasure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .clock {
@@ -100,10 +114,12 @@
 .exMain {
   --pad-l: calc(var(--space-4) + var(--safe-left));
   --pad-r: calc(var(--space-4) + var(--safe-right));
+  --page-gap: 10px;
+  --row-gap: 4px;
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--page-gap);
   /* One screen with nothing hidden (PLAN 2.2b): the table sits in the first screen, the muscles
      and form tips follow below it. Never sideways. */
   overflow-x: hidden;
@@ -111,7 +127,8 @@
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   /* The end of the page (the tips) always clears the rest bar and the home indicator. */
-  padding: var(--space-3) var(--pad-r) calc(var(--rest-height) + var(--safe-bottom) + var(--space-5)) var(--pad-l);
+  /* No rest bar, no room kept for it (PLAN 2.2d: no empty black band at the end). */
+  padding: var(--space-3) var(--pad-r) calc(var(--safe-bottom) + var(--space-4)) var(--pad-l);
   touch-action: pan-y;
 }
 
@@ -122,6 +139,20 @@
 
 .exMain[data-hero] {
   padding-top: 0;
+}
+
+/* The rest bar floats over the end of the page while it counts: the page keeps room for it then. */
+.screen[data-resting] .exMain {
+  padding-bottom: calc(var(--rest-height) + var(--safe-bottom) + var(--space-4));
+}
+
+/* The title and its set line are controls (a tap opens the demo), never selected text, also not by
+   the edge swipe (round 2, P6). */
+.heroCaption,
+.head .heroText {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* ---- the demo hero (PLAN 2.2b): about 30% of the screen, less on short phones */
@@ -138,9 +169,18 @@
   contain: layout paint;
 }
 
-.heroStage {
+.heroArt {
   position: absolute;
   inset: 0;
+  display: block;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* The picture's tap target: the hero above its foot (the foot opens the demo on its own). */
+.heroStage {
+  position: absolute;
+  inset: 0 0 var(--cap, 0px);
   display: block;
   width: 100%;
   padding: 0;
@@ -160,7 +200,7 @@
 }
 
 /* Instant press feedback (SPEC 13.2): a slight dim, no scale on a full width picture. */
-.heroStage:active .heroMedia {
+.hero:has(.heroStage:active) .heroArt {
   opacity: var(--press-dim);
 }
 
@@ -174,8 +214,19 @@
   align-items: flex-end;
   gap: var(--space-2);
   padding: 28px var(--pad-r) 8px var(--pad-l);
-  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 72%, transparent) 42%, var(--bg));
-  pointer-events: none;
+  /* Above the picture's button, so the name is the top hit target (gate s2); a tap here opens the
+     demo too (ExerciseView), and the press dim follows. */
+  z-index: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero:not([data-folded]):has(.heroCaption:active:not(:has(button:active))) .heroArt {
+  opacity: var(--press-dim);
+}
+
+.hero[data-folded] .heroCaption {
+  cursor: default;
 }
 
 /* Folded: the picture fades out and the foot becomes a clean dark title bar (name, set, ⋯). */
@@ -194,11 +245,31 @@
   isolation: isolate;
 }
 
+/* The dark fade under the name: its own layer, so it can wait (round 3, critic B2). */
+.heroCaption::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 72%, transparent) 42%, var(--bg));
+  transition: opacity 120ms var(--ease-out);
+}
+
+/* While a screen change runs the hero slot stays a plain dark surface: no blurred copy and no fade
+   under the flying photo (no double exposure, no blur repainted in a moving frame). Both fade in
+   over 120 ms once the photo has landed (round 3, critic B1 and B2). */
+:global(html[data-nav]) .heroCaption::after,
+:global(html[data-nav]) .hero [data-hero-fill] {
+  opacity: 0;
+  transition: none;
+}
+
 .heroStage {
   transition: opacity var(--dur-base) var(--ease-out);
 }
 
-.hero[data-folded] .heroStage {
+.hero[data-folded] .heroStage,
+.hero[data-folded] .heroArt {
   opacity: 0;
   pointer-events: none;
 }
@@ -251,6 +322,13 @@
   }
 }
 
+/* 360 x 640 class phones: a touch less again, so five rows clear the rest bar. */
+@media (max-height: 660px) {
+  .hero {
+    --hero-h: clamp(120px, 24svh, 190px);
+  }
+}
+
 /* ---- no sure demo: the compact header */
 .head {
   display: flex;
@@ -289,6 +367,14 @@
   opacity: 0.85;
 }
 
+.pairLine {
+  margin: 1px 0 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
 .exNote {
   margin: 0;
   color: var(--text-2);
@@ -310,6 +396,17 @@
 }
 
 /* ---- below the table: the muscles and the form tips */
+/* They mount a frame after the table (PLAN 2.2d): a short fade, nothing above them moves. */
+.arrive {
+  animation: arrive 200ms var(--ease-out) both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+}
+
 .card {
   display: flex;
   flex-direction: column;
@@ -365,15 +462,29 @@
 .tableArea {
   display: flex;
   flex-direction: column;
+  /* The muscle card follows one row gap under the table (PLAN 2.2d), not the page gap. */
+  margin-bottom: calc(var(--row-gap) - var(--page-gap));
 }
 
-.firstTime {
+/* (.tableArea in front: the global .num reset would otherwise take its margin, and the line would
+   touch "+ Add set" and eat its 48 pt hit area, round 4.) */
+.tableArea .firstTime {
   margin: 6px 0 0;
   padding: 0 4px;
   color: var(--text-2);
   font-size: clamp(12px, 3.4vw, 13px);
   line-height: 17px;
   overflow-wrap: anywhere;
+}
+
+/* Words only for screen readers inside a line of text: a 1 px box clipped away by clip-path. */
+.srText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  pointer-events: none;
 }
 
 .srOnly {
@@ -433,11 +544,13 @@
   background: var(--surface-1);
 }
 
+/* PLAN 2.2d (G: "dead space"): a quiet slot shaped like a row, one row gap under the last row. */
 .addSet {
   width: 100%;
   min-height: 48px;
-  margin-top: 6px;
+  margin-top: var(--row-gap);
   border-radius: 14px;
+  border: 1px dashed #2e2e35;
   color: var(--text-2);
   font-weight: 600;
   font-size: 15px;
@@ -616,6 +729,38 @@ button.nextChip {
   text-align: left;
 }
 
+/* A row that opens a page shows a chevron on its right (critic B4). */
+.menuItem[data-chevron] {
+  position: relative;
+  padding-right: calc(var(--space-4) + 20px);
+}
+
+.menuItem[data-chevron]::after {
+  content: '';
+  position: absolute;
+  right: var(--space-4);
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--text-2);
+  border-right: 2px solid var(--text-2);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* Off: the time stays in place, quiet, so the page never changes height. */
+.restOnOff {
+  display: flex;
+  justify-content: center;
+}
+
+.restStepper {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.restStepper[data-off] {
+  opacity: 0.3;
+}
+
 .menuItem:disabled {
   opacity: 0.5;
   cursor: default;
@@ -723,11 +868,9 @@ button.nextChip {
    keeps its rows in view; tap targets are untouched. */
 @media (max-height: 600px) {
   .exMain {
-    gap: 4px;
+    --page-gap: 4px;
+    --row-gap: 2px;
     padding-top: var(--space-2);
-  }
-  .addSet {
-    margin-top: 2px;
   }
 }
 

@@ -58,7 +58,9 @@ test('SE: fifth current row and its inline reps stay exposed during rest after f
       view.getByRole('button', { name: 'Fewer reps' }), view.getByRole('button', { name: 'Done', exact: true }),
       checkCurrent(view), page.getByRole('button', { name: 'Skip', exact: true })]) await exposed(control);
     await fitsOneScreen(page);
-    expect(await page.getByRole('main').evaluate((el) => el.scrollTop)).toBe(0);
+    // PLAN 2.2b: the exercise view scrolls as a whole (the hero folds to its foot), so a fifth
+    // row's open stepper is brought above the rest bar by scrolling the view; only the page itself
+    // never scrolls.
     expect(await page.evaluate(() => scrollY)).toBe(0);
     await view.getByRole('button', { name: 'More reps' }).tap();
     await view.getByRole('button', { name: 'Done', exact: true }).tap();

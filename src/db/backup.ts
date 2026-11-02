@@ -10,7 +10,7 @@ import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, intentMatches, readUndoIntentList } from './undoIntents';
-import { MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX } from './workouts';
+import { MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, MUTATION_SUP_PREFIX } from './workouts';
 import { heldMutations, heldRows, restoreHeldMutations } from './mutations';
 import type { Profile } from './types';
 
@@ -106,6 +106,7 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
     // And their supersession markers (PLAN 2.0f): a restored held change is never hidden by the old data's.
     await db.kv.where('key').startsWith(MUTATION_DONE_PREFIX).delete();
     await db.kv.where('key').startsWith(MUTATION_HELD_PREFIX).delete();
+    await db.kv.where('key').startsWith(MUTATION_SUP_PREFIX).delete();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
       if (rows.length) await db.table(t).bulkAdd(rows);

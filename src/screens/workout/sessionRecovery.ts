@@ -82,10 +82,10 @@ export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteU
           throw err;
         }
       },
-      expire: (s) => expireDelete(s.id, db, Date.now(), own.get(s.id)),
+      expire: (s) => expireDelete(s.id, db, Date.now(), own.get(s.id), true),
       // A failed Undo the user gives up on: the set stays deleted (PLAN 1.7i), for sure (1.7k).
       cancel: async (s) => {
-        await cancelUndo(s.id, db, s.sessionId, own.get(s.id));
+        await cancelUndo(s.id, db, s.sessionId, own.get(s.id), true);
         leftOver.get(sessionId)?.delete(s.id);
       },
     });

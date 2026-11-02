@@ -76,6 +76,31 @@ export function exerciseInfo(
   };
 }
 
+/**
+ * The sheet content for a bare catalog exercise (no plan entry). Photos need an eligible match from
+ * the 2.5 photo audit ("exact" or "variant"); "none" keeps the independently verified muscles and
+ * cues but never a photo (SPEC 4.3).
+ */
+export function catalogInfo(
+  eligible: MapEntry['match'],
+  catalog: CatalogImages | undefined,
+  cues: CueEntry | undefined,
+  muscles: MuscleMapData | null,
+): ExerciseInfo {
+  if (!catalog) return { match: 'unknown', demo: null, muscles: null, cues: [], variantNote: null, watchOut: null, goodFor: null };
+  const webp = pair(catalog.images.webp);
+  const jpg = pair(catalog.images.jpg);
+  return {
+    match: eligible,
+    demo: eligible !== 'none' && webp && jpg ? { webp, jpg } : null,
+    muscles,
+    cues: (cues?.cues ?? []).slice(0, 3).map((c) => c.text),
+    variantNote: null,
+    watchOut: cues?.watchOut?.text ?? null,
+    goodFor: cues?.goodFor ?? null,
+  };
+}
+
 /** The one line the collapsed workout block shows: a variant's difference first, else the first cue. */
 export function firstLine(info: ExerciseInfo): string | null {
   return info.variantNote ?? info.cues[0] ?? null;

@@ -41,18 +41,22 @@ async function addExercise(page: Page, query: string, name: string) {
 
 async function fitsWithoutScrolling(page: Page, controls: Locator[]) {
   // Assert before tapping: actionability's auto-scroll could otherwise conceal the defect.
-  await expect.poll(() => page.getByRole('main').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  // PLAN 2.2b: the view may scroll below the set table (muscles, tips); unscrolled, every control
+  // below must be in the first screen, so main's own scroll height is no longer asserted.
   expect(await page.getByRole('main').evaluate((el) => el.scrollTop)).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   expect(await page.evaluate(() => scrollY)).toBe(0);
   for (const control of controls) {
     await expect(control).toBeInViewport({ ratio: 1 });
     // Also detect coverage by the action bar/rest dock and clipping by scroll containers.
+    // PLAN 2.2b: a disabled ✓ takes no taps itself, the wrap right around it does (it says why the
+    // set cannot log yet), so a hit on that wrap is a hit on the ✓.
     expect(await control.evaluate((el) => {
       const r = el.getBoundingClientRect();
+      const own = (el as HTMLButtonElement).disabled && el.parentElement?.tagName === 'SPAN' ? el.parentElement : el;
       return [[0.1, 0.1], [0.9, 0.1], [0.5, 0.5], [0.1, 0.9], [0.9, 0.9]].every(([x, y]) => {
         const hit = document.elementFromPoint(r.left + r.width * x!, r.top + r.height * y!);
-        return hit !== null && (hit === el || el.contains(hit));
+        return hit !== null && (hit === own || own.contains(hit));
       });
     })).toBe(true);
   }

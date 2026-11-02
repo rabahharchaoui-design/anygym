@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { collarsSettingOf, sumLoad } from '../src/lib/load';
-import { bar185, dbAll, seedFinished, usePlan, watchErrors, pickSetType } from './workout-helpers';
+import { bar185, dbAll, seedFinished, usePlan, watchErrors, pickSetType, setTableInFirstScreen } from './workout-helpers';
 
 // Independent tester spec for PLAN 1.7c / 1.10e. Taps are counted by my own page-level listener
 // (capture phase "click" and "pointerdown"), not by the builder's helper.
@@ -377,7 +377,10 @@ test('E1. one screen: 4 sets with name, last time, rows, checks and the rest bar
     await page.waitForTimeout(450);
     const sc = await scrollers(page);
     console.log(`E1 after ${i + 1}`, JSON.stringify(sc));
-    expect(sc.out).toEqual([]);
+    // PLAN 2.2b: the exercise view itself may scroll below the set table (muscles, tips); nothing
+    // else may, and the name, rows and every ✓ stay in the first screen.
+    expect(sc.out.filter((s) => !s.startsWith('MAIN.'))).toEqual([]);
+    await setTableInFirstScreen(page);
     expect(sc.doc).toBeLessThanOrEqual(0);
     const rest = await rect(page.getByTestId('rest-timer'));
     for (const t of ['set-todo', 'set-row', 'check-current'] as const) {
@@ -526,8 +529,8 @@ test('G. tap targets are at least 48pt', async ({ page }) => {
   await page.waitForTimeout(500);
   await measure('menu-items', menu.getByRole('button'));
   await shot(page, 'g-menu');
-  await menu.getByRole('button', { name: 'Rest time' }).tap();
-  const rt = page.getByRole('dialog', { name: 'Rest time' });
+  await menu.getByRole('button', { name: /Rest after each set/ }).tap();
+  const rt = page.getByRole('dialog', { name: 'Rest after each set' });
   await measure('rest-time-controls', rt.getByRole('button'));
   await rt.getByRole('button', { name: 'Close' }).first().tap().catch(() => undefined);
   await page.keyboard.press('Escape');

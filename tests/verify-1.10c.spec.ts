@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { setTableInFirstScreen } from './workout-helpers';
 import type { Session, WorkoutSet } from '../src/db/types';
 
 // Tester spec for PLAN 1.10c. Independent of tests/fixes-1.10c.spec.ts.
@@ -284,9 +285,8 @@ test.describe('1.10c verify', () => {
     await expect(picker(page).getByTestId('bodyweight-added')).toHaveText('+ 25 lb added');
     await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(c.getByTestId('weight-cell').first()).toHaveText('+25');
-    const m = await page.getByRole('main').evaluate((e) => ({ s: e.scrollHeight, c: e.clientHeight }));
-    console.log('SE main', m);
-    expect(m.s).toBeLessThanOrEqual(m.c);
+    // PLAN 2.2b: the view may scroll below the set table; the name, rows and every ✓ fit unscrolled.
+    await setTableInFirstScreen(page);
     await shot(page, 'se-added');
     expect(errors).toEqual([]);
   });

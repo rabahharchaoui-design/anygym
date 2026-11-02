@@ -43,7 +43,9 @@ test('a Hold cell: 3 s stop logs 3, untouched logs the 45 s target, 60 s plank r
   await view.getByTestId('check-current').tap();
   await expect(view.getByTestId('set-row')).toHaveCount(1);
   await expect.poll(async () => (await dbAll<{ seconds?: number; exerciseId: string }>(page, 'sets')).map((s) => s.seconds)).toEqual([45]);
-  // Next hold (another exercise): start, ~3 s, stop.
+  // Next hold (another exercise): start, ~3 s, stop. PLAN 2.0g (G, Nov 1): a stretch never moves on
+  // by itself, the view stays on it, so the list is one Back away.
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
   await expect(page.getByTestId('row-dynamic-hip-flexor-stretch')).toBeVisible();
   await page.getByTestId('row-dynamic-hip-flexor-stretch').tap();
   const v2 = page.getByTestId('exercise-dynamic-hip-flexor-stretch');

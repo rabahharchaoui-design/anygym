@@ -305,10 +305,11 @@ test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove 
   // 1.7e critic: no dead rows until swaps and pairs ship.
   await expect(menu.getByRole('button', { name: /Replace/ })).toHaveCount(0);
   await expect(menu.getByRole('button', { name: /Make a pair/ })).toHaveCount(0);
-  await expect(menu.getByRole('button', { name: /Remove/ })).toBeDisabled();
-  await expect(menu.getByRole('button', { name: /Remove/ })).toContainText('Delete its sets first');
-  await menu.getByRole('button', { name: /Rest time/ }).tap();
-  const restSheet = page.getByRole('dialog', { name: 'Rest time' });
+  // PLAN 2.2d P2: Remove works with logged sets too (Undo puts them back), so it is never disabled.
+  await expect(menu.getByRole('button', { name: /Remove/ })).toBeEnabled();
+  await expect(menu.getByRole('button', { name: /Remove/ })).toContainText('Undo puts them back');
+  await menu.getByRole('button', { name: /Rest after each set/ }).tap();
+  const restSheet = page.getByRole('dialog', { name: 'Rest after each set' }); // PLAN 2.2d B4: one rest row
   await restSheet.getByRole('button', { name: 'More rest' }).tap();
   await restSheet.getByRole('button', { name: 'More rest' }).tap();
   await restSheet.getByRole('button', { name: 'Save' }).tap();

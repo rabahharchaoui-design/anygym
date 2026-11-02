@@ -35,7 +35,7 @@ async function tableOnScreen(page: Page) {
 }
 
 const openViewer = async (page: Page, name: string) => {
-  await page.getByRole('button', { name: `Show ${name} full screen` }).tap();
+  await page.getByRole('button', { name: `How to do ${name}` }).tap();
   const viewer = page.getByTestId('demo-viewer');
   await expect(viewer).toBeVisible();
   return viewer;
@@ -67,20 +67,25 @@ test('variant: photos, the map caveat as a note, numbered cues, watch out and go
   await expect(viewer.getByTestId('demo-dots')).toHaveCount(0);
   await expect(viewer.getByRole('button', { name: 'Form details' })).toHaveCount(0);
   await shot(page, 'sheet-variant');
-  await viewer.getByRole('button', { name: 'Close demo' }).tap();
+  await viewer.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(viewer).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('the crossfade timing is 1.2 s, 0.35 s, 1.2 s', async ({ page }) => {
+// PLAN 2.2d round 2 (P4): 1.35 s each photo with a 0.15 s fade between (a still never shows a double
+// exposure); it was 1.2 s, 0.35 s, 1.2 s.
+test('the crossfade timing is 1.35 s, 0.15 s, 1.35 s, 0.15 s', async ({ page }) => {
   await openExercise(page, 'machine-lying-leg-curl');
   const viewer = await openViewer(page, 'Machine Lying Leg Curl');
   const end = viewer.locator('[data-frame="1"]');
   const anim = await end.evaluate((el) => {
     const cs = getComputedStyle(el);
-    return { duration: cs.animationDuration, timing: cs.animationTimingFunction, count: cs.animationIterationCount };
+    const a = el.getAnimations()[0] as CSSAnimation | undefined;
+    const frames = (a?.effect as KeyframeEffect | undefined)?.getKeyframes().map((k) => `${Math.round((k.computedOffset as number) * 100)}:${k.opacity}`);
+    return { duration: cs.animationDuration, timing: cs.animationTimingFunction, count: cs.animationIterationCount, frames: [...new Set(frames)] };
   });
-  expect(anim).toEqual({ duration: '3.1s', timing: 'ease-in-out', count: 'infinite' });
+  // 3 s cycle: hidden 0 to 45% (1.35 s), fades in by 50% (0.15 s), shown to 95% (1.35 s), out by 100%.
+  expect(anim).toEqual({ duration: '3s', timing: 'ease-in-out', count: 'infinite', frames: ['0:0', '45:0', '50:1', '95:1', '100:0'] });
 });
 
 test('exact: demo, muscles, cues and good for on the page', async ({ page }) => {

@@ -27,6 +27,37 @@ export async function choosePlan(planId: string, db: AnyGymDB = defaultDb, now =
   });
 }
 
+/**
+ * "Use this plan" with Undo (PLAN 2.2d, Hevy research item 5): chooses the plan like choosePlan and
+ * returns the pointer it replaced (undefined: no plan was in use), read in the same transaction.
+ * `changed` is false when the plan was already in use (nothing to undo).
+ */
+export async function choosePlanUndoable(planId: string, db: AnyGymDB = defaultDb, now = Date.now()): Promise<{ state: PlanState; previous: PlanState | undefined; changed: boolean }> {
+  if (!planById(planId)) throw new Error('Plan not found');
+  return db.transaction('rw', db.planState, async () => {
+    const previous = await db.planState.get('active');
+    if (previous?.planId === planId) return { state: previous, previous, changed: false };
+    const state: PlanState = { id: 'active', planId, startedAt: now, weekIndex: 0, nextDayIndex: 0, doneDays: [] };
+    await db.planState.put(state);
+    return { state, previous, changed: true };
+  });
+}
+
+/**
+ * Undo of "Use this plan": puts back exactly the pointer it replaced (or none), only while the
+ * chosen plan is still the one in use exactly as chosen (same plan, same start, no progress since).
+ * Returns false when anything changed meanwhile: then nothing is touched (saved data is sacred).
+ */
+export async function undoChoosePlan(chosen: PlanState, previous: PlanState | undefined, db: AnyGymDB = defaultDb): Promise<boolean> {
+  return db.transaction('rw', db.planState, async () => {
+    const now = await db.planState.get('active');
+    if (!now || JSON.stringify(now) !== JSON.stringify(chosen)) return false;
+    if (previous) await db.planState.put(previous);
+    else await db.planState.delete('active');
+    return true;
+  });
+}
+
 /** "Change day": the day the Start button opens next. */
 export async function setNextDay(dayIndex: number, db: AnyGymDB = defaultDb): Promise<PlanState | undefined> {
   return db.transaction('rw', db.planState, async () => {

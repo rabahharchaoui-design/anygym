@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { setTableInFirstScreen } from './workout-helpers';
 import { fullyShown } from './helpers/layout';
 
 // G's programs, early (PLAN 1.10): curated plans, the Today day card, plan day workouts.
@@ -184,9 +185,12 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
     'cross-body-mountain-climber',
     'curl-up-crunch',
   ]);
-  // The first row is the next one; no demo images anywhere (none is certain yet).
+  // The first row is the next one. PLAN 2.2d round 2 (B1): a row's tile shows its demo photo only
+  // for a sure catalog match (the same photo as the hero); the stretches have none, so no picture.
   await expect(page.getByTestId('row-static-quadricep-stretch')).toHaveAttribute('data-state', 'next');
-  await expect(page.getByRole('main').locator('img')).toHaveCount(0);
+  await expect(page.getByTestId('row-static-quadricep-stretch').locator('img')).toHaveCount(0);
+  const imgs = page.getByRole('main').locator('img');
+  expect(await imgs.count()).toBe(await page.getByRole('main').locator('[data-testid="thumb"][data-photo] img').count());
   await page.getByTestId('row-static-quadricep-stretch').tap();
   const stretch = page.getByTestId('exercise-static-quadricep-stretch');
   await expect(stretch.getByTestId('set-target')).toHaveText('Set 1 of 1 · 45 sec');
@@ -337,7 +341,8 @@ test('long names are fully readable: list title and exercise name wrap, the exer
   await page.waitForTimeout(400);
   expect(await fullyShown(title)).toBe(true);
   expect((await title.boundingBox())!.height).toBeLessThanOrEqual(3 * 27 + 2);
-  // SPEC 13.5: the exercise view fits on every phone, SE included.
-  expect(await page.getByRole('main').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  // SPEC 13.5 as PLAN 2.2b set it: the view may scroll below the set table (muscles, tips); the
+  // name, every set row and every ✓ fit the first screen on every phone, SE and the 320 floor included.
+  await setTableInFirstScreen(page);
   expect(errors).toEqual([]);
 });

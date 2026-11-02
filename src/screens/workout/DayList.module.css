@@ -230,7 +230,23 @@
   pointer-events: none;
 }
 
+/* The rows run out under the pill into the page color, so a row behind it reads as below the fold,
+   never as half hidden (round 3, P4). */
+.startDock::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * (var(--space-4) + var(--safe-left)));
+  right: calc(-1 * (var(--space-4) + var(--safe-right)));
+  top: -28px;
+  /* Down to the screen's bottom edge: the pill's own inset plus the list's bottom room. */
+  bottom: calc(-1 * (2 * var(--space-2) + var(--rest-height)));
+  /* Dim, never blank: the next row still peeks below, so the list reads as scrollable. */
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 86%, transparent) 45%, color-mix(in srgb, var(--bg) 62%, transparent));
+  pointer-events: none;
+}
+
 .startPill {
+  position: relative;
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
