@@ -10,7 +10,9 @@ test.beforeEach(({ browserName }) => {
 // fixtures installs the console/pageerror/unhandled-rejection trap automatically,
 // including its exact-resource exception for deliberately offline requests.
 async function exposed(control: Locator) {
-  await expect(control).toBeInViewport({ ratio: 1 });
+  // WebKit rounds fractional tray widths: a fully exposed plate can report 0.999401.
+  // Allow that subpixel difference; the hit checks below still reject covered controls.
+  await expect(control).toBeInViewport({ ratio: 0.999 });
   await expect.poll(() => control.evaluate((el) => {
     const r = el.getBoundingClientRect();
     return [[0.2, 0.2], [0.8, 0.2], [0.5, 0.5], [0.2, 0.8], [0.8, 0.8]].every(([x, y]) => {
@@ -34,6 +36,10 @@ test('SE: women’s bar picker and four-row table stay exposed when changing wei
   const view = exerciseView(page, 'barbell-back-squat');
   await view.getByRole('button', { name: '+ Add set', exact: true }).tap();
   await expect(view.getByTestId('set-todo')).toHaveCount(4);
+  // The setup tap on Add set auto-scrolls main on SE. Start the first-screen
+  // checks at the top, then leave scrolling untouched throughout logging/rest.
+  await view.evaluate((el) => el.scrollTo({ top: 0, behavior: 'instant' }));
+  await setTableInFirstScreen(page);
   await view.getByTestId('weight-cell').first().tap();
   const picker = page.getByRole('dialog', { name: 'Pick the weight', exact: true });
   await picker.getByRole('button', { name: 'Add 10 lb plate to each side', exact: true }).tap();
