@@ -1,9 +1,3 @@
-/*
- * PLAN 2.2d progress notes (remove this block when the item is done):
- * - done: (1) dead space, (2) swipe delete and Remove set, (3) rest Off and the Plan saved toast,
- *   (4) memo rows, lazy extras, audio warm up, perf check, (5) shared hero name, nav spring.
- * - left: run the regression specs, videos in reports/videos/2.2d, screenshots in reports/shots/2.2d.
- */
 import { expect, test, type Locator, type Page } from './fixtures';
 import { checkCurrent, dbAll, exerciseView, loggedRows, navIdle, pickExercises, setTableInFirstScreen, usePlan, watchErrors } from './workout-helpers';
 
