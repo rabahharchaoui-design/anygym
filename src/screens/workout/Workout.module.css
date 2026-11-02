@@ -214,7 +214,6 @@
   align-items: flex-end;
   gap: var(--space-2);
   padding: 28px var(--pad-r) 8px var(--pad-l);
-  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 72%, transparent) 42%, var(--bg));
   /* Above the picture's button, so the name is the top hit target (gate s2); a tap here opens the
      demo too (ExerciseView), and the press dim follows. */
   z-index: 1;
@@ -244,6 +243,25 @@
 
 .heroCaption {
   isolation: isolate;
+}
+
+/* The dark fade under the name: its own layer, so it can wait (round 3, critic B2). */
+.heroCaption::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 72%, transparent) 42%, var(--bg));
+  transition: opacity 120ms var(--ease-out);
+}
+
+/* While a screen change runs the hero slot stays a plain dark surface: no blurred copy and no fade
+   under the flying photo (no double exposure, no blur repainted in a moving frame). Both fade in
+   over 120 ms once the photo has landed (round 3, critic B1 and B2). */
+:global(html[data-nav]) .heroCaption::after,
+:global(html[data-nav]) .hero [data-hero-fill] {
+  opacity: 0;
+  transition: none;
 }
 
 .heroStage {

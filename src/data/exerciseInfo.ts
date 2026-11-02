@@ -16,6 +16,16 @@ export function infoForPlan(planId: string, notes: string[] = []): ExerciseInfo 
   return exerciseInfo(entry, cat, cues, musclesForPlan(planId), notes);
 }
 
+const DEMOS = new Map<string, ExerciseInfo['demo']>();
+/**
+ * Only the sure demo photos of a plan exercise, worked out once per exercise (round 3: the day list
+ * asks for every row on each render, and the same object keeps the photo hooks stable).
+ */
+export function demoForPlan(planId: string): ExerciseInfo['demo'] {
+  if (!DEMOS.has(planId)) DEMOS.set(planId, infoForPlan(planId).demo);
+  return DEMOS.get(planId) ?? null;
+}
+
 /** Image paths are relative to the app base (/anygym/ on Pages). */
 export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 

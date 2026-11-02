@@ -108,38 +108,67 @@ export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress,
     place(to === 'open' ? -openPx() : 0, true);
   };
 
-  /** Slide out left, then close the row's height and gap, then `then` (the data change). */
+  /**
+   * Slide out left; then, in one frame, the data changes (`then`: the rows renumber, the header
+   * counts again, round 3 critic B3) while a detached copy of the row closes its height and gap, so
+   * the rows below glide up instead of jumping. The copy is no part of the data: no test ids, hidden
+   * from assistive tech, no taps.
+   */
   const animateOut = (then: () => void) => {
     openRef.current = false;
     setOpen(false);
     const el = faceRef.current;
     const li = itemOf(hostRef.current);
-    if (!el || !li) return then();
+    if (!el || !li || !li.parentElement) return then();
     removedKeys.add(rowKey);
-    if (prefersReducedMotion()) {
-      // Reduced motion: a fade, no movement.
-      const a = li.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
-      anims.current.push(a);
-      a.onfinish = then;
-      return;
-    }
+    const reduce = prefersReducedMotion();
+    const collapse = () => {
+      const list = li.parentElement;
+      if (!list) return then();
+      const h = li.getBoundingClientRect().height;
+      const ghost = li.cloneNode(true) as HTMLElement;
+      ghost.removeAttribute('data-testid');
+      ghost.removeAttribute('data-set-id');
+      for (const n of ghost.querySelectorAll('[data-testid],[id]')) {
+        n.removeAttribute('data-testid');
+        n.removeAttribute('id');
+      }
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.setAttribute('inert', '');
+      ghost.dataset.ghost = '';
+      ghost.style.pointerEvents = 'none';
+      ghost.style.overflow = 'hidden';
+      list.insertBefore(ghost, li);
+      // The real row waits hidden until React shows what comes next in its place (or drops it).
+      li.style.display = 'none';
+      then();
+      const frames = reduce
+        ? [{ opacity: 1 }, { opacity: 0 }]
+        : [
+            { height: `${h}px`, marginBottom: '0px', opacity: 1 },
+            { height: '0px', marginBottom: `${-gapOf(li)}px`, opacity: 0 },
+          ];
+      const a = ghost.animate(frames, { duration: reduce ? 160 : COLLAPSE_MS, easing: reduce ? 'ease-out' : EASE, fill: 'forwards' });
+      const done = () => {
+        ghost.remove();
+        li.style.display = '';
+        // Still the same row (the change was refused): it comes home.
+        if (faceRef.current) place(0, false);
+      };
+      a.onfinish = done;
+      a.oncancel = done;
+    };
+    if (reduce) return collapse();
     const w = el.offsetWidth;
     el.style.transition = `transform ${SLIDE_MS}ms ${EASE}`;
     el.style.transform = `translate3d(${-w}px, 0, 0)`;
-    if (labelRef.current) labelRef.current.style.opacity = '0';
-    window.setTimeout(() => {
-      const h = li.getBoundingClientRect().height;
-      li.style.overflow = 'hidden';
-      const a = li.animate(
-        [
-          { height: `${h}px`, marginBottom: '0px', opacity: 1 },
-          { height: '0px', marginBottom: `${-gapOf(li)}px`, opacity: 0 },
-        ],
-        { duration: COLLAPSE_MS, easing: EASE, fill: 'forwards' },
-      );
-      anims.current.push(a);
-      a.onfinish = then;
-    }, SLIDE_MS);
+    // The label stays pinned to the red area's left edge as it grows (round 3, P1).
+    const label = labelRef.current;
+    if (label) {
+      label.style.transition = el.style.transition;
+      label.style.transform = `translate3d(${Math.min(0, -w + openPx())}px, 0, 0)`;
+    }
+    window.setTimeout(collapse, SLIDE_MS);
   };
   const remove = () => {
     tick();
@@ -163,7 +192,10 @@ export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress,
     const li = itemOf(hostRef.current);
     for (const a of anims.current) a.cancel();
     anims.current = [];
-    if (li) li.style.overflow = '';
+    if (li) {
+      li.style.overflow = '';
+      li.style.display = '';
+    }
     if (labelRef.current) labelRef.current.style.opacity = '';
     place(0, false);
     if (!li || !removedKeys.has(rowKey)) return;

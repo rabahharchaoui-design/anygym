@@ -89,10 +89,11 @@
   --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  /* PLAN 2.2d: screen push and pop as a spring (stiffness 700, critically damped, no overshoot past
+  /* PLAN 2.2d: screen push and pop as a spring (critically damped, no overshoot past
      the edge), sampled into linear() and scaled to land exactly at the end, so no sliver of the old
-     screen is left at the edge (round 2, critic B1 and B5: 260 ms). */
-  --dur-nav: 260ms;
+     screen is left at the edge. Round 3 (critic B1): 220 ms, so the whole change, tap to settled,
+     stays near 280 ms (stiffness about 980 keeps the same curve). */
+  --dur-nav: 220ms;
   --ease-nav-spring: linear(0, 0.0476 5%, 0.1528 10%, 0.2782 15%, 0.403 20%, 0.5171 25%, 0.616 30%, 0.6989 35%, 0.7668 40%, 0.8213 45%, 0.8646 50%, 0.8985 55%, 0.9248 60%, 0.9451 65%, 0.9607 70%, 0.9725 75%, 0.9815 80%, 0.9882 85%, 0.9933 90%, 0.9971 95%, 1 100%);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 

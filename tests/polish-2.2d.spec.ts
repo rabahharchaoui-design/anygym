@@ -58,8 +58,12 @@ async function restOnOff(page: Page, restRow: Locator, to: 'On' | 'Off') {
   await restRow.tap();
   const sheet = page.getByRole('dialog', { name: 'Rest after each set' });
   await sheet.getByRole('radio', { name: to }).tap();
+  // The line says what the choice does (round 3, P2).
+  await expect(sheet.getByTestId('rest-sub')).toHaveText(to === 'Off' ? 'Off: no countdown, for back to back moves' : 'Countdown after each set');
   await sheet.getByRole('button', { name: 'Save' }).tap();
   await expect(sheet).toHaveCount(0);
+  // Saved, and it says so (round 3, P7).
+  await expect(page.getByRole('status').filter({ hasText: to === 'Off' ? 'Rest off' : /^Rest \d+ s/ })).toBeVisible();
 }
 /** How far a row's face is moved sideways (its transform's x), 0 when it is home. */
 const shiftOf = (l: Locator) =>
@@ -138,7 +142,8 @@ test('swipe left on a logged set: Delete, Undo brings back the same set (id and 
   const after = (await dbAll<{ id: string; order: number }>(page, 'sets')).sort((a, b) => a.order - b.order);
   expect(after).toEqual(before);
 
-  // A full swipe deletes on release, and Undo again restores exactly.
+  // A full swipe deletes on release, and Undo again restores exactly (after the row opened up again).
+  await page.waitForTimeout(400);
   await swipe(page, loggedRows(view).nth(1), -Math.round(page.viewportSize()!.width * 0.75));
   await expect(toast(page, 'Set deleted')).toBeVisible();
   await expect(loggedRows(view)).toHaveCount(1);
@@ -462,6 +467,25 @@ test('one set count after Remove set: set line, day list, done ring, finish line
   expect(errors).toEqual([]);
 });
 
+test('the toast stacks above the floating Start pill on the day list (round 3, P3) @matrix', async ({ page }) => {
+  await usePlan(page);
+  await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await page.getByTestId('row-barbell-back-squat').tap();
+  const view = exerciseView(page, 'barbell-back-squat');
+  await expect(view).toBeVisible();
+  await page.waitForTimeout(400);
+  await navIdle(page);
+  await view.getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
+  await page.getByRole('dialog', { name: 'Barbell Back Squat options' }).getByRole('button', { name: /^Remove/ }).tap();
+  const shown = toast(page, 'Barbell Back Squat removed');
+  await expect(shown).toBeVisible();
+  await expect(page.getByTestId('start-next')).toBeVisible();
+  await page.waitForTimeout(400);
+  const t = await box(shown);
+  const pill = await box(page.getByTestId('start-next'));
+  expect(t.y + t.height).toBeLessThanOrEqual(pill.y);
+});
+
 test('a pair says so before any check (round 2, P9) @matrix', async ({ page }) => {
   await usePlan(page);
   await page.getByRole('button', { name: 'Change day' }).tap();
@@ -473,4 +497,92 @@ test('a pair says so before any check (round 2, P9) @matrix', async ({ page }) =
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   await page.getByTestId('row-incline-plate-press').tap();
   await expect(exerciseView(page, 'incline-plate-press').getByTestId('pair-line')).toHaveText('Pair · 2 of 2');
+});
+
+/*
+ * Round 3 (critic B1): screen change time, measured the critic's way: from the tap (pointerdown)
+ * to the new screen settled (nav.ts clears html[data-nav] when the view transition finished; without
+ * View Transitions, when the Motion push settled: the arriving view's transform is back to none).
+ * A requestAnimationFrame loop records the longest frame meanwhile. Bound: under 350 ms (SPEC 13.2).
+ */
+async function timeScreenChange(page: Page, tap: () => Promise<void>) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __nav: { t0: number; t1: number; gaps: number[] } };
+    w.__nav = { t0: 0, t1: 0, gaps: [] };
+    document.addEventListener('pointerdown', () => (w.__nav.t0 = performance.now()), { capture: true, once: true });
+    let last = 0;
+    const settled = () => {
+      if (!w.__nav.t0 || performance.now() - w.__nav.t0 < 40) return false;
+      if (document.documentElement.dataset.nav) return false;
+      const views = [...document.querySelectorAll<HTMLElement>('[data-motion-view]')];
+      return views.length <= 1 && views.every((v) => !v.style.transform || /translateX\(0(%|px)?\)|none/.test(v.style.transform));
+    };
+    const loop = (t: number) => {
+      if (last && w.__nav.t0) w.__nav.gaps.push(t - last);
+      last = t;
+      if (settled()) {
+        w.__nav.t1 = performance.now();
+        return;
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  });
+  await tap();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __nav: { t1: number } }).__nav.t1), { timeout: 3000 }).toBeGreaterThan(0);
+  return page.evaluate(() => {
+    const n = (window as unknown as { __nav: { t0: number; t1: number; gaps: number[] } }).__nav;
+    return { ms: Math.round(n.t1 - n.t0), longest: Math.round(Math.max(0, ...n.gaps)) };
+  });
+}
+
+test('screen changes: open and back settle in under 350 ms (round 3, B1) @matrix', async ({ page }) => {
+  await usePlan(page);
+  await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await page.waitForTimeout(1200);
+  const row = page.getByTestId('row-barbell-back-squat');
+  await row.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  const results: string[] = [];
+  for (let i = 0; i < 2; i++) {
+    const open = await timeScreenChange(page, () => row.tap());
+    await expect(exerciseView(page, 'barbell-back-squat')).toBeVisible();
+    await page.waitForTimeout(700);
+    const back = await timeScreenChange(page, () => page.getByRole('button', { name: 'Back to the list' }).tap());
+    await expect(row).toBeVisible();
+    await page.waitForTimeout(700);
+    results.push(`open ${open.ms} ms (longest frame ${open.longest} ms), back ${back.ms} ms (longest frame ${back.longest} ms)`);
+    expect(open.ms).toBeLessThan(350);
+    expect(back.ms).toBeLessThan(350);
+    // Headless WebKit's frame clock is noisy: a generous bound that still catches a dropped streak.
+    expect(open.longest).toBeLessThan(50);
+    expect(back.longest).toBeLessThan(50);
+  }
+  console.log(`${test.info().project.name}: ${results.join('; ')}`);
+});
+
+test('delete: the rows renumber and the header counts again as the collapse starts (round 3, B3) @matrix', async ({ page }) => {
+  const view = await squatWith(page, 2);
+  await expect(page.getByTestId('live-stats')).toHaveText('2 sets · Total lifted 2,960 lb');
+  // Times, in the page, from the finger lifting to the header saying 1 set (slide 180 ms, then the data).
+  await page.evaluate(() => {
+    const w = window as unknown as { __b3: { up: number; header: number; numbers: string } };
+    w.__b3 = { up: 0, header: 0, numbers: '' };
+    document.addEventListener('pointerup', () => (w.__b3.up = performance.now()), { capture: true, once: true });
+    const stats = document.querySelector('[data-testid="live-stats"]')!;
+    const mo = new MutationObserver(() => {
+      if (!/^1 set /.test(stats.textContent ?? '') || w.__b3.header) return;
+      w.__b3.header = performance.now();
+      w.__b3.numbers = [...document.querySelectorAll('main [data-testid="set-type"]')].map((b) => b.textContent).join(',');
+    });
+    mo.observe(stats, { subtree: true, childList: true, characterData: true });
+  });
+  await swipe(page, loggedRows(view).nth(0), -Math.round(page.viewportSize()!.width * 0.75));
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __b3: { header: number } }).__b3.header)).toBeGreaterThan(0);
+  const r = await page.evaluate(() => (window as unknown as { __b3: { up: number; header: number; numbers: string } }).__b3);
+  console.log(`${test.info().project.name}: header updated ${Math.round(r.header - r.up)} ms after release; rows ${r.numbers}`);
+  expect(r.header - r.up).toBeLessThan(280);
+  // Already renumbered in that frame: the logged row left is 1, the row to do is 2 (its row went too).
+  expect(r.numbers).toBe('1,2');
+  await expect(page.getByTestId('live-stats')).toHaveText('1 set · Total lifted 1,480 lb');
 });

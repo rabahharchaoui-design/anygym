@@ -23,23 +23,25 @@ type Props = {
  * ever fails to load (gate s2: a failed load logs an error in WebKit). Sized by its box, so nothing
  * shifts when it loads.
  */
-function Picture({ demo, i, photos, className, alt, lazy = true, fill = false }: { demo: DemoImages; i: 0 | 1; photos: Photos; className: string; alt: string; lazy?: boolean; fill?: boolean }) {
+function Picture({ demo, i, photos, className, alt, lazy = true, fill = false, sync = false }: { demo: DemoImages; i: 0 | 1; photos: Photos; className: string; alt: string; lazy?: boolean; fill?: boolean; sync?: boolean }) {
   // The blurred fill behind the hero is not a frame of the demo.
   const frame = fill ? undefined : i;
+  // The hero's sharp photo decodes with the page (round 3): it is in the screen change's snapshot.
+  const decoding = sync ? 'sync' : 'async';
   if (photos.kind === 'net') {
     return (
-      <picture className={className} data-frame={frame} aria-hidden={alt ? undefined : true}>
+      <picture className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden={alt ? undefined : true}>
         <source srcSet={assetUrl(demo.webp[i])} type="image/webp" />
-        <img src={assetUrl(demo.jpg[i])} alt={alt} loading={lazy ? 'lazy' : undefined} decoding="async" width={640} height={427} draggable={false} />
+        <img src={assetUrl(demo.jpg[i])} alt={alt} loading={lazy ? 'lazy' : undefined} decoding={decoding} width={640} height={427} draggable={false} />
       </picture>
     );
   }
   const url = photos.kind === 'cache' ? photos.urls[i] : null;
   // Not kept (or still asking the cache): the frame stays empty, never a broken picture.
-  if (!url) return i === 0 ? <span className={className} data-frame={frame} aria-hidden="true" /> : null;
+  if (!url) return i === 0 ? <span className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden="true" /> : null;
   return (
-    <picture className={className} data-frame={frame} aria-hidden={alt ? undefined : true}>
-      <img src={url} alt={alt} decoding="async" width={640} height={427} draggable={false} />
+    <picture className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden={alt ? undefined : true}>
+      <img src={url} alt={alt} decoding={decoding} width={640} height={427} draggable={false} />
     </picture>
   );
 }
@@ -62,7 +64,7 @@ export function FormDemo({ demo, name, compact = false, hero = false, vtName, on
   // The hero's frames load at once (the list tile already fetched frame 1): never lazy, never late.
   const heroFrames = (
     <>
-      <Picture demo={demo} i={0} photos={photos} alt={`${name}, start position`} lazy={false} className={styles.frame ?? ''} />
+      <Picture demo={demo} i={0} photos={photos} alt={`${name}, start position`} lazy={false} sync className={styles.frame ?? ''} />
       <Picture demo={demo} i={1} photos={photos} alt={`${name}, end position`} lazy={false} className={`${styles.frame} ${styles.end ?? ''}`} />
     </>
   );

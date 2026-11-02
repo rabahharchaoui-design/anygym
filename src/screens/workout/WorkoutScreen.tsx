@@ -843,7 +843,12 @@ export function WorkoutScreen() {
         </AnimatePresence>
       </div>
 
-      <Toast toast={toast} bottom={rest && !w.error ? 'calc(var(--rest-height) + 8px)' : '8px'} />
+      {/* On the day list the toast stacks above the floating Start pill, never over it (round 3, P3;
+          the pill rides var(--rest-height) + 2 × 8 px above the bottom and is 52 px tall). */}
+      <Toast
+        toast={toast}
+        bottom={!exerciseId && !w.isQuick && !!w.nextId && !w.error ? 'calc(var(--rest-height) + 2 * var(--space-2) + 52px + 8px)' : rest && !w.error ? 'calc(var(--rest-height) + 8px)' : '8px'}
+      />
 
       <ExercisePicker open={picking || autoOpen} onClose={closePicker} gym={w.gym} added={ids} onAdd={(list) => void add(list)} />
       <LoadTypeSheet
@@ -905,6 +910,7 @@ export function WorkoutScreen() {
         onAction={(a) => menuId && void menuAction(menuId, a)}
         onRest={(s) => menuId && saveExerciseRest(menuId, s).catch(() => notice('Could not save that. Try again.'))}
         onRestOff={(off) => menuId && saveExerciseRestOff(menuId, off).catch(() => notice('Could not save that. Try again.'))}
+        onRestSaved={(text) => setToast(toastOf(text))}
         onNote={(n) => menuId && saveExerciseNote(menuId, n).catch(() => notice('Could not save that. Try again.'))}
       />
     </div>

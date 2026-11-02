@@ -120,6 +120,7 @@
   display: block;
   filter: blur(32px) brightness(0.42) saturate(1.2);
   transform: translateZ(0);
+  transition: opacity 120ms var(--ease-out);
 }
 
 /* The sharp photo is its own 3:2 box, centered, and melts into the blurred bands at its sides

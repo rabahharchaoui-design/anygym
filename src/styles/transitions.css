@@ -24,8 +24,8 @@ html[data-nav='push']::view-transition-old(root),
 html[data-nav='push']::view-transition-new(root),
 html[data-nav='pop']::view-transition-old(root),
 html[data-nav='pop']::view-transition-new(root),
-html[data-nav='push']::view-transition-group(ex-hero),
-html[data-nav='pop']::view-transition-group(ex-hero) {
+html[data-nav='push']::view-transition-group(*),
+html[data-nav='pop']::view-transition-group(*) {
   animation-duration: var(--dur-nav);
   animation-timing-function: var(--ease-nav-spring);
 }

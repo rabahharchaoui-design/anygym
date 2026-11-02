@@ -3,7 +3,7 @@ import { GymPill } from '../../components/GymPill';
 import type { WorkoutEntry } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
 import { Thumb } from './Thumb';
-import { infoForPlan } from '../../data/exerciseInfo';
+import { demoForPlan } from '../../data/exerciseInfo';
 import { Ring } from '../../ui/Ring';
 import { Button } from '../../ui/Button';
 import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon } from '../../ui/icons';
@@ -47,6 +47,8 @@ function nameHero(row: HTMLElement) {
  */
 export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
   const mainRef = useRef<HTMLElement>(null);
+  /** A row's photo is being decoded before its screen opens: a second tap does nothing. */
+  const opening = useRef(false);
   // The Start pill belongs to the live list, never the copy drawn under an edge swipe.
   const nextEntry = w.nextId ? w.entries.find((e) => e.exerciseId === w.nextId) : undefined;
   // "Start · Squat" before its first set, then "Continue · Squat · set 2 of 4" (gate 3).
@@ -89,11 +91,21 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
           aria-current={state === 'next' ? 'step' : undefined}
           aria-label={`${name}, ${e.setsText || 'finisher'}${done ? `, ${Math.min(done, e.sets)} of ${e.sets} done` : ''}${state === 'next' ? ', up next' : ''}`}
           onClick={(ev) => {
+            if (opening.current) return;
             nameHero(ev.currentTarget);
-            onOpen(e.exerciseId);
+            // The tile's photo is decoded before the screen change starts (round 3, critic B1), so
+            // the flying photo is never blank; it is already on screen, so this costs a frame at most.
+            const img = ev.currentTarget.querySelector<HTMLImageElement>('[data-photo] img');
+            if (!img?.decode) return onOpen(e.exerciseId);
+            opening.current = true;
+            const open = () => {
+              opening.current = false;
+              onOpen(e.exerciseId);
+            };
+            void Promise.race([img.decode(), new Promise((r) => window.setTimeout(r, 60))]).then(open, open);
           }}
         >
-          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} photo={infoForPlan(e.exerciseId).demo} vtName={e.exerciseId === heroId ? 'ex-hero' : undefined} />
+          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} photo={demoForPlan(e.exerciseId)} vtName={e.exerciseId === heroId ? 'ex-hero' : undefined} />
           <span className={styles.text}>
             <span className={styles.name}>{name}</span>
             {e.setsText && <span className={`${styles.sets} num`}>{e.setsText}</span>}

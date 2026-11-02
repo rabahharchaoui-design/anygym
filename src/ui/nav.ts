@@ -74,8 +74,8 @@ function settle(update: () => void): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
 }
 
-/** How long a new screen gets to run its mount effects before it is captured. */
-const SETTLE_MS = 24;
+/** How long a new screen gets to run its mount effects before it is captured (round 3: 8 ms, was 24). */
+const SETTLE_MS = 8;
 
 /** Steps through history, then resolves once React has had time to draw the screen it landed on. */
 function afterPopstate(update: () => void): Promise<void> {
@@ -87,7 +87,7 @@ function afterPopstate(update: () => void): Promise<void> {
       window.removeEventListener('popstate', onPop);
       // Rendering is paused while a view transition waits for its update, so no rAF here: give
       // React a moment to draw the screen it landed on.
-      setTimeout(resolve, SETTLE_MS + 16);
+      setTimeout(resolve, SETTLE_MS + 8);
     };
     const onPop = () => finish();
     window.addEventListener('popstate', onPop);

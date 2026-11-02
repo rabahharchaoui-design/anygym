@@ -22,7 +22,7 @@ import { SetTypeSheet } from './SetTypeSheet';
 import { Thumb } from './Thumb';
 import { FormDemo } from '../../components/exercise/FormDemo';
 import { ExerciseSheet } from '../../components/exercise/ExerciseSheet';
-import { infoForPlan } from '../../data/exerciseInfo';
+import { demoForPlan, infoForPlan } from '../../data/exerciseInfo';
 import { DemoViewer } from '../../components/exercise/DemoViewer';
 import { useDemoPhotos } from '../../hooks/usePhotos';
 import { useMedia } from '../../hooks/useMedia';
@@ -104,7 +104,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   /** The hero's foot (name, set, ⋯) stays pinned when the picture scrolls away: its height, measured. */
   // Offline and never kept, the photos cannot show: the compact header instead (gate s2), never a
   // broken or empty picture.
-  const baseDemo = useMemo(() => infoForPlan(exerciseId).demo, [exerciseId]);
+  const baseDemo = demoForPlan(exerciseId);
   const photos = useDemoPhotos(baseDemo);
   const photosOk = !!baseDemo && photos.kind !== 'none';
   // The heavy parts below the table mount once the first frame is painted (PLAN 2.2d).
