@@ -136,6 +136,29 @@
   padding-top: var(--space-3);
 }
 
+/* A pinned header (PLAN 2.0k: Back on a nested sheet): its room is reserved above the body, which
+   scrolls under nothing. Content cut off below it fades in instead of ending on a hard line. */
+.header {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  margin: calc(-1 * var(--space-2)) 0 0 calc(-1 * var(--space-1));
+}
+
+.sheet[data-scroll='true'] .header::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-4) * -1 + var(--space-1));
+  right: calc(var(--space-4) * -1);
+  bottom: calc(var(--space-2) * -1);
+  height: var(--space-2);
+  background: linear-gradient(to top, rgba(23, 23, 26, 0), var(--surface-2));
+  pointer-events: none;
+}
+
 /* Content cut off above the bar fades out instead of ending on a hard line (never catches taps). */
 .sheet[data-scroll='true'] .footer::before {
   content: '';

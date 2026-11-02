@@ -39,6 +39,11 @@ export type Draft = {
   noTarget?: true;
   /** What the user set by hand on this row (a weight pick or LAST TIME copy, the reps stepper). */
   own?: { load?: true; reps?: true };
+  /**
+   * The "Loaded with" the weight was picked under (PLAN 2.0k), kept even while the base weight is
+   * unknown (load null, plates only): a pick is never rebuilt under another load kind.
+   */
+  pickKind?: Load['kind'];
 };
 
 const KEY = 'anygym-drafts';
@@ -59,6 +64,7 @@ const storage = (): StorageLike | null => {
 };
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const PICK_KINDS: readonly string[] = ['barbell', 'dumbbell_each', 'single', 'stack', 'plate_machine', 'bodyweight', 'timed'];
 
 /** A stored value that is a complete draft (also used for the IndexedDB journal, PLAN 1.7i). */
 export const isDraft = (v: unknown): v is Draft => validDraft(v);
@@ -75,6 +81,7 @@ function validDraft(v: unknown): v is Draft {
   if (d.submitted !== undefined && !isNum(d.submitted)) return false;
   if (d.seconds !== undefined && !isNum(d.seconds)) return false;
   if (d.type !== undefined && !['normal', 'warmup', 'drop', 'failure'].includes(d.type as string)) return false;
+  if (d.pickKind !== undefined && !PICK_KINDS.includes(d.pickKind as string)) return false;
   if (d.watch !== undefined) {
     const w = d.watch as Record<string, unknown>;
     if (!w || typeof w !== 'object' || !isNum(w.accumulated) || !(w.startedAt === null || isNum(w.startedAt))) return false;
@@ -195,29 +202,39 @@ try {
   /* no window (tests, workers) */
 }
 
+/** True when `s` is the phone's own storage (or none when the phone has none): the one IndexedDB mirrors, like durable.ts. */
+function isPhone(s: StorageLike | null): boolean {
+  const phoneStorage = storage();
+  return s === null ? phoneStorage === null : s === phoneStorage;
+}
+
+function parseStore(value: string | null | undefined): Store {
+  try {
+    const v = JSON.parse(value ?? '{}') as unknown;
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Store) : {};
+  } catch {
+    return {};
+  }
+}
+
 /**
- * IndexedDB alone holds the drafts (localStorage refuses writes or is missing, PLAN 2.0j): only the
- * rows this tab changed are written, merged into what IndexedDB holds in one transaction, so another
- * tab's rows are never replaced by this tab's possibly stale copy. The committed rows then come back
- * into this tab's copy (rows it has not changed since), and a row's change is settled once stored.
+ * IndexedDB holds the authoritative drafts (localStorage refused a write, refuses writes since the
+ * start, or is missing, PLAN 2.0j and 2.0k): only the rows this tab changed are written, merged into
+ * what IndexedDB holds in one transaction, so another tab's rows are never replaced by this tab's
+ * possibly stale copy. In that same transaction the committed result (never this tab's snapshot) is
+ * handed to localStorage; until localStorage has taken it, the committed IndexedDB snapshot stays
+ * this tab's source (`hydrated`), so a row stored only in IndexedDB is never merged away by what an
+ * older localStorage lacks (PLAN 2.0k). The committed rows then come back into this tab's copy (rows
+ * it has not changed since), and a row's change is settled once stored.
  */
 function persistRows(m: Memory, s: StorageLike | null): void {
   const session = m.session;
-  // Only the phone's own storage is mirrored (a test's own storage is not), like durable.ts.
-  const phoneStorage = storage();
-  if (!session || !m.dirty.size || (s === null ? phoneStorage !== null : s !== phoneStorage)) return;
+  if (!session || !m.dirty.size || !isPhone(s)) return;
   const sent = new Map<string, Draft | null>();
   for (const k of m.dirty) sent.set(k, m.drafts.get(k) ?? null);
   const run = async () => {
-    const blob = await defaultDb.transaction('rw', defaultDb.kv, async () => {
-      const row = await defaultDb.kv.get(KEY);
-      let store: Store = {};
-      try {
-        const v = JSON.parse(row?.value ?? '{}') as unknown;
-        if (v && typeof v === 'object' && !Array.isArray(v)) store = v as Store;
-      } catch {
-        store = {};
-      }
+    const out = await defaultDb.transaction('rw', defaultDb.kv, async () => {
+      const store = parseStore((await defaultDb.kv.get(KEY))?.value);
       const rows = { ...(store[session] ?? {}) };
       for (const [k, d] of sent) {
         if (d) rows[k] = d;
@@ -225,24 +242,48 @@ function persistRows(m: Memory, s: StorageLike | null): void {
       }
       if (Object.keys(rows).length) store[session] = rows;
       else delete store[session];
-      await defaultDb.kv.put(durableRow(KEY, Object.keys(store).length ? JSON.stringify(store) : null));
-      return rows;
+      const value = Object.keys(store).length ? JSON.stringify(store) : null;
+      await defaultDb.kv.put(durableRow(KEY, value));
+      // The merged snapshot to localStorage, in the order the transactions commit (one tab at a time).
+      let local = false;
+      if (s) {
+        try {
+          if (value !== null) s.setItem(KEY, value);
+          else s.removeItem(KEY);
+          local = true;
+        } catch {
+          local = false;
+        }
+      }
+      return { store, rows, local };
     });
+    if (s && out.local) hydrated.delete(s);
+    else hydrated.set(s ?? NO_STORAGE, out.store);
     if (m.session !== session) return;
     for (const [k, d] of sent) if ((m.drafts.get(k) ?? null) === d) m.dirty.delete(k);
-    for (const [k, d] of Object.entries(blob)) if (!m.dirty.has(k) && validDraft(d)) m.drafts.set(k, d);
-    for (const k of [...m.drafts.keys()]) if (!m.dirty.has(k) && !(k in blob)) m.drafts.delete(k);
-    const h = hydrated.get(s ?? NO_STORAGE);
-    if (h) {
-      if (Object.keys(blob).length) h[session] = blob;
-      else delete h[session];
-    }
+    for (const [k, d] of Object.entries(out.rows)) if (!m.dirty.has(k) && validDraft(d)) m.drafts.set(k, d);
+    for (const k of [...m.drafts.keys()]) if (!m.dirty.has(k) && !(k in out.rows)) m.drafts.delete(k);
+    if (s && !out.local) failed(m);
   };
-  void run().catch(() => undefined);
+  void run().catch(() => {
+    // Neither store took it: memory keeps the row (still dirty) for the next write.
+    failed(m);
+  });
 }
 
-/** Mirrors the whole memory copy to storage. False when that failed (storage full, blocked or missing). */
+function failed(m: Memory): void {
+  if (m.failed) return;
+  m.failed = true;
+  for (const fn of [...failListeners]) fn();
+}
+
+/** Mirrors the memory copy to storage. False when that is not known to have worked (storage full, blocked or missing). */
 function mirror(m: Memory, s: StorageLike | null): boolean {
+  if (s && hydrated.get(s) && isPhone(s)) {
+    // IndexedDB is the authority (PLAN 2.0k): merged there first, then localStorage takes the result.
+    persistRows(m, s);
+    return false;
+  }
   let ok = false;
   mergeFromStorage(m, s);
   const value = memoryValue(m);
@@ -254,7 +295,7 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
       wrote = true;
     } catch {
       // localStorage refused it: the IndexedDB copy alone keeps it for the next start (PLAN 1.7i),
-      // row by row (PLAN 2.0j).
+      // row by row (PLAN 2.0j), and is the authority from then on (PLAN 2.0k).
       persistRows(m, s);
     }
     if (wrote) {
@@ -269,10 +310,7 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
     if (!hydrated.get(NO_STORAGE)) hydrated.set(NO_STORAGE, {});
     persistRows(m, null);
   }
-  if (!ok && !m.failed) {
-    m.failed = true;
-    for (const fn of [...failListeners]) fn();
-  }
+  if (!ok) failed(m);
   return ok;
 }
 

@@ -39,7 +39,8 @@ import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { RestDock } from './RestDock';
 import { useWorkout } from './useWorkout';
-import { discardFailed, failedRows, prepareFinish, retryFailed } from './rowLog';
+import { discardFailed, failedRows, prepareFinish, retryFailed, shownRows, type ShownRow } from './rowLog';
+import { UNDO_MS } from '../../lib/undoQueue';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';
 
@@ -142,7 +143,7 @@ export function WorkoutScreen() {
    * Sets whose Log set write failed (PLAN 1.7h) and edits or set type changes whose write failed
    * (PLAN 2.0c), when Finish was refused because of them.
    */
-  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number; editIds: string[] } | null>(null);
+  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number; editIds: string[]; rowIds: ShownRow[] } | null>(null);
   /** Deleted sets whose Undo failed, when Finish was refused because of them (PLAN 1.7i). */
   const [undoStuck, setUndoStuck] = useState<string[] | null>(null);
 
@@ -457,6 +458,9 @@ export function WorkoutScreen() {
    * them. Each set goes through the workout's transactional delete (its tombstone and token, so an
    * Undo survives a kill), then the exercise leaves the list; Undo puts the exercise back at its
    * place and every set back exactly (same ids and order). Anything failing midway is put back.
+   * PLAN 2.0k: one undoable operation. The sets' Undo windows are held while they are deleted and
+   * start together, a little longer than the toast, only when its Undo shows; Undo is offered only
+   * while every set can still come back, and all of them are accepted before any is written back.
    */
   const removeWithSets = async (id: string, own: WorkoutSet[]) => {
     if (finishing.current) return;
@@ -472,21 +476,27 @@ export function WorkoutScreen() {
     const gone: WorkoutSet[] = [];
     try {
       for (const x of own) {
-        await deletes.remove(x);
-        gone.push(x);
+        await deletes.remove(x, { hold: true });
+        // Deleted by another tab first (PLAN 2.0i): nothing of ours to put back for it.
+        if (deletes.canUndo(x.id)) gone.push(x);
       }
       const at = await removeExercise(sessionId, id);
       justAdded.current.delete(id);
       if (routeRef.current === id) goList();
       const n = gone.length;
+      const goneIds = gone.map((x) => x.id);
       const shown = toastOf(`${w.nameOf(id)} removed · ${n} ${n === 1 ? 'set' : 'sets'}`, {
         label: 'Undo',
         onPress: () => {
           setToast((cur) => (cur?.id === shown.id ? null : cur));
+          // Never a partial Undo: only while every set can still come back exactly.
+          if (!deletes.canUndoAll(goneIds)) return notice('Too late to undo');
           void (async () => {
             try {
               await restoreExercise(sessionId, id, at);
-              for (const x of gone) await deletes.undo(x.id);
+              await deletes.undoAll(goneIds).then((back) => {
+                if (!back) throw new Error('Not put back');
+              });
               unhideAll();
             } catch {
               notice('Could not put it back');
@@ -495,8 +505,11 @@ export function WorkoutScreen() {
         },
       });
       setToast(shown);
+      // One shared window from the moment Undo is offered, outlasting the toast (5 s).
+      deletes.release(goneIds, UNDO_MS + 1000);
     } catch (err) {
-      for (const x of gone) await deletes.undo(x.id).catch(() => undefined);
+      await deletes.undoAll(gone.map((x) => x.id)).catch(() => undefined);
+      deletes.release(gone.map((x) => x.id));
       unhideAll();
       notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not remove that. Try again.');
     }
@@ -532,7 +545,7 @@ export function WorkoutScreen() {
       const changes = await pendingMutations(sessionId);
       if (failed.length || changes.length) {
         reopen();
-        setUnsaved({ rows: failed.length, edits: changeCount(changes), editIds: changes.map((c) => c.id) });
+        setUnsaved({ rows: failed.length, edits: changeCount(changes), editIds: changes.map((c) => c.id), rowIds: shownRows(failed) });
         return;
       }
       // Finish keeps the plan pointer as it was, inside its own transaction, for Undo on Today.
@@ -563,7 +576,7 @@ export function WorkoutScreen() {
         // transaction, nothing changed. The same choice as above.
         const rows = await failedRows(sessionId).catch(() => []);
         const changes = await pendingMutations(sessionId).catch(() => []);
-        setUnsaved({ rows: rows.length, edits: changeCount(changes), editIds: changes.map((c) => c.id) });
+        setUnsaved({ rows: rows.length, edits: changeCount(changes), editIds: changes.map((c) => c.id), rowIds: shownRows(rows) });
       } else notice('Could not finish. Try again.');
     }
   };
@@ -615,10 +628,12 @@ export function WorkoutScreen() {
     if (unsavedBusy.current) return;
     unsavedBusy.current = true;
     // Only the changes the sheet told about (PLAN 2.0e): one made after that still asks.
+    // And only the failed Logs it listed, at the revision listed (PLAN 2.0k): a later one still asks.
     const shown = unsaved?.editIds ?? [];
+    const rowsShown = unsaved?.rowIds ?? [];
     setUnsaved(null);
     try {
-      await discardFailed(sessionId);
+      await discardFailed(sessionId, undefined, rowsShown);
       await dropMutations(sessionId, undefined, shown);
       await finishNow();
     } catch {

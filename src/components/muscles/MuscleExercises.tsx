@@ -5,7 +5,7 @@ import { exercisesLinkText } from '../../lib/muscleExercises';
 import { exerciseCount, exercisesForMuscle, type MuscleExerciseRow } from '../../data/muscleExercises';
 import { assetUrl, infoForCatalog } from '../../data/exerciseInfo';
 import { usePlanCatalogIds } from '../../hooks/usePlanCatalogIds';
-import { Sheet } from '../../ui/Sheet';
+import { Sheet, SheetFooter } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
 import { ChevronRight, ICON_STROKE } from '../../ui/icons';
 import { ExerciseSheet } from '../exercise/ExerciseSheet';
@@ -76,7 +76,8 @@ export function MuscleExercisesSheet({ region, onClose }: { region: Region | nul
   const closeEx = () => setEx((e) => (e ? { ...e, open: false } : e));
   return (
     <>
-      <Sheet open={region !== null} onClose={onClose} label={`${title} exercises`} scroll>
+      {/* Close sits in the pinned footer (PLAN 2.0k, ui-2.2c #3): never scrolled away under the list. */}
+      <Sheet open={region !== null} onClose={onClose} label={`${title} exercises`} scroll footer>
         <div className={styles.body} data-testid="muscle-exercises" data-region={shown}>
           <header className={styles.head}>
             <h2 className={styles.title}>{title}</h2>
@@ -114,9 +115,11 @@ export function MuscleExercisesSheet({ region, onClose }: { region: Region | nul
               No exercises for this muscle yet
             </p>
           )}
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
+          <SheetFooter>
+            <Button variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+          </SheetFooter>
         </div>
       </Sheet>
       {ex && (

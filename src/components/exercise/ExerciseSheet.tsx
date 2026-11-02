@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Sheet } from '../../ui/Sheet';
+import { Sheet, SheetFooter } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
 import { BackButton } from '../../ui/BackButton';
 import { MusclePair } from '../muscles/MuscleMap';
@@ -22,9 +22,11 @@ type Props = {
 };
 
 /**
- * The exercise sheet (SPEC 4.4), top to bottom: form demo, muscle map, How to (up to 3 cues),
- * Watch out, Good for. Match none (SPEC 4.3): "Demo coming soon", no photos, no muscle map, and
- * only the plan's own notes as text cues.
+ * The exercise sheet (SPEC 4.4), top to bottom: a compact form demo, the name, How to (up to 3
+ * cues), then the muscle map, Watch out and Good for. PLAN 2.0k (ui-2.2c #2): the first How to cue
+ * shows in the first screen on every phone, before the artwork takes it; Back (a nested sheet) and
+ * Close stay pinned, never scrolled away (#3). Match none (SPEC 4.3): "Demo coming soon", no photos,
+ * no muscle map, and only the plan's own notes as text cues.
  */
 export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: Props) {
   const [full, setFull] = useState(false);
@@ -34,15 +36,10 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: 
   const offline = !!info.demo && photos.kind === 'none';
   return (
     <>
-    <Sheet open={open} onClose={onClose} label={`How to do ${name}`} scroll>
+    <Sheet open={open} onClose={onClose} label={`How to do ${name}`} scroll footer header={back ? <BackButton label={back.label} onPress={back.onPress} /> : undefined}>
       <div className={styles.body} data-testid="exercise-sheet" data-match={info.match}>
-        {back && (
-          <div className={styles.backRow}>
-            <BackButton label={back.label} onPress={back.onPress} />
-          </div>
-        )}
         {info.demo && !offline ? (
-          <FormDemo demo={info.demo} name={name} onOpen={() => setFull(true)} />
+          <FormDemo demo={info.demo} name={name} onOpen={() => setFull(true)} fit />
         ) : (
           <div className={styles.soon} data-testid="demo-soon">
             {placeholder}
@@ -50,13 +47,13 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: 
           </div>
         )}
         <h2 className={styles.title}>{name}</h2>
-        {info.muscles && <MusclePair data={info.muscles} />}
         {(howTo.length > 0 || info.variantNote) && (
           <section className={styles.section} aria-label="How to">
             <h3 className={styles.heading}>How to</h3>
             <FormTips note={info.variantNote} tips={howTo} testId="cues" />
           </section>
         )}
+        {info.muscles && <MusclePair data={info.muscles} />}
         {info.watchOut && (
           <section className={styles.section} aria-label="Watch out">
             <h3 className={`${styles.heading} ${styles.warn}`}>Watch out</h3>
@@ -73,9 +70,11 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: 
             </p>
           </section>
         )}
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
+        <SheetFooter>
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </SheetFooter>
       </div>
     </Sheet>
     {info.demo && !offline && <DemoViewer open={full} onClose={() => setFull(false)} name={name} demo={info.demo} />}

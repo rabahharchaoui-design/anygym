@@ -298,6 +298,14 @@ export function MusclePair({ data, exercises = false }: { data: MuscleMapData | 
         {secondaryText && <span className={styles.textSecondary}>{secondaryText}</span>}
       </figcaption>
       {tappable && (
+        <div className={styles.readoutRow}>
+          <div className={styles.readout} data-testid="muscle-pick" aria-live="polite">
+            {picked ? <span className={styles.picking}>{pickLine(picked, data)}</span> : <span>Tap a muscle to see its exercises</span>}
+          </div>
+          {picked && <MuscleExercisesLink region={picked} onOpen={setListFor} />}
+        </div>
+      )}
+      {tappable && (
         <MusclePicker
           regions={regions}
           picked={picked}
@@ -305,14 +313,6 @@ export function MusclePair({ data, exercises = false }: { data: MuscleMapData | 
           line={(r) => pickLine(r, data)}
           onPick={(region) => setPick({ key, region })}
         />
-      )}
-      {tappable && (
-        <div className={styles.readoutRow}>
-          <div className={styles.readout} data-testid="muscle-pick" aria-live="polite">
-            {picked ? <span className={styles.picking}>{pickLine(picked, data)}</span> : <span>Tap a muscle to see its exercises</span>}
-          </div>
-          {picked && <MuscleExercisesLink region={picked} onOpen={setListFor} />}
-        </div>
       )}
       {exercises && <MuscleExercisesSheet region={listFor} onClose={() => setListFor(null)} />}
     </figure>

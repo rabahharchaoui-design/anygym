@@ -230,8 +230,9 @@ test('workout: the lit muscles are also a labelled picker for VoiceOver and keyb
   const options = await picker.locator('option').allTextContents();
   expect(options[0]).toBe('No muscle picked');
   expect(options[1]).toMatch(/· primary$/);
-  // Invisible to a finger: the drawing keeps every tap.
-  expect(await picker.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  // PLAN 2.0k (ui-2.2c #1): surfaced as a visible "Pick a muscle" pill for fingers too; it covers only
+  // that pill, so the drawing keeps every tap on it.
+  expect(await picker.evaluate((el) => el.closest('[data-testid="muscle-pick-control"]') !== null && !el.closest('svg'))).toBe(true);
   await picker.selectOption('quadriceps');
   await expect(card.getByTestId('muscle-pick')).toHaveText(/· primary$/);
   const link = card.getByTestId('muscle-exercises-link');

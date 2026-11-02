@@ -82,6 +82,12 @@ export function deletesFor(sessionId: string, db: AnyGymDB = defaultDb): DeleteU
           throw err;
         }
       },
+      // A group Undo (removing an exercise, PLAN 2.0k): every member's Undo is stored (intent, then
+      // acceptance) before any set is written back, so a kill midway restores the rest on restart.
+      accept: async (s) => {
+        await rememberUndo(s.sessionId, s.id, db, undefined, own.get(s.id)).catch(() => undefined);
+        await acceptUndo(s.id, db, own.get(s.id), true);
+      },
       expire: (s) => expireDelete(s.id, db, Date.now(), own.get(s.id), true),
       // A failed Undo the user gives up on: the set stays deleted (PLAN 1.7i), for sure (1.7k).
       cancel: async (s) => {

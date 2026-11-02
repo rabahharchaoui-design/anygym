@@ -180,7 +180,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   /** A pending row's draft as stored right now, by slot (0 = the first row still to do). */
   const draftAt = (slot: number) => loadDraft(sessionId, rowKey(exerciseId, slot));
   const slotOf = (row: PendingRow) => row.index - logged.length;
-  const rebuild = (picked: Load | null, plates: readonly number[]) => (kind ? currentLoad(picked, plates, kind, gym, exerciseId, name, bar) : null);
+  const rebuild = (picked: Load | null, plates: readonly number[], pickKind?: Load['kind']) => (kind ? currentLoad(picked, plates, kind, gym, exerciseId, name, bar, undefined, pickKind) : null);
   // Planned rows left: a warm up logged on a normal lift never uses one up (PLAN 1.7j).
   const workDone = w.done[exerciseId] ?? 0;
   const rows: PendingRow[] = kind
@@ -231,6 +231,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       // The unit the weight was picked in (PLAN 1.7i): the pick's own unit when it says (PLAN
       // 2.0c), else today's when this write picks it.
       ...('load' in patch || 'plates' in patch || !before ? { unit: patch.unit ?? gym.unit } : {}),
+      // And the "Loaded with" it was picked under (PLAN 2.0k): never rebuilt under another one.
+      ...(('load' in patch || 'plates' in patch || !before) && kind ? { pickKind: kind } : {}),
       rev: (before?.rev ?? 0) + 1,
     };
     if (own) draft.own = { ...draft.own, ...own };

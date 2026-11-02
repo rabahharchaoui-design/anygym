@@ -227,7 +227,8 @@ export type BuildInput = {
   progression: Progression | undefined;
   draftOf: (index: number) => Draft | null;
   /** Rebuilds a picked load on today's equipment (exerciseLoad.currentLoad): null when not loadable. */
-  rebuild: (picked: Load | null, plates: readonly number[]) => Load | null;
+  /** `pickKind`: the load kind a draft's weight was picked under (PLAN 2.0k), when it says. */
+  rebuild: (picked: Load | null, plates: readonly number[], pickKind?: Load['kind']) => Load | null;
   /** An earlier load made again here (exerciseLoad.prefillLoad), or null. */
   carry: (prev: Load | undefined) => Load | null;
   /** A load certain without asking (bodyweight, a hold), else null. */
@@ -281,7 +282,7 @@ export function pendingRows(input: BuildInput): PendingRow[] {
         // "Pick" never turn it into the bare bar or a machine's start. Only "just you" or a hold
         // are certain without asking.
         load = historyBlocks ? null : certain;
-      } else load = rebuild(d.load, plates);
+      } else load = rebuild(d.load, plates, d.pickKind);
     } else {
       const fromTarget = target?.load ? rebuild(target.load, target.load.perSide ?? []) : null;
       load = fromTarget ?? carry(lastLogged?.load) ?? (progression?.next.load ? rebuild(progression.next.load, progression.next.load.perSide ?? []) : null) ?? (historyBlocks ? null : certain);
