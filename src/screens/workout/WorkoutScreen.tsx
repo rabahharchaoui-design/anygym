@@ -720,9 +720,10 @@ export function WorkoutScreen() {
                 {lifted > 0 ? (
                   <>
                     {' · '}
-                    {/* Large text on a narrow phone: "1 set · 1,080 lb", one line (round 2, P5). */}
-                    {!tight && 'Total lifted '}
-                    {tight && <span className={styles.srOnly}>Total lifted </span>}
+                    {/* Large text on a narrow phone: "1 set · 1,080 lb" on screen, one line (round 2, P5);
+                        the words stay for screen readers, hidden by clip-path (round 4: not an
+                        overflow clip, which would read as cut off text). */}
+                    {tight ? <span className={styles.srText}>Total lifted </span> : 'Total lifted '}
                     {formatTotal(lifted, unit)}
                   </>
                 ) : (

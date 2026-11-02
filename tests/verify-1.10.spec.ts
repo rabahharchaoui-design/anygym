@@ -327,7 +327,13 @@ test('honest: no img, unknown asks once, timed Hold, one screen exercise view on
   await page.getByRole('button', { name: 'Use this plan' }).tap();
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await page.locator('[data-row]').first().waitFor();
-  await expect(page.getByRole('main').locator('img')).toHaveCount(0);
+  // PLAN 2.2d round 2 (B1): a row's tile shows the demo's start photo only for a sure catalog match
+  // (exact or variant), never otherwise: every picture is in a photo tile, and the exercise with no
+  // sure match (Decline Bench Sit Up, match none) has none.
+  const main = page.getByRole('main');
+  expect(await main.locator('img').count()).toBe(await main.locator('[data-testid="thumb"][data-photo] img').count());
+  await expect(page.getByTestId('row-decline-bench-sit-up').locator('img')).toHaveCount(0);
+  await expect(page.getByTestId('row-static-quadricep-stretch').locator('img')).toHaveCount(0);
   const back = async () => {
     await page.getByRole('button', { name: 'Back to the list' }).tap();
     await expect(page.getByTestId('arrival-guard')).toHaveCount(0);

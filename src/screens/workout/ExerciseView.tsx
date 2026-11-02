@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, lazy, type ComponentType, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { saveMutation } from '../../db/mutations';
 import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
@@ -23,6 +23,7 @@ import { Thumb } from './Thumb';
 import { FormDemo } from '../../components/exercise/FormDemo';
 import { ExerciseSheet } from '../../components/exercise/ExerciseSheet';
 import { demoForPlan, infoForPlan } from '../../data/exerciseInfo';
+import type { ExerciseInfo } from '../../lib/exerciseInfo';
 import { DemoViewer } from '../../components/exercise/DemoViewer';
 import { useDemoPhotos } from '../../hooks/usePhotos';
 import { useMedia } from '../../hooks/useMedia';
@@ -33,8 +34,22 @@ import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
 import styles from './Workout.module.css';
 
-// The muscles and form tips: their own chunk (body maps), loaded after the table (PLAN 2.2d).
-const ExerciseExtras = lazy(() => import('./ExerciseExtras'));
+// The muscles and form tips: their own chunk (body maps), mounted after the table (PLAN 2.2d).
+// Round 4: the chunk is fetched as soon as this module loads (the app is online then), so opening an
+// exercise later, offline before the service worker took over, never asks the network for it. A
+// failed fetch is tried again once, then waits for the next exercise to open.
+let extrasChunk: Promise<typeof import('./ExerciseExtras')> | null = null;
+const loadExtras = () => (extrasChunk ??= import('./ExerciseExtras').catch((err: unknown) => {
+  extrasChunk = null;
+  throw err;
+}));
+void loadExtras().catch(() => undefined);
+type ExtrasModule = { default: ComponentType<{ info: ExerciseInfo; photosOk: boolean; known: boolean }> };
+const NO_EXTRAS: ExtrasModule = { default: () => null };
+const ExerciseExtras = lazy(
+  (): Promise<ExtrasModule> =>
+    loadExtras().catch(() => new Promise<ExtrasModule>((resolve) => window.setTimeout(() => resolve(loadExtras().catch(() => NO_EXTRAS)), 1500))),
+);
 
 type Props = {
   w: Workout;

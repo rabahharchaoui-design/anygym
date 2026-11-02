@@ -306,11 +306,13 @@ test('first time with weights: "Pick" cells and one first time line under the ro
   const note = view.getByTestId('set-guide');
   await expect(note).toHaveText('First time: pick a weight you could do 2 more reps with');
   await expect(note).toHaveCount(1);
-  // PLAN 2.2b: one quiet line right under the rows (it never moves a ✓), on one line.
-  const last = (await view.getByTestId('set-todo').last().boundingBox())!;
+  // PLAN 2.2b: one quiet line under the rows (it never moves a ✓), on one line. PLAN 2.2d (G, no dead
+  // space): "+ Add set" sits right under the last row and the line follows it, so the line is measured
+  // from "+ Add set" (the rows to "+ Add set" gap is checked in tests/polish-2.2d.spec.ts).
+  const add = (await view.getByTestId('add-set').boundingBox())!;
   const n = (await note.boundingBox())!;
-  expect(n.y).toBeGreaterThanOrEqual(last.y + last.height);
-  expect(n.y - (last.y + last.height)).toBeLessThan(30);
+  expect(n.y).toBeGreaterThanOrEqual(add.y + add.height);
+  expect(n.y - (add.y + add.height)).toBeLessThan(12);
   expect(n.height).toBeLessThanOrEqual(20);
   expect(errors).toEqual([]);
 });

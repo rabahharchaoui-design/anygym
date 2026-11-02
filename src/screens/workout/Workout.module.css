@@ -466,13 +466,25 @@
   margin-bottom: calc(var(--row-gap) - var(--page-gap));
 }
 
-.firstTime {
+/* (.tableArea in front: the global .num reset would otherwise take its margin, and the line would
+   touch "+ Add set" and eat its 48 pt hit area, round 4.) */
+.tableArea .firstTime {
   margin: 6px 0 0;
   padding: 0 4px;
   color: var(--text-2);
   font-size: clamp(12px, 3.4vw, 13px);
   line-height: 17px;
   overflow-wrap: anywhere;
+}
+
+/* Words only for screen readers inside a line of text: a 1 px box clipped away by clip-path. */
+.srText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  pointer-events: none;
 }
 
 .srOnly {

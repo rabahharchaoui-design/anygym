@@ -20,7 +20,7 @@ type Props = {
  * large title wraps (never clipped at 130% text, PLAN 1.7g); the compact one is a decorative copy.
  */
 /** Scroll distance over which the large title hands over to the compact one. */
-const COLLAPSE_PX = 30;
+export const COLLAPSE_PX = 30;
 
 export function TopBar({ title, leading, trailing, onTitleTap, children }: Props) {
   const barRef = useRef<HTMLElement>(null);

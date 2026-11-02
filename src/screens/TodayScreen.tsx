@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { TopBar } from '../ui/TopBar';
+import { COLLAPSE_PX, TopBar } from '../ui/TopBar';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
@@ -91,7 +91,10 @@ export function TodayScreen() {
       const scroller = card?.closest<HTMLElement>('[data-scroller]');
       if (!card || !anchor || !scroller) return;
       const overlap = card.getBoundingClientRect().bottom + 8 - anchor.getBoundingClientRect().top;
-      if (overlap > 0) scroller.scrollBy({ top: overlap, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      // Never to a spot inside the large title's collapse: it would rest half faded (round 4). From
+      // the top, a scroll goes at least the whole collapse, so the compact title takes over cleanly.
+      const by = scroller.scrollTop < COLLAPSE_PX ? Math.max(overlap, COLLAPSE_PX - scroller.scrollTop) : overlap;
+      if (overlap > 0) scroller.scrollBy({ top: by, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     });
     return () => cancelAnimationFrame(frame);
   }, [toast, data.ready]);

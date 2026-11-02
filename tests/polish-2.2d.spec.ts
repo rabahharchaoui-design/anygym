@@ -90,9 +90,14 @@ test('no dead space: + Add set one row gap under the last row, the muscle card r
   expect(card.y - (area.y + area.height)).toBeGreaterThanOrEqual(0);
   expect(card.y - (area.y + area.height)).toBeLessThanOrEqual(gap + 1);
   // Nothing between "+ Add set" and the card but the quiet first time line.
+  // The line keeps 6 pt clear of the button (its 48 pt hit area, round 4), then the card follows.
   const guide = view.getByTestId('set-guide');
-  const between = (await guide.count()) ? (await box(guide)).height + gap + 2 : 0;
-  expect(card.y - (add.y + add.height)).toBeLessThanOrEqual(gap + between + 1);
+  if (await guide.count()) {
+    const g = await box(guide);
+    expect(g.y - (add.y + add.height)).toBeGreaterThanOrEqual(0);
+    expect(g.y - (add.y + add.height)).toBeLessThanOrEqual(7);
+    expect(card.y - (g.y + g.height)).toBeLessThanOrEqual(gap + 1);
+  } else expect(card.y - (add.y + add.height)).toBeLessThanOrEqual(gap + 1);
   // The end of the page: no room kept for a rest bar that is not there.
   const tail = await view.evaluate((el) => {
     el.scrollTop = el.scrollHeight;
