@@ -23,9 +23,12 @@ export function SetTypeSheet({ open, onClose, title, value, onPick, onRemove }: 
   return (
     <Sheet open={open} onClose={onClose} label="Set type">
       <div className={styles.body}>
-        <h2 className={styles.title}>Set type</h2>
-        <p className={styles.sub}>{title}</p>
-        <div className={styles.list} role="radiogroup" aria-label="Set type">
+        {/* Named after the set (critic P1): its type is one group, Remove set waits at the bottom. */}
+        <h2 className={styles.title}>{title}</h2>
+        <p className={styles.sub} id="set-type-group">
+          Set type
+        </p>
+        <div className={styles.list} role="radiogroup" aria-labelledby="set-type-group">
           {SET_TYPES.map((t) => (
             <div key={t} className={styles.option} data-type={t}>
               <button

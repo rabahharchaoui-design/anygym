@@ -185,9 +185,12 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
     'cross-body-mountain-climber',
     'curl-up-crunch',
   ]);
-  // The first row is the next one; no demo images anywhere (none is certain yet).
+  // The first row is the next one. PLAN 2.2d round 2 (B1): a row's tile shows its demo photo only
+  // for a sure catalog match (the same photo as the hero); the stretches have none, so no picture.
   await expect(page.getByTestId('row-static-quadricep-stretch')).toHaveAttribute('data-state', 'next');
-  await expect(page.getByRole('main').locator('img')).toHaveCount(0);
+  await expect(page.getByTestId('row-static-quadricep-stretch').locator('img')).toHaveCount(0);
+  const imgs = page.getByRole('main').locator('img');
+  expect(await imgs.count()).toBe(await page.getByRole('main').locator('[data-testid="thumb"][data-photo] img').count());
   await page.getByTestId('row-static-quadricep-stretch').tap();
   const stretch = page.getByTestId('exercise-static-quadricep-stretch');
   await expect(stretch.getByTestId('set-target')).toHaveText('Set 1 of 1 · 45 sec');

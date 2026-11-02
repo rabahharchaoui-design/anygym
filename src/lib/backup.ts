@@ -66,7 +66,7 @@ export type Backup = {
 export const MAX_PENDING_CHANGES = 500;
 
 export type BackupRest = { sessionId: string; endsAt: number; totalSec: number };
-export type BackupExtraSets = { sessionId: string; extra: Record<string, number> };
+export type BackupExtraSets = { sessionId: string; extra: Record<string, number>; dropped?: Record<string, string> };
 /** What a backup carries beside the tables and drafts (PLAN 2.0c). */
 export type BackupLive = { rest?: BackupRest | null; extraSets?: BackupExtraSets | null; pendingChanges?: readonly JournalEntry[] };
 
@@ -85,13 +85,13 @@ export const isActiveSession = (s: Pick<Session, 'endedAt' | 'imported'>): boole
 export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersion: string, exportedAt: number, live: BackupLive = {}): Backup {
   const activeIds = new Set(tables.sessions.filter(isActiveSession).map((s) => s.id));
   const active = activeIds.size > 0;
-  const extra = live.extraSets && activeIds.has(live.extraSets.sessionId) && Object.keys(live.extraSets.extra).length ? live.extraSets : null;
+  const extra = live.extraSets && activeIds.has(live.extraSets.sessionId) && (Object.keys(live.extraSets.extra).length || Object.keys(live.extraSets.dropped ?? {}).length) ? live.extraSets : null;
   // Held changes of a workout in progress whose set is in the file (a set gone needs nothing any more).
   const held = (live.pendingChanges ?? []).filter((e) => activeIds.has(e.sessionId) && heldSetHere(e, tables as unknown as Record<TableName, Rec[]>)).slice(-MAX_PENDING_CHANGES);
   return {
     ...(held.length ? { pendingChanges: held.map((e) => structuredClone(e)) } : {}),
     ...(live.rest && activeIds.has(live.rest.sessionId) ? { rest: { ...live.rest } } : {}),
-    ...(extra ? { extraSets: { sessionId: extra.sessionId, extra: { ...extra.extra } } } : {}),
+    ...(extra ? { extraSets: { sessionId: extra.sessionId, extra: { ...extra.extra }, ...(extra.dropped && Object.keys(extra.dropped).length ? { dropped: { ...extra.dropped } } : {}) } } : {}),
     format: BACKUP_FORMAT,
     appVersion,
     schemaVersion: SCHEMA_VERSION,
@@ -207,7 +207,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
     req: { id: str, gymId: str, startedAt: num, imported: bool },
-    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num },
+    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num) },
   }),
   sets: isSet,
   runs: shape({
@@ -375,7 +375,7 @@ function planStateOk(rows: Rec[]): boolean {
   });
 }
 const isRest = shape({ req: { sessionId: str, endsAt: num, totalSec: num } });
-const isExtraSets = shape({ req: { sessionId: str, extra: recordOf(extraCount) } });
+const isExtraSets = shape({ req: { sessionId: str, extra: recordOf(extraCount) }, opt: { dropped: recordOf(str) } });
 
 /** Rest and added rows (PLAN 2.0c): absent, or valid and for a workout in progress in the same file. */
 function liveOk(v: unknown, check: Check, sessions: Rec[]): boolean {

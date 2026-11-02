@@ -85,10 +85,32 @@ export function dropSlot(slots: ReadonlyArray<Draft | null>, at: number): Array<
   return slots.filter((_, j) => j !== at);
 }
 
-/** The Undo of dropSlot: the removed draft (or an untouched row, null) back at its place, or last. */
+/**
+ * The Undo of dropSlot: the removed draft back at its own slot. Storage drops trailing empty slots,
+ * so the list may be shorter than `at`: it is padded with untouched rows (null) first, never moved to
+ * an earlier row (Codex 2.2d #1).
+ */
 export function insertSlot(slots: ReadonlyArray<Draft | null>, at: number, draft: Draft | null): Array<Draft | null> {
   const out = [...slots];
-  out.splice(Math.max(0, Math.min(at, out.length)), 0, draft);
+  const to = Math.max(0, at);
+  while (out.length < to) out.push(null);
+  out.splice(to, 0, draft);
+  return out;
+}
+
+/**
+ * Before a row is removed (Codex 2.2d #2): every row from it down keeps exactly what it shows. Rows
+ * with no draft show their set's target by position, so they get a draft of their values as shown
+ * (rowDraft: nothing marked as picked by hand); stored drafts keep their ids and every field.
+ */
+export function materializeFrom(slots: ReadonlyArray<Draft | null>, rows: readonly PendingRow[], from: number, slotOfRow: (r: PendingRow) => number, newId: () => string): Array<Draft | null> {
+  const out = [...slots];
+  for (const r of rows) {
+    const j = slotOfRow(r);
+    if (j < from) continue;
+    while (out.length <= j) out.push(null);
+    if (!out[j]) out[j] = rowDraft(r, newId());
+  }
   return out;
 }
 

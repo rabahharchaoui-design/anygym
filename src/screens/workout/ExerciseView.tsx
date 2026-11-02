@@ -7,7 +7,7 @@ import { newId } from '../../db/ids';
 import { beatLine } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
 import { addExtraSet, removeExtraSet } from '../../lib/extraSets';
-import { blockedReason, dropSlot, insertSlot, lastTimeNote, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { blockedReason, dropSlot, insertSlot, lastTimeNote, materializeFrom, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
 import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio, warmAudio } from '../../lib/tone';
@@ -17,6 +17,7 @@ import { Button } from '../../ui/Button';
 import { MoreIcon } from '../../ui/icons';
 import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
+import { removeRowAnimated, rowReturning } from './SwipeRow';
 import { SetTypeSheet } from './SetTypeSheet';
 import { Thumb } from './Thumb';
 import { FormDemo } from '../../components/exercise/FormDemo';
@@ -404,9 +405,11 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (logQueue.pending(key)) return onNotice('That set is still saving. Try again in a moment.');
     const at = slotOf(row);
     const before = rowsOf(sessionId, exerciseId);
-    const draft = before[at] ?? null;
-    if (draft?.submitted !== undefined) return onNotice('That set is still saving. Try again in a moment.');
-    writeDrafts(sessionId, slotChanges(exerciseId, before, dropSlot(before, at)));
+    if (before[at]?.submitted !== undefined) return onNotice('That set is still saving. Try again in a moment.');
+    // The rows below keep what they show (their own targets), then the slot goes (Codex 2.2d #2).
+    const shown = materializeFrom(before, rows, at, slotOf, newId);
+    const draft = shown[at] ?? null;
+    writeDrafts(sessionId, slotChanges(exerciseId, before, dropSlot(shown, at)));
     removeExtraSet(sessionId, exerciseId);
     if (draft && (editing === draft.id || picking?.id === draft.id)) {
       setEditing(null);
@@ -417,6 +420,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     onUndoable('Set removed', () => {
       if (logQueue.closed(sessionId)) return;
       const now = rowsOf(sessionId, exerciseId);
+      if (draft) rowReturning(draft.id);
       writeDrafts(sessionId, slotChanges(exerciseId, now, insertSlot(now, at, draft)));
       addExtraSet(sessionId, exerciseId);
       w.bump();
@@ -499,6 +503,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       <p className={`${styles.exTarget} num`} data-testid="set-target">
         {targetText}
       </p>
+      {/* A pair says so from the start, before any check (round 2, P9). */}
+      {entry?.kind === 'pair' && entry.pairSize > 1 && (
+        <p className={`${styles.pairLine} num`} data-testid="pair-line">
+          Pair · {entry.pairIndex + 1} of {entry.pairSize}
+        </p>
+      )}
       {withNote && note && (
         <p className={styles.exNote} data-testid="set-plan">
           {note}
@@ -556,6 +566,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           <div
             className={styles.heroCaption}
             ref={captionRef}
+            // Rides with its page above the flying photo (round 2, critic B1).
+            style={{ viewTransitionName: 'ex-caption' }}
             onClick={(e) => {
               if (!folded && !(e.target as Element).closest('button')) setFull(true);
             }}
@@ -637,6 +649,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onRemove={removeRow}
             onRemoveLogged={removeLogged}
             removable={!logQueue.closed(sessionId)}
+            keyOf={(r) => slots[slotOf(r)]?.id ?? `i${r.index}`}
             underRows={
               <>
                 {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
@@ -701,9 +714,20 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         onRemove={() => {
           const target = typing;
           if (!target) return;
-          if (target.set) return removeLogged(target.set);
+          // The sheet closes while the row slides out and closes up, like a swipe (critic B3).
+          if (target.set) {
+            const set = target.set;
+            setTyping(null);
+            return removeRowAnimated(set.id, () => removeLogged(set));
+          }
           const row = target.rowId ? rowById(target.rowId) : undefined;
-          if (row) removeRow(row);
+          if (row) {
+            setTyping(null);
+            removeRowAnimated(target.rowId!, () => {
+              const now = rowById(target.rowId!);
+              if (now) removeRow(now);
+            });
+          }
           else {
             setTyping(null);
             gone();

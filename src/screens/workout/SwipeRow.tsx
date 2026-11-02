@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { tick } from '../../ui/haptics';
 import { prefersReducedMotion } from '../../ui/motion';
 import styles from './SetTable.module.css';
 
-/** How far the row stays open to show Delete (iOS: about 80 pt). */
+/** How far the row stays open to show Delete at least (iOS: about 80 pt); a bigger label gets more. */
 export const OPEN_PX = 80;
 /** A swipe past this share of the row's width deletes on release (iOS full swipe). */
 const FULL_SHARE = 0.55;
@@ -14,9 +14,34 @@ const LONG_PRESS_MS = 480;
 /** A quick flick opens even when short (px per ms). */
 const FLICK = 0.45;
 const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+/** The slide out, then the row's height and gap close (critic B3). */
+const SLIDE_MS = 180;
+const COLLAPSE_MS = 220;
+
+/** Rows removed with the animation, by key: when one comes back (Undo) it opens up again. */
+const removedKeys = new Set<string>();
+/** Mounted rows' "slide out and collapse, then run": a removal from a menu animates like a swipe. */
+const outs = new Map<string, (then: () => void) => void>();
+
+/**
+ * Removes a row with the same motion as a swipe (slide out, collapse), then runs `then` (the data
+ * change). Without a mounted row of that key it just runs.
+ */
+export function removeRowAnimated(key: string, then: () => void): void {
+  const out = outs.get(key);
+  if (out) out(then);
+  else then();
+}
+
+/** A row about to come back (an Undo) opens up from nothing when it mounts or reappears. */
+export function rowReturning(key: string): void {
+  removedKeys.add(key);
+}
 
 type Props = {
   children: ReactNode;
+  /** The row's data identity (its set or draft id): a row that comes back by Undo opens up again. */
+  rowKey: string;
   /** "Delete set 2": the red action's accessible name. */
   deleteLabel: string;
   onDelete: () => void;
@@ -30,29 +55,47 @@ type Props = {
 
 type Drag = { id: number; x: number; y: number; t: number; base: number; width: number; axis: 'x' | 'y' | null; lastX: number; lastT: number; v: number };
 
+/** The list item a row lives in (its height and the list gap close when it goes). */
+const itemOf = (host: HTMLElement | null) => host?.closest('li') ?? null;
+const gapOf = (li: HTMLElement) => parseFloat(getComputedStyle(li.parentElement ?? li).rowGap) || 0;
+
 /**
  * A set row that swipes left to show a red Delete (PLAN 2.2d, iOS style): the row follows the
- * finger, snaps open at about 80 pt, a full swipe deletes, a tap anywhere else closes. Pointer
- * events, so touch, pen and a mouse drag all work. The drag writes the face's transform directly
- * (no React render per move, transform only). A long press opens the row's menu.
+ * finger, snaps open, a full swipe deletes, a tap anywhere else closes. Pointer events, so touch,
+ * pen and a mouse drag all work. The drag writes the face's transform directly (no React render per
+ * move, transform only). On delete the row slides out, then its height and gap close; on Undo it
+ * opens up again (round 2, critic B3). A long press dims and shrinks the row, then opens its menu.
  */
-export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled = true, face }: Props) {
+export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress, enabled = true, face }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const faceRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
   const drag = useRef<Drag | null>(null);
   const press = useRef(0);
+  const dim = useRef(0);
   const swallow = useRef(false);
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
+  const anims = useRef<Animation[]>([]);
+
+  /** The open width: at least 80 pt, wide enough for the label at any text size (critic P5). */
+  const openPx = () => Math.max(OPEN_PX, Math.ceil((labelRef.current?.offsetWidth ?? 0) + 32));
 
   const place = (x: number, animate: boolean) => {
     const el = faceRef.current;
     const host = hostRef.current;
     if (!el || !host) return;
-    el.style.transition = animate && !prefersReducedMotion() ? `transform 260ms ${EASE}` : 'none';
+    const moving = animate && !prefersReducedMotion();
+    el.style.transition = moving ? `transform 260ms ${EASE}` : 'none';
     el.style.transform = x ? `translate3d(${x}px, 0, 0)` : '';
+    // The label rides the row's edge once the row passes the open width (iOS full swipe).
+    const label = labelRef.current;
+    if (label) {
+      label.style.transition = el.style.transition;
+      label.style.transform = `translate3d(${Math.min(0, x + openPx())}px, 0, 0)`;
+    }
     if (x < 0) host.dataset.revealed = '';
-    else if (!animate || prefersReducedMotion()) delete host.dataset.revealed;
+    else if (!moving) delete host.dataset.revealed;
     // Closing with the spring: the red goes once the row is home, never under a moving row.
     else
       window.setTimeout(() => {
@@ -62,28 +105,87 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
   const settle = (to: 'open' | 'closed') => {
     openRef.current = to === 'open';
     setOpen(to === 'open');
-    place(to === 'open' ? -OPEN_PX : 0, true);
+    place(to === 'open' ? -openPx() : 0, true);
   };
-  const remove = () => {
+
+  /** Slide out left, then close the row's height and gap, then `then` (the data change). */
+  const animateOut = (then: () => void) => {
     openRef.current = false;
     setOpen(false);
     const el = faceRef.current;
-    const w = el?.offsetWidth ?? 0;
-    tick();
-    if (!el || prefersReducedMotion()) {
-      place(0, false);
-      onDelete();
+    const li = itemOf(hostRef.current);
+    if (!el || !li) return then();
+    removedKeys.add(rowKey);
+    if (prefersReducedMotion()) {
+      // Reduced motion: a fade, no movement.
+      const a = li.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+      anims.current.push(a);
+      a.onfinish = then;
       return;
     }
-    // Off to the left, then the row goes (the table drops it from the data).
-    el.style.transition = `transform 200ms ${EASE}`;
+    const w = el.offsetWidth;
+    el.style.transition = `transform ${SLIDE_MS}ms ${EASE}`;
     el.style.transform = `translate3d(${-w}px, 0, 0)`;
+    if (labelRef.current) labelRef.current.style.opacity = '0';
     window.setTimeout(() => {
-      onDelete();
-      // The row may stay (a delete that failed and came back): it slides home.
-      requestAnimationFrame(() => place(0, false));
-    }, 180);
+      const h = li.getBoundingClientRect().height;
+      li.style.overflow = 'hidden';
+      const a = li.animate(
+        [
+          { height: `${h}px`, marginBottom: '0px', opacity: 1 },
+          { height: '0px', marginBottom: `${-gapOf(li)}px`, opacity: 0 },
+        ],
+        { duration: COLLAPSE_MS, easing: EASE, fill: 'forwards' },
+      );
+      anims.current.push(a);
+      a.onfinish = then;
+    }, SLIDE_MS);
   };
+  const remove = () => {
+    tick();
+    animateOut(onDelete);
+  };
+
+  // A menu's Remove set animates this row like a swipe (removeRowAnimated).
+  const outRef = useRef(animateOut);
+  outRef.current = animateOut;
+  useEffect(() => {
+    const fn = (then: () => void) => outRef.current(then);
+    outs.set(rowKey, fn);
+    return () => {
+      if (outs.get(rowKey) === fn) outs.delete(rowKey);
+    };
+  }, [rowKey]);
+
+  // The row shows other data now (the list moved under it) or came back: whatever the last removal
+  // left is cleared before paint, and a row that came back by Undo opens up from nothing.
+  useLayoutEffect(() => {
+    const li = itemOf(hostRef.current);
+    for (const a of anims.current) a.cancel();
+    anims.current = [];
+    if (li) li.style.overflow = '';
+    if (labelRef.current) labelRef.current.style.opacity = '';
+    place(0, false);
+    if (!li || !removedKeys.has(rowKey)) return;
+    removedKeys.delete(rowKey);
+    const a = prefersReducedMotion()
+      ? li.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' })
+      : (() => {
+          const h = li.getBoundingClientRect().height;
+          li.style.overflow = 'hidden';
+          const anim = li.animate(
+            [
+              { height: '0px', marginBottom: `${-gapOf(li)}px`, opacity: 0 },
+              { height: `${h}px`, marginBottom: '0px', opacity: 1 },
+            ],
+            { duration: COLLAPSE_MS, easing: EASE },
+          );
+          anim.onfinish = () => (li.style.overflow = '');
+          return anim;
+        })();
+    anims.current.push(a);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowKey]);
 
   // A tap anywhere outside the open row closes it (iOS).
   useEffect(() => {
@@ -96,12 +198,26 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
     return () => document.removeEventListener('pointerdown', close, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-  useEffect(() => () => window.clearTimeout(press.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(press.current);
+      window.clearTimeout(dim.current);
+    },
+    [],
+  );
   // Turned off while open (Finish started): it closes.
   useEffect(() => {
     if (!enabled && openRef.current) settle('closed');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
+
+  const pressing = (on: boolean) => {
+    if (!on) window.clearTimeout(dim.current);
+    const host = hostRef.current;
+    if (!host) return;
+    if (on) host.dataset.pressing = '';
+    else delete host.dataset.pressing;
+  };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     swallow.current = false;
@@ -116,7 +232,11 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, base: 0, width: faceRef.current?.offsetWidth ?? 320, axis: null, lastX: e.clientX, lastT: e.timeStamp, v: 0 };
     if (onLongPress) {
       window.clearTimeout(press.current);
+      // The hold shows: the row shrinks a touch and dims (critic P8), then the menu opens.
+      window.clearTimeout(dim.current);
+      dim.current = window.setTimeout(() => pressing(true), 120);
       press.current = window.setTimeout(() => {
+        pressing(false);
         if (!drag.current || drag.current.axis) return;
         drag.current = null;
         swallow.current = true;
@@ -133,6 +253,7 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
     if (!d.axis) {
       if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) return;
       window.clearTimeout(press.current);
+      pressing(false);
       d.axis = enabled && Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
       if (d.axis === 'y') {
         drag.current = null;
@@ -154,6 +275,7 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
   };
   const onPointerEnd = (e: ReactPointerEvent<HTMLDivElement>, cancelled: boolean) => {
     window.clearTimeout(press.current);
+    pressing(false);
     const d = drag.current;
     if (!d || e.pointerId !== d.id) return;
     drag.current = null;
@@ -164,7 +286,7 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
     const x = d.base + (e.clientX - d.x);
     if (cancelled) return settle('closed');
     if (x < -d.width * FULL_SHARE) return remove();
-    if (x < -OPEN_PX / 2 || (d.v < -FLICK && x < -SLOP)) return settle('open');
+    if (x < -openPx() / 2 || (d.v < -FLICK && x < -SLOP)) return settle('open');
     settle('closed');
   };
 
@@ -179,7 +301,9 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
         aria-label={deleteLabel}
         data-testid="swipe-delete"
       >
-        Delete
+        <span ref={labelRef} className={styles.swipeLabel}>
+          Delete
+        </span>
       </button>
       <div
         {...face}
@@ -193,6 +317,7 @@ export function SwipeRow({ children, deleteLabel, onDelete, onLongPress, enabled
           e.preventDefault();
           if (!onLongPress || swallow.current) return;
           window.clearTimeout(press.current);
+          pressing(false);
           drag.current = null;
           swallow.current = true;
           onLongPress();

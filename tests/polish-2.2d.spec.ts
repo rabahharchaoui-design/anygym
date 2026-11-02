@@ -52,6 +52,15 @@ async function swipe(page: Page, row: Locator, dx: number) {
 }
 
 const box = async (l: Locator) => (await l.boundingBox())!;
+
+/** ⋯ menu open: Rest after each set → On or Off → Save (the menu closes). */
+async function restOnOff(page: Page, restRow: Locator, to: 'On' | 'Off') {
+  await restRow.tap();
+  const sheet = page.getByRole('dialog', { name: 'Rest after each set' });
+  await sheet.getByRole('radio', { name: to }).tap();
+  await sheet.getByRole('button', { name: 'Save' }).tap();
+  await expect(sheet).toHaveCount(0);
+}
 /** How far a row's face is moved sideways (its transform's x), 0 when it is home. */
 const shiftOf = (l: Locator) =>
   l.evaluate((el) => {
@@ -186,14 +195,16 @@ test('rest timer Off on one move of a pair: no countdown after it, the partner s
   await expect(first).toBeVisible();
   await page.waitForTimeout(400);
   await navIdle(page);
-  // ⋯ → Rest timer Off.
+  // ⋯ → Rest after each set → Off (one row whose height never changes, critic B4).
   await first.getByRole('button', { name: 'More for Barbell Incline Bench Press' }).tap();
   const menu = page.getByRole('dialog', { name: 'Barbell Incline Bench Press options' });
-  const sw = menu.getByRole('switch', { name: /Rest timer/ });
-  await expect(sw).toBeChecked();
-  await menu.getByTestId('rest-switch').locator('label').tap();
-  await expect(sw).not.toBeChecked();
-  await expect(menu).toContainText('Off. No countdown after a set');
+  const restRow = menu.getByTestId('rest-row');
+  await expect(restRow).toContainText('90 s');
+  const rowH = (await box(restRow)).height;
+  await restOnOff(page, restRow, 'Off');
+  await first.getByRole('button', { name: 'More for Barbell Incline Bench Press' }).tap();
+  await expect(restRow).toContainText('Off: no countdown');
+  expect(Math.abs((await box(restRow)).height - rowH)).toBeLessThan(0.5);
   await expect.poll(async () => (await dbAll<{ exerciseId: string; restOff?: boolean }>(page, 'exerciseSettings')).find((s) => s.exerciseId === 'barbell-incline-bench-press')?.restOff).toBe(true);
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
@@ -213,8 +224,7 @@ test('rest timer Off on one move of a pair: no countdown after it, the partner s
   await navIdle(page);
   await partner.getByRole('button', { name: 'More for Incline Plate Press' }).tap();
   const partnerMenu = page.getByRole('dialog', { name: 'Incline Plate Press options' });
-  await expect(partnerMenu.getByRole('switch', { name: /Rest timer/ })).toBeChecked();
-  await expect(partnerMenu).toContainText('90 s after each set');
+  await expect(partnerMenu.getByTestId('rest-row')).toContainText('90 s');
   await page.keyboard.press('Escape');
   await expect(partnerMenu).toHaveCount(0);
 
@@ -225,10 +235,7 @@ test('rest timer Off on one move of a pair: no countdown after it, the partner s
   await page.waitForTimeout(400);
   await navIdle(page);
   await first.getByRole('button', { name: 'More for Barbell Incline Bench Press' }).tap();
-  await menu.getByTestId('rest-switch').locator('label').tap();
-  await expect(menu.getByRole('switch', { name: /Rest timer/ })).toBeChecked();
-  await page.keyboard.press('Escape');
-  await expect(menu).toHaveCount(0);
+  await restOnOff(page, restRow, 'On');
   await checkCurrent(first).tap();
   await expect(loggedRows(first)).toHaveCount(2);
   await expect(page.getByTestId('rest-timer')).toBeVisible();
@@ -362,13 +369,21 @@ test('speed: a ✓ paints within 100 ms, no layout shift, smooth check and sheet
 test('transitions: the list tile and the hero share one name, sheets follow the finger @matrix', async ({ page }) => {
   const view = await openPlanExercise(page, 'barbell-back-squat');
   // The hero (or the compact tile on short screens) is the shared element the list tile grows into.
-  const named = view.locator('[style*="view-transition-name"]');
-  await expect(named).toHaveCount(1);
-  expect(await named.evaluate((el) => (el as HTMLElement).style.viewTransitionName)).toBe('ex-hero');
+  const names = await view.locator('[style*="view-transition-name"]').evaluateAll((els) => els.map((el) => ({ name: (el as HTMLElement).style.viewTransitionName, id: (el as HTMLElement).dataset.testid ?? '' })));
+  // Round 2 (critic B1): only the photo flies; the caption (title, gradient, ⋯) rides with its page.
+  expect(names.filter((n) => n.name === 'ex-hero')).toHaveLength(1);
+  const short = page.viewportSize()!.height <= 600;
+  if (!short) {
+    expect(names.find((n) => n.name === 'ex-hero')!.id).toBe('hero-photo');
+    expect(names.map((n) => n.name)).toContain('ex-caption');
+  }
   // Back: the tile of the exercise just left carries the name, so the hero shrinks into it.
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   const tile = page.getByTestId('row-barbell-back-squat').getByTestId('thumb');
   await expect.poll(() => tile.evaluate((el) => (el as HTMLElement).style.viewTransitionName)).toBe('ex-hero');
+  // The tile is the same photo the hero shows (a photo flies into a photo, never an icon).
+  await expect(tile).toHaveAttribute('data-photo', '');
+  await expect(tile.locator('img')).toHaveJSProperty('complete', true);
   await navIdle(page);
 
   // A sheet follows the finger down and closes past the threshold.
@@ -410,4 +425,52 @@ test('reduced motion: crossfades instead of movement @matrix', async ({ page }) 
   const card = view.getByTestId('muscle-card');
   const anim = await card.evaluate((el) => getComputedStyle(el).animationName);
   expect(anim).toMatch(/arrive|none/);
+});
+
+test('one set count after Remove set: set line, day list, done ring, finish lines (critic B2) @matrix', async ({ page }) => {
+  const errors = watchErrors(page);
+  const view = await openPlanExercise(page, 'barbell-back-squat');
+  await view.getByTestId('weight-cell').first().tap();
+  await weightSheet(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+  await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
+  for (let i = 0; i < 3; i++) {
+    await checkCurrent(view).tap();
+    await expect(loggedRows(view)).toHaveCount(i + 1);
+    await page.waitForTimeout(350);
+  }
+  await page.getByRole('button', { name: 'Skip' }).tap();
+  // Remove the 4th row (its own menu).
+  await view.getByTestId('set-todo').last().getByTestId('set-type').tap();
+  const menu = page.getByRole('dialog', { name: 'Set type' });
+  await expect(menu.getByRole('heading', { name: 'Set 4' })).toBeVisible();
+  await menu.getByTestId('remove-set').tap();
+  await expect(view.getByTestId('set-todo')).toHaveCount(0);
+  await expect(view.getByTestId('set-target')).toHaveText('All 3 sets done');
+  // The day list counts the same rows: "3 sets", done.
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
+  const row = page.getByTestId('row-barbell-back-squat');
+  await expect(row).toContainText('3 sets × 8 to 12');
+  await expect(row).toHaveAttribute('data-state', 'done');
+  await navIdle(page);
+  // Finish: the squat is finished, nothing says "of 4".
+  await page.getByRole('button', { name: 'Finish', exact: true }).tap();
+  await expect(page).toHaveURL(/\/done$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^1 of 12 exercises finished/);
+  await expect(page.getByTestId('finish-sets-left')).toHaveCount(0);
+  await expect(page.getByTestId('finish-title')).toHaveText('Workout saved · 3 sets');
+  expect((await dbAll<{ rowAdjust?: Record<string, number> }>(page, 'sessions'))[0]?.rowAdjust).toEqual({ 'barbell-back-squat': -1 });
+  expect(errors).toEqual([]);
+});
+
+test('a pair says so before any check (round 2, P9) @matrix', async ({ page }) => {
+  await usePlan(page);
+  await page.getByRole('button', { name: 'Change day' }).tap();
+  await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 2 · Chest and triceps/ }).tap();
+  await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await page.getByTestId('row-barbell-incline-bench-press').tap();
+  const first = exerciseView(page, 'barbell-incline-bench-press');
+  await expect(first.getByTestId('pair-line')).toHaveText('Pair · 1 of 2');
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
+  await page.getByTestId('row-incline-plate-press').tap();
+  await expect(exerciseView(page, 'incline-plate-press').getByTestId('pair-line')).toHaveText('Pair · 2 of 2');
 });

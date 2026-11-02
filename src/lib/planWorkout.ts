@@ -272,6 +272,26 @@ export function upNext(entries: WorkoutEntry[], done: DoneCounts, lastLogged?: s
   return firstOpen(entries, done);
 }
 
+/** "4 sets × 8 to 12" with another set count: "3 sets × 8 to 12" (rounds and holds alike). */
+function recount(text: string, n: number): string {
+  return text.replace(/^\d+ (sets?|rounds?)\b/, (_, w: string) => `${n} ${w.startsWith('round') ? (n === 1 ? 'round' : 'rounds') : n === 1 ? 'set' : 'sets'}`);
+}
+
+/**
+ * PLAN 2.2d round 2: the one place the session's row count is applied. Rows added (+ Add set) or
+ * removed (Remove set) per exercise change its sets and its "N sets × …" lines, so the day list, the
+ * done ring, the set line, the finish lines and the 60% rule all count the same rows. Never below 0.
+ */
+export function adjustEntries<E extends Pick<WorkoutEntry, 'exerciseId' | 'sets' | 'setsText' | 'line'>>(entries: readonly E[], adjust: Readonly<Record<string, number>> | undefined): E[] {
+  if (!adjust) return [...entries];
+  return entries.map((e) => {
+    const by = adjust[e.exerciseId] ?? 0;
+    if (!by) return e;
+    const sets = Math.max(0, e.sets + by);
+    return { ...e, sets, setsText: recount(e.setsText, sets), line: recount(e.line, sets) };
+  });
+}
+
 /** How much of a plan day a finished workout covered (Today's week strip, the finish screen). */
 export type DayProgress = { done: number; total: number; share: number; complete: boolean };
 

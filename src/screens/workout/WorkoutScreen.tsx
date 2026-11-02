@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
-import { addExtraSet, extraSets, removeExtraSet } from '../../lib/extraSets';
+import { extraSets, markDeleted } from '../../lib/extraSets';
 import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
@@ -367,36 +367,12 @@ export function WorkoutScreen() {
       return next;
     });
 
-  /**
-   * PLAN 2.2d: rows removed with their logged set (swipe or Remove set), by set id. The exercise has
-   * one row fewer while the set is deleted; Undo puts the row back with the set.
-   */
-  const droppedRows = useRef(new Map<string, string>());
-  const dropRow = (set: WorkoutSet) => {
-    // Only a set that used up a planned row frees one (a warm up on a normal lift never did, 1.7j).
-    if (!countsToward(w.entryOf(set.exerciseId), set.kind)) return;
-    removeExtraSet(sessionId, set.exerciseId);
-    droppedRows.current.set(set.id, set.exerciseId);
-    w.bump();
-  };
-  const keepRow = (id: string) => {
-    const ex = droppedRows.current.get(id);
-    if (!ex) return;
-    droppedRows.current.delete(id);
-    addExtraSet(sessionId, ex);
-    w.bump();
-  };
-
   /** Undo, and Try again after a failed Undo: writes back that exact record (same id and order). */
   const restore = (set: WorkoutSet) => {
     if (finishing.current) return;
     setToast(null);
     deletes.undo(set.id).then(
-      (item) => {
-        if (!item) return;
-        keepRow(set.id);
-        unhide(set.id);
-      },
+      (item) => item && unhide(set.id),
       (err: unknown) =>
         setToast(
           err instanceof WorkoutFinishedError
@@ -412,8 +388,11 @@ export function WorkoutScreen() {
   const onDelete = async (set: WorkoutSet, removeRow = false): Promise<void> => {
     if (finishing.current) return;
     setEditing(null);
+    // PLAN 2.2d round 2: whether its row goes with it is stored with this delete (durably), and holds
+    // only while the set is deleted: every Undo path (here, recovery after a restart, Finish's retry)
+    // brings the row back with the set. A warm up on a normal lift never used a planned row (1.7j).
+    markDeleted(sessionId, set.id, removeRow && countsToward(w.entryOf(set.exerciseId), set.kind) ? set.exerciseId : null);
     setHidden((h) => new Set(h).add(set.id));
-    if (removeRow) dropRow(set);
     const shown = toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) });
     setToast(shown);
     await deletes
@@ -424,7 +403,6 @@ export function WorkoutScreen() {
       })
       .catch((err: unknown) => {
         if (deletes.canUndo(set.id)) return; // an Undo already put it back
-        keepRow(set.id);
         unhide(set.id);
         // Finished meanwhile (another tab, PLAN 2.0e): nothing was deleted, and there is nothing to retry.
         if (err instanceof WorkoutFinishedError) return notice('That workout is already finished');
@@ -450,6 +428,8 @@ export function WorkoutScreen() {
     const ids = w.session?.exerciseIds ?? [];
     try {
       if (a === 'remove') {
+        const own = w.setsOfExercise(id);
+        if (own.length) return void removeWithSets(id, own);
         const at = await removeExercise(sessionId, id);
         justAdded.current.delete(id);
         if (routeRef.current === id) goList();
@@ -469,6 +449,56 @@ export function WorkoutScreen() {
       if (next) await setExerciseOrder(sessionId, next);
     } catch {
       notice('Could not change that. Try again.');
+    }
+  };
+
+  /**
+   * PLAN 2.2d P2 (SPEC 13.1: Undo, never a refusal): an exercise with logged sets is removed with
+   * them. Each set goes through the workout's transactional delete (its tombstone and token, so an
+   * Undo survives a kill), then the exercise leaves the list; Undo puts the exercise back at its
+   * place and every set back exactly (same ids and order). Anything failing midway is put back.
+   */
+  const removeWithSets = async (id: string, own: WorkoutSet[]) => {
+    if (finishing.current) return;
+    const ids = own.map((x) => x.id);
+    const unhideAll = () =>
+      setHidden((h) => {
+        const next = new Set(h);
+        for (const x of ids) next.delete(x);
+        return next;
+      });
+    for (const x of own) markDeleted(sessionId, x.id, null);
+    setHidden((h) => new Set([...h, ...ids]));
+    const gone: WorkoutSet[] = [];
+    try {
+      for (const x of own) {
+        await deletes.remove(x);
+        gone.push(x);
+      }
+      const at = await removeExercise(sessionId, id);
+      justAdded.current.delete(id);
+      if (routeRef.current === id) goList();
+      const n = gone.length;
+      const shown = toastOf(`${w.nameOf(id)} removed · ${n} ${n === 1 ? 'set' : 'sets'}`, {
+        label: 'Undo',
+        onPress: () => {
+          setToast((cur) => (cur?.id === shown.id ? null : cur));
+          void (async () => {
+            try {
+              await restoreExercise(sessionId, id, at);
+              for (const x of gone) await deletes.undo(x.id);
+              unhideAll();
+            } catch {
+              notice('Could not put it back');
+            }
+          })();
+        },
+      });
+      setToast(shown);
+    } catch (err) {
+      for (const x of gone) await deletes.undo(x.id).catch(() => undefined);
+      unhideAll();
+      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not remove that. Try again.');
     }
   };
 
@@ -600,6 +630,25 @@ export function WorkoutScreen() {
 
   const now = useNow(1000);
 
+  // The stats line drops the words "Total lifted" when the full line would wrap (round 2, P5).
+  const statsRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [tight, setTight] = useState(false);
+  useLayoutEffect(() => {
+    const box = statsRef.current;
+    const m = measureRef.current;
+    if (!box || !m || typeof ResizeObserver === 'undefined') return;
+    const fit = () => {
+      const room = box.clientWidth - (parseFloat(getComputedStyle(box).paddingLeft) || 0);
+      setTight(m.scrollWidth > room + 0.5);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(box);
+    ro.observe(m);
+    return () => ro.disconnect();
+  }, [w.ready]);
+
   // Home only when a read that worked says the workout is gone, never after a failed read.
   if (w.sessionMissing && !finishing.current) {
     return <Navigate to="/" replace />;
@@ -659,7 +708,7 @@ export function WorkoutScreen() {
             <ChevronDown strokeWidth={2.4} />
           </IconButton>
         )}
-        <div className={styles.stats}>
+        <div className={styles.stats} ref={statsRef}>
           <span className={`${styles.clock} num`} data-testid="elapsed" role="timer" aria-live="off">
             {startedAt ? formatElapsed((now - startedAt) / 1000) : w.error ? '' : '0:00'}
           </span>
@@ -668,9 +717,23 @@ export function WorkoutScreen() {
             {w.error ? null : (
               <>
                 <Odometer value={w.sets.length} /> {w.sets.length === 1 ? 'set' : 'sets'}
-                {lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}
+                {lifted > 0 ? (
+                  <>
+                    {' · '}
+                    {/* Large text on a narrow phone: "1 set · 1,080 lb", one line (round 2, P5). */}
+                    {!tight && 'Total lifted '}
+                    {tight && <span className={styles.srOnly}>Total lifted </span>}
+                    {formatTotal(lifted, unit)}
+                  </>
+                ) : (
+                  ''
+                )}
               </>
             )}
+          </span>
+          {/* The full line as plain text, unseen: does it fit on one line? */}
+          <span ref={measureRef} className={`${styles.statLine} ${styles.statMeasure} num`} aria-hidden="true">
+            {`${w.sets.length} ${w.sets.length === 1 ? 'set' : 'sets'}${lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}`}
           </span>
         </div>
         <button type="button" className={`${styles.finish} pressable`} onClick={() => finish()}>
@@ -834,7 +897,7 @@ export function WorkoutScreen() {
         canUp={!!menuId && moveInOrder(ids, menuId, -1, w.entryOf) !== null}
         canDown={!!menuId && moveInOrder(ids, menuId, 1, w.entryOf) !== null}
         moveNote={menuEntry?.kind === 'pair' ? 'A pair moves together' : undefined}
-        removeNote={menuId && w.setsOfExercise(menuId).length > 0 ? 'Delete its sets first' : undefined}
+        removeNote={menuId && w.setsOfExercise(menuId).length > 0 ? `With its ${w.setsOfExercise(menuId).length} ${w.setsOfExercise(menuId).length === 1 ? 'set' : 'sets'}, Undo puts them back` : undefined}
         rest={menuId ? w.restTimeOf(menuId) : 90}
         restOff={menuId ? w.restOffOf(menuId) : false}
         note={(menuId && w.noteOf(menuId)) || ''}

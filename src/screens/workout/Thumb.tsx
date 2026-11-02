@@ -1,4 +1,7 @@
 import type { Load } from '../../db/types';
+import type { DemoImages } from '../../lib/exerciseInfo';
+import { assetUrl } from '../../data/exerciseInfo';
+import { useDemoPhotos } from '../../hooks/usePhotos';
 import styles from './Thumb.module.css';
 
 type Props = {
@@ -8,6 +11,11 @@ type Props = {
   size?: 'row' | 'hero';
   /** View transition name: the tile that grows into (or back from) the exercise hero. */
   vtName?: string;
+  /**
+   * The exercise's sure demo (PLAN 2.2d round 2, critic B1): the tile shows its start photo, the
+   * same picture the hero shows, so the shared transition moves a photo into a photo.
+   */
+  photo?: DemoImages | null;
 };
 
 const initials = (name: string) =>
@@ -23,10 +31,27 @@ const initials = (name: string) =>
  * wrong picture is the worst bug (SPEC 4.3). So: a calm tile with the equipment it is done with,
  * which the load type makes certain, or the exercise's initials when that is not known.
  */
-export function Thumb({ name, loadType, size = 'row', vtName }: Props) {
+export function Thumb({ name, loadType, size = 'row', vtName, photo }: Props) {
+  const photos = useDemoPhotos(photo ?? null);
+  // Online the WebP (the hero's own picture, so it is already decoded when the hero shows), offline
+  // only a kept copy; none kept: the drawing, never a broken picture.
+  const src = !photo ? null : photos.kind === 'net' ? assetUrl(photo.webp[0]!) : photos.kind === 'cache' ? photos.urls[0] : null;
   return (
-    <span className={styles.tile} data-size={size} aria-hidden="true" data-testid="thumb" style={vtName ? { viewTransitionName: vtName } : undefined}>
-      {loadType ? <Glyph kind={loadType} /> : <span className={styles.letters}>{initials(name)}</span>}
+    <span
+      className={styles.tile}
+      data-size={size}
+      data-photo={src ? '' : undefined}
+      aria-hidden="true"
+      data-testid="thumb"
+      style={vtName ? { viewTransitionName: vtName } : undefined}
+    >
+      {src ? (
+        <img className={styles.photo} src={src} alt="" decoding="async" draggable={false} />
+      ) : loadType ? (
+        <Glyph kind={loadType} />
+      ) : (
+        <span className={styles.letters}>{initials(name)}</span>
+      )}
     </span>
   );
 }

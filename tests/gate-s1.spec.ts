@@ -108,7 +108,9 @@ test('set type sheet: four plain choices with ⓘ, the row shows a word chip, st
   await expect(type).toHaveText('1');
   await type.tap();
   const sheet = page.getByRole('dialog', { name: 'Set type' });
-  await expect(sheet.getByRole('heading', { name: 'Set type' })).toBeVisible();
+  // PLAN 2.2d round 2 (P1): the sheet is titled after the set, its types one labelled group.
+  await expect(sheet.getByRole('heading', { name: 'Set 1' })).toBeVisible();
+  await expect(sheet.getByRole('radiogroup', { name: 'Set type' })).toBeVisible();
   await expect(sheet.getByRole('radio')).toHaveText([
     'NormalA regular set. It counts toward beating last time.',
     'Warm upLighter, to get ready. It never counts toward progress.',

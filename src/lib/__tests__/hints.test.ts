@@ -24,6 +24,8 @@ describe('hint store', () => {
       wheel: 'Spin to pick your dumbbells',
       stack: 'Tap the pin to pick the weight',
       setCard: 'Tap the check when you finish a set',
+      // PLAN 2.2d round 2 (P1): once, after the first logged set.
+      swipeSet: 'Swipe a set left to delete it',
     });
   });
 

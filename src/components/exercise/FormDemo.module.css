@@ -1,7 +1,7 @@
 /* Form demo (SPEC 4.4): a fixed 3:2 box (no layout shift), two stacked photos, CSS crossfade.
    One cycle is 3.1 s: start 1.2 s, fade 0.35 s, end 1.2 s, fade 0.35 s. */
 .wrap {
-  --demo-cycle: 3.1s;
+  --demo-cycle: 3s;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -22,7 +22,7 @@
 }
 
 .tile {
-  --demo-cycle: 3.1s;
+  --demo-cycle: 3s;
   position: relative;
   flex: none;
   display: block;
@@ -57,13 +57,14 @@
   animation: demo-end var(--demo-cycle) ease-in-out infinite;
 }
 
+/* 1.35 s each photo, a 0.15 s fade between (round 2 P4: no double exposure in a still). */
 @keyframes demo-end {
   0%,
-  38.71% {
+  45% {
     opacity: 0;
   }
   50%,
-  88.71% {
+  95% {
     opacity: 1;
   }
   100% {
@@ -105,7 +106,7 @@
 
 /* The workout hero (PLAN 2.2b): fills the box it is given; a slower, calmer loop like a gif. */
 .hero {
-  --demo-cycle: 3.1s;
+  --demo-cycle: 3s;
   position: absolute;
   inset: 0;
   display: block;
@@ -123,13 +124,19 @@
 
 /* The sharp photo is its own 3:2 box, centered, and melts into the blurred bands at its sides
    (with --seam set by the page): no hard seams. */
-.hero .frame {
-  inset: 0 auto;
+/* The sharp photo's own 3:2 box, centered (the shared element, PLAN 2.2d round 2). */
+.heroPhoto {
+  position: absolute;
+  top: 0;
   left: 50%;
   height: 100%;
   aspect-ratio: 3 / 2;
   max-width: 100%;
   transform: translateX(-50%);
+}
+
+.hero .frame {
+  inset: 0;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--seam, 0px), #000 calc(100% - var(--seam, 0px)), transparent);
   mask-image: linear-gradient(to right, transparent, #000 var(--seam, 0px), #000 calc(100% - var(--seam, 0px)), transparent);
 }

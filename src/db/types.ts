@@ -131,6 +131,12 @@ export type Session = {
   exerciseIds?: string[];
   /** weekly_table plans: the 0 based week this day was started in, so a reload shows the same targets. */
   weekIndex?: number;
+  /**
+   * PLAN 2.2d round 2: rows added (+) or removed (−) per exercise, as the workout ended (Finish), so
+   * the finish lines, the finished count and the plan's 60% rule use the rows the lifter really had.
+   * Additive, not indexed; missing = the plan's sets.
+   */
+  rowAdjust?: Record<string, number>;
 };
 
 /** Where the user is in their curated plan (PLAN 1.10). One row with id 'active'. */

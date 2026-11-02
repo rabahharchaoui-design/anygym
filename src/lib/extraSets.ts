@@ -10,7 +10,13 @@ const KEY = EXTRA_SETS_KEY;
 export const MAX_EXTRA_SETS = 100;
 
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-type Stored = { sessionId: string; extra: Record<string, number> };
+/**
+ * `dropped` (PLAN 2.2d round 2): logged sets removed together with their row (swipe or Remove set),
+ * set id → exercise id. Such a row stays removed only while its set is deleted, so every way the set
+ * comes back (the toast's Undo, recovery after a restart, Finish's retry) brings the row back too,
+ * exactly once, with nothing to undo here.
+ */
+type Stored = { sessionId: string; extra: Record<string, number>; dropped?: Record<string, string> };
 
 const storage = (): KV | null => {
   try {
@@ -75,12 +81,18 @@ function changeExtraSets(sessionId: string, exerciseId: string, by: 1 | -1, kv: 
   const n = Math.max(-MAX_EXTRA_SETS, Math.min(MAX_EXTRA_SETS, extraSets(sessionId, exerciseId, kv) + by));
   if (n === 0) delete extra[exerciseId];
   else extra[exerciseId] = n;
-  memory = { sessionId, extra };
+  store({ sessionId, extra, ...(s?.sessionId === sessionId && s.dropped ? { dropped: s.dropped } : {}) }, kv);
+  return n;
+}
+
+function store(next: Stored, kv: KV | null): void {
+  if (next.dropped && Object.keys(next.dropped).length === 0) delete next.dropped;
+  memory = next;
   cleared = false;
   const value = JSON.stringify(memory);
   if (!kv) {
     storeWithoutLocalStorage(value);
-    return n;
+    return;
   }
   try {
     kv?.setItem(KEY, value);
@@ -89,7 +101,50 @@ function changeExtraSets(sessionId: string, exerciseId: string, by: 1 | -1, kv: 
     // Memory keeps it for this run; IndexedDB keeps it for the next one.
     void mirrorValue(kv, KEY, value);
   }
-  return n;
+}
+
+/**
+ * The latest delete of a logged set (PLAN 2.2d round 2): `exerciseId` when its row goes with it (a
+ * swipe or Remove set), null when only the set goes (Edit set → Delete). Every delete rewrites it, so
+ * the record is always about the set's current deletion.
+ */
+export function markDeleted(sessionId: string, setId: string, exerciseId: string | null, kv: KV | null = storage()): void {
+  const s = read(kv);
+  const same = s?.sessionId === sessionId;
+  const dropped = { ...(same ? s.dropped : undefined) };
+  if (exerciseId === null && !(setId in dropped)) return;
+  if (exerciseId === null) delete dropped[setId];
+  else dropped[setId] = exerciseId;
+  store({ sessionId, extra: same ? { ...s.extra } : {}, dropped }, kv);
+}
+
+/**
+ * Rows added or removed per exercise for this workout, from a stored value (anygym-extra-sets):
+ * the + Add set and Remove set count, less one for each removed logged set that is still deleted
+ * (`present`: the ids of the workout's sets as they are now). Used live and by Finish.
+ */
+export function rowAdjustments(value: string | null, sessionId: string, present: ReadonlySet<string>): Record<string, number> {
+  let v: Stored | null = null;
+  try {
+    v = JSON.parse(value ?? 'null') as Stored | null;
+  } catch {
+    v = null;
+  }
+  const out: Record<string, number> = {};
+  if (!v || v.sessionId !== sessionId || !v.extra || typeof v.extra !== 'object') return out;
+  for (const [id, n] of Object.entries(v.extra)) if (Number.isInteger(n) && n !== 0) out[id] = Math.max(-MAX_EXTRA_SETS, Math.min(MAX_EXTRA_SETS, n));
+  for (const [setId, ex] of Object.entries(v.dropped ?? {})) {
+    if (typeof ex !== 'string' || present.has(setId)) continue;
+    out[ex] = (out[ex] ?? 0) - 1;
+  }
+  for (const k of Object.keys(out)) if (out[k] === 0) delete out[k];
+  return out;
+}
+
+/** This workout's row adjustments right now (see rowAdjustments). */
+export function liveRowAdjustments(sessionId: string, present: ReadonlySet<string>, kv: KV | null = storage()): Record<string, number> {
+  const s = read(kv);
+  return s ? rowAdjustments(JSON.stringify(s), sessionId, present) : {};
 }
 
 export function clearExtraSets(kv: KV | null = storage()): void {
@@ -130,7 +185,7 @@ export function hydrateExtraSets(value: string | null): void {
 /** This workout's added rows as stored (the anygym-extra-sets value), or null when it has none (PLAN 2.0c). */
 export function extraSetsValue(sessionId: string, kv: KV | null = storage()): string | null {
   const s = read(kv);
-  return s && s.sessionId === sessionId && Object.keys(s.extra).length ? JSON.stringify(s) : null;
+  return s && s.sessionId === sessionId && (Object.keys(s.extra).length || Object.keys(s.dropped ?? {}).length) ? JSON.stringify(s) : null;
 }
 
 /** Puts back added rows kept by a Finish that was undone (PLAN 2.0c, lib/finishPending.ts). */

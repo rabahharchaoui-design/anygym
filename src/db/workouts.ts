@@ -1,7 +1,8 @@
 // Quick workout sessions and their sets (PLAN 1.7, SPEC 2, 5.1). Every write is transactional.
 import { planById } from '../data/plans';
 import { dayIdOf, dayIndexOf } from '../lib/plans';
-import { dayProgress, dayWorkout, doneCounts, type DayProgress } from '../lib/planWorkout';
+import { adjustEntries, dayProgress, dayWorkout, doneCounts, type DayProgress } from '../lib/planWorkout';
+import { rowAdjustments } from '../lib/extraSets';
 import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
 import { applyFinishProgress, weekFor } from './planState';
@@ -345,11 +346,12 @@ export async function setsOf(sessionId: string, db: AnyGymDB = defaultDb): Promi
 }
 
 /** How much of its plan day a session covered, or undefined for a quick workout or unknown day. */
-async function planProgress(s: Session, db: AnyGymDB): Promise<DayProgress | undefined> {
+async function planProgress(s: Session, db: AnyGymDB, adjust: Session['rowAdjust'] = s.rowAdjust): Promise<DayProgress | undefined> {
   const plan = planById(s.planId);
   const i = plan ? dayIndexOf(plan, s.dayId) : -1;
   if (!plan || i < 0) return undefined;
-  const entries = dayWorkout(plan, i, s.weekIndex ?? 0);
+  // The rows the lifter really had (PLAN 2.2d round 2: + Add set and Remove set count).
+  const entries = adjustEntries(dayWorkout(plan, i, s.weekIndex ?? 0), adjust);
   const done = doneCounts(entries, await db.sets.where('sessionId').equals(s.id).toArray());
   return dayProgress(entries, (id) => done[id] ?? 0);
 }
@@ -471,7 +473,10 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       await db.kv.where('key').startsWith(`${MUTATION_DONE_PREFIX}${sessionId}:`).delete();
       return { saved: false };
     }
-    const progress = await planProgress(s, db);
+    // The rows added or removed by hand, as the workout ends (from the kept extra sets value and
+    // the sets as saved here), stored on the session for the finish screen (PLAN 2.2d round 2).
+    const adjust = s.endedAt === undefined && pending ? rowAdjustments(pending.extra, sessionId, new Set((await db.sets.where('sessionId').equals(sessionId).primaryKeys()) as string[])) : s.rowAdjust;
+    const progress = await planProgress(s, db, adjust);
     if (s.endedAt === undefined) {
       // Where the plan stood just before this Finish, read and kept in the same transaction, so
       // "Workout saved · Undo" puts it back exactly, however the finish screen was reached (a
@@ -482,7 +487,10 @@ export async function finishWorkout(sessionId: string, db: AnyGymDB = defaultDb,
       if (before) await db.kv.put({ key: FINISH_PLAN_PREFIX + sessionId, value: JSON.stringify(before), at: now });
       // The pending and added rows go with the plan state, so Undo restores the tables exactly (PLAN 2.0c).
       if (pending && (pending.drafts !== null || pending.extra !== null || (pending.rest ?? null) !== null)) await db.kv.put({ key: FINISH_PENDING_PREFIX + sessionId, value: JSON.stringify(pending), at: now });
-      await db.sessions.put({ ...s, endedAt: now });
+      const ended: Session = { ...s, endedAt: now };
+      if (adjust && Object.keys(adjust).length) ended.rowAdjust = { ...adjust };
+      else delete ended.rowAdjust;
+      await db.sessions.put(ended);
       // 60% or more of the day's working sets moves the plan on, less keeps the day (PLAN 2.0a).
       // Only here, as the workout ends: finishing again never moves it twice.
       await applyFinishProgress(s, progress, db);

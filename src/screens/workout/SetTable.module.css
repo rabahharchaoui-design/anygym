@@ -80,6 +80,27 @@
   position: relative;
   border-radius: 14px;
   overflow: hidden;
+  transition:
+    scale 200ms var(--ease-out),
+    opacity 200ms var(--ease-out);
+}
+
+/* Holding a row for its menu: it gives a little and dims (critic P8). */
+.swipe[data-pressing] {
+  scale: 0.98;
+  opacity: 0.72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe[data-pressing] {
+    scale: none;
+  }
+}
+
+.swipeLabel {
+  display: inline-block;
+  white-space: nowrap;
+  transition: opacity 120ms ease-out;
 }
 
 .swipeDelete {
@@ -88,7 +109,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 14px;
+  padding-right: 16px;
   border-radius: 14px;
   background: var(--red);
   color: #fff;
@@ -530,6 +551,14 @@
   position: relative;
   height: 0;
   z-index: 4;
+}
+
+.swipeHint {
+  top: 2px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  justify-content: center;
 }
 
 .hint {

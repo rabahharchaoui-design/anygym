@@ -6,11 +6,15 @@ import type { Draft } from '../../../lib/drafts';
 import { finishWorkout, logSet, setsOf, startWorkout } from '../../../db/workouts';
 import { pickRest, pickRestOff, saveExerciseRest, saveExerciseRestOff } from '../../../db/exerciseSettings';
 import { choosePlanUndoable, undoChoosePlan } from '../../../db/planState';
-import { addExtraSet, extraSets, removeExtraSet, resetExtraSetsMemory } from '../../../lib/extraSets';
+import { addExtraSet, extraSets, extraSetsValue, markDeleted, removeExtraSet, resetExtraSetsMemory, rowAdjustments } from '../../../lib/extraSets';
 import { buildBackup, parseBackup, RECORD_CHECKS, serializeBackup, type BackupTables } from '../../../lib/backup';
-import { dropSlot, insertSlot } from '../../../lib/setTable';
+import { dropSlot, insertSlot, materializeFrom, pendingRows, type PendingRow } from '../../../lib/setTable';
+import type { Progression } from '../../../lib/progression';
+import { adjustEntries, dayProgress, dayWorkout } from '../../../lib/planWorkout';
+import { PLANS as PLANS_FOR_TEST } from '../../../data/plans';
+import { rememberUndo } from '../../../db/undoIntents';
 import { barbellLoad, totalLifted } from '../../../lib/load';
-import { deletesFor, disposeDeletes } from '../sessionRecovery';
+import { deletesFor, disposeDeletes, ownedDeletes } from '../sessionRecovery';
 
 // PLAN 2.2d: rest timer Off per exercise, Remove set (rows and logged sets), Plan saved with Undo.
 
@@ -75,8 +79,8 @@ describe('Remove set on a row still to do', () => {
     expect(insertSlot(dropped, 2, slots[2]!)).toEqual(slots);
     // An untouched row (no draft) comes back as one.
     expect(insertSlot(dropSlot(slots, 1), 1, null)).toEqual(slots);
-    // Past the end (rows logged meanwhile): it goes last.
-    expect(insertSlot([d('a')], 5, d('z')).map((x) => x?.id)).toEqual(['a', 'z']);
+    // Past the stored end (storage drops trailing empty slots): padded, never moved up (Codex 2.2d #1).
+    expect(insertSlot([d('a')], 3, d('z')).map((x) => x?.id ?? null)).toEqual(['a', null, null, 'z']);
   });
 
   it('counts one row fewer per exercise (signed), and Undo counts it back to none', () => {
@@ -175,5 +179,108 @@ describe('Use this plan: Plan saved, with Undo', () => {
     await db.planState.put({ ...first.state, nextDayIndex: 1, doneDays: [0] });
     expect(await undoChoosePlan(first.state, first.previous, db)).toBe(false);
     expect((await db.planState.get('active'))?.doneDays).toEqual([0]);
+  });
+});
+
+// ---------------------------------------------------------------- round 2 (Codex 2.2d, critic B2)
+
+const b100 = barbellLoad(45, [25, 2.5], 'none', 'lb')!;
+const row = (index: number, reps: number): PendingRow => ({ index, load: b100, plates: [25, 2.5], type: 'normal', edited: false, reps });
+
+describe('Codex 2.2d #1: Undo of the last row when the rows above have no drafts', () => {
+  it('puts the draft back at its own slot, never on the first row', () => {
+    const rows = [row(0, 10), row(1, 10), row(2, 7)];
+    const kept: Draft = { id: 'last', load: b100, plates: [25, 2.5], type: 'normal', reps: 7, own: { reps: true } };
+    // The edited last row is the only draft; its two rows above show their targets.
+    const before: Array<Draft | null> = [null, null, kept];
+    const shown = materializeFrom(before, rows, 2, (r) => r.index, () => 'new');
+    expect(shown[2]).toBe(kept);
+    // Storage drops the trailing empty slots after the remove.
+    const stored = dropSlot(shown, 2).filter((_, j, a) => a.slice(j).some(Boolean));
+    expect(stored).toEqual([]);
+    const back = insertSlot(stored, 2, kept);
+    expect(back).toEqual([null, null, kept]);
+  });
+});
+
+describe('Codex 2.2d #2: removing a row keeps every other row as shown', () => {
+  it('with different targets per set, removing set 1 keeps sets 2 and 3 exactly', () => {
+    const progression = { perSet: [{ target: { reps: 10, load: b100 } }, { target: { reps: 8, load: b100 } }, { target: { reps: 6, load: b100 } }], next: { load: b100 } } as unknown as Progression;
+    const build = (slots: Array<Draft | null>, count: number) =>
+      pendingRows({ count, logged: [], progression, draftOf: (i) => slots[i] ?? null, rebuild: (l) => l, carry: () => null, certain: null, defaultType: 'normal' });
+    const rows = build([], 3);
+    expect(rows.map((r) => r.reps)).toEqual([10, 8, 6]);
+    let id = 0;
+    const shown = materializeFrom([], rows, 0, (r) => r.index, () => `d${id++}`);
+    const after = dropSlot(shown, 0);
+    expect(build(after, 2).map((r) => r.reps)).toEqual([8, 6]);
+    // Undo: the same three rows again.
+    expect(build(insertSlot(after, 0, shown[0]!), 3).map((r) => r.reps)).toEqual([10, 8, 6]);
+  });
+});
+
+describe('Codex 2.2d #3: a logged set removed with its row, restored after a restart', () => {
+  it('the row comes back with the set on every path, exactly once (here Finish after a restart)', async () => {
+    const kv = memoryKv();
+    const s = await startWorkout('g', db, 1);
+    await logSet({ id: 'a', sessionId: s.id, exerciseId: 'squat', reps: 8, load: b100 }, db);
+    await logSet({ id: 'b', sessionId: s.id, exerciseId: 'squat', reps: 8, load: b100 }, db);
+    const present = async () => new Set((await setsOf(s.id, db)).map((x) => x.id));
+    // Swipe delete of b: its row goes with it.
+    markDeleted(s.id, 'b', 'squat', kv);
+    const deletes = deletesFor(s.id, db);
+    await deletes.remove((await setsOf(s.id, db))[1]!);
+    expect(rowAdjustments(extraSetsValue(s.id, kv), s.id, await present())).toEqual({ squat: -1 });
+    // The Undo is asked for and stored, then the app is killed before it lands.
+    const token = ownedDeletes(s.id).get('b');
+    await rememberUndo(s.id, 'b', db, null, token);
+    disposeDeletes(s.id);
+    resetExtraSetsMemory();
+    // After the restart the stored value still says the row went with b...
+    const value = extraSetsValue(s.id, kv);
+    expect(JSON.parse(value!).dropped).toEqual({ b: 'squat' });
+    // ...and Finish lands the Undo: b is back, so its row is too (no row lost).
+    await finishWorkout(s.id, db, 99, { drafts: null, extra: value, rest: null });
+    expect((await setsOf(s.id, db)).map((x) => x.id)).toEqual(['a', 'b']);
+    expect((await db.sessions.get(s.id))?.rowAdjust).toBeUndefined();
+  });
+
+  it('left deleted, the row stays removed and Finish keeps that on the session', async () => {
+    const kv = memoryKv();
+    const s = await startWorkout('g', db, 1);
+    await logSet({ id: 'a', sessionId: s.id, exerciseId: 'squat', reps: 8, load: b100 }, db);
+    await logSet({ id: 'k', sessionId: s.id, exerciseId: 'bench', reps: 8, load: b100 }, db);
+    markDeleted(s.id, 'a', 'squat', kv);
+    const deletes = deletesFor(s.id, db);
+    await deletes.remove((await setsOf(s.id, db))[0]!);
+    await deletes.close();
+    addExtraSet(s.id, 'bench', kv);
+    await finishWorkout(s.id, db, 99, { drafts: null, extra: extraSetsValue(s.id, kv), rest: null });
+    expect((await db.sessions.get(s.id))?.rowAdjust).toEqual({ squat: -1, bench: 1 });
+    disposeDeletes(s.id);
+  });
+
+  it('a later delete without the row (Edit set → Delete) clears the mark', () => {
+    const kv = memoryKv();
+    markDeleted('s', 'x', 'squat', kv);
+    markDeleted('s', 'x', null, kv);
+    expect(rowAdjustments(extraSetsValue('s', kv), 's', new Set())).toEqual({});
+  });
+});
+
+describe('critic B2: one set count for every surface', () => {
+  it('the day list line, the done ring total and the 60% share use the rows after Remove set', () => {
+    const plan = (PLANS_FOR_TEST.find((p) => p.id === 'five-day-split'))!;
+    const day = dayWorkout(plan, 0, 0);
+    const squat = day.find((e) => e.exerciseId === 'barbell-back-squat')!;
+    expect(squat.setsText).toBe('4 sets × 8 to 12');
+    const [adj] = adjustEntries([squat], { 'barbell-back-squat': -1 });
+    expect(adj!.sets).toBe(3);
+    expect(adj!.setsText).toBe('3 sets × 8 to 12');
+    expect(adj!.line.startsWith('3 sets × 8 to 12')).toBe(true);
+    // 3 logged of 3 rows: that exercise is finished.
+    const p = dayProgress(adjustEntries(day, { 'barbell-back-squat': -1 }), (id) => (id === 'barbell-back-squat' ? 3 : 0));
+    expect(p.done).toBe(1);
+    expect(adjustEntries([{ ...squat, sets: 1 }], { 'barbell-back-squat': 1 })[0]!.setsText).toBe('2 sets × 8 to 12');
   });
 });

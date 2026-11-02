@@ -70,6 +70,8 @@ type Props = {
   onRemoveLogged?: (set: WorkoutSet) => void;
   /** False while rows cannot be removed (Finish started). */
   removable?: boolean;
+  /** A row's data identity (its draft id when it has one): a row back from Undo opens up again. */
+  keyOf?: (row: PendingRow) => string;
 };
 
 /** Words ("Just you", "40 + bar") wrap onto two short lines in the cell; numbers roll (PLAN 2.2b). */
@@ -169,6 +171,7 @@ const LoggedRow = memo(
     return (
       <li data-testid="set-row" data-set-id={s.id}>
         <SwipeRow
+          rowKey={s.id}
           deleteLabel={`Delete set ${number}`}
           onDelete={() => api.removeLogged(s)}
           onLongPress={() => api.loggedType(s)}
@@ -217,6 +220,8 @@ type TodoProps = Shared & {
   groupMark: boolean;
   /** Its ✓ was tapped at this time and the write is running: shown checked already. */
   sendingAt?: number;
+  /** Its data identity (draft id, else its position). */
+  rowKey: string;
   sig: string;
 };
 
@@ -236,6 +241,7 @@ const TodoRow = memo(
     return (
       <li className={styles.rowGroup} data-current-group={p.groupMark || undefined}>
         <SwipeRow
+          rowKey={p.rowKey}
           deleteLabel={`Delete set ${number}`}
           onDelete={() => api.remove(r)}
           onLongPress={() => api.type(r)}
@@ -417,7 +423,8 @@ export function SetTable(props: Props) {
           const groupMark = editing === null ? isCurrent : editingHere;
           const editingKey = editingHere ? props.editingKey : undefined;
           const sendingAt = props.sending?.get(r.index);
-          const sig = JSON.stringify([r, number, isCurrent, blocked, editingHere, editingKey, liveSeconds, hold, nudge, currentNote, groupMark, kind, unit, removable, sendingAt]);
+          const rowKey = props.keyOf?.(r) ?? `i${r.index}`;
+          const sig = JSON.stringify([r, number, isCurrent, blocked, editingHere, editingKey, liveSeconds, hold, nudge, currentNote, groupMark, kind, unit, removable, sendingAt, rowKey]);
           return (
             <TodoRow
               key={`row-${r.index}`}
@@ -434,6 +441,7 @@ export function SetTable(props: Props) {
               currentNote={currentNote}
               groupMark={groupMark}
               sendingAt={sendingAt}
+              rowKey={rowKey}
               sig={sig}
             />
           );
@@ -442,6 +450,8 @@ export function SetTable(props: Props) {
       {/* The tip slot under the rows (PLAN 2.2b): a blocked ✓'s reason floats here, pointing up at
           the ✓ column. Absolute, so nothing moves, and never over a number or a column header. */}
       <div className={styles.tipSlot}>
+        {/* Once, with a logged set on screen and no other tip (PLAN 2.2d P1). */}
+        {logged.length > 0 && !props.checkHint && !props.nudge && <Hint id="swipeSet" className={styles.swipeHint} point="up" compact />}
         {props.nudge && (
           <span key={props.nudge.n} className={styles.nudge} role="status" data-testid="check-why">
             {props.nudge.text}

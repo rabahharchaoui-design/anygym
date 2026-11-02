@@ -3,6 +3,7 @@ import { GymPill } from '../../components/GymPill';
 import type { WorkoutEntry } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
 import { Thumb } from './Thumb';
+import { infoForPlan } from '../../data/exerciseInfo';
 import { Ring } from '../../ui/Ring';
 import { Button } from '../../ui/Button';
 import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon } from '../../ui/icons';
@@ -92,7 +93,7 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
             onOpen(e.exerciseId);
           }}
         >
-          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} vtName={e.exerciseId === heroId ? 'ex-hero' : undefined} />
+          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} photo={infoForPlan(e.exerciseId).demo} vtName={e.exerciseId === heroId ? 'ex-hero' : undefined} />
           <span className={styles.text}>
             <span className={styles.name}>{name}</span>
             {e.setsText && <span className={`${styles.sets} num`}>{e.setsText}</span>}

@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Sheet } from '../../ui/Sheet';
-import { MAX_REST_SEC } from '../../db/exerciseSettings';
-import { RepsStepper } from './RepsStepper';
-import { Switch } from '../../ui/Switch';
-import styles from './Workout.module.css';
+import { useState } from "react";
+import { Sheet } from "../../ui/Sheet";
+import { MAX_REST_SEC } from "../../db/exerciseSettings";
+import { RepsStepper } from "./RepsStepper";
+import { Segmented } from "../../ui/Segmented";
+import styles from "./Workout.module.css";
 
-export type MenuAction = 'up' | 'down' | 'remove' | 'loadType';
+export type MenuAction = "up" | "down" | "remove" | "loadType";
 
 type Props = {
   open: boolean;
@@ -15,7 +15,7 @@ type Props = {
   canDown: boolean;
   /** Why it cannot move, when it cannot (a pair moves together). */
   moveNote?: string;
-  /** Why it cannot be removed (it has logged sets), or undefined. */
+  /** What removing it also removes (its logged sets), or undefined. */
   removeNote?: string;
   rest: number;
   /** Rest timer Off for this exercise (PLAN 2.2d): no countdown after its sets (supersets). */
@@ -33,63 +33,206 @@ type Props = {
  * The exercise ⋯ menu (SPEC 21.1). Replace and Make a pair are left out until they ship: no dead
  * rows (ux-critic, PLAN 1.7e).
  */
-export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, removeNote, rest, restOff, note, loadedWith, onAction, onRest, onRestOff, onNote }: Props) {
-  const [page, setPage] = useState<'menu' | 'rest' | 'note'>('menu');
+export function ExerciseMenu({
+  open,
+  onClose,
+  name,
+  canUp,
+  canDown,
+  moveNote,
+  removeNote,
+  rest,
+  restOff,
+  note,
+  loadedWith,
+  onAction,
+  onRest,
+  onRestOff,
+  onNote,
+}: Props) {
+  const [page, setPage] = useState<"menu" | "rest" | "note">("menu");
   const close = () => {
     onClose();
-    setPage('menu');
+    setPage("menu");
   };
   return (
-    <Sheet open={open} onClose={close} label={page === 'rest' ? 'Rest time' : page === 'note' ? 'Add note' : `${name} options`} scroll>
-      {open && page === 'menu' && (
+    <Sheet
+      open={open}
+      onClose={close}
+      label={
+        page === "rest"
+          ? "Rest after each set"
+          : page === "note"
+            ? "Add note"
+            : `${name} options`
+      }
+      scroll
+    >
+      {open && page === "menu" && (
         <div className={styles.sheetBody}>
           <h2 className={styles.sheetTitle}>{name}</h2>
           <div className={styles.menu}>
-            <MenuItem label={loadedWith ? `Loaded with: ${loadedWith}` : 'How do you load this?'} sub="Change" onPress={() => onAction('loadType')} />
+            <MenuItem
+              label={
+                loadedWith
+                  ? `Loaded with: ${loadedWith}`
+                  : "How do you load this?"
+              }
+              sub="Change"
+              onPress={() => onAction("loadType")}
+            />
             <div className={styles.menuPair}>
-              <MenuItem label="Move up" sub={!canUp ? moveNote : undefined} disabled={!canUp} onPress={() => onAction('up')} />
-              <MenuItem label="Move down" sub={!canDown ? moveNote : undefined} disabled={!canDown} onPress={() => onAction('down')} />
+              <MenuItem
+                label="Move up"
+                sub={!canUp ? moveNote : undefined}
+                disabled={!canUp}
+                onPress={() => onAction("up")}
+              />
+              <MenuItem
+                label="Move down"
+                sub={!canDown ? moveNote : undefined}
+                disabled={!canDown}
+                onPress={() => onAction("down")}
+              />
             </div>
-            <MenuItem label={note ? 'Edit note' : 'Add note'} sub={note || undefined} onPress={() => setPage('note')} />
-            {/* Hevy research item 2 (PLAN 2.2d): Off for supersets and circuits, one tap. */}
-            <div className={styles.menuSwitch} data-testid="rest-switch">
-              <Switch label="Rest timer" hint={restOff ? 'Off. No countdown after a set' : `${rest} s after each set`} checked={!restOff} onChange={(on) => onRestOff(!on)} />
-            </div>
-            {!restOff && <MenuItem label="Rest time" sub={`${rest} s after each set`} onPress={() => setPage('rest')} />}
-            <MenuItem label="Remove" sub={removeNote} disabled={!!removeNote} danger onPress={() => onAction('remove')} />
+            <MenuItem
+              label={note ? "Edit note" : "Add note"}
+              sub={note || undefined}
+              onPress={() => setPage("note")}
+            />
+            {/* One row, one height whatever is chosen (critic B4); Off lives in its picker (Hevy item 2). */}
+            <MenuItem
+              label="Rest after each set"
+              sub={restOff ? "Off: no countdown" : `${rest} s`}
+              chevron
+              onPress={() => setPage("rest")}
+              testId="rest-row"
+            />
+            {/* PLAN 2.2d P2: always possible; with logged sets it says so, and Undo puts them back. */}
+            <MenuItem
+              label="Remove"
+              sub={removeNote}
+              danger
+              onPress={() => onAction("remove")}
+            />
           </div>
         </div>
       )}
-      {open && page === 'rest' && <RestPage rest={rest} onSave={(s) => (onRest(s), close())} />}
-      {open && page === 'note' && <NotePage note={note} onSave={(n) => (onNote(n), close())} />}
+      {open && page === "rest" && (
+        <RestPage
+          rest={rest}
+          off={restOff}
+          onSave={(s, off) => {
+            if (off !== restOff) onRestOff(off);
+            if (!off && s !== rest) onRest(s);
+            close();
+          }}
+        />
+      )}
+      {open && page === "note" && (
+        <NotePage note={note} onSave={(n) => (onNote(n), close())} />
+      )}
     </Sheet>
   );
 }
 
-function MenuItem({ label, sub, disabled, danger, onPress }: { label: string; sub?: string; disabled?: boolean; danger?: boolean; onPress?: () => void }) {
+function MenuItem({
+  label,
+  sub,
+  disabled,
+  danger,
+  chevron,
+  onPress,
+  testId,
+}: {
+  label: string;
+  sub?: string;
+  disabled?: boolean;
+  danger?: boolean;
+  chevron?: boolean;
+  onPress?: () => void;
+  testId?: string;
+}) {
   return (
-    <button type="button" className={`${styles.menuItem} pressable`} data-danger={danger || undefined} disabled={disabled} onClick={onPress}>
+    <button
+      type="button"
+      className={`${styles.menuItem} pressable`}
+      data-danger={danger || undefined}
+      data-chevron={chevron || undefined}
+      disabled={disabled}
+      onClick={onPress}
+      data-testid={testId}
+    >
       <span className={styles.menuLabel}>{label}</span>
       {sub && <span className={styles.menuSub}>{sub}</span>}
     </button>
   );
 }
 
-function RestPage({ rest, onSave }: { rest: number; onSave: (s: number) => void }) {
+/** Rest after each set: On with its time, or Off (supersets, PLAN 2.2d). The page keeps its height either way. */
+function RestPage({
+  rest,
+  off,
+  onSave,
+}: {
+  rest: number;
+  off: boolean;
+  onSave: (s: number, off: boolean) => void;
+}) {
   const [value, setValue] = useState(rest);
+  const [isOff, setOff] = useState(off);
   return (
     <div className={styles.sheetBody}>
-      <h2 className={styles.sheetTitle}>Rest time</h2>
-      <p className={styles.sheetSub}>After each set of this exercise</p>
-      <RepsStepper label="Rest" unit="seconds" value={value} onChange={setValue} min={0} max={MAX_REST_SEC} step={15} />
-      <button type="button" className={`${styles.logButton} pressable`} onClick={() => onSave(value)}>
+      <h2 className={styles.sheetTitle}>Rest after each set</h2>
+      <p className={styles.sheetSub}>
+        Off: no countdown, for back to back moves
+      </p>
+      <div className={styles.restOnOff}>
+        <Segmented
+          label="Rest timer"
+          testId="rest-onoff"
+          options={[
+            { value: "on", label: "On" },
+            { value: "off", label: "Off" },
+          ]}
+          value={isOff ? "off" : "on"}
+          onChange={(v) => setOff(v === "off")}
+        />
+      </div>
+      <div
+        className={styles.restStepper}
+        data-off={isOff || undefined}
+        aria-hidden={isOff || undefined}
+        {...(isOff ? { inert: "" } : {})}
+      >
+        <RepsStepper
+          label="Rest"
+          unit="seconds"
+          value={value}
+          onChange={setValue}
+          min={15}
+          max={MAX_REST_SEC}
+          step={15}
+        />
+      </div>
+      <button
+        type="button"
+        className={`${styles.logButton} pressable`}
+        onClick={() => onSave(value, isOff)}
+      >
         Save
       </button>
     </div>
   );
 }
 
-function NotePage({ note, onSave }: { note: string; onSave: (n: string) => void }) {
+function NotePage({
+  note,
+  onSave,
+}: {
+  note: string;
+  onSave: (n: string) => void;
+}) {
   const [value, setValue] = useState(note);
   return (
     <div className={styles.sheetBody}>
@@ -103,7 +246,11 @@ function NotePage({ note, onSave }: { note: string; onSave: (n: string) => void 
         placeholder="Seat on 4, wide grip…"
         onChange={(e) => setValue(e.target.value)}
       />
-      <button type="button" className={`${styles.logButton} pressable`} onClick={() => onSave(value)}>
+      <button
+        type="button"
+        className={`${styles.logButton} pressable`}
+        onClick={() => onSave(value)}
+      >
         Save note
       </button>
     </div>

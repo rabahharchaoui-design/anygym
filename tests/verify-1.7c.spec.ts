@@ -529,8 +529,8 @@ test('G. tap targets are at least 48pt', async ({ page }) => {
   await page.waitForTimeout(500);
   await measure('menu-items', menu.getByRole('button'));
   await shot(page, 'g-menu');
-  await menu.getByRole('button', { name: 'Rest time' }).tap();
-  const rt = page.getByRole('dialog', { name: 'Rest time' });
+  await menu.getByRole('button', { name: /Rest after each set/ }).tap();
+  const rt = page.getByRole('dialog', { name: 'Rest after each set' });
   await measure('rest-time-controls', rt.getByRole('button'));
   await rt.getByRole('button', { name: 'Close' }).first().tap().catch(() => undefined);
   await page.keyboard.press('Escape');

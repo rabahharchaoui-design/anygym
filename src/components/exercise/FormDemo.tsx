@@ -45,8 +45,8 @@ function Picture({ demo, i, photos, className, alt, lazy = true, fill = false }:
 }
 
 /**
- * The form demo (SPEC 4.4): start and end photos crossfading in a loop (1.2 s, 0.35 s fade,
- * 1.2 s, ease in out), tap to pause. No position counter or dots (PLAN 2.2b). Reduced motion shows
+ * The form demo (SPEC 4.4): start and end photos crossfading in a loop (1.35 s, 0.15 s fade,
+ * 1.35 s; round 2 P4: a short fade never shows a double exposure in a still), tap to pause. No position counter or dots (PLAN 2.2b). Reduced motion shows
  * both side by side (the tile and the hero then show the start photo still). The loop is pure CSS,
  * so it costs no renders and stays on the compositor.
  */
@@ -59,12 +59,23 @@ export function FormDemo({ demo, name, compact = false, hero = false, vtName, on
       <Picture demo={demo} i={1} photos={photos} alt={`${name}, end position`} className={`${styles.frame} ${styles.end ?? ''}`} />
     </>
   );
+  // The hero's frames load at once (the list tile already fetched frame 1): never lazy, never late.
+  const heroFrames = (
+    <>
+      <Picture demo={demo} i={0} photos={photos} alt={`${name}, start position`} lazy={false} className={styles.frame ?? ''} />
+      <Picture demo={demo} i={1} photos={photos} alt={`${name}, end position`} lazy={false} className={`${styles.frame} ${styles.end ?? ''}`} />
+    </>
+  );
   if (hero) {
     // The whole photo, never cropped (feet and bar stay in), over a soft blurred copy that fills the box.
     return (
-      <span className={styles.hero} data-testid="demo-hero" style={vtName ? { viewTransitionName: vtName } : undefined}>
+      <span className={styles.hero} data-testid="demo-hero">
         <Picture demo={demo} i={0} photos={photos} alt="" lazy={false} fill className={styles.heroFill ?? ''} />
-        {frames}
+        {/* Only the sharp photo carries the shared name (critic B1): the blurred bands stay in the
+            page, so the slot is never an empty black box while the photo flies in. */}
+        <span className={styles.heroPhoto} data-testid="hero-photo" style={vtName ? { viewTransitionName: vtName } : undefined}>
+          {heroFrames}
+        </span>
       </span>
     );
   }

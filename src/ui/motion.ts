@@ -25,10 +25,10 @@ export const GENTLE: Transition = { type: 'spring', stiffness: 260, damping: 28 
 export const SHEET_SPRING: Transition = { type: 'spring', visualDuration: 0.24, bounce: 0.12 };
 
 /**
- * Screen push and pop (PLAN 2.2d): stiffness 500, critically damped (no overshoot past the screen
- * edge), settled in about 300 ms. CSS mirrors it as --ease-nav-spring and --dur-nav.
+ * Screen push and pop (PLAN 2.2d round 2): stiffness 700, critically damped (no overshoot past the
+ * screen edge), settled in about 260 ms. CSS mirrors it as --ease-nav-spring and --dur-nav.
  */
-export const NAV_SPRING: Transition = { type: 'spring', stiffness: 500, damping: 2 * Math.sqrt(500), restDelta: 0.5 };
+export const NAV_SPRING: Transition = { type: 'spring', stiffness: 700, damping: 2 * Math.sqrt(700), restDelta: 0.5 };
 
 /** Reduced motion: a short crossfade instead of movement. */
 export const FADE: Transition = { type: 'tween', duration: 0.15, ease: 'easeOut' };

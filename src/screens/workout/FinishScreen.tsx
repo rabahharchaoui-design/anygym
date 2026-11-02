@@ -6,7 +6,7 @@ import { finishedDetail, workoutRecords } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
 import { formatSetLine, formatTotal, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
-import { dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
+import { adjustEntries, dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
 import { dayIndexOf } from '../../lib/plans';
 import { planById } from '../../data/plans';
 import { getPlanState, setFinishNextDay } from '../../db/planState';
@@ -59,7 +59,8 @@ export function FinishScreen() {
   // A plan day: "1 of 12 exercises finished", working exercises only (PLAN 2.0a).
   const plan = d ? planById(d.session.planId) : undefined;
   const dayIndex = plan && d ? dayIndexOf(plan, d.session.dayId) : -1;
-  const dayEntries = plan && d && dayIndex >= 0 ? dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0) : [];
+  // The rows the lifter really had (PLAN 2.2d round 2: rows added or removed, kept on the session).
+  const dayEntries = plan && d && dayIndex >= 0 ? adjustEntries(dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0), d.session.rowAdjust) : [];
   const counted = d ? doneCounts(dayEntries, d.sets) : {};
   const progress = plan && d && dayIndex >= 0 ? dayProgress(dayEntries, (id) => counted[id] ?? 0) : undefined;
   // Working exercises with a set logged (a warm up too) that are not finished yet.

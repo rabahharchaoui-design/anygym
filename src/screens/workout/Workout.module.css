@@ -29,12 +29,26 @@
 }
 
 .stats {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   line-height: 1.1;
   padding-left: 8px;
+  /* A swipe from the edge never selects the clock (round 2, P6). */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The unseen copy of the stats line that says whether the full line fits (round 2, P5). */
+.statMeasure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .clock {
@@ -130,6 +144,15 @@
 /* The rest bar floats over the end of the page while it counts: the page keeps room for it then. */
 .screen[data-resting] .exMain {
   padding-bottom: calc(var(--rest-height) + var(--safe-bottom) + var(--space-4));
+}
+
+/* The title and its set line are controls (a tap opens the demo), never selected text, also not by
+   the edge swipe (round 2, P6). */
+.heroCaption,
+.head .heroText {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* ---- the demo hero (PLAN 2.2b): about 30% of the screen, less on short phones */
@@ -324,6 +347,14 @@
   font-weight: 600;
   color: var(--text);
   opacity: 0.85;
+}
+
+.pairLine {
+  margin: 1px 0 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
 }
 
 .exNote {
@@ -668,11 +699,36 @@ button.nextChip {
   text-align: left;
 }
 
-.menuSwitch {
-  padding: 0;
-  border-radius: 14px;
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
+/* A row that opens a page shows a chevron on its right (critic B4). */
+.menuItem[data-chevron] {
+  position: relative;
+  padding-right: calc(var(--space-4) + 20px);
+}
+
+.menuItem[data-chevron]::after {
+  content: '';
+  position: absolute;
+  right: var(--space-4);
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--text-2);
+  border-right: 2px solid var(--text-2);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* Off: the time stays in place, quiet, so the page never changes height. */
+.restOnOff {
+  display: flex;
+  justify-content: center;
+}
+
+.restStepper {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.restStepper[data-off] {
+  opacity: 0.3;
 }
 
 .menuItem:disabled {
