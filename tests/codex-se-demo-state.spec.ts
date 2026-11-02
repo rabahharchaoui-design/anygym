@@ -114,13 +114,13 @@ test('offline demo Close and Back preserve a changed pending row, saved sets and
   await context.setOffline(true);
   try {
     for (const close of ['button', 'back'] as const) {
-      await view.getByRole('button', { name: 'Show Barbell Back Squat full screen' }).tap();
+      await view.getByRole('button', { name: 'How to do Barbell Back Squat' }).tap();
       const viewer = page.getByTestId('demo-viewer');
       await expect(viewer).toBeVisible();
       for (const photo of await viewer.locator('img[alt$="position"]').all()) {
         await expect.poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
       }
-      if (close === 'button') await viewer.getByRole('button', { name: 'Close demo', exact: true }).tap();
+      if (close === 'button') await viewer.getByRole('button', { name: 'Close', exact: true }).tap();
       else await page.goBack();
       await expect(viewer).toHaveCount(0);
       await expect(page).toHaveURL(route);
