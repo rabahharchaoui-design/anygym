@@ -152,10 +152,12 @@ html[data-nav='down']::view-transition-group(workout-dock) {
   }
 }
 
+/* The one page transition (PLAN 2.2e, src/ui/motion.ts PAGE): the page underneath moves 30% left,
+   shrinks to 0.96 and dims to 0.6 (opacity over black, cheaper than a filter on the compositor). */
 @keyframes vt-push-old {
   to {
-    transform: translateX(-30%);
-    filter: brightness(0.6);
+    transform: translateX(-30%) scale(0.96);
+    opacity: 0.6;
   }
 }
 @keyframes vt-push-new {
@@ -170,8 +172,8 @@ html[data-nav='down']::view-transition-group(workout-dock) {
 }
 @keyframes vt-pop-new {
   from {
-    transform: translateX(-30%);
-    filter: brightness(0.6);
+    transform: translateX(-30%) scale(0.96);
+    opacity: 0.6;
   }
 }
 @keyframes vt-fade-out {

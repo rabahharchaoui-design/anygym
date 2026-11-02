@@ -7,6 +7,10 @@ import { useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate, type NavigateOptions, type To } from 'react-router-dom';
 import { sheetHistory } from './sheetHistory';
+import { prefersReducedMotion } from './motion';
+
+/** Kinds that move the page: with reduced motion they change at once (PLAN 2.2e), crossfades stay. */
+const MOVING: ReadonlySet<NavKind> = new Set(['push', 'pop', 'down']);
 
 export type NavKind = 'push' | 'pop' | 'tab' | 'expand' | 'fade' | 'down' | 'none';
 
@@ -48,8 +52,8 @@ export function withTransition(kind: NavKind, update: () => void, async = false)
   const doc = document as Document & {
     startViewTransition?: (cb: () => void | Promise<void>) => VT;
   };
-  if (kind === 'none' || !supportsViewTransitions()) {
-    if (kind === 'none') delete document.documentElement.dataset.navFallback;
+  if (kind === 'none' || !supportsViewTransitions() || (MOVING.has(kind) && prefersReducedMotion())) {
+    if (kind === 'none' || prefersReducedMotion()) delete document.documentElement.dataset.navFallback;
     else document.documentElement.dataset.navFallback = kind;
     update();
     return;

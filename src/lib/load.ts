@@ -918,3 +918,41 @@ export function comparableWeight(load: Load, unit: Unit): number {
 export function platesOnly(perSide: readonly number[], unit: Unit): number {
   return sumLoad({ bar: 0, perSide, unit }).platesTotal;
 }
+
+// ---------------------------------------------------------------- records (PLAN 2.2e)
+
+/**
+ * Best set volume of one set (SPEC 21.1): its compared weight (comparableWeight, in `unit`) ×
+ * reps. 0 for holds, sets without reps and bodyweight with nothing added (no weight is known).
+ */
+export function setScore(set: { reps?: number; load: Load }, unit: Unit): number {
+  if (set.load.kind === 'timed' || !set.reps || set.reps <= 0) return 0;
+  return times(comparableWeight(set.load, unit), set.reps);
+}
+
+/** `a` is strictly heavier than `b` (compared in `unit`), never only by unit conversion noise. */
+export function heavierThan(a: Load, b: Load, unit: Unit): boolean {
+  return !sameResistance(a, b) && comparableWeight(a, unit) > comparableWeight(b, unit);
+}
+
+/**
+ * Set `a` beats set `b` on best set volume: at the same resistance (any unit) only more reps do;
+ * otherwise a bigger weight × reps by more than the conversion tolerance per rep.
+ */
+export function beatsVolume(a: { reps?: number; load: Load }, b: { reps?: number; load: Load }, unit: Unit): boolean {
+  const ra = a.reps ?? 0;
+  if (ra <= 0 || a.load.kind === 'timed') return false;
+  if (sameResistance(a.load, b.load)) return ra > (b.reps ?? 0);
+  return setScore(a, unit) - setScore(b, unit) > SAME_RESISTANCE_TOLERANCE * ra;
+}
+
+/** How much bigger `now` is than `before` as a ratio (1.05 is 5% more); Infinity over a zero baseline. */
+export function gainRatio(now: number, before: number): number {
+  if (before <= 0) return now > 0 ? Number.POSITIVE_INFINITY : 1;
+  return now / before;
+}
+
+/** Gain `a` is bigger than gain `b`, past floating noise (equal ratios stay a tie). */
+export function biggerGain(a: number, b: number): boolean {
+  return a === Number.POSITIVE_INFINITY ? b !== a : a - b > 1e-9;
+}

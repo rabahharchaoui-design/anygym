@@ -5,7 +5,8 @@ import { db } from '../../db/schema';
 import type { BarId, Gym, JournalEntry, Load, Session, WorkoutSet } from '../../db/types';
 import { setsOf } from '../../db/workouts';
 import { committedOf, journalOf } from './rowLog';
-import { getPastSessions, lastSessionSets } from '../../db/history';
+import { getPastSessions, lastSessionSets, workoutWins } from '../../db/history';
+import type { SetRecord } from '../../lib/records';
 import { pickBar, pickLoadType, pickNote, pickRest, pickRestOff } from '../../db/exerciseSettings';
 import { planExercise } from '../../data/planExercises';
 import { planById } from '../../data/plans';
@@ -61,6 +62,11 @@ export type Workout = {
   /** The exercise to do next (the highlighted row), or null when every set is done. */
   nextId: string | null;
   isQuick: boolean;
+  /**
+   * PLAN 2.2e: the record a logged set set (the live PR badge), from every earlier workout of that
+   * exercise. Undefined while the read runs or after it failed: no history read is no claim.
+   */
+  recordOf: (setId: string) => SetRecord | undefined;
   /** Bumps when "+ Add set" adds a row. */
   bump: () => void;
 };
@@ -141,6 +147,11 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     return out;
   }, [historyKey, gymId]);
 
+  // Live PR badges (PLAN 2.2e): recomputed from the database whenever a set commits, so a failed
+  // Log never shows one and an edit, delete or Undo is reflected. Not required for logging.
+  const wins = useLive(() => workoutWins(sessionId, (id) => planEntryOf.get(id)?.name ?? planExercise(id)?.name ?? id), [sessionId]);
+  const recordMap = useMemo(() => new Map((wins.error ? [] : (wins.data?.records ?? [])).map((r) => [r.setId, r])), [wins.data, wins.error]);
+
   const progressionOf = (id: string): Progression | undefined => {
     const kind = loadTypeOf(id);
     const past = history.data?.get(id)?.past;
@@ -202,6 +213,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     done,
     nextId: upNext(entries, done, sets[sets.length - 1]?.exerciseId),
     isQuick: !plan,
+    recordOf: (setId) => recordMap.get(setId),
     bump: () => setExtraTick((t) => t + 1),
   };
 }

@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
@@ -10,7 +10,7 @@ import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../ui/Toast';
-import { FADE, NAV_SPRING, SHEET_SPRING } from '../../ui/motion';
+import { FADE, PAGE_SPRING, SHEET_SPRING, pageVariants, pageVariantsReduced } from '../../ui/motion';
 import { BackButton } from '../../ui/BackButton';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown } from '../../ui/icons';
@@ -43,31 +43,6 @@ import { discardFailed, failedRows, prepareFinish, retryFailed, shownRows, type 
 import { UNDO_MS } from '../../lib/undoQueue';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';
-
-/**
- * Push and pop without the View Transitions API (older iOS, SPEC 13.2 and 23.1): the same iOS
- * motion with Motion. dir 1 push: the new view slides in from the right over the old one, which
- * moves 30% left and dims. dir -1 pop: the reverse, the leaving view on top. dir 0: no movement
- * (the edge swipe or a sheet already covered the change).
- */
-// Full transform strings (PLAN 2.2d): Motion runs them on the compositor (WAAPI), so a busy main
-// thread (a view mounting) never drops frames; x shorthands would animate on the main thread.
-const FALLBACK_PUSH: Variants = {
-  enter: (dir: number) =>
-    dir === 0 ? { transform: 'translateX(0%)', opacity: 1 } : dir > 0 ? { transform: 'translateX(100%)', opacity: 1, zIndex: 2 } : { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 },
-  center: { transform: 'translateX(0%)', opacity: 1 },
-  exit: (dir: number) =>
-    dir === 0
-      ? { opacity: 0, transition: { duration: 0 } }
-      : dir > 0
-        ? { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 }
-        : { transform: 'translateX(100%)', opacity: 1, zIndex: 2 },
-};
-const FALLBACK_FADE: Variants = {
-  enter: { opacity: 0 },
-  center: { opacity: 1 },
-  exit: { opacity: 0 },
-};
 
 /** Which way the last go() moved, as nav.ts records it when it has to fall back. */
 const fallbackDir = (): number => {
@@ -777,11 +752,11 @@ export function WorkoutScreen() {
                   className={styles.view}
                   data-motion-view="true"
                   custom={dir}
-                  variants={reduce ? FALLBACK_FADE : FALLBACK_PUSH}
+                  variants={reduce ? pageVariantsReduced : pageVariants}
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={reduce ? FADE : NAV_SPRING}
+                  transition={reduce ? { duration: 0 } : PAGE_SPRING}
                 >
                   <Present>{view}</Present>
                 </motion.div>

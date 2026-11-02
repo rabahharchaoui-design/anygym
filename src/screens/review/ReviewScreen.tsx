@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNav } from '../../ui/nav';
 import { db } from '../../db/schema';
 import { readReview, saveReviewDecision } from '../../db/review';
 import { CATALOG } from '../../data/muscles';
@@ -31,7 +31,7 @@ const VERDICT_WORDS: Record<Verdict, string> = {
 
 /** Hidden owner tool (SPEC 9.4, #/review): every catalog exercise one at a time, with a verdict and an export. */
 export function ReviewScreen() {
-  const navigate = useNavigate();
+  const go = useNav();
   const [state, setState] = useState<ReviewState>(emptyReview);
   const [loaded, setLoaded] = useState(false);
   const [index, setIndex] = useState(0);
@@ -97,7 +97,7 @@ export function ReviewScreen() {
   return (
     <div className={styles.page} data-testid="review-screen">
       <header className={styles.header}>
-        <Button variant="tertiary" onClick={() => navigate('/settings')}>
+        <Button variant="tertiary" onClick={() => go('/settings', { kind: 'pop' })}>
           Done
         </Button>
         <span className={`${styles.progress} num`} data-testid="review-progress">

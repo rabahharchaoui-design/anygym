@@ -48,7 +48,7 @@ export function SettingsScreen() {
   const onVersionTap = () => {
     const r = registerTap(versionTaps.current, Date.now(), 5);
     versionTaps.current = r.taps;
-    if (r.fired) navigate('/review');
+    if (r.fired) go('/review', { kind: 'push' });
   };
   const fileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState('');

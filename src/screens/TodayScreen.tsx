@@ -39,7 +39,7 @@ export function TodayScreen() {
   const onTitleTap = () => {
     const r = registerTap(titleTaps.current, Date.now());
     titleTaps.current = r.taps;
-    if (r.fired) navigate('/dev/viewport');
+    if (r.fired) go('/dev/viewport');
   };
   const location = useLocation();
   // Open the database first, outside the live query: awaiting a non Dexie promise inside it would

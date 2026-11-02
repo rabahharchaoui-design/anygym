@@ -96,6 +96,10 @@
   --dur-nav: 220ms;
   --ease-nav-spring: linear(0, 0.0476 5%, 0.1528 10%, 0.2782 15%, 0.403 20%, 0.5171 25%, 0.616 30%, 0.6989 35%, 0.7668 40%, 0.8213 45%, 0.8646 50%, 0.8985 55%, 0.9248 60%, 0.9451 65%, 0.9607 70%, 0.9725 75%, 0.9815 80%, 0.9882 85%, 0.9933 90%, 0.9971 95%, 1 100%);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* PLAN 2.2e: the tap spring (stiffness 520, damping 32) sampled for CSS: a small overshoot,
+     settled in about 180 ms. Toggles, choice rings, the PR badge. */
+  --dur-tap: 180ms;
+  --ease-tap-spring: linear(0, 0.2 8%, 0.52 18%, 0.8 30%, 0.96 42%, 1.03 54%, 1.04 64%, 1.02 78%, 1 100%);
 
   /* the floating tab bar: capsule height and its gap to the bottom edge */
   --tabbar-capsule: 62px;
