@@ -5,6 +5,7 @@ import type { MuscleMapData } from '../../lib/muscles';
 import { Segmented } from '../../ui/Segmented';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { MuscleExercisesLink, MuscleExercisesSheet } from './MuscleExercises';
+import { MusclePicker, selectableRegions } from './MusclePicker';
 import styles from './MuscleMap.module.css';
 
 // SPEC 4.4 and 4.5 (PREMIUM MAP, PLAN 2.2a): one large body at a time with Front | Back and
@@ -188,6 +189,13 @@ function Drawing({ data }: { data: MuscleMapData }) {
         )}
         <Body key={`${body}-${view}`} body={body} view={view} data={data} picked={picked} glowId={glowId} />
       </div>
+      <MusclePicker
+        regions={selectableRegions(body, [view], data)}
+        picked={picked}
+        label="Pick a muscle to name it"
+        line={(r) => pickLine(r, data)}
+        onPick={(region) => setState((s) => ({ ...s, picked: region }))}
+      />
       <MuscleExercisesSheet region={listFor} onClose={() => setListFor(null)} />
     </>
   );
@@ -259,15 +267,8 @@ export function MusclePair({ data, exercises = false }: { data: MuscleMapData | 
     const region = (el?.getAttribute('data-region') ?? null) as Region | null;
     setPick({ key, region: region && region !== picked ? region : null });
   };
-  // The drawing is tap only and hidden from assistive tech, so the lit muscles are also a labelled
-  // native picker (SPEC 13.3, gate s2): VoiceOver and keyboards reach the same pick, and its
-  // exercises link, without the drawing. Primary first, in the readout's own words.
-  const drawnRegions = new Set([...regionsIn(body, 'front'), ...regionsIn(body, 'back')]);
-  const litRegions = tappable
-    ? (Object.keys(data.shading) as Region[])
-        .filter((r) => drawnRegions.has(r))
-        .sort((a, b) => Number(data.shading[a] !== 'primary') - Number(data.shading[b] !== 'primary'))
-    : [];
+  // Every drawn muscle, lit or not, is reachable without the drawing (SPEC 13.3, PLAN 2.0j).
+  const regions = tappable ? selectableRegions(body, ['front', 'back'], data) : [];
   return (
     <figure className={`${styles.pair} ${tappable ? styles.pairTappable : ''}`} data-testid="muscle-pair">
       {drawn && (
@@ -296,21 +297,14 @@ export function MusclePair({ data, exercises = false }: { data: MuscleMapData | 
         <span className={styles.textPrimary}>{primaryText}</span>
         {secondaryText && <span className={styles.textSecondary}>{secondaryText}</span>}
       </figcaption>
-      {tappable && litRegions.length > 0 && (
-        <select
-          className={styles.a11yPick}
-          aria-label="Pick a muscle to see its exercises"
-          value={picked ?? ''}
-          onChange={(e) => setPick({ key, region: (e.target.value || null) as Region | null })}
-          data-testid="muscle-a11y-pick"
-        >
-          <option value="">No muscle picked</option>
-          {litRegions.map((r) => (
-            <option key={r} value={r}>
-              {pickLine(r, data)}
-            </option>
-          ))}
-        </select>
+      {tappable && (
+        <MusclePicker
+          regions={regions}
+          picked={picked}
+          label="Pick a muscle to see its exercises"
+          line={(r) => pickLine(r, data)}
+          onPick={(region) => setPick({ key, region })}
+        />
       )}
       {tappable && (
         <div className={styles.readoutRow}>

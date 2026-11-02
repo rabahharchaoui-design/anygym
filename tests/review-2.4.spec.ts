@@ -79,3 +79,39 @@ test('review: the card never runs under the action buttons; everything scrolls i
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   expect(errors).toEqual([]);
 });
+
+// PLAN 2.0j (2): a failed read of the saved decisions is a retryable error, never an empty review.
+test('review: a read failure keeps earlier decisions, blocks verdicts, and Try again brings them back', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.addInitScript(() => {
+    const get = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function (key: IDBValidKey | IDBKeyRange) {
+      if (key === 'review:v1' && sessionStorage.getItem('failReview') === '1') throw new DOMException('Synthetic read failure', 'UnknownError');
+      return get.call(this, key);
+    };
+  });
+  await page.goto('./#/review');
+  const progress = page.getByTestId('review-progress');
+  await expect(progress).toHaveText(/^0 \/ \d+ reviewed$/);
+  const total = Number((await progress.textContent())!.match(/\/ (\d+)/)![1]);
+  await page.getByRole('button', { name: 'Approve' }).tap();
+  await expect(progress).toHaveText(`1 / ${total} reviewed`);
+  await page.getByRole('button', { name: 'Approve' }).tap();
+  await expect(progress).toHaveText(`2 / ${total} reviewed`);
+
+  await page.evaluate(() => sessionStorage.setItem('failReview', '1'));
+  await page.reload();
+  await expect(page.getByTestId('review-read-error')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Try again' }).tap();
+  await expect(page.getByTestId('review-read-error')).toBeVisible();
+
+  await page.evaluate(() => sessionStorage.removeItem('failReview'));
+  await page.getByRole('button', { name: 'Try again' }).tap();
+  await expect(progress).toHaveText(`2 / ${total} reviewed`);
+  await page.getByRole('button', { name: 'Approve' }).tap();
+  await expect(progress).toHaveText(`3 / ${total} reviewed`);
+  await page.reload();
+  await expect(page.getByTestId('review-progress')).toHaveText(`3 / ${total} reviewed`);
+  expect(errors.filter((e) => !/Synthetic|UnknownError/.test(e))).toEqual([]);
+});

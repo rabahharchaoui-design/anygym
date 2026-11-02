@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MuscleMap, autoView, pickLine } from '../MuscleMap';
+import { MuscleMap, MusclePair, autoView, pickLine } from '../MuscleMap';
+import { selectableRegions } from '../MusclePicker';
 import { musclesForCatalog, musclesForPlan } from '../../../data/muscles';
 import { BODIES } from '../../../lib/bodyArt';
 
@@ -58,5 +59,32 @@ describe('MuscleMap', () => {
     const html = renderToStaticMarkup(<MuscleMap data={musclesForCatalog('Internal_Rotation_with_Band')} />);
     expect(html).toContain('Rotator cuff');
     expect(html).not.toContain('<svg');
+  });
+});
+
+describe('accessible picker lists every drawn region (PLAN 2.0j)', () => {
+  const drawnRegions = (body: 'male' | 'female', view: 'front' | 'back') => new Set(BODIES[body][view].shapes.flatMap((s) => (s.region ? [s.region] : [])));
+  it.each([['male'], ['female']] as const)('%s: options equal the selectable drawn regions of each view and of the pair', (body) => {
+    const data = musclesForCatalog(INCLINE)!;
+    for (const view of ['front', 'back'] as const) expect(new Set(selectableRegions(body, [view], data))).toEqual(drawnRegions(body, view));
+    const both = selectableRegions(body, ['front', 'back'], data);
+    expect(new Set(both)).toEqual(new Set([...drawnRegions(body, 'front'), ...drawnRegions(body, 'back')]));
+    expect(both.length).toBe(new Set(both).size);
+  });
+  it('lit muscles come first; unlit ones are listed too; resting art is not', () => {
+    const data = musclesForCatalog(INCLINE)!;
+    const list = selectableRegions('male', ['front', 'back'], data);
+    expect(list[0]).toBe('chest');
+    expect(list).toContain('forearm');
+    expect(list).not.toContain(null as never);
+  });
+  it('the workout pair renders an option for an unlit muscle', () => {
+    const html = renderToStaticMarkup(<MusclePair data={musclesForCatalog(INCLINE)} exercises />);
+    expect(html).toContain('data-testid="muscle-a11y-pick"');
+    expect(html).toMatch(/<option value="forearm">[^<]*not used here/);
+  });
+  it('the single map has the picker too', () => {
+    const html = renderToStaticMarkup(<MuscleMap data={musclesForCatalog(INCLINE)} />);
+    expect(html).toMatch(/<option value="forearm">/);
   });
 });

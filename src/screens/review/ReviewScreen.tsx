@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../db/schema';
+import { readReview, saveReviewDecision } from '../../db/review';
 import { CATALOG } from '../../data/muscles';
-import { CATALOG_SHA, infoForCatalog } from '../../data/exerciseInfo';
+import { CATALOG_SHA, ownerPreviewForCatalog } from '../../data/exerciseInfo';
 import { FormDemo } from '../../components/exercise/FormDemo';
 import { MuscleMap } from '../../components/muscles/MuscleMap';
 import { Button } from '../../ui/Button';
 import { shareOrDownload } from '../../lib/shareFile';
 import {
-  REVIEW_KEY,
   buildExport,
   canDecide,
-  decide,
   emptyReview,
   exportName,
   nextIndex,
-  parseReview,
   progress,
   progressText,
   type ReviewState,
@@ -42,30 +40,29 @@ export function ReviewScreen() {
   const [message, setMessage] = useState('');
   const first = useRef(true);
 
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  // A failed read keeps whatever was read before and never turns into an empty review.
   useEffect(() => {
     let alive = true;
-    db.kv
-      .get(REVIEW_KEY)
-      .then((row) => {
+    readReview(db)
+      .then((s) => {
         if (!alive) return;
-        const s = parseReview(row?.value ?? null);
         setState(s);
         setIndex(nextIndex(s, IDS, -1));
+        setLoadError(false);
+        setLoaded(true);
       })
-      .catch(() => undefined)
-      .finally(() => alive && setLoaded(true));
+      .catch(() => alive && setLoadError(true));
     return () => {
       alive = false;
     };
-  }, []);
-
-  const save = (s: ReviewState) => {
-    setState(s);
-    void db.kv.put({ key: REVIEW_KEY, value: JSON.stringify(s), at: Date.now() }).catch(() => setMessage('Could not save on this phone.'));
-  };
+  }, [attempt]);
 
   const ex = CATALOG[index]!;
-  const info = useMemo(() => infoForCatalog(ex.id), [ex.id]);
+  const info = useMemo(() => ownerPreviewForCatalog(ex.id), [ex.id]);
   const done = progress(state, IDS);
   const current = state.decisions[ex.id];
   const howTo = info.cues;
@@ -78,11 +75,16 @@ export function ReviewScreen() {
   }, [ex.id]);
 
   const choose = (verdict: Verdict) => {
-    if (!canDecide(verdict, note)) return;
-    const s = decide(state, ex.id, verdict, verdict === 'fix-cues' ? note : '', Date.now());
-    save(s);
-    setMessage('');
-    setIndex(nextIndex(s, IDS, index));
+    if (!loaded || saving || !canDecide(verdict, note)) return;
+    setSaving(true);
+    saveReviewDecision(db, ex.id, verdict, note, Date.now())
+      .then((s) => {
+        setState(s);
+        setMessage('');
+        setIndex(nextIndex(s, IDS, index));
+      })
+      .catch(() => setMessage('Could not save on this phone. Your earlier decisions are kept. Try again.'))
+      .finally(() => setSaving(false));
   };
 
   const exportReview = async () => {
@@ -102,6 +104,14 @@ export function ReviewScreen() {
           {progressText(done)}
         </span>
       </header>
+      {loadError && (
+        <div role="alert" data-testid="review-read-error">
+          <p className={styles.message}>Could not read your saved decisions. Nothing was changed.</p>
+          <Button variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+            Try again
+          </Button>
+        </div>
+      )}
       {loaded && (
         <>
           <div className={styles.nav}>

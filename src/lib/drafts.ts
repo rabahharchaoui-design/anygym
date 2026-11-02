@@ -4,7 +4,8 @@
 // No weight math here: the card rebuilds the load through load.ts from what is stored.
 import type { Load, Unit } from '../db/types';
 import type { Stopwatch } from './timer';
-import { mirror as mirrorDurable, mirrorRow, mirrorValue } from './durable';
+import { db as defaultDb } from '../db/schema';
+import { durableRow, mirror as mirrorDurable, mirrorRow, mirrorValue } from './durable';
 
 export type Draft = {
   /** Id the set will be logged with (double tap safe across a reload). */
@@ -194,6 +195,52 @@ try {
   /* no window (tests, workers) */
 }
 
+/**
+ * IndexedDB alone holds the drafts (localStorage refuses writes or is missing, PLAN 2.0j): only the
+ * rows this tab changed are written, merged into what IndexedDB holds in one transaction, so another
+ * tab's rows are never replaced by this tab's possibly stale copy. The committed rows then come back
+ * into this tab's copy (rows it has not changed since), and a row's change is settled once stored.
+ */
+function persistRows(m: Memory, s: StorageLike | null): void {
+  const session = m.session;
+  // Only the phone's own storage is mirrored (a test's own storage is not), like durable.ts.
+  const phoneStorage = storage();
+  if (!session || !m.dirty.size || (s === null ? phoneStorage !== null : s !== phoneStorage)) return;
+  const sent = new Map<string, Draft | null>();
+  for (const k of m.dirty) sent.set(k, m.drafts.get(k) ?? null);
+  const run = async () => {
+    const blob = await defaultDb.transaction('rw', defaultDb.kv, async () => {
+      const row = await defaultDb.kv.get(KEY);
+      let store: Store = {};
+      try {
+        const v = JSON.parse(row?.value ?? '{}') as unknown;
+        if (v && typeof v === 'object' && !Array.isArray(v)) store = v as Store;
+      } catch {
+        store = {};
+      }
+      const rows = { ...(store[session] ?? {}) };
+      for (const [k, d] of sent) {
+        if (d) rows[k] = d;
+        else delete rows[k];
+      }
+      if (Object.keys(rows).length) store[session] = rows;
+      else delete store[session];
+      await defaultDb.kv.put(durableRow(KEY, Object.keys(store).length ? JSON.stringify(store) : null));
+      return rows;
+    });
+    if (m.session !== session) return;
+    for (const [k, d] of sent) if ((m.drafts.get(k) ?? null) === d) m.dirty.delete(k);
+    for (const [k, d] of Object.entries(blob)) if (!m.dirty.has(k) && validDraft(d)) m.drafts.set(k, d);
+    for (const k of [...m.drafts.keys()]) if (!m.dirty.has(k) && !(k in blob)) m.drafts.delete(k);
+    const h = hydrated.get(s ?? NO_STORAGE);
+    if (h) {
+      if (Object.keys(blob).length) h[session] = blob;
+      else delete h[session];
+    }
+  };
+  void run().catch(() => undefined);
+}
+
 /** Mirrors the whole memory copy to storage. False when that failed (storage full, blocked or missing). */
 function mirror(m: Memory, s: StorageLike | null): boolean {
   let ok = false;
@@ -206,8 +253,9 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
       else s.removeItem(KEY);
       wrote = true;
     } catch {
-      // localStorage refused it: the IndexedDB mirror alone keeps it for the next start (PLAN 1.7i).
-      void mirrorValue(s, KEY, value);
+      // localStorage refused it: the IndexedDB copy alone keeps it for the next start (PLAN 1.7i),
+      // row by row (PLAN 2.0j).
+      persistRows(m, s);
     }
     if (wrote) {
       void mirrorDurable(s, KEY, undefined, undefined, value);
@@ -218,8 +266,8 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
   } else {
     // No localStorage at all (access throws, PLAN 2.0c): the IndexedDB copy alone keeps it, also
     // a removal (null), and startup hands it back (hydrateDrafts).
-    hydrated.set(NO_STORAGE, value === null ? {} : (JSON.parse(value) as Store));
-    void mirrorValue(null, KEY, value);
+    if (!hydrated.get(NO_STORAGE)) hydrated.set(NO_STORAGE, {});
+    persistRows(m, null);
   }
   if (!ok && !m.failed) {
     m.failed = true;

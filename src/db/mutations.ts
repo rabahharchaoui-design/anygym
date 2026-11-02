@@ -15,11 +15,14 @@
 //     every older one of the same set and kind, never a newer one, so an older completion can never
 //     erase (or overwrite) a newer change that failed;
 //   - when the journal write itself fails, the change is kept in session memory and, as a durable
-//     fallback, in localStorage: Finish still sees it and offers Try again (which saves it once) or
-//     Finish without it. A later change of the same set and kind that journals replaces it.
+//     fallback, in localStorage and (PLAN 2.0j) IndexedDB kv: Finish still sees it and offers Try again
+//     (which saves it once) or Finish without it. A later change that journals supersedes the held
+//     copies registered before it, by receipt written in its own transaction (never by comparing
+//     clocks); registering and Finish share one lock per workout (sessionLock.ts).
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { JournalEntry, MutationIntent } from './types';
-import { MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, WorkoutFinishedError, updateSet, updateSetType } from './workouts';
+import { withSessionLock } from './sessionLock';
+import { MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, MUTATION_SUP_PREFIX, WorkoutFinishedError, updateSet, updateSetType } from './workouts';
 import { MEMORY_PREFIX, MUTATION_FALLBACK_KEY, isEntry, phone, readFallback, writeFallback, type KV } from './mutationFallback';
 
 export { MUTATION_FALLBACK_KEY };
@@ -71,9 +74,6 @@ const memoryOf = (db: AnyGymDB) => {
   return m;
 };
 let seq = 0;
-/** Held copies are ordered by when the user made them: their time, then this app run's sequence. */
-const seqOf = (e: JournalEntry) => Number(e.id.slice(e.id.lastIndexOf(':') + 1)) || 0;
-const notNewer = (e: JournalEntry, at: number, n: number) => e.at < at || (e.at === at && seqOf(e) <= n);
 
 /** Forgets memory and fallback copies matching `drop` (a fallback that cannot be written is left). */
 function forgetLocal(db: AnyGymDB, ls: KV | null, drop: (e: JournalEntry) => boolean): void {
@@ -87,6 +87,8 @@ function forgetLocal(db: AnyGymDB, ls: KV | null, drop: (e: JournalEntry) => boo
     /* the copy stays; a later journaled change of the same set replaces it */
   }
 }
+
+const supKey = (sessionId: string, heldId: string) => `${MUTATION_SUP_PREFIX}${sessionId}:${heldId}`;
 
 const heldKey = (e: JournalEntry) => `${MUTATION_HELD_PREFIX}${e.sessionId}:${e.id}`;
 
@@ -140,14 +142,12 @@ async function allStoredHeld(db: AnyGymDB): Promise<JournalEntry[]> {
  */
 export async function pendingMutations(sessionId: string, db: AnyGymDB = defaultDb, ls: KV | null = phone()): Promise<JournalEntry[]> {
   const stored = (await db.journal.where('sessionId').equals(sessionId).toArray()).filter((j) => !!j.mutation);
-  const done = new Map<string, number>();
-  for (const row of await db.kv.where('key').startsWith(doneKey(sessionId, '')).toArray()) done.set(String(row.key).slice(doneKey(sessionId, '').length), Number(row.value));
+  // Held copies a save that landed has superseded (PLAN 2.0j): by receipt, never by comparing clocks,
+  // which two tabs can share or run backwards. The receipt was written in that save's transaction.
+  const sup = new Set((await db.kv.where('key').startsWith(supKey(sessionId, '')).primaryKeys()).map((k) => String(k).slice(supKey(sessionId, '').length)));
   const held = new Map<string, JournalEntry>();
   for (const e of [...(await storedHeld(sessionId, db)), ...readFallback(ls), ...memoryOf(db).values()]) {
-    // A copy older than a change that landed is superseded, even if its own removal failed. Strictly
-    // older (PLAN 2.0i): two tabs can stamp the same instant, and then the order is unknown, so the
-    // held copy is shown rather than hidden behind a save that may have come first.
-    if (e.sessionId === sessionId && !(e.at < (done.get(mutationKey(e.mutation!)) ?? -Infinity))) held.set(e.id, e);
+    if (e.sessionId === sessionId && !sup.has(e.id)) held.set(e.id, e);
   }
   // Operations are ordered by when they were made; a held copy made in the same instant as a stored
   // one is the later (it only exists because the journal write after it failed).
@@ -194,7 +194,7 @@ export function changeCount(entries: readonly JournalEntry[]): number {
  * written. A set that is gone needs nothing any more. A finished workout is never changed
  * (WorkoutFinishedError), and the entry goes too.
  */
-async function apply(id: string, db: AnyGymDB): Promise<void> {
+async function apply(id: string, db: AnyGymDB, covered: readonly string[] = []): Promise<void> {
   const finished = await db.transaction('rw', [db.sessions, db.sets, db.journal, db.tombstones, db.kv], async () => {
     const entry = await db.journal.get(id);
     const m = entry?.mutation;
@@ -226,6 +226,11 @@ async function apply(id: string, db: AnyGymDB): Promise<void> {
     // Landed: the marker that supersedes every copy of this set and kind made up to now.
     const marker = await db.kv.get(doneKey(entry.sessionId, mutationKey(m)));
     if (Number(marker?.value ?? -Infinity) < entry.at) await db.kv.put({ key: doneKey(entry.sessionId, mutationKey(m)), value: String(entry.at), at: entry.at });
+    // The held copies this save supersedes (PLAN 2.0j), committed with the change itself.
+    for (const heldId of covered) {
+      await db.kv.put({ key: supKey(entry.sessionId, heldId), value: entry.id, at: entry.at });
+      await db.kv.delete(`${MUTATION_HELD_PREFIX}${entry.sessionId}:${heldId}`);
+    }
     return false;
   });
   if (finished) throw new WorkoutFinishedError();
@@ -262,23 +267,38 @@ export async function saveMutation(sessionId: string, exerciseId: string, m: Mut
   const mem = memoryOf(db);
   mem.set(memId, held);
   let id: string;
-  try {
-    id = await journal(sessionId, exerciseId, m, db, now);
-  } catch (err) {
-    if (err instanceof WorkoutFinishedError) mem.delete(memId);
-    else {
+  let covered: string[] = [];
+  await withSessionLock(sessionId, async () => {
+    // Registered under the workout's lock (PLAN 2.0j), so Finish sees it or it finds the workout ended.
+    // Every held copy of this set and kind visible now was registered before this one: this save
+    // supersedes it, whatever the clocks say.
+    covered = await pendingMutations(sessionId, db, ls).then(
+      (list) => list.filter((e) => e.id.startsWith(MEMORY_PREFIX) && e.id !== memId && mutationKey(e.mutation!) === key).map((e) => e.id),
+      () => [],
+    );
+    try {
+      id = await journal(sessionId, exerciseId, m, db, now);
+    } catch (err) {
+      let ended = err instanceof WorkoutFinishedError;
+      if (!ended) ended = (await db.sessions.get(sessionId).catch(() => undefined))?.endedAt !== undefined;
+      if (ended) {
+        mem.delete(memId);
+        throw err instanceof WorkoutFinishedError ? err : new WorkoutFinishedError();
+      }
       try {
         writeFallback(ls, [...readFallback(ls).filter((e) => e.id !== memId), held]);
       } catch {
-        /* memory alone holds it for this app run */
+        /* memory (and IndexedDB, below) hold it */
       }
+      // localStorage may refuse it too: IndexedDB keeps it across a kill when it can (PLAN 2.0j).
+      await db.kv.bulkPut(heldRows([held])).catch(() => undefined);
+      throw err;
     }
-    throw err;
-  }
-  // Journaled: it and every older held copy of the same set and kind are covered by the journal.
-  await forget(db, ls, (e) => e.sessionId === sessionId && mutationKey(e.mutation!) === key && notNewer(e, now, n));
+  });
+  // Journaled: the held copies it covers are removed (a failed removal is harmless: the receipt below).
+  await forget(db, ls, (e) => covered.includes(e.id));
   mem.delete(memId);
-  await apply(id, db);
+  await apply(id!, db, covered);
 }
 
 /**

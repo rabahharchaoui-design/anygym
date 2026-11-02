@@ -66,10 +66,10 @@ export async function undoDelete(id: string, db: AnyGymDB = defaultDb, token?: s
  * (PLAN 1.7k), checked in the same transaction: an unresolved Undo never expires, in this app run
  * or the next. With `token` (PLAN 2.0e) only that deletion, never a newer one of the same set.
  */
-export async function expireDelete(id: string, db: AnyGymDB = defaultDb, now = Date.now(), token?: string): Promise<void> {
+export async function expireDelete(id: string, db: AnyGymDB = defaultDb, now = Date.now(), token?: string, exact = false): Promise<void> {
   await db.transaction('rw', db.tombstones, db.kv, async () => {
     const t = await db.tombstones.get(id);
-    if (!t || (token !== undefined && t.token !== token)) return;
+    if (!t || ((exact || token !== undefined) && t.token !== token)) return;
     if (!t.undo && t.expiresAt <= now && !(await hasUndoIntent(t.sessionId, id, db, undefined, t.token))) await db.tombstones.delete(id);
   });
 }
@@ -126,21 +126,22 @@ export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb
  * intent) is never touched, and a set is taken out again only when it was put back from that very
  * deletion (kv restoredKey), never a later restored copy.
  */
-export async function cancelUndo(id: string, db: AnyGymDB = defaultDb, sessionId?: string, token?: string): Promise<void> {
+export async function cancelUndo(id: string, db: AnyGymDB = defaultDb, sessionId?: string, token?: string, exact = false): Promise<void> {
   let sid = sessionId;
   await db.transaction('rw', [db.tombstones, db.sets, db.sessions, db.orderCounters, db.kv], async () => {
     const t = await db.tombstones.get(id);
     const set = await db.sets.get(id);
     sid = sid ?? t?.sessionId ?? set?.sessionId;
     if (t) {
-      if (token !== undefined && t.token !== token) return;
+      // `exact` (PLAN 2.0j): a missing token means the tokenless legacy deletion, never "any".
+      if ((exact || token !== undefined) && t.token !== token) return;
       await db.tombstones.delete(id);
       if (sid) await dropUndoIntent(sid, id, db, token ?? t.token);
       if (!set) return;
-    } else if (token !== undefined) {
+    } else if (exact || token !== undefined) {
       // No tombstone: only a copy put back from this very deletion is taken out again.
       const from = sid ? await db.kv.get(restoredKey(sid, id)) : undefined;
-      if (!sid || !set || from?.value !== token) {
+      if (!sid || !set || token === undefined || from?.value !== token) {
         if (sid) await dropUndoIntent(sid, id, db, token);
         return;
       }

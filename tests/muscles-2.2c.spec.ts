@@ -246,3 +246,34 @@ test('workout: the lit muscles are also a labelled picker for VoiceOver and keyb
   await expect(picker).toHaveValue('quadriceps');
   expect(errors).toEqual([]);
 });
+
+// PLAN 2.0j: the picker lists every drawn muscle, lit or not, and the Abs list shows no photo for
+// exercises the 2.5 audit rejected (Plank), while a kept one keeps its photo.
+test('workout: an unlit muscle is selectable without tapping, and Abs lists Plank without a photo @matrix', async ({ page }) => {
+  const errors = watchErrors(page);
+  const { view, card } = await openSquat(page);
+  const picker = card.getByRole('combobox', { name: 'Pick a muscle to see its exercises' });
+  await expect(picker.locator('option[value="forearm"]')).toHaveCount(1);
+  await picker.selectOption('forearm');
+  await expect(card.getByTestId('muscle-pick')).toHaveText(/^Forearms · /);
+  await picker.selectOption('abs');
+  const link = card.getByTestId('muscle-exercises-link');
+  await link.focus();
+  await page.keyboard.press('Enter');
+  const list = page.getByTestId('muscle-exercises');
+  await expect(list).toBeVisible();
+  const plank = list.locator('[data-id="Plank"]');
+  await expect(plank).toHaveCount(1);
+  await expect(plank.locator('img')).toHaveCount(0);
+  await expect(list.locator('[data-id="Crunches"] img')).toHaveCount(1);
+  // A rejected exercise still opens its sheet, with no photos.
+  await plank.tap();
+  const sheet = page.getByRole('dialog', { name: 'How to do Plank' });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator('img')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(list).toHaveCount(0);
+  await expect(view.getByTestId('set-row')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
