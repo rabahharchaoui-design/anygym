@@ -1,15 +1,6 @@
-// PROGRESS (PLAN 2.0l, remove this block when the item is done):
-//   (1) retry payload = row load ............ done (setTable pendingRows, tests here)
-//   (2) Finish waits for group Undo ......... done (deleteUndo.undoAll tracked; deleteUndo.test.ts + here)
-//   (3) duplicate Log conflict .............. done (workouts.logSet fp, rowLog.submitRow, tests here)
-//   (4) durable merge keeps other tab ....... done (drafts.draftsDurableMerge; drafts-2.0l.test.ts)
-//   (5) export snapshot ..................... done (db/backup.exportBackup; backup-2.0l.test.ts)
-//   (6) discard receipts .................... done (mutations.dropMutations; here)
-//   (7) swipe identity ...................... TODO (ExerciseView removeRow by id, SwipeRow cancel; tests/codex-2.0l.spec.ts)
-//   (8) reps cue + Log label ................ TODO (SetTable; tests/codex-2.0l.spec.ts)
-//
 // PLAN 2.0l: Codex carry over (reports/codex/bughunt-1103-1811-weights.md, ui-2.2e.md). Each case
-// failed before its fix. Synthetic data only.
+// failed before its fix. Synthetic data only. Also: drafts-2.0l, backup-2.0l, deleteUndo tests and
+// tests/codex-2.0l.spec.ts (7, 8).
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';

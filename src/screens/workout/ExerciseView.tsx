@@ -338,7 +338,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...(timed ? { seconds: v, watch: heldFor(v) } : { reps: v }),
       rev: (before.rev ?? 0) + 1,
     };
-    if (!timed) draft.own = { ...before.own, reps: true };
+    if (!timed) {
+      draft.own = { ...before.own, reps: true };
+      draft.repsEdited = true;
+    }
     saveDraft(sessionId, rowKey(exerciseId, at), draft);
     refresh();
   };
@@ -687,7 +690,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onEdit={onEditSet}
             hold={timed && current ? { running, onToggle: toggleWatch } : undefined}
             checkHint={!timed && !!current && !status && logged.length === 0}
-            repsCue={!!current && !slots[slotOf(current)]?.own?.reps}
+            repsCue={!!current && !slots[slotOf(current)]?.repsEdited}
             onBlocked={onBlocked}
             nudge={nudge}
             onRemove={removeRow}

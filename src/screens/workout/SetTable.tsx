@@ -338,7 +338,7 @@ const TodoRow = memo(
               type="button"
               className={`${styles.cellButton} ${styles.cellValue} num pressable`}
               data-empty={!amount || undefined}
-              data-cue={(p.cue && !!amount) || undefined}
+              data-cue={p.cue && amount ? '' : undefined}
               aria-expanded={p.editingHere}
               onClick={() => api.amount(r)}
               aria-label={timed ? `Hold for set ${n}: ${shownSeconds ?? 0} seconds. Change` : `Reps for set ${n}: ${r.reps ?? 0}. Change`}
@@ -357,7 +357,7 @@ const TodoRow = memo(
               aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSetLine({ reps: r.reps, load: r.load ?? undefined })}`}
               data-testid={isCurrent ? 'check-current' : 'check'}
             >
-              <span className={styles.checkCircle} data-labelled={p.logLabel || undefined}>
+              <span className={styles.checkCircle} data-labelled={p.logLabel ? '' : undefined}>
                 <Check />
                 {/* Words for the first time (PLAN 2.0l): the outlined ✓ is the action. Inside the circle, so nothing moves when it goes. */}
                 {p.logLabel && (

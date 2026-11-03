@@ -39,6 +39,8 @@ export type Draft = {
   noTarget?: true;
   /** What the user set by hand on this row (a weight pick or LAST TIME copy, the reps stepper). */
   own?: { load?: true; reps?: true };
+  /** PLAN 2.0l (additive): the user changed this row's reps (the stepper or a LAST TIME copy). */
+  repsEdited?: true;
   /**
    * The "Loaded with" the weight was picked under (PLAN 2.0k), kept even while the base weight is
    * unknown (load null, plates only): a pick is never rebuilt under another load kind.
