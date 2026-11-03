@@ -30,32 +30,21 @@ describe('motion presets', () => {
     // no movement after an edge swipe
     expect(at(pageVariants.enter, 0).transform).toBe('translateX(0%) scale(1)');
   });
-  it('reduced motion: no movement at all', () => {
+  it('reduced motion: no movement, a crossfade', () => {
     for (const k of ['enter', 'center', 'exit'] as const) expect(at(pageVariantsReduced[k], 1).transform).toBeUndefined();
+    expect(at(pageVariantsReduced.enter, 1).opacity).toBe(0);
+    expect(at(pageVariantsReduced.center, 1).opacity).toBe(1);
   });
 });
 
 describe('reduced motion navigation', () => {
   afterEach(() => vi.unstubAllGlobals());
-  it('push and pop change the page at once, without a view transition', () => {
-    const dataset: Record<string, string> = { navFallback: 'push' };
-    const startViewTransition = vi.fn();
-    vi.stubGlobal('document', { documentElement: { dataset }, startViewTransition });
-    vi.stubGlobal('window', { matchMedia: (q: string) => ({ matches: q.includes('reduce') }) });
-    const update = vi.fn();
-    withTransition('push', update);
-    withTransition('pop', update);
-    expect(update).toHaveBeenCalledTimes(2);
-    expect(startViewTransition).not.toHaveBeenCalled();
-    expect(dataset.navFallback).toBeUndefined();
-    expect(dataset.nav).toBeUndefined();
-  });
-  it('a tab change still crossfades (no movement)', () => {
+  it('still one view transition per change: its CSS swaps the slide for a crossfade', () => {
     const dataset: Record<string, string> = {};
     const startViewTransition = vi.fn(() => ({ finished: Promise.resolve() }));
     vi.stubGlobal('document', { documentElement: { dataset }, startViewTransition });
     vi.stubGlobal('window', { matchMedia: () => ({ matches: true }) });
-    withTransition('tab', () => undefined);
+    withTransition('push', () => undefined);
     expect(startViewTransition).toHaveBeenCalledOnce();
   });
 });

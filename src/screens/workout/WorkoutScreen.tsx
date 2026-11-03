@@ -756,7 +756,7 @@ export function WorkoutScreen() {
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={reduce ? { duration: 0 } : PAGE_SPRING}
+                  transition={reduce ? FADE : PAGE_SPRING}
                 >
                   <Present>{view}</Present>
                 </motion.div>

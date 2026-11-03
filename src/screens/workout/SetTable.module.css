@@ -672,3 +672,12 @@
   }
 }
 
+
+/* PLAN 2.2e: the PR badge sits on the set number's top right corner, out of the grid (absolute), so
+   nothing in the row moves when it arrives. */
+.prBadge {
+  position: absolute;
+  z-index: 2;
+  top: 3px;
+  left: 37px;
+}

@@ -77,27 +77,6 @@
   font-size: var(--text-sm);
 }
 
-.segmented {
-  flex: none;
-  display: inline-flex;
-  padding: 3px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-}
-
-.segment {
-  min-width: 52px;
-  min-height: 48px;
-  border-radius: var(--radius-pill);
-  color: var(--text-2);
-  font-weight: 700;
-}
-
-.segment[aria-checked='true'] {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
 /* A row that opens something (Import history): the whole row is the button. */
 .linkRow {
   width: 100%;

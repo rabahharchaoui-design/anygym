@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { db } from '../../db/schema';
-import { finishedDetail, workoutRecords } from '../../db/history';
+import { finishedDetail, workoutRecords, workoutWins } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
 import { formatSetLine, formatTotal, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
@@ -13,7 +13,7 @@ import { getPlanState, setFinishNextDay } from '../../db/planState';
 import { ChangeDaySheet } from '../today/ChangeDaySheet';
 import { dayTitle } from '../plans/planWords';
 import { FADE, GENTLE, STAGGER } from '../../ui/motion';
-import { Button } from '../../ui/Button';
+import { BottomCTA } from '../../ui/BottomCTA';
 import { Odometer } from '../../ui/Odometer';
 import { Skeleton } from '../../ui/Skeleton';
 import { TrophyIcon } from '../../ui/icons';
@@ -39,10 +39,12 @@ export function FinishScreen() {
   const [changeFailed, setChangeFailed] = useState(false);
   const detail = useLive(async () => {
     const d = await finishedDetail(sessionId);
-    if (!d) return { d: null, unit: 'lb' as const, records: [] };
+    if (!d) return { d: null, unit: 'lb' as const, records: [], win: null };
     const gym = await db.gyms.get(d.session.gymId);
     const records = await workoutRecords(sessionId, exerciseNamer(d.session));
-    return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records };
+    // PLAN 2.2e: the one biggest real win leads (the same rule as the live PR badge), or nothing.
+    const { win } = await workoutWins(sessionId, exerciseNamer(d.session));
+    return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records, win };
   }, [sessionId]);
   // The plan as Finish left it (read, never written on mount): the next up line shows this, live.
   const planLive = useLive(() => getPlanState(), []);
@@ -121,6 +123,14 @@ export function FinishScreen() {
                 </p>
               ) : null}
             </motion.div>
+            {v.win && (
+              <motion.p className={styles.win} data-testid="finish-win" {...item(1)}>
+                <span className={styles.winIcon} aria-hidden="true">
+                  <TrophyIcon width={18} height={18} strokeWidth={2.2} />
+                </span>
+                <span className={styles.winText}>{v.win.text}</span>
+              </motion.p>
+            )}
             <div className={styles.stats}>
               <motion.div className={styles.stat} {...item(1)}>
                 <span className={`${styles.value} num`} data-testid="finish-duration">
@@ -193,29 +203,34 @@ export function FinishScreen() {
         )}
       </main>
       {/* Pinned under the scroller (never over it): the summary scrolls above it, every row reachable. */}
-      <div className={styles.footer}>
-        {nextDay && d && (
-          <motion.div
-            className={styles.next}
-            {...(reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
-          >
-            <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
-              Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
-            </p>
-            <button type="button" className={`${styles.change} pressable`} onClick={() => setChanging(true)} aria-label={`Change the next day, now Day ${nextDay.n}`} data-testid="finish-change">
-              Change
-            </button>
-          </motion.div>
-        )}
-        {changeFailed && (
-          <p className={styles.nextError} role="status">
-            Could not change the day. Try again.
-          </p>
-        )}
-        <Button onClick={done} disabled={loading || saving}>
-          Done
-        </Button>
-      </div>
+      <BottomCTA
+        onPress={done}
+        disabled={loading || saving}
+        above={
+          <>
+            {nextDay && d && (
+              <motion.div
+                className={styles.next}
+                {...(reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
+              >
+                <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
+                  Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
+                </p>
+                <button type="button" className={`${styles.change} pressable`} onClick={() => setChanging(true)} aria-label={`Change the next day, now Day ${nextDay.n}`} data-testid="finish-change">
+                  Change
+                </button>
+              </motion.div>
+            )}
+            {changeFailed && (
+              <p className={styles.nextError} role="status">
+                Could not change the day. Try again.
+              </p>
+            )}
+          </>
+        }
+      >
+        Done
+      </BottomCTA>
       {plan && state && nextDay && (
         <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={plan} state={state} onPick={(i) => void pickNext(i)} title="Which day next?" />
       )}

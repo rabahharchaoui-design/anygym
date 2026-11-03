@@ -1,0 +1,368 @@
+/*
+ * PROGRESS (PLAN 2.2e, remove this block when the item is done)
+ * done: (1) motion.ts TAP/SHEET/PAGE springs + PAGE transition (VT CSS, Motion fallback, edge swipe);
+ *       reduced motion keeps a crossfade, no movement (SPEC 13.2); raw navigate() callers use useNav.
+ *       (2) SlidingToggle (Segmented delegates; Settings Units too), ChoiceCard (bar + load type
+ *       sheets), BottomCTA (Finish, PlanViewer), one Undo toast look, PRBadge, AppMarkLoader
+ *       (startup, lazy dev route), #/dev/ui preview with visual snapshots.
+ *       (3) records.ts recordSets/biggestWin + load.ts helpers, history.ts workoutWins (one read
+ *       transaction), useWorkout.recordOf -> SetTable badge, Finish lead line.
+ *       (4) press to paint < 100 ms, frame gaps in a push and pop, no shift: asserted below.
+ *       Full suite green on SE, 15, 17 Pro Max except the pre-existing exercise-screen-2.2b offline test.
+ * left: ux-critic 9+ review; videos for SPEC 23.4.
+ */
+import { expect, test, type Locator, type Page } from './fixtures';
+import { bar185, checkCurrent, exerciseView, fillReps, loggedRows, navIdle, pickExercises, seedFinished, usePlan, watchErrors } from './workout-helpers';
+
+const SHOTS = 'reports/shots/2.2e';
+const shot = async (page: Page, name: string) => {
+  await page.waitForTimeout(450);
+  await page.screenshot({ path: `${SHOTS}/${test.info().project.name.replace(/ /g, '-')}-${name}.png` });
+};
+const box = async (l: Locator) => (await l.boundingBox())!;
+
+async function openUi(page: Page) {
+  await page.goto('./?dev#/dev/ui');
+  await expect(page.getByRole('heading', { name: 'Components' })).toBeVisible();
+  await page.waitForTimeout(300);
+}
+
+/** pointerdown to the first painted frame where `changed()` holds (two rAFs after it is seen). */
+async function pressToPaint(page: Page, target: Locator, probe: string, act: () => Promise<void>) {
+  await target.evaluate((el, src) => {
+    const w = window as unknown as { __p: { down: number; painted: number } };
+    w.__p = { down: 0, painted: 0 };
+    // eslint-disable-next-line no-new-func
+    const changed = new Function('el', src) as (el: Element) => boolean;
+    document.addEventListener(
+      'pointerdown',
+      () => {
+        w.__p.down = performance.now();
+        const loop = () => {
+          if (changed(el)) requestAnimationFrame(() => requestAnimationFrame(() => (w.__p.painted = performance.now())));
+          else requestAnimationFrame(loop);
+        };
+        loop();
+      },
+      { capture: true, once: true },
+    );
+  }, probe);
+  await act();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __p: { painted: number } }).__p.painted)).toBeGreaterThan(0);
+  return page.evaluate(() => {
+    const p = (window as unknown as { __p: { down: number; painted: number } }).__p;
+    return p.painted - p.down;
+  });
+}
+
+test.describe('components (#/dev/ui)', () => {
+  test('SlidingToggle: one lime pill slides between two or three options, 48 pt, keyboard, no layout shift @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openUi(page);
+    const two = page.getByTestId('toggle-2');
+    const three = page.getByTestId('toggle-3');
+    await expect(two.getByRole('radio', { name: 'lb' })).toHaveAttribute('aria-checked', 'true');
+    for (const r of await page.getByRole('radio').all()) expect((await box(r)).height).toBeGreaterThanOrEqual(48);
+    const before = await Promise.all((await three.getByRole('radio').all()).map(box));
+    const pill = three.locator('[data-pill]');
+    const x0 = (await box(pill)).x;
+    await three.getByRole('radio', { name: 'meters' }).tap();
+    await expect(three.getByRole('radio', { name: 'meters' })).toHaveAttribute('aria-checked', 'true');
+    await expect(three.getByRole('radio', { name: 'km' })).toHaveAttribute('aria-checked', 'false');
+    // The pill moved under the pick; the options did not move (a transform, not a relayout).
+    await expect.poll(async () => Math.round((await box(pill)).x - x0)).toBeGreaterThan(100);
+    const meters = await box(three.getByRole('radio', { name: 'meters' }));
+    await expect.poll(async () => Math.abs((await box(pill)).x - meters.x)).toBeLessThan(2);
+    const after = await Promise.all((await three.getByRole('radio').all()).map(box));
+    expect(after).toEqual(before);
+    // Independent instances: the 2 option one is unchanged.
+    await expect(two.getByRole('radio', { name: 'lb' })).toHaveAttribute('aria-checked', 'true');
+    // Arrow keys move the pick (radiogroup).
+    await two.getByRole('radio', { name: 'lb' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(two.getByRole('radio', { name: 'kg' })).toHaveAttribute('aria-checked', 'true');
+    await expect(two.getByRole('radio', { name: 'kg' })).toBeFocused();
+    // Disabled: grey, no change.
+    const off = page.getByTestId('toggle-off');
+    await expect(off.getByRole('radio', { name: 'Off' })).toBeDisabled();
+    await page.waitForTimeout(300);
+    await expect(three).toHaveScreenshot('toggle-3.png', { maxDiffPixelRatio: 0.02 });
+    expect(errors).toEqual([]);
+  });
+
+  test('ChoiceCard: icon, label, ring that fills; lime border when picked; BottomCTA grey until valid @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openUi(page);
+    const cards = page.getByTestId('choice-cards');
+    const cta = page.getByTestId('cta');
+    const go = cta.getByRole('button', { name: 'Continue' });
+    // Nothing picked: the button is grey and says why, the honest local line under it.
+    await expect(go).toBeDisabled();
+    await expect(cta.getByRole('note')).toHaveText('Pick a goal first');
+    await expect(cta.getByText('Stays on this phone.')).toBeVisible();
+    // In the thumb zone: pinned to the bottom of the screen.
+    const vh = page.viewportSize()!.height;
+    expect((await box(go)).y + (await box(go)).height).toBeGreaterThan(vh * 0.8);
+    await shot(page, 'choice-none');
+    const card = cards.getByRole('button', { name: /Build muscle/ });
+    expect((await box(card)).height).toBeGreaterThanOrEqual(48);
+    const fill = card.locator('[data-ring] > span');
+    expect(await fill.evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+    await card.tap();
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    await expect(cards.getByRole('button', { name: /Get stronger/ })).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => fill.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    expect(await card.evaluate((el) => getComputedStyle(el).borderColor)).toBe('rgb(212, 255, 58)');
+    await expect(go).toBeEnabled();
+    await expect(cta.getByRole('note')).toHaveCount(0);
+    await page.waitForTimeout(300);
+    await expect(cards).toHaveScreenshot('choice-picked.png', { maxDiffPixelRatio: 0.02 });
+    await shot(page, 'choice-picked');
+    // The CTA works: here it clears the pick, and goes grey again.
+    await go.tap();
+    await expect(go).toBeDisabled();
+    expect(errors).toEqual([]);
+  });
+
+  test('Toast with Undo: one Undo look, 48 pt, fires once @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openUi(page);
+    await page.getByRole('button', { name: 'Delete a set' }).tap();
+    const toast = page.getByRole('status').filter({ hasText: 'Set deleted' });
+    await expect(toast).toBeVisible();
+    await page.waitForTimeout(450); // the entrance spring settled (it starts at 0.97)
+    const undo = toast.getByRole('button', { name: 'Undo' });
+    expect((await box(undo)).height).toBeGreaterThanOrEqual(48);
+    await expect(undo).toHaveAttribute('data-undo', 'true');
+    // Above the bottom button, never over it.
+    const t = await box(toast);
+    expect(t.y + t.height).toBeLessThanOrEqual((await box(page.getByTestId('cta'))).y + 1);
+    await shot(page, 'toast-undo');
+    await undo.tap();
+    await expect(toast).toHaveCount(0);
+    await expect(page.getByTestId('undone')).toHaveText('Undone 1');
+    expect(errors).toEqual([]);
+  });
+
+  test('PRBadge springs in on a row without moving it; AppMarkLoader draws the mark after 400 ms @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openUi(page);
+    const row = page.getByTestId('pr-row');
+    // Each cell relative to its row (a tap may scroll the page): nothing in the row moves.
+    const cells = async () => {
+      const r = await box(row);
+      return Promise.all((await row.locator('span.num').all()).map(async (c) => {
+        const b = await box(c);
+        return { x: b.x - r.x, y: b.y - r.y, w: b.width, h: b.height };
+      }));
+    };
+    const before = await cells();
+    await page.getByRole('button', { name: 'Log a best set' }).tap();
+    const badge = row.getByTestId('pr-badge');
+    await expect(badge).toHaveText('PR');
+    expect(await badge.evaluate((el) => getComputedStyle(el).animationName)).toMatch(/pr-in/);
+    expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(212, 255, 58)');
+    expect(await cells()).toEqual(before);
+    await page.waitForTimeout(400);
+    await expect(row).toHaveScreenshot('pr-row.png', { maxDiffPixelRatio: 0.02 });
+    // The loader: invisible before 400 ms, then the mark is drawn.
+    await page.getByRole('button', { name: 'Replay' }).tap();
+    const loader = page.getByRole('status', { name: 'Loading preview' });
+    expect(Number(await loader.evaluate((el) => getComputedStyle(el).opacity))).toBe(0);
+    await page.waitForTimeout(1400);
+    expect(await loader.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    expect(await loader.locator('path').first().evaluate((el) => Number(getComputedStyle(el).strokeDashoffset.replace('px', '')))).toBeLessThan(0.01);
+    await loader.scrollIntoViewIfNeeded();
+    await shot(page, 'loader');
+    expect(errors).toEqual([]);
+  });
+
+  test('reduced motion: the pill and the ring change without movement', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openUi(page);
+    expect(await page.getByTestId('toggle-2').locator('[data-pill]').evaluate((el) => getComputedStyle(el).transitionDuration)).toMatch(/^0s/);
+    await page.getByTestId('choice-cards').getByRole('button', { name: /Get stronger/ }).tap();
+    const fill = page.getByTestId('choice-cards').getByRole('button', { name: /Get stronger/ }).locator('[data-ring] > span');
+    expect(await fill.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+  });
+});
+
+test.describe('PR badge in the workout and the finish lead line', () => {
+  async function squatSet(page: Page, view: Locator, reps: number, n: number) {
+    const row = view.getByTestId('set-todo').first();
+    await fillReps(view, row, reps);
+    await checkCurrent(view).tap();
+    await expect(loggedRows(view)).toHaveCount(n);
+    const skip = page.getByRole('button', { name: 'Skip' });
+    if (await skip.isVisible()) await skip.tap();
+  }
+
+  async function quickSquat(page: Page) {
+    await page.getByRole('button', { name: /Quick workout/ }).tap();
+    await pickExercises(page, [['back squat', 'Barbell Back Squat']]);
+    const view = exerciseView(page, 'barbell-back-squat');
+    await expect(view).toBeVisible();
+    // 185 lb on the first row (it may already be there from last time).
+    const cell = view.getByTestId('weight-cell').first();
+    if ((await cell.innerText()).trim() !== '185') {
+      await cell.tap();
+      const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
+      await sheet.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+      await sheet.getByRole('button', { name: 'Add 25 lb plate to each side' }).tap();
+      await sheet.getByRole('button', { name: 'Done' }).tap();
+    }
+    await expect(view.getByTestId('weight-cell').first()).toHaveText('185');
+    return view;
+  }
+
+  test('beats the best: the row shows PR, a tie does not; Finish leads with it @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('./');
+    await seedFinished(page, { 'barbell-back-squat': [{ reps: 5, load: bar185 }] });
+    await page.reload();
+    const view = await quickSquat(page);
+    await squatSet(page, view, 6, 1);
+    const first = loggedRows(view).first();
+    await expect(first.getByTestId('pr-badge')).toBeVisible();
+    await expect(first.getByRole('button', { name: /personal record/ })).toBeVisible();
+    await shot(page, 'workout-pr');
+    // The same 185 × 6 again ties: no badge.
+    await expect(view.getByTestId('weight-cell').first()).toHaveText('185');
+    await squatSet(page, view, 6, 2);
+    await page.waitForTimeout(400);
+    await expect(loggedRows(view).nth(1).getByTestId('pr-badge')).toHaveCount(0);
+    await expect(view.getByTestId('pr-badge')).toHaveCount(1);
+    // Back to the list and in again: the badge is still there (and does not replay).
+    await page.getByRole('button', { name: 'Back to the list' }).tap();
+    await navIdle(page);
+    await page.getByTestId('row-barbell-back-squat').tap();
+    await expect(loggedRows(view).first().getByTestId('pr-badge')).toBeVisible();
+    expect(await loggedRows(view).first().getByTestId('pr-badge').getAttribute('data-fresh')).toBeNull();
+    await page.getByRole('button', { name: 'Finish' }).tap();
+    await expect(page).toHaveURL(/\/done$/);
+    await expect(page.getByTestId('finish-win')).toHaveText('Barbell Back Squat 185 lb × 6, best ever');
+    // It leads: above the numbers.
+    expect((await box(page.getByTestId('finish-win'))).y).toBeLessThan((await box(page.getByTestId('finish-duration'))).y);
+    await shot(page, 'finish-win');
+    expect(errors).toEqual([]);
+  });
+
+  test('first ever session: no badge, a plain honest finish @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('./');
+    const view = await quickSquat(page);
+    await squatSet(page, view, 8, 1);
+    await squatSet(page, view, 10, 2);
+    await page.waitForTimeout(500);
+    await expect(view.getByTestId('pr-badge')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Finish' }).tap();
+    await expect(page.getByTestId('finish-title')).toHaveText('Workout saved');
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId('finish-win')).toHaveCount(0);
+    await expect(page.getByTestId('pr-chip')).toHaveCount(0);
+    await shot(page, 'finish-plain');
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('speed budget (PLAN 2.2e point 4)', () => {
+  test('press feedback under 100 ms: button, choice card, toggle @matrix', async ({ page }) => {
+    await openUi(page);
+    const card = page.getByTestId('choice-cards').getByRole('button', { name: /Train regularly/ });
+    const ms1 = await pressToPaint(page, card, "return el.getAttribute('aria-pressed') === 'true'", () => card.tap());
+    const opt = page.getByTestId('toggle-3').getByRole('radio', { name: 'miles' });
+    const ms2 = await pressToPaint(page, opt, "return el.getAttribute('aria-checked') === 'true'", () => opt.tap());
+    // The primary button's own press state (scale 0.97 while the finger is down).
+    const go = page.getByTestId('cta').getByRole('button', { name: 'Continue' });
+    const b = await box(go);
+    const ms3 = await pressToPaint(page, go, "return getComputedStyle(el).transform !== 'none'", async () => {
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      await page.mouse.down();
+    });
+    await page.mouse.up();
+    console.log(`${test.info().project.name}: press to paint: card ${Math.round(ms1)} ms, toggle ${Math.round(ms2)} ms, button ${Math.round(ms3)} ms`);
+    for (const ms of [ms1, ms2, ms3]) {
+      expect(ms).toBeGreaterThan(0);
+      expect(ms).toBeLessThan(100);
+    }
+  });
+
+  test('a recorded push and pop: the shared page transition, no dropped frames, nothing shifts @matrix', async ({ page }) => {
+    await usePlan(page);
+    await page.getByRole('button', { name: 'Start', exact: true }).tap();
+    await page.waitForTimeout(1200);
+    const row = page.getByTestId('row-barbell-back-squat');
+    await row.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    const record = () =>
+      page.evaluate(() => {
+        const w = window as unknown as { __rec: { gaps: number[]; scales: number[]; kinds: string[]; run: boolean } };
+        w.__rec = { gaps: [], scales: [], kinds: [], run: true };
+        // Which page transition ran: View Transitions mark html[data-nav]; the Motion fallback
+        // (no View Transitions) moves [data-motion-view] layers with inline transforms.
+        const scan = () => {
+          const kind = document.documentElement.dataset.nav;
+          if (kind) w.__rec.kinds.push(kind);
+          for (const v of document.querySelectorAll<HTMLElement>('[data-motion-view]')) {
+            const m = /scale\(([\d.]+)\)/.exec(v.style.transform);
+            if (m) w.__rec.scales.push(Number(m[1]));
+          }
+        };
+        let last = 0;
+        const loop = (t: number) => {
+          if (!w.__rec.run) return;
+          if (last) w.__rec.gaps.push(t - last);
+          last = t;
+          scan();
+          requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+      });
+    const stop = () =>
+      page.evaluate(() => {
+        const w = window as unknown as { __rec: { gaps: number[]; scales: number[]; kinds: string[]; run: boolean } };
+        w.__rec.run = false;
+        return w.__rec;
+      });
+    await record();
+    await row.tap();
+    await expect(exerciseView(page, 'barbell-back-squat')).toBeVisible();
+    await page.waitForTimeout(600);
+    const push = await stop();
+    // No layout shift once it arrived: the name and the current row's ✓ stay put.
+    const view = exerciseView(page, 'barbell-back-squat');
+    const parts = [view.getByRole('heading').first(), checkCurrent(view)];
+    const settled = await Promise.all(parts.map(box));
+    await page.waitForTimeout(500);
+    expect(await Promise.all(parts.map(box))).toEqual(settled);
+    await record();
+    await page.getByRole('button', { name: 'Back to the list' }).tap();
+    await expect(row).toBeVisible();
+    await page.waitForTimeout(600);
+    const pop = await stop();
+    const long = (g: number[]) => Math.round(Math.max(0, ...g));
+    // A dropped frame: a gap past two 60 Hz intervals plus the headless clock's few ms of jitter.
+    const missed = (g: number[]) => g.filter((x) => x > 40).length;
+    console.log(`${test.info().project.name}: push longest ${long(push.gaps)} ms (${missed(push.gaps)} over 40), pop longest ${long(pop.gaps)} ms (${missed(pop.gaps)} over 40), min scale ${Math.min(1, ...push.scales, ...pop.scales)}`);
+    // Headless WebKit's frame clock is noisy (see polish-2.2d): no frame over 50 ms, at most one missed.
+    for (const r of [push, pop]) {
+      expect(long(r.gaps)).toBeLessThan(50);
+      expect(missed(r.gaps)).toBeLessThanOrEqual(1);
+    }
+    // The one page transition ran both ways: a push, then a pop (View Transitions), whose CSS
+    // moves the page underneath 30% left, shrinks it to 0.96 and dims it; or the Motion fallback.
+    if (push.kinds.length) {
+      expect(push.kinds).toContain('push');
+      expect(pop.kinds).toContain('pop');
+      const rules = await page.evaluate(() => {
+        const out: Record<string, string> = {};
+        for (const sheet of document.styleSheets) for (const r of sheet.cssRules) if (r instanceof CSSKeyframesRule && /^vt-(push-old|pop-new)$/.test(r.name)) out[r.name] = r.cssText;
+        return out;
+      });
+      expect(rules['vt-push-old']).toMatch(/translateX?\(-30%\) scale\(0\.96\)/);
+      expect(rules['vt-pop-new']).toMatch(/translateX?\(-30%\) scale\(0\.96\)/);
+    } else {
+      expect(Math.min(1, ...push.scales)).toBeCloseTo(0.96, 2);
+    }
+  });
+});

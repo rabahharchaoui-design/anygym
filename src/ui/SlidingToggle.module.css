@@ -1,0 +1,87 @@
+/* PLAN 2.2e: the sliding toggle. One lime pill under equal width options; it slides on the tap
+   spring (--ease-tap-spring, a sampled spring with a small overshoot), the labels change color. */
+.toggle {
+  --pad: 3px;
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(56px, 1fr);
+  padding: var(--pad);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  isolation: isolate;
+}
+
+.toggle[data-block] {
+  display: grid;
+  width: 100%;
+}
+
+.pill {
+  position: absolute;
+  z-index: 0;
+  top: var(--pad);
+  bottom: var(--pad);
+  left: var(--pad);
+  width: calc((100% - 2 * var(--pad)) / var(--n));
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to bottom, #e0ff6a, var(--accent) 60%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 2px 10px rgb(212 255 58 / 0.22);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform var(--dur-tap) var(--ease-tap-spring);
+  will-change: transform;
+}
+
+.option {
+  position: relative;
+  z-index: 1;
+  /* 48 pt hit area (SPEC 13.3). */
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    transform 160ms var(--ease-out),
+    opacity 160ms var(--ease-out);
+}
+
+.toggle[data-block] .option {
+  font-size: var(--text-base);
+}
+
+.option[aria-checked='true'] {
+  color: var(--on-accent);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.toggle[aria-disabled] {
+  opacity: 0.5;
+}
+
+.toggle[aria-disabled] .pill {
+  background: var(--hairline);
+  box-shadow: none;
+}
+
+.toggle[aria-disabled] .option[aria-checked='true'] {
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill,
+  .option {
+    transition: none;
+  }
+}

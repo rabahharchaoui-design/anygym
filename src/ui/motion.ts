@@ -46,8 +46,8 @@ export const SPRINGS = { tap: TAP_SPRING, sheet: SHEET_SPRING, page: PAGE_SPRING
 /**
  * The one page transition (PLAN 2.2e, SPEC 23.1). Push: the new page slides in from the right over
  * the old one, which moves 30% left, shrinks slightly and dims; back (pop) is the exact reverse.
- * 220 ms on the page spring (inside 180 to 280 ms). Reduced motion: no movement at all, the page
- * changes at once (nav.ts). The View Transitions CSS mirrors these numbers in tokens.css
+ * 220 ms on the page spring (inside 180 to 280 ms). Reduced motion: no movement, only a short
+ * crossfade (SPEC 13.2: crossfades instead of movement; transitions.css and pageVariantsReduced). The View Transitions CSS mirrors these numbers in tokens.css
  * (--dur-nav, --page-shift, --page-scale, --page-dim); the Motion fallback uses pageVariants.
  */
 export const PAGE = { durationMs: 220, shift: '-30%', scale: 0.96, dim: 0.6 } as const;
@@ -67,11 +67,11 @@ export const pageVariants: Variants = {
     dir === 0 ? { opacity: 0, transition: { duration: 0 } } : dir > 0 ? { transform: under, opacity: PAGE.dim, zIndex: 1 } : { transform: 'translateX(100%) scale(1)', opacity: 1, zIndex: 2 },
 };
 
-/** Reduced motion: the page is simply there (no slide, no fade). */
+/** Reduced motion: no movement, a 150 ms crossfade (SPEC 13.2). */
 export const pageVariantsReduced: Variants = {
-  enter: { opacity: 1 },
+  enter: { opacity: 0 },
   center: { opacity: 1 },
-  exit: { opacity: 0, transition: { duration: 0 } },
+  exit: { opacity: 0 },
 };
 
 /** Reduced motion: a short crossfade instead of movement. */

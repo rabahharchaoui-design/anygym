@@ -12,6 +12,8 @@ import type { PastSet, SetLine } from '../../lib/progression';
 import { RepsStepper } from './RepsStepper';
 import { Hint } from '../../components/hint/Hint';
 import { SwipeRow } from './SwipeRow';
+import { PRBadge } from '../../ui/PRBadge';
+import type { SetRecord } from '../../lib/records';
 import styles from './SetTable.module.css';
 
 type Props = {
@@ -72,6 +74,8 @@ type Props = {
   removable?: boolean;
   /** A row's data identity (its draft id when it has one): a row back from Undo opens up again. */
   keyOf?: (row: PendingRow) => string;
+  /** PLAN 2.2e: the record a logged set set (its row shows the PR badge), from real history only. */
+  recordOf?: (setId: string) => SetRecord | undefined;
 };
 
 /** Words ("Just you", "40 + bar") wrap onto two short lines in the cell; numbers roll (PLAN 2.2b). */
@@ -157,14 +161,14 @@ function TypeButton({ t, number, onPress }: { t: SetType; number: string; onPres
   );
 }
 
-type LoggedProps = Shared & { set: WorkoutSet; at: number; number: string; last: string; fresh?: number; sig: string };
+type LoggedProps = Shared & { set: WorkoutSet; at: number; number: string; last: string; fresh?: number; record?: SetRecord; sig: string };
 
 /** The check animation, carried on from the ✓ tap (a negative delay): one animation across the row's two states. */
 const since = (at: number | undefined) => (at === undefined ? undefined : ({ '--since': `${Math.max(0, Math.round(performance.now() - at))}ms` } as CSSProperties));
 
 /** A logged row: tap the middle to edit, swipe left to delete (with Undo), long press for its menu. */
 const LoggedRow = memo(
-  function LoggedRow({ set: s, at, number, last, fresh, kind, unit, timed, api, removable }: LoggedProps) {
+  function LoggedRow({ set: s, at, number, last, fresh, record, kind, unit, timed, api, removable }: LoggedProps) {
     const t = typeOfSet(s);
     // From the set's own record (unit, load kind, count), labelled where it differs from the heading.
     const cells = savedCells(s, kind, unit);
@@ -179,11 +183,12 @@ const LoggedRow = memo(
           face={{ className: styles.row, 'data-state': 'logged', 'data-fresh': fresh !== undefined || undefined, style: since(fresh) }}
         >
           <TypeButton t={t} number={number} onPress={() => api.loggedType(s)} />
+          {record && <PRBadge setId={s.id} title={record.text} className={styles.prBadge} />}
           <button
             type="button"
             className={`${styles.loggedBody} pressable`}
             onClick={() => api.edit(s)}
-            aria-label={`Set ${at + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSetLine(s)}. Edit`}
+            aria-label={`Set ${at + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSetLine(s)}${record ? ', personal record' : ''}. Edit`}
           >
             <span className={`${styles.last} num`}>{last || '–'}</span>
             {!timed && (
@@ -407,8 +412,9 @@ export function SetTable(props: Props) {
           const last = lastTimeCell(props.lastTimeOf(i), unit);
           const fresh = props.fresh.get(s.id);
           const number = String(numbers[i]);
-          const sig = JSON.stringify([s, i, number, last, fresh !== undefined, kind, unit, removable]);
-          return <LoggedRow key={`row-${i}`} {...shared} set={s} at={i} number={number} last={last} fresh={fresh} sig={sig} />;
+          const record = props.recordOf?.(s.id);
+          const sig = JSON.stringify([s, i, number, last, fresh !== undefined, kind, unit, removable, record?.text]);
+          return <LoggedRow key={`row-${i}`} {...shared} set={s} at={i} number={number} last={last} fresh={fresh} record={record} sig={sig} />;
         })}
         {rows.map((r) => {
           const isCurrent = r.index === current;

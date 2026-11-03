@@ -287,9 +287,12 @@ export async function workoutWins(
   nameOf: (exerciseId: string) => string,
   db: AnyGymDB = defaultDb,
 ): Promise<{ records: SetRecord[]; win: Win | null }> {
-  const session = await db.sessions.get(sessionId);
-  if (!session) return { records: [], win: null };
-  const sets = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
-  const groups = (await recordGroups(session, sets, nameOf, db)).map((g) => ({ exerciseId: g.exerciseId, name: g.name, records: recordSets(g.today, g.before) }));
-  return { records: groups.flatMap((g) => g.records), win: biggestWin(groups) };
+  // One read transaction: a coherent snapshot (the workout and its history read together).
+  return db.transaction('r', db.sessions, db.sets, db.gyms, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) return { records: [], win: null };
+    const sets = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
+    const groups = (await recordGroups(session, sets, nameOf, db)).map((g) => ({ exerciseId: g.exerciseId, name: g.name, records: recordSets(g.today, g.before) }));
+    return { records: groups.flatMap((g) => g.records), win: biggestWin(groups) };
+  });
 }

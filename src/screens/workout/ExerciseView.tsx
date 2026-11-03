@@ -667,6 +667,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onRemoveLogged={removeLogged}
             removable={!logQueue.closed(sessionId)}
             keyOf={(r) => slots[slotOf(r)]?.id ?? `i${r.index}`}
+            recordOf={w.recordOf}
             underRows={
               <>
                 {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
