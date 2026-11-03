@@ -78,7 +78,7 @@ describe('the error ring', () => {
     const target = { error: (...a: unknown[]) => (calls.push(a), 'ret') as unknown as void };
     installConsoleRing(target);
     installConsoleRing(target);
-    const obj = { secret: 'Zeta Gym' };
+    const obj = { gym: 'Zeta Gym' };
     expect(target.error('Boom', new Error('inner'), obj)).toBe('ret');
     expect(calls).toEqual([['Boom', expect.any(Error), obj]]);
     expect(recentErrors()).toEqual(['Error: details hidden']);

@@ -13,7 +13,7 @@ async function copyText(text: string): Promise<boolean> {
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px;';
+    Object.assign(ta.style, { position: 'fixed', top: '0', left: '0', opacity: '0', fontSize: '16px' });
     document.body.appendChild(ta);
     ta.select();
     const ok = document.execCommand('copy');

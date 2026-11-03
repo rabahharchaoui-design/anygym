@@ -69,7 +69,7 @@ The queue entry is [PLAN.md:72](/Users/rabah/projects/anygym/PLAN.md:72). The im
 4) Handle these edge cases explicitly.
 
 - The scanner will encounter existing synthetic secrets; resolve each initial finding individually.
-- Worker `api.test.ts` deliberately contains `NTFY_TOPIC: 'test-topic'` and its expected ntfy URL.
+- Worker `api.test.ts` deliberately contains a synthetic ntfy topic and its expected ntfy URL.
 - Reporting `privacy.test.ts` contains synthetic `token=hunter2` values used to prove redaction.
 - Reporting `diagnostics.test.ts` also contains synthetic token/key material.
 - Prefer runtime construction of new synthetic credentials so the new tests do not flag themselves.

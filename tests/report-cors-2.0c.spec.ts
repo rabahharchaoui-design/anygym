@@ -35,6 +35,21 @@ test.afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
+// This test is about the Worker's CORS headers from a second origin, not about the page's CSP
+// (PLAN 2.2f), which would refuse that origin.
+// Chromium honours bypassCSP. WebKit does not, so there the policy tag is cut out of the page. Not
+// done in Chromium: a fulfilled (routed) page counts as a public address space there, and then the
+// browser refuses its fetch to 127.0.0.1 (Local Network Access), which would break this test.
+test.use({ bypassCSP: true });
+test.beforeEach(async ({ page, browserName }) => {
+  if (browserName !== 'webkit') return;
+  await page.route('**/anygym/', async (route) => {
+    const res = await route.fetch();
+    const body = (await res.text()).replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+    await route.fulfill({ response: res, body });
+  });
+});
+
 test('acceptance F: the browser reads Retry-After: 120 from the Worker headers on another origin @matrix', async ({ page }) => {
   // The browser logs every 429 it receives; here the 429 is the point of the test.
   allowConsoleErrors(/status of 429/);
