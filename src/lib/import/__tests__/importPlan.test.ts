@@ -116,10 +116,10 @@ describe('buildLoad: loads only from the file numbers, through load.ts', () => {
     expect(kindOf('smith_per_side')).toBe('barbell');
     expect(kindOf('plate_machine_per_side')).toBe('plate_machine');
     expect(kindOf('unknown')).toBeUndefined();
-    expect(fileSetText(set({ weight: 50 }))).toBe('10 × 50 lb');
-    expect(fileSetText(set({ loadType: 'dumbbell_each', weight: 30 }))).toBe('10 × 30 lb each');
-    expect(fileSetText(set({ loadType: 'smith_per_side', weight: 45 }))).toBe('10 × 45 lb per side');
-    expect(fileSetText(set({ loadType: 'bodyweight', weight: 10 }))).toBe('10 reps + 10 lb');
+    expect(fileSetText(set({ weight: 50 }))).toBe('50 lb × 10');
+    expect(fileSetText(set({ loadType: 'dumbbell_each', weight: 30 }))).toBe('30 lb each × 10');
+    expect(fileSetText(set({ loadType: 'smith_per_side', weight: 45 }))).toBe('45 lb per side × 10');
+    expect(fileSetText(set({ loadType: 'bodyweight', weight: 10 }))).toBe('+10 lb × 10');
     // The import editor: reps on their own line, the weight in plain words, never "5 × 45" math.
     expect(fileRepsText(set({}))).toBe('10 reps');
     expect(fileRepsText(set({ reps: 1 }))).toBe('1 rep');

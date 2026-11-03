@@ -106,6 +106,20 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
     scrollToIndex(selectedIndex, false);
   }, [selectedIndex, weights]);
 
+  // No weight yet (gate P11): the wheel opens centred on a light weight (about 15 lb or 7 kg),
+  // not with every value bunched to the right of an empty notch. Only the position: nothing is
+  // picked or shown as picked until the user scrolls or taps (never a suggested weight).
+  useLayoutEffect(() => {
+    if (selectedIndex >= 0 || !weights.length) return;
+    const light = unit === 'lb' ? 15 : 7;
+    let at = 0;
+    weights.forEach((w, i) => {
+      if (Math.abs(w - light) < Math.abs(weights[at]! - light)) at = i;
+    });
+    scrollToIndex(at, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useLayoutEffect(() => () => window.clearTimeout(settleTimer.current), []);
 
   const pick = (i: number, fromScroll = false) => {

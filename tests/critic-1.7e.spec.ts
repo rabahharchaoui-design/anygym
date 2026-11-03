@@ -25,7 +25,7 @@ test('Finish → Today: "Workout saved · Undo" reopens the workout and puts the
   await page.getByRole('button', { name: 'Finish' }).tap();
   // Not every exercise was done: the finish screen says so, and lists the best set.
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ lifts finished( · \d+ started)?$/);
   // PLAN 2.0a: no radios; below 60% the day stays up next, said in one quiet line.
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
@@ -187,7 +187,7 @@ test('Smith first use: the bar question sits on top of the weight sheet; a chip 
   await sheet.getByRole('button', { name: 'Add 10 lb plate to each side' }).tap();
   await expect(sheet.getByTestId('plate-total')).toHaveText('45lb');
   await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(view.getByTestId('check-current')).toHaveAccessibleName(/45 lb$/);
+  await expect(view.getByTestId('check-current')).toHaveAccessibleName(/: 45 lb × \d+$/);
   const gym = (await dbAll<{ bars: Record<string, number | null> }>(page, 'gyms'))[0]!;
   expect(gym.bars.smith).toBe(25);
   expect(errors).toEqual([]);
@@ -338,7 +338,7 @@ test('finish with exercises left: Move on to Day 2, Day 1 keeps a partial pip, n
   await page.getByRole('button', { name: 'Resume' }).tap();
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ lifts finished( · \d+ started)?$/);
   // PLAN 2.0a: 1 set keeps Day 1; Change picks Day 2 instead.
   await page.getByTestId('finish-change').tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 2 · / }).tap();
@@ -481,7 +481,7 @@ test('finish rows: an exercise with sets left reads "1 of 4 sets" and does not c
   await expect(view.getByTestId('set-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ lifts finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-sets-left')).toHaveText('1 of 4 sets');
   // PLAN 2.0a: no radio choices; Change is small text with a 48 pt hit area.
   await expect(page.getByRole('radio')).toHaveCount(0);

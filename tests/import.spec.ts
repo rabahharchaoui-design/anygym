@@ -84,9 +84,9 @@ test.describe('1.11 import history', () => {
     await expect(page.locator('[data-testid="import-exercise"]', { has: page.getByTestId('ask-pick') }).getByRole('heading', { level: 2 })).toHaveText('Moon press (not matched)');
     await expect(page.getByTestId('ask-pick').getByRole('button', { name: /^Skip these \d+ sets$/ })).toBeVisible();
     await expect(page.getByTestId('import-unsure')).toHaveText(/^\d+ to check$/);
-    // Every set as "12 × 50 lb", or reps only when the file has no weight.
+    // Every set as "50 lb × 12", or reps only when the file has no weight.
     const squat = page.getByRole('region', { name: 'Barbell Back Squat' });
-    await expect(squat.getByTestId('import-set').nth(1)).toContainText('8 × 185 lb');
+    await expect(squat.getByTestId('import-set').nth(1)).toContainText('185 lb × 8');
     await expect(squat.getByText('In your file: Squats')).toBeVisible();
     const unsure = page.locator('[data-testid="import-set"][data-uncertain]');
     await expect(unsure.filter({ hasText: 'Hard to read: 6 or 8' })).toHaveCount(1);
@@ -199,8 +199,8 @@ test.describe('1.11 import history', () => {
     const back = page.getByRole('button', { name: 'Back to the list' });
     if (!(await back.isVisible())) await page.getByText('Barbell Back Squat').first().tap();
     // LAST TIME: the newest imported workout set by set (the unsure 6 is left out); one target line.
-    await expect(page.getByRole('button', { name: 'Last time 8 × 185. Copy into set 1', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Last time 8 × 185. Copy into set 2', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Last time 185 × 8. Copy into set 1', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Last time 185 × 8. Copy into set 2', exact: true })).toBeVisible();
     await expect(page.getByTestId('set-next')).toContainText('Beat last time:');
     expect(errors).toEqual([]);
   });

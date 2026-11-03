@@ -35,7 +35,7 @@ describe('workoutWins', () => {
     const b = await workout(3000, [['bench', 6, bar(185, [45, 25])], ['bench', 7, bar(185, [45, 25])]], 'g', false);
     const live = await workoutWins(b.id, names, db);
     expect(live.records.map((r) => r.setId)).toEqual(['3000-1']); // 6 ties the best, 7 beats it
-    expect(live.win).toMatchObject({ exerciseId: 'bench', setId: '3000-1', text: 'Bench 185 lb × 7, best ever' });
+    expect(live.win).toMatchObject({ exerciseId: 'bench', setId: '3000-1', text: 'Bench 185 lb × 7, your best yet' });
     await finishWorkout(b.id, db, 4000);
     expect(await workoutWins(b.id, names, db)).toEqual(live);
     // The earlier workout never gains records from a later one.
@@ -63,7 +63,7 @@ describe('workoutWins', () => {
   it('Smith and free bar sets keep their own history; Smith is per gym', async () => {
     await workout(1000, [['bench', 8, bar(185, [45, 25])], ['bench', 8, smith(90, [45])]]);
     const s = await workout(2000, [['bench', 8, smith(180, [45, 45])]], 'g', false);
-    expect((await workoutWins(s.id, names, db)).win?.text).toBe('Bench 180 lb × 8, best ever');
+    expect((await workoutWins(s.id, names, db)).win?.text).toBe('Bench 180 lb × 8, your best yet');
     await finishWorkout(s.id, db, 2500);
     const other = await workout(3000, [['bench', 8, smith(200, [45, 45, 10])]], 'h', false);
     expect((await workoutWins(other.id, names, db)).records).toEqual([]); // no Smith history at gym h
@@ -74,7 +74,7 @@ describe('workoutWins', () => {
     const s = await workout(2000, [['squat', 5, bar(235, [45, 45, 5])], ['bench', 7, bar(185, [45, 25])]], 'g', false);
     const w = await workoutWins(s.id, names, db);
     expect(w.records).toHaveLength(2);
-    expect(w.win?.text).toBe('Bench 185 lb × 7, best ever');
+    expect(w.win?.text).toBe('Bench 185 lb × 7, your best yet');
   });
 
   it('a barbell set, then a dumbbell PR in the same exercise: each load kind has its own history (Codex 2.2e #1)', async () => {
@@ -83,6 +83,6 @@ describe('workoutWins', () => {
     const s = await workout(2000, [['bench', 5, bar(185, [45, 25])], ['bench', 9, db1(60)]], 'g', false);
     const w = await workoutWins(s.id, names, db);
     expect(w.records.map((r) => r.setId)).toEqual(['2000-1']);
-    expect(w.win?.text).toBe('Bench 60 lb each × 9, best ever');
+    expect(w.win?.text).toBe('Bench 60 lb each × 9, your best yet');
   });
 });

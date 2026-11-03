@@ -149,11 +149,12 @@ export function kindOf(t: FileLoadType): Load['kind'] | undefined {
 
 /** A file set in plain words before it is a Load: "12 × 45 lb per side", "10 × 30 lb each", "12 reps". */
 export function fileSetText(set: ImportedSet): string {
+  // Weight first, like every other set (Session 2 gate B1, src/lib/setWords.ts).
   if (set.weight === undefined) return `${set.reps} reps`;
-  const w = `${set.reps} × ${formatAmount(set.weight)} ${set.unit}`;
-  if (set.loadType === 'dumbbell_each') return `${w} each`;
-  if (set.loadType === 'barbell_per_side' || set.loadType === 'smith_per_side' || set.loadType === 'plate_machine_per_side') return `${w} per side`;
-  return set.loadType === 'bodyweight' ? `${set.reps} reps + ${formatAmount(set.weight)} ${set.unit}` : w;
+  const w = `${formatAmount(set.weight)} ${set.unit}`;
+  if (set.loadType === 'dumbbell_each') return `${w} each × ${set.reps}`;
+  if (set.loadType === 'barbell_per_side' || set.loadType === 'smith_per_side' || set.loadType === 'plate_machine_per_side') return `${w} per side × ${set.reps}`;
+  return set.loadType === 'bodyweight' ? `+${w} × ${set.reps}` : `${w} × ${set.reps}`;
 }
 
 /** The file's reps on their own ("5 reps", "1 rep"): the import editor shows the weight as a picture. */

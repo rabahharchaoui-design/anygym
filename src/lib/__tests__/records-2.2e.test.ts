@@ -1,8 +1,9 @@
 // PLAN 2.2e: live PR badges and the finish lead line, from real history only.
 import { describe, expect, it } from 'vitest';
 import type { Load } from '../../db/types';
-import { barbellLoad, beatsVolume, biggerGain, formatSetWeightFirst, bodyweightLoad, dumbbellLoad, gainRatio, heavierThan, setScore, singleLoad, stackLoad, timedLoad } from '../load';
+import { barbellLoad, beatsVolume, biggerGain, bodyweightLoad, dumbbellLoad, gainRatio, heavierThan, setScore, singleLoad, stackLoad, timedLoad } from '../load';
 import type { PastSet } from '../progression';
+import { formatSet } from '../setWords';
 import { biggestWin, recordSetText, recordSets, type RecordSet } from '../records';
 
 const lb = (total: number): Load => singleLoad(total, 'lb');
@@ -61,7 +62,7 @@ describe('recordSets', () => {
     const today = [set(6, lb(185)), set(6, lb(185)), set(7, lb(185))];
     const r = recordSets(today, [past(5, lb(185))]);
     expect(r.map((x) => x.setId)).toEqual([today[0]!.id, today[2]!.id]);
-    expect(r[0]).toMatchObject({ kind: 'volume', text: '185 lb × 6, best ever' });
+    expect(r[0]).toMatchObject({ kind: 'volume', text: '185 lb × 6, your best yet' });
   });
   it('more reps at a lighter weight than an earlier heavier best is not best ever', () => {
     // 225 × 5 (1125) beats 185 × 6 (1110); 185 was lifted before for 5: most reps at this weight.
@@ -89,8 +90,8 @@ describe('recordSets', () => {
     expect(kinds([set(5, kg(102.5))], [past(5, lb(220.462))])).toEqual([[0, 'volume']]);
   });
   it('dumbbells say each; bodyweight added and plain', () => {
-    expect(recordSets([set(9, dumbbellLoad(50, 'lb'))], [past(8, dumbbellLoad(50, 'lb'))])[0]!.text).toBe('50 lb each × 9, best ever');
-    expect(recordSets([set(8, bodyweightLoad('lb', 25))], [past(8, bodyweightLoad('lb', 20))])[0]!.text).toBe('+25 lb × 8, best ever');
+    expect(recordSets([set(9, dumbbellLoad(50, 'lb'))], [past(8, dumbbellLoad(50, 'lb'))])[0]!.text).toBe('50 lb each × 9, your best yet');
+    expect(recordSets([set(8, bodyweightLoad('lb', 25))], [past(8, bodyweightLoad('lb', 20))])[0]!.text).toBe('+25 lb × 8, your best yet');
     expect(recordSets([set(12, bodyweightLoad('lb'))], [past(10, bodyweightLoad('lb'))])).toEqual([
       expect.objectContaining({ kind: 'most_reps', text: '12 reps, most reps at this weight' }),
     ]);
@@ -107,13 +108,13 @@ describe('recordSets', () => {
     const h = recordSets([set(1, lb(250))], [{ ...past(5, lb(225)), date: 9 }]);
     expect(h[0]!.beat).toEqual({ text: '225 lb × 5', date: 9 });
   });
-  it('formatSetWeightFirst: weight first everywhere on the finish screen', () => {
-    expect(formatSetWeightFirst({ reps: 6, load: lb(185) })).toBe('185 lb × 6');
-    expect(formatSetWeightFirst({ reps: 8, load: dumbbellLoad(50, 'lb') })).toBe('50 lb each × 8');
-    expect(formatSetWeightFirst({ reps: 8, load: bodyweightLoad('lb', 25) })).toBe('+25 lb × 8');
-    expect(formatSetWeightFirst({ reps: 12, load: bodyweightLoad('lb') })).toBe('12 reps');
-    expect(formatSetWeightFirst({ seconds: 45, load: timedLoad('lb') })).toBe('45 s');
-    expect(formatSetWeightFirst({ reps: 10 })).toBe('10 reps');
+  it('formatSet: weight first everywhere on the finish screen', () => {
+    expect(formatSet({ reps: 6, load: lb(185) })).toBe('185 lb × 6');
+    expect(formatSet({ reps: 8, load: dumbbellLoad(50, 'lb') })).toBe('50 lb each × 8');
+    expect(formatSet({ reps: 8, load: bodyweightLoad('lb', 25) })).toBe('+25 lb × 8');
+    expect(formatSet({ reps: 12, load: bodyweightLoad('lb') })).toBe('12 reps');
+    expect(formatSet({ seconds: 45, load: timedLoad('lb') })).toBe('45 s');
+    expect(formatSet({ reps: 10 })).toBe('10 reps');
   });
   it('recordSetText', () => {
     expect(recordSetText({ reps: 6, load: bar([45, 25]) })).toBe('185 lb × 6');
@@ -126,7 +127,7 @@ describe('biggestWin', () => {
     const today = [set(6, lb(185)), set(7, lb(185))];
     const r = recordSets(today, [past(5, lb(185))]);
     expect(r.map((x) => x.gainOverHistory)).toEqual([1.2, 1.4]);
-    expect(biggestWin([{ exerciseId: 'sq', name: 'Squat', records: r }])!.text).toBe('Squat 185 lb × 7, best ever');
+    expect(biggestWin([{ exerciseId: 'sq', name: 'Squat', records: r }])!.text).toBe('Squat 185 lb × 7, your best yet');
   });
   it('the largest gain over its own best; ties go to the earlier exercise; null with none', () => {
     const bench = recordSets([set(6, lb(185))], [past(5, lb(185))]); // 1.2
@@ -135,7 +136,7 @@ describe('biggestWin', () => {
       { exerciseId: 'sq', name: 'Squat', records: squat },
       { exerciseId: 'bp', name: 'Bench', records: bench },
     ];
-    expect(biggestWin(groups)).toMatchObject({ exerciseId: 'bp', text: 'Bench 185 lb × 6, best ever' });
+    expect(biggestWin(groups)).toMatchObject({ exerciseId: 'bp', text: 'Bench 185 lb × 6, your best yet' });
     const tie = recordSets([set(6, lb(185))], [past(5, lb(185))]);
     expect(biggestWin([{ exerciseId: 'a', name: 'A', records: bench }, { exerciseId: 'b', name: 'B', records: tie }])!.exerciseId).toBe('a');
     expect(biggestWin([{ exerciseId: 'a', name: 'A', records: [] }])).toBeNull();

@@ -54,7 +54,7 @@ test('own count: Day 1 is 12 exercises / 37 sets; finish denominator', async ({ 
   await simulateSafeAreas(page);
   await usePlan(page);
   await dayWith(page, 22);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^\d of 12 exercises finished/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^\d of 12 lifts finished/);
   await expect(page.getByTestId('finish-progress')).not.toHaveText(/16/);
   expect(errors).toEqual([]);
 });
@@ -66,6 +66,8 @@ test('thresholds: 22 keeps, 23 moves with partial, 37 ticks', async ({ page }) =
   await usePlan(page);
   await dayWith(page, 22);
   await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
+  // Gate P3: why the same day again, with the session's real counts.
+  await expect(page.getByTestId('finish-next-why')).toHaveText('Day 1 again · you did 22 of 37 sets');
   await expect(page.getByTestId('finish-title')).toHaveText('Workout saved · 22 sets');
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByText(/Next time/)).toHaveCount(0);
@@ -95,7 +97,7 @@ test('100% ticks', async ({ page }) => {
   await simulateSafeAreas(page);
   await usePlan(page);
   await dayWith(page, 37);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^12 of 12 exercises finished/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^12 of 12 lifts finished/);
   await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 2 · Chest and triceps');
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'done');
@@ -253,7 +255,7 @@ test('plate machine 50 + 25/side x 8 = 8 x 100 lb everywhere', async ({ page }) 
   await page.getByRole('link', { name: 'History' }).tap();
   await page.getByTestId('history-row').first().tap();
   const region = page.getByRole('region', { name: 'Angled Machine Leg Press' });
-  await expect(region.getByTestId('history-set')).toHaveText([/8 × 100 lb/]);
+  await expect(region.getByTestId('history-set')).toHaveText([/100 lb × 8/]);
   await shot(page, 'history-detail');
   // LAST TIME on the next workout of the same day
   await page.goto('./');

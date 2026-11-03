@@ -9,7 +9,9 @@
 }
 
 .main {
-  flex: 1;
+  /* Content height, not the whole screen (gate P3): Next up and Done sit right under the summary
+     on a short workout; a long one scrolls and they stay pinned at the bottom. */
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding: calc(var(--safe-top) + var(--space-6)) calc(var(--space-4) + var(--safe-right)) var(--space-4) calc(var(--space-4) + var(--safe-left));
@@ -318,6 +320,18 @@
 
 .nextDay {
   color: var(--text);
+}
+
+.nextCopy {
+  min-width: 0;
+}
+
+.nextWhy {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .change {

@@ -245,11 +245,13 @@ describe('dayProgress (1.7e: partial days)', () => {
   const lifts = day.filter((e) => !e.warmup && !e.finisher);
   it('counts lifts only (no warm ups, no finisher), share of planned sets, complete with a set on each', () => {
     const none = dayProgress(day, () => 0);
-    expect(none).toEqual({ done: 0, total: lifts.length, share: 0, complete: false });
+    expect(none).toEqual({ done: 0, total: lifts.length, share: 0, complete: false, logged: 0, planned: none.planned });
+    expect(none.planned).toBe(lifts.reduce((a, e) => a + Math.max(1, e.sets), 0));
     const first = lifts.find((e) => e.sets > 1)!;
     // 1 of its 4 sets is not done; all of them is.
     const one = dayProgress(day, (id) => (id === first.exerciseId ? 1 : 0));
     expect(one.done).toBe(0);
+    expect(one.logged).toBe(1);
     expect(dayProgress(day, (id) => (id === first.exerciseId ? first.sets : 0)).done).toBe(1);
     expect(one.share).toBeCloseTo(1 / lifts.reduce((a, e) => a + e.sets, 0));
     // Warm ups and the finisher never count.
@@ -262,7 +264,7 @@ describe('dayProgress (1.7e: partial days)', () => {
     // Every set of every lift: the tick.
     expect(dayProgress(day, (id) => lifts.find((e) => e.exerciseId === id)?.sets ?? 0).complete).toBe(true);
     expect(dayProgress(day, () => 99).share).toBe(1);
-    expect(dayProgress([], () => 1)).toEqual({ done: 0, total: 0, share: 0, complete: false });
+    expect(dayProgress([], () => 1)).toEqual({ done: 0, total: 0, share: 0, complete: false, logged: 0, planned: 0 });
   });
 });
 

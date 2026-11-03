@@ -6,6 +6,7 @@ import { BottomCTA } from '../../ui/BottomCTA';
 import { Toast, undoToast, type ToastMessage } from '../../ui/Toast';
 import { PRBadge } from '../../ui/PRBadge';
 import { AppMarkLoader } from '../../ui/AppMarkLoader';
+import { CheckIcon } from '../../ui/icons';
 import styles from './UiDevScreen.module.css';
 
 const GOALS = [
@@ -53,8 +54,10 @@ export function UiDevScreen() {
             <span className={`${styles.setNo} num`}>2</span>
             <span className="num">185</span>
             <span className={`${styles.reps} num`}>6</span>
-            <span className={styles.check} aria-hidden="true" />
-            {pr > 0 && <PRBadge key={pr} setId={`dev-${pr}`} detail="New best: beat 185 lb × 5 from Nov 3" className={styles.badge} />}
+            <span className={styles.check} aria-hidden="true">
+              <CheckIcon width={24} height={24} strokeWidth={3} />
+            </span>
+            {pr > 0 && <PRBadge key={pr} setId={`dev-${pr}`} detail="New best: beat 185 lb × 5 from Sat" className={styles.badge} />}
           </div>
           <button type="button" className={`${styles.link} pressable`} onClick={() => setPr((n) => n + 1)}>
             Log a best set

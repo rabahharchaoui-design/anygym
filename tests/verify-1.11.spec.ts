@@ -50,8 +50,8 @@ test('V1 synthetic exactness, double tap, undo, real sessions untouched', async 
   const joined = rows.map((r) => r.replace(/\s+/g, ' ').trim());
   console.log('ROWS', JSON.stringify(joined));
   // every fixture set exact
-  const expectRows = ['5 × 135 lb', '8 × 185 lb', '8 × 185 lb', '8 × 185 lb', '8 × 185 lb', '6 × 185 lb', '12 × 50 lb', '12 × 50 lb', '10 × 55 lb', '6 × 30 lb', '10 × 20 kg', '10 reps', '10 × 25', '9 × 25'];
-  for (const e of ['5 × 135 lb', '12 × 50 lb', '10 × 55 lb', '6 × 30 lb', '10 × 20 kg', '10 reps', '6 × 185 lb']) expect(joined.some((j) => j.includes(e)), e).toBe(true);
+  const expectRows = ['135 lb × 5', '185 lb × 8', '185 lb × 8', '185 lb × 8', '185 lb × 8', '185 lb × 6', '50 lb × 12', '50 lb × 12', '55 lb × 10', '30 lb × 6', '20 kg × 10', '10 reps', '10 × 25', '9 × 25'];
+  for (const e of ['135 lb × 5', '50 lb × 12', '55 lb × 10', '30 lb × 6', '20 kg × 10', '10 reps', '185 lb × 6']) expect(joined.some((j) => j.includes(e)), e).toBe(true);
   // Amber
   const amber = page.locator('[data-testid="import-set"][data-uncertain]');
   await expect(amber).toHaveCount(2);

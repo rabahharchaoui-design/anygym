@@ -105,7 +105,7 @@ test('an offline active workout restores its selected exercise, exact sets, repe
     await expect(dumbbell.getByTestId('set-target')).toHaveText('Set 2 of 3 · 8 to 12 reps');
     await expect(dumbbell.getByTestId('reps-cell').first()).toHaveText('8');
     await expect(dumbbell.getByTestId('weight-cell').first()).toHaveText('30');
-    await expect(logButton(page)).toHaveAccessibleName('Log set 2: 8 × 30 lb each');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 2: 30 lb each × 8');
     await expect(page.getByTestId('rest-timer')).toBeVisible();
     await expect(squat).toHaveCount(0);
     expect(await savedSets(page)).toEqual(before);
@@ -145,7 +145,7 @@ test('changing starting resistance in Edit set keeps the active diagram, Log set
     await page.getByRole('dialog', { name: 'Starting weight' }).getByRole('button', { name: 'Plates only', exact: true }).tap();
     await picker(page).getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
     await pickerDone(page);
-    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 90 lb');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 90 lb × 8');
     await logButton(page).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(1);
     const original = (await savedSets(page))[0]!;
@@ -169,7 +169,7 @@ test('changing starting resistance in Edit set keeps the active diagram, Log set
     await expect(edit).toHaveCount(0);
     // The next row's weight follows the new start (50 start + 2 × 45 = 140 lb).
     await expect(card.getByTestId('weight-cell').first()).toHaveText('140');
-    await expect(logButton(page)).toHaveAccessibleName('Log set 2: 8 × 140 lb');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 2: 140 lb × 8');
     await logButton(page).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(2);
     const saved = await savedSets(page);

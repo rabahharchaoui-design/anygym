@@ -33,7 +33,7 @@ export function promptFor(kind: PromptKind, unit: Unit): Prompt {
       return {
         title: 'Starting weight',
         info: 'plate-loaded-machine',
-        question: 'Enter the listed starting resistance, or count plates only.',
+        question: "The weight written on the machine when it's empty.",
         alternative: { label: 'Plates only', entry: PLATES_ONLY },
         save: 'Save starting weight',
       };

@@ -7,7 +7,8 @@ import { db } from '../../db/schema';
 import type { WorkoutSet } from '../../db/types';
 import { LoadError } from '../../components/LoadError';
 import { useLive } from '../../hooks/useLive';
-import { formatSetLine, formatTotal, totalLifted } from '../../lib/load';
+import { formatSet } from '../../lib/setWords';
+import { formatTotal, totalLifted } from '../../lib/load';
 import { isImportOrder } from '../../lib/import/importOrder';
 import { exerciseNamer, setCount, workoutDate, workoutTitle } from './historyWords';
 import styles from './History.module.css';
@@ -72,7 +73,7 @@ export function HistoryDetail() {
                     <li key={s.id} className={styles.set} data-testid="history-set">
                       <span className={styles.setIndex}>{i + 1}</span>
                       {s.kind === 'warmup' && <span className={styles.warm}>Warm up</span>}
-                      <span className="num">{formatSetLine(s)}</span>
+                      <span className="num">{formatSet(s)}</span>
                     </li>
                   ))}
                 </ol>

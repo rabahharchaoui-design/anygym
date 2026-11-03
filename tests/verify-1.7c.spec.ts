@@ -255,7 +255,7 @@ test('D2. PR chips: previous best 185 x 10, now 190 x 10 gives the heaviest chip
   // PLAN 2.2e round 2 (critic B4): the one record leads the screen and New bests never repeats it.
   expect(chips).toHaveLength(0);
   await expect(page.getByTestId('finish-win')).toContainText('190 lb');
-  await expect(page.getByTestId('finish-win')).toContainText(/heaviest ever|best ever/);
+  await expect(page.getByTestId('finish-win')).toContainText(/heaviest ever|your best yet/);
   expect(errors).toEqual([]);
 });
 

@@ -4,7 +4,8 @@ import { motion, useReducedMotion } from 'motion/react';
 import { db } from '../../db/schema';
 import { finishedDetail, workoutRecords, workoutWins } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
-import { formatSetWeightFirst, formatTotal, totalLifted } from '../../lib/load';
+import { formatSession, formatSet, sameSets } from '../../lib/setWords';
+import { formatTotal, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
 import { dayIndexOf } from '../../lib/plans';
@@ -25,7 +26,7 @@ import styles from './Finish.module.css';
 /**
  * The finish screen (SPEC 21.1, minimal): how long, how many sets, total lifted (when there is
  * any), each exercise with its best set, and records from real history only. A plan day with
- * exercises left reads "Workout saved · 3 sets" with "1 of 12 exercises finished" under it
+ * exercises left reads "Workout saved · 3 sets" with "1 of 12 lifts finished" under it
  * (working exercises only: no warm ups, stretches or finisher). Finish already moved the plan
  * (60% of the working sets moves on, PLAN 2.0a); one quiet line above Done says what is up next,
  * with Change to pick another day. Done goes back to Today, where "Workout saved" offers Undo.
@@ -70,7 +71,7 @@ export function FinishScreen() {
   const lifted = d && v ? totalLifted(d.sets.filter((s) => s.kind !== 'warmup'), v.unit) : 0;
   // The workout is saved whether or not this screen could read it back: Done always works, and
   // only claims a set count it actually read (PLAN 1.7f).
-  // A plan day: "1 of 12 exercises finished", working exercises only (PLAN 2.0a).
+  // A plan day: "1 of 12 lifts finished", working exercises only (PLAN 2.0a).
   const plan = d ? planById(d.session.planId) : undefined;
   const dayIndex = plan && d ? dayIndexOf(plan, d.session.dayId) : -1;
   // The rows the lifter really had (PLAN 2.2d round 2: rows added or removed, kept on the session).
@@ -142,7 +143,7 @@ export function FinishScreen() {
               </h1>
               {progress && progress.total > 0 ? (
                 <p className={`${styles.subtitle} num`} data-testid="finish-progress">
-                  {progress.done} of {progress.total} exercises finished
+                  {progress.done} of {progress.total} {progress.total === 1 ? 'lift' : 'lifts'} finished
                   {started > 0 ? ` · ${started} started` : ''}
                 </p>
               ) : null}
@@ -187,7 +188,11 @@ export function FinishScreen() {
                   {rows.map((r) => {
                     // A plan exercise with sets left says so ("1 of 4 sets"): done means every set.
                     const planned = plannedOf(r.id);
-                    const count = d.sets.filter((x) => x.exerciseId === r.id && x.kind !== 'warmup').length;
+                    const work = d.sets.filter((x) => x.exerciseId === r.id && x.kind !== 'warmup');
+                    const count = work.length;
+                    const loaded = work.flatMap((x) => (x.load ? [{ reps: x.reps, seconds: x.seconds, load: x.load }] : []));
+                    // Every set the same (gate B1): the one session wording, "4 sets × 8 at 45 lb".
+                    const uniform = loaded.length === count && sameSets(loaded) && !(planned && count < planned);
                     return (
                       <li key={r.id} className={styles.exerciseRow} data-testid="finish-exercise">
                         <span className={styles.exerciseName}>
@@ -199,10 +204,16 @@ export function FinishScreen() {
                           ) : null}
                         </span>
                         <span className={`${styles.exerciseBest} num`}>
-                          {/* "2 sets · 185 lb × 6" (round 3, critic P6): the count, then the best set. A plan
+                          {/* "4 sets × 8 at 45 lb" when every set matched; else "2 sets · 185 lb × 6" (round 3, critic P6): the count, then the best set. A plan
                               exercise with sets left already says "1 of 4 sets" under its name. */}
-                          {count === 0 || (planned && count < planned) ? '' : `${setCount(count)} · `}
-                          {formatSetWeightFirst(r.best)}
+                          {uniform ? (
+                            formatSession(loaded)
+                          ) : (
+                            <>
+                              {count === 0 || (planned && count < planned) ? '' : `${setCount(count)} · `}
+                              {formatSet(r.best)}
+                            </>
+                          )}
                         </span>
                       </li>
                     );
@@ -246,9 +257,17 @@ export function FinishScreen() {
                 className={styles.next}
                 {...(sliding ? still : reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
               >
-                <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
-                  Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
-                </p>
+                <div className={styles.nextCopy}>
+                  <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
+                    Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
+                  </p>
+                  {/* Why (gate P3): the same day again because not enough of it was done; real counts. */}
+                  {progress && state && state.nextDayIndex === dayIndex && progress.planned > 0 && (
+                    <p className={styles.nextWhy} data-testid="finish-next-why">
+                      Day {nextDay.n} again · you did {progress.logged} of {progress.planned} sets
+                    </p>
+                  )}
+                </div>
                 <button type="button" className={`${styles.change} pressable`} onClick={() => setChanging(true)} aria-label={`Change the next day, now Day ${nextDay.n}`} data-testid="finish-change">
                   Change
                 </button>

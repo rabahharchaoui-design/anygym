@@ -89,7 +89,7 @@ test.describe('1.10c verify', () => {
     await sq.getByRole('button', { name: 'Done', exact: true }).tap();
     const lab = await label(page);
     console.log('draft label', lab);
-    expect(lab).toBe('Log set 1: 10 × 95 lb');
+    expect(lab).toBe('Log set 1: 95 lb × 10');
     await add(page, 'plank', 'Elbow Plank');
     await page.getByRole('button', { name: 'Back to the list' }).tap();
     await page.getByTestId('row-barbell-back-squat').tap();

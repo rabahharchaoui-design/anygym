@@ -15,21 +15,43 @@
   align-items: center;
   gap: var(--space-2);
   max-width: 100%;
+  min-width: 0;
   min-height: 52px;
   padding: 0 var(--space-2) 0 var(--space-4);
   border-radius: var(--radius-pill);
-  background: var(--glass-bg-strong);
+  /* Opaque (gate B2): a row or button under it never reads through, blur or not. */
+  background: var(--surface-2);
   border: 1px solid var(--glass-line);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
   box-shadow:
     0 10px 30px rgb(0 0 0 / 0.5),
     inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 
 .text {
+  display: flex;
+  min-width: 0;
   font-weight: 600;
   padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  /* One line, always (gate B2): the name shortens, the words after it and the action never do. */
+  white-space: nowrap;
+}
+
+.subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0.28em;
+}
+
+.rest {
+  flex: none;
+}
+
+.text:not(:has(.subject)) .rest {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .action {

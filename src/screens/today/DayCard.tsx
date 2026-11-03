@@ -43,6 +43,17 @@ export function DayCard({ plan, state, onStart, onChangeDay, active }: Props) {
       <div className={styles.strip}>
         <p className={styles.stripLabel} data-testid="week-label">
           {plan.weeks ? `Week ${weekIndex + 1} of ${plan.weeks}` : 'This week'}
+          {/* What a half filled dot means (gate P14): "This week · Day 1 started", from the same part done shares. */}
+          {(() => {
+            const started = plan.days.filter((_, i) => state.partial?.[i] !== undefined && !done.has(i)).map((d) => d.n);
+            if (!started.length) return null;
+            return (
+              <span className={styles.stripNote} data-testid="week-started">
+                {' · '}
+                {started.length === 1 ? `Day ${started[0]} started` : `Days ${started.join(', ')} started`}
+              </span>
+            );
+          })()}
         </p>
         <ol className={styles.days} aria-label="Days">
           {plan.days.map((d, i) => {

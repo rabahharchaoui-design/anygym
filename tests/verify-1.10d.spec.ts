@@ -106,13 +106,13 @@ test.describe('1.10d verify', () => {
     const state = await del.evaluate((e) => ({ aria: e.getAttribute('aria-disabled'), dis: (e as HTMLButtonElement).disabled }));
     console.log('delete during save', JSON.stringify(state));
     await expect(edit).toHaveCount(0, { timeout: 10000 });
-    await expect(card.getByTestId('set-row').getByRole('button', { name: /Edit$/ })).toHaveAccessibleName('Set 1: 10 × 135 lb. Edit');
+    await expect(card.getByTestId('set-row').getByRole('button', { name: /Edit$/ })).toHaveAccessibleName('Set 1: 135 lb × 10. Edit');
     await page.waitForTimeout(400);
     await card.getByTestId('set-row').tap();
     await edit.getByRole('button', { name: 'Delete set' }).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).tap();
-    await expect(card.getByTestId('set-row').getByRole('button', { name: /Edit$/ })).toHaveAccessibleName('Set 1: 10 × 135 lb. Edit');
+    await expect(card.getByTestId('set-row').getByRole('button', { name: /Edit$/ })).toHaveAccessibleName('Set 1: 135 lb × 10. Edit');
     expect((await dump(page, 'sets')).map((s) => s.reps)).toEqual([10]);
     expect(errors).toEqual([]);
   });
@@ -162,7 +162,7 @@ test.describe('1.10d verify', () => {
     await sheet.getByRole('button', { name: /Women's bar/ }).tap();
     await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '35 bar + 2 × 45 = 125 lb');
     await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
-    await expect(logBtn(page)).toHaveAccessibleName('Log set 1: 8 × 125 lb');
+    await expect(logBtn(page)).toHaveAccessibleName('Log set 1: 125 lb × 8');
     await logBtn(page).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(1);
     expect((await dump(page, 'sets'))[0].load).toMatchObject({ total: 125, barWeight: 35, perSide: [45] });
@@ -197,7 +197,7 @@ test.describe('1.10d verify', () => {
     await page.getByTestId('row-elbow-plank').tap();
     await back(page);
     await page.getByTestId('row-barbell-back-squat').tap();
-    await expect(logBtn(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');
+    await expect(logBtn(page)).toHaveAccessibleName('Log set 1: 135 lb × 9');
     expect(errors).toEqual([]);
   });
 
@@ -225,7 +225,7 @@ test.describe('1.10d verify', () => {
     await expect(picker(page).getByTestId('bar-question')).toHaveCount(0);
     await expect(picker(page).getByTestId('plate-total')).toHaveText('35lb');
     await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
-    await expect(logBtn(page)).toHaveAccessibleName(/35 lb$/);
+    await expect(logBtn(page)).toHaveAccessibleName(/: 35 lb × \d+$/);
     await shot(page, 'smith-bar-known');
     await logBtn(page).tap();
     await expect(sm.getByTestId('set-row')).toHaveCount(1);

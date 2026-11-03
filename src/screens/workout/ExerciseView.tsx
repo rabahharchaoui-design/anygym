@@ -704,7 +704,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
               <>
                 {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
                     Under the rows, so it never moves a ✓ (PLAN 2.0e). */}
-                {showGuide && progression && (
+                {/* Hints never stack (gate P5): the amber reason under the table wins. */}
+                {showGuide && !statusShown && progression && (
                   <p className={`${styles.firstTime} num`} data-testid="set-guide">
                     {progression.next.reason}
                   </p>

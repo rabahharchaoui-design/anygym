@@ -7,19 +7,22 @@
   /* exactly the status bar inset on top, nothing stacked on it (PLAN 1.10b) */
   padding-top: var(--safe-top);
   border-bottom: 1px solid transparent;
+  /* Near solid once anything scrolls under it (Session 2 gate B3): the bar's own fill, not the
+     blurred layer, so text never reads through even where backdrop blur does not render. */
+  --bar-show: clamp(0, calc(var(--collapse, 0) * 4), 1);
+  background: rgb(14 14 16 / calc(var(--bar-fill) * var(--bar-show)));
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 
-/* The glass fades in exactly as far as the large title has slid under the bar (--collapse, 0 to 1). */
+/* The glass look on top of the fill: blur plus a faint top sheen, fading in with it. */
 .bar::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--glass-bg-strong);
+  background: linear-gradient(rgb(255 255 255 / 0.035), rgb(255 255 255 / 0));
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  /* Opaque quickly once anything scrolls under it (gate 3: never see-through over text). */
-  opacity: clamp(0, calc(var(--collapse, 0) * 4), 1);
+  opacity: var(--bar-show);
   pointer-events: none;
 }
 
@@ -95,6 +98,18 @@
   letter-spacing: -0.025em;
   overflow-wrap: anywhere;
   text-wrap: balance;
+}
+
+/* Pinned (Today, gate P12): the large title is the bar's own leading item, never shrunk. */
+.pinnedTitle {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding-left: var(--space-3);
+}
+
+.bar[data-pinned] .row {
+  min-height: 60px;
 }
 
 @media (prefers-reduced-motion: reduce) {

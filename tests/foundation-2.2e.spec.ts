@@ -241,7 +241,7 @@ test.describe('components (#/dev/ui)', () => {
     expect(hit.height).toBeGreaterThanOrEqual(48);
     expect(hit.width).toBeGreaterThanOrEqual(48);
     await badge.tap();
-    await expect(page.getByTestId('pr-popover')).toHaveText('New best: beat 185 lb × 5 from Nov 3');
+    await expect(page.getByTestId('pr-popover')).toHaveText('New best: beat 185 lb × 5 from Sat');
     await shot(page, 'pr-popover');
     await page.getByRole('heading', { name: 'Components' }).tap();
     await expect(page.getByTestId('pr-popover')).toHaveCount(0);
@@ -320,7 +320,8 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     expect(digits).toBeLessThanOrEqual(chip.x);
     await shot(page, 'workout-pr');
     await first.getByTestId('pr-badge').tap();
-    await expect(page.getByTestId('pr-popover')).toHaveText(/^New best: beat 185 lb × 5 from [A-Z][a-z]{2} \d{1,2}$/);
+    await expect(page.getByTestId('pr-popover')).toHaveText(/^New best: beat 185 lb × 5 from [A-Z][a-z]{2}$/);
+    // Gate P9: the same day style as "Last time (Sun)".
     await shot(page, 'workout-pr-popover');
     await view.locator('[data-head]').tap(); // a tap anywhere else closes it
     await expect(page.getByTestId('pr-popover')).toHaveCount(0);
@@ -354,7 +355,7 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     const win = page.getByTestId('finish-win');
     // Two lines (critic P8): the exercise, then what it did.
     const name = win.getByText('Barbell Back Squat', { exact: true });
-    const detail = win.getByText('185 lb × 7, best ever', { exact: true });
+    const detail = win.getByText('185 lb × 7, your best yet', { exact: true });
     await expect(detail).toBeVisible();
     expect((await box(detail)).y).toBeGreaterThan((await box(name)).y);
     // It leads: above the numbers.

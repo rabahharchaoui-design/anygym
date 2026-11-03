@@ -465,7 +465,7 @@ test('one set count after Remove set: set line, day list, done ring, finish line
   // Finish: the squat is finished, nothing says "of 4".
   await page.getByRole('button', { name: 'Finish', exact: true }).tap();
   await expect(page).toHaveURL(/\/done$/);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^1 of 12 exercises finished/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^1 of 12 lifts finished/);
   await expect(page.getByTestId('finish-sets-left')).toHaveCount(0);
   await expect(page.getByTestId('finish-title')).toHaveText('Workout saved · 3 sets');
   expect((await dbAll<{ rowAdjust?: Record<string, number> }>(page, 'sessions'))[0]?.rowAdjust).toEqual({ 'barbell-back-squat': -1 });

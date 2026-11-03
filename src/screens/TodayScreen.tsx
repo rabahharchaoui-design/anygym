@@ -208,6 +208,7 @@ export function TodayScreen() {
     <>
       <TopBar
         title="Today"
+        pinned
         onTitleTap={onTitleTap}
         trailing={
           <div className={styles.trailing}>

@@ -67,7 +67,7 @@ describe('PLAN 2.2c: catalog exercises for a tapped muscle', () => {
 
   it('"also works" is the secondary line in the map words; none when there are none', () => {
     const incline = exercisesForRegion('chest', catalog, overrides).find((e) => e.id === 'Barbell_Incline_Bench_Press_-_Medium_Grip')!;
-    expect(incline.also).toBe('Also works front delts, triceps');
+    expect(incline.also).toBe('Also works front delts +1');
     const crunch = exercisesForRegion('abs', catalog, overrides).find((e) => e.id === 'Ab_Crunch_Machine')!;
     expect(crunch.also).toBeNull();
   });

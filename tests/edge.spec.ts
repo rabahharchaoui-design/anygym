@@ -203,7 +203,7 @@ test.describe('edge cases @matrix', () => {
     await picker(page).getByRole('button', { name: 'Add 20 kg plate to each side' }).tap();
     await expect(picker(page).getByTestId('plate-total')).toHaveText('60kg');
     await picker(page).getByRole('button', { name: 'Done' }).tap();
-    await expect(view.getByTestId('check-current')).toHaveAccessibleName(/kg$/);
+    await expect(view.getByTestId('check-current')).toHaveAccessibleName(/kg × \d+$/);
     await view.getByTestId('check-current').tap();
     await expect(view.getByTestId('set-row')).toHaveCount(1);
     expect((await sets(page))[0]!.load).toMatchObject({ kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] });

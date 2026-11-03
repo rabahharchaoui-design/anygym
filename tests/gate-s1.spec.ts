@@ -263,7 +263,7 @@ test('finish with exercises left: "Workout saved · N sets", progress quiet, one
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page.getByTestId('finish-title')).toHaveText('Workout saved · 1 set');
   // Never "1 set" against "0 of 16 done": plain, exact.
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished · 1 started$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ lifts finished · 1 started$/);
   // The first exercise row is in full view above the pinned Next up line and Done.
   const firstRow = (await page.getByTestId('finish-exercise').first().boundingBox())!;
   const footerTop = (await page.getByTestId('finish-next').boundingBox())!.y;
@@ -286,9 +286,9 @@ test('exercise view: one "Beat last time" target line, no duplicate Last time su
   const view = exerciseView(page, 'barbell-back-squat');
   await expect(view.getByTestId('set-next')).toHaveText('Beat last time: 11 reps at 185 lb');
   await expect(view.getByText(/^Last time \d/)).toHaveCount(0);
-  await expect(view.getByRole('button', { name: /^Last time 10 × 185\. Copy into set 1/ })).toBeVisible();
+  await expect(view.getByRole('button', { name: /^Last time 185 × 10\. Copy into set 1/ })).toBeVisible();
   // When it was stays visible, compact (SPEC 6): nothing extra when every set has a row.
-  await expect(view.getByTestId('set-last')).toHaveText(/^Last time \([A-Z][a-z]{2}\): 4 × 10 at 185 lb$/);
+  await expect(view.getByTestId('set-last')).toHaveText(/^Last time \([A-Z][a-z]{2}\): 4 sets × 10 at 185 lb$/);
   expect(errors).toEqual([]);
 });
 
@@ -302,7 +302,7 @@ test('last time had more sets than today\'s rows: the extra ones show in the com
   const view = exerciseView(page, 'barbell-back-squat');
   await expect(view.getByTestId('set-todo')).toHaveCount(4);
   // Every set of last time, exact, in the one line (the fifth has no row today).
-  await expect(view.getByTestId('set-last')).toHaveText(/^Last time \([A-Z][a-z]{2}\): 10 × 185 · 10 × 185 · 10 × 185 · 10 × 185 · 8 × 185 lb$/);
+  await expect(view.getByTestId('set-last')).toHaveText(/^Last time \([A-Z][a-z]{2}\): 185 lb × 10, 10, 10, 10, 8$/);
   expect(errors).toEqual([]);
 });
 
@@ -462,7 +462,7 @@ test('the Start pill says Continue with the set once one is logged; surfaces are
   await expect(loggedRows(exerciseView(page, 'barbell-back-squat'))).toHaveCount(1);
   const rest = page.getByTestId('rest-timer');
   await page.getByRole('button', { name: 'Back to the list' }).tap();
-  await expect(page.getByTestId('start-next')).toHaveText('Continue · Barbell Back Squat · set 2 of 4');
+  await expect(page.getByTestId('start-next')).toHaveText('Continue · Barbell Back Squat set 2 of 4');
   const glass = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--glass-bg-strong'));
   const nums = glass.match(/[\d.]+/g)!.map(Number);
   expect(nums[nums.length - 1]).toBeGreaterThanOrEqual(0.9);

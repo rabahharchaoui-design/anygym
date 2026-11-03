@@ -44,7 +44,7 @@ test('below 60% keeps Day 1: no radios, one Next up line, Today keeps Day 1 @mat
   await expect(page.getByTestId('finish-choice-helper')).toHaveCount(0);
   await expect(page.getByTestId('finish-next')).toHaveText(DAY1);
   // Stretches are not exercises to finish: 12, not 16.
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^\d+ of 12 exercises finished( · \d+ started)?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^\d+ of 12 lifts finished( · \d+ started)?$/);
   await checkLayout(page, { primary: page.getByRole('button', { name: 'Done', exact: true }) });
   await page.waitForTimeout(900);
   await shotOn(page, '2.0a', 'finish-keep');
@@ -121,7 +121,7 @@ test('Change picks Day 4: saved at once, survives a reload, Today shows Day 4, U
   expect(errors).toEqual([]);
 });
 
-test('plate loaded machine: 50 start + 25 per side reads 8 × 100 lb on the finish screen, and keeps it', async ({ page }) => {
+test('plate loaded machine: 50 start + 25 per side reads 100 lb × 8 on the finish screen, and keeps it', async ({ page }) => {
   const errors = watchErrors(page);
   await simulateSafeAreas(page);
   await usePlan(page);
@@ -139,7 +139,7 @@ test('plate loaded machine: 50 start + 25 per side reads 8 × 100 lb on the fini
   await expect(picker.getByTestId('plate-total')).toHaveText('100lb');
   await picker.getByRole('button', { name: 'Done', exact: true }).tap();
   await expect(picker).toHaveCount(0);
-  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 1: 8 × 100 lb');
+  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 1: 100 lb × 8');
   await checkCurrent(view).tap();
   await expect(loggedRows(view)).toHaveCount(1);
   await expect(view.getByTestId('saved-weight').first()).toHaveText('100');
