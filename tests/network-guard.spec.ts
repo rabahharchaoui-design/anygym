@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { allowConsoleErrors, expect, test } from './fixtures';
 
 // PLAN 1.10a: tapping the music buttons in a test must never reach the network or open an app.
 test('music buttons stay real links but never leave the machine in tests', async ({ page, context }) => {
@@ -37,8 +37,35 @@ test('music buttons stay real links but never leave the machine in tests', async
   expect(external).toEqual([]);
 });
 
+// The page's CSP (PLAN 2.2f, connect-src 'self' plus the Worker) refuses an external fetch before the
+// route guard ever sees it. To prove the guard itself still aborts, the policy tag is cut out of the
+// page in the first test (WebKit ignores bypassCSP); the second proves the policy blocks it too.
 test('a direct external request is aborted by the route guard', async ({ page }) => {
+  await page.route('**/anygym/', async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, body: (await res.text()).replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '') });
+  });
+  const aborted: string[] = [];
+  page.on('requestfailed', (r) => {
+    if (r.url() === 'https://music.apple.com/') aborted.push(r.failure()?.errorText ?? '');
+  });
   await page.goto('./');
+  expect(await page.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]'))).toBeNull();
+  allowConsoleErrors(/music\.apple\.com/, /Load failed|blocked/i);
+  const result = await page.evaluate(() =>
+    fetch('https://music.apple.com/', { mode: 'no-cors' }).then(
+      () => 'reached',
+      () => 'blocked',
+    ),
+  );
+  expect(result).toBe('blocked');
+  await expect.poll(() => aborted.length).toBeGreaterThan(0);
+});
+
+test('with the CSP in place the same external request is refused by the policy', async ({ page }) => {
+  allowConsoleErrors(/Content Security Policy|connect-src|Load failed|blocked/i);
+  await page.goto('./');
+  expect(await page.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]') !== null)).toBe(true);
   const result = await page.evaluate(() =>
     fetch('https://music.apple.com/', { mode: 'no-cors' }).then(
       () => 'reached',
