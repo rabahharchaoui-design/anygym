@@ -87,6 +87,7 @@ HARD RULES
 - Never commit anything from ~/anygym-private/ or any personal data. The repo is public.
 - Never force push, never rewrite history, never delete files you did not create.
 - Never touch other repos on this machine (especially ~/projects/kgeu-flight).
+- Never put a secret in client code (no keys, tokens or topics in src, public files or VITE_ variables); anything secret goes behind the Worker as a Cloudflare secret. The secret scan (scripts/secret-scan.mjs) runs in every build and must stay green.
 - Keep terminal output short. No long logs or code dumps.
 - If you hit a usage limit, just stop. The launcher resumes you later and you pick up from PLAN.md.
 

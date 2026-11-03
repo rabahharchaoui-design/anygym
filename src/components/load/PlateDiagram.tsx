@@ -132,7 +132,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
       for (const el of [ghost, ...ghost.querySelectorAll('*')]) {
         for (const a of ['data-testid', 'data-plate', 'role', 'tabindex', 'aria-label', 'data-bar-part']) el.removeAttribute(a);
       }
-      ghost.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none';
+      Object.assign(ghost.style, { position: 'absolute', left: '0', top: '0', pointerEvents: 'none' }); // not cssText: the CSP (PLAN 2.2f)
       host.appendChild(ghost);
       const out = ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CROSSFADE_MS, easing: 'ease-out' });
       out.onfinish = () => ghost.remove();

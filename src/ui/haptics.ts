@@ -71,7 +71,8 @@ export function buzz(pattern: number[] = [120, 80, 120]): void {
 export function switchTick(): void {
   const label = document.createElement('label');
   label.setAttribute('aria-hidden', 'true');
-  label.style.cssText = 'position:fixed;left:-200px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;';
+  // Property by property, never cssText: WebKit counts cssText as an inline style the CSP (PLAN 2.2f) refuses.
+  Object.assign(label.style, { position: 'fixed', left: '-200px', top: '0', width: '1px', height: '1px', opacity: '0', pointerEvents: 'none', overflow: 'hidden' });
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.setAttribute('switch', '');

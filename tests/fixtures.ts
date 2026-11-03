@@ -173,6 +173,20 @@ function reportRejections() {
   window.addEventListener('unhandledrejection', (e) => send(`unhandledrejection: ${describe(e.reason)}`));
 }
 
+
+// PLAN 2.2f: Playwright's own page.screenshot() and toHaveScreenshot() inject an inline <style>
+// (caret and animation handling) that the app's CSP refuses in WebKit, which logs one console error
+// per screenshot. That line comes from the harness, not the app, so console listeners (this file's
+// and every spec's own page.on('console')) never see it. Real inline <style> violations by the app
+// are caught by tests/csp-2.2f.spec.ts, which takes no screenshots and listens for the CSP event.
+const HARNESS_STYLE_NOISE = /^Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src/;
+function quietHarnessStyleNoise(page: Page) {
+  const on = page.on.bind(page) as (event: string, fn: (...a: unknown[]) => void) => Page;
+  const wrap = (event: string, fn: (...a: unknown[]) => void) =>
+    event === 'console' ? (...a: unknown[]) => (HARNESS_STYLE_NOISE.test(String((a[0] as { text(): string }).text())) ? undefined : fn(...a)) : fn;
+  page.on = ((event: string, fn: (...a: unknown[]) => void) => on(event, wrap(event, fn))) as Page['on'];
+}
+
 const watched = new WeakSet<BrowserContext>();
 const offline = new WeakMap<BrowserContext, boolean>();
 
@@ -193,6 +207,7 @@ export async function trapErrors(context: BrowserContext): Promise<void> {
   await context.exposeBinding('__pwReportError', (_src, text: string) => route()?.errors.push(String(text)));
   await context.addInitScript(reportRejections);
   const watchPage = (page: Page) => {
+    quietHarnessStyleNoise(page);
     page.on('console', (m) => {
       if (m.type() !== 'error') return;
       // Chromium's service worker update check while the test has the context offline.

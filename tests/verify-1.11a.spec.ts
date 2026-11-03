@@ -92,7 +92,8 @@ test('double tap and rapid taps on Send deliver one report; reload mid-offline-q
 
 test('SHEET at 130% text: disclosure reachable by scrolling, targets >= 48, nothing clipped', async ({ page }) => {
   await page.goto('./#/settings');
-  await page.addStyleTag({ content: 'html{font-size:130% !important}' });
+  // Not addStyleTag: the CSP (PLAN 2.2f) refuses an injected <style>.
+  await page.evaluate(() => document.documentElement.style.setProperty('font-size', '130%', 'important'));
   await page.getByRole('button', { name: /Report a problem/ }).tap();
   const sheet = page.getByRole('dialog', { name: 'Report a problem' });
   await sheet.getByTestId('report-text').fill('hi');

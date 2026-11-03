@@ -29,9 +29,10 @@ const px = (v: string): number => {
 /** env(safe-area-inset-*) can only be read through a probe element's computed padding. */
 export function readSafeAreaInsets(doc: Document = document): Insets {
   const probe = doc.createElement('div');
-  probe.style.cssText =
-    'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
-    'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
+  Object.assign(probe.style, {
+    position: 'fixed', top: '0', left: '0', width: '0', height: '0', visibility: 'hidden', pointerEvents: 'none',
+    padding: 'env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)',
+  }); // not cssText: the CSP (PLAN 2.2f)
   doc.body.appendChild(probe);
   const cs = getComputedStyle(probe);
   const insets = {
