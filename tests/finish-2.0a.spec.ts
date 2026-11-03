@@ -148,13 +148,13 @@ test('plate loaded machine: 50 start + 25 per side reads 8 × 100 lb on the fini
   expect(set.load).toMatchObject({ kind: 'plate_machine', unit: 'lb', total: 100, barWeight: 50, perSide: [25] });
   await finish(page);
   const row = page.getByTestId('finish-exercise').filter({ hasText: 'Angled Machine Leg Press' });
-  await expect(row).toContainText('8 × 100 lb');
+  await expect(row).toContainText('100 lb × 8'); // weight first (2.2e round 2, critic B4)
   await page.waitForTimeout(900);
   await shotOn(page, '2.0a', 'finish-leg-press');
   // The machine's starting weight changes later: the saved workout keeps what was lifted.
   const gym = (await dbAll<{ id: string; isActive: boolean; equipmentWeights: Record<string, unknown> }>(page, 'gyms')).find((g) => g.isActive)!;
   await dbPut(page, { gyms: [{ ...gym, equipmentWeights: { ...gym.equipmentWeights, 'angled-machine-leg-press': { kind: 'starting_resistance', value: 70 } } }] });
   await page.reload();
-  await expect(page.getByTestId('finish-exercise').filter({ hasText: 'Angled Machine Leg Press' })).toContainText('8 × 100 lb');
+  await expect(page.getByTestId('finish-exercise').filter({ hasText: 'Angled Machine Leg Press' })).toContainText('100 lb × 8'); // weight first on the finish screen (2.2e round 2, critic B4)
   expect(errors).toEqual([]);
 });

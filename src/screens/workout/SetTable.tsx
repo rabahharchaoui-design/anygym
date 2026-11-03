@@ -161,6 +161,10 @@ function TypeButton({ t, number, onPress }: { t: SetType; number: string; onPres
   );
 }
 
+/** "New best: beat 185 lb × 5 from Nov 3" (earlier today when it beat a set of this workout). */
+const prDetail = (r: SetRecord) =>
+  `New best: beat ${r.beat.text} ${r.beat.date === undefined ? 'earlier today' : `from ${new Date(r.beat.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}`;
+
 type LoggedProps = Shared & { set: WorkoutSet; at: number; number: string; last: string; fresh?: number; record?: SetRecord; sig: string };
 
 /** The check animation, carried on from the ✓ tap (a negative delay): one animation across the row's two states. */
@@ -183,7 +187,6 @@ const LoggedRow = memo(
           face={{ className: styles.row, 'data-state': 'logged', 'data-fresh': fresh !== undefined || undefined, style: since(fresh) }}
         >
           <TypeButton t={t} number={number} onPress={() => api.loggedType(s)} />
-          {record && <PRBadge setId={s.id} title={record.text} className={styles.prBadge} />}
           <button
             type="button"
             className={`${styles.loggedBody} pressable`}
@@ -196,10 +199,12 @@ const LoggedRow = memo(
                 {cells.weight || '–'}
               </span>
             )}
-            <span className={`${styles.cellValue} num`} data-testid="saved-amount">
+            <span className={`${styles.cellValue} num`} data-testid="saved-amount" data-pr={record ? '' : undefined}>
               {cells.amount || '–'}
             </span>
           </button>
+          {/* After the reps, outside the edit button (critic B3): its own 44 pt tap shows what it beat. */}
+          {record && <PRBadge setId={s.id} detail={prDetail(record)} className={styles.prBadge} />}
           <span className={styles.checkDone} aria-hidden="true">
             <Check />
           </span>

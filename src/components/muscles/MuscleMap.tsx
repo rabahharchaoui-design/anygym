@@ -249,7 +249,7 @@ export function MuscleMap({ data }: { data: MuscleMapData | null }) {
  * (SPEC 4.3): no drawing, no "coming soon", no guess. With `exercises` (the workout's muscle card,
  * PLAN 2.2c) a tap on a muscle names it under the line and links to the exercises that work it.
  */
-export function MusclePair({ data, exercises = false }: { data: MuscleMapData | null; exercises?: boolean }) {
+export function MusclePair({ data, exercises = false, compact = false }: { data: MuscleMapData | null; exercises?: boolean; /** The exercise sheet: smaller bodies, so How to stays in the first screen. */ compact?: boolean }) {
   const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as BodyKind);
   const glowId = `glow${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const key = data ? data.text + JSON.stringify(data.shading) : '';
@@ -270,7 +270,7 @@ export function MusclePair({ data, exercises = false }: { data: MuscleMapData | 
   // Every drawn muscle, lit or not, is reachable without the drawing (SPEC 13.3, PLAN 2.0j).
   const regions = tappable ? selectableRegions(body, ['front', 'back'], data) : [];
   return (
-    <figure className={`${styles.pair} ${tappable ? styles.pairTappable : ''}`} data-testid="muscle-pair">
+    <figure className={`${styles.pair} ${tappable ? styles.pairTappable : ''} ${compact ? styles.pairCompact : ''}`} data-testid="muscle-pair">
       {drawn && (
         <div
           className={styles.pairStage}

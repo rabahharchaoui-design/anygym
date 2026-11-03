@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { db } from '../../db/schema';
 import { finishedDetail, workoutRecords, workoutWins } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
-import { formatSetLine, formatTotal, totalLifted } from '../../lib/load';
+import { formatSetWeightFirst, formatTotal, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
 import { dayIndexOf } from '../../lib/plans';
@@ -12,7 +12,7 @@ import { planById } from '../../data/plans';
 import { getPlanState, setFinishNextDay } from '../../db/planState';
 import { ChangeDaySheet } from '../today/ChangeDaySheet';
 import { dayTitle } from '../plans/planWords';
-import { FADE, GENTLE, STAGGER } from '../../ui/motion';
+import { FADE, GENTLE, SPRINGS, STAGGER } from '../../ui/motion';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { Odometer } from '../../ui/Odometer';
 import { Skeleton } from '../../ui/Skeleton';
@@ -44,7 +44,9 @@ export function FinishScreen() {
     const records = await workoutRecords(sessionId, exerciseNamer(d.session));
     // PLAN 2.2e: the one biggest real win leads (the same rule as the live PR badge), or nothing.
     const { win } = await workoutWins(sessionId, exerciseNamer(d.session));
-    return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records, win };
+    // New bests lists only what the lead does not already say (critic B4): other exercises' records.
+    const others = win ? records.filter((r) => r.exerciseId !== win.exerciseId) : records;
+    return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records: others, win };
   }, [sessionId]);
   // The plan as Finish left it (read, never written on mount): the next up line shows this, live.
   const planLive = useLive(() => getPlanState(), []);
@@ -97,10 +99,14 @@ export function FinishScreen() {
       })
     : [];
 
+  // The lead card first, right after the title (critic P7); then the numbers and lists.
+  const lead = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
+    : { initial: { opacity: 0, y: 12, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...SPRINGS.sheet, delay: 0.04 } };
   const item = (i: number) =>
     reduce
       ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
-      : { initial: { opacity: 0, y: 18, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...GENTLE, delay: STAGGER * 1.4 * i } };
+      : { initial: { opacity: 0, y: 18, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...GENTLE, delay: (v?.win ? 0.08 : 0) + STAGGER * i } };
 
   return (
     <div className={styles.screen}>
@@ -124,11 +130,14 @@ export function FinishScreen() {
               ) : null}
             </motion.div>
             {v.win && (
-              <motion.p className={styles.win} data-testid="finish-win" {...item(1)}>
+              <motion.p className={styles.win} data-testid="finish-win" aria-label={v.win.text} {...lead}>
                 <span className={styles.winIcon} aria-hidden="true">
                   <TrophyIcon width={18} height={18} strokeWidth={2.2} />
                 </span>
-                <span className={styles.winText}>{v.win.text}</span>
+                <span className={styles.winText}>
+                  <span className={styles.winName}>{v.win.name}</span>
+                  <span className={styles.winDetail}>{v.win.detail}</span>
+                </span>
               </motion.p>
             )}
             <div className={styles.stats}>
@@ -171,7 +180,7 @@ export function FinishScreen() {
                             </span>
                           ) : null}
                         </span>
-                        <span className={`${styles.exerciseBest} num`}>{formatSetLine(r.best)}</span>
+                        <span className={`${styles.exerciseBest} num`}>{formatSetWeightFirst(r.best)}</span>
                       </li>
                     );
                   })}
@@ -204,6 +213,7 @@ export function FinishScreen() {
       </main>
       {/* Pinned under the scroller (never over it): the summary scrolls above it, every row reachable. */}
       <BottomCTA
+        className={styles.cta}
         onPress={done}
         disabled={loading || saving}
         above={

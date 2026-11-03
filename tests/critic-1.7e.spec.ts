@@ -29,7 +29,7 @@ test('Finish → Today: "Workout saved · Undo" reopens the workout and puts the
   // PLAN 2.0a: no radios; below 60% the day stays up next, said in one quiet line.
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
-  await expect(page.getByTestId('finish-exercise')).toHaveText([/^Barbell Back Squat1 of 4 sets\d+ × \d+ lb$/]);
+  await expect(page.getByTestId('finish-exercise')).toHaveText([/^Barbell Back Squat1 of 4 sets\d+ lb × \d+$/]);
   await expect(page.getByTestId('finish-duration')).toHaveText('<1 min');
   await page.getByRole('button', { name: 'Done' }).tap();
   const toast = page.getByRole('status').filter({ hasText: 'Workout saved · 1 set' });

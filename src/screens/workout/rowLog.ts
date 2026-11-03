@@ -29,7 +29,7 @@
 import { newId } from '../../db/ids';
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
 import { AlreadyLoggedError, logSet } from '../../db/workouts';
-import { draftsMirrorRow, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
+import { draftsDurableMerge, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
 import type { JournalEntry } from '../../db/types';
 import { logKey, logQueue as defaultQueue, type LogQueue } from '../../lib/logQueue';
 import { legacyRowKey, reconcileRows, rowKey, slotChanges, slotsOf, storedType, type Committed } from '../../lib/setTable';
@@ -223,10 +223,11 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
       // Every pending row of the workout (the rows above and below this one, with their weights and
       // reps) is made durable in the same transaction (PLAN 2.0c), so logging a later row never
       // loses earlier pending rows even when localStorage and its mirror failed.
-      const pending = draftsMirrorRow(...storageArg(deps));
+      // Merged row by row into what IndexedDB holds (Codex 2.0k #1), never this tab's whole snapshot.
+      const pending = draftsDurableMerge(...storageArg(deps));
       await db.transaction('rw', db.journal, db.kv, async () => {
         await db.journal.put({ id: draft.id, sessionId, exerciseId, key, rev: set.rev, draft: values as Record<string, unknown>, at: Date.now() });
-        if (pending) await db.kv.put(pending);
+        if (pending) await pending(db.kv);
       });
       try {
         await logSet(set, db);

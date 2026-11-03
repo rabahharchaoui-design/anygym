@@ -1,19 +1,7 @@
 import { Sheet } from '../../ui/Sheet';
 import type { Load } from '../../db/types';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
-import { Cable, Dumbbell, Hand, Layers, PersonStanding, Timer, Weight } from 'lucide-react';
 import { ChoiceCard } from '../../ui/ChoiceCard';
-
-/** One line icon per way of loading (Lucide, SPEC 23.2). */
-const LOAD_ICONS: Record<Load['kind'], typeof Weight> = {
-  barbell: Weight,
-  dumbbell_each: Dumbbell,
-  single: Hand,
-  stack: Cable,
-  plate_machine: Layers,
-  bodyweight: PersonStanding,
-  timed: Timer,
-};
 import styles from './Workout.module.css';
 
 type Props = {
@@ -38,12 +26,12 @@ export function LoadTypeSheet({ open, onClose, exerciseName, onPick, without = [
           {LOAD_TYPE_CHOICES.filter((c) => !without.includes(c.kind)).map((c) => (
             <ChoiceCard
               key={c.kind}
-              icon={LOAD_ICONS[c.kind]}
               label={c.label}
               hint={c.hint}
               detail={
                 c.kind === current ? (
-                  <span className={styles.choiceCurrent} data-testid="load-type-current">
+                  // The filled ring already shows it (critic P10): the word is for screen readers.
+                  <span className={styles.srOnly} data-testid="load-type-current">
                     Current
                   </span>
                 ) : undefined

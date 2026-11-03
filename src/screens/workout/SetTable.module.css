@@ -673,11 +673,20 @@
 }
 
 
-/* PLAN 2.2e: the PR badge sits on the set number's top right corner, out of the grid (absolute), so
-   nothing in the row moves when it arrives. */
-.prBadge {
+/* PLAN 2.2e round 2 (critic B3): the PR chip comes right after the reps, at the reps column's right
+   edge (absolute, so nothing in the row moves when it arrives); the reps number moves to the left
+   of its cell to make room. Right: the row's padding, the Done column and one gap. */
+.row .prBadge {
   position: absolute;
   z-index: 2;
-  top: 3px;
-  left: 37px;
+  top: 50%;
+  /* The 48 pt button is centered on a chip at the reps column's right edge. */
+  right: calc(4px + 52px + 6px - 9px);
+  margin-top: -24px;
+}
+
+.cellValue[data-pr] {
+  text-align: left;
+  padding-left: 4px;
+  overflow: visible;
 }

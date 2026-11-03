@@ -19,20 +19,28 @@ type Props = {
    */
   floating?: boolean;
   testId?: string;
+  className?: string;
 };
 
 /**
  * PLAN 2.2e: the screen's one primary action, pinned in the thumb zone. Owns the bottom safe area.
  * The button is the app's lime primary (press 0.97 in one frame); disabled it is grey.
  */
-export function BottomCTA({ children, onPress, disabled, disabledReason, above, note, floating, testId }: Props) {
+export function BottomCTA({ children, onPress, disabled, disabledReason, above, note, floating, testId, className }: Props) {
+  // One reserved line under the button (critic B2): the reason while it is grey, the quiet note
+  // once it is valid, swapped in place, so the button never moves when it becomes valid.
+  const why = disabled && disabledReason ? disabledReason : null;
   return (
-    <div className={styles.cta} data-floating={floating || undefined} data-testid={testId} data-bottom-cta>
+    <div className={`${styles.cta} ${className ?? ''}`} data-floating={floating || undefined} data-testid={testId} data-bottom-cta>
       {above}
-      <Button onClick={onPress} disabled={disabled} disabledReason={disabledReason}>
+      <Button onClick={onPress} disabled={disabled}>
         {children}
       </Button>
-      {note ? <p className={styles.note}>{note}</p> : null}
+      {disabledReason || note ? (
+        <p className={styles.note} data-reason={why ? '' : undefined} {...(why ? { role: 'note' } : {})}>
+          {why ?? note ?? ''}
+        </p>
+      ) : null}
     </div>
   );
 }

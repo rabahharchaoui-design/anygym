@@ -867,6 +867,20 @@ export function formatSetLine(set: { reps?: number; seconds?: number; load?: Loa
   return `${reps} × ${formatWeight(load.total, load.unit)}`;
 }
 
+/**
+ * A set weight first, "185 lb × 6", "50 lb each × 8", "+25 lb × 8", "12 reps", "45 s": the one
+ * order of the finish screen (PLAN 2.2e round 2, critic B4), the same as its lead line.
+ */
+export function formatSetWeightFirst(set: { reps?: number; seconds?: number; load?: Load }): string {
+  const load = set.load;
+  if (load?.kind === 'timed' || (set.reps === undefined && set.seconds !== undefined)) return `${set.seconds ?? 0} s`;
+  const reps = set.reps ?? 0;
+  if (!load) return `${reps} reps`;
+  if (load.kind === 'bodyweight') return load.added ? `+${formatWeight(load.added, load.unit)} × ${reps}` : `${reps} reps`;
+  if (load.kind === 'dumbbell_each') return `${formatWeight(heldWeightOf(load)!, load.unit)} each × ${reps}`;
+  return `${formatWeight(load.total, load.unit)} × ${reps}`;
+}
+
 // ---------------------------------------------------------------- totals (PLAN 1.7c, SPEC 21.1)
 
 /**

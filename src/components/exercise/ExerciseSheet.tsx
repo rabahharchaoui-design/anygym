@@ -22,9 +22,10 @@ type Props = {
 };
 
 /**
- * The exercise sheet (SPEC 4.4), top to bottom: a compact form demo, the name, How to (up to 3
- * cues), then the muscle map, Watch out and Good for. PLAN 2.0k (ui-2.2c #2): the first How to cue
- * shows in the first screen on every phone, before the artwork takes it; Back (a nested sheet) and
+ * The exercise sheet (SPEC 4.4), top to bottom: a compact form demo, the name, the muscle map, How
+ * to (up to 3 cues), Watch out and Good for. PLAN 2.2e round 2 (Codex 2.0k #3, SPEC 4.4 wins): the
+ * SPEC order, with the demo and the muscle pair sized down so the first How to cue still shows in
+ * the first screen on every phone (ui-2.2c #2); Back (a nested sheet) and
  * Close stay pinned, never scrolled away (#3). Match none (SPEC 4.3): "Demo coming soon", no photos,
  * no muscle map, and only the plan's own notes as text cues.
  */
@@ -47,13 +48,13 @@ export function ExerciseSheet({ open, onClose, name, info, placeholder, back }: 
           </div>
         )}
         <h2 className={styles.title}>{name}</h2>
+        {info.muscles && <MusclePair data={info.muscles} compact />}
         {(howTo.length > 0 || info.variantNote) && (
           <section className={styles.section} aria-label="How to">
             <h3 className={styles.heading}>How to</h3>
             <FormTips note={info.variantNote} tips={howTo} testId="cues" />
           </section>
         )}
-        {info.muscles && <MusclePair data={info.muscles} />}
         {info.watchOut && (
           <section className={styles.section} aria-label="Watch out">
             <h3 className={`${styles.heading} ${styles.warn}`}>Watch out</h3>

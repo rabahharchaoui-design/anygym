@@ -1,39 +1,112 @@
-/* PLAN 2.2e: the PR badge. Lime, black text, tiny; springs in once. */
+/* PLAN 2.2e round 2 (critic B3): the PR chip. Lime with black text, 22 pt tall, 12 pt bold text,
+   inside a 48 pt transparent button (SPEC 13.3). Springs in once; the row pulses once (below). */
+.hit {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .badge {
+  position: relative;
+  flex: none;
   display: inline-grid;
   place-items: center;
-  height: 16px;
-  min-width: 22px;
-  padding: 0 4px;
-  border-radius: 6px;
+  height: 22px;
+  min-width: 30px;
+  padding: 0 7px;
+  border-radius: 7px;
   background: var(--accent);
   color: var(--on-accent);
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
-  box-shadow: 0 0 0 2px var(--bg), 0 2px 8px rgb(212 255 58 / 0.35);
-  pointer-events: none;
+  box-shadow: 0 2px 10px rgb(212 255 58 / 0.35);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms var(--ease-out);
 }
 
-.badge[data-fresh] {
-  animation: pr-in 320ms var(--ease-tap-spring) both;
+.hit:active .badge {
+  transform: scale(0.92);
+  transition-duration: 0ms;
+}
+
+.hit[data-fresh] .badge {
+  animation: pr-in 340ms var(--ease-tap-spring) both;
 }
 
 @keyframes pr-in {
   from {
     opacity: 0;
-    transform: scale(0.6) translateY(3px);
+    transform: scale(0.6);
   }
   40% {
     opacity: 1;
   }
 }
 
+/* The row's one short lime ring (SPEC 23.3). */
+:global([data-pr-fresh]) {
+  animation: pr-ring 800ms var(--ease-out) both;
+}
+
+@keyframes pr-ring {
+  0% {
+    box-shadow: inset 0 0 0 0 rgb(212 255 58 / 0);
+  }
+  25% {
+    box-shadow: inset 0 0 0 2px rgb(212 255 58 / 0.95), 0 0 18px rgb(212 255 58 / 0.25);
+  }
+  100% {
+    box-shadow: inset 0 0 0 2px rgb(212 255 58 / 0);
+  }
+}
+
+/* One line over the chip: what it beat. */
+.pop {
+  position: fixed;
+  z-index: 60;
+  transform: translateY(calc(-100% - 10px));
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  text-wrap: balance;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--glass-bg-strong);
+  border: 1px solid rgb(212 255 58 / 0.4);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.3;
+  animation: pop-in 180ms var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% - 4px)) scale(0.96);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .badge[data-fresh] {
+  .hit[data-fresh] .badge,
+  .pop {
     animation: pr-fade 150ms ease-out both;
+  }
+  :global([data-pr-fresh]) {
+    animation: none;
+  }
+  .hit:active .badge {
+    transform: none;
+    opacity: var(--press-dim);
   }
 }
 

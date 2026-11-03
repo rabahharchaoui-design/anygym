@@ -6,6 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <meta name="color-scheme" content="dark" />
+    <!-- Black from the very first paint, before the CSS bundle loads (critic B5: no white flash). -->
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        background: #000;
+      }
+    </style>
     <meta name="description" content="Your training keeps working in any gym." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />

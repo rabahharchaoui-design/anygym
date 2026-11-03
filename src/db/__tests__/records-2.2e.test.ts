@@ -5,6 +5,7 @@ import { AnyGymDB } from '../schema';
 import type { Load } from '../types';
 import { deleteSet, finishWorkout, logSet, startWorkout } from '../workouts';
 import { workoutWins } from '../history';
+import { dumbbellLoad } from '../../lib/load';
 
 let db: AnyGymDB;
 let n = 0;
@@ -74,5 +75,14 @@ describe('workoutWins', () => {
     const w = await workoutWins(s.id, names, db);
     expect(w.records).toHaveLength(2);
     expect(w.win?.text).toBe('Bench 185 lb × 7, best ever');
+  });
+
+  it('a barbell set, then a dumbbell PR in the same exercise: each load kind has its own history (Codex 2.2e #1)', async () => {
+    const db1 = (each: number): Load => dumbbellLoad(each, 'lb');
+    await workout(1000, [['bench', 5, bar(185, [45, 25])], ['bench', 8, db1(60)]]);
+    const s = await workout(2000, [['bench', 5, bar(185, [45, 25])], ['bench', 9, db1(60)]], 'g', false);
+    const w = await workoutWins(s.id, names, db);
+    expect(w.records.map((r) => r.setId)).toEqual(['2000-1']);
+    expect(w.win?.text).toBe('Bench 60 lb each × 9, best ever');
   });
 });

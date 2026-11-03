@@ -158,7 +158,7 @@
    first screen on SE and Pro Max alike; the photo is drawn whole (contain) inside it. */
 .wrap[data-fit] .stage {
   aspect-ratio: auto;
-  height: clamp(140px, 26svh, 250px);
+  height: clamp(120px, 20svh, 230px);
 }
 
 /* Reduced motion (SPEC 4.4): both photos side by side, still. The tile keeps the start photo. */

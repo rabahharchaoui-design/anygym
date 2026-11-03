@@ -252,9 +252,10 @@ test('D2. PR chips: previous best 185 x 10, now 190 x 10 gives the heaviest chip
   const chips = await page.getByTestId('pr-chip').allInnerTexts();
   console.log('D2 chips', chips);
   await shot(page, 'd2-finish-pr');
-  expect(chips).toHaveLength(1);
-  expect(chips[0]).toContain('heaviest');
-  expect(chips[0]).toContain('190');
+  // PLAN 2.2e round 2 (critic B4): the one record leads the screen and New bests never repeats it.
+  expect(chips).toHaveLength(0);
+  await expect(page.getByTestId('finish-win')).toContainText('190 lb');
+  await expect(page.getByTestId('finish-win')).toContainText(/heaviest ever|best ever/);
   expect(errors).toEqual([]);
 });
 

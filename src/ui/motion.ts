@@ -67,11 +67,11 @@ export const pageVariants: Variants = {
     dir === 0 ? { opacity: 0, transition: { duration: 0 } } : dir > 0 ? { transform: under, opacity: PAGE.dim, zIndex: 1 } : { transform: 'translateX(100%) scale(1)', opacity: 1, zIndex: 2 },
 };
 
-/** Reduced motion: no movement, a 150 ms crossfade (SPEC 13.2). */
+/** Reduced motion: no movement (SPEC 13.2), a clean crossfade: out in 80 ms, then in over 120 ms. */
 export const pageVariantsReduced: Variants = {
   enter: { opacity: 0 },
-  center: { opacity: 1 },
-  exit: { opacity: 0 },
+  center: { opacity: 1, transition: { type: 'tween', duration: 0.12, delay: 0.08, ease: 'easeOut' } },
+  exit: { opacity: 0, transition: { type: 'tween', duration: 0.08, ease: 'easeOut' } },
 };
 
 /** Reduced motion: a short crossfade instead of movement. */

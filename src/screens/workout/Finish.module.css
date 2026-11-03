@@ -69,11 +69,50 @@
 
 .winText {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Two lines (critic P8): the exercise, then what it did; never an orphan word. */
+.winName {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.winDetail {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* Done arrives after the lead card (critic P7). */
+.cta {
+  animation: cta-in 220ms var(--ease-out) 160ms both;
+}
+
+@keyframes cta-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta {
+    animation: cta-fade 150ms ease-out 120ms both;
+  }
+}
+
+@keyframes cta-fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .stats {
@@ -101,6 +140,18 @@
   font-size: clamp(26px, 8vw, 34px);
   font-weight: 700;
   line-height: 1.1;
+  white-space: nowrap;
+}
+
+.stat {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+@supports (font-size: 1cqi) {
+  .value {
+    font-size: clamp(16px, 14cqi, 34px);
+  }
 }
 
 .wide {
@@ -317,6 +368,12 @@
   }
   .value {
     font-size: clamp(17px, 5vw, 20px);
+  }
+  /* Auto fit (critic P9): a long total ("12,345.5 kg") or 130% text shrinks to its tile, never clips. */
+  @supports (font-size: 1cqi) {
+    .value {
+      font-size: clamp(13px, 15cqi, 20px);
+    }
   }
   .label {
     font-size: 12px;

@@ -247,7 +247,7 @@ test('plate machine 50 + 25/side x 8 = 8 x 100 lb everywhere', async ({ page }) 
   expect(set.reps).toBe(8);
   expect(set.load).toMatchObject({ total: 100 });
   await finish(page);
-  await expect(page.getByTestId('finish-exercise').filter({ hasText: 'Angled Machine Leg Press' })).toContainText('8 × 100 lb');
+  await expect(page.getByTestId('finish-exercise').filter({ hasText: 'Angled Machine Leg Press' })).toContainText('100 lb × 8'); // weight first on the finish screen (2.2e round 2, critic B4)
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
   // History detail
   await page.getByRole('link', { name: 'History' }).tap();

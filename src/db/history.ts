@@ -1,6 +1,6 @@
 // Past sessions of one exercise for the progression engine (SPEC 6, src/lib/progression.ts).
 import type { PastSession, PastSet } from '../lib/progression';
-import { biggestWin, recordSets, recordsFor, type PersonalRecord, type SetRecord, type Win } from '../lib/records';
+import { biggestWin, recordSets, recordsFor, type DatedSet, type PersonalRecord, type SetRecord, type Win } from '../lib/records';
 import { sameExerciseIds } from '../lib/picker';
 import { barForName } from '../lib/loadTypeRule';
 import { planById } from '../data/plans';
@@ -222,7 +222,7 @@ export async function recentExerciseIds(limit = 8, db: AnyGymDB = defaultDb): Pr
   return out;
 }
 
-type RecordGroup = { exerciseId: string; name: string; today: Array<WorkoutSet & { load: Load }>; before: PastSet[] };
+type RecordGroup = { exerciseId: string; name: string; today: Array<WorkoutSet & { load: Load }>; before: DatedSet[] };
 
 /**
  * One workout's sets grouped the way records compare them (SPEC 6, PLAN 1.7f, 1.7k): per exercise,
@@ -248,13 +248,17 @@ async function recordGroups(session: Session, sets: readonly WorkoutSet[], nameO
       const bar = barOf(x);
       return bar === null ? null : bar === 'smith' ? 'smith' : 'free';
     };
+    // One group per lift identity (Codex 2.2e #1): Smith or free bar, and the load kind. A lift
+    // whose loading changed mid workout (barbell, then dumbbells) is two lifts, each compared with
+    // its own history; never only the first set's kind.
     for (const smith of [false, true]) {
-      const group = today.filter((x) => groupOf(x) === (smith ? 'smith' : 'free'));
-      const firstWork = group.find((x) => x.kind === 'work');
-      if (!firstWork) continue;
-      const kind = firstWork.load.kind;
-      const past = (await getPastSessions(id, session.gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
-      out.push({ exerciseId: id, name, today: group, before: past.flatMap((p) => p.sets) });
+      const lift = today.filter((x) => groupOf(x) === (smith ? 'smith' : 'free'));
+      const kinds = [...new Set(lift.filter((x) => x.kind === 'work').map((x) => x.load.kind))];
+      for (const kind of kinds) {
+        const group = lift.filter((x) => x.load.kind === kind);
+        const past = (await getPastSessions(id, session.gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
+        out.push({ exerciseId: id, name, today: group, before: past.flatMap((p) => p.sets.map((x) => ({ ...x, date: p.date }))) });
+      }
     }
   }
   return out;

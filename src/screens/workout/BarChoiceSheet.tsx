@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Weight } from 'lucide-react';
 import { Sheet } from '../../ui/Sheet';
 import { ChoiceCard } from '../../ui/ChoiceCard';
 import type { BarId, Gym } from '../../db/types';
@@ -33,9 +32,9 @@ export function BarChoiceSheet({ open, onClose, gym, exerciseName, current, onPi
         <p className={styles.sheetSub}>{exerciseName}</p>
         <div className={styles.choices} role="group" aria-label="Bars">
           {knownBars(gym).map((id) => (
-            <ChoiceCard key={id} icon={Weight} label={`${BAR_NAMES[id]} bar`} detail={formatWeight(gym.bars[id]!, gym.unit)} picked={id === current} onPress={() => onPick(id)} />
+            <ChoiceCard key={id} label={`${BAR_NAMES[id]} bar`} detail={formatWeight(gym.bars[id]!, gym.unit)} picked={id === current} onPress={() => onPick(id)} />
           ))}
-          {other && unanswered.map((id) => <ChoiceCard key={id} icon={Weight} label={`${BAR_NAMES[id]} bar`} hint="Enter its weight" picked={false} onPress={() => onAsk(id)} />)}
+          {other && unanswered.map((id) => <ChoiceCard key={id} label={`${BAR_NAMES[id]} bar`} hint="Enter its weight" picked={false} onPress={() => onAsk(id)} />)}
         </div>
         {!other && unanswered.length > 0 && (
           <button type="button" className={`${styles.choiceOther} pressable`} onClick={() => setOther(true)}>

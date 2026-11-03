@@ -70,7 +70,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   :global(html[data-nav-fallback]) .page {
-    animation: fb-fade 150ms ease-out both;
+    animation: fb-fade 120ms ease-out 80ms both;
   }
 }
 @keyframes fb-fade {

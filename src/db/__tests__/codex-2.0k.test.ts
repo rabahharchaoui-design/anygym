@@ -147,6 +147,30 @@ describe('group 6d: Retry rechecks under the lock (bughunt 1659 #2, 1730 #4)', (
   });
 });
 
+describe('2.2e (Codex 2.0k review #2): held corrections are ordered by predecessors, never by clocks', () => {
+  it('both journal writes fail and the later tab has an earlier clock: Retry saves the later correction', async () => {
+    const s = await oneSet();
+    const ls = store();
+    const tabB = await tab();
+    const fixA = failJournal(db);
+    const fixB = failJournal(tabB);
+    await expect(saveMutation(s.id, 'goblet', edit(17), db, 5000, ls)).rejects.toThrow('journal'); // tab A, clock ahead
+    await expect(saveMutation(s.id, 'goblet', edit(19), tabB, 1500, ls)).rejects.toThrow('journal'); // later, clock behind
+    fixA();
+    fixB();
+    const held = await pendingMutations(s.id, db, ls);
+    expect(repsOf(held)).toEqual([19, 17]); // by time 19 looks older
+    const later = held.find((e) => repsOf([e])[0] === 19)!;
+    const earlier = held.find((e) => repsOf([e])[0] === 17)!;
+    // The later one stored its predecessor, also in the fallback (it survives a restart).
+    expect(later.covers).toEqual([earlier.id]);
+    expect(JSON.parse(ls.raw.get('anygym-pending-changes')!).find((e: JournalEntry) => e.id === later.id).covers).toEqual([earlier.id]);
+    expect(await retryMutations(s.id, db, ls)).toBe(true);
+    expect((await db.sets.get('a'))!.reps).toBe(19);
+    expect(await pendingMutations(s.id, db, ls)).toEqual([]);
+  });
+});
+
 describe('group 6c: held operation ids are globally unique, never clock plus counter', () => {
   it('two tabs failing at the same instant get distinct UUID ids; both stay pending and Retry saves one of them and covers the other', async () => {
     const s = await oneSet();

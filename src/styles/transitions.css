@@ -102,6 +102,20 @@ html[data-nav='fade']::view-transition-new(root) {
   animation: none;
   z-index: 3;
 }
+/* The tab pill (critic B1): its own layer above the bar, flying from the old tab to the new one in
+   the same 240 ms as the tab crossfade, so it lands with the page. Only the new pill is drawn. */
+::view-transition-group(tab-pill) {
+  z-index: 4;
+  animation-duration: 240ms;
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-old(tab-pill) {
+  display: none;
+}
+::view-transition-new(tab-pill) {
+  animation: none;
+  height: 100%;
+}
 ::view-transition-group(workout-dock) {
   z-index: 3;
 }
@@ -197,12 +211,32 @@ html[data-nav='down']::view-transition-group(workout-dock) {
   ::view-transition-group(*) {
     animation-duration: 0s !important;
   }
+  /* The bar and its pill never fade (critic B1): the pill jumps to the new tab at once. */
+  ::view-transition-old(tabbar),
+  ::view-transition-old(tab-pill) {
+    display: none !important;
+  }
+  ::view-transition-new(tabbar),
+  ::view-transition-new(tab-pill) {
+    animation: none !important;
+  }
+  /* A clean crossfade (critic P12): the old page out in 80 ms, then the new one in over 120 ms;
+     never both half visible at once. */
   ::view-transition-old(*) {
-    animation: vt-fade-out 150ms ease-out both !important;
+    animation: vt-fade-out 80ms ease-out both !important;
     filter: none !important;
   }
   ::view-transition-new(*) {
-    animation: vt-fade-in 150ms ease-out both !important;
+    animation: vt-fade-in 120ms ease-out 80ms both !important;
     box-shadow: none !important;
+  }
+  /* The chrome stays solid: the workout header and rest bar show their new state at once. */
+  ::view-transition-old(workout-head),
+  ::view-transition-old(workout-dock) {
+    display: none !important;
+  }
+  ::view-transition-new(workout-head),
+  ::view-transition-new(workout-dock) {
+    animation: none !important;
   }
 }

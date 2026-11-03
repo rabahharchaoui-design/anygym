@@ -1,7 +1,7 @@
 // PLAN 2.2e: live PR badges and the finish lead line, from real history only.
 import { describe, expect, it } from 'vitest';
 import type { Load } from '../../db/types';
-import { barbellLoad, beatsVolume, biggerGain, bodyweightLoad, dumbbellLoad, gainRatio, heavierThan, setScore, singleLoad, stackLoad, timedLoad } from '../load';
+import { barbellLoad, beatsVolume, biggerGain, formatSetWeightFirst, bodyweightLoad, dumbbellLoad, gainRatio, heavierThan, setScore, singleLoad, stackLoad, timedLoad } from '../load';
 import type { PastSet } from '../progression';
 import { biggestWin, recordSetText, recordSets, type RecordSet } from '../records';
 
@@ -99,6 +99,21 @@ describe('recordSets', () => {
   it('a set without reps never counts and never raises the bar', () => {
     const today: RecordSet[] = [{ id: 'x', kind: 'work', load: lb(400) }, set(6, lb(185))];
     expect(recordSets(today, [past(5, lb(185))]).map((r) => r.setId)).toEqual([today[1]!.id]);
+  });
+  it('says which earlier set it beat, with its workout date; earlier today without one', () => {
+    const r = recordSets([set(6, lb(185)), set(7, lb(185))], [{ ...past(5, lb(185)), date: 111 }, { ...past(4, lb(185)), date: 222 }]);
+    expect(r[0]!.beat).toEqual({ text: '185 lb × 5', date: 111 });
+    expect(r[1]!.beat).toEqual({ text: '185 lb × 6' }); // the set before it, this workout
+    const h = recordSets([set(1, lb(250))], [{ ...past(5, lb(225)), date: 9 }]);
+    expect(h[0]!.beat).toEqual({ text: '225 lb × 5', date: 9 });
+  });
+  it('formatSetWeightFirst: weight first everywhere on the finish screen', () => {
+    expect(formatSetWeightFirst({ reps: 6, load: lb(185) })).toBe('185 lb × 6');
+    expect(formatSetWeightFirst({ reps: 8, load: dumbbellLoad(50, 'lb') })).toBe('50 lb each × 8');
+    expect(formatSetWeightFirst({ reps: 8, load: bodyweightLoad('lb', 25) })).toBe('+25 lb × 8');
+    expect(formatSetWeightFirst({ reps: 12, load: bodyweightLoad('lb') })).toBe('12 reps');
+    expect(formatSetWeightFirst({ seconds: 45, load: timedLoad('lb') })).toBe('45 s');
+    expect(formatSetWeightFirst({ reps: 10 })).toBe('10 reps');
   });
   it('recordSetText', () => {
     expect(recordSetText({ reps: 6, load: bar([45, 25]) })).toBe('185 lb × 6');

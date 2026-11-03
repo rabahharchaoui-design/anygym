@@ -74,6 +74,12 @@ test('(5) the muscle list keeps Close pinned, the exercise sheet keeps Back and 
   const closeTop = await onScreen(page, closeEx);
   const firstCue = sheet.getByTestId('cues').locator('li').first();
   await expect(sheet.getByRole('heading', { name: 'How to' })).toBeVisible();
+  // SPEC 4.4 order (PLAN 2.2e round 2, Codex 2.0k #3): demo, muscle map, then How to.
+  const demoBox = (await sheet.getByTestId('form-demo').boundingBox())!;
+  const pairBox = (await sheet.getByTestId('muscle-pair').boundingBox())!;
+  const howBox = (await sheet.getByRole('heading', { name: 'How to' }).boundingBox())!;
+  expect(demoBox.y).toBeLessThan(pairBox.y);
+  expect(pairBox.y + pairBox.height).toBeLessThanOrEqual(howBox.y);
   const cue = (await firstCue.boundingBox())!;
   expect(cue.y + cue.height).toBeLessThanOrEqual(closeTop.y);
   expect(cue.y).toBeGreaterThan(backTop.y + backTop.height);

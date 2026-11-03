@@ -5,7 +5,7 @@
 import type { Load, Unit } from '../db/types';
 import type { Stopwatch } from './timer';
 import { db as defaultDb } from '../db/schema';
-import { durableRow, mirror as mirrorDurable, mirrorRow, mirrorValue } from './durable';
+import { durableRow, mirror as mirrorDurable, mirrorRow, mirrorValue, stampLocal } from './durable';
 
 export type Draft = {
   /** Id the set will be logged with (double tap safe across a reload). */
@@ -114,7 +114,7 @@ function read(s: StorageLike): Store {
  * into what storage held: a draft only memory kept comes back after a reload once storage works
  * again, and a cleared draft stays cleared.
  */
-type Memory = { session: string | null; drafts: Map<string, Draft>; failed: boolean; dirty: Set<string> };
+type Memory = { session: string | null; drafts: Map<string, Draft>; failed: boolean; dirty: Set<string>; /** The latest persistRows run: only it publishes to localStorage. */ persist?: number };
 const memories = new WeakMap<object, Memory>();
 const NO_STORAGE = {};
 
@@ -163,6 +163,34 @@ function memoryValue(m: Memory): string | null {
  */
 export function draftsMirrorRow(s = storage()) {
   return mirrorRow(s, KEY, memoryValue(memoryOf(s)));
+}
+
+type KvLike = { get: (key: string) => Promise<{ value: string | null } | undefined>; put: (row: ReturnType<typeof durableRow>) => Promise<unknown> };
+
+/**
+ * The pending rows made durable inside a caller's own IndexedDB transaction (PLAN 2.0c, Log set),
+ * merged row by row into what IndexedDB holds (Codex 2.0k #1): this tab's row wins when it changed
+ * it since its last write or holds at least the stored revision; rows only another tab has stay.
+ * null when this storage is not mirrored.
+ */
+export function draftsDurableMerge(s = storage()): ((kv: KvLike) => Promise<void>) | null {
+  const m = memoryOf(s);
+  if (!m.session || !mirrorRow(s, KEY, null)) return null;
+  const session = m.session;
+  const mine = new Map(m.drafts);
+  const dirty = new Set(m.dirty);
+  return async (kv) => {
+    const store = parseStore((await kv.get(KEY))?.value);
+    const rows = { ...(store[session] ?? {}) };
+    for (const [k, d] of mine) {
+      const theirs = rows[k];
+      if (dirty.has(k) || !validDraft(theirs) || (d.rev ?? 0) >= (theirs.rev ?? 0)) rows[k] = d;
+    }
+    for (const k of dirty) if (!mine.has(k)) delete rows[k];
+    if (Object.keys(rows).length) store[session] = rows;
+    else delete store[session];
+    await kv.put(durableRow(KEY, Object.keys(store).length ? JSON.stringify(store) : null));
+  };
 }
 
 /**
@@ -232,6 +260,9 @@ function persistRows(m: Memory, s: StorageLike | null): void {
   if (!session || !m.dirty.size || !isPhone(s)) return;
   const sent = new Map<string, Draft | null>();
   for (const k of m.dirty) sent.set(k, m.drafts.get(k) ?? null);
+  // An older run committing after a newer write must not hand localStorage its older rows (a reload
+  // in between would show them): only the latest run publishes; IndexedDB takes every run's rows.
+  const gen = (m.persist = (m.persist ?? 0) + 1);
   const run = async () => {
     const out = await defaultDb.transaction('rw', defaultDb.kv, async () => {
       const store = parseStore((await defaultDb.kv.get(KEY))?.value);
@@ -243,13 +274,17 @@ function persistRows(m: Memory, s: StorageLike | null): void {
       if (Object.keys(rows).length) store[session] = rows;
       else delete store[session];
       const value = Object.keys(store).length ? JSON.stringify(store) : null;
-      await defaultDb.kv.put(durableRow(KEY, value));
-      // The merged snapshot to localStorage, in the order the transactions commit (one tab at a time).
-      let local = false;
-      if (s) {
+      const row = durableRow(KEY, value);
+      await defaultDb.kv.put(row);
+      // The merged snapshot to localStorage, in the order the transactions commit (one tab at a time),
+      // with the same stamp as the IndexedDB row (one write, so a restart never restores over it).
+      let local: boolean | 'later' = false;
+      if (s && gen !== m.persist) local = 'later';
+      else if (s) {
         try {
           if (value !== null) s.setItem(KEY, value);
           else s.removeItem(KEY);
+          stampLocal(s, KEY, row.at);
           local = true;
         } catch {
           local = false;
@@ -257,13 +292,15 @@ function persistRows(m: Memory, s: StorageLike | null): void {
       }
       return { store, rows, local };
     });
-    if (s && out.local) hydrated.delete(s);
+    if (out.local === 'later') {
+      /* a newer run publishes */
+    } else if (s && out.local) hydrated.delete(s);
     else hydrated.set(s ?? NO_STORAGE, out.store);
     if (m.session !== session) return;
     for (const [k, d] of sent) if ((m.drafts.get(k) ?? null) === d) m.dirty.delete(k);
     for (const [k, d] of Object.entries(out.rows)) if (!m.dirty.has(k) && validDraft(d)) m.drafts.set(k, d);
     for (const k of [...m.drafts.keys()]) if (!m.dirty.has(k) && !(k in out.rows)) m.drafts.delete(k);
-    if (s && !out.local) failed(m);
+    if (s && out.local === false) failed(m);
   };
   void run().catch(() => {
     // Neither store took it: memory keeps the row (still dirty) for the next write.
@@ -299,8 +336,13 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
       persistRows(m, s);
     }
     if (wrote) {
-      void mirrorDurable(s, KEY, undefined, undefined, value);
       hydrated.delete(s);
+      // The IndexedDB copy is merged row by row, never replaced by this tab's snapshot (Codex 2.0k
+      // #1): a tab opened before another tab's localStorage failure (never hydrated) holds a stale
+      // localStorage view, and its whole snapshot would wipe a row IndexedDB alone keeps. The
+      // merged result is then handed to localStorage in the same transaction (persistRows).
+      if (isPhone(s)) persistRows(m, s);
+      else void mirrorDurable(s, KEY, undefined, undefined, value);
       m.dirty.clear();
       ok = true;
     }

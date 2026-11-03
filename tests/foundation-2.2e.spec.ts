@@ -1,16 +1,5 @@
-/*
- * PROGRESS (PLAN 2.2e, remove this block when the item is done)
- * done: (1) motion.ts TAP/SHEET/PAGE springs + PAGE transition (VT CSS, Motion fallback, edge swipe);
- *       reduced motion keeps a crossfade, no movement (SPEC 13.2); raw navigate() callers use useNav.
- *       (2) SlidingToggle (Segmented delegates; Settings Units too), ChoiceCard (bar + load type
- *       sheets), BottomCTA (Finish, PlanViewer), one Undo toast look, PRBadge, AppMarkLoader
- *       (startup, lazy dev route), #/dev/ui preview with visual snapshots.
- *       (3) records.ts recordSets/biggestWin + load.ts helpers, history.ts workoutWins (one read
- *       transaction), useWorkout.recordOf -> SetTable badge, Finish lead line.
- *       (4) press to paint < 100 ms, frame gaps in a push and pop, no shift: asserted below.
- *       Full suite green on SE, 15, 17 Pro Max except the pre-existing exercise-screen-2.2b offline test.
- * left: ux-critic 9+ review; videos for SPEC 23.4.
- */
+// PLAN 2.2e: the premium foundation (motion, shared components, the live PR badge and the finish
+// lead line) and its speed budget on WebKit; round 2 covers the critic's B1 to B6 and the Codex review.
 import { expect, test, type Locator, type Page } from './fixtures';
 import { bar185, checkCurrent, exerciseView, fillReps, loggedRows, navIdle, pickExercises, seedFinished, usePlan, watchErrors } from './workout-helpers';
 
@@ -20,6 +9,29 @@ const shot = async (page: Page, name: string) => {
   await page.screenshot({ path: `${SHOTS}/${test.info().project.name.replace(/ /g, '-')}-${name}.png` });
 };
 const box = async (l: Locator) => (await l.boundingBox())!;
+
+/** Records the gaps between animation frames until stopped; returns the longest gap in ms. */
+const frames = (page: Page) => ({
+  start: () =>
+    page.evaluate(() => {
+      const w = window as unknown as { __fg: { gaps: number[]; run: boolean } };
+      w.__fg = { gaps: [], run: true };
+      let last = 0;
+      const loop = (t: number) => {
+        if (!w.__fg.run) return;
+        if (last) w.__fg.gaps.push(t - last);
+        last = t;
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    }),
+  stop: () =>
+    page.evaluate(() => {
+      const w = window as unknown as { __fg: { gaps: number[]; run: boolean } };
+      w.__fg.run = false;
+      return Math.round(Math.max(0, ...w.__fg.gaps));
+    }),
+});
 
 async function openUi(page: Page) {
   await page.goto('./?dev#/dev/ui');
@@ -99,11 +111,11 @@ test.describe('components (#/dev/ui)', () => {
     // Nothing picked: the button is grey and says why, the honest local line under it.
     await expect(go).toBeDisabled();
     await expect(cta.getByRole('note')).toHaveText('Pick a goal first');
-    await expect(cta.getByText('Stays on this phone.')).toBeVisible();
     // In the thumb zone: pinned to the bottom of the screen.
     const vh = page.viewportSize()!.height;
     expect((await box(go)).y + (await box(go)).height).toBeGreaterThan(vh * 0.8);
     await shot(page, 'choice-none');
+    const goBefore = await box(go);
     const card = cards.getByRole('button', { name: /Build muscle/ });
     expect((await box(card)).height).toBeGreaterThanOrEqual(48);
     const fill = card.locator('[data-ring] > span');
@@ -115,6 +127,9 @@ test.describe('components (#/dev/ui)', () => {
     expect(await card.evaluate((el) => getComputedStyle(el).borderColor)).toBe('rgb(212, 255, 58)');
     await expect(go).toBeEnabled();
     await expect(cta.getByRole('note')).toHaveCount(0);
+    // Round 2 (critic B2): the reason and the quiet note swap in one reserved line; the button never moves.
+    await expect(cta.getByText('Stays on this phone.')).toBeVisible();
+    expect(await box(go)).toEqual(goBefore);
     await page.waitForTimeout(300);
     await expect(cards).toHaveScreenshot('choice-picked.png', { maxDiffPixelRatio: 0.02 });
     await shot(page, 'choice-picked');
@@ -160,11 +175,31 @@ test.describe('components (#/dev/ui)', () => {
     await page.getByRole('button', { name: 'Log a best set' }).tap();
     const badge = row.getByTestId('pr-badge');
     await expect(badge).toHaveText('PR');
-    expect(await badge.evaluate((el) => getComputedStyle(el).animationName)).toMatch(/pr-in/);
-    expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(212, 255, 58)');
+    const chipEl = badge.locator('[data-chip]');
+    expect(await chipEl.evaluate((el) => getComputedStyle(el).animationName)).toMatch(/pr-in/);
+    expect(await chipEl.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(212, 255, 58)');
+    // Round 2 (critic B3): a real chip, 20 to 22 pt tall with 12 pt text, after the reps; the row pulses once.
+    expect(await row.getAttribute('data-pr-fresh')).toBe('');
+    await page.waitForTimeout(400); // sprung in
+    const b = await box(chipEl);
+    expect(b.height).toBeGreaterThanOrEqual(20);
+    expect(b.height).toBeLessThanOrEqual(22.5);
+    expect(parseFloat(await chipEl.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12);
+    const reps = await box(row.locator('span.num').nth(2));
+    expect(b.x).toBeGreaterThan(reps.x);
     expect(await cells()).toEqual(before);
     await page.waitForTimeout(400);
     await expect(row).toHaveScreenshot('pr-row.png', { maxDiffPixelRatio: 0.02 });
+    // 48 pt to tap (SPEC 13.3); it says what it beat, in one line.
+    const hit = await box(badge);
+    expect(hit.height).toBeGreaterThanOrEqual(48);
+    expect(hit.width).toBeGreaterThanOrEqual(48);
+    await badge.tap();
+    await expect(page.getByTestId('pr-popover')).toHaveText('New best: beat 185 lb × 5 from Nov 3');
+    await shot(page, 'pr-popover');
+    await page.getByRole('heading', { name: 'Components' }).tap();
+    await expect(page.getByTestId('pr-popover')).toHaveCount(0);
+    await expect.poll(() => row.getAttribute('data-pr-fresh')).toBeNull();
     // The loader: invisible before 400 ms, then the mark is drawn.
     await page.getByRole('button', { name: 'Replay' }).tap();
     const loader = page.getByRole('status', { name: 'Loading preview' });
@@ -225,7 +260,17 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     const first = loggedRows(view).first();
     await expect(first.getByTestId('pr-badge')).toBeVisible();
     await expect(first.getByRole('button', { name: /personal record/ })).toBeVisible();
+    // After the reps, before Done (critic B3); a tap says what it beat, from the real history.
+    const chip = await box(first.getByTestId('pr-badge').locator('[data-chip]'));
+    const amount = await box(first.getByTestId('saved-amount'));
+    expect(chip.x).toBeGreaterThan(amount.x);
+    expect(chip.x + chip.width).toBeLessThanOrEqual(amount.x + amount.width + 1);
     await shot(page, 'workout-pr');
+    await first.getByTestId('pr-badge').tap();
+    await expect(page.getByTestId('pr-popover')).toHaveText(/^New best: beat 185 lb × 5 from [A-Z][a-z]{2} \d{1,2}$/);
+    await shot(page, 'workout-pr-popover');
+    await view.locator('[data-head]').tap(); // a tap anywhere else closes it
+    await expect(page.getByTestId('pr-popover')).toHaveCount(0);
     // The same 185 × 6 again ties: no badge.
     await expect(view.getByTestId('weight-cell').first()).toHaveText('185');
     await squatSet(page, view, 6, 2);
@@ -240,9 +285,18 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     expect(await loggedRows(view).first().getByTestId('pr-badge').getAttribute('data-fresh')).toBeNull();
     await page.getByRole('button', { name: 'Finish' }).tap();
     await expect(page).toHaveURL(/\/done$/);
-    await expect(page.getByTestId('finish-win')).toHaveText('Barbell Back Squat 185 lb × 6, best ever');
+    const win = page.getByTestId('finish-win');
+    // Two lines (critic P8): the exercise, then what it did.
+    const name = win.getByText('Barbell Back Squat', { exact: true });
+    const detail = win.getByText('185 lb × 6, best ever', { exact: true });
+    await expect(detail).toBeVisible();
+    expect((await box(detail)).y).toBeGreaterThan((await box(name)).y);
     // It leads: above the numbers.
-    expect((await box(page.getByTestId('finish-win'))).y).toBeLessThan((await box(page.getByTestId('finish-duration'))).y);
+    expect((await box(win)).y).toBeLessThan((await box(page.getByTestId('finish-duration'))).y);
+    // One order everywhere (critic B4): weight × reps; New bests never repeats the lead.
+    await expect(page.getByTestId('finish-exercise')).toContainText('185 lb × 6');
+    await page.waitForTimeout(900);
+    await expect(page.getByTestId('pr-chip')).toHaveCount(0);
     await shot(page, 'finish-win');
     expect(errors).toEqual([]);
   });
@@ -364,5 +418,85 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     } else {
       expect(Math.min(1, ...push.scales)).toBeCloseTo(0.96, 2);
     }
+  });
+  test('round 2 (critic B6): checking a PR set and picking a bar never stall a frame past 50 ms @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('./');
+    await seedFinished(page, { 'barbell-back-squat': [{ reps: 5, load: bar185 }] });
+    await page.reload();
+    await page.getByRole('button', { name: /Quick workout/ }).tap();
+    await pickExercises(page, [['back squat', 'Barbell Back Squat']]);
+    const view = exerciseView(page, 'barbell-back-squat');
+    await expect(view.getByTestId('weight-cell').first()).toHaveText('185');
+    await fillReps(view, view.getByTestId('set-todo').first(), 6);
+    await page.waitForTimeout(600);
+    const f = frames(page);
+    await f.start();
+    await checkCurrent(view).tap();
+    await expect(loggedRows(view).first().getByTestId('pr-badge')).toBeVisible();
+    await page.waitForTimeout(500);
+    const check = await f.stop();
+    const skip = page.getByRole('button', { name: 'Skip' });
+    if (await skip.isVisible()) await skip.tap();
+    // The bar sheet: pick a bar, the sheet closes, then the weight is worked out.
+    await view.getByTestId('weight-cell').first().tap();
+    const weight = page.getByRole('dialog', { name: 'Pick the weight' });
+    await weight.getByRole('button', { name: /^Change bar/ }).tap();
+    const bars = page.getByRole('dialog', { name: 'Which bar?' });
+    await expect(bars).toBeVisible();
+    await page.waitForTimeout(500);
+    await f.start();
+    await bars.getByRole('button', { name: /Women's bar/ }).tap();
+    await expect(bars).toHaveCount(0);
+    await expect(weight.getByTestId('plate-total')).toHaveAttribute('data-math', /^35 bar/);
+    await page.waitForTimeout(300);
+    const bar = await f.stop();
+    console.log(`${test.info().project.name}: PR check longest frame ${check} ms, bar pick longest frame ${bar} ms`);
+    expect(check).toBeLessThan(50);
+    expect(bar).toBeLessThan(50);
+    expect(errors).toEqual([]);
+  });
+
+  test('round 2 (critic B1): a tab switch: the pill lands with the page, the bar never fades @matrix', async ({ page }) => {
+    await page.goto('./');
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await expect(nav).toBeVisible();
+    await page.waitForTimeout(400);
+    const plans = nav.getByRole('link', { name: 'Plans' });
+    const pill = nav.locator('[data-pill]');
+    const vt = await page.evaluate(() => typeof (document as Document & { startViewTransition?: unknown }).startViewTransition === 'function');
+    if (vt) expect(await pill.evaluate((el) => (el as HTMLElement).style.viewTransitionName)).toBe('tab-pill');
+    await plans.tap();
+    await page.waitForTimeout(90);
+    await shot(page, 'tab-switch-90ms');
+    await navIdle(page);
+    // The moment the transition is over the pill already sits under Plans (no late slide).
+    const p = await box(pill);
+    const t = await box(plans);
+    expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2))).toBeLessThan(2);
+    await page.waitForTimeout(150);
+    const later = await box(pill);
+    expect(Math.abs(later.x - p.x)).toBeLessThan(1);
+    // The bar is never part of the page crossfade: its own layer, drawn at once.
+    const rules = await page.evaluate(() => {
+      const out: string[] = [];
+      for (const sh of document.styleSheets) for (const r of sh.cssRules) if (/tabbar|tab-pill/.test(r.cssText)) out.push(r.cssText);
+      return out.join('\n');
+    });
+    expect(rules).toMatch(/::view-transition-old\(tabbar\)\s*\{\s*display: none/);
+    expect(rules).toMatch(/::view-transition-group\(tab-pill\)/);
+  });
+
+  test('round 2 (critic B1): reduced motion: the pill jumps to the tab at once', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('./');
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await page.waitForTimeout(400);
+    await nav.getByRole('link', { name: 'History' }).tap();
+    await navIdle(page);
+    const pill = nav.locator('[data-pill]');
+    const t = await box(nav.getByRole('link', { name: 'History' }));
+    const p = await box(pill);
+    expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2))).toBeLessThan(2);
   });
 });

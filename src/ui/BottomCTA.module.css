@@ -17,7 +17,8 @@
   bottom: 0;
   z-index: 5;
   padding: var(--space-6) calc(var(--space-5) + var(--safe-right)) calc(var(--space-3) + max(var(--safe-bottom), 8px)) calc(var(--space-5) + var(--safe-left));
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(10 10 12 / 0.94) 28px, rgb(10 10 12 / 0.98));
+  /* Opaque from just above the button to the bottom edge (critic P13): nothing reads through. */
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), var(--bg) 28px);
   border-top: 0;
   pointer-events: none;
 }
@@ -28,7 +29,14 @@
 
 .note {
   margin: 8px 0 0;
+  /* Always one line tall (reason or note), so nothing above moves when they swap. */
+  min-height: 1.3em;
+  line-height: 1.3;
   color: var(--text-2);
   font-size: var(--text-sm);
   text-align: center;
+}
+
+.note[data-reason] {
+  color: var(--text);
 }

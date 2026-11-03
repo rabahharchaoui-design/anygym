@@ -139,7 +139,7 @@ describe('workoutRecords', () => {
     await logSet({ id: '3', sessionId: b.id, exerciseId: 'squat', reps: 5, load: bar(185, [45, 25]) }, db);
     await finishWorkout(b.id, db, 4000);
     const r = await workoutRecords(b.id, names, db);
-    expect(r.map((x) => x.text)).toEqual(['Barbell Back Squat: heaviest ever, 185 lb', 'Barbell Back Squat: most reps at 135 lb, 10']);
+    expect(r.map((x) => x.text)).toEqual(['Barbell Back Squat: heaviest ever, 185 lb', 'Barbell Back Squat: 135 lb × 10, most reps at this weight']);
     // The earlier workout does not gain records from the later one.
     expect(await workoutRecords(a.id, names, db)).toEqual([]);
     expect(await workoutRecords('missing', names, db)).toEqual([]);

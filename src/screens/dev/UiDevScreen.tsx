@@ -49,11 +49,12 @@ export function UiDevScreen() {
         </section>
         <section className={styles.block} aria-label="PR badge">
           <h2 className={styles.h2}>PR badge</h2>
-          <div className={styles.setRow} data-testid="pr-row">
+          <div className={styles.setRow} data-testid="pr-row" data-pr-row>
             <span className={`${styles.setNo} num`}>2</span>
-            {pr > 0 && <PRBadge key={pr} setId={`dev-${pr}`} title="185 lb × 6, best ever" className={styles.badge} />}
             <span className="num">185</span>
-            <span className="num">6</span>
+            <span className={`${styles.reps} num`}>6</span>
+            <span className={styles.check} aria-hidden="true" />
+            {pr > 0 && <PRBadge key={pr} setId={`dev-${pr}`} detail="New best: beat 185 lb × 5 from Nov 3" className={styles.badge} />}
           </div>
           <button type="button" className={`${styles.link} pressable`} onClick={() => setPr((n) => n + 1)}>
             Log a best set

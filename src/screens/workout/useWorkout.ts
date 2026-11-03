@@ -1,6 +1,7 @@
 // Everything the workout screens read (PLAN 1.7c): the session, its sets, the gym, the day's
 // entries in the workout's own order, load types, "Last time" and targets. No writes here.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { afterPaint } from '../../ui/afterPaint';
 import { db } from '../../db/schema';
 import type { BarId, Gym, JournalEntry, Load, Session, WorkoutSet } from '../../db/types';
 import { setsOf } from '../../db/workouts';
@@ -73,6 +74,7 @@ export type Workout = {
 
 const EMPTY: ReadonlyMap<string, number | undefined> = new Map();
 const NO_JOURNAL: readonly JournalEntry[] = [];
+const NO_RECORDS: ReadonlyMap<string, SetRecord> = new Map();
 
 export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Workout {
   const session = useLive(() => db.sessions.get(sessionId), [sessionId]);
@@ -150,7 +152,12 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   // Live PR badges (PLAN 2.2e): recomputed from the database whenever a set commits, so a failed
   // Log never shows one and an edit, delete or Undo is reflected. Not required for logging.
   const wins = useLive(() => workoutWins(sessionId, (id) => planEntryOf.get(id)?.name ?? planExercise(id)?.name ?? id), [sessionId]);
-  const recordMap = useMemo(() => new Map((wins.error ? [] : (wins.data?.records ?? [])).map((r) => [r.setId, r])), [wins.data, wins.error]);
+  // Applied after the check's frame has painted (critic B6): the badge never stalls the check.
+  const [recordMap, setRecordMap] = useState<ReadonlyMap<string, SetRecord>>(NO_RECORDS);
+  useEffect(() => {
+    const next = new Map((wins.error ? [] : (wins.data?.records ?? [])).map((r) => [r.setId, r]));
+    return afterPaint(() => setRecordMap(next));
+  }, [wins.data, wins.error]);
 
   const progressionOf = (id: string): Progression | undefined => {
     const kind = loadTypeOf(id);

@@ -1,0 +1,9 @@
+Read SPEC §§10, 13 and 23. No edits. Three concrete problems, worst first:
+
+| Severity | Screenshot | What is wrong for the user | Likely component in `src/` | Exact fix |
+|---|---|---|---|---|
+| **MAJOR** | **#4 first screen / #6 scrolled exercise sheet** | “Watch out” is below the large muscle illustration. A lifter must scroll past anatomy to discover a relevant form precaution. | `components/exercise/ExerciseSheet.tsx` | Move **Watch out immediately after How to**, before `MusclePair`. Reduce demo height on short screens so cues and the precaution fit above the pinned Close button. |
+| **MAJOR** | **#2 SE / #3 Max weight picker** | “Pick a weight first” appears alongside **45 lb** and an enabled **Done**. A beginner cannot tell whether 45 lb is already a valid choice or another action is required. | `screens/workout/WeightSheet.tsx` | When the known empty bar is confirmable, replace the blocking instruction with **“Start with the empty bar or add plates.”** Keep Done enabled so the empty bar can be accepted directly. |
+| **MAJOR** | **#2 SE / #3 Max weight picker** | The cropped drawing shows one sleeve, and the hint never says a plate tap adds weight to **both sides**. A beginner can reasonably expect tapping 45 to add 45 lb rather than 90 lb. The headline also lacks a visible “total” label. | `components/load/PlateDiagram.tsx`, `lib/hints.ts` | Label the headline **“Total weight”** and change the hint to **“Tap a plate to add one to each side. Tap the loaded end to remove a pair.”** Keep a visible **“Each side”** label above the tray after dismissal. |
+
+**Feel score: 7/10.** Strong visual hierarchy and reachable primary buttons, but contradictory weight guidance and buried form precautions undermine the effortless lifting experience; motion cannot be scored from stills.

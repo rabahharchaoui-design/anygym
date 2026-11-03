@@ -260,6 +260,12 @@
   width: min(132px, 36%, 17svh);
 }
 
+/* The exercise sheet (SPEC 4.4 order, PLAN 2.2e round 2): smaller bodies, so How to still starts
+   in the first screen on the SE under the demo and the muscle map. */
+.pairCompact .pairBody {
+  width: min(110px, 30%, 10svh);
+}
+
 .pairBody .svg {
   position: relative;
   inset: auto;

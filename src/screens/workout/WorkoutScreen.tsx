@@ -1,3 +1,4 @@
+import { afterPaint } from '../../ui/afterPaint';
 import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
@@ -219,7 +220,9 @@ export function WorkoutScreen() {
     const done = counts ? { ...w.done, [id]: (w.done[id] ?? 0) + 1 } : w.done;
     const r = restAfter(entries, done, id);
     const seconds = r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
-    setRest(seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null);
+    // Started now (the countdown is right), shown once the check's frame has painted (critic B6).
+    const started = seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null;
+    afterPaint(() => setRest(started));
     const e = entries.find((x) => x.exerciseId === id);
     if (!e) return;
     // PLAN 2.0g: the screen stays on this exercise for its next set. Only the set that completes its
@@ -530,7 +533,7 @@ export function WorkoutScreen() {
       setRest(null);
       clearSessionDrafts(sessionId);
       clearExtraSets();
-      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'fade', replace: true });
+      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'push', replace: true });
       else
         go('/', {
           kind: 'pop',

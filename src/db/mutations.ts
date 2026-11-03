@@ -311,7 +311,13 @@ function newestPerKey(list: readonly JournalEntry[]): Map<string, JournalEntry> 
     const held = e.id.startsWith(MEMORY_PREFIX);
     if (!cur) out.set(key, e);
     else if (held && !cur.id.startsWith(MEMORY_PREFIX)) out.set(key, e);
-    else if (held === cur.id.startsWith(MEMORY_PREFIX) && (held ? e.at >= cur.at : e.rev >= cur.rev)) out.set(key, e);
+    else if (held && cur.id.startsWith(MEMORY_PREFIX)) {
+      // Two held copies (Codex 2.0k #2): the one that lists the other as a predecessor (`covers`,
+      // stored with it) is newer, whatever either tab's clock said. Only two copies that never saw
+      // each other fall back to their time.
+      if ((e.covers ?? []).includes(cur.id)) out.set(key, e);
+      else if (!(cur.covers ?? []).includes(e.id) && e.at >= cur.at) out.set(key, e);
+    } else if (!held && !cur.id.startsWith(MEMORY_PREFIX) && e.rev >= cur.rev) out.set(key, e);
   }
   return out;
 }
@@ -331,10 +337,12 @@ async function register(sessionId: string, exerciseId: string, m: MutationIntent
     const now = nextAt(db, requested);
     // Held in memory before the journal write starts (PLAN 2.0e): a failure there never loses it.
     const memId = `${MEMORY_PREFIX}${key}:${now}:${operationId()}`;
-    const held: JournalEntry = { id: memId, sessionId, exerciseId, key, rev: -1, draft: { id: memId, load: null }, at: now, mutation: m };
     // Every held copy of this set and kind visible now was registered before this one: this save
-    // supersedes it, whatever the clocks say.
+    // supersedes it, whatever the clocks say. The held copy keeps them as its predecessors too
+    // (Codex 2.0k #2), in memory, the fallback and IndexedDB, so if its journal write fails as well
+    // Retry still knows which correction is the newer one.
     const covered = (pending ?? []).filter((e) => e.id.startsWith(MEMORY_PREFIX) && mutationKey(e.mutation!) === key).map((e) => e.id);
+    const held: JournalEntry = { id: memId, sessionId, exerciseId, key, rev: -1, draft: { id: memId, load: null }, at: now, mutation: m, ...(covered.length ? { covers: [...covered] } : {}) };
     mem.set(memId, held);
     try {
       const id = await journal(sessionId, exerciseId, m, db, now, covered);
