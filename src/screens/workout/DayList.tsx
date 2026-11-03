@@ -59,6 +59,23 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
   const pillSet = nextEntry && nextDone > 0 ? `set ${Math.min(nextDone + 1, nextEntry.sets)} of ${nextEntry.sets}` : '';
   const pillLabel = !nextEntry ? '' : `${pillVerb} ${pillName}${pillSet ? `, ${pillSet}` : ''}`;
   const title = w.day ? dayTitle(w.day.n, w.day.name) : 'Quick workout';
+  // "Continue · Squat · set 3 of 4" when it fits; on a narrow phone the second "·" goes before the
+  // name shortens (gate round 2 P5). Measured, so the pill never guesses.
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const sepRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const name = nameRef.current;
+    const label = name?.parentElement;
+    if (!name || !label || !pillSet) return;
+    const fit = () => {
+      label.removeAttribute('data-tight');
+      if (name.scrollWidth > name.clientWidth + 0.5) label.setAttribute('data-tight', '');
+    };
+    fit();
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null;
+    ro?.observe(label.parentElement ?? label);
+    return () => ro?.disconnect();
+  }, [pillName, pillSet]);
 
   // The next row comes into view when the list opens (and when it comes back after an exercise or
   // an Undo), above the Start pill and the rest bar, never under them.
@@ -200,10 +217,17 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
             {/* One line; a long name ends in "…" on purpose (the full name is the button's label). */}
             <span className={styles.startLabel}>
               <span className={styles.startVerb}>{pillVerb} · </span>
-              <span className={styles.startName} data-truncate-ok>
+              <span className={styles.startName} data-truncate-ok ref={nameRef}>
                 {pillName}
               </span>
-              {pillSet && <span className={styles.startSet}> {pillSet}</span>}
+              {pillSet && (
+                <span className={styles.startSet}>
+                  <span className={styles.startSep} ref={sepRef}>
+                    {' · '}
+                  </span>
+                  {pillSet}
+                </span>
+              )}
             </span>
           </button>
         </div>

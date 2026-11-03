@@ -88,6 +88,8 @@ test.describe('every screen fits every phone @matrix', () => {
     await page.getByTestId('row-barbell-back-squat').tap();
     const view = page.getByTestId('exercise-barbell-back-squat');
     await expect(view.getByTestId('check-current')).toBeEnabled();
+    // The arrival guard (a transparent tap shield while the push settles) is not a cover.
+    await expect(page.getByTestId('arrival-guard')).toHaveCount(0);
     // SPEC 13.5, before anything scrolls: the current set is on one screen.
     await checkActiveWorkout(page);
     await checkLayout(page, { primary: view.getByTestId('check-current') });

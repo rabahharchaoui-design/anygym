@@ -40,11 +40,19 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.rest,
+.lead {
+  flex: none;
+}
+
+.lead {
   padding-right: 0.28em;
 }
 
-.rest {
-  flex: none;
+.subject + .rest {
+  padding-left: 0.28em;
 }
 
 .text:not(:has(.subject)) .rest {

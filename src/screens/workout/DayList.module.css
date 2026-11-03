@@ -318,3 +318,12 @@
   font-size: inherit;
   padding: 0;
 }
+
+/* The second separator shows while everything fits; tight, a plain gap (gate round 2 P5). */
+.startLabel[data-tight] .startSep {
+  display: none;
+}
+
+.startLabel[data-tight] .startSet {
+  margin-left: 0.28em;
+}

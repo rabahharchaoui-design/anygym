@@ -222,7 +222,7 @@ test('iPhone SE: adding bodyweight resistance keeps the set controls visible wit
       }
     };
     await fits();
-    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 reps + 25 lb');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 1: +25 lb × 8');
     await logButton(page).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(1);
     await expect(page.getByTestId('rest-timer')).toBeVisible();

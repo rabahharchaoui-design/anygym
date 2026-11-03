@@ -62,7 +62,7 @@ function Present({ children }: { children: ReactNode }) {
 }
 
 let toastSeq = 0;
-const toastOf = (text: string, action?: ToastMessage['action'], subject?: string): ToastMessage => ({ id: ++toastSeq, text, action, ...(subject ? { subject } : {}) });
+const toastOf = (text: string, action?: ToastMessage['action'], subject?: string, lead?: string): ToastMessage => ({ id: ++toastSeq, text, action, ...(subject ? { subject } : {}), ...(lead ? { lead } : {}) });
 
 /** How long "Nice. Next" stays before the list comes back (SPEC 20.2). */
 const CHIP_MS = 2500;
@@ -418,8 +418,9 @@ export function WorkoutScreen() {
         if (routeRef.current === id) goList();
         const name = w.nameOf(id);
         setToast(
+          // The verb first, so a shortened name still reads: "Removed · Angled Machine Leg Pr…" (gate round 2 P4).
           toastOf(
-            'removed',
+            '',
             {
               label: 'Undo',
               onPress: () => {
@@ -428,6 +429,7 @@ export function WorkoutScreen() {
               },
             },
             name,
+            'Removed ·',
           ),
         );
         return;
@@ -471,7 +473,7 @@ export function WorkoutScreen() {
       if (routeRef.current === id) goList();
       const n = gone.length;
       const goneIds = gone.map((x) => x.id);
-      const shown = toastOf(`removed · ${n} ${n === 1 ? 'set' : 'sets'}`, {
+      const shown = toastOf(`· ${n} ${n === 1 ? 'set' : 'sets'}`, {
         label: 'Undo',
         onPress: () => {
           setToast((cur) => (cur?.id === shown.id ? null : cur));
@@ -488,7 +490,7 @@ export function WorkoutScreen() {
             })
             .catch(() => notice('Could not put it back'));
         },
-      }, w.nameOf(id));
+      }, w.nameOf(id), 'Removed ·');
       setToast(shown);
       // One shared window from the moment Undo is offered, outlasting the toast (5 s).
       deletes.release(goneIds, UNDO_MS + 1000);

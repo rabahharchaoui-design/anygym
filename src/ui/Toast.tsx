@@ -7,7 +7,7 @@ import styles from './Toast.module.css';
  * `subject`: a name the toast may shorten ("Barbell Back Squ…") so the toast stays on one line
  * with its action (Session 2 gate B2); `text` follows it and is never cut ("removed").
  */
-export type ToastMessage = { id: number; text: string; subject?: string; action?: { label: string; onPress: () => void } };
+export type ToastMessage = { id: number; text: string; subject?: string; /** Words before the subject, never cut: 'Removed ·'. */ lead?: string; action?: { label: string; onPress: () => void } };
 
 /** An Undo toast stays put across screens; any other toast clears when the screen changes (gate B2). */
 export const isUndoToast = (t: ToastMessage | null): boolean => t?.action?.label === UNDO;
@@ -42,9 +42,11 @@ export function Toast({ toast, bottom = '0px' }: Props) {
             transition={reduce ? FADE : SHEET_SPRING}
           >
             <span className={styles.text} data-testid="toast-text">
+              {toast.lead && <span className={styles.lead}>{toast.lead}</span>}
+              {toast.lead && ' '}
               {toast.subject && <span className={styles.subject}>{toast.subject}</span>}
-              {toast.subject && ' '}
-              <span className={styles.rest}>{toast.text}</span>
+              {toast.subject && toast.text && ' '}
+              {toast.text && <span className={styles.rest}>{toast.text}</span>}
             </span>
             {toast.action && (
               <button type="button" className={`${styles.action} pressable`} onClick={toast.action.onPress} data-undo={toast.action.label === UNDO || undefined}>

@@ -211,14 +211,14 @@ test('c2. Settings toast and pushed top bars are at least 90% opaque', async ({ 
   expect(await alphaOf(toast)).toBeGreaterThanOrEqual(0.9);
   await shot(page, 'settings-toast');
   await scrollAll(page, 400);
-  expect(await alphaOf(page.locator('header[data-compact]').last()), 'Settings top bar scrolled').toBeGreaterThanOrEqual(0.9);
+  expect(await alphaOf(page.locator('header[data-compact]').last(), '::before'), 'Settings top bar scrolled').toBeGreaterThanOrEqual(0.9);
   await page.goto('./#/history');
   await page.goto('./#/plans');
   await page.getByTestId('plan-five-day-split').tap();
   await expect(page).toHaveURL(/#\/plans\/five-day-split/);
   await page.waitForTimeout(1000);
   await scrollAll(page, 400);
-  expect(await alphaOf(page.locator('header[data-compact]').last()), 'plan viewer top bar scrolled').toBeGreaterThanOrEqual(0.9);
+  expect(await alphaOf(page.locator('header[data-compact]').last(), '::before'), 'plan viewer top bar scrolled').toBeGreaterThanOrEqual(0.9);
   await shot(page, 'plan-viewer');
   expect(errors).toEqual([]);
 });

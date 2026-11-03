@@ -139,7 +139,13 @@ export function FinishScreen() {
               <p className={styles.kicker}>{workoutTitle(d.session)}</p>
               {/* Saved first, always (ux-critic): "0 of 16 done" is never the headline. */}
               <h1 className={styles.title} data-testid="finish-title">
-                {partialDay ? `Workout saved · ${setCount(d.sets.length)}` : 'Workout saved'}
+                {partialDay ? (
+                  <>
+                    Workout saved · <span className={styles.nowrap}>{setCount(d.sets.length)}</span>
+                  </>
+                ) : (
+                  'Workout saved'
+                )}
               </h1>
               {progress && progress.total > 0 ? (
                 <p className={`${styles.subtitle} num`} data-testid="finish-progress">

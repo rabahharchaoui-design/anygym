@@ -59,3 +59,28 @@ export function exercisesLinkText(count: number): string {
   if (count === 0) return 'Exercises';
   return `${count} ${count === 1 ? 'exercise' : 'exercises'}`;
 }
+
+/**
+ * The tile drawing for a catalog exercise without a sure photo (gate round 2 P1): its catalog
+ * equipment as the day list's equipment drawing, never letters that read like codes. Equipment the
+ * catalog leaves vague ("other", bands, none) gets the neutral drawing ('any'), never a guess.
+ */
+export type TileKind = 'barbell' | 'dumbbell_each' | 'single' | 'stack' | 'bodyweight' | 'any';
+export function tileKindOf(equipment: string | null | undefined): TileKind {
+  switch (equipment) {
+    case 'barbell':
+    case 'e-z curl bar':
+      return 'barbell';
+    case 'dumbbell':
+      return 'dumbbell_each';
+    case 'kettlebells':
+      return 'single';
+    case 'machine':
+    case 'cable':
+      return 'stack';
+    case 'body only':
+      return 'bodyweight';
+    default:
+      return 'any';
+  }
+}

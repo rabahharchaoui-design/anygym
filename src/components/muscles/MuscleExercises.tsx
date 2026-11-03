@@ -9,7 +9,6 @@ import { Sheet, SheetFooter } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
 import { ChevronRight, ICON_STROKE } from '../../ui/icons';
 import { ExerciseSheet } from '../exercise/ExerciseSheet';
-import { planExercise } from '../../data/planExercises';
 import { Thumb as Tile } from '../../screens/workout/Thumb';
 import styles from './MuscleExercises.module.css';
 
@@ -42,8 +41,7 @@ function Thumb({ row }: { row: MuscleExerciseRow }) {
   // Offline, only a photo the phone kept is drawn (gate s2: a failed load logs an error in WebKit).
   const photos = usePhotos(frames);
   // No sure photo: the day list's icon tile (the equipment, or initials), never an empty square (gate P6).
-  const kind = planExercise(row.id)?.loadType;
-  const tile = <Tile name={row.name} loadType={kind && kind !== 'unknown' ? kind : undefined} size="hero" />;
+  const tile = <Tile name={row.name} loadType={row.tile === 'any' ? undefined : row.tile} neutral size="hero" />;
   if (!row.thumb) return <span className={styles.tileWrap} data-testid="muscle-exercise-nothumb">{tile}</span>;
   if (photos.kind !== 'net') {
     const url = photos.kind === 'cache' ? photos.urls[0] : null;

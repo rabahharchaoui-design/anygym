@@ -482,7 +482,7 @@ test('the toast stacks above the floating Start pill on the day list (round 3, P
   await navIdle(page);
   await view.getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
   await page.getByRole('dialog', { name: 'Barbell Back Squat options' }).getByRole('button', { name: /^Remove/ }).tap();
-  const shown = toast(page, 'Barbell Back Squat removed');
+  const shown = toast(page, 'Removed · Barbell Back Squat'); // gate round 2 P4: the verb first
   await expect(shown).toBeVisible();
   await expect(page.getByTestId('start-next')).toBeVisible();
   await page.waitForTimeout(400);

@@ -100,3 +100,17 @@ describe('PLAN 2.2c: catalog exercises for a tapped muscle', () => {
     expect(exercisesLinkText(12)).toBe('12 exercises');
   });
 });
+
+describe('tileKindOf (gate round 2 P1)', () => {
+  it('draws the catalog equipment, a neutral tile when the catalog is vague', async () => {
+    const { tileKindOf } = await import('../muscleExercises');
+    expect(tileKindOf('barbell')).toBe('barbell');
+    expect(tileKindOf('e-z curl bar')).toBe('barbell');
+    expect(tileKindOf('dumbbell')).toBe('dumbbell_each');
+    expect(tileKindOf('kettlebells')).toBe('single');
+    expect(tileKindOf('machine')).toBe('stack');
+    expect(tileKindOf('cable')).toBe('stack');
+    expect(tileKindOf('body only')).toBe('bodyweight');
+    for (const e of ['other', 'bands', null, undefined]) expect(tileKindOf(e)).toBe('any');
+  });
+});

@@ -462,7 +462,7 @@ test('the Start pill says Continue with the set once one is logged; surfaces are
   await expect(loggedRows(exerciseView(page, 'barbell-back-squat'))).toHaveCount(1);
   const rest = page.getByTestId('rest-timer');
   await page.getByRole('button', { name: 'Back to the list' }).tap();
-  await expect(page.getByTestId('start-next')).toHaveText('Continue · Barbell Back Squat set 2 of 4');
+  await expect(page.getByTestId('start-next')).toHaveText('Continue · Barbell Back Squat · set 2 of 4');
   const glass = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--glass-bg-strong'));
   const nums = glass.match(/[\d.]+/g)!.map(Number);
   expect(nums[nums.length - 1]).toBeGreaterThanOrEqual(0.9);
