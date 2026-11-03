@@ -37,6 +37,14 @@ export async function readTables(db: AnyGymDB = defaultDb): Promise<BackupTables
 
 /** The whole backup (SPEC 9.1). */
 export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), drafts: DraftStorage = undefined): Promise<Backup> {
+  // The snapshot boundary (PLAN 2.0l, Codex 1811 #5): the live state (pending rows, held corrections,
+  // rest, added rows) is taken BEFORE the tables. A Log that commits in between and clears its row
+  // is then in the tables (its row may be in the drafts too, reconciled against its receipt after a
+  // restore), never in neither. Tables first would lose a lift committed between the two reads.
+  const liveDrafts = exportDrafts(drafts);
+  const before = await db.sessions.filter(isActiveSession).first();
+  const held = before ? await heldMutations(before.id, db, drafts) : [];
+  const live = liveOf(before, drafts);
   const tables = await readTables(db);
   // An Undo asked for whose acceptance only reached its durable intent (PLAN 1.7k) travels as an
   // accepted Undo: restored elsewhere, it is put back and never expires as a plain delete.
@@ -48,13 +56,14 @@ export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), d
   }
   const active = tables.sessions.find(isActiveSession);
   // Changes whose journal write failed (PLAN 2.0h): held in memory or the fallback, not in a table.
-  const pendingChanges = active ? await heldMutations(active.id, db, drafts) : [];
-  return buildBackup(marked, exportDrafts(drafts), version, now, { ...liveOf(tables, drafts), pendingChanges });
+  // Read before the tables (above); one that landed meanwhile is in the tables too and replays as
+  // the same values. Only for the workout still in progress.
+  const pendingChanges = active && active.id === before?.id ? held : [];
+  return buildBackup(marked, liveDrafts, version, now, { ...(active && active.id === before?.id ? live : {}), pendingChanges });
 }
 
 /** The running rest and added rows of the workout in progress (PLAN 2.0c), as the app holds them. */
-function liveOf(tables: BackupTables, kv: DraftStorage): BackupLive {
-  const active = tables.sessions.find(isActiveSession);
+function liveOf(active: { id: string } | undefined, kv: DraftStorage): BackupLive {
   if (!active) return {};
   const extra = extraSetsValue(active.id, kv);
   return { rest: loadRest(active.id, kv), extraSets: extra ? (JSON.parse(extra) as BackupLive['extraSets']) : null };

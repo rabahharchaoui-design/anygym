@@ -217,7 +217,18 @@ export type SetKind = 'warmup' | 'work' | 'drop';
  * A Log set write that committed (PLAN 1.7h), stored in the set's own transaction: `id` is the set
  * id (the pending row's id), `rev` the draft version that was submitted.
  */
-export type Submission = { id: string; sessionId: string; exerciseId: string; rev: number };
+export type Submission = {
+  id: string;
+  sessionId: string;
+  exerciseId: string;
+  rev: number;
+  /**
+   * PLAN 2.0l (additive, not indexed): the fingerprint of what this write saved (lib/submission.ts),
+   * so a second write under the same id and revision with other values is told apart. Receipts
+   * from before 2.0l have none.
+   */
+  fp?: string;
+};
 
 /**
  * A Log set write that started and has not committed (PLAN 1.7i, schema v8): the submitted row's

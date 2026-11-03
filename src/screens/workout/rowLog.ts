@@ -28,7 +28,8 @@
 // Finish refuses while a FAILED row remains (failedRows), so a failed write is never discarded.
 import { newId } from '../../db/ids';
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
-import { AlreadyLoggedError, logSet } from '../../db/workouts';
+import { AlreadyLoggedError, LogConflictError, logSet } from '../../db/workouts';
+import { payloadFp } from '../../lib/submission';
 import { draftsDurableMerge, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
 import type { JournalEntry } from '../../db/types';
 import { logKey, logQueue as defaultQueue, type LogQueue } from '../../lib/logQueue';
@@ -42,14 +43,21 @@ export type Deps = { db?: AnyGymDB; storage?: StorageLike | null; queue?: LogQue
 const parts = (d: Deps) => ({ db: d.db ?? defaultDb, queue: d.queue ?? defaultQueue, makeId: d.makeId ?? newId, s: d.storage });
 
 /** Every committed Log set write of a workout: its submissions, and any set logged without one. */
-export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<Map<string, number | undefined>> {
+export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<Committed> {
   return db.transaction('r', db.sets, db.submissions, async () => {
     const out = new Map<string, number | undefined>();
+    const fps = new Map<string, string>();
     for (const s of await db.sets.where('sessionId').equals(sessionId).primaryKeys()) out.set(String(s), undefined);
-    for (const sub of await db.submissions.where('sessionId').equals(sessionId).toArray()) out.set(sub.id, sub.rev);
-    return out;
+    for (const sub of await db.submissions.where('sessionId').equals(sessionId).toArray()) {
+      out.set(sub.id, sub.rev);
+      if (sub.fp !== undefined) fps.set(sub.id, sub.fp);
+    }
+    return committedMap(out, fps);
   });
 }
+
+/** A Committed map with what each receipt saved (PLAN 2.0l). */
+export const committedMap = (revs: Map<string, number | undefined>, fps: ReadonlyMap<string, string>): Committed => Object.assign(revs, { fps });
 
 /** The pending write journal of a workout (entries whose write has not committed yet). */
 export async function journalOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<JournalEntry[]> {
@@ -203,14 +211,18 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
   const { db, queue } = parts(deps);
   const set = setOf(sessionId, exerciseId, draft, draft.id);
   if (!set) return Promise.resolve(false);
-  // The revision that actually committed under this id (PLAN 2.0k): another tab may have logged an
-  // older revision of the same draft first, and that is what the set holds. Reconciled against it,
-  // a newer revision is kept (as the next row), never cleared as if it had been saved.
-  let committedRev = set.rev;
+  // What actually committed under this id (PLAN 2.0k, 2.0l): another tab may have logged an older
+  // revision of the same draft first, or its own input at the same revision, and that is what the
+  // set holds. Reconciled against it, other input is kept (as the next row), never cleared as if it
+  // had been saved. Unknown (the receipt could not be read): nothing is cleared or acknowledged here;
+  // the view's next reconcile against the committed receipts decides.
+  const fp = payloadFp(set);
+  let landed: { rev: number; fp?: string } | null = null;
   const receipt = async () => {
     const sub = await db.submissions.get(draft.id).catch(() => undefined);
-    if (sub) committedRev = sub.rev;
+    landed = sub ? { rev: sub.rev, ...(sub.fp !== undefined ? { fp: sub.fp } : {}) } : null;
   };
+  const mine = () => landed !== null && landed.rev === set.rev && (landed.fp === undefined || landed.fp === fp);
   return queue.submit(
     logKey(sessionId, exerciseId),
     draft.id,
@@ -232,6 +244,12 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
       try {
         await logSet(set, db);
       } catch (err) {
+        if (err instanceof LogConflictError) {
+          // Other values were logged under this id (PLAN 2.0l): that set stays, this input is kept as
+          // the next row (reconciled below), and nothing is acknowledged.
+          landed = { rev: err.rev, fp: err.fp };
+          return true;
+        }
         // Logged before and deleted since: committed, so the row is used up, never logged again.
         if (!(err instanceof AlreadyLoggedError)) throw err;
         landedIds.add(`${sessionId}:${draft.id}`);
@@ -241,11 +259,14 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
       }
       landedIds.add(`${sessionId}:${draft.id}`);
       await receipt();
-      // Only the revision this tap submitted is acknowledged (rest timer, what comes next).
-      if (committedRev === set.rev) deps.onLanded?.();
+      // Only the very input this tap submitted is acknowledged (rest timer, what comes next).
+      if (mine()) deps.onLanded?.();
       return true;
     },
-    (id) => reconcileExercise(sessionId, exerciseId, new Map([[id, committedRev]]), deps),
+    (id) => {
+      const got = landed as { rev: number; fp?: string } | null;
+      if (got) reconcileExercise(sessionId, exerciseId, committedMap(new Map([[id, got.rev]]), new Map(got.fp !== undefined ? [[id, got.fp]] : [])), deps);
+    },
   );
 }
 

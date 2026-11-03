@@ -8,6 +8,7 @@ import type { Load, SetKind, Unit } from '../db/types';
 import type { Draft } from './drafts';
 import { cellWeight, formatAmount, formatSetLine, platesOnly } from './load';
 import { formatSetsShort, formatWhen, type PastSet, type Progression, type SetLine } from './progression';
+import { payloadFp } from './submission';
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
 
@@ -114,8 +115,22 @@ export function materializeFrom(slots: ReadonlyArray<Draft | null>, rows: readon
   return out;
 }
 
-/** Committed Log set writes: set id → the draft version it submitted (undefined: a set with no submission). */
-export type Committed = ReadonlyMap<string, number | undefined>;
+/**
+ * Committed Log set writes: set id → the draft version it submitted (undefined: a set with no
+ * submission). `fps` (PLAN 2.0l): the fingerprint of what each submission saved, when its receipt
+ * says (lib/submission.ts); receipts from before 2.0l have none.
+ */
+export type Committed = ReadonlyMap<string, number | undefined> & { readonly fps?: ReadonlyMap<string, string> };
+
+/** The fingerprint of what a draft's Log set write saves (null: it cannot be logged). */
+export function draftFp(d: Draft): string | null {
+  if (!d.load) return null;
+  const timed = d.load.kind === 'timed';
+  const count = timed ? d.seconds : d.reps;
+  if (!count) return null;
+  const t = storedType(d.type ?? 'normal');
+  return payloadFp({ ...(timed ? { seconds: count } : { reps: count }), load: d.load, kind: t.kind, failure: t.failure });
+}
 
 /**
  * The identity a row edited during its own Log set write continues under (PLAN 1.7j): derived
@@ -148,7 +163,11 @@ export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Com
     for (let hops = 0; d && committed.has(d.id) && hops < MAX_CHAIN; hops++) {
       changed = true;
       const rev = committed.get(d.id) ?? d.submitted ?? d.rev ?? 0;
-      if ((d.rev ?? 0) <= rev) d = null;
+      // PLAN 2.0l: the same revision with other values (another tab gave this row the same revision
+      // and logged its own input) is not this input saved: it is kept, as the next row.
+      const fp = committed.fps?.get(d.id);
+      const other = fp !== undefined && (d.rev ?? 0) === rev && draftFp(d) !== fp;
+      if ((d.rev ?? 0) <= rev && !other) d = null;
       else {
         const { submitted: _done, ...kept } = d;
         d = { ...kept, id: successorOf(d.id) };
@@ -282,6 +301,11 @@ export function pendingRows(input: BuildInput): PendingRow[] {
         // "Pick" never turn it into the bare bar or a machine's start. Only "just you" or a hold
         // are certain without asking.
         load = historyBlocks ? null : certain;
+      } else if (d.submitted !== undefined && d.load) {
+        // A submitted row (its write running or failed, PLAN 2.0l): exactly the load it submits, bar
+        // identity included, never rebuilt on today's equipment, so Retry saves what the row shows.
+        // An explicit correction replaces the draft's load (and so this) before the next Retry.
+        load = d.load;
       } else load = rebuild(d.load, plates, d.pickKind);
     } else {
       const fromTarget = target?.load ? rebuild(target.load, target.load.perSide ?? []) : null;

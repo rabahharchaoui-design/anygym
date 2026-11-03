@@ -44,7 +44,13 @@ type Props = {
   rowKey: string;
   /** "Delete set 2": the red action's accessible name. */
   deleteLabel: string;
-  onDelete: () => void;
+  /** Runs after the slide out with the identity claimed when the delete started (PLAN 2.0l). */
+  onDelete: (target: string) => void;
+  /**
+   * PLAN 2.0l: the data identity to remove, taken the moment the delete starts (a row with no
+   * draft gets one). null: nothing to remove, the row comes home. Default: `rowKey`.
+   */
+  claim?: () => string | null;
   /** Long press (or a right click): the row's menu. */
   onLongPress?: () => void;
   /** Off while the row cannot be removed (Finish started, its write is running). */
@@ -66,7 +72,7 @@ const gapOf = (li: HTMLElement) => parseFloat(getComputedStyle(li.parentElement 
  * move, transform only). On delete the row slides out, then its height and gap close; on Undo it
  * opens up again (round 2, critic B3). A long press dims and shrinks the row, then opens its menu.
  */
-export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress, enabled = true, face }: Props) {
+export function SwipeRow({ children, rowKey, deleteLabel, onDelete, claim, onLongPress, enabled = true, face }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const faceRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
@@ -77,6 +83,12 @@ export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress,
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
   const anims = useRef<Animation[]>([]);
+  /**
+   * The identity this row is sliding out for (PLAN 2.0l, Codex 1811 #7), from the delete's start to
+   * the data change. When the row starts showing another identity meanwhile (rows moved under it),
+   * the removal is cancelled: it never reaches the row that moved into this place.
+   */
+  const outTarget = useRef<string | null>(null);
 
   /** The open width: at least 80 pt, wide enough for the label at any text size (critic P5). */
   const openPx = () => Math.max(OPEN_PX, Math.ceil((labelRef.current?.offsetWidth ?? 0) + 32));
@@ -114,15 +126,23 @@ export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress,
    * the rows below glide up instead of jumping. The copy is no part of the data: no test ids, hidden
    * from assistive tech, no taps.
    */
-  const animateOut = (then: () => void) => {
+  const animateOut = (then: () => void, target: string = rowKey) => {
     openRef.current = false;
     setOpen(false);
     const el = faceRef.current;
     const li = itemOf(hostRef.current);
     if (!el || !li || !li.parentElement) return then();
-    removedKeys.add(rowKey);
+    outTarget.current = target;
+    removedKeys.add(target);
     const reduce = prefersReducedMotion();
     const collapse = () => {
+      // Another row is in this place now (PLAN 2.0l): nothing is removed, the row comes home.
+      if (outTarget.current !== target) {
+        removedKeys.delete(target);
+        if (faceRef.current) place(0, false);
+        return;
+      }
+      outTarget.current = null;
       const list = li.parentElement;
       if (!list) return then();
       const h = li.getBoundingClientRect().height;
@@ -172,7 +192,10 @@ export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress,
   };
   const remove = () => {
     tick();
-    animateOut(onDelete);
+    // The identity is taken now, at the delete's start, never looked up again by position.
+    const target = claim ? claim() : rowKey;
+    if (target === null) return settle('closed');
+    animateOut(() => onDelete(target), target);
   };
 
   // A menu's Remove set animates this row like a swipe (removeRowAnimated).
@@ -189,6 +212,10 @@ export function SwipeRow({ children, rowKey, deleteLabel, onDelete, onLongPress,
   // The row shows other data now (the list moved under it) or came back: whatever the last removal
   // left is cleared before paint, and a row that came back by Undo opens up from nothing.
   useLayoutEffect(() => {
+    // Sliding out for this very identity (a row given its draft id as the delete started): it goes on.
+    if (outTarget.current !== null && outTarget.current === rowKey) return;
+    // Sliding out for another identity: cancelled, the row shows what is here now.
+    outTarget.current = null;
     const li = itemOf(hostRef.current);
     for (const a of anims.current) a.cancel();
     anims.current = [];

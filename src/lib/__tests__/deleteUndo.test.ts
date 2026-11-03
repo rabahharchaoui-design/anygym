@@ -268,3 +268,58 @@ describe('createDeleteUndo with Dexie', () => {
     expect(d.canUndo('x')).toBe(false);
   });
 });
+
+describe('PLAN 2.0l (2): Finish never interrupts a group Undo', () => {
+  it('Undo of a removed exercise, then Finish at once: close waits for the exercise, every acceptance and every set', async () => {
+    const { session, sets } = await threeSets();
+    let letAccept!: () => void;
+    const acceptGate = new Promise<void>((r) => (letAccept = r));
+    let letExercise!: () => void;
+    const exerciseGate = new Promise<void>((r) => (letExercise = r));
+    const accepted: string[] = [];
+    const d = createDeleteUndo<WorkoutSet>({
+      ...ops(),
+      accept: async (s) => {
+        await acceptGate;
+        accepted.push(s.id);
+      },
+    });
+    for (const s of sets) await d.remove(s, { hold: true });
+    d.release(sets.map((s) => s.id));
+    const undo = d.undoAll(
+      sets.map((s) => s.id),
+      () => exerciseGate,
+    );
+    // Finish taps right after Undo: close() must wait for the whole group.
+    let closed = false;
+    const close = d.close().then(() => (closed = true));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(closed).toBe(false);
+    letExercise();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(closed).toBe(false);
+    letAccept();
+    await close;
+    expect(accepted).toEqual(['a', 'b', 'c']);
+    expect((await undo)!.map((s) => s.id)).toEqual(['a', 'b', 'c']);
+    expect((await setsOf(session.id, db)).map((s) => [s.id, s.order, s.reps])).toEqual(sets.map((s) => [s.id, s.order, s.reps]));
+  });
+
+  it('the exercise cannot come back: every member stays unresolved and close refuses (nothing lost)', async () => {
+    const { session, sets } = await threeSets();
+    const d = createDeleteUndo<WorkoutSet>(ops());
+    for (const s of sets) await d.remove(s, { hold: true });
+    const undo = d.undoAll(
+      sets.map((s) => s.id),
+      () => Promise.reject(new Error('disk')),
+    );
+    await expect(d.close()).rejects.toBeInstanceOf(UndoUnresolvedError);
+    await expect(undo).rejects.toThrow('disk');
+    expect(d.unresolved().sort()).toEqual(['a', 'b', 'c']);
+    expect(await setsOf(session.id, db)).toEqual([]);
+    // A retry puts each one back exactly.
+    d.reopen();
+    for (const s of sets) expect((await d.undo(s.id))!.id).toBe(s.id);
+    expect((await setsOf(session.id, db)).map((s) => s.id)).toEqual(['a', 'b', 'c']);
+  });
+});

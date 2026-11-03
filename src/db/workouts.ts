@@ -3,6 +3,7 @@ import { planById } from '../data/plans';
 import { dayIdOf, dayIndexOf } from '../lib/plans';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, type DayProgress } from '../lib/planWorkout';
 import { rowAdjustments } from '../lib/extraSets';
+import { payloadFp } from '../lib/submission';
 import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
 import { applyFinishProgress, weekFor } from './planState';
@@ -120,6 +121,18 @@ export class AlreadyLoggedError extends Error {
 }
 
 /**
+ * PLAN 2.0l: a set was logged under this id with other values (another tab gave the same pending
+ * row the same revision and logged its own input first). Nothing is written; the committed set stays
+ * and the caller keeps its input as a new row, never clears it as if it had been saved.
+ */
+export class LogConflictError extends Error {
+  constructor(readonly rev: number, readonly fp: string) {
+    super('A set with other values was logged under this id');
+    this.name = 'LogConflictError';
+  }
+}
+
+/**
  * Logs a work set at the end of the workout. Idempotent: if a set with this id exists it is
  * returned unchanged; if it was logged and deleted since, AlreadyLoggedError (never a second
  * copy). Its submission ({ id, rev }) commits in the same transaction (PLAN 1.7h). Order comes from the workout's counter: one past the highest order ever
@@ -128,13 +141,18 @@ export class AlreadyLoggedError extends Error {
  */
 export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<WorkoutSet> {
   if (!validSet(input)) throw new Error('Invalid set');
+  const fp = payloadFp(input);
   return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.submissions, db.journal], async () => {
     const existing = await db.sets.get(input.id);
+    const receipt = await db.submissions.get(input.id);
+    // Already logged under this id with other values (PLAN 2.0l): never acknowledged as this input.
+    // The journal entry stays until the caller's input is kept as a row of its own.
+    if (receipt?.fp !== undefined && receipt.fp !== fp) throw new LogConflictError(receipt.rev, receipt.fp);
     if (existing) {
       await db.journal.delete(input.id);
       return existing;
     }
-    if (await db.submissions.get(input.id)) throw new AlreadyLoggedError();
+    if (receipt) throw new AlreadyLoggedError();
     const session = await db.sessions.get(input.sessionId);
     if (!session || session.endedAt !== undefined) throw new Error('Workout not active');
     const last = await db.sets.where('[sessionId+order]').between([input.sessionId, -Infinity], [input.sessionId, Infinity]).last();
@@ -154,7 +172,7 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
     if (input.seconds !== undefined) set.seconds = input.seconds;
     if (input.failure && set.kind === 'work') set.failure = true;
     await db.sets.add(set);
-    await db.submissions.put({ id: input.id, sessionId: input.sessionId, exerciseId: input.exerciseId, rev: input.rev ?? 0 });
+    await db.submissions.put({ id: input.id, sessionId: input.sessionId, exerciseId: input.exerciseId, rev: input.rev ?? 0, fp });
     // Its pending write journal entry (PLAN 1.7i) is used up in the same transaction.
     await db.journal.delete(input.id);
     if (!(session.exerciseIds ?? []).includes(input.exerciseId)) {

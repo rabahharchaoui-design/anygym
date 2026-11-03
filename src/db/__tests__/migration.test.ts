@@ -236,7 +236,7 @@ describe('schema v5 → v6 migration (PLAN 1.7h: submissions and tombstones)', (
     // The workout in progress carries on: a set logs with its submission, a delete keeps a tombstone.
     await logSet({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', reps: 5, load: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 20, perSide: [20] }, rev: 2 }, db);
     expect(await db.sets.get('after')).toMatchObject({ order: 5 });
-    expect(await db.submissions.get('after')).toEqual({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', rev: 2 });
+    expect(await db.submissions.get('after')).toEqual({ id: 'after', sessionId: 'sess-2', exerciseId: 'barbell-back-squat', rev: 2, fp: expect.any(String) });
     await deleteSet('set-20', db, 1000);
     expect(await db.tombstones.get('set-20')).toMatchObject({ sessionId: 'sess-2', expiresAt: 6000 });
     db.close();

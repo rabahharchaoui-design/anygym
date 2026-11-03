@@ -90,7 +90,7 @@ describe('PLAN 1.7h (2): a kill between the commit and the draft cleanup', () =>
     await logSet({ id: submitted.id, sessionId: s.id, exerciseId: 'squat', reps: 19, load: b135, rev: submitted.submitted }, db);
 
     deps = await relaunch(p);
-    expect(await db.submissions.get('c')).toEqual({ id: 'c', sessionId: s.id, exerciseId: 'squat', rev: 1 });
+    expect(await db.submissions.get('c')).toEqual({ id: 'c', sessionId: s.id, exerciseId: 'squat', rev: 1, fp: expect.any(String) });
     await reconcileSession(s.id, deps);
     expect(repsOf(rowsOf(s.id, 'squat', deps))).toEqual([7, 8]); // the 7 rep draft is still the first row
     // Checking the next rows logs new sets; the 19 rep row can never be logged twice.

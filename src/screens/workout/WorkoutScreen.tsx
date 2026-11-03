@@ -469,17 +469,16 @@ export function WorkoutScreen() {
           setToast((cur) => (cur?.id === shown.id ? null : cur));
           // Never a partial Undo: only while every set can still come back exactly.
           if (!deletes.canUndoAll(goneIds)) return notice('Too late to undo');
-          void (async () => {
-            try {
-              await restoreExercise(sessionId, id, at);
-              await deletes.undoAll(goneIds).then((back) => {
-                if (!back) throw new Error('Not put back');
-              });
+          // One tracked operation from this tap (PLAN 2.0l): the exercise coming back, every set's
+          // acceptance and write back. Finish waits for all of it, or refuses with the sets still
+          // recoverable, never in between.
+          deletes
+            .undoAll(goneIds, () => restoreExercise(sessionId, id, at))
+            .then((back) => {
+              if (!back) throw new Error('Not put back');
               unhideAll();
-            } catch {
-              notice('Could not put it back');
-            }
-          })();
+            })
+            .catch(() => notice('Could not put it back'));
         },
       });
       setToast(shown);

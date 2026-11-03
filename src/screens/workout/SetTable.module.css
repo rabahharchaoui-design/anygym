@@ -462,6 +462,44 @@
 .row[data-state='current'] .check:not(:disabled) .checkCircle {
   border-color: var(--accent);
   color: var(--accent);
+  /* PLAN 2.0l (ui-2.2e #2): a faint lime fill, so the current ✓ reads as the button to press; a
+     logged set's ✓ is solid lime. */
+  background: rgba(212, 255, 58, 0.1);
+}
+
+/* The first time, "Log" under the check inside the same circle (no size change, nothing moves). */
+.checkCircle[data-labelled] {
+  flex-direction: column;
+  gap: 1px;
+}
+
+.checkCircle[data-labelled] .checkIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.checkLabel {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+/* PLAN 2.0l (ui-2.2e #1): the current row's reps are tappable: a quiet dotted line under the
+   number until the row's first edit. */
+.cellValue[data-cue] {
+  position: relative;
+}
+
+.cellValue[data-cue]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 1.3em;
+  transform: translateX(-50%);
+  border-bottom: 2px dotted rgba(255, 255, 255, 0.42);
+  pointer-events: none;
 }
 
 .check:disabled {

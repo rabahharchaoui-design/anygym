@@ -6,6 +6,7 @@ import { db } from '../../db/schema';
 import type { BarId, Gym, JournalEntry, Load, Session, WorkoutSet } from '../../db/types';
 import { setsOf } from '../../db/workouts';
 import { committedOf, journalOf } from './rowLog';
+import type { Committed } from '../../lib/setTable';
 import { getPastSessions, lastSessionSets, workoutWins } from '../../db/history';
 import type { SetRecord } from '../../lib/records';
 import { pickBar, pickLoadType, pickNote, pickRest, pickRestOff } from '../../db/exerciseSettings';
@@ -31,7 +32,7 @@ export type Workout = {
   /** A read that worked says the workout is gone or finished (only then the screen goes home). */
   sessionMissing: boolean;
   /** Committed Log set writes of this workout, set id → submitted version (rowLog.ts). */
-  committed: ReadonlyMap<string, number | undefined>;
+  committed: Committed;
   /** Log set writes that started and did not commit (the IndexedDB journal, PLAN 1.7i). */
   journal: readonly JournalEntry[];
   gym: Gym | undefined;
@@ -72,7 +73,7 @@ export type Workout = {
   bump: () => void;
 };
 
-const EMPTY: ReadonlyMap<string, number | undefined> = new Map();
+const EMPTY: Committed = new Map();
 const NO_JOURNAL: readonly JournalEntry[] = [];
 const NO_RECORDS: ReadonlyMap<string, SetRecord> = new Map();
 

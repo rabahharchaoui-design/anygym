@@ -60,6 +60,11 @@ type Props = {
   hold?: { running: boolean; onToggle: () => void };
   /** The first time hint "Tap the check when you finish a set", over the header, pointing down at the first row's ✓. */
   checkHint?: boolean;
+  /**
+   * PLAN 2.0l (ui-2.2e #1): the current row's reps were not set by hand yet: its number shows a quiet
+   * dotted underline, so it reads as something to tap and change. Gone after the row's first edit.
+   */
+  repsCue?: boolean;
   /** A tap on a ✓ that cannot log yet (SPEC 23.2): the view says why. */
   onBlocked?: (row: PendingRow) => void;
   /** The short "why" shown in place on that row for a moment, and its weight cell pulses (n restarts it). */
@@ -69,6 +74,13 @@ type Props = {
    * still to do drops its draft; a logged set goes through the workout's delete with Undo.
    */
   onRemove?: (row: PendingRow) => void;
+  /**
+   * PLAN 2.0l: removal by identity. `onClaim` gives a row its stable id when its delete starts
+   * (null: it cannot go); `onRemoveId` removes exactly that row later, wherever it is then, or nothing
+   * when it was logged or went meanwhile. Without them `onRemove` gets the row.
+   */
+  onClaim?: (row: PendingRow) => string | null;
+  onRemoveId?: (id: string) => void;
   onRemoveLogged?: (set: WorkoutSet) => void;
   /** False while rows cannot be removed (Finish started). */
   removable?: boolean;
@@ -134,6 +146,8 @@ type Api = {
   blocked: (r: PendingRow) => void;
   toggleHold: () => void;
   remove: (r: PendingRow) => void;
+  claim: (r: PendingRow) => string | null;
+  removeId: (r: PendingRow, id: string) => void;
   removeLogged: (s: WorkoutSet) => void;
 };
 
@@ -237,6 +251,10 @@ type TodoProps = Shared & {
   sendingAt?: number;
   /** Its data identity (draft id, else its position). */
   rowKey: string;
+  /** PLAN 2.0l: the reps number shows it can be changed (a dotted underline). */
+  cue: boolean;
+  /** PLAN 2.0l (ui-2.2e #2): the first time, the current ✓ says "Log" under it. */
+  logLabel: boolean;
   sig: string;
 };
 
@@ -258,7 +276,8 @@ const TodoRow = memo(
         <SwipeRow
           rowKey={p.rowKey}
           deleteLabel={`Delete set ${number}`}
-          onDelete={() => api.remove(r)}
+          claim={() => api.claim(r)}
+          onDelete={(id) => api.removeId(r, id)}
           onLongPress={() => api.type(r)}
           enabled={p.removable}
           face={{ className: styles.row, 'data-state': isCurrent ? 'current' : 'todo', 'data-testid': 'set-todo', 'data-sending': p.sendingAt !== undefined || undefined, style: since(p.sendingAt) }}
@@ -319,6 +338,7 @@ const TodoRow = memo(
               type="button"
               className={`${styles.cellButton} ${styles.cellValue} num pressable`}
               data-empty={!amount || undefined}
+              data-cue={(p.cue && !!amount) || undefined}
               aria-expanded={p.editingHere}
               onClick={() => api.amount(r)}
               aria-label={timed ? `Hold for set ${n}: ${shownSeconds ?? 0} seconds. Change` : `Reps for set ${n}: ${r.reps ?? 0}. Change`}
@@ -337,8 +357,14 @@ const TodoRow = memo(
               aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSetLine({ reps: r.reps, load: r.load ?? undefined })}`}
               data-testid={isCurrent ? 'check-current' : 'check'}
             >
-              <span className={styles.checkCircle}>
+              <span className={styles.checkCircle} data-labelled={p.logLabel || undefined}>
                 <Check />
+                {/* Words for the first time (PLAN 2.0l): the outlined ✓ is the action. Inside the circle, so nothing moves when it goes. */}
+                {p.logLabel && (
+                  <span className={styles.checkLabel} aria-hidden="true" data-testid="check-label">
+                    Log
+                  </span>
+                )}
               </span>
             </button>
           </span>
@@ -395,6 +421,8 @@ export function SetTable(props: Props) {
       blocked: (r) => latest.current.onBlocked?.(r),
       toggleHold: () => latest.current.hold?.onToggle(),
       remove: (r) => latest.current.onRemove?.(r),
+      claim: (r) => (latest.current.onClaim ? latest.current.onClaim(r) : `i${r.index}`),
+      removeId: (r, id) => (latest.current.onRemoveId ? latest.current.onRemoveId(id) : latest.current.onRemove?.(r)),
       removeLogged: (s) => latest.current.onRemoveLogged?.(s),
     }),
     [],
@@ -440,7 +468,9 @@ export function SetTable(props: Props) {
           const editingKey = editingHere ? props.editingKey : undefined;
           const sendingAt = props.sending?.get(r.index);
           const rowKey = props.keyOf?.(r) ?? `i${r.index}`;
-          const sig = JSON.stringify([r, number, isCurrent, blocked, editingHere, editingKey, liveSeconds, hold, nudge, currentNote, groupMark, kind, unit, removable, sendingAt, rowKey]);
+          const cue = !timed && isCurrent && !editingHere && !!props.repsCue;
+          const logLabel = isCurrent && !!props.checkHint && blocked === null && sendingAt === undefined;
+          const sig = JSON.stringify([r, number, isCurrent, blocked, editingHere, editingKey, liveSeconds, hold, nudge, currentNote, groupMark, kind, unit, removable, sendingAt, rowKey, cue, logLabel]);
           return (
             <TodoRow
               key={`row-${r.index}`}
@@ -458,6 +488,8 @@ export function SetTable(props: Props) {
               groupMark={groupMark}
               sendingAt={sendingAt}
               rowKey={rowKey}
+              cue={cue}
+              logLabel={logLabel}
               sig={sig}
             />
           );

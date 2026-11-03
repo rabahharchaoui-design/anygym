@@ -74,7 +74,8 @@ describe('logSet', () => {
     const s = await startWorkout('g', db);
     const [a, b] = await Promise.all([logSet(newSet('same', s.id), db), logSet(newSet('same', s.id), db)]);
     expect(a).toEqual(b);
-    await logSet(newSet('same', s.id, { reps: 3 }), db);
+    // Other values under the same id (PLAN 2.0l): refused, never acknowledged as saved.
+    await expect(logSet(newSet('same', s.id, { reps: 3 }), db)).rejects.toThrow('other values');
     expect(await db.sets.count()).toBe(1);
     expect((await db.sets.get('same'))!.reps).toBe(10);
   });
@@ -271,7 +272,7 @@ describe('PLAN 1.7h (5): counts and load agree', () => {
   it('PLAN 1.7h (2): the submission commits with its set; a deleted set is never logged again under its id', async () => {
     const s = await startWorkout('g', db);
     await logSet({ ...newSet('a', s.id), rev: 4 }, db);
-    expect(await db.submissions.get('a')).toEqual({ id: 'a', sessionId: s.id, exerciseId: 'barbell-back-squat', rev: 4 });
+    expect(await db.submissions.get('a')).toEqual({ id: 'a', sessionId: s.id, exerciseId: 'barbell-back-squat', rev: 4, fp: expect.any(String) });
     await logSet(newSet('b', s.id), db);
     expect(await db.submissions.get('b')).toMatchObject({ rev: 0 });
     await deleteSet('a', db);
