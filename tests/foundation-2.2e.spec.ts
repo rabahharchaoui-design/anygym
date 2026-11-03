@@ -10,6 +10,22 @@ const shot = async (page: Page, name: string) => {
 };
 const box = async (l: Locator) => (await l.boundingBox())!;
 
+/**
+ * Nothing moved: each box equals its earlier value within half a pixel, once the press feedback has
+ * eased back (Chromium reports the 160 ms release scale in sub pixels for a moment).
+ */
+const near = (a: unknown, b: unknown): boolean => JSON.stringify(a, (_k, v) => (typeof v === 'number' ? Math.round(v * 2) / 2 : v)) === JSON.stringify(b, (_k, v) => (typeof v === 'number' ? Math.round(v * 2) / 2 : v));
+async function unmoved<T>(read: () => Promise<T>, expected: T) {
+  await expect.poll(async () => near(await read(), expected), { timeout: 2000 }).toBe(true);
+}
+
+/**
+ * Frame budgets are proven on WebKit (PLAN 2.2e point 4: the iPhone projects). The Chromium Android
+ * emulations and their CPU noise only log their numbers (the 2.2d spec holds Chromium to its own,
+ * throttled budget).
+ */
+const isWebKit = () => test.info().project.use.browserName === 'webkit';
+
 /** Records the gaps between animation frames until stopped; returns the longest gap in ms. */
 const frames = (page: Page) => ({
   start: () =>
@@ -116,8 +132,7 @@ test.describe('components (#/dev/ui)', () => {
     await expect.poll(async () => Math.round((await box(pill)).x - x0)).toBeGreaterThan(100);
     const meters = await box(three.getByRole('radio', { name: 'meters' }));
     await expect.poll(async () => Math.abs((await box(pill)).x - meters.x)).toBeLessThan(2);
-    const after = await Promise.all((await three.getByRole('radio').all()).map(box));
-    expect(after).toEqual(before);
+    await unmoved(async () => Promise.all((await three.getByRole('radio').all()).map(box)), before);
     // Independent instances: the 2 option one is unchanged.
     await expect(two.getByRole('radio', { name: 'lb' })).toHaveAttribute('aria-checked', 'true');
     // Arrow keys move the pick (radiogroup).
@@ -160,7 +175,7 @@ test.describe('components (#/dev/ui)', () => {
     await expect(cta.getByRole('note')).toHaveCount(0);
     // Round 2 (critic B2): the reason and the quiet note swap in one reserved line; the button never moves.
     await expect(cta.getByText('Stays on this phone.')).toBeVisible();
-    expect(await box(go)).toEqual(goBefore);
+    await unmoved(() => box(go), goBefore);
     await page.waitForTimeout(300);
     await expect(cards).toHaveScreenshot('choice-picked.png', { maxDiffPixelRatio: 0.02 });
     await shot(page, 'choice-picked');
@@ -218,7 +233,7 @@ test.describe('components (#/dev/ui)', () => {
     expect(parseFloat(await chipEl.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12);
     const reps = await box(row.locator('span.num').nth(2));
     expect(b.x).toBeGreaterThan(reps.x);
-    expect(await cells()).toEqual(before);
+    await unmoved(cells, before);
     await page.waitForTimeout(400);
     await expect(row).toHaveScreenshot('pr-row.png', { maxDiffPixelRatio: 0.02 });
     // 48 pt to tap (SPEC 13.3); it says what it beat, in one line.
@@ -296,6 +311,13 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     const amount = await box(first.getByTestId('saved-amount'));
     expect(chip.x).toBeGreaterThan(amount.x);
     expect(chip.x + chip.width).toBeLessThanOrEqual(amount.x + amount.width + 1);
+    // The chip never covers the reps number, two digits included (the 320 floor).
+    const digits = await first.getByTestId('saved-amount').evaluate((el) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      return r.getBoundingClientRect().right;
+    });
+    expect(digits).toBeLessThanOrEqual(chip.x);
     await shot(page, 'workout-pr');
     await first.getByTestId('pr-badge').tap();
     await expect(page.getByTestId('pr-popover')).toHaveText(/^New best: beat 185 lb × 5 from [A-Z][a-z]{2} \d{1,2}$/);
@@ -347,6 +369,31 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     await page.waitForTimeout(900);
     await expect(page.getByTestId('pr-chip')).toHaveCount(0);
     await shot(page, 'finish-win');
+    expect(errors).toEqual([]);
+  });
+
+  test('two digit reps: the chip sits after "12", never over it (the 320 floor too) @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('./');
+    await seedFinished(page, { 'barbell-back-squat': [{ reps: 10, load: bar185 }] });
+    await page.reload();
+    const view = await quickSquat(page);
+    await squatSet(page, view, 12, 1);
+    const first = loggedRows(view).first();
+    const chip = first.getByTestId('pr-badge').locator('[data-chip]');
+    await expect(chip).toBeVisible();
+    await page.waitForTimeout(400);
+    const c = await box(chip);
+    const digits = await first.getByTestId('saved-amount').evaluate((el) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      return r.getBoundingClientRect().right;
+    });
+    expect(await first.getByTestId('saved-amount').innerText()).toBe('12');
+    expect(digits).toBeLessThanOrEqual(c.x);
+    // And the chip stays out of the Done column.
+    expect(c.x + c.width).toBeLessThanOrEqual((await box(first.locator('[class*="checkDone"]'))).x + 1);
+    await shot(page, 'workout-pr-12');
     expect(errors).toEqual([]);
   });
 
@@ -437,7 +484,7 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     const parts = [view.getByRole('heading').first(), checkCurrent(view)];
     const settled = await Promise.all(parts.map(box));
     await page.waitForTimeout(500);
-    expect(await Promise.all(parts.map(box))).toEqual(settled);
+    await unmoved(() => Promise.all(parts.map(box)), settled);
     await record();
     await page.getByRole('button', { name: 'Back to the list' }).tap();
     await expect(row).toBeVisible();
@@ -449,6 +496,7 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     console.log(`${test.info().project.name}: push longest ${long(push.gaps)} ms (${missed(push.gaps)} over 40), pop longest ${long(pop.gaps)} ms (${missed(pop.gaps)} over 40), min scale ${Math.min(1, ...push.scales, ...pop.scales)}`);
     // Headless WebKit's frame clock is noisy (see polish-2.2d): no frame over 50 ms, at most one missed.
     for (const r of [push, pop]) {
+      if (!isWebKit()) continue;
       expect(long(r.gaps)).toBeLessThan(50);
       expect(missed(r.gaps)).toBeLessThanOrEqual(1);
     }
@@ -501,8 +549,10 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     await page.waitForTimeout(300);
     const bar = await f.stop();
     console.log(`${test.info().project.name}: PR check longest frame ${check} ms, bar pick longest frame ${bar} ms`);
-    expect(check).toBeLessThan(50);
-    expect(bar).toBeLessThan(50);
+    if (isWebKit()) {
+      expect(check).toBeLessThan(50);
+      expect(bar).toBeLessThan(50);
+    }
     expect(errors).toEqual([]);
   });
 
@@ -582,8 +632,10 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     const check = await t.longest();
     await expect(loggedRows(view).first().getByTestId('pr-badge')).toBeVisible();
     console.log(`${test.info().project.name}: from the tap: tab switch longest frame ${tab} ms, PR check longest frame ${check} ms`);
-    expect(tab).toBeLessThan(50);
-    expect(check).toBeLessThan(50);
+    if (isWebKit()) {
+      expect(tab).toBeLessThan(50);
+      expect(check).toBeLessThan(50);
+    }
     expect(errors).toEqual([]);
   });
 

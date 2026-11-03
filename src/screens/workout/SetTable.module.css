@@ -687,6 +687,16 @@
 
 .cellValue[data-pr] {
   text-align: left;
-  padding-left: 4px;
+  padding-left: 0;
   overflow: visible;
+}
+
+/* The 320 floor (and anything as narrow): the reps column is at its 48 pt minimum, so the chip
+   tightens to its text; "12" and the chip both stay whole. */
+@media (max-width: 359px) {
+  .row .prBadge [data-chip] {
+    min-width: 22px;
+    padding: 0 3px;
+    letter-spacing: 0;
+  }
 }
