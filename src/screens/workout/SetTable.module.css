@@ -672,3 +672,31 @@
   }
 }
 
+
+/* PLAN 2.2e round 2 (critic B3): the PR chip comes right after the reps, at the reps column's right
+   edge (absolute, so nothing in the row moves when it arrives); the reps number moves to the left
+   of its cell to make room. Right: the row's padding, the Done column and one gap. */
+.row .prBadge {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  /* The 48 pt button is centered on a chip at the reps column's right edge. */
+  right: calc(4px + 52px + 6px - 9px);
+  margin-top: -24px;
+}
+
+.cellValue[data-pr] {
+  text-align: left;
+  padding-left: 0;
+  overflow: visible;
+}
+
+/* The 320 floor (and anything as narrow): the reps column is at its 48 pt minimum, so the chip
+   tightens to its text; "12" and the chip both stay whole. */
+@media (max-width: 359px) {
+  .row .prBadge [data-chip] {
+    min-width: 22px;
+    padding: 0 3px;
+    letter-spacing: 0;
+  }
+}

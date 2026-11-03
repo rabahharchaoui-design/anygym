@@ -126,10 +126,15 @@ export function currentLoad(
   exerciseName: string,
   bar?: BarId,
   pickUnit?: Unit,
+  pickKind?: Load['kind'],
 ): Load | null {
   // Picked in the other unit, or with a plate this gym has turned off: never rebuilt into a
   // different loggable weight (PLAN 1.7i). It waits for the user to pick again.
   if (pickProblem(picked, plates, pickUnit, kind, gym)) return null;
+  // Picked under another "Loaded with" (PLAN 2.0k): a single 60 lb is never rebuilt into a bare
+  // 45 lb bar, nor bar plates into a machine. The row shows Pick until the user picks again. Just
+  // you and a hold carry no picked weight, so they need no pick.
+  if (kindMismatch(picked, plates, kind, pickKind)) return null;
   switch (kind) {
     case 'barbell':
       return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar), sleeveOf(barIdFor(exerciseName, bar), gym.unit));
@@ -142,6 +147,16 @@ export function currentLoad(
     default:
       return prefillLoad(picked ?? undefined, kind, gym, exerciseId, exerciseName, bar);
   }
+}
+
+/**
+ * True when a weight was picked under another load kind than `kind` (PLAN 2.0k): the selection's
+ * own load kind, or for plates on a base not known yet (load null) the kind the draft stored.
+ */
+export function kindMismatch(picked: Load | null, plates: readonly number[], kind: Load['kind'], pickKind?: Load['kind']): boolean {
+  if (kind === 'timed' || kind === 'bodyweight') return false;
+  const origin = picked?.kind ?? (plates.length > 0 ? pickKind : undefined);
+  return origin !== undefined && origin !== kind;
 }
 
 /**
@@ -164,7 +179,7 @@ export function pickProblem(picked: Load | null, plates: readonly number[], pick
 }
 
 /** A weight picker's selection, with the unit it was picked in (PLAN 2.0c). */
-export type WeightSelection = { load: Load | null; plates: readonly number[]; unit: Unit };
+export type WeightSelection = { load: Load | null; plates: readonly number[]; unit: Unit; kind?: Load['kind'] };
 
 /**
  * What a weight picker may confirm (Done, or a swipe down that keeps a change), or null when it
@@ -177,7 +192,8 @@ export type WeightSelection = { load: Load | null; plates: readonly number[]; un
 export function confirmablePick(pick: WeightSelection, kind: Load['kind'], gym: Gym, exerciseId: string, exerciseName: string, bar?: BarId): { load: Load | null; plates: number[]; unit: Unit } | null {
   if (pick.unit !== gym.unit) return null;
   if (pickProblem(pick.load, pick.plates, pick.unit, kind, gym)) return null;
-  const load = currentLoad(pick.load, pick.plates, kind, gym, exerciseId, exerciseName, bar, pick.unit);
+  if (kindMismatch(pick.load, pick.plates, kind, pick.kind)) return null;
+  const load = currentLoad(pick.load, pick.plates, kind, gym, exerciseId, exerciseName, bar, pick.unit, pick.kind);
   if (load) return { load, plates: [...pick.plates], unit: pick.unit };
   if (pick.plates.length === 0) return null;
   if (kind === 'barbell') {

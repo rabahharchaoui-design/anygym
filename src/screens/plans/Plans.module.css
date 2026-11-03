@@ -244,23 +244,6 @@
   font-style: italic;
 }
 
-.useBar {
-  /* A bottom dock (the tab bar is hidden here): the one primary action always in reach, over a
-     dark gradient so the day list never reads through. It owns the bottom inset. */
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  padding: var(--space-6) calc(var(--space-5) + var(--safe-right)) calc(var(--space-3) + max(var(--safe-bottom), 8px)) calc(var(--space-5) + var(--safe-left));
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(10 10 12 / 0.94) 28px, rgb(10 10 12 / 0.98));
-  pointer-events: none;
-}
-
-.useBar > * {
-  pointer-events: auto;
-}
-
 .error {
   margin: 0 0 4px;
   min-height: 18px;

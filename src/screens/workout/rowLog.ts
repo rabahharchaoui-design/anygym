@@ -29,7 +29,7 @@
 import { newId } from '../../db/ids';
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
 import { AlreadyLoggedError, logSet } from '../../db/workouts';
-import { draftsMirrorRow, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
+import { draftsDurableMerge, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
 import type { JournalEntry } from '../../db/types';
 import { logKey, logQueue as defaultQueue, type LogQueue } from '../../lib/logQueue';
 import { legacyRowKey, reconcileRows, rowKey, slotChanges, slotsOf, storedType, type Committed } from '../../lib/setTable';
@@ -203,6 +203,14 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
   const { db, queue } = parts(deps);
   const set = setOf(sessionId, exerciseId, draft, draft.id);
   if (!set) return Promise.resolve(false);
+  // The revision that actually committed under this id (PLAN 2.0k): another tab may have logged an
+  // older revision of the same draft first, and that is what the set holds. Reconciled against it,
+  // a newer revision is kept (as the next row), never cleared as if it had been saved.
+  let committedRev = set.rev;
+  const receipt = async () => {
+    const sub = await db.submissions.get(draft.id).catch(() => undefined);
+    if (sub) committedRev = sub.rev;
+  };
   return queue.submit(
     logKey(sessionId, exerciseId),
     draft.id,
@@ -215,10 +223,11 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
       // Every pending row of the workout (the rows above and below this one, with their weights and
       // reps) is made durable in the same transaction (PLAN 2.0c), so logging a later row never
       // loses earlier pending rows even when localStorage and its mirror failed.
-      const pending = draftsMirrorRow(...storageArg(deps));
+      // Merged row by row into what IndexedDB holds (Codex 2.0k #1), never this tab's whole snapshot.
+      const pending = draftsDurableMerge(...storageArg(deps));
       await db.transaction('rw', db.journal, db.kv, async () => {
         await db.journal.put({ id: draft.id, sessionId, exerciseId, key, rev: set.rev, draft: values as Record<string, unknown>, at: Date.now() });
-        if (pending) await db.kv.put(pending);
+        if (pending) await pending(db.kv);
       });
       try {
         await logSet(set, db);
@@ -227,13 +236,16 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
         if (!(err instanceof AlreadyLoggedError)) throw err;
         landedIds.add(`${sessionId}:${draft.id}`);
         await db.journal.delete(draft.id).catch(() => undefined);
+        await receipt();
         return true;
       }
       landedIds.add(`${sessionId}:${draft.id}`);
-      deps.onLanded?.();
+      await receipt();
+      // Only the revision this tap submitted is acknowledged (rest timer, what comes next).
+      if (committedRev === set.rev) deps.onLanded?.();
       return true;
     },
-    (id) => reconcileExercise(sessionId, exerciseId, new Map([[id, set.rev]]), deps),
+    (id) => reconcileExercise(sessionId, exerciseId, new Map([[id, committedRev]]), deps),
   );
 }
 
@@ -276,14 +288,33 @@ export async function retryFailed(sessionId: string, deps: Deps = {}): Promise<b
   }
 }
 
+/** A failed row as the unsaved sheet showed it (PLAN 2.0k): its id and the revision it submitted. */
+export type ShownRow = { id: string; submitted: number };
+
+/** What the unsaved sheet snapshots of the failed rows it tells about. */
+export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.map((f) => ({ id: f.draft.id, submitted: f.draft.submitted ?? 0 }));
+
 /**
  * "Finish without it": the failed rows lose their mark and their journal entries (their values
  * stay until Finish clears them). The journal goes first: if that fails, nothing is discarded.
+ * `shown` (PLAN 2.0k): only the rows the user was shown, at the very revision shown; a failed Log
+ * made since (another tab, or a newer revision of the same row) stays failed, so Finish asks again.
  */
-export async function discardFailed(sessionId: string, deps: Deps = {}): Promise<void> {
+export async function discardFailed(sessionId: string, deps: Deps = {}, shown?: readonly ShownRow[]): Promise<void> {
   const { db } = parts(deps);
-  const failed = await failedRows(sessionId, deps);
-  if (failed.length) await db.journal.bulkDelete(failed.map((f) => f.draft.id));
+  const all = await failedRows(sessionId, deps);
+  const wanted = shown ? all.filter((f) => shown.some((x) => x.id === f.draft.id && x.submitted === f.draft.submitted)) : all;
+  // Inside one transaction: a journal entry stored since at another revision is never discarded.
+  const failed = await db.transaction('rw', db.journal, async () => {
+    const out: FailedRow[] = [];
+    for (const f of wanted) {
+      const j = await db.journal.get(f.draft.id);
+      if (j && (j.mutation || j.rev !== f.draft.submitted)) continue;
+      if (j) await db.journal.delete(j.id);
+      out.push(f);
+    }
+    return out;
+  });
   for (const f of failed) landedIds.add(`${sessionId}:${f.draft.id}`);
   const changes = new Map<string, Draft | null>();
   for (const f of failed) {

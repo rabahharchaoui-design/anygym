@@ -1,7 +1,7 @@
 import { Sheet } from '../../ui/Sheet';
 import type { Load } from '../../db/types';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
-import { CheckIcon } from '../../ui/icons';
+import { ChoiceCard } from '../../ui/ChoiceCard';
 import styles from './Workout.module.css';
 
 type Props = {
@@ -24,18 +24,21 @@ export function LoadTypeSheet({ open, onClose, exerciseName, onPick, without = [
         <p className={styles.sheetSub}>{exerciseName}</p>
         <div className={styles.choices}>
           {LOAD_TYPE_CHOICES.filter((c) => !without.includes(c.kind)).map((c) => (
-            <button key={c.kind} type="button" className={`${styles.choice} pressable`} aria-pressed={c.kind === current} onClick={() => onPick(c.kind)}>
-              <span className={styles.choiceRow}>
-                <span className={styles.choiceLabel}>{c.label}</span>
-                {c.kind === current && (
-                  <span className={styles.choiceCurrent} data-testid="load-type-current">
-                    <CheckIcon width={16} height={16} strokeWidth={3} aria-hidden="true" />
+            <ChoiceCard
+              key={c.kind}
+              label={c.label}
+              hint={c.hint}
+              detail={
+                c.kind === current ? (
+                  // The filled ring already shows it (critic P10): the word is for screen readers.
+                  <span className={styles.srOnly} data-testid="load-type-current">
                     Current
                   </span>
-                )}
-              </span>
-              <span className={styles.choiceHint}>{c.hint}</span>
-            </button>
+                ) : undefined
+              }
+              picked={c.kind === current}
+              onPress={() => onPick(c.kind)}
+            />
           ))}
         </div>
       </div>

@@ -61,6 +61,21 @@ export function mirror(s: unknown, key: string, ls: KV | null = phone(), db: Any
   return putRow(db, { key, value: v, at });
 }
 
+/**
+ * Stamps `key` in localStorage with the stamp of the IndexedDB row just written with the same value
+ * (PLAN 2.2e round 2: drafts merged row by row, drafts.ts persistRows), so the next start sees both
+ * copies as the same write. Never throws.
+ */
+export function stampLocal(ls: KV, key: string, at: number): void {
+  try {
+    const stamps = readStamps(ls);
+    stamps[key] = at;
+    ls.setItem(STAMPS_KEY, JSON.stringify(stamps));
+  } catch {
+    /* the copy below only puts the same value back */
+  }
+}
+
 function putRow(db: AnyGymDB, row: KvRow): Promise<void> {
   try {
     return db.kv.put(row).then(

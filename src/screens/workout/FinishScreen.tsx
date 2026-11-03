@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { db } from '../../db/schema';
-import { finishedDetail, workoutRecords } from '../../db/history';
+import { finishedDetail, workoutRecords, workoutWins } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
-import { formatSetLine, formatTotal, totalLifted } from '../../lib/load';
+import { formatSetWeightFirst, formatTotal, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
 import { dayIndexOf } from '../../lib/plans';
@@ -12,12 +12,12 @@ import { planById } from '../../data/plans';
 import { getPlanState, setFinishNextDay } from '../../db/planState';
 import { ChangeDaySheet } from '../today/ChangeDaySheet';
 import { dayTitle } from '../plans/planWords';
-import { FADE, GENTLE, STAGGER } from '../../ui/motion';
-import { Button } from '../../ui/Button';
+import { FADE, GENTLE, SPRINGS, STAGGER } from '../../ui/motion';
+import { BottomCTA } from '../../ui/BottomCTA';
 import { Odometer } from '../../ui/Odometer';
 import { Skeleton } from '../../ui/Skeleton';
 import { TrophyIcon } from '../../ui/icons';
-import { useNav } from '../../ui/nav';
+import { holdTransition, transitionRunning, useNav } from '../../ui/nav';
 import { LoadError } from '../../components/LoadError';
 import { exerciseNamer, setCount, workoutTitle } from '../history/historyWords';
 import styles from './Finish.module.css';
@@ -34,15 +34,29 @@ export function FinishScreen() {
   const { sessionId = '' } = useParams();
   const go = useNav();
   const reduce = useReducedMotion();
+  // Arriving inside a view transition (the push from the workout, critic B2 round 3): the page is
+  // drawn whole before the snapshot (the transition waits for the read), never empty and then
+  // filled; it does not cascade its own cards (the push is the motion). Its win card glows once it
+  // has landed.
+  const [sliding] = useState(transitionRunning);
+  const release = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    if (sliding) release.current = holdTransition();
+    return () => release.current?.();
+  }, [sliding]);
   const [saving, setSaving] = useState(false);
   const [changing, setChanging] = useState(false);
   const [changeFailed, setChangeFailed] = useState(false);
   const detail = useLive(async () => {
     const d = await finishedDetail(sessionId);
-    if (!d) return { d: null, unit: 'lb' as const, records: [] };
+    if (!d) return { d: null, unit: 'lb' as const, records: [], win: null };
     const gym = await db.gyms.get(d.session.gymId);
     const records = await workoutRecords(sessionId, exerciseNamer(d.session));
-    return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records };
+    // PLAN 2.2e: the one biggest real win leads (the same rule as the live PR badge), or nothing.
+    const { win } = await workoutWins(sessionId, exerciseNamer(d.session));
+    // New bests lists only what the lead does not already say (critic B4): other exercises' records.
+    const others = win ? records.filter((r) => r.exerciseId !== win.exerciseId) : records;
+    return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records: others, win };
   }, [sessionId]);
   // The plan as Finish left it (read, never written on mount): the next up line shows this, live.
   const planLive = useLive(() => getPlanState(), []);
@@ -95,10 +109,22 @@ export function FinishScreen() {
       })
     : [];
 
+  // The lead card first, right after the title (critic P7); then the numbers and lists.
+  useEffect(() => {
+    if (detail.ready || detail.error) release.current?.();
+  }, [detail.ready, detail.error]);
+  const still = { initial: false } as const;
+  const lead = sliding
+    ? still
+    : reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
+    : { initial: { opacity: 0, y: 12, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...SPRINGS.sheet, delay: 0.04 } };
   const item = (i: number) =>
-    reduce
+    sliding
+      ? still
+      : reduce
       ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
-      : { initial: { opacity: 0, y: 18, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...GENTLE, delay: STAGGER * 1.4 * i } };
+      : { initial: { opacity: 0, y: 18, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...GENTLE, delay: (v?.win ? 0.08 : 0) + STAGGER * i } };
 
   return (
     <div className={styles.screen}>
@@ -121,6 +147,17 @@ export function FinishScreen() {
                 </p>
               ) : null}
             </motion.div>
+            {v.win && (
+              <motion.p className={`${styles.win} ${sliding && !reduce ? styles.winLand : ''}`} data-testid="finish-win" aria-label={v.win.text} {...lead}>
+                <span className={styles.winIcon} aria-hidden="true">
+                  <TrophyIcon width={18} height={18} strokeWidth={2.2} />
+                </span>
+                <span className={styles.winText}>
+                  <span className={styles.winName}>{v.win.name}</span>
+                  <span className={styles.winDetail}>{v.win.detail}</span>
+                </span>
+              </motion.p>
+            )}
             <div className={styles.stats}>
               <motion.div className={styles.stat} {...item(1)}>
                 <span className={`${styles.value} num`} data-testid="finish-duration">
@@ -161,7 +198,12 @@ export function FinishScreen() {
                             </span>
                           ) : null}
                         </span>
-                        <span className={`${styles.exerciseBest} num`}>{formatSetLine(r.best)}</span>
+                        <span className={`${styles.exerciseBest} num`}>
+                          {/* "2 sets · 185 lb × 6" (round 3, critic P6): the count, then the best set. A plan
+                              exercise with sets left already says "1 of 4 sets" under its name. */}
+                          {count === 0 || (planned && count < planned) ? '' : `${setCount(count)} · `}
+                          {formatSetWeightFirst(r.best)}
+                        </span>
                       </li>
                     );
                   })}
@@ -193,29 +235,35 @@ export function FinishScreen() {
         )}
       </main>
       {/* Pinned under the scroller (never over it): the summary scrolls above it, every row reachable. */}
-      <div className={styles.footer}>
-        {nextDay && d && (
-          <motion.div
-            className={styles.next}
-            {...(reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
-          >
-            <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
-              Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
-            </p>
-            <button type="button" className={`${styles.change} pressable`} onClick={() => setChanging(true)} aria-label={`Change the next day, now Day ${nextDay.n}`} data-testid="finish-change">
-              Change
-            </button>
-          </motion.div>
-        )}
-        {changeFailed && (
-          <p className={styles.nextError} role="status">
-            Could not change the day. Try again.
-          </p>
-        )}
-        <Button onClick={done} disabled={loading || saving}>
-          Done
-        </Button>
-      </div>
+      <BottomCTA
+        className={sliding ? undefined : styles.cta}
+        onPress={done}
+        disabled={loading || saving}
+        above={
+          <>
+            {nextDay && d && (
+              <motion.div
+                className={styles.next}
+                {...(sliding ? still : reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
+              >
+                <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
+                  Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
+                </p>
+                <button type="button" className={`${styles.change} pressable`} onClick={() => setChanging(true)} aria-label={`Change the next day, now Day ${nextDay.n}`} data-testid="finish-change">
+                  Change
+                </button>
+              </motion.div>
+            )}
+            {changeFailed && (
+              <p className={styles.nextError} role="status">
+                Could not change the day. Try again.
+              </p>
+            )}
+          </>
+        }
+      >
+        Done
+      </BottomCTA>
       {plan && state && nextDay && (
         <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={plan} state={state} onPick={(i) => void pickNext(i)} title="Which day next?" />
       )}

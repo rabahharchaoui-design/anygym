@@ -1,6 +1,7 @@
+import { afterPaint } from '../../ui/afterPaint';
 import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from 'motion/react';
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
@@ -10,7 +11,7 @@ import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, type ToastMessage } from '../../ui/Toast';
-import { FADE, NAV_SPRING, SHEET_SPRING } from '../../ui/motion';
+import { FADE, PAGE_SPRING, SHEET_SPRING, pageVariants, pageVariantsReduced } from '../../ui/motion';
 import { BackButton } from '../../ui/BackButton';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown } from '../../ui/icons';
@@ -39,34 +40,10 @@ import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { RestDock } from './RestDock';
 import { useWorkout } from './useWorkout';
-import { discardFailed, failedRows, prepareFinish, retryFailed } from './rowLog';
+import { discardFailed, failedRows, prepareFinish, retryFailed, shownRows, type ShownRow } from './rowLog';
+import { UNDO_MS } from '../../lib/undoQueue';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import styles from './Workout.module.css';
-
-/**
- * Push and pop without the View Transitions API (older iOS, SPEC 13.2 and 23.1): the same iOS
- * motion with Motion. dir 1 push: the new view slides in from the right over the old one, which
- * moves 30% left and dims. dir -1 pop: the reverse, the leaving view on top. dir 0: no movement
- * (the edge swipe or a sheet already covered the change).
- */
-// Full transform strings (PLAN 2.2d): Motion runs them on the compositor (WAAPI), so a busy main
-// thread (a view mounting) never drops frames; x shorthands would animate on the main thread.
-const FALLBACK_PUSH: Variants = {
-  enter: (dir: number) =>
-    dir === 0 ? { transform: 'translateX(0%)', opacity: 1 } : dir > 0 ? { transform: 'translateX(100%)', opacity: 1, zIndex: 2 } : { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 },
-  center: { transform: 'translateX(0%)', opacity: 1 },
-  exit: (dir: number) =>
-    dir === 0
-      ? { opacity: 0, transition: { duration: 0 } }
-      : dir > 0
-        ? { transform: 'translateX(-30%)', opacity: 0.6, zIndex: 1 }
-        : { transform: 'translateX(100%)', opacity: 1, zIndex: 2 },
-};
-const FALLBACK_FADE: Variants = {
-  enter: { opacity: 0 },
-  center: { opacity: 1 },
-  exit: { opacity: 0 },
-};
 
 /** Which way the last go() moved, as nav.ts records it when it has to fall back. */
 const fallbackDir = (): number => {
@@ -142,7 +119,7 @@ export function WorkoutScreen() {
    * Sets whose Log set write failed (PLAN 1.7h) and edits or set type changes whose write failed
    * (PLAN 2.0c), when Finish was refused because of them.
    */
-  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number; editIds: string[] } | null>(null);
+  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number; editIds: string[]; rowIds: ShownRow[] } | null>(null);
   /** Deleted sets whose Undo failed, when Finish was refused because of them (PLAN 1.7i). */
   const [undoStuck, setUndoStuck] = useState<string[] | null>(null);
 
@@ -243,7 +220,9 @@ export function WorkoutScreen() {
     const done = counts ? { ...w.done, [id]: (w.done[id] ?? 0) + 1 } : w.done;
     const r = restAfter(entries, done, id);
     const seconds = r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
-    setRest(seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null);
+    // Started now (the countdown is right), shown once the check's frame has painted (critic B6).
+    const started = seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null;
+    afterPaint(() => setRest(started));
     const e = entries.find((x) => x.exerciseId === id);
     if (!e) return;
     // PLAN 2.0g: the screen stays on this exercise for its next set. Only the set that completes its
@@ -457,6 +436,9 @@ export function WorkoutScreen() {
    * them. Each set goes through the workout's transactional delete (its tombstone and token, so an
    * Undo survives a kill), then the exercise leaves the list; Undo puts the exercise back at its
    * place and every set back exactly (same ids and order). Anything failing midway is put back.
+   * PLAN 2.0k: one undoable operation. The sets' Undo windows are held while they are deleted and
+   * start together, a little longer than the toast, only when its Undo shows; Undo is offered only
+   * while every set can still come back, and all of them are accepted before any is written back.
    */
   const removeWithSets = async (id: string, own: WorkoutSet[]) => {
     if (finishing.current) return;
@@ -472,21 +454,27 @@ export function WorkoutScreen() {
     const gone: WorkoutSet[] = [];
     try {
       for (const x of own) {
-        await deletes.remove(x);
-        gone.push(x);
+        await deletes.remove(x, { hold: true });
+        // Deleted by another tab first (PLAN 2.0i): nothing of ours to put back for it.
+        if (deletes.canUndo(x.id)) gone.push(x);
       }
       const at = await removeExercise(sessionId, id);
       justAdded.current.delete(id);
       if (routeRef.current === id) goList();
       const n = gone.length;
+      const goneIds = gone.map((x) => x.id);
       const shown = toastOf(`${w.nameOf(id)} removed · ${n} ${n === 1 ? 'set' : 'sets'}`, {
         label: 'Undo',
         onPress: () => {
           setToast((cur) => (cur?.id === shown.id ? null : cur));
+          // Never a partial Undo: only while every set can still come back exactly.
+          if (!deletes.canUndoAll(goneIds)) return notice('Too late to undo');
           void (async () => {
             try {
               await restoreExercise(sessionId, id, at);
-              for (const x of gone) await deletes.undo(x.id);
+              await deletes.undoAll(goneIds).then((back) => {
+                if (!back) throw new Error('Not put back');
+              });
               unhideAll();
             } catch {
               notice('Could not put it back');
@@ -495,8 +483,11 @@ export function WorkoutScreen() {
         },
       });
       setToast(shown);
+      // One shared window from the moment Undo is offered, outlasting the toast (5 s).
+      deletes.release(goneIds, UNDO_MS + 1000);
     } catch (err) {
-      for (const x of gone) await deletes.undo(x.id).catch(() => undefined);
+      await deletes.undoAll(gone.map((x) => x.id)).catch(() => undefined);
+      deletes.release(gone.map((x) => x.id));
       unhideAll();
       notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not remove that. Try again.');
     }
@@ -532,7 +523,7 @@ export function WorkoutScreen() {
       const changes = await pendingMutations(sessionId);
       if (failed.length || changes.length) {
         reopen();
-        setUnsaved({ rows: failed.length, edits: changeCount(changes), editIds: changes.map((c) => c.id) });
+        setUnsaved({ rows: failed.length, edits: changeCount(changes), editIds: changes.map((c) => c.id), rowIds: shownRows(failed) });
         return;
       }
       // Finish keeps the plan pointer as it was, inside its own transaction, for Undo on Today.
@@ -542,7 +533,7 @@ export function WorkoutScreen() {
       setRest(null);
       clearSessionDrafts(sessionId);
       clearExtraSets();
-      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'fade', replace: true });
+      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'push', replace: true, flat: true });
       else
         go('/', {
           kind: 'pop',
@@ -563,7 +554,7 @@ export function WorkoutScreen() {
         // transaction, nothing changed. The same choice as above.
         const rows = await failedRows(sessionId).catch(() => []);
         const changes = await pendingMutations(sessionId).catch(() => []);
-        setUnsaved({ rows: rows.length, edits: changeCount(changes), editIds: changes.map((c) => c.id) });
+        setUnsaved({ rows: rows.length, edits: changeCount(changes), editIds: changes.map((c) => c.id), rowIds: shownRows(rows) });
       } else notice('Could not finish. Try again.');
     }
   };
@@ -615,10 +606,12 @@ export function WorkoutScreen() {
     if (unsavedBusy.current) return;
     unsavedBusy.current = true;
     // Only the changes the sheet told about (PLAN 2.0e): one made after that still asks.
+    // And only the failed Logs it listed, at the revision listed (PLAN 2.0k): a later one still asks.
     const shown = unsaved?.editIds ?? [];
+    const rowsShown = unsaved?.rowIds ?? [];
     setUnsaved(null);
     try {
-      await discardFailed(sessionId);
+      await discardFailed(sessionId, undefined, rowsShown);
       await dropMutations(sessionId, undefined, shown);
       await finishNow();
     } catch {
@@ -762,11 +755,11 @@ export function WorkoutScreen() {
                   className={styles.view}
                   data-motion-view="true"
                   custom={dir}
-                  variants={reduce ? FALLBACK_FADE : FALLBACK_PUSH}
+                  variants={reduce ? pageVariantsReduced : pageVariants}
                   initial="enter"
                   animate="center"
                   exit="exit"
-                  transition={reduce ? FADE : NAV_SPRING}
+                  transition={reduce ? FADE : PAGE_SPRING}
                 >
                   <Present>{view}</Present>
                 </motion.div>

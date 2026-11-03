@@ -48,7 +48,7 @@ export function SettingsScreen() {
   const onVersionTap = () => {
     const r = registerTap(versionTaps.current, Date.now(), 5);
     versionTaps.current = r.taps;
-    if (r.fired) navigate('/review');
+    if (r.fired) go('/review', { kind: 'push' });
   };
   const fileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState('');
@@ -205,21 +205,17 @@ export function SettingsScreen() {
               </span>
               <span className={styles.unitHint}>Plates and bars switch to the standard set for that unit.</span>
             </span>
-            <span className={styles.segmented} role="radiogroup" aria-labelledby="units-label">
-              {(['lb', 'kg'] as const).map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  role="radio"
-                  aria-checked={gym?.unit === u}
-                  disabled={!gym}
-                  className={`${styles.segment} pressable`}
-                  onClick={() => void units(u)}
-                >
-                  {u}
-                </button>
-              ))}
-            </span>
+            <Segmented
+              labelledBy="units-label"
+              testId="settings-units"
+              options={[
+                { value: 'lb', label: 'lb' },
+                { value: 'kg', label: 'kg' },
+              ]}
+              value={gym?.unit}
+              disabled={!gym}
+              onChange={(u) => void units(u)}
+            />
           </div>
           <Switch
             label="Colored plates"

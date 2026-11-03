@@ -1,6 +1,6 @@
 // Past sessions of one exercise for the progression engine (SPEC 6, src/lib/progression.ts).
 import type { PastSession, PastSet } from '../lib/progression';
-import { recordsFor, type PersonalRecord } from '../lib/records';
+import { biggestWin, recordSets, recordsFor, type DatedSet, type PersonalRecord, type SetRecord, type Win } from '../lib/records';
 import { sameExerciseIds } from '../lib/picker';
 import { barForName } from '../lib/loadTypeRule';
 import { planById } from '../data/plans';
@@ -222,6 +222,50 @@ export async function recentExerciseIds(limit = 8, db: AnyGymDB = defaultDb): Pr
   return out;
 }
 
+type RecordGroup = { exerciseId: string; name: string; today: Array<WorkoutSet & { load: Load }>; before: DatedSet[] };
+
+/**
+ * One workout's sets grouped the way records compare them (SPEC 6, PLAN 1.7f, 1.7k): per exercise,
+ * Smith and free bar sets apart, each with every earlier working set of its own history (machines
+ * and Smith per gym, free weights everywhere, all time). Uncertain sets and sets without a load are
+ * left out; an ambiguous legacy bar set is in no group. Works for a workout in progress too: it is
+ * never its own history (getPastSessions skips unfinished workouts; later ones are cut by date).
+ */
+async function recordGroups(session: Session, sets: readonly WorkoutSet[], nameOf: (exerciseId: string) => string, db: AnyGymDB): Promise<RecordGroup[]> {
+  const out: RecordGroup[] = [];
+  const ids = [...new Set(sets.map((s) => s.exerciseId))];
+  for (const id of ids) {
+    const today = sets.filter((s): s is WorkoutSet & { load: Load } => s.exerciseId === id && !!s.load && !s.uncertain);
+    const name = nameOf(id);
+    const defaultBar = barForName(name);
+    // Same bar identity as "Last time" (PLAN 1.7f): Smith sets and free bar sets of one exercise
+    // are separate lifts, each compared only with its own history (older sets: the default bar).
+    // Legacy sets (no barId) of this workout go through the same resolver as earlier workouts (PLAN
+    // 1.7k): a legacy Smith workout never earns Olympic records; an ambiguous set earns none.
+    const barOf = await legacyBars(today.filter((x) => x.load.kind === 'barbell'), [id], defaultBar, db);
+    const groupOf = (x: WorkoutSet & { load: Load }): 'smith' | 'free' | null => {
+      if (x.load.kind !== 'barbell') return 'free';
+      const bar = barOf(x);
+      return bar === null ? null : bar === 'smith' ? 'smith' : 'free';
+    };
+    // One group per lift identity (Codex 2.2e #1): Smith or free bar, and the load kind. A lift
+    // whose loading changed mid workout (barbell, then dumbbells) is two lifts, each compared with
+    // its own history; never only the first set's kind.
+    for (const smith of [false, true]) {
+      const lift = today.filter((x) => groupOf(x) === (smith ? 'smith' : 'free'));
+      const kinds = [...new Set(lift.filter((x) => x.kind === 'work').map((x) => x.load.kind))];
+      for (const kind of kinds) {
+        const group = lift.filter((x) => x.load.kind === kind);
+        const past = (await getPastSessions(id, session.gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
+        out.push({ exerciseId: id, name, today: group, before: past.flatMap((p) => p.sets.map((x) => ({ ...x, date: p.date }))) });
+      }
+    }
+  }
+  return out;
+}
+
+const pickSet = (x: WorkoutSet & { load: Load }): PastSet => ({ kind: x.kind, load: x.load, ...(x.reps !== undefined ? { reps: x.reps } : {}) });
+
 /**
  * Personal records set in one finished workout (SPEC 21.1 finish screen), from real history only
  * (src/lib/records.ts). Earlier workouts are keyed like "Last time": machines and Smith per gym,
@@ -234,32 +278,25 @@ export async function workoutRecords(
 ): Promise<PersonalRecord[]> {
   const detail = await finishedDetail(sessionId, db);
   if (!detail) return [];
-  const { session, sets } = detail;
-  const out: PersonalRecord[] = [];
-  const ids = [...new Set(sets.map((s) => s.exerciseId))];
-  for (const id of ids) {
-    const today = sets.filter((s): s is WorkoutSet & { load: Load } => s.exerciseId === id && !!s.load && !s.uncertain);
-    const name = nameOf(id);
-    const defaultBar = barForName(name);
-    const pick = (x: WorkoutSet & { load: Load }): PastSet => ({ kind: x.kind, load: x.load, ...(x.reps !== undefined ? { reps: x.reps } : {}) });
-    // Same bar identity as "Last time" (PLAN 1.7f): Smith sets and free bar sets of one exercise
-    // are separate lifts, each compared only with its own history (older sets: the default bar).
-    // Legacy sets (no barId) of this workout go through the same resolver as earlier workouts (PLAN
-    // 1.7k): a legacy Smith workout never earns Olympic records; an ambiguous set earns none.
-    const barOf = await legacyBars(today.filter((x) => x.load.kind === 'barbell'), [id], defaultBar, db);
-    const groupOf = (x: WorkoutSet & { load: Load }): 'smith' | 'free' | null => {
-      if (x.load.kind !== 'barbell') return 'free';
-      const bar = barOf(x);
-      return bar === null ? null : bar === 'smith' ? 'smith' : 'free';
-    };
-    for (const smith of [false, true]) {
-      const group = today.filter((x) => groupOf(x) === (smith ? 'smith' : 'free'));
-      const firstWork = group.find((x) => x.kind === 'work');
-      if (!firstWork) continue;
-      const kind = firstWork.load.kind;
-      const past = (await getPastSessions(id, session.gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
-      out.push(...recordsFor(id, name, group.map(pick), past.flatMap((p) => p.sets)));
-    }
-  }
-  return out;
+  const groups = await recordGroups(detail.session, detail.sets, nameOf, db);
+  return groups.flatMap((g) => recordsFor(g.exerciseId, g.name, g.today.map(pickSet), g.before));
+}
+
+/**
+ * The record sets of one workout, finished or in progress (PLAN 2.2e: the live PR badge and the
+ * finish screen's lead line), in logged order, and its biggest win (null without one).
+ */
+export async function workoutWins(
+  sessionId: string,
+  nameOf: (exerciseId: string) => string,
+  db: AnyGymDB = defaultDb,
+): Promise<{ records: SetRecord[]; win: Win | null }> {
+  // One read transaction: a coherent snapshot (the workout and its history read together).
+  return db.transaction('r', db.sessions, db.sets, db.gyms, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) return { records: [], win: null };
+    const sets = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
+    const groups = (await recordGroups(session, sets, nameOf, db)).map((g) => ({ exerciseId: g.exerciseId, name: g.name, records: recordSets(g.today, g.before) }));
+    return { records: groups.flatMap((g) => g.records), win: biggestWin(groups) };
+  });
 }

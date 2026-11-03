@@ -17,7 +17,9 @@ describe('MuscleMap', () => {
     const paths = BODIES.male.front.shapes.reduce((n, s) => n + s.paths.length, 0);
     // + the outline + the glow copies of the primary paths
     const glow = BODIES.male.front.shapes.filter((s) => s.region === 'chest').reduce((n, s) => n + s.paths.length, 0);
-    expect(count(html, /<path /g)).toBe(paths + 1 + glow);
+    // The drawing only: the "Pick a muscle" control's chevron (PLAN 2.0k) is not body art.
+    const art = html.replace(/<label[^]*?data-testid="muscle-pick-control"[^]*?<\/label>/, '');
+    expect(count(art, /<path /g)).toBe(paths + 1 + glow);
     expect(html).toMatch(/data-region="chest" data-role="primary"/);
     expect(html).toMatch(/data-region="front-deltoids" data-role="secondary"/);
     expect(html).toMatch(/data-region="triceps" data-role="secondary"/);

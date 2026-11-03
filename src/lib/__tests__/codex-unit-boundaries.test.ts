@@ -57,7 +57,7 @@ describe('unit boundaries in active weights and progression', () => {
     const before = [{ kind: 'work' as const, reps: 10, load: bodyweightLoad('lb') }];
     const today = [{ kind: 'work' as const, reps: 12, load: bodyweightLoad('kg') }];
     expect(recordsFor('push-up', 'Push-up', today, before)).toEqual([
-      { exerciseId: 'push-up', kind: 'most_reps', text: 'Push-up: most reps at bodyweight, 12' },
+      { exerciseId: 'push-up', kind: 'most_reps', text: 'Push-up: 12 reps, most reps at this weight' },
     ]);
     expect(recordsFor('push-up', 'Push-up', [{ ...today[0]!, reps: 10 }], before)).toEqual([]);
   });

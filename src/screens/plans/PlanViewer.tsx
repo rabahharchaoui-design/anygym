@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
-import { Button } from '../../ui/Button';
+import { BottomCTA } from '../../ui/BottomCTA';
 import { useNav } from '../../ui/nav';
 import { planById } from '../../data/plans';
 import { choosePlanUndoable, getPlanState } from '../../db/planState';
@@ -83,18 +83,23 @@ export function PlanViewer() {
         </section>
       ))}
 
-      <div className={styles.useBar} data-testid="action-bar">
-        {state.error ? (
-          <LoadError text="Could not check your current plan" onRetry={state.retry} />
-        ) : (
-          <p className={styles.error} role="status">
-            {error ? 'Could not save that. Try again.' : ''}
-          </p>
-        )}
-        <Button onClick={() => void use()} disabled={!known}>
-          {active ? 'Go to Today' : 'Use this plan'}
-        </Button>
-      </div>
+      <BottomCTA
+        floating
+        testId="action-bar"
+        onPress={() => void use()}
+        disabled={!known}
+        above={
+          state.error ? (
+            <LoadError text="Could not check your current plan" onRetry={state.retry} />
+          ) : (
+            <p className={styles.error} role="status">
+              {error ? 'Could not save that. Try again.' : ''}
+            </p>
+          )
+        }
+      >
+        {active ? 'Go to Today' : 'Use this plan'}
+      </BottomCTA>
     </div>
   );
 }

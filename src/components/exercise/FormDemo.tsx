@@ -16,6 +16,11 @@ type Props = {
   vtName?: string;
   /** A tap on the photo opens the full screen viewer (never a silent pause). */
   onOpen?: () => void;
+  /**
+   * In the exercise sheet (PLAN 2.0k): a fixed compact height instead of the full width 3:2 box, so
+   * the first How to cue shows in the first screen; the photo is uncropped in that box.
+   */
+  fit?: boolean;
 };
 
 /**
@@ -52,7 +57,7 @@ function Picture({ demo, i, photos, className, alt, lazy = true, fill = false, s
  * both side by side (the tile and the hero then show the start photo still). The loop is pure CSS,
  * so it costs no renders and stays on the compositor.
  */
-export function FormDemo({ demo, name, compact = false, hero = false, vtName, onOpen }: Props) {
+export function FormDemo({ demo, name, compact = false, hero = false, vtName, onOpen, fit = false }: Props) {
   const [paused, setPaused] = useState(false);
   const photos = useDemoPhotos(demo);
   const frames = (
@@ -89,7 +94,7 @@ export function FormDemo({ demo, name, compact = false, hero = false, vtName, on
     );
   }
   return (
-    <div className={styles.wrap} data-testid="form-demo" data-paused={paused || undefined} style={vtName ? { viewTransitionName: vtName } : undefined}>
+    <div className={styles.wrap} data-testid="form-demo" data-paused={paused || undefined} data-fit={fit || undefined} style={vtName ? { viewTransitionName: vtName } : undefined}>
       {onOpen ? (
         <button type="button" className={`${styles.stage} pressable`} onClick={onOpen} aria-label={`Show ${name} full screen`} data-testid="demo-stage">
           {frames}

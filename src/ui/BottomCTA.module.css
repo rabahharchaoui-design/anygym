@@ -1,0 +1,42 @@
+/* PLAN 2.2e: the bottom call to action, in the thumb zone. */
+.cta {
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) calc(var(--space-3) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
+  background: var(--bg);
+  border-top: 1px solid var(--hairline);
+}
+
+/* Over a scrolling page: fixed, over a dark fade so nothing reads through it. */
+.cta[data-floating] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: var(--space-6) calc(var(--space-5) + var(--safe-right)) calc(var(--space-3) + max(var(--safe-bottom), 8px)) calc(var(--space-5) + var(--safe-left));
+  /* Opaque from just above the button to the bottom edge (critic P13): nothing reads through. */
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), var(--bg) 28px);
+  border-top: 0;
+  pointer-events: none;
+}
+
+.cta[data-floating] > * {
+  pointer-events: auto;
+}
+
+.note {
+  margin: 8px 0 0;
+  /* Always one line tall (reason or note), so nothing above moves when they swap. */
+  min-height: 1.3em;
+  line-height: 1.3;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.note[data-reason] {
+  color: var(--text);
+}

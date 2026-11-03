@@ -44,6 +44,89 @@
   font-weight: 600;
 }
 
+/* PLAN 2.2e: the biggest real win, in one line, before the numbers. */
+.win {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 18px;
+  background: linear-gradient(to right, rgb(212 255 58 / 0.14), rgb(212 255 58 / 0.04));
+  border: 1px solid rgb(212 255 58 / 0.35);
+}
+
+.winIcon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.winText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Two lines (critic P8): the exercise, then what it did; never an orphan word. */
+.winName {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.winDetail {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+/* Arrived with the push (round 3): once it has landed, the win card's border glows once. */
+.winLand {
+  animation: win-land 700ms var(--ease-out) 240ms both;
+}
+
+@keyframes win-land {
+  40% {
+    border-color: rgb(212 255 58 / 0.9);
+    box-shadow: 0 0 24px rgb(212 255 58 / 0.25);
+  }
+}
+
+/* Done arrives after the lead card (critic P7). */
+.cta {
+  animation: cta-in 220ms var(--ease-out) 160ms both;
+}
+
+@keyframes cta-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta {
+    animation: cta-fade 150ms ease-out 120ms both;
+  }
+}
+
+@keyframes cta-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 .stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -69,6 +152,11 @@
   font-size: clamp(26px, 8vw, 34px);
   font-weight: 700;
   line-height: 1.1;
+  white-space: nowrap;
+}
+
+.stat {
+  min-width: 0;
 }
 
 .wide {
@@ -263,17 +351,6 @@
   font-weight: 600;
 }
 
-.footer {
-  flex: none;
-  /* Pinned (its own layer): a flex item after the scroller, so it never covers a row. */
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) calc(var(--space-3) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
-  background: var(--bg);
-  border-top: 1px solid var(--hairline);
-}
-
 /* Short phones (SE, 360 x 640): compact head and one row of stats, so the first exercise row is in
    full view above the next day line and Done. */
 @media (max-height: 700px) {
@@ -284,8 +361,10 @@
   .title {
     font-size: clamp(26px, 7.4vw, 30px);
   }
+  /* One row (round 3, critic P4): Time and Sets as wide as they need, Total lifted takes the rest,
+     so all three share one 22 pt size instead of each shrinking on its own. */
   .stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: auto auto minmax(0, 1fr);
   }
   .wide {
     grid-column: auto;
@@ -295,7 +374,12 @@
     border-radius: 16px;
   }
   .value {
-    font-size: clamp(17px, 5vw, 20px);
+    font-size: 22px;
+  }
+  /* A very long total ("123,456.5 kg") ends with an ellipsis rather than spilling out of its tile. */
+  .wide .value {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .label {
     font-size: 12px;

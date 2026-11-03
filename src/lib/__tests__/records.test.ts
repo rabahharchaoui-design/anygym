@@ -17,7 +17,7 @@ describe('recordsFor', () => {
   });
   it('most reps at a weight lifted before', () => {
     const r = recordsFor('sq', 'Squat', [work(12, bar([45, 25])), work(9, bar([45, 25]))], [work(10, bar([45, 25])), work(8, bar([45, 35]))]);
-    expect(r).toEqual([{ exerciseId: 'sq', kind: 'most_reps', text: 'Squat: most reps at 185 lb, 12' }]);
+    expect(r).toEqual([{ exerciseId: 'sq', kind: 'most_reps', text: 'Squat: 185 lb × 12, most reps at this weight' }]);
   });
   it('ties are not records; warm ups and drops never count', () => {
     expect(recordsFor('sq', 'Squat', [work(10, bar([45]))], [work(10, bar([45]))])).toEqual([]);
@@ -32,7 +32,7 @@ describe('recordsFor', () => {
   });
   it('bodyweight: reps records, no heaviest without added weight; holds none', () => {
     expect(recordsFor('pu', 'Pull Up', [work(12, bodyweightLoad('lb'))], [work(10, bodyweightLoad('lb'))])).toEqual([
-      { exerciseId: 'pu', kind: 'most_reps', text: 'Pull Up: most reps at bodyweight, 12' },
+      { exerciseId: 'pu', kind: 'most_reps', text: 'Pull Up: 12 reps, most reps at this weight' },
     ]);
     expect(recordsFor('pl', 'Plank', [{ kind: 'work', seconds: 90, load: timedLoad('lb') }], [{ kind: 'work', seconds: 60, load: timedLoad('lb') }])).toEqual([]);
   });
@@ -49,7 +49,7 @@ describe('records across units (PLAN 1.7c)', () => {
   it('most reps at a weight is not a record when a heavier set in kg had as many reps', () => {
     const before = [work(8, bar([45])), work(10, kgBar([40]))];
     expect(recordsFor('sq', 'Squat', [work(9, bar([45]))], before)).toEqual([]);
-    expect(recordsFor('sq', 'Squat', [work(11, bar([45]))], before).map((r) => r.text)).toEqual(['Squat: most reps at 135 lb, 11']);
+    expect(recordsFor('sq', 'Squat', [work(11, bar([45]))], before).map((r) => r.text)).toEqual(['Squat: 135 lb × 11, most reps at this weight']);
   });
 });
 
@@ -81,7 +81,7 @@ describe('bestSetOf (finish screen list)', () => {
 describe('stack resistance with another pin / add-on split (PLAN 1.7k)', () => {
   it('a 125 pin after 100 pin + 25 added is the same 125 lb: 12 reps beats 10 for a rep record', () => {
     const r = recordsFor('lp', 'Leg press', [work(12, stackLoad(125, 'lb'))], [work(10, stackLoad(100, 'lb', 25))]);
-    expect(r).toEqual([{ exerciseId: 'lp', kind: 'most_reps', text: 'Leg press: most reps at 125 lb, 12' }]);
+    expect(r).toEqual([{ exerciseId: 'lp', kind: 'most_reps', text: 'Leg press: 125 lb × 12, most reps at this weight' }]);
   });
   it('sameResistance compares complete resistance; a different total is not the same', () => {
     expect(sameResistance(stackLoad(100, 'lb', 25), stackLoad(125, 'lb'))).toBe(true);

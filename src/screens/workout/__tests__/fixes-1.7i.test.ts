@@ -486,7 +486,7 @@ describe('Codex 0534 (3): a failed Log kept only in the journal survives export 
 describe('Codex 0534 (9): records compare resistance across units', () => {
   const w = (load: Load, reps = 5): PastSet => ({ kind: 'work', reps, load });
   it('ten push-ups in lb, then twelve in kg: a rep record (bodyweight is the same in any unit), either way round', () => {
-    expect(recordsFor('push-up', 'Push up', [w(bodyweightLoad('kg'), 12)], [w(bodyweightLoad('lb'), 10)])).toEqual([{ exerciseId: 'push-up', kind: 'most_reps', text: 'Push up: most reps at bodyweight, 12' }]);
+    expect(recordsFor('push-up', 'Push up', [w(bodyweightLoad('kg'), 12)], [w(bodyweightLoad('lb'), 10)])).toEqual([{ exerciseId: 'push-up', kind: 'most_reps', text: 'Push up: 12 reps, most reps at this weight' }]);
     expect(recordsFor('push-up', 'Push up', [w(bodyweightLoad('lb'), 12)], [w(bodyweightLoad('kg'), 10)])).toHaveLength(1);
   });
   it('135 lb then 100 kg against a previous 185 lb: the heaviest record is found, in either order', () => {

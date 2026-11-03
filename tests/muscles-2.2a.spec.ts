@@ -11,7 +11,7 @@ const shot = (page: Page, name: string) =>
   page.getByTestId('muscle-card').screenshot({ path: `reports/shots/2.2a/${test.info().project.name.replace(/\s+/g, '-')}-${name}.png` });
 const settled = async (page: Page) => {
   // The crossfade's leaving body is gone once it has faded.
-  await expect(page.locator('[data-testid="muscle-map"] svg[aria-hidden="true"]:not([data-view]) path')).toHaveCount(0);
+  await expect(page.locator('[data-testid="muscle-map"] svg[aria-hidden="true"]:not([data-view]):not(.lucide) path')).toHaveCount(0);
 };
 
 /**
@@ -154,7 +154,8 @@ test('muscle map: reduced motion switches instantly, no fade, no fill transition
   expect(await map.locator('[data-region="chest"]').first().evaluate((el) => getComputedStyle(el.parentElement!).transitionDuration)).toBe('0s');
   await page.getByTestId('muscle-view').getByRole('radio', { name: 'Back' }).click();
   // No leaving body is ever drawn.
-  await expect(map.locator('svg')).toHaveCount(2); // the drawing + the hidden filter defs
+  // The drawing + the hidden filter defs (the "Pick a muscle" icon, PLAN 2.0k, is not a body).
+  await expect(map.locator('svg:not(.lucide)')).toHaveCount(2);
   await expect(svg).toHaveAttribute('data-view', 'back');
 });
 

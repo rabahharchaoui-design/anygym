@@ -352,7 +352,11 @@ test('finish screen calls out records from real history only @matrix', async ({ 
   await checkCurrent(view).tap();
   await expect(loggedRows(view)).toHaveCount(1);
   await page.getByRole('button', { name: 'Finish' }).tap();
-  await expect(page.getByTestId('pr-chip')).toHaveText(['Barbell Back Squat: heaviest ever, 195 lb']);
+  // PLAN 2.2e round 2 (critic B4): the record leads the screen; New bests never repeats it.
+  await expect(page.getByTestId('finish-win')).toContainText('Barbell Back Squat');
+  await expect(page.getByTestId('finish-win')).toContainText(/195 lb × \d+, (heaviest|best) ever/);
+  await page.waitForTimeout(900);
+  await expect(page.getByTestId('pr-chip')).toHaveCount(0);
   await shotOn(page, '1.7c', 'finish');
   expect(errors).toEqual([]);
 });

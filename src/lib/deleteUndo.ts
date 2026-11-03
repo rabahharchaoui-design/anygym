@@ -12,8 +12,25 @@
 import { UNDO_MS } from './undoQueue';
 
 export type DeleteUndo<T> = {
-  /** Writes the delete now. Rejects if the write failed (the item is still saved) or after close(). */
-  remove: (item: T) => Promise<void>;
+  /**
+   * Writes the delete now. Rejects if the write failed (the item is still saved) or after close().
+   * `hold` (PLAN 2.0k, a group removal): its Undo window does not start yet; `release` starts it.
+   */
+  remove: (item: T, opts?: { hold?: boolean }) => Promise<void>;
+  /**
+   * Starts one shared Undo window now (`ms`, default the manager's) for these held records (PLAN
+   * 2.0k): every member of a group stays recoverable for as long as its one Undo is offered.
+   */
+  release: (ids: readonly string[], ms?: number) => void;
+  /** True while every one of these ids can still be put back (a group Undo is offered only then). */
+  canUndoAll: (ids: readonly string[]) => boolean;
+  /**
+   * A group Undo (PLAN 2.0k): refused (undefined, nothing restored) unless every member can still be
+   * put back. Every member's window stops, every Undo is accepted (`ops.accept`) before any is
+   * written back, then each is restored in order. Rejects when one did not come back: the members
+   * not back are unresolved (never expire, Finish refuses) so the Undo sheet can retry them.
+   */
+  undoAll: (ids: readonly string[]) => Promise<T[] | undefined>;
   /**
    * Writes the removed item back. Resolves with it, or undefined when the Undo window is over or
    * after close(). Rejects if the write failed; the record is kept, so calling undo again retries.
@@ -64,6 +81,8 @@ export function createDeleteUndo<T extends { id: string }>(
      */
     remove: (item: T) => Promise<T | null | undefined | void>;
     restore: (item: T) => Promise<unknown>;
+    /** A group Undo is accepted durably for every member before any is restored (PLAN 2.0k). Failures are ignored (restore accepts again). */
+    accept?: (item: T) => Promise<unknown>;
     /** The Undo window ended without an Undo (the stored record can go). Failures are ignored. */
     expire?: (item: T) => Promise<unknown>;
     /** The user cancelled a failed Undo: the stored record goes, the item stays deleted. Failures are ignored. */
@@ -89,13 +108,13 @@ export function createDeleteUndo<T extends { id: string }>(
   };
 
   /** The Undo window: the record is forgotten after `ms`, unless a restore is on its way. */
-  const arm = (rec: Record, id: string) => {
+  const arm = (rec: Record, id: string, window = ms) => {
     clearTimeout(rec.timer);
     rec.timer = setTimeout(() => {
-      if (rec.restoring || rec.unresolved) return;
+      if (rec.restoring || rec.unresolved || records.get(id) !== rec) return;
       records.delete(id);
       ops.expire?.(rec.item).catch(() => undefined);
-    }, ms);
+    }, window);
   };
   const forget = (rec: Record, id: string) => {
     clearTimeout(rec.timer);
@@ -107,12 +126,12 @@ export function createDeleteUndo<T extends { id: string }>(
     while (running.size) await Promise.all([...running]);
   };
 
-  return {
-    async remove(item) {
+  const api: DeleteUndo<T> = {
+    async remove(item, opts) {
       if (closed) throw new Error(CLOSED);
       const rec: Record = { item, restoring: null };
       records.set(item.id, rec);
-      arm(rec, item.id);
+      if (!opts?.hold) arm(rec, item.id);
       try {
         const gone = await track(item.id, Promise.resolve().then(() => ops.remove(item)));
         // The record as it was saved at the delete, never the caller's possibly stale copy.
@@ -150,6 +169,38 @@ export function createDeleteUndo<T extends { id: string }>(
       return rec.restoring;
     },
     canUndo: (id) => records.has(id),
+    release(ids, window = ms) {
+      for (const id of ids) {
+        const rec = records.get(id);
+        if (rec && !rec.restoring && !rec.unresolved) arm(rec, id, window);
+      }
+    },
+    canUndoAll: (ids) => !closed && ids.every((id) => records.has(id)),
+    async undoAll(ids) {
+      if (closed || !ids.every((id) => records.has(id))) return undefined;
+      const recs = ids.map((id) => records.get(id)!);
+      // No member can expire from here on, whatever happens below.
+      for (const r of recs) clearTimeout(r.timer);
+      if (ops.accept) for (const r of recs) if (!r.restoring) await ops.accept(r.item).catch(() => undefined);
+      const back: T[] = [];
+      for (const id of ids) {
+        try {
+          const item = await api.undo(id);
+          if (!item) throw new Error('Not put back');
+          back.push(item);
+        } catch (err) {
+          for (const left of ids) {
+            const r = records.get(left);
+            if (r && !r.restoring) {
+              r.unresolved = true;
+              clearTimeout(r.timer);
+            }
+          }
+          throw err;
+        }
+      }
+      return back;
+    },
     settle,
     async close() {
       closed = true;
@@ -186,4 +237,5 @@ export function createDeleteUndo<T extends { id: string }>(
       forget(rec, id);
     },
   };
+  return api;
 }

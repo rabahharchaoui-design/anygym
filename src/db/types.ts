@@ -236,7 +236,22 @@ export type MutationIntent =
  * A pending write (PLAN 1.7i): a Log set (its draft), or with `mutation` (PLAN 2.0c, additive,
  * not indexed) a change to a logged set; its draft is then just `{ id, load: null }`.
  */
-export type JournalEntry = { id: string; sessionId: string; exerciseId: string; key: string; rev: number; draft: Record<string, unknown>; at: number; mutation?: MutationIntent };
+export type JournalEntry = {
+  id: string;
+  sessionId: string;
+  exerciseId: string;
+  key: string;
+  rev: number;
+  draft: Record<string, unknown>;
+  at: number;
+  mutation?: MutationIntent;
+  /**
+   * PLAN 2.0k (additive, not indexed): the held copies (ids `mem:...`) of the same set and kind this
+   * change supersedes, registered before it, stored with the entry in the journal write's own
+   * transaction so every apply and Retry writes their receipts, also after a failed apply or a restart.
+   */
+  covers?: string[];
+};
 // PLAN 2.0e: a change's id is `mut:<kind>:<setId>:<rev>`, one per operation, `rev` allocated in the
 // journal write's own transaction; `mut:<kind>:<setId>` (before 2.0e) reads as revision 0.
 

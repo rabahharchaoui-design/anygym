@@ -318,7 +318,8 @@ test('offline with photos never kept: the compact header, no broken picture, no 
     const sheet = page.getByRole('dialog', { name: 'How to do Barbell Back Squat' });
     await expect(sheet.getByTestId('demo-soon')).toHaveText('Photos show when you are back online');
     await expect(sheet.locator('img')).toHaveCount(0);
-    await sheet.getByTestId('exercise-sheet').getByRole('button', { name: 'Close', exact: true }).tap();
+    // Close is pinned in the sheet's footer since PLAN 2.0k (outside the scrolling body).
+    await sheet.getByRole('button', { name: 'Close', exact: true }).first().tap();
     await expect(sheet).toHaveCount(0);
   } finally {
     await context.setOffline(false);

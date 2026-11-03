@@ -260,6 +260,12 @@
   width: min(132px, 36%, 17svh);
 }
 
+/* The exercise sheet (SPEC 4.4 order, PLAN 2.2e round 2): smaller bodies, so How to still starts
+   in the first screen on the SE under the demo and the muscle map. */
+.pairCompact .pairBody {
+  width: min(110px, 30%, 10svh);
+}
+
 .pairBody .svg {
   position: relative;
   inset: auto;
@@ -292,27 +298,55 @@
   position: relative;
 }
 
-.a11yPick {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+/* "Pick a muscle" (PLAN 2.0k): a visible 48 pt pill over the phone's own picker, so a muscle too small
+   to hit on the drawing is one tap and a spin away. The native select covers the pill (invisible),
+   so the tap opens the picker directly. */
+.pickControl {
+  position: relative;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
   min-height: 48px;
-  opacity: 0;
-  pointer-events: none;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-md);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
   background: var(--surface-2);
   color: var(--text);
-  font: inherit;
   font-size: var(--text-sm);
-  padding: 0 var(--space-3);
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.a11yPick:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
-  z-index: 2;
+.pickControl:has(.pickSelect:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pickControlText {
+  white-space: nowrap;
+}
+
+.pickControlIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-2);
+}
+
+.pickSelect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  margin: 0;
+  /* 16 px so iOS never zooms the page when the picker opens. */
+  font-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
 
 .pairLabel {

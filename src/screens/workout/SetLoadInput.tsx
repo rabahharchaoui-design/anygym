@@ -1,3 +1,4 @@
+import { afterSheet } from '../../ui/afterPaint';
 import { useEffect, useRef, useState } from 'react';
 import { BodyweightInput } from '../../components/load/BodyweightInput';
 import { DumbbellWheel } from '../../components/load/DumbbellWheel';
@@ -354,7 +355,8 @@ function BarbellField({
         current={barId}
         onPick={(id) => {
           setPicking(false);
-          void choose(id, gym.bars[id]);
+          // The sheet closes first; the weight is worked out once it has settled (critic B6).
+          afterSheet(() => void choose(id, gym.bars[id]));
         }}
         onAsk={(id) => {
           setPicking(false);

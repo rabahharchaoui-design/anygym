@@ -40,10 +40,10 @@
 
 /* No View Transitions (older Safari): the new screen still arrives with the same motion. */
 :global(html[data-nav-fallback='push']) .page {
-  animation: fb-push var(--dur-base) var(--ease-drawer) both;
+  animation: fb-push var(--dur-nav) var(--ease-nav-spring) both;
 }
 :global(html[data-nav-fallback='pop']) .page {
-  animation: fb-pop var(--dur-base) var(--ease-drawer) both;
+  animation: fb-pop var(--dur-nav) var(--ease-nav-spring) both;
 }
 :global(html[data-nav-fallback='tab']) .page,
 :global(html[data-nav-fallback='down']) .page {
@@ -57,7 +57,7 @@
 }
 @keyframes fb-pop {
   from {
-    transform: translateX(-30%);
+    transform: translateX(-30%) scale(0.96);
     opacity: 0.6;
   }
 }
@@ -70,7 +70,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   :global(html[data-nav-fallback]) .page {
-    animation: fb-fade 150ms ease-out both;
+    animation: fb-fade 120ms ease-out 80ms both;
   }
 }
 @keyframes fb-fade {

@@ -225,7 +225,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   // A pending Log set write (PLAN 1.7i): its id, draft key, revision and every value of the row.
   // With `mutation` (PLAN 2.0c): a change to a logged set not landed yet (db/mutations.ts).
   journal: (v) =>
-    shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: num, draft: isDraft, at: num }, opt: { mutation: isMutation } })(v) &&
+    shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: num, draft: isDraft, at: num }, opt: { mutation: isMutation, covers: listOf(str) } })(v) &&
     (v as Rec).id === ((v as Rec).draft as Rec).id &&
     ((v as Rec).mutation === undefined || mutationIdOk(v as Rec)),
 };
@@ -258,6 +258,7 @@ export const isDraft = shape({
     watch: shape({ req: { startedAt: orNull(num), accumulated: num } }),
     rev: num,
     submitted: num,
+    pickKind: oneOf(...LOAD_KINDS),
     unit,
   },
 });
@@ -392,8 +393,10 @@ function heldSetHere(e: Pick<JournalEntry, 'sessionId' | 'mutation'>, t: Record<
 
 /**
  * A held change (PLAN 2.0h, db/mutations.ts): id `mem:<kind>:<setId>:<at>:<n>` naming its own
- * change and time, revision -1, its key and placeholder draft agreeing, valid values.
+ * change and time, revision -1, its key and placeholder draft agreeing, valid values. Since PLAN
+ * 2.0k `<n>` is a random UUID (never a per tab counter); older backups' counters stay readable.
  */
+const HELD_SUFFIX = /^(?:[1-9]\d{0,15}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 const isHeld: Check = (v) => {
   if (!shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: oneOf(-1), draft: shape({ req: { id: str, load: oneOf(null) } }), at: num, mutation: isMutation } })(v)) return false;
   const e = v as Rec;
@@ -401,7 +404,7 @@ const isHeld: Check = (v) => {
   const base = `mem:${m.kind as string}:${m.setId as string}:${String(e.at)}:`;
   const id = e.id as string;
   const draft = e.draft as Rec;
-  return e.key === `${m.kind as string}:${m.setId as string}` && draft.id === id && Object.keys(draft).length === 2 && id.startsWith(base) && /^[1-9]\d{0,15}$/.test(id.slice(base.length));
+  return e.key === `${m.kind as string}:${m.setId as string}` && draft.id === id && Object.keys(draft).length === 2 && id.startsWith(base) && HELD_SUFFIX.test(id.slice(base.length));
 };
 
 /** Held changes: absent, or a bounded list of distinct valid ones of a workout in progress in the file, oldest first. */

@@ -33,6 +33,10 @@
 }
 
 .action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
   /* 48 pt touch target (SPEC 0, 13.3). */
   min-height: var(--tap);
   min-width: var(--tap);
@@ -40,4 +44,19 @@
   border-radius: var(--radius-pill);
   color: var(--accent);
   font-weight: 700;
+}
+
+/* Undo: lime on a soft lime pill, so the way back is the one thing to see (PLAN 2.2e). */
+.action[data-undo] {
+  background: var(--accent-soft);
+  margin: 2px 0;
+  padding: 0 var(--space-4) 0 var(--space-3);
+}
+
+.action:active {
+  transform: scale(var(--press-scale));
+}
+
+.actionIcon {
+  flex: none;
 }

@@ -10,6 +10,7 @@ import { EXTRA_SETS_KEY, hydrateExtraSets } from './lib/extraSets';
 import { registerAppUpdates } from './pwa';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { StartupError } from './components/StartupError';
+import { AppMarkLoader } from './ui/AppMarkLoader';
 import { installReporting } from './lib/reporting/capture';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -38,6 +39,8 @@ const hydrators = {
   [EXTRA_SETS_KEY]: (v: string | null) => hydrateExtraSets(v),
 };
 const reactRoot = createRoot(mount);
+// PLAN 2.2e: while the mirrors are put back, the AnyGym mark (it only shows past 400 ms).
+reactRoot.render(<AppMarkLoader />);
 const showApp = () =>
   reactRoot.render(
     <StrictMode>

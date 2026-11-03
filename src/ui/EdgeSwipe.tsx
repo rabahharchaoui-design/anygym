@@ -1,5 +1,8 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
-import { prefersReducedMotion } from './motion';
+import { PAGE, prefersReducedMotion } from './motion';
+
+/** The page underneath at progress p (0 covered, 1 home): the shared page transition, followed by the finger. */
+const underAt = (w: number, p: number) => `translate3d(${-0.3 * w * (1 - p)}px,0,0) scale(${1 - (1 - PAGE.scale) * (1 - p)})`;
 import styles from './EdgeSwipe.module.css';
 
 type Props = {
@@ -33,8 +36,8 @@ export function EdgeSwipe({ layerRef, onBack, under }: Props) {
       layer.style.transform = `translate3d(${dx}px,0,0)`;
       layer.style.boxShadow = '-14px 0 34px rgb(0 0 0 / 0.55)';
     }
-    if (underRef.current) underRef.current.style.transform = `translate3d(${-0.3 * w * (1 - p)}px,0,0)`;
-    if (shadeRef.current) shadeRef.current.style.opacity = String(0.45 * (1 - p));
+    if (underRef.current) underRef.current.style.transform = underAt(w, p);
+    if (shadeRef.current) shadeRef.current.style.opacity = String((1 - PAGE.dim) * (1 - p));
   };
 
   const reset = () => {
@@ -99,8 +102,8 @@ export function EdgeSwipe({ layerRef, onBack, under }: Props) {
     const anim = layer.animate([{ transform: `translate3d(${d.dx}px,0,0)` }, { transform: `translate3d(${to}px,0,0)` }], opts);
     const p0 = Math.min(1, d.dx / d.w);
     const p1 = finish ? 1 : 0;
-    underRef.current?.animate([{ transform: `translate3d(${-0.3 * d.w * (1 - p0)}px,0,0)` }, { transform: `translate3d(${-0.3 * d.w * (1 - p1)}px,0,0)` }], opts);
-    shadeRef.current?.animate([{ opacity: 0.45 * (1 - p0) }, { opacity: 0.45 * (1 - p1) }], opts);
+    underRef.current?.animate([{ transform: underAt(d.w, p0) }, { transform: underAt(d.w, p1) }], opts);
+    shadeRef.current?.animate([{ opacity: (1 - PAGE.dim) * (1 - p0) }, { opacity: (1 - PAGE.dim) * (1 - p1) }], opts);
     anim.onfinish = () => {
       if (finish) {
         onBack();

@@ -17,8 +17,10 @@ import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
 import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { InfoDevScreen } from './screens/dev/InfoDevScreen';
 import { ViewportDevScreen } from './screens/dev/ViewportDevScreen';
+import { UiDevScreen } from './screens/dev/UiDevScreen';
 import { ReviewScreen } from './screens/review/ReviewScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
+import { AppMarkLoader } from './ui/AppMarkLoader';
 
 const DEV_TOOLS = devToolsEnabled();
 // Lazy, so the catalog JSON it reads stays out of the main bundle.
@@ -32,11 +34,12 @@ export function App() {
         {DEV_TOOLS && <Route path="dev/plates" element={<PlatesDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/info" element={<InfoDevScreen />} />}
+        {DEV_TOOLS && <Route path="dev/ui" element={<UiDevScreen />} />}
         {DEV_TOOLS && (
           <Route
             path="dev/muscles"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<AppMarkLoader />}>
                 <MusclesDevScreen />
               </Suspense>
             }

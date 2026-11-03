@@ -76,13 +76,14 @@
   animation-play-state: paused;
 }
 
-/* Pause: a small glass glyph in the photo's corner, 44 pt hit area around a 30 pt circle. */
+/* Pause: a small glass glyph in the photo's corner, a 48 pt hit area (SPEC 0, 13.3; PLAN 2.0k)
+   around the same 30 pt circle. */
 .pause {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 44px;
-  height: 44px;
+  right: 0;
+  bottom: 0;
+  width: 48px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -92,7 +93,7 @@
 .pause::before {
   content: '';
   position: absolute;
-  inset: 7px;
+  inset: 9px;
   border-radius: 50%;
   background: var(--glass-bg);
   border: 1px solid var(--glass-line);
@@ -151,6 +152,13 @@
 
 .hero .frame img {
   background: transparent;
+}
+
+/* The exercise sheet (PLAN 2.0k): a fixed, compact height (no layout shift) so How to shows in the
+   first screen on SE and Pro Max alike; the photo is drawn whole (contain) inside it. */
+.wrap[data-fit] .stage {
+  aspect-ratio: auto;
+  height: clamp(120px, 20svh, 230px);
 }
 
 /* Reduced motion (SPEC 4.4): both photos side by side, still. The tile keeps the start photo. */

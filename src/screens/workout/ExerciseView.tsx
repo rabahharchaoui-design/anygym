@@ -1,3 +1,4 @@
+import { idleAfterPaint } from '../../ui/afterPaint';
 import { Suspense, lazy, type ComponentType, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { saveMutation } from '../../db/mutations';
@@ -180,7 +181,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   /** A pending row's draft as stored right now, by slot (0 = the first row still to do). */
   const draftAt = (slot: number) => loadDraft(sessionId, rowKey(exerciseId, slot));
   const slotOf = (row: PendingRow) => row.index - logged.length;
-  const rebuild = (picked: Load | null, plates: readonly number[]) => (kind ? currentLoad(picked, plates, kind, gym, exerciseId, name, bar) : null);
+  const rebuild = (picked: Load | null, plates: readonly number[], pickKind?: Load['kind']) => (kind ? currentLoad(picked, plates, kind, gym, exerciseId, name, bar, undefined, pickKind) : null);
   // Planned rows left: a warm up logged on a normal lift never uses one up (PLAN 1.7j).
   const workDone = w.done[exerciseId] ?? 0;
   const rows: PendingRow[] = kind
@@ -231,6 +232,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       // The unit the weight was picked in (PLAN 1.7i): the pick's own unit when it says (PLAN
       // 2.0c), else today's when this write picks it.
       ...('load' in patch || 'plates' in patch || !before ? { unit: patch.unit ?? gym.unit } : {}),
+      // And the "Loaded with" it was picked under (PLAN 2.0k): never rebuilt under another one.
+      ...(('load' in patch || 'plates' in patch || !before) && kind ? { pickKind: kind } : {}),
       rev: (before?.rev ?? 0) + 1,
     };
     if (own) draft.own = { ...draft.own, ...own };
@@ -277,7 +280,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   };
 
   /** Writes a submitted row; it lands even if this view closed meanwhile (rowLog.ts). */
-  const submitAndTell = async (draft: Draft): Promise<boolean> => {
+  const submitAndTell = async (draft: Draft, now = false): Promise<boolean> => {
+    // The row already shows checked (its submitted draft is stored): the IndexedDB write and the
+    // record lookup it triggers start once the check's frame has painted (critic B1, round 3).
+    if (!now) await idleAfterPaint();
     const ok = await submitRow(sessionId, exerciseId, draft, { onLanded: () => onLogged(exerciseId, storedType(draft.type ?? 'normal').kind) });
     if (!ok && !logQueue.closed(sessionId)) onNotice('Could not save that set', () => void retry(draft.id));
     refresh();
@@ -290,7 +296,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (!now || logQueue.pending(key) || logQueue.closed(sessionId)) return;
     const again: Draft = { ...now, submitted: now.rev ?? 0 };
     saveDraft(sessionId, rowKey(exerciseId, at), again);
-    await submitAndTell(again);
+    await submitAndTell(again, true);
   };
 
   /**
@@ -665,6 +671,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onRemoveLogged={removeLogged}
             removable={!logQueue.closed(sessionId)}
             keyOf={(r) => slots[slotOf(r)]?.id ?? `i${r.index}`}
+            recordOf={w.recordOf}
             underRows={
               <>
                 {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
