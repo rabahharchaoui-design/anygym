@@ -179,7 +179,9 @@ function reportRejections() {
 // per screenshot. That line comes from the harness, not the app, so console listeners (this file's
 // and every spec's own page.on('console')) never see it. Real inline <style> violations by the app
 // are caught by tests/csp-2.2f.spec.ts, which takes no screenshots and listens for the CSP event.
-const HARNESS_STYLE_NOISE = /^Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src/;
+// WebKit and Chromium word it differently; both are matched by meaning (an inline style refused by
+// the style-src directive, not style-src-attr / style-src-elem lists of other kinds) and nothing else.
+const HARNESS_STYLE_NOISE = /^(?:Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the style-src|Applying inline style violates the following Content Security Policy directive 'style-src )/;
 function quietHarnessStyleNoise(page: Page) {
   const on = page.on.bind(page) as (event: string, fn: (...a: unknown[]) => void) => Page;
   const wrap = (event: string, fn: (...a: unknown[]) => void) =>

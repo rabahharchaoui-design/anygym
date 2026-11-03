@@ -37,8 +37,12 @@ test.afterAll(async () => {
 
 // This test is about the Worker's CORS headers from a second origin, not about the page's CSP
 // (PLAN 2.2f), which would refuse that origin.
-test.beforeEach(async ({ page }) => {
-  // bypassCSP is not honoured by WebKit, so the policy tag is cut out of the page itself.
+// Chromium honours bypassCSP. WebKit does not, so there the policy tag is cut out of the page. Not
+// done in Chromium: a fulfilled (routed) page counts as a public address space there, and then the
+// browser refuses its fetch to 127.0.0.1 (Local Network Access), which would break this test.
+test.use({ bypassCSP: true });
+test.beforeEach(async ({ page, browserName }) => {
+  if (browserName !== 'webkit') return;
   await page.route('**/anygym/', async (route) => {
     const res = await route.fetch();
     const body = (await res.text()).replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
