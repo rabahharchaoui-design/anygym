@@ -67,15 +67,19 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
                   transition={vt || reduce ? { duration: 0 } : SPRING}
                 />
               )}
-              <motion.span
-                className={styles.iconWrap}
-                initial={false}
-                animate={active && !reduce ? { scale: [1, 0.84, 1.1, 1] } : { scale: 1 }}
-                transition={active ? BOUNCE : FADE}
-              >
-                <Icon className={styles.icon} strokeWidth={ICON_STROKE} aria-hidden="true" />
-              </motion.span>
-              <span className={styles.label}>{label}</span>
+              {/* The active tab's icon and label ride inside the moving pill as one layer (critic
+                  B3, round 3): they crossfade from the old tab's to the new one's, never a bare pill. */}
+              <span className={styles.content} style={vt && active ? { viewTransitionName: 'tab-active' } : undefined}>
+                <motion.span
+                  className={styles.iconWrap}
+                  initial={false}
+                  animate={active && !reduce ? { scale: [1, 0.84, 1.1, 1] } : { scale: 1 }}
+                  transition={active ? BOUNCE : FADE}
+                >
+                  <Icon className={styles.icon} strokeWidth={ICON_STROKE} aria-hidden="true" />
+                </motion.span>
+                <span className={styles.label}>{label}</span>
+              </span>
             </NavLink>
           );
         })}

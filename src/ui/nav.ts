@@ -44,7 +44,29 @@ type VT = {
  * Runs a DOM changing update inside a view transition of the given kind (or plainly when
  * unsupported). `async: true` for history steps (go(-1)): the new screen arrives after popstate.
  */
-export function withTransition(kind: NavKind, update: () => void, async = false): void {
+/**
+ * PLAN 2.2e round 3 (critic B2): a screen that needs a read before it can be drawn whole (Finish)
+ * holds the arriving snapshot until it is ready, so the page slides in complete, never empty and
+ * then filled. Call during the arriving screen's first commit (a layout effect); call the returned
+ * release once drawn. A hold never blocks longer than HOLD_MAX_MS.
+ */
+const holds = new Set<Promise<void>>();
+const HOLD_MAX_MS = 350;
+export function holdTransition(): () => void {
+  let release!: () => void;
+  const p = new Promise<void>((r) => (release = r));
+  holds.add(p);
+  return () => {
+    holds.delete(p);
+    release();
+  };
+}
+const held = (): Promise<unknown> => (holds.size ? Promise.race([Promise.all([...holds]), new Promise((r) => setTimeout(r, HOLD_MAX_MS))]) : Promise.resolve());
+
+/** True while a view transition runs (an arriving screen draws itself whole, without its own cascade). */
+export const transitionRunning = (): boolean => typeof document !== 'undefined' && !!document.documentElement.dataset.nav;
+
+export function withTransition(kind: NavKind, update: () => void, async = false, flat = false): void {
   const doc = document as Document & {
     startViewTransition?: (cb: () => void | Promise<void>) => VT;
   };
@@ -56,6 +78,10 @@ export function withTransition(kind: NavKind, update: () => void, async = false)
   }
   const root = document.documentElement;
   root.dataset.nav = kind;
+  // flat: one plain page snapshot, no shared elements (the hero and the workout header slide out
+  // with their page instead of being cut out of it, critic B2).
+  if (flat) root.dataset.navFlat = '';
+  else delete root.dataset.navFlat;
   // The new screen is captured a moment after React commits, once its mount effects have run:
   // capturing straight away let a screen's first effects end the transition on the spot.
   const t = doc.startViewTransition!(() => (async ? afterPopstate(update) : settle(() => flushSync(update))));
@@ -66,12 +92,13 @@ export function withTransition(kind: NavKind, update: () => void, async = false)
     .catch(() => undefined)
     .finally(() => {
       if (root.dataset.nav === kind) delete root.dataset.nav;
+      if (flat) delete root.dataset.navFlat;
     });
 }
 
 function settle(update: () => void): Promise<void> {
   update();
-  return new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+  return new Promise<void>((resolve) => setTimeout(resolve, SETTLE_MS)).then(() => held()).then(() => undefined);
 }
 
 /** How long a new screen gets to run its mount effects before it is captured (round 3: 8 ms, was 24). */
@@ -100,13 +127,13 @@ function afterPopstate(update: () => void): Promise<void> {
 export function useNav() {
   const navigate = useNavigate();
   return useCallback(
-    (to: To | number, opts: NavigateOptions & { kind?: NavKind } = {}) => {
-      const { kind: asked, ...rest } = opts;
+    (to: To | number, opts: NavigateOptions & { kind?: NavKind; flat?: boolean } = {}) => {
+      const { kind: asked, flat, ...rest } = opts;
       const from = window.location.hash.replace(/^#/, '') || '/';
       const target = typeof to === 'number' ? null : typeof to === 'string' ? to : (to.pathname ?? from);
       const kind = asked ?? (typeof to === 'number' ? (to < 0 ? 'pop' : 'push') : kindBetween(from.split('?')[0]!, target!.split('?')[0]!));
       // After a sheet closed by hand has used up its history entry, never racing it.
-      sheetHistory().whenSettled(() => withTransition(kind, () => (typeof to === 'number' ? navigate(to) : navigate(to, rest)), typeof to === 'number'));
+      sheetHistory().whenSettled(() => withTransition(kind, () => (typeof to === 'number' ? navigate(to) : navigate(to, rest)), typeof to === 'number', flat));
     },
     [navigate],
   );

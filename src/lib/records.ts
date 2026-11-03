@@ -106,7 +106,16 @@ export type SetRecordKind = 'volume' | 'heaviest' | 'most_reps';
  * One set that set a record: which way (the biggest gain), by how much (a ratio), in words, and
  * the earlier set it beat ("185 lb × 5", with that workout's date; no date: earlier today).
  */
-export type SetRecord = { setId: string; kind: SetRecordKind; gain: number; text: string; beat: { text: string; date?: number } };
+export type SetRecord = {
+  setId: string;
+  kind: SetRecordKind;
+  /** Over the best so far (earlier workouts and this one's earlier sets). */
+  gain: number;
+  /** Over the best before this workout (round 3): what the finish lead ranks, so 185 × 7 after 185 × 6 today leads. */
+  gainOverHistory: number;
+  text: string;
+  beat: { text: string; date?: number };
+};
 
 /** An earlier set with the date of its workout (records only). */
 export type DatedSet = PastSet & { date?: number };
@@ -130,6 +139,14 @@ export function recordSets(today: readonly RecordSet[], before: readonly DatedSe
   type Pooled = Work & { date?: number };
   const pool: Pooled[] = working(before, kind) as Pooled[];
   if (!pool.length) return [];
+  const history = [...pool];
+  /** The same gain, measured against the earlier workouts only. */
+  const overHistory = (k: SetRecordKind, s: RecordSet, fallback: number): number => {
+    if (k === 'volume') return gainRatio(setScore(s, unit), Math.max(...history.map((p) => setScore(p, unit))));
+    if (k === 'heaviest') return gainRatio(w(s.load), Math.max(...history.map((p) => w(p.load))));
+    const same = history.filter((p) => sameResistance(p.load, s.load));
+    return same.length ? gainRatio(s.reps ?? 0, Math.max(...same.map((p) => p.reps ?? 0))) : fallback;
+  };
   const out: SetRecord[] = [];
   for (const s of today) {
     if (s.kind !== 'work' || s.load.kind !== kind) continue;
@@ -159,6 +176,7 @@ export function recordSets(today: readonly RecordSet[], before: readonly DatedSe
           setId: s.id,
           kind: top.kind,
           gain: top.gain,
+          gainOverHistory: overHistory(top.kind, s, top.gain),
           text: `${recordSetText(s)}, ${RECORD_WORDS[top.kind]}`,
           beat: { text: recordSetText(top.beat), ...(top.beat.date !== undefined ? { date: top.beat.date } : {}) },
         });
@@ -173,11 +191,12 @@ export function recordSets(today: readonly RecordSet[], before: readonly DatedSe
 export type Win = { exerciseId: string; setId: string; kind: SetRecordKind; text: string; name: string; detail: string };
 
 /**
- * The biggest win among each exercise's record sets (in workout order): the largest gain over its
- * own earlier best; a tie goes to the earlier one. "Barbell Bench Press 185 lb × 6, best ever".
+ * The biggest win among each exercise's record sets (in workout order): the largest gain over the
+ * exercise's best before this workout (a later set that beat an earlier PR of today leads); a tie
+ * goes to the earlier one. "Barbell Bench Press 185 lb × 6, best ever".
  */
 export function biggestWin(groups: ReadonlyArray<{ exerciseId: string; name: string; records: readonly SetRecord[] }>): Win | null {
   let best: { g: (typeof groups)[number]; r: SetRecord } | null = null;
-  for (const g of groups) for (const r of g.records) if (!best || biggerGain(r.gain, best.r.gain)) best = { g, r };
+  for (const g of groups) for (const r of g.records) if (!best || biggerGain(r.gainOverHistory, best.r.gainOverHistory)) best = { g, r };
   return best ? { exerciseId: best.g.exerciseId, setId: best.r.setId, kind: best.r.kind, text: `${best.g.name} ${best.r.text}`, name: best.g.name, detail: best.r.text } : null;
 }

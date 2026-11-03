@@ -122,6 +122,12 @@ describe('recordSets', () => {
 });
 
 describe('biggestWin', () => {
+  it('two PRs of one exercise today: the later, bigger one leads (gain over the history before today)', () => {
+    const today = [set(6, lb(185)), set(7, lb(185))];
+    const r = recordSets(today, [past(5, lb(185))]);
+    expect(r.map((x) => x.gainOverHistory)).toEqual([1.2, 1.4]);
+    expect(biggestWin([{ exerciseId: 'sq', name: 'Squat', records: r }])!.text).toBe('Squat 185 lb × 7, best ever');
+  });
   it('the largest gain over its own best; ties go to the earlier exercise; null with none', () => {
     const bench = recordSets([set(6, lb(185))], [past(5, lb(185))]); // 1.2
     const squat = recordSets([set(5, lb(250))], [past(5, lb(225))]); // 1.11

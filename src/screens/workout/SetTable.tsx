@@ -162,8 +162,13 @@ function TypeButton({ t, number, onPress }: { t: SetType; number: string; onPres
 }
 
 /** "New best: beat 185 lb × 5 from Nov 3" (earlier today when it beat a set of this workout). */
-const prDetail = (r: SetRecord) =>
-  `New best: beat ${r.beat.text} ${r.beat.date === undefined ? 'earlier today' : `from ${new Date(r.beat.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}`;
+const prDetail = (r: SetRecord) => `New best: beat ${r.beat.text} from ${beatWhen(r.beat.date)}`;
+
+/** "earlier today" for a set of this workout or another one today (like "Last time (today)"), else "Nov 3". */
+function beatWhen(date: number | undefined): string {
+  if (date === undefined || new Date(date).toDateString() === new Date().toDateString()) return 'earlier today';
+  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 type LoggedProps = Shared & { set: WorkoutSet; at: number; number: string; last: string; fresh?: number; record?: SetRecord; sig: string };
 

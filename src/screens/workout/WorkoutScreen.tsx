@@ -533,7 +533,7 @@ export function WorkoutScreen() {
       setRest(null);
       clearSessionDrafts(sessionId);
       clearExtraSets();
-      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'push', replace: true });
+      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'push', replace: true, flat: true });
       else
         go('/', {
           kind: 'pop',

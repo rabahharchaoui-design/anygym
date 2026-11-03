@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { db } from '../../db/schema';
@@ -17,7 +17,7 @@ import { BottomCTA } from '../../ui/BottomCTA';
 import { Odometer } from '../../ui/Odometer';
 import { Skeleton } from '../../ui/Skeleton';
 import { TrophyIcon } from '../../ui/icons';
-import { useNav } from '../../ui/nav';
+import { holdTransition, transitionRunning, useNav } from '../../ui/nav';
 import { LoadError } from '../../components/LoadError';
 import { exerciseNamer, setCount, workoutTitle } from '../history/historyWords';
 import styles from './Finish.module.css';
@@ -34,6 +34,16 @@ export function FinishScreen() {
   const { sessionId = '' } = useParams();
   const go = useNav();
   const reduce = useReducedMotion();
+  // Arriving inside a view transition (the push from the workout, critic B2 round 3): the page is
+  // drawn whole before the snapshot (the transition waits for the read), never empty and then
+  // filled; it does not cascade its own cards (the push is the motion). Its win card glows once it
+  // has landed.
+  const [sliding] = useState(transitionRunning);
+  const release = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    if (sliding) release.current = holdTransition();
+    return () => release.current?.();
+  }, [sliding]);
   const [saving, setSaving] = useState(false);
   const [changing, setChanging] = useState(false);
   const [changeFailed, setChangeFailed] = useState(false);
@@ -100,11 +110,19 @@ export function FinishScreen() {
     : [];
 
   // The lead card first, right after the title (critic P7); then the numbers and lists.
-  const lead = reduce
+  useEffect(() => {
+    if (detail.ready || detail.error) release.current?.();
+  }, [detail.ready, detail.error]);
+  const still = { initial: false } as const;
+  const lead = sliding
+    ? still
+    : reduce
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
     : { initial: { opacity: 0, y: 12, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...SPRINGS.sheet, delay: 0.04 } };
   const item = (i: number) =>
-    reduce
+    sliding
+      ? still
+      : reduce
       ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
       : { initial: { opacity: 0, y: 18, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...GENTLE, delay: (v?.win ? 0.08 : 0) + STAGGER * i } };
 
@@ -130,7 +148,7 @@ export function FinishScreen() {
               ) : null}
             </motion.div>
             {v.win && (
-              <motion.p className={styles.win} data-testid="finish-win" aria-label={v.win.text} {...lead}>
+              <motion.p className={`${styles.win} ${sliding && !reduce ? styles.winLand : ''}`} data-testid="finish-win" aria-label={v.win.text} {...lead}>
                 <span className={styles.winIcon} aria-hidden="true">
                   <TrophyIcon width={18} height={18} strokeWidth={2.2} />
                 </span>
@@ -180,7 +198,12 @@ export function FinishScreen() {
                             </span>
                           ) : null}
                         </span>
-                        <span className={`${styles.exerciseBest} num`}>{formatSetWeightFirst(r.best)}</span>
+                        <span className={`${styles.exerciseBest} num`}>
+                          {/* "2 sets · 185 lb × 6" (round 3, critic P6): the count, then the best set. A plan
+                              exercise with sets left already says "1 of 4 sets" under its name. */}
+                          {count === 0 || (planned && count < planned) ? '' : `${setCount(count)} · `}
+                          {formatSetWeightFirst(r.best)}
+                        </span>
                       </li>
                     );
                   })}
@@ -213,7 +236,7 @@ export function FinishScreen() {
       </main>
       {/* Pinned under the scroller (never over it): the summary scrolls above it, every row reachable. */}
       <BottomCTA
-        className={styles.cta}
+        className={sliding ? undefined : styles.cta}
         onPress={done}
         disabled={loading || saving}
         above={
@@ -221,7 +244,7 @@ export function FinishScreen() {
             {nextDay && d && (
               <motion.div
                 className={styles.next}
-                {...(reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
+                {...(sliding ? still : reduce ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { ...GENTLE, delay: 0.12 } })}
               >
                 <p className={styles.nextText} data-testid="finish-next" aria-live="polite">
                   Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>

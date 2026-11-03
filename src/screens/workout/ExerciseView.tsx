@@ -1,3 +1,4 @@
+import { idleAfterPaint } from '../../ui/afterPaint';
 import { Suspense, lazy, type ComponentType, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { saveMutation } from '../../db/mutations';
@@ -279,7 +280,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   };
 
   /** Writes a submitted row; it lands even if this view closed meanwhile (rowLog.ts). */
-  const submitAndTell = async (draft: Draft): Promise<boolean> => {
+  const submitAndTell = async (draft: Draft, now = false): Promise<boolean> => {
+    // The row already shows checked (its submitted draft is stored): the IndexedDB write and the
+    // record lookup it triggers start once the check's frame has painted (critic B1, round 3).
+    if (!now) await idleAfterPaint();
     const ok = await submitRow(sessionId, exerciseId, draft, { onLanded: () => onLogged(exerciseId, storedType(draft.type ?? 'normal').kind) });
     if (!ok && !logQueue.closed(sessionId)) onNotice('Could not save that set', () => void retry(draft.id));
     refresh();
@@ -292,7 +296,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (!now || logQueue.pending(key) || logQueue.closed(sessionId)) return;
     const again: Draft = { ...now, submitted: now.rev ?? 0 };
     saveDraft(sessionId, rowKey(exerciseId, at), again);
-    await submitAndTell(again);
+    await submitAndTell(again, true);
   };
 
   /**

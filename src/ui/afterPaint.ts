@@ -21,3 +21,18 @@ export function afterPaint(fn: () => void): () => void {
 export function afterSheet(fn: () => void): void {
   setTimeout(() => afterPaint(fn), 260);
 }
+
+/**
+ * Resolves once the current frame has painted and the main thread is idle (requestIdleCallback
+ * where the browser has it, capped at 120 ms; otherwise the next task): the save work after a ✓
+ * starts behind the check's first frames (PLAN 2.2e round 3, critic B1).
+ */
+export function idleAfterPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    afterPaint(() => {
+      const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      if (typeof ric === 'function') ric(() => resolve(), { timeout: 120 });
+      else setTimeout(resolve, 0);
+    });
+  });
+}

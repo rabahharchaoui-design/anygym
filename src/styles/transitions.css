@@ -7,6 +7,11 @@
   pointer-events: none;
 }
 
+/* One plain page snapshot (nav.ts flat, PLAN 2.2e round 3): no shared elements on this change. */
+html[data-nav-flat] * {
+  view-transition-name: none !important;
+}
+
 ::view-transition-group(*) {
   animation-duration: var(--dur-base);
   animation-timing-function: var(--ease-drawer);
@@ -116,6 +121,18 @@ html[data-nav='fade']::view-transition-new(root) {
   animation: none;
   height: 100%;
 }
+/* The active tab's icon and label ride on the pill (critic B3, round 3): the old tab's crossfade into
+   the new tab's while the pair flies with it, so the pill is never bare and the old tab keeps its icon. */
+::view-transition-group(tab-active) {
+  z-index: 5;
+  animation-duration: 240ms;
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-old(tab-active),
+::view-transition-new(tab-active) {
+  animation-duration: 240ms;
+  height: 100%;
+}
 ::view-transition-group(workout-dock) {
   z-index: 3;
 }
@@ -213,11 +230,13 @@ html[data-nav='down']::view-transition-group(workout-dock) {
   }
   /* The bar and its pill never fade (critic B1): the pill jumps to the new tab at once. */
   ::view-transition-old(tabbar),
-  ::view-transition-old(tab-pill) {
+  ::view-transition-old(tab-pill),
+  ::view-transition-old(tab-active) {
     display: none !important;
   }
   ::view-transition-new(tabbar),
-  ::view-transition-new(tab-pill) {
+  ::view-transition-new(tab-pill),
+  ::view-transition-new(tab-active) {
     animation: none !important;
   }
   /* A clean crossfade (critic P12): the old page out in 80 ms, then the new one in over 120 ms;

@@ -91,6 +91,18 @@
   text-wrap: balance;
 }
 
+/* Arrived with the push (round 3): once it has landed, the win card's border glows once. */
+.winLand {
+  animation: win-land 700ms var(--ease-out) 240ms both;
+}
+
+@keyframes win-land {
+  40% {
+    border-color: rgb(212 255 58 / 0.9);
+    box-shadow: 0 0 24px rgb(212 255 58 / 0.25);
+  }
+}
+
 /* Done arrives after the lead card (critic P7). */
 .cta {
   animation: cta-in 220ms var(--ease-out) 160ms both;
@@ -144,14 +156,7 @@
 }
 
 .stat {
-  container-type: inline-size;
   min-width: 0;
-}
-
-@supports (font-size: 1cqi) {
-  .value {
-    font-size: clamp(16px, 14cqi, 34px);
-  }
 }
 
 .wide {
@@ -356,8 +361,10 @@
   .title {
     font-size: clamp(26px, 7.4vw, 30px);
   }
+  /* One row (round 3, critic P4): Time and Sets as wide as they need, Total lifted takes the rest,
+     so all three share one 22 pt size instead of each shrinking on its own. */
   .stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: auto auto minmax(0, 1fr);
   }
   .wide {
     grid-column: auto;
@@ -367,13 +374,12 @@
     border-radius: 16px;
   }
   .value {
-    font-size: clamp(17px, 5vw, 20px);
+    font-size: 22px;
   }
-  /* Auto fit (critic P9): a long total ("12,345.5 kg") or 130% text shrinks to its tile, never clips. */
-  @supports (font-size: 1cqi) {
-    .value {
-      font-size: clamp(13px, 15cqi, 20px);
-    }
+  /* A very long total ("123,456.5 kg") ends with an ellipsis rather than spilling out of its tile. */
+  .wide .value {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .label {
     font-size: 12px;
