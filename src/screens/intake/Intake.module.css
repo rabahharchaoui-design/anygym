@@ -1,0 +1,586 @@
+/* The intake funnel (SPEC 14, PLAN 3.3). Calm and big: one question, a bold title top left, the
+   action in the thumb zone. Fluid from 320 wide to the Pro Max, and up to 130% text. */
+.screen {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* Back, progress, Skip: stays put while the question slides (its own view transition layer). */
+.top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: calc(var(--safe-top) + var(--space-2)) calc(var(--space-3) + var(--safe-right)) var(--space-2) calc(var(--space-3) + var(--safe-left));
+  view-transition-name: intake-top;
+}
+
+.topSpacer {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+}
+
+.progress {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgb(212 255 58 / 0.35);
+  transition: width var(--dur-base) var(--ease-out);
+  view-transition-name: intake-progress;
+}
+
+.skip {
+  flex: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+}
+
+.skip:active {
+  transform: scale(0.95);
+  opacity: 0.7;
+  transition-duration: 0ms;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) var(--space-5) calc(var(--space-4) + var(--safe-left));
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 8vw, 36px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-base);
+  line-height: 1.35;
+}
+
+.cta {
+  view-transition-name: intake-cta;
+}
+
+/* Single choice screens have no button: the quiet line sits where its note would. */
+.footNote {
+  flex: none;
+  margin: 0;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + var(--safe-bottom));
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The tapped card pulses while the next screen gets ready (about 250 ms). */
+.pulseWrap {
+  display: block;
+  min-width: 0;
+}
+
+.pulseWrap[data-pulse] {
+  animation: pick-pulse 240ms var(--ease-out);
+}
+
+@keyframes pick-pulse {
+  0% {
+    transform: scale(0.98);
+  }
+  45% {
+    transform: scale(1.015);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Chips with icons line up in two columns (one column when the text is large). */
+.chips[data-grid] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5em), 1fr));
+}
+
+.chips[data-grid] > .pulseWrap > button,
+.chips[data-grid] > button {
+  height: 100%;
+}
+
+/* Units: four big two option toggles. */
+.units {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.unitRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.unitLabel {
+  color: var(--text-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+/* Equipment */
+.equipBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.equipCount {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.textButton {
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  color: var(--accent);
+  font-size: var(--text-base);
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.textButton:active {
+  opacity: 0.6;
+  transition-duration: 0ms;
+}
+
+.equipGrid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10em), 1fr));
+  gap: var(--space-2);
+}
+
+.equipCell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.equipCell > button:first-child {
+  height: 100%;
+}
+
+/* The ⓘ sits inside the chip's right end, in its own 48 pt hit area. */
+.equipCell:has(.equipInfo) > button:first-child {
+  padding-right: 44px;
+}
+
+.equipInfo {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  margin: auto 0;
+}
+
+/* Exercises */
+.search {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-2);
+}
+
+/* Name */
+.nameField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldLabel {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.nameInput {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--space-4);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Bodyweight and height */
+.measure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.bigNumber {
+  margin: var(--space-3) 0 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: clamp(56px, 19vw, 84px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text-2);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.bigNumber[data-touched] {
+  color: var(--text);
+}
+
+.bigUnit {
+  font-size: clamp(20px, 6vw, 26px);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-2);
+}
+
+.measureHint {
+  margin: 0;
+  min-height: 1.3em;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.measureHint[data-hidden] {
+  opacity: 0;
+}
+
+.ruler {
+  position: relative;
+  height: 96px;
+  border-radius: 18px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+
+.needle {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  bottom: 10px;
+  left: 50%;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--text-2);
+  pointer-events: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.ruler[data-touched] .needle {
+  background: var(--accent);
+  box-shadow: 0 0 12px rgb(212 255 58 / 0.45);
+}
+
+.rulerTrack {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  outline: none;
+  cursor: grab;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+.rulerTrack::-webkit-scrollbar {
+  display: none;
+}
+
+.rulerTrack:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.rulerSpacer {
+  flex: 0 0 50%;
+}
+
+/* Ticks every 0.5, a taller one each whole number, the tallest on every label. */
+.ticks {
+  position: relative;
+  flex: none;
+  height: 100%;
+  background-image:
+    linear-gradient(90deg, var(--text) 0 2px, transparent 2px),
+    linear-gradient(90deg, rgb(245 245 247 / 0.55) 0 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgb(154 154 162 / 0.6) 0 1px, transparent 1px);
+  background-size:
+    var(--major) 34px,
+    var(--whole) 22px,
+    var(--tick) 14px;
+  background-position:
+    left calc(var(--major-start) - 1px) bottom 12px,
+    left -0.75px bottom 12px,
+    left -0.5px bottom 12px;
+  background-repeat: repeat-x;
+}
+
+.tickLabel {
+  position: absolute;
+  top: 12px;
+  transform: translateX(-50%);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.wheels {
+  display: flex;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+}
+
+/* Reveal */
+.revealHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.check {
+  width: 56px;
+  height: 56px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.checkRing {
+  stroke-width: 3;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 420ms var(--ease-out) forwards;
+  animation-delay: calc(var(--rows, 0) * 70ms + 160ms);
+}
+
+.checkMark {
+  stroke-width: 4.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 300ms var(--ease-out) forwards;
+  animation-delay: calc(var(--rows, 0) * 70ms + 460ms);
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: 22px;
+  background: linear-gradient(to bottom, rgb(212 255 58 / 0.07), rgb(212 255 58 / 0) 60%), var(--surface-1);
+  border: 1px solid rgb(212 255 58 / 0.3);
+}
+
+.planName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.reason {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.caveat {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-base);
+  line-height: 1.35;
+}
+
+.week {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The week builds in, one day after another (the one orchestrated moment). */
+.weekRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 10px var(--space-3);
+  border-radius: 14px;
+  background: var(--surface-2);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: row-in 260ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i) * 70ms + 80ms);
+}
+
+@keyframes row-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.weekDay {
+  flex: none;
+  min-width: 3.6em;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.weekName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.others {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.othersTitle {
+  margin: var(--space-2) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.error {
+  margin: 0 0 var(--space-2);
+  color: var(--red);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulseWrap[data-pulse] {
+    animation: none;
+  }
+  .weekRow {
+    transform: none;
+    animation: fade-in 200ms ease-out forwards;
+    animation-delay: 0ms;
+  }
+  .checkRing,
+  .checkMark {
+    stroke-dashoffset: 0;
+    animation: fade-in 200ms ease-out both;
+  }
+  .progressFill {
+    transition: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -27,6 +27,8 @@ import type { RestoreResult } from '../db/backup';
 import { ReportProblemSheet } from './settings/ReportProblemSheet';
 import { crashReports } from '../lib/reporting/preferences';
 import { gymFacts } from '../lib/reporting/feedback';
+import { useLive } from '../hooks/useLive';
+import { getProfile, setProfileUnits } from '../db/intake';
 import styles from './Settings.module.css';
 
 let toastSeq = 0;
@@ -60,6 +62,13 @@ export function SettingsScreen() {
   const crashOn = useSyncExternalStore(crashReports.subscribe, crashReports.enabled, () => true);
   const [reporting, setReporting] = useState(false);
   const [privacyError, setPrivacyError] = useState(false);
+  // PLAN 3.3: the intake's answers stay changeable here (units, and the whole intake again).
+  const profile = useLive(() => getProfile(), []);
+  const [profileError, setProfileError] = useState(false);
+  const profileUnits = (patch: Parameters<typeof setProfileUnits>[0]) => {
+    setProfileError(false);
+    setProfileUnits(patch).catch(() => setProfileError(true));
+  };
 
   // Back from the review screen: "Imported N sets · Undo" (SPEC 13.1: undo, never a confirm).
   useEffect(() => {
@@ -166,6 +175,61 @@ export function SettingsScreen() {
   return (
     <>
       <TopBar title="Settings" leading={<BackButton to="/" label="Back to Today" />} />
+      <section className={styles.group} aria-labelledby="set-profile">
+        <h2 id="set-profile" className={styles.groupTitle}>
+          My profile
+        </h2>
+        <div className={styles.card}>
+          <button type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => go('/welcome?redo=1', { kind: 'push' })} data-testid="redo-intake">
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel}>Answer the questions again</span>
+              <span className={styles.unitHint}>Goal, days, where you train, equipment and more. Then pick your plan.</span>
+            </span>
+            <ChevronRight className={styles.chevron} aria-hidden="true" />
+          </button>
+          <div className={`${styles.unitRow} ${styles.divided}`}>
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel} id="distance-label">
+                Distance
+              </span>
+              <span className={styles.unitHint}>For runs.</span>
+            </span>
+            <Segmented
+              labelledBy="distance-label"
+              testId="settings-distance"
+              options={[
+                { value: 'km', label: 'km' },
+                { value: 'mi', label: 'mi' },
+              ]}
+              value={profile.data?.distanceUnit}
+              disabled={!profile.ready}
+              onChange={(distanceUnit) => profileUnits({ distanceUnit })}
+            />
+          </div>
+          <div className={styles.unitRow}>
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel} id="measure-label">
+                Body measurements
+              </span>
+              <span className={styles.unitHint}>Height and the like.</span>
+            </span>
+            <Segmented
+              labelledBy="measure-label"
+              testId="settings-measure"
+              options={[
+                { value: 'cm', label: 'cm' },
+                { value: 'in', label: 'in' },
+              ]}
+              value={profile.data?.measureUnit}
+              disabled={!profile.ready}
+              onChange={(measureUnit) => profileUnits({ measureUnit })}
+            />
+          </div>
+        </div>
+        <p className={styles.error} role="status">
+          {profileError ? 'Could not save that. Try again.' : ''}
+        </p>
+      </section>
       <section className={styles.group} aria-labelledby="set-feel">
         <h2 id="set-feel" className={styles.groupTitle}>
           Feel

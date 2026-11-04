@@ -208,7 +208,7 @@ const inventoryKnown = (g: Rec): boolean => (g.plateInventory as Array<{ weight:
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
     req: { id: str, defaultUnit: unit, createdAt: num },
-    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num },
+    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in') },
   }),
   gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
   plans: shape({ req: { id: str, name: str, source: oneOf('curated', 'generated'), createdAt: num } }),

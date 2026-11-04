@@ -1,3 +1,4 @@
+import type { DistanceUnit, IntakeAnswers, MeasureUnit } from '../lib/intake/funnel';
 // Stored record shapes (SPEC 2, 3, 5.3, 5.5, 12.11). Every id is a string.
 
 export type Unit = 'lb' | 'kg';
@@ -96,6 +97,14 @@ export type Profile = {
   backedUpSessionIds?: string[];
   /** "Not now" on the backup reminder: hidden until then (PLAN 1.8, additive). */
   backupSnoozeUntil?: number;
+  /** PLAN 3.3 (additive): when the intake funnel was finished. Set: the funnel never opens on its own again. */
+  intakeDoneAt?: number;
+  /** PLAN 3.3 (additive): every intake answer as given (lib/intake/funnel.ts); skipped ones are absent. */
+  intake?: IntakeAnswers;
+  /** PLAN 3.3 (additive): distance unit for runs (km or mi). */
+  distanceUnit?: DistanceUnit;
+  /** PLAN 3.3 (additive): unit for body measurements (cm or in). */
+  measureUnit?: MeasureUnit;
 };
 
 export type Plan = {

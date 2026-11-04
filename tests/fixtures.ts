@@ -245,6 +245,20 @@ const guardPage = (page: Page) => {
 
 const guarded = new WeakSet<BrowserContext>();
 
+// PLAN 3.3: a brand new phone opens the intake funnel. Specs written before it test the app past
+// the funnel, so every guarded context starts with the intake marked done on this phone (the same
+// localStorage flag the app sets when the funnel finishes). Intake specs opt out with
+// test.use({ intake: 'fresh' }) and see exactly what a new user sees.
+export const INTAKE_DONE_KEY = 'anygym.intakeDone';
+let intakeMode: 'done' | 'fresh' = 'done';
+function markIntakeDone(key: string) {
+  try {
+    localStorage.setItem(key, '1');
+  } catch {
+    // about:blank and opaque origins have no storage.
+  }
+}
+
 /**
  * Applies the network guard and the error trap to a context (idempotent). Contexts a test makes
  * with browser.newContext() / browser.newPage() get it automatically (the `guardNewContexts`
@@ -255,6 +269,7 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
   guarded.add(context);
   await trapErrors(context);
   await context.addInitScript(cancelExternalNavigation);
+  if (intakeMode === 'done') await context.addInitScript(markIntakeDone, INTAKE_DONE_KEY);
   await context.exposeBinding('__pwReportApi', (_src, call: ReportApiCall) => {
     log('mocked', `${REPORT_API_ORIGIN}${call.path}`);
     if (offline.get(context)) return { offline: true, status: 0, body: '' };
@@ -280,10 +295,12 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
   return context;
 }
 
-export const test = base.extend<{ errorTrap: void; guardNewContexts: void; networkGuard: void }>({
+export const test = base.extend<{ errorTrap: void; guardNewContexts: void; networkGuard: void; intake: 'done' | 'fresh' }>({
+  intake: ['done', { option: true }],
   // Set up first, so the collector exists before any page or context of the test.
   errorTrap: [
-    async ({}, use, info) => {
+    async ({ intake }, use, info) => {
+      intakeMode = intake;
       const c: Collector = { errors: [], allow: [], failedUrls: new Set() };
       collectors.set(info.testId, c);
       await use();
