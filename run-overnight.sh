@@ -1,4 +1,7 @@
 #!/bin/zsh
+# Started by the LaunchAgent after a reboot, launchd gives a bare PATH: find claude, codex, node, gh the same way a login shell does.
+[ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile" >/dev/null 2>&1
+export PATH="$HOME/.local/bin:$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$HOME/.npm-global/bin:$HOME/bin:$PATH"
 # AnyGym Fable Loop with a Claude usage budget (G, Oct 30: leave usage for G all week).
 # Fable orchestrates, Opus builds, Sonnet tests. Resumes from PLAN.md, stops at ALL DONE.
 # Budget lives in .loop-budget (reread before every run, edit any time):
@@ -86,6 +89,7 @@ while [ $n -lt 300 ]; do
   cloudcheck
   # The script file changed since this loop started: reload it between runs (never during one).
   if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
+  if ! command -v claude >/dev/null 2>&1; then [ "$WAITMSG" != noclaude ] && { say "claude command not found on PATH ($PATH), waiting"; ntfy "AnyGym: needs Claude" "The build loop cannot find the claude command. Tell Claude in chat." "warning"; }; WAITMSG=noclaude; sleep 600; continue; fi
   if [ -f .loop-pause ]; then [ "$WAITMSG" != pause ] && say "paused by .loop-pause"; WAITMSG=pause; sleep 300; continue; fi
   usedsec=$(used); weekleft=$(( WEEK_HOURS*3600 - usedsec ))
   if [ $weekleft -lt 900 ]; then [ "$WAITMSG" != week ] && say "weekly loop budget used ($WEEK_HOURS h), waiting for the Thursday 8 PM Guam time reset"; WAITMSG=week; daydone; sleep 900; continue; fi
