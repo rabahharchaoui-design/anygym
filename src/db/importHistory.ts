@@ -42,6 +42,7 @@ export async function writeImport(sessions: readonly WriteSession[], gymId: stri
         const set: WorkoutSet = { id: newId(), sessionId: session.id, exerciseId: w.exerciseId, order, kind: x.kind, reps: x.reps, uncertain: x.uncertain };
         if (x.load) set.load = { ...x.load };
         if (x.note) set.note = x.note;
+        if (w.map) set.importMap = { ...w.map };
         return set;
       });
       await db.sets.bulkAdd(rows);

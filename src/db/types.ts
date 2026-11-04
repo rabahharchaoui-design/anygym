@@ -297,7 +297,16 @@ export type WorkoutSet = {
   uncertain: boolean;
   /** Set type F (PLAN 1.7c): a work set taken to failure. Not indexed. */
   failure?: boolean;
+  /** Imported sets (PLAN 3.2, additive, not indexed): the file's name and its catalog match. Older imports have none. */
+  importMap?: ImportMapping;
 };
+
+/**
+ * How an imported exercise was matched (PLAN 3.2, SPEC 4.3): the file's own name, the catalog id
+ * and match kind it was written with (none: no catalog exercise, never a guess), and whether the
+ * app matched it by name or the user picked it on the review screen.
+ */
+export type ImportMapping = { fileName: string; catalogId: string | null; match: 'exact' | 'variant' | 'none'; by: 'name' | 'you' };
 
 /** [lat, lng, t (ms), accuracy (m)] */
 export type RunPoint = [number, number, number, number];

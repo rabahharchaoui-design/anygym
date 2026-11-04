@@ -1,5 +1,6 @@
-// Plain words for History (SPEC 13.1). Names come from the plan or the exercise list; nothing is guessed.
-import { planExercise } from '../../data/planExercises';
+// Plain words for History (SPEC 13.1). Names come from the plan, the exercise list, the catalog or an
+// imported name kept as it is (PLAN 3.2); nothing is guessed.
+import { exerciseNameOf } from '../../data/importMatch';
 import { planById } from '../../data/plans';
 import type { Session } from '../../db/types';
 import { dayIndexOf } from '../../lib/plans';
@@ -11,7 +12,7 @@ import { IMPORTED_LABEL, isImportOrder } from '../../lib/import/importOrder';
 export function workoutTitle(session: Session): string {
   if (session.imported) {
     const ids = session.exerciseIds ?? [];
-    return ids.length === 1 ? (planExercise(ids[0]!)?.name ?? 'Imported workout') : 'Imported workout';
+    return ids.length === 1 ? (exerciseNameOf(ids[0]!) ?? 'Imported workout') : 'Imported workout';
   }
   const plan = planById(session.planId);
   const i = plan ? dayIndexOf(plan, session.dayId) : -1;
@@ -34,7 +35,7 @@ export function exerciseNamer(session: Session): (id: string) => string {
   const plan = planById(session.planId);
   const i = plan ? dayIndexOf(plan, session.dayId) : -1;
   const names = new Map(plan && i >= 0 ? dayWorkout(plan, i, session.weekIndex ?? 0).map((e) => [e.exerciseId, e.name]) : []);
-  return (id) => names.get(id) ?? planExercise(id)?.name ?? id;
+  return (id) => names.get(id) ?? exerciseNameOf(id) ?? id;
 }
 
 /**

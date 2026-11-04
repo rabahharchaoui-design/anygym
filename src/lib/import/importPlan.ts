@@ -5,7 +5,8 @@ import { defaultBars } from '../../db/gyms';
 import type { BarId, Load, SetKind, Unit } from '../../db/types';
 import { barbellLoad, bodyweightLoad, dumbbellLoad, formatAmount, loadAt, plateMachineLoad, platesForSide, singleLoad, stackLoad, type LoadSetup } from '../load';
 import type { PlanExercise } from '../loadTypeRule';
-import { NO_WEIGHT, mapPlanExercise, type FileLoadType, type ImportedExercise, type ImportedSession, type ImportedSet, type ParsedImport } from './anygymImportV1';
+import { autoTarget, pickedTarget, type ImportMapping, type ImportTarget, type MatchData } from './exerciseMatch';
+import { NO_WEIGHT, type FileLoadType, type ImportedExercise, type ImportedSession, type ImportedSet, type ParsedImport } from './anygymImportV1';
 
 export const SMITH_UNKNOWN = 'Smith bar weight not set for this gym';
 export const START_UNKNOWN = 'Starting weight not set for this gym';
@@ -28,7 +29,11 @@ export type LoadContext = {
 
 /** The answers on the review screen. */
 export type ReviewChoices = {
-  /** Exercise index → plan exercise id, or 'skip' (names the app could not match). */
+  /**
+   * Exercise index → the user's answer to "which exercise is this": a plan exercise id, a catalog
+   * exercise (catalogPick), keep-name (KEEP_NAME: its own name, not in the catalog) or 'skip'. Overrides the
+   * app's own match (PLAN 3.2).
+   */
   picks: Record<number, string>;
   /** Exercise index → how it is loaded (file load type unknown). */
   kinds: Record<number, Load['kind']>;
@@ -91,10 +96,14 @@ export type PlannedSession = { source: ImportedSession; already: boolean; sets: 
 
 export type PlannedExercise = {
   ex: ImportedExercise;
-  /** The plan exercise it is written as (matched or picked). */
-  target?: PlanExercise;
-  /** The name matched by itself (no pick needed). */
+  /** The exercise it is written as (matched or picked): a plan exercise, a catalog one or its own name. */
+  target?: ImportTarget;
+  /** The app's own match by name, picked or not (what "Back to the app's match" restores). */
+  auto?: ImportTarget;
+  /** Written as the app matched it by itself (no pick). */
   matched: boolean;
+  /** The user picked or kept the exercise. */
+  picked: boolean;
   skipped: boolean;
   needsPick: boolean;
   needsKind: boolean;
@@ -106,7 +115,7 @@ export type PlannedExercise = {
 };
 
 export type WriteSet = { kind: SetKind; reps: number; load?: Load; uncertain: boolean; note?: string };
-export type WriteSession = { hash: string; exerciseId: string; note?: string; sets: WriteSet[] };
+export type WriteSession = { hash: string; exerciseId: string; note?: string; sets: WriteSet[]; map?: ImportMapping };
 /** Answers the import may fill in when the exercise has none yet (never overrides one). */
 export type SettingFill = { exerciseId: string; loadType?: Load['kind']; barId?: BarId };
 
@@ -245,6 +254,9 @@ export function buildLoad(set: ImportedSet, chosen: Load['kind'] | undefined, ct
 
 export type PlanDeps = {
   planExercises: readonly PlanExercise[];
+  /** The exercise map and catalog names (PLAN 3.2). Missing: plan names only, no catalog match. */
+  map?: MatchData['map'];
+  catalog?: MatchData['catalog'];
   contextFor: (exerciseId: string, name: string) => LoadContext;
   /** Hashes of sessions imported before. */
   existing: ReadonlySet<string>;
@@ -252,7 +264,7 @@ export type PlanDeps = {
 
 /** The review screen's model and the exact write, from the file and the answers so far. */
 export function planImport(parsed: ParsedImport, choices: ReviewChoices, deps: PlanDeps): ImportPlan {
-  const byId = new Map(deps.planExercises.map((e) => [e.id, e]));
+  const data: MatchData = { planExercises: deps.planExercises, map: deps.map ?? [], catalog: deps.catalog ?? [] };
   const exercises: PlannedExercise[] = [];
   const sessions: WriteSession[] = [];
   const fills: SettingFill[] = [];
@@ -260,23 +272,26 @@ export function planImport(parsed: ParsedImport, choices: ReviewChoices, deps: P
   let already = 0;
   for (const ex of parsed.exercises) {
     const own = parsed.sessions.filter((s) => s.exerciseIndex === ex.index);
-    const auto = mapPlanExercise(ex.planExercise, deps.planExercises);
+    const auto = autoTarget([ex.planExercise, ex.name], data);
     const pick = choices.picks[ex.index];
-    const skipped = !auto && pick === SKIP;
-    const target = auto ?? (pick && pick !== SKIP ? byId.get(pick) : undefined);
+    const skipped = pick === SKIP;
+    const chosen = skipped ? undefined : pickedTarget(pick, ex.name, data);
+    const target = skipped ? undefined : (chosen ?? auto);
     const fresh = own.filter((s) => !deps.existing.has(s.hash));
     already += own.length - fresh.length;
     const kind = kindOf(ex.loadType) ?? choices.kinds[ex.index];
     const ctx = target ? deps.contextFor(target.id, target.name) : undefined;
     const planned: PlannedExercise = {
       ex,
-      matched: !!auto,
+      matched: !!auto && !chosen && !skipped,
+      picked: !!chosen,
       skipped,
       needsPick: !target && !skipped && fresh.length > 0,
       needsKind: !skipped && kind === undefined && fresh.length > 0,
       sessions: [],
     };
     if (target) planned.target = target;
+    if (auto) planned.auto = auto;
     if (kind) planned.kind = kind;
     if (ctx && ex.loadType === 'smith_per_side' && ctx.smith === null) planned.missingBase = 'smith';
     if (ctx && ex.loadType === 'plate_machine_per_side' && ctx.machineStart === null) planned.missingBase = 'plate_machine';
@@ -326,7 +341,12 @@ export function planImport(parsed: ParsedImport, choices: ReviewChoices, deps: P
         return w;
       });
       if (write.length === 0) continue;
-      const out: WriteSession = { hash: s.hash, exerciseId: target.id, sets: write };
+      const out: WriteSession = {
+        hash: s.hash,
+        exerciseId: target.id,
+        sets: write,
+        map: { fileName: ex.name, catalogId: target.catalogId, match: target.match, by: chosen ? 'you' : 'name' },
+      };
       if (s.note) out.note = s.note;
       sessions.push(out);
       sets += write.length;

@@ -157,7 +157,15 @@ export const isLoad: Check = (v) =>
 
 const isSet = shape({
   req: { id: str, sessionId: str, exerciseId: str, order: num, kind: oneOf('warmup', 'work', 'drop'), uncertain: bool },
-  opt: { reps: num, seconds: num, load: isLoad, rpe: num, note: str, failure: bool },
+  opt: {
+    reps: num,
+    seconds: num,
+    load: isLoad,
+    rpe: num,
+    note: str,
+    failure: bool,
+    importMap: shape({ req: { fileName: str, catalogId: orNull(str), match: oneOf('exact', 'variant', 'none'), by: oneOf('name', 'you') } }),
+  },
 });
 
 /** A dumbbell range that makes sense (positive step, min ≥ 0, max ≥ min, a bounded list): never a frozen picker. */

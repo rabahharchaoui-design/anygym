@@ -11,6 +11,8 @@ import { importedHashes, writeImport } from '../../db/importHistory';
 import type { BarId, Gym, Load } from '../../db/types';
 import { useLive } from '../../hooks/useLive';
 import { PLAN_EXERCISES } from '../../data/planExercises';
+import { CATALOG_NAMES, MATCH_DATA } from '../../data/importMatch';
+import { KEEP_NAME, matchLine } from '../../lib/import/exerciseMatch';
 import { formatSet } from '../../lib/setWords';
 import { setsIn, type ParsedImport } from '../../lib/import/anygymImportV1';
 import {
@@ -82,7 +84,13 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
   const existing = useLive(() => importedHashes(), []);
 
   const plan = useMemo(
-    () => planImport(parsed, choices, { planExercises: PLAN_EXERCISES, contextFor: contextFor(gym), existing: existing.data ?? new Set() }),
+    () => planImport(parsed, choices, {
+        planExercises: PLAN_EXERCISES,
+        map: MATCH_DATA.map,
+        catalog: CATALOG_NAMES,
+        contextFor: contextFor(gym),
+        existing: existing.data ?? new Set(),
+      }),
     [parsed, choices, gym, existing.data],
   );
   const total = setsIn(parsed.sessions);
@@ -152,7 +160,7 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
 
       {plan.exercises.map((e) => {
         // Not matched to an exercise (yet): the file's own name, said plainly.
-        const title = e.target?.name ?? `${e.ex.name} (not matched)`;
+        const title = e.target?.name ?? (e.skipped && e.auto ? e.auto.name : `${e.ex.name} (not matched)`);
         return (
           <section key={e.ex.index} id={`import-ex-${e.ex.index}`} className={css.exercise} data-testid="import-exercise" data-skipped={e.skipped || undefined} aria-label={title}>
             <header className={css.head}>
@@ -175,23 +183,33 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
                 </div>
               </div>
             )}
-            {!e.matched && (e.target || e.skipped) && (
+            {e.target && (
+              // PLAN 3.2: the catalog match, said quietly; Change picks another, keeps the name or skips.
+              <p className={css.match} data-testid="import-match">
+                <span>
+                  {matchLine(e.target)}
+                  {e.picked && ' · picked by you'}
+                </span>
+                <button type="button" className={`${css.link} pressable`} onClick={() => setAsk({ type: 'pick', ex: e })} aria-label={`Change the exercise for ${e.ex.name}`}>
+                  Change
+                </button>
+              </p>
+            )}
+            {e.skipped && (
               <p className={css.answer}>
-                {e.skipped ? 'Skipped: not imported' : 'Picked by you'}
+                Skipped: not imported
                 <button
                   type="button"
                   className={`${css.link} pressable`}
                   onClick={() =>
-                    e.skipped
-                      ? update((c) => {
-                          const picks = { ...c.picks };
-                          delete picks[e.ex.index];
-                          return { ...c, picks };
-                        })
-                      : setAsk({ type: 'pick', ex: e })
+                    update((c) => {
+                      const picks = { ...c.picks };
+                      delete picks[e.ex.index];
+                      return { ...c, picks };
+                    })
                   }
                 >
-                  {e.skipped ? 'Bring back' : 'Change'}
+                  Bring back
                 </button>
               </p>
             )}
@@ -290,6 +308,10 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
         skipCount={asked ? setsToSkip(asked) : 0}
         onPick={(id) => {
           if (asked) update((c) => ({ ...c, picks: { ...c.picks, [asked.ex.index]: id } }));
+          setAsk(null);
+        }}
+        onKeepName={() => {
+          if (asked) update((c) => ({ ...c, picks: { ...c.picks, [asked.ex.index]: KEEP_NAME } }));
           setAsk(null);
         }}
         onSkip={() => {

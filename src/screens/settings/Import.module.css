@@ -477,3 +477,34 @@
     font-size: 34px;
   }
 }
+
+/* PLAN 3.2: the pick sheet's two ways out, stacked, with one quiet line on what keeping means. */
+.pickFooter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pickHint {
+  margin: -2px 0 2px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* PLAN 3.2: the catalog match under an exercise's name, quiet. */
+.match {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: calc(var(--space-1) * -1) 0 var(--space-1);
+  padding: 0 var(--space-1);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.match > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
