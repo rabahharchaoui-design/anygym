@@ -478,18 +478,29 @@
   }
 }
 
-/* PLAN 3.2: the pick sheet's two ways out, stacked, with one quiet line on what keeping means. */
+/* PLAN 3.2: the pick sheet's two ways out side by side, so at 130% text three full rows stay
+   above them on a 667 pt phone. Labels wrap, never clip. */
 .pickFooter {
   display: flex;
-  flex-direction: column;
   gap: var(--space-2);
+  padding-top: var(--space-2);
 }
 
-.pickHint {
-  margin: -2px 0 2px;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  text-align: center;
+.pickAction {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px var(--space-2);
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Pick rows: still a full 48 pt target, a little shorter than the workout picker's. */
+.pickItem {
+  min-height: 48px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 /* PLAN 3.2: the catalog match under an exercise's name, quiet. */

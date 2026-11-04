@@ -68,14 +68,19 @@ function Body({ fileName, startFrom, loadType, skipCount, onPick, onKeepName, on
         spellCheck={false}
         enterKeyHint="search"
       />
-      {items.length === 0 && catalogItems.length === 0 && <p className={styles.none}>Nothing matches “{query.trim()}”.</p>}
+      {items.length === 0 && catalogItems.length === 0 && (
+        <p className={styles.none}>
+          Nothing matches “{query.trim()}”.
+          <span className={styles.noneLine}>Keep the name to save it without photos or muscles.</span>
+        </p>
+      )}
       {items.length > 0 && (
         <section className={styles.section} aria-label="In your plans">
           <h3 className={styles.sectionTitle}>In your plans</h3>
           <ul className={styles.list} aria-label="Exercises">
             {items.map((e) => (
               <li key={e.id}>
-                <button type="button" className={`${styles.item} pressable`} onClick={() => onPick(e.id)}>
+                <button type="button" className={`${styles.item} ${css.pickItem} pressable`} onClick={() => onPick(e.id)}>
                   <span className={styles.itemName}>{e.name}</span>
                 </button>
               </li>
@@ -89,7 +94,7 @@ function Body({ fileName, startFrom, loadType, skipCount, onPick, onKeepName, on
           <ul className={styles.list} aria-label="More exercises" data-testid="pick-catalog">
             {catalogItems.map((e) => (
               <li key={e.id}>
-                <button type="button" className={`${styles.item} pressable`} onClick={() => onPick(catalogPick(e.id))}>
+                <button type="button" className={`${styles.item} ${css.pickItem} pressable`} onClick={() => onPick(catalogPick(e.id))}>
                   <span className={styles.itemName}>{e.name}</span>
                 </button>
               </li>
@@ -97,12 +102,18 @@ function Body({ fileName, startFrom, loadType, skipCount, onPick, onKeepName, on
           </ul>
         </section>
       )}
+      {/* One row of two (PLAN 3.2 check 7): at 130% text three full rows stay above it on an SE. */}
       <div className={`${styles.footer} ${css.pickFooter}`}>
-        <button type="button" className={`${css.secondary} pressable`} onClick={onKeepName} data-testid="pick-keep-name">
-          Keep as “{fileName}”
+        <button
+          type="button"
+          className={`${css.secondary} ${css.pickAction} pressable`}
+          onClick={onKeepName}
+          data-testid="pick-keep-name"
+          aria-label={`Keep the name “${fileName}”: saved without photos or muscles`}
+        >
+          Keep the name
         </button>
-        <p className={css.pickHint}>Saved by its name, without photos or muscles.</p>
-        <button type="button" className={`${css.secondary} pressable`} onClick={onSkip}>
+        <button type="button" className={`${css.secondary} ${css.pickAction} pressable`} onClick={onSkip}>
           {skipText(skipCount)}
         </button>
       </div>

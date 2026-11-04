@@ -45,6 +45,8 @@ const load = async (page: Page, file: string) => {
 
 async function answerAll(page: Page) {
   const confirm = page.getByTestId('import-confirm');
+  // The label reads "Checking…" until earlier imports are known: wait, or the loop ends too soon.
+  await expect(confirm).not.toHaveText('Checking…');
   for (let i = 0; i < 12; i++) {
     if (!/^Answer/.test((await confirm.textContent()) ?? '')) return;
     await confirm.tap();
@@ -80,9 +82,8 @@ test('doubtful names (Squat, Bench, Curl) are never matched by themselves', asyn
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('pick sheet at 130% text, skip and bring back, keep stores name only', async ({ page }, info) => {
-  // Known 3.2 finding: on SE at 130% the pinned footer leaves only 2 full rows above it (needs 3).
-  test.fail(info.project.name !== 'iPhone 17 Pro Max', 'PLAN 3.2 check 7: 2 usable rows on SE and iPhone 15 at 130%');
+test('pick sheet at 130% text, skip and bring back, keep stores name only', async ({ page }) => {
+  // PLAN 3.2 check 7 (fixed): at 130% at least 3 full rows stay above the one row footer on every phone.
   const errors = watch(page);
   await load(page, MAPPING);
   const region = page.getByRole('region', { name: 'Moon press (not matched)', exact: true });
