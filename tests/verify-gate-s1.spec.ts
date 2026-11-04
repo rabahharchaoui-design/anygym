@@ -156,7 +156,7 @@ test('7+3 aliases: shown once; history under either id merges (LAST TIME, PR, da
   await sheet.getByRole('button', { name: 'Barbell Bent Over Row', exact: true }).tap();
   await sheet.getByRole('button', { name: 'Add 1' }).tap();
   const view = exerciseView(page, 'barbell-bent-over-row');
-  await expect(view.getByRole('button', { name: /^Last time 9 × 185/ })).toBeVisible();
+  await expect(view.getByRole('button', { name: /^Last time 185 × 9/ })).toBeVisible();
   // 9 reps last, 12 not reached: target is more reps at 185, built from the merged history.
   await checkCurrent(view).tap();
   await expect(loggedRows(view)).toHaveCount(1);
@@ -259,6 +259,6 @@ test('3 backup round trip with aliased ids is lossless and history still merges'
   await sheet.getByRole('searchbox', { name: 'Search exercises' }).fill('bent over');
   await sheet.getByRole('button', { name: 'Barbell Bent Over Row', exact: true }).tap();
   await sheet.getByRole('button', { name: 'Add 1' }).tap();
-  await expect(exerciseView(page, 'barbell-bent-over-row').getByRole('button', { name: /^Last time 9 × 185/ })).toBeVisible();
+  await expect(exerciseView(page, 'barbell-bent-over-row').getByRole('button', { name: /^Last time 185 × 9/ })).toBeVisible();
   expect(errors).toEqual([]);
 });

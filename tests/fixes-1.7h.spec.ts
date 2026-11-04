@@ -197,15 +197,15 @@ test('(9) a pending draft stays on the current row when an earlier set is delete
   await view.getByRole('button', { name: 'More reps' }).tap();
   await view.getByRole('button', { name: 'More reps' }).tap();
   await view.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 10 × 135 lb');
+  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 135 lb × 10');
 
   await loggedRows(view).first().tap();
   await editSheet(page).getByRole('button', { name: 'Delete set' }).tap();
   await expect(loggedRows(view)).toHaveCount(1);
-  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 2: 10 × 135 lb');
+  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 2: 135 lb × 10');
   await page.getByRole('button', { name: 'Undo' }).tap();
   await expect(loggedRows(view)).toHaveCount(2);
-  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 10 × 135 lb');
+  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 135 lb × 10');
   expect(errors).toEqual([]);
 });
 

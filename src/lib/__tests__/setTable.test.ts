@@ -175,10 +175,10 @@ describe('cell words', () => {
     expect(weightCell('barbell', null, [], 'lb')).toBe('');
   });
   it('last time cell', () => {
-    expect(lastTimeCell({ reps: 12, load: b185 })).toBe('12 × 185');
-    expect(lastTimeCell({ reps: 10, load: dumbbellLoad(30, 'lb') })).toBe('10 × 30');
+    expect(lastTimeCell({ reps: 12, load: b185 })).toBe('185 × 12');
+    expect(lastTimeCell({ reps: 10, load: dumbbellLoad(30, 'lb') })).toBe('30 × 10');
     expect(lastTimeCell({ reps: 12, load: bodyweightLoad('lb') })).toBe('12 reps');
-    expect(lastTimeCell({ reps: 8, load: bodyweightLoad('kg', 10) })).toBe('8 + 10');
+    expect(lastTimeCell({ reps: 8, load: bodyweightLoad('kg', 10) })).toBe('+10 × 8');
     expect(lastTimeCell({ seconds: 45, load: timedLoad('lb') })).toBe('45 s');
     expect(lastTimeCell(undefined)).toBe('');
   });
@@ -206,10 +206,10 @@ describe('PLAN 1.7c round 2', () => {
     expect(pendingRows(input({ lastSets: null }))[0]!.lastTime).toBeUndefined();
   });
   it('LAST TIME tags warm ups and drops and names another unit', () => {
-    expect(lastTimeCell({ kind: 'warmup', reps: 10, load: bar([25]) }, 'lb')).toBe('Warm up 10 × 95');
-    expect(lastTimeCell({ kind: 'drop', reps: 12, load: b185 }, 'lb')).toBe('Drop 12 × 185');
-    expect(lastTimeCell({ kind: 'work', reps: 12, load: b185 }, 'kg')).toBe('12 × 185 lb');
-    expect(lastTimeCell({ kind: 'work', reps: 8, load: bodyweightLoad('lb', 25) }, 'kg')).toBe('8 + 25 lb');
+    expect(lastTimeCell({ kind: 'warmup', reps: 10, load: bar([25]) }, 'lb')).toBe('Warm up 95 × 10');
+    expect(lastTimeCell({ kind: 'drop', reps: 12, load: b185 }, 'lb')).toBe('Drop 185 × 12');
+    expect(lastTimeCell({ kind: 'work', reps: 12, load: b185 }, 'kg')).toBe('185 lb × 12');
+    expect(lastTimeCell({ kind: 'work', reps: 8, load: bodyweightLoad('lb', 25) }, 'kg')).toBe('+25 lb × 8');
     expect(lastTimeCell({ kind: 'work', reps: 8, load: bodyweightLoad('lb') }, 'kg')).toBe('8 reps');
   });
   it('reconcileRows: the submitted version is used up, newer edits are kept', () => {
@@ -291,10 +291,10 @@ describe('lastTimeNote', () => {
   const fri = new Date(2026, 9, 23, 18).getTime();
   const b185 = barbellLoad(45, [45, 25], 'none', 'lb')!;
   it('one line: when, then the sets in short words, exact numbers', () => {
-    expect(lastTimeNote(fri, [10, 10, 10, 10].map((reps) => ({ reps, load: b185 })), now)).toBe('Last time (Fri): 4 × 10 at 185 lb');
-    expect(lastTimeNote(fri, [12, 12, 10].map((reps) => ({ reps, load: b185 })), now)).toBe('Last time (Fri): 12 × 185 · 12 × 185 · 10 × 185 lb');
-    expect(lastTimeNote(now, [{ reps: 8, load: b185 }], now)).toBe('Last time (today): 8 × 185 lb');
-    expect(lastTimeNote(fri, [12, 12, 12].map((reps) => ({ reps, load: dumbbellLoad(30, 'lb') })), now)).toBe('Last time (Fri): 3 × 12 at 30 lb each');
+    expect(lastTimeNote(fri, [10, 10, 10, 10].map((reps) => ({ reps, load: b185 })), now)).toBe('Last time (Fri): 4 sets × 10 at 185 lb');
+    expect(lastTimeNote(fri, [12, 12, 10].map((reps) => ({ reps, load: b185 })), now)).toBe('Last time (Fri): 185 lb × 12, 12, 10');
+    expect(lastTimeNote(now, [{ reps: 8, load: b185 }], now)).toBe('Last time (today): 185 lb × 8');
+    expect(lastTimeNote(fri, [12, 12, 12].map((reps) => ({ reps, load: dumbbellLoad(30, 'lb') })), now)).toBe('Last time (Fri): 3 sets × 12 at 30 lb each');
   });
 });
 

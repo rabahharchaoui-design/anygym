@@ -26,16 +26,21 @@ export function PlanViewer() {
   const active = known && state.data?.planId === plan?.id;
   const [week, setWeek] = useState<number | null>(null);
   const [error, setError] = useState(false);
+  // The label pressed stays through the exit (gate P8): saving makes the plan active, which would
+  // flip "Use this plan" to "Go to Today" for a frame before the screen leaves.
+  const [leaving, setLeaving] = useState<string | null>(null);
 
   const use = useTapGuard(async () => {
     if (!plan || !known) return;
     setError(false);
     try {
       if (active) return go('/', { kind: 'tab' });
+      setLeaving('Use this plan');
       // Saved, with Undo on Today (PLAN 2.2d, Hevy research item 5: a save always says so).
       const chosen = await choosePlanUndoable(plan.id);
       go('/', { kind: 'tab', state: chosen.changed ? { toast: 'Plan saved', planUndo: { chosen: chosen.state, previous: chosen.previous ?? null } } : undefined });
     } catch {
+      setLeaving(null);
       setError(true);
     }
   });
@@ -98,7 +103,7 @@ export function PlanViewer() {
           )
         }
       >
-        {active ? 'Go to Today' : 'Use this plan'}
+        {leaving ?? (active ? 'Go to Today' : 'Use this plan')}
       </BottomCTA>
     </div>
   );

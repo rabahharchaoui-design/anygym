@@ -6,8 +6,10 @@
 // No weight math here: every Load comes from load.ts through the callbacks the screen passes.
 import type { Load, SetKind, Unit } from '../db/types';
 import type { Draft } from './drafts';
-import { cellWeight, formatAmount, formatSetLine, platesOnly } from './load';
+import { cellWeight, formatAmount, platesOnly } from './load';
+import { cellWords, formatSet } from './setWords';
 import { formatSetsShort, formatWhen, type PastSet, type Progression, type SetLine } from './progression';
+import { payloadFp } from './submission';
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
 
@@ -114,8 +116,22 @@ export function materializeFrom(slots: ReadonlyArray<Draft | null>, rows: readon
   return out;
 }
 
-/** Committed Log set writes: set id → the draft version it submitted (undefined: a set with no submission). */
-export type Committed = ReadonlyMap<string, number | undefined>;
+/**
+ * Committed Log set writes: set id → the draft version it submitted (undefined: a set with no
+ * submission). `fps` (PLAN 2.0l): the fingerprint of what each submission saved, when its receipt
+ * says (lib/submission.ts); receipts from before 2.0l have none.
+ */
+export type Committed = ReadonlyMap<string, number | undefined> & { readonly fps?: ReadonlyMap<string, string> };
+
+/** The fingerprint of what a draft's Log set write saves (null: it cannot be logged). */
+export function draftFp(d: Draft): string | null {
+  if (!d.load) return null;
+  const timed = d.load.kind === 'timed';
+  const count = timed ? d.seconds : d.reps;
+  if (!count) return null;
+  const t = storedType(d.type ?? 'normal');
+  return payloadFp({ ...(timed ? { seconds: count } : { reps: count }), load: d.load, kind: t.kind, failure: t.failure });
+}
 
 /**
  * The identity a row edited during its own Log set write continues under (PLAN 1.7j): derived
@@ -148,7 +164,11 @@ export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Com
     for (let hops = 0; d && committed.has(d.id) && hops < MAX_CHAIN; hops++) {
       changed = true;
       const rev = committed.get(d.id) ?? d.submitted ?? d.rev ?? 0;
-      if ((d.rev ?? 0) <= rev) d = null;
+      // PLAN 2.0l: the same revision with other values (another tab gave this row the same revision
+      // and logged its own input) is not this input saved: it is kept, as the next row.
+      const fp = committed.fps?.get(d.id);
+      const other = fp !== undefined && (d.rev ?? 0) === rev && draftFp(d) !== fp;
+      if ((d.rev ?? 0) <= rev && !other) d = null;
       else {
         const { submitted: _done, ...kept } = d;
         d = { ...kept, id: successorOf(d.id) };
@@ -282,6 +302,11 @@ export function pendingRows(input: BuildInput): PendingRow[] {
         // "Pick" never turn it into the bare bar or a machine's start. Only "just you" or a hold
         // are certain without asking.
         load = historyBlocks ? null : certain;
+      } else if (d.submitted !== undefined && d.load) {
+        // A submitted row (its write running or failed, PLAN 2.0l): exactly the load it submits, bar
+        // identity included, never rebuilt on today's equipment, so Retry saves what the row shows.
+        // An explicit correction replaces the draft's load (and so this) before the next Retry.
+        load = d.load;
       } else load = rebuild(d.load, plates, d.pickKind);
     } else {
       const fromTarget = target?.load ? rebuild(target.load, target.load.perSide ?? []) : null;
@@ -400,7 +425,7 @@ export function savedCells(set: { reps?: number; seconds?: number; load?: Load }
   const mode = countModeOf(set, kind);
   if (kind === 'timed') {
     if (mode === 'seconds') return { weight: '', amount: set.seconds ? `${set.seconds} s` : '' };
-    return { weight: '', amount: formatSetLine(set) };
+    return { weight: '', amount: formatSet(set) };
   }
   const amount = mode === 'seconds' ? `${set.seconds ?? 0} s` : set.reps ? `${set.reps}` : '';
   if (!load) return { weight: '', amount };
@@ -415,20 +440,16 @@ export function savedCells(set: { reps?: number; seconds?: number; load?: Load }
 }
 
 /**
- * The LAST TIME cell: "12 × 185", "12 × 30", "12 reps", "12 + 25", "45 s"; a warm up or drop
- * set is tagged ("W 10 × 135"), and a weight in the other unit says so ("12 × 185 lb" in a kg gym).
+ * The LAST TIME cell, weight first (setWords.cellWords): "185 × 12", "30 × 12", "12 reps", "+25 × 12",
+ * "45 s"; a warm up or drop set is tagged ("Warm up 135 × 10"), another unit says so ("185 lb × 12").
  */
 export function lastTimeCell(s: SetLine | PastSet | undefined, activeUnit?: Load['unit']): string {
   if (!s) return '';
   const kind = 'kind' in s ? s.kind : 'work';
   // Words, never a bare letter (gate fix 1): the cell may wrap onto a second line.
   const tag = kind === 'warmup' ? 'Warm up ' : kind === 'drop' ? 'Drop ' : '';
-  const unit = activeUnit && s.load.unit !== activeUnit ? ` ${s.load.unit}` : '';
-  if (s.load.kind === 'timed') return `${tag}${s.seconds ?? 0} s`;
-  const reps = s.reps ?? 0;
-  if (s.load.kind === 'bodyweight') return s.load.added ? `${tag}${reps} + ${formatAmount(s.load.added)}${unit}` : `${tag}${reps} reps`;
-  const w = cellWeight(s.load);
-  return w === null ? `${tag}${reps}` : `${tag}${reps} × ${formatAmount(w)}${unit}`;
+  if (s.load.kind === 'bodyweight' || s.load.kind === 'timed') return `${tag}${cellWords(s, null, activeUnit)}`;
+  return `${tag}${cellWords(s, cellWeight(s.load), activeUnit)}`;
 }
 
 /** The WEIGHT column header: "lb", "lb each" for dumbbells, "Added lb" for bodyweight. */
@@ -439,8 +460,8 @@ export function weightHeader(kind: Load['kind'], unit: Load['unit']): string {
 }
 
 /**
- * The one Last time line above the table (SPEC 6, 20.2): "Last time (Fri): 4 × 10 at 185 lb", or
- * every set when they differ ("Last time (Fri): 12 × 185 · 12 × 185 · 10 × 185 lb"). Exact
+ * The one Last time line above the table (SPEC 6, 20.2): "Last time (Fri): 4 sets × 10 at 185 lb", or
+ * the reps when they differ ("Last time (Fri): 185 lb × 12, 12, 10"). Exact
  * numbers, through progression's words.
  */
 export function lastTimeNote(date: number, sets: SetLine[], now: number): string {

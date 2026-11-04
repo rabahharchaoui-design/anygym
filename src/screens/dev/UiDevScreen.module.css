@@ -72,10 +72,15 @@
 }
 
 .check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 48px;
   height: 48px;
   border-radius: 50%;
   background: var(--accent);
+  /* The tick, like a logged row's ✓ (gate P15). */
+  color: var(--on-accent);
 }
 
 .setRow .badge {

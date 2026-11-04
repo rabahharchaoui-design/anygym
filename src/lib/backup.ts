@@ -220,7 +220,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
     opt: { partial: recordOf(num) },
   }),
   orderCounters: shape({ req: { sessionId: str, next: num } }),
-  submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num } }),
+  submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num }, opt: { fp: str } }),
   tombstones: shape({ req: { id: str, sessionId: str, set: isSet, expiresAt: num }, opt: { undo: bool, token: str } }),
   // A pending Log set write (PLAN 1.7i): its id, draft key, revision and every value of the row.
   // With `mutation` (PLAN 2.0c): a change to a logged set not landed yet (db/mutations.ts).

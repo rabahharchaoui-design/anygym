@@ -22,7 +22,7 @@ test('last time and next: rows prefilled from the last workout, one tap to log',
   await expect(view.getByTestId('weight-cell')).toHaveText(['190', '190', '190']);
   await expect(view.getByTestId('reps-cell')).toHaveText(['8', '8', '8']);
   // Each row shows exactly what that set was last time.
-  await expect(view.getByRole('button', { name: /^Last time 12 × 185\. Copy into set 1/ })).toBeVisible();
+  await expect(view.getByRole('button', { name: /^Last time 185 × 12\. Copy into set 1/ })).toBeVisible();
   expect((await view.getByTestId('set-next').boundingBox())!.height).toBeLessThanOrEqual(38);
   await fitsOneScreen(page);
   await shot(page, 'last-time-next');
@@ -63,7 +63,7 @@ test('first time: honest advice and no weight until one is picked; next workout 
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   view = exerciseView(page, 'barbell-back-squat');
   await expect(view.getByTestId('set-next')).toHaveText('Beat last time: 9 reps at 185 lb');
-  await expect(view.getByRole('button', { name: /^Last time 8 × 185\. Copy into set 1/ })).toBeVisible();
+  await expect(view.getByRole('button', { name: /^Last time 185 × 8\. Copy into set 1/ })).toBeVisible();
   // Rule 4: same weight, one more rep on the first set that missed the top.
   await expect(view.getByTestId('weight-cell')).toHaveText(['185', '185', '185']);
   await expect(view.getByTestId('reps-cell')).toHaveText(['9', '8', '8']);

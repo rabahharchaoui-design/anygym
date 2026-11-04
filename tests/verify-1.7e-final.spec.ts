@@ -102,7 +102,7 @@ test('finish 1 of 4: Saved 0 done, 1 of 4 sets; Keep keeps Day 1 with a partial 
   await logSquat(page, 1);
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ lifts finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-exercise')).toContainText('1 of 4 sets');
   await shot(page, 'finish-partial', 2200);
   await page.getByRole('button', { name: 'Done' }).dblclick();
@@ -132,7 +132,7 @@ test('finish with all 4 squat sets counts the squat as done; Change to Day 2 mov
   await page.getByRole('button', { name: 'Finish' }).tap();
   const title = page.getByTestId('finish-title');
   await expect(title).toHaveText('Workout saved · 4 sets');
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^1 of \d+ exercises finished( · \d+ started)?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^1 of \d+ lifts finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-sets-left')).toHaveCount(0);
   // PLAN 2.0a: 4 of 37 working sets keeps Day 1; Change picks Day 2.
   await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 1 · Legs (hamstring focus)');
@@ -175,7 +175,7 @@ test('weight sheet: controls uncovered, one row of plates, swipe down keeps plat
   await page.waitForTimeout(150);
   await page.mouse.up();
   await expect(sheet).toHaveCount(0);
-  await expect(view.getByTestId('check-current')).toHaveAccessibleName(/Log set 1: \d+ × 155 lb$/);
+  await expect(view.getByTestId('check-current')).toHaveAccessibleName(/Log set 1: 155 lb × \d+$/);
   await view.getByTestId('weight-cell').first().tap();
   await expect(sheet.getByTestId('plate-total')).toHaveText('155lb');
   expect(errors).toEqual([]);
@@ -202,7 +202,7 @@ test('Smith first use: question on top, nothing logged until answered, diagram =
   expect(total).toBe('45lb');
   expect(math).toContain('= 45 lb');
   await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(view.getByTestId('check-current')).toHaveAccessibleName(/45 lb$/);
+  await expect(view.getByTestId('check-current')).toHaveAccessibleName(/: 45 lb × \d+$/);
   await view.getByTestId('check-current').tap();
   await expect(view.getByTestId('set-row')).toHaveCount(1);
   const sets = await dbAll<{ load: { total: number } }>(page, 'sets');

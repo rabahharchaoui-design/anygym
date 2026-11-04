@@ -320,7 +320,7 @@ describe('(7) saved rows render from their own unit, load kind and count', () =>
     expect(savedCells({ reps: 10, load: dumbbellLoad(30, 'lb') }, 'single', 'lb')).toEqual({ weight: '30 each', amount: '10' });
     expect(savedCells({ reps: 10, load: dumbbellLoad(30, 'lb') }, 'dumbbell_each', 'kg')).toEqual({ weight: '30 lb', amount: '10' });
     expect(savedCells({ reps: 8, load: bodyweightLoad('lb', 25) }, 'bodyweight', 'kg')).toEqual({ weight: '+25 lb', amount: '8' });
-    expect(savedCells({ reps: 12, load: b135 }, 'timed', 'lb')).toEqual({ weight: '', amount: '12 × 135 lb' });
+    expect(savedCells({ reps: 12, load: b135 }, 'timed', 'lb')).toEqual({ weight: '', amount: '135 lb × 12' });
     expect(savedCells({ seconds: 45, load: timedLoad('lb') }, 'barbell', 'lb')).toEqual({ weight: '', amount: '45 s' });
     expect(savedCells({ seconds: 45, load: timedLoad('lb') }, 'timed', 'kg')).toEqual({ weight: '', amount: '45 s' });
   });

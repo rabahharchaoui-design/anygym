@@ -13,7 +13,7 @@ export interface NamedCatalogMuscles extends CatalogMuscles {
 export interface MuscleExercise {
   id: string;
   name: string;
-  /** "Also works triceps, front delts": the secondary muscles, null when there are none. */
+  /** "Also works triceps +1": the first secondary muscle plus how many more (gate P6), null when none. */
   also: string | null;
   /** In the user's current plan (an exact or variant match of one of its exercises). */
   inPlan: boolean;
@@ -33,8 +33,9 @@ export function exercisesForRegion(
   for (const e of catalog) {
     const data = resolveMuscles(e, overrides);
     if (!data || !data.primary.some((t) => t.regions.includes(region))) continue;
-    const also = data.secondary.map((t) => t.label).join(', ');
-    out.push({ id: e.id, name: e.name, also: also ? `Also works ${also}` : null, inPlan: planIds.has(e.id) });
+    const labels = [...new Set(data.secondary.map((t) => t.label))];
+    const also = labels.length ? `Also works ${labels[0]}${labels.length > 1 ? ` +${labels.length - 1}` : ''}` : null;
+    out.push({ id: e.id, name: e.name, also, inPlan: planIds.has(e.id) });
   }
   return out.sort((a, b) => Number(b.inPlan) - Number(a.inPlan) || a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 }
@@ -57,4 +58,29 @@ export function planCatalogIds(plan: Pick<Plan, 'days'> | undefined, map: readon
 export function exercisesLinkText(count: number): string {
   if (count === 0) return 'Exercises';
   return `${count} ${count === 1 ? 'exercise' : 'exercises'}`;
+}
+
+/**
+ * The tile drawing for a catalog exercise without a sure photo (gate round 2 P1): its catalog
+ * equipment as the day list's equipment drawing, never letters that read like codes. Equipment the
+ * catalog leaves vague ("other", bands, none) gets the neutral drawing ('any'), never a guess.
+ */
+export type TileKind = 'barbell' | 'dumbbell_each' | 'single' | 'stack' | 'bodyweight' | 'any';
+export function tileKindOf(equipment: string | null | undefined): TileKind {
+  switch (equipment) {
+    case 'barbell':
+    case 'e-z curl bar':
+      return 'barbell';
+    case 'dumbbell':
+      return 'dumbbell_each';
+    case 'kettlebells':
+      return 'single';
+    case 'machine':
+    case 'cable':
+      return 'stack';
+    case 'body only':
+      return 'bodyweight';
+    default:
+      return 'any';
+  }
 }

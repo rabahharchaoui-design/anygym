@@ -74,6 +74,8 @@
   --glass-bg: rgb(14 14 16 / 0.76);
   /* At least 90% opaque (gate 3): bars and toasts never let text show through. */
   --glass-bg-strong: rgb(14 14 16 / 0.93);
+  /* Pushed screen top bars once scrolled (gate B3): near solid. */
+  --bar-fill: 0.95;
   --glass-line: rgb(255 255 255 / 0.09);
   --glass-blur: saturate(160%) blur(26px);
   --accent-glow: 0 6px 22px rgb(212 255 58 / 0.28);

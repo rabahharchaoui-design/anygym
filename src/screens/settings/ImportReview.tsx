@@ -11,7 +11,7 @@ import { importedHashes, writeImport } from '../../db/importHistory';
 import type { BarId, Gym, Load } from '../../db/types';
 import { useLive } from '../../hooks/useLive';
 import { PLAN_EXERCISES } from '../../data/planExercises';
-import { formatSetLine } from '../../lib/load';
+import { formatSet } from '../../lib/setWords';
 import { setsIn, type ParsedImport } from '../../lib/import/anygymImportV1';
 import {
   ASK_LOAD,
@@ -248,7 +248,7 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
                         <span className={`${css.index} num`}>{i + 1}</span>
                         <span className={css.setMain}>
                           <span className={css.setLine}>
-                            <span className="num">{x.load ? formatSetLine({ reps: x.reps, load: x.load }) : x.edited ? `${x.reps} reps` : fileSetText(x.source)}</span>
+                            <span className="num">{x.load ? formatSet({ reps: x.reps, load: x.load }) : x.edited ? `${x.reps} reps` : fileSetText(x.source)}</span>
                             {x.kind === 'warmup' && <span className={css.tag}>Warm up</span>}
                             {x.kind === 'drop' && <span className={css.tag}>Drop</span>}
                             {x.skipped && <span className={css.tag}>Skip</span>}

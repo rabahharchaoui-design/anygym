@@ -338,7 +338,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       ...(timed ? { seconds: v, watch: heldFor(v) } : { reps: v }),
       rev: (before.rev ?? 0) + 1,
     };
-    if (!timed) draft.own = { ...before.own, reps: true };
+    if (!timed) {
+      draft.own = { ...before.own, reps: true };
+      draft.repsEdited = true;
+    }
     saveDraft(sessionId, rowKey(exerciseId, at), draft);
     refresh();
   };
@@ -420,6 +423,25 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
    * touched) and the exercise has one row fewer, with Undo. A row whose Log set write is running
    * is never removed.
    */
+  /**
+   * PLAN 2.0l (Codex 1811 #7): the row with draft id `id` is removed wherever it is now, never the
+   * row that moved into its old place; nothing when it was logged or went meanwhile.
+   */
+  const removeById = (id: string) => {
+    const before = rowsOf(sessionId, exerciseId);
+    const at = before.findIndex((d) => d?.id === id);
+    const row = at < 0 ? undefined : rows.find((r) => slotOf(r) === at);
+    if (!row) {
+      setTyping(null);
+      return;
+    }
+    removeRow(row);
+  };
+  /** A row's identity at the moment its delete starts: its draft id (made now when it has none). */
+  const claimRow = (row: PendingRow): string | null => {
+    if (logQueue.closed(sessionId)) return null;
+    return idOf(row);
+  };
   const removeRow = (row: PendingRow) => {
     setTyping(null);
     if (logQueue.closed(sessionId)) return;
@@ -447,6 +469,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       w.bump();
     });
   };
+  // Every render's removeById, for a removal that started in an earlier render (PLAN 2.0l).
+  const latestRemove = useRef(removeById);
+  latestRemove.current = removeById;
   const removeLogged = (set: WorkoutSet) => {
     setTyping(null);
     if (logQueue.closed(sessionId)) return;
@@ -665,9 +690,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             onEdit={onEditSet}
             hold={timed && current ? { running, onToggle: toggleWatch } : undefined}
             checkHint={!timed && !!current && !status && logged.length === 0}
+            repsCue={!!current && !slots[slotOf(current)]?.repsEdited}
             onBlocked={onBlocked}
             nudge={nudge}
             onRemove={removeRow}
+            onClaim={claimRow}
+            onRemoveId={(id) => latestRemove.current(id)}
             onRemoveLogged={removeLogged}
             removable={!logQueue.closed(sessionId)}
             keyOf={(r) => slots[slotOf(r)]?.id ?? `i${r.index}`}
@@ -676,7 +704,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
               <>
                 {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
                     Under the rows, so it never moves a ✓ (PLAN 2.0e). */}
-                {showGuide && progression && (
+                {/* Hints never stack (gate P5): the amber reason under the table wins. */}
+                {showGuide && !statusShown && progression && (
                   <p className={`${styles.firstTime} num`} data-testid="set-guide">
                     {progression.next.reason}
                   </p>
@@ -745,10 +774,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           const row = target.rowId ? rowById(target.rowId) : undefined;
           if (row) {
             setTyping(null);
-            removeRowAnimated(target.rowId!, () => {
-              const now = rowById(target.rowId!);
-              if (now) removeRow(now);
-            });
+            // By its id when the slide ends, with the view as it is then (PLAN 2.0l).
+            removeRowAnimated(target.rowId!, () => latestRemove.current(target.rowId!));
           }
           else {
             setTyping(null);

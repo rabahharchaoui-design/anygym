@@ -6,7 +6,9 @@ import { PlayIcon } from '../../ui/icons';
 import { formatElapsed } from '../../lib/timer';
 import { prefersReducedMotion } from '../../ui/motion';
 import type { Load, Unit, WorkoutSet } from '../../db/types';
-import { formatSetLine } from '../../lib/load';
+import { formatSet } from '../../lib/setWords';
+import { formatWhen } from '../../lib/progression';
+import { IMPORTED_LABEL } from '../../lib/import/importOrder';
 import { SET_TYPE_CHIP, SET_TYPE_WORDS, setNumbers, keptCell, lastTimeCell, savedCells, typeOfSet, weightCell, weightHeader, type PendingRow, type SetType } from '../../lib/setTable';
 import type { PastSet, SetLine } from '../../lib/progression';
 import { RepsStepper } from './RepsStepper';
@@ -60,6 +62,11 @@ type Props = {
   hold?: { running: boolean; onToggle: () => void };
   /** The first time hint "Tap the check when you finish a set", over the header, pointing down at the first row's ✓. */
   checkHint?: boolean;
+  /**
+   * PLAN 2.0l (ui-2.2e #1): the current row's reps were not set by hand yet: its number shows a quiet
+   * dotted underline, so it reads as something to tap and change. Gone after the row's first edit.
+   */
+  repsCue?: boolean;
   /** A tap on a ✓ that cannot log yet (SPEC 23.2): the view says why. */
   onBlocked?: (row: PendingRow) => void;
   /** The short "why" shown in place on that row for a moment, and its weight cell pulses (n restarts it). */
@@ -69,6 +76,13 @@ type Props = {
    * still to do drops its draft; a logged set goes through the workout's delete with Undo.
    */
   onRemove?: (row: PendingRow) => void;
+  /**
+   * PLAN 2.0l: removal by identity. `onClaim` gives a row its stable id when its delete starts
+   * (null: it cannot go); `onRemoveId` removes exactly that row later, wherever it is then, or nothing
+   * when it was logged or went meanwhile. Without them `onRemove` gets the row.
+   */
+  onClaim?: (row: PendingRow) => string | null;
+  onRemoveId?: (id: string) => void;
   onRemoveLogged?: (set: WorkoutSet) => void;
   /** False while rows cannot be removed (Finish started). */
   removable?: boolean;
@@ -134,6 +148,8 @@ type Api = {
   blocked: (r: PendingRow) => void;
   toggleHold: () => void;
   remove: (r: PendingRow) => void;
+  claim: (r: PendingRow) => string | null;
+  removeId: (r: PendingRow, id: string) => void;
   removeLogged: (s: WorkoutSet) => void;
 };
 
@@ -161,13 +177,17 @@ function TypeButton({ t, number, onPress }: { t: SetType; number: string; onPres
   );
 }
 
-/** "New best: beat 185 lb × 5 from Nov 3" (earlier today when it beat a set of this workout). */
+/** "New best: beat 185 lb × 5 from Sat" (earlier today when it beat a set of this workout). */
 const prDetail = (r: SetRecord) => `New best: beat ${r.beat.text} from ${beatWhen(r.beat.date)}`;
 
-/** "earlier today" for a set of this workout or another one today (like "Last time (today)"), else "Nov 3". */
+/**
+ * One date style with "Last time (Sat)" (gate P9, progression.formatWhen): "earlier today",
+ * "yesterday", "Sat" within the week, else "Oct 12"; imported history says so.
+ */
 function beatWhen(date: number | undefined): string {
-  if (date === undefined || new Date(date).toDateString() === new Date().toDateString()) return 'earlier today';
-  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (date === undefined) return 'earlier today';
+  const when = formatWhen(date, Date.now());
+  return when === 'today' ? 'earlier today' : when === IMPORTED_LABEL ? 'your imported history' : when;
 }
 
 type LoggedProps = Shared & { set: WorkoutSet; at: number; number: string; last: string; fresh?: number; record?: SetRecord; sig: string };
@@ -196,7 +216,7 @@ const LoggedRow = memo(
             type="button"
             className={`${styles.loggedBody} pressable`}
             onClick={() => api.edit(s)}
-            aria-label={`Set ${at + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSetLine(s)}${record ? ', personal record' : ''}. Edit`}
+            aria-label={`Set ${at + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSet(s)}${record ? ', personal record' : ''}. Edit`}
           >
             <span className={`${styles.last} num`}>{last || '–'}</span>
             {!timed && (
@@ -237,6 +257,10 @@ type TodoProps = Shared & {
   sendingAt?: number;
   /** Its data identity (draft id, else its position). */
   rowKey: string;
+  /** PLAN 2.0l: the reps number shows it can be changed (a dotted underline). */
+  cue: boolean;
+  /** PLAN 2.0l (ui-2.2e #2): the first time, the current ✓ says "Log" under it. */
+  logLabel: boolean;
   sig: string;
 };
 
@@ -258,7 +282,8 @@ const TodoRow = memo(
         <SwipeRow
           rowKey={p.rowKey}
           deleteLabel={`Delete set ${number}`}
-          onDelete={() => api.remove(r)}
+          claim={() => api.claim(r)}
+          onDelete={(id) => api.removeId(r, id)}
           onLongPress={() => api.type(r)}
           enabled={p.removable}
           face={{ className: styles.row, 'data-state': isCurrent ? 'current' : 'todo', 'data-testid': 'set-todo', 'data-sending': p.sendingAt !== undefined || undefined, style: since(p.sendingAt) }}
@@ -319,6 +344,7 @@ const TodoRow = memo(
               type="button"
               className={`${styles.cellButton} ${styles.cellValue} num pressable`}
               data-empty={!amount || undefined}
+              data-cue={p.cue && amount ? '' : undefined}
               aria-expanded={p.editingHere}
               onClick={() => api.amount(r)}
               aria-label={timed ? `Hold for set ${n}: ${shownSeconds ?? 0} seconds. Change` : `Reps for set ${n}: ${r.reps ?? 0}. Change`}
@@ -334,11 +360,17 @@ const TodoRow = memo(
               className={`${styles.check} pressable`}
               disabled={blocked !== null}
               onClick={() => api.check(r)}
-              aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSetLine({ reps: r.reps, load: r.load ?? undefined })}`}
+              aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSet({ reps: r.reps, load: r.load ?? undefined })}`}
               data-testid={isCurrent ? 'check-current' : 'check'}
             >
-              <span className={styles.checkCircle}>
+              <span className={styles.checkCircle} data-labelled={p.logLabel ? '' : undefined}>
                 <Check />
+                {/* Words for the first time (PLAN 2.0l): the outlined ✓ is the action. Inside the circle, so nothing moves when it goes. */}
+                {p.logLabel && (
+                  <span className={styles.checkLabel} aria-hidden="true" data-testid="check-label">
+                    Log
+                  </span>
+                )}
               </span>
             </button>
           </span>
@@ -395,6 +427,8 @@ export function SetTable(props: Props) {
       blocked: (r) => latest.current.onBlocked?.(r),
       toggleHold: () => latest.current.hold?.onToggle(),
       remove: (r) => latest.current.onRemove?.(r),
+      claim: (r) => (latest.current.onClaim ? latest.current.onClaim(r) : `i${r.index}`),
+      removeId: (r, id) => (latest.current.onRemoveId ? latest.current.onRemoveId(id) : latest.current.onRemove?.(r)),
       removeLogged: (s) => latest.current.onRemoveLogged?.(s),
     }),
     [],
@@ -440,7 +474,9 @@ export function SetTable(props: Props) {
           const editingKey = editingHere ? props.editingKey : undefined;
           const sendingAt = props.sending?.get(r.index);
           const rowKey = props.keyOf?.(r) ?? `i${r.index}`;
-          const sig = JSON.stringify([r, number, isCurrent, blocked, editingHere, editingKey, liveSeconds, hold, nudge, currentNote, groupMark, kind, unit, removable, sendingAt, rowKey]);
+          const cue = !timed && isCurrent && !editingHere && !!props.repsCue;
+          const logLabel = isCurrent && !!props.checkHint && blocked === null && sendingAt === undefined;
+          const sig = JSON.stringify([r, number, isCurrent, blocked, editingHere, editingKey, liveSeconds, hold, nudge, currentNote, groupMark, kind, unit, removable, sendingAt, rowKey, cue, logLabel]);
           return (
             <TodoRow
               key={`row-${r.index}`}
@@ -458,6 +494,8 @@ export function SetTable(props: Props) {
               groupMark={groupMark}
               sendingAt={sendingAt}
               rowKey={rowKey}
+              cue={cue}
+              logLabel={logLabel}
               sig={sig}
             />
           );
@@ -466,8 +504,6 @@ export function SetTable(props: Props) {
       {/* The tip slot under the rows (PLAN 2.2b): a blocked ✓'s reason floats here, pointing up at
           the ✓ column. Absolute, so nothing moves, and never over a number or a column header. */}
       <div className={styles.tipSlot}>
-        {/* Once, with a logged set on screen and no other tip (PLAN 2.2d P1). */}
-        {logged.length > 0 && !props.checkHint && !props.nudge && <Hint id="swipeSet" className={styles.swipeHint} point="up" compact />}
         {props.nudge && (
           <span key={props.nudge.n} className={styles.nudge} role="status" data-testid="check-why">
             {props.nudge.text}
@@ -477,6 +513,11 @@ export function SetTable(props: Props) {
       {/* PLAN 2.2d (G): "+ Add set" right under the last row at the row gap, no dead space; the
           quiet first time line goes under it. */}
       {props.footer}
+      {/* The tip slot under "+ Add set" (gate P4): the swipe tip never draws over it. Zero height
+          and absolute, so nothing moves. Once, with a logged set and no other tip (PLAN 2.2d P1). */}
+      <div className={styles.tipSlot}>
+        {logged.length > 0 && !props.checkHint && !props.nudge && <Hint id="swipeSet" className={styles.swipeHint} point="up" compact />}
+      </div>
       {props.underRows}
     </div>
   );

@@ -276,10 +276,26 @@
 }
 
 .startLabel {
+  display: flex;
+  min-width: 0;
+  white-space: pre;
+}
+
+.startVerb,
+.startSet {
+  flex: none;
+}
+
+/* Only the name gives way on a narrow phone (gate P7). */
+.startName {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.startSet {
+  font-variant-numeric: tabular-nums;
 }
 
 /* With the pill, the list keeps the pill's room plus the safe area below its last row. */
@@ -301,4 +317,13 @@
   height: auto;
   font-size: inherit;
   padding: 0;
+}
+
+/* The second separator shows while everything fits; tight, a plain gap (gate round 2 P5). */
+.startLabel[data-tight] .startSep {
+  display: none;
+}
+
+.startLabel[data-tight] .startSet {
+  margin-left: 0.28em;
 }

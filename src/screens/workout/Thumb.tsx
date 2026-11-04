@@ -16,6 +16,8 @@ type Props = {
    * same picture the hero shows, so the shared transition moves a photo into a photo.
    */
   photo?: DemoImages | null;
+  /** No load type known: a neutral drawing instead of the name's initials (the muscle list, gate round 2). */
+  neutral?: boolean;
 };
 
 const initials = (name: string) =>
@@ -31,7 +33,7 @@ const initials = (name: string) =>
  * wrong picture is the worst bug (SPEC 4.3). So: a calm tile with the equipment it is done with,
  * which the load type makes certain, or the exercise's initials when that is not known.
  */
-export function Thumb({ name, loadType, size = 'row', vtName, photo }: Props) {
+export function Thumb({ name, loadType, size = 'row', vtName, photo, neutral = false }: Props) {
   const photos = useDemoPhotos(photo ?? null);
   // Online the WebP (the hero's own picture, so it is already decoded when the hero shows), offline
   // only a kept copy; none kept: the drawing, never a broken picture.
@@ -49,10 +51,21 @@ export function Thumb({ name, loadType, size = 'row', vtName, photo }: Props) {
         <img className={styles.photo} src={src} alt="" decoding="async" draggable={false} />
       ) : loadType ? (
         <Glyph kind={loadType} />
+      ) : neutral ? (
+        <NeutralGlyph />
       ) : (
         <span className={styles.letters}>{initials(name)}</span>
       )}
     </span>
+  );
+}
+
+/** Any exercise, no equipment claimed: a simple pulse line. */
+function NeutralGlyph() {
+  return (
+    <svg viewBox="0 0 48 48" className={styles.glyph} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 26h8l4-10 6 18 5-12 3 4h10" />
+    </svg>
   );
 }
 

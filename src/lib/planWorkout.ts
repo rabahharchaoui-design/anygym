@@ -293,14 +293,15 @@ export function adjustEntries<E extends Pick<WorkoutEntry, 'exerciseId' | 'sets'
 }
 
 /** How much of a plan day a finished workout covered (Today's week strip, the finish screen). */
-export type DayProgress = { done: number; total: number; share: number; complete: boolean };
+/** `logged` / `planned`: working sets (each exercise capped at its plan), the numbers behind `share`. */
+export type DayProgress = { done: number; total: number; share: number; complete: boolean; logged: number; planned: number };
 
 /** A stretch: the plan's name says so as a whole word ("Static Pigeon Stretch"; never "Stretching band row"). */
 export const isStretchName = (name: string): boolean => /\bstretch\b/i.test(name);
 
 /**
  * A working exercise of the day (PLAN 2.0a): not a warm up block, not a stretch, not the cardio
- * finisher. Only these count toward "1 of 12 exercises finished" and the share that decides the
+ * finisher. Only these count toward "1 of 12 lifts finished" and the share that decides the
  * next day. Timed working holds (a plank) do count.
  */
 export function isWorkingEntry(entry: Pick<WorkoutEntry, 'warmup' | 'finisher' | 'name'>): boolean {
@@ -318,7 +319,7 @@ export function dayProgress(entries: readonly WorkoutEntry[], setsOf: (exerciseI
   const planned = lifts.reduce((a, e) => a + Math.max(1, e.sets), 0);
   const logged = lifts.reduce((a, e) => a + Math.min(Math.max(1, e.sets), setsOf(e.exerciseId)), 0);
   const done = lifts.filter((e) => setsOf(e.exerciseId) >= Math.max(1, e.sets)).length;
-  return { done, total: lifts.length, share: planned ? logged / planned : 0, complete: lifts.length > 0 && done === lifts.length };
+  return { done, total: lifts.length, share: planned ? logged / planned : 0, complete: lifts.length > 0 && done === lifts.length, logged, planned };
 }
 
 /** Working exercises with a set logged (a warm up set too) that are not finished yet: "· 2 started". */

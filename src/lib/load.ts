@@ -853,33 +853,7 @@ export function formatMathLine(
   return `${left} = ${formatWeight(total, unit)}`;
 }
 
-/**
- * One logged set as a compact row (PLAN 1.7): "12 × 185 lb", "10 × 30 lb each", "10 × 30 lb" (one weight held), "8 reps",
- * "8 reps + 25 lb", "45 s". Dumbbell pairs show the dumbbell, not the doubled total.
- */
-export function formatSetLine(set: { reps?: number; seconds?: number; load?: Load }): string {
-  const load = set.load;
-  if (load?.kind === 'timed' || (set.reps === undefined && set.seconds !== undefined)) return `${set.seconds ?? 0} s`;
-  const reps = set.reps ?? 0;
-  if (!load) return `${reps} reps`;
-  if (load.kind === 'bodyweight') return load.added ? `${reps} reps + ${formatWeight(load.added, load.unit)}` : `${reps} reps`;
-  if (load.kind === 'dumbbell_each') return `${reps} × ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
-  return `${reps} × ${formatWeight(load.total, load.unit)}`;
-}
-
-/**
- * A set weight first, "185 lb × 6", "50 lb each × 8", "+25 lb × 8", "12 reps", "45 s": the one
- * order of the finish screen (PLAN 2.2e round 2, critic B4), the same as its lead line.
- */
-export function formatSetWeightFirst(set: { reps?: number; seconds?: number; load?: Load }): string {
-  const load = set.load;
-  if (load?.kind === 'timed' || (set.reps === undefined && set.seconds !== undefined)) return `${set.seconds ?? 0} s`;
-  const reps = set.reps ?? 0;
-  if (!load) return `${reps} reps`;
-  if (load.kind === 'bodyweight') return load.added ? `+${formatWeight(load.added, load.unit)} × ${reps}` : `${reps} reps`;
-  if (load.kind === 'dumbbell_each') return `${formatWeight(heldWeightOf(load)!, load.unit)} each × ${reps}`;
-  return `${formatWeight(load.total, load.unit)} × ${reps}`;
-}
+// One set in words (formatSet, formatSession): src/lib/setWords.ts (Session 2 gate B1).
 
 // ---------------------------------------------------------------- totals (PLAN 1.7c, SPEC 21.1)
 

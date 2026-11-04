@@ -137,7 +137,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(/\/done$/);
   await expect(page.getByTestId('finish-title')).toHaveText(/^Workout saved · \d+ sets?$/);
-  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ exercises finished( · \d+ started)?$/);
+  await expect(page.getByTestId('finish-progress')).toHaveText(/^0 of \d+ lifts finished( · \d+ started)?$/);
   await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 2 · Chest and triceps');
   await page.getByTestId('finish-change').tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 3 · / }).tap();
@@ -208,7 +208,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await squat.getByTestId('weight-cell').first().tap();
   await page.getByRole('dialog', { name: 'Pick the weight' }).getByRole('button', { name: 'Done' }).tap();
   const log = squat.getByTestId('check-current');
-  await expect(log).toHaveAccessibleName('Log set 1: 8 × 45 lb');
+  await expect(log).toHaveAccessibleName('Log set 1: 45 lb × 8');
   await log.tap();
   await expect(squat.getByTestId('set-row')).toHaveCount(1);
   await expect(squat.getByTestId('set-target')).toHaveText('Set 2 of 4 · 8 to 12 reps');

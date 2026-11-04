@@ -184,16 +184,16 @@ test('(f) pending set 3 at 17 reps stays with its row across delete set 1 and Un
   await view.getByTestId('reps-cell').first().tap();
   for (let i = 0; i < 9; i++) await view.getByRole('button', { name: 'More reps' }).tap();
   await view.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 17 × 135 lb');
+  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 135 lb × 17');
   const ids = (await sets(page)).map((s) => s.id);
   await loggedRows(view).first().tap();
   await editSheet(page).getByRole('button', { name: 'Delete set' }).tap();
   await expect(loggedRows(view)).toHaveCount(1);
-  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 2: 17 × 135 lb');
+  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 2: 135 lb × 17');
   await shot(page, 'f-after-delete');
   await page.getByRole('button', { name: 'Undo' }).tap();
   await expect(loggedRows(view)).toHaveCount(2);
-  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 17 × 135 lb');
+  await expect(checkCurrent(view)).toHaveAccessibleName('Log set 3: 135 lb × 17');
   expect((await sets(page)).map((s) => s.id)).toEqual(ids);
   // reload after delete, mid-window: still deleted (kill/reload)
   await loggedRows(view).first().tap();
@@ -201,7 +201,7 @@ test('(f) pending set 3 at 17 reps stays with its row across delete set 1 and Un
   await expect(loggedRows(view)).toHaveCount(1);
   await page.reload();
   await expect(loggedRows(exerciseView(page, SQUAT))).toHaveCount(1);
-  await expect(checkCurrent(exerciseView(page, SQUAT))).toHaveAccessibleName('Log set 2: 17 × 135 lb');
+  await expect(checkCurrent(exerciseView(page, SQUAT))).toHaveAccessibleName('Log set 2: 135 lb × 17');
   // data exactness
   const s = await sets(page);
   expect(new Set(s.map((x) => x.id)).size).toBe(s.length);

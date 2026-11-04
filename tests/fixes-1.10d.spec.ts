@@ -74,7 +74,7 @@ test('(2) Edit set: save 10 over 8, delete, Undo brings back 10', async ({ page 
   await done(page); // the empty bar
   await logButton(page).tap();
   const row = card.getByTestId('set-row');
-  await expect(row.getByRole('button', { name: /^Set 1: 8 × 45 lb\. Edit$/ })).toBeVisible();
+  await expect(row.getByRole('button', { name: /^Set 1: 45 lb × 8\. Edit$/ })).toBeVisible();
 
   const edit = page.getByRole('dialog', { name: 'Edit set' });
   await row.tap();
@@ -83,14 +83,14 @@ test('(2) Edit set: save 10 over 8, delete, Undo brings back 10', async ({ page 
   await expect(edit.getByRole('button', { name: 'Delete set' })).toBeEnabled();
   await edit.getByRole('button', { name: 'Save' }).tap();
   await expect(edit).toHaveCount(0);
-  await expect(row.getByRole('button', { name: /^Set 1: 10 × 45 lb\. Edit$/ })).toBeVisible();
+  await expect(row.getByRole('button', { name: /^Set 1: 45 lb × 10\. Edit$/ })).toBeVisible();
   await pause(page);
 
   await row.tap();
   await edit.getByRole('button', { name: 'Delete set' }).tap();
   await expect(row).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo', exact: true }).tap();
-  await expect(row.getByRole('button', { name: /^Set 1: 10 × 45 lb\. Edit$/ })).toBeVisible();
+  await expect(row.getByRole('button', { name: /^Set 1: 45 lb × 10\. Edit$/ })).toBeVisible();
   expect((await savedSets(page)).map((s) => s.reps)).toEqual([10]);
   expect(errors).toEqual([]);
 });
@@ -116,14 +116,14 @@ test('(4) Bench switches to the women\'s bar: math, the ✓ and the saved set ag
   await expect(picker(page).getByRole('button', { name: "Change bar, Women's 35 lb" })).toBeVisible();
   await done(page);
   await expect(card.getByTestId('weight-cell')).toHaveText(['125', '125', '125']);
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 125 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 125 lb × 8');
   await shot(page, 'bar-womens');
   await logButton(page).tap();
   await expect(card.getByTestId('set-row')).toHaveCount(1);
   expect((await savedSets(page))[0]!.load).toEqual({ kind: 'barbell', unit: 'lb', total: 125, barWeight: 35, perSide: [45], barId: 'womens', collars: 0 });
 
   await page.reload();
-  await expect(logButton(page)).toHaveAccessibleName('Log set 2: 8 × 125 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 2: 125 lb × 8');
   await openPicker(card);
   await expect(picker(page).getByRole('button', { name: "Change bar, Women's 35 lb" })).toBeVisible();
   await expect(picker(page).getByTestId('plate-total')).toHaveAttribute('data-math', '35 bar + 2 × 45 = 125 lb');
@@ -146,7 +146,7 @@ test('(4) "Enter another bar weight" asks for a brand bar once, then uses it', a
   await expect(prompt).toHaveCount(0);
   await expect(picker(page).getByRole('button', { name: 'Change bar, Trap 55 lb' })).toBeVisible();
   await done(page);
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 55 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 55 lb × 8');
   expect(errors).toEqual([]);
 });
 
@@ -169,7 +169,7 @@ test('(5) storage that refuses drafts: a picked weight and reps survive switchin
   await squat.getByTestId('reps-cell').first().tap();
   await squat.getByRole('button', { name: 'More reps' }).tap();
   await squat.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 135 lb × 9');
 
   await addExercise(page, 'plank', 'Elbow Plank');
   await expect(squat).toHaveCount(0);
@@ -177,7 +177,7 @@ test('(5) storage that refuses drafts: a picked weight and reps survive switchin
   await page.getByTestId('row-barbell-back-squat').tap();
   await expect(squat.getByTestId('weight-cell').first()).toHaveText('135');
   await expect(squat.getByTestId('reps-cell').first()).toHaveText('9');
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 135 lb × 9');
   expect(await page.evaluate(() => localStorage.getItem('anygym-drafts'))).toBeNull();
   expect(errors).toEqual([]);
 });
@@ -211,7 +211,7 @@ test('Codex 1.10d (1): editing a set logged on the Olympic bar after switching t
   expect((await savedSets(page))[0]).toMatchObject({ reps: 9, load: { total: 135, barWeight: 45, perSide: [45] } });
   // The exercise keeps the women's bar for the next set.
   await expect(card.getByTestId('weight-cell').first()).toHaveText('125');
-  await expect(logButton(page)).toHaveAccessibleName('Log set 2: 8 × 125 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 2: 125 lb × 8');
   expect(errors).toEqual([]);
 });
 
@@ -241,13 +241,13 @@ test('Codex 1.10d (4): a bar choice that fails to save changes nothing and offer
   await picker(page).getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(picker(page)).toHaveCount(0);
   await expect(card.getByTestId('weight-cell').first()).toHaveText('135');
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 135 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 135 lb × 8');
 
   await page.evaluate(() => {
     IDBObjectStore.prototype.put = (window as unknown as { __realPut: typeof IDBObjectStore.prototype.put }).__realPut;
   });
   await page.getByRole('button', { name: 'Try again', exact: true }).tap();
   await expect(card.getByTestId('weight-cell').first()).toHaveText('125');
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 125 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 125 lb × 8');
   expect(errors).toEqual([]);
 });

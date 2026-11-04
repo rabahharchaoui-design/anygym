@@ -422,16 +422,31 @@ export async function retryMutations(sessionId: string, db: AnyGymDB = defaultDb
  * `ids` when given (the ones the user was shown), so a change made after that is never dropped.
  */
 export async function dropMutations(sessionId: string, db: AnyGymDB = defaultDb, ids?: readonly string[], ls: KV | null = phone()): Promise<void> {
-  const list = await pendingMutations(sessionId, db, ls);
-  const covered = new Set(ids ?? list.map((j) => j.id));
-  const stored = list.filter((j) => covered.has(j.id) && !j.id.startsWith(MEMORY_PREFIX));
-  if (stored.length) {
-    // The held copies a given up change covered stay given up (PLAN 2.0k): their receipts go with it.
-    await db.transaction('rw', db.journal, db.kv, async () => {
-      await db.journal.bulkDelete(stored.map((j) => j.id));
-      for (const j of stored) await receipts(db, sessionId, j.id, j.at, [j]);
-    });
-  }
-  const hidden = new Set(stored.flatMap((j) => j.covers ?? []));
-  await forget(db, ls, (e) => e.sessionId === sessionId && (covered.has(e.id) || hidden.has(e.id)));
+  // Under the workout's lock (PLAN 2.0l), like registering and Finish: a held copy registered meanwhile
+  // is either among `list` (and given up only if it was shown) or registered after this discard.
+  await withSessionLock(sessionId, async () => {
+    const list = await pendingMutations(sessionId, db, ls);
+    const covered = new Set(ids ?? list.map((j) => j.id));
+    const given = list.filter((j) => covered.has(j.id));
+    const stored = given.filter((j) => !j.id.startsWith(MEMORY_PREFIX));
+    // Every given up held copy, and the ones each given up change covered (PLAN 2.0l, Codex 1811 #6):
+    // receipts in IndexedDB, so a copy left in another tab's memory or a fallback that refused its
+    // cleanup stays given up, also after Finish then Undo (Finish keeps the receipts).
+    const heldIds = new Set([...given.filter((j) => j.id.startsWith(MEMORY_PREFIX)).map((j) => j.id), ...given.flatMap((j) => j.covers ?? [])]);
+    if (stored.length || heldIds.size) {
+      const write = db.transaction('rw', db.journal, db.kv, async () => {
+        await db.journal.bulkDelete(stored.map((j) => j.id));
+        const at = Date.now();
+        for (const heldId of heldIds) {
+          await db.kv.put({ key: supKey(sessionId, heldId), value: 'discarded', at });
+          await db.kv.delete(`${MUTATION_HELD_PREFIX}${sessionId}:${heldId}`);
+        }
+      });
+      // A stored change that cannot be given up stays (Finish keeps refusing); held copies alone are
+      // still forgotten here when IndexedDB refuses their receipts (as before 2.0l).
+      if (stored.length) await write;
+      else await write.catch(() => undefined);
+    }
+    await forget(db, ls, (e) => e.sessionId === sessionId && (covered.has(e.id) || heldIds.has(e.id)));
+  });
 }

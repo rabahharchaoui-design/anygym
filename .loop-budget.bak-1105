@@ -1,0 +1,9 @@
+# AnyGym loop budget. The loop rereads this before every run.
+MODEL=claude-fable-5-1
+START_HOUR=15       # Japan time: runs may start from 3 PM (G sleeps 3 PM to 11 PM)
+END_HOUR=23         # Japan time: any run still going at 11 PM is stopped
+DAY_HOURS=5        # set by usage governor Nov 03 22:23 (est 74%, keeps 15% for G)
+WEEK_HOURS=40        # backstop only; the hourly usage governor (~/bin/usage-governor.py) keeps ~15% weekly usage for G
+KICKOFF_HOURS=2     # one run right away the first time the loop starts, counts toward the week
+CLOUD_START=249     # cloud credit in dollars when the cloud builder started (Oct 31)
+CLOUD_RATE=         # dollars per cloud build hour, filled in once measured from G's Usage screen

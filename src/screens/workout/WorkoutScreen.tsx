@@ -10,7 +10,7 @@ import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, up
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
-import { Toast, type ToastMessage } from '../../ui/Toast';
+import { Toast, keepUndoOnly, type ToastMessage } from '../../ui/Toast';
 import { FADE, PAGE_SPRING, SHEET_SPRING, pageVariants, pageVariantsReduced } from '../../ui/motion';
 import { BackButton } from '../../ui/BackButton';
 import { IconButton } from '../../ui/IconButton';
@@ -62,7 +62,7 @@ function Present({ children }: { children: ReactNode }) {
 }
 
 let toastSeq = 0;
-const toastOf = (text: string, action?: ToastMessage['action']): ToastMessage => ({ id: ++toastSeq, text, action });
+const toastOf = (text: string, action?: ToastMessage['action'], subject?: string, lead?: string): ToastMessage => ({ id: ++toastSeq, text, action, ...(subject ? { subject } : {}), ...(lead ? { lead } : {}) });
 
 /** How long "Nice. Next" stays before the list comes back (SPEC 20.2). */
 const CHIP_MS = 2500;
@@ -129,6 +129,10 @@ export function WorkoutScreen() {
     const t = window.setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), toast.action ? 5000 : 3000);
     return () => window.clearTimeout(t);
   }, [toast]);
+
+  // A screen change (list ↔ exercise) clears any toast but an Undo (gate B2): "Rest 90 s" never
+  // follows the lifter onto the day list.
+  useEffect(() => setToast(keepUndoOnly), [exerciseId]);
 
   // No first time hints while the rest timer counts (SPEC 13.5).
   useEffect(() => hints.setBlocked(rest !== null), [rest]);
@@ -414,13 +418,19 @@ export function WorkoutScreen() {
         if (routeRef.current === id) goList();
         const name = w.nameOf(id);
         setToast(
-          toastOf(`${name} removed`, {
-            label: 'Undo',
-            onPress: () => {
-              setToast(null);
-              restoreExercise(sessionId, id, at).catch(() => notice('Could not put it back'));
+          // The verb first, so a shortened name still reads: "Removed · Angled Machine Leg Pr…" (gate round 2 P4).
+          toastOf(
+            '',
+            {
+              label: 'Undo',
+              onPress: () => {
+                setToast(null);
+                restoreExercise(sessionId, id, at).catch(() => notice('Could not put it back'));
+              },
             },
-          }),
+            name,
+            'Removed ·',
+          ),
         );
         return;
       }
@@ -463,25 +473,24 @@ export function WorkoutScreen() {
       if (routeRef.current === id) goList();
       const n = gone.length;
       const goneIds = gone.map((x) => x.id);
-      const shown = toastOf(`${w.nameOf(id)} removed · ${n} ${n === 1 ? 'set' : 'sets'}`, {
+      const shown = toastOf(`· ${n} ${n === 1 ? 'set' : 'sets'}`, {
         label: 'Undo',
         onPress: () => {
           setToast((cur) => (cur?.id === shown.id ? null : cur));
           // Never a partial Undo: only while every set can still come back exactly.
           if (!deletes.canUndoAll(goneIds)) return notice('Too late to undo');
-          void (async () => {
-            try {
-              await restoreExercise(sessionId, id, at);
-              await deletes.undoAll(goneIds).then((back) => {
-                if (!back) throw new Error('Not put back');
-              });
+          // One tracked operation from this tap (PLAN 2.0l): the exercise coming back, every set's
+          // acceptance and write back. Finish waits for all of it, or refuses with the sets still
+          // recoverable, never in between.
+          deletes
+            .undoAll(goneIds, () => restoreExercise(sessionId, id, at))
+            .then((back) => {
+              if (!back) throw new Error('Not put back');
               unhideAll();
-            } catch {
-              notice('Could not put it back');
-            }
-          })();
+            })
+            .catch(() => notice('Could not put it back'));
         },
-      });
+      }, w.nameOf(id), 'Removed ·');
       setToast(shown);
       // One shared window from the moment Undo is offered, outlasting the toast (5 s).
       deletes.release(goneIds, UNDO_MS + 1000);

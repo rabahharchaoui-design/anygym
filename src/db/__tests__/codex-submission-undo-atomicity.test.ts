@@ -46,7 +46,7 @@ describe('PLAN 1.7h submission and Undo transactions survive reopen', () => {
     expect(await logSet(input, db)).toEqual(saved);
     await reopen();
     expect(await setsOf(s.id, db)).toEqual([first, saved]);
-    expect(await db.submissions.get(input.id)).toEqual({ id: input.id, sessionId: s.id, exerciseId: 'squat', rev: 7 });
+    expect(await db.submissions.get(input.id)).toEqual({ id: input.id, sessionId: s.id, exerciseId: 'squat', rev: 7, fp: expect.any(String) });
   });
 
   // DROPPED by the cloud run (Nov 1): written against the Oct 24 Finish, which deleted submissions inside the Finish transaction; Finish no longer does, so the hook never fires.

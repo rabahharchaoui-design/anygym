@@ -125,7 +125,7 @@ test('(2) picked weight, reps and a running hold survive switching exercises and
   const squat = page.getByTestId('exercise-barbell-back-squat');
   await pickPlates(page, squat, ['45']);
   await moreReps(squat);
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 135 lb × 9');
 
   // Another exercise opens: the squat view unmounts.
   await addExercise(page, 'plank', 'Elbow Plank');
@@ -138,7 +138,7 @@ test('(2) picked weight, reps and a running hold survive switching exercises and
   await page.getByTestId('row-barbell-back-squat').tap();
   await expect(squat.getByTestId('weight-cell').first()).toHaveText('135');
   await expect(squat.getByTestId('reps-cell').first()).toHaveText('9');
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 135 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 135 lb × 9');
 
   await page.reload();
   await expect(squat.getByTestId('weight-cell').first()).toHaveText('135');
@@ -276,7 +276,7 @@ test('(5) EZ Bar Curl asks for the EZ bar weight once, right in the weight sheet
   await expect(picker(page).getByTestId('bar-question')).toHaveCount(0);
   await expect(picker(page).getByTestId('plate-total')).toHaveText('45lb');
   await picker(page).getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 45 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 45 lb × 8');
   const gym = (await dbAll<Gym>(page, 'gyms'))[0]!;
   expect(gym.bars.ez_curl).toBe(25);
   expect(gym.bars.olympic).toBe(45);
@@ -390,7 +390,7 @@ test('(7) History lists finished workouts with date, name and sets; tap one for 
   await expect(page.getByRole('heading', { name: 'Quick workout' })).toBeVisible();
   await expect(page.getByTestId('history-meta')).toHaveText(new RegExp(`^${today} · 2 sets · (<1|\\d+) min · [\\d,.]+ lb lifted$`));
   const squat = page.getByRole('region', { name: 'Barbell Back Squat' });
-  await expect(squat.getByTestId('history-set')).toHaveText([/8 × 135 lb/, /8 × 135 lb/]);
+  await expect(squat.getByTestId('history-set')).toHaveText([/135 lb × 8/, /135 lb × 8/]);
   await page.getByRole('link', { name: 'Back to History' }).tap();
   await expect(rows).toHaveCount(2);
   expect(errors).toEqual([]);
@@ -430,7 +430,7 @@ test('(9) iPhone landscape shows "Turn your phone upright"; the workout keeps it
   await expect(card.getByTestId('weight-cell').first()).toHaveText('185');
   await expect(card.getByTestId('reps-cell').first()).toHaveText('9');
   await expect(card.getByTestId('set-row')).toHaveCount(1);
-  await expect(logButton(page)).toHaveAccessibleName('Log set 2: 9 × 185 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 2: 185 lb × 9');
   expect(errors).toEqual([]);
 });
 

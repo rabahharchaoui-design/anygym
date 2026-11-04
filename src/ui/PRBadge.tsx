@@ -8,7 +8,7 @@ const shown = new Set<string>();
 type Props = {
   /** The set the record belongs to: the entrance plays once per set. */
   setId: string;
-  /** The one line a tap shows ("New best: beat 185 lb × 5 from Nov 3"), from real data only. */
+  /** The one line a tap shows ("New best: beat 185 lb × 5 from Sat"), from real data only. */
   detail: string;
   className?: string;
 };

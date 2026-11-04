@@ -106,6 +106,16 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
     scrollToIndex(selectedIndex, false);
   }, [selectedIndex, weights]);
 
+  // No weight yet (gate P11, round 2): the wheel opens one weight in, so there are weights on both
+  // sides of the empty notch (not all bunched to its right) and the lightest still shows. Only the
+  // position: nothing is picked or highlighted until the user scrolls or taps (never a suggested
+  // weight); the dimmed notch and the "–" readout say so.
+  useLayoutEffect(() => {
+    if (selectedIndex >= 0 || weights.length < 3) return;
+    scrollToIndex(1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useLayoutEffect(() => () => window.clearTimeout(settleTimer.current), []);
 
   const pick = (i: number, fromScroll = false) => {

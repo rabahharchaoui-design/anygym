@@ -87,7 +87,7 @@ test('SE: a stack with added weight keeps reps, pin and Log set reachable before
     await page.getByRole('dialog', { name: 'Add weight', exact: true }).getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(picker.getByTestId('stack-total')).toHaveText('17.5lb');
     await picker.getByRole('button', { name: 'Done', exact: true }).tap();
-    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 17.5 lb');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 17.5 lb × 8');
     const controls = [card.getByRole('heading', { name: 'Leg Press' }), card.getByTestId('set-target'), card.getByTestId('weight-cell').first(), card.getByTestId('reps-cell').first(), logButton(page)];
     await fitsWithoutScrolling(page, controls);
     await logButton(page).tap();
@@ -199,7 +199,7 @@ test('offline reload keeps reps on an unknown EZ bar; its weight is asked in the
     await expect(picker.getByTestId('plate-total')).toHaveText('55lb');
     await picker.getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(card.getByTestId('weight-cell').first()).toHaveText('55');
-    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 9 × 55 lb');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 1: 55 lb × 9');
     await logButton(page).tap();
     await expect(card.getByTestId('set-row')).toHaveCount(1);
     const saved = await dbAll<WorkoutSet>(page, 'sets');

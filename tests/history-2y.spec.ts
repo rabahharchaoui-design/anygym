@@ -105,7 +105,7 @@ test.describe('two years of history @matrix', () => {
     const newestId = [...new Set(squat.map((s) => s.sessionId))].sort((a, b) => sessions.get(b)!.startedAt - sessions.get(a)!.startedAt)[0]!;
     const last = squat.filter((s) => s.sessionId === newestId).sort((a, b) => a.order - b.order);
     // The LAST TIME column: each row shows that set of the newest session (gate fix 8: no summary line).
-    const expected = last.slice(0, 3).map((s, i) => `Last time ${s.reps} × ${s.load!.total}. Copy into set ${i + 1}`);
+    const expected = last.slice(0, 3).map((s, i) => `Last time ${s.load!.total} × ${s.reps}. Copy into set ${i + 1}`);
 
     const t0 = Date.now();
     await page.getByRole('button', { name: /Quick workout/ }).tap();

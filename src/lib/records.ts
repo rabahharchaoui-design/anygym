@@ -11,7 +11,8 @@
 // Working sets only (kind 'work', to failure included): warm ups and drop sets never count.
 // Weights are compared through load.ts (comparableWeight, sameResistance); no arithmetic here.
 import type { Load } from '../db/types';
-import { beatsVolume, biggerGain, comparableWeight, formatSetWeightFirst, formatWeight, gainRatio, heavierThan, heldWeightOf, sameResistance, setScore } from './load';
+import { beatsVolume, biggerGain, comparableWeight, formatWeight, gainRatio, heavierThan, heldWeightOf, sameResistance, setScore } from './load';
+import { formatSet } from './setWords';
 import type { PastSet } from './progression';
 
 export type RecordKind = 'heaviest' | 'most_reps';
@@ -122,11 +123,11 @@ export type DatedSet = PastSet & { date?: number };
 
 export type RecordSet = { id: string; kind: PastSet['kind']; reps?: number; load: Load };
 
-const RECORD_WORDS: Record<SetRecordKind, string> = { volume: 'best ever', heaviest: 'heaviest ever', most_reps: 'most reps at this weight' };
+const RECORD_WORDS: Record<SetRecordKind, string> = { volume: 'your best yet', heaviest: 'heaviest ever', most_reps: 'most reps at this weight' };
 
 /** "185 lb × 6", "50 lb each × 8", "+25 lb × 8", "12 reps" (bodyweight, nothing added). */
 export function recordSetText(s: { reps?: number; load: Load }): string {
-  return formatSetWeightFirst({ reps: s.reps ?? 0, load: s.load });
+  return formatSet({ reps: s.reps ?? 0, load: s.load });
 }
 
 /** The record sets among `today` (its working sets in logged order), see above. */
@@ -193,7 +194,7 @@ export type Win = { exerciseId: string; setId: string; kind: SetRecordKind; text
 /**
  * The biggest win among each exercise's record sets (in workout order): the largest gain over the
  * exercise's best before this workout (a later set that beat an earlier PR of today leads); a tie
- * goes to the earlier one. "Barbell Bench Press 185 lb × 6, best ever".
+ * goes to the earlier one. "Barbell Bench Press 185 lb × 6, your best yet".
  */
 export function biggestWin(groups: ReadonlyArray<{ exerciseId: string; name: string; records: readonly SetRecord[] }>): Win | null {
   let best: { g: (typeof groups)[number]; r: SetRecord } | null = null;

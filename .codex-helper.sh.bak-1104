@@ -1,0 +1,326 @@
+#!/bin/bash
+# AnyGym Codex helper. Codex never edits app code. MAX MODE (G, Oct 25 2:16 AM: "use and abuse").
+#   bash .codex-helper.sh         watch mode (runs in tmux session codex-helper)
+#   bash .codex-helper.sh now     one audit right now, shown live
+#   bash .codex-helper.sh tests   one test batch right now, shown live
+# Watch mode:
+#   AUDITS (read only): every 45 minutes and whenever Claude pauses on a usage limit, rotating
+#     general bug hunt, save and undo safety, weight math, test blind spots. Reports: reports/codex/bughunt-*.md
+#   TEST LANE: after each PLAN item Claude finishes, plus a second batch mid item if the item runs 45+ minutes, Codex writes new tests in its own copy of the repo
+#     (~/projects/anygym-codex) on a branch codex-tests-MMDD-HHMM. Only codex-*.test.ts(x) and tests/codex-*.spec.ts
+#     files are kept. Claude merges the good ones. Report: reports/codex/tests-*.md
+#   BACKUP BUILDER: whenever Claude pauses on a usage limit, Codex builds the next item (never Claude's current one)
+#     in ~/projects/anygym-codex-build on branch codex-build-<id>-<stamp>, runs the whole test suite, and leaves
+#     reports/codex/build-<id>-*.md for Claude to review and merge. Turn off: touch ~/.config/anygym/codex-build-off
+#   VISUAL QA (read only): after each finished item, Codex reviews that item's iPhone Simulator screenshots -> reports/codex/ui-<id>.md
+#   BRIEFS (read only): Codex pre plans the next 2 PLAN items into reports/codex/brief-<id>.md for Claude's builder.
+# Brake: everything pauses above 85% of Codex's 5 hour or weekly limit, leaving 15% for G.
+#   Turn the test lane off: touch ~/.config/anygym/codex-tests-off
+REPO="$HOME/projects/anygym"
+WT="$HOME/projects/anygym-codex"
+LOG="$REPO/overnight-loop.log"
+CONF="$HOME/.config/anygym"; mkdir -p "$CONF"
+STATE="$CONF/codex-last-pause"; NBATCH="$CONF/codex-batches-this-item"; LASTBATCH="$CONF/codex-last-batch"; LASTRUN="$CONF/codex-last-run"; TURN="$CONF/codex-turn"; DONEN="$CONF/codex-tests-done-count"
+EVERY=1800   # audit every 30 minutes, skipped when nothing changed since the last one
+CAP=90       # G is in Japan and using Codex himself too: Codex pauses at 90% of its 5 hour or weekly limit, leaving 10% for G
+TOPIC=$(cat "$CONF/ntfy-topic" 2>/dev/null)
+push(){ [ -n "$TOPIC" ] && curl -s -o /dev/null --max-time 10 -H "Title: $1" -H "Tags: robot" -d "$2" "https://ntfy.sh/$TOPIC"; }
+cwd_of(){ lsof -a -d cwd -p "$1" -Fn 2>/dev/null | sed -n 's/^n//p' | head -1; }
+claude_busy(){ for p in $(pgrep -f "dangerously-skip-permissions" 2>/dev/null); do case "$(cwd_of "$p")" in "$REPO"*) return 0;; esac; done; return 1; }
+command -v codex >/dev/null 2>&1 || { echo "codex not installed"; exit 1; }
+
+# latest Codex plan usage from its own session logs, printed as "5h week" percents
+usage(){ python3 - <<'PY' 2>/dev/null
+import json, os, glob
+files = sorted(glob.glob(os.path.expanduser('~/.codex/sessions/**/*.jsonl'), recursive=True), key=os.path.getmtime)[-5:]
+p = s = 0
+def find(o):
+    if isinstance(o, dict):
+        if isinstance(o.get('rate_limits'), dict): return o['rate_limits']
+        for v in o.values():
+            r = find(v)
+            if r: return r
+    return None
+for fn in files:
+    for line in open(fn, errors='ignore'):
+        if 'rate_limits' not in line: continue
+        try: r = find(json.loads(line))
+        except Exception: continue
+        if r:
+            p = (r.get('primary') or {}).get('used_percent', p) or 0
+            s = (r.get('secondary') or {}).get('used_percent', s) or 0
+print(int(p), int(s))
+PY
+}
+room(){ # $1 = max 5h %, $2 = max weekly %
+  read -r p s <<< "$(usage)"; p=${p:-0}; s=${s:-0}; [ "$p" -le "$1" ] && [ "$s" -le "$2" ]; }
+done_count(){ local n; n=$(grep -cE '^- \[x\] [0-9]' "$REPO/PLAN.md" 2>/dev/null); echo "${n:-0}"; }
+
+# ---------------- audits (read only) ----------------
+BASE="You are a senior QA engineer reviewing AnyGym, an iPhone first fitness web app (Vite, React, TypeScript). Read SPEC.md, PLAN.md and the source. Do NOT edit anything. Look only at what is already built (items marked [x] in PLAN.md). Read the earlier reports in reports/codex/ first: do not repeat a finding that is already fixed, and mark one that is still unfixed as STILL OPEN. For each finding give: severity (BLOCKER, MAJOR, MINOR), file and line, what goes wrong for the user, and the exact fix. Max 12 findings, worst first. No style nitpicks. If you are not sure something is a bug, say so."
+focus(){ case "$1" in
+  0) echo "general|General bug hunt: bugs, wrong weight math, broken flows on small iPhones, accessibility gaps, offline or data loss risks, and places that break SPEC sections 0, 13 and 20.";;
+  1) echo "saving|Save and undo safety audit: trace every path from Log set, Edit, Delete, Undo, Finish, app update and the app being killed by iOS mid workout, including failed IndexedDB writes. Find any way a set is lost, duplicated, resurrected or saved wrong.";;
+  2) echo "weights|Weight math audit: trace equipment identity, bar weight, units (lb and kg), per side versus total, plate inventory, machine starting weight and settings changes all the way to the saved record and the numbers shown. Find any way the app shows or saves a weight that is not what the user actually lifted.";;
+  3) echo "tests|Test blind spot audit: read the Vitest and Playwright tests. Find failures that are mocked away, assertions that just repeat the implementation, and important SPEC 13 cases with no test at all. For each, give a concrete counterexample and the exact test to add.";;
+esac; }
+hunt(){ # $1 = live|quiet
+  t=$(cat "$TURN" 2>/dev/null || echo 0); f=$(focus $((t % 4))); name=${f%%|*}; task=${f#*|}
+  echo $(( (t + 1) % 4 )) > "$TURN"
+  mkdir -p "$REPO/reports/codex"
+  out="$REPO/reports/codex/bughunt-$(date +%m%d-%H%M)-$name.md"
+  date +%s > "$LASTRUN"
+  echo "$(date) Codex $name audit -> $out"
+  if [ "$1" = live ]; then ( cd "$REPO" && codex exec --sandbox read-only -c model_reasoning_effort=high "$BASE $task" -o "$out" )
+  else ( cd "$REPO" && codex exec --sandbox read-only -c model_reasoning_effort=high "$BASE $task" -o "$out" >/dev/null 2>&1 ); fi
+  if [ -s "$out" ]; then
+    n=$(grep -ciE "BLOCKER|MAJOR" "$out")
+    push "AnyGym: Codex $name audit done" "Codex checked the app ($name) and flagged $n major or blocker items. Claude turns the real ones into fixes on its next item."
+    echo "Done. Report: $out"
+  fi
+}
+
+# ---------------- test lane (own copy of the repo) ----------------
+TPROMPT="You write tests for AnyGym, an iPhone first fitness web app (Vite, React, TypeScript, Dexie). Read SPEC.md (sections 0, 5, 6, 13 and 20 matter most), PLAN.md, the source, the existing tests, and the newest reports in reports/codex/ in the main repo at $REPO (read only). Then add up to 8 new high value tests for features already built (items marked [x] in PLAN.md) that the existing tests do not cover: data loss on log, edit, delete, undo, finish and reload; weight math across bars, units, per side and machines; small iPhone layout (iPhone SE 375x667) with nothing hidden or needing a scroll while lifting; offline. RULES: only create new files named src/**/__tests__/codex-*.test.ts (Vitest, node environment, follow the existing tests' style) or tests/codex-*.spec.ts (Playwright WebKit, follow tests/workout.spec.ts and the existing console error trap). Never edit any other file. Run your Vitest files with: npx vitest run <your files>. Do NOT run Playwright yourself (the helper runs your specs on a separate port right after you finish and gives you one chance to fix failures); write those specs carefully from the existing specs' selectors and import test and expect from ./fixtures like the other specs. If a Vitest test fails because the APP is wrong per SPEC.md, keep it and put a comment on the line above it: // CODEX FOUND BUG: <one line>. If it fails because the test is wrong, fix the test. Finish with a short list: file, what it checks, pass or fail, and any CODEX FOUND BUG lines."
+tests_batch(){ # $1 = live|quiet
+  mkdir -p "$REPO/reports/codex"
+  ls "$REPO"/reports/codex/tests-*.md >/dev/null 2>&1 && grep -l "^STATUS: NEW" "$REPO"/reports/codex/tests-*.md >/dev/null 2>&1 && { echo "$(date) last test batch not merged yet, waiting"; return 2; }
+  base=$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null); [ -z "$base" ] && return 0
+  stamp=$(date +%m%d-%H%M); br="codex-tests-$stamp"; rep="$REPO/reports/codex/tests-$stamp.md"
+  if [ ! -d "$WT/.git" ] && [ ! -f "$WT/.git" ]; then
+    echo "$(date) creating Codex's own copy of the repo at $WT"
+    git -C "$REPO" worktree add -q -f "$WT" -b "$br" "$base" || return 0
+  else
+    git -C "$WT" reset -q --hard && git -C "$WT" clean -qfd -e node_modules && git -C "$WT" checkout -q -B "$br" "$base" || return 0
+  fi
+  # its own node_modules so it never touches Claude's
+  if [ ! -d "$WT/node_modules" ] || ! cmp -s "$WT/package-lock.json" "$CONF/codex-wt-lock" ; then
+    echo "$(date) installing packages in Codex's copy (one time)"
+    ( cd "$WT" && npm ci --prefer-offline --no-audit --no-fund >/dev/null 2>&1 ) && cp "$WT/package-lock.json" "$CONF/codex-wt-lock"
+  fi
+  echo "$(date) Codex test batch on $br (from $base)"
+  date +%s > "$LASTBATCH"
+  date +%s > "$LASTRUN"
+  out="$CONF/codex-tests-last.txt"
+  if [ "$1" = live ]; then ( cd "$WT" && codex exec --sandbox workspace-write -c model_reasoning_effort=medium "$TPROMPT" -o "$out" )
+  else ( cd "$WT" && codex exec --sandbox workspace-write -c model_reasoning_effort=medium "$TPROMPT" -o "$out" >/dev/null 2>&1 ); fi
+  # keep only codex test files, throw away anything else it touched
+  keep_only_tests
+  files=$(git -C "$WT" ls-files --others --exclude-standard)
+  if [ -z "$files" ]; then echo "$(date) Codex wrote no tests this time"; return 0; fi
+  git -C "$WT" add -- $files && git -C "$WT" -c user.name="AnyGym Codex" -c user.email="codex@anygym.local" commit -q -m "Codex tests $stamp (unreviewed, from $base)" || return 0
+  vfiles=$(echo "$files" | grep -E '\.test\.tsx?$'); vt=""
+  [ -n "$vfiles" ] && vt=$(cd "$WT" && npx vitest run $vfiles 2>&1 | grep -E "Tests +[0-9]" | tail -1)
+  pfiles=$(echo "$files" | grep -E '\.spec\.ts$'); pw=""
+  if [ -n "$pfiles" ]; then
+    echo "$(date) running Codex's Playwright specs on port 4175"
+    pw=$(pw_verify "$pfiles")
+    if echo "$pw" | grep -q "failed"; then
+      echo "$(date) giving Codex one round to fix its failing specs"
+      fixp="Your new Playwright specs ($(echo $pfiles)) were run with WebKit on the iPhone profiles. Result: $pw. The failure output is in $CONF/codex-pw.txt (read it). For each failure decide: if the TEST is wrong (selector, timing, wrong expectation per SPEC.md), fix the spec. If the APP is wrong per SPEC.md, keep the test, change it to test.skip and put // CODEX FOUND BUG: <one line> above it. Only edit your own tests/codex-*.spec.ts files. Do not run Playwright."
+      ( cd "$WT" && codex exec --sandbox workspace-write -c model_reasoning_effort=medium "$fixp" -o "$CONF/codex-fix.txt" >/dev/null 2>&1 )
+      keep_only_tests
+      git -C "$WT" add -- $files 2>/dev/null && git -C "$WT" -c user.name="AnyGym Codex" -c user.email="codex@anygym.local" commit -q -m "Codex tests $stamp: fixes after Playwright run" 2>/dev/null
+      pw="first run: $pw; after fixes: $(pw_verify "$pfiles")"
+    fi
+  fi
+  bugs=$(grep -h "CODEX FOUND BUG" $(echo "$files" | sed "s#^#$WT/#") 2>/dev/null | sed 's#^ *// *##')
+  {
+    echo "STATUS: NEW"
+    echo "# Codex test batch $stamp"
+    echo "Branch: $br (based on $base). Merge it with: git merge --no-ff --no-edit $br"
+    echo "Files:"; echo "$files" | sed 's/^/- /'
+    echo "Vitest on these files: ${vt:-no vitest files}"
+    echo "Playwright on these files (Codex's own copy, port 4175, all iPhone profiles): ${pw:-no Playwright files}"
+    [ -n "$bugs" ] && { echo "Bugs Codex found:"; echo "$bugs" | sed 's/^/- /'; }
+    echo; echo "## Codex notes"; cat "$out" 2>/dev/null
+  } > "$rep"
+  n=$(echo "$files" | wc -l | tr -d ' '); b=0; [ -n "$bugs" ] && b=$(echo "$bugs" | wc -l | tr -d ' ')
+  extra=""; [ "$b" -gt 0 ] && extra=" They caught $b possible bugs."
+  push "AnyGym: Codex wrote $n test files" "Codex added $n new test files in its own copy of the repo.$extra Claude checks and merges them after its current item."
+  echo "Done. Report: $rep"
+}
+
+keep_only_tests(){ # throw away anything Codex touched that is not one of its own new test files
+  git -C "$WT" diff --name-only HEAD 2>/dev/null | while read -r f; do
+    case "$f" in src/*/__tests__/codex-*.test.ts|src/*/__tests__/codex-*.test.tsx|src/__tests__/codex-*.test.ts|tests/codex-*.spec.ts) ;; *) git -C "$WT" checkout -q HEAD -- "$f" 2>/dev/null;; esac
+  done
+  git -C "$WT" ls-files --others --exclude-standard | while read -r f; do
+    case "$f" in src/*/__tests__/codex-*.test.ts|src/*/__tests__/codex-*.test.tsx|src/__tests__/codex-*.test.ts|tests/codex-*.spec.ts) ;; *) rm -f "$WT/$f";; esac
+  done
+}
+pw_verify(){ # $1 specs ("" = whole suite), $2 repo copy (default Codex's test copy), $3 port (default 4175)
+  local dir="${2:-$WT}" port="${3:-4175}"
+  sed "s/__PORT__/$port/" > "$dir/playwright.codex.config.ts" <<'TS'
+import base from './playwright.config';
+const PORT = __PORT__;
+const b: any = base;
+export default {
+  ...b,
+  use: { ...b.use, baseURL: `http://localhost:${PORT}/anygym/` },
+  webServer: { ...b.webServer, command: `npm run build && npx vite preview --port ${PORT} --strictPort`, url: `http://localhost:${PORT}/anygym/`, reuseExistingServer: false },
+};
+TS
+  ( cd "$dir" && perl -e 'alarm shift; exec @ARGV' 2400 npx playwright test $1 -c playwright.codex.config.ts --reporter=line > "$CONF/codex-pw.txt" 2>&1 )
+  rm -f "$dir/playwright.codex.config.ts"
+  r=$(grep -E "^ *[0-9]+ (passed|failed|flaky|skipped|did not run)" "$CONF/codex-pw.txt" | sed 's/^ *//' | tr '\n' ' ')
+  echo "${r:-could not run (see $CONF/codex-pw.txt)}"
+}
+
+# ---------------- briefs lane (read only): pre plan the next items so Claude's builder starts fast ----------------
+next_ids(){ awk '/=== STOP HERE/{exit} /^- \[ \] [0-9]+\.[0-9]+[a-z]? /{split($0,a," "); print a[4]}' "$REPO/PLAN.md" | sed -n '2,3p'; }
+brief(){ # $1 = item id
+  id=$1; out="$REPO/reports/codex/brief-$id.md"; mkdir -p "$REPO/reports/codex"
+  head=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)
+  echo "$(date) Codex brief for PLAN item $id"
+  date +%s > "$CONF/brief-tried-$id"
+  date +%s > "$LASTRUN"
+  bp="You are a senior engineer pre planning PLAN item $id of AnyGym so the builder (another AI) can start fast. Read CLAUDE.md, SPEC.md, PLAN.md (find the line for item $id) and the source. Do NOT edit anything. Write an implementation brief: 1) the SPEC sections that apply and the acceptance checks, 2) the files to create or change and what goes in each, using real paths and function names from this repo, 3) data model or Dexie migration changes, 4) the trickiest edge cases and how to handle them, 5) the tests to write and what each asserts (Vitest and Playwright, iPhone SE and 17 Pro Max), 6) risks and conflicts with code already built. Be concrete, no filler, about 80 to 150 lines."
+  ( cd "$REPO" && codex exec --sandbox read-only -c model_reasoning_effort=high "$bp" -o "$out.tmp" >/dev/null 2>&1 )
+  if [ -s "$out.tmp" ]; then { echo "Codex brief for PLAN item $id, written $(date '+%b %d %H:%M') at commit $head. SPEC.md wins if they disagree; code may have moved since."; echo; cat "$out.tmp"; } > "$out"; fi
+  rm -f "$out.tmp"
+}
+
+# ---------------- backup builder: while Claude rests on a usage limit, Codex builds the NEXT item ----------------
+BWT="$HOME/projects/anygym-codex-build"
+open_ids(){ awk '/=== STOP HERE/{exit} /^- \[ \] [0-9]+\.[0-9]+[a-z]? /{ if ($0 ~ /[Mm]erge gate/) exit; if ($0 ~ /waiting on|accounts\.env|wrangler/) next; print $4 }' "$REPO/PLAN.md"; }
+build_item(){ # $1 = live|quiet ; returns 2 when there is nothing to do
+  mkdir -p "$REPO/reports/codex"
+  grep -lE "^STATUS: (NEW|BUILDING)" "$REPO"/reports/codex/build-*.md >/dev/null 2>&1 && { echo "$(date) a Codex build is already waiting for Claude"; return 2; }
+  id=$(open_ids | sed -n '2p')   # never the first open item: that one is Claude's
+  [ -z "$id" ] && return 2
+  base=$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null); [ -z "$base" ] && return 2
+  stamp=$(date +%m%d-%H%M); br="codex-build-$id-$stamp"; rep="$REPO/reports/codex/build-$id-$stamp.md"
+  printf 'STATUS: BUILDING\n# Codex backup build of PLAN item %s (started %s)\nClaude: if you reach item %s while this says BUILDING, skip ahead to the next item and come back to it.\n' "$id" "$(date '+%b %d %H:%M')" "$id" > "$rep"
+  if [ ! -d "$BWT/.git" ] && [ ! -f "$BWT/.git" ]; then
+    git -C "$REPO" worktree add -q -f "$BWT" -b "$br" "$base" || { rm -f "$rep"; return 2; }
+  else
+    git -C "$BWT" reset -q --hard && git -C "$BWT" clean -qfd -e node_modules && git -C "$BWT" checkout -q -B "$br" "$base" || { rm -f "$rep"; return 2; }
+  fi
+  if [ ! -d "$BWT/node_modules" ] || ! cmp -s "$BWT/package-lock.json" "$CONF/codex-bwt-lock"; then
+    ( cd "$BWT" && npm ci --prefer-offline --no-audit --no-fund >/dev/null 2>&1 ) && cp "$BWT/package-lock.json" "$CONF/codex-bwt-lock"
+  fi
+  echo "$(date) Codex backup build of $id on $br (Claude is resting)"
+  date +%s > "$LASTRUN"
+  brief=""; [ -s "$REPO/reports/codex/brief-$id.md" ] && brief=" A plan for this item is in $REPO/reports/codex/brief-$id.md (read it first, SPEC.md wins)."
+  bp="You are the BACKUP BUILDER for AnyGym while the main builder (Claude) is paused on a usage limit. Build PLAN item $id completely, exactly as PLAN.md and SPEC.md describe it, in this copy of the repo. Read CLAUDE.md, SPEC.md, PLAN.md and the code first.$brief Rules: follow CLAUDE.md (weight math only in src/lib/load.ts, no bad data, plain words, iPhone portrait first, no personal data, never touch anything from ~/anygym-private). Write the Vitest tests and Playwright specs the item needs (import test and expect from ./fixtures in specs). Run: npx vitest run, and npm run build. Fix failures. Do NOT run Playwright (the helper runs it on its own port after you finish). Do NOT edit PLAN.md, SPEC.md, PROMPT.md, CLAUDE.md or anything in .claude, and do not commit. Finish with: what you built, files changed, test results, and anything unfinished or uncertain."
+  out="$CONF/codex-build-last.txt"
+  if [ "$1" = live ]; then ( cd "$BWT" && perl -e 'alarm shift; exec @ARGV' 7200 codex exec --sandbox workspace-write -c model_reasoning_effort=high "$bp" -o "$out" )
+  else ( cd "$BWT" && perl -e 'alarm shift; exec @ARGV' 7200 codex exec --sandbox workspace-write -c model_reasoning_effort=high "$bp" -o "$out" >/dev/null 2>&1 ); fi
+  # never let it change the plan, the rules or the agents
+  git -C "$BWT" checkout -q HEAD -- PLAN.md SPEC.md PROMPT.md CLAUDE.md .claude 2>/dev/null
+  rm -f "$BWT/playwright.codex.config.ts"
+  if [ -z "$(git -C "$BWT" status --porcelain)" ]; then
+    printf 'STATUS: EMPTY\n# Codex backup build of %s produced no changes\n' "$id" > "$rep"; echo "$(date) Codex made no changes"; return 0
+  fi
+  git -C "$BWT" add -A && git -C "$BWT" -c user.name="AnyGym Codex" -c user.email="codex@anygym.local" commit -q -m "Codex backup build of $id (unreviewed, from $base)" || return 0
+  files=$(git -C "$BWT" show --stat --format= HEAD | tail -1)
+  vt=$(cd "$BWT" && npx vitest run 2>&1 | grep -E "Tests +[0-9]" | tail -1)
+  bt=$(cd "$BWT" && npm run build >/dev/null 2>&1 && echo "build passed" || echo "build FAILED")
+  echo "$(date) running the full Playwright suite on port 4176"
+  pw=$(pw_verify "" "$BWT" 4176)
+  {
+    echo "STATUS: NEW"
+    echo "# Codex backup build of PLAN item $id"
+    echo "Branch: $br (based on $base). Review like any builder output, then merge with: git merge --no-ff --no-edit $br"
+    echo "Changes: $files"
+    echo "Vitest (whole suite in Codex's copy): ${vt:-could not run}"
+    echo "Build: $bt"
+    echo "Playwright (whole suite, port 4176, all iPhone profiles): $pw"
+    echo; echo "## Codex notes"; cat "$out" 2>/dev/null
+  } > "$rep"
+  push "AnyGym: Codex built $id" "While Claude rested, Codex built item $id in its own copy. Tests: ${vt:-n/a}; $bt. Claude reviews it and merges it if it is good."
+  echo "Done. Report: $rep"
+}
+
+# ---------------- visual QA (read only): Codex looks at the real iPhone Simulator screenshots of each finished item ----------------
+last_checked_id(){ git -C "$REPO" log --all -n 20 --format=%s 2>/dev/null | grep -m1 '^PLAN: check' | grep -oE '[0-9]+\.[0-9]+[a-z]?' | head -1; }
+ui_qa(){ # $1 = item id
+  id=$1; dir="$REPO/reports/shots/$id"; [ -d "$dir" ] || return 2
+  shots=$(find "$dir" -name 'sim*.png' 2>/dev/null | head -6)
+  [ -z "$shots" ] && shots=$(find "$dir" -name '*.png' 2>/dev/null | head -6)
+  [ -z "$shots" ] && return 2
+  out="$REPO/reports/codex/ui-$id.md"; [ -s "$out" ] && return 2
+  echo "$(date) Codex visual QA of $id ($(echo "$shots" | wc -l | tr -d ' ') screenshots)"
+  date +%s > "$LASTRUN"
+  list=$(echo "$shots" | paste -sd, -)
+  names=$(echo "$shots" | sed "s#^$REPO/##" | paste -sd' ' -)
+  qp="You are a senior mobile product designer reviewing AnyGym, an iPhone first fitness web app, after PLAN item $id. The attached screenshots ($names) come from the real iOS Simulator (AnyGym Small = iPhone SE, AnyGym Max = iPhone 17 Pro Max, iPhone Duo = new screen shape) or Playwright. Read SPEC.md sections 10, 13 and 23 for the bar (premium native feel, plain words, nothing hidden or needing a scroll while lifting, 44 pt tap targets, safe areas, no clutter). Do NOT edit anything. List real problems only, worst first, max 10: severity (BLOCKER, MAJOR, POLISH), which screenshot, what is wrong for the user, the likely component file in src/, and the exact fix. Then give a feel score from 1 to 10 with one line why. No taste nitpicks."
+  ( cd "$REPO" && codex exec --sandbox read-only -c model_reasoning_effort=medium "$qp" --image="$list" -o "$out" >/dev/null 2>&1 )
+  if [ -s "$out" ]; then n=$(grep -ciE "BLOCKER|MAJOR" "$out"); push "AnyGym: Codex checked the look of $id" "Codex reviewed the iPhone screenshots of $id and flagged $n major items. Claude fixes the real ones."; fi
+}
+
+# ---------------- handoff to the cloud builder ----------------
+# Claude (the chat session) drops ~/projects/anygym/.handoff-to-cloud when gmini's Claude is out of usage or G is leaving.
+# This saves every bit of work to GitHub, stops gmini's build loop for good, and stops this helper,
+# so the cloud builder can safely take over from GitHub with no two builders on the same code.
+handoff(){
+  cd "$REPO" || return 1
+  echo "$(date) HANDOFF: stopping gmini's build loop and saving everything to GitHub"
+  tmux kill-session -t anygym 2>/dev/null
+  sleep 5
+  for p in $(pgrep -f "dangerously-skip-permissions" 2>/dev/null); do case "$(cwd_of "$p")" in "$REPO"*) kill "$p" 2>/dev/null;; esac; done
+  br=$(git rev-parse --abbrev-ref HEAD)
+  now=$(awk '/=== STOP HERE/{exit} /^- \[ \] [0-9]/{print $4; exit}' PLAN.md)
+  git add -A && git -c user.name="AnyGym handoff" -c user.email="handoff@anygym.local" commit -q -m "Handoff to cloud builder: work in progress on ${now:-the current item} (may be unfinished, the cloud builder checks it)" 2>/dev/null
+  ok=1
+  git push -q origin "$br" 2>>"$CONF/handoff.err" || ok=0
+  git push -q origin master 2>>"$CONF/handoff.err" || ok=0
+  for b in $(git branch --list 'codex-*' --format='%(refname:short)'); do git push -q origin "$b" 2>>"$CONF/handoff.err"; done
+  if [ $ok -eq 1 ]; then
+    { echo "branch=$br"; echo "item=$now"; echo "commit=$(git rev-parse --short HEAD)"; echo "at=$(date)"; } > "$CONF/handoff-done"
+    cp "$CONF/handoff-done" "$REPO/.handoff-done"
+    push "AnyGym: build moved to the cloud" "gmini saved everything to GitHub (branch $br, item ${now:-none}) and stopped. The cloud builder takes over from here."
+    echo "$(date) HANDOFF done"
+  else
+    push "AnyGym: handoff push failed" "gmini could not push to GitHub. Claude will look at it. Nothing was lost, it is all still on gmini."
+    echo "$(date) HANDOFF push failed, see $CONF/handoff.err"
+  fi
+}
+
+fingerprint(){ { git -C "$REPO" rev-parse HEAD; git -C "$REPO" status --porcelain | grep -v reports/; } 2>/dev/null | cksum | cut -d' ' -f1; }
+
+if [ "${1:-}" = now ]; then hunt live; exit 0; fi
+if [ "${1:-}" = tests ]; then tests_batch live; exit 0; fi
+if [ "${1:-}" = build ]; then build_item live; exit 0; fi
+if [ "${1:-}" = ui ]; then ui_qa "${2:-$(last_checked_id)}"; exit 0; fi
+echo "Codex helper watching $REPO (MAX MODE)"
+echo "  backup builder during Claude's usage pauses, briefs for the next 2 items, up to 3 test batches per item (verified in Playwright), audits every 30 min when code changed, stops at ${CAP}% usage"
+[ -f "$DONEN" ] || echo $(( $(done_count) - 1 )) > "$DONEN"   # first start: one batch right away
+while true; do
+  if [ -f "$REPO/.handoff-to-cloud" ] && [ ! -f "$CONF/handoff-done" ]; then handoff; [ -f "$CONF/handoff-done" ] && exit 0; sleep 300; continue; fi
+  [ -f "$CONF/handoff-done" ] && { echo "build was handed to the cloud, helper stopping"; exit 0; }
+  last=$(grep '^===' "$LOG" 2>/dev/null | tail -1)
+  since=$(( $(date +%s) - $(cat "$LASTRUN" 2>/dev/null || echo 0) ))
+  dn=$(done_count)
+  missing=""; for id in $(next_ids); do
+    [ -s "$REPO/reports/codex/brief-$id.md" ] && continue
+    [ $(( $(date +%s) - $(cat "$CONF/brief-tried-$id" 2>/dev/null || echo 0) )) -lt 3600 ] && continue
+    missing=$id; break
+  done
+  if echo "$last" | grep -q "usage limit" && ! claude_busy && [ "$last" != "$(cat "$STATE" 2>/dev/null)" ]; then
+    echo "$last" > "$STATE"
+    if room $CAP $CAP && [ ! -f "$CONF/codex-build-off" ]; then
+      build_item quiet; rc=$?
+      if [ $rc -eq 2 ]; then fp=$(fingerprint); [ "$fp" != "$(cat "$CONF/codex-audit-fp" 2>/dev/null)" ] && { echo "$fp" > "$CONF/codex-audit-fp"; hunt quiet; }; fi
+    fi
+  elif [ "$dn" -gt "$(cat "$DONEN" 2>/dev/null || echo 0)" ] && [ ! -f "$CONF/codex-tests-off" ]; then
+    echo "$dn" > "$DONEN"; echo 0 > "$NBATCH"; lid=$(last_checked_id); [ -n "$lid" ] && echo "$lid" > "$CONF/ui-todo"
+    if room $CAP $CAP; then tests_batch quiet; [ $? -ne 2 ] && echo 1 > "$NBATCH"; else echo "$(date) skipping test batch, Codex usage is high"; fi
+  elif [ -s "$CONF/ui-todo" ] && room $CAP $CAP; then
+    lid=$(cat "$CONF/ui-todo"); rm -f "$CONF/ui-todo"; ui_qa "$lid"
+  elif [ -n "$missing" ] && room $CAP $CAP; then
+    brief "$missing"
+  elif [ ! -f "$CONF/codex-tests-off" ] && [ "$(cat "$NBATCH" 2>/dev/null || echo 0)" -lt 3 ] \
+       && [ $(( $(date +%s) - $(cat "$LASTBATCH" 2>/dev/null || echo 0) )) -gt 2700 ] \
+       && ! grep -ql "^STATUS: NEW" "$REPO"/reports/codex/tests-*.md 2>/dev/null && room $CAP $CAP; then
+    tests_batch quiet; rc=$?
+    [ $rc -ne 2 ] && echo $(( $(cat "$NBATCH" 2>/dev/null || echo 0) + 1 )) > "$NBATCH"
+  elif [ $since -gt $EVERY ]; then
+    fp=$(fingerprint)
+    if [ "$fp" = "$(cat "$CONF/codex-audit-fp" 2>/dev/null)" ]; then date +%s > "$LASTRUN"
+    elif room $CAP $CAP; then echo "$fp" > "$CONF/codex-audit-fp"; hunt quiet
+    else echo "$(date) skipping audit, Codex usage is high"; date +%s > "$LASTRUN"; fi
+  fi
+  sleep 60
+done

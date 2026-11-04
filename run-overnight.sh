@@ -1,9 +1,12 @@
 #!/bin/zsh
+# Started by the LaunchAgent after a reboot, launchd gives a bare PATH: find claude, codex, node, gh the same way a login shell does.
+[ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile" >/dev/null 2>&1
+export PATH="$HOME/.local/bin:$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$HOME/.npm-global/bin:$HOME/bin:$PATH"
 # AnyGym Fable Loop with a Claude usage budget (G, Oct 30: leave usage for G all week).
 # Fable orchestrates, Opus builds, Sonnet tests. Resumes from PLAN.md, stops at ALL DONE.
 # Budget lives in .loop-budget (reread before every run, edit any time):
-#   runs only while G sleeps (3 PM to 11 PM Japan time), at most DAY_HOURS a day, and at most WEEK_HOURS of loop time per usage week
-#   (the week resets Thursday 7 PM Tokyo). The first start gets a KICKOFF run right away.
+#   runs only while G sleeps (3 PM to 11 PM Guam time), at most DAY_HOURS a day, and at most WEEK_HOURS of loop time per usage week
+#   (the week resets Thursday 8 PM Guam). The first start gets a KICKOFF run right away.
 # Pause any time: touch .loop-pause    Resume: rm .loop-pause
 cd "$(dirname "$0")"
 LOG=overnight-loop.log
@@ -12,16 +15,16 @@ STATE=.loop-hours
 [ -f $CFG ] || cat > $CFG <<'CFGEOF'
 # AnyGym loop budget. The loop rereads this before every run.
 MODEL=claude-fable-5-1
-START_HOUR=12       # Japan time: runs may start from noon (G sleeps 3 PM to 11 PM)
-END_HOUR=0          # Japan time: any run still going at midnight is stopped (0 = midnight)
+START_HOUR=12       # Guam time: runs may start from noon (G sleeps 3 PM to 11 PM)
+END_HOUR=0          # Guam time: any run still going at midnight is stopped (0 = midnight)
 DAY_HOURS=5         # most loop hours per day, spreads the week evenly
-WEEK_HOURS=30       # most loop hours per usage week (resets Thursday 7 PM Japan time)
+WEEK_HOURS=30       # most loop hours per usage week (resets Thursday 8 PM Guam time)
 KICKOFF_HOURS=2     # one run right away the first time the loop starts, counts toward the week
 CFGEOF
 PLUG=""
 [ -d "$HOME/claude-mods/pocketsim-guard" ] && PLUG="--plugin-dir $HOME/claude-mods/pocketsim-guard"
-tk(){ TZ=Asia/Tokyo date "$@"; }
-weekkey(){ local dow=$(tk +%u) h=$(tk +%H) d; d=$(( (dow - 4 + 7) % 7 )); [ $d -eq 0 ] && [ $((10#$h)) -lt 19 ] && d=7; tk -v-${d}d +%F; }
+tk(){ TZ=Pacific/Guam date "$@"; }   # G moved to Guam (Nov 5): all windows and day counts are Guam time
+weekkey(){ local dow=$(tk +%u) h=$(tk +%H) d; d=$(( (dow - 4 + 7) % 7 )); [ $d -eq 0 ] && [ $((10#$h)) -lt 20 ] && d=7; tk -v-${d}d +%F; }
 used(){ local k=$(weekkey); awk -v k="$k" '$1==k{s+=$NF} END{print s+0}' $STATE 2>/dev/null || echo 0; }
 usedday(){ local k=$(tk +%F); awk -v k="$k" 'NF==3 && $2==k{s+=$3} END{print s+0}' $STATE 2>/dev/null || echo 0; }
 in_window(){ local h=$((10#$(tk +%H))); if [ $START_HOUR -le $END_HOUR ]; then [ $h -ge $START_HOUR ] && [ $h -lt $END_HOUR ]; else [ $h -ge $START_HOUR ] || [ $h -lt $END_HOUR ]; fi; }
@@ -49,7 +52,7 @@ daydone(){ [ $RANTODAY -eq 1 ] || return; RANTODAY=0
   if [ -n "$shipped" ]; then ntfy "AnyGym: done for today" "Live now, open the app and check: $(echo "$shipped" | tr '\n' ';' | sed 's/;$//; s/;/; /g'). The test now pushes above say exactly what to tap. Next up: $now" "sparkles"
   else ntfy "AnyGym: done for today" "Nothing new to check on your phone yet. Still working on: $now" "hourglass"; fi
   DAYSTART=$(git rev-parse master 2>/dev/null); }
-# Sharing the build with the cloud builder (G's waking hours, midnight to noon Japan time):
+# Sharing the build with the cloud builder (G's waking hours, midnight to noon Guam time):
 # before each run take the cloud's pushed work; after each run save and push gmini's work so the cloud can continue.
 cloud_busy(){ local lk=$(git log -1 --format=%ct origin/cloud-builder-lock 2>/dev/null) lkm=$(git log -1 --format=%s origin/cloud-builder-lock 2>/dev/null)
   [ -n "$lk" ] && [ $(( $(date +%s) - lk )) -lt 10200 ] && ! echo "$lkm" | grep -qi released; }
@@ -86,11 +89,13 @@ while [ $n -lt 300 ]; do
   cloudcheck
   # The script file changed since this loop started: reload it between runs (never during one).
   if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
+  if ! command -v claude >/dev/null 2>&1; then [ "$WAITMSG" != noclaude ] && { say "claude command not found on PATH ($PATH), waiting"; ntfy "AnyGym: needs Claude" "The build loop cannot find the claude command. Tell Claude in chat." "warning"; }; WAITMSG=noclaude; sleep 600; continue; fi
+  if [ -f .loop-pause ]; then pu=$(grep -o 'until=[0-9]*' .loop-pause | head -1 | cut -d= -f2); if [ -n "$pu" ] && [ $(date +%s) -ge $pu ]; then mv .loop-pause .loop-pause.expired; say "pause expired, resuming"; fi; fi   # a pause can carry until=<epoch>
   if [ -f .loop-pause ]; then [ "$WAITMSG" != pause ] && say "paused by .loop-pause"; WAITMSG=pause; sleep 300; continue; fi
   usedsec=$(used); weekleft=$(( WEEK_HOURS*3600 - usedsec ))
-  if [ $weekleft -lt 900 ]; then [ "$WAITMSG" != week ] && say "weekly loop budget used ($WEEK_HOURS h), waiting for the Thursday 7 PM Japan time reset"; WAITMSG=week; daydone; sleep 900; continue; fi
+  if [ $weekleft -lt 900 ]; then [ "$WAITMSG" != week ] && say "weekly loop budget used ($WEEK_HOURS h), waiting for the Thursday 8 PM Guam time reset"; WAITMSG=week; daydone; sleep 900; continue; fi
   if [ $KICK -eq 1 ]; then limit=$(( KICKOFF_HOURS*3600 )); elif in_window; then limit=$(window_left); else
-    [ "$WAITMSG" != window ] && say "outside the build window (from $START_HOUR:00 to $END_HOUR:00 Japan time), waiting. Used this week: $((usedsec/60)) of $((WEEK_HOURS*60)) min"; WAITMSG=window; daydone; sleep 600; continue; fi
+    [ "$WAITMSG" != window ] && say "outside the build window (from $START_HOUR:00 to $END_HOUR:00 Guam time), waiting. Used this week: $((usedsec/60)) of $((WEEK_HOURS*60)) min"; WAITMSG=window; daydone; sleep 600; continue; fi
   [ $limit -gt $weekleft ] && limit=$weekleft
   dayleft=$(( ${DAY_HOURS:-24}*3600 - $(usedday) ))
   if [ $KICK -eq 0 ] && [ $dayleft -lt 900 ]; then [ "$WAITMSG" != day ] && say "today's loop budget used ($DAY_HOURS h), waiting for tomorrow's window"; WAITMSG=day; daydone; sleep 900; continue; fi

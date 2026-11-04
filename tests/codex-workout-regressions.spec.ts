@@ -83,7 +83,7 @@ test('offline edits, undo and Finish persist exact sets after offline reload', a
     await edit.getByRole('button', { name: 'Add 5 lb plate to each side' }).tap();
     await edit.getByRole('button', { name: 'Save', exact: true }).tap();
     await expect(edit).toHaveCount(0);
-    await expect(card.getByTestId('set-row').first().getByRole('button', { name: /9 × 145 lb/ })).toBeVisible();
+    await expect(card.getByTestId('set-row').first().getByRole('button', { name: /145 lb × 9/ })).toBeVisible();
     const edited = await savedSets(page);
     expect(edited[0]).toMatchObject({ id: original[0]!.id, reps: 9, load: { total: 145, unit: 'lb', barWeight: 45, perSide: [45, 5] } });
     expect(edited[1]).toEqual(original[1]);
@@ -127,7 +127,7 @@ test('changing machine step cannot log the old pin when it no longer exists', as
   await openPicker(page, card);
   await picker(page).getByRole('radio', { name: 'Pin at 15 lb', exact: true }).tap();
   await pickerDone(page);
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 15 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 15 lb × 8');
   await openPicker(page, card);
   await picker(page).getByRole('button', { name: 'Steps of 5 · Change' }).tap();
   const step = page.getByRole('dialog', { name: 'Weight steps' });
@@ -142,7 +142,7 @@ test('changing machine step cannot log the old pin when it no longer exists', as
   await openPicker(page, card);
   await picker(page).getByRole('radio', { name: 'Pin at 20 lb', exact: true }).tap();
   await pickerDone(page);
-  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 8 × 20 lb');
+  await expect(logButton(page)).toHaveAccessibleName('Log set 1: 20 lb × 8');
   await logButton(page).tap();
   await expect(card.getByTestId('set-row')).toHaveCount(1);
   expect((await savedSets(page))[0]!.load).toEqual({ kind: 'stack', unit: 'lb', total: 20, stackValue: 20 });

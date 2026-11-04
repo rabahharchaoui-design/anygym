@@ -39,6 +39,8 @@ export type Draft = {
   noTarget?: true;
   /** What the user set by hand on this row (a weight pick or LAST TIME copy, the reps stepper). */
   own?: { load?: true; reps?: true };
+  /** PLAN 2.0l (additive): the user changed this row's reps (the stepper or a LAST TIME copy). */
+  repsEdited?: true;
   /**
    * The "Loaded with" the weight was picked under (PLAN 2.0k), kept even while the base weight is
    * unknown (load null, plates only): a pick is never rebuilt under another load kind.
@@ -170,7 +172,8 @@ type KvLike = { get: (key: string) => Promise<{ value: string | null } | undefin
 /**
  * The pending rows made durable inside a caller's own IndexedDB transaction (PLAN 2.0c, Log set),
  * merged row by row into what IndexedDB holds (Codex 2.0k #1): this tab's row wins when it changed
- * it since its last write or holds at least the stored revision; rows only another tab has stay.
+ * it since its last write or holds a newer revision (PLAN 2.0l: never at an equal one); rows only
+ * another tab has stay.
  * null when this storage is not mirrored.
  */
 export function draftsDurableMerge(s = storage()): ((kv: KvLike) => Promise<void>) | null {
@@ -184,7 +187,9 @@ export function draftsDurableMerge(s = storage()): ((kv: KvLike) => Promise<void
     const rows = { ...(store[session] ?? {}) };
     for (const [k, d] of mine) {
       const theirs = rows[k];
-      if (dirty.has(k) || !validDraft(theirs) || (d.rev ?? 0) >= (theirs.rev ?? 0)) rows[k] = d;
+      // PLAN 2.0l (Codex 1811 #3): a clean row at the stored revision or older is another tab's
+      // committed word (two tabs can reach one revision on their own): never replaced by this copy.
+      if (dirty.has(k) || !validDraft(theirs) || (d.rev ?? 0) > (theirs.rev ?? 0)) rows[k] = d;
     }
     for (const k of dirty) if (!mine.has(k)) delete rows[k];
     if (Object.keys(rows).length) store[session] = rows;

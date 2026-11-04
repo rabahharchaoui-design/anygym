@@ -166,6 +166,10 @@
   font-weight: 600;
 }
 
+.stripNote {
+  font-weight: 500;
+}
+
 .days {
   list-style: none;
   margin: 0;

@@ -290,7 +290,7 @@ test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove 
 
   // LAST TIME copies that set into the row (row 2: 9 × 135).
   await expect(view.getByTestId('weight-cell').nth(1)).toHaveText('185');
-  await view.getByRole('button', { name: /^Last time 9 × 135/ }).tap();
+  await view.getByRole('button', { name: /^Last time 135 × 9/ }).tap();
   await expect(view.getByTestId('weight-cell').nth(1)).toHaveText('135');
   await expect(view.getByTestId('reps-cell').nth(1)).toHaveText('9');
 
@@ -354,7 +354,7 @@ test('finish screen calls out records from real history only @matrix', async ({ 
   await page.getByRole('button', { name: 'Finish' }).tap();
   // PLAN 2.2e round 2 (critic B4): the record leads the screen; New bests never repeats it.
   await expect(page.getByTestId('finish-win')).toContainText('Barbell Back Squat');
-  await expect(page.getByTestId('finish-win')).toContainText(/195 lb × \d+, (heaviest|best) ever/);
+  await expect(page.getByTestId('finish-win')).toContainText(/195 lb × \d+, (heaviest ever|your best yet)/);
   await page.waitForTimeout(900);
   await expect(page.getByTestId('pr-chip')).toHaveCount(0);
   await shotOn(page, '1.7c', 'finish');

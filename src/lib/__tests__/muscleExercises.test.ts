@@ -67,7 +67,7 @@ describe('PLAN 2.2c: catalog exercises for a tapped muscle', () => {
 
   it('"also works" is the secondary line in the map words; none when there are none', () => {
     const incline = exercisesForRegion('chest', catalog, overrides).find((e) => e.id === 'Barbell_Incline_Bench_Press_-_Medium_Grip')!;
-    expect(incline.also).toBe('Also works front delts, triceps');
+    expect(incline.also).toBe('Also works front delts +1');
     const crunch = exercisesForRegion('abs', catalog, overrides).find((e) => e.id === 'Ab_Crunch_Machine')!;
     expect(crunch.also).toBeNull();
   });
@@ -98,5 +98,19 @@ describe('PLAN 2.2c: catalog exercises for a tapped muscle', () => {
     expect(exercisesLinkText(0)).toBe('Exercises');
     expect(exercisesLinkText(1)).toBe('1 exercise');
     expect(exercisesLinkText(12)).toBe('12 exercises');
+  });
+});
+
+describe('tileKindOf (gate round 2 P1)', () => {
+  it('draws the catalog equipment, a neutral tile when the catalog is vague', async () => {
+    const { tileKindOf } = await import('../muscleExercises');
+    expect(tileKindOf('barbell')).toBe('barbell');
+    expect(tileKindOf('e-z curl bar')).toBe('barbell');
+    expect(tileKindOf('dumbbell')).toBe('dumbbell_each');
+    expect(tileKindOf('kettlebells')).toBe('single');
+    expect(tileKindOf('machine')).toBe('stack');
+    expect(tileKindOf('cable')).toBe('stack');
+    expect(tileKindOf('body only')).toBe('bodyweight');
+    for (const e of ['other', 'bands', null, undefined]) expect(tileKindOf(e)).toBe('any');
   });
 });

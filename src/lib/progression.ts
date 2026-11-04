@@ -29,17 +29,16 @@
 // Timed holds: no load progression, only "Beat your time". No estimated 1RM, ever.
 import type { Load, SetKind, Unit } from '../db/types';
 import { IMPORTED_LABEL, isImportOrder } from './import/importOrder';
+import { formatSession, formatTarget } from './setWords';
 import {
   comparableWeight,
   convertForGym,
-  formatAmount,
   formatWeight,
   heldWeightOf,
   loadAt,
   nearestLoadable,
   pickedWeight,
   resetWeight,
-  sameLoad,
   sameResistance,
   stepUp,
   timedLoad,
@@ -256,16 +255,9 @@ function noLoadReason(kind: Load['kind'], s: LoadSetup): string {
 
 const repsText = (r: RepTarget): string => (typeof r === 'number' ? `${r}` : `${r[0]} to ${r[1]}`);
 
-/** "10 to 12 × 190 lb", "10 × 30 lb each", "13 reps", "8 reps + 25 lb", "45 s". null without a load. */
+/** "190 lb × 10 to 12", "30 lb each × 10", "13 reps", "+25 lb × 8", "45 s" (setWords). null without a load. */
 export function formatNext(next: Next): string | null {
-  const { load } = next;
-  if (!load) return null;
-  if (load.kind === 'timed') return `${next.seconds ?? 0} s`;
-  if (next.reps === null) return null;
-  const r = repsText(next.reps);
-  if (load.kind === 'bodyweight') return load.added ? `${r} reps + ${formatWeight(load.added, load.unit)}` : `${r} reps`;
-  if (load.kind === 'dumbbell_each') return `${r} × ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
-  return `${r} × ${formatWeight(load.total, load.unit)}`;
+  return next.load ? formatTarget(next.load, next.reps, next.seconds) : null;
 }
 
 /**
@@ -287,45 +279,13 @@ export function beatLine(p: Pick<Progression, 'next' | 'perSet'>): string | null
   return `Beat last time: ${r} at ${formatWeight(load.total, load.unit)}`;
 }
 
-/**
- * Last time's sets, compact: "12 × 185 · 12 × 185 · 10 × 185 lb" (one unit at the end),
- * "10 × 30 · 10 × 30 lb each", "12 · 12 · 10 reps", "45 s · 40 s". Mixed units or added
- * bodyweight spell every set out.
- */
+/** Last time's sets in the one wording (setWords.formatSession): "4 sets × 10 at 185 lb", "185 lb × 12, 12, 10". */
 export function formatSets(sets: SetLine[]): string {
-  const first = sets[0]!.load;
-  const same = sets.every((s) => s.load.kind === first.kind && s.load.unit === first.unit && !s.load.added);
-  if (first.kind === 'timed') return sets.map((s) => `${s.seconds ?? 0} s`).join(' · ');
-  if (!same) return sets.map(setText).join(' · ');
-  if (first.kind === 'bodyweight') return `${sets.map(repsOf).join(' · ')} reps`;
-  const unit = first.kind === 'dumbbell_each' ? `${first.unit} each` : first.unit;
-  return `${sets.map((s) => `${repsOf(s)} × ${formatAmount(pickedOrTotal(s.load))}`).join(' · ')} ${unit}`;
+  return formatSession(sets);
 }
 
-/**
- * Last time in one short phrase (ux-critic gate 2): "4 × 10 at 185 lb" (4 sets of 10) when every
- * set was the same, "3 × 12 at 30 lb each", "3 × 12 reps", "3 × 45 s"; otherwise formatSets as is.
- * Exact numbers, words only.
- */
-export function formatSetsShort(sets: SetLine[]): string {
-  const first = sets[0]!;
-  const same = sets.every((x) => sameLoad(x.load, first.load) && x.reps === first.reps && x.seconds === first.seconds);
-  if (!same || sets.length < 2) return formatSets(sets);
-  const n = sets.length;
-  const { load } = first;
-  if (load.kind === 'timed') return `${n} × ${first.seconds ?? 0} s`;
-  if (load.kind === 'bodyweight') return load.added ? `${n} × ${repsOf(first)} + ${formatWeight(load.added, load.unit)}` : `${n} × ${repsOf(first)} reps`;
-  const each = load.kind === 'dumbbell_each' ? ' each' : '';
-  return `${n} × ${repsOf(first)} at ${formatWeight(pickedOrTotal(load), load.unit)}${each}`;
-}
-
-const pickedOrTotal = (load: Load): number => (load.kind === 'dumbbell_each' ? heldWeightOf(load)! : load.total);
-
-function setText(s: SetLine): string {
-  const { load } = s;
-  if (load.kind === 'bodyweight') return load.added ? `${repsOf(s)} + ${formatWeight(load.added, load.unit)}` : `${repsOf(s)} reps`;
-  return `${repsOf(s)} × ${formatWeight(pickedOrTotal(load), load.unit)}${load.kind === 'dumbbell_each' ? ' each' : ''}`;
-}
+/** Kept for callers: the same words as formatSets. */
+export const formatSetsShort = formatSets;
 
 const DAY = 24 * 60 * 60 * 1000;
 const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0);

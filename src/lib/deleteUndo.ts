@@ -29,8 +29,11 @@ export type DeleteUndo<T> = {
    * put back. Every member's window stops, every Undo is accepted (`ops.accept`) before any is
    * written back, then each is restored in order. Rejects when one did not come back: the members
    * not back are unresolved (never expire, Finish refuses) so the Undo sheet can retry them.
+   * PLAN 2.0l: the whole group is one tracked write from the moment it is asked for (synchronously,
+   * before `before`, the exercise coming back, and the first acceptance), so close() (Finish) waits
+   * for it; once admitted it completes even after close().
    */
-  undoAll: (ids: readonly string[]) => Promise<T[] | undefined>;
+  undoAll: (ids: readonly string[], before?: () => Promise<unknown>) => Promise<T[] | undefined>;
   /**
    * Writes the removed item back. Resolves with it, or undefined when the Undo window is over or
    * after close(). Rejects if the write failed; the record is kept, so calling undo again retries.
@@ -90,7 +93,7 @@ export function createDeleteUndo<T extends { id: string }>(
   },
   ms = UNDO_MS,
 ): DeleteUndo<T> {
-  type Record = { item: T; timer?: ReturnType<typeof setTimeout>; restoring: Promise<T> | null; unresolved?: boolean };
+  type Record = { item: T; timer?: ReturnType<typeof setTimeout>; restoring: Promise<T> | null; unresolved?: boolean; /** In an admitted group Undo (PLAN 2.0l): never expires. */ grouped?: boolean };
   const records = new Map<string, Record>();
   const running = new Set<Promise<unknown>>();
   const lastWrite = new Map<string, Promise<unknown>>();
@@ -111,7 +114,7 @@ export function createDeleteUndo<T extends { id: string }>(
   const arm = (rec: Record, id: string, window = ms) => {
     clearTimeout(rec.timer);
     rec.timer = setTimeout(() => {
-      if (rec.restoring || rec.unresolved || records.get(id) !== rec) return;
+      if (rec.restoring || rec.unresolved || rec.grouped || records.get(id) !== rec) return;
       records.delete(id);
       ops.expire?.(rec.item).catch(() => undefined);
     }, window);
@@ -124,6 +127,34 @@ export function createDeleteUndo<T extends { id: string }>(
   const settle = async () => {
     // Loop: an Undo tapped while we wait adds a write after the first snapshot.
     while (running.size) await Promise.all([...running]);
+  };
+
+  /** Writes one removed item back (also for an admitted group after close(), PLAN 2.0l). */
+  const undoOne = (id: string): Promise<T | undefined> => {
+    const rec = records.get(id);
+    if (!rec) return Promise.resolve(undefined);
+    if (rec.restoring) return rec.restoring;
+    // Restore after the delete write lands, so the two never race.
+    const before = lastWrite.get(id) ?? Promise.resolve();
+    const write = before.then(
+      () => ops.restore(rec.item),
+      () => ops.restore(rec.item),
+    );
+    rec.restoring = track(id, write).then(
+      () => {
+        forget(rec, id);
+        return rec.item;
+      },
+      (err: unknown) => {
+        // Kept for a retry of this exact record: unresolved until a retry lands or the user
+        // cancels it. It never expires meanwhile, so its stored record is never dropped.
+        rec.restoring = null;
+        rec.unresolved = true;
+        clearTimeout(rec.timer);
+        throw err;
+      },
+    );
+    return rec.restoring;
   };
 
   const api: DeleteUndo<T> = {
@@ -142,32 +173,7 @@ export function createDeleteUndo<T extends { id: string }>(
         throw err;
       }
     },
-    undo(id) {
-      const rec = records.get(id);
-      if (!rec || closed) return Promise.resolve(undefined);
-      if (rec.restoring) return rec.restoring;
-      // Restore after the delete write lands, so the two never race.
-      const before = lastWrite.get(id) ?? Promise.resolve();
-      const write = before.then(
-        () => ops.restore(rec.item),
-        () => ops.restore(rec.item),
-      );
-      rec.restoring = track(id, write).then(
-        () => {
-          forget(rec, id);
-          return rec.item;
-        },
-        (err: unknown) => {
-          // Kept for a retry of this exact record: unresolved until a retry lands or the user
-          // cancels it. It never expires meanwhile, so its stored record is never dropped.
-          rec.restoring = null;
-          rec.unresolved = true;
-          clearTimeout(rec.timer);
-          throw err;
-        },
-      );
-      return rec.restoring;
-    },
+    undo: (id) => (closed ? Promise.resolve(undefined) : undoOne(id)),
     canUndo: (id) => records.has(id),
     release(ids, window = ms) {
       for (const id of ids) {
@@ -176,30 +182,47 @@ export function createDeleteUndo<T extends { id: string }>(
       }
     },
     canUndoAll: (ids) => !closed && ids.every((id) => records.has(id)),
-    async undoAll(ids) {
-      if (closed || !ids.every((id) => records.has(id))) return undefined;
+    undoAll(ids, before) {
+      if (closed || !ids.every((id) => records.has(id))) return Promise.resolve(undefined);
       const recs = ids.map((id) => records.get(id)!);
       // No member can expire from here on, whatever happens below.
-      for (const r of recs) clearTimeout(r.timer);
-      if (ops.accept) for (const r of recs) if (!r.restoring) await ops.accept(r.item).catch(() => undefined);
-      const back: T[] = [];
-      for (const id of ids) {
-        try {
-          const item = await api.undo(id);
-          if (!item) throw new Error('Not put back');
-          back.push(item);
-        } catch (err) {
-          for (const left of ids) {
-            const r = records.get(left);
-            if (r && !r.restoring) {
-              r.unresolved = true;
-              clearTimeout(r.timer);
-            }
-          }
-          throw err;
-        }
+      for (const r of recs) {
+        clearTimeout(r.timer);
+        r.grouped = true;
       }
-      return back;
+      const stuck = () => {
+        for (const left of ids) {
+          const r = records.get(left);
+          if (r && !r.restoring) {
+            r.unresolved = true;
+            clearTimeout(r.timer);
+          }
+        }
+      };
+      const run = (async () => {
+        try {
+          if (before) await before();
+          if (ops.accept) for (const r of recs) if (!r.restoring) await ops.accept(r.item).catch(() => undefined);
+          const back: T[] = [];
+          for (const id of ids) {
+            const item = await undoOne(id);
+            if (!item) throw new Error('Not put back');
+            back.push(item);
+          }
+          return back;
+        } catch (err) {
+          stuck();
+          throw err;
+        } finally {
+          for (const r of recs) delete r.grouped;
+        }
+      })();
+      // Tracked at once (PLAN 2.0l): Finish's close() waits for the whole group; a failure shows as
+      // unresolved members there, never as a lost set.
+      const tracked = run.catch(() => undefined);
+      running.add(tracked);
+      void tracked.then(() => running.delete(tracked));
+      return run;
     },
     settle,
     async close() {

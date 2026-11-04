@@ -10,6 +10,11 @@ type Props = {
   onTitleTap?: () => void;
   /** Under the large title, still in the header block (e.g. the plan's meta line). */
   children?: ReactNode;
+  /**
+   * The large title stays in the bar and never shrinks (gate P12, Today): one look whether or not
+   * the page scrolled (a toast scrolls Today's cards clear of it). The bar's fill still fades in.
+   */
+  pinned?: boolean;
 };
 
 /**
@@ -22,7 +27,7 @@ type Props = {
 /** Scroll distance over which the large title hands over to the compact one. */
 export const COLLAPSE_PX = 30;
 
-export function TopBar({ title, leading, trailing, onTitleTap, children }: Props) {
+export function TopBar({ title, leading, trailing, onTitleTap, children, pinned = false }: Props) {
   const barRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
@@ -41,7 +46,7 @@ export function TopBar({ title, leading, trailing, onTitleTap, children }: Props
       const passed = p >= 1;
       const scrolled = p > 0;
       bar.style.setProperty('--collapse', p.toFixed(3));
-      big.style.opacity = p > 0 ? (1 - p).toFixed(3) : '';
+      if (!pinned) big.style.opacity = p > 0 ? (1 - p).toFixed(3) : '';
       if (bar.dataset.compact !== String(passed)) bar.dataset.compact = String(passed);
       if (bar.dataset.scrolled !== String(scrolled)) bar.dataset.scrolled = String(scrolled);
     };
@@ -57,7 +62,25 @@ export function TopBar({ title, leading, trailing, onTitleTap, children }: Props
       ro?.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [pinned]);
+
+  const large = (
+    <h1 ref={titleRef} className={styles.large} onClick={onTitleTap}>
+      {title}
+    </h1>
+  );
+  if (pinned)
+    return (
+      <>
+        <header ref={barRef} className={styles.bar} data-compact="false" data-scrolled="false" data-pinned="">
+          <div className={styles.row}>
+            <div className={styles.pinnedTitle}>{large}</div>
+            <div className={styles.trailing}>{trailing}</div>
+          </div>
+        </header>
+        {children && <div className={styles.head}>{children}</div>}
+      </>
+    );
 
   return (
     <>
@@ -71,9 +94,7 @@ export function TopBar({ title, leading, trailing, onTitleTap, children }: Props
         </div>
       </header>
       <div className={styles.head}>
-        <h1 ref={titleRef} className={styles.large} onClick={onTitleTap}>
-          {title}
-        </h1>
+        {large}
         {children}
       </div>
     </>

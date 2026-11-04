@@ -307,21 +307,21 @@ describe('timed: no load progression, only beat the time', () => {
 
 describe('words for the set card', () => {
   it('formatNext', () => {
-    expect(formatNext({ load: bar(190), reps: [8, 12], reason: '', kind: 'increase' })).toBe('8 to 12 × 190 lb');
-    expect(formatNext({ load: dumbbellLoad(30, 'lb'), reps: 10, reason: '', kind: 'beat_reps' })).toBe('10 × 30 lb each');
+    expect(formatNext({ load: bar(190), reps: [8, 12], reason: '', kind: 'increase' })).toBe('190 lb × 8 to 12');
+    expect(formatNext({ load: dumbbellLoad(30, 'lb'), reps: 10, reason: '', kind: 'beat_reps' })).toBe('30 lb each × 10');
     expect(formatNext({ load: bodyweightLoad('lb'), reps: 13, reason: '', kind: 'increase' })).toBe('13 reps');
-    expect(formatNext({ load: bodyweightLoad('lb', 25), reps: 8, reason: '', kind: 'beat_reps' })).toBe('8 reps + 25 lb');
+    expect(formatNext({ load: bodyweightLoad('lb', 25), reps: 8, reason: '', kind: 'beat_reps' })).toBe('+25 lb × 8');
     expect(formatNext({ load: null, reps: 8, reason: '', kind: 'first_time' })).toBeNull();
     expect(formatNext({ load: bar(185), reps: null, reason: '', kind: 'beat_reps' })).toBeNull();
   });
   it('formatSets', () => {
-    expect(formatSets(same([12, 12, 10], bar(185)).map(([reps, load]) => ({ reps, load })))).toBe('12 × 185 · 12 × 185 · 10 × 185 lb');
-    expect(formatSets([{ reps: 10, load: dumbbellLoad(30, 'lb') }, { reps: 9, load: dumbbellLoad(30, 'lb') }])).toBe('10 × 30 · 9 × 30 lb each');
-    expect(formatSets([{ reps: 12, load: bodyweightLoad('lb') }, { reps: 10, load: bodyweightLoad('lb') }])).toBe('12 · 10 reps');
+    expect(formatSets(same([12, 12, 10], bar(185)).map(([reps, load]) => ({ reps, load })))).toBe('185 lb × 12, 12, 10');
+    expect(formatSets([{ reps: 10, load: dumbbellLoad(30, 'lb') }, { reps: 9, load: dumbbellLoad(30, 'lb') }])).toBe('30 lb each × 10, 9');
+    expect(formatSets([{ reps: 12, load: bodyweightLoad('lb') }, { reps: 10, load: bodyweightLoad('lb') }])).toBe('12, 10 reps');
     expect(formatSets([{ seconds: 45, load: timedLoad('lb') }, { load: timedLoad('lb') }])).toBe('45 s · 0 s');
-    expect(formatSets([{ reps: 8, load: bodyweightLoad('lb', 25) }, { reps: 8, load: bodyweightLoad('lb') }])).toBe('8 + 25 lb · 8 reps');
-    expect(formatSets([{ reps: 10, load: bar(60, 'kg') }, { load: dumbbellLoad(20, 'lb') }])).toBe('10 × 60 kg · 0 × 20 lb each');
-    expect(formatSets([{ reps: 10, load: stackLoad(100, 'lb', 5) }])).toBe('10 × 105 lb');
+    expect(formatSets([{ reps: 8, load: bodyweightLoad('lb', 25) }, { reps: 8, load: bodyweightLoad('lb') }])).toBe('+25 lb × 8 · 8 reps');
+    expect(formatSets([{ reps: 10, load: bar(60, 'kg') }, { load: dumbbellLoad(20, 'lb') }])).toBe('60 kg × 10 · 20 lb each × 0');
+    expect(formatSets([{ reps: 10, load: stackLoad(100, 'lb', 5) }])).toBe('105 lb × 10');
   });
   it('formatWhen', () => {
     const now = new Date(2026, 9, 24, 9).getTime(); // a Saturday

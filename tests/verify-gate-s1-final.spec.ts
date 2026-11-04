@@ -15,7 +15,7 @@ const shot = async (page: Page, name: string) => {
 };
 type Box = { x: number; y: number; width: number; height: number };
 const overlaps = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-const alphaOf = async (l: Locator, pseudo?: '::before') => {
+const alphaOf = async (l: Locator, pseudo?: string) => {
   await l.page().waitForTimeout(1200); // let the enter animation finish
   return l.evaluate((el, pseudo) => {
     // Effective opacity of the surface: own background alpha, times the element's own CSS opacity.
@@ -244,7 +244,7 @@ test('d. dumbbell sheet first open: the hint is below the wheel and overlaps not
   expect(errors).toEqual([]);
 });
 
-test('f. partial finish: title, "0 of 12 exercises finished · 1 started", first row above the pinned Next up line at 360x640', async ({ page }) => {
+test('f. partial finish: title, "0 of 12 lifts finished · 1 started", first row above the pinned Next up line at 360x640', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 360, height: 640 });
   await usePlan(page);
@@ -258,7 +258,7 @@ test('f. partial finish: title, "0 of 12 exercises finished · 1 started", first
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page.getByTestId('finish-title')).toHaveText('Workout saved · 1 set');
   // PLAN 2.0a: the 4 stretches are not counted (12 working exercises).
-  await expect(page.getByTestId('finish-progress')).toHaveText('0 of 12 exercises finished · 1 started');
+  await expect(page.getByTestId('finish-progress')).toHaveText('0 of 12 lifts finished · 1 started');
   await page.waitForTimeout(1500);
   const first = (await page.getByTestId('finish-exercise').first().boundingBox())!;
   const choices = (await page.getByTestId('finish-next').boundingBox())!;

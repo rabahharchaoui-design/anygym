@@ -140,3 +140,9 @@
   color: var(--text-2);
   text-align: center;
 }
+
+/* The icon tile when there is no sure photo (gate P6): the day list's tile at 56 pt. */
+.tileWrap {
+  flex: none;
+  display: inline-flex;
+}
