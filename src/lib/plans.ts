@@ -228,13 +228,45 @@ export function setsText(t: ItemTarget, reps = false): string {
 
 /**
  * "4 sets × 8 to 12 reps · 90 s rest" (the line after the name). The rest shows only when the plan
- * states one; the app's default rest timer is never presented as the plan's.
+ * states one; the app's default rest timer is never presented as the plan's. `withRest` false: a
+ * pair's rows, whose one rest is shown once for the pair (PLAN 3.1).
  */
-export function itemLine(block: PlanBlock, it: PlanItem, weekIndex = 0): string {
-  const rest = planRest(block);
+export function itemLine(block: PlanBlock, it: PlanItem, weekIndex = 0, withRest = true): string {
+  const rest = withRest ? planRest(block) : undefined;
   const parts = [setsText(itemTarget(block, it, weekIndex), true)];
   if (rest !== undefined) parts.push(`${rest} s rest`);
   return parts.join(' · ');
+}
+
+/** A week by week table for one weekly_table item (PLAN 3.1): only the JSON's own numbers. */
+export type WeekTable = {
+  /** What the numbers count, in plain words ("Reps each week · 5 sets"). */
+  caption: string;
+  /** One cell per week, in order: the number that changes (or "5 × 8" when both do). */
+  cells: string[];
+};
+
+const same = (xs: Array<number | undefined>): boolean => xs.every((x) => x === xs[0]);
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * The item's week table, or null when the plan has none for it. Shows only the number that
+ * changes from week to week, so six cells fit the 320 floor; the caption names the other one.
+ */
+export function weekTable(it: PlanItem): WeekTable | null {
+  const rows = it.weeks;
+  if (!rows?.length) return null;
+  const sets = rows.map((r) => r.sets);
+  const reps = rows.map((r) => r.reps);
+  const side = it.eachSide ? ' each side' : '';
+  if (rows.every((r) => r.rounds)) {
+    const hold = it.seconds !== undefined ? ` · ${span(it.seconds)} sec each` : '';
+    return { caption: `Rounds each week${hold}`, cells: sets.map(String) };
+  }
+  if (reps.some((r) => r === undefined)) return { caption: 'Sets each week', cells: sets.map(String) };
+  if (same(sets) && !same(reps)) return { caption: `Reps${side} each week · ${plural(sets[0]!, 'set', 'sets')}`, cells: reps.map(String) };
+  if (same(reps) && !same(sets)) return { caption: `Sets each week · ${plural(reps[0]!, 'rep', 'reps')}${side}`, cells: sets.map(String) };
+  return { caption: `Sets × reps${side} each week`, cells: rows.map((r) => `${r.sets} × ${r.reps}`) };
 }
 
 // ---------------------------------------------------------------- duration (SPEC 7.4)

@@ -21,6 +21,12 @@ export {
   X as XIcon,
   Music as MusicIcon,
   AudioLines as AudioLinesIcon,
+  House as HomeIcon,
+  Luggage as TravelIcon,
+  Dumbbell as DumbbellIcon,
+  Warehouse as GymIcon,
+  PersonStanding as BodyweightIcon,
+  HeartPulse as CardioIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

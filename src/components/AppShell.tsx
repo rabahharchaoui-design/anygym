@@ -8,6 +8,7 @@ import { EdgeSwipe } from '../ui/EdgeSwipe';
 import { useNav } from '../ui/nav';
 import { TodayScreen } from '../screens/TodayScreen';
 import { PlansScreen } from '../screens/plans/PlansScreen';
+import { PlacePlans } from '../screens/plans/PlacePlans';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import styles from './AppShell.module.css';
 
@@ -15,6 +16,8 @@ import styles from './AppShell.module.css';
 export function parentOf(pathname: string): string | null {
   if (pathname === '/settings' || pathname.startsWith('/dev/')) return '/';
   if (pathname.startsWith('/settings/')) return '/settings';
+  const place = /^(\/plans\/place\/[^/]+)\/[^/]+$/.exec(pathname);
+  if (place) return place[1]!;
   if (pathname.startsWith('/plans/')) return '/plans';
   if (pathname.startsWith('/history/')) return '/history';
   return null;
@@ -25,6 +28,12 @@ const UNDER: Record<string, () => ReactNode> = {
   '/plans': () => <PlansScreen />,
   '/history': () => <HistoryScreen />,
 };
+
+/** The screen drawn under an edge swipe back to `parent` (a place's plan list reads its own URL). */
+function underFor(parent: string): ReactNode {
+  if (parent.startsWith('/plans/place/')) return <PlacePlans placeId={parent.slice('/plans/place/'.length)} />;
+  return UNDER[parent]?.() ?? null;
+}
 
 /**
  * Fixed full-screen frame. Each screen is its own scroll layer (so it starts at the top and the
@@ -55,7 +64,7 @@ export function AppShell() {
             onBack={() => go(parent, { kind: 'none' })}
             under={() => (
               <div className={styles.page} data-scroller>
-                {UNDER[parent]?.()}
+                {underFor(parent)}
               </div>
             )}
           />

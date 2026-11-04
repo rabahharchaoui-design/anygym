@@ -13,6 +13,10 @@ describe('depthOf (PLAN 1.7e)', () => {
     expect(depthOf('/workout/s1')).toBe(1);
     expect(depthOf('/workout/s1/done')).toBe(1);
     expect(depthOf('/workout/s1/barbell-back-squat')).toBe(2);
+    // PLAN 3.1: a place's list, then a plan opened from it.
+    expect(depthOf('/plans/place/full')).toBe(1);
+    expect(depthOf('/plans/place/full/five-day-split')).toBe(2);
+    expect(kindBetween('/plans/place/full', '/plans/place/full/five-day-split')).toBe('push');
   });
 });
 

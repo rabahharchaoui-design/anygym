@@ -16,6 +16,18 @@
   color: var(--text-2);
 }
 
+.icon {
+  display: inline-flex;
+  margin-bottom: var(--space-4);
+  color: var(--text-2);
+  opacity: 0.45;
+}
+
+.icon svg {
+  width: 40px;
+  height: 40px;
+}
+
 .title {
   font-size: var(--text-lg);
   font-weight: 700;
