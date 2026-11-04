@@ -90,6 +90,7 @@ while [ $n -lt 300 ]; do
   # The script file changed since this loop started: reload it between runs (never during one).
   if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
   if ! command -v claude >/dev/null 2>&1; then [ "$WAITMSG" != noclaude ] && { say "claude command not found on PATH ($PATH), waiting"; ntfy "AnyGym: needs Claude" "The build loop cannot find the claude command. Tell Claude in chat." "warning"; }; WAITMSG=noclaude; sleep 600; continue; fi
+  if [ -f .loop-pause ]; then pu=$(grep -o 'until=[0-9]*' .loop-pause | head -1 | cut -d= -f2); if [ -n "$pu" ] && [ $(date +%s) -ge $pu ]; then mv .loop-pause .loop-pause.expired; say "pause expired, resuming"; fi; fi   # a pause can carry until=<epoch>
   if [ -f .loop-pause ]; then [ "$WAITMSG" != pause ] && say "paused by .loop-pause"; WAITMSG=pause; sleep 300; continue; fi
   usedsec=$(used); weekleft=$(( WEEK_HOURS*3600 - usedsec ))
   if [ $weekleft -lt 900 ]; then [ "$WAITMSG" != week ] && say "weekly loop budget used ($WEEK_HOURS h), waiting for the Thursday 8 PM Guam time reset"; WAITMSG=week; daydone; sleep 900; continue; fi
