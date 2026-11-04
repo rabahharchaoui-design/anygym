@@ -5,6 +5,8 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { PLAN_EXERCISES } from '../../../data/planExercises';
+import { CATALOG_NAMES } from '../../../data/importMatch';
+import { EXERCISE_MAP } from '../../../data/muscles';
 import { makeGym, machineStartFor } from '../../../db/gyms';
 import type { Load } from '../../../db/types';
 import { loadSetupFor, machineIdFor } from '../../../screens/workout/exerciseLoad';
@@ -75,7 +77,7 @@ describe.skipIf(!HAVE)('private history file (temp copy)', () => {
     parsed.exercises.forEach((e) => {
       if (e.loadType === 'unknown') kinds[e.index] = 'single';
     });
-    const plan = planImport(parsed, { picks: {}, kinds, edits: {} }, { planExercises: PLAN_EXERCISES, contextFor, existing: new Set() });
+    const plan = planImport(parsed, { picks: {}, kinds, edits: {} }, { planExercises: PLAN_EXERCISES, map: EXERCISE_MAP, catalog: CATALOG_NAMES, contextFor, existing: new Set() });
     expect(plan.open).toEqual([]);
     expect(plan.sets).toBe(fileLines + fileDrops);
 
@@ -93,6 +95,20 @@ describe.skipIf(!HAVE)('private history file (temp copy)', () => {
     }
 
     const unsure = written.filter((s) => s.uncertain).length;
+    // PLAN 3.2: the catalog match per exercise, counts only. Every set carries its mapping.
+    const matches = { exact: 0, variant: 0, none: 0, unmapped: 0 };
+    for (const e of plan.exercises) {
+      if (!e.target) matches.unmapped += 1;
+      else matches[e.target.match] += 1;
+      if (e.target) {
+        const entry = EXERCISE_MAP.find((m) => m.planId === e.target!.id);
+        if (e.target.source === 'plan') expect(e.target.match).toBe(entry?.match ?? 'none');
+      }
+    }
+    expect(plan.sessions.every((s) => s.map && s.map.match === plan.exercises.find((e) => e.target?.id === s.exerciseId)!.target!.match)).toBe(true);
+    console.log(
+      `private import 3.2: sets ${plan.sets}, exercises ${parsed.exercises.length}, mapped exact ${matches.exact}, variant ${matches.variant}, none ${matches.none}, unmapped ${matches.unmapped}, uncertain ${unsure}, invented loads ${invented.length}`,
+    );
     console.log(
       `private import: exercises ${parsed.exercises.length}, sessions ${parsed.sessions.length}, file lines ${fileLines}, drop sets ${fileDrops}, written ${plan.sets}, with load ${withLoad.length}, unsure ${unsure}, invented ${invented.length}`,
     );

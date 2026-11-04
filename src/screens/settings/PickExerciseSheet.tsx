@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { PLAN_EXERCISES } from '../../data/planExercises';
+import { CATALOG_NAMES } from '../../data/importMatch';
 import { normalizeName } from '../../lib/import/anygymImportV1';
+import { catalogPick } from '../../lib/import/exerciseMatch';
 import { closestFirst } from '../../lib/picker';
 import styles from '../workout/Picker.module.css';
 import css from './Import.module.css';
@@ -17,27 +19,39 @@ type Props = {
   loadType?: string;
   /** How many sets "Skip these" leaves out. */
   skipCount: number;
-  onPick: (exerciseId: string) => void;
+  /** A plan exercise id, or a catalog exercise as catalogPick(id). */
+  onPick: (pick: string) => void;
+  /** Keep the file's own name: no catalog exercise, no demo, no muscles (PLAN 3.2). */
+  onKeepName: () => void;
   onSkip: () => void;
 };
 
-/** Import review (SPEC 9.3): a name the app could not match is picked from the exercise list, or skipped. */
-export function PickExerciseSheet({ open, onClose, fileName, startFrom, loadType, skipCount, onPick, onSkip }: Props) {
+const PLAN_NAMES = new Set(PLAN_EXERCISES.map((e) => normalizeName(e.name)));
+/** Catalog exercises not already on the list under a plan name (the plan one keeps Last time). */
+const CATALOG_ONLY = CATALOG_NAMES.filter((c) => !PLAN_NAMES.has(normalizeName(c.name)));
+
+/**
+ * Import review (SPEC 9.3, PLAN 3.2): which exercise a file name is, from a search of the plan's
+ * exercises and the catalog; or keep it by its own name (not in the catalog), or skip it. The app
+ * never picks a doubtful one by itself: this list only ranks.
+ */
+export function PickExerciseSheet({ open, onClose, ...rest }: Props) {
   return (
     <Sheet open={open} onClose={onClose} label="Pick the exercise" scroll>
-      {open && <Body fileName={fileName} startFrom={startFrom} loadType={loadType} skipCount={skipCount} onPick={onPick} onSkip={onSkip} />}
+      {open && <Body {...rest} />}
     </Sheet>
   );
 }
 
-function Body({ fileName, startFrom, loadType, skipCount, onPick, onSkip }: Omit<Props, 'open' | 'onClose'>) {
+function Body({ fileName, startFrom, loadType, skipCount, onPick, onKeepName, onSkip }: Omit<Props, 'open' | 'onClose'>) {
   const [query, setQuery] = useState('');
   // Closest names to the file's text first, never A to Z (ux-critic gate 2).
-  const ranked = useMemo(() => closestFirst(PLAN_EXERCISES, `${startFrom} ${fileName}`, loadType), [startFrom, fileName, loadType]);
-  const items = useMemo(() => {
-    const q = normalizeName(query);
-    return q ? ranked.filter((e) => normalizeName(e.name).includes(q)) : ranked;
-  }, [query, ranked]);
+  const text = `${startFrom} ${fileName}`;
+  const ranked = useMemo(() => closestFirst(PLAN_EXERCISES, text, loadType), [text, loadType]);
+  const rankedCatalog = useMemo(() => closestFirst(CATALOG_ONLY, text), [text]);
+  const q = normalizeName(query);
+  const items = useMemo(() => (q ? ranked.filter((e) => normalizeName(e.name).includes(q)) : ranked), [q, ranked]);
+  const catalogItems = useMemo(() => (q ? rankedCatalog.filter((e) => normalizeName(e.name).includes(q)) : rankedCatalog), [q, rankedCatalog]);
   return (
     <div className={styles.body}>
       <h2 className={styles.title}>Pick the exercise</h2>
@@ -54,18 +68,52 @@ function Body({ fileName, startFrom, loadType, skipCount, onPick, onSkip }: Omit
         spellCheck={false}
         enterKeyHint="search"
       />
-      {items.length === 0 && <p className={styles.none}>Nothing matches “{query.trim()}”.</p>}
-      <ul className={styles.list} aria-label="Exercises">
-        {items.map((e) => (
-          <li key={e.id}>
-            <button type="button" className={`${styles.item} pressable`} onClick={() => onPick(e.id)}>
-              <span className={styles.itemName}>{e.name}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className={styles.footer}>
-        <button type="button" className={`${css.secondary} pressable`} onClick={onSkip}>
+      {items.length === 0 && catalogItems.length === 0 && (
+        <p className={styles.none}>
+          Nothing matches “{query.trim()}”.
+          <span className={styles.noneLine}>Keep the name to save it without photos or muscles.</span>
+        </p>
+      )}
+      {items.length > 0 && (
+        <section className={styles.section} aria-label="In your plans">
+          <h3 className={styles.sectionTitle}>In your plans</h3>
+          <ul className={styles.list} aria-label="Exercises">
+            {items.map((e) => (
+              <li key={e.id}>
+                <button type="button" className={`${styles.item} ${css.pickItem} pressable`} onClick={() => onPick(e.id)}>
+                  <span className={styles.itemName}>{e.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {catalogItems.length > 0 && (
+        <section className={styles.section} aria-label="More exercises">
+          <h3 className={styles.sectionTitle}>More exercises</h3>
+          <ul className={styles.list} aria-label="More exercises" data-testid="pick-catalog">
+            {catalogItems.map((e) => (
+              <li key={e.id}>
+                <button type="button" className={`${styles.item} ${css.pickItem} pressable`} onClick={() => onPick(catalogPick(e.id))}>
+                  <span className={styles.itemName}>{e.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {/* One row of two (PLAN 3.2 check 7): at 130% text three full rows stay above it on an SE. */}
+      <div className={`${styles.footer} ${css.pickFooter}`}>
+        <button
+          type="button"
+          className={`${css.secondary} ${css.pickAction} pressable`}
+          onClick={onKeepName}
+          data-testid="pick-keep-name"
+          aria-label={`Keep the name “${fileName}”: saved without photos or muscles`}
+        >
+          Keep the name
+        </button>
+        <button type="button" className={`${css.secondary} ${css.pickAction} pressable`} onClick={onSkip}>
           {skipText(skipCount)}
         </button>
       </div>

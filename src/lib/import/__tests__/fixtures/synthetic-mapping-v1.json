@@ -1,0 +1,63 @@
+{
+  "format": "anygym-import-v1",
+  "owner": "Test Lifter",
+  "unit": "lb",
+  "source": "Synthetic fixture for the PLAN 3.2 catalog mapping tests. Invented names and numbers.",
+  "conventions": {
+    "sessionOrder": "sessions are oldest first; no dates",
+    "loadTypes": { "unknown": "ask the user on import" }
+  },
+  "exercises": [
+    {
+      "name": "Squats",
+      "planExercise": "barbell back-squat",
+      "loadType": "barbell_per_side",
+      "sessions": [
+        { "sets": [ { "reps": 8, "weight": 45 }, { "reps": 8, "weight": 45 } ] },
+        { "sets": [ { "reps": 8, "weight": 50, "plates": [45, 5] }, { "reps": 6, "weight": 50, "uncertain": true, "why": "Hard to read: 6 or 8" } ] }
+      ]
+    },
+    {
+      "name": "Triceps Pushdown",
+      "planExercise": "Triceps Pushdown",
+      "loadType": "stack",
+      "sessions": [ { "sets": [ { "reps": 12, "weight": 50 }, { "reps": 10, "weight": 55 } ] } ]
+    },
+    {
+      "name": "Barbell Curl",
+      "planExercise": "Barbell Curl",
+      "loadType": "fixed_bar_total",
+      "sessions": [ { "sets": [ { "reps": 10, "weight": 60 }, { "reps": 8, "weight": 60 } ] } ]
+    },
+    {
+      "name": "Leg Extensions",
+      "planExercise": "Leg Extensions",
+      "loadType": "stack",
+      "sessions": [ { "sets": [ { "reps": 12, "weight": 90 } ] } ]
+    },
+    {
+      "name": "28 Method Squat",
+      "planExercise": "28 Method Squat",
+      "loadType": "bodyweight",
+      "sessions": [ { "sets": [ { "reps": 28 } ] } ]
+    },
+    {
+      "name": "Moon press",
+      "planExercise": "Zercher Moon Press",
+      "loadType": "dumbbell_each",
+      "sessions": [ { "sets": [ { "reps": 10, "weight": 25 }, { "reps": 9, "weight": 25 } ] } ]
+    },
+    {
+      "name": "Bench",
+      "planExercise": "Bench",
+      "loadType": "dumbbell_each",
+      "sessions": [ { "sets": [ { "reps": 10, "weight": 40 }, { "reps": 10, "uncertain": true, "why": "Weight not written down" } ] } ]
+    },
+    {
+      "name": "Mystery machine",
+      "planExercise": "Mystery machine",
+      "loadType": "unknown",
+      "sessions": [ { "sets": [ { "reps": 12, "weight": 70 } ] } ]
+    }
+  ]
+}
