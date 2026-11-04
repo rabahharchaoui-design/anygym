@@ -133,4 +133,7 @@ None. Deferred to Session 3 or G: Replace and Make a pair in the ⋯ menu (Sessi
 12. Report a problem: type "test", Send; a phone push arrives (needs the Worker). 15 s.
 
 ### Final runs
-(filled below after the gate merge)
+- Vitest: 129 files, 1715 passed, 1 skipped.
+- Playwright on the gate tree (5ece1d1 plus the Codex batch): iPhone SE + iPhone 15 1165 passed, 0 failed; iPhone 17 Pro Max, Pixel 7, Galaxy compact, Small Android, 320 floor 1174 passed with 13 failures, all of them the 4x CPU throttled speed assertions (press feedback, ✓ paint, screen change, frame stalls) on the three Chromium projects plus one push and pop frame budget on Pro Max. Rerun alone: Pro Max 29 passed; the Chromium ones still fail, and an A/B run of the pre gate tree (4529977) in a worktree fails the same assertions by the same margin on Pixel 7, so this is the machine (rebooted 40 minutes before, load average 4 to 7, G's anygym-chain helper at 12% CPU), not the gate. The WebKit iPhone budgets hold, which is what 2.2d and 2.2e promise; the Chromium budgets are noted as machine sensitive for Session 3 (make them relative to an idle baseline or warn only).
+- Codex tests 1102-1742 merged: kept 8, dropped 0, bugs 0.
+- Console errors: none in any run.
