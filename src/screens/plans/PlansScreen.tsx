@@ -1,14 +1,21 @@
 import { Link } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
-import { ChevronRight } from '../../ui/icons';
 import { useNav } from '../../ui/nav';
 import { PLANS } from '../../data/plans';
+import { PLACE_TILES } from '../../data/places';
 import { getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
-import { planMeta } from './planWords';
+import { PlanCard } from './PlanCard';
+import { PlaceIcon } from './PlaceIcon';
 import styles from './Plans.module.css';
 
-/** Plans tab (SPEC 8.6): the curated plans. Tap one to see every day. */
+const count = (n: number) => `${n} ${n === 1 ? 'plan' : 'plans'}`;
+
+/**
+ * Plans tab (SPEC 8.6): where you train first, as tiles (PLAN 3.1, only places with a real plan
+ * behind them, never an empty tile), then every curated plan. Tap a tile for its plans, a plan to
+ * see every day.
+ */
 export function PlansScreen() {
   const state = useLive(() => getPlanState(), []);
   const activeId = state.data?.planId;
@@ -18,27 +25,38 @@ export function PlansScreen() {
       <TopBar title="Plans">
         <p className={styles.lead}>Pick one. Each day's workout is ready for you.</p>
       </TopBar>
+      {PLACE_TILES.length > 0 && (
+        <section className={styles.places} aria-labelledby="places-title">
+          <h2 id="places-title" className={styles.sectionTitle}>
+            Where you train
+          </h2>
+          <ul className={styles.placeGrid} data-count={PLACE_TILES.length}>
+            {PLACE_TILES.map(({ place, plans }) => (
+              <li key={place.id} className={styles.placeItem}>
+                <Link
+                  to={`/plans/place/${place.id}`}
+                  className={`${styles.placeTile} pressable`}
+                  data-testid={`place-${place.id}`}
+                  aria-label={`${place.label}, ${count(plans.length)}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    go(`/plans/place/${place.id}`);
+                  }}
+                >
+                  <span className={styles.placeLabel}>{place.label}</span>
+                  <span className={`${styles.placeCount} num`}>{count(plans.length)}</span>
+                  <PlaceIcon id={place.id} className={styles.placeIcon} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <h2 className={styles.sectionTitle}>All plans</h2>
       <ul className={styles.list}>
         {PLANS.map((p) => (
           <li key={p.id}>
-            <Link
-              to={`/plans/${p.id}`}
-              className={`${styles.planCard} pressable`}
-              data-testid={`plan-${p.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                go(`/plans/${p.id}`);
-              }}
-            >
-              <span className={styles.planName}>{p.name}</span>
-              {/* "Your plan" rides on the detail line, so the name never wraps to make room for it. */}
-              <span className={styles.planMeta}>
-                {planMeta(p)}
-                {activeId === p.id && <span className={styles.badge}>Your plan</span>}
-              </span>
-              <span className={styles.planSummary}>{p.summary}</span>
-              <ChevronRight className={styles.planChevron} aria-hidden="true" />
-            </Link>
+            <PlanCard plan={p} to={`/plans/${p.id}`} active={activeId === p.id} />
           </li>
         ))}
       </ul>

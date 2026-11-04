@@ -75,6 +75,67 @@
   line-height: 1.4;
 }
 
+.sectionTitle {
+  margin: var(--space-5) 0 var(--space-3);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.places .sectionTitle {
+  margin-top: var(--space-2);
+}
+
+/* Routines by place (PLAN 3.1): two columns of tiles, the name top left, its count under it, one
+   line icon at the foot. An odd last tile takes the whole row, so the grid never has a hole. */
+.placeGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.placeGrid[data-count] > .placeItem:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.placeTile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 104px;
+  padding: var(--space-4) calc(var(--space-4) + 36px) var(--space-4) var(--space-4);
+  border: 1px solid var(--glass-line);
+  border-radius: 20px;
+  background: linear-gradient(to bottom, #141417, var(--surface-1));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.placeLabel {
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.placeCount {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.placeIcon {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  width: 28px;
+  height: 28px;
+  color: var(--accent);
+}
+
 /* ---------------------------------------------------------------- viewer */
 
 .viewer {
@@ -175,19 +236,23 @@
   gap: var(--space-2);
 }
 
+/* A pair (SPEC 8.2, 13.1): one shared card, the pair rail down its left, the label on top and the
+   one rest under both rows (PLAN 3.1). */
 .block[data-kind='pair'] {
   position: relative;
-  padding-left: 14px;
+  padding: 10px 0;
+  border-radius: 18px;
+  background: var(--surface-1);
+  border: 1px solid color-mix(in srgb, var(--pair) 28%, transparent);
 }
 
-/* The pair rail (SPEC 8.2): one colored line down the left of both exercises. */
 .block[data-kind='pair']::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 2px;
-  bottom: 2px;
-  width: 4px;
+  left: 8px;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
   border-radius: 2px;
   background: var(--pair);
 }
@@ -199,8 +264,16 @@
   font-weight: 700;
 }
 
+.block[data-kind='pair'] .blockLabel {
+  padding: 2px var(--space-4) 0 22px;
+}
+
 .block[data-warmup] .blockLabel {
   color: var(--amber);
+}
+
+.block[data-warmup][data-kind='pair'] {
+  border-color: color-mix(in srgb, var(--amber) 28%, transparent);
 }
 
 .block[data-warmup][data-kind='pair']::before {
@@ -219,11 +292,101 @@
 .item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   padding: 12px var(--space-4);
   border-radius: 16px;
   background: var(--surface-1);
   border: 1px solid rgb(255 255 255 / 0.04);
+}
+
+.block[data-kind='pair'] .items {
+  gap: 0;
+}
+
+.block[data-kind='pair'] .item {
+  padding: 10px var(--space-4) 10px 22px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* The hairline between the two rows starts at the text, clear of the rail. */
+.block[data-kind='pair'] .item + .item {
+  margin-left: 22px;
+  padding-left: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.itemText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pairRest {
+  margin: 2px 0 0;
+  padding: 0 var(--space-4) 2px 22px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* The week by week table of a six week item (PLAN 3.1): six equal cells, the shown week lime. */
+.weekTable {
+  margin-top: 10px;
+}
+
+.weekCaption {
+  margin: 0 0 6px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.weekCells {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.weekCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 5px 0 6px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.035);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.weekCell[data-current] {
+  background: rgb(212 255 58 / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(212 255 58 / 0.5);
+}
+
+.weekCellWeek {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.weekCellValue {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.weekCell[data-current] .weekCellValue {
+  color: var(--accent);
 }
 
 .itemName {

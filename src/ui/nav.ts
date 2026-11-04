@@ -17,6 +17,8 @@ export function depthOf(path: string): number {
   const workout = /^\/workout\/[^/]+(\/(.+))?$/.exec(p);
   if (workout) return workout[2] && workout[2] !== 'done' ? 2 : 1;
   if (p.startsWith('/settings/')) return 2;
+  // A plan opened from a place (PLAN 3.1) sits on top of that place's list.
+  if (/^\/plans\/place\/[^/]+\/[^/]+$/.test(p)) return 2;
   return 1;
 }
 

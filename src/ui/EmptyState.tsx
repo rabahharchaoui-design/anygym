@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from './Button';
 import styles from './EmptyState.module.css';
 
@@ -7,15 +8,23 @@ type Props = {
   title: string;
   next: string;
   art?: Art;
+  /** A faint line icon instead of the drawing (a quiet "nothing here yet", PLAN 3.1). */
+  icon?: ReactNode;
   /** The one clear next step (SPEC 13.1: no dead ends). */
   action?: { label: string; onPress: () => void };
 };
 
 /** Honest empty state (SPEC 13.1, 23.3): a small original drawing, what is here, one next step. No fake data. */
-export function EmptyState({ title, next, art = 'list', action }: Props) {
+export function EmptyState({ title, next, art = 'list', icon, action }: Props) {
   return (
     <section className={styles.empty}>
-      <Illustration art={art} />
+      {icon ? (
+        <span className={styles.icon} aria-hidden="true">
+          {icon}
+        </span>
+      ) : (
+        <Illustration art={art} />
+      )}
       <h2 className={styles.title}>{title}</h2>
       <p className={styles.next}>{next}</p>
       {action && (

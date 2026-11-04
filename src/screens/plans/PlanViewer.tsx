@@ -5,6 +5,7 @@ import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { useNav } from '../../ui/nav';
 import { planById } from '../../data/plans';
+import { placeById } from '../../lib/places';
 import { choosePlanUndoable, getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
 import { LoadError } from '../../components/LoadError';
@@ -16,8 +17,11 @@ import styles from './Plans.module.css';
 
 /** Plan viewer: every day in plain words, a week picker for week table plans, and "Use this plan". */
 export function PlanViewer() {
-  const { planId } = useParams();
+  const { planId, placeId } = useParams();
   const plan = planById(planId);
+  // Opened from a place's list (PLAN 3.1): back goes to that list.
+  const place = placeById(placeId);
+  const backTo = place ? `/plans/place/${place.id}` : '/plans';
   const go = useNav();
   const state = useLive(() => getPlanState(), []);
   // Nothing is chosen until the active plan read worked (PLAN 1.7j): a pending or failed read
@@ -45,12 +49,12 @@ export function PlanViewer() {
     }
   });
 
-  if (!plan) return <Navigate to="/plans" replace />;
+  if (!plan) return <Navigate to={backTo} replace />;
   const weekIndex = week ?? (active ? (state.data?.weekIndex ?? 0) : 0);
 
   return (
     <div className={styles.viewer}>
-      <TopBar title={plan.name} leading={<BackButton to="/plans" label="Back to Plans" />}>
+      <TopBar title={plan.name} leading={<BackButton to={backTo} label={`Back to ${place?.label ?? 'Plans'}`} />}>
         <p className={styles.viewerMeta}>{planMeta(plan)}</p>
         <p className={styles.viewerSummary}>{plan.summary}</p>
       </TopBar>

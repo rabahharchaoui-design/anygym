@@ -69,8 +69,10 @@ async function readViewer(page: Page, label: RegExp) {
     const rows: any[] = [];
     sec.querySelectorAll('li[data-kind]').forEach((blk, bi) => {
       const label = blk.querySelector('p')?.textContent ?? '';
+      // PLAN 3.1: a pair shows its one rest under both rows, so it belongs to each row's words.
+      const pairRest = (blk.querySelector('[data-testid="pair-rest"]') as HTMLElement | null)?.innerText ?? '';
       blk.querySelectorAll('[data-testid^="plan-item-"]').forEach((it) =>
-        rows.push({ name: it.children[0]?.textContent ?? '', text: (it as HTMLElement).innerText, kind: blk.getAttribute('data-kind') === 'pair' ? 'pair' : 'single', warm: blk.hasAttribute('data-warmup'), grp: String(bi), label }),
+        rows.push({ name: it.children[0]?.textContent ?? '', text: `${(it as HTMLElement).innerText}${pairRest ? `\n${pairRest}` : ''}`, kind: blk.getAttribute('data-kind') === 'pair' ? 'pair' : 'single', warm: blk.hasAttribute('data-warmup'), grp: String(bi), label }),
       );
     });
     return rows;
