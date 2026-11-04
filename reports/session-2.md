@@ -100,3 +100,37 @@ First truth checks of the cloud's Chromium only work:
 - Feedback intake: `npx wrangler d1 execute anygym-feedback --remote` returns "Authentication error [code: 10000]" since Nov 3 evening (it worked Nov 1 to 3 afternoon, always 0 open rows). The wrangler login on gmini needs a fresh `npx wrangler login` from G; the intake check is skipped until then.
 - Gate round 1 fixes (48a708f): all 3 blockers and 15 polish items; src/lib/setWords.ts is now the one place set wording comes from. Full matrix and critic round 2 follow.
 - Gate critic round 2 (reports/critic/session-2/gate-r2/): SE 8.5, Pro Max 8.5; wording and toasts fixed, the top bar still read through in WebKit. Gate round 2 fixes committed: both the bar and its layer carry the 0.95 fill (a sampled test fails on anything brighter than 40 of 255 behind the bar), equipment icon tiles, wheel notch empty until the user picks (never a suggested weight), finish title one line, Removed toast with the name second, pill separator. Left for the next run: critic round 3, the full matrix, the merge, the report and the phone alert.
+
+## Gate summary (Nov 4 2026, gmini)
+
+### What shipped in Session 2
+- 2.0a to 2.0d: finish screen with the 60% plan rule, true scale then picture first plate diagram (color coded plates, zoom instead of grouping, sleeve tap removal, horn machines with "+ start"), weights carrying their units and bar identity.
+- 2.1 to 2.5 (cloud): the curated catalog (138 exercises, SHA f00c92c7, photo audit with 45 kept and 3 downgraded to none), the muscle map, the exercise sheet with cues citing their source lines, the Review screen, the audit.
+- 2.2a to 2.2f: premium muscle map (male and female bodies, front and back), the exercise screen that fills the screen (demo hero, set table, muscle card, form tips), exercises for a tapped muscle, workout screen polish (no dead space, swipe to delete, Remove set, rest Off per exercise, faster checks, shared hero transition), premium foundation (one spring system, SlidingToggle, ChoiceCard, BottomCTA, toast, PR badge with an honest claim, AppMarkLoader), secret guard and CSP.
+- 2.0e to 2.0l: seven Codex carry over items in the saving layer (journal revisions and receipts, deletion tokens, cross tab locks and merges, backup of pending state, duplicate Log fingerprints, exact retry payloads).
+- Gate: three ux-critic rounds (SE 7.5 → 8.5 → 8.5, Pro Max 8 → 8.5 → 9); one set wording everywhere from src/lib/setWords.ts, toasts in one opaque spot, solid pushed top bars, 15 polish items.
+
+### Items marked [!]
+None. Deferred to Session 3 or G: Replace and Make a pair in the ⋯ menu (Session 3 swaps), a real brand mark for the loader (two stroke A today), a first finish line for a first ever workout, the dumbbell wheel's empty centre marker, bottom space under the day list for the Remove toast, extra rows across tabs, Finish in another tab during a group Undo, two conflicting edits on one successor row, the three Codex test gap findings (hard kill at write boundaries, full matrix by default, native touch panning), the wrangler login for feedback intake.
+
+### Screenshots and videos
+- Per item: reports/shots/2.0a to 2.0d, 2.2 to 2.2f, 2.0k, 2.0l; simulator: reports/shots/gate-s2/sim/.
+- Critic rounds: reports/critic/session-2/2.0d*, 2.2d*, 2.2e*, gate, gate-r2, gate-r3 (videos inside).
+- Builder videos: reports/videos/2.2d/, reports/videos/2.2e/.
+
+### iPhone hand test (5 minutes)
+1. Open AnyGym from the Home Screen. Today shows your plan card and "This week"; the title stays large. 15 s.
+2. Tap Start. The day list shows photo tiles; the Start pill reads "Start · <exercise>". Tap the first barbell lift: the tile grows into the hero. 20 s.
+3. The set table is in the first screen. Tap ✓ on set 1 (the "Log" label shows the first time): the row turns lime at once, the rest bar slides in. 20 s.
+4. Tap the weight on set 2: the plate sheet opens close on the bar; add plates up to about 400 lb, the bar zooms out, colored plates, no numbers; tap a sleeve end to take one off; Change bar is one small link. Done. 40 s.
+5. Swipe set 3 left: red Delete, snap, full swipe deletes, Undo brings it back in place. Long press a row: the "Set N" sheet with Remove set in red. 30 s.
+6. Scroll under the table: the muscle card lights the muscles; tap one, then its "N exercises" link, open one, Back twice. 30 s.
+7. ⋯ menu: Rest after each set → Off; the toast "Rest off" sits above the pill and never on a row. 15 s.
+8. Log a set heavier than last time: a lime PR chip after the reps; tap it: "New best: beat … from …". Finish: the screen leads with your best lift, "N of M lifts finished", "Day N again · you did X of Y sets" when the day is not done. 40 s.
+9. Settings: Units and Muscle map body are sliding toggles; scroll Settings: the top bar never shows text through it. 20 s.
+10. Tap the version 5 times: the Review screen (owner tool) opens with Approve / Wrong demo / Wrong muscles / Fix cues, all reachable by scrolling. 20 s.
+11. Switch tabs: the lime pill carries the icon with it; nothing blinks. 10 s.
+12. Report a problem: type "test", Send; a phone push arrives (needs the Worker). 15 s.
+
+### Final runs
+(filled below after the gate merge)
