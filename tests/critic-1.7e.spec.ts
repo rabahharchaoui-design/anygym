@@ -374,7 +374,7 @@ test('Settings: Units switch the gym between lb and kg; the gym name on Today is
   const pill = page.getByRole('button', { name: /My Gym/ });
   await expect(pill).toBeVisible();
   await pill.tap();
-  await expect(page.getByRole('dialog', { name: /Where are you training/ })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Gyms' })).toBeVisible();
   await page.keyboard.press('Escape');
   expect(errors).toEqual([]);
 });
