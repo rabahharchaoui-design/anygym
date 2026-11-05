@@ -8,7 +8,7 @@ import { slugify, type PlanExercise } from '../src/lib/loadTypeRule';
 import { dayIndexOf, normalizePlan, type Plan } from '../src/lib/plans';
 import { dayWorkout, isWorkingEntry } from '../src/lib/planWorkout';
 import { checkControls, checkLayout, fullyShown, simulateSafeAreas } from './helpers/layout';
-import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, usePlan, watchErrors } from './workout-helpers';
+import { dbAll, dbPut, exerciseView, loggedRows, usePlan, watchErrors } from './workout-helpers';
 
 test.describe.configure({ timeout: 150_000 });
 
@@ -62,19 +62,6 @@ const barSet = (id: string, sessionId: string, exerciseId: string, order: number
   const total = sumLoad({ bar: 45, perSide, unit: 'lb' }).total!;
   return { id, sessionId, exerciseId, order, kind: 'work', uncertain: false, reps, load: { kind: 'barbell', unit: 'lb', total, barWeight: 45, perSide, ...extra } };
 };
-async function logCurrent(page: Page, id: string) {
-  const view = exerciseView(page, id);
-  await expect(view).toBeVisible();
-  const before = await loggedRows(view).count();
-  if (!(await checkCurrent(view).isEnabled())) {
-    await view.getByTestId('weight-cell').first().tap();
-    const sheet = page.getByRole('dialog', { name: 'Pick the weight', exact: true });
-    await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
-    await expect(sheet).toHaveCount(0);
-  }
-  await checkCurrent(view).tap();
-  await expect(loggedRows(view)).toHaveCount(before + 1);
-}
 const text130 = (page: Page, scope: string) =>
   page.evaluate((root) => {
     const els = Array.from(document.querySelectorAll<HTMLElement>(`${root}, ${root} *`));
