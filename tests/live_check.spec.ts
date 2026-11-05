@@ -19,6 +19,13 @@ test('live site: shell renders, manifest served, no errors, no third party reque
   await page.goto('./');
   await expect(page).toHaveTitle('AnyGym');
 
+  // PLAN 3.3: a brand new phone lands in the intake funnel.
+  await expect(page.getByTestId('intake')).toBeVisible();
+
+  // Past the funnel: this phone already answered (the same flag the app writes).
+  await page.evaluate(() => localStorage.setItem('anygym.intakeDone', '1'));
+  await page.goto('./');
+
   const nav = page.getByRole('navigation', { name: 'Main' });
   const tabs = nav.getByRole('link');
   await expect(tabs).toHaveCount(4);
