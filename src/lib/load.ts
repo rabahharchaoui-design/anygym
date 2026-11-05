@@ -617,6 +617,17 @@ export function heldChoices(kind: Load['kind'], s: Pick<LoadSetup, 'dumbbellRang
 export const MAX_EXACT_HELD: Record<Unit, number> = { lb: 500, kg: 250 };
 
 /**
+ * A dumbbell range typed by hand (PLAN 3.3, SPEC 3): three texts, a comma counts as a point. Null
+ * until all three make a real range in this unit: above zero, lightest not over heaviest.
+ */
+export function parseDumbbellRange(min: string, max: string, step: string, unit: Unit): DumbbellRange | null {
+  const read = (t: string) => (t.trim() === '' ? NaN : Number(t.trim().replace(',', '.')));
+  const range = { min: read(min), max: read(max), step: read(step) };
+  if (!validDumbbellRange(range) || range.min <= 0 || range.max > MAX_EXACT_HELD[unit]) return null;
+  return range;
+}
+
+/**
  * Why a typed exact weight cannot be used (PLAN 2.0d follow up): nothing typed ('empty'), past
  * MAX_EXACT_HELD ('over'), or not a weight above 0 ('zero'); null when exactHeldLoad accepts it.
  */

@@ -526,3 +526,133 @@ test('130% text on the SE: every screen fits, nothing cut off, the button stays 
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button') });
   await shot(page, 'reveal-130');
 });
+
+// ---------------------------------------------------------------- round 2 (Codex review)
+
+const toEquipment = async (page: Page, answers: Record<string, unknown>) => {
+  await page.goto('./#/settings');
+  await page.evaluate((a) => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'equipment', answers: a })), answers);
+  await page.goto('./#/welcome');
+  await page.reload();
+  await atStep(page, 'equipment');
+};
+
+test('home with Dumbbells asks for the range: Continue waits, only what was typed is stored @matrix', async ({ page }) => {
+  await toEquipment(page, { units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, place: 'home', equipmentFor: 'home', equipment: [] });
+  await expect(page.getByTestId('dumbbell-range')).toHaveCount(0);
+  await expect(cta(page)).toBeEnabled();
+  await page.getByTestId('equip-dumbbells').tap();
+  await expect(page.getByTestId('dumbbell-range')).toContainText('in lb');
+  await expect(cta(page)).toBeDisabled();
+  await page.getByTestId('range-min').fill('40');
+  await page.getByTestId('range-max').fill('10');
+  await page.getByTestId('range-step').fill('5');
+  await expect(page.getByTestId('dumbbell-range')).toContainText('Check these');
+  await expect(cta(page)).toBeDisabled();
+  await page.getByTestId('range-min').fill('10');
+  await page.getByTestId('range-max').fill('40');
+  await expect(cta(page)).toBeEnabled();
+  await checkLayout(page, { primary: cta(page) });
+  await shot(page, 'equipment-range');
+  // Turned off: no question, nothing stored.
+  await page.getByTestId('equip-dumbbells').tap();
+  await expect(page.getByTestId('dumbbell-range')).toHaveCount(0);
+  await page.getByTestId('equip-dumbbells').tap();
+  await expect(cta(page)).toBeDisabled();
+  await page.getByTestId('range-min').fill('10');
+  await page.getByTestId('range-max').fill('40');
+  await page.getByTestId('range-step').fill('10');
+  await cta(page).tap();
+  await atStep(page, 'style');
+  await page.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!);
+    d.step = 'reveal';
+    localStorage.setItem('anygym.intakeDraft', JSON.stringify(d));
+  });
+  await page.reload();
+  await atStep(page, 'reveal');
+  await expect.poll(async () => (await dbAll(page, 'gyms'))[0]?.dumbbellRange).toEqual({ min: 10, max: 40, step: 10 });
+});
+
+test('three weekdays on a five day plan: every workout shows as Day 1 to 5, with the one line why @matrix', async ({ page }) => {
+  await page.goto('./#/settings');
+  await page.evaluate(() =>
+    localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'reveal', answers: { goal: 'muscle', days: 5, place: 'full', weekdays: ['mon', 'wed', 'fri'], experience: '3y' } })),
+  );
+  await page.goto('./#/welcome');
+  await atStep(page, 'reveal');
+  const rows = page.getByTestId('reveal-week').getByRole('listitem');
+  await expect(rows).toHaveCount(5);
+  await expect(rows.nth(4)).toContainText('Day 5');
+  await expect(rows.nth(4)).toContainText('Shoulders and calves');
+  await expect(page.getByTestId('reveal-caveat')).toHaveText('You picked 3 days and this plan has 5. Do them in order at your own pace.');
+  await shot(page, 'reveal-weekdays-mismatch');
+});
+
+test('a redo left alone never touches the gym Settings changed; skipping Name deletes it', async ({ page }) => {
+  await page.goto('./');
+  await atStep(page, 'goal');
+  // First intake, with a name.
+  await page.evaluate(() =>
+    localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'name', answers: { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, place: 'full', equipmentFor: 'full', days: 5 } })),
+  );
+  await page.reload();
+  await atStep(page, 'name');
+  await page.getByTestId('name-input').fill('Sam');
+  await cta(page).tap();
+  for (const step of ['bodyweight', 'height', 'age']) {
+    await atStep(page, step);
+    await page.getByTestId('skip').tap();
+  }
+  await atStep(page, 'reveal');
+  await expect.poll(async () => (await dbAll(page, 'profile'))[0]?.name).toBe('Sam');
+
+  // Settings moves the gym to kg and the user customises it.
+  await page.goto('./#/settings');
+  await page.getByTestId('settings-units').getByRole('radio', { name: 'kg' }).tap();
+  await expect.poll(async () => (await dbAll(page, 'gyms'))[0]?.unit).toBe('kg');
+  const [before] = await dbAll(page, 'gyms');
+  await dbPut(page, 'gyms', { ...before!, equipmentWeights: { leg_press: { kind: 'starting_resistance', value: 50 } } });
+  const [kept] = await dbAll(page, 'gyms');
+
+  // Redo: the toggle shows the gym's kg, never the old lb.
+  await page.getByTestId('redo-intake').tap();
+  await atStep(page, 'goal');
+  await page.getByTestId('q-goal-muscle').tap();
+  await atStep(page, 'units');
+  await expect(page.getByTestId('units-weight').getByRole('radio', { name: 'kg' })).toHaveAttribute('aria-checked', 'true');
+  await cta(page).tap();
+  await atStep(page, 'focus');
+  await page.getByTestId('q-focus-arms').tap();
+  await cta(page).tap();
+  await page.getByTestId('q-win-energy').tap();
+  await cta(page).tap();
+  await page.getByTestId('q-experience-3y').tap();
+  await atStep(page, 'days');
+  await page.getByTestId('q-days-5').tap();
+  await page.getByTestId('skip').tap();
+  await page.getByTestId('q-minutes-60').tap();
+  await page.getByTestId('q-place-full').tap();
+  await atStep(page, 'equipment');
+  await cta(page).tap();
+  await page.getByTestId('q-style-mix').tap();
+  await page.getByTestId('q-cardio-little').tap();
+  for (const step of ['cardioFavorites', 'easyOn', 'love', 'never']) {
+    await atStep(page, step);
+    await page.getByTestId('skip').tap();
+  }
+  await page.getByTestId('q-when-early').tap();
+  // Name shows the saved one; Skip discards it.
+  await atStep(page, 'name');
+  await expect(page.getByTestId('name-input')).toHaveValue('Sam');
+  await page.getByTestId('skip').tap();
+  for (const step of ['bodyweight', 'height', 'age']) {
+    await atStep(page, step);
+    await page.getByTestId('skip').tap();
+  }
+  await atStep(page, 'reveal');
+  await expect.poll(async () => (await dbAll(page, 'profile'))[0]?.intake && ((await dbAll(page, 'profile'))[0]!.intake as { skipped?: string[] }).skipped).toContain('name');
+  const [profile] = await dbAll(page, 'profile');
+  expect('name' in profile!).toBe(false);
+  expect(await dbAll(page, 'gyms')).toEqual([kept]);
+});

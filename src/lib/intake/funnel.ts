@@ -1,9 +1,10 @@
 // The intake funnel as a pure state machine (SPEC 14, PLAN 3.3). One question per screen; every
 // answer is kept in the state as it is given (the screen saves the state as a draft), Skip clears
 // the screen's answer and remembers it was skipped, Back goes to the previous screen that shows.
-import { EQUIPMENT_IDS, type EquipmentId, type GymType, type Unit } from '../../db/types';
+import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type GymType, type Unit } from '../../db/types';
 import { equipmentPreset } from '../../db/gyms';
 import type { BodyKind } from '../bodyArt';
+import { validDumbbellRange } from '../load';
 import {
   AGE_RANGES,
   CARDIO,
@@ -55,6 +56,8 @@ export type IntakeAnswers = {
   equipment?: EquipmentId[];
   /** The place the equipment list was preset from (a new place presets it again). */
   equipmentFor?: PlaceAnswer;
+  /** Typed on the equipment screen, in units.weight, only where no preset exists (needsDumbbellRange). */
+  dumbbellRange?: DumbbellRange;
   style?: StyleId;
   cardio?: CardioId;
   cardioFavorites?: CardioFavoriteId[];
@@ -166,14 +169,20 @@ export function presetEquipment(place: PlaceAnswer): EquipmentId[] {
   return equipmentPreset(GYM_TYPE_OF[place], 'lb').equipment;
 }
 
+/** Dumbbells picked at a place with no SPEC 3 range (home, outdoors): the user gives it, never a guess. */
+export function needsDumbbellRange(a: IntakeAnswers): boolean {
+  if (!a.place || !a.equipment?.includes('dumbbells')) return false;
+  return equipmentPreset(GYM_TYPE_OF[a.place], 'lb').dumbbellRange === null;
+}
+
 /** Whether the screen has what it needs for Continue (or to advance). */
 export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
   switch (screen) {
     case 'units':
       return a.units !== undefined;
     case 'equipment':
-      // Nothing picked is a real answer: floor and bodyweight only.
-      return true;
+      // Nothing picked is a real answer: floor and bodyweight only. Dumbbells may need their range.
+      return !needsDumbbellRange(a) || (!!a.dumbbellRange && validDumbbellRange(a.dumbbellRange));
     case 'name':
       return !!a.name?.trim();
     case 'reveal':
@@ -189,6 +198,7 @@ export type FunnelState = { step: ScreenId; answers: IntakeAnswers };
 
 export type FunnelAction =
   | { type: 'set'; screen: Exclude<ScreenId, 'reveal'>; value: unknown }
+  | { type: 'range'; value: DumbbellRange | undefined }
   | { type: 'next' }
   | { type: 'skip' }
   | { type: 'back' }
@@ -212,7 +222,11 @@ export function setAnswer(a: IntakeAnswers, screen: Exclude<ScreenId, 'reveal'>,
     const place = value as PlaceAnswer;
     next.equipment = presetEquipment(place);
     next.equipmentFor = place;
+    delete next.dumbbellRange;
   }
+  // The range is in the weight unit: 50 lb is never read as 50 kg.
+  if (screen === 'units' && (value as UnitsAnswer).weight !== a.units?.weight) delete next.dumbbellRange;
+  if (screen === 'equipment' && !(value as EquipmentId[]).includes('dumbbells')) delete next.dumbbellRange;
   if (screen === 'cardio' && value === 'none') delete next.cardioFavorites;
   return clean(next);
 }
@@ -246,6 +260,8 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
   switch (action.type) {
     case 'set':
       return { ...state, answers: setAnswer(state.answers, action.screen, action.value) };
+    case 'range':
+      return { ...state, answers: clean({ ...state.answers, dumbbellRange: action.value }) };
     case 'next':
       if (!canContinue(state.step, state.answers)) return state;
       return { ...state, step: nextScreen(state.step, state.answers) };
@@ -295,6 +311,13 @@ function units(v: unknown): UnitsAnswer | undefined {
   return weight && distance && measure && body ? { weight, distance, measure, body } : undefined;
 }
 
+function dumbbells(v: unknown): DumbbellRange | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const { min, max, step } = v as Record<string, unknown>;
+  if (!finite(min) || !finite(max) || !finite(step)) return undefined;
+  return validDumbbellRange({ min, max, step }) && min > 0 ? { min, max, step } : undefined;
+}
+
 function bodyweight(v: unknown): Bodyweight | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
@@ -330,6 +353,7 @@ export function sanitizeAnswers(v: unknown): IntakeAnswers {
     place: oneOf(placeIds, o.place),
     equipment: manyOf(EQUIPMENT_IDS, o.equipment),
     equipmentFor: oneOf(placeIds, o.equipmentFor),
+    dumbbellRange: dumbbells(o.dumbbellRange),
     style: oneOf(ids(STYLES), o.style),
     cardio: oneOf(ids(CARDIO), o.cardio),
     cardioFavorites: manyOf(ids(CARDIO_FAVORITES), o.cardioFavorites),

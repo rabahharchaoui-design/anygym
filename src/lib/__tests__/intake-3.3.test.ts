@@ -6,6 +6,7 @@ import {
   canContinue,
   funnelReducer,
   KIND,
+  needsDumbbellRange,
   parseDraft,
   presetEquipment,
   prevScreen,
@@ -13,6 +14,7 @@ import {
   sanitizeAnswers,
   SCREENS,
   serializeDraft,
+  setAnswer,
   SKIPPABLE,
   startState,
   visibleScreens,
@@ -167,6 +169,34 @@ describe('the funnel state machine', () => {
   });
 });
 
+describe('item 3: dumbbells outside a preset need a range the user gave', () => {
+  const home: IntakeAnswers = { units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, place: 'home', equipment: ['dumbbells'] };
+  it('only home and outdoors ask, and only with Dumbbells on', () => {
+    expect(needsDumbbellRange(home)).toBe(true);
+    expect(needsDumbbellRange({ ...home, place: 'outdoors' })).toBe(true);
+    expect(needsDumbbellRange({ ...home, equipment: [] })).toBe(false);
+    expect(needsDumbbellRange({ ...home, place: 'hotel' })).toBe(false);
+    expect(needsDumbbellRange({ ...home, place: 'full' })).toBe(false);
+    expect(needsDumbbellRange({ ...home, place: 'mix' })).toBe(false);
+  });
+  it('Continue waits for a valid range', () => {
+    expect(canContinue('equipment', home)).toBe(false);
+    expect(canContinue('equipment', { ...home, dumbbellRange: { min: 5, max: 50, step: 5 } })).toBe(true);
+    expect(canContinue('equipment', { ...home, dumbbellRange: { min: 50, max: 5, step: 5 } })).toBe(false);
+  });
+  it('a range is dropped when the weight unit or the place changes (never 50 lb read as 50 kg)', () => {
+    const a: IntakeAnswers = { ...home, dumbbellRange: { min: 5, max: 50, step: 5 } };
+    expect(setAnswer(a, 'units', { ...a.units!, weight: 'kg' }).dumbbellRange).toBeUndefined();
+    expect(setAnswer(a, 'units', { ...a.units!, distance: 'km' }).dumbbellRange).toEqual({ min: 5, max: 50, step: 5 });
+    expect(setAnswer(a, 'place', 'hotel').dumbbellRange).toBeUndefined();
+  });
+  it('sanitize keeps valid ranges only', () => {
+    expect(sanitizeAnswers({ dumbbellRange: { min: 5, max: 50, step: 5 } }).dumbbellRange).toEqual({ min: 5, max: 50, step: 5 });
+    expect(sanitizeAnswers({ dumbbellRange: { min: 5, max: 50, step: 0 } }).dumbbellRange).toBeUndefined();
+    expect(sanitizeAnswers({ dumbbellRange: 'x' }).dumbbellRange).toBeUndefined();
+  });
+});
+
 describe('body measurement math in load.ts', () => {
   it('rounds to a step exactly', () => {
     expect(roundToStep(70.24, 0.5)).toBe(70);
@@ -261,16 +291,27 @@ describe('the plan reveal picks honestly from the plans that exist', () => {
     expect(caveatFor(plan, { ...full, minutes: 20 })).toBe('Some days run longer than 20 min.');
   });
 
-  it('lays the week on the picked weekdays, Monday first, in plan order', () => {
+  it('lays the week on the picked weekdays only when the count equals the plan days, Monday first', () => {
     const plan = PLANS[0]!;
-    const w = weekOf(plan, { weekdays: ['fri', 'mon', 'wed'] });
-    expect(w).toEqual([
-      { label: 'Mon', dayName: plan.days[0]!.name, dayIndex: 0 },
-      { label: 'Wed', dayName: plan.days[1]!.name, dayIndex: 1 },
-      { label: 'Fri', dayName: plan.days[2]!.name, dayIndex: 2 },
-    ]);
-    const six = weekOf(plan, { weekdays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'] });
-    expect(six.at(-1)).toEqual({ label: 'Sat', dayName: plan.days[0]!.name, dayIndex: 0 });
+    const w = weekOf(plan, { weekdays: ['fri', 'mon', 'wed', 'tue', 'thu'] });
+    expect(w.map((x) => x.label)).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+    expect(w.map((x) => x.dayName)).toEqual(plan.days.map((d) => d.name));
+  });
+
+  it.each([[['mon', 'wed', 'fri']], [['mon', 'tue', 'wed', 'thu', 'fri', 'sat']]] as const)('never hides or repeats a workout: %j shows Day 1 to N with a caveat', (weekdays) => {
+    const plan = PLANS[0]!;
+    const a: IntakeAnswers = { ...full, weekdays: [...weekdays] };
+    const w = weekOf(plan, a);
+    expect(w.map((x) => x.label)).toEqual(['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5']);
+    expect(w.map((x) => x.dayIndex)).toEqual([0, 1, 2, 3, 4]);
+    expect(caveatFor(plan, a)).toBe(`You picked ${weekdays.length} days and this plan has 5. Do them in order at your own pace.`);
+    const p = pickPlan(PLANS, planNeeds, a);
+    expect(p.kind === 'plan' && p.week.length).toBe(5);
+  });
+
+  it('matching weekdays need no scheduling caveat', () => {
+    const plan = PLANS[0]!;
+    expect(caveatFor(plan, { ...full, weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'] })).toBeNull();
   });
 
   it('ranks by days, goal and experience; ties keep the shipped order', () => {

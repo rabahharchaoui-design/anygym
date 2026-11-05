@@ -14,6 +14,7 @@ import {
   canContinue,
   funnelReducer,
   KIND,
+  needsDumbbellRange,
   parseDraft,
   progressOf,
   serializeDraft,
@@ -42,7 +43,7 @@ import {
   WINS,
   type Option,
 } from '../../lib/intake/options';
-import { getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, savedAnswers } from '../../db/intake';
+import { getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, redoAnswers } from '../../db/intake';
 import { BodyweightStep, EquipmentStep, ExercisesStep, HeightStep, MultiChoice, NameStep, SingleChoice, UnitsStep } from './Steps';
 import { Reveal } from './Reveal';
 import { STAYS_HERE } from './copy';
@@ -103,6 +104,7 @@ const MULTI_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
 
 
 const WHY: Partial<Record<ScreenId, string>> = {
+  equipment: 'Fill in your dumbbells, or turn them off',
   focus: 'Pick at least one',
   win: 'Pick at least one',
   weekdays: 'Pick your days, or skip',
@@ -136,8 +138,8 @@ export function IntakeScreen() {
   useEffect(() => {
     let alive = true;
     if (redo) {
-      savedAnswers()
-        .then((a) => alive && setState(startState(withUnits(a ?? {}))))
+      redoAnswers({ ...unitsForLocale(phoneLocale()), body: bodyPref.get() })
+        .then((a) => alive && setState(startState(a)))
         .catch(() => alive && setState(startState(withUnits({}))));
     } else if (intakeDoneHere() && !readDraft()) {
       // Done already (an old link): Today, never the funnel again by itself.
@@ -161,6 +163,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const timer = useRef<number>(undefined);
   const [pulse, setPulse] = useState<string | null>(null);
   const scroller = useRef<HTMLElement>(null);
+  // What a gym is compared with when saving: a redo's starting answers, then what was last saved.
+  const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
 
   // Every answer is kept as it is given (a draft; a redo keeps its own copy only in memory).
   useEffect(() => {
@@ -217,7 +221,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
 
   let body: ReactNode = null;
   if (step === 'reveal') {
-    return <Reveal answers={answers} redo={redo} onBack={back} />;
+    return <Reveal answers={answers} redo={redo} onBack={back} baseline={baseline} />;
   }
   const screen = step as Exclude<ScreenId, 'reveal'>;
   if (kind === 'single') {
@@ -235,7 +239,16 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   } else if (step === 'units') {
     body = <UnitsStep value={answers.units!} onChange={(v) => set('units', v)} />;
   } else if (step === 'equipment') {
-    body = <EquipmentStep value={answers.equipment ?? []} onChange={(v) => set('equipment', v)} />;
+    body = (
+      <EquipmentStep
+        value={answers.equipment ?? []}
+        onChange={(v) => set('equipment', v)}
+        askRange={needsDumbbellRange(answers)}
+        range={answers.dumbbellRange}
+        unit={answers.units?.weight ?? 'kg'}
+        onRange={(value) => apply({ type: 'range', value }, 'none')}
+      />
+    );
   } else if (step === 'love' || step === 'never') {
     body = (
       <ExercisesStep

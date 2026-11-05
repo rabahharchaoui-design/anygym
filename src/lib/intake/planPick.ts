@@ -77,19 +77,24 @@ const PLACE_WORDS: Record<PlaceAnswer, string> = {
   mix: 'your mix of places',
 };
 
-/** The week as the plan will run it: the user's days in order, or Day 1 to N. */
+/**
+ * The week as the plan will run it: the user's days when there is one for each plan day, else
+ * Day 1 to N. Every workout always shows, once (never hidden, never repeated).
+ */
 export function weekOf(plan: Plan, a: IntakeAnswers): WeekSlot[] {
   const order = WEEKDAYS.map((d) => d.id);
   const days = [...(a.weekdays ?? [])].sort((x, y) => order.indexOf(x) - order.indexOf(y));
-  if (days.length === 0) return plan.days.map((d, i) => ({ label: `Day ${i + 1}`, dayName: d.name, dayIndex: i }));
-  return days.map((id, i) => {
-    const dayIndex = i % plan.days.length;
-    return { label: labelOf(WEEKDAYS, id) ?? id, dayName: plan.days[dayIndex]!.name, dayIndex };
-  });
+  return plan.days.map((d, i) => ({
+    label: days.length === plan.days.length ? (labelOf(WEEKDAYS, days[i]) ?? days[i]!) : `Day ${i + 1}`,
+    dayName: d.name,
+    dayIndex: i,
+  }));
 }
 
 /** The one caveat worth saying, most important first; null when the plan fits as is. */
 export function caveatFor(plan: Plan, a: IntakeAnswers): string | null {
+  const picked = a.weekdays?.length ?? 0;
+  if (picked > 0 && picked !== plan.days.length) return `You picked ${picked} days and this plan has ${plan.days.length}. Do them in order at your own pace.`;
   if (a.place === 'mix') return 'It needs a full gym. On the road, start a quick workout.';
   if (a.days !== undefined && a.days !== plan.daysPerWeek) return `You picked ${a.days} days. Do the days in order at your own pace.`;
   if (a.experience && !SEASONED.has(a.experience) && plan.level === 'intermediate') return 'It is made for lifters with some experience, so start light.';

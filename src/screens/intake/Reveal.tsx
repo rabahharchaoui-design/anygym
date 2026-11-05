@@ -2,7 +2,7 @@
 // then a lime check draws itself, and Start Day 1 goes straight into the workout. The plan is the
 // best curated plan that fits the user's equipment today (the generator is PLAN 3.5); when none
 // fits it says so and offers a quick workout. Never a made up plan.
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { ChoiceCard } from '../../ui/ChoiceCard';
@@ -28,9 +28,9 @@ const clearDraft = () => {
   }
 };
 
-type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void };
+type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
 
-export function Reveal({ answers, redo, onBack }: Props) {
+export function Reveal({ answers, redo, onBack, baseline }: Props) {
   const go = useNav();
   const pick = useMemo(() => pickPlan(PLANS, planNeeds, answers), [answers]);
   const [chosenId, setChosenId] = useState(pick.kind === 'plan' ? pick.plan.id : null);
@@ -44,7 +44,8 @@ export function Reveal({ answers, redo, onBack }: Props) {
   const [error, setError] = useState('');
   const saved = useRef<Promise<unknown> | null>(null);
   const save = () => {
-    const p = saveIntake(answers).then(() => {
+    const p = saveIntake(answers, undefined, undefined, { start: baseline.current }).then(() => {
+      baseline.current = answers;
       if (answers.units) bodyPref.set(answers.units.body);
     });
     saved.current = p;

@@ -6,11 +6,11 @@ import { Chip } from '../../ui/Chip';
 import { SlidingToggle } from '../../ui/SlidingToggle';
 import { WheelColumn } from '../../ui/WheelColumn';
 import { InfoButton } from '../../components/info/InfoButton';
-import { EQUIPMENT_IDS, type EquipmentId, type Unit } from '../../db/types';
+import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type Unit } from '../../db/types';
 import { EQUIPMENT_INFO, EQUIPMENT_LABEL, type Option } from '../../lib/intake/options';
 import { HEIGHT_CM, HEIGHT_FT, type Height, type UnitsAnswer } from '../../lib/intake/funnel';
 import { flipBodyweight, RULER_START } from '../../lib/intake/ruler';
-import { cmToFtIn, formatBodyweight, ftInToCm } from '../../lib/load';
+import { cmToFtIn, formatAmount, formatBodyweight, ftInToCm, parseDumbbellRange } from '../../lib/load';
 import { PLAN_EXERCISES } from '../../data/planExercises';
 import { POPULAR_IDS, pickerName } from '../../lib/picker';
 import { normalizeName } from '../../lib/import/anygymImportV1';
@@ -127,7 +127,22 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
 }
 
 /** SPEC 3 equipment picker with ⓘ on anything unusual (SPEC 13.7). Nothing picked is a real answer. */
-export function EquipmentStep({ value, onChange }: { value: readonly EquipmentId[]; onChange: (v: EquipmentId[]) => void }) {
+export function EquipmentStep({
+  value,
+  onChange,
+  askRange,
+  range,
+  unit,
+  onRange,
+}: {
+  value: readonly EquipmentId[];
+  onChange: (v: EquipmentId[]) => void;
+  /** Dumbbells are on at a place with no preset range: ask for it, right under them. */
+  askRange: boolean;
+  range: DumbbellRange | undefined;
+  unit: Unit;
+  onRange: (r: DumbbellRange | undefined) => void;
+}) {
   const on = new Set(value);
   const all = on.size === EQUIPMENT_IDS.length;
   return (
@@ -141,14 +156,51 @@ export function EquipmentStep({ value, onChange }: { value: readonly EquipmentId
         </button>
       </div>
       <ul className={styles.equipGrid} data-testid="equipment">
-        {EQUIPMENT_IDS.map((id) => (
+        {EQUIPMENT_IDS.flatMap((id) => [
           <li key={id} className={styles.equipCell}>
             <Chip block label={EQUIPMENT_LABEL[id]} picked={on.has(id)} onPress={() => onChange(on.has(id) ? value.filter((x) => x !== id) : EQUIPMENT_IDS.filter((x) => on.has(x) || x === id))} testId={`equip-${id}`} />
             {EQUIPMENT_INFO[id] && <InfoButton id={EQUIPMENT_INFO[id]!} className={styles.equipInfo} />}
-          </li>
-        ))}
+          </li>,
+          ...(id === 'dumbbells' && askRange
+            ? [
+                <li key="dumbbell-range" className={styles.rangeCell}>
+                  <DumbbellRangeFields range={range} unit={unit} onRange={onRange} />
+                </li>,
+              ]
+            : []),
+        ])}
       </ul>
     </>
+  );
+}
+
+/** Lightest, heaviest and the jump between them, typed by the user (SPEC 3). Checked by load.ts. */
+function DumbbellRangeFields({ range, unit, onRange }: { range: DumbbellRange | undefined; unit: Unit; onRange: (r: DumbbellRange | undefined) => void }) {
+  const [text, setText] = useState({ min: range ? formatAmount(range.min) : '', max: range ? formatAmount(range.max) : '', step: range ? formatAmount(range.step) : '' });
+  const change = (key: keyof typeof text, v: string) => {
+    const next = { ...text, [key]: v };
+    setText(next);
+    onRange(parseDumbbellRange(next.min, next.max, next.step, unit) ?? undefined);
+  };
+  const full = text.min.trim() && text.max.trim() && text.step.trim();
+  const field = (key: keyof typeof text, label: string) => (
+    <label className={styles.rangeField}>
+      <span className={styles.fieldLabel}>{label}</span>
+      <input className={`${styles.rangeInput} num`} inputMode="decimal" enterKeyHint="next" value={text[key]} onChange={(e) => change(key, e.target.value)} data-testid={`range-${key}`} />
+    </label>
+  );
+  return (
+    <fieldset className={styles.range} data-testid="dumbbell-range">
+      <legend className={styles.rangeTitle}>Your dumbbells, in {unit}</legend>
+      <div className={styles.rangeFields}>
+        {field('min', 'Lightest')}
+        {field('max', 'Heaviest')}
+        {field('step', 'Goes up by')}
+      </div>
+      <p className={styles.rangeNote} role="status">
+        {full && !range ? 'Check these: the lightest must be above 0 and under the heaviest.' : ''}
+      </p>
+    </fieldset>
   );
 }
 

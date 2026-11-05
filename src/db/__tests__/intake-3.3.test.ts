@@ -5,7 +5,7 @@ import { AnyGymDB, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA
 import { makeGym } from '../gyms';
 import { ensureFirstGym } from '../bootstrap';
 import { choosePlan } from '../planState';
-import { getProfile, needsIntake, saveIntake, savedAnswers } from '../intake';
+import { getProfile, needsIntake, redoAnswers, saveIntake } from '../intake';
 import { startWorkout } from '../workouts';
 import { RECORD_CHECKS } from '../../lib/backup';
 import { EQUIPMENT_IDS } from '../types';
@@ -63,7 +63,9 @@ describe('who sees the intake (PLAN 3.3)', () => {
     const p = await saveIntake(answers, db, 5000);
     expect(p.intakeDoneAt).toBe(5000);
     expect(await needsIntake(db)).toBe(false);
-    expect(await savedAnswers(db)).toEqual(answers);
+    expect((await getProfile(db))!.intake).toEqual(answers);
+    // A redo starts from them, with its units read from the gym and this phone.
+    expect(await redoAnswers({ distance: 'km', measure: 'cm', body: 'female' }, db)).toEqual({ ...answers, units: answers.units });
   });
 });
 
@@ -92,11 +94,12 @@ describe('saveIntake', () => {
     expect(gym).toMatchObject({ name: 'Garage', type: 'home', equipment: [], dumbbellRange: null, unit: 'lb' });
   });
 
-  it('a gym with workouts keeps its equipment; only the unit changes, as Settings would', async () => {
+  it('a gym with workouts keeps its equipment; only a unit the user changed moves, as Settings would', async () => {
     const db = await fresh();
     const gym = await ensureFirstGym(db);
     await startWorkout(gym.id, db);
-    await saveIntake({ ...answers, place: 'outdoors', equipment: [] }, db);
+    const start: IntakeAnswers = { units: { ...answers.units!, weight: 'lb' } };
+    await saveIntake({ ...answers, place: 'outdoors', equipment: [] }, db, undefined, { start });
     const after = (await db.gyms.get(gym.id))!;
     expect(after.equipment).toEqual([...EQUIPMENT_IDS]);
     expect(after.type).toBe('full');
@@ -135,7 +138,7 @@ describe('saved data is sacred: a v9 profile opens and reads the same', () => {
     expect(await db.profile.toArray()).toEqual([row]);
     expect(RECORD_CHECKS.profile(row)).toBe(true);
     expect(await needsIntake(db)).toBe(false);
-    expect(await savedAnswers(db)).toBeUndefined();
+    expect((await redoAnswers({ distance: 'km', measure: 'cm', body: 'male' }, db)).goal).toBeUndefined();
     // Saving later merges: the old fields stay.
     await saveIntake({ goal: 'strength' }, db, 9);
     expect(await getProfile(db)).toMatchObject({ id: 'me', name: 'Old', goal: 'strength', lastBackupAt: 5, intakeDoneAt: 9 });

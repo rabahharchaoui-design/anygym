@@ -5,8 +5,8 @@
 import { equipmentPreset } from './gyms';
 import { setGymUnit } from './equipment';
 import { db as defaultDb, type AnyGymDB } from './schema';
-import type { Gym, Profile } from './types';
-import { GYM_TYPE_OF, sanitizeAnswers, type DistanceUnit, type IntakeAnswers, type MeasureUnit } from '../lib/intake/funnel';
+import type { DumbbellRange, EquipmentId, Gym, GymType, Profile } from './types';
+import { GYM_TYPE_OF, needsDumbbellRange, sanitizeAnswers, type DistanceUnit, type IntakeAnswers, type MeasureUnit, type UnitsAnswer } from '../lib/intake/funnel';
 import type { PlaceAnswer } from '../lib/intake/options';
 
 export const INTAKE_DONE_KEY = 'anygym.intakeDone';
@@ -52,16 +52,37 @@ export async function needsIntake(db: AnyGymDB = defaultDb): Promise<boolean> {
 const GYM_NAMES: Record<PlaceAnswer, string> = { full: 'My Gym', hotel: 'Hotel gym', home: 'Home', outdoors: 'Outdoors', mix: 'My Gym' };
 const DEFAULT_GYM_NAME = 'My Gym';
 
+/** Typed, else the gym's own range at the same place (custom ones survive), else the SPEC 3 preset, else none. Never invented. */
+function dumbbellRangeFor(gym: Gym, type: GymType, equipment: readonly EquipmentId[], answers: IntakeAnswers, samePlace: boolean): DumbbellRange | null {
+  if (!equipment.includes('dumbbells')) return null;
+  if (answers.dumbbellRange) return answers.dumbbellRange;
+  if (samePlace && gym.dumbbellRange) return gym.dumbbellRange;
+  return equipmentPreset(type, gym.unit).dumbbellRange;
+}
+
+const sameList = (a: readonly string[] = [], b: readonly string[] = []) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+export type SaveIntakeOptions = {
+  /**
+   * The answers this run started from (a redo's hydrated answers, or what the reveal saved last).
+   * Default: the answers saved on the profile. A gym only changes where the answers differ from it.
+   */
+  start?: IntakeAnswers;
+};
+
 /**
  * Saves the answers on the profile (merged into the existing row, never replacing other fields)
- * and sets the intake done. The weight unit goes to the active gym as Settings would set it. The
- * place and equipment set up the active gym only while no workout was ever logged there, so a gym
- * with history is never changed by the intake (its equipment is edited per gym).
+ * and sets the intake done. A gym is never changed by answers that merely repeat what was there:
+ * the unit goes through setGymUnit (the Settings path) only when the user changed the toggle, and
+ * place and equipment apply only when changed and only while no workout was ever logged at the
+ * gym. On a first intake there is nothing to compare with, so the unused first gym is set up.
  */
-export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Profile> {
+export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb, now = Date.now(), opts: SaveIntakeOptions = {}): Promise<Profile> {
   const answers = sanitizeAnswers(input);
   const profile = await db.transaction('rw', [db.profile, db.gyms, db.sessions, db.sets], async () => {
     const existing = await getProfile(db);
+    const baseline = opts.start ?? (existing?.intake ? sanitizeAnswers(existing.intake) : undefined);
     const gyms = await db.gyms.orderBy('createdAt').toArray();
     const active: Gym | undefined = gyms.find((g) => g.isActive) ?? gyms[0];
     const unit = answers.units?.weight ?? existing?.defaultUnit ?? active?.unit ?? 'lb';
@@ -72,6 +93,8 @@ export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb,
       intakeDoneAt: now,
     };
     if (answers.name) next.name = answers.name;
+    // Skipped on purpose: the old name goes too (the passport never shows a discarded name).
+    else if (answers.skipped?.includes('name')) delete next.name;
     if (answers.goal) next.goal = answers.goal;
     if (answers.experience) next.level = answers.experience;
     if (answers.days) next.daysPerWeek = answers.days;
@@ -83,18 +106,19 @@ export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb,
 
     if (active) {
       let gym = active;
-      if (answers.units && gym.unit !== answers.units.weight) gym = await setGymUnit(gym.id, answers.units.weight, db);
       const used = (await db.sessions.where('gymId').equals(gym.id).count()) > 0;
-      if (!used && answers.place) {
+      const unitAsked = answers.units && (baseline?.units ? answers.units.weight !== baseline.units.weight : !used);
+      if (answers.units && unitAsked && gym.unit !== answers.units.weight) gym = await setGymUnit(gym.id, answers.units.weight, db);
+      const kitAsked = !baseline || baseline.place !== answers.place || !sameList(baseline.equipment, answers.equipment) || !sameJson(baseline.dumbbellRange, answers.dumbbellRange);
+      if (!used && answers.place && kitAsked) {
         const type = GYM_TYPE_OF[answers.place];
         const equipment = answers.equipment ?? equipmentPreset(type, gym.unit).equipment;
-        const range = equipment.includes('dumbbells') ? (equipmentPreset(type, gym.unit).dumbbellRange ?? equipmentPreset('hotel', gym.unit).dumbbellRange) : null;
         await db.gyms.put({
           ...gym,
           type,
           name: gym.name === DEFAULT_GYM_NAME ? GYM_NAMES[answers.place] : gym.name,
           equipment: [...equipment],
-          dumbbellRange: range,
+          dumbbellRange: dumbbellRangeFor(gym, type, equipment, answers, baseline?.place === answers.place),
         });
       }
     }
@@ -109,10 +133,28 @@ export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb,
   return profile;
 }
 
-/** The answers saved last time (Settings → Redo), cleaned. */
-export async function savedAnswers(db: AnyGymDB = defaultDb): Promise<IntakeAnswers | undefined> {
+/**
+ * What a redo starts from (Settings → Answer the questions again): the saved answers, with what can
+ * have changed since read from where it lives now: the weight unit and dumbbell range from the
+ * active gym, the other units from the profile, the body from this phone's preference (`current`).
+ */
+export async function redoAnswers(current: Pick<UnitsAnswer, 'distance' | 'measure' | 'body'>, db: AnyGymDB = defaultDb): Promise<IntakeAnswers> {
   const p = await getProfile(db);
-  return p?.intake ? sanitizeAnswers(p.intake) : undefined;
+  const gyms = await db.gyms.orderBy('createdAt').toArray();
+  const gym = gyms.find((g) => g.isActive) ?? gyms[0];
+  const saved = p?.intake ? sanitizeAnswers(p.intake) : {};
+  const answers: IntakeAnswers = {
+    ...saved,
+    units: {
+      weight: gym?.unit ?? p?.defaultUnit ?? 'lb',
+      distance: p?.distanceUnit ?? saved.units?.distance ?? current.distance,
+      measure: p?.measureUnit ?? saved.units?.measure ?? current.measure,
+      body: current.body,
+    },
+  };
+  delete answers.dumbbellRange;
+  if (needsDumbbellRange(answers) && gym?.dumbbellRange) answers.dumbbellRange = gym.dumbbellRange;
+  return answers;
 }
 
 /**
