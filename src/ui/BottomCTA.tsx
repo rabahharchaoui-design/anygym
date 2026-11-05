@@ -10,8 +10,9 @@ type Props = {
   /** Under the grey button, so it never just goes grey (SPEC 23.2). */
   disabledReason?: string;
   /**
-   * The reason and the note each keep their own line under the button (PLAN 3.3 rule f): the note
-   * never gives way to the reason, and the reserved line means the button never moves.
+   * The reason and the note each keep their own line under the button (PLAN 3.3 rule f), reserved on
+   * every screen that uses it: the note never gives way to the reason, and the button sits at one
+   * height whether or not this screen has a reason.
    */
   reasonAndNote?: boolean;
   /** Above the button (a quiet "Next up" line, an error). */
@@ -42,13 +43,13 @@ export function BottomCTA({ children, onPress, disabled, disabledReason, reasonA
       <Button onClick={onPress} disabled={disabled}>
         {children}
       </Button>
-      {reasonAndNote && disabledReason ? (
+      {reasonAndNote ? (
         <p className={styles.note} data-reason="" data-tight="" data-testid="cta-reason" {...(why ? { role: 'note' } : {})}>
           {why ?? ''}
         </p>
       ) : null}
       {disabledReason || note ? (
-        <p className={styles.note} data-after={reasonAndNote && disabledReason ? '' : undefined} data-reason={under ? '' : undefined} {...(under ? { role: 'note' } : {})}>
+        <p className={styles.note} data-after={reasonAndNote ? '' : undefined} data-reason={under ? '' : undefined} {...(under ? { role: 'note' } : {})}>
           {under ?? note ?? ''}
         </p>
       ) : null}

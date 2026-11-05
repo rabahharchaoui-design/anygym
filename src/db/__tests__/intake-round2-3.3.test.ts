@@ -6,7 +6,7 @@ import { makeGym } from '../gyms';
 import { ensureFirstGym } from '../bootstrap';
 import { setEquipmentWeight, setGymUnit } from '../equipment';
 import { choosePlan } from '../planState';
-import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDraftHere, intakeToResume, redoAnswers, saveIntake } from '../intake';
+import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDraftHere, intakeToResume, needsIntake, readIntakeDraft, redoAnswers, saveIntake, writeIntakeDraft } from '../intake';
 import { startWorkout } from '../workouts';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 
@@ -208,5 +208,46 @@ describe('a funnel left unfinished comes back (round 3)', () => {
     store.set(INTAKE_DRAFT_KEY, '{"step":"goal","answers":{}}');
     expect(await intakeToResume(b)).toBe(false);
     expect(intakeDraftHere()).toBe(false);
+  });
+});
+
+describe('R2: localStorage throwing', () => {
+  beforeEach(() => {
+    const boom = () => {
+      throw new DOMException('blocked', 'SecurityError');
+    };
+    vi.stubGlobal('localStorage', { getItem: boom, setItem: boom, removeItem: boom });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('the draft lives in IndexedDB kv: written, read, resumed and cleared', async () => {
+    const db = await fresh();
+    await ensureFirstGym(db);
+    expect(await readIntakeDraft(db)).toBeNull();
+    await writeIntakeDraft('{"step":"win","answers":{}}', db);
+    expect(await readIntakeDraft(db)).toBe('{"step":"win","answers":{}}');
+    expect(await intakeToResume(db)).toBe(true);
+    await clearIntakeDraft(db);
+    expect(await readIntakeDraft(db)).toBeNull();
+    expect(await intakeToResume(db)).toBe(false);
+  });
+
+  it('a finished user and an existing user are never pushed into the funnel', async () => {
+    const done = await fresh();
+    await ensureFirstGym(done);
+    await saveIntake(first, done);
+    expect(await needsIntake(done)).toBe(false);
+    expect(await intakeToResume(done)).toBe(false);
+    const old = await fresh();
+    const gym = await ensureFirstGym(old);
+    await startWorkout(gym.id, old);
+    await writeIntakeDraft('{"step":"win","answers":{}}', old);
+    expect(await needsIntake(old)).toBe(false);
+    expect(await intakeToResume(old)).toBe(false);
+    expect(await readIntakeDraft(old)).toBeNull();
+    // A brand new phone with blocked storage still gets the funnel.
+    const brandNew = await fresh();
+    await ensureFirstGym(brandNew);
+    expect(await needsIntake(brandNew)).toBe(true);
   });
 });

@@ -244,6 +244,8 @@ async function settle(page: Page) {
 }
 
 const hashOf = (page: Page) => page.evaluate(() => (location.hash === '' ? '#/' : location.hash));
+/** Where the user is: the route, plus the question inside the intake (its steps share one route). */
+const screenOf = (page: Page) => page.evaluate(() => `${location.hash === '' ? '#/' : location.hash}|${document.querySelector('[data-testid="intake"]')?.getAttribute('data-step') ?? ''}`);
 
 /** The tab bar is up and takes taps (not hidden behind a workout or a pushed screen). */
 const tabsUp = (page: Page) =>
@@ -260,25 +262,26 @@ const tabsUp = (page: Page) =>
  * finish screen's Done. Each tap must change the screen within 3 s, else the screen is stuck.
  */
 async function toTabs(page: Page) {
-  for (let i = 0; i < 8 && !(await tabsUp(page)); i++) {
-    const back = page.locator('[aria-label^="Back to"]:visible, [aria-label="Minimize workout"]:visible');
+  // The intake redo walks back one question at a time: up to its 17 questions, then Settings.
+  for (let i = 0; i < 30 && !(await tabsUp(page)); i++) {
+    const back = page.locator('[aria-label^="Back to"]:visible, [aria-label="Minimize workout"]:visible, [data-testid="intake"] header [aria-label="Back"]:visible');
     const done = page.getByRole('button', { name: 'Done', exact: true });
     const target = (await back.count()) ? back.first() : (await done.count()) ? done.first() : null;
     // Just arrived on a tab screen: the tab bar slides back up a moment after the route changes.
     if (!target && (await expect.poll(() => tabsUp(page), { timeout: 3000 }).toBe(true).then(() => true, () => false))) break;
     expect(target, `no way back through the UI from ${await hashOf(page)}`).not.toBeNull();
     const label = (await target!.getAttribute('aria-label').catch(() => null)) ?? 'Done';
-    const before = await hashOf(page);
+    const before = await screenOf(page);
     // A thumb taps where the button is, even while a large title or spring is still moving.
     await target!.tap({ timeout: 3000 }).catch(async () => {
-      if ((await hashOf(page)) !== before) return; // it landed: the button left with its screen
+      if ((await screenOf(page)) !== before) return; // it landed: the button left with its screen
       const b = await target!.boundingBox({ timeout: 1000 }).catch(() => null);
       if (b) await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
     });
     // A second tap if the first went nowhere (a person taps again), then it must have responded.
-    if (!(await expect.poll(() => hashOf(page), { timeout: 3000 }).not.toBe(before).then(() => true, () => false))) {
+    if (!(await expect.poll(() => screenOf(page), { timeout: 3000 }).not.toBe(before).then(() => true, () => false))) {
       await target!.tap({ timeout: 3000 }).catch(() => {});
-      await expect.poll(() => hashOf(page), { timeout: 3000, message: `the screen did not respond to ${label} (tapped twice)` }).not.toBe(before);
+      await expect.poll(() => screenOf(page), { timeout: 3000, message: `the screen did not respond to ${label} (tapped twice)` }).not.toBe(before);
     }
   }
   await expect.poll(() => tabsUp(page), { timeout: 3000, message: 'the tab bar did not come back' }).toBe(true);

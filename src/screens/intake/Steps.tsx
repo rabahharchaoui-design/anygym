@@ -127,6 +127,9 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
           'Which body should the muscle map show?',
           <SlidingToggle block labelledBy="u-body" testId="units-body" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={value.body} onChange={(body) => onChange({ ...value, body })} />,
         )}
+        <p className={styles.fieldHint} data-testid="units-body-hint">
+          Optional. You can change this in Settings.
+        </p>
       </div>
     </div>
   );

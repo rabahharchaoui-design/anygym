@@ -254,6 +254,8 @@ let intakeMode: 'done' | 'fresh' = 'done';
 function markIntakeDone(key: string) {
   try {
     localStorage.setItem(key, '1');
+    // The same specs predate the muscle map's one question (PLAN 3.3): already asked.
+    localStorage.setItem('anygym.muscleBodyAsked', '1');
   } catch {
     // about:blank and opaque origins have no storage.
   }
@@ -293,6 +295,33 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
   for (const page of context.pages()) guardPage(page);
   context.on('page', guardPage);
   return context;
+}
+
+/**
+ * For a spec that blocks localStorage (where the flag above cannot be read): makes this phone an
+ * existing user in IndexedDB, as the app's own check sees it. Call before blocking storage.
+ */
+export async function seedExistingUser(page: Page) {
+  await page.goto('./#/settings');
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open('anygym');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const tx = req.result.transaction('profile', 'readwrite');
+          tx.objectStore('profile').put({ id: 'me', defaultUnit: 'lb', createdAt: 1, intakeDoneAt: 1 });
+          tx.oncomplete = () => {
+            req.result.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+  );
+  // Leave the app, so the next page.goto is a real load (a hash change would not run init scripts).
+  await page.goto('about:blank');
 }
 
 export const test = base.extend<{ errorTrap: void; guardNewContexts: void; networkGuard: void; intake: 'done' | 'fresh' }>({

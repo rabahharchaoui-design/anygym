@@ -56,7 +56,7 @@ import {
   WINS,
   type Option,
 } from '../../lib/intake/options';
-import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, redoAnswers } from '../../db/intake';
+import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
 import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep, MultiChoice, SingleChoice, UnitsStep } from './Steps';
 import { Reveal } from './Reveal';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
@@ -125,7 +125,7 @@ const WHY: Partial<Record<ScreenId, string>> = {
 /** Units from the region; the body starts unpicked unless this phone already chose one. */
 function withUnits(a: IntakeAnswers): IntakeAnswers {
   if (a.units) return a;
-  return { ...a, units: { ...unitsForLocale(phoneLocale()), ...(bodyPref.get() === 'female' ? { body: 'female' as const } : {}) } };
+  return { ...a, units: { ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) } };
 }
 
 /** The line under a title; the weekdays one repeats the days per week answer. */
@@ -138,6 +138,7 @@ function readDraft(): FunnelState | null {
   try {
     return parseDraft(localStorage.getItem(INTAKE_DRAFT_KEY));
   } catch {
+    // Blocked storage: the draft is read from IndexedDB kv, just after.
     return null;
   }
 }
@@ -145,16 +146,22 @@ function readDraft(): FunnelState | null {
 export function IntakeScreen() {
   const [params] = useSearchParams();
   const redo = params.get('redo') === '1';
-  // A fresh start resumes its draft at once; a redo loads the saved answers first.
-  const [state, setState] = useState<FunnelState | null>(() => (redo ? null : (readDraft() ?? startState(withUnits({})))));
+  // A fresh start resumes its draft at once when localStorage has it; else it looks in IndexedDB
+  // first (a blocked localStorage). A redo loads the saved answers first.
+  const [state, setState] = useState<FunnelState | null>(() => (redo ? null : readDraft()));
   const [leave, setLeave] = useState(false);
   useEffect(() => {
     let alive = true;
     if (redo) {
-      redoAnswers({ ...unitsForLocale(phoneLocale()), body: bodyPref.get() })
+      redoAnswers({ ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) })
         .then((a) => alive && setState(startState(a)))
         .catch(() => alive && setState(startState(withUnits({}))));
-    } else if (intakeDoneHere() && !readDraft()) {
+    } else if (!readDraft()) {
+      readIntakeDraft()
+        .catch(() => null)
+        .then((text) => alive && setState((now) => now ?? parseDraft(text) ?? startState(withUnits({}))));
+    }
+    if (!redo && intakeDoneHere() && !readDraft()) {
       // Done already (an old link): Today, never the funnel again by itself.
       getProfile()
         .then((p) => alive && p?.intakeDoneAt !== undefined && setLeave(true))
@@ -183,12 +190,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
 
   // Every answer is kept as it is given (a draft; a redo keeps its own copy only in memory).
   useEffect(() => {
-    if (redo) return;
-    try {
-      localStorage.setItem(INTAKE_DRAFT_KEY, serializeDraft(state));
-    } catch {
-      // Private mode: the funnel still works, it just will not resume after a reload.
-    }
+    if (!redo) void writeIntakeDraft(serializeDraft(state));
   }, [state, redo]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -259,7 +261,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     content = (
       <div className={styles.screen} data-testid="intake" data-step={step}>
         <header className={styles.top}>
-          {showBack ? <BackButton label="Back" onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
+          {showBack ? <BackButton label={step === 'goal' ? 'Back to Settings' : 'Back'} onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
           <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
             <span className={styles.progressFill} style={{ width: `${Math.max(4, progressOf(step, answers) * 100)}%` }} />
           </div>
@@ -396,7 +398,7 @@ function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: Int
       await persistAnswers(answers, baseline);
       const gym = (await getActiveGym()) ?? (await startDb());
       const s = await startWorkout(gym.id);
-      clearIntakeDraft();
+      void clearIntakeDraft();
       go(`/workout/${s.id}`, { kind: 'push', replace: true });
     } catch {
       setError('Could not start the workout. Try again.');
@@ -416,10 +418,10 @@ function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: Int
       <main className={styles.body} data-scroller>
         <h1 className={styles.title}>{words.title}</h1>
         <p className={styles.sub}>{words.quick}</p>
-        <p className={styles.sub}>Your answers so far are kept either way.</p>
       </main>
       <BottomCTA
         onPress={() => void quick()}
+        reasonAndNote
         note={STAYS_HERE}
         testId="noplan-cta"
         className={styles.cta}

@@ -276,19 +276,21 @@
 .units {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .unitRow {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* The body question is not a unit and not from the region: set apart. */
 .unitApart {
-  margin-top: var(--space-2);
-  padding-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
   border-top: 1px solid var(--hairline);
 }
 
@@ -499,6 +501,7 @@
 }
 
 .fieldHint {
+  margin: 0;
   min-height: 1.3em;
   color: var(--text-2);
   font-size: var(--text-sm);

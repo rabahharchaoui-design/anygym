@@ -243,6 +243,29 @@ export function MuscleMap({ data }: { data: MuscleMapData | null }) {
   );
 }
 
+/** PLAN 3.3: no body chosen yet: the first map asks once, right where it shows. Saved to the same preference. */
+function BodyAsk() {
+  const id = useId();
+  const [asking] = useState(() => bodyPref.claimAsk(id));
+  const [answered, setAnswered] = useState(false);
+  if (!asking || answered) return null;
+  return (
+    <div className={styles.bodyAsk} data-testid="body-ask">
+      <span id={`${id}-q`}>Which body should the map show?</span>
+      <Segmented
+        labelledBy={`${id}-q`}
+        testId="body-ask-toggle"
+        options={BODY_OPTIONS}
+        value={undefined}
+        onChange={(b) => {
+          bodyPref.set(b);
+          setAnswered(true);
+        }}
+      />
+    </div>
+  );
+}
+
 /**
  * The compact card in the workout (PLAN 2.2b): front and back side by side, small and still, in the
  * body chosen in Settings, with the plain text line. Nothing for an exercise without sure muscles
@@ -271,6 +294,7 @@ export function MusclePair({ data, exercises = false, compact = false }: { data:
   const regions = tappable ? selectableRegions(body, ['front', 'back'], data) : [];
   return (
     <figure className={`${styles.pair} ${tappable ? styles.pairTappable : ''} ${compact ? styles.pairCompact : ''}`} data-testid="muscle-pair">
+      {drawn && <BodyAsk />}
       {drawn && (
         <div
           className={styles.pairStage}

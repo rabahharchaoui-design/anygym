@@ -138,12 +138,37 @@ export function intakeDraftHere(): boolean {
   }
 }
 
-export function clearIntakeDraft(): void {
+/**
+ * The draft is written to localStorage (sync, for the first paint) and always to IndexedDB kv, so it
+ * survives where localStorage throws or lost a late write, as the workout drafts do. Never throws.
+ */
+export async function writeIntakeDraft(text: string, db: AnyGymDB = defaultDb): Promise<void> {
+  try {
+    localStorage.setItem(INTAKE_DRAFT_KEY, text);
+  } catch {
+    // Blocked or full: kv keeps it.
+  }
+  await db.kv.put({ key: INTAKE_DRAFT_KEY, value: text, at: Date.now() }).catch(() => undefined);
+}
+
+export async function readIntakeDraft(db: AnyGymDB = defaultDb): Promise<string | null> {
+  try {
+    const v = localStorage.getItem(INTAKE_DRAFT_KEY);
+    if (v !== null) return v;
+  } catch {
+    // Blocked: kv has it.
+  }
+  const row = await db.kv.get(INTAKE_DRAFT_KEY).catch(() => undefined);
+  return row?.value ?? null;
+}
+
+export async function clearIntakeDraft(db: AnyGymDB = defaultDb): Promise<void> {
   try {
     localStorage.removeItem(INTAKE_DRAFT_KEY);
   } catch {
     // Nothing to clear.
   }
+  await db.kv.delete(INTAKE_DRAFT_KEY).catch(() => undefined);
 }
 
 /**
@@ -152,9 +177,9 @@ export function clearIntakeDraft(): void {
  * is old news and is cleared, so it can never pull a real user back into the funnel.
  */
 export async function intakeToResume(db: AnyGymDB = defaultDb): Promise<boolean> {
-  if (!intakeDraftHere()) return false;
+  if ((await readIntakeDraft(db)) === null) return false;
   const started = await db.transaction('r', db.sessions, db.planState, async () => (await db.sessions.count()) > 0 || (await db.planState.count()) > 0);
-  if (started) clearIntakeDraft();
+  if (started) await clearIntakeDraft(db);
   return !started;
 }
 

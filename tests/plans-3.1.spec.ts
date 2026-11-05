@@ -131,6 +131,8 @@ test('six week viewer: every week by week table equals the JSON, the shown week 
   let tables = 0;
   for (const day of sixWeek.days) {
     const region = page.getByRole('region', { name: `Day ${day.n} · ${day.name}` });
+    // evaluateAll does not wait, and the app boots asynchronously after page.goto: wait for the rows.
+    await expect(region.locator('[data-testid^="week-table-"]')).toHaveCount(day.items.length);
     const got = await region.locator('[data-testid^="week-table-"]').evaluateAll((els) => els.map((t) => [...t.querySelectorAll('[data-testid="week-cell"]')].map((c) => c.textContent ?? '')));
     expect(got, `Day ${day.n}`).toEqual(day.items.map((it) => expectedCells(it.weeks)));
     tables += got.length;

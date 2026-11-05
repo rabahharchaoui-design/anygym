@@ -1,5 +1,6 @@
 import { expect, guardContext, test, type Locator, type Page } from './fixtures';
 import { checkLayout, simulateSafeAreas } from './helpers/layout';
+import { quickWith } from './workout-helpers';
 
 // PLAN 3.3: the intake funnel (SPEC 14). A brand new phone opens it; anyone with a profile, a
 // workout or a plan never sees it again by itself. One question per screen, single choice screens
@@ -441,10 +442,16 @@ test('Settings → Answer the questions again: answers come back, Back leaves, t
   await page.getByTestId('redo-intake').tap();
   await expect(page).toHaveURL(/#\/welcome\?redo=1$/);
   await atStep(page, 'goal');
-  // The saved answer shows; Back on the first screen goes back to Settings.
+  // The saved answer shows; a visible Back on the first screen returns to Settings, nothing saved.
   await expect(page.getByTestId('q-goal-muscle')).toHaveAttribute('aria-pressed', 'true');
+  const before = await dbAll(page, 'profile');
+  await page.getByTestId('q-goal-race').tap();
+  await atStep(page, 'units');
   await backButton(page).tap();
+  await atStep(page, 'goal');
+  await page.locator('header').getByRole('button', { name: 'Back to Settings' }).tap();
   await expect(page).toHaveURL(/#\/settings$/);
+  expect(await dbAll(page, 'profile')).toEqual(before);
   await page.getByTestId('redo-intake').tap();
   await atStep(page, 'goal');
   await page.getByTestId('q-goal-muscle').tap();
@@ -1045,5 +1052,89 @@ test('P1 P9 P10: the selected toggle is the solid lime pill; the body starts unp
   await cta(page).tap();
   await atStep(page, 'focus');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.units.body ?? null)).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('anygym.muscleBody'))).toBeNull();
+});
+
+test('R2: localStorage blocked: the funnel still resumes from IndexedDB; an existing user goes straight to Today', async ({ page }) => {
+  const block = () => Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } });
+  await page.addInitScript(block);
+  await page.goto('./');
+  await atStep(page, 'goal');
+  await page.getByTestId('q-goal-race').tap();
+  await atStep(page, 'units');
+  await expect.poll(async () => JSON.stringify(await dbAll(page, 'kv'))).toContain('"step');
+  await page.reload();
+  await atStep(page, 'units');
+  await backButton(page).tap();
+  await expect(page.getByTestId('q-goal-race')).toHaveAttribute('aria-pressed', 'true');
+  // Finished: the database says so, with localStorage still blocked.
+  await dbPut(page, 'profile', { id: 'me', defaultUnit: 'lb', createdAt: 1, intakeDoneAt: 1 });
+  await dbPut(page, 'planState', { id: 'active', planId: 'five-day-split', startedAt: 1, weekIndex: 0, nextDayIndex: 0, doneDays: [] });
+  await page.goto('about:blank');
+  await page.goto('./');
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page).not.toHaveURL(/welcome/);
+});
+
+test('P2: the pinned button sits at one height on Units, Focus, Equipment, Cardio and the reveal', async ({ page }) => {
+  await page.goto('./');
+  await atStep(page, 'goal');
+  const open = async (step: string, answers: Record<string, unknown>) => {
+    await page.evaluate(([st, a]) => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: st, answers: a })), [step, answers] as const);
+    await page.reload();
+    await atStep(page, step);
+  };
+  const at: Record<string, number> = {};
+  for (const [step, extra] of [
+    ['units', {}],
+    ['focus', {}],
+    ['cardio', {}],
+    ['equipment', { place: 'hotel', equipmentFor: 'hotel', equipment: ['treadmill'] }],
+  ] as const) {
+    await open(step, { goal: 'muscle', units: US, ...extra });
+    at[step] = (await cta(page).boundingBox())!.y;
+  }
+  await open('reveal', { goal: 'muscle', days: 5, place: 'full', units: US });
+  at.reveal = (await revealPrimary(page).boundingBox())!.y;
+  expect(new Set(Object.values(at)).size, JSON.stringify(at)).toBe(1);
+});
+
+test('P5: the no plan notice keeps one line about the profile', async ({ page }) => {
+  await drafted(page, 'noPlan', { goal: 'muscle', units: US, place: 'home', equipmentFor: 'home', equipment: [] });
+  await expect(page.getByText(/kept either way/)).toHaveCount(0);
+});
+
+test('P1: unpicked says it is optional; the first muscle map asks once, saved to the same preference @matrix', async ({ page }) => {
+  await drafted(page, 'units', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in' } });
+  await expect(page.getByTestId('units-body-hint')).toHaveText('Optional. You can change this in Settings.');
+  await checkLayout(page, { primary: cta(page) });
+  if (test.info().project.name === 'iPhone SE') expect(await intake(page).getAttribute('data-more')).toBeNull();
+  // Past the funnel, no body picked: the first map with a drawing asks.
+  await page.evaluate(() => {
+    localStorage.setItem('anygym.intakeDone', '1');
+    localStorage.removeItem('anygym.intakeDraft');
+  });
+  await page.goto('about:blank');
+  await quickWith(page, [['bench', 'Dumbbell Bench Press']]);
+  const ask = page.getByTestId('body-ask');
+  await ask.scrollIntoViewIfNeeded();
+  await expect(ask).toBeVisible();
+  await expect(ask.getByRole('radio', { checked: true })).toHaveCount(0);
+  await shot(page, 'muscle-ask');
+  await ask.getByRole('radio', { name: 'Female' }).tap();
+  await expect(ask).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('anygym.muscleBody'))).toBe('female');
+  await page.reload();
+  await expect(page.getByTestId('muscle-pair').first()).toBeAttached();
+  await expect(page.getByTestId('body-ask')).toHaveCount(0);
+});
+
+test('P1: asked once even if ignored', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('anygym.intakeDone', '1'));
+  await quickWith(page, [['bench', 'Dumbbell Bench Press']]);
+  await expect(page.getByTestId('body-ask')).toBeAttached();
+  await page.reload();
+  await expect(page.getByTestId('muscle-pair').first()).toBeAttached();
+  await expect(page.getByTestId('body-ask')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('anygym.muscleBody'))).toBeNull();
 });

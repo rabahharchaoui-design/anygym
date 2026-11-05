@@ -15,7 +15,7 @@ describe('bodyPref', () => {
   beforeEach(() => vi.resetModules());
   afterEach(() => vi.unstubAllGlobals());
 
-  it('defaults to male, stores female, notifies subscribers, removes the key for male', async () => {
+  it('defaults to male, stores the choice either way, notifies subscribers', async () => {
     const s = fakeStorage();
     vi.stubGlobal('window', {});
     vi.stubGlobal('localStorage', s);
@@ -29,7 +29,7 @@ describe('bodyPref', () => {
     expect(s.m.get(BODY_KEY)).toBe('female');
     expect(fn).toHaveBeenCalledTimes(1);
     bodyPref.set('male');
-    expect(s.m.has(BODY_KEY)).toBe(false);
+    expect(s.m.get(BODY_KEY)).toBe('male');
     off();
     bodyPref.set('female');
     expect(fn).toHaveBeenCalledTimes(2);
@@ -57,5 +57,33 @@ describe('bodyPref', () => {
     expect(bodyPref.get()).toBe('male');
     bodyPref.set('female');
     expect(bodyPref.get()).toBe('female');
+  });
+});
+
+describe('PLAN 3.3: asked once', () => {
+  beforeEach(() => vi.resetModules());
+  it('no pick yet: one map asks, once; a pick or an earlier ask means never', async () => {
+    const s = fakeStorage();
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('localStorage', s);
+    const { bodyPref, ASK_KEY } = await import('../bodyPref');
+    expect(bodyPref.picked()).toBe(false);
+    expect(bodyPref.claimAsk('a')).toBe(true);
+    // The same map rendering again keeps it; another map on the screen does not ask too.
+    expect(bodyPref.claimAsk('a')).toBe(true);
+    expect(bodyPref.claimAsk('b')).toBe(false);
+    expect(s.m.get(ASK_KEY)).toBe('1');
+    vi.resetModules();
+    const again = (await import('../bodyPref')).bodyPref;
+    expect(again.claimAsk('c')).toBe(false);
+  });
+  it('a stored choice is a pick, male too', async () => {
+    const s = fakeStorage();
+    s.m.set('anygym.muscleBody', 'male');
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('localStorage', s);
+    const { bodyPref } = await import('../bodyPref');
+    expect(bodyPref.picked()).toBe(true);
+    expect(bodyPref.claimAsk('a')).toBe(false);
   });
 });
