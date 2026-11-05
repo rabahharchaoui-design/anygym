@@ -71,7 +71,8 @@ describe('P4, P5, P8, P10', () => {
   it('P4: favorites live on the cardio screen, and old drafts land there', () => {
     expect(visibleScreens({})).not.toContain('cardioFavorites');
     expect(visibleScreens({}).filter((s) => s !== 'reveal')).toHaveLength(17);
-    expect(canContinue('cardio', {})).toBe(false);
+    // PLAN 3.3a round 2 (B6): cardio is not used yet, so it is optional.
+    expect(canContinue('cardio', {})).toBe(true);
     expect(canContinue('cardio', { cardio: 'little' })).toBe(true);
     const d = parseDraft(JSON.stringify({ step: 'cardioFavorites', answers: { cardio: 'little', cardioFavorites: ['bike'] } }))!;
     expect(d.step).toBe('cardio');

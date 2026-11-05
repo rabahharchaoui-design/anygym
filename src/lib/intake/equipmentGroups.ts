@@ -7,14 +7,14 @@ export type EquipmentGroup = { id: EquipmentGroupId; label: string; items: reado
 
 export const EQUIPMENT_GROUPS: readonly EquipmentGroup[] = [
   { id: 'free', label: 'Free weights', items: ['barbell_rack', 'ez_curl_bar', 'dumbbells', 'kettlebells'] },
-  { id: 'benches', label: 'Benches and racks', items: ['flat_bench', 'adjustable_bench', 'hyperextension_bench', 'pull_up_bar', 'dip_station'] },
+  { id: 'benches', label: 'Benches and bars', items: ['flat_bench', 'adjustable_bench', 'hyperextension_bench', 'pull_up_bar', 'dip_station'] },
   {
     id: 'machines',
     label: 'Machines',
     items: ['smith_machine', 'leg_press', 'leg_extension', 'leg_curl', 'chest_press_machine', 'pec_deck', 'shoulder_press_machine', 'calf_raise_machine', 'hip_adductor_abductor'],
   },
   { id: 'cables', label: 'Cables', items: ['cable_station', 'lat_pulldown', 'seated_row'] },
-  { id: 'extras', label: 'Bodyweight and extras', items: ['resistance_bands', 'jump_rope', 'treadmill', 'bike', 'stair_climber', 'rower'] },
+  { id: 'extras', label: 'Cardio and extras', items: ['resistance_bands', 'jump_rope', 'treadmill', 'bike', 'stair_climber', 'rower'] },
 ];
 
 /** The groups with only what this place asks about; a group with nothing left is left out. */

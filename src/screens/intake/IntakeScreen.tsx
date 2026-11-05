@@ -11,7 +11,8 @@ import { Button } from '../../ui/Button';
 import { EdgeSwipe } from '../../ui/EdgeSwipe';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { PLANS } from '../../data/plans';
-import { planNeeds } from '../../data/places';
+import { estimateDayMinutes } from '../../lib/plans';
+import { SWAP_DATA } from '../../data/patterns';
 import { getActiveGym, startDb } from '../../db/bootstrap';
 import { startWorkout } from '../../db/workouts';
 import type { DumbbellRange } from '../../db/types';
@@ -59,7 +60,7 @@ import {
 } from '../../lib/intake/options';
 import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
 import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep, GoalChoice, MultiChoice, SingleChoice, UnitsStep } from './Steps';
-import { PlanSoFar } from './PlanSoFar';
+import { PlanSoFar, STRIP_SCREENS, useStripFit } from './PlanSoFar';
 import { EquipmentArt } from './EquipmentArt';
 import { Reveal } from './Reveal';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
@@ -68,31 +69,38 @@ import styles from './Intake.module.css';
 /** How long a tapped card pulses before the next screen comes in. */
 export const AUTO_ADVANCE_MS = 250;
 
-const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days` }));
-const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min` }));
+// P9: a quiet hint only where it is true of the plans that ship today (from their own data).
+const PLAN_AVG_MIN = PLANS.map((p) => p.days.reduce((t, d) => t + estimateDayMinutes(d), 0) / p.days.length);
+const fitsMinutes = (m: number) => PLAN_AVG_MIN.some((avg) => (m >= 75 ? avg > 60 : avg <= m));
+const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days`, hint: PLANS.some((p) => p.daysPerWeek === d) ? 'Our curated plans run this many' : undefined }));
+const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min`, hint: fitsMinutes(m) ? 'Our curated plans take about this long' : undefined }));
+const DAY_NAMES: Record<string, string> = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+/** P8: the week as one list of days, never stretched tiles. */
+const WEEKDAY_ROWS: Option[] = WEEKDAYS.map((d) => ({ id: d.id, label: DAY_NAMES[d.id]! }));
 
 /**
  * PLAN 3.3a: every screen has its title and one short honest line on why it asks: what the answer
  * does today, or plainly "Not used yet" with what it is for. Never a use that does not exist.
  */
-type Copy = { title: string; why: string };
+type Copy = { title: string; why: string; soon?: true };
 const COPY: Record<ScreenId, Copy> = {
   goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
   units: { title: 'Your units', why: "Set from your phone's region." },
-  focus: { title: 'What do you want to work on?', why: "Pick any. Not used yet: it'll add work for these." },
-  win: { title: 'What would make this a win?', why: 'Pick any. Not used yet: it stays with your profile.' },
+  // PLAN 3.3a round 2 (B6): not used yet = optional, what it is for, and a small "Coming soon".
+  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets for these areas.', soon: true },
+  win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.', soon: true },
   experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
   days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
   weekdays: { title: 'Which days work best?', why: 'Used to lay out your week.' },
   minutes: { title: 'How long per workout?', why: 'Checked against how long each plan takes.' },
   place: { title: 'Where do you usually train?', why: 'Sets up your gym and what it has.' },
-  equipment: { title: 'What does your gym have?', why: 'Plans use only what is on. Tap ⓘ if unsure.' },
-  style: { title: 'How do you like to train?', why: "Not used yet: it'll steer the exercises you get." },
-  cardio: { title: 'How do you feel about cardio?', why: "Not used yet: it'll suggest cardio you like." },
-  easyOn: { title: 'Anything to go easy on?', why: "Not used yet: plans will go easy on these." },
-  exercises: { title: 'Any favorites, or ones to avoid?', why: 'Optional. Not used yet: plans will follow these.' },
-  when: { title: 'When do you usually work out?', why: "Not used yet: it'll time your reminders." },
-  bodyweight: { title: 'What do you weigh?', why: "Not used yet. It'll help suggest starting weights." },
+  equipment: { title: 'What does your gym have?', why: 'Plans use what is on, or swap. Tap ⓘ if unsure.' },
+  style: { title: 'How do you like to train?', why: 'Optional. Steers the exercises you get.', soon: true },
+  cardio: { title: 'How do you feel about cardio?', why: 'Optional. Suggests cardio you like.', soon: true },
+  easyOn: { title: 'Anything to go easy on?', why: 'Optional. Swaps lifts that strain these.', soon: true },
+  exercises: { title: 'Any favorites, or ones to avoid?', why: 'Optional. Plans will add or leave these out.', soon: true },
+  when: { title: 'When do you usually work out?', why: 'Optional. Times your reminders.', soon: true },
+  bodyweight: { title: 'What do you weigh?', why: 'Optional. Suggests starting weights.', soon: true },
   about: { title: 'About you', why: 'All optional. Only what you add is kept.' },
   noPlan: { title: '', why: '' },
   reveal: { title: 'Your plan', why: '' },
@@ -111,7 +119,7 @@ const NUMERIC: ReadonlySet<string> = new Set(['days', 'minutes']);
 const MULTI_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
   focus: FOCUS,
   win: WINS,
-  weekdays: WEEKDAYS,
+  weekdays: WEEKDAY_ROWS,
   easyOn: EASY_ON,
 };
 
@@ -191,6 +199,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const [pulse, setPulse] = useState<string | null>(null);
   const scroller = useRef<HTMLElement>(null);
   const layer = useRef<HTMLDivElement>(null);
+  useStripFit(scroller);
   useMoreBelow(scroller);
   // What a gym is compared with when saving: a redo's starting answers, then what was last saved.
   const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
@@ -220,7 +229,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const next = () => {
     const a = ref.current.answers;
     // Right after the equipment: when no plan can fit, say so now, not 9 questions later.
-    const noFit = ref.current.step === 'equipment' && pickPlan(PLANS, planNeeds, a).kind === 'none';
+    const noFit = ref.current.step === 'equipment' && pickPlan(PLANS, SWAP_DATA, a).kind === 'none';
     apply({ type: 'next', noFit }, 'push');
   };
   const skip = () => {
@@ -291,10 +300,15 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
           {subOf(step, answers) && (
             <p className={styles.sub} data-testid="why">
               {subOf(step, answers)}
+              {copy.soon && (
+                <span className={styles.soon} data-testid="soon">
+                  Coming soon
+                </span>
+              )}
             </p>
           )}
           {stepBody(step, answers, handlers, pulse)}
-          <PlanSoFar answers={answers} />
+          {STRIP_SCREENS.has(step) && <PlanSoFar answers={answers} />}
         </main>
         {kind === 'single' ? (
           <div className={styles.foot}>
@@ -358,7 +372,7 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
           value={answers[ANSWER_KEY[screen]] as string[] | undefined}
           onChange={(v) => h.set(screen, v)}
           only={step === 'easyOn' ? 'none' : undefined}
-          columns={step === 'weekdays' ? '4' : '2'}
+          columns={step === 'weekdays' ? '1' : '2'}
           testId={`q-${step}`}
         />
         {step === 'weekdays' && (
@@ -366,7 +380,11 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
             {countNote ?? ''}
           </p>
         )}
-        {step === 'easyOn' && <p className={styles.safety}>If something hurts, stop and check with a professional.</p>}
+        {step === 'easyOn' && (
+          <p className={styles.safety} data-testid="easy-note">
+            Today&apos;s plan does not avoid these yet. If something hurts, stop and check with a professional.
+          </p>
+        )}
       </>
     );
   }
@@ -471,7 +489,6 @@ function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: Int
         <h1 className={styles.title}>{words.title}</h1>
         <p className={styles.sub}>{words.quick}</p>
         <NoPlanBody answers={answers} />
-        <PlanSoFar answers={answers} />
       </main>
       <BottomCTA
         onPress={() => void quick()}

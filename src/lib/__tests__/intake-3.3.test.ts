@@ -16,6 +16,7 @@ import {
   serializeDraft,
   setAnswer,
   SKIPPABLE,
+  NOT_USED_YET,
   startState,
   type FunnelState,
   type AnswerId,
@@ -23,9 +24,9 @@ import {
   type ScreenId,
 } from '../intake/funnel';
 import { flipBodyweight, labels, offsetFor, snapBodyweight, TICK_PX, tickCount, valueAt } from '../intake/ruler';
-import { explainPick, fittingPlans, needsCovered, noPlanWords, pickPlan, weekOf } from '../intake/planPick';
+import { explainPick, fittingPlans, noPlanWords, pickPlan, weekOf } from '../intake/planPick';
+import { SWAP_DATA } from '../../data/patterns';
 import { PLANS } from '../../data/plans';
-import { planNeeds } from '../../data/places';
 
 describe('units from the phone region (PLAN 3.3)', () => {
   it.each([
@@ -83,8 +84,9 @@ describe('the funnel state machine', () => {
     while (s.step !== 'reveal') {
       seen.push(s.step);
       const screen = s.step;
-      // Nothing to continue with before the answer, except equipment (preset by the place).
-      expect(canContinue(screen, s.answers)).toBe(screen === 'equipment');
+      // Nothing to continue with before the answer, except equipment (preset by the place) and,
+      // since PLAN 3.3a round 2 (B6), the questions not used yet (optional).
+      expect(canContinue(screen, s.answers)).toBe(screen === 'equipment' || NOT_USED_YET.has(screen));
       for (const f of fields[screen] ?? [screen as AnswerId]) s = funnelReducer(s, { type: 'set', screen: f, value: ANSWER[f] });
       s = funnelReducer(s, { type: 'next' });
     }
@@ -102,8 +104,13 @@ describe('the funnel state machine', () => {
     expect(funnelReducer(s, { type: 'next' })).toBe(s);
     const focus = walk(s, { type: 'goto', screen: 'focus' });
     expect(focus.step).toBe('focus');
-    expect(walk(focus, { type: 'set', screen: 'focus', value: [] }, { type: 'next' }).step).toBe('focus');
+    // PLAN 3.3a round 2 (B6, supersedes): focus is not used yet, so it is optional; blank is skipped.
+    const blank = walk(focus, { type: 'set', screen: 'focus', value: [] }, { type: 'next' });
+    expect(blank.step).toBe('win');
+    expect(blank.answers.skipped).toEqual(['focus']);
     expect(walk(focus, { type: 'set', screen: 'focus', value: ['back'] }, { type: 'next' }).step).toBe('win');
+    const units = walk(s, { type: 'goto', screen: 'units' });
+    expect(canContinue('units', { ...units.answers, units: undefined })).toBe(false);
     // A blank name is no name.
     const name = walk(s, { type: 'goto', screen: 'about' }, { type: 'set', screen: 'name', value: '   ' });
     expect(canContinue('about', name.answers)).toBe(false);
@@ -116,7 +123,8 @@ describe('the funnel state machine', () => {
   });
 
   it('Skip only on personal screens: clears the answer, remembers the skip, moves on', () => {
-    expect([...SKIPPABLE].sort()).toEqual(['about', 'bodyweight', 'easyOn', 'exercises', 'weekdays', 'when'].sort());
+    // PLAN 3.3a round 2: style (not used yet, a single choice with no Continue) gets Skip too.
+    expect([...SKIPPABLE].sort()).toEqual(['about', 'bodyweight', 'easyOn', 'exercises', 'style', 'weekdays', 'when'].sort());
     const s = walk(startState(), { type: 'goto', screen: 'bodyweight' }, { type: 'set', screen: 'bodyweight', value: { value: 80, unit: 'kg' } }, { type: 'skip' });
     expect(s.step).toBe('about');
     expect(s.answers.bodyweight).toBeUndefined();
@@ -243,7 +251,7 @@ describe('the plan reveal picks honestly from the plans that exist', () => {
   const full: IntakeAnswers = { goal: 'muscle', experience: '3y', days: 5, place: 'full', equipment: [...EQUIPMENT_IDS] };
 
   it('a full gym gets a curated plan, the alternatives and the whole week', () => {
-    const p = pickPlan(PLANS, planNeeds, full);
+    const p = pickPlan(PLANS, SWAP_DATA, full);
     expect(p.kind).toBe('plan');
     if (p.kind !== 'plan') return;
     expect(p.plan.id).toBe('five-day-split');
@@ -256,22 +264,14 @@ describe('the plan reveal picks honestly from the plans that exist', () => {
   it('every shipped plan needs a full gym today: anything less gets an honest none', () => {
     for (const place of ['hotel', 'home', 'outdoors'] as const) {
       const a: IntakeAnswers = { place, equipment: presetEquipment(place) };
-      expect(fittingPlans(PLANS, planNeeds, a)).toEqual([]);
-      const p = pickPlan(PLANS, planNeeds, a);
+      expect(fittingPlans(PLANS, SWAP_DATA, a)).toEqual([]);
+      const p = pickPlan(PLANS, SWAP_DATA, a);
       expect(p.kind).toBe('none');
     }
-    expect(pickPlan(PLANS, planNeeds, { place: 'hotel', equipment: presetEquipment('hotel') })).toEqual({ kind: 'none', ...noPlanWords('hotel') });
-    // A full gym with one machine turned off no longer covers the plans' unknown needs.
+    expect(pickPlan(PLANS, SWAP_DATA, { place: 'hotel', equipment: presetEquipment('hotel') })).toEqual({ kind: 'none', ...noPlanWords('hotel') });
+    // PLAN 3.3a B1 (supersedes 3.3): a full gym with one machine off still fits, through a swap.
     const partial = EQUIPMENT_IDS.filter((e) => e !== 'leg_press');
-    expect(pickPlan(PLANS, planNeeds, { place: 'full', equipment: partial }).kind).toBe('none');
-  });
-
-  it('covered needs come from the equipment only', () => {
-    expect(needsCovered([...EQUIPMENT_IDS])).toBe('all');
-    expect(needsCovered([])).toEqual(['bodyweight']);
-    expect(needsCovered(['dumbbells', 'treadmill', 'cable_station'])).toEqual(['bodyweight', 'dumbbell', 'cable', 'cardio']);
-    // One machine does not cover "a machine": the plan does not say which.
-    expect(needsCovered(['leg_press'])).toEqual(['bodyweight']);
+    expect(pickPlan(PLANS, SWAP_DATA, { place: 'full', equipment: partial }).kind).toBe('plan');
   });
 
   it('lays the week on the picked weekdays only when the count equals the plan days, Monday first', () => {
@@ -296,7 +296,7 @@ describe('the plan reveal picks honestly from the plans that exist', () => {
   });
 
   it('ranks by days, goal and experience; ties keep the shipped order', () => {
-    const p = pickPlan(PLANS, planNeeds, { place: 'full', equipment: [...EQUIPMENT_IDS] });
+    const p = pickPlan(PLANS, SWAP_DATA, { place: 'full', equipment: [...EQUIPMENT_IDS] });
     expect(p.kind === 'plan' && p.plan.id).toBe('five-day-split');
   });
 });

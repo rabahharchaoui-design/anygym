@@ -150,8 +150,14 @@ export const KIND: Record<ScreenId, ScreenKind> = {
   reveal: 'reveal',
 };
 
-/** Personal or optional screens get a Skip (SPEC 14). */
-export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
+/** Personal or optional screens get a Skip (SPEC 14). PLAN 3.3a round 2: and every question not used yet. */
+export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'style', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
+
+/**
+ * PLAN 3.3a round 2 (B6): questions the app does not use yet are optional: Continue works with
+ * nothing picked, and what is left blank is remembered as skipped (never a made up answer).
+ */
+export const NOT_USED_YET: ReadonlySet<ScreenId> = new Set<ScreenId>(['focus', 'win', 'style', 'cardio', 'easyOn', 'exercises', 'when', 'bodyweight']);
 
 /** Which answer field each answer id fills. */
 export const ANSWER_KEY: Record<AnswerId, keyof IntakeAnswers> = {
@@ -232,6 +238,7 @@ export function weekdayCountNote(a: IntakeAnswers): string | null {
 
 /** Whether the screen has what it needs for Continue (or to advance). */
 export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
+  if (NOT_USED_YET.has(screen)) return true;
   switch (screen) {
     case 'units':
       return a.units !== undefined;
@@ -345,7 +352,7 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
       if (!canContinue(state.step, state.answers)) return state;
       if (state.step === 'equipment' && action.noFit) return { ...state, step: 'noPlan' };
       // What was left blank on a merged screen is skipped on purpose (a cleared name goes).
-      const blank = state.step === 'about' || state.step === 'exercises' ? fieldsOf(state.step).filter((f) => isBlank(state.answers[ANSWER_KEY[f]])) : [];
+      const blank = state.step === 'about' || NOT_USED_YET.has(state.step) ? fieldsOf(state.step).filter((f) => isBlank(state.answers[ANSWER_KEY[f]])) : [];
       const answers = blank.length ? markSkipped(state.answers, blank) : state.answers;
       return { step: nextScreen(state.step, answers), answers };
     }

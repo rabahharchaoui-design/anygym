@@ -109,10 +109,10 @@ test('(5) an older answer with a single goal loads as Main', async ({ page }) =>
 
 const GROUPS: Record<string, string[]> = {
   'Free weights': ['barbell_rack', 'ez_curl_bar', 'dumbbells', 'kettlebells'],
-  'Benches and racks': ['flat_bench', 'adjustable_bench', 'hyperextension_bench', 'pull_up_bar', 'dip_station'],
+  'Benches and bars': ['flat_bench', 'adjustable_bench', 'hyperextension_bench', 'pull_up_bar', 'dip_station'],
   Machines: ['smith_machine', 'leg_press', 'leg_extension', 'leg_curl', 'chest_press_machine', 'pec_deck', 'shoulder_press_machine', 'calf_raise_machine', 'hip_adductor_abductor'],
   Cables: ['cable_station', 'lat_pulldown', 'seated_row'],
-  'Bodyweight and extras': ['resistance_bands', 'jump_rope', 'treadmill', 'bike', 'stair_climber', 'rower'],
+  'Cardio and extras': ['resistance_bands', 'jump_rope', 'treadmill', 'bike', 'stair_climber', 'rower'],
 };
 
 test('(2) equipment: 27 tiles with a drawing, 3 across, grouped, All is per group, i opens glossary, screens count', async ({ page }) => {
@@ -122,7 +122,7 @@ test('(2) equipment: 27 tiles with a drawing, 3 across, grouped, All is per grou
   await expect(tiles).toHaveCount(27);
   await expect(page.locator('[data-testid="equipment"] svg[data-art]')).toHaveCount(27);
   // every tile contains its own svg, sizes sane
-  const geo = await tiles.evaluateAll((bs) => bs.map((b) => { const r = b.getBoundingClientRect(); const s = b.querySelector('svg')!.getBoundingClientRect(); return { id: b.getAttribute('data-testid'), x: Math.round(r.x), y: Math.round(r.y + scrollY), w: Math.round(r.width), h: Math.round(r.height), sw: Math.round(s.width), name: (b.textContent ?? '').trim() }; }));
+  const geo = await tiles.evaluateAll((bs) => bs.map((b) => { const r = b.getBoundingClientRect(); const s = b.querySelector('svg[data-art]')!.getBoundingClientRect(); return { id: b.getAttribute('data-testid'), x: Math.round(r.x), y: Math.round(r.y + scrollY), w: Math.round(r.width), h: Math.round(r.height), sw: Math.round(s.width), name: (b.textContent ?? '').trim() }; }));
   expect(geo.every((g) => g.sw >= 28 && g.h >= 48 && g.name.length > 0)).toBe(true);
   const vw = page.viewportSize()!.width;
   const cols = new Set(geo.map((g) => g.x)).size;
@@ -163,7 +163,8 @@ test('(2) equipment: 27 tiles with a drawing, 3 across, grouped, All is per grou
   // screens
   const screens = await page.locator('main[data-scroller]').evaluate((el) => ({ sh: el.scrollHeight, vh: innerHeight, ch: el.clientHeight }));
   test.info().annotations.push({ type: 'screens', description: `scrollHeight ${screens.sh} / viewport ${screens.vh} = ${(screens.sh / screens.vh).toFixed(2)}` });
-  if (test.info().project.name === 'iPhone 15') expect(screens.sh / screens.vh).toBeLessThanOrEqual(2.4);
+  // Round 2 (P13): "about 2 screens on a 15 Pro" is the Home Screen app's whole 852 pt, the same width.
+  if (test.info().project.name === 'iPhone 15') expect(screens.sh / 852).toBeLessThanOrEqual(2.4);
   // full size shots of every group, with some picked
   await page.getByTestId('equip-all-machines').scrollIntoViewIfNeeded();
   for (const g of ['free', 'benches', 'machines', 'cables', 'extras']) {
@@ -230,14 +231,19 @@ test('(3) 19 screens: content share of the space above the button (own measure),
 });
 
 test('(3) the strip fills in as days, minutes and place are answered', async ({ page }) => {
+  // Round 2 (B7, supersedes round 1): the strip leads with the goals and the level, grows one pill
+  // per answer, and shows only on the screens that add to it (not weekdays, not equipment).
   await drafted(page, 'days', { goal: 'muscle', goals: ['muscle'], units: US, experience: '3y' });
   const strip = page.getByTestId('plan-so-far');
-  await expect(strip).toContainText('Days');
+  await expect(strip).toContainText('Muscle');
+  await expect(strip).toContainText('3+ years');
+  await expect(strip).not.toContainText('Days');
   await page.getByTestId('q-days-3').tap();
   await atStep(page, 'weekdays');
-  await expect(strip).toContainText('3 days');
+  await expect(strip).toHaveCount(0);
   await page.getByTestId('skip').tap();
   await atStep(page, 'minutes');
+  await expect(strip).toContainText('3 days');
   await page.getByTestId('q-minutes-30').tap();
   await atStep(page, 'place');
   await expect(strip).toContainText('30 min');
@@ -245,8 +251,9 @@ test('(3) the strip fills in as days, minutes and place are answered', async ({ 
   await page.waitForFunction(() => !document.documentElement.dataset.nav);
   await page.getByTestId('q-place-home').tap();
   await atStep(page, 'equipment');
+  await expect(strip).toHaveCount(0);
+  await drafted(page, 'place', { goal: 'muscle', units: US, experience: '3y', days: 3, minutes: 30, place: 'home' });
   await expect(strip).toContainText('Home');
-  await expect(strip).toContainText('30 min');
 });
 
 test('(6) 130% text and reduced motion on the SE: no overflow, nothing clipped', async ({ page }) => {
@@ -277,6 +284,18 @@ test('(6) 130% text and reduced motion on the SE: no overflow, nothing clipped',
       return hasText && /(hidden|clip)/.test(s.overflowX + s.overflowY) && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
     }).map((el) => `${el.tagName} "${el.textContent!.trim().slice(0, 30)}"`));
     if (clipped.length) allClipped.push(`${step}: ${clipped.join(', ')}`);
+    // Round 2 (B7): at 130% the strip is whole (every pill inside, above the button) or out of sight.
+    await page.waitForTimeout(150);
+    const strip = await page.evaluate(() => {
+      const el = document.querySelector<HTMLElement>('[data-testid="plan-so-far"]');
+      if (!el) return 'none';
+      if (el.dataset.away !== undefined || getComputedStyle(el).visibility === 'hidden') return 'away';
+      const r = el.getBoundingClientRect();
+      const btn = document.querySelector('[data-testid="intake-cta"], [class*="foot"]')!.getBoundingClientRect();
+      const pillsCut = [...el.querySelectorAll('li')].some((li) => li.scrollWidth > li.clientWidth + 1 || li.getBoundingClientRect().right > innerWidth);
+      return r.top >= 0 && r.bottom <= btn.top + 1 && !pillsCut ? 'whole' : `cut ${Math.round(r.bottom)} > ${Math.round(btn.top)}`;
+    });
+    expect(['none', 'away', 'whole'], `${step} strip at 130%: ${strip}`).toContain(strip);
     if (step === 'days' || step === 'goal') await page.screenshot({ path: SHOT(`t130-strip-${step}`) });
     // Primary button still reachable (visible on screen).
     const btn = page.getByTestId('intake-cta').or(page.getByTestId('reveal-cta')).first();

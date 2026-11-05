@@ -36,6 +36,11 @@
   padding: var(--space-3);
 }
 
+.art[data-square] {
+  width: min(100%, 200px);
+  aspect-ratio: 1;
+}
+
 .art svg {
   display: block;
   width: 100%;

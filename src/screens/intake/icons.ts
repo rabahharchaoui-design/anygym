@@ -1,6 +1,15 @@
 // The intake's line icons (one Lucide family, SPEC 23.2), by the names in lib/intake/options.ts.
 import {
   Activity,
+  UserRound,
+  Target,
+  Scale,
+  Mountain,
+  Hand,
+  ChevronsUp,
+  Bone,
+  BicepsFlexed,
+  Backpack,
   Ban,
   BatteryCharging,
   Bike,
@@ -44,6 +53,15 @@ import {
 
 const ICONS: Record<string, LucideIcon> = {
   Activity,
+  UserRound,
+  Target,
+  Scale,
+  Mountain,
+  Hand,
+  ChevronsUp,
+  Bone,
+  BicepsFlexed,
+  Backpack,
   Ban,
   BatteryCharging,
   Bike,

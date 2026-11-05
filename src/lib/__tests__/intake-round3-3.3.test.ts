@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EQUIPMENT_IDS } from '../../db/types';
 import { PLANS } from '../../data/plans';
-import { planNeeds } from '../../data/places';
 import { dumbbellRangeProblems, parseDumbbellRange } from '../load';
 import { estimateDayMinutes } from '../plans';
 import { canContinue, equipmentChoices, funnelReducer, parseDraft, sanitizeAnswers, SCREENS, startState, visibleScreens, type IntakeAnswers } from '../intake/funnel';
 import { explainPick, noPlanWords, pickPlan } from '../intake/planPick';
+import { SWAP_DATA } from '../../data/patterns';
 import { GLOSSARY } from '../../data/glossary';
 import { EQUIPMENT_INFO, EQUIPMENT_LABEL } from '../intake/options';
 
@@ -19,7 +19,10 @@ describe('B1: the line says only what the pick really used', () => {
     [{ goal: 'strength', days: 5 }],
     [{ goal: 'muscle', days: 3 }],
   ] as IntakeAnswers[][])('%j is the closest plan, never "your plan"', (a) => {
-    expect(explainPick(plan, { ...full, ...a }).title).toBe('Closest plan we have');
+    const e = explainPick(plan, { ...full, ...a });
+    // PLAN 3.3a round 2 B2 (supersedes): far off on days, minutes and level says no such plan yet.
+    expect(e.title).toBe(e.mismatch ? "We don't have a 2 day, 20 minute beginner plan yet" : 'Closest plan we have');
+    expect(e.check).toBe(false);
   });
 
   it('a race goal with bad knees is told plainly, and "muscle" is the plan, not their goal', () => {
@@ -66,7 +69,7 @@ describe('B3: no plan', () => {
     expect(w.saved).toBe('Your gym and equipment are saved.');
   });
   it('pickPlan says none for less than a full gym', () => {
-    expect(pickPlan(PLANS, planNeeds, { place: 'hotel', equipment: ['dumbbells'] }).kind).toBe('none');
+    expect(pickPlan(PLANS, SWAP_DATA, { place: 'hotel', equipment: ['dumbbells'] }).kind).toBe('none');
   });
   it('Continue from the equipment goes to the notice only when told no plan fits; Keep going moves on; back returns', () => {
     const at = { step: 'equipment' as const, answers: { place: 'hotel' as const, equipment: ['dumbbells' as const] } };
@@ -122,7 +125,8 @@ describe('B4: shorter', () => {
     expect(canContinue('about', {})).toBe(false);
     expect(canContinue('about', { age: '25_34' })).toBe(true);
     expect(canContinue('exercises', { never: ['x'] })).toBe(true);
-    expect(canContinue('exercises', {})).toBe(false);
+    // PLAN 3.3a round 2 (B6): the lists are not used yet, so Continue with none is a skip.
+    expect(canContinue('exercises', {})).toBe(true);
   });
   it('Skip the rest from the personal group goes straight to the reveal, with nothing kept', () => {
     const s = funnelReducer({ step: 'easyOn', answers: { easyOn: ['knees'], name: 'Sam', goal: 'muscle' } }, { type: 'skipRest' });

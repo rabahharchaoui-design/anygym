@@ -36,7 +36,7 @@ export function SingleChoice<T extends string | number>({
   onPick: (id: string) => void;
   pulse: string | null;
   testId: string;
-  columns?: '2' | '4';
+  columns?: '1' | '2' | '4';
   /** PLAN 3.3a: the cards grow to fill the screen (off while something shows under them). */
   fill?: boolean;
 }) {
@@ -103,7 +103,7 @@ export function MultiChoice({
   onChange: (v: string[]) => void;
   only?: string;
   testId: string;
-  columns?: '2' | '4';
+  columns?: '1' | '2' | '4';
   /** PLAN 3.3a: the options grow to fill the screen. */
   fill?: boolean;
 }) {
@@ -173,6 +173,9 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
   );
 }
 
+/** B4: the sheet's weight line only where it applies: a bar whose weight the user needs. */
+const BAR_WEIGHT_INFO: ReadonlySet<EquipmentId> = new Set<EquipmentId>(['barbell_rack', 'ez_curl_bar']);
+
 /**
  * SPEC 3 equipment picker (PLAN 3.3a): a picture tile for every item, three across, grouped, each
  * group with its own All. ⓘ on anything unusual (SPEC 13.7). Nothing picked is a real answer.
@@ -235,13 +238,15 @@ export function EquipmentStep({
                 {g.items.flatMap((id) => [
                   <li key={id} className={styles.tileCell}>
                     <button type="button" className={`${styles.tile} pressable`} aria-pressed={on.has(id)} onClick={() => onChange(toggleItem(value, id))} data-testid={`equip-${id}`}>
+                      <Check className={styles.tileCheck} width={12} height={12} strokeWidth={3.5} aria-hidden="true" data-check />
                       <span className={styles.tileArt}>
                         <EquipmentArt id={id} className={styles.art} />
-                        <Check className={styles.tileCheck} width={10} height={10} strokeWidth={3.5} aria-hidden="true" data-check />
                       </span>
                       <span className={styles.tileName}>{EQUIPMENT_LABEL[id]}</span>
                     </button>
-                    {EQUIPMENT_INFO[id] && <InfoButton id={EQUIPMENT_INFO[id]!} className={styles.tileInfo} />}
+                    {EQUIPMENT_INFO[id] && (
+                      <InfoButton id={EQUIPMENT_INFO[id]!} className={styles.tileInfo} art={<EquipmentArt id={id} accent />} showWeight={BAR_WEIGHT_INFO.has(id)} />
+                    )}
                   </li>,
                   ...(id === 'dumbbells' && askRange
                     ? [

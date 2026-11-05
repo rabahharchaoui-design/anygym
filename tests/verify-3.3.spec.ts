@@ -89,11 +89,13 @@ test('all 17 questions, the no plan notice and the reveal: title top left, round
     // The card pulses (aria-pressed), then the next screen comes in on its own.
     await expect(intake(page)).not.toHaveAttribute('data-step', step);
   };
-  const multi = async (step: string, pick: string | null) => {
+  // PLAN 3.3a round 2 (B6): a question not used yet is optional, its Continue never grey.
+  const multi = async (step: string, pick: string | null, optional = false) => {
     await chrome(page, step, 'cta', { back: true });
     seen.push(step);
     if (pick) {
-      await disabledWithReason(step);
+      if (optional) await expect(cta(page), `${step} is optional`).toBeEnabled();
+      else await disabledWithReason(step);
       await t(pick).tap();
     }
     await expect(cta(page)).toBeEnabled();
@@ -110,8 +112,8 @@ test('all 17 questions, the no plan notice and the reveal: title top left, round
   await expect(cta(page)).toBeEnabled();
   await shot(page, 'units');
   await cta(page).tap();
-  await multi('focus', 'q-focus-arms');
-  await multi('win', 'q-win-energy');
+  await multi('focus', 'q-focus-arms', true);
+  await multi('win', 'q-win-energy', true);
   await auto('experience', 'q-experience-months');
   await auto('days', 'q-days-3');
   await chrome(page, 'weekdays', 'cta', { back: true });
@@ -129,16 +131,16 @@ test('all 17 questions, the no plan notice and the reveal: title top left, round
   seen.push('noPlan');
   await page.getByTestId('noplan-continue').tap();
   await auto('style', 'q-style-bodyweight');
-  await multi('cardio', 'q-cardio-love');
-  await multi('easyOn', 'q-easyOn-knees');
+  await multi('cardio', 'q-cardio-love', true);
+  await multi('easyOn', 'q-easyOn-knees', true);
   await chrome(page, 'exercises', 'cta', { back: true });
   seen.push('exercises');
-  await disabledWithReason('exercises');
+  await expect(cta(page), 'exercises is optional').toBeEnabled();
   await page.getByTestId('skip').tap();
   await auto('when', 'q-when-lunch');
   await chrome(page, 'bodyweight', 'cta', { back: true });
   seen.push('bodyweight');
-  await disabledWithReason('bodyweight');
+  await expect(cta(page), 'bodyweight is optional').toBeEnabled();
   await page.getByTestId('skip').tap();
   await chrome(page, 'about', 'cta', { back: true });
   seen.push('about');
@@ -179,7 +181,8 @@ test('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved unt
   await draft(page, 'bodyweight', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' } });
   await page.reload();
   await atStep(page, 'bodyweight');
-  await expect(cta(page)).toBeDisabled();
+  // PLAN 3.3a round 2 (B6): optional now; still nothing is saved until the ruler moves.
+  await expect(cta(page)).toBeEnabled();
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.bodyweight ?? null);
   expect(await stored()).toBeNull();
   const ruler = page.getByTestId('bodyweight-ruler');

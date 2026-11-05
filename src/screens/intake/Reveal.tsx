@@ -14,7 +14,8 @@ import { persistAnswers } from './persist';
 import { useMoreBelow } from './useMoreBelow';
 import { Button } from '../../ui/Button';
 import { PLANS, planById } from '../../data/plans';
-import { planNeeds } from '../../data/places';
+import { SWAP_DATA } from '../../data/patterns';
+import { planFit } from '../../lib/intake/planFit';
 import { clearIntakeDraft } from '../../db/intake';
 import { getActiveGym, startDb } from '../../db/bootstrap';
 import { choosePlan, choosePlanUndoable } from '../../db/planState';
@@ -26,12 +27,14 @@ type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseli
 
 export function Reveal({ answers, redo, onBack, baseline }: Props) {
   const go = useNav();
-  const pick = useMemo(() => pickPlan(PLANS, planNeeds, answers), [answers]);
+  const pick = useMemo(() => pickPlan(PLANS, SWAP_DATA, answers), [answers]);
   const [chosenId, setChosenId] = useState(pick.kind === 'plan' ? pick.plan.id : null);
   const plan = planById(chosenId ?? undefined);
   const fits = pick.kind === 'plan' ? [pick.plan, ...pick.others] : [];
   const week = plan ? weekOf(plan, answers) : [];
-  const words = plan ? explainPick(plan, answers) : null;
+  // B1: the moves the day list will swap at this gym are said, never hidden.
+  const fit = useMemo(() => (plan ? planFit(SWAP_DATA, plan, answers) : null), [plan, answers]);
+  const words = plan ? explainPick(plan, answers, fit?.swapped ?? 0, fit?.noFit.length ?? 0) : null;
   const none = noPlanWords(answers.place);
 
   // The answers are saved as the reveal opens (profile, units, the first gym, the muscle map body).
@@ -112,10 +115,16 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
           <h1 className={styles.title}>{words ? words.title : none.title}</h1>
         </div>
         <section className={styles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
+          {words?.mismatch && <p className={styles.caveat}>The closest plan we have, if you want it:</p>}
           {plan && <p className={styles.planName}>{plan.name}</p>}
           <p className={styles.reason} data-testid="reveal-reason">
             {words ? words.reason : none.saved}
           </p>
+          {words?.goals && (
+            <p className={styles.caveat} data-testid="reveal-goals">
+              {words.goals}
+            </p>
+          )}
           {words?.warning && (
             <p className={styles.caveat} data-testid="reveal-warning">
               {words.warning}
@@ -138,13 +147,14 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
             </ol>
           )}
         </section>
+        {/* B2: the plan already shown is not offered again. */}
         {fits.length > 1 && (
           <section className={styles.others} aria-labelledby="reveal-others">
             <h2 id="reveal-others" className={styles.othersTitle}>
               Or pick a curated plan
             </h2>
             <div className={styles.cards}>
-              {fits.map((p) => (
+              {fits.filter((p) => p.id !== chosenId).map((p) => (
                 <ChoiceCard key={p.id} label={p.name} hint={`${p.daysPerWeek} days a week`} picked={p.id === chosenId} onPress={() => setChosenId(p.id)} testId={`reveal-plan-${p.id}`} />
               ))}
             </div>

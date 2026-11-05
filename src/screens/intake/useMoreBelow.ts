@@ -13,7 +13,7 @@ export function useMoreBelow(ref: RefObject<HTMLElement | null>): void {
     const pad = parseFloat(cs.paddingBottom) || 0;
     // PLAN 3.3a: the "Your plan so far" strip is not the question; with no room it waits below.
     const strip = el.querySelector<HTMLElement>('[data-testid="plan-so-far"]');
-    const spare = strip ? strip.offsetHeight + (parseFloat(cs.rowGap) || 0) : 0;
+    const spare = strip && strip.dataset.away === undefined ? strip.offsetHeight + (parseFloat(cs.rowGap) || 0) : 0;
     const more = el.scrollHeight - el.clientHeight - el.scrollTop > pad + spare + 1;
     if (more) el.parentElement.dataset.more = '';
     else delete el.parentElement.dataset.more;

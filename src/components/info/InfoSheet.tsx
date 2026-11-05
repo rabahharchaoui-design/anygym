@@ -1,20 +1,27 @@
+import type { ReactNode } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
 import type { GlossaryEntry } from '../../data/glossary';
 import styles from './Info.module.css';
 
-type Props = { entry: GlossaryEntry; open: boolean; onClose: () => void };
+type Props = { entry: GlossaryEntry; open: boolean; onClose: () => void; art?: ReactNode; showWeight?: boolean };
 
 /** SPEC 13.7 info sheet: the picture, one or two plain sentences, and the weight line. */
-export function InfoSheet({ entry, open, onClose }: Props) {
+export function InfoSheet({ entry, open, onClose, art, showWeight = true }: Props) {
   const Art = entry.illustration;
   return (
     <Sheet open={open} onClose={onClose} label={entry.term} scroll>
       <div className={styles.body} data-testid={`info-${entry.id}`}>
-        {Art && (
-          <div className={styles.art} data-testid="info-art">
-            <Art />
+        {art ? (
+          <div className={styles.art} data-testid="info-art" data-square="">
+            {art}
           </div>
+        ) : (
+          Art && (
+            <div className={styles.art} data-testid="info-art">
+              <Art />
+            </div>
+          )
         )}
         <h2 className={styles.term}>{entry.term}</h2>
         <div className={styles.sentences}>
@@ -22,7 +29,7 @@ export function InfoSheet({ entry, open, onClose }: Props) {
             <p key={s}>{s}</p>
           ))}
         </div>
-        {entry.weightLine && (
+        {showWeight && entry.weightLine && (
           <p className={`${styles.weight} num`} data-testid="info-weight">
             {entry.weightLine}
           </p>

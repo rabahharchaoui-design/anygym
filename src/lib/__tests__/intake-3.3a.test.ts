@@ -6,8 +6,10 @@ import { EQUIPMENT_GROUPS, groupsFor, toggleGroup, toggleItem } from '../intake/
 import { equipmentChoices } from '../intake/funnel';
 import { explainPick, fitScore, pickPlan } from '../intake/planPick';
 import type { Plan } from '../plans';
-import type { Need } from '../places';
-import { planSoFarSlots } from '../../screens/intake/PlanSoFar';
+import { SWAP_DATA } from '../../data/patterns';
+import { planFit, swappedLine } from '../intake/planFit';
+import { presetEquipment } from '../intake/funnel';
+import { planSoFarPills, STRIP_SCREENS } from '../../screens/intake/PlanSoFar';
 import { ART_IDS } from '../../screens/intake/EquipmentArt';
 
 // PLAN 3.3a: G's intake fixes. Up to two goals (Main, then Also), the grouped equipment picker,
@@ -93,10 +95,9 @@ describe('the plan pick weights Main over Also', () => {
     const base = { ...plan, days: plan.days, daysPerWeek: 5 } as Plan;
     const strength = { ...base, id: 'x-strength', goal: 'strength' } as unknown as Plan;
     const muscle = { ...base, id: 'x-muscle', goal: 'muscle' } as Plan;
-    const needs = (): readonly Need[] => ['bodyweight'];
-    expect((pickPlan([strength, muscle], needs, g(['muscle'])) as { plan: Plan }).plan.id).toBe('x-muscle');
-    expect((pickPlan([strength, muscle], needs, g(['race', 'muscle'])) as { plan: Plan }).plan.id).toBe('x-muscle');
-    expect((pickPlan([strength, muscle], needs, g(['race'])) as { plan: Plan }).plan.id).toBe('x-strength');
+    expect((pickPlan([strength, muscle], SWAP_DATA, g(['muscle'])) as { plan: Plan }).plan.id).toBe('x-muscle');
+    expect((pickPlan([strength, muscle], SWAP_DATA, g(['race', 'muscle'])) as { plan: Plan }).plan.id).toBe('x-muscle');
+    expect((pickPlan([strength, muscle], SWAP_DATA, g(['race'])) as { plan: Plan }).plan.id).toBe('x-strength');
   });
 
   it('only a Main match is "Your plan" with the check; a matching Also is named, never the title', () => {
@@ -104,15 +105,20 @@ describe('the plan pick weights Main over Also', () => {
     expect(main.title).toBe('Your plan');
     expect(main.check).toBe(true);
     expect(main.reason).toBe('Picked for your full gym, your muscle goal and your 5 days.');
-    expect(main.warning).toBe("Fat loss goal isn't built in yet.");
+    // Round 2 B2: both goals are named, each used or coming soon; the warning does not repeat them.
+    expect(main.goals).toBe('Main: muscle. Also: fat loss, coming soon.');
+    expect(main.warning).toBeNull();
     const also = explainPick(plan, g(['strength', 'muscle']));
     expect(also.title).toBe('Closest plan we have');
     expect(also.check).toBe(false);
     expect(also.reason).toBe('Picked for your full gym, your second goal (muscle) and your 5 days.');
-    expect(also.warning).toBe("Strength goal isn't built in yet.");
+    expect(also.goals).toBe('Main: strength, coming soon. Also: muscle.');
     const neither = explainPick(plan, g(['race', 'strength']));
     expect(neither.reason).toBe('Picked for your full gym and your 5 days. It builds muscle.');
-    expect(neither.warning).toBe("Race goal and strength goal aren't built in yet.");
+    expect(neither.goals).toBe('Main: race, coming soon. Also: strength, coming soon.');
+    // One goal: as before, no goals line.
+    expect(explainPick(plan, g(['race'])).goals).toBeNull();
+    expect(explainPick(plan, g(['race'])).warning).toBe("Race goal isn't built in yet.");
   });
 
   it('older single goal answers read exactly as before', () => {
@@ -121,12 +127,86 @@ describe('the plan pick weights Main over Also', () => {
   });
 });
 
+describe('B1: a plan fits through swaps, the way the day list runs it', () => {
+  const full = (equipment: readonly string[]): IntakeAnswers => ({ goal: 'muscle', days: 5, place: 'full', equipmentFor: 'full', equipment: equipment as IntakeAnswers['equipment'] });
+
+  it.each(['kettlebells', 'rower', 'jump_rope', 'ez_curl_bar', 'hip_adductor_abductor', 'leg_press', 'calf_raise_machine', 'smith_machine'] as const)('a full gym without %s still gets a plan', (off) => {
+    const a = full(EQUIPMENT_IDS.filter((e) => e !== off));
+    const p = pickPlan(PLANS, SWAP_DATA, a);
+    expect(p.kind).toBe('plan');
+  });
+
+  it('every single item off in a full gym: never "no plan"', () => {
+    const none = EQUIPMENT_IDS.filter((off) => pickPlan(PLANS, SWAP_DATA, full(EQUIPMENT_IDS.filter((e) => e !== off))).kind === 'none');
+    expect(none).toEqual([]);
+  });
+
+  it('counts the moves swapped; everything on swaps nothing', () => {
+    const plan = PLANS.find((p) => p.id === 'five-day-split')!;
+    expect(planFit(SWAP_DATA, plan, full(EQUIPMENT_IDS))).toEqual({ fits: true, swapped: 0, noFit: [] });
+    const noKb = planFit(SWAP_DATA, plan, full(EQUIPMENT_IDS.filter((e) => e !== 'kettlebells')));
+    const usesKb = plan.days.some((d) => d.blocks.some((b) => b.items.some((i) => i.exerciseId === 'kettlebell-goblet-squat')));
+    expect(noKb.fits).toBe(true);
+    expect(noKb.swapped).toBe(usesKb ? 1 : 0);
+    expect(swappedLine(1)).toBe('1 move swapped for your gym.');
+    expect(swappedLine(3)).toBe('3 moves swapped for your gym.');
+    expect(swappedLine(0)).toBeNull();
+    expect(swappedLine(2, 1)).toBe('2 moves swapped and 1 skipped for your gym.');
+    expect(swappedLine(0, 1)).toBe('1 move skipped: nothing at your gym stands in.');
+    // The reveal says it.
+    expect(explainPick(plan, full(EQUIPMENT_IDS), 3).reason).toBe('Picked for your full gym, your muscle goal and your 5 days. 3 moves swapped for your gym.');
+  });
+
+  it('a move with no stand in at all (leg extension) is skipped, said, and never sinks the plan', () => {
+    const plan = PLANS.find((p) => p.id === 'five-day-split')!;
+    const f = planFit(SWAP_DATA, plan, full(EQUIPMENT_IDS.filter((e) => e !== 'leg_extension')));
+    expect(f.fits).toBe(true);
+    expect(f.noFit.length).toBeGreaterThan(0);
+    expect(explainPick(plan, full(EQUIPMENT_IDS), f.swapped, f.noFit.length).reason).toMatch(/skipped/);
+  });
+
+  it('a gym with nothing that can stand in is still an honest no plan', () => {
+    expect(pickPlan(PLANS, SWAP_DATA, { place: 'full', equipmentFor: 'full', equipment: [] }).kind).toBe('none');
+    expect(pickPlan(PLANS, SWAP_DATA, { place: 'outdoors', equipment: presetEquipment('outdoors') }).kind).toBe('none');
+    // Gear the data is not sure of fits only a gym the user called full: never a guess at home.
+    const plan = PLANS[0]!;
+    expect(planFit(SWAP_DATA, plan, { place: 'home', equipment: [...EQUIPMENT_IDS].filter((e) => e !== 'rower') }).fits).toBe(false);
+  });
+});
+
+describe('B2: far off on days, minutes and level is the wrong plan for the person', () => {
+  const plan = PLANS.find((p) => p.id === 'five-day-split')!;
+  const base: IntakeAnswers = { goal: 'muscle', goals: ['muscle', 'fat_loss'], place: 'full', equipment: [...EQUIPMENT_IDS] };
+
+  it('a brand new 3 day 45 min user: no beginner plan yet, the quick workout leads, the plan stays an option', () => {
+    const e = explainPick(plan, { ...base, experience: 'new', days: 3, minutes: 45 });
+    expect(e.mismatch).toBe(true);
+    expect(e.title).toBe("We don't have a 3 day, 45 minute beginner plan yet");
+    expect(e.quick).toBe('primary');
+    expect(e.check).toBe(false);
+    expect(e.goals).toBe('Main: muscle. Also: fat loss, coming soon.');
+  });
+
+  it('one dimension off is still the closest plan with the plan first', () => {
+    const e = explainPick(plan, { ...base, experience: '3y', days: 4, minutes: 45 });
+    expect(e.mismatch).toBe(false);
+    expect(e.title).toBe('Closest plan we have');
+    expect(e.quick).not.toBe('primary');
+    expect(explainPick(plan, { ...base, experience: 'new', days: 5, minutes: 75 }).mismatch).toBe(false);
+  });
+
+  it('days and level off, with no time limit: says so without minutes', () => {
+    expect(explainPick(plan, { ...base, experience: 'months', days: 3, minutes: 75 }).title).toBe("We don't have a 3 day beginner plan yet");
+    expect(explainPick(plan, { ...base, experience: '3y', days: 2, minutes: 30 }).title).toBe("We don't have a 2 day, 30 minute plan yet");
+  });
+});
+
 describe('equipment groups (PLAN 3.3a)', () => {
   it('every one of the 27 is in exactly one of the five groups, and has a drawing', () => {
     const all = EQUIPMENT_GROUPS.flatMap((g) => g.items);
     expect(all).toHaveLength(27);
     expect([...all].sort()).toEqual([...EQUIPMENT_IDS].sort());
-    expect(EQUIPMENT_GROUPS.map((g) => g.label)).toEqual(['Free weights', 'Benches and racks', 'Machines', 'Cables', 'Bodyweight and extras']);
+    expect(EQUIPMENT_GROUPS.map((g) => g.label)).toEqual(['Free weights', 'Benches and bars', 'Machines', 'Cables', 'Cardio and extras']);
     expect([...ART_IDS].sort()).toEqual([...EQUIPMENT_IDS].sort());
   });
 
@@ -155,11 +235,21 @@ describe('equipment groups (PLAN 3.3a)', () => {
   });
 });
 
-describe('"Your plan so far" (PLAN 3.3a)', () => {
-  it('waits with plain words, then shows only what was answered', () => {
-    expect(planSoFarSlots({}).map((s) => s.value ?? s.empty)).toEqual(['Days', 'Minutes', 'Place']);
-    expect(planSoFarSlots({}).every((s) => s.value === undefined)).toBe(true);
-    expect(planSoFarSlots({ days: 4, minutes: 75, place: 'hotel' }).map((s) => s.value)).toEqual(['4 days', '75+ min', 'Hotel gyms']);
-    expect(planSoFarSlots({ minutes: 30, place: 'mix' }).map((s) => s.value)).toEqual([undefined, '30 min', 'Mix']);
+describe('"Your plan so far" (PLAN 3.3a round 2 B7)', () => {
+  it('leads with the goals, then the level, one pill per answer the plan uses', () => {
+    expect(planSoFarPills({})).toEqual([]);
+    expect(planSoFarPills({ goal: 'muscle', goals: ['muscle', 'fat_loss'] }).map((p) => p.text)).toEqual(['Muscle + fat loss']);
+    expect(planSoFarPills({ goal: 'tone' }).map((p) => p.text)).toEqual(['Tone up']);
+    expect(planSoFarPills({ goal: 'muscle', experience: 'new', days: 3, minutes: 75, place: 'hotel', focus: ['arms'], cardio: 'love' }).map((p) => p.text)).toEqual([
+      'Muscle',
+      'Brand new',
+      '3 days',
+      '75+ min',
+      'Hotel gyms',
+    ]);
+  });
+
+  it('shows only on the screens that add to it', () => {
+    expect([...STRIP_SCREENS]).toEqual(['goal', 'experience', 'days', 'minutes', 'place']);
   });
 });
