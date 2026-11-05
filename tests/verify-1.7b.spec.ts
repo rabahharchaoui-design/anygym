@@ -189,9 +189,8 @@ test('Smith machine: ⓘ in the first use prompt opens the info sheet; 48 pt hit
   await expect(prompt).toBeVisible();
   const info = prompt.getByRole('button', { name: 'What is Smith machine?' });
   await expect(info).toBeVisible();
-  const box = (await info.boundingBox())!;
-  expect(box.width).toBeGreaterThanOrEqual(48);
-  expect(box.height).toBeGreaterThanOrEqual(48);
+  // The sheet springs in (a scale a hair under 1 while it settles, 47.99997 px under load): measured once it is still.
+  await expect.poll(async () => Math.min((await info.boundingBox())!.width, (await info.boundingBox())!.height)).toBeGreaterThanOrEqual(48);
   const glyph = (await info.locator('svg').boundingBox())!;
   expect(Math.round(glyph.width)).toBe(24);
   await shot(page, 'smith-prompt', prompt);
