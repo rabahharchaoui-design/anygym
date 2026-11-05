@@ -67,7 +67,8 @@ export function legacyBarOf(load: Pick<Load, 'barWeight' | 'unit' | 'legacyBarUn
 /** The exercise's own bar for legacy sets: its plan entry's bar, else the name rule (as useWorkout). */
 export function exerciseBarOf(exerciseId: string): BarId {
   const p = planExercise(exerciseId);
-  return p?.bar ?? barForName(p?.name ?? exerciseId);
+  // A swap candidate from the catalog (PLAN 3.4) knows its bar too; its id is not a name.
+  return p?.bar ?? candidateBarOf(exerciseId) ?? barForName(exerciseNameOf(exerciseId) ?? exerciseId);
 }
 
 /**

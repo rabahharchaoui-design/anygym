@@ -146,6 +146,30 @@ export type Session = {
    * Additive, not indexed; missing = the plan's sets.
    */
   rowAdjust?: Record<string, number>;
+  /**
+   * PLAN 3.4: what this workout does instead of the plan, one record per changed slot. Additive, not
+   * indexed; missing = the plan as written. Sets always keep the exercise really performed.
+   */
+  swaps?: SessionSwap[];
+};
+
+/**
+ * One changed slot of a workout (PLAN 3.4, SPEC 7.2). `slot` is the exercise the slot started with;
+ * `current` is the one being done now. `kept` are earlier members with logged sets: they stay as their
+ * own rows, under their own id, and their sets count toward the slot's total.
+ */
+export type SessionSwap = {
+  slot: string;
+  current: string;
+  kept?: string[];
+  /** Picked by the engine because the gym lacks the gear. */
+  auto?: boolean;
+  /** From the user's "Always use this" for this plan. */
+  always?: boolean;
+  /** Why, in plain words: "no cable here". */
+  reason?: string;
+  /** Nothing this gym can do fits: `current` is the slot itself and the row can be skipped. */
+  noFit?: boolean;
 };
 
 /** Where the user is in their curated plan (PLAN 1.10). One row with id 'active'. */
@@ -190,6 +214,11 @@ export type ExerciseSetting = {
   restOff?: boolean;
   /** The user's own note for this exercise (PLAN 1.7c). Stored on the every-gym record. */
   note?: string;
+  /**
+   * "Always use this" (PLAN 3.4): plan id → the exercise done in this exercise's place in that plan.
+   * Additive, not indexed; the plan's JSON never changes. Stored on the every-gym record.
+   */
+  alwaysUse?: Record<string, string>;
 };
 
 /**

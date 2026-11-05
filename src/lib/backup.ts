@@ -204,6 +204,12 @@ const gymShape = shape({
 /** Every plate in a gym's inventory, enabled or not, is a real plate of the gym's unit (PLAN 1.7k: a 999 kg plate crashed loading). */
 const inventoryKnown = (g: Rec): boolean => (g.plateInventory as Array<{ weight: number }>).every((p) => isKnownPlate(p.weight, g.unit as 'lb' | 'kg'));
 
+/** One changed slot of a workout (PLAN 3.4). */
+const sessionSwap = shape({
+  req: { slot: str, current: str },
+  opt: { kept: listOf(str), auto: bool, always: bool, reason: str, noFit: bool },
+});
+
 /** What every stored record must look like, per table. Exported for the tests. */
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
@@ -215,14 +221,14 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
     req: { id: str, gymId: str, startedAt: num, imported: bool },
-    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num) },
+    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap) },
   }),
   sets: isSet,
   runs: shape({
     req: { id: str, startedAt: num, type: str, movingSec: num, elapsedSec: num, distanceM: num, points: listOf(tuple(num, num, num, num)), gaps: listOf(tuple(num, num)), splits: listOf(num) },
     opt: { endedAt: num, goal: str, city: str, country: str, ghostOfRunId: str, intervalPreset: str },
   }),
-  exerciseSettings: shape({ req: { exerciseId: str, gymId: str }, opt: { loadType: oneOf(...LOAD_KINDS), barId: oneOf(...BAR_IDS), restSec: num, restOff: bool, note: str } }),
+  exerciseSettings: shape({ req: { exerciseId: str, gymId: str }, opt: { loadType: oneOf(...LOAD_KINDS), barId: oneOf(...BAR_IDS), restSec: num, restOff: bool, note: str, alwaysUse: recordOf(str) } }),
   planState: shape({
     req: { id: oneOf('active'), planId: str, startedAt: num, weekIndex: num, nextDayIndex: num, doneDays: listOf(num) },
     opt: { partial: recordOf(num) },

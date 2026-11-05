@@ -23,7 +23,7 @@ import { SetTypeSheet } from './SetTypeSheet';
 import { Thumb } from './Thumb';
 import { FormDemo } from '../../components/exercise/FormDemo';
 import { ExerciseSheet } from '../../components/exercise/ExerciseSheet';
-import { demoForPlan, infoForPlan } from '../../data/exerciseInfo';
+import { demoFor, infoForExercise } from '../../data/exerciseInfo';
 import type { ExerciseInfo } from '../../lib/exerciseInfo';
 import { DemoViewer } from '../../components/exercise/DemoViewer';
 import { useDemoPhotos } from '../../hooks/usePhotos';
@@ -120,7 +120,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   /** The hero's foot (name, set, ⋯) stays pinned when the picture scrolls away: its height, measured. */
   // Offline and never kept, the photos cannot show: the compact header instead (gate s2), never a
   // broken or empty picture.
-  const baseDemo = demoForPlan(exerciseId);
+  const baseDemo = demoFor(exerciseId);
   const photos = useDemoPhotos(baseDemo);
   const photosOk = !!baseDemo && photos.kind !== 'none';
   // The heavy parts below the table mount once the first frame is painted (PLAN 2.2d).
@@ -527,7 +527,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // SPEC 4.4: photos, muscles and cues only when the match is sure (SPEC 4.3). One object per
   // exercise and note (PLAN 2.2d), so the memoized parts below keep it between taps.
   const notesKey = JSON.stringify(notes);
-  const info = useMemo(() => infoForPlan(exerciseId, JSON.parse(notesKey) as string[]), [exerciseId, notesKey]);
+  const info = useMemo(() => infoForExercise(exerciseId, JSON.parse(notesKey) as string[]), [exerciseId, notesKey]);
   const setNumber = Math.min(workDone + 1, Math.max(entry?.sets ?? 1, workDone + 1));
   const status = current ? blockedOf(current) : null;
   // The number each row shows: "W" for a warm up, working sets 1 to n (SetTable shows the same).

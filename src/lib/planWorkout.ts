@@ -38,6 +38,8 @@ export type WorkoutEntry = {
   finisher?: true;
   /** weekly_table: the week's prescription for the progression engine (SPEC 6 rule 6). */
   prescription?: { sets: number; reps: number };
+  /** PLAN 3.4: the gym lacks the gear and nothing fits. Skippable: never "up next" until a set is logged on it. */
+  noFit?: true;
 };
 
 /** Every exercise of a plan day for the given week, in order. */
@@ -137,7 +139,10 @@ export function doneCounts(entries: readonly WorkoutEntry[], sets: ReadonlyArray
   return out;
 }
 
-const open = (e: WorkoutEntry, done: DoneCounts) => (done[e.exerciseId] ?? 0) < e.sets;
+const open = (e: WorkoutEntry, done: DoneCounts) => {
+  const n = done[e.exerciseId] ?? 0;
+  return n < e.sets && !(e.noFit && n === 0);
+};
 
 /** The first exercise with sets left, in day order; null when every set is done. */
 export function firstOpen(entries: WorkoutEntry[], done: DoneCounts): string | null {
@@ -273,7 +278,7 @@ export function upNext(entries: WorkoutEntry[], done: DoneCounts, lastLogged?: s
 }
 
 /** "4 sets × 8 to 12" with another set count: "3 sets × 8 to 12" (rounds and holds alike). */
-function recount(text: string, n: number): string {
+export function recount(text: string, n: number): string {
   return text.replace(/^\d+ (sets?|rounds?)\b/, (_, w: string) => `${n} ${w.startsWith('round') ? (n === 1 ? 'round' : 'rounds') : n === 1 ? 'set' : 'sets'}`);
 }
 
