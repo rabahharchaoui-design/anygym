@@ -104,7 +104,7 @@ const MULTI_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
 
 
 const WHY: Partial<Record<ScreenId, string>> = {
-  equipment: 'Fill in your dumbbells, or turn them off',
+  equipment: 'Add your dumbbell weights',
   focus: 'Pick at least one',
   win: 'Pick at least one',
   weekdays: 'Pick your days, or skip',
@@ -290,7 +290,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
       {kind === 'single' ? (
         <p className={styles.footNote}>{STAYS_HERE}</p>
       ) : (
-        <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
+        <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonInButton note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
           Continue
         </BottomCTA>
       )}

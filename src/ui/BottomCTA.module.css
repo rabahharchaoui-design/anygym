@@ -40,3 +40,10 @@
 .note[data-reason] {
   color: var(--text);
 }
+
+/* A reason inside a grey button: smaller than the label, so it stays one line and the button keeps its size. */
+.reasonLabel {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 600;
+}

@@ -656,3 +656,60 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
   expect('name' in profile!).toBe(false);
   expect(await dbAll(page, 'gyms')).toEqual([kept]);
 });
+
+// ---------------------------------------------------------------- round 3
+
+test('reloading or reopening on the reveal brings a fresh user back to it, until Start Day 1 @matrix', async ({ page }) => {
+  await page.goto('./');
+  await fastPath(page);
+  await expect.poll(async () => (await dbAll(page, 'profile'))[0]?.intakeDoneAt).toBeTruthy();
+  await page.reload();
+  await atStep(page, 'reveal');
+  await expect(page.getByTestId('reveal-card')).toContainText('Classic 5 Day Split');
+  // The app reopened at its start page: back to the reveal too, never Pick a plan.
+  await page.goto('./#/');
+  await page.reload();
+  await atStep(page, 'reveal');
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' }).tap();
+  await expect(page).toHaveURL(/#\/workout\//);
+  expect(await page.evaluate(() => localStorage.getItem('anygym.intakeDraft'))).toBeNull();
+  await page.goto('./#/');
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page).not.toHaveURL(/welcome/);
+});
+
+test('rule (f): the note shows under a grey Continue too; the reason is in the button; nothing moves when it turns valid @matrix', async ({ page }) => {
+  await page.goto('./');
+  await atStep(page, 'goal');
+  await page.evaluate(() => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'focus', answers: { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' } } })));
+  await page.reload();
+  await atStep(page, 'focus');
+  const bar = page.getByTestId('intake-cta');
+  await expect(cta(page)).toBeDisabled();
+  await expect(cta(page)).toHaveText('Pick at least one');
+  await expect(bar.getByText('Stays on this phone.')).toBeVisible();
+  const before = await cta(page).boundingBox();
+  await page.getByTestId('q-focus-arms').tap();
+  await expect(cta(page)).toBeEnabled();
+  await expect(cta(page)).toHaveText('Continue');
+  await expect(bar.getByText('Stays on this phone.')).toBeVisible();
+  expect(await cta(page).boundingBox()).toEqual(before);
+});
+
+test('130% text on the SE: the longest reason stays on one line, the button does not grow', async ({ page }) => {
+  test.skip(test.info().project.name !== 'iPhone SE', 'SE only');
+  await page.goto('./');
+  await atStep(page, 'goal');
+  await page.evaluate(() => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'equipment', answers: { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, place: 'home', equipmentFor: 'home', equipment: ['dumbbells'] } })));
+  await page.reload();
+  await atStep(page, 'equipment');
+  await text130(page);
+  await expect(cta(page)).toBeDisabled();
+  const grey = (await cta(page).boundingBox())!;
+  for (const [k, v] of [['min', '10'], ['max', '40'], ['step', '10']] as const) await page.getByTestId(`range-${k}`).fill(v);
+  await expect(cta(page)).toBeEnabled();
+  await text130(page);
+  expect((await cta(page).boundingBox())!.height).toBe(grey.height);
+  expect(grey.height).toBeLessThanOrEqual(56);
+});

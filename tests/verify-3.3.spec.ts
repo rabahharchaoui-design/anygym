@@ -51,10 +51,10 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   expect(hb.x, `${step} title left`).toBeLessThan(40);
   expect(hb.y, `${step} title top`).toBeLessThan(200);
   expect(hb.x + hb.width, `${step} title inside`).toBeLessThanOrEqual(vw);
-  // The one reserved line under the button shows the reason while Continue is grey, the quiet note otherwise.
+  // Rule (f): the quiet note on every screen; while Continue is grey its reason is inside the button.
   const greyNow = kind === 'cta' && (await cta(page).isDisabled());
   if (greyNow) greyScreens.push(step);
-  else await expect(page.getByText('Stays on this phone.').first(), `${step} note`).toBeVisible();
+  await expect(page.getByText('Stays on this phone.').first(), `${step} note`).toBeVisible();
   const back = page.locator('header').getByRole('button', { name: 'Back', exact: true });
   if (opts.back) {
     const b = (await back.boundingBox())!;
@@ -149,7 +149,7 @@ test('all 22 screens: title top left, round back, Stays on this phone, auto adva
   seen.push('reveal');
   await atStep(page, 'reveal');
   expect(seen).toHaveLength(22);
-  test.info().annotations.push({ type: 'note replaced by reason while grey', description: greyScreens.join(',') });
+  test.info().annotations.push({ type: 'reason inside the grey button', description: greyScreens.join(',') });
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/Apple Health|HealthKit|Rabah|Harchaoui/i);
   await shot(page, 'reveal-home');

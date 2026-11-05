@@ -13,20 +13,12 @@ import type { IntakeAnswers } from '../../lib/intake/funnel';
 import { caveatFor, pickPlan, reasonFor, weekOf } from '../../lib/intake/planPick';
 import { PLANS, planById } from '../../data/plans';
 import { planNeeds } from '../../data/places';
-import { INTAKE_DRAFT_KEY, saveIntake } from '../../db/intake';
+import { clearIntakeDraft, saveIntake } from '../../db/intake';
 import { getActiveGym, startDb } from '../../db/bootstrap';
 import { choosePlan, choosePlanUndoable } from '../../db/planState';
 import { startPlanDay, startWorkout } from '../../db/workouts';
 import { STAYS_HERE } from './copy';
 import styles from './Intake.module.css';
-
-const clearDraft = () => {
-  try {
-    localStorage.removeItem(INTAKE_DRAFT_KEY);
-  } catch {
-    // Nothing to clear.
-  }
-};
 
 type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
 
@@ -74,14 +66,15 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         go('/', { kind: 'pop', replace: true, state: r.changed ? { toast: 'Plan saved', planUndo: { chosen: r.state, previous: r.previous ?? null } } : { toast: 'Answers saved' } });
         return;
       }
-      clearDraft();
       if (!plan) {
         const s = await startWorkout(gym.id);
+        clearIntakeDraft();
         go(`/workout/${s.id}`, { kind: 'push', replace: true });
         return;
       }
       await choosePlan(plan.id);
       const s = await startPlanDay(gym.id, plan.id, 0);
+      clearIntakeDraft();
       go(`/workout/${s.id}`, { kind: 'push', replace: true });
     } catch {
       setError(redo ? 'Could not save that. Try again.' : 'Could not start the workout. Try again.');

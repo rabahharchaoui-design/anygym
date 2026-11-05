@@ -125,12 +125,36 @@ export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb,
     return next;
   });
   markIntakeDoneHere();
+  // The draft stays until the user leaves the reveal (clearIntakeDraft), so a reload comes back to it.
+  return profile;
+}
+
+export function intakeDraftHere(): boolean {
+  try {
+    return localStorage.getItem(INTAKE_DRAFT_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function clearIntakeDraft(): void {
   try {
     localStorage.removeItem(INTAKE_DRAFT_KEY);
   } catch {
     // Nothing to clear.
   }
-  return profile;
+}
+
+/**
+ * A fresh user who left mid funnel or on the reveal (a reload, an app kill) goes back to it, never
+ * to Today with no plan chosen. Only while nothing has started: with a plan or a workout the draft
+ * is old news and is cleared, so it can never pull a real user back into the funnel.
+ */
+export async function intakeToResume(db: AnyGymDB = defaultDb): Promise<boolean> {
+  if (!intakeDraftHere()) return false;
+  const started = await db.transaction('r', db.sessions, db.planState, async () => (await db.sessions.count()) > 0 || (await db.planState.count()) > 0);
+  if (started) clearIntakeDraft();
+  return !started;
 }
 
 /**

@@ -1,11 +1,12 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnyGymDB } from '../schema';
 import { makeGym } from '../gyms';
 import { ensureFirstGym } from '../bootstrap';
 import { setEquipmentWeight, setGymUnit } from '../equipment';
-import { getProfile, redoAnswers, saveIntake } from '../intake';
+import { choosePlan } from '../planState';
+import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDraftHere, intakeToResume, redoAnswers, saveIntake } from '../intake';
 import { startWorkout } from '../workouts';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 
@@ -169,5 +170,43 @@ describe('item 4: a skipped name', () => {
     await db.profile.add({ id: 'me', defaultUnit: 'lb', createdAt: 1, name: 'Old' });
     await saveIntake({ goal: 'muscle' }, db, 2);
     expect((await getProfile(db))!.name).toBe('Old');
+  });
+});
+
+describe('a funnel left unfinished comes back (round 3)', () => {
+  const store = new Map<string, string>();
+  beforeEach(() => {
+    store.clear();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('saving keeps the draft; with nothing started the funnel resumes', async () => {
+    const db = await fresh();
+    await ensureFirstGym(db);
+    store.set(INTAKE_DRAFT_KEY, '{"step":"reveal","answers":{}}');
+    await saveIntake(first, db);
+    expect(intakeDraftHere()).toBe(true);
+    expect(await intakeToResume(db)).toBe(true);
+    clearIntakeDraft();
+    expect(await intakeToResume(db)).toBe(false);
+  });
+
+  it('with a plan or a workout a leftover draft is cleared and never pulls the user back', async () => {
+    const a = await fresh();
+    await choosePlan('five-day-split', a);
+    store.set(INTAKE_DRAFT_KEY, '{"step":"reveal","answers":{}}');
+    expect(await intakeToResume(a)).toBe(false);
+    expect(intakeDraftHere()).toBe(false);
+    const b = await fresh();
+    const gym = await ensureFirstGym(b);
+    await startWorkout(gym.id, b);
+    store.set(INTAKE_DRAFT_KEY, '{"step":"goal","answers":{}}');
+    expect(await intakeToResume(b)).toBe(false);
+    expect(intakeDraftHere()).toBe(false);
   });
 });
