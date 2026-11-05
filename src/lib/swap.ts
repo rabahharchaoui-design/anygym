@@ -339,7 +339,7 @@ export type LiveInput = {
   eachSideOf?: (id: string) => boolean;
 };
 
-const members = (s: SessionSwap): string[] => [...new Set([s.slot, ...(s.kept ?? []), s.current])];
+export const members = (s: SessionSwap): string[] => [...new Set([s.slot, ...(s.kept ?? []), s.current])];
 
 const counter = (slotEntry: Pick<WorkoutEntry, 'warmup'>, sets: readonly LoggedSet[]) => (id: string) => sets.filter((x) => x.exerciseId === id && countsToward(slotEntry, x.kind)).length;
 
@@ -391,6 +391,14 @@ export function liveEntries(input: LiveInput): WorkoutEntry[] {
     if (row === null) return [];
     return adjustEntries([byPlan.get(id) ?? make(id, planEntries.length + i)], adjust);
   });
+}
+
+/** The rows of a finished changed workout: the plan's slots and what filled them, never rows added by hand. */
+export function finishRows(planEntries: readonly WorkoutEntry[], session: { exerciseIds?: string[]; swaps?: SessionSwap[]; rowAdjust?: Record<string, number> }, sets: readonly LoggedSet[], nameOf: (id: string) => string): WorkoutEntry[] {
+  const swaps = session.swaps ?? [];
+  const known = new Set([...planEntries.map((e) => e.exerciseId), ...swaps.flatMap(members)]);
+  const ids = (session.exerciseIds ?? []).filter((id) => known.has(id));
+  return liveEntries({ planEntries, exerciseIds: ids, make: () => planEntries[0]!, swaps, adjust: session.rowAdjust, sets, nameOf });
 }
 
 /**

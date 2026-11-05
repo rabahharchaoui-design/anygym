@@ -21,6 +21,7 @@ import { TrophyIcon } from '../../ui/icons';
 import { holdTransition, transitionRunning, useNav } from '../../ui/nav';
 import { LoadError } from '../../components/LoadError';
 import { exerciseNamer, setCount, workoutTitle } from '../history/historyWords';
+import { finishRows, slotProgress } from '../../lib/swap';
 import styles from './Finish.module.css';
 
 /**
@@ -75,9 +76,12 @@ export function FinishScreen() {
   const plan = d ? planById(d.session.planId) : undefined;
   const dayIndex = plan && d ? dayIndexOf(plan, d.session.dayId) : -1;
   // The rows the lifter really had (PLAN 2.2d round 2: rows added or removed, kept on the session).
-  const dayEntries = plan && d && dayIndex >= 0 ? adjustEntries(dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0), d.session.rowAdjust) : [];
+  const planDay = plan && d && dayIndex >= 0 ? dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0) : [];
+  const swaps = d?.session.swaps;
+  // A changed workout (PLAN 3.4): the rows it really had, and one slot per plan exercise in the count.
+  const dayEntries = d && swaps?.length ? finishRows(planDay, d.session, d.sets, exerciseNamer(d.session)) : adjustEntries(planDay, d?.session.rowAdjust);
   const counted = d ? doneCounts(dayEntries, d.sets) : {};
-  const progress = plan && d && dayIndex >= 0 ? dayProgress(dayEntries, (id) => counted[id] ?? 0) : undefined;
+  const progress = !(plan && d && dayIndex >= 0) ? undefined : swaps?.length ? slotProgress(planDay, swaps, d.session.rowAdjust, d.sets) : dayProgress(dayEntries, (id) => counted[id] ?? 0);
   // Working exercises with a set logged (a warm up too) that are not finished yet.
   const started = progress && d ? startedCount(dayEntries, counted, (id) => d.sets.some((x) => x.exerciseId === id)) : 0;
   const plannedOf = (id: string) => dayEntries.find((e) => e.exerciseId === id && !e.warmup)?.sets;

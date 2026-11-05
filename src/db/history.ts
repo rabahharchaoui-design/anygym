@@ -5,6 +5,8 @@ import { sameExerciseIds } from '../lib/picker';
 import { barForName } from '../lib/loadTypeRule';
 import { planById } from '../data/plans';
 import { planExercise } from '../data/planExercises';
+import { candidateBarOf } from '../data/patterns';
+import { exerciseNameOf } from '../data/importMatch';
 import { dayIndexOf } from '../lib/plans';
 import { dayWorkout } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';

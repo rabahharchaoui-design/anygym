@@ -1,6 +1,6 @@
 // The movement pattern ladders over the committed data (PLAN 3.4, SPEC 7.2).
 import file from '../../data/patterns.json';
-import { candidateFacts, type Candidate, type PatternFile, type SwapData, workoutIdOf } from '../lib/swap';
+import { candidateFacts, type Candidate, type PatternFile, type SwapData } from '../lib/swap';
 import { pickerId } from '../lib/picker';
 import type { BarId } from '../db/types';
 import type { ExerciseLoadType } from '../lib/loadTypeRule';
@@ -28,5 +28,3 @@ export const candidateLoadOf = (id: string): ExerciseLoadType | undefined => can
 export const candidateBarOf = (id: string): BarId | undefined => candidateFacts(SWAP_DATA, id)?.bar;
 /** Sets of this exercise count each side, when the ladder knows it. */
 export const countsEachSide = (id: string): boolean => candidateFacts(SWAP_DATA, id)?.eachSide === true;
-
-export { workoutIdOf };

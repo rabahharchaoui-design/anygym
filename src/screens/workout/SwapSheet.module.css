@@ -1,0 +1,92 @@
+/* The Replace sheet (PLAN 3.4): a short list you tap once. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  width: 100%;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px var(--space-3) 8px 8px;
+  border-radius: 18px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 4px;
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.reason {
+  color: var(--text-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.emptySub {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.keep {
+  min-height: 52px;
+  padding: 8px var(--space-4);
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
