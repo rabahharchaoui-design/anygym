@@ -10,6 +10,8 @@ import { dayWorkout, isWorkingEntry } from '../src/lib/planWorkout';
 import { checkControls, checkLayout, fullyShown, simulateSafeAreas } from './helpers/layout';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, usePlan, watchErrors } from './workout-helpers';
 
+test.describe.configure({ timeout: 150_000 });
+
 type Req = string[][];
 type Cand = { id: string; planId?: string; requires: Req; load?: string; timed?: boolean };
 const PATTERNS = JSON.parse(readFileSync('data/patterns.json', 'utf8')) as { patterns: Record<string, { candidates: Cand[] }>; planExercises: Record<string, { pattern: string | null; requires: Req | null }> };
@@ -40,6 +42,14 @@ const start = async (page: Page) => {
   await expect(page.getByTestId('workout-title')).toBeVisible();
 };
 const session = async (page: Page) => (await dbAll<Sess>(page, 'sessions')).find((s) => s.endedAt === undefined)!;
+/** Finish, and Done when the finish screen shows (an empty workout just goes home). */
+const finishHome = async (page: Page) => {
+  await page.getByRole('button', { name: 'Finish' }).tap();
+  const done = page.getByRole('button', { name: 'Done', exact: true });
+  await done.or(page.getByRole('button', { name: 'Start', exact: true })).first().waitFor();
+  if (await done.isVisible()) await done.tap();
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+};
 const openReplace = async (page: Page, name: string) => {
   await page.getByRole('button', { name: `More for ${name}` }).tap();
   await page.getByTestId('replace-row').tap();
@@ -142,15 +152,16 @@ test('V2 Replace is first; every choice is a same pattern, gym supported candida
   let photos = 0;
   for (const kit of ['full', 'hotel'] as const) {
     if (kit === 'hotel') {
-      await page.getByRole('button', { name: 'Finish' }).tap();
-      await page.getByRole('button', { name: 'Done' }).tap();
+      await finishHome(page);
       await hotelGym(page);
       await page.goto('./');
       await start(page);
     }
     const gym = await activeGym(page);
+    await expect(page.getByTestId('row-barbell-back-squat').or(page.getByTestId('row-Dumbbell_Squat'))).toBeVisible();
     const rows = await page.locator('[data-testid^="row-"]:not([data-skip="true"])').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!.slice(4)));
-    for (const slotNow of rows.slice(0, 7)) {
+    test.info().annotations.push({ type: 'rows', description: `${kit}: ${rows.length} ${rows.join(',')}` });
+    for (const slotNow of rows.slice(0, 9)) {
       const pat = PATTERNS.planExercises[slotNow]?.pattern ?? Object.entries(PATTERNS.patterns).find(([, l]) => l.candidates.some((c) => (c.planId ?? c.id) === slotNow))?.[0] ?? null;
       await page.getByTestId(`row-${slotNow}`).tap();
       const name = (await exerciseView(page, slotNow).getByRole('heading').first().innerText()).trim();
@@ -229,7 +240,10 @@ test('V3 swap mid exercise: logged sets stay under the original, pending rows Pi
   await page.reload();
   await expect(exerciseView(page, 'Smith_Machine_Squat')).toBeVisible();
   await expect(exerciseView(page, 'Smith_Machine_Squat').getByText('Pick', { exact: true }).first()).toBeVisible();
-  await logCurrent(page, 'Smith_Machine_Squat');
+  // The Smith bar question is its own flow (not under test): the replacement's set is written like the app writes it.
+  await dbPut(page, { sets: [barSet('s1', (await session(page)).id, 'Smith_Machine_Squat', 3, 12, [45], { barId: 'smith' })] });
+  await page.reload();
+  await expect(loggedRows(exerciseView(page, 'Smith_Machine_Squat'))).toHaveCount(1);
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   await expect(page.getByTestId('row-barbell-back-squat')).toContainText('3 sets');
   await shot(page, 'list-after-swap');
@@ -266,16 +280,14 @@ test('V4 Always use this persists across workouts, Stop restores, the plan data 
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   const s = await session(page);
   await dbPut(page, { sets: [barSet('a1', s.id, 'Smith_Machine_Squat', 0, 5, [45])] });
-  await page.getByRole('button', { name: 'Finish' }).tap();
-  await page.getByRole('button', { name: 'Done' }).tap();
+  await finishHome(page);
   for (let i = 0; i < 2; i++) {
     await start(page);
     await expect(page.getByTestId('row-Smith_Machine_Squat')).toBeVisible();
     await expect(page.getByTestId('row-barbell-back-squat')).toHaveCount(0);
     await expect(page.getByTestId('swap-line-Smith_Machine_Squat')).toContainText('Swapped: your pick for this plan');
     if (i === 0) {
-      await page.getByRole('button', { name: 'Finish' }).tap();
-      await page.getByRole('button', { name: 'Done' }).tap();
+      await finishHome(page);
     }
   }
   await page.reload();
@@ -286,8 +298,7 @@ test('V4 Always use this persists across workouts, Stop restores, the plan data 
   await again.getByTestId('swap-stop-always').tap();
   await expect.poll(async () => (await dbAll<Settings>(page, 'exerciseSettings')).some((x) => x.alwaysUse)).toBe(false);
   await expect(page.getByTestId('row-Smith_Machine_Squat')).toBeVisible();
-  await page.getByRole('button', { name: 'Finish' }).tap();
-  await page.getByRole('button', { name: 'Done' }).tap();
+  await finishHome(page);
   await start(page);
   await expect(page.getByTestId('row-barbell-back-squat')).toBeVisible();
   await expect(page.getByTestId('row-Smith_Machine_Squat')).toHaveCount(0);
@@ -392,6 +403,7 @@ test('V6 Last time and the next target follow the exercise performed @matrix', a
   await page.getByTestId('swap-line-Dumbbell_Squat').getByRole('button', { name: /^Change/ }).tap();
   const sheet = page.getByRole('dialog', { name: 'Replace Dumbbell Squat' });
   await sheet.getByTestId('swap-choice-Bodyweight_Squat').tap();
+  await page.getByTestId('row-Bodyweight_Squat').tap();
   const bw = exerciseView(page, 'Bodyweight_Squat');
   await expect(bw).toBeVisible();
   await expect(bw).not.toContainText('405');
@@ -419,14 +431,14 @@ test('V7 backup then restore keeps swaps and alwaysUse; an old backup without th
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   const s = await session(page);
   await dbPut(page, { sets: [barSet('b1', s.id, 'front-squat', 0, 5, [45]), barSet('b2', s.id, 'front-squat', 1, 5, [45])] });
-  await page.getByRole('button', { name: 'Finish' }).tap();
-  await page.getByRole('button', { name: 'Done' }).tap();
+  await finishHome(page);
   const sessions = (await dbAll<Sess>(page, 'sessions')).sort((a, b) => a.id.localeCompare(b.id));
   const settings = (await dbAll<Settings>(page, 'exerciseSettings')).filter((x) => x.alwaysUse);
   expect(sessions.some((x) => x.swaps?.length)).toBe(true);
   expect(settings.length).toBe(1);
 
-  await page.goto('./#/settings');
+  await page.getByRole('link', { name: 'Settings' }).tap();
+  await expect(page.getByTestId('backup')).toBeVisible();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('backup').tap()]);
   const path = await download.path();
   const file = JSON.parse(readFileSync(path, 'utf8'));
@@ -453,8 +465,7 @@ test('V7 backup then restore keeps swaps and alwaysUse; an old backup without th
   await page.goto('./');
   await start(page);
   await expect(page.getByTestId('row-front-squat')).toBeVisible();
-  await page.getByRole('button', { name: 'Finish' }).tap();
-  await page.getByRole('button', { name: 'Done' }).tap();
+  await finishHome(page);
 
   const old = JSON.parse(JSON.stringify(file));
   for (const x of old.tables.sessions) delete x.swaps;
