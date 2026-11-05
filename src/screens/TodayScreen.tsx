@@ -225,7 +225,7 @@ export function TodayScreen() {
                 Update ready
               </button>
             )}
-            <GymPill />
+            <GymPill onToast={setToast} />
             <IconButton to="/settings" label="Settings">
               <SettingsIcon strokeWidth={2} />
             </IconButton>

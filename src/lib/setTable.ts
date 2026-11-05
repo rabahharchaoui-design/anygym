@@ -9,7 +9,8 @@ import type { Draft } from './drafts';
 import { cellWeight, formatAmount, platesOnly } from './load';
 import { cellWords, formatSet } from './setWords';
 import { formatSetsShort, formatWhen, type PastSet, type Progression, type SetLine } from './progression';
-import { payloadFp } from './submission';
+import { newId as newOp } from '../db/ids';
+import { payloadFp, UNKNOWN_FP } from './submission';
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
 
@@ -167,7 +168,8 @@ export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Com
       // PLAN 2.0l: the same revision with other values (another tab gave this row the same revision
       // and logged its own input) is not this input saved: it is kept, as the next row.
       const fp = committed.fps?.get(d.id);
-      const other = fp !== undefined && (d.rev ?? 0) === rev && draftFp(d) !== fp;
+      // PLAN 3.2c: a receipt whose payload is unknown (UNKNOWN_FP) proves nothing at any revision.
+      const other = fp !== undefined && (fp === UNKNOWN_FP || ((d.rev ?? 0) === rev && draftFp(d) !== fp));
       if ((d.rev ?? 0) <= rev && !other) d = null;
       else {
         const { submitted: _done, ...kept } = d;
@@ -200,7 +202,7 @@ export function markSubmitted(
   while (out.length <= slot) out.push(null);
   for (let j = 0; j < slot; j++) if (!out[j] && rows[j]) out[j] = rowDraft(rows[j]!, newId());
   const base = out[slot] ?? { id: newId(), load: values.load };
-  const draft: Draft = { ...base, load: values.load, plates: values.load.perSide ?? base.plates ?? [], unit: values.load.unit, type: values.type, submitted: base.rev ?? 0 };
+  const draft: Draft = { ...base, load: values.load, plates: values.load.perSide ?? base.plates ?? [], unit: values.load.unit, type: values.type, submitted: base.rev ?? 0, op: newOp() };
   delete draft.reps;
   delete draft.seconds;
   if (values.reps !== undefined) draft.reps = values.reps;

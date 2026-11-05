@@ -771,6 +771,7 @@ export function WorkoutScreen() {
       onOpen={openExercise}
       onAdd={() => setPicking(true)}
       onChangeSwap={setSwapFor}
+      onToast={setToast}
       onRestoreSwap={(id) => {
         const slot = w.swapOf(id)?.slot;
         if (slot) void doSwap(id, slot);

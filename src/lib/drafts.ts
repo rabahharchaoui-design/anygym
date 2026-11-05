@@ -32,6 +32,8 @@ export type Draft = {
    * runs and after it failed; gone once it landed (the draft is used up) or the user discarded it.
    */
   submitted?: number;
+  /** PLAN 3.2c (additive): the submission's own operation id, new for every tap or retry; "Finish without it" discards only that operation. */
+  op?: string;
   /**
    * The row was turned into a warm up (ux-critic gate 2): it drops the prefilled working target,
    * so only what the user set by hand (`own`) shows; the rest is empty until they set it.
@@ -81,6 +83,7 @@ function validDraft(v: unknown): v is Draft {
   if (d.unit !== undefined && d.unit !== 'lb' && d.unit !== 'kg') return false;
   if (d.rev !== undefined && !isNum(d.rev)) return false;
   if (d.submitted !== undefined && !isNum(d.submitted)) return false;
+  if (d.op !== undefined && typeof d.op !== 'string') return false;
   if (d.seconds !== undefined && !isNum(d.seconds)) return false;
   if (d.type !== undefined && !['normal', 'warmup', 'drop', 'failure'].includes(d.type as string)) return false;
   if (d.pickKind !== undefined && !PICK_KINDS.includes(d.pickKind as string)) return false;
@@ -189,9 +192,10 @@ export function draftsDurableMerge(s = storage()): ((kv: KvLike) => Promise<void
       const theirs = rows[k];
       // PLAN 2.0l (Codex 1811 #3): a clean row at the stored revision or older is another tab's
       // committed word (two tabs can reach one revision on their own): never replaced by this copy.
-      // PLAN 3.2b (Codex 1105 #2): revisions compare only within one draft identity. A clean row
-      // whose slot now holds another identity (another tab logged and the rows shifted) adopts it.
-      if (dirty.has(k) || !validDraft(theirs) || (theirs.id === d.id && (d.rev ?? 0) > (theirs.rev ?? 0))) rows[k] = d;
+      // PLAN 3.2b/3.2c (Codex 1105): revisions are allocated by each tab on its own, so a higher one
+      // never means newer. Only rows this tab changed since its last write (dirty) win; a clean row
+      // adopts what IndexedDB committed, whatever its cached revision.
+      if (dirty.has(k) || !validDraft(theirs)) rows[k] = d;
     }
     for (const k of dirty) if (!mine.has(k)) delete rows[k];
     if (Object.keys(rows).length) store[session] = rows;

@@ -90,7 +90,8 @@ export async function preserveLegacyBars(db: AnyGymDB, gymBefore: Gym, only?: re
     : await db.sets.where('sessionId').anyOf([...here]).toArray();
   let n = 0;
   for (const x of sets) {
-    if (!here.has(x.sessionId) || x.load?.kind !== 'barbell' || x.load.barId !== undefined || x.load.legacyBarUnresolved) continue;
+    // PLAN 3.9: a set lifted at another gym before its workout moved here answers to that gym.
+    if (!here.has(x.sessionId) || (x.gymId !== undefined && x.gymId !== gymBefore.id) || x.load?.kind !== 'barbell' || x.load.barId !== undefined || x.load.legacyBarUnresolved) continue;
     const bar = legacyBarOf(x.load, exerciseBar ?? exerciseBarOf(x.exerciseId), gymBefore);
     await db.sets.put({ ...x, load: bar === null ? { ...x.load, legacyBarUnresolved: true } : { ...x.load, barId: bar } });
     n++;
@@ -119,28 +120,45 @@ async function usableSets(exerciseId: string, loadKind: Load['kind'], opts: Hist
  * Bar identity for barbell sets: their own barId, else legacyBarOf with the gym of that set's
  * workout, read once. null: an ambiguous legacy set.
  */
-export async function legacyBars(sets: ReadonlyArray<Pick<WorkoutSet, 'sessionId' | 'exerciseId'> & { load: Load }>, ids: readonly string[], defaultBar: BarId, db: AnyGymDB): Promise<(s: { sessionId: string; exerciseId: string; load: Load }) => BarId | null> {
+export async function legacyBars(
+  sets: ReadonlyArray<Pick<WorkoutSet, 'sessionId' | 'exerciseId' | 'gymId'> & { load: Load }>,
+  ids: readonly string[],
+  defaultBar: BarId,
+  db: AnyGymDB,
+): Promise<(s: { sessionId: string; exerciseId: string; gymId?: string; load: Load }) => BarId | null> {
   const legacy = sets.filter((s) => s.load.barId === undefined);
   if (!legacy.length) return (s) => s.load.barId ?? null;
   const sessions = await db.sessions.bulkGet([...new Set(legacy.map((s) => s.sessionId))]);
   const gymOfSession = new Map(sessions.filter((x): x is Session => !!x).map((x) => [x.id, x.gymId]));
-  const gyms = new Map((await db.gyms.bulkGet([...new Set(gymOfSession.values())])).filter((g): g is Gym => !!g).map((g) => [g.id, g]));
+  const gymIds = new Set([...gymOfSession.values(), ...legacy.flatMap((s) => (s.gymId ? [s.gymId] : []))]);
+  const gyms = new Map((await db.gyms.bulkGet([...gymIds])).filter((g): g is Gym => !!g).map((g) => [g.id, g]));
   void ids;
   return (s) => {
     if (s.load.barId !== undefined) return s.load.barId;
-    const gymId = gymOfSession.get(s.sessionId);
+    // PLAN 3.9: the gym the set was lifted at, when its workout moved on to another gym.
+    const gymId = s.gymId ?? gymOfSession.get(s.sessionId);
     return legacyBarOf(s.load, defaultBar, gymId === undefined ? undefined : gyms.get(gymId));
   };
 }
 
-/** Finished (or imported) sessions holding these sets at the right gym, newest first. */
-async function sessionsOfSets(sets: Usable[], key: string, db: AnyGymDB): Promise<Session[]> {
-  const ids = [...new Set(sets.map((s) => s.sessionId))];
-  return (await db.sessions.bulkGet(ids))
-    .filter((s): s is Session => !!s)
-    .filter((s) => !(s.endedAt === undefined && !s.imported))
-    .filter((s) => key === ANY_GYM || s.gymId === key)
-    .sort((a, b) => b.startedAt - a.startedAt);
+/** PLAN 3.9: the gym a set was lifted at: its own when its workout moved gyms, else its workout's. */
+export const gymOfSet = (set: Pick<WorkoutSet, 'gymId'>, session: Pick<Session, 'gymId'>): string => set.gymId ?? session.gymId;
+
+/**
+ * Finished (or imported) sessions holding these sets at the right gym, newest first, and the sets
+ * lifted at that gym (PLAN 3.9: a set's own gym when its workout moved gyms).
+ */
+async function sessionsOfSets(all: Usable[], key: string, db: AnyGymDB): Promise<{ sessions: Session[]; sets: Usable[] }> {
+  const ids = [...new Set(all.map((s) => s.sessionId))];
+  const found = new Map(
+    (await db.sessions.bulkGet(ids)).filter((s): s is Session => !!s).filter((s) => !(s.endedAt === undefined && !s.imported)).map((s) => [s.id, s]),
+  );
+  const sets = all.filter((x) => {
+    const s = found.get(x.sessionId);
+    return !!s && (key === ANY_GYM || gymOfSet(x, s) === key);
+  });
+  const here = new Set(sets.map((x) => x.sessionId));
+  return { sessions: [...found.values()].filter((s) => here.has(s.id)).sort((a, b) => b.startedAt - a.startedAt), sets };
 }
 
 const pastSet = (x: Usable): PastSet => {
@@ -159,8 +177,9 @@ const pastSet = (x: Usable): PastSet => {
 export async function getPastSessions(exerciseId: string, gymId: string, loadKind: Load['kind'], limit = 6, opts: HistoryOptions = {}): Promise<PastSession[]> {
   const db = opts.db ?? defaultDb;
   const key = historyKeyFor(loadKind, gymId, opts.smith);
-  const sets = (await usableSets(exerciseId, loadKind, opts, db)).filter((s) => s.kind === 'work');
-  const sessions = (await sessionsOfSets(sets, key, db)).slice(0, limit);
+  const found = await sessionsOfSets((await usableSets(exerciseId, loadKind, opts, db)).filter((s) => s.kind === 'work'), key, db);
+  const sets = found.sets;
+  const sessions = found.sessions.slice(0, limit);
   return sessions.map((s) => {
     const own = sets.filter((x) => x.sessionId === s.id).sort((a, b) => a.order - b.order);
     return { date: s.startedAt, gymId: s.gymId, unit: own[0]!.load.unit, sets: own.map(pastSet) };
@@ -173,8 +192,9 @@ export async function getPastSessions(exerciseId: string, gymId: string, loadKin
  */
 export async function lastSessionSets(exerciseId: string, gymId: string, loadKind: Load['kind'], opts: HistoryOptions = {}): Promise<{ date: number; sets: PastSet[] } | null> {
   const db = opts.db ?? defaultDb;
-  const sets = await usableSets(exerciseId, loadKind, opts, db);
-  const last = (await sessionsOfSets(sets, historyKeyFor(loadKind, gymId, opts.smith), db))[0];
+  const found = await sessionsOfSets(await usableSets(exerciseId, loadKind, opts, db), historyKeyFor(loadKind, gymId, opts.smith), db);
+  const sets = found.sets;
+  const last = found.sessions[0];
   if (!last) return null;
   return { date: last.startedAt, sets: sets.filter((x) => x.sessionId === last.id).sort((a, b) => a.order - b.order).map(pastSet) };
 }
@@ -258,9 +278,16 @@ async function recordGroups(session: Session, sets: readonly WorkoutSet[], nameO
       const lift = today.filter((x) => groupOf(x) === (smith ? 'smith' : 'free'));
       const kinds = [...new Set(lift.filter((x) => x.kind === 'work').map((x) => x.load.kind))];
       for (const kind of kinds) {
-        const group = lift.filter((x) => x.load.kind === kind);
-        const past = (await getPastSessions(id, session.gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
-        out.push({ exerciseId: id, name, today: group, before: past.flatMap((p) => p.sets.map((x) => ({ ...x, date: p.date }))) });
+        const ofKind = lift.filter((x) => x.load.kind === kind);
+        // PLAN 3.9: machine and Smith sets lifted before the workout moved gyms compare with that
+        // gym's history; free weights share one history, so they stay one group.
+        const perGym = historyKeyFor(kind, session.gymId, smith) !== ANY_GYM;
+        const gyms = perGym ? [...new Set(ofKind.map((x) => gymOfSet(x, session)))] : [session.gymId];
+        for (const gymId of gyms) {
+          const group = perGym ? ofKind.filter((x) => gymOfSet(x, session) === gymId) : ofKind;
+          const past = (await getPastSessions(id, gymId, kind, Number.MAX_SAFE_INTEGER, { smith, defaultBar, db })).filter((p) => p.date < session.startedAt);
+          out.push({ exerciseId: id, name, today: group, before: past.flatMap((p) => p.sets.map((x) => ({ ...x, date: p.date }))) });
+        }
       }
     }
   }

@@ -101,12 +101,12 @@ export function equipmentPreset(type: GymType, unit: Unit): EquipmentPreset {
   }
 }
 
-export type NewGymInput = { name: string; type: GymType; unit: Unit; isActive?: boolean };
+export type NewGymInput = { name: string; type: GymType; unit: Unit; isActive?: boolean; city?: string };
 
 /** Builds a complete gym record with defaults. Pure; does not write. */
-export function makeGym({ name, type, unit, isActive = false }: NewGymInput, now = Date.now()): Gym {
+export function makeGym({ name, type, unit, isActive = false, city }: NewGymInput, now = Date.now()): Gym {
   const preset = equipmentPreset(type, unit);
-  return {
+  const gym: Gym = {
     id: newId(),
     name,
     type,
@@ -122,4 +122,6 @@ export function makeGym({ name, type, unit, isActive = false }: NewGymInput, now
     isActive,
     createdAt: now,
   };
+  if (city) gym.city = city;
+  return gym;
 }

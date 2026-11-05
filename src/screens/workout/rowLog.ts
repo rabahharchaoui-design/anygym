@@ -29,7 +29,7 @@
 import { newId } from '../../db/ids';
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
 import { AlreadyLoggedError, LOG_CANCEL_PREFIX, LogConflictError, logSet } from '../../db/workouts';
-import { payloadFp } from '../../lib/submission';
+import { payloadFp, UNKNOWN_FP } from '../../lib/submission';
 import { draftsDurableMerge, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
 import type { JournalEntry } from '../../db/types';
 import { logKey, logQueue as defaultQueue, type LogQueue } from '../../lib/logQueue';
@@ -44,7 +44,7 @@ const parts = (d: Deps) => ({ db: d.db ?? defaultDb, queue: d.queue ?? defaultQu
 
 /** Every committed Log set write of a workout: its submissions, and any set logged without one. */
 export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<Committed> {
-  return db.transaction('r', db.sets, db.submissions, async () => {
+  return db.transaction('r', db.sets, db.submissions, db.tombstones, async () => {
     const out = new Map<string, number | undefined>();
     const fps = new Map<string, string>();
     for (const s of await db.sets.where('sessionId').equals(sessionId).primaryKeys()) out.set(String(s), undefined);
@@ -53,8 +53,10 @@ export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): 
       if (sub.fp !== undefined) fps.set(sub.id, sub.fp);
       else {
         // A receipt from before 2.0l (PLAN 3.2b): what the set holds now stands for what was saved.
-        const set = await db.sets.get(sub.id);
-        if (set?.load) fps.set(sub.id, payloadFp({ ...(set.reps !== undefined ? { reps: set.reps } : {}), ...(set.seconds !== undefined ? { seconds: set.seconds } : {}), load: set.load, kind: set.kind, failure: !!set.failure }));
+        // Deleted since (PLAN 3.2c): its tombstone, else nothing known (UNKNOWN_FP), never a revision match alone.
+        const set = (await db.sets.get(sub.id)) ?? (await db.tombstones.get(sub.id))?.set;
+        if (!set?.load) fps.set(sub.id, UNKNOWN_FP);
+        else fps.set(sub.id, payloadFp({ ...(set.reps !== undefined ? { reps: set.reps } : {}), ...(set.seconds !== undefined ? { seconds: set.seconds } : {}), load: set.load, kind: set.kind, failure: !!set.failure }));
       }
     }
     return committedMap(out, fps);
@@ -168,7 +170,7 @@ export function draftedExercises(sessionId: string, deps: Deps = {}): string[] {
  */
 export async function reconcileSession(sessionId: string, deps: Deps = {}): Promise<void> {
   const { db } = parts(deps);
-  const { committed, journal } = await db.transaction('r', db.sets, db.submissions, db.journal, async () => ({
+  const { committed, journal } = await db.transaction('r', db.sets, db.submissions, db.journal, db.tombstones, async () => ({
     committed: await committedOf(sessionId, db),
     journal: await journalOf(sessionId, db),
   }));
@@ -325,7 +327,7 @@ export async function retryFailed(sessionId: string, deps: Deps = {}): Promise<b
       if (!found) continue; // used up meanwhile
       const [key, now] = found;
       const exerciseId = key.slice(0, key.lastIndexOf('@'));
-      const again: Draft = { ...now, submitted: now.rev ?? 0 };
+      const again: Draft = { ...now, submitted: now.rev ?? 0, op: newId() }; // a new operation (PLAN 3.2c)
       saveDraft(sessionId, key, again, ...storageArg(deps));
       await submitRow(sessionId, exerciseId, again, deps);
     }
@@ -336,10 +338,10 @@ export async function retryFailed(sessionId: string, deps: Deps = {}): Promise<b
 }
 
 /** A failed row as the unsaved sheet showed it (PLAN 2.0k): its id and the revision it submitted. */
-export type ShownRow = { id: string; submitted: number };
+export type ShownRow = { id: string; submitted: number; /** The operation shown (PLAN 3.2c); absent on a mark from before. */ op?: string };
 
 /** What the unsaved sheet snapshots of the failed rows it tells about. */
-export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.map((f) => ({ id: f.draft.id, submitted: f.draft.submitted ?? 0 }));
+export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.map((f) => ({ id: f.draft.id, submitted: f.draft.submitted ?? 0, ...(f.draft.op !== undefined ? { op: f.draft.op } : {}) }));
 
 /**
  * "Finish without it": the failed rows lose their mark and their journal entries (their values
@@ -350,13 +352,15 @@ export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.ma
 export async function discardFailed(sessionId: string, deps: Deps = {}, shown?: readonly ShownRow[]): Promise<void> {
   const { db, makeId } = parts(deps);
   const all = await failedRows(sessionId, deps);
-  const wanted = shown ? all.filter((f) => shown.some((x) => x.id === f.draft.id && x.submitted === f.draft.submitted)) : all;
+  const wanted = shown ? all.filter((f) => shown.some((x) => x.id === f.draft.id && x.submitted === f.draft.submitted && x.op === f.draft.op)) : all;
   // Inside one transaction: a journal entry stored since at another revision is never discarded.
   const failed = await db.transaction('rw', db.journal, db.kv, async () => {
     const out: FailedRow[] = [];
     for (const f of wanted) {
       const j = await db.journal.get(f.draft.id);
-      if (j && (j.mutation || j.rev !== f.draft.submitted)) continue;
+      // PLAN 3.2c: only the very operation shown. Another tab can journal other input under the same
+      // id and revision; its operation id differs, so it stays unresolved (Finish asks about it).
+      if (j && (j.mutation || j.rev !== f.draft.submitted || (j.draft as { op?: string }).op !== f.draft.op)) continue;
       if (j) await db.journal.delete(j.id);
       // The cancellation commits with the journal deletion (PLAN 3.2b), so no tab can write it again.
       await db.kv.put({ key: cancelKey(sessionId, f.draft.id), value: String(f.draft.submitted ?? 0), at: Date.now() });

@@ -21,6 +21,13 @@ function stable(v: unknown): string {
   return JSON.stringify(v ?? null);
 }
 
+/**
+ * Evidence that is not a fingerprint (PLAN 3.2c): a legacy receipt (none stored) whose set was
+ * deleted and left no record of its values. It equals no draft's fingerprint, so a revision match
+ * alone never counts as "this input was saved".
+ */
+export const UNKNOWN_FP = 'unknown';
+
 /** The fingerprint of what a Log set write stores. */
 export function payloadFp(p: Payload): string {
   return stable({ reps: p.reps, seconds: p.seconds, load: p.load, kind: p.kind ?? 'work', failure: p.kind === 'work' || p.kind === undefined ? !!p.failure : false });

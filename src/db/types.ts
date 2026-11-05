@@ -81,6 +81,10 @@ export type Gym = {
   plateColors: PlateColors;
   isActive: boolean;
   createdAt: number;
+  /** PLAN 3.9 (additive, not indexed): the town, typed by the user ("Tokyo"). Missing: none given. */
+  city?: string;
+  /** PLAN 3.9 (additive, not indexed): when this gym was last made the active one, for "recent gyms". */
+  lastUsedAt?: number;
 };
 
 export type Profile = {
@@ -337,6 +341,11 @@ export type WorkoutSet = {
   failure?: boolean;
   /** Imported sets (PLAN 3.2, additive, not indexed): the file's name and its catalog match. Older imports have none. */
   importMap?: ImportMapping;
+  /**
+   * PLAN 3.9 (additive, not indexed): the gym this set was lifted at, written only when its workout
+   * moved to another gym after it was logged. Missing: its workout's gym (every older set).
+   */
+  gymId?: string;
 };
 
 /**
