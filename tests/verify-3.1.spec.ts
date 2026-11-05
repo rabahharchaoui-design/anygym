@@ -23,7 +23,8 @@ async function noNames(page: Page) {
 test('spot check 8 exercises in weeks 1, 3, 6 against the JSON; lone tile; no personal names @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./#/plans');
-  await expect(page.locator('[data-testid^="place-"]')).toHaveCount(1);
+  // PLAN 3.5: home, travel and bodyweight have plans too.
+  await expect(page.locator('[data-testid^="place-"]')).toHaveCount(4);
   await noNames(page);
   await page.screenshot({ path: `${DIR}/picker-${tag()}.png` });
   await page.goto('./#/plans/place/full');

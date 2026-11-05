@@ -10,6 +10,8 @@
 // Also here: the week table lookup (SPEC 6 rule 6), the duration estimate (SPEC 7.4) and the
 // "where is the plan now" state machine (advancePlan).
 
+import { EQUIPMENT_IDS, type EquipmentId } from '../db/types';
+
 export type RepRange = [number, number];
 export type PlanReps = RepRange | number;
 export type PlanSeconds = RepRange | number;
@@ -39,8 +41,12 @@ export type PlanBlock = {
   restSec?: number;
 };
 
-/** A cardio finisher at the end of a day. `minutes` null: the plan gives no length (never invented). */
-export type Finisher = { name: string; minutes: number | null };
+/**
+ * A cardio finisher at the end of a day. `minutes` null: the plan gives no length (never invented).
+ * `requires` (generated plans, PLAN 3.5): the gear it needs, as sure as the swap ladders' ([] none);
+ * absent means the gear is not known for sure.
+ */
+export type Finisher = { name: string; minutes: number | null; requires?: EquipmentId[][] };
 
 export type PlanDay = { n: number; name: string; addOn?: string; blocks: PlanBlock[]; finisher?: Finisher };
 
@@ -57,8 +63,11 @@ export type Plan = {
   days: PlanDay[];
 };
 
-/** Looks an exercise name up in the plan exercise list. */
-export type ResolveExercise = (name: string) => { id: string; name: string } | undefined;
+/**
+ * Looks an exercise name up in the plan exercise list. Generated plans (PLAN 3.5) also give the id
+ * itself (a plan id or a ladder candidate's catalog id): then the id decides, never the name.
+ */
+export type ResolveExercise = (name: string, id?: string) => { id: string; name: string } | undefined;
 
 // ---------------------------------------------------------------- normalize
 
@@ -85,7 +94,7 @@ const secondsInName = (name: string): number | undefined => {
 
 function item(raw: Raw, resolve: ResolveExercise, where: string): PlanItem {
   const name = str(raw.exercise);
-  const found = name ? resolve(name) : undefined;
+  const found = name ? resolve(name, str(raw.id)) : undefined;
   if (!name || !found) throw new Error(`Plan exercise not in data/plan-exercises.json: "${String(raw.exercise)}" (${where})`);
   const out: PlanItem = { exerciseId: found.id, name };
   const reps = range(raw.reps);
@@ -142,7 +151,13 @@ export function normalizePlan(input: unknown, resolve: ResolveExercise): Plan {
     if (addOn) out.addOn = addOn;
     const fin = obj(day.finisher);
     const finName = str(fin.name);
-    if (finName) out.finisher = { name: finName, minutes: num(fin.minutes) ?? null };
+    if (finName) {
+      out.finisher = { name: finName, minutes: num(fin.minutes) ?? null };
+      const req = fin.requires;
+      if (Array.isArray(req) && req.every((g) => Array.isArray(g) && g.length > 0 && g.every((x) => typeof x === 'string' && (EQUIPMENT_IDS as readonly string[]).includes(x)))) {
+        out.finisher.requires = req as EquipmentId[][];
+      }
+    }
     return out;
   });
   const plan: Plan = {

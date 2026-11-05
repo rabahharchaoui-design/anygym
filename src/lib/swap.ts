@@ -300,7 +300,8 @@ export function adaptDay(data: SwapData, entries: readonly AdaptEntry[], gym: Gy
       }
     }
     if (e.finisher) continue;
-    const needs = data.planExercises[id]?.requires;
+    // A plan exercise's own row, else (generated plans, PLAN 3.5) its ladder candidate's gear.
+    const needs = requiresOf(data, id);
     if (!needs || supports(needs, gym)) continue;
     const reason = `no ${missingWord(needs, gym)} here`;
     const best = swapCandidates(data, id, gym, { mode: e.seconds !== undefined ? 'seconds' : 'reps', exclude: others() })[0];

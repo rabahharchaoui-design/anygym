@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { useNav } from '../../ui/nav';
-import { PLANS, basePlanOf } from '../../data/plans';
+import { PLANS, basePlanOf, isGeneratedId } from '../../data/plans';
 import { PLACE_TILES } from '../../data/places';
 import { getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
@@ -21,6 +21,7 @@ export function PlansScreen() {
   const state = useLive(() => getPlanState(), []);
   const activeId = state.data?.planId;
   const go = useNav();
+  const mine = isGeneratedId(activeId) ? basePlanOf(activeId) : undefined;
   return (
     <>
       <TopBar title="Plans">
@@ -52,6 +53,17 @@ export function PlansScreen() {
             ))}
           </ul>
         </section>
+      )}
+      {mine && (
+        <>
+          {/* PLAN 3.5: the plan built from their answers, when it is the one in use. */}
+          <h2 className={styles.sectionTitle}>Your plan</h2>
+          <ul className={styles.list}>
+            <li>
+              <PlanCard plan={mine} to={planLink(`/plans/${mine.id}`, activeId)} active />
+            </li>
+          </ul>
+        </>
       )}
       <h2 className={styles.sectionTitle}>All plans</h2>
       <ul className={styles.list}>

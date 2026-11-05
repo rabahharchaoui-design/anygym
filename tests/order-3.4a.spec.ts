@@ -237,7 +237,12 @@ test('SE fit and 130% text: Up next and the open Coach tips stay whole @matrix',
   await text130(page, '[data-testid="up-next"]');
   await card.scrollIntoViewIfNeeded();
   await checkLayout(page);
-  for (const t of await card.locator('[data-testid="up-next-pick"] span span, [data-testid="up-next-other"] span span').all()) expect(await fullyShown(t)).toBe(true);
+  // Each line scrolled into view first: at 320 × 568 and 130% the card is taller than the screen, and
+  // a line below the fold is clipped by the scrolling list, not cut.
+  for (const t of await card.locator('[data-testid="up-next-pick"] span span, [data-testid="up-next-other"] span span').all()) {
+    await t.scrollIntoViewIfNeeded();
+    expect(await fullyShown(t), (await t.textContent()) ?? '').toBe(true);
+  }
   await shotOn(page, SHOTS, 'up-next-130');
 
   await page.goto('./#/plans/five-day-split');
@@ -252,7 +257,10 @@ test('SE fit and 130% text: Up next and the open Coach tips stay whole @matrix',
   for (const id of ['hinge', 'stretch', 'rest', 'pair', 'freq', 'core']) {
     const tip = page.getByTestId(`tip-${id}`);
     await tip.scrollIntoViewIfNeeded();
-    for (const p of await tip.locator('p, li').all()) expect(await fullyShown(p)).toBe(true);
+    for (const p of await tip.locator('p, li').all()) {
+      await p.scrollIntoViewIfNeeded();
+      expect(await fullyShown(p), (await p.textContent()) ?? '').toBe(true);
+    }
   }
   await checkLayout(page);
   await checkControls(page);

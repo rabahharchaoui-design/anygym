@@ -116,6 +116,12 @@ export type Plan = {
   name: string;
   source: 'curated' | 'generated';
   createdAt: number;
+  /**
+   * PLAN 3.5 (additive, no index): a generated plan's whole definition, in the shipped plan JSON shape
+   * (lib/generator.ts RawPlan). Never changed after it is saved: a rebuild saves a new plan, so a
+   * past workout always finds the plan it was started from.
+   */
+  definition?: Record<string, unknown>;
 };
 
 export type PlanDay = {

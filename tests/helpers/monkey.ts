@@ -151,7 +151,9 @@ const failOnErrors = () => {
 export async function monkey(page: Page, { home, durationMs = 90_000, seed = 1 }: MonkeyOptions) {
   const r = rng(seed);
   const vp = page.viewportSize()!;
-  const norm = (h: string) => (h === '' ? '#/' : h);
+  // The route path only: a query is screen state, not another screen (PLAN 3.4a: the plan viewer
+  // keeps a coach tuned copy in ?coach=, so a random Apply must not count as wandering off).
+  const norm = (h: string) => routeOf(h === '' ? '#/' : h);
   let homeUrl = norm(new URL(home, 'http://localhost/anygym/').hash);
   const stats = { taps: 0, swipes: 0, skipped: 0, sheetsClosed: 0, returns: 0, escapes: 0, effective: 0 };
   const end = Date.now() + durationMs;
@@ -243,6 +245,8 @@ async function settle(page: Page) {
   }
 }
 
+/** A hash without its query ("#/plans/five-day-split?coach=rest" → "#/plans/five-day-split"). */
+const routeOf = (h: string) => h.split('?')[0]!;
 const hashOf = (page: Page) => page.evaluate(() => (location.hash === '' ? '#/' : location.hash));
 /** Where the user is: the route, plus the question inside the intake (its steps share one route). */
 const screenOf = (page: Page) => page.evaluate(() => `${location.hash === '' ? '#/' : location.hash}|${document.querySelector('[data-testid="intake"]')?.getAttribute('data-step') ?? ''}`);
@@ -312,7 +316,7 @@ async function goHome(page: Page, homeUrl: string) {
     await resume.tap();
     await expect.poll(() => hashOf(page), { timeout: 3000 }).toMatch(/^#\/workout\//);
     const ex = homeUrl.split('/')[3];
-    if (ex && (await hashOf(page)) !== homeUrl) {
+    if (ex && routeOf(await hashOf(page)) !== homeUrl) {
       const row = page.getByTestId(`row-${decodeURIComponent(ex)}`);
       // The monkey may have removed that exercise (Remove has Undo): then it carries on from here.
       if (!(await row.isVisible())) return;
@@ -321,7 +325,7 @@ async function goHome(page: Page, homeUrl: string) {
   }
   // Same screen; the monkey may have started a new workout meanwhile (another session id).
   if (homeUrl.startsWith('#/workout/') && !(await hashOf(page)).startsWith('#/workout/')) return;
-  const kind = (h: string) => h.replace(/^#\/workout\/[^/]+/, '#/workout/:id');
+  const kind = (h: string) => routeOf(h).replace(/^#\/workout\/[^/]+/, '#/workout/:id');
   await expect.poll(async () => kind(await hashOf(page)), { timeout: 3000, message: `could not get back to ${homeUrl} through the UI` }).toBe(kind(homeUrl));
 }
 

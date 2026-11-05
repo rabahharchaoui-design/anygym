@@ -72,7 +72,7 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   await checkLayout(page, {});
 }
 
-test('all 17 questions, the no plan notice and the reveal: title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
+test('all 17 questions and the reveal (PLAN 3.5: no no plan notice at home): title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
   await page.goto('./');
   await expect(page).toHaveURL(/#\/welcome$/);
   const seen: string[] = [];
@@ -127,9 +127,8 @@ test('all 17 questions, the no plan notice and the reveal: title top left, round
   seen.push('equipment');
   await shot(page, 'equipment-home');
   await cta(page).tap();
-  await chrome(page, 'noPlan', 'auto', { back: true });
-  seen.push('noPlan');
-  await page.getByTestId('noplan-continue').tap();
+  // PLAN 3.5: home always gets a plan now (the no equipment plan, or one built from the answers), so
+  // the no plan notice never shows here.
   await auto('style', 'q-style-bodyweight');
   await multi('cardio', 'q-cardio-love', true);
   await multi('easyOn', 'q-easyOn-knees', true);
@@ -150,7 +149,7 @@ test('all 17 questions, the no plan notice and the reveal: title top left, round
   await cta(page).tap();
   seen.push('reveal');
   await atStep(page, 'reveal');
-  expect(seen).toHaveLength(19);
+  expect(seen).toHaveLength(18);
   test.info().annotations.push({ type: 'reason under the grey button', description: greyScreens.join(',') });
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/Apple Health|HealthKit|Rabah|Harchaoui/i);
@@ -208,9 +207,11 @@ test('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved unt
 });
 
 const REVEALS: Array<[string, Record<string, unknown>, RegExp, string]> = [
-  ['hotel', { place: 'hotel' }, /No hotel plan yet/, 'Start a quick workout'],
-  ['home', { place: 'home' }, /No home plan yet/, 'Start a quick workout'],
-  ['outdoors', { place: 'outdoors' }, /No outdoor plan yet/, 'Start a quick workout'],
+  // PLAN 3.5: hotel, home and outdoors get Your plan built from the answers (with nothing at home or
+  // outdoors, 3 full body days; 4 days of upper and lower need gear: see generator-3.5).
+  ['hotel', { place: 'hotel' }, /Your plan/, 'Start Day 1'],
+  ['home', { place: 'home', days: 3 }, /Your plan/, 'Start Day 1'],
+  ['outdoors', { place: 'outdoors', days: 3 }, /Your plan/, 'Start Day 1'],
   ['full', { place: 'full', days: 5 }, /Your plan/, 'Start Day 1'],
 ];
 for (const [name, extra, reason, button] of REVEALS) {

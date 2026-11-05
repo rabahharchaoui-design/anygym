@@ -17,7 +17,7 @@ const drafted = async (page: Page, step: string, answers: Record<string, unknown
   await page.waitForTimeout(400);
 };
 
-test('(a) full gym, kettlebells then rower then thigh machine off: reveal still offers a plan and says the swaps', async ({ page }) => {
+test('(a) full gym, kettlebells then rower then thigh machine off: reveal still offers a plan (PLAN 3.5: Your plan built from what is on)', async ({ page }) => {
   await drafted(page, 'equipment', { goal: 'muscle', goals: ['muscle'], units: US, days: 4, minutes: 60, place: 'full', equipmentFor: 'full', experience: '3y' });
   const on = async () => ((await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.equipment)) as string[]);
   const reveal = async (n: number) => {
@@ -37,8 +37,14 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
     const week = await page.getByTestId('reveal-week').count();
     console.log(`R2a ${test.info().project.name} off=${27 - n}: ${heading} | primary="${primary}" week=${week} | reason="${reason.replace(/\n/g, ' ')}" | warning="${warn}" | quick="${quick}"`);
     await page.screenshot({ path: `reports/shots/3.3a/verify/r2-reveal-off${27 - n}-${test.info().project.name.replace(/ /g, '-')}.png` });
-    expect(week, `plan week shown with ${27 - n} off`).toBeGreaterThan(0);
-    expect(`${reason} ${warn}`).toMatch(/swap|skip/i);
+    // PLAN 3.5: no curated 4 day plan, so the generator builds Your plan from the gear that is on
+    // (nothing to swap); one item off still gives a plan, with the check and Start Day 1.
+    expect(week, `plan week shown with ${27 - n} off`).toBe(1);
+    await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(4);
+    expect(heading).toBe('Your plan');
+    expect(primary).toBe('Start Day 1');
+    expect(reason).toMatch(/^ ?Built to build muscle: 4 days, about \d+ min, full gym\./);
+    expect(`${reason} ${warn}`).not.toMatch(/aren't built in|plan yet/);
     await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!); d.step = 'equipment'; localStorage.setItem('anygym.intakeDraft', JSON.stringify(d)); });
     await page.reload();
     await expect(intake(page)).toHaveAttribute('data-step', 'equipment');
@@ -56,14 +62,20 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
   await reveal(24);
 });
 
-test('(b) brand new, 3 days, 45 min: honest title, Start a quick workout is primary', async ({ page }) => {
+test('(b) brand new, 3 days, 45 min (PLAN 3.5): a 3 day plan that fits 45 min is a true match, Start Day 1 leads, a quick workout is the option', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'muscle', goals: ['muscle'], units: US, days: 3, minutes: 45, place: 'full', equipmentFor: 'full', experience: 'new' });
   await page.waitForTimeout(1500);
   const heading = await page.locator('h1').first().innerText();
   const primary = await page.getByTestId('reveal-cta').locator('button[data-variant="primary"]').innerText();
   console.log(`R2b ${test.info().project.name}: title="${heading}" primary="${primary}" secondary="${(await page.getByTestId('reveal-secondary').count()) ? await page.getByTestId('reveal-secondary').innerText() : '-'}" quick="${(await page.getByTestId('reveal-quick').count()) ? await page.getByTestId('reveal-quick').innerText() : '-'}" check=${await page.getByTestId('reveal-check').count()}`);
   await page.screenshot({ path: `reports/shots/3.3a/verify/r2-brandnew-${test.info().project.name.replace(/ /g, '-')}.png` });
-  expect(primary).toBe('Start a quick workout');
-  expect(heading).not.toBe('Your plan');
-  await expect(page.getByTestId('reveal-check')).toHaveCount(0);
+  // The Beginner Full Body 3 Day plan: 3 days, each about 45 min or less, the check earned.
+  expect(heading).toBe('Your plan');
+  expect(primary).toBe('Start Day 1');
+  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
+  await expect(page.getByTestId('reveal-check')).toHaveCount(1);
+  await expect(page.getByTestId('reveal-card')).toContainText('Beginner Full Body 3 Day');
+  const rows = page.getByTestId('reveal-week').getByRole('listitem');
+  await expect(rows).toHaveCount(3);
+  for (const t of await rows.allInnerTexts()) expect(Number(/~(\d+) min/.exec(t)![1])).toBeLessThanOrEqual(45);
 });

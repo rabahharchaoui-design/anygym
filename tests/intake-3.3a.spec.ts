@@ -158,13 +158,14 @@ test('main goal takes up to 2: Main, then Also, a third swaps the Also; stored M
 test('an older answer with one goal still loads as Main; Also never earns "Your plan"', async ({ page }) => {
   await drafted(page, 'goal', { goal: 'tone', units: US });
   await expectTags(page, 'tone', null);
-  // Main leads: strength first, muscle as Also, is the closest plan, and says the Also is used.
+  // Main leads: strength first, muscle as Also. No curated plan is a strength plan, so the Also never
+  // earns a curated "Your plan": PLAN 3.5 builds one from the answers, strength first, muscle added.
   await drafted(page, 'reveal', { goal: 'strength', goals: ['strength', 'muscle'], units: US, days: 5, place: 'full', equipmentFor: 'full' });
-  await expect(page.getByRole('heading', { name: 'Closest plan we have' })).toBeVisible();
-  await expect(page.getByTestId('reveal-check')).toHaveCount(0);
-  await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym, your second goal (muscle) and your 5 days.');
+  await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
+  await expect(page.getByTestId('reveal-card')).not.toContainText('Classic 5 Day Split');
+  await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built to get stronger: 5 days, about \d+ min, full gym\.$/);
   // Round 2 (B2): both goals named, each used or coming soon.
-  await expect(page.getByTestId('reveal-goals')).toHaveText('Main strength (soon) · Also muscle');
+  await expect(page.getByTestId('reveal-goals')).toHaveText('Main strength · Also muscle');
   // Muscle as Main with an Also: the true match keeps its check.
   await drafted(page, 'reveal', { goal: 'muscle', goals: ['muscle', 'fat_loss'], units: US, days: 5, place: 'full', equipmentFor: 'full' });
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
@@ -340,38 +341,36 @@ test('B1: a full gym with any single item off still gets its plan; the swaps are
   await shot(page, 'b1-swapped');
 });
 
-test('B2: brand new, 3 days, 45 min: no such plan yet, the quick workout leads, the plan is an option once, both goals named', async ({ page }) => {
+test('B2 (PLAN 3.5): brand new, 3 days, 45 min: the Beginner Full Body 3 Day plan is a true match, both goals named', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'muscle', goals: ['muscle', 'fat_loss'], units: US, days: 3, minutes: 45, experience: 'new', place: 'full', equipmentFor: 'full' });
-  await expect(page.getByRole('heading', { name: 'No 3 day, 45 min beginner plan yet' })).toBeVisible();
-  // Round 3 (B2): one honest line up front, the fit details behind "Why this plan".
-  await expect(page.getByTestId('reveal-summary')).toHaveText(/^Closest: 5 days, about \d+ min\. Main muscle · Also fat loss \(soon\)$/);
-  await expect(page.getByTestId('reveal-reason')).toBeHidden();
-  await page.getByTestId('reveal-why').locator('summary').tap();
-  await expect(page.getByTestId('reveal-reason')).toBeVisible();
-  await expect(page.getByTestId('reveal-warning')).toHaveText(/You asked for 45 min, 3 days\./);
-  await page.getByTestId('reveal-why').locator('summary').tap();
-  // Two or three days of the week show on the SE without scrolling.
+  await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
+  await expect(page.getByTestId('reveal-card')).toContainText('Beginner Full Body 3 Day');
+  await expect(page.getByTestId('reveal-check')).toBeVisible();
+  await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym, your muscle goal and your 3 days.');
+  // All three days of the week show on the SE without scrolling.
   const shownDays = await page.getByTestId('reveal-week').getByRole('listitem').evaluateAll((els) => {
     const cta = document.querySelector('[data-testid="reveal-cta"]')!.getBoundingClientRect().top;
     return els.filter((e) => e.getBoundingClientRect().bottom <= cta).length;
   });
   expect(shownDays).toBeGreaterThanOrEqual(2);
-  await expect(page.getByTestId('reveal-check')).toHaveCount(0);
-  await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Start a quick workout');
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start Day 1');
+  // Brand new: the plan leads, a quick workout is the quiet option.
+  await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Start Day 1');
+  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
   await expect(page.getByTestId('reveal-goals')).toHaveText('Main muscle · Also fat loss (soon)');
   // The plan shown is not offered again below.
-  const shown = (await page.getByTestId('reveal-card').locator('p').nth(1).textContent())!;
-  await expect(page.locator('[data-testid^="reveal-plan-"]').filter({ hasText: shown })).toHaveCount(0);
+  await expect(page.getByTestId('reveal-plan-beginner-full-body-3-day')).toHaveCount(0);
   await shot(page, 'b2-new-3d');
 });
 
 test('B6: questions not used yet are optional, say what they are for, and carry a quiet Coming soon', async ({ page }) => {
+  // PLAN 3.5: the generator uses focus, cardio, go easy on and the exercise lists: optional, no pill.
   const optional = ['focus', 'win', 'cardio', 'easyOn', 'exercises', 'bodyweight'];
+  const soon = new Set(['win', 'bodyweight']);
   for (const step of optional) {
     await drafted(page, step, { ...FULL });
     await expect(cta(page), `${step} Continue`).toBeEnabled();
-    await expect(page.getByTestId('soon'), `${step} pill`).toHaveText('Coming soon');
+    if (soon.has(step)) await expect(page.getByTestId('soon'), `${step} pill`).toHaveText('Coming soon');
+    else await expect(page.getByTestId('soon'), `${step} pill`).toHaveCount(0);
     await expect(page.getByText(/Not used yet/)).toHaveCount(0);
   }
   // Untouched Continue is a skip, never a made up answer.
@@ -379,9 +378,9 @@ test('B6: questions not used yet are optional, say what they are for, and carry 
   await cta(page).tap();
   await atStep(page, 'win');
   await expect.poll(async () => (await draftAnswers(page)).skipped).toEqual(['focus']);
-  // Go easy: plainly not avoided yet, next to the stop and check line.
+  // Go easy: said plainly what uses it, next to the stop and check line.
   await drafted(page, 'easyOn', { ...FULL });
-  await expect(page.getByTestId('easy-note')).toHaveText("Today's plan does not avoid these yet. If something hurts, stop and check with a professional.");
+  await expect(page.getByTestId('easy-note')).toHaveText('A plan built from your answers leaves out lifts that load these. If something hurts, stop and check with a professional.');
   // Style and When are single choice: a Skip instead.
   await drafted(page, 'style', { ...FULL });
   await expect(page.getByTestId('skip')).toBeVisible();
@@ -397,9 +396,10 @@ test('P8 P9 P10: weekdays as a list of days; honest hints on Days and Minutes; i
   for (const box of await days.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ w: r.width, h: r.height })))) expect(box.h).toBeLessThan(box.w);
   await expect(page.getByTestId('q-weekdays-mon')).toHaveText('Monday');
   await drafted(page, 'days', { ...FULL });
-  // The plans that ship run 5 days: only that option says so.
+  // The plans that ship run 5 days and (PLAN 3.5) 3 days: only those options say so.
   await expect(page.getByTestId('q-days-5')).toContainText('Our curated plans run this many');
-  await expect(page.getByTestId('q-days-3')).not.toContainText('Our curated');
+  await expect(page.getByTestId('q-days-3')).toContainText('Our curated plans run this many');
+  await expect(page.getByTestId('q-days-4')).not.toContainText('Our curated');
   await drafted(page, 'focus', { ...FULL });
   await expect(page.getByTestId('q-focus').locator('svg')).toHaveCount(8);
   await drafted(page, 'easyOn', { ...FULL });
