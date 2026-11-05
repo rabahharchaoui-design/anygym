@@ -42,6 +42,23 @@ export function demoForPlan(planId: string): ExerciseInfo['demo'] {
   return DEMOS.get(planId) ?? null;
 }
 
+/**
+ * The sheet for any exercise id a workout can hold (PLAN 3.4): a plan exercise's, or a bare catalog
+ * exercise's (a swap candidate), photos only when eligible either way. Its own notes when it has no cues.
+ */
+export function infoForExercise(id: string, notes: string[] = []): ExerciseInfo {
+  if (PLAN.has(id) || !CATALOG.has(id)) return infoForPlan(id, notes);
+  const info = infoForCatalog(id);
+  return info.cues.length ? info : { ...info, cues: notes.map((n) => n.trim()).filter(Boolean) };
+}
+
+/** infoForExercise's sure photos, one object per exercise like demoForPlan. */
+export function demoFor(id: string): ExerciseInfo['demo'] {
+  if (PLAN.has(id) || !CATALOG.has(id)) return demoForPlan(id);
+  if (!DEMOS.has(id)) DEMOS.set(id, infoForCatalog(id).demo);
+  return DEMOS.get(id) ?? null;
+}
+
 /** Image paths are relative to the app base (/anygym/ on Pages). */
 export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 

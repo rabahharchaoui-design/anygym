@@ -5,7 +5,7 @@ import { RepsStepper } from './RepsStepper';
 import { Segmented } from '../../ui/Segmented';
 import styles from './Workout.module.css';
 
-export type MenuAction = 'up' | 'down' | 'remove' | 'loadType';
+export type MenuAction = 'swap' | 'up' | 'down' | 'remove' | 'loadType';
 
 type Props = {
   open: boolean;
@@ -17,6 +17,10 @@ type Props = {
   moveNote?: string;
   /** What removing it also removes (its logged sets), or undefined. */
   removeNote?: string;
+  /** Every set of it is done: nothing is left to replace (PLAN 3.4). */
+  replaceOff?: boolean;
+  /** Its swap line ("Swapped: no cable here"), when it has one. */
+  replaceNote?: string;
   rest: number;
   /** Rest timer Off for this exercise (PLAN 2.2d): no countdown after its sets (supersets). */
   restOff: boolean;
@@ -32,10 +36,10 @@ type Props = {
 };
 
 /**
- * The exercise ⋯ menu (SPEC 21.1). Replace and Make a pair are left out until they ship: no dead
- * rows (ux-critic, PLAN 1.7e).
+ * The exercise ⋯ menu (SPEC 21.1). Replace comes first (PLAN 3.4). Make a pair is left out until it
+ * ships: no dead rows (ux-critic, PLAN 1.7e).
  */
-export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, removeNote, rest, restOff, note, loadedWith, onAction, onRest, onRestOff, onRestSaved, onNote }: Props) {
+export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, removeNote, replaceOff, replaceNote, rest, restOff, note, loadedWith, onAction, onRest, onRestOff, onRestSaved, onNote }: Props) {
   const [page, setPage] = useState<'menu' | 'rest' | 'note'>('menu');
   const close = () => {
     onClose();
@@ -47,6 +51,7 @@ export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, re
         <div className={styles.sheetBody}>
           <h2 className={styles.sheetTitle}>{name}</h2>
           <div className={styles.menu}>
+            <MenuItem label="Replace" sub={replaceOff ? 'All its sets are done' : replaceNote} disabled={replaceOff} chevron={!replaceOff} onPress={() => onAction('swap')} testId="replace-row" />
             <MenuItem label={loadedWith ? `Loaded with: ${loadedWith}` : 'How do you load this?'} sub="Change" onPress={() => onAction('loadType')} />
             <div className={styles.menuPair}>
               <MenuItem label="Move up" sub={!canUp ? moveNote : undefined} disabled={!canUp} onPress={() => onAction('up')} />

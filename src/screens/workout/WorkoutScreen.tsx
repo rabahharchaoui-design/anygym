@@ -38,6 +38,9 @@ import { ExerciseMenu, type MenuAction } from './ExerciseMenu';
 import { ExercisePicker } from './ExercisePicker';
 import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
+import { SwapSheet } from './SwapSheet';
+import { SwapPendingError, SwapUndoStaleError, stopAlways, swapExercise, undoSwap } from '../../db/swaps';
+import { swapLine } from '../../lib/swap';
 import { RestDock } from './RestDock';
 import { useWorkout } from './useWorkout';
 import { discardFailed, failedRows, prepareFinish, retryFailed, shownRows, type ShownRow } from './rowLog';
@@ -104,6 +107,7 @@ export function WorkoutScreen() {
   const [asking, setAsking] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [swapFor, setSwapFor] = useState<string | null>(null);
   const finishing = useRef(false);
   const routeRef = useRef(exerciseId);
   routeRef.current = exerciseId;
@@ -254,7 +258,7 @@ export function WorkoutScreen() {
   const swipeNext = () => {
     if (!exerciseId) return;
     const i = order.indexOf(exerciseId);
-    const later = w.entries.slice(i + 1).find((e) => (w.done[e.exerciseId] ?? 0) < e.sets) ?? w.entries[i + 1];
+    const later = w.entries.slice(i + 1).find((e) => (w.done[e.exerciseId] ?? 0) < e.sets && !e.noFit) ?? w.entries[i + 1];
     if (later) switchExercise(later.exerciseId);
   };
 
@@ -410,6 +414,10 @@ export function WorkoutScreen() {
       setAsking(id);
       return;
     }
+    if (a === 'swap') {
+      setSwapFor(id);
+      return;
+    }
     const ids = w.session?.exerciseIds ?? [];
     try {
       if (a === 'remove') {
@@ -443,6 +451,66 @@ export function WorkoutScreen() {
     }
   };
 
+  // ---------------------------------------------------------------- swap (PLAN 3.4)
+
+  /** One tracked write Finish waits for (logQueue.mutate). The view on screen follows the exercise. */
+  const swapBusy = useRef(false);
+  // The screen is on this exercise and on its way off it: a navigation waits for a closing sheet's
+  // step back (sheetHistory.whenSettled), so the list must not take over before it lands.
+  const moving = useRef<string | null>(null);
+  useEffect(() => {
+    if (moving.current !== exerciseId) moving.current = null;
+  }, [exerciseId]);
+  const doSwap = async (from: string, to: string, always = false) => {
+    setSwapFor(null);
+    if (swapBusy.current || finishing.current) return;
+    swapBusy.current = true;
+    if (routeRef.current === from) moving.current = from;
+    justAdded.current.add(to);
+    try {
+      const write = logQueue.mutate(sessionId, () => swapExercise(sessionId, from, to, { always }));
+      if (!write) throw new WorkoutFinishedError();
+      const receipt = await write;
+      if (routeRef.current === from) switchExercise(to);
+      justAdded.current.delete(from);
+      const shown = toastOf(
+        '',
+        {
+          label: 'Undo',
+          onPress: () => {
+            setToast((cur) => (cur?.id === shown.id ? null : cur));
+            if (routeRef.current === to) moving.current = to;
+            justAdded.current.add(from);
+            const back = logQueue.mutate(sessionId, () => undoSwap(sessionId, receipt));
+            if (!back) {
+              moving.current = null;
+              return notice('That workout is already finished');
+            }
+            back.then(
+              () => {
+                if (routeRef.current === to) switchExercise(from);
+                justAdded.current.delete(to);
+              },
+              (err: unknown) => {
+                moving.current = null;
+                notice(err instanceof SwapUndoStaleError ? 'You logged a set on it, so it stays' : err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not put it back');
+              },
+            );
+          },
+        },
+        w.nameOf(to),
+        'Swapped ·',
+      );
+      setToast(shown);
+    } catch (err) {
+      moving.current = null;
+      justAdded.current.delete(to);
+      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : err instanceof SwapPendingError ? 'A set is still saving. Try again in a moment.' : 'Could not swap that. Try again.');
+    } finally {
+      swapBusy.current = false;
+    }
+  };
+
   /**
    * PLAN 2.2d P2 (SPEC 13.1: Undo, never a refusal): an exercise with logged sets is removed with
    * them. Each set goes through the workout's transactional delete (its tombstone and token, so an
@@ -463,14 +531,13 @@ export function WorkoutScreen() {
       });
     for (const x of own) markDeleted(sessionId, x.id, null);
     setHidden((h) => new Set([...h, ...ids]));
-    const gone: WorkoutSet[] = [];
+    let gone: WorkoutSet[] = [];
     try {
-      for (const x of own) {
-        await deletes.remove(x, { hold: true });
-        // Deleted by another tab first (PLAN 2.0i): nothing of ours to put back for it.
-        if (deletes.canUndo(x.id)) gone.push(x);
-      }
-      const at = await removeExercise(sessionId, id);
+      // One admitted operation (PLAN 3.2b): Finish waits for it, and a failure rolls every set back.
+      let at = -1;
+      gone = await deletes.removeAll(own, async () => {
+        at = await removeExercise(sessionId, id);
+      });
       justAdded.current.delete(id);
       if (routeRef.current === id) goList();
       const n = gone.length;
@@ -658,7 +725,7 @@ export function WorkoutScreen() {
     return <Navigate to="/" replace />;
   }
   // An exercise that is not in this workout (removed, or a stale link): the list.
-  if (w.ready && exerciseId && !order.includes(exerciseId) && !justAdded.current.has(exerciseId)) {
+  if (w.ready && exerciseId && !order.includes(exerciseId) && !justAdded.current.has(exerciseId) && moving.current !== exerciseId) {
     return <Navigate to={`/workout/${sessionId}`} replace />;
   }
 
@@ -698,7 +765,17 @@ export function WorkoutScreen() {
       }}
     />
   ) : (
-    <DayList w={w} heroId={lastViewed} onOpen={openExercise} onAdd={() => setPicking(true)} />
+    <DayList
+      w={w}
+      heroId={lastViewed}
+      onOpen={openExercise}
+      onAdd={() => setPicking(true)}
+      onChangeSwap={setSwapFor}
+      onRestoreSwap={(id) => {
+        const slot = w.swapOf(id)?.slot;
+        if (slot) void doSwap(id, slot);
+      }}
+    />
   );
 
   return (
@@ -900,6 +977,21 @@ export function WorkoutScreen() {
           </button>
         </div>
       </Sheet>
+      {w.ready && (
+        <SwapSheet
+          open={swapFor !== null}
+          onClose={() => setSwapFor(null)}
+          name={swapFor ? w.nameOf(swapFor) : ''}
+          options={swapFor ? w.swapChoices(swapFor) : { choices: [], noPattern: false }}
+          canAlways={!w.isQuick}
+          onPick={(to, always) => swapFor && void doSwap(swapFor, to, always)}
+          onStopAlways={(slot) => {
+            setSwapFor(null);
+            const planId = w.session?.planId;
+            if (planId) stopAlways(slot, planId).then(() => setToast(toastOf('Back to the plan from next time')), () => notice('Could not save that. Try again.'));
+          }}
+        />
+      )}
       <ExerciseMenu
         open={menuId !== null}
         onClose={() => setMenuFor(null)}
@@ -907,6 +999,8 @@ export function WorkoutScreen() {
         canUp={!!menuId && moveInOrder(ids, menuId, -1, w.entryOf) !== null}
         canDown={!!menuId && moveInOrder(ids, menuId, 1, w.entryOf) !== null}
         moveNote={menuEntry?.kind === 'pair' ? 'A pair moves together' : undefined}
+        replaceOff={!!menuId && !!menuEntry && (w.done[menuId] ?? 0) >= menuEntry.sets}
+        replaceNote={menuId ? (swapLine(w.swapOf(menuId)) ?? undefined) : undefined}
         removeNote={menuId && w.setsOfExercise(menuId).length > 0 ? `With its ${w.setsOfExercise(menuId).length} ${w.setsOfExercise(menuId).length === 1 ? 'set' : 'sets'}, Undo puts them back` : undefined}
         rest={menuId ? w.restTimeOf(menuId) : 90}
         restOff={menuId ? w.restOffOf(menuId) : false}

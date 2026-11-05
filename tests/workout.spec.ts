@@ -302,8 +302,8 @@ test('set types, last time copy, the ⋯ menu (rest time, note, reorder, remove 
   // ⋯ → Rest time 120 → the next set rests 2:00.
   await view.getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
   const menu = page.getByRole('dialog', { name: 'Barbell Back Squat options' });
-  // 1.7e critic: no dead rows until swaps and pairs ship.
-  await expect(menu.getByRole('button', { name: /Replace/ })).toHaveCount(0);
+  // PLAN 3.4: Replace has shipped and comes first. 1.7e critic: no dead rows until pairs ship.
+  await expect(menu.locator('button').first()).toHaveText('Replace');
   await expect(menu.getByRole('button', { name: /Make a pair/ })).toHaveCount(0);
   // PLAN 2.2d P2: Remove works with logged sets too (Undo puts them back), so it is never disabled.
   await expect(menu.getByRole('button', { name: /Remove/ })).toBeEnabled();

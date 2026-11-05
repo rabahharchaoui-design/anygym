@@ -442,10 +442,9 @@ export async function dropMutations(sessionId: string, db: AnyGymDB = defaultDb,
           await db.kv.delete(`${MUTATION_HELD_PREFIX}${sessionId}:${heldId}`);
         }
       });
-      // A stored change that cannot be given up stays (Finish keeps refusing); held copies alone are
-      // still forgotten here when IndexedDB refuses their receipts (as before 2.0l).
-      if (stored.length) await write;
-      else await write.catch(() => undefined);
+      // The receipts commit before any copy goes (PLAN 3.2b, Codex 1105 #5): a failed write rejects
+      // here, every copy stays, and the caller reports a retryable failure (Finish does not go on).
+      await write;
     }
     await forget(db, ls, (e) => e.sessionId === sessionId && (covered.has(e.id) || heldIds.has(e.id)));
   });

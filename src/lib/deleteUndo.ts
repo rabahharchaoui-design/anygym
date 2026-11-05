@@ -18,6 +18,13 @@ export type DeleteUndo<T> = {
    */
   remove: (item: T, opts?: { hold?: boolean }) => Promise<void>;
   /**
+   * A group removal (PLAN 3.2b): every item is deleted (held, as with `hold`), then `after` runs
+   * (the exercise leaving the list). One tracked write admitted synchronously, so Finish's close()
+   * waits for all of it, and once admitted it completes, or rolls every deleted item back, even
+   * after close(). Resolves with the items that can be undone; rejects (after the rollback) on a failure.
+   */
+  removeAll: (items: readonly T[], after?: () => Promise<unknown>) => Promise<T[]>;
+  /**
    * Starts one shared Undo window now (`ms`, default the manager's) for these held records (PLAN
    * 2.0k): every member of a group stays recoverable for as long as its one Undo is offered.
    */
@@ -157,21 +164,51 @@ export function createDeleteUndo<T extends { id: string }>(
     return rec.restoring;
   };
 
+  const removeOne = async (item: T, opts?: { hold?: boolean }): Promise<void> => {
+    const rec: Record = { item, restoring: null };
+    records.set(item.id, rec);
+    if (!opts?.hold) arm(rec, item.id);
+    try {
+      const gone = await track(item.id, Promise.resolve().then(() => ops.remove(item)));
+      // The record as it was saved at the delete, never the caller's possibly stale copy.
+      if (gone) rec.item = gone;
+      else if (gone === null && !rec.restoring) forget(rec, item.id);
+    } catch (err) {
+      if (!rec.restoring) forget(rec, item.id);
+      throw err;
+    }
+  };
+
   const api: DeleteUndo<T> = {
     async remove(item, opts) {
       if (closed) throw new Error(CLOSED);
-      const rec: Record = { item, restoring: null };
-      records.set(item.id, rec);
-      if (!opts?.hold) arm(rec, item.id);
-      try {
-        const gone = await track(item.id, Promise.resolve().then(() => ops.remove(item)));
-        // The record as it was saved at the delete, never the caller's possibly stale copy.
-        if (gone) rec.item = gone;
-        else if (gone === null && !rec.restoring) forget(rec, item.id);
-      } catch (err) {
-        if (!rec.restoring) forget(rec, item.id);
-        throw err;
-      }
+      await removeOne(item, opts);
+    },
+    removeAll(items, after) {
+      if (closed) return Promise.reject(new Error(CLOSED));
+      const run = (async () => {
+        const gone: T[] = [];
+        try {
+          for (const item of items) {
+            await removeOne(item, { hold: true });
+            // Deleted by another tab first (PLAN 2.0i): nothing of ours to put back for it.
+            if (records.has(item.id)) gone.push(item);
+          }
+          if (after) await after();
+          return gone;
+        } catch (err) {
+          // Rolled back inside the admitted operation, also after close(): never a half removal.
+          for (const g of gone) await undoOne(g.id).catch(() => undefined);
+          throw err;
+        }
+      })();
+      const tracked = run.then(
+        () => undefined,
+        () => undefined,
+      );
+      running.add(tracked);
+      void tracked.then(() => running.delete(tracked));
+      return run;
     },
     undo: (id) => (closed ? Promise.resolve(undefined) : undoOne(id)),
     canUndo: (id) => records.has(id),

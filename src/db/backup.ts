@@ -10,7 +10,7 @@ import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, intentMatches, readUndoIntentList } from './undoIntents';
-import { MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, MUTATION_SUP_PREFIX } from './workouts';
+import { LOG_CANCEL_PREFIX, MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, MUTATION_SUP_PREFIX } from './workouts';
 import { heldMutations, heldRows, restoreHeldMutations } from './mutations';
 import type { Profile } from './types';
 
@@ -28,10 +28,21 @@ type DraftStorage = Parameters<typeof exportDrafts>[0];
 
 /** Every stored record, read in one transaction so the file is a consistent snapshot. */
 export async function readTables(db: AnyGymDB = defaultDb): Promise<BackupTables> {
-  return db.transaction('r', tablesOf(db), async () => {
+  return (await readSnapshot(db)).tables;
+}
+
+/**
+ * The tables and, in the same read transaction (PLAN 3.2b), the supersession receipts of held
+ * corrections: what a correction captured earlier is judged against, so a newer save that landed
+ * between the two reads can never leave the older one in the file.
+ */
+async function readSnapshot(db: AnyGymDB): Promise<{ tables: BackupTables; superseded: Set<string> }> {
+  return db.transaction('r', [...tablesOf(db), db.kv], async () => {
     const out = {} as Record<TableName, unknown[]>;
     for (const t of TABLE_NAMES) out[t] = await db.table(t).toArray();
-    return out as BackupTables;
+    const superseded = new Set<string>();
+    for (const k of await db.kv.where('key').startsWith(MUTATION_SUP_PREFIX).primaryKeys()) superseded.add(String(k).slice(String(k).indexOf(':', MUTATION_SUP_PREFIX.length) + 1));
+    return { tables: out as BackupTables, superseded };
   });
 }
 
@@ -45,7 +56,7 @@ export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), d
   const before = await db.sessions.filter(isActiveSession).first();
   const held = before ? await heldMutations(before.id, db, drafts) : [];
   const live = liveOf(before, drafts);
-  const tables = await readTables(db);
+  const { tables, superseded } = await readSnapshot(db);
   // An Undo asked for whose acceptance only reached its durable intent (PLAN 1.7k) travels as an
   // accepted Undo: restored elsewhere, it is put back and never expires as a plain delete.
   const marked: BackupTables = { ...tables, tombstones: [] };
@@ -58,7 +69,10 @@ export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), d
   // Changes whose journal write failed (PLAN 2.0h): held in memory or the fallback, not in a table.
   // Read before the tables (above); one that landed meanwhile is in the tables too and replays as
   // the same values. Only for the workout still in progress.
-  const pendingChanges = active && active.id === before?.id ? held : [];
+  // Captured earlier, so judged against the snapshot (PLAN 3.2b): a correction a save in that snapshot
+  // superseded (its receipt, or the `covers` of a stored change) is not exported.
+  const covered = new Set(tables.journal.flatMap((j) => j.covers ?? []));
+  const pendingChanges = active && active.id === before?.id ? held.filter((e) => !superseded.has(e.id) && !covered.has(e.id)) : [];
   return buildBackup(marked, liveDrafts, version, now, { ...(active && active.id === before?.id ? live : {}), pendingChanges });
 }
 
@@ -116,6 +130,7 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
     await db.kv.where('key').startsWith(MUTATION_DONE_PREFIX).delete();
     await db.kv.where('key').startsWith(MUTATION_HELD_PREFIX).delete();
     await db.kv.where('key').startsWith(MUTATION_SUP_PREFIX).delete();
+    await db.kv.where('key').startsWith(LOG_CANCEL_PREFIX).delete();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
       if (rows.length) await db.table(t).bulkAdd(rows);

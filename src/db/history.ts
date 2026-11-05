@@ -5,6 +5,8 @@ import { sameExerciseIds } from '../lib/picker';
 import { barForName } from '../lib/loadTypeRule';
 import { planById } from '../data/plans';
 import { planExercise } from '../data/planExercises';
+import { candidateBarOf } from '../data/patterns';
+import { exerciseNameOf } from '../data/importMatch';
 import { dayIndexOf } from '../lib/plans';
 import { dayWorkout } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';
@@ -67,7 +69,8 @@ export function legacyBarOf(load: Pick<Load, 'barWeight' | 'unit' | 'legacyBarUn
 /** The exercise's own bar for legacy sets: its plan entry's bar, else the name rule (as useWorkout). */
 export function exerciseBarOf(exerciseId: string): BarId {
   const p = planExercise(exerciseId);
-  return p?.bar ?? barForName(p?.name ?? exerciseId);
+  // A swap candidate from the catalog (PLAN 3.4) knows its bar too; its id is not a name.
+  return p?.bar ?? candidateBarOf(exerciseId) ?? barForName(exerciseNameOf(exerciseId) ?? exerciseId);
 }
 
 /**

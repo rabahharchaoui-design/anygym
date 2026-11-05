@@ -3,7 +3,8 @@ import { GymPill } from '../../components/GymPill';
 import type { WorkoutEntry } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
 import { Thumb } from './Thumb';
-import { demoForPlan } from '../../data/exerciseInfo';
+import { demoFor } from '../../data/exerciseInfo';
+import { swapLine } from '../../lib/swap';
 import { Ring } from '../../ui/Ring';
 import { Button } from '../../ui/Button';
 import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon } from '../../ui/icons';
@@ -18,6 +19,9 @@ type Props = {
   onAdd: () => void;
   /** A still copy (drawn under the edge swipe): no hint, no Start pill. */
   still?: boolean;
+  /** PLAN 3.4: a swapped row's Change and Restore. */
+  onChangeSwap?: (exerciseId: string) => void;
+  onRestoreSwap?: (exerciseId: string) => void;
 };
 
 /** Empty, a ring filling per set done, then a check (SPEC 20.1). */
@@ -45,7 +49,7 @@ function nameHero(row: HTMLElement) {
  * its demo tile, name, sets × reps and the plan's rest. Pairs share a colored rail. Done rows dim,
  * the next one is highlighted. Tap a row to open it; that is the only navigation needed.
  */
-export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
+export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   /** A row's photo is being decoded before its screen opens: a second tap does nothing. */
   const opening = useRef(false);
@@ -97,16 +101,19 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
     const state = full ? 'done' : e.exerciseId === w.nextId ? 'next' : 'todo';
     const rest = w.userRestOf(e.exerciseId) ?? e.statedRest;
     const name = w.nameOf(e.exerciseId);
+    const swap = w.swapOf(e.exerciseId);
+    const line = swapLine(swap);
     return (
       <li key={e.exerciseId} className={styles.rowItem}>
         <button
           type="button"
           className={`${styles.row} pressable`}
           data-state={state}
+          data-skip={(e.noFit && done === 0) || undefined}
           data-row={e.exerciseId}
           data-testid={e.finisher ? 'finisher' : `row-${e.exerciseId}`}
           aria-current={state === 'next' ? 'step' : undefined}
-          aria-label={`${name}, ${e.setsText || 'finisher'}${done ? `, ${Math.min(done, e.sets)} of ${e.sets} done` : ''}${state === 'next' ? ', up next' : ''}`}
+          aria-label={`${name}, ${e.setsText || 'finisher'}${done ? `, ${Math.min(done, e.sets)} of ${e.sets} done` : ''}${state === 'next' ? ', up next' : ''}${line ? `. ${line}` : ''}`}
           onClick={(ev) => {
             if (opening.current) return;
             nameHero(ev.currentTarget);
@@ -122,7 +129,7 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
             void Promise.race([img.decode(), new Promise((r) => window.setTimeout(r, 60))]).then(open, open);
           }}
         >
-          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} photo={demoForPlan(e.exerciseId)} vtName={e.exerciseId === heroId ? 'ex-hero' : undefined} />
+          <Thumb name={name} loadType={w.loadTypeOf(e.exerciseId)} photo={demoFor(e.exerciseId)} vtName={e.exerciseId === heroId ? 'ex-hero' : undefined} />
           <span className={styles.text}>
             <span className={styles.name}>{name}</span>
             {e.setsText && <span className={`${styles.sets} num`}>{e.setsText}</span>}
@@ -130,6 +137,21 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false }: Props) {
           </span>
           <Progress done={done} total={e.sets} />
         </button>
+        {line && (
+          <div className={styles.swapLine} data-testid={`swap-line-${e.exerciseId}`}>
+            <p className={styles.swapWhy}>{line}</p>
+            {!swap?.noFit && !full && (
+              <span className={styles.swapActions}>
+                <button type="button" className={`${styles.swapButton} pressable`} disabled={still} aria-label={`Change ${name}`} onClick={() => onChangeSwap?.(e.exerciseId)}>
+                  Change
+                </button>
+                <button type="button" className={`${styles.swapButton} pressable`} disabled={still} aria-label={`Restore ${swap ? w.nameOf(swap.slot) : ''}`} onClick={() => onRestoreSwap?.(e.exerciseId)}>
+                  Restore
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </li>
     );
   };

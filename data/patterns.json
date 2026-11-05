@@ -1,0 +1,277 @@
+{
+ "patterns": {
+  "squat": {
+   "candidates": [
+    {"id":"Barbell_Squat","requires":[["barbell_rack"]],"planId":"barbell-back-squat"},
+    {"id":"Front_Barbell_Squat","requires":[["barbell_rack"]],"planId":"front-squat"},
+    {"id":"Smith_Machine_Squat","requires":[["smith_machine"]],"load":"barbell","bar":"smith"},
+    {"id":"Leg_Press","requires":[["leg_press"]],"planId":"leg-press"},
+    {"id":"Narrow_Stance_Leg_Press","requires":[["leg_press"]],"planId":"machine-leg-press"},
+    {"id":"Dumbbell_Squat","requires":[["dumbbells"]],"load":"dumbbell_each"},
+    {"id":"Goblet_Squat","requires":[["kettlebells"]],"planId":"kettlebell-goblet-squat"},
+    {"id":"Bodyweight_Squat","requires":[],"load":"bodyweight"}
+   ]
+  },
+  "hinge": {
+   "thin": "No bodyweight hinge in the catalog: with no barbell, dumbbells, cable or back extension bench, nothing fits.",
+   "candidates": [
+    {"id":"Barbell_Deadlift","requires":[["barbell_rack"]],"planId":"deadlift"},
+    {"id":"Romanian_Deadlift","requires":[["barbell_rack"]],"planId":"romanian-deadlift"},
+    {"id":"Sumo_Deadlift","requires":[["barbell_rack"]],"load":"barbell"},
+    {"id":"Stiff-Legged_Barbell_Deadlift","requires":[["barbell_rack"]],"planId":"barbell-straight-leg-romanian-deadlift"},
+    {"id":"Smith_Machine_Stiff-Legged_Deadlift","requires":[["smith_machine"]],"load":"barbell","bar":"smith"},
+    {"id":"Stiff-Legged_Dumbbell_Deadlift","requires":[["dumbbells"]],"load":"dumbbell_each"},
+    {"id":"Pull_Through","requires":[["cable_station"]],"load":"stack"},
+    {"id":"Good_Morning","requires":[["barbell_rack"]],"load":"barbell"},
+    {"id":"Hyperextensions_Back_Extensions","requires":[["hyperextension_bench"]],"planId":"hyperextension-roman-chair-back-extension"}
+   ]
+  },
+  "lunge": {
+   "candidates": [
+    {"id":"Barbell_Lunge","requires":[["barbell_rack"]],"load":"barbell","eachSide":true},
+    {"id":"Barbell_Walking_Lunge","requires":[["barbell_rack"]],"load":"barbell","eachSide":true},
+    {"id":"Dumbbell_Lunges","requires":[["dumbbells"]],"load":"dumbbell_each","eachSide":true},
+    {"id":"Dumbbell_Rear_Lunge","requires":[["dumbbells"]],"load":"dumbbell_each","eachSide":true},
+    {"id":"Split_Squat_with_Dumbbells","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"load":"dumbbell_each","eachSide":true},
+    {"id":"Dumbbell_Step_Ups","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"load":"dumbbell_each","eachSide":true},
+    {"id":"Smith_Single-Leg_Split_Squat","requires":[["smith_machine"],["flat_bench","adjustable_bench"]],"load":"barbell","bar":"smith","eachSide":true},
+    {"id":"Bodyweight_Walking_Lunge","requires":[],"load":"bodyweight","eachSide":true},
+    {"id":"Split_Squats","requires":[],"load":"bodyweight","eachSide":true}
+   ]
+  },
+  "horizontal push": {
+   "candidates": [
+    {"id":"Barbell_Bench_Press_-_Medium_Grip","requires":[["barbell_rack"],["flat_bench","adjustable_bench"]],"load":"barbell"},
+    {"id":"Barbell_Incline_Bench_Press_-_Medium_Grip","requires":[["barbell_rack"],["adjustable_bench"]],"planId":"barbell-incline-bench-press"},
+    {"id":"Dumbbell_Bench_Press","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"planId":"dumbbell-bench-press"},
+    {"id":"Machine_Bench_Press","requires":[["chest_press_machine"]],"load":"unknown"},
+    {"id":"Leverage_Chest_Press","requires":[["chest_press_machine"]],"load":"unknown"},
+    {"id":"Smith_Machine_Bench_Press","requires":[["smith_machine"],["flat_bench","adjustable_bench"]],"load":"barbell","bar":"smith"},
+    {"id":"Pushups","requires":[],"load":"bodyweight"},
+    {"id":"Incline_Push-Up","requires":[],"load":"bodyweight"}
+   ]
+  },
+  "vertical push": {
+   "candidates": [
+    {"id":"Standing_Military_Press","requires":[["barbell_rack"]],"planId":"overhead-press"},
+    {"id":"Dumbbell_Shoulder_Press","requires":[["dumbbells"],["adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Seated_Dumbbell_Press","requires":[["dumbbells"],["adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Arnold_Dumbbell_Press","requires":[["dumbbells"],["adjustable_bench"]],"planId":"dumbbell-arnold-shoulder-press"},
+    {"id":"Machine_Shoulder_Military_Press","requires":[["shoulder_press_machine"]],"load":"unknown"},
+    {"id":"Smith_Machine_Overhead_Shoulder_Press","requires":[["smith_machine"],["flat_bench","adjustable_bench"]],"load":"barbell","bar":"smith"},
+    {"id":"Handstand_Push-Ups","requires":[],"load":"bodyweight"}
+   ]
+  },
+  "horizontal pull": {
+   "candidates": [
+    {"id":"Bent_Over_Barbell_Row","requires":[["barbell_rack"]],"planId":"barbell-bent-over-row"},
+    {"id":"Seated_Cable_Rows","requires":[["seated_row","cable_station"]],"planId":"cable-seated-close-grip-row"},
+    {"id":"Leverage_Iso_Row","requires":[["seated_row"]],"load":"unknown"},
+    {"id":"One-Arm_Dumbbell_Row","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"planId":"single-arm-dumbbell-row","eachSide":true},
+    {"id":"Bent_Over_Two-Dumbbell_Row","requires":[["dumbbells"]],"load":"dumbbell_each"},
+    {"id":"Smith_Machine_Bent_Over_Row","requires":[["smith_machine"]],"load":"barbell","bar":"smith"},
+    {"id":"Inverted_Row","requires":[["barbell_rack","smith_machine"]],"load":"bodyweight"}
+   ]
+  },
+  "vertical pull": {
+   "candidates": [
+    {"id":"Pullups","requires":[["pull_up_bar"]],"planId":"wide-grip-pull-up"},
+    {"id":"Chin-Up","requires":[["pull_up_bar"]],"load":"bodyweight"},
+    {"id":"Wide-Grip_Lat_Pulldown","requires":[["lat_pulldown"]],"planId":"lat-machine-wide-grip-pulldown"},
+    {"id":"Close-Grip_Front_Lat_Pulldown","requires":[["lat_pulldown"]],"load":"stack"},
+    {"id":"V-Bar_Pulldown","requires":[["lat_pulldown"]],"load":"stack"},
+    {"id":"Underhand_Cable_Pulldowns","requires":[["lat_pulldown"]],"load":"stack"},
+    {"id":"Band_Assisted_Pull-Up","requires":[["pull_up_bar"],["resistance_bands"]],"load":"bodyweight"},
+    {"id":"Straight-Arm_Pulldown","requires":[["lat_pulldown"]],"load":"stack"}
+   ]
+  },
+  "chest isolation": {
+   "thin": "Two handed cable flyes need two cable stacks, which the equipment list cannot tell apart from one, so they stay out.",
+   "candidates": [
+    {"id":"Butterfly","requires":[["pec_deck"]],"planId":"machine-seated-chest-fly"},
+    {"id":"Dumbbell_Flyes","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Incline_Dumbbell_Flyes","requires":[["dumbbells"],["adjustable_bench"]],"load":"dumbbell_each"}
+   ]
+  },
+  "lateral delt": {
+   "thin": "Two pulley cable raises stay out for the same reason as cable flyes.",
+   "candidates": [
+    {"id":"Side_Lateral_Raise","requires":[["dumbbells"]],"planId":"dumbbell-lateral-raise"},
+    {"id":"Seated_Side_Lateral_Raise","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Standing_Low-Pulley_Deltoid_Raise","requires":[["cable_station"]],"load":"stack","eachSide":true},
+    {"id":"Lateral_Raise_-_With_Bands","requires":[["resistance_bands"]],"load":"bodyweight"}
+   ]
+  },
+  "rear delt": {
+   "candidates": [
+    {"id":"Reverse_Machine_Flyes","requires":[["pec_deck"]],"planId":"machine-seated-reverse-fly"},
+    {"id":"Reverse_Flyes","requires":[["dumbbells"],["adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench","requires":[["dumbbells"],["adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Face_Pull","requires":[["cable_station"]],"load":"stack"},
+    {"id":"Back_Flyes_-_With_Bands","requires":[["resistance_bands"]],"load":"bodyweight"}
+   ]
+  },
+  "biceps": {
+   "candidates": [
+    {"id":"Barbell_Curl","requires":[["barbell_rack"]],"planId":"barbell-bicep-curl"},
+    {"id":"EZ-Bar_Curl","requires":[["ez_curl_bar"]],"load":"barbell","bar":"ez_curl"},
+    {"id":"Dumbbell_Bicep_Curl","requires":[["dumbbells"]],"load":"dumbbell_each"},
+    {"id":"Hammer_Curls","requires":[["dumbbells"]],"load":"dumbbell_each"},
+    {"id":"Incline_Dumbbell_Curl","requires":[["dumbbells"],["adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Standing_Biceps_Cable_Curl","requires":[["cable_station"]],"load":"stack"},
+    {"id":"Standing_One-Arm_Cable_Curl","requires":[["cable_station"]],"planId":"cable-single-arm-bicep-curl","eachSide":true},
+    {"id":"Concentration_Curls","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"load":"single","eachSide":true},
+    {"id":"One_Arm_Dumbbell_Preacher_Curl","requires":[["dumbbells"],["adjustable_bench"]],"planId":"dumbbell-single-arm-preacher-curl","eachSide":true}
+   ]
+  },
+  "triceps": {
+   "candidates": [
+    {"id":"Triceps_Pushdown","requires":[["cable_station"]],"planId":"cable-tricep-pushdown"},
+    {"id":"Triceps_Pushdown_-_Rope_Attachment","requires":[["cable_station"]],"load":"stack"},
+    {"id":"Cable_Rope_Overhead_Triceps_Extension","requires":[["cable_station"]],"planId":"cable-overhead-tricep-extension"},
+    {"id":"Dips_-_Triceps_Version","requires":[["dip_station"]],"load":"bodyweight"},
+    {"id":"EZ-Bar_Skullcrusher","requires":[["ez_curl_bar"],["flat_bench","adjustable_bench"]],"load":"barbell","bar":"ez_curl"},
+    {"id":"Close-Grip_Barbell_Bench_Press","requires":[["barbell_rack"],["flat_bench","adjustable_bench"]],"load":"barbell"},
+    {"id":"Lying_Dumbbell_Tricep_Extension","requires":[["dumbbells"],["flat_bench","adjustable_bench"]],"load":"dumbbell_each"},
+    {"id":"Standing_One-Arm_Dumbbell_Triceps_Extension","requires":[["dumbbells"]],"planId":"dumbbell-single-arm-overhead-tricep-extension","eachSide":true},
+    {"id":"Tricep_Dumbbell_Kickback","requires":[["dumbbells"]],"load":"dumbbell_each"},
+    {"id":"Bench_Dips","requires":[["flat_bench","adjustable_bench"]],"load":"bodyweight"}
+   ]
+  },
+  "quads isolation": {
+   "thin": "The catalog only isolates the quads on the leg extension machine: without one, nothing fits.",
+   "candidates": [
+    {"id":"Leg_Extensions","requires":[["leg_extension"]],"planId":"leg-extension"},
+    {"id":"Single-Leg_Leg_Extension","requires":[["leg_extension"]],"load":"unknown","eachSide":true}
+   ]
+  },
+  "hamstrings isolation": {
+   "thin": "Only leg curl machines, plus a raise that anchors under a lat pulldown pad: without either, nothing fits.",
+   "candidates": [
+    {"id":"Lying_Leg_Curls","requires":[["leg_curl"]],"planId":"machine-lying-leg-curl"},
+    {"id":"Seated_Leg_Curl","requires":[["leg_curl"]],"load":"unknown"},
+    {"id":"Natural_Glute_Ham_Raise","requires":[["lat_pulldown"]],"load":"bodyweight"}
+   ]
+  },
+  "glutes": {
+   "candidates": [
+    {"id":"Barbell_Hip_Thrust","requires":[["barbell_rack"],["flat_bench","adjustable_bench"]],"planId":"hip-thrust"},
+    {"id":"Barbell_Glute_Bridge","requires":[["barbell_rack"]],"load":"barbell"},
+    {"id":"One-Legged_Cable_Kickback","requires":[["cable_station"]],"load":"stack","eachSide":true},
+    {"id":"Single_Leg_Glute_Bridge","requires":[],"load":"bodyweight","eachSide":true},
+    {"id":"Butt_Lift_Bridge","requires":[],"load":"bodyweight"},
+    {"id":"Glute_Kickback","requires":[],"load":"bodyweight","eachSide":true}
+   ]
+  },
+  "calves": {
+   "thin": "No bodyweight calf raise in the catalog: with no machine, bar, dumbbells or bands, nothing fits.",
+   "candidates": [
+    {"id":"Standing_Calf_Raises","requires":[["calf_raise_machine"]],"load":"unknown"},
+    {"id":"Seated_Calf_Raise","requires":[["calf_raise_machine"]],"planId":"machine-seated-calf-raise"},
+    {"id":"Calf_Press_On_The_Leg_Press_Machine","requires":[["leg_press"]],"planId":"leg-press-machine-calf-raise"},
+    {"id":"Smith_Machine_Calf_Raise","requires":[["smith_machine"]],"load":"barbell","bar":"smith"},
+    {"id":"Standing_Barbell_Calf_Raise","requires":[["barbell_rack"]],"load":"barbell"},
+    {"id":"Standing_Dumbbell_Calf_Raise","requires":[["dumbbells"]],"load":"dumbbell_each"},
+    {"id":"Calf_Raises_-_With_Bands","requires":[["resistance_bands"]],"load":"bodyweight"}
+   ]
+  },
+  "core": {
+   "thin": "One sure hold (the plank): a timed plank has no other timed swap the catalog is sure of.",
+   "candidates": [
+    {"id":"Hanging_Leg_Raise","requires":[["pull_up_bar"]],"load":"bodyweight"},
+    {"id":"Cable_Crunch","requires":[["cable_station"]],"load":"stack"},
+    {"id":"Plank","requires":[],"planId":"elbow-plank","timed":true},
+    {"id":"Crunches","requires":[],"planId":"crunch"},
+    {"id":"Reverse_Crunch","requires":[],"load":"bodyweight"},
+    {"id":"Sit-Up","requires":[],"load":"bodyweight"},
+    {"id":"Russian_Twist","requires":[],"planId":"russian-twist"},
+    {"id":"Dead_Bug","requires":[],"planId":"dead-bug"}
+   ]
+  }
+ },
+ "planExercises": {
+  "28-method-squat": {"pattern":"squat","requires":null},
+  "30-second-interval-sprint": {"pattern":null,"requires":null},
+  "angled-machine-leg-press": {"pattern":"squat","requires":[["leg_press"]]},
+  "band-internal-shoulder-rotation-0-degrees": {"pattern":null,"requires":[["resistance_bands"]]},
+  "band-internal-shoulder-rotation-90-degrees": {"pattern":null,"requires":[["resistance_bands"]]},
+  "barbell-back-squat": {"pattern":"squat","requires":[["barbell_rack"]]},
+  "barbell-bent-over-row": {"pattern":"horizontal pull","requires":[["barbell_rack"]]},
+  "barbell-bicep-curl": {"pattern":"biceps","requires":[["barbell_rack"]]},
+  "barbell-incline-bench-press": {"pattern":"horizontal push","requires":[["barbell_rack"],["adjustable_bench"]]},
+  "barbell-straight-leg-romanian-deadlift": {"pattern":"hinge","requires":[["barbell_rack"]]},
+  "bent-over-barbell-row": {"pattern":"horizontal pull","requires":[["barbell_rack"]]},
+  "bicep-curl": {"pattern":"biceps","requires":[["dumbbells"]]},
+  "bird-dog": {"pattern":"core","requires":[]},
+  "bulgarian-split-squat": {"pattern":"lunge","requires":[["dumbbells"],["flat_bench","adjustable_bench"]]},
+  "cable-overhead-tricep-extension": {"pattern":"triceps","requires":[["cable_station"]]},
+  "cable-reverse-grip-tricep-pulldown": {"pattern":"triceps","requires":[["cable_station"]]},
+  "cable-rope-tricep-extension": {"pattern":"triceps","requires":[["cable_station"]]},
+  "cable-seated-close-grip-row": {"pattern":"horizontal pull","requires":[["seated_row","cable_station"]]},
+  "cable-single-arm-bicep-curl": {"pattern":"biceps","requires":[["cable_station"]]},
+  "cable-tricep-pushdown": {"pattern":"triceps","requires":[["cable_station"]]},
+  "chest-fly": {"pattern":"chest isolation","requires":[["dumbbells"],["flat_bench","adjustable_bench"]]},
+  "cross-body-mountain-climber": {"pattern":"core","requires":[]},
+  "crunch": {"pattern":"core","requires":[]},
+  "curl-up-crunch": {"pattern":"core","requires":[]},
+  "dead-bug": {"pattern":"core","requires":[]},
+  "deadlift": {"pattern":"hinge","requires":[["barbell_rack"]]},
+  "decline-bench-sit-up": {"pattern":"core","requires":null},
+  "dumbbell-arnold-shoulder-press": {"pattern":"vertical push","requires":[["dumbbells"],["adjustable_bench"]]},
+  "dumbbell-bench-press": {"pattern":"horizontal push","requires":[["dumbbells"],["flat_bench","adjustable_bench"]]},
+  "dumbbell-front-raise": {"pattern":null,"requires":[["dumbbells"]]},
+  "dumbbell-lateral-raise": {"pattern":"lateral delt","requires":[["dumbbells"]]},
+  "dumbbell-shrug": {"pattern":null,"requires":[["dumbbells"]]},
+  "dumbbell-single-arm-overhead-tricep-extension": {"pattern":"triceps","requires":[["dumbbells"]]},
+  "dumbbell-single-arm-preacher-curl": {"pattern":"biceps","requires":[["dumbbells"],["adjustable_bench"]]},
+  "dumbbell-stationary-lunge": {"pattern":"lunge","requires":[["dumbbells"]]},
+  "dumbbell-walking-lunge": {"pattern":"lunge","requires":[["dumbbells"]]},
+  "dynamic-hip-flexor-stretch": {"pattern":null,"requires":[]},
+  "elbow-plank": {"pattern":"core","requires":[]},
+  "forearm-finger-roll": {"pattern":null,"requires":null},
+  "front-and-lateral-plate-raise": {"pattern":"lateral delt","requires":null},
+  "front-squat": {"pattern":"squat","requires":[["barbell_rack"]]},
+  "hip-abductor": {"pattern":null,"requires":[["hip_adductor_abductor"]]},
+  "hip-adductor": {"pattern":null,"requires":[["hip_adductor_abductor"]]},
+  "hip-thrust": {"pattern":"glutes","requires":[["barbell_rack"],["flat_bench","adjustable_bench"]]},
+  "hyperextension-roman-chair-back-extension": {"pattern":"hinge","requires":[["hyperextension_bench"]]},
+  "incline-plate-press": {"pattern":"horizontal push","requires":null},
+  "kettlebell-goblet-squat": {"pattern":"squat","requires":[["kettlebells"]]},
+  "knee-hug": {"pattern":null,"requires":[]},
+  "lat-machine-wide-grip-pulldown": {"pattern":"vertical pull","requires":[["lat_pulldown"]]},
+  "leg-curl": {"pattern":"hamstrings isolation","requires":[["leg_curl"]]},
+  "leg-extension": {"pattern":"quads isolation","requires":[["leg_extension"]]},
+  "leg-press": {"pattern":"squat","requires":[["leg_press"]]},
+  "leg-press-machine-calf-raise": {"pattern":"calves","requires":[["leg_press"]]},
+  "lying-straight-leg-raise": {"pattern":"core","requires":[]},
+  "machine-leg-press": {"pattern":"squat","requires":[["leg_press"]]},
+  "machine-lying-leg-curl": {"pattern":"hamstrings isolation","requires":[["leg_curl"]]},
+  "machine-seated-calf-raise": {"pattern":"calves","requires":[["calf_raise_machine"]]},
+  "machine-seated-chest-fly": {"pattern":"chest isolation","requires":[["pec_deck"]]},
+  "machine-seated-leg-extension": {"pattern":"quads isolation","requires":[["leg_extension"]]},
+  "machine-seated-reverse-fly": {"pattern":"rear delt","requires":[["pec_deck"]]},
+  "narrow-grip-lat-pulldown": {"pattern":"vertical pull","requires":[["lat_pulldown"]]},
+  "oblique-crunch": {"pattern":"core","requires":[]},
+  "overhead-press": {"pattern":"vertical push","requires":[["barbell_rack"]]},
+  "plank": {"pattern":"core","requires":[]},
+  "plate-russian-twist": {"pattern":"core","requires":null},
+  "rear-delt-fly": {"pattern":"rear delt","requires":[["dumbbells"]]},
+  "reverse-bicep-curl": {"pattern":"biceps","requires":[["barbell_rack"]]},
+  "romanian-deadlift": {"pattern":"hinge","requires":[["barbell_rack"]]},
+  "russian-twist": {"pattern":"core","requires":[]},
+  "single-arm-dumbbell-row": {"pattern":"horizontal pull","requires":[["dumbbells"],["flat_bench","adjustable_bench"]]},
+  "single-leg-romanian-deadlift": {"pattern":"hinge","requires":null},
+  "smith-machine-upright-row": {"pattern":null,"requires":[["smith_machine"]]},
+  "spider-plank": {"pattern":"core","requires":[]},
+  "static-pigeon-stretch": {"pattern":null,"requires":[]},
+  "static-proximal-hamstring-stretch": {"pattern":null,"requires":[]},
+  "static-quadricep-stretch": {"pattern":null,"requires":[]},
+  "sumo-squat": {"pattern":"squat","requires":[["dumbbells","kettlebells"]]},
+  "toe-touch": {"pattern":"core","requires":[]},
+  "upright-row": {"pattern":null,"requires":[["barbell_rack"]]},
+  "v-up": {"pattern":"core","requires":[]},
+  "wide-grip-pull-up": {"pattern":"vertical pull","requires":[["pull_up_bar"]]},
+  "wide-lunge": {"pattern":"lunge","requires":null},
+  "wrist-twist": {"pattern":null,"requires":null}
+ }
+}

@@ -3,7 +3,15 @@ import { expect, test } from '@playwright/test';
 // Runs only via `npm run test:live` (playwright.live.config.ts) against the deployed site.
 const LIVE_HOST = 'rabahharchaoui-design.github.io';
 
+// PLAN 3.3: a brand new phone lands in the intake funnel.
+test('live site: a brand new phone opens the intake funnel', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.getByTestId('intake')).toBeVisible();
+});
+
 test('live site: shell renders, manifest served, no errors, no third party requests', async ({ page, baseURL }) => {
+  // This phone already answered the funnel (the same flag the app writes).
+  await page.addInitScript(() => localStorage.setItem('anygym.intakeDone', '1'));
   const errors: string[] = [];
   const foreign: string[] = [];
   page.on('console', (m) => {

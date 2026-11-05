@@ -28,7 +28,7 @@
 // Finish refuses while a FAILED row remains (failedRows), so a failed write is never discarded.
 import { newId } from '../../db/ids';
 import { db as defaultDb, type AnyGymDB } from '../../db/schema';
-import { AlreadyLoggedError, LogConflictError, logSet } from '../../db/workouts';
+import { AlreadyLoggedError, LOG_CANCEL_PREFIX, LogConflictError, logSet } from '../../db/workouts';
 import { payloadFp } from '../../lib/submission';
 import { draftsDurableMerge, isDraft, saveDraft, sessionDrafts, writeDrafts, type Draft } from '../../lib/drafts';
 import type { JournalEntry } from '../../db/types';
@@ -51,6 +51,11 @@ export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): 
     for (const sub of await db.submissions.where('sessionId').equals(sessionId).toArray()) {
       out.set(sub.id, sub.rev);
       if (sub.fp !== undefined) fps.set(sub.id, sub.fp);
+      else {
+        // A receipt from before 2.0l (PLAN 3.2b): what the set holds now stands for what was saved.
+        const set = await db.sets.get(sub.id);
+        if (set?.load) fps.set(sub.id, payloadFp({ ...(set.reps !== undefined ? { reps: set.reps } : {}), ...(set.seconds !== undefined ? { seconds: set.seconds } : {}), load: set.load, kind: set.kind, failure: !!set.failure }));
+      }
     }
     return committedMap(out, fps);
   });
@@ -58,6 +63,14 @@ export async function committedOf(sessionId: string, db: AnyGymDB = defaultDb): 
 
 /** A Committed map with what each receipt saved (PLAN 2.0l). */
 export const committedMap = (revs: Map<string, number | undefined>, fps: ReadonlyMap<string, string>): Committed => Object.assign(revs, { fps });
+
+const cancelKey = (sessionId: string, id: string) => `${LOG_CANCEL_PREFIX}${sessionId}:${id}`;
+
+/** The draft ids of this workout whose failed Log the user gave up (PLAN 3.2b), durable in IndexedDB. */
+async function cancelledOf(sessionId: string, db: AnyGymDB): Promise<Set<string>> {
+  const prefix = cancelKey(sessionId, '');
+  return new Set((await db.kv.where('key').startsWith(prefix).primaryKeys()).map((k) => String(k).slice(prefix.length)));
+}
 
 /** The pending write journal of a workout (entries whose write has not committed yet). */
 export async function journalOf(sessionId: string, db: AnyGymDB = defaultDb): Promise<JournalEntry[]> {
@@ -238,6 +251,8 @@ export function submitRow(sessionId: string, exerciseId: string, draft: Draft, d
       // Merged row by row into what IndexedDB holds (Codex 2.0k #1), never this tab's whole snapshot.
       const pending = draftsDurableMerge(...storageArg(deps));
       await db.transaction('rw', db.journal, db.kv, async () => {
+        // Given up by the user (PLAN 3.2b, possibly in another tab): never written again under this id.
+        if (await db.kv.get(cancelKey(sessionId, draft.id))) throw new Error('That Log was discarded');
         await db.journal.put({ id: draft.id, sessionId, exerciseId, key, rev: set.rev, draft: values as Record<string, unknown>, at: Date.now() });
         if (pending) await pending(db.kv);
       });
@@ -276,13 +291,24 @@ export type FailedRow = { exerciseId: string; key: string; draft: Draft };
 export async function failedRows(sessionId: string, deps: Deps = {}): Promise<FailedRow[]> {
   const { queue } = parts(deps);
   await reconcileSession(sessionId, deps);
+  const { db, makeId } = parts(deps);
+  // A failed Log the user gave up (here or in another tab, before a restart or Finish then Undo) is
+  // not failed any more: its stale marked copy is healed into an ordinary row under a fresh identity.
+  const cancelled = await cancelledOf(sessionId, db);
+  const heal = new Map<string, Draft | null>();
   const out: FailedRow[] = [];
   for (const [key, draft] of sessionDrafts(sessionId, ...storageArg(deps))) {
     const at = key.lastIndexOf('@');
     if (at <= 0 || draft.submitted === undefined) continue;
+    if (cancelled.has(draft.id)) {
+      const { submitted: _gone, ...rest } = draft;
+      heal.set(key, { ...rest, id: makeId() });
+      continue;
+    }
     const exerciseId = key.slice(0, at);
     if (!queue.pending(logKey(sessionId, exerciseId))) out.push({ exerciseId, key, draft });
   }
+  if (heal.size) writeDrafts(sessionId, heal, ...storageArg(deps));
   return out;
 }
 
@@ -322,16 +348,18 @@ export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.ma
  * made since (another tab, or a newer revision of the same row) stays failed, so Finish asks again.
  */
 export async function discardFailed(sessionId: string, deps: Deps = {}, shown?: readonly ShownRow[]): Promise<void> {
-  const { db } = parts(deps);
+  const { db, makeId } = parts(deps);
   const all = await failedRows(sessionId, deps);
   const wanted = shown ? all.filter((f) => shown.some((x) => x.id === f.draft.id && x.submitted === f.draft.submitted)) : all;
   // Inside one transaction: a journal entry stored since at another revision is never discarded.
-  const failed = await db.transaction('rw', db.journal, async () => {
+  const failed = await db.transaction('rw', db.journal, db.kv, async () => {
     const out: FailedRow[] = [];
     for (const f of wanted) {
       const j = await db.journal.get(f.draft.id);
       if (j && (j.mutation || j.rev !== f.draft.submitted)) continue;
       if (j) await db.journal.delete(j.id);
+      // The cancellation commits with the journal deletion (PLAN 3.2b), so no tab can write it again.
+      await db.kv.put({ key: cancelKey(sessionId, f.draft.id), value: String(f.draft.submitted ?? 0), at: Date.now() });
       out.push(f);
     }
     return out;
@@ -340,7 +368,8 @@ export async function discardFailed(sessionId: string, deps: Deps = {}, shown?: 
   const changes = new Map<string, Draft | null>();
   for (const f of failed) {
     const { submitted: _gone, ...rest } = f.draft;
-    changes.set(f.key, rest);
+    // A fresh identity: an explicit resubmission is a new Log, never the cancelled one.
+    changes.set(f.key, { ...rest, id: makeId() });
   }
   if (changes.size) writeDrafts(sessionId, changes, ...storageArg(deps));
 }

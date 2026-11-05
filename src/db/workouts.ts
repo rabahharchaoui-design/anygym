@@ -3,6 +3,8 @@ import { planById } from '../data/plans';
 import { dayIdOf, dayIndexOf } from '../lib/plans';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, type DayProgress } from '../lib/planWorkout';
 import { rowAdjustments } from '../lib/extraSets';
+import { adaptDay, slotProgress } from '../lib/swap';
+import { SWAP_DATA } from '../data/patterns';
 import { payloadFp } from '../lib/submission';
 import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
@@ -17,7 +19,7 @@ const REST_KEY = 'anygym-rest';
 import { dropSessionIntents, dropUndoIntent, hasUndoIntent } from './undoIntents';
 import { phone, readFallback, type KV } from './mutationFallback';
 import { withSessionLock } from './sessionLock';
-import type { JournalEntry, Load, PlanState, Session, SetKind, WorkoutSet } from './types';
+import { ANY_GYM, type JournalEntry, type Load, type PlanState, type Session, type SetKind, type WorkoutSet } from './types';
 
 /** kv row Finish writes (one at a time): the plan state just before that Finish, for its Undo. */
 export const FINISH_PLAN_PREFIX = 'anygym-finish-plan:';
@@ -58,12 +60,25 @@ export async function startPlanDay(gymId: string, planId: string, dayIndex: numb
   const plan = planById(planId);
   const day = plan?.days[dayIndex];
   if (!plan || !day) throw new Error('Plan day not found');
-  return db.transaction('rw', db.sessions, db.planState, async () => {
+  return db.transaction('rw', db.sessions, db.planState, db.gyms, db.exerciseSettings, async () => {
     const active = await getActiveSession(db);
     if (active) return active;
     const weekIndex = weekFor(await db.planState.get('active'), planId);
-    const exerciseIds = [...new Set(dayWorkout(plan, dayIndex, weekIndex).map((e) => e.exerciseId))];
+    const entries = dayWorkout(plan, dayIndex, weekIndex);
+    const exerciseIds = [...new Set(entries.map((e) => e.exerciseId))];
     const session: Session = { id: newId(), gymId, planId, dayId: dayIdOf(day), weekIndex, startedAt: now, imported: false, exerciseIds };
+    // PLAN 3.4 (SPEC 7.5): the day meets this gym once, here. What it decided is stored, so a reload
+    // or a later change to the gym never reshuffles a workout in progress.
+    const gym = await db.gyms.get(gymId);
+    if (gym) {
+      const always: Record<string, string> = {};
+      for (const row of await db.exerciseSettings.filter((x) => x.gymId === ANY_GYM && !!x.alwaysUse?.[planId]).toArray()) always[row.exerciseId] = row.alwaysUse![planId]!;
+      const adapted = adaptDay(SWAP_DATA, entries.filter((e, i) => exerciseIds.indexOf(e.exerciseId) === i), gym, always);
+      if (adapted.swaps.length) {
+        session.exerciseIds = adapted.exerciseIds;
+        session.swaps = adapted.swaps;
+      }
+    }
     await db.sessions.add(session);
     return session;
   });
@@ -148,6 +163,13 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
     // Already logged under this id with other values (PLAN 2.0l): never acknowledged as this input.
     // The journal entry stays until the caller's input is kept as a row of its own.
     if (receipt?.fp !== undefined && receipt.fp !== fp) throw new LogConflictError(receipt.rev, receipt.fp);
+    // A receipt from before 2.0l has no fingerprint (PLAN 3.2b): a matching revision is not evidence
+    // that this input was saved. What the set holds now is compared; other values are a conflict
+    // (the input is kept as the next row), never acknowledged.
+    if (existing && receipt && receipt.fp === undefined) {
+      const saved = payloadFp({ ...(existing.reps !== undefined ? { reps: existing.reps } : {}), ...(existing.seconds !== undefined ? { seconds: existing.seconds } : {}), load: existing.load!, kind: existing.kind, failure: !!existing.failure });
+      if (saved !== fp) throw new LogConflictError(receipt.rev, saved);
+    }
     if (existing) {
       await db.journal.delete(input.id);
       return existing;
@@ -371,6 +393,8 @@ async function planProgress(s: Session, db: AnyGymDB, adjust: Session['rowAdjust
   const plan = planById(s.planId);
   const i = plan ? dayIndexOf(plan, s.dayId) : -1;
   if (!plan || i < 0) return undefined;
+  // A changed workout counts one slot per plan exercise, whatever filled it (PLAN 3.4).
+  if (s.swaps?.length) return slotProgress(dayWorkout(plan, i, s.weekIndex ?? 0), s.swaps, adjust, await db.sets.where('sessionId').equals(s.id).toArray());
   // The rows the lifter really had (PLAN 2.2d round 2: + Add set and Remove set count).
   const entries = adjustEntries(dayWorkout(plan, i, s.weekIndex ?? 0), adjust);
   const done = doneCounts(entries, await db.sets.where('sessionId').equals(s.id).toArray());
@@ -391,6 +415,12 @@ export const MUTATION_HELD_PREFIX = 'anygym-mutheld:';
  * corrections is "registered before it landed", never a comparison of clocks.
  */
 export const MUTATION_SUP_PREFIX = 'anygym-mutsup:';
+/**
+ * kv rows of the failed Logs the user gave up (PLAN 3.2b), written in the transaction that deletes
+ * their journal entry: `anygym-logcancel:<sessionId>:<draft id>`. A tab holding the old marked
+ * draft, also after a restart or Finish then Undo, never retries it.
+ */
+export const LOG_CANCEL_PREFIX = 'anygym-logcancel:';
 
 /**
  * A change of this workout that is held outside the journal (the localStorage fallback another tab
@@ -493,7 +523,8 @@ async function finishLocked(sessionId: string, db: AnyGymDB, now: number, pendin
       await db.kv.where('key').startsWith(`${RESTORED_PREFIX}${sessionId}:`).delete();
       // Finish runs only once no failed row is left (rowLog.prepareFinish): the journal is done.
       await db.journal.where('sessionId').equals(sessionId).delete();
-      await db.kv.where('key').startsWith(`${MUTATION_REV_PREFIX}${sessionId}:`).delete();
+      // The change revision counters stay (PLAN 3.2b): Finish then Undo reopens the workout, and a
+      // correction made then must never reuse an operation id a suspended tab still holds.
       await db.kv.where('key').startsWith(`${MUTATION_HELD_PREFIX}${sessionId}:`).delete();
       // The supersession markers stay (PLAN 2.0i): Finish then Undo reopens the workout, and a held copy
       // a later save superseded must stay superseded. They go with the workout (discarded below).
@@ -509,6 +540,8 @@ async function finishLocked(sessionId: string, db: AnyGymDB, now: number, pendin
       await db.submissions.where('sessionId').equals(sessionId).delete();
       await db.kv.where('key').startsWith(`${MUTATION_DONE_PREFIX}${sessionId}:`).delete();
       await db.kv.where('key').startsWith(`${MUTATION_SUP_PREFIX}${sessionId}:`).delete();
+      await db.kv.where('key').startsWith(`${MUTATION_REV_PREFIX}${sessionId}:`).delete();
+      await db.kv.where('key').startsWith(`${LOG_CANCEL_PREFIX}${sessionId}:`).delete();
       return { saved: false };
     }
     // The rows added or removed by hand, as the workout ends (from the kept extra sets value and
