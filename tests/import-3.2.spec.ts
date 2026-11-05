@@ -101,6 +101,15 @@ test.describe('3.2 import: catalog mapping', () => {
     await expect(pick.getByRole('heading', { name: 'In your plans' })).toBeVisible();
     await expect(pick.getByText('In your file: “Moon press”')).toBeVisible();
     await shot(page, 'pick-sheet', info.project.name);
+    // PLAN 3.2a: the cost of Keep the name is said before the tap, and no row runs under the footer.
+    await expect(pick.getByTestId('pick-keep-hint')).toHaveText('Keep the name saves “Moon press” without photos or muscles.');
+    const gap = await pick.evaluate((el) => {
+      const rows = Array.from(el.querySelectorAll<HTMLElement>('ul li button'));
+      const last = rows[rows.length - 1]!;
+      last.scrollIntoView({ block: 'end' });
+      return { top: el.querySelector<HTMLElement>('[data-testid="pick-keep-hint"]')!.getBoundingClientRect().top, bodyBottom: last.getBoundingClientRect().bottom };
+    });
+    expect(gap.bodyBottom).toBeLessThanOrEqual(gap.top + 1);
     await pick.getByTestId('pick-keep-name').tap();
     await expect(pick).toHaveCount(0);
     await expect(region('Moon press').getByTestId('import-match')).toContainText('Not in the catalog yet · picked by you');

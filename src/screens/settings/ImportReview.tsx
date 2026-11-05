@@ -144,9 +144,15 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
         <p className={`${css.meta} num`} data-testid="import-summary">
           {setCount(total)} · {parsed.exercises.length} {parsed.exercises.length === 1 ? 'exercise' : 'exercises'} · {parsed.unit}
         </p>
-        {unsure > 0 && (
+        {(unsure > 0 || plan.open.length > 0) && (
+          // One line for both counts: questions are about whole exercises, sets to check are single rows.
           <p className={`${css.metaAmber} num`} data-testid="import-unsure">
-            {unsure} to check
+            {[
+              plan.open.length > 0 && `${plan.open.length} ${plan.open.length === 1 ? 'exercise question' : 'exercise questions'}`,
+              unsure > 0 && `${unsure} ${unsure === 1 ? 'set' : 'sets'} to check`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         )}
       </TopBar>
@@ -275,6 +281,14 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
                           {flagged(x) && x.reason && <span className={css.reason}>{x.reason}</span>}
                           {x.note && <span className={css.note}>{x.note}</span>}
                         </span>
+                        {flagged(x) && !e.skipped && !s.already && (
+                          <span className={css.fix} aria-hidden="true" data-testid="import-set-fix">
+                            Check reps
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M9 6l6 6-6 6" />
+                            </svg>
+                          </span>
+                        )}
                       </button>
                     </li>
                   ))}

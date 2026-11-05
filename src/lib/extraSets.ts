@@ -44,13 +44,43 @@ let memory: Stored | null = null;
 /** A hydrated removal: what localStorage still holds is older than it (PLAN 1.7k). */
 let cleared = false;
 
-function read(kv: KV | null): Stored | null {
-  if (memory || cleared) return memory;
+/**
+ * The raw value this tab last saw in (or wrote to) localStorage. Another tab writing the same key
+ * makes the stored value differ from it; the next read or change then starts from the stored one
+ * (PLAN 3.2a), so a stale tab never writes its old table over a newer one. Every change is one
+ * synchronous read, merge and write, so nothing slips between them. undefined: not read yet.
+ */
+let seen: string | null | undefined;
+
+const rawOf = (kv: KV | null): string | null => {
   try {
-    const v = JSON.parse(kv?.getItem(KEY) ?? 'null') as Stored | null;
-    if (v && typeof v.sessionId === 'string' && v.extra && typeof v.extra === 'object') memory = v;
+    return kv?.getItem(KEY) ?? null;
   } catch {
-    /* corrupt: none */
+    return null;
+  }
+};
+
+function parse(raw: string | null): Stored | null {
+  try {
+    const v = JSON.parse(raw ?? 'null') as Stored | null;
+    return v && typeof v.sessionId === 'string' && v.extra && typeof v.extra === 'object' ? v : null;
+  } catch {
+    return null; // corrupt: none
+  }
+}
+
+function read(kv: KV | null): Stored | null {
+  if (kv) {
+    const raw = rawOf(kv);
+    if (seen === undefined || raw !== seen) {
+      const first = seen === undefined;
+      seen = raw;
+      // First look: a hydrated or cleared copy in memory stays; later: the other tab's value wins.
+      if (!first || (!memory && !cleared)) {
+        memory = parse(raw);
+        cleared = memory === null && raw === null;
+      }
+    }
   }
   return memory;
 }
@@ -96,6 +126,7 @@ function store(next: Stored, kv: KV | null): void {
   }
   try {
     kv?.setItem(KEY, value);
+    seen = value;
     void mirror(kv, KEY);
   } catch {
     // Memory keeps it for this run; IndexedDB keeps it for the next one.
@@ -156,6 +187,7 @@ export function clearExtraSets(kv: KV | null = storage()): void {
   }
   try {
     kv?.removeItem(KEY);
+    seen = null;
     void mirror(kv, KEY);
   } catch {
     // A removal localStorage refused is stored as a null mirror, so a restart never brings the
@@ -199,6 +231,7 @@ export function restoreExtraSets(value: string, kv: KV | null = storage()): void
   }
   try {
     kv.setItem(KEY, value);
+    seen = value;
     void mirror(kv, KEY);
   } catch {
     void mirrorValue(kv, KEY, value);
@@ -209,4 +242,5 @@ export function restoreExtraSets(value: string, kv: KV | null = storage()): void
 export function resetExtraSetsMemory(): void {
   memory = null;
   cleared = false;
+  seen = undefined;
 }
