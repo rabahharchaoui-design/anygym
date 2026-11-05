@@ -1,0 +1,284 @@
+/* PLAN 3.9: the gym pill, the gym sheet, + New gym and the switch preview. */
+
+/* The pill: a compact glass capsule, "My Gym ▾". 32 pt to look at, 48 pt to hit. */
+.pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  min-width: 88px;
+  max-width: min(44vw, 184px);
+  padding: 0 8px 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glass-line);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* The hit area grows to 48 pt without moving anything around the pill. */
+.pill::before {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.pill[data-ready='true'] {
+  opacity: 1;
+}
+
+.pill[data-align='start'] {
+  min-width: 0;
+}
+
+.pillName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pillChevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+}
+
+/* A still copy (drawn under the edge swipe): the same look, nothing to tap. */
+.pillStill {
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- the sheet */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--text-2);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-3) 10px 10px;
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  text-align: left;
+  transition:
+    transform 160ms var(--ease-out),
+    opacity 160ms var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.row[aria-current='true'] {
+  border-color: rgb(212 255 58 / 0.45);
+  background: linear-gradient(to right, rgb(212 255 58 / 0.07), var(--surface-1) 60%);
+}
+
+.tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.row[aria-current='true'] .tile {
+  color: var(--accent);
+}
+
+.newTile {
+  background: rgb(212 255 58 / 0.12);
+  color: var(--accent);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.line {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.check {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+
+.here {
+  flex: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.link {
+  align-self: center;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- + New gym */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.unitRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ---------------------------------------------------------------- the switch preview */
+
+.change {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px var(--space-4);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+}
+
+.changeTitle {
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.changeLine {
+  color: var(--text-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.change[data-kind='noFit'] .changeLine {
+  color: var(--amber);
+}
+
+.change[data-kind='back'] .changeLine,
+.change[data-kind='fits'] .changeLine {
+  color: var(--accent);
+}
+
+.kept {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}

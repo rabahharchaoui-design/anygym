@@ -15,6 +15,9 @@ import styles from './AppShell.module.css';
 /** The screen a pushed screen goes back to (null on a tab root). */
 export function parentOf(pathname: string): string | null {
   if (pathname === '/settings' || pathname.startsWith('/dev/')) return '/';
+  // PLAN 3.9: Settings, Gyms, a gym, its equipment: each goes back one level.
+  const gyms = /^(\/settings\/gyms(?:\/[^/]+)?)\/[^/]+$/.exec(pathname);
+  if (gyms) return gyms[1]!;
   if (pathname.startsWith('/settings/')) return '/settings';
   const place = /^(\/plans\/place\/[^/]+)\/[^/]+$/.exec(pathname);
   if (place) return place[1]!;

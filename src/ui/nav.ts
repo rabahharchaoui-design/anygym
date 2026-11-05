@@ -16,7 +16,8 @@ export function depthOf(path: string): number {
   if (p === '/' || p === '/run' || p === '/history' || p === '/plans') return 0;
   const workout = /^\/workout\/[^/]+(\/(.+))?$/.exec(p);
   if (workout) return workout[2] && workout[2] !== 'done' ? 2 : 1;
-  if (p.startsWith('/settings/')) return 2;
+  // PLAN 3.9: one level deeper per segment (Settings, Gyms, a gym, its equipment).
+  if (p.startsWith('/settings/')) return p.split('/').length - 1;
   // A plan opened from a place (PLAN 3.1) sits on top of that place's list.
   if (/^\/plans\/place\/[^/]+\/[^/]+$/.test(p)) return 2;
   return 1;

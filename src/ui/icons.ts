@@ -27,6 +27,8 @@ export {
   Warehouse as GymIcon,
   PersonStanding as BodyweightIcon,
   HeartPulse as CardioIcon,
+  Trees as OutdoorsIcon,
+  ArrowLeftRight as SwitchIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

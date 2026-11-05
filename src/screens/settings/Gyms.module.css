@@ -1,0 +1,114 @@
+/* Settings → Gyms (PLAN 3.9): the list, one gym, its equipment. The Settings card look throughout. */
+
+.intro,
+.note {
+  margin: 0 var(--space-4) var(--space-4);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.note {
+  margin: var(--space-2) var(--space-4) 0;
+}
+
+.meta {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.tile[data-active] {
+  background: rgb(212 255 58 / 0.12);
+  color: var(--accent);
+}
+
+.grow {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.active {
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.actions {
+  margin: var(--space-4) 0 var(--space-5);
+}
+
+.here {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgb(212 255 58 / 0.4);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-6);
+}

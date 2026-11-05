@@ -29,6 +29,7 @@ import { crashReports } from '../lib/reporting/preferences';
 import { gymFacts } from '../lib/reporting/feedback';
 import { useLive } from '../hooks/useLive';
 import { getProfile, setProfileUnits } from '../db/intake';
+import { db } from '../db/schema';
 import styles from './Settings.module.css';
 
 let toastSeq = 0;
@@ -65,6 +66,11 @@ export function SettingsScreen() {
   // PLAN 3.3: the intake's answers stay changeable here (units, and the whole intake again).
   const profile = useLive(() => getProfile(), []);
   const [profileError, setProfileError] = useState(false);
+  const gymTotal = useLive(() => db.gyms.count(), []);
+  const gymsHint =
+    gym && gymTotal.data !== undefined
+      ? `${gymTotal.data === 1 ? '1 gym' : `${gymTotal.data} gyms`} · ${gym.name} is active. Add one, switch, edit equipment.`
+      : 'Add one, switch, edit equipment.';
   const profileUnits = (patch: Parameters<typeof setProfileUnits>[0]) => {
     setProfileError(false);
     setProfileUnits(patch).catch(() => setProfileError(true));
@@ -260,6 +266,21 @@ export function SettingsScreen() {
               onChange={(b) => bodyPref.set(b)}
             />
           </div>
+        </div>
+      </section>
+      <section className={styles.group} aria-labelledby="set-gyms">
+        <h2 id="set-gyms" className={styles.groupTitle}>
+          Gyms
+        </h2>
+        <div className={styles.card}>
+          {/* PLAN 3.9 (SPEC 19): every gym, add one, switch, edit its equipment. */}
+          <button type="button" className={`${styles.linkRow} pressable`} onClick={() => go('/settings/gyms', { kind: 'push' })} data-testid="settings-gyms">
+            <span className={styles.unitText}>
+              <span className={styles.unitLabel}>Gyms</span>
+              <span className={styles.unitHint}>{gymsHint}</span>
+            </span>
+            <ChevronRight className={styles.chevron} aria-hidden="true" />
+          </button>
         </div>
       </section>
       <section className={styles.group} aria-labelledby="set-plates">

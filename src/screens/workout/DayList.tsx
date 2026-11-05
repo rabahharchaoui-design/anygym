@@ -9,6 +9,7 @@ import { Ring } from '../../ui/Ring';
 import { Button } from '../../ui/Button';
 import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon } from '../../ui/icons';
 import type { Workout } from './useWorkout';
+import type { ToastMessage } from '../../ui/Toast';
 import styles from './DayList.module.css';
 
 type Props = {
@@ -22,6 +23,8 @@ type Props = {
   /** PLAN 3.4: a swapped row's Change and Restore. */
   onChangeSwap?: (exerciseId: string) => void;
   onRestoreSwap?: (exerciseId: string) => void;
+  /** PLAN 3.9: the gym pill's "Now at … · Undo" goes to the workout's toast. */
+  onToast?: (t: ToastMessage) => void;
 };
 
 /** Empty, a ring filling per set done, then a check (SPEC 20.1). */
@@ -49,7 +52,7 @@ function nameHero(row: HTMLElement) {
  * its demo tile, name, sets × reps and the plan's rest. Pairs share a colored rail. Done rows dim,
  * the next one is highlighted. Tap a row to open it; that is the only navigation needed.
  */
-export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap }: Props) {
+export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap, onToast }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   /** A row's photo is being decoded before its screen opens: a second tap does nothing. */
   const opening = useRef(false);
@@ -192,7 +195,7 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
         <div className={styles.metaRow}>
           {/* One quiet metadata line: "My Gym · ~90 min". */}
           <p className={`${styles.meta} num`} data-testid="workout-meta">
-            <GymPill align="start" />
+            <GymPill align="start" still={still} onToast={onToast} inWorkout />
             {w.minutes !== undefined && <span className={styles.minutes}>{'\u00a0· '}~{w.minutes} min</span>}
           </p>
           <span className={styles.music}>

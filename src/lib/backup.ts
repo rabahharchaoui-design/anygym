@@ -165,6 +165,7 @@ const isSet = shape({
     note: str,
     failure: bool,
     importMap: shape({ req: { fileName: str, catalogId: orNull(str), match: oneOf('exact', 'variant', 'none'), by: oneOf('name', 'you') } }),
+    gymId: str,
   },
 });
 
@@ -199,6 +200,7 @@ const gymShape = shape({
     isActive: bool,
     createdAt: num,
   },
+  opt: { city: str, lastUsedAt: num },
 });
 
 /** Every plate in a gym's inventory, enabled or not, is a real plate of the gym's unit (PLAN 1.7k: a 999 kg plate crashed loading). */
@@ -327,6 +329,8 @@ function referencesHold(t: Record<TableName, Rec[]>): boolean {
   const sessions = new Set(t.sessions.map((s) => s.id as string));
   const gyms = new Set(t.gyms.map((g) => g.id as string));
   if (!t.sessions.every((s) => gyms.has(s.gymId as string))) return false;
+  // PLAN 3.9: a set lifted before its workout moved gyms names a gym in the same file.
+  if (!t.sets.every((s) => s.gymId === undefined || gyms.has(s.gymId as string))) return false;
   for (const name of ['sets', 'orderCounters', 'submissions', 'tombstones', 'journal'] as const) {
     if (!t[name].every((r) => sessions.has(r.sessionId as string))) return false;
   }
