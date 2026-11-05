@@ -96,3 +96,5 @@ UNATTENDED RUN RULES (you run headless, nobody is watching)
 - Servers that tests need are started and stopped by Playwright's webServer config, not by hand.
 - Never ask questions or wait for input. Decide using SPEC.md and note the decision in the session report.
 - Keep going item after item until the STOP line or a usage limit.
+
+TEST NOW HONESTY (G, Nov 5): every step in a reports/test-now.md line must exist in the LIVE app at that moment (master as deployed). Before writing the line, the tester follows the exact tap path on the live build; never name a screen, button or setting from a later PLAN item. If the feature cannot be reached by hand yet, say so: "<id> | Not testable by hand yet: needs <item>."
