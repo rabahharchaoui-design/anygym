@@ -10,3 +10,4 @@
 3.3 | New phones get an intake: one question per screen, units preselected, an honest plan reveal. Your phone skips it; to see it: Today, tap the gear, Settings, My profile, Answer the questions again; Back to Settings on the first screen changes nothing.
 3.2b | Nothing to test, behind the scenes (saving layer).
 3.4 | Replace an exercise with one your gym can do. Start a workout, open an exercise, tap ⋯ then Replace (first row): pick a swap, log a set, Undo brings the original back. Auto swap on the day list: Not testable by hand yet: needs 3.9 (no Gyms list in Settings).
+3.3a | Intake from your phone notes: main goal takes a Main and an Also pick, the equipment picker has drawn tiles in groups with All toggles, every screen fills with a why line and a Your plan so far strip, and the reveal is honest about fit. Today, tap the gear, Settings, My profile, Answer the questions again, walk it; Back to Settings on the first screen changes nothing.
