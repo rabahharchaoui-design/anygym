@@ -1,6 +1,6 @@
 // Where the user is in their curated plan (PLAN 1.10): one planState row, id 'active'.
 // The plans are static JSON (src/data/plans.ts); only this small pointer is stored.
-import { planById } from '../data/plans';
+import { basePlanOf, planById } from '../data/plans';
 import { clampWeek, dayIndexOf } from '../lib/plans';
 import { finishPlanPosition } from '../lib/finishPlan';
 import type { DayProgress } from '../lib/planWorkout';
@@ -9,6 +9,16 @@ import type { PlanState, Session } from './types';
 
 export async function getPlanState(db: AnyGymDB = defaultDb): Promise<PlanState | undefined> {
   return db.planState.get('active');
+}
+
+/**
+ * A new pointer: Day 1, week 1. Switching between a plan and its coach tuned copy (PLAN 3.4a) keeps
+ * the place: same days, same weeks, only the order or rests changed.
+ */
+function startState(planId: string, previous: PlanState | undefined, now: number): PlanState {
+  const same = previous && basePlanOf(previous.planId) && basePlanOf(previous.planId) === basePlanOf(planId);
+  if (same) return { ...previous, planId };
+  return { id: 'active', planId, startedAt: now, weekIndex: 0, nextDayIndex: 0, doneDays: [] };
 }
 
 /**
@@ -21,7 +31,7 @@ export async function choosePlan(planId: string, db: AnyGymDB = defaultDb, now =
   return db.transaction('rw', db.planState, async () => {
     const current = await db.planState.get('active');
     if (current?.planId === planId) return current;
-    const state: PlanState = { id: 'active', planId, startedAt: now, weekIndex: 0, nextDayIndex: 0, doneDays: [] };
+    const state = startState(planId, current, now);
     await db.planState.put(state);
     return state;
   });
@@ -37,7 +47,7 @@ export async function choosePlanUndoable(planId: string, db: AnyGymDB = defaultD
   return db.transaction('rw', db.planState, async () => {
     const previous = await db.planState.get('active');
     if (previous?.planId === planId) return { state: previous, previous, changed: false };
-    const state: PlanState = { id: 'active', planId, startedAt: now, weekIndex: 0, nextDayIndex: 0, doneDays: [] };
+    const state = startState(planId, previous, now);
     await db.planState.put(state);
     return { state, previous, changed: true };
   });

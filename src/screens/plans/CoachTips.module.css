@@ -1,0 +1,174 @@
+/* Coach tips on a plan (PLAN 3.4a, SPEC 22): a quiet row that folds open with a short spring
+   (motion height). Closed, nothing below it moves. */
+
+.coach {
+  margin: 0 0 var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  color: var(--text);
+  text-align: left;
+}
+
+.icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.toggleText {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.count {
+  flex: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.chevron {
+  flex: none;
+  color: var(--text-2);
+  transition: transform 220ms var(--ease-out);
+}
+
+.coach[data-open] .chevron {
+  transform: rotate(180deg);
+}
+
+.fold {
+  overflow: hidden;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tip {
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  transition: background-color 200ms var(--ease-out);
+}
+
+.tip[data-applied] {
+  background: var(--accent-soft);
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.why {
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.detail {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.apply {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-line);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.textButton {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 10px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.footer .apply {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+/* A tuned copy says so, with the original one tap away. */
+.tuned {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+  margin: 0 0 var(--space-3);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.tunedText {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .tip {
+    transition: none;
+  }
+}

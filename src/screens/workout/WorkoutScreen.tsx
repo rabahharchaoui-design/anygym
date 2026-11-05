@@ -770,6 +770,8 @@ export function WorkoutScreen() {
       heroId={lastViewed}
       onOpen={openExercise}
       onAdd={() => setPicking(true)}
+      onAddOne={(id) => void add([id])}
+      sessionId={sessionId}
       onChangeSwap={setSwapFor}
       onToast={setToast}
       onRestoreSwap={(id) => {

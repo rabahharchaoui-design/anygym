@@ -29,6 +29,8 @@ export {
   HeartPulse as CardioIcon,
   Trees as OutdoorsIcon,
   ArrowLeftRight as SwitchIcon,
+  Sparkles as CoachIcon,
+  ArrowRight as ArrowRightIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

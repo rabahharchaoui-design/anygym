@@ -10,6 +10,7 @@ import { Button } from '../../ui/Button';
 import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon } from '../../ui/icons';
 import type { Workout } from './useWorkout';
 import type { ToastMessage } from '../../ui/Toast';
+import { UpNextCard, useUpNext } from './UpNext';
 import styles from './DayList.module.css';
 
 type Props = {
@@ -25,6 +26,9 @@ type Props = {
   onRestoreSwap?: (exerciseId: string) => void;
   /** PLAN 3.9: the gym pill's "Now at … · Undo" goes to the workout's toast. */
   onToast?: (t: ToastMessage) => void;
+  /** PLAN 3.4a: a quick workout's Up next adds one exercise and opens it. */
+  onAddOne?: (exerciseId: string) => void;
+  sessionId?: string;
 };
 
 /** Empty, a ring filling per set done, then a check (SPEC 20.1). */
@@ -52,8 +56,9 @@ function nameHero(row: HTMLElement) {
  * its demo tile, name, sets × reps and the plan's rest. Pairs share a colored rail. Done rows dim,
  * the next one is highlighted. Tap a row to open it; that is the only navigation needed.
  */
-export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap, onToast }: Props) {
+export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap, onToast, onAddOne, sessionId = '' }: Props) {
   const mainRef = useRef<HTMLElement>(null);
+  const ideas = useUpNext(w, sessionId);
   /** A row's photo is being decoded before its screen opens: a second tap does nothing. */
   const opening = useRef(false);
   // The Start pill belongs to the live list, never the copy drawn under an edge swipe.
@@ -257,6 +262,7 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
           </button>
         </div>
       )}
+      {w.isQuick && !still && ideas && onAddOne && <UpNextCard w={w} ideas={ideas} onAdd={onAddOne} />}
       {w.isQuick && (
         <div className={styles.addRow}>
           <Button variant="secondary" onClick={onAdd}>
