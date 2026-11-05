@@ -83,7 +83,7 @@ test.describe('1.11 import history', () => {
     // A name we could not match is titled with the file's own name, said plainly (gate fix 15).
     await expect(page.locator('[data-testid="import-exercise"]', { has: page.getByTestId('ask-pick') }).getByRole('heading', { level: 2 })).toHaveText('Moon press (not matched)');
     await expect(page.getByTestId('ask-pick').getByRole('button', { name: /^Skip these \d+ sets$/ })).toBeVisible();
-    await expect(page.getByTestId('import-unsure')).toHaveText(/^\d+ to check$/);
+    await expect(page.getByTestId('import-unsure')).toHaveText(/\d+ sets? to check$/);
     // Every set as "50 lb × 12", or reps only when the file has no weight.
     const squat = page.getByRole('region', { name: 'Barbell Back Squat' });
     await expect(squat.getByTestId('import-set').nth(1)).toContainText('185 lb × 8');

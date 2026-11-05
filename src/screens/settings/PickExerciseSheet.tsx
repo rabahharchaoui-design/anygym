@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Sheet } from '../../ui/Sheet';
+import { Sheet, SheetFooter } from '../../ui/Sheet';
 import { PLAN_EXERCISES } from '../../data/planExercises';
 import { CATALOG_NAMES } from '../../data/importMatch';
 import { normalizeName } from '../../lib/import/anygymImportV1';
@@ -37,7 +37,7 @@ const CATALOG_ONLY = CATALOG_NAMES.filter((c) => !PLAN_NAMES.has(normalizeName(c
  */
 export function PickExerciseSheet({ open, onClose, ...rest }: Props) {
   return (
-    <Sheet open={open} onClose={onClose} label="Pick the exercise" scroll>
+    <Sheet open={open} onClose={onClose} label="Pick the exercise" scroll footer>
       {open && <Body {...rest} />}
     </Sheet>
   );
@@ -102,21 +102,27 @@ function Body({ fileName, startFrom, loadType, skipCount, onPick, onKeepName, on
           </ul>
         </section>
       )}
-      {/* One row of two (PLAN 3.2 check 7): at 130% text three full rows stay above it on an SE. */}
-      <div className={`${styles.footer} ${css.pickFooter}`}>
-        <button
-          type="button"
-          className={`${css.secondary} ${css.pickAction} pressable`}
-          onClick={onKeepName}
-          data-testid="pick-keep-name"
-          aria-label={`Keep the name “${fileName}”: saved without photos or muscles`}
-        >
-          Keep the name
-        </button>
-        <button type="button" className={`${css.secondary} ${css.pickAction} pressable`} onClick={onSkip}>
-          {skipText(skipCount)}
-        </button>
-      </div>
+      {/* PLAN 3.2a: pinned under the scrolling list (the sheet's footer slot), so no row ever runs under
+          it; one row of two buttons, with what Keep the name costs said before the tap. */}
+      <SheetFooter>
+        <p className={css.pickHint} data-testid="pick-keep-hint">
+          Keep the name saves “{fileName}” without photos or muscles.
+        </p>
+        <div className={css.pickFooter}>
+          <button
+            type="button"
+            className={`${css.secondary} ${css.pickAction} pressable`}
+            onClick={onKeepName}
+            data-testid="pick-keep-name"
+            aria-label={`Keep the name “${fileName}”: saved without photos or muscles`}
+          >
+            Keep the name
+          </button>
+          <button type="button" className={`${css.secondary} ${css.pickAction} pressable`} onClick={onSkip}>
+            {skipText(skipCount)}
+          </button>
+        </div>
+      </SheetFooter>
     </div>
   );
 }
