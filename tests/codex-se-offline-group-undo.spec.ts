@@ -25,6 +25,9 @@ test('offline SE: removing a whole exercise and Undo preserves both edited sets,
   await quickWith(page, [['back squat', 'Barbell Back Squat'], ['plank', 'Elbow Plank']]);
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = exerciseView(page, 'barbell-back-squat');
+  // Row taps decode the thumbnail before navigating; let navigation finish before reload.
+  await expect(page).toHaveURL(/#\/workout\/[^/]+\/barbell-back-squat$/);
+  await expect(view).toBeVisible();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
   await expect(view).toBeVisible();
