@@ -109,6 +109,8 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
   };
   await screen('goal');
   await t.pick('goal', 'muscle');
+  // PLAN 3.3a: up to 2 goals, so Continue (one tap more than 3.3's auto advance).
+  await t.next();
   await screen('units', cta(page));
   await t.next();
   await screen('focus', cta(page));
@@ -156,11 +158,11 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
 /** SPEC 14 "finish in under 60 seconds", as taps: about 2 s a tap is 44 s. */
 const TAP_BUDGET = 22;
 
-test('a new user goes through the funnel in 21 taps, every screen fits, Start Day 1 lands in the workout @matrix', async ({ page }) => {
+test('a new user goes through the funnel in 22 taps (PLAN 3.3a: +1 for the two pick goal), every screen fits, Start Day 1 lands in the workout @matrix', async ({ page }) => {
   const started = Date.now();
   await page.goto('./');
   await expect(page).toHaveURL(/#\/welcome$/);
-  // The first screen: no back (nothing before it), no button (it moves on by itself), the quiet line.
+  // The first screen: no back (nothing before it), Continue since PLAN 3.3a (up to 2 goals), the quiet line.
   await expect(page.getByRole('heading', { name: "What's your main goal?" })).toBeVisible();
   await expect(backButton(page)).toHaveCount(0);
   await expect(page.getByText('Your answers stay on this phone.')).toBeVisible();
@@ -178,7 +180,7 @@ test('a new user goes through the funnel in 21 taps, every screen fits, Start Da
   const total = taps + 1;
   await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
   await expect(page.getByText('Legs (hamstring focus)').first()).toBeVisible();
-  expect(total).toBe(21);
+  expect(total).toBe(22);
   expect(total).toBeLessThanOrEqual(TAP_BUDGET);
   test.info().annotations.push({ type: 'taps', description: `${total} taps, ${Math.round((Date.now() - started) / 1000)} s automated` });
   const sessions = await dbAll(page, 'sessions');
@@ -196,6 +198,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await page.goto('./');
   const t = new Taps(page);
   await t.pick('goal', 'tone');
+  await t.next();
   await atStep(page, 'units');
   // Units: change all four from the region default (Playwright's WebKit is en-US: lb, miles, inches).
   await expect(page.getByTestId('units-weight').getByRole('radio', { name: 'lb' })).toHaveAttribute('aria-checked', 'true');
@@ -393,6 +396,8 @@ for (const [locale, weight, distance, measure] of [
     test(`units are preselected from the region: ${weight}, ${distance}, ${measure} @matrix`, async ({ page }) => {
       await page.goto('./');
       await page.getByTestId('q-goal-strength').tap();
+      // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+      await cta(page).tap();
       await atStep(page, 'units');
       for (const [id, name] of [
         ['units-weight', weight],
@@ -446,6 +451,8 @@ test('Settings → Answer the questions again: answers come back, Back leaves, t
   await expect(page.getByTestId('q-goal-muscle')).toHaveAttribute('aria-pressed', 'true');
   const before = await dbAll(page, 'profile');
   await page.getByTestId('q-goal-race').tap();
+  // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+  await cta(page).tap();
   await atStep(page, 'units');
   await backButton(page).tap();
   await atStep(page, 'goal');
@@ -454,7 +461,9 @@ test('Settings → Answer the questions again: answers come back, Back leaves, t
   expect(await dbAll(page, 'profile')).toEqual(before);
   await page.getByTestId('redo-intake').tap();
   await atStep(page, 'goal');
-  await page.getByTestId('q-goal-muscle').tap();
+  // PLAN 3.3a: the saved goal is already Main (a tap would turn it off); Continue goes on.
+  await expect(page.getByTestId('q-goal-muscle-tag')).toHaveText('Main');
+  await cta(page).tap();
   await atStep(page, 'units');
   // Straight to the reveal: every later screen keeps its saved answer.
   for (const step of ['units', 'focus', 'win']) {
@@ -497,6 +506,8 @@ test('reduced motion: screens and the reveal crossfade, nothing moves', async ({
   await simulateSafeAreas(page);
   await page.goto('./');
   await page.getByTestId('q-goal-muscle').tap();
+  // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+  await cta(page).tap();
   await atStep(page, 'units');
   // The pulse and the week rows: no movement, only opacity.
   const pulse = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -640,7 +651,9 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
   // Redo: the toggle shows the gym's kg, never the old lb.
   await page.getByTestId('redo-intake').tap();
   await atStep(page, 'goal');
-  await page.getByTestId('q-goal-muscle').tap();
+  // PLAN 3.3a: the saved goal is already Main (a tap would turn it off); Continue goes on.
+  await expect(page.getByTestId('q-goal-muscle-tag')).toHaveText('Main');
+  await cta(page).tap();
   await atStep(page, 'units');
   await expect(page.getByTestId('units-weight').getByRole('radio', { name: 'kg' })).toHaveAttribute('aria-checked', 'true');
   await cta(page).tap();
@@ -822,10 +835,12 @@ test('P8: Back after Skip the rest returns to the screen where it was tapped', a
 });
 
 test('P2: equipment that is on shows a small check; turning it on moves nothing', async ({ page }) => {
+  // PLAN 3.3a supersedes the chip: a picture tile whose check badge sits on the drawing's corner.
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'hotel', equipmentFor: 'hotel', equipment: ['treadmill'] });
   const chip = page.getByTestId('equip-flat_bench');
-  const label = chip.locator('span').first();
-  const check = chip.locator('svg');
+  const label = chip.getByText('Flat bench', { exact: true });
+  const check = chip.locator('svg[data-check]');
+  await chip.scrollIntoViewIfNeeded();
   await expect(check).toHaveCSS('opacity', '0');
   const before = await label.boundingBox();
   await chip.tap();
@@ -979,7 +994,9 @@ test('P13: outdoors asks only about pull up bars and bands; full gym labels neve
   await expect(page.getByTestId('equip-hyperextension_bench')).toHaveText('Back extension bench');
   // Every word fits its chip: nothing wider than its box.
   const broken = await page.evaluate(() =>
+    // PLAN 3.3a: only spans with words (a tile's picture span holds none).
     [...document.querySelectorAll('[data-testid^="equip-"] span')]
+      .filter((el) => (el.textContent ?? '').trim().length > 0)
       .filter((el) => (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 || (el.textContent ?? '').split(' ').some((w) => {
         const r = document.createRange();
         const t = el.firstChild!;
@@ -1061,6 +1078,8 @@ test('R2: localStorage blocked: the funnel still resumes from IndexedDB; an exis
   await page.goto('./');
   await atStep(page, 'goal');
   await page.getByTestId('q-goal-race').tap();
+  // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+  await cta(page).tap();
   await atStep(page, 'units');
   await expect.poll(async () => JSON.stringify(await dbAll(page, 'kv'))).toContain('"step');
   await page.reload();

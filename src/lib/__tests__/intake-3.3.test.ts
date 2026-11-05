@@ -111,7 +111,8 @@ describe('the funnel state machine', () => {
 
   it('single choice screens are the ones that advance on their own; the rest have Continue', () => {
     const single = SCREENS.filter((s) => KIND[s] === 'single');
-    expect(single).toEqual(['goal', 'experience', 'days', 'minutes', 'place', 'style', 'when']);
+    // PLAN 3.3a: the goal takes up to 2 picks now, so it has Continue (superseded: it was single).
+    expect(single).toEqual(['experience', 'days', 'minutes', 'place', 'style', 'when']);
   });
 
   it('Skip only on personal screens: clears the answer, remembers the skip, moves on', () => {

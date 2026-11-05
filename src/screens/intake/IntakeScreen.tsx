@@ -25,6 +25,7 @@ import {
   canContinue,
   equipmentChoices,
   funnelReducer,
+  goalsOf,
   KIND,
   needsDumbbellRange,
   parseDraft,
@@ -47,7 +48,7 @@ import {
   EASY_ON,
   EXPERIENCE,
   FOCUS,
-  GOALS,
+  EQUIPMENT_LABEL,
   MINUTES,
   PLACES,
   STYLES,
@@ -57,7 +58,9 @@ import {
   type Option,
 } from '../../lib/intake/options';
 import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
-import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep, MultiChoice, SingleChoice, UnitsStep } from './Steps';
+import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep, GoalChoice, MultiChoice, SingleChoice, UnitsStep } from './Steps';
+import { PlanSoFar } from './PlanSoFar';
+import { EquipmentArt } from './EquipmentArt';
 import { Reveal } from './Reveal';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
@@ -68,31 +71,34 @@ export const AUTO_ADVANCE_MS = 250;
 const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days` }));
 const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min` }));
 
-type Copy = { title: string; sub?: string };
+/**
+ * PLAN 3.3a: every screen has its title and one short honest line on why it asks: what the answer
+ * does today, or plainly "Not used yet" with what it is for. Never a use that does not exist.
+ */
+type Copy = { title: string; why: string };
 const COPY: Record<ScreenId, Copy> = {
-  goal: { title: "What's your main goal?" },
-  units: { title: 'Your units', sub: "Set from your phone's region." },
-  focus: { title: 'What do you want to work on?', sub: 'Pick any.' },
-  win: { title: 'What would make this a win?', sub: 'Pick any.' },
-  experience: { title: 'How long have you been training?' },
-  days: { title: 'How many days a week?' },
-  weekdays: { title: 'Which days work best?', sub: 'Used to lay out your week.' },
-  minutes: { title: 'How long per workout?' },
-  place: { title: 'Where do you usually train?' },
-  equipment: { title: 'What does your gym have?', sub: 'Tap to turn on or off. Tap ⓘ for anything new.' },
-  style: { title: 'How do you like to train?' },
-  cardio: { title: 'How do you feel about cardio?' },
-  easyOn: { title: 'Anything to go easy on?', sub: 'If something hurts, stop and check with a professional.' },
-  exercises: { title: 'Any favorites, or ones to avoid?', sub: 'Optional. Tap any.' },
-  when: { title: 'When do you usually work out?' },
-  bodyweight: { title: 'What do you weigh?', sub: "Not used yet. It'll help suggest starting weights." },
-  about: { title: 'About you', sub: 'All optional.' },
-  noPlan: { title: '' },
-  reveal: { title: 'Your plan' },
+  goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
+  units: { title: 'Your units', why: "Set from your phone's region." },
+  focus: { title: 'What do you want to work on?', why: "Pick any. Not used yet: it'll add work for these." },
+  win: { title: 'What would make this a win?', why: 'Pick any. Not used yet: it stays with your profile.' },
+  experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
+  days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
+  weekdays: { title: 'Which days work best?', why: 'Used to lay out your week.' },
+  minutes: { title: 'How long per workout?', why: 'Checked against how long each plan takes.' },
+  place: { title: 'Where do you usually train?', why: 'Sets up your gym and what it has.' },
+  equipment: { title: 'What does your gym have?', why: 'Plans use only what is on. Tap ⓘ if unsure.' },
+  style: { title: 'How do you like to train?', why: "Not used yet: it'll steer the exercises you get." },
+  cardio: { title: 'How do you feel about cardio?', why: "Not used yet: it'll suggest cardio you like." },
+  easyOn: { title: 'Anything to go easy on?', why: "Not used yet: plans will go easy on these." },
+  exercises: { title: 'Any favorites, or ones to avoid?', why: 'Optional. Not used yet: plans will follow these.' },
+  when: { title: 'When do you usually work out?', why: "Not used yet: it'll time your reminders." },
+  bodyweight: { title: 'What do you weigh?', why: "Not used yet. It'll help suggest starting weights." },
+  about: { title: 'About you', why: 'All optional. Only what you add is kept.' },
+  noPlan: { title: '', why: '' },
+  reveal: { title: 'Your plan', why: '' },
 };
 
 const SINGLE_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
-  goal: GOALS,
   experience: EXPERIENCE,
   days: DAY_OPTIONS,
   minutes: MINUTE_OPTIONS,
@@ -111,6 +117,7 @@ const MULTI_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
 
 
 const WHY: Partial<Record<ScreenId, string>> = {
+  goal: 'Pick at least one',
   equipment: 'Add your dumbbell weights',
   focus: 'Pick at least one',
   win: 'Pick at least one',
@@ -128,10 +135,10 @@ function withUnits(a: IntakeAnswers): IntakeAnswers {
   return { ...a, units: { ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) } };
 }
 
-/** The line under a title; the weekdays one repeats the days per week answer. */
+/** The why line under a title; the weekdays one repeats the days per week answer. */
 function subOf(step: ScreenId, a: IntakeAnswers): string | undefined {
   if (step === 'weekdays' && a.days) return `Pick ${a.days}. Used to lay out your week.`;
-  return COPY[step].sub;
+  return COPY[step].why || undefined;
 }
 
 function readDraft(): FunnelState | null {
@@ -281,8 +288,13 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             </div>
           )}
           <h1 className={styles.title}>{copy.title}</h1>
-          {subOf(step, answers) && <p className={styles.sub}>{subOf(step, answers)}</p>}
+          {subOf(step, answers) && (
+            <p className={styles.sub} data-testid="why">
+              {subOf(step, answers)}
+            </p>
+          )}
           {stepBody(step, answers, handlers, pulse)}
+          <PlanSoFar answers={answers} />
         </main>
         {kind === 'single' ? (
           <div className={styles.foot}>
@@ -290,7 +302,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <p className={styles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
-          <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonAndNote above={skipRestButton} note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
+          <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonAndNote above={skipRestButton} note={first ? STAYS_HERE_FIRST : STAYS_HERE} testId="intake-cta" className={styles.cta}>
             Continue
           </BottomCTA>
         )}
@@ -331,6 +343,7 @@ const NO_HANDLERS: StepHandlers = { set: () => undefined, pickAndGo: () => undef
 
 /** The question part of a screen: what the user answers. */
 function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answers: IntakeAnswers, h: StepHandlers, pulse: string | null): ReactNode {
+  if (step === 'goal') return <GoalChoice value={goalsOf(answers)} onChange={(v) => h.set('goal', v)} />;
   if (KIND[step] === 'single') {
     const screen = step as AnswerId;
     return <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => h.pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} />;
@@ -353,6 +366,7 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
             {countNote ?? ''}
           </p>
         )}
+        {step === 'easyOn' && <p className={styles.safety}>If something hurts, stop and check with a professional.</p>}
       </>
     );
   }
@@ -382,6 +396,44 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
     default:
       return null;
   }
+}
+
+const QUICK_STEPS = ['Add an exercise from the list', 'Log each set: weight and reps', 'Finish, and it goes in your history'] as const;
+
+/**
+ * PLAN 3.3a: the notice fills with what is true right now: the gym as answered, with the pictures
+ * of what is on, and how a quick workout goes.
+ */
+function NoPlanBody({ answers }: { answers: IntakeAnswers }) {
+  const equipment = answers.equipment ?? [];
+  const place = PLACES.find((p) => p.id === answers.place);
+  const named = equipment.slice(0, 2).map((id) => EQUIPMENT_LABEL[id]);
+  const kit = equipment.length === 0 ? 'Nothing picked: bodyweight only' : equipment.length <= 2 ? named.join(' and ') : `${named.join(', ')} and ${equipment.length - 2} more`;
+  return (
+    <div className={styles.noPlanBody}>
+      <section className={styles.gymCard} data-testid="noplan-gym">
+        <p className={styles.gymCardTitle}>Your gym: {place?.label ?? 'not set'}</p>
+        <p className={styles.gymCardKit}>{kit}</p>
+        {equipment.length > 0 && (
+          <ul className={styles.gymArt} aria-hidden="true">
+            {equipment.slice(0, 6).map((id) => (
+              <li key={id}>
+                <EquipmentArt id={id} className={styles.art} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <ol className={styles.quickSteps} aria-label="How a quick workout goes" data-testid="noplan-steps">
+        {QUICK_STEPS.map((t, i) => (
+          <li key={t} className={styles.quickStep}>
+            <span className={`${styles.quickNum} num`}>{i + 1}</span>
+            {t}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 /** Right after the equipment, when no plan can fit: say so, and let them start or keep going. */
@@ -418,6 +470,8 @@ function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: Int
       <main className={styles.body} data-scroller>
         <h1 className={styles.title}>{words.title}</h1>
         <p className={styles.sub}>{words.quick}</p>
+        <NoPlanBody answers={answers} />
+        <PlanSoFar answers={answers} />
       </main>
       <BottomCTA
         onPress={() => void quick()}

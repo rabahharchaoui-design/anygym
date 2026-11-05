@@ -80,7 +80,82 @@
   outline-offset: 2px;
 }
 
+/* PLAN 3.3a: a tall tile, icon on top and label at the bottom, as tall as its grid row. */
+.chip[data-tile] {
+  position: relative;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px var(--space-4) 12px;
+}
+
+.chip[data-tile] .icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* "Main" or "Also": a small lime tag, top right on a tile, after the label otherwise. It pops in
+   on the tap spring (from 0.6, never from nothing) and its place never moves the label. */
+.tag {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    transform var(--dur-tap) var(--ease-tap-spring),
+    opacity 120ms var(--ease-out);
+}
+
+.chip[data-tile] .tag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+/* Short screens (the SE in Safari): the tile lies down, icon beside the label, so all fit. */
+@media (max-height: 720px) {
+  .chip[data-tile] {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 8px 10px 8px var(--space-3);
+  }
+  /* The tag sits on the top edge as a small badge, so the label keeps the whole width. */
+  .chip[data-tile] .tag {
+    top: -9px;
+    right: 10px;
+    font-size: 11px;
+    padding: 1px 7px;
+  }
+  .chip[data-tile] .tag[data-tag='Also'] {
+    background: var(--bg);
+  }
+}
+
+.tag[data-tag] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Also is the quieter of the two. */
+.tag[data-tag='Also'] {
+  background: transparent;
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .tag {
+    transform: none;
+    transition: opacity 150ms ease-out;
+  }
   .chip:active {
     transform: none;
     opacity: var(--press-dim);

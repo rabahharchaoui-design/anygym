@@ -6,9 +6,12 @@ import { Chip } from '../../ui/Chip';
 import { SlidingToggle } from '../../ui/SlidingToggle';
 import { WheelColumn } from '../../ui/WheelColumn';
 import { InfoButton } from '../../components/info/InfoButton';
-import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type Unit } from '../../db/types';
-import { AGE_RANGES, CARDIO, CARDIO_FAVORITES, EQUIPMENT_INFO, EQUIPMENT_LABEL, type AgeRangeId, type Option } from '../../lib/intake/options';
-import { HEIGHT_CM, HEIGHT_FT, type Height, type IntakeAnswers, type UnitsAnswer } from '../../lib/intake/funnel';
+import { Check } from 'lucide-react';
+import type { DumbbellRange, EquipmentId, Unit } from '../../db/types';
+import { groupsFor, toggleGroup, toggleItem } from '../../lib/intake/equipmentGroups';
+import { EquipmentArt } from './EquipmentArt';
+import { AGE_RANGES, CARDIO, CARDIO_FAVORITES, EQUIPMENT_INFO, EQUIPMENT_LABEL, GOALS, type AgeRangeId, type GoalId, type Option } from '../../lib/intake/options';
+import { HEIGHT_CM, HEIGHT_FT, tapGoal, type Height, type IntakeAnswers, type UnitsAnswer } from '../../lib/intake/funnel';
 import { flipBodyweight, RULER_START } from '../../lib/intake/ruler';
 import { cmToFtIn, dumbbellRangeProblems, formatAmount, formatBodyweight, ftInToCm, parseDumbbellRange, type DumbbellRangeProblems } from '../../lib/load';
 import { PLAN_EXERCISES } from '../../data/planExercises';
@@ -26,6 +29,7 @@ export function SingleChoice<T extends string | number>({
   pulse,
   testId,
   columns,
+  fill = true,
 }: {
   options: readonly Option<string>[];
   value: T | undefined;
@@ -33,10 +37,12 @@ export function SingleChoice<T extends string | number>({
   pulse: string | null;
   testId: string;
   columns?: '2' | '4';
+  /** PLAN 3.3a: the cards grow to fill the screen (off while something shows under them). */
+  fill?: boolean;
 }) {
   if (options.length <= 5)
     return (
-      <div className={styles.cards} role="group" data-testid={testId}>
+      <div className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
         {options.map((o) => (
           <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
             <ChoiceCard icon={iconFor(o.icon)} label={o.label} hint={o.hint} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
@@ -45,12 +51,39 @@ export function SingleChoice<T extends string | number>({
       </div>
     );
   return (
-    <div className={styles.chips} data-grid={columns ?? '2'} role="group" data-testid={testId}>
+    <div className={styles.chips} data-grid={columns ?? '2'} data-fill role="group" data-testid={testId}>
       {options.map((o) => (
         <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
           <Chip block icon={iconFor(o.icon)} label={o.label} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * PLAN 3.3a: the main goal, up to two. The first tap is tagged Main and leads the plan, the
+ * second Also; a third swaps out the Also. Tall tiles that fill the screen, two across.
+ */
+export function GoalChoice({ value, onChange }: { value: readonly GoalId[]; onChange: (v: GoalId[]) => void }) {
+  return (
+    <div className={styles.chips} data-grid="2" data-fill role="group" data-testid="q-goal">
+      {GOALS.map((o) => {
+        const at = value.indexOf(o.id);
+        return (
+          <Chip
+            key={o.id}
+            block
+            tile
+            icon={iconFor(o.icon)}
+            label={o.label}
+            picked={at >= 0}
+            tag={at === 0 ? 'Main' : at === 1 ? 'Also' : ''}
+            onPress={() => onChange(tapGoal(value, o.id))}
+            testId={`q-goal-${o.id}`}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -63,6 +96,7 @@ export function MultiChoice({
   only,
   testId,
   columns,
+  fill = true,
 }: {
   options: readonly Option<string>[];
   value: readonly string[] | undefined;
@@ -70,8 +104,12 @@ export function MultiChoice({
   only?: string;
   testId: string;
   columns?: '2' | '4';
+  /** PLAN 3.3a: the options grow to fill the screen. */
+  fill?: boolean;
 }) {
   const picked = new Set(value ?? []);
+  // Options with pictures become tall tiles when they fill; plain words stay centered.
+  const tiles = fill && options.every((o) => !!o.icon);
   const toggle = (id: string) => {
     if (picked.has(id)) return onChange([...picked].filter((x) => x !== id));
     if (id === only) return onChange([id]);
@@ -79,16 +117,16 @@ export function MultiChoice({
   };
   if (options.length <= 5)
     return (
-      <div className={styles.cards} role="group" data-testid={testId}>
+      <div className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
         {options.map((o) => (
           <ChoiceCard key={o.id} icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} testId={`${testId}-${o.id}`} />
         ))}
       </div>
     );
   return (
-    <div className={styles.chips} data-grid={columns ?? '2'} role="group" data-testid={testId}>
+    <div className={styles.chips} data-grid={columns ?? '2'} data-fill={fill ? '' : 'off'} role="group" data-testid={testId}>
       {options.map((o) => (
-        <Chip key={o.id} block icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} testId={`${testId}-${o.id}`} />
+        <Chip key={o.id} block tile={tiles} icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} testId={`${testId}-${o.id}`} />
       ))}
     </div>
   );
@@ -135,7 +173,10 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
   );
 }
 
-/** SPEC 3 equipment picker with ⓘ on anything unusual (SPEC 13.7). Nothing picked is a real answer. */
+/**
+ * SPEC 3 equipment picker (PLAN 3.3a): a picture tile for every item, three across, grouped, each
+ * group with its own All. ⓘ on anything unusual (SPEC 13.7). Nothing picked is a real answer.
+ */
 export function EquipmentStep({
   value,
   onChange,
@@ -157,6 +198,7 @@ export function EquipmentStep({
 }) {
   const on = new Set(value);
   const all = choices.every((id) => on.has(id));
+  const groups = groupsFor(choices);
   return (
     <>
       <div className={styles.equipBar}>
@@ -167,21 +209,53 @@ export function EquipmentStep({
           {all ? 'Turn all off' : 'Turn all on'}
         </button>
       </div>
-      <ul className={styles.equipGrid} data-testid="equipment">
-        {choices.flatMap((id) => [
-          <li key={id} className={styles.equipCell}>
-            <Chip block soft label={EQUIPMENT_LABEL[id]} picked={on.has(id)} onPress={() => onChange(on.has(id) ? value.filter((x) => x !== id) : EQUIPMENT_IDS.filter((x) => on.has(x) || x === id))} testId={`equip-${id}`} />
-            {EQUIPMENT_INFO[id] && <InfoButton id={EQUIPMENT_INFO[id]!} className={styles.equipInfo} />}
-          </li>,
-          ...(id === 'dumbbells' && askRange
-            ? [
-                <li key="dumbbell-range" className={styles.rangeCell}>
-                  <DumbbellRangeFields range={range} unit={unit} onRange={onRange} />
-                </li>,
-              ]
-            : []),
-        ])}
-      </ul>
+      <div className={styles.equipGroups} data-testid="equipment">
+        {groups.map((g) => {
+          const groupOn = g.items.every((id) => on.has(id));
+          const titleId = `equip-group-${g.id}`;
+          return (
+            <section key={g.id} className={styles.equipGroup} aria-labelledby={titleId} data-testid={`equip-group-${g.id}`}>
+              <div className={styles.groupHead}>
+                <h2 className={styles.groupTitle} id={titleId}>
+                  {g.label}
+                </h2>
+                <button
+                  type="button"
+                  className={`${styles.groupAll} pressable`}
+                  aria-pressed={groupOn}
+                  aria-label={`All ${g.label.toLowerCase()}`}
+                  onClick={() => onChange(toggleGroup(value, g.items))}
+                  data-testid={`equip-all-${g.id}`}
+                >
+                  <Check className={styles.groupAllCheck} width={14} height={14} strokeWidth={3} aria-hidden="true" />
+                  All
+                </button>
+              </div>
+              <ul className={styles.equipGrid}>
+                {g.items.flatMap((id) => [
+                  <li key={id} className={styles.tileCell}>
+                    <button type="button" className={`${styles.tile} pressable`} aria-pressed={on.has(id)} onClick={() => onChange(toggleItem(value, id))} data-testid={`equip-${id}`}>
+                      <span className={styles.tileArt}>
+                        <EquipmentArt id={id} className={styles.art} />
+                        <Check className={styles.tileCheck} width={10} height={10} strokeWidth={3.5} aria-hidden="true" data-check />
+                      </span>
+                      <span className={styles.tileName}>{EQUIPMENT_LABEL[id]}</span>
+                    </button>
+                    {EQUIPMENT_INFO[id] && <InfoButton id={EQUIPMENT_INFO[id]!} className={styles.tileInfo} />}
+                  </li>,
+                  ...(id === 'dumbbells' && askRange
+                    ? [
+                        <li key="dumbbell-range" className={styles.rangeCell}>
+                          <DumbbellRangeFields range={range} unit={unit} onRange={onRange} />
+                        </li>,
+                      ]
+                    : []),
+                ])}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
     </>
   );
 }
@@ -285,11 +359,11 @@ export function ExercisesStep({ value, onChange, exclude, testId }: { value: rea
 export function CardioStep({ cardio, favorites, onCardio, onFavorites }: { cardio: string | undefined; favorites: readonly string[] | undefined; onCardio: (id: string) => void; onFavorites: (v: string[]) => void }) {
   return (
     <>
-      <SingleChoice options={CARDIO} value={cardio} onPick={onCardio} pulse={null} testId="q-cardio" />
+      <SingleChoice options={CARDIO} value={cardio} onPick={onCardio} pulse={null} testId="q-cardio" fill={!cardio || cardio === 'none'} />
       {cardio && cardio !== 'none' && (
         <section className={styles.aboutGroup}>
           <span className={styles.fieldLabel}>Any you like? Optional.</span>
-          <MultiChoice options={CARDIO_FAVORITES} value={favorites} onChange={onFavorites} testId="q-cardioFavorites" />
+          <MultiChoice options={CARDIO_FAVORITES} value={favorites} onChange={onFavorites} testId="q-cardioFavorites" fill={false} />
         </section>
       )}
     </>

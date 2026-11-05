@@ -99,7 +99,12 @@ test('all 17 questions, the no plan notice and the reveal: title top left, round
     await expect(cta(page)).toBeEnabled();
     await cta(page).tap();
   };
-  await auto('goal', 'q-goal-muscle', false);
+  // PLAN 3.3a: the goal takes up to 2 picks, so it has Continue now (it was auto advance).
+  await chrome(page, 'goal', 'cta', { back: false });
+  seen.push('goal');
+  await disabledWithReason('goal');
+  await t('q-goal-muscle').tap();
+  await cta(page).tap();
   await chrome(page, 'units', 'cta', { back: true });
   seen.push('units');
   await expect(cta(page)).toBeEnabled();
@@ -152,17 +157,20 @@ test('all 17 questions, the no plan notice and the reveal: title top left, round
 
 test('double tap a choice card advances exactly one screen; back mid auto-advance cancels it', async ({ page }) => {
   await page.goto('./');
-  const card = page.getByTestId('q-goal-strength');
+  await atStep(page, 'goal');
+  // PLAN 3.3a: the goal is no longer a single choice (a double tap there is on, then off); Days is.
+  await draft(page, 'days', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, experience: '3y' });
+  await page.reload();
+  await atStep(page, 'days');
+  const card = page.getByTestId('q-days-4');
   await card.dblclick();
   await page.waitForTimeout(900);
-  await atStep(page, 'units');
-  await cta(page).tap();
-  await atStep(page, 'focus');
-  // Back straight after a tap on a single choice screen: lands on the previous screen, not skipped ahead.
+  await atStep(page, 'weekdays');
+  // Back straight after: lands on the previous screen, not skipped ahead.
   await page.locator('header').getByRole('button', { name: 'Back', exact: true }).tap();
-  await atStep(page, 'units');
+  await atStep(page, 'days');
   await page.waitForTimeout(600);
-  await atStep(page, 'units');
+  await atStep(page, 'days');
 });
 
 test('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved until moved, ends are clamped', async ({ page }) => {

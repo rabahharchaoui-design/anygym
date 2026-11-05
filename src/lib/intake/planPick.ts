@@ -6,7 +6,7 @@ import { EQUIPMENT_IDS, type EquipmentId } from '../../db/types';
 import type { Plan } from '../plans';
 import { estimateDayMinutes } from '../plans';
 import { placeFits, type Need, type Place } from '../places';
-import { presetEquipment, type IntakeAnswers } from './funnel';
+import { goalsOf, presetEquipment, type IntakeAnswers } from './funnel';
 import { EASY_ON, labelOf, WEEKDAYS, type GoalId, type PlaceAnswer } from './options';
 
 const CARDIO_GEAR: readonly EquipmentId[] = ['treadmill', 'bike', 'stair_climber', 'rower', 'jump_rope'];
@@ -58,11 +58,17 @@ export function fittingPlans(plans: readonly Plan[], needsOf: (p: Plan) => reado
 const MUSCLE_GOALS = new Set(['muscle', 'tone']);
 const SEASONED = new Set(['1_2y', '3y', 'break']);
 
+/** PLAN 3.3a: the Main goal leads the plan; the Also goal adds to it, at half the weight. */
+const MAIN_WEIGHT = 1;
+const ALSO_WEIGHT = 0.5;
+
 /** Higher is a better fit. Ties keep the shipped order. */
 export function fitScore(plan: Plan, a: IntakeAnswers): number {
   let s = 0;
   if (a.days !== undefined) s -= Math.abs(plan.daysPerWeek - a.days);
-  if (a.goal && plan.goal === 'muscle' && MUSCLE_GOALS.has(a.goal)) s += 1;
+  const [main, also] = goalsOf(a);
+  if (main && plan.goal === 'muscle' && MUSCLE_GOALS.has(main)) s += MAIN_WEIGHT;
+  else if (also && plan.goal === 'muscle' && MUSCLE_GOALS.has(also)) s += ALSO_WEIGHT;
   if (a.experience && plan.level === 'intermediate' && SEASONED.has(a.experience)) s += 1;
   return s;
 }
@@ -121,15 +127,19 @@ export type PlanExplain = {
  * picked (never the weekday count). The generator (PLAN 3.5) replaces this.
  */
 export function explainPick(plan: Plan, a: IntakeAnswers): PlanExplain {
-  const goalMatch = a.goal === 'muscle' && plan.goal === 'muscle';
+  const [main, also] = goalsOf(a);
+  // The Main goal earns "Your plan"; a matching Also goal is named, never the title or the check.
+  const goalMatch = main === 'muscle' && plan.goal === 'muscle';
+  const alsoMatch = !goalMatch && also === 'muscle' && plan.goal === 'muscle';
   const daysMatch = a.days === plan.daysPerWeek;
   const newLifter = a.experience === 'new' || a.experience === 'months';
 
   const gym = plan.gymType === 'full' ? (a.place === 'mix' ? 'your full gym days' : 'your full gym') : 'your equipment';
   const used = [gym];
-  if (goalMatch) used.push(`your ${GOAL_WORD[a.goal!]} goal`);
+  if (goalMatch) used.push(`your ${GOAL_WORD[main!]} goal`);
+  if (alsoMatch) used.push(`your second goal (${GOAL_WORD[also!]})`);
   if (daysMatch) used.push(`your ${plan.daysPerWeek} days`);
-  const builds = !goalMatch && plan.goal === 'muscle';
+  const builds = !goalMatch && !alsoMatch && plan.goal === 'muscle';
   const facts = [
     builds && !daysMatch ? `It builds muscle, ${plan.daysPerWeek} days a week.` : builds ? 'It builds muscle.' : !daysMatch ? `It runs ${plan.daysPerWeek} days a week.` : null,
     newLifter && plan.level === 'intermediate' ? 'It expects some experience, so start light.' : null,
@@ -152,7 +162,8 @@ export function explainPick(plan: Plan, a: IntakeAnswers): PlanExplain {
           : null;
 
   const left: string[] = [];
-  if (a.goal && !goalMatch) left.push(`${GOAL_WORD[a.goal]} goal`);
+  if (main && !goalMatch) left.push(`${GOAL_WORD[main]} goal`);
+  if (also && !alsoMatch) left.push(`${GOAL_WORD[also]} goal`);
   const easy = (a.easyOn ?? []).filter((e) => e !== 'none');
   if (easy.length === 1) left.push((labelOf(EASY_ON, easy[0]) ?? easy[0]!).toLowerCase());
   else if (easy.length > 1) left.push('easy-on areas');
