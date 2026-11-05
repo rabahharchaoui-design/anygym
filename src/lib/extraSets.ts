@@ -111,17 +111,63 @@ function changeExtraSets(sessionId: string, exerciseId: string, by: 1 | -1, kv: 
   const n = Math.max(-MAX_EXTRA_SETS, Math.min(MAX_EXTRA_SETS, extraSets(sessionId, exerciseId, kv) + by));
   if (n === 0) delete extra[exerciseId];
   else extra[exerciseId] = n;
-  store({ sessionId, extra, ...(s?.sessionId === sessionId && s.dropped ? { dropped: s.dropped } : {}) }, kv);
+  store({ sessionId, extra, ...(s?.sessionId === sessionId && s.dropped ? { dropped: s.dropped } : {}) }, kv, sessionId, (cur) => {
+    const v = Math.max(-MAX_EXTRA_SETS, Math.min(MAX_EXTRA_SETS, (cur.extra[exerciseId] ?? 0) + by));
+    if (v === 0) delete cur.extra[exerciseId];
+    else cur.extra[exerciseId] = v;
+  });
   return n;
 }
 
-function store(next: Stored, kv: KV | null): void {
+/**
+ * Durable changes made when localStorage cannot take a write (PLAN 3.2c): each is a DELTA (one more
+ * row, one fewer, one removal marker) applied inside an IndexedDB transaction to the latest committed
+ * value, never this tab's whole cached copy, so another tab's added rows or removal markers are never
+ * erased by a stale tab. Run one after another; once none is waiting, memory takes the committed value.
+ */
+type Delta = (cur: Stored) => void;
+let deltaChain: Promise<void> = Promise.resolve();
+let deltaWaiting = 0;
+/** Bumped by every absolute write (clear, hydrate, restore): a delta's result never overwrites those. */
+let epoch = 0;
+
+function persistDelta(sessionId: string, apply: Delta): void {
+  const mine = epoch;
+  deltaWaiting++;
+  deltaChain = deltaChain.then(async () => {
+    try {
+      const committed = await db.transaction('rw', db.kv, async () => {
+        const cur = parse((await db.kv.get(KEY))?.value ?? null);
+        const next: Stored = cur && cur.sessionId === sessionId ? { ...cur, extra: { ...cur.extra }, ...(cur.dropped ? { dropped: { ...cur.dropped } } : {}) } : { sessionId, extra: {} };
+        apply(next);
+        if (next.dropped && Object.keys(next.dropped).length === 0) delete next.dropped;
+        await db.kv.put(durableRow(KEY, JSON.stringify(next)));
+        return next;
+      });
+      deltaWaiting--;
+      if (deltaWaiting === 0 && epoch === mine) {
+        memory = committed;
+        cleared = false;
+      }
+    } catch {
+      deltaWaiting--; // memory keeps it for this run
+    }
+  });
+}
+
+/** Tests only: resolves when every durable change is committed. */
+export function settleExtraSets(): Promise<void> {
+  return deltaChain;
+}
+
+function store(next: Stored, kv: KV | null, sessionId?: string, delta?: Delta): void {
   if (next.dropped && Object.keys(next.dropped).length === 0) delete next.dropped;
   memory = next;
   cleared = false;
   const value = JSON.stringify(memory);
   if (!kv) {
-    storeWithoutLocalStorage(value);
+    if (sessionId && delta) persistDelta(sessionId, delta);
+    else storeWithoutLocalStorage(value);
     return;
   }
   try {
@@ -129,8 +175,9 @@ function store(next: Stored, kv: KV | null): void {
     seen = value;
     void mirror(kv, KEY);
   } catch {
-    // Memory keeps it for this run; IndexedDB keeps it for the next one.
-    void mirrorValue(kv, KEY, value);
+    // Memory keeps it for this run; IndexedDB keeps it for the next one (as a delta, PLAN 3.2c).
+    if (sessionId && delta && kv === storage()) persistDelta(sessionId, delta);
+    else void mirrorValue(kv, KEY, value);
   }
 }
 
@@ -146,7 +193,11 @@ export function markDeleted(sessionId: string, setId: string, exerciseId: string
   if (exerciseId === null && !(setId in dropped)) return;
   if (exerciseId === null) delete dropped[setId];
   else dropped[setId] = exerciseId;
-  store({ sessionId, extra: same ? { ...s.extra } : {}, dropped }, kv);
+  store({ sessionId, extra: same ? { ...s.extra } : {}, dropped }, kv, sessionId, (cur) => {
+    cur.dropped = { ...cur.dropped };
+    if (exerciseId === null) delete cur.dropped[setId];
+    else cur.dropped[setId] = exerciseId;
+  });
 }
 
 /**
@@ -179,6 +230,7 @@ export function liveRowAdjustments(sessionId: string, present: ReadonlySet<strin
 }
 
 export function clearExtraSets(kv: KV | null = storage()): void {
+  epoch++;
   memory = null;
   cleared = true;
   if (!kv) {
@@ -201,6 +253,7 @@ export function clearExtraSets(kv: KV | null = storage()): void {
  * A null value is a stored removal.
  */
 export function hydrateExtraSets(value: string | null): void {
+  epoch++;
   memory = null;
   if (value === null) {
     cleared = true;
@@ -240,6 +293,7 @@ export function restoreExtraSets(value: string, kv: KV | null = storage()): void
 
 /** Tests only. */
 export function resetExtraSetsMemory(): void {
+  epoch++;
   memory = null;
   cleared = false;
   seen = undefined;

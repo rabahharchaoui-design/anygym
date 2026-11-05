@@ -106,7 +106,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   // sets shown (PLAN 1.7h).
   const allSets = useLive(
     () =>
-      db.transaction('r', db.sets, db.submissions, db.journal, async () => ({
+      db.transaction('r', db.sets, db.submissions, db.journal, db.tombstones, async () => ({
         sets: await setsOf(sessionId),
         committed: await committedOf(sessionId),
         journal: await journalOf(sessionId),

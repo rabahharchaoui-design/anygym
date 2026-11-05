@@ -5,7 +5,7 @@ import { adjustEntries, dayProgress, dayWorkout, doneCounts, type DayProgress } 
 import { rowAdjustments } from '../lib/extraSets';
 import { adaptDay, slotProgress } from '../lib/swap';
 import { SWAP_DATA } from '../data/patterns';
-import { payloadFp } from '../lib/submission';
+import { payloadFp, UNKNOWN_FP } from '../lib/submission';
 import { UNDO_MS } from '../lib/undoQueue';
 import { newId } from './ids';
 import { applyFinishProgress, weekFor } from './planState';
@@ -157,7 +157,7 @@ export class LogConflictError extends Error {
 export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<WorkoutSet> {
   if (!validSet(input)) throw new Error('Invalid set');
   const fp = payloadFp(input);
-  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.submissions, db.journal], async () => {
+  return db.transaction('rw', [db.sessions, db.sets, db.orderCounters, db.submissions, db.journal, db.tombstones], async () => {
     const existing = await db.sets.get(input.id);
     const receipt = await db.submissions.get(input.id);
     // Already logged under this id with other values (PLAN 2.0l): never acknowledged as this input.
@@ -174,7 +174,17 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
       await db.journal.delete(input.id);
       return existing;
     }
-    if (receipt) throw new AlreadyLoggedError();
+    if (receipt) {
+      // Logged before and deleted since. A legacy receipt (no fingerprint) says nothing about the
+      // values (PLAN 3.2c): the deleted set's tombstone does when it is still stored; without it the
+      // input is never taken as saved (a revision match is not evidence), it is kept as the next row.
+      if (receipt.fp === undefined) {
+        const gone = (await db.tombstones.get(input.id))?.set;
+        const saved = gone?.load ? payloadFp({ ...(gone.reps !== undefined ? { reps: gone.reps } : {}), ...(gone.seconds !== undefined ? { seconds: gone.seconds } : {}), load: gone.load, kind: gone.kind, failure: !!gone.failure }) : UNKNOWN_FP;
+        if (saved !== fp) throw new LogConflictError(receipt.rev, saved);
+      }
+      throw new AlreadyLoggedError();
+    }
     const session = await db.sessions.get(input.sessionId);
     if (!session || session.endedAt !== undefined) throw new Error('Workout not active');
     const last = await db.sets.where('[sessionId+order]').between([input.sessionId, -Infinity], [input.sessionId, Infinity]).last();

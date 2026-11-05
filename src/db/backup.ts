@@ -8,6 +8,7 @@ import { REST_KEY, loadRest, saveRest } from '../lib/rest';
 import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob } from '../lib/drafts';
 import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
+import { newId } from './ids';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, intentMatches, readUndoIntentList } from './undoIntents';
 import { LOG_CANCEL_PREFIX, MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, MUTATION_SUP_PREFIX } from './workouts';
@@ -36,14 +37,31 @@ export async function readTables(db: AnyGymDB = defaultDb): Promise<BackupTables
  * corrections: what a correction captured earlier is judged against, so a newer save that landed
  * between the two reads can never leave the older one in the file.
  */
-async function readSnapshot(db: AnyGymDB): Promise<{ tables: BackupTables; superseded: Set<string> }> {
+async function readSnapshot(db: AnyGymDB): Promise<{ tables: BackupTables; superseded: Set<string>; cancelled: Set<string> }> {
   return db.transaction('r', [...tablesOf(db), db.kv], async () => {
     const out = {} as Record<TableName, unknown[]>;
     for (const t of TABLE_NAMES) out[t] = await db.table(t).toArray();
     const superseded = new Set<string>();
     for (const k of await db.kv.where('key').startsWith(MUTATION_SUP_PREFIX).primaryKeys()) superseded.add(String(k).slice(String(k).indexOf(':', MUTATION_SUP_PREFIX.length) + 1));
-    return { tables: out as BackupTables, superseded };
+    // The failed Logs the user gave up (PLAN 3.2c), in the same snapshot: `<sessionId>:<draft id>`.
+    const cancelled = new Set((await db.kv.where('key').startsWith(LOG_CANCEL_PREFIX).primaryKeys()).map((k) => String(k).slice(LOG_CANCEL_PREFIX.length)));
+    return { tables: out as BackupTables, superseded, cancelled };
   });
+}
+
+function withoutCancelled(blob: DraftsBlob, cancelled: ReadonlySet<string>): DraftsBlob {
+  if (!cancelled.size) return blob;
+  const out: DraftsBlob = {};
+  for (const [sid, per] of Object.entries(blob)) {
+    out[sid] = Object.fromEntries(
+      Object.entries(per).map(([k, d]) => {
+        if (d.submitted === undefined || !cancelled.has(`${sid}:${d.id}`)) return [k, d];
+        const { submitted: _gone, op: _op, ...rest } = d;
+        return [k, { ...rest, id: newId() }];
+      }),
+    );
+  }
+  return out;
 }
 
 /** The whole backup (SPEC 9.1). */
@@ -52,11 +70,15 @@ export async function exportBackup(db: AnyGymDB = defaultDb, now = Date.now(), d
   // rest, added rows) is taken BEFORE the tables. A Log that commits in between and clears its row
   // is then in the tables (its row may be in the drafts too, reconciled against its receipt after a
   // restore), never in neither. Tables first would lose a lift committed between the two reads.
-  const liveDrafts = exportDrafts(drafts);
+  const captured = exportDrafts(drafts);
   const before = await db.sessions.filter(isActiveSession).first();
   const held = before ? await heldMutations(before.id, db, drafts) : [];
   const live = liveOf(before, drafts);
-  const { tables, superseded } = await readSnapshot(db);
+  const { tables, superseded, cancelled } = await readSnapshot(db);
+  // A failed Log discarded while this export ran (PLAN 3.2c) is judged against the snapshot's
+  // cancellation receipts: its marked copy is never exported (a restore would offer it for Retry).
+  // The values stay, as an ordinary row under a fresh identity, like failedRows heals it.
+  const liveDrafts = withoutCancelled(captured, cancelled);
   // An Undo asked for whose acceptance only reached its durable intent (PLAN 1.7k) travels as an
   // accepted Undo: restored elsewhere, it is put back and never expires as a plain delete.
   const marked: BackupTables = { ...tables, tombstones: [] };
