@@ -357,7 +357,7 @@ test('finish with exercises left: Move on to Day 2, Day 1 keeps a partial pip, n
   expect(errors).toEqual([]);
 });
 
-test('Settings: Units switch the gym between lb and kg; the gym name is a plain label on Today', async ({ page }) => {
+test('Settings: Units switch the gym between lb and kg; the gym name on Today is the gym pill', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./#/settings');
   const lb = page.getByRole('radio', { name: 'lb' });
@@ -370,11 +370,12 @@ test('Settings: Units switch the gym between lb and kg; the gym name is a plain 
   await lb.tap();
   await expect.poll(async () => (await dbAll<{ unit: string }>(page, 'gyms'))[0]!.unit).toBe('lb');
   await page.goto('./');
-  const pill = page.getByText('My Gym', { exact: true });
+  // SPEC 19 (PLAN 3.9): the gym name on Today is the gym pill, a button that opens the switch sheet.
+  const pill = page.getByRole('button', { name: /My Gym/ });
   await expect(pill).toBeVisible();
-  const look = await pill.evaluate((el) => { const p = el.parentElement!; const s = getComputedStyle(p); return { bg: s.backgroundColor, tag: p.tagName }; });
-  expect(look.tag).not.toBe('BUTTON');
-  expect(look.bg).toBe('rgba(0, 0, 0, 0)');
+  await pill.tap();
+  await expect(page.getByRole('dialog', { name: /Where are you training/ })).toBeVisible();
+  await page.keyboard.press('Escape');
   expect(errors).toEqual([]);
 });
 
