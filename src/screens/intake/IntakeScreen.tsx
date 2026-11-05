@@ -63,6 +63,8 @@ import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep
 import { PlanSoFar, STRIP_SCREENS, useStripFit } from './PlanSoFar';
 import { EquipmentArt } from './EquipmentArt';
 import { Reveal } from './Reveal';
+import { generate } from '../../data/generator';
+import { generatorInputOf } from '../../lib/intake/yourPlan';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
 
@@ -87,7 +89,8 @@ const COPY: Record<ScreenId, Copy> = {
   goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
   units: { title: 'Your units', why: "Set from your phone's region." },
   // PLAN 3.3a round 2 (B6): not used yet = optional, what it is for, and a small "Coming soon".
-  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets here.', soon: true },
+  // PLAN 3.5: a plan built from the answers uses focus, style, cardio, go easy on and the exercise lists.
+  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets here.' },
   win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.', soon: true },
   experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
   days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
@@ -95,10 +98,10 @@ const COPY: Record<ScreenId, Copy> = {
   minutes: { title: 'How long per workout?', why: 'Checked against how long each plan takes.' },
   place: { title: 'Where do you usually train?', why: 'Sets up your gym and what it has.' },
   equipment: { title: 'What does your gym have?', why: 'Plans use what is on, or swap. Tap ⓘ if unsure.' },
-  style: { title: 'How do you like to train?', why: 'Optional. Steers the exercises you get.', soon: true },
-  cardio: { title: 'How do you feel about cardio?', why: 'Optional. Suggests cardio you like.', soon: true },
-  easyOn: { title: 'Anything to go easy on?', why: 'Optional. Swaps lifts that strain these.', soon: true },
-  exercises: { title: 'Any favorites, or ones to avoid?', why: 'Optional. Plans will add or leave these out.', soon: true },
+  style: { title: 'How do you like to train?', why: 'Optional. Steers the exercises you get.' },
+  cardio: { title: 'How do you feel about cardio?', why: 'Optional. Suggests cardio you like.' },
+  easyOn: { title: 'Anything to go easy on?', why: 'Optional. Swaps lifts that strain these.' },
+  exercises: { title: 'Any favorites, or ones to avoid?', why: 'Optional. Plans will add or leave these out.' },
   when: { title: 'When do you usually work out?', why: 'Optional. Times your reminders.', soon: true },
   bodyweight: { title: 'What do you weigh?', why: 'Optional. Suggests starting weights.', soon: true },
   about: { title: 'About you', why: 'All optional. Only what you add is kept.' },
@@ -228,7 +231,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const next = () => {
     const a = ref.current.answers;
     // Right after the equipment: when no plan can fit, say so now, not 9 questions later.
-    const noFit = ref.current.step === 'equipment' && pickPlan(PLANS, SWAP_DATA, a).kind === 'none';
+    // PLAN 3.5: and only when the generator cannot build a week with this gear either.
+    const noFit = ref.current.step === 'equipment' && pickPlan(PLANS, SWAP_DATA, a).kind === 'none' && !generate(generatorInputOf(a)).ok;
     apply({ type: 'next', noFit }, 'push');
   };
   const skip = () => {
@@ -381,7 +385,7 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
         )}
         {step === 'easyOn' && (
           <p className={styles.safety} data-testid="easy-note">
-            Today&apos;s plan does not avoid these yet. If something hurts, stop and check with a professional.
+            A plan built from your answers leaves out lifts that load these. If something hurts, stop and check with a professional.
           </p>
         )}
       </>

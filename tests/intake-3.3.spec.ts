@@ -249,10 +249,8 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await expect(page.getByRole('dialog', { name: 'Cable station' })).toHaveCount(0);
   await t.tap(page.getByTestId('equip-kettlebells'));
   await t.next();
-  // No plan can fit a hotel gym today: said right here; Keep going goes on.
-  await atStep(page, 'noPlan');
-  await expect(page.getByRole('heading', { name: 'No hotel plan yet' })).toBeVisible();
-  await t.tap(page.getByTestId('noplan-continue'));
+  // PLAN 3.5: a hotel gym gets a plan now (curated or built from the answers): no notice.
+  await atStep(page, 'style');
   await t.pick('style', 'free');
   await t.pick('cardio', 'none');
   // Cardio None: nothing more to ask here.
@@ -289,12 +287,11 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await expect(page.getByTestId('wheel-cm')).toHaveAttribute('aria-valuetext', '178 cm');
   await t.next();
   await atStep(page, 'reveal');
-  // No plan for hotel gyms exists yet: honest, no check, and the gym is said to be saved.
-  await expect(page.getByRole('heading', { name: 'No hotel plan yet' })).toBeVisible();
-  await expect(page.getByTestId('reveal-reason')).toHaveText('Your gym and equipment are saved.');
-  await expect(page.getByTestId('reveal-check')).toHaveCount(0);
-  await expect(page.getByTestId('reveal-week')).toHaveCount(0);
-  await shot(page, 'reveal-none');
+  // PLAN 3.5: the hotel plan is for muscle, not tone up: Your plan is built from the answers instead.
+  await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
+  await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built to tone up: 3 days, about \d+ min, hotel friendly, extra glute and leg work, easy on wrists(, with an exercise you love)?\.$/);
+  await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(3);
+  await shot(page, 'reveal-generated');
 
   const [profile] = await dbAll(page, 'profile');
   expect(profile).toMatchObject({
@@ -333,7 +330,8 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   const [gym] = await dbAll(page, 'gyms');
   expect(gym).toMatchObject({ unit: 'kg', type: 'hotel', name: 'Hotel gym', dumbbellRange: { min: 2, max: 24, step: 2 } });
 
-  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Start a quick workout' }).tap();
+  // PLAN 3.5: Your plan leads (a quick workout is offered only to brand new lifters).
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' }).tap();
   await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
   // Settings shows the female body and the units.
   await page.goto('./#/settings');
@@ -589,8 +587,7 @@ test('home with Dumbbells asks for the range: Continue waits, only what was type
   await page.getByTestId('range-max').fill('40');
   await page.getByTestId('range-step').fill('10');
   await cta(page).tap();
-  await atStep(page, 'noPlan');
-  await page.getByTestId('noplan-continue').tap();
+  // PLAN 3.5: home gets a plan now: no notice.
   await atStep(page, 'style');
   await page.evaluate(() => {
     const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!);
@@ -623,11 +620,12 @@ test('B3: 4 days then 3 weekdays: the weekdays screen says so, the reveal repeat
   });
   await page.reload();
   await atStep(page, 'reveal');
+  // PLAN 3.5: no curated 4 day plan, so Your plan is built with the 4 days asked for; 3 weekdays lay out Day 1 to 4.
   const rows = page.getByTestId('reveal-week').getByRole('listitem');
-  await expect(rows).toHaveCount(5);
-  await expect(rows.nth(4)).toContainText('Day 5');
-  await expect(rows.nth(4)).toContainText('Shoulders and calves');
-  await expect(page.getByTestId('reveal-warning')).toHaveText('5 days a week. You asked for 4 days.');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(3)).toContainText('Day 4');
+  await expect(rows.nth(3)).toContainText('Lower B');
+  await expect(page.getByTestId('reveal-reason')).toContainText('4 days');
 });
 
 test('a redo left alone never touches the gym Settings changed; skipping Name deletes it', async ({ page }) => {
@@ -754,37 +752,29 @@ test('130% text on the SE: the button keeps its size and place when the reason g
 
 // ---------------------------------------------------------------- round 3 (ux-critic)
 
-test('B1 B2: a race goal is the closest plan: no check, at most two lines of warning, length matches the workout @matrix', async ({ page }) => {
+test('B1 B2 (PLAN 3.5): a race goal gets Your plan built from the answers: the check, at most two lines, length matches the workout @matrix', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'race', days: 3, minutes: 45, place: 'full', easyOn: ['knees'], experience: '3y', units: US });
-  // PLAN 3.3a round 2 (B2): 3 days and 45 min are both far off a 5 day ~81 min plan: said plainly.
-  await expect(page.getByRole('heading', { name: 'No 3 day, 45 min plan yet' })).toBeVisible();
-  await expect(page.getByTestId('reveal-check')).toHaveCount(0);
-  await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Start a quick workout');
-  await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym. It builds muscle, 5 days a week.');
-  // Round 3: the fit details sit behind "Why this plan"; opened, they keep their two line rule.
-  await page.getByTestId('reveal-why').locator('summary').tap();
-  const warning = page.getByTestId('reveal-warning');
-  await expect(warning).toBeVisible();
-  await expect(warning).toHaveText(/^About \d+ min, 5 days\. You asked for 45 min, 3 days\. Race goal and knees aren't built in yet\.$/);
-  await expect(page.getByTestId('reveal-card')).not.toContainText('built to add muscle');
-  // Two lines from 375 wide up; narrower phones have the same words on three (never cut, never more).
-  const lines = await warning.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+  // No curated plan is a race plan for 3 days and 45 min: the generator builds one, and says only what it did.
+  await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
+  await expect(page.getByTestId('reveal-check')).toBeVisible();
+  await expect(revealPrimary(page)).toHaveText('Start Day 1');
+  await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built around your race training: 3 days, about \d+ min, full gym, easy on knees\.$/);
+  await expect(page.getByTestId('reveal-card')).not.toContainText("aren't built in yet");
+  const reason = page.getByTestId('reveal-reason');
+  const lines = await reason.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
   expect(lines).toBeLessThanOrEqual(page.viewportSize()!.width < 375 ? 3 : 2);
-  await shot(page, 'reveal-closest');
-  // Every day row can be reached, on one line each where it fits, and the alternatives too.
+  await shot(page, 'reveal-generated-race');
   const rows = page.getByTestId('reveal-week').getByRole('listitem');
-  await rows.nth(4).scrollIntoViewIfNeeded();
-  await expect(rows.nth(4)).toBeInViewport({ ratio: 1 });
+  await expect(rows).toHaveCount(3);
   if (page.viewportSize()!.width >= 375) {
     const heights = await rows.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
     expect(new Set(heights).size).toBe(1);
   }
-  await page.getByTestId('reveal-plan-six-week-volume').scrollIntoViewIfNeeded();
-  await expect(page.getByTestId('reveal-plan-six-week-volume')).toBeInViewport({ ratio: 1 });
+  // The curated plans that fit stay one tap away.
+  await page.getByTestId('reveal-plan-five-day-split').scrollIntoViewIfNeeded();
+  await expect(page.getByTestId('reveal-plan-five-day-split')).toBeInViewport({ ratio: 1 });
   const minutes = /~(\d+) min/.exec((await rows.first().textContent())!)![1]!;
-  // Round 2 (B2): the quick workout leads; the plan stays one tap away as the option.
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start Day 1');
-  await page.getByTestId('reveal-secondary').tap();
+  await revealPrimary(page).tap();
   await expect(page).toHaveURL(/#\/workout\//);
   await expect(page.getByText(new RegExp(`~${minutes} min`)).first()).toBeVisible();
 });
@@ -861,19 +851,19 @@ test('P7: the notice says finishing the profile changes nothing today', async ({
   await expect(page.getByText("It won't change what you can do today.")).toBeVisible();
 });
 
-test('B3: no plan is said right after the equipment; Start a quick workout from there saves the gym @matrix', async ({ page }) => {
+test('B3 (PLAN 3.5): a hotel with only dumbbells and a treadmill gets a plan, so no notice; the gym is saved when Day 1 starts @matrix', async ({ page }) => {
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'hotel', equipmentFor: 'hotel', equipment: ['dumbbells', 'treadmill'] });
   await cta(page).tap();
-  await atStep(page, 'noPlan');
-  await expect(page.getByRole('heading', { name: 'No hotel plan yet' })).toBeVisible();
-  await checkLayout(page, { primary: page.getByTestId('noplan-cta').getByRole('button', { name: 'Start a quick workout' }) });
-  await shot(page, 'noplan');
-  // Back returns to the equipment; forward says it again.
-  await backButton(page).tap();
-  await atStep(page, 'equipment');
-  await cta(page).tap();
-  await atStep(page, 'noPlan');
-  await page.getByTestId('noplan-cta').getByRole('button', { name: 'Start a quick workout' }).tap();
+  await atStep(page, 'style');
+  await page.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!);
+    d.step = 'reveal';
+    localStorage.setItem('anygym.intakeDraft', JSON.stringify(d));
+  });
+  await page.reload();
+  await atStep(page, 'reveal');
+  await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
+  await revealPrimary(page).tap();
   await expect(page).toHaveURL(/#\/workout\//);
   expect(await dbAll(page, 'gyms')).toMatchObject([{ type: 'hotel', equipment: ['dumbbells', 'treadmill'] }]);
   expect(await page.evaluate(() => localStorage.getItem('anygym.intakeDraft'))).toBeNull();

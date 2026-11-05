@@ -1,0 +1,255 @@
+{
+ "id": "hotel-gym-3-day",
+ "name": "Hotel Gym 3 Day",
+ "summary": "Full body three days a week with dumbbells up to 50 lb, a bench and one cable. Built for travel.",
+ "gymType": "hotel",
+ "goal": "muscle",
+ "level": "intermediate",
+ "daysPerWeek": 3,
+ "source": "Generated from movement patterns",
+ "generator": 1,
+ "progressionMode": "double",
+ "days": [
+  {
+   "n": 1,
+   "name": "Full body A",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Dumbbell Squat",
+     "id": "Dumbbell_Squat",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 150
+    },
+    {
+     "type": "single",
+     "exercise": "Stiff-Legged Dumbbell Deadlift",
+     "id": "Stiff-Legged_Dumbbell_Deadlift",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 150
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Bench Press",
+     "id": "dumbbell-bench-press",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Seated Close Grip Row",
+     "id": "cable-seated-close-grip-row",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "superset",
+     "sets": 2,
+     "restSec": 60,
+     "items": [
+      {
+       "exercise": "Dumbbell Bicep Curl",
+       "id": "Dumbbell_Bicep_Curl",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Go close to failure, 0 to 1 reps left"
+      },
+      {
+       "exercise": "Dumbbell Lateral Raise",
+       "id": "dumbbell-lateral-raise",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Go close to failure, 0 to 1 reps left"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Full body B",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Stiff-Legged Dumbbell Deadlift",
+     "id": "Stiff-Legged_Dumbbell_Deadlift",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 150
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Shoulder Press",
+     "id": "Dumbbell_Shoulder_Press",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Seated Close Grip Row",
+     "id": "cable-seated-close-grip-row",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Lunges",
+     "id": "Dumbbell_Lunges",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "superset",
+     "sets": 2,
+     "restSec": 60,
+     "items": [
+      {
+       "exercise": "Cable Tricep Pushdown",
+       "id": "cable-tricep-pushdown",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Go close to failure, 0 to 1 reps left"
+      },
+      {
+       "exercise": "Reverse Flyes",
+       "id": "Reverse_Flyes",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Go close to failure, 0 to 1 reps left"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "name": "Full body C",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Single Arm Dumbbell Row",
+     "id": "single-arm-dumbbell-row",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Pushups",
+     "id": "Pushups",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Dumbbell Lunges",
+     "id": "Dumbbell_Lunges",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "One-Legged Cable Kickback",
+     "id": "One-Legged_Cable_Kickback",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 1 to 2 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "superset",
+     "sets": 3,
+     "restSec": 60,
+     "items": [
+      {
+       "exercise": "Hammer Curls",
+       "id": "Hammer_Curls",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Go close to failure, 0 to 1 reps left"
+      },
+      {
+       "exercise": "Dumbbell Flyes",
+       "id": "Dumbbell_Flyes",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Go close to failure, 0 to 1 reps left"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

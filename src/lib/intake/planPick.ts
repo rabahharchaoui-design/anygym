@@ -1,13 +1,16 @@
-// The plan reveal's pick (SPEC 14 step 14, PLAN 3.3). The generator is PLAN 3.5, so the reveal
-// picks the best plan that exists today, honestly: a curated plan only when it can run at the
-// user's gym the way the day list runs it, swaps included (PLAN 3.3a B1, planFit.ts), and one plain
-// line on why. No fitting plan: it says so and offers a quick workout, never a made up plan.
+// The plan reveal's pick (SPEC 14 step 14, PLAN 3.3, 3.5): the best curated plan, honestly: only
+// when it can run at the user's gym the way the day list runs it, swaps included (PLAN 3.3a B1,
+// planFit.ts), and one plain line on why. When none is a true match the reveal offers "Your plan"
+// from the generator (PLAN 3.5, explainPick with its Applied, yourPlan.ts); when that cannot build a
+// week either it says so and offers a quick workout, never a made up plan.
 import type { Plan } from '../plans';
 import { estimateDayMinutes } from '../plans';
 import type { SwapData } from '../swap';
-import { goalsOf, type IntakeAnswers } from './funnel';
+import { GYM_TYPE_OF, goalsOf, type IntakeAnswers } from './funnel';
 import { EASY_ON, labelOf, WEEKDAYS, type GoalId, type PlaceAnswer } from './options';
 import { planFit, swappedLine, type PlanFit } from './planFit';
+import { yourPlanWords } from './yourPlan';
+import type { Applied } from '../generator';
 
 export { equipmentOf } from './planFit';
 
@@ -35,6 +38,9 @@ export function fitScore(plan: Plan, a: IntakeAnswers): number {
   if (main && plan.goal === 'muscle' && MUSCLE_GOALS.has(main)) s += MAIN_WEIGHT;
   else if (also && plan.goal === 'muscle' && MUSCLE_GOALS.has(also)) s += ALSO_WEIGHT;
   if (a.experience && plan.level === 'intermediate' && SEASONED.has(a.experience)) s += 1;
+  // PLAN 3.5: a beginner plan for a newer lifter, and the plan made for the place they named.
+  if (a.experience && plan.level === 'beginner' && !SEASONED.has(a.experience)) s += 1;
+  if (a.place && plan.gymType === GYM_TYPE_OF[a.place]) s += 0.5;
   return s;
 }
 
@@ -100,13 +106,21 @@ export type PlanExplain = {
  * not built in yet, never implied. The numbers repeated are the days per week answer and the time
  * picked (never the weekday count). `swapped` and `skipped`: plan moves that take a swap or that
  * nothing at this gym stands in for (planFit).
- * The generator (PLAN 3.5) replaces this.
+ * With `generated` (PLAN 3.5): the words for a plan built from these answers, from what it did.
  */
-export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped = 0): PlanExplain {
+export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped = 0, generated?: Applied): PlanExplain {
+  // PLAN 3.5: a plan built from these answers says what the generator did, and only that.
+  if (generated) {
+    const w = yourPlanWords(generated, a, plan.daysPerWeek);
+    const timed = a.minutes !== undefined && a.minutes < 75;
+    const quick = a.experience === 'new' || (timed && generated.over && a.minutes! <= 30) ? 'secondary' : null;
+    return { title: 'Your plan', check: true, mismatch: false, reason: w.reason, goals: w.goals, summary: null, warning: w.warning, quick, minutes: w.minutes };
+  }
   const [main, also] = goalsOf(a);
   // The Main goal earns "Your plan"; a matching Also goal is named, never the title or the check.
-  const goalMatch = main === 'muscle' && plan.goal === 'muscle';
-  const alsoMatch = !goalMatch && also === 'muscle' && plan.goal === 'muscle';
+  // PLAN 3.5: any goal the plan itself is for (a stay fit plan for a stay healthy goal), as before for muscle.
+  const goalMatch = main !== undefined && main === plan.goal;
+  const alsoMatch = !goalMatch && also !== undefined && also === plan.goal;
   const daysMatch = a.days === plan.daysPerWeek;
   const newLifter = a.experience === 'new' || a.experience === 'months';
 
@@ -138,7 +152,7 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
   const reason = [`Picked for ${list(used)}.`, ...facts].join(' ');
 
   // Two goals: both named, each said plainly as used or coming soon (never only the Main).
-  const goalOk = (g: GoalId) => g === 'muscle' && plan.goal === 'muscle';
+  const goalOk = (g: GoalId) => g === plan.goal;
   const said = (g: GoalId) => `${GOAL_WORD[g]}${goalOk(g) ? '' : ' (soon)'}`;
   const goals = main && also ? `Main ${said(main)} · Also ${said(also)}` : null;
 

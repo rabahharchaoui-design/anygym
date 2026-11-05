@@ -167,9 +167,13 @@ describe('B1: a plan fits through swaps, the way the day list runs it', () => {
     expect(explainPick(plan, full(EQUIPMENT_IDS), f.swapped, f.noFit.length).reason).toMatch(/skipped/);
   });
 
-  it('a gym with nothing that can stand in is still an honest no plan', () => {
-    expect(pickPlan(PLANS, SWAP_DATA, { place: 'full', equipmentFor: 'full', equipment: [] }).kind).toBe('none');
-    expect(pickPlan(PLANS, SWAP_DATA, { place: 'outdoors', equipment: presetEquipment('outdoors') }).kind).toBe('none');
+  it('a gym with nothing gets only the plan that needs nothing (PLAN 3.5), never a gym plan', () => {
+    const gyms: IntakeAnswers[] = [{ place: 'full', equipmentFor: 'full', equipment: [] }, { place: 'outdoors', equipment: presetEquipment('outdoors') }];
+    for (const a of gyms) {
+      const p = pickPlan(PLANS, SWAP_DATA, a);
+      expect(p.kind).toBe('plan');
+      if (p.kind === 'plan') expect([p.plan.id, ...p.others.map((o) => o.id)]).toEqual(['no-equipment-3-day']);
+    }
     // Gear the data is not sure of fits only a gym the user called full: never a guess at home.
     const plan = PLANS[0]!;
     expect(planFit(SWAP_DATA, plan, { place: 'home', equipment: [...EQUIPMENT_IDS].filter((e) => e !== 'rower') }).fits).toBe(false);

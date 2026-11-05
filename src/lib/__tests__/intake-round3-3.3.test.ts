@@ -68,8 +68,9 @@ describe('B3: no plan', () => {
     expect(w.title).toBe(title);
     expect(w.saved).toBe('Your gym and equipment are saved.');
   });
-  it('pickPlan says none for less than a full gym', () => {
-    expect(pickPlan(PLANS, SWAP_DATA, { place: 'hotel', equipment: ['dumbbells'] }).kind).toBe('none');
+  it('pickPlan says none when no plan fits (PLAN 3.5: the no equipment plan fits anywhere, so only without it)', () => {
+    const others = PLANS.filter((p) => p.id === 'five-day-split' || p.id === 'six-week-volume');
+    expect(pickPlan(others, SWAP_DATA, { place: 'hotel', equipment: ['dumbbells'] }).kind).toBe('none');
   });
   it('Continue from the equipment goes to the notice only when told no plan fits; Keep going moves on; back returns', () => {
     const at = { step: 'equipment' as const, answers: { place: 'hotel' as const, equipment: ['dumbbells' as const] } };

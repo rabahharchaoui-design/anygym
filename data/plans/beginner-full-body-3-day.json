@@ -1,0 +1,255 @@
+{
+ "id": "beginner-full-body-3-day",
+ "name": "Beginner Full Body 3 Day",
+ "summary": "Full body three days a week for a full gym, machines first. Start light and learn the moves.",
+ "gymType": "full",
+ "goal": "muscle",
+ "level": "beginner",
+ "daysPerWeek": 3,
+ "source": "Generated from movement patterns",
+ "generator": 1,
+ "progressionMode": "double",
+ "days": [
+  {
+   "n": 1,
+   "name": "Full body A",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Smith Machine Squat",
+     "id": "Smith_Machine_Squat",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 150
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Bench Press",
+     "id": "Machine_Bench_Press",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Lat Machine Wide Grip Pulldown",
+     "id": "lat-machine-wide-grip-pulldown",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "superset",
+     "sets": 2,
+     "restSec": 60,
+     "items": [
+      {
+       "exercise": "Standing Biceps Cable Curl",
+       "id": "Standing_Biceps_Cable_Curl",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Stop with 2 to 3 reps left"
+      },
+      {
+       "exercise": "Machine Lying Leg Curl",
+       "id": "machine-lying-leg-curl",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Stop with 2 to 3 reps left"
+      }
+     ]
+    },
+    {
+     "type": "single",
+     "exercise": "Standing Low-Pulley Deltoid Raise",
+     "id": "Standing_Low-Pulley_Deltoid_Raise",
+     "reps": [
+      10,
+      15
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 2,
+     "restSec": 60
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Full body B",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Smith Machine Stiff-Legged Deadlift",
+     "id": "Smith_Machine_Stiff-Legged_Deadlift",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 150
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Seated Close Grip Row",
+     "id": "cable-seated-close-grip-row",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Machine Shoulder (Military) Press",
+     "id": "Machine_Shoulder_Military_Press",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "superset",
+     "sets": 2,
+     "restSec": 60,
+     "items": [
+      {
+       "exercise": "Machine Seated Reverse Fly",
+       "id": "machine-seated-reverse-fly",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Stop with 2 to 3 reps left"
+      },
+      {
+       "exercise": "Cable Tricep Pushdown",
+       "id": "cable-tricep-pushdown",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Stop with 2 to 3 reps left"
+      }
+     ]
+    },
+    {
+     "type": "single",
+     "exercise": "Leg Extension",
+     "id": "leg-extension",
+     "reps": [
+      10,
+      15
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 2,
+     "restSec": 60
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "name": "Full body C",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Leverage Chest Press",
+     "id": "Leverage_Chest_Press",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Leverage Iso Row",
+     "id": "Leverage_Iso_Row",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "Smith Single-Leg Split Squat",
+     "id": "Smith_Single-Leg_Split_Squat",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "single",
+     "exercise": "One-Legged Cable Kickback",
+     "id": "One-Legged_Cable_Kickback",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 120
+    },
+    {
+     "type": "superset",
+     "sets": 2,
+     "restSec": 60,
+     "items": [
+      {
+       "exercise": "Machine Seated Chest Fly",
+       "id": "machine-seated-chest-fly",
+       "reps": [
+        10,
+        15
+       ],
+       "note": "Stop with 2 to 3 reps left"
+      },
+      {
+       "exercise": "Cable Single Arm Bicep Curl",
+       "id": "cable-single-arm-bicep-curl",
+       "reps": [
+        10,
+        15
+       ],
+       "eachSide": true,
+       "note": "Stop with 2 to 3 reps left"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

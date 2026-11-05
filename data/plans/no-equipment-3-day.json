@@ -1,0 +1,179 @@
+{
+ "id": "no-equipment-3-day",
+ "name": "No Equipment 3 Day",
+ "summary": "Full body three days a week with just your body. No pulling moves: those need a bar or bands.",
+ "gymType": "none",
+ "goal": "health",
+ "level": "beginner",
+ "daysPerWeek": 3,
+ "source": "Generated from movement patterns",
+ "generator": 1,
+ "progressionMode": "double",
+ "days": [
+  {
+   "n": 1,
+   "name": "Full body A",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Bodyweight Squat",
+     "id": "Bodyweight_Squat",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Pushups",
+     "id": "Pushups",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Single Leg Glute Bridge",
+     "id": "Single_Leg_Glute_Bridge",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Elbow Plank",
+     "id": "elbow-plank",
+     "seconds": [
+      20,
+      30
+     ],
+     "sets": 3,
+     "restSec": 75
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Full body B",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Pushups",
+     "id": "Pushups",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Bodyweight Walking Lunge",
+     "id": "Bodyweight_Walking_Lunge",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Single Leg Glute Bridge",
+     "id": "Single_Leg_Glute_Bridge",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Elbow Plank",
+     "id": "elbow-plank",
+     "seconds": [
+      20,
+      30
+     ],
+     "sets": 3,
+     "restSec": 75
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "name": "Full body C",
+   "blocks": [
+    {
+     "type": "single",
+     "exercise": "Incline Push-Up",
+     "id": "Incline_Push-Up",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Bodyweight Walking Lunge",
+     "id": "Bodyweight_Walking_Lunge",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Single Leg Glute Bridge",
+     "id": "Single_Leg_Glute_Bridge",
+     "reps": [
+      8,
+      12
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 90
+    },
+    {
+     "type": "single",
+     "exercise": "Crunch",
+     "id": "crunch",
+     "reps": [
+      8,
+      12
+     ],
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 3,
+     "restSec": 75
+    }
+   ]
+  }
+ ]
+}

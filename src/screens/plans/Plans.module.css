@@ -107,7 +107,9 @@
   flex-direction: column;
   gap: 2px;
   min-height: 104px;
-  padding: var(--space-4) calc(var(--space-4) + 36px) var(--space-4) var(--space-4);
+  /* PLAN 3.5: the label uses the whole width (a long word like "Bodyweight" never breaks); only the
+     count row keeps clear of the icon, which sits in that row. */
+  padding: var(--space-4);
   border: 1px solid var(--glass-line);
   border-radius: 20px;
   background: linear-gradient(to bottom, #141417, var(--surface-1));
@@ -119,10 +121,15 @@
 .placeLabel {
   font-weight: 700;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .placeCount {
+  display: flex;
+  align-items: flex-end;
+  min-height: 28px;
+  padding-right: 36px;
+  margin-top: auto;
   color: var(--text-2);
   font-size: var(--text-sm);
 }

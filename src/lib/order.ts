@@ -293,6 +293,11 @@ const EASY_ON_AVOID: Record<string, (p: Profile) => boolean> = {
   neck: (p) => /shrug|upright/i.test(p.id),
 };
 
+/** Whether a lift is one a sore joint on the "go easy on" list should skip (SPEC 15). Unknown joints skip nothing. */
+export function easyOnAvoids(easyOn: readonly string[] | undefined, p: Profile): boolean {
+  return (easyOn ?? []).some((j) => EASY_ON_AVOID[j]?.(p) === true);
+}
+
 /** "bench", "squat", "rows": the plain word for a lift in a reason. */
 export function liftWord(p: Pick<Profile, 'name' | 'pattern'>): string {
   const n = p.name.toLowerCase();

@@ -5,7 +5,7 @@ import sixWeekRaw from '../../../data/plans/six-week-volume.json';
 import catalog from '../../../data/catalog.json';
 import { PLANS, planById } from '../../data/plans';
 import { PLACE_TILES, needOf, placesOfPlan, planNeeds, plansForPlace } from '../../data/places';
-import { demoForPlan, infoForPlan } from '../../data/exerciseInfo';
+import { demoFor, demoForPlan, infoForPlan, photoEligibility } from '../../data/exerciseInfo';
 import { EXERCISE_MAP, musclesForPlan } from '../../data/muscles';
 import { PLACES, exerciseNeed, placeById, placeFits, placeTiles, placesFor, type Need, type PlaceId } from '../places';
 import { itemLine, weekTable, type PlanItem } from '../plans';
@@ -89,8 +89,8 @@ describe('the shipped plans', () => {
       }
     }
   });
-  it('both curated plans need a full gym (barbells, machines, holds with no sure gear)', () => {
-    for (const p of PLANS) {
+  it('both hand written curated plans need a full gym (barbells, machines, holds with no sure gear)', () => {
+    for (const p of PLANS.filter((x) => x.id === 'five-day-split' || x.id === 'six-week-volume')) {
       const needs = planNeeds(p);
       expect(needs).toContain('barbell');
       expect(needs).toContain('machine');
@@ -98,17 +98,22 @@ describe('the shipped plans', () => {
     }
   });
   it('tiles: only places with a plan behind them, every plan in at least one tile', () => {
-    expect(PLACE_TILES.map((t) => t.place.id)).toEqual(['full']);
-    expect(PLACE_TILES[0]!.plans.map((p) => p.id)).toEqual(['five-day-split', 'six-week-volume']);
+    // PLAN 3.5: the generated plans give home, travel and bodyweight real plans.
+    expect(PLACE_TILES.map((t) => t.place.id)).toEqual(['home', 'travel', 'full', 'bodyweight']);
+    expect(PLACE_TILES.find((t) => t.place.id === 'full')!.plans.map((p) => p.id)).toEqual(['five-day-split', 'six-week-volume', 'hotel-gym-3-day', 'no-equipment-3-day', 'beginner-full-body-3-day']);
+    expect(plansForPlace('travel').map((p) => p.id)).toEqual(['hotel-gym-3-day', 'no-equipment-3-day']);
+    expect(plansForPlace('home').map((p) => p.id)).toEqual(['no-equipment-3-day']);
+    expect(plansForPlace('bodyweight').map((p) => p.id)).toEqual(['no-equipment-3-day']);
     for (const t of PLACE_TILES) expect(t.plans.length).toBeGreaterThan(0);
     for (const p of PLANS) expect(PLACE_TILES.some((t) => t.plans.includes(p))).toBe(true);
   });
   it('a place with no plan lists none (the honest empty state), an unknown id too', () => {
-    expect(plansForPlace('home')).toEqual([]);
+    expect(plansForPlace('bands')).toEqual([]);
+    expect(plansForPlace('dumbbells')).toEqual([]);
     expect(plansForPlace('cardio')).toEqual([]);
     expect(plansForPlace('nowhere')).toEqual([]);
     expect(plansForPlace(undefined)).toEqual([]);
-    expect(plansForPlace('full').map((p) => p.id)).toEqual(['five-day-split', 'six-week-volume']);
+    expect(plansForPlace('full').map((p) => p.id)).toEqual(['five-day-split', 'six-week-volume', 'hotel-gym-3-day', 'no-equipment-3-day', 'beginner-full-body-3-day']);
   });
   it('placeTiles drops empty places and keeps plan order', () => {
     const tiles = placeTiles(['a', 'b', 'c'], (x): PlaceId[] => (x === 'a' ? ['home', 'full'] : x === 'b' ? ['full'] : []));
@@ -191,6 +196,14 @@ describe('demos inside plan workouts: every plan exercise', () => {
     for (const p of PLANS) {
       for (const it of allItems(p.id)) {
         const e = MAP.get(it.exerciseId);
+        // PLAN 3.5: a generated plan may hold a ladder candidate by its catalog id: its sure photos only (photoEligibility).
+        if (!e && CAT.has(it.exerciseId)) {
+          const demo = demoFor(it.exerciseId);
+          const eligible = photoEligibility(it.exerciseId) !== 'none';
+          if (demo) for (const path of [...demo.jpg, ...demo.webp]) expect(path.startsWith(`ex/${it.exerciseId}/`), path).toBe(true);
+          if (!eligible) expect(demo, it.exerciseId).toBeNull();
+          continue;
+        }
         expect(e, `${it.exerciseId} has a map entry`).toBeTruthy();
         const demo = demoForPlan(it.exerciseId);
         const info = infoForPlan(it.exerciseId, it.note ? [it.note] : []);

@@ -119,7 +119,9 @@ export function buildPlanExercises(plans: unknown[], overrides: readonly LoadTyp
       } else walk(value);
     }
   };
-  plans.forEach(walk);
+  // Generated plans (PLAN 3.5, `generator` set) name every exercise by its own id: a plan exercise
+  // already here or a ladder candidate of the catalog. They add nothing to this list.
+  plans.filter((p) => !(p && typeof p === 'object' && 'generator' in p)).forEach(walk);
   const byId = new Map<string, LoadTypeOverride>();
   for (const o of overrides) {
     const id = slugify(o.name);

@@ -40,14 +40,17 @@ test('routines by place: only tiles with a plan, tap one for its plans, every pl
   const errors = watchErrors(page);
   await page.goto('./#/plans');
   const tiles = page.locator('[data-testid^="place-"]');
-  // Today only the full gym has plans behind it; no empty tile, ever.
-  await expect(tiles).toHaveCount(1);
+  // PLAN 3.5: home, travel and bodyweight have real plans now; still no empty tile, ever.
+  await expect(tiles).toHaveCount(4);
   const full = page.getByTestId('place-full');
-  await expect(full).toHaveAccessibleName('Full gym, 2 plans');
+  await expect(full).toHaveAccessibleName('Full gym, 5 plans');
   await expect(full).toContainText('Full gym');
-  await expect(full).toContainText('2 plans');
+  await expect(full).toContainText('5 plans');
+  await expect(page.getByTestId('place-travel')).toHaveAccessibleName('Travel or hotel gym, 2 plans');
+  await expect(page.getByTestId('place-home')).toHaveAccessibleName('At home, 1 plan');
+  await expect(page.getByTestId('place-bodyweight')).toHaveAccessibleName('Bodyweight, 1 plan');
   for (const t of await tiles.all()) await expect(t).toContainText(/[1-9]\d* plans?/);
-  for (const id of ['home', 'travel', 'dumbbells', 'bands', 'bodyweight', 'cardio']) await expect(page.getByTestId(`place-${id}`)).toHaveCount(0);
+  for (const id of ['dumbbells', 'bands', 'cardio']) await expect(page.getByTestId(`place-${id}`)).toHaveCount(0);
   await expect(page.getByText('No plans here yet')).toHaveCount(0);
   // The picker still lists every plan below the tiles.
   await expect(page.getByRole('heading', { name: 'All plans' })).toBeVisible();
@@ -61,9 +64,10 @@ test('routines by place: only tiles with a plan, tap one for its plans, every pl
   await expect(page).toHaveURL(/#\/plans\/place\/full$/);
   await expect(page.getByRole('heading', { name: 'Full gym', level: 1 })).toBeVisible();
   const cards = page.locator('[data-testid^="plan-"]');
-  await expect(cards).toHaveCount(2);
+  await expect(cards).toHaveCount(5);
   await expect(cards.nth(0)).toHaveAttribute('data-testid', 'plan-five-day-split');
   await expect(cards.nth(1)).toHaveAttribute('data-testid', 'plan-six-week-volume');
+  await expect(cards.nth(2)).toHaveAttribute('data-testid', 'plan-hotel-gym-3-day');
   await checkLayout(page, { primary: cards.nth(0) });
   await shot(page, 'place-full');
 

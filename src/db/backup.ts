@@ -2,6 +2,7 @@
 // src/lib/backup.ts. Restores are refused while a workout is in progress, and each runs in ONE
 // transaction over every table: if anything throws, nothing changes.
 import { version } from '../../package.json';
+import { loadSavedPlans } from './savedPlans';
 import { buildBackup, isActiveSession, keyOf, TABLE_NAMES, type Backup, type BackupLive, type BackupTables, type TableName } from '../lib/backup';
 import { EXTRA_SETS_KEY, clearExtraSets, extraSetsValue, restoreExtraSets } from '../lib/extraSets';
 import { REST_KEY, loadRest, saveRest } from '../lib/rest';
@@ -171,6 +172,8 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
   // Before anything can Try again or Finish (PLAN 2.0h): the backup's held changes are pending here.
   restoreHeldMutations(backup.pendingChanges ?? [], db, drafts, true);
   resetStartDb();
+  // PLAN 3.5: the restored generated plans are known at once.
+  await loadSavedPlans(db).catch(() => 0);
   return result;
 }
 
@@ -223,6 +226,8 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
   const held = (backup.pendingChanges ?? []).filter((e) => result.added.has(e.sessionId));
   if (held.length) restoreHeldMutations(held, db, drafts);
   resetStartDb();
+  // PLAN 3.5: the merged generated plans are known at once.
+  await loadSavedPlans(db).catch(() => 0);
   return { workouts: result.workouts, sets: result.sets };
 }
 

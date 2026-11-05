@@ -1,7 +1,8 @@
-// The plan reveal (SPEC 14 step 14, PLAN 3.3): the week builds in, one plain line on why it fits,
-// then a lime check draws itself, and Start Day 1 goes straight into the workout. The plan is the
-// best curated plan that fits the user's equipment today (the generator is PLAN 3.5); when none
-// fits it says so and offers a quick workout. Never a made up plan.
+// The plan reveal (SPEC 14 step 14, PLAN 3.3, 3.5): the week builds in, one plain line on why it
+// fits, then a lime check draws itself, and Start Day 1 goes straight into the workout. A curated plan
+// that truly matches the answers shows as it is; otherwise the generator builds "Your plan" from the
+// answers (PLAN 3.5), saved on the phone when it is started, with the curated plans that fit as other
+// choices. When even the generator cannot build a week here it says why and offers a quick workout.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
@@ -10,15 +11,18 @@ import { useNav } from '../../ui/nav';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/planPick';
+import { generatorInputOf } from '../../lib/intake/yourPlan';
 import { persistAnswers } from './persist';
 import { useMoreBelow } from './useMoreBelow';
 import { Button } from '../../ui/Button';
-import { PLANS, planById } from '../../data/plans';
+import { PLANS, definitionPlan, planById } from '../../data/plans';
 import { SWAP_DATA } from '../../data/patterns';
+import { generate } from '../../data/generator';
 import { planFit } from '../../lib/intake/planFit';
 import { clearIntakeDraft } from '../../db/intake';
 import { getActiveGym, startDb } from '../../db/bootstrap';
 import { choosePlan, choosePlanUndoable } from '../../db/planState';
+import { saveGeneratedPlan } from '../../db/savedPlans';
 import { startPlanDay, startWorkout } from '../../db/workouts';
 import { STAYS_HERE } from './copy';
 import styles from './Intake.module.css';
@@ -28,14 +32,25 @@ type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseli
 export function Reveal({ answers, redo, onBack, baseline }: Props) {
   const go = useNav();
   const pick = useMemo(() => pickPlan(PLANS, SWAP_DATA, answers), [answers]);
-  const [chosenId, setChosenId] = useState(pick.kind === 'plan' ? pick.plan.id : null);
-  const plan = planById(chosenId ?? undefined);
+  // A curated plan that truly matches (the lime check) needs nothing built.
+  const exact = useMemo(() => {
+    if (pick.kind !== 'plan') return false;
+    return explainPick(pick.plan, answers, pick.fit.swapped, pick.fit.noFit.length).check;
+  }, [pick, answers]);
+  // PLAN 3.5: otherwise "Your plan" from the answers, when the generator can build one here.
+  const built = useMemo(() => (exact ? null : generate(generatorInputOf(answers))), [exact, answers]);
+  const mine = useMemo(() => (built?.ok ? definitionPlan(built.plan) : undefined), [built]);
+  const [chosenId, setChosenId] = useState(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null);
+  const isMine = !!mine && chosenId === mine.id;
+  const plan = isMine ? mine : planById(chosenId ?? undefined);
   const fits = pick.kind === 'plan' ? [pick.plan, ...pick.others] : [];
   const week = plan ? weekOf(plan, answers) : [];
   // B1: the moves the day list will swap at this gym are said, never hidden.
-  const fit = useMemo(() => (plan ? planFit(SWAP_DATA, plan, answers) : null), [plan, answers]);
-  const words = plan ? explainPick(plan, answers, fit?.swapped ?? 0, fit?.noFit.length ?? 0) : null;
+  const fit = useMemo(() => (plan && !isMine ? planFit(SWAP_DATA, plan, answers) : null), [plan, isMine, answers]);
+  const words = plan ? explainPick(plan, answers, fit?.swapped ?? 0, fit?.noFit.length ?? 0, isMine && built?.ok ? built.applied : undefined) : null;
   const none = noPlanWords(answers.place);
+  // Why the generator could not build a week here, in its own words (never a padded plan).
+  const failure = built && !built.ok ? built.reason : null;
 
   // The answers are saved as the reveal opens (profile, units, the first gym, the muscle map body).
   const [error, setError] = useState('');
@@ -67,6 +82,7 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
           go('/settings', { kind: 'pop', replace: true });
           return;
         }
+        if (isMine && built?.ok) await saveGeneratedPlan(built.plan as unknown as Record<string, unknown>);
         const r = await choosePlanUndoable(plan.id);
         go('/', { kind: 'pop', replace: true, state: r.changed ? { toast: 'Plan saved', planUndo: { chosen: r.state, previous: r.previous ?? null } } : { toast: 'Answers saved' } });
         return;
@@ -77,6 +93,7 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         go(`/workout/${s.id}`, { kind: 'push', replace: true });
         return;
       }
+      if (isMine && built?.ok) await saveGeneratedPlan(built.plan as unknown as Record<string, unknown>);
       await choosePlan(plan.id);
       const s = await startPlanDay(gym.id, plan.id, 0);
       void clearIntakeDraft();
@@ -88,6 +105,8 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
     }
   });
 
+  // B2: the plan already shown is not offered again; "Your plan" comes back as a choice once another is picked.
+  const others = [...(mine && !isMine ? [mine] : []), ...fits.filter((p) => p.id !== chosenId)];
   // A redo only sets the plan; a first run can also start something lighter (critic B2).
   const quick = plan && !redo ? (words?.quick ?? null) : null;
   const planLabel = redo ? 'Use this plan' : 'Start Day 1';
@@ -157,6 +176,11 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
               )}
             </>
           )}
+          {!plan && failure && (
+            <p className={styles.caveat} data-testid="reveal-failure">
+              {failure}
+            </p>
+          )}
           {!plan && (
             <p className={styles.caveat} data-testid="reveal-quick">
               {none.quick}
@@ -175,12 +199,13 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
           )}
         </section>
         {/* B2: the plan already shown is not offered again. */}
-        {fits.length > 1 && (
+        {others.length > 0 && (
           <section className={styles.others} aria-labelledby="reveal-others">
             <h2 id="reveal-others" className={styles.othersTitle}>
-              Or pick a curated plan
+              {mine && !isMine ? 'Or go back to your plan' : 'Or pick a curated plan'}
             </h2>
             <div className={styles.cards}>
+              {mine && !isMine && <ChoiceCard label="Your plan" hint={`Built from your answers · ${mine.daysPerWeek} days a week`} picked={false} onPress={() => setChosenId(mine.id)} testId="reveal-plan-mine" />}
               {fits.filter((p) => p.id !== chosenId).map((p) => (
                 <ChoiceCard key={p.id} label={p.name} hint={`${p.daysPerWeek} days a week`} picked={p.id === chosenId} onPress={() => setChosenId(p.id)} testId={`reveal-plan-${p.id}`} />
               ))}

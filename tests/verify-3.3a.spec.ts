@@ -88,9 +88,11 @@ test('(1) goals: Main, Also, swap, promote; stored Main first and old goal equal
   await drafted(page, 'reveal', { goal: 'muscle', goals: ['muscle', 'strength'], units: US, days: 5, place: 'full', equipmentFor: 'full' });
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
   await expect(page.getByTestId('reveal-check')).toBeVisible();
+  // PLAN 3.5: the Also match never earns the curated plan; a strength plan is built from the answers instead.
   await drafted(page, 'reveal', { goal: 'strength', goals: ['strength', 'muscle'], units: US, days: 5, place: 'full', equipmentFor: 'full' });
-  await expect(page.getByRole('heading', { name: 'Closest plan we have' })).toBeVisible();
-  await expect(page.getByTestId('reveal-check')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
+  await expect(page.getByTestId('reveal-card')).not.toContainText('Classic 5 Day Split');
+  await expect(page.getByTestId('reveal-reason')).toContainText('Built to get stronger');
   await page.screenshot({ path: SHOT('reveal-also-only') });
   // Start Day 1 (double tap): one session, profile.goal is the Main.
   const start = page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' });

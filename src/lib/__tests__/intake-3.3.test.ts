@@ -257,18 +257,19 @@ describe('the plan reveal picks honestly from the plans that exist', () => {
     expect(p.plan.id).toBe('five-day-split');
     expect(explainPick(p.plan, full).reason).toBe('Picked for your full gym, your muscle goal and your 5 days.');
     expect(explainPick(p.plan, full).warning).toBeNull();
-    expect(p.others.map((o) => o.id)).toEqual(['six-week-volume']);
+    // PLAN 3.5: the generated curated plans fit a full gym too (a hotel or bodyweight plan runs anywhere with that gear).
+    expect(p.others.map((o) => o.id)).toEqual(['six-week-volume', 'hotel-gym-3-day', 'beginner-full-body-3-day', 'no-equipment-3-day']);
     expect(weekOf(p.plan, full).map((w) => w.label)).toEqual(['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5']);
   });
 
-  it('every shipped plan needs a full gym today: anything less gets an honest none', () => {
-    for (const place of ['hotel', 'home', 'outdoors'] as const) {
-      const a: IntakeAnswers = { place, equipment: presetEquipment(place) };
-      expect(fittingPlans(PLANS, SWAP_DATA, a)).toEqual([]);
-      const p = pickPlan(PLANS, SWAP_DATA, a);
-      expect(p.kind).toBe('none');
-    }
-    expect(pickPlan(PLANS, SWAP_DATA, { place: 'hotel', equipment: presetEquipment('hotel') })).toEqual({ kind: 'none', ...noPlanWords('hotel') });
+  it('PLAN 3.5: a hotel gets the hotel plan, home and outdoors the no equipment plan; only the plans their gear runs', () => {
+    const fit = (place: 'hotel' | 'home' | 'outdoors') => fittingPlans(PLANS, SWAP_DATA, { place, equipment: presetEquipment(place) }).map((x) => x.plan.id);
+    expect(fit('hotel')).toEqual(['hotel-gym-3-day', 'no-equipment-3-day']);
+    expect(fit('home')).toEqual(['no-equipment-3-day']);
+    expect(fit('outdoors')).toEqual(['no-equipment-3-day']);
+    // A plan that needs gear the gym lacks is never offered (the full gym plans at a hotel).
+    for (const place of ['hotel', 'home', 'outdoors'] as const) for (const id of ['five-day-split', 'six-week-volume', 'beginner-full-body-3-day']) expect(fit(place)).not.toContain(id);
+    expect(noPlanWords('hotel').title).toBe('No hotel plan yet');
     // PLAN 3.3a B1 (supersedes 3.3): a full gym with one machine off still fits, through a swap.
     const partial = EQUIPMENT_IDS.filter((e) => e !== 'leg_press');
     expect(pickPlan(PLANS, SWAP_DATA, { place: 'full', equipment: partial }).kind).toBe('plan');

@@ -11,7 +11,7 @@ import { equipmentPreset } from '../../db/gyms';
 import { dayWorkout } from '../planWorkout';
 import type { Plan } from '../plans';
 import type { GymKit } from '../picker';
-import { adaptDay, type SwapData } from '../swap';
+import { adaptDay, requiresOf, supports, type SwapData } from '../swap';
 import { GYM_TYPE_OF, presetEquipment, type IntakeAnswers } from './funnel';
 
 export type PlanFit = {
@@ -58,7 +58,10 @@ export function planFit(data: SwapData, plan: Plan, a: IntakeAnswers): PlanFit {
     }
     if (skipped > entries.length * MAX_SKIPPED_SHARE) fits = false;
     // Not sure of the gear and not a full gym: never claimed to fit.
-    if (!full && (day.finisher || entries.some((e) => !data.planExercises[e.exerciseId]?.requires))) fits = false;
+    // A generated finisher says its gear (PLAN 3.5): it fits only where that gear is.
+    const finisherOk = !day.finisher || (day.finisher.requires !== undefined && supports(day.finisher.requires, kit));
+    if (day.finisher?.requires && !finisherOk) fits = false;
+    if (!full && (!finisherOk || entries.some((e) => !e.finisher && !requiresOf(data, e.exerciseId)))) fits = false;
   });
   return { fits, swapped: swapped.size, noFit: [...noFit] };
 }
