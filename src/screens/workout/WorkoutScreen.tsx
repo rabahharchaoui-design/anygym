@@ -224,8 +224,10 @@ export function WorkoutScreen() {
     const done = counts ? { ...w.done, [id]: (w.done[id] ?? 0) + 1 } : w.done;
     const r = restAfter(entries, done, id);
     const seconds = r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
-    // Started now (the countdown is right), shown once the check's frame has painted (critic B6).
+    // Started now (the countdown is right) and saved now (an app kill right after the set keeps the
+    // rest), shown once the check's frame has painted (critic B6).
     const started = seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null;
+    saveRest(started);
     afterPaint(() => setRest(started));
     const e = entries.find((x) => x.exerciseId === id);
     if (!e) return;

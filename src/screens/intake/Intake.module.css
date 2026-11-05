@@ -348,11 +348,14 @@
 
 .equipCell > button:first-child {
   height: 100%;
+  padding-left: 10px;
+  gap: 4px;
 }
 
 /* The ⓘ sits inside the chip's right end, in its own 48 pt hit area. */
 .equipCell:has(.equipInfo) > button:first-child {
-  padding-right: 44px;
+  /* The glyph ends 12 pt from the edge of its 48 pt hit area: 38 keeps a long word whole at 360 wide. */
+  padding-right: 38px;
 }
 
 .equipInfo {

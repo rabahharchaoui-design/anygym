@@ -98,8 +98,9 @@ test('offline demo Close and Back preserve a changed pending row, saved sets and
   await checkCurrent(view).tap();
   await expect(loggedRows(view)).toHaveCount(1);
   const saved = (await dbAll<WorkoutSet>(page, 'sets')).filter((s) => !s.id.startsWith('seed-'));
+  // The row shows from the database's live query; the deadline is saved as the log call returns.
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('anygym-rest'))).not.toBeNull();
   const rest = await page.evaluate(() => localStorage.getItem('anygym-rest'));
-  expect(rest).not.toBeNull();
   const originalReps = Number(await view.getByTestId('reps-cell').first().textContent());
   await view.getByTestId('reps-cell').first().tap();
   await view.getByRole('button', { name: 'More reps' }).tap();
