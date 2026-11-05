@@ -748,16 +748,15 @@ test('B1 B2: a race goal is the closest plan: no check, at most two lines of war
   const warning = page.getByTestId('reveal-warning');
   await expect(warning).toHaveText(/^About \d+ min, 5 days\. You asked for 45 min, 3 days\. Race goal and knees aren't built in yet\.$/);
   await expect(page.getByTestId('reveal-card')).not.toContainText('built to add muscle');
-  if (test.info().project.name !== '320 floor') {
-    const lines = await warning.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
-    expect(lines).toBeLessThanOrEqual(2);
-  }
+  // Two lines from 375 wide up; narrower phones have the same words on three (never cut, never more).
+  const lines = await warning.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+  expect(lines).toBeLessThanOrEqual(page.viewportSize()!.width < 375 ? 3 : 2);
   await shot(page, 'reveal-closest');
   // Every day row can be reached, on one line each where it fits, and the alternatives too.
   const rows = page.getByTestId('reveal-week').getByRole('listitem');
   await rows.nth(4).scrollIntoViewIfNeeded();
   await expect(rows.nth(4)).toBeInViewport({ ratio: 1 });
-  if (test.info().project.name !== '320 floor') {
+  if (page.viewportSize()!.width >= 375) {
     const heights = await rows.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
     expect(new Set(heights).size).toBe(1);
   }
@@ -831,7 +830,8 @@ test('P2: equipment that is on shows a small check; turning it on moves nothing'
   const before = await label.boundingBox();
   await chip.tap();
   await expect(check).toHaveCSS('opacity', '1');
-  expect(await label.boundingBox()).toEqual(before);
+  // Polled: the press scale (0.96) eases back after the tap.
+  await expect.poll(() => label.boundingBox()).toEqual(before);
 });
 
 test('P7: the notice says finishing the profile changes nothing today', async ({ page }) => {
