@@ -375,3 +375,14 @@
     transition: none;
   }
 }
+
+/* PLAN 3.3: asked once, in place. */
+.bodyAsk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+}

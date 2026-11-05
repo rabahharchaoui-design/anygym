@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from './fixtures';
+import { expect, test, type Locator, type Page, seedExistingUser } from './fixtures';
 import type { Gym, WorkoutSet } from '../src/db/types';
 import { sumLoad } from '../src/lib/load';
 import { checkCurrent, dbAll, exerciseView, fillReps, loggedRows, quickWith, shotOn, watchErrors } from './workout-helpers';
@@ -105,6 +105,7 @@ test('B: imported 53 lb: clear, 501, close: Save disabled, never "checked", sour
 
 test('D1: localStorage getter throws: draft, its clear, rest and an added row reach IndexedDB kv and survive a restart @matrix', async ({ page }) => {
   const errors = watchErrors(page);
+  await seedExistingUser(page);
   await page.addInitScript(() => Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('blocked', 'SecurityError'); } }));
   await d(page, errors);
 });

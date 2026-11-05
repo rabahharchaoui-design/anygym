@@ -22,6 +22,8 @@ import { UiDevScreen } from './screens/dev/UiDevScreen';
 import { ReviewScreen } from './screens/review/ReviewScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
 import { AppMarkLoader } from './ui/AppMarkLoader';
+import { IntakeGate } from './components/IntakeGate';
+import { IntakeScreen } from './screens/intake/IntakeScreen';
 
 const DEV_TOOLS = devToolsEnabled();
 // Lazy, so the catalog JSON it reads stays out of the main bundle.
@@ -47,9 +49,16 @@ export function App() {
           />
         )}
         <Route path="review" element={<ReviewScreen />} />
+        <Route path="welcome" element={<IntakeScreen />} />
         <Route path="workout/:sessionId/done" element={<FinishScreen />} />
         <Route path="workout/:sessionId/*" element={<WorkoutScreen />} />
-        <Route element={<AppShell />}>
+        <Route
+          element={
+            <IntakeGate>
+              <AppShell />
+            </IntakeGate>
+          }
+        >
           <Route index element={<TodayScreen />} />
           <Route path="run" element={<RunScreen />} />
           <Route path="history" element={<HistoryScreen />} />

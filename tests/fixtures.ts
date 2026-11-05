@@ -245,6 +245,22 @@ const guardPage = (page: Page) => {
 
 const guarded = new WeakSet<BrowserContext>();
 
+// PLAN 3.3: a brand new phone opens the intake funnel. Specs written before it test the app past
+// the funnel, so every guarded context starts with the intake marked done on this phone (the same
+// localStorage flag the app sets when the funnel finishes). Intake specs opt out with
+// test.use({ intake: 'fresh' }) and see exactly what a new user sees.
+export const INTAKE_DONE_KEY = 'anygym.intakeDone';
+let intakeMode: 'done' | 'fresh' = 'done';
+function markIntakeDone(key: string) {
+  try {
+    localStorage.setItem(key, '1');
+    // The same specs predate the muscle map's one question (PLAN 3.3): already asked.
+    localStorage.setItem('anygym.muscleBodyAsked', '1');
+  } catch {
+    // about:blank and opaque origins have no storage.
+  }
+}
+
 /**
  * Applies the network guard and the error trap to a context (idempotent). Contexts a test makes
  * with browser.newContext() / browser.newPage() get it automatically (the `guardNewContexts`
@@ -255,6 +271,7 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
   guarded.add(context);
   await trapErrors(context);
   await context.addInitScript(cancelExternalNavigation);
+  if (intakeMode === 'done') await context.addInitScript(markIntakeDone, INTAKE_DONE_KEY);
   await context.exposeBinding('__pwReportApi', (_src, call: ReportApiCall) => {
     log('mocked', `${REPORT_API_ORIGIN}${call.path}`);
     if (offline.get(context)) return { offline: true, status: 0, body: '' };
@@ -280,10 +297,39 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
   return context;
 }
 
-export const test = base.extend<{ errorTrap: void; guardNewContexts: void; networkGuard: void }>({
+/**
+ * For a spec that blocks localStorage (where the flag above cannot be read): makes this phone an
+ * existing user in IndexedDB, as the app's own check sees it. Call before blocking storage.
+ */
+export async function seedExistingUser(page: Page) {
+  await page.goto('./#/settings');
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open('anygym');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const tx = req.result.transaction('profile', 'readwrite');
+          tx.objectStore('profile').put({ id: 'me', defaultUnit: 'lb', createdAt: 1, intakeDoneAt: 1 });
+          tx.oncomplete = () => {
+            req.result.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+  );
+  // Leave the app, so the next page.goto is a real load (a hash change would not run init scripts).
+  await page.goto('about:blank');
+}
+
+export const test = base.extend<{ errorTrap: void; guardNewContexts: void; networkGuard: void; intake: 'done' | 'fresh' }>({
+  intake: ['done', { option: true }],
   // Set up first, so the collector exists before any page or context of the test.
   errorTrap: [
-    async ({}, use, info) => {
+    async ({ intake }, use, info) => {
+      intakeMode = intake;
       const c: Collector = { errors: [], allow: [], failedUrls: new Set() };
       collectors.set(info.testId, c);
       await use();

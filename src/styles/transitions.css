@@ -259,3 +259,44 @@ html[data-nav='down']::view-transition-group(workout-dock) {
     animation: none !important;
   }
 }
+
+/* PLAN 3.3 intake: the back, progress and Skip row and the bottom button stay put while the
+   question slides; the progress fill grows from its old width to the new one. */
+::view-transition-group(intake-top),
+::view-transition-group(intake-cta) {
+  animation: none;
+  z-index: 3;
+}
+::view-transition-old(intake-top),
+::view-transition-old(intake-cta) {
+  display: none;
+}
+::view-transition-new(intake-top),
+::view-transition-new(intake-cta) {
+  animation: none;
+}
+::view-transition-group(intake-progress) {
+  z-index: 4;
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-old(intake-progress) {
+  display: none;
+}
+::view-transition-new(intake-progress) {
+  animation: none;
+  height: 100%;
+  width: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(intake-top),
+  ::view-transition-old(intake-cta),
+  ::view-transition-old(intake-progress) {
+    display: none !important;
+  }
+  ::view-transition-new(intake-top),
+  ::view-transition-new(intake-cta),
+  ::view-transition-new(intake-progress) {
+    animation: none !important;
+  }
+}

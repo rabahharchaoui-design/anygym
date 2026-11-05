@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from './fixtures';
+import { expect, seedExistingUser, test, type Locator, type Page } from './fixtures';
 import { checkCurrent, dbAll, exerciseView, fillReps, loggedRows, quickWith, shotOn, watchErrors } from './workout-helpers';
 
 // PLAN 2.0c group 4 (acceptance D) and group 7, in the browser: drafts survive a restart when
@@ -31,6 +31,7 @@ function blockLocalStorage() {
 
 test('acceptance D: with localStorage access throwing, a 53 lb / 17 rep pending row survives a reload exactly @matrix', async ({ page }) => {
   const errors = watchErrors(page);
+  await seedExistingUser(page);
   await page.addInitScript(blockLocalStorage);
   await quickWith(page, [['goblet', 'Kettlebell Goblet Squat']]);
   const view = exerciseView(page, ID);

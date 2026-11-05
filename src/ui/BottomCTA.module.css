@@ -40,3 +40,8 @@
 .note[data-reason] {
   color: var(--text);
 }
+
+/* The note right under the reason line. */
+.note[data-after] {
+  margin-top: 0;
+}
