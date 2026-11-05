@@ -283,7 +283,9 @@ test('⋯ menu has no dead rows; the picker keeps its height while typing and le
   await page.getByTestId('exercise-barbell-back-squat').getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
   const menu = page.getByRole('dialog', { name: 'Barbell Back Squat options' });
   await expect(menu.getByRole('button', { name: /Rest after each set/ })).toBeVisible();
-  await expect(menu.getByRole('button', { name: /Replace|Make a pair/ })).toHaveCount(0);
+  // PLAN 3.4: Replace is a real row now (first in the menu); Make a pair still does not exist.
+  await expect(menu.getByRole('button', { name: /^Replace/ })).toBeVisible();
+  await expect(menu.getByRole('button', { name: /Make a pair/ })).toHaveCount(0);
   await expect(menu.getByRole('button', { name: /Coming/ })).toHaveCount(0);
   await menu.getByRole('button', { name: 'Close', exact: true }).tap();
   await page.getByRole('button', { name: 'Back to the list' }).tap();
