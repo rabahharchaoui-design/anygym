@@ -604,7 +604,9 @@ test('home with Dumbbells asks for the range: Continue waits, only what was type
 
 test('B3: 4 days then 3 weekdays: the weekdays screen says so, the reveal repeats the 4, every workout shows @matrix', async ({ page }) => {
   await drafted(page, 'weekdays', { goal: 'muscle', days: 4, place: 'full', experience: '3y', units: US });
-  await expect(page.getByText('Pick 4. Used to lay out your week.')).toBeVisible();
+  // PLAN 3.3a round 3: one prompt: the why says what it is for, the grey button says how many.
+  await expect(page.getByTestId('why')).toHaveText('Used to lay out your week.');
+  await expect(page.getByTestId('cta-reason')).toHaveText('Pick 4, or skip');
   await expect(page.getByTestId('weekday-count')).toHaveText('');
   const before = await cta(page).boundingBox();
   for (const d of ['mon', 'wed', 'fri']) await page.getByTestId(`q-weekdays-${d}`).tap();
@@ -755,11 +757,14 @@ test('130% text on the SE: the button keeps its size and place when the reason g
 test('B1 B2: a race goal is the closest plan: no check, at most two lines of warning, length matches the workout @matrix', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'race', days: 3, minutes: 45, place: 'full', easyOn: ['knees'], experience: '3y', units: US });
   // PLAN 3.3a round 2 (B2): 3 days and 45 min are both far off a 5 day ~81 min plan: said plainly.
-  await expect(page.getByRole('heading', { name: "We don't have a 3 day, 45 minute plan yet" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No 3 day, 45 min plan yet' })).toBeVisible();
   await expect(page.getByTestId('reveal-check')).toHaveCount(0);
   await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Start a quick workout');
   await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym. It builds muscle, 5 days a week.');
+  // Round 3: the fit details sit behind "Why this plan"; opened, they keep their two line rule.
+  await page.getByTestId('reveal-why').locator('summary').tap();
   const warning = page.getByTestId('reveal-warning');
+  await expect(warning).toBeVisible();
   await expect(warning).toHaveText(/^About \d+ min, 5 days\. You asked for 45 min, 3 days\. Race goal and knees aren't built in yet\.$/);
   await expect(page.getByTestId('reveal-card')).not.toContainText('built to add muscle');
   // Two lines from 375 wide up; narrower phones have the same words on three (never cut, never more).

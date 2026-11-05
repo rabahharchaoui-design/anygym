@@ -82,8 +82,10 @@ export type PlanExplain = {
   mismatch: boolean;
   /** What the pick really used, then what the plan is when that was not their answer. */
   reason: string;
-  /** Both goals when there are two: "Main: muscle. Also: fat loss, coming soon." */
+  /** Two goals in a few words: "Main muscle · Also fat loss (soon)" (one goal: the warning says it). */
   goals: string | null;
+  /** Not a true match: one honest line, the plan's own days and length ("Closest: 5 days, about 81 min."). */
+  summary: string | null;
   /** At most two lines on an iPhone: what differs from what they asked, what is not built in yet. */
   warning: string | null;
   /** Offer a quick workout too: as the main action when the time picked is short or the plan is far off. */
@@ -119,8 +121,8 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
   const farMinutes = timed && avg >= a.minutes! * FAR_MINUTES;
   const farLevel = newLifter && plan.level === 'intermediate';
   const mismatch = [farDays, farMinutes, farLevel].filter(Boolean).length >= 2;
-  const wanted = [a.days !== undefined ? `${a.days} day` : null, timed ? `${a.minutes} minute` : null].filter((x): x is string => !!x).join(', ');
-  const mismatchTitle = `We don't have a ${[wanted, newLifter ? 'beginner' : null].filter(Boolean).join(' ')} plan yet`;
+  const wanted = [a.days !== undefined ? `${a.days} day` : null, timed ? `${a.minutes} min` : null].filter((x): x is string => !!x).join(', ');
+  const mismatchTitle = `No ${[wanted, newLifter ? 'beginner' : null].filter(Boolean).join(' ')} plan yet`;
 
   const gym = plan.gymType === 'full' ? (a.place === 'mix' ? 'your full gym days' : 'your full gym') : 'your equipment';
   const used = [gym];
@@ -137,7 +139,8 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
 
   // Two goals: both named, each said plainly as used or coming soon (never only the Main).
   const goalOk = (g: GoalId) => g === 'muscle' && plan.goal === 'muscle';
-  const goals = main && also ? `Main: ${GOAL_WORD[main]}${goalOk(main) ? '' : ', coming soon'}. Also: ${GOAL_WORD[also]}${goalOk(also) ? '' : ', coming soon'}.` : null;
+  const said = (g: GoalId) => `${GOAL_WORD[g]}${goalOk(g) ? '' : ' (soon)'}`;
+  const goals = main && also ? `Main ${said(main)} · Also ${said(also)}` : null;
 
   const otherDays = a.days !== undefined && !daysMatch;
   const compared =
@@ -164,6 +167,8 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
 
   const quick = mismatch || (timed && longer && a.minutes! <= 30) ? 'primary' : (timed && avg >= a.minutes! * WELL_OVER) || a.experience === 'new' ? 'secondary' : null;
   const match = goalMatch && daysMatch && !mismatch;
+  // Round 3 (B2): one line up front; the why stays one tap away (reason and warning, every fact kept).
+  const summary = match ? null : [`Closest: ${plan.daysPerWeek} days, about ${avg} min.`, swappedLine(swapped, skipped)].filter(Boolean).join(' ');
 
   return {
     title: mismatch ? mismatchTitle : match ? 'Your plan' : 'Closest plan we have',
@@ -171,6 +176,7 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
     mismatch,
     reason,
     goals,
+    summary,
     warning: [compared, notBuilt].filter(Boolean).join(' ') || null,
     quick,
     minutes,

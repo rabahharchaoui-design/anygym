@@ -27,8 +27,10 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
     await page.reload();
     await expect(intake(page)).toHaveAttribute('data-step', 'reveal');
     await page.waitForTimeout(1500);
-    const reason = await page.getByTestId('reveal-reason').innerText();
-    const warn = (await page.getByTestId('reveal-warning').count()) ? await page.getByTestId('reveal-warning').innerText() : '';
+    // Round 3 (B2): the reason and warning sit behind "Why this plan"; the summary line says the swaps up front.
+    const summary = (await page.getByTestId('reveal-summary').count()) ? await page.getByTestId('reveal-summary').innerText() : '';
+    const reason = `${summary} ${(await page.getByTestId('reveal-reason').textContent()) ?? ''}`;
+    const warn = (await page.getByTestId('reveal-warning').count()) ? ((await page.getByTestId('reveal-warning').textContent()) ?? '') : '';
     const quick = (await page.getByTestId('reveal-quick').count()) ? await page.getByTestId('reveal-quick').innerText() : '';
     const heading = await page.locator('h1').first().innerText();
     const primary = await page.getByTestId('reveal-cta').locator('button[data-variant="primary"]').innerText();

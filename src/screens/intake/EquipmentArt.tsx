@@ -79,13 +79,12 @@ const DRAWINGS: Record<EquipmentId, Drawing> = {
     ),
     part: <rect x="3" y="25" width="19" height="5" rx="2.5" transform="rotate(45 22.5 27.5)" />,
   },
-  // A slanted frame: the hip pad you bend over up top, the foot plate and heel roller low.
+  // A slanted frame: the hip pad you bend over up top, the foot plate low at the back.
   hyperextension_bench: {
     frame: (
       <>
         <path d="M6 42h36M10 42l20-24M38 42l-8-24" />
-        <path d="M9 36l9-4" />
-        <circle cx="15" cy="28.5" r="2.5" />
+        <rect x="7" y="33" width="12" height="5" rx="2.5" transform="rotate(-25 13 35.5)" />
       </>
     ),
     part: <rect x="22" y="12" width="16" height="6" rx="3" transform="rotate(-30 30 15)" />,
@@ -100,10 +99,10 @@ const DRAWINGS: Record<EquipmentId, Drawing> = {
     frame: <path d="M8 18v24M18 18v24M28 13v26M40 13v26M5 42h6M15 42h6M25 39h6M37 39h6M18 31h10" />,
     part: <path d="M5 18h16M25 13h18" />,
   },
-  // Two guide rails each side, the bar riding them on hooks, safety stops low.
+  // Two guide rails each side, the bar riding them on hooks, safety stops low (kept 4 pt clear of the badge corner).
   smith_machine: {
-    frame: <path d="M6 6h36M6 42h36M9 6v36M13 6v36M35 6v36M39 6v36M9 33h4M35 33h4" />,
-    part: <path d="M3 21h42M11 21v-4.5h2.5M37 21v-4.5h-2.5M5 17v8M43 17v8" />,
+    frame: <path d="M9 9h30M9 42h30M12 9v33M15.5 9v33M32.5 9v33M36 9v33M12 33h3.5M32.5 33h3.5" />,
+    part: <path d="M6 22h36M13.75 22v-4.5h2.2M34.25 22v-4.5h-2.2M8 18v8M40 18v8" />,
   },
   // A reclined seat at the bottom, the sled and foot plate up the angled rail.
   leg_press: {
@@ -218,30 +217,25 @@ const DRAWINGS: Record<EquipmentId, Drawing> = {
     ),
     part: <path d="M26 12.5 37 32M32.5 33h9" />,
   },
-  // The column with its weight stack and the top pulley; the wide bar comes down; seat and knee pad below.
+  // The curved bar on its cable from the top, the thigh pad below.
   lat_pulldown: {
     frame: (
       <>
-        <path d="M40 42V5H22M32 42h12M22 5v3" />
-        <Stack x={42} y={22} w={4} h={16} />
-        <rect x="11" y="27" width="14" height="4" rx="2" />
-        <rect x="11" y="35" width="14" height="4" rx="2" />
-        <path d="M18 39v3M12 42h12M25 37h15" />
+        <path d="M16 5h16" />
+        <rect x="12" y="34" width="24" height="6" rx="3" />
       </>
     ),
-    part: <path d="M22 8v7M6 18c5-4 27-4 32 0" />,
+    part: <path d="M24 5v12M5 21c6-5 32-5 38 0" />,
   },
-  // A low seat on the floor rail, the foot plate, the column with its stack; the cable pulls a V handle.
+  // Three shapes that read at 56 pt: the seat, the foot plate, the handle pulled along its cable line.
   seated_row: {
     frame: (
       <>
-        <path d="M4 42h38M42 42V7M33 7h9M11 38v4M30 26l2 16" />
-        <Stack x={33} y={11} w={6} h={14} />
-        <rect x="5" y="33" width="13" height="5" rx="2.5" />
-        <circle cx="40" cy="32" r="2" />
+        <rect x="4" y="34" width="16" height="6" rx="3" />
+        <path d="M35 20l3 22" />
       </>
     ),
-    part: <path d="M38 32H25M25 32l-4-4M25 32l-4 4" />,
+    part: <path d="M46 24H28M28 24l-5-5M28 24l-5 5" />,
   },
   // A long band with a handle at each end.
   resistance_bands: {

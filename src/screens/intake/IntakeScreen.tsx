@@ -87,7 +87,7 @@ const COPY: Record<ScreenId, Copy> = {
   goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
   units: { title: 'Your units', why: "Set from your phone's region." },
   // PLAN 3.3a round 2 (B6): not used yet = optional, what it is for, and a small "Coming soon".
-  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets for these areas.', soon: true },
+  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets here.', soon: true },
   win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.', soon: true },
   experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
   days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
@@ -143,9 +143,8 @@ function withUnits(a: IntakeAnswers): IntakeAnswers {
   return { ...a, units: { ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) } };
 }
 
-/** The why line under a title; the weekdays one repeats the days per week answer. */
-function subOf(step: ScreenId, a: IntakeAnswers): string | undefined {
-  if (step === 'weekdays' && a.days) return `Pick ${a.days}. Used to lay out your week.`;
+/** The why line under a title. Round 3: weekdays has one prompt only, the count sits in the button's reason. */
+function subOf(step: ScreenId, _a?: IntakeAnswers): string | undefined {
   return COPY[step].why || undefined;
 }
 
@@ -316,7 +315,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <p className={styles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
-          <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonAndNote above={skipRestButton} note={first ? STAYS_HERE_FIRST : STAYS_HERE} testId="intake-cta" className={styles.cta}>
+          <BottomCTA onPress={next} disabled={!ready} disabledReason={step === 'weekdays' && answers.days ? `Pick ${answers.days}, or skip` : WHY[step]} reasonAndNote above={skipRestButton} note={first ? STAYS_HERE_FIRST : STAYS_HERE} testId="intake-cta" className={styles.cta}>
             Continue
           </BottomCTA>
         )}

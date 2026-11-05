@@ -1,15 +1,6 @@
 // The intake's line icons (one Lucide family, SPEC 23.2), by the names in lib/intake/options.ts.
 import {
   Activity,
-  UserRound,
-  Target,
-  Scale,
-  Mountain,
-  Hand,
-  ChevronsUp,
-  Bone,
-  BicepsFlexed,
-  Backpack,
   Ban,
   BatteryCharging,
   Bike,
@@ -50,18 +41,10 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { BODY_ICONS } from './BodyIcons';
 
 const ICONS: Record<string, LucideIcon> = {
   Activity,
-  UserRound,
-  Target,
-  Scale,
-  Mountain,
-  Hand,
-  ChevronsUp,
-  Bone,
-  BicepsFlexed,
-  Backpack,
   Ban,
   BatteryCharging,
   Bike,
@@ -102,5 +85,5 @@ const ICONS: Record<string, LucideIcon> = {
   Zap,
 };
 
-export const iconFor = (name: string | undefined): LucideIcon | undefined => (name ? ICONS[name] : undefined);
+export const iconFor = (name: string | undefined): LucideIcon | undefined => (name ? (ICONS[name] ?? BODY_ICONS[name]) : undefined);
 export const INTAKE_ICON_NAMES = Object.keys(ICONS);

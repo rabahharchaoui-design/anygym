@@ -164,12 +164,12 @@ test('an older answer with one goal still loads as Main; Also never earns "Your 
   await expect(page.getByTestId('reveal-check')).toHaveCount(0);
   await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym, your second goal (muscle) and your 5 days.');
   // Round 2 (B2): both goals named, each used or coming soon.
-  await expect(page.getByTestId('reveal-goals')).toHaveText('Main: strength, coming soon. Also: muscle.');
+  await expect(page.getByTestId('reveal-goals')).toHaveText('Main strength (soon) · Also muscle');
   // Muscle as Main with an Also: the true match keeps its check.
   await drafted(page, 'reveal', { goal: 'muscle', goals: ['muscle', 'fat_loss'], units: US, days: 5, place: 'full', equipmentFor: 'full' });
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
   await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym, your muscle goal and your 5 days.');
-  await expect(page.getByTestId('reveal-goals')).toHaveText('Main: muscle. Also: fat loss, coming soon.');
+  await expect(page.getByTestId('reveal-goals')).toHaveText('Main muscle · Also fat loss (soon)');
 });
 
 const GROUPS: Record<string, string[]> = {
@@ -342,11 +342,24 @@ test('B1: a full gym with any single item off still gets its plan; the swaps are
 
 test('B2: brand new, 3 days, 45 min: no such plan yet, the quick workout leads, the plan is an option once, both goals named', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'muscle', goals: ['muscle', 'fat_loss'], units: US, days: 3, minutes: 45, experience: 'new', place: 'full', equipmentFor: 'full' });
-  await expect(page.getByRole('heading', { name: "We don't have a 3 day, 45 minute beginner plan yet" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No 3 day, 45 min beginner plan yet' })).toBeVisible();
+  // Round 3 (B2): one honest line up front, the fit details behind "Why this plan".
+  await expect(page.getByTestId('reveal-summary')).toHaveText(/^Closest: 5 days, about \d+ min\. Main muscle · Also fat loss \(soon\)$/);
+  await expect(page.getByTestId('reveal-reason')).toBeHidden();
+  await page.getByTestId('reveal-why').locator('summary').tap();
+  await expect(page.getByTestId('reveal-reason')).toBeVisible();
+  await expect(page.getByTestId('reveal-warning')).toHaveText(/You asked for 45 min, 3 days\./);
+  await page.getByTestId('reveal-why').locator('summary').tap();
+  // Two or three days of the week show on the SE without scrolling.
+  const shownDays = await page.getByTestId('reveal-week').getByRole('listitem').evaluateAll((els) => {
+    const cta = document.querySelector('[data-testid="reveal-cta"]')!.getBoundingClientRect().top;
+    return els.filter((e) => e.getBoundingClientRect().bottom <= cta).length;
+  });
+  expect(shownDays).toBeGreaterThanOrEqual(2);
   await expect(page.getByTestId('reveal-check')).toHaveCount(0);
   await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Start a quick workout');
   await expect(page.getByTestId('reveal-secondary')).toHaveText('Start Day 1');
-  await expect(page.getByTestId('reveal-goals')).toHaveText('Main: muscle. Also: fat loss, coming soon.');
+  await expect(page.getByTestId('reveal-goals')).toHaveText('Main muscle · Also fat loss (soon)');
   // The plan shown is not offered again below.
   const shown = (await page.getByTestId('reveal-card').locator('p').nth(1).textContent())!;
   await expect(page.locator('[data-testid^="reveal-plan-"]').filter({ hasText: shown })).toHaveCount(0);

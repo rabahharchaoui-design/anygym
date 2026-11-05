@@ -115,20 +115,47 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
           <h1 className={styles.title}>{words ? words.title : none.title}</h1>
         </div>
         <section className={styles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
-          {words?.mismatch && <p className={styles.caveat}>The closest plan we have, if you want it:</p>}
           {plan && <p className={styles.planName}>{plan.name}</p>}
-          <p className={styles.reason} data-testid="reveal-reason">
-            {words ? words.reason : none.saved}
-          </p>
-          {words?.goals && (
-            <p className={styles.caveat} data-testid="reveal-goals">
-              {words.goals}
-            </p>
-          )}
-          {words?.warning && (
-            <p className={styles.caveat} data-testid="reveal-warning">
-              {words.warning}
-            </p>
+          {words?.summary ? (
+            <>
+              {/* Round 3 (B2): one honest line up front; the fit details one tap away, every fact kept. */}
+              <p className={styles.reason} data-testid="reveal-summary">
+                {words.summary}
+                {words.goals && (
+                  <>
+                    {' '}
+                    <span data-testid="reveal-goals">{words.goals}</span>
+                  </>
+                )}
+              </p>
+              <details className={styles.why} data-testid="reveal-why">
+                <summary className={`${styles.whySummary} pressable`}>Why this plan</summary>
+                <p className={styles.caveat} data-testid="reveal-reason">
+                  {words.reason}
+                </p>
+                {words.warning && (
+                  <p className={styles.caveat} data-testid="reveal-warning">
+                    {words.warning}
+                  </p>
+                )}
+              </details>
+            </>
+          ) : (
+            <>
+              <p className={styles.reason} data-testid="reveal-reason">
+                {words ? words.reason : none.saved}
+              </p>
+              {words?.goals && (
+                <p className={styles.caveat} data-testid="reveal-goals">
+                  {words.goals}
+                </p>
+              )}
+              {words?.warning && (
+                <p className={styles.caveat} data-testid="reveal-warning">
+                  {words.warning}
+                </p>
+              )}
+            </>
           )}
           {!plan && (
             <p className={styles.caveat} data-testid="reveal-quick">

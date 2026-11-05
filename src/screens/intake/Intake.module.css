@@ -460,7 +460,9 @@
 /* P8: the week as one column of days, each a calm row (never a stretched tile). */
 .chips[data-grid='1'][data-fill] {
   grid-template-columns: minmax(0, 1fr);
-  grid-auto-rows: minmax(48px, 60px);
+  /* Round 3: 48 pt rows, so Sunday fits the SE above the button. */
+  grid-auto-rows: 48px;
+  gap: 6px;
   align-content: start;
 }
 
@@ -1130,6 +1132,45 @@
   font-size: var(--text-base);
   font-weight: 600;
   line-height: 1.35;
+}
+
+/* Round 3: "Why this plan", a quiet disclosure for the fit details. */
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.whySummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  margin: -8px 0;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.whySummary::-webkit-details-marker {
+  display: none;
+}
+
+.whySummary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.why[open] > .whySummary::after {
+  transform: translateY(1px) rotate(225deg);
 }
 
 .caveat {

@@ -21,7 +21,7 @@ describe('B1: the line says only what the pick really used', () => {
   ] as IntakeAnswers[][])('%j is the closest plan, never "your plan"', (a) => {
     const e = explainPick(plan, { ...full, ...a });
     // PLAN 3.3a round 2 B2 (supersedes): far off on days, minutes and level says no such plan yet.
-    expect(e.title).toBe(e.mismatch ? "We don't have a 2 day, 20 minute beginner plan yet" : 'Closest plan we have');
+    expect(e.title).toBe(e.mismatch ? 'No 2 day, 20 min beginner plan yet' : 'Closest plan we have');
     expect(e.check).toBe(false);
   });
 

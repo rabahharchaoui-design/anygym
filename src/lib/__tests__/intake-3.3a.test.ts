@@ -106,16 +106,18 @@ describe('the plan pick weights Main over Also', () => {
     expect(main.check).toBe(true);
     expect(main.reason).toBe('Picked for your full gym, your muscle goal and your 5 days.');
     // Round 2 B2: both goals are named, each used or coming soon; the warning does not repeat them.
-    expect(main.goals).toBe('Main: muscle. Also: fat loss, coming soon.');
+    expect(main.goals).toBe('Main muscle · Also fat loss (soon)');
     expect(main.warning).toBeNull();
     const also = explainPick(plan, g(['strength', 'muscle']));
     expect(also.title).toBe('Closest plan we have');
     expect(also.check).toBe(false);
     expect(also.reason).toBe('Picked for your full gym, your second goal (muscle) and your 5 days.');
-    expect(also.goals).toBe('Main: strength, coming soon. Also: muscle.');
+    expect(also.goals).toBe('Main strength (soon) · Also muscle');
+    expect(also.summary).toMatch(/^Closest: 5 days, about \d+ min\.$/);
+    expect(main.summary).toBeNull();
     const neither = explainPick(plan, g(['race', 'strength']));
     expect(neither.reason).toBe('Picked for your full gym and your 5 days. It builds muscle.');
-    expect(neither.goals).toBe('Main: race, coming soon. Also: strength, coming soon.');
+    expect(neither.goals).toBe('Main race (soon) · Also strength (soon)');
     // One goal: as before, no goals line.
     expect(explainPick(plan, g(['race'])).goals).toBeNull();
     expect(explainPick(plan, g(['race'])).warning).toBe("Race goal isn't built in yet.");
@@ -181,10 +183,14 @@ describe('B2: far off on days, minutes and level is the wrong plan for the perso
   it('a brand new 3 day 45 min user: no beginner plan yet, the quick workout leads, the plan stays an option', () => {
     const e = explainPick(plan, { ...base, experience: 'new', days: 3, minutes: 45 });
     expect(e.mismatch).toBe(true);
-    expect(e.title).toBe("We don't have a 3 day, 45 minute beginner plan yet");
+    expect(e.title).toBe('No 3 day, 45 min beginner plan yet');
+    // Round 3 (B2): one honest line up front, every fact still in the reason and warning.
+    expect(e.summary).toMatch(/^Closest: 5 days, about \d+ min\.$/);
+    expect(e.reason).toBe('Picked for your full gym and your muscle goal. It runs 5 days a week. It expects some experience, so start light.');
+    expect(e.warning).toMatch(/^About \d+ min, 5 days\. You asked for 45 min, 3 days\.$/);
     expect(e.quick).toBe('primary');
     expect(e.check).toBe(false);
-    expect(e.goals).toBe('Main: muscle. Also: fat loss, coming soon.');
+    expect(e.goals).toBe('Main muscle · Also fat loss (soon)');
   });
 
   it('one dimension off is still the closest plan with the plan first', () => {
@@ -196,8 +202,8 @@ describe('B2: far off on days, minutes and level is the wrong plan for the perso
   });
 
   it('days and level off, with no time limit: says so without minutes', () => {
-    expect(explainPick(plan, { ...base, experience: 'months', days: 3, minutes: 75 }).title).toBe("We don't have a 3 day beginner plan yet");
-    expect(explainPick(plan, { ...base, experience: '3y', days: 2, minutes: 30 }).title).toBe("We don't have a 2 day, 30 minute plan yet");
+    expect(explainPick(plan, { ...base, experience: 'months', days: 3, minutes: 75 }).title).toBe('No 3 day beginner plan yet');
+    expect(explainPick(plan, { ...base, experience: '3y', days: 2, minutes: 30 }).title).toBe('No 2 day, 30 min plan yet');
   });
 });
 
