@@ -20,7 +20,7 @@ async function exposed(control: Locator) {
 
 // Completed PLAN 1.7k: exact single weights never snap to the dumbbell range or
 // double as a pair. Existing kettlebell coverage stops at the picker/row.
-// CODEX FOUND BUG: Edit set clips the Save button at 375×667 (only 56% visible), violating SPEC 13.4–13.5 primary-action reachability.
+// CODEX FOUND BUG, fix in 3.6a: Edit set clips the Save button at 375×667 (only 56% visible), violating SPEC 13.4–13.5 primary-action reachability.
 test.skip('offline SE: an exact fractional kettlebell survives weight edit, Delete, Undo, Finish and reload', async ({ page, context }) => {
   test.setTimeout(60_000);
   await quickWith(page, [['goblet', 'Kettlebell Goblet Squat']]);
