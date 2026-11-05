@@ -14,7 +14,7 @@
 
 import type { Plan, PlanBlock, PlanDay, PlanItem } from './plans';
 import { itemTarget } from './plans';
-import { heaviestOf, isCompound, muscleWord, orderUnits, sameMusclePair, type Muscle, type Profile } from './order';
+import { SQUAT_HINGE_PRESS, heaviestOf, isCompound, muscleWord, orderUnits, sameMusclePair, type Muscle, type Profile } from './order';
 
 export const TIP_IDS = ['hinge', 'stretch', 'rest', 'pair', 'freq', 'core'] as const;
 export type TipId = (typeof TIP_IDS)[number];
@@ -167,7 +167,7 @@ function heavyRest(plan: Plan, profile: ProfileOf): Found | null {
   const hits: Array<{ day: number; id: string; name: string }> = [];
   for (const d of plan.days) {
     const lifts = d.blocks.filter((b) => isMainLift(b, profile));
-    const heavy = heaviestOf(lifts.flatMap((b) => itemsOf(b, profile)));
+    const heavy = heaviestOf(lifts.flatMap((b) => itemsOf(b, profile)), SQUAT_HINGE_PRESS);
     if (!heavy) continue;
     const block = lifts.find((b) => b.items.some((it) => it.exerciseId === heavy.id))!;
     // Only a rest the plan states: the app's own default is never called the plan's.

@@ -3,7 +3,7 @@
 // JSON is untouched, reduced motion, 320 wide, 48 pt targets. Shots: reports/shots/3.4a/verify/.
 import { expect, test, type Page } from './fixtures';
 import { checkControls, checkLayout, simulateSafeAreas } from './helpers/layout';
-import { bar185, dbAll, dbPut, exerciseView, seedFinished, shotOn, usePlan, watchErrors } from './workout-helpers';
+import { dbAll, dbPut, exerciseView, seedFinished, shotOn, usePlan, watchErrors } from './workout-helpers';
 
 type Gym = { id: string; isActive: boolean };
 type Sess = { id: string; exerciseIds: string[] };
@@ -53,8 +53,7 @@ test('real tap path: Today > Quick workout > search > Add > 3 checks > Up next; 
   await expect(back).toBeVisible();
   await page.waitForTimeout(1000);
   await back.tap();
-  // A double tap on Add pushed the exercise route twice, so the first Back stays put (FAIL noted in the report): tap again.
-  if (!(await page.getByTestId('workout-title').count())) await back.tap();
+  // Round 2: a double tap on Add pushes the route once, so one Back is the list.
   await expect(page.getByTestId('workout-title')).toHaveText('Quick workout');
   await expect(page.getByTestId(`row-${pickId}`)).toHaveCount(1);
   await expect(page.getByTestId('up-next')).toHaveCount(0);

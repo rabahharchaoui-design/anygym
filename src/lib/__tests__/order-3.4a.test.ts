@@ -10,6 +10,7 @@ import { EQUIPMENT_IDS, type EquipmentId } from '../../db/types';
 import {
   canPair,
   heaviestOf,
+  SQUAT_HINGE_PRESS,
   isCompound,
   liftWord,
   orderUnits,
@@ -198,10 +199,10 @@ describe('pairs (rule 5)', () => {
     expect(canPair(profileFor('static-pigeon-stretch'), profileFor('crunch'))).toBe(false);
   });
 
-  it('the heaviest lift of a day is its biggest squat, hinge or press', () => {
+  it('the heaviest lift of a day is its biggest compound; the rest check narrows it to squats, hinges and presses', () => {
     expect(heaviestOf(['barbell-back-squat', 'angled-machine-leg-press', 'barbell-straight-leg-romanian-deadlift'].map((id) => profileFor(id)))?.id).toBe('barbell-back-squat');
     expect(heaviestOf(['dumbbell-bench-press', 'barbell-incline-bench-press'].map((id) => profileFor(id)))?.id).toBe('barbell-incline-bench-press');
-    expect(heaviestOf(['wide-grip-pull-up', 'barbell-bent-over-row', 'barbell-bicep-curl'].map((id) => profileFor(id)))).toBeUndefined();
+    expect(heaviestOf(['wide-grip-pull-up', 'barbell-bent-over-row', 'barbell-bicep-curl'].map((id) => profileFor(id)), SQUAT_HINGE_PRESS)).toBeUndefined();
   });
 });
 

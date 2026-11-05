@@ -150,6 +150,8 @@ export type Session = {
    * Additive, not indexed; missing = the plan's sets.
    */
   rowAdjust?: Record<string, number>;
+  /** PLAN 3.4a (additive, not indexed): the rest Up next suggested for an exercise it added (SPEC 22 rule 6), by exercise id. */
+  suggestedRest?: Record<string, number>;
   /**
    * PLAN 3.4: what this workout does instead of the plan, one record per changed slot. Additive, not
    * indexed; missing = the plan as written. Sets always keep the exercise really performed.

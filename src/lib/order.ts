@@ -58,6 +58,8 @@ export type Profile = {
   tier: number;
   /** How demanding it is, 1 to 11: within a rank the bigger lift goes first. */
   load: number;
+  /** A bodyweight skill that takes years to learn (handstand push ups): only for experienced lifters. */
+  advanced?: true;
 };
 
 // ---------------------------------------------------------------- profiles
@@ -202,14 +204,19 @@ export function orderUnits<T>(units: readonly Unit<T>[], opts: OrderOptions = {}
   return out.map((x) => x.u);
 }
 
-const HEAVY_PATTERNS: ReadonlySet<Pattern> = new Set<Pattern>(['squat', 'hinge', 'horizontal push', 'vertical push']);
-
-/** The day's heaviest lift: the biggest squat, hinge or press (rule 5: it gets full rest, no pair). First wins a tie. */
-export function heaviestOf(profiles: readonly Profile[]): Profile | undefined {
+/**
+ * The day's heaviest lift: its biggest compound of any pattern, pulls included (rule 5: it gets full
+ * rest and is never paired). First wins a tie. `patterns` narrows it (the Coach tips rest check
+ * looks only at squats, hinges and presses, SPEC 22 flag 3).
+ */
+export function heaviestOf(profiles: readonly Profile[], patterns?: ReadonlySet<Pattern>): Profile | undefined {
   let best: Profile | undefined;
-  for (const p of profiles) if (isCompound(p) && p.pattern && HEAVY_PATTERNS.has(p.pattern) && (!best || p.load > best.load)) best = p;
+  for (const p of profiles) if (isCompound(p) && p.pattern && (!patterns || patterns.has(p.pattern)) && (!best || p.load > best.load)) best = p;
   return best;
 }
+
+/** SPEC 22 flag 3 and rule 5's examples: heavy squats, deadlifts and presses. */
+export const SQUAT_HINGE_PRESS: ReadonlySet<Pattern> = new Set<Pattern>(['squat', 'hinge', 'horizontal push', 'vertical push']);
 
 // ---------------------------------------------------------------- pairs (rule 5)
 
@@ -265,6 +272,8 @@ export type UpNextContext = {
   easyOn?: readonly string[];
   /** One key for ids that are the same exercise, so nothing done today comes back. */
   sameAs?: (id: string) => string;
+  /** Intake experience (SPEC 14): advanced skills only for '3y' (2+ years); unknown is treated as new. */
+  experience?: string;
 };
 
 export type Idea = { profile: Profile; reason: string };
@@ -357,10 +366,14 @@ export function upNextIdeas(done: readonly Profile[], pool: readonly Profile[], 
   const pull = doneSet(PULL);
   const legs = doneSet(LEGS);
   const patternsDone = new Set(done.flatMap((p) => (p.pattern ? [p.pattern] : [])));
+  // Rule 3: a muscle an isolation already tired today is a helper no compound should lean on now.
+  const tired = new Set(done.filter((p) => p.role === 'lift' && !isCompound(p)).flatMap((p) => p.targets));
 
   const scored: Scored[] = [];
   pool.forEach((p, at) => {
     if (p.role !== 'lift' || taken.has(key(p.id)) || avoid.some((f) => f(p))) return;
+    if (isCompound(p) && p.helpers.some((h) => tired.has(h))) return;
+    if (p.advanced && ctx.experience !== '3y') return;
     let score = 0;
     const why = new Map<Why, string>();
     if (isCompound(p)) {
@@ -405,6 +418,8 @@ export function upNextIdeas(done: readonly Profile[], pool: readonly Profile[], 
       score += 10;
       why.set('focus', `Your focus: ${muscleWord(f)}`);
     }
+    // Plain moves first, even for those who may do a skill.
+    if (p.advanced) score -= 25;
     const order: Why[] = ['focus', 'follow', 'balance', 'legs', 'compound', 'late'];
     const reason = order.map((w) => why.get(w)).find(Boolean) ?? (isCompound(p) ? 'Next big lift while you are fresh' : 'Rounds out the workout');
     scored.push({ p, score, reason, at });

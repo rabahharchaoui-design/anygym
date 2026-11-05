@@ -156,7 +156,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
       liveEntries({
         planEntries,
         exerciseIds,
-        make: (id, block) => quickEntry(id, nameOf(id), loadTypeOf(id), block),
+        make: (id, block) => quickEntry(id, nameOf(id), loadTypeOf(id), block, session.data?.suggestedRest?.[id]),
         swaps,
         adjust: liveRowAdjustments(sessionId, new Set(presentKey ? presentKey.split('|') : [])),
         sets,
@@ -164,7 +164,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
         eachSideOf: countsEachSide,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planEntries, exerciseIds, sessionId, extraTick, settings.data, gym.data, presentKey, kindKey, swaps],
+    [planEntries, exerciseIds, sessionId, extraTick, settings.data, gym.data, presentKey, kindKey, swaps, session.data?.suggestedRest],
   );
   const entryMap = useMemo(() => new Map(entries.map((e) => [e.exerciseId, e])), [entries]);
 

@@ -3,7 +3,7 @@ import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState, typ
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
-import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
+import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, addSuggested, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
 import { extraSets, markDeleted } from '../../lib/extraSets';
 import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
@@ -36,6 +36,7 @@ import { DayList } from './DayList';
 import { EditSetSheet, type SaveResult } from './EditSetSheet';
 import { ExerciseMenu, type MenuAction } from './ExerciseMenu';
 import { ExercisePicker } from './ExercisePicker';
+import { TAP_GUARD_MS } from '../../hooks/useTapGuard';
 import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { SwapSheet } from './SwapSheet';
@@ -286,6 +287,23 @@ export function WorkoutScreen() {
       if (ids.length === 1) openExercise(ids[0]!, true);
     } catch (err) {
       notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not add that. Try again.');
+    }
+  };
+
+  // PLAN 3.4a: Up next adds one exercise with its suggested rest and opens it. One tap, one
+  // navigation: a second tap while it is adding (or right after) does nothing (SPEC 13.3).
+  const suggesting = useRef(false);
+  const addSuggestion = async (id: string, restSec: number) => {
+    if (suggesting.current) return;
+    suggesting.current = true;
+    try {
+      await addSuggested(sessionId, id, restSec);
+      justAdded.current.add(id);
+      openExercise(id, true);
+    } catch (err) {
+      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not add that. Try again.');
+    } finally {
+      window.setTimeout(() => (suggesting.current = false), TAP_GUARD_MS);
     }
   };
 
@@ -770,7 +788,7 @@ export function WorkoutScreen() {
       heroId={lastViewed}
       onOpen={openExercise}
       onAdd={() => setPicking(true)}
-      onAddOne={(id) => void add([id])}
+      onAddOne={(id, rest) => void addSuggestion(id, rest)}
       sessionId={sessionId}
       onChangeSwap={setSwapFor}
       onToast={setToast}

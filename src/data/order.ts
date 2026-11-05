@@ -39,6 +39,9 @@ export const PROFILE_OVERRIDES: Readonly<Record<string, Override>> = {
   // A straight arm pulldown is a lat isolation (no biceps), not a big pull.
   'Straight-Arm_Pulldown': { helpers: [], tier: 2, load: 2 },
   Good_Morning: { tier: 1 },
+  // Skills that take years to learn: never suggested to a newer lifter (Up next, SPEC 22).
+  'Handstand_Push-Ups': { advanced: true },
+  Natural_Glute_Ham_Raise: { advanced: true },
   // The full deadlift is the biggest lift there is.
   deadlift: { load: 11 },
   Sumo_Deadlift: { load: 11 },

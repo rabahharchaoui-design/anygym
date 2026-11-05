@@ -27,7 +27,7 @@ type Props = {
   /** PLAN 3.9: the gym pill's "Now at … · Undo" goes to the workout's toast. */
   onToast?: (t: ToastMessage) => void;
   /** PLAN 3.4a: a quick workout's Up next adds one exercise and opens it. */
-  onAddOne?: (exerciseId: string) => void;
+  onAddOne?: (exerciseId: string, restSec: number) => void;
   sessionId?: string;
 };
 

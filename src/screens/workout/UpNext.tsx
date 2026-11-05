@@ -5,7 +5,7 @@ import { useLive } from '../../hooks/useLive';
 import { profileFor, upNextPool } from '../../data/order';
 import { SWAP_DATA } from '../../data/patterns';
 import { demoFor } from '../../data/exerciseInfo';
-import { upNextIdeas, type Goal, type Idea, type Muscle } from '../../lib/order';
+import { restFor, upNextIdeas, type Goal, type Idea, type Muscle } from '../../lib/order';
 import { quickEntry } from '../../lib/planWorkout';
 import { goalsOf } from '../../lib/intake/funnel';
 import type { FocusId } from '../../lib/intake/options';
@@ -41,7 +41,10 @@ async function recentMuscles(sessionId: string, now: number): Promise<Muscle[]> 
  * The Up next ideas once every set of a quick workout is done (SPEC 20.3, 22): what was done, in
  * the order it was finished, against everything this gym can surely do. Null while a read runs.
  */
-export function useUpNext(w: Workout, sessionId: string): Idea[] | null {
+/** An idea with the rest it brings (SPEC 22 rule 6, by the user's goal). */
+export type UpNextIdea = Idea & { restSec: number };
+
+export function useUpNext(w: Workout, sessionId: string): UpNextIdea[] | null {
   const show = w.ready && w.isQuick && w.nextId === null && w.sets.length > 0;
   const profile = useLive(() => (show ? getProfile() : Promise.resolve(undefined)), [show]);
   const recent = useLive(() => (show ? recentMuscles(sessionId, Date.now()) : Promise.resolve([] as Muscle[])), [show, sessionId]);
@@ -54,18 +57,20 @@ export function useUpNext(w: Workout, sessionId: string): Idea[] | null {
     const done = doneKey.split('|').filter(Boolean).map((id) => profileFor(id, w.nameOf(id)));
     const taken = new Set(inWorkout.split('|').map(SWAP_DATA.sameAs));
     const pool = upNextPool(gym).filter((p) => !taken.has(SWAP_DATA.sameAs(p.id)));
+    const goal = (intake ? goalsOf(intake)[0] : undefined) as Goal | undefined;
     return upNextIdeas(done, pool, {
-      goal: (intake ? goalsOf(intake)[0] : undefined) as Goal | undefined,
+      goal,
+      experience: intake?.experience,
       focus: (intake?.focus ?? []).flatMap((f) => FOCUS_MUSCLES[f] ?? []),
       recent: recent.data ?? [],
       easyOn: (intake?.easyOn ?? []).filter((e) => e !== 'none'),
       sameAs: SWAP_DATA.sameAs,
-    }).map((idea) => ({ ...idea, profile: { ...idea.profile, name: w.nameOf(idea.profile.id) } }));
+    }).map((idea) => ({ ...idea, restSec: restFor(idea.profile, goal), profile: { ...idea.profile, name: w.nameOf(idea.profile.id) } }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, gym, profile.ready, profile.data, recent.ready, recent.data, doneKey, inWorkout]);
 }
 
-type Props = { w: Workout; ideas: Idea[]; onAdd: (exerciseId: string) => void };
+type Props = { w: Workout; ideas: UpNextIdea[]; onAdd: (exerciseId: string, restSec: number) => void };
 
 /**
  * "Up next" (SPEC 20.3, 22): one big suggestion with why, one tap adds it (quick workout sets, reps
@@ -84,13 +89,13 @@ export function UpNextCard({ w, ideas, onAdd }: Props) {
       </section>
     );
   }
-  const line = (id: string) => quickEntry(id, w.nameOf(id), w.loadTypeOf(id), 0).setsText;
+  const line = (i: UpNextIdea) => `${quickEntry(i.profile.id, i.profile.name, w.loadTypeOf(i.profile.id), 0).setsText} · ${i.restSec} s rest`;
   return (
     <section className={styles.card} aria-label="Up next" data-testid="up-next">
       <button
         type="button"
         className={`${styles.pick} pressable`}
-        onClick={() => onAdd(pick.profile.id)}
+        onClick={() => onAdd(pick.profile.id, pick.restSec)}
         aria-label={`Up next: ${pick.profile.name}. ${pick.reason}. Add it`}
         data-testid="up-next-pick"
         data-id={pick.profile.id}
@@ -103,7 +108,7 @@ export function UpNextCard({ w, ideas, onAdd }: Props) {
             <span className={styles.reason} data-testid="up-next-reason">
               {pick.reason}
             </span>
-            <span className={`${styles.sets} num`}>{line(pick.profile.id)}</span>
+            <span className={`${styles.sets} num`}>{line(pick)}</span>
           </span>
           <span className={styles.addDot} aria-hidden="true">
             <PlusIcon width={22} height={22} strokeWidth={2.6} />
@@ -119,7 +124,7 @@ export function UpNextCard({ w, ideas, onAdd }: Props) {
                 <button
                   type="button"
                   className={`${styles.other} pressable`}
-                  onClick={() => onAdd(o.profile.id)}
+                  onClick={() => onAdd(o.profile.id, o.restSec)}
                   aria-label={`${o.profile.name}. ${o.reason}. Add it`}
                   data-testid="up-next-other"
                   data-id={o.profile.id}
@@ -134,6 +139,12 @@ export function UpNextCard({ w, ideas, onAdd }: Props) {
             ))}
           </ul>
         </>
+      )}
+      {/* Honest when fewer than 3 fit (SPEC 20.3): says how many, never pads the list. */}
+      {ideas.length < 3 && (
+        <p className={styles.fewer} data-testid="up-next-fewer">
+          Only {ideas.length} other {ideas.length === 1 ? 'move fits' : 'moves fit'} here
+        </p>
       )}
     </section>
   );

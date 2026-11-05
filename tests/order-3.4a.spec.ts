@@ -259,3 +259,73 @@ test('SE fit and 130% text: Up next and the open Coach tips stay whole @matrix',
   await shotOn(page, SHOTS, 'coach-tips-130');
   expect(errors).toEqual([]);
 });
+
+// ---------------------------------------------------------------- round 2 (Codex review, tester)
+
+/** A quick workout at a bench only gym with these exercises fully done (3 bodyweight sets each). */
+async function benchOnlyDone(page: Page, done: string[]) {
+  const gym = await activeGym(page, ['flat_bench']);
+  const id = `q-${Date.now()}`;
+  await dbPut(page, {
+    sessions: [{ id, gymId: gym.id, startedAt: Date.now() - 600_000, imported: false, exerciseIds: done }],
+    sets: done.flatMap((x, n) => [0, 1, 2].map((i) => ({ id: `${id}-${n}-${i}`, sessionId: id, exerciseId: x, order: n * 3 + i, kind: 'work', uncertain: false, reps: 10, load: { kind: 'bodyweight', unit: 'lb', total: 0 } }))),
+  });
+  await page.goto(`./#/workout/${id}`);
+  await page.reload();
+  const card = page.getByTestId('up-next');
+  await expect(card).toBeVisible();
+  return card;
+}
+
+test('round 2 (1): an idea with no sure demo gets the plain tile, never a photo', async ({ page }) => {
+  const errors = watchErrors(page);
+  const card = await benchOnlyDone(page, ['Pushups']);
+  const pick = card.getByTestId('up-next-pick');
+  await expect(pick).toHaveAttribute('data-id', 'Bodyweight_Squat');
+  await expect(pick.locator('[data-photo]')).toHaveCount(0);
+  await expect(pick.locator('img')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('round 2 (3, 6): a double tap on Add adds once and pushes once; the suggested rest stays after a reload @matrix', async ({ page }) => {
+  const errors = watchErrors(page);
+  const { id } = await quickWithTwoSets(page, 'barbell-back-squat', { ...BAR_135, total: 185, perSide: [45, 25] });
+  const card = await logLastSet(page);
+  const pick = card.getByTestId('up-next-pick');
+  await expect(pick).toHaveAttribute('data-id', 'Barbell_Bench_Press_-_Medium_Grip');
+  // A heavy compound brings 2.5 min of rest (SPEC 22 rule 6), shown before the tap.
+  await expect(pick).toContainText('150 s rest');
+  await pick.evaluate((el: HTMLElement) => {
+    el.click();
+    el.click();
+  });
+  await expect(exerciseView(page, 'Barbell_Bench_Press_-_Medium_Grip')).toBeVisible();
+  await page.waitForTimeout(500);
+  // One history entry: one Back from the browser lands on the list, not on the same exercise again.
+  await page.goBack();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`#/workout/${id}$`));
+  await page.goForward();
+  await expect(exerciseView(page, 'Barbell_Bench_Press_-_Medium_Grip')).toBeVisible();
+  await expect.poll(async () => (await session(page, id)).exerciseIds).toEqual(['barbell-back-squat', 'Barbell_Bench_Press_-_Medium_Grip']);
+  await page.reload();
+  await expect(exerciseView(page, 'Barbell_Bench_Press_-_Medium_Grip')).toBeVisible();
+  // One Back after the reload: the list.
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
+  const row = page.getByTestId('row-Barbell_Bench_Press_-_Medium_Grip');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('150 s rest');
+  expect(errors).toEqual([]);
+});
+
+test('round 2 (5): fewer than 3 fit says so; no advanced skill for a lifter without 2+ years @matrix', async ({ page }) => {
+  const errors = watchErrors(page);
+  const done = ['Bodyweight_Squat', 'Bodyweight_Walking_Lunge', 'Split_Squats', 'Pushups', 'Incline_Push-Up', 'Single_Leg_Glute_Bridge', 'Butt_Lift_Bridge', 'Bench_Dips', 'elbow-plank', 'crunch', 'Reverse_Crunch', 'Sit-Up', 'russian-twist'];
+  const card = await benchOnlyDone(page, done);
+  const ids = await card.locator('[data-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-id')));
+  expect(ids).toHaveLength(2);
+  expect(ids).not.toContain('Handstand_Push-Ups');
+  await expect(card.getByTestId('up-next-fewer')).toHaveText('Only 2 other moves fit here');
+  await shotOn(page, SHOTS, 'fewer-fit');
+  expect(errors).toEqual([]);
+});

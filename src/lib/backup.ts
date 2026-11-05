@@ -223,7 +223,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
     req: { id: str, gymId: str, startedAt: num, imported: bool },
-    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap) },
+    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num) },
   }),
   sets: isSet,
   runs: shape({

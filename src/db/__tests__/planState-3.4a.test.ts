@@ -39,3 +39,28 @@ describe('coach tuned copy as the plan in use', () => {
     await expect(choosePlan('five-day-split~coach-nope', db, 1)).rejects.toThrow('Plan not found');
   });
 });
+
+describe('PLAN 3.4a round 2: an Up next lift keeps its suggested rest', () => {
+  it('addSuggested adds the exercise and keeps its rest on the session; a second add changes nothing', async () => {
+    const { addSuggested } = await import('../workouts');
+    await db.sessions.put({ id: 's', gymId: 'g', startedAt: 1, imported: false, exerciseIds: ['barbell-back-squat'] });
+    const s = await addSuggested('s', 'deadlift', 150, db);
+    expect(s.exerciseIds).toEqual(['barbell-back-squat', 'deadlift']);
+    expect((await db.sessions.get('s'))?.suggestedRest).toEqual({ deadlift: 150 });
+    await addSuggested('s', 'deadlift', 75, db);
+    expect((await db.sessions.get('s'))?.suggestedRest).toEqual({ deadlift: 150 });
+  });
+
+  it('refuses a missing or finished workout', async () => {
+    const { addSuggested, WorkoutFinishedError } = await import('../workouts');
+    await expect(addSuggested('nope', 'deadlift', 150, db)).rejects.toThrow('Workout not found');
+    await db.sessions.put({ id: 'f', gymId: 'g', startedAt: 1, endedAt: 2, imported: false, exerciseIds: [] });
+    await expect(addSuggested('f', 'deadlift', 150, db)).rejects.toBeInstanceOf(WorkoutFinishedError);
+  });
+
+  it('a backup keeps it', async () => {
+    const { RECORD_CHECKS } = await import('../../lib/backup');
+    expect(RECORD_CHECKS.sessions({ id: 's', gymId: 'g', startedAt: 1, imported: false, suggestedRest: { deadlift: 150 } })).toBe(true);
+    expect(RECORD_CHECKS.sessions({ id: 's', gymId: 'g', startedAt: 1, imported: false, suggestedRest: { deadlift: 'x' } })).toBe(false);
+  });
+});
