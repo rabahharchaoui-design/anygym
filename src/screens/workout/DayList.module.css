@@ -354,9 +354,6 @@
 /* The gym name sits inline in the metadata line (no reserved pill width here). */
 .meta > :first-child {
   min-width: 0;
-  height: auto;
-  font-size: inherit;
-  padding: 0;
 }
 
 /* The second separator shows while everything fits; tight, a plain gap (gate round 2 P5). */

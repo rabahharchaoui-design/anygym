@@ -1,4 +1,4 @@
-// PLAN 3.9 (SPEC 19): gym switching everywhere. Progress: Vitest in src/db/__tests__/gyms-3.9.test.ts;
+// PLAN 3.9 (SPEC 19): gym switching everywhere. DONE (Vitest in src/db/__tests__/gyms-3.9.test.ts, 13 tests).
 // this file covers Settings Gyms (add, rename, make active, delete), the pill on Today / day list / Run,
 // the mid workout preview with Undo, and fit at SE, 320 and 130% text.
 import { expect, test, type Page } from './fixtures';
@@ -196,7 +196,7 @@ test('Settings, the sheet and the preview fit at 130% text; the equipment picker
   expect(before.equipment).toContain('cable_station');
   await page.getByRole('button', { name: /Cable station/ }).first().tap();
   await expect.poll(async () => ((await gyms(page)).find((g) => g.id === before.id) as typeof before).equipment).not.toContain('cable_station');
-  await page.getByRole('button', { name: 'Back to the gym' }).tap();
+  await page.getByLabel('Back to the gym').tap();
   await expect(page.getByTestId('detail-equipment')).toBeVisible();
 
   await page.goto('./');

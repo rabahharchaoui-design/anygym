@@ -1,22 +1,20 @@
 /* PLAN 3.9: the gym pill, the gym sheet, + New gym and the switch preview. */
 
-/* The pill: a compact glass capsule, "My Gym ▾". 32 pt to look at, 48 pt to hit. */
+/* The pill: a compact glass capsule, "My Gym ▾". The button is the 48 pt hit box; the face inside is
+   32 pt to look at. Negative margins keep the layout footprint at 32 pt. */
 .pill {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 32px;
-  min-width: 88px;
-  max-width: min(44vw, 184px);
-  padding: 0 8px 0 12px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--glass-line);
-  background: rgb(255 255 255 / 0.06);
+  min-height: 48px;
+  min-width: 48px;
+  max-width: min(calc(44vw + 8px), 192px);
+  margin: -8px -4px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
   color: var(--text);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  white-space: nowrap;
+  font: inherit;
   opacity: 0;
   transition:
     opacity var(--dur-fast) var(--ease-out),
@@ -25,19 +23,39 @@
   user-select: none;
 }
 
-/* The hit area grows to 48 pt without moving anything around the pill. */
-.pill::before {
-  content: '';
-  position: absolute;
-  inset: -8px -4px;
+.pillFace {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  min-width: 88px;
+  max-width: 100%;
+  padding: 0 8px 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glass-line);
+  background: rgb(255 255 255 / 0.06);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .pill[data-ready='true'] {
   opacity: 1;
 }
 
+/* In the day list's metadata line the name is plain text, with the same 48 pt hit box. */
 .pill[data-align='start'] {
+  margin: -12px -4px;
+  max-width: 100%;
+}
+
+.pill[data-align='start'] .pillFace {
   min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
 }
 
 .pillName {

@@ -24,10 +24,10 @@ export function GymPill({ align = 'end', onToast, inWorkout = false, still = fal
   const gym = useActiveGym();
   const [open, setOpen] = useState(false);
   const face = (
-    <>
+    <span className={styles.pillFace}>
       <span className={styles.pillName}>{gym?.name ?? ''}</span>
       <ChevronDown className={styles.pillChevron} strokeWidth={2.4} aria-hidden="true" />
-    </>
+    </span>
   );
   if (still || !onToast) {
     return (
