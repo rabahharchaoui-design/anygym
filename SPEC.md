@@ -391,7 +391,7 @@ Places it appears: the first use weight prompts (Smith machine, EZ bar, plate lo
 
 ## 14. Getting to know them: the intake funnel (G's rule: more options, all taps)
 Replaces the short onboarding in 7.1. Every screen is big tappable prompt chips (with icons), multi select where it makes sense, a "Skip" on anything personal, progress bar, back always works, about 2 minutes total. More options are better, but every screen asks one clear thing.
-1. Main goal (pick 1): Build muscle · Get stronger · Lose fat · Tone up · Stay healthy · Athletic performance · Train for a race · Get back into it
+1. Main goal (pick up to 2; G Nov 5: the first tap is tagged Main and leads the plan, the second is tagged Also and adds to it; a third tap swaps out the Also): Build muscle · Get stronger · Lose fat · Tone up · Stay healthy · Athletic performance · Train for a race · Get back into it
 2. Focus areas (pick any): Chest · Back · Shoulders · Arms · Abs and core · Glutes · Legs · Whole body balance
 3. What would make this a win? (pick any): Look better in clothes · Bigger arms · Stronger lifts · More energy · Better posture · Lose belly fat · Run farther · Feel less stiff
 4. Experience: Brand new · A few months · 1 to 2 years · 3+ years · Coming back after a break
@@ -481,6 +481,7 @@ G tried logging a barbell squat and it took far too much clicking. The workout m
 - Target for a barbell squat with the weights right: open list, tap Barbell back squat, tap check 4 times. Nothing else.
 
 ### 20.3 Quick workout (no plan)
+- G, Nov 5 (council verdict, overrides the picker first flow below): Quick workout builds the workout for you. (1) "How long?" chips 15 · 30 · 45 · 60 min, preselected from the intake. (2) "Pick one": 3 concept cards generated from the intake, the active gym's equipment and logged history, for example "Hit what's fresh" (muscles not trained in the last 3 days, from logged sets only), "Your Pull day, short" (today's plan day trimmed to the time), "Full body pump"; each card shows a mini muscle map, exercise count and minutes, plus a small "Build my own" link to the old picker. (3) "Curate it": a card deck of the chosen workout, one exercise per card (demo picture, muscles, sets x reps, why it is here in one line). Swipe right or tap Keep; swipe left or tap Swap: the swap engine (SPEC 7.2) puts in another exercise of the same movement pattern that fits the gym, so the workout stays balanced; long press: Never show me this. Left swipes quietly rank that exercise lower in future suggestions (never a ban). First time only, a hint: "Right keeps it, left swaps it." (4) "Start workout" after the last card; "Start as is" is visible on every card. Targets: under 4 taps from Today to the first set with the defaults, under 30 s with curating. Today shows a Quick workout card ("Got 30 min? I'll build it") for people past the intake.
 - Starts with a fast exercise picker: search box on top, then "Recent", "For your gym", and body part chips. Tapping an exercise adds it to the list with sensible default sets and reps for the user's goal. No load type question ever: the catalog knows it.
 - Then it behaves exactly like 20.1 and 20.2.
 
