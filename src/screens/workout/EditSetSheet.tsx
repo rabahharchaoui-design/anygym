@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Sheet } from '../../ui/Sheet';
+import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load, WorkoutSet } from '../../db/types';
 import { collarsSettingOf, otherOf } from '../../lib/load';
 import { countModeOf } from '../../lib/setTable';
@@ -30,7 +30,7 @@ type Props = {
 /** Tap a logged set: the same inputs in a sheet, with Save and Delete (undo lives in the toast). */
 export function EditSetSheet({ set, index, exerciseName, loadType, gym, onClose, onSave, onDelete, bar }: Props) {
   return (
-    <Sheet open={set !== null} onClose={onClose} label="Edit set" scroll>
+    <Sheet open={set !== null} onClose={onClose} label="Edit set" scroll footer>
       {set && <EditBody key={set.id} set={set} index={index} exerciseName={exerciseName} loadType={loadType ?? set.load?.kind} gym={gym} onSave={onSave} onDelete={onDelete} bar={bar} />}
     </Sheet>
   );
@@ -117,29 +117,34 @@ function EditBody({
         <RepsStepper value={reps} onChange={setReps} />
       )}
 
-      <button
-        type="button"
-        className={`${styles.logButton} pressable`}
-        disabled={!load || settling || busy !== null}
-        aria-disabled={!load || settling || busy !== null}
-        aria-busy={busy === 'save'}
-        onClick={() => void save()}
-      >
-        Save
-      </button>
-      <p className={styles.sheetError} role="status" aria-live="polite" data-testid="edit-error">
-        {error}
-      </p>
-      <button
-        type="button"
-        className={`${styles.deleteButton} pressable`}
-        disabled={busy !== null}
-        aria-disabled={busy !== null}
-        aria-busy={busy === 'delete'}
-        onClick={() => void remove()}
-      >
-        Delete set
-      </button>
+      {/* Save and Delete stay pinned under the scrolling body, fully on screen at any height (PLAN 3.6a, SPEC 13.4). */}
+      <SheetFooter>
+        <div className={styles.sheetActions}>
+        <button
+          type="button"
+          className={`${styles.logButton} pressable`}
+          disabled={!load || settling || busy !== null}
+          aria-disabled={!load || settling || busy !== null}
+          aria-busy={busy === 'save'}
+          onClick={() => void save()}
+        >
+          Save
+        </button>
+        <p className={styles.sheetError} role="status" aria-live="polite" data-testid="edit-error">
+          {error}
+        </p>
+        <button
+          type="button"
+          className={`${styles.deleteButton} pressable`}
+          disabled={busy !== null}
+          aria-disabled={busy !== null}
+          aria-busy={busy === 'delete'}
+          onClick={() => void remove()}
+        >
+          Delete set
+        </button>
+        </div>
+      </SheetFooter>
     </div>
   );
 }

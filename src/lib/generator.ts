@@ -129,7 +129,7 @@ export type GeneratorResult =
 
 // ---------------------------------------------------------------- working model
 
-type Item = {
+export type Item = {
   id: string;
   key: string;
   candidate: Candidate;
@@ -373,8 +373,8 @@ function applyFocus(ctx: Ctx, days: Day[]): void {
 
 const unitOf = (items: Item[]): Unit<Item[]> => ({ items: items.map((i) => i.profile), ref: items });
 
-/** SPEC 22 rule 5: small moves next to each other pair up when they share no muscle (never the heaviest lift). */
-function pairUp(units: Item[][], all: Item[]): Item[][] {
+/** SPEC 22 rule 5 (and 3.6a: only equal set counts, so no partner gets sets it was not given): small moves next to each other pair up when they share no muscle (never the heaviest lift). */
+export function pairUp(units: Item[][], all: Item[]): Item[][] {
   const heaviest = heaviestOf(all.map((i) => i.profile));
   const heavy = new Set(heaviest ? [heaviest.id] : []);
   const small = (u: Item[]) => u.length === 1 && u[0]!.profile.role === 'lift' && !isCompound(u[0]!.profile);
@@ -382,12 +382,17 @@ function pairUp(units: Item[][], all: Item[]): Item[][] {
   for (let i = 0; i < units.length; i++) {
     const a = units[i]!;
     const b = units[i + 1];
-    if (b && small(a) && small(b) && canPair(a[0]!.profile, b[0]!.profile, heavy)) {
+    if (b && small(a) && small(b) && a[0]!.sets === b[0]!.sets && canPair(a[0]!.profile, b[0]!.profile, heavy)) {
       out.push([a[0]!, b[0]!]);
       i++;
     } else out.push(a);
   }
   return out;
+}
+
+/** A pair whose partners no longer have the same set count (trimming) becomes two single moves. */
+export function splitUnequalPairs(units: Item[][]): Item[][] {
+  return units.flatMap((u) => (u.length > 1 && u.some((it) => it.sets !== u[0]!.sets) ? u.map((it) => [it]) : [u]));
 }
 
 const blockOf = (u: Item[]): PlanBlock => ({
@@ -522,6 +527,7 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
     d.units = FAMILY_OF[main] === 'strength' ? ordered : pairUp(ordered, d.items);
     if (finisher) d.finisher = finisher;
     trim(d, input.minutes);
+    d.units = splitUnequalPairs(d.units);
   }
 
   const kept = days.flatMap((d) => d.units.flat());

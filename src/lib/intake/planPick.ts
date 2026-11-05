@@ -108,6 +108,11 @@ export type PlanExplain = {
  * nothing at this gym stands in for (planFit).
  * With `generated` (PLAN 3.5): the words for a plan built from these answers, from what it did.
  */
+/** Never exercises, go easy on and focus: a curated plan is not built around them, so it never counts as a true match (3.6a, SPEC 15). */
+export function unmetCustomization(a: IntakeAnswers): boolean {
+  return !!a.never?.length || (a.easyOn ?? []).some((e) => e !== 'none') || (a.focus ?? []).some((f) => f !== 'balance');
+}
+
 export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped = 0, generated?: Applied): PlanExplain {
   // PLAN 3.5: a plan built from these answers says what the generator did, and only that.
   if (generated) {
@@ -180,7 +185,7 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
   const notBuilt = named.length ? `${capital(list(named))} ${plural ? "aren't" : "isn't"} built in yet.` : null;
 
   const quick = mismatch || (timed && longer && a.minutes! <= 30) ? 'primary' : (timed && avg >= a.minutes! * WELL_OVER) || a.experience === 'new' ? 'secondary' : null;
-  const match = goalMatch && daysMatch && !mismatch;
+  const match = goalMatch && daysMatch && !mismatch && !unmetCustomization(a);
   // Round 3 (B2): one line up front; the why stays one tap away (reason and warning, every fact kept).
   const summary = match ? null : [`Closest: ${plan.daysPerWeek} days, about ${avg} min.`, swappedLine(swapped, skipped)].filter(Boolean).join(' ');
 

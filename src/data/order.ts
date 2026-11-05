@@ -39,6 +39,8 @@ export const PROFILE_OVERRIDES: Readonly<Record<string, Override>> = {
   // A straight arm pulldown is a lat isolation (no biceps), not a big pull.
   'Straight-Arm_Pulldown': { helpers: [], tier: 2, load: 2 },
   Good_Morning: { tier: 1 },
+  // A cable kickback is a glute isolation: 10 to 15 reps and short rest, never compound prescriptions (3.6a).
+  'One-Legged_Cable_Kickback': { tier: 2 },
   // Skills that take years to learn: never suggested to a newer lifter (Up next, SPEC 22).
   'Handstand_Push-Ups': { advanced: true },
   Natural_Glute_Ham_Raise: { advanced: true },
