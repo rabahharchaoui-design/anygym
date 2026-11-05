@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { glossaryEntry } from '../../data/glossary';
 import { InfoSheet } from './InfoSheet';
 import styles from './Info.module.css';
@@ -7,13 +7,17 @@ type Props = {
   /** Glossary id, e.g. 'smith-machine'. */
   id: string;
   className?: string;
+  /** PLAN 3.3a round 2 (B4): the picture the user just saw (the tile's drawing), shown bigger. */
+  art?: ReactNode;
+  /** The weight line only where it applies (a bar's weight); default: as the entry says. */
+  showWeight?: boolean;
 };
 
 /**
  * The small ⓘ next to an equipment name or gym term (SPEC 13.7): secondary colour, a 24 pt glyph
  * inside a 48 pt hit area. Opens the info sheet. Renders nothing for an unknown id.
  */
-export function InfoButton({ id, className }: Props) {
+export function InfoButton({ id, className, art, showWeight = true }: Props) {
   const [open, setOpen] = useState(false);
   const entry = glossaryEntry(id);
   if (!entry) return null;
@@ -36,7 +40,7 @@ export function InfoButton({ id, className }: Props) {
           <path d="M12 11v6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
         </svg>
       </button>
-      <InfoSheet entry={entry} open={open} onClose={() => setOpen(false)} />
+      <InfoSheet entry={entry} open={open} onClose={() => setOpen(false)} art={art} showWeight={showWeight} />
     </>
   );
 }

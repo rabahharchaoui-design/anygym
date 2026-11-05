@@ -45,7 +45,10 @@ export type Bodyweight = { value: number; unit: Unit };
 export type Height = { unit: 'cm'; cm: number } | { unit: 'in'; ft: number; in: number };
 
 export type IntakeAnswers = {
+  /** The Main goal (PLAN 3.3a: always goals[0] when goals is set; older answers have only this). */
   goal?: GoalId;
+  /** PLAN 3.3a (additive): up to 2 goals, the first is Main and leads the plan, the second is Also. */
+  goals?: GoalId[];
   units?: UnitsAnswer;
   focus?: FocusId[];
   win?: WinId[];
@@ -125,7 +128,8 @@ export type ScreenKind = 'single' | 'multi' | 'form' | 'notice' | 'reveal';
 
 /** Single choice screens advance on their own after the tap; the rest have Continue. */
 export const KIND: Record<ScreenId, ScreenKind> = {
-  goal: 'single',
+  // PLAN 3.3a: up to 2 picks, so it has Continue.
+  goal: 'multi',
   units: 'form',
   focus: 'multi',
   win: 'multi',
@@ -146,8 +150,14 @@ export const KIND: Record<ScreenId, ScreenKind> = {
   reveal: 'reveal',
 };
 
-/** Personal or optional screens get a Skip (SPEC 14). */
-export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
+/** Personal or optional screens get a Skip (SPEC 14). PLAN 3.3a round 2: and every question not used yet. */
+export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'style', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
+
+/**
+ * PLAN 3.3a round 2 (B6): questions the app does not use yet are optional: Continue works with
+ * nothing picked, and what is left blank is remembered as skipped (never a made up answer).
+ */
+export const NOT_USED_YET: ReadonlySet<ScreenId> = new Set<ScreenId>(['focus', 'win', 'style', 'cardio', 'easyOn', 'exercises', 'when', 'bodyweight']);
 
 /** Which answer field each answer id fills. */
 export const ANSWER_KEY: Record<AnswerId, keyof IntakeAnswers> = {
@@ -186,6 +196,25 @@ export function equipmentChoices(place: PlaceAnswer | undefined): readonly Equip
   return place === 'outdoors' ? ['pull_up_bar', 'resistance_bands'] : EQUIPMENT_IDS;
 }
 
+/** PLAN 3.3a: the most goals one can pick (Main, then Also). */
+export const MAX_GOALS = 2;
+
+/** The goals picked, Main first. Older answers stored only one goal. */
+export function goalsOf(a: Pick<IntakeAnswers, 'goal' | 'goals'>): GoalId[] {
+  if (a.goals?.length) return a.goals.slice(0, MAX_GOALS);
+  return a.goal ? [a.goal] : [];
+}
+
+/**
+ * One tap on a goal (SPEC 14 step 1): a picked one goes (the Also becomes Main when Main goes), a
+ * new one becomes Main, then Also; a third swaps out the Also and Main stays.
+ */
+export function tapGoal(goals: readonly GoalId[], id: GoalId): GoalId[] {
+  if (goals.includes(id)) return goals.filter((g) => g !== id);
+  if (goals.length < MAX_GOALS) return [...goals, id];
+  return [goals[0]!, id];
+}
+
 /** Where a place answer puts the gym (SPEC 3 presets). A mix starts from the full gym. */
 export const GYM_TYPE_OF: Record<PlaceAnswer, GymType> = { full: 'full', hotel: 'hotel', home: 'home', outdoors: 'none', mix: 'full' };
 
@@ -209,6 +238,7 @@ export function weekdayCountNote(a: IntakeAnswers): string | null {
 
 /** Whether the screen has what it needs for Continue (or to advance). */
 export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
+  if (NOT_USED_YET.has(screen)) return true;
   switch (screen) {
     case 'units':
       return a.units !== undefined;
@@ -252,6 +282,12 @@ const unskip = (a: IntakeAnswers, s: AnswerId): AnswerId[] | undefined => {
 export function setAnswer(a: IntakeAnswers, screen: AnswerId, value: unknown): IntakeAnswers {
   const key = ANSWER_KEY[screen];
   const next: IntakeAnswers = { ...a, [key]: value };
+  if (screen === 'goal') {
+    // A list (Main first) or one id (an older caller): goal stays the Main, for every older reader.
+    const list = (Array.isArray(value) ? value : value === undefined ? [] : [value]).slice(0, MAX_GOALS) as GoalId[];
+    next.goal = list[0];
+    next.goals = list.length ? list : undefined;
+  }
   const skipped = unskip(next, screen);
   if (skipped) next.skipped = skipped;
   else delete next.skipped;
@@ -316,7 +352,7 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
       if (!canContinue(state.step, state.answers)) return state;
       if (state.step === 'equipment' && action.noFit) return { ...state, step: 'noPlan' };
       // What was left blank on a merged screen is skipped on purpose (a cleared name goes).
-      const blank = state.step === 'about' || state.step === 'exercises' ? fieldsOf(state.step).filter((f) => isBlank(state.answers[ANSWER_KEY[f]])) : [];
+      const blank = state.step === 'about' || NOT_USED_YET.has(state.step) ? fieldsOf(state.step).filter((f) => isBlank(state.answers[ANSWER_KEY[f]])) : [];
       const answers = blank.length ? markSkipped(state.answers, blank) : state.answers;
       return { step: nextScreen(state.step, answers), answers };
     }
@@ -401,8 +437,11 @@ export function sanitizeAnswers(v: unknown): IntakeAnswers {
   if (!v || typeof v !== 'object') return {};
   const o = v as Record<string, unknown>;
   const placeIds = ids(PLACES);
+  // PLAN 3.3a: goals (Main first) when stored; an older single goal still loads as the Main.
+  const goals = manyOf(ids(GOALS), o.goals)?.slice(0, MAX_GOALS);
   const a: IntakeAnswers = {
-    goal: oneOf(ids(GOALS), o.goal),
+    goal: goals?.length ? goals[0] : oneOf(ids(GOALS), o.goal),
+    goals: goals?.length ? goals : undefined,
     units: units(o.units),
     focus: manyOf(ids(FOCUS), o.focus),
     win: manyOf(ids(WINS), o.win),

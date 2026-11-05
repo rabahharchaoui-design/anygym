@@ -17,14 +17,14 @@ export const GOALS = [
 export type GoalId = (typeof GOALS)[number]['id'];
 
 export const FOCUS = [
-  { id: 'chest', label: 'Chest' },
-  { id: 'back', label: 'Back' },
-  { id: 'shoulders', label: 'Shoulders' },
-  { id: 'arms', label: 'Arms' },
-  { id: 'core', label: 'Abs and core' },
-  { id: 'glutes', label: 'Glutes' },
-  { id: 'legs', label: 'Legs' },
-  { id: 'balance', label: 'Whole body balance' },
+  { id: 'chest', label: 'Chest', icon: 'Body:chest' },
+  { id: 'back', label: 'Back', icon: 'Body:back' },
+  { id: 'shoulders', label: 'Shoulders', icon: 'Body:shoulders' },
+  { id: 'arms', label: 'Arms', icon: 'Body:arms' },
+  { id: 'core', label: 'Abs and core', icon: 'Body:core' },
+  { id: 'glutes', label: 'Glutes', icon: 'Body:glutes' },
+  { id: 'legs', label: 'Legs', icon: 'Body:legs' },
+  { id: 'balance', label: 'Whole body balance', icon: 'Body:balance' },
 ] as const satisfies readonly Option[];
 export type FocusId = (typeof FOCUS)[number]['id'];
 
@@ -106,13 +106,13 @@ export type CardioFavoriteId = (typeof CARDIO_FAVORITES)[number]['id'];
 
 /** "None" is exclusive: picking it clears the rest, picking another clears it. */
 export const EASY_ON = [
-  { id: 'lower_back', label: 'Lower back' },
-  { id: 'knees', label: 'Knees' },
-  { id: 'shoulders', label: 'Shoulders' },
-  { id: 'wrists', label: 'Wrists' },
-  { id: 'neck', label: 'Neck' },
-  { id: 'hips', label: 'Hips' },
-  { id: 'none', label: 'None' },
+  { id: 'lower_back', label: 'Lower back', icon: 'Body:lowerBack' },
+  { id: 'knees', label: 'Knees', icon: 'Body:knees' },
+  { id: 'shoulders', label: 'Shoulders', icon: 'Body:shoulders' },
+  { id: 'wrists', label: 'Wrists', icon: 'Body:wrists' },
+  { id: 'neck', label: 'Neck', icon: 'Body:neck' },
+  { id: 'hips', label: 'Hips', icon: 'Body:hips' },
+  { id: 'none', label: 'None', icon: 'Ban' },
 ] as const satisfies readonly Option[];
 export type EasyOnId = (typeof EASY_ON)[number]['id'];
 

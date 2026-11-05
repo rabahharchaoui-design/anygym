@@ -1,68 +1,39 @@
 // The plan reveal's pick (SPEC 14 step 14, PLAN 3.3). The generator is PLAN 3.5, so the reveal
-// picks the best plan that exists today, honestly: a curated plan only when the user's equipment
-// covers every exercise in it (the same needs the place tiles of PLAN 3.1 use), and one plain
+// picks the best plan that exists today, honestly: a curated plan only when it can run at the
+// user's gym the way the day list runs it, swaps included (PLAN 3.3a B1, planFit.ts), and one plain
 // line on why. No fitting plan: it says so and offers a quick workout, never a made up plan.
-import { EQUIPMENT_IDS, type EquipmentId } from '../../db/types';
 import type { Plan } from '../plans';
 import { estimateDayMinutes } from '../plans';
-import { placeFits, type Need, type Place } from '../places';
-import { presetEquipment, type IntakeAnswers } from './funnel';
+import type { SwapData } from '../swap';
+import { goalsOf, type IntakeAnswers } from './funnel';
 import { EASY_ON, labelOf, WEEKDAYS, type GoalId, type PlaceAnswer } from './options';
+import { planFit, swappedLine, type PlanFit } from './planFit';
 
-const CARDIO_GEAR: readonly EquipmentId[] = ['treadmill', 'bike', 'stair_climber', 'rower', 'jump_rope'];
-/** Machines (SPEC 3 list). A plan's "machine" need does not say which one, so it needs them all. */
-const MACHINES: readonly EquipmentId[] = [
-  'smith_machine',
-  'leg_press',
-  'leg_extension',
-  'leg_curl',
-  'chest_press_machine',
-  'pec_deck',
-  'lat_pulldown',
-  'seated_row',
-  'shoulder_press_machine',
-  'calf_raise_machine',
-  'hip_adductor_abductor',
-];
-
-/** What the user's equipment covers, as plan needs. Everything on also covers unknown needs. */
-export function needsCovered(equipment: readonly EquipmentId[]): Place['has'] {
-  const has = new Set(equipment);
-  if (EQUIPMENT_IDS.every((id) => has.has(id))) return 'all';
-  const out: Need[] = ['bodyweight'];
-  if (has.has('barbell_rack')) out.push('barbell');
-  if (has.has('dumbbells')) out.push('dumbbell');
-  if (has.has('kettlebells')) out.push('kettlebell');
-  if (has.has('cable_station')) out.push('cable');
-  if (has.has('resistance_bands')) out.push('bands');
-  if (CARDIO_GEAR.some((id) => has.has(id))) out.push('cardio');
-  if (MACHINES.every((id) => has.has(id))) out.push('machine');
-  return out;
-}
+export { equipmentOf } from './planFit';
 
 export type WeekSlot = { label: string; dayName: string; dayIndex: number };
 
-export type PlanPick = { kind: 'plan'; plan: Plan; others: Plan[] } | ({ kind: 'none' } & NoPlanWords);
+export type PlanPick = { kind: 'plan'; plan: Plan; others: Plan[]; fit: PlanFit } | ({ kind: 'none' } & NoPlanWords);
 
-/** The equipment the reveal uses: the picker's answer, else the place's preset. */
-export function equipmentOf(a: IntakeAnswers): EquipmentId[] {
-  return a.equipment ?? (a.place ? presetEquipment(a.place) : []);
-}
-
-/** Plans whose every exercise this equipment covers, in shipped order. */
-export function fittingPlans(plans: readonly Plan[], needsOf: (p: Plan) => readonly Need[], a: IntakeAnswers): Plan[] {
-  const place: Place = { id: 'full', label: '', has: needsCovered(equipmentOf(a)) };
-  return plans.filter((p) => placeFits(place, needsOf(p)));
+/** Plans that can run at this gym (swaps included), in shipped order, with how. */
+export function fittingPlans(plans: readonly Plan[], data: SwapData, a: IntakeAnswers): Array<{ plan: Plan; fit: PlanFit }> {
+  return plans.map((plan) => ({ plan, fit: planFit(data, plan, a) })).filter((x) => x.fit.fits);
 }
 
 const MUSCLE_GOALS = new Set(['muscle', 'tone']);
 const SEASONED = new Set(['1_2y', '3y', 'break']);
 
+/** PLAN 3.3a: the Main goal leads the plan; the Also goal adds to it, at half the weight. */
+const MAIN_WEIGHT = 1;
+const ALSO_WEIGHT = 0.5;
+
 /** Higher is a better fit. Ties keep the shipped order. */
 export function fitScore(plan: Plan, a: IntakeAnswers): number {
   let s = 0;
   if (a.days !== undefined) s -= Math.abs(plan.daysPerWeek - a.days);
-  if (a.goal && plan.goal === 'muscle' && MUSCLE_GOALS.has(a.goal)) s += 1;
+  const [main, also] = goalsOf(a);
+  if (main && plan.goal === 'muscle' && MUSCLE_GOALS.has(main)) s += MAIN_WEIGHT;
+  else if (also && plan.goal === 'muscle' && MUSCLE_GOALS.has(also)) s += ALSO_WEIGHT;
   if (a.experience && plan.level === 'intermediate' && SEASONED.has(a.experience)) s += 1;
   return s;
 }
@@ -98,17 +69,26 @@ const average = (ns: readonly number[]): number => Math.round(ns.reduce((x, y) =
 
 /** Sessions this much over the time picked count as well over: offer a quick workout. */
 const WELL_OVER = 1.25;
+/** PLAN 3.3a B2: this far off counts as the wrong plan for the person. */
+const FAR_DAYS = 2;
+const FAR_MINUTES = 1.5;
 
 export type PlanExplain = {
-  /** "Your plan" only when the plan truly matches the goal and the days. */
-  title: 'Your plan' | 'Closest plan we have';
+  /** "Your plan" only on a true match; "We don't have a 3 day beginner plan yet" when far off. */
+  title: string;
   /** The lime check: earned only by "Your plan". */
   check: boolean;
+  /** Days, minutes and level are far enough off that the plan is only an option (B2). */
+  mismatch: boolean;
   /** What the pick really used, then what the plan is when that was not their answer. */
   reason: string;
+  /** Two goals in a few words: "Main muscle · Also fat loss (soon)" (one goal: the warning says it). */
+  goals: string | null;
+  /** Not a true match: one honest line, the plan's own days and length ("Closest: 5 days, about 81 min."). */
+  summary: string | null;
   /** At most two lines on an iPhone: what differs from what they asked, what is not built in yet. */
   warning: string | null;
-  /** Offer a quick workout too: as the main action when the time picked is short. */
+  /** Offer a quick workout too: as the main action when the time picked is short or the plan is far off. */
   quick: 'primary' | 'secondary' | null;
   /** Per plan day, the estimate the workout header shows. */
   minutes: number[];
@@ -118,29 +98,50 @@ export type PlanExplain = {
  * The one place the reveal's words and offer come from. The pick uses the equipment; goal and days
  * count only when they truly match the plan's own data. Everything else the user said is named as
  * not built in yet, never implied. The numbers repeated are the days per week answer and the time
- * picked (never the weekday count). The generator (PLAN 3.5) replaces this.
+ * picked (never the weekday count). `swapped` and `skipped`: plan moves that take a swap or that
+ * nothing at this gym stands in for (planFit).
+ * The generator (PLAN 3.5) replaces this.
  */
-export function explainPick(plan: Plan, a: IntakeAnswers): PlanExplain {
-  const goalMatch = a.goal === 'muscle' && plan.goal === 'muscle';
+export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped = 0): PlanExplain {
+  const [main, also] = goalsOf(a);
+  // The Main goal earns "Your plan"; a matching Also goal is named, never the title or the check.
+  const goalMatch = main === 'muscle' && plan.goal === 'muscle';
+  const alsoMatch = !goalMatch && also === 'muscle' && plan.goal === 'muscle';
   const daysMatch = a.days === plan.daysPerWeek;
   const newLifter = a.experience === 'new' || a.experience === 'months';
-
-  const gym = plan.gymType === 'full' ? (a.place === 'mix' ? 'your full gym days' : 'your full gym') : 'your equipment';
-  const used = [gym];
-  if (goalMatch) used.push(`your ${GOAL_WORD[a.goal!]} goal`);
-  if (daysMatch) used.push(`your ${plan.daysPerWeek} days`);
-  const builds = !goalMatch && plan.goal === 'muscle';
-  const facts = [
-    builds && !daysMatch ? `It builds muscle, ${plan.daysPerWeek} days a week.` : builds ? 'It builds muscle.' : !daysMatch ? `It runs ${plan.daysPerWeek} days a week.` : null,
-    newLifter && plan.level === 'intermediate' ? 'It expects some experience, so start light.' : null,
-  ].filter((x): x is string => !!x);
-  const reason = [`Picked for ${list(used)}.`, ...facts].join(' ');
 
   const minutes = plan.days.map((d) => estimateDayMinutes(d));
   const avg = average(minutes);
   // 75+ has no upper end.
   const timed = a.minutes !== undefined && a.minutes < 75;
   const longer = timed && avg > a.minutes!;
+
+  // B2: far off on two of days, minutes and level is the wrong plan for this person.
+  const farDays = a.days !== undefined && Math.abs(plan.daysPerWeek - a.days) >= FAR_DAYS;
+  const farMinutes = timed && avg >= a.minutes! * FAR_MINUTES;
+  const farLevel = newLifter && plan.level === 'intermediate';
+  const mismatch = [farDays, farMinutes, farLevel].filter(Boolean).length >= 2;
+  const wanted = [a.days !== undefined ? `${a.days} day` : null, timed ? `${a.minutes} min` : null].filter((x): x is string => !!x).join(', ');
+  const mismatchTitle = `No ${[wanted, newLifter ? 'beginner' : null].filter(Boolean).join(' ')} plan yet`;
+
+  const gym = plan.gymType === 'full' ? (a.place === 'mix' ? 'your full gym days' : 'your full gym') : 'your equipment';
+  const used = [gym];
+  if (goalMatch) used.push(`your ${GOAL_WORD[main!]} goal`);
+  if (alsoMatch) used.push(`your second goal (${GOAL_WORD[also!]})`);
+  if (daysMatch) used.push(`your ${plan.daysPerWeek} days`);
+  const builds = !goalMatch && !alsoMatch && plan.goal === 'muscle';
+  const facts = [
+    builds && !daysMatch ? `It builds muscle, ${plan.daysPerWeek} days a week.` : builds ? 'It builds muscle.' : !daysMatch ? `It runs ${plan.daysPerWeek} days a week.` : null,
+    newLifter && plan.level === 'intermediate' ? 'It expects some experience, so start light.' : null,
+    swappedLine(swapped, skipped),
+  ].filter((x): x is string => !!x);
+  const reason = [`Picked for ${list(used)}.`, ...facts].join(' ');
+
+  // Two goals: both named, each said plainly as used or coming soon (never only the Main).
+  const goalOk = (g: GoalId) => g === 'muscle' && plan.goal === 'muscle';
+  const said = (g: GoalId) => `${GOAL_WORD[g]}${goalOk(g) ? '' : ' (soon)'}`;
+  const goals = main && also ? `Main ${said(main)} · Also ${said(also)}` : null;
+
   const otherDays = a.days !== undefined && !daysMatch;
   const compared =
     longer && otherDays
@@ -152,7 +153,8 @@ export function explainPick(plan: Plan, a: IntakeAnswers): PlanExplain {
           : null;
 
   const left: string[] = [];
-  if (a.goal && !goalMatch) left.push(`${GOAL_WORD[a.goal]} goal`);
+  if (!goals && main && !goalMatch) left.push(`${GOAL_WORD[main]} goal`);
+  if (!goals && also && !alsoMatch) left.push(`${GOAL_WORD[also]} goal`);
   const easy = (a.easyOn ?? []).filter((e) => e !== 'none');
   if (easy.length === 1) left.push((labelOf(EASY_ON, easy[0]) ?? easy[0]!).toLowerCase());
   else if (easy.length > 1) left.push('easy-on areas');
@@ -163,12 +165,18 @@ export function explainPick(plan: Plan, a: IntakeAnswers): PlanExplain {
   const plural = named.length > 1 || (/s$/.test(named[0] ?? '') && named[0] !== 'focus') || named[0] === 'exercises to avoid';
   const notBuilt = named.length ? `${capital(list(named))} ${plural ? "aren't" : "isn't"} built in yet.` : null;
 
-  const quick = timed && longer && a.minutes! <= 30 ? 'primary' : (timed && avg >= a.minutes! * WELL_OVER) || a.experience === 'new' ? 'secondary' : null;
+  const quick = mismatch || (timed && longer && a.minutes! <= 30) ? 'primary' : (timed && avg >= a.minutes! * WELL_OVER) || a.experience === 'new' ? 'secondary' : null;
+  const match = goalMatch && daysMatch && !mismatch;
+  // Round 3 (B2): one line up front; the why stays one tap away (reason and warning, every fact kept).
+  const summary = match ? null : [`Closest: ${plan.daysPerWeek} days, about ${avg} min.`, swappedLine(swapped, skipped)].filter(Boolean).join(' ');
 
   return {
-    title: goalMatch && daysMatch ? 'Your plan' : 'Closest plan we have',
-    check: goalMatch && daysMatch,
+    title: mismatch ? mismatchTitle : match ? 'Your plan' : 'Closest plan we have',
+    check: match,
+    mismatch,
     reason,
+    goals,
+    summary,
     warning: [compared, notBuilt].filter(Boolean).join(' ') || null,
     quick,
     minutes,
@@ -194,9 +202,9 @@ export function noPlanWords(place: PlaceAnswer | undefined): NoPlanWords {
   };
 }
 
-export function pickPlan(plans: readonly Plan[], needsOf: (p: Plan) => readonly Need[], a: IntakeAnswers): PlanPick {
-  const fits = fittingPlans(plans, needsOf, a);
+export function pickPlan(plans: readonly Plan[], data: SwapData, a: IntakeAnswers): PlanPick {
+  const fits = fittingPlans(plans, data, a);
   if (fits.length === 0) return { kind: 'none', ...noPlanWords(a.place) };
-  const ranked = fits.map((p, i) => ({ p, i, s: fitScore(p, a) })).sort((x, y) => y.s - x.s || x.i - y.i);
-  return { kind: 'plan', plan: ranked[0]!.p, others: ranked.slice(1).map((r) => r.p) };
+  const ranked = fits.map((x, i) => ({ ...x, i, s: fitScore(x.plan, a) })).sort((x, y) => y.s - x.s || x.i - y.i);
+  return { kind: 'plan', plan: ranked[0]!.plan, fit: ranked[0]!.fit, others: ranked.slice(1).map((r) => r.plan) };
 }

@@ -1,0 +1,61 @@
+goal | What's your main goal? | why: Pick up to 2. The first one leads your plan. | strip: Your plan so far / Days / Minutes / Place | {"top":501,"h":40,"vh":667}
+units | Your units | why: Set from your phone's region. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":522,"h":40,"vh":667}
+focus | What do you want to work on? | why: Pick any. Not used yet: it'll add work for these. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":488,"h":40,"vh":667}
+win | What would make this a win? | why: Pick any. Not used yet: it stays with your profile. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":493,"h":40,"vh":667}
+experience | How long have you been training? | why: Helps pick a plan at your level. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":574,"h":40,"vh":667}
+days | How many days a week? | why: Picks a plan with this many days. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":551,"h":40,"vh":667}
+weekdays | Which days work best? | why: Pick 4. Used to lay out your week. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":479,"h":40,"vh":667}
+minutes | How long per workout? | why: Checked against how long each plan takes. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":551,"h":40,"vh":667}
+place | Where do you usually train? | why: Sets up your gym and what it has. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":574,"h":40,"vh":667}
+equipment | What does your gym have? | why: Plans use only what is on. Tap ⓘ if unsure. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":1545,"h":40,"vh":667}
+style | How do you like to train? | why: Not used yet: it'll steer the exercises you get. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":574,"h":40,"vh":667}
+cardio | How do you feel about cardio? | why: Not used yet: it'll suggest cardio you like. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":502,"h":40,"vh":667}
+easyOn | Anything to go easy on? | why: Not used yet: plans will go easy on these. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":492,"h":40,"vh":667}
+exercises | Any favorites, or ones to avoid? | why: Optional. Not used yet: plans will follow these. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":852,"h":40,"vh":667}
+when | When do you usually work out? | why: Not used yet: it'll time your reminders. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":503,"h":40,"vh":667}
+bodyweight | What do you weigh? | why: Not used yet. It'll help suggest starting weights. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":500,"h":40,"vh":667}
+about | About you | why: All optional. Only what you add is kept. | strip: Your plan so far / 4 days / 45 min / Full gym | {"top":793,"h":40,"vh":667}
+reveal strength+muscle: Closest plan we have
+
+Classic 5 Day Split
+
+Picked for your full gym and your second goal (muscle). It runs 5 days a week. It expects some experience, so start light.
+
+About 81 min, 5 days. You asked for 45 min, 3 days. Strength goal isn't built in yet.
+
+Day 1
+Legs (hamstring focus)
+~90 min
+Day 2
+Chest and triceps
+~77 min
+Day 3
+Back and biceps
+~78 min
+Day 4
+Legs (quad focus)
+~98 min
+Day 5
+Shoulders and calves
+~63 min
+Or pick a curated plan
+Classic 5 Day Split
+5 days a week
+Six Week Volume Builder
+5 days a week
+
+Start a quick workout
+
+Start Day 1
+
+Stays on this phone.
+reveal fat+tone hotel: No hotel plan yet
+
+Your gym and equipment are saved.
+
+A quick workout works anywhere: add exercises as you go.
+
+
+Start a quick workout
+
+Stays on this phone.

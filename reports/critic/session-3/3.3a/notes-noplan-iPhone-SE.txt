@@ -1,0 +1,4 @@
+after kb tap: 26
+after info+esc: 26 dialogs=0
+step: noPlan
+No plan for your equipment yet | A quick workout works anywhere: add exercises as you go. | Your gym: Full gym | Barbell and rack, Flat bench and 24 more | 1 | Add an exercise from the list | 2 | Log each set: weight and reps | 3 | Finish, and it goes in your history | Your plan so far | 4 days | 45 min | Full gym | It won't change what you can do today. | Finish my profile | Start a quick workout | Stays on this phone.

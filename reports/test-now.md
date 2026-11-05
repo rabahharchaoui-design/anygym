@@ -3,3 +3,11 @@
 2.2a | New premium muscle map with male and female bodies. Open Safari to the muscle preview page, pick Bench press: chest glows bright, shoulders and triceps softer. Tap to switch front and back.
 2.0i | Nothing to test, behind the scenes.
 2.2b | The exercise screen now uses the whole screen: moving demo on top, your sets in the middle, muscles and form tips below. Start a workout and open any exercise.
+3.0 | Nothing to test, a study document (docs/inspiration.md).
+3.1 | Plans are grouped by where you train. Open Plans: a Full gym tile at the top lists both plans; open Six Week Volume Builder: pairs sit in one card with one rest line and each exercise shows a six cell week strip with the current week in lime; Use this plan shows a Plan saved toast with Undo.
+3.2 | Imported exercises now match the catalog only on an exact name. Settings → Import history, pick your file: each exercise group says Matched or Not in the catalog yet, Change opens a search of plans and the catalog or keeps the name; importing the same file twice adds nothing.
+3.2a | Import review polish. Settings → Import history: the review top shows one count line, an unsure set shows Check reps, Keep the name says it saves without photos or muscles.
+3.3 | New phones get an intake: one question per screen, units preselected, an honest plan reveal. Your phone skips it; to see it: Today, tap the gear, Settings, My profile, Answer the questions again; Back to Settings on the first screen changes nothing.
+3.2b | Nothing to test, behind the scenes (saving layer).
+3.4 | Replace an exercise with one your gym can do. Start a workout, open an exercise, tap ⋯ then Replace (first row): pick a swap, log a set, Undo brings the original back. Auto swap on the day list: Not testable by hand yet: needs 3.9 (no Gyms list in Settings).
+3.3a | Intake from your phone notes: main goal takes a Main and an Also pick, the equipment picker has drawn tiles in groups with All toggles, every screen fills with a why line and a Your plan so far strip, and the reveal is honest about fit. Today, tap the gear, Settings, My profile, Answer the questions again, walk it; Back to Settings on the first screen changes nothing.

@@ -11,7 +11,8 @@ import { Button } from '../../ui/Button';
 import { EdgeSwipe } from '../../ui/EdgeSwipe';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { PLANS } from '../../data/plans';
-import { planNeeds } from '../../data/places';
+import { estimateDayMinutes } from '../../lib/plans';
+import { SWAP_DATA } from '../../data/patterns';
 import { getActiveGym, startDb } from '../../db/bootstrap';
 import { startWorkout } from '../../db/workouts';
 import type { DumbbellRange } from '../../db/types';
@@ -25,6 +26,7 @@ import {
   canContinue,
   equipmentChoices,
   funnelReducer,
+  goalsOf,
   KIND,
   needsDumbbellRange,
   parseDraft,
@@ -47,7 +49,7 @@ import {
   EASY_ON,
   EXPERIENCE,
   FOCUS,
-  GOALS,
+  EQUIPMENT_LABEL,
   MINUTES,
   PLACES,
   STYLES,
@@ -57,7 +59,9 @@ import {
   type Option,
 } from '../../lib/intake/options';
 import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
-import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep, MultiChoice, SingleChoice, UnitsStep } from './Steps';
+import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep, GoalChoice, MultiChoice, SingleChoice, UnitsStep } from './Steps';
+import { PlanSoFar, STRIP_SCREENS, useStripFit } from './PlanSoFar';
+import { EquipmentArt } from './EquipmentArt';
 import { Reveal } from './Reveal';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
@@ -65,34 +69,44 @@ import styles from './Intake.module.css';
 /** How long a tapped card pulses before the next screen comes in. */
 export const AUTO_ADVANCE_MS = 250;
 
-const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days` }));
-const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min` }));
+// P9: a quiet hint only where it is true of the plans that ship today (from their own data).
+const PLAN_AVG_MIN = PLANS.map((p) => p.days.reduce((t, d) => t + estimateDayMinutes(d), 0) / p.days.length);
+const fitsMinutes = (m: number) => PLAN_AVG_MIN.some((avg) => (m >= 75 ? avg > 60 : avg <= m));
+const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days`, hint: PLANS.some((p) => p.daysPerWeek === d) ? 'Our curated plans run this many' : undefined }));
+const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min`, hint: fitsMinutes(m) ? 'Our curated plans take about this long' : undefined }));
+const DAY_NAMES: Record<string, string> = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+/** P8: the week as one list of days, never stretched tiles. */
+const WEEKDAY_ROWS: Option[] = WEEKDAYS.map((d) => ({ id: d.id, label: DAY_NAMES[d.id]! }));
 
-type Copy = { title: string; sub?: string };
+/**
+ * PLAN 3.3a: every screen has its title and one short honest line on why it asks: what the answer
+ * does today, or plainly "Not used yet" with what it is for. Never a use that does not exist.
+ */
+type Copy = { title: string; why: string; soon?: true };
 const COPY: Record<ScreenId, Copy> = {
-  goal: { title: "What's your main goal?" },
-  units: { title: 'Your units', sub: "Set from your phone's region." },
-  focus: { title: 'What do you want to work on?', sub: 'Pick any.' },
-  win: { title: 'What would make this a win?', sub: 'Pick any.' },
-  experience: { title: 'How long have you been training?' },
-  days: { title: 'How many days a week?' },
-  weekdays: { title: 'Which days work best?', sub: 'Used to lay out your week.' },
-  minutes: { title: 'How long per workout?' },
-  place: { title: 'Where do you usually train?' },
-  equipment: { title: 'What does your gym have?', sub: 'Tap to turn on or off. Tap ⓘ for anything new.' },
-  style: { title: 'How do you like to train?' },
-  cardio: { title: 'How do you feel about cardio?' },
-  easyOn: { title: 'Anything to go easy on?', sub: 'If something hurts, stop and check with a professional.' },
-  exercises: { title: 'Any favorites, or ones to avoid?', sub: 'Optional. Tap any.' },
-  when: { title: 'When do you usually work out?' },
-  bodyweight: { title: 'What do you weigh?', sub: "Not used yet. It'll help suggest starting weights." },
-  about: { title: 'About you', sub: 'All optional.' },
-  noPlan: { title: '' },
-  reveal: { title: 'Your plan' },
+  goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
+  units: { title: 'Your units', why: "Set from your phone's region." },
+  // PLAN 3.3a round 2 (B6): not used yet = optional, what it is for, and a small "Coming soon".
+  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets here.', soon: true },
+  win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.', soon: true },
+  experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
+  days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
+  weekdays: { title: 'Which days work best?', why: 'Used to lay out your week.' },
+  minutes: { title: 'How long per workout?', why: 'Checked against how long each plan takes.' },
+  place: { title: 'Where do you usually train?', why: 'Sets up your gym and what it has.' },
+  equipment: { title: 'What does your gym have?', why: 'Plans use what is on, or swap. Tap ⓘ if unsure.' },
+  style: { title: 'How do you like to train?', why: 'Optional. Steers the exercises you get.', soon: true },
+  cardio: { title: 'How do you feel about cardio?', why: 'Optional. Suggests cardio you like.', soon: true },
+  easyOn: { title: 'Anything to go easy on?', why: 'Optional. Swaps lifts that strain these.', soon: true },
+  exercises: { title: 'Any favorites, or ones to avoid?', why: 'Optional. Plans will add or leave these out.', soon: true },
+  when: { title: 'When do you usually work out?', why: 'Optional. Times your reminders.', soon: true },
+  bodyweight: { title: 'What do you weigh?', why: 'Optional. Suggests starting weights.', soon: true },
+  about: { title: 'About you', why: 'All optional. Only what you add is kept.' },
+  noPlan: { title: '', why: '' },
+  reveal: { title: 'Your plan', why: '' },
 };
 
 const SINGLE_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
-  goal: GOALS,
   experience: EXPERIENCE,
   days: DAY_OPTIONS,
   minutes: MINUTE_OPTIONS,
@@ -105,12 +119,13 @@ const NUMERIC: ReadonlySet<string> = new Set(['days', 'minutes']);
 const MULTI_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
   focus: FOCUS,
   win: WINS,
-  weekdays: WEEKDAYS,
+  weekdays: WEEKDAY_ROWS,
   easyOn: EASY_ON,
 };
 
 
 const WHY: Partial<Record<ScreenId, string>> = {
+  goal: 'Pick at least one',
   equipment: 'Add your dumbbell weights',
   focus: 'Pick at least one',
   win: 'Pick at least one',
@@ -128,10 +143,9 @@ function withUnits(a: IntakeAnswers): IntakeAnswers {
   return { ...a, units: { ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) } };
 }
 
-/** The line under a title; the weekdays one repeats the days per week answer. */
-function subOf(step: ScreenId, a: IntakeAnswers): string | undefined {
-  if (step === 'weekdays' && a.days) return `Pick ${a.days}. Used to lay out your week.`;
-  return COPY[step].sub;
+/** The why line under a title. Round 3: weekdays has one prompt only, the count sits in the button's reason. */
+function subOf(step: ScreenId, _a?: IntakeAnswers): string | undefined {
+  return COPY[step].why || undefined;
 }
 
 function readDraft(): FunnelState | null {
@@ -184,6 +198,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const [pulse, setPulse] = useState<string | null>(null);
   const scroller = useRef<HTMLElement>(null);
   const layer = useRef<HTMLDivElement>(null);
+  useStripFit(scroller);
   useMoreBelow(scroller);
   // What a gym is compared with when saving: a redo's starting answers, then what was last saved.
   const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
@@ -213,7 +228,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const next = () => {
     const a = ref.current.answers;
     // Right after the equipment: when no plan can fit, say so now, not 9 questions later.
-    const noFit = ref.current.step === 'equipment' && pickPlan(PLANS, planNeeds, a).kind === 'none';
+    const noFit = ref.current.step === 'equipment' && pickPlan(PLANS, SWAP_DATA, a).kind === 'none';
     apply({ type: 'next', noFit }, 'push');
   };
   const skip = () => {
@@ -281,8 +296,18 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             </div>
           )}
           <h1 className={styles.title}>{copy.title}</h1>
-          {subOf(step, answers) && <p className={styles.sub}>{subOf(step, answers)}</p>}
+          {subOf(step, answers) && (
+            <p className={styles.sub} data-testid="why">
+              {subOf(step, answers)}
+              {copy.soon && (
+                <span className={styles.soon} data-testid="soon">
+                  Coming soon
+                </span>
+              )}
+            </p>
+          )}
           {stepBody(step, answers, handlers, pulse)}
+          {STRIP_SCREENS.has(step) && <PlanSoFar answers={answers} />}
         </main>
         {kind === 'single' ? (
           <div className={styles.foot}>
@@ -290,7 +315,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <p className={styles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
-          <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonAndNote above={skipRestButton} note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
+          <BottomCTA onPress={next} disabled={!ready} disabledReason={step === 'weekdays' && answers.days ? `Pick ${answers.days}, or skip` : WHY[step]} reasonAndNote above={skipRestButton} note={first ? STAYS_HERE_FIRST : STAYS_HERE} testId="intake-cta" className={styles.cta}>
             Continue
           </BottomCTA>
         )}
@@ -331,6 +356,7 @@ const NO_HANDLERS: StepHandlers = { set: () => undefined, pickAndGo: () => undef
 
 /** The question part of a screen: what the user answers. */
 function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answers: IntakeAnswers, h: StepHandlers, pulse: string | null): ReactNode {
+  if (step === 'goal') return <GoalChoice value={goalsOf(answers)} onChange={(v) => h.set('goal', v)} />;
   if (KIND[step] === 'single') {
     const screen = step as AnswerId;
     return <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => h.pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} />;
@@ -345,12 +371,17 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
           value={answers[ANSWER_KEY[screen]] as string[] | undefined}
           onChange={(v) => h.set(screen, v)}
           only={step === 'easyOn' ? 'none' : undefined}
-          columns={step === 'weekdays' ? '4' : '2'}
+          columns={step === 'weekdays' ? '1' : '2'}
           testId={`q-${step}`}
         />
         {step === 'weekdays' && (
           <p className={styles.countNote} role="status" data-testid="weekday-count">
             {countNote ?? ''}
+          </p>
+        )}
+        {step === 'easyOn' && (
+          <p className={styles.safety} data-testid="easy-note">
+            Today&apos;s plan does not avoid these yet. If something hurts, stop and check with a professional.
           </p>
         )}
       </>
@@ -382,6 +413,44 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
     default:
       return null;
   }
+}
+
+const QUICK_STEPS = ['Add an exercise from the list', 'Log each set: weight and reps', 'Finish, and it goes in your history'] as const;
+
+/**
+ * PLAN 3.3a: the notice fills with what is true right now: the gym as answered, with the pictures
+ * of what is on, and how a quick workout goes.
+ */
+function NoPlanBody({ answers }: { answers: IntakeAnswers }) {
+  const equipment = answers.equipment ?? [];
+  const place = PLACES.find((p) => p.id === answers.place);
+  const named = equipment.slice(0, 2).map((id) => EQUIPMENT_LABEL[id]);
+  const kit = equipment.length === 0 ? 'Nothing picked: bodyweight only' : equipment.length <= 2 ? named.join(' and ') : `${named.join(', ')} and ${equipment.length - 2} more`;
+  return (
+    <div className={styles.noPlanBody}>
+      <section className={styles.gymCard} data-testid="noplan-gym">
+        <p className={styles.gymCardTitle}>Your gym: {place?.label ?? 'not set'}</p>
+        <p className={styles.gymCardKit}>{kit}</p>
+        {equipment.length > 0 && (
+          <ul className={styles.gymArt} aria-hidden="true">
+            {equipment.slice(0, 6).map((id) => (
+              <li key={id}>
+                <EquipmentArt id={id} className={styles.art} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <ol className={styles.quickSteps} aria-label="How a quick workout goes" data-testid="noplan-steps">
+        {QUICK_STEPS.map((t, i) => (
+          <li key={t} className={styles.quickStep}>
+            <span className={`${styles.quickNum} num`}>{i + 1}</span>
+            {t}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 /** Right after the equipment, when no plan can fit: say so, and let them start or keep going. */
@@ -418,6 +487,7 @@ function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: Int
       <main className={styles.body} data-scroller>
         <h1 className={styles.title}>{words.title}</h1>
         <p className={styles.sub}>{words.quick}</p>
+        <NoPlanBody answers={answers} />
       </main>
       <BottomCTA
         onPress={() => void quick()}

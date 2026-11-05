@@ -109,10 +109,13 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
   };
   await screen('goal');
   await t.pick('goal', 'muscle');
+  // PLAN 3.3a: up to 2 goals, so Continue (one tap more than 3.3's auto advance).
+  await t.next();
   await screen('units', cta(page));
   await t.next();
   await screen('focus', cta(page));
-  await expect(cta(page)).toBeDisabled();
+  // PLAN 3.3a round 2 (B6): focus is not used yet, so it is optional (was grey until a pick).
+  await expect(cta(page)).toBeEnabled();
   await t.pick('focus', 'arms');
   await t.next();
   await screen('win');
@@ -156,11 +159,11 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
 /** SPEC 14 "finish in under 60 seconds", as taps: about 2 s a tap is 44 s. */
 const TAP_BUDGET = 22;
 
-test('a new user goes through the funnel in 21 taps, every screen fits, Start Day 1 lands in the workout @matrix', async ({ page }) => {
+test('a new user goes through the funnel in 22 taps (PLAN 3.3a: +1 for the two pick goal), every screen fits, Start Day 1 lands in the workout @matrix', async ({ page }) => {
   const started = Date.now();
   await page.goto('./');
   await expect(page).toHaveURL(/#\/welcome$/);
-  // The first screen: no back (nothing before it), no button (it moves on by itself), the quiet line.
+  // The first screen: no back (nothing before it), Continue since PLAN 3.3a (up to 2 goals), the quiet line.
   await expect(page.getByRole('heading', { name: "What's your main goal?" })).toBeVisible();
   await expect(backButton(page)).toHaveCount(0);
   await expect(page.getByText('Your answers stay on this phone.')).toBeVisible();
@@ -178,7 +181,7 @@ test('a new user goes through the funnel in 21 taps, every screen fits, Start Da
   const total = taps + 1;
   await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
   await expect(page.getByText('Legs (hamstring focus)').first()).toBeVisible();
-  expect(total).toBe(21);
+  expect(total).toBe(22);
   expect(total).toBeLessThanOrEqual(TAP_BUDGET);
   test.info().annotations.push({ type: 'taps', description: `${total} taps, ${Math.round((Date.now() - started) / 1000)} s automated` });
   const sessions = await dbAll(page, 'sessions');
@@ -196,6 +199,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await page.goto('./');
   const t = new Taps(page);
   await t.pick('goal', 'tone');
+  await t.next();
   await atStep(page, 'units');
   // Units: change all four from the region default (Playwright's WebKit is en-US: lb, miles, inches).
   await expect(page.getByTestId('units-weight').getByRole('radio', { name: 'lb' })).toHaveAttribute('aria-checked', 'true');
@@ -267,8 +271,9 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await t.next();
   await t.pick('when', 'early');
   await atStep(page, 'bodyweight');
-  // Kilograms from the units screen; nothing saved until the ruler moves or is tapped.
-  await expect(cta(page)).toBeDisabled();
+  // Kilograms from the units screen; nothing saved until the ruler moves or is tapped (optional since 3.3a round 2).
+  await expect(cta(page)).toBeEnabled();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.bodyweight ?? null)).toBeNull();
   await expect(page.getByTestId('bw-unit').getByRole('radio', { name: 'Kilograms' })).toHaveAttribute('aria-checked', 'true');
   const ruler = page.getByTestId('bodyweight-ruler');
   await ruler.focus();
@@ -393,6 +398,8 @@ for (const [locale, weight, distance, measure] of [
     test(`units are preselected from the region: ${weight}, ${distance}, ${measure} @matrix`, async ({ page }) => {
       await page.goto('./');
       await page.getByTestId('q-goal-strength').tap();
+      // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+      await cta(page).tap();
       await atStep(page, 'units');
       for (const [id, name] of [
         ['units-weight', weight],
@@ -446,6 +453,8 @@ test('Settings → Answer the questions again: answers come back, Back leaves, t
   await expect(page.getByTestId('q-goal-muscle')).toHaveAttribute('aria-pressed', 'true');
   const before = await dbAll(page, 'profile');
   await page.getByTestId('q-goal-race').tap();
+  // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+  await cta(page).tap();
   await atStep(page, 'units');
   await backButton(page).tap();
   await atStep(page, 'goal');
@@ -454,7 +463,9 @@ test('Settings → Answer the questions again: answers come back, Back leaves, t
   expect(await dbAll(page, 'profile')).toEqual(before);
   await page.getByTestId('redo-intake').tap();
   await atStep(page, 'goal');
-  await page.getByTestId('q-goal-muscle').tap();
+  // PLAN 3.3a: the saved goal is already Main (a tap would turn it off); Continue goes on.
+  await expect(page.getByTestId('q-goal-muscle-tag')).toHaveText('Main');
+  await cta(page).tap();
   await atStep(page, 'units');
   // Straight to the reveal: every later screen keeps its saved answer.
   for (const step of ['units', 'focus', 'win']) {
@@ -497,6 +508,8 @@ test('reduced motion: screens and the reveal crossfade, nothing moves', async ({
   await simulateSafeAreas(page);
   await page.goto('./');
   await page.getByTestId('q-goal-muscle').tap();
+  // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+  await cta(page).tap();
   await atStep(page, 'units');
   // The pulse and the week rows: no movement, only opacity.
   const pulse = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -591,7 +604,9 @@ test('home with Dumbbells asks for the range: Continue waits, only what was type
 
 test('B3: 4 days then 3 weekdays: the weekdays screen says so, the reveal repeats the 4, every workout shows @matrix', async ({ page }) => {
   await drafted(page, 'weekdays', { goal: 'muscle', days: 4, place: 'full', experience: '3y', units: US });
-  await expect(page.getByText('Pick 4. Used to lay out your week.')).toBeVisible();
+  // PLAN 3.3a round 3: one prompt: the why says what it is for, the grey button says how many.
+  await expect(page.getByTestId('why')).toHaveText('Used to lay out your week.');
+  await expect(page.getByTestId('cta-reason')).toHaveText('Pick 4, or skip');
   await expect(page.getByTestId('weekday-count')).toHaveText('');
   const before = await cta(page).boundingBox();
   for (const d of ['mon', 'wed', 'fri']) await page.getByTestId(`q-weekdays-${d}`).tap();
@@ -640,7 +655,9 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
   // Redo: the toggle shows the gym's kg, never the old lb.
   await page.getByTestId('redo-intake').tap();
   await atStep(page, 'goal');
-  await page.getByTestId('q-goal-muscle').tap();
+  // PLAN 3.3a: the saved goal is already Main (a tap would turn it off); Continue goes on.
+  await expect(page.getByTestId('q-goal-muscle-tag')).toHaveText('Main');
+  await cta(page).tap();
   await atStep(page, 'units');
   await expect(page.getByTestId('units-weight').getByRole('radio', { name: 'kg' })).toHaveAttribute('aria-checked', 'true');
   await cta(page).tap();
@@ -701,18 +718,15 @@ test('reloading or reopening on the reveal brings a fresh user back to it, until
 });
 
 test('rule (f): under a grey Continue the reason and the note both show; nothing moves when it turns valid @matrix', async ({ page }) => {
-  await page.goto('./');
-  await atStep(page, 'goal');
-  await page.evaluate(() => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'focus', answers: { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' } } })));
-  await page.reload();
-  await atStep(page, 'focus');
+  // PLAN 3.3a round 2: focus is optional now; About still waits for one answer.
+  await drafted(page, 'about', { goal: 'muscle', units: US });
   const bar = page.getByTestId('intake-cta');
   await expect(cta(page)).toBeDisabled();
   await expect(cta(page)).toHaveText('Continue');
-  await expect(page.getByTestId('cta-reason')).toHaveText('Pick at least one');
+  await expect(page.getByTestId('cta-reason')).toHaveText('Add one, or skip');
   await expect(bar.getByText('Stays on this phone.')).toBeVisible();
   const before = await cta(page).boundingBox();
-  await page.getByTestId('q-focus-arms').tap();
+  await page.getByTestId('name-input').fill('Sam');
   await expect(cta(page)).toBeEnabled();
   await expect(cta(page)).toHaveText('Continue');
   await expect(page.getByTestId('cta-reason')).toHaveText('');
@@ -742,10 +756,15 @@ test('130% text on the SE: the button keeps its size and place when the reason g
 
 test('B1 B2: a race goal is the closest plan: no check, at most two lines of warning, length matches the workout @matrix', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'race', days: 3, minutes: 45, place: 'full', easyOn: ['knees'], experience: '3y', units: US });
-  await expect(page.getByRole('heading', { name: 'Closest plan we have' })).toBeVisible();
+  // PLAN 3.3a round 2 (B2): 3 days and 45 min are both far off a 5 day ~81 min plan: said plainly.
+  await expect(page.getByRole('heading', { name: 'No 3 day, 45 min plan yet' })).toBeVisible();
   await expect(page.getByTestId('reveal-check')).toHaveCount(0);
+  await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Start a quick workout');
   await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym. It builds muscle, 5 days a week.');
+  // Round 3: the fit details sit behind "Why this plan"; opened, they keep their two line rule.
+  await page.getByTestId('reveal-why').locator('summary').tap();
   const warning = page.getByTestId('reveal-warning');
+  await expect(warning).toBeVisible();
   await expect(warning).toHaveText(/^About \d+ min, 5 days\. You asked for 45 min, 3 days\. Race goal and knees aren't built in yet\.$/);
   await expect(page.getByTestId('reveal-card')).not.toContainText('built to add muscle');
   // Two lines from 375 wide up; narrower phones have the same words on three (never cut, never more).
@@ -763,9 +782,9 @@ test('B1 B2: a race goal is the closest plan: no check, at most two lines of war
   await page.getByTestId('reveal-plan-six-week-volume').scrollIntoViewIfNeeded();
   await expect(page.getByTestId('reveal-plan-six-week-volume')).toBeInViewport({ ratio: 1 });
   const minutes = /~(\d+) min/.exec((await rows.first().textContent())!)![1]!;
-  // Well over the time picked: a quick workout beside Start Day 1.
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
-  await revealPrimary(page).tap();
+  // Round 2 (B2): the quick workout leads; the plan stays one tap away as the option.
+  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start Day 1');
+  await page.getByTestId('reveal-secondary').tap();
   await expect(page).toHaveURL(/#\/workout\//);
   await expect(page.getByText(new RegExp(`~${minutes} min`)).first()).toBeVisible();
 });
@@ -794,8 +813,8 @@ test('B2: brand new is offered a quick workout too; Start Day 1 from the seconda
 
 test('P4: favorites sit on the cardio screen, shown once a feeling is picked; None hides them @matrix', async ({ page }) => {
   await drafted(page, 'cardio', { goal: 'muscle', units: US });
-  await expect(cta(page)).toBeDisabled();
-  await expect(page.getByTestId('cta-reason')).toHaveText('Pick one');
+  // PLAN 3.3a round 2 (B6): optional now.
+  await expect(cta(page)).toBeEnabled();
   await expect(page.getByTestId('q-cardioFavorites')).toHaveCount(0);
   await page.getByTestId('q-cardio-love').tap();
   // No auto advance here: there is more to pick.
@@ -822,10 +841,12 @@ test('P8: Back after Skip the rest returns to the screen where it was tapped', a
 });
 
 test('P2: equipment that is on shows a small check; turning it on moves nothing', async ({ page }) => {
+  // PLAN 3.3a supersedes the chip: a picture tile whose check badge sits on the drawing's corner.
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'hotel', equipmentFor: 'hotel', equipment: ['treadmill'] });
   const chip = page.getByTestId('equip-flat_bench');
-  const label = chip.locator('span').first();
-  const check = chip.locator('svg');
+  const label = chip.getByText('Flat bench', { exact: true });
+  const check = chip.locator('svg[data-check]');
+  await chip.scrollIntoViewIfNeeded();
   await expect(check).toHaveCSS('opacity', '0');
   const before = await label.boundingBox();
   await chip.tap();
@@ -883,7 +904,7 @@ test('B4: brand new skips the exercise lists; Skip the rest shows only from the 
 
 test('B4: love and never share one optional screen and stay separate answers', async ({ page }) => {
   await drafted(page, 'exercises', { goal: 'muscle', units: US, experience: '3y' });
-  await expect(cta(page)).toBeDisabled();
+  await expect(cta(page)).toBeEnabled();
   const love = page.getByTestId('q-love').getByRole('button').first();
   const name = (await love.textContent())!;
   await love.tap();
@@ -903,8 +924,8 @@ test('B4: love and never share one optional screen and stay separate answers', a
 test('B5: a tap confirms the shown value on the ruler and on the wheels; nothing unconfirmed is saved @matrix', async ({ page }) => {
   await drafted(page, 'bodyweight', { goal: 'muscle', units: US });
   await expect(page.getByText('Slide or tap to confirm')).toBeVisible();
-  await expect(cta(page)).toBeDisabled();
-  await expect(page.getByTestId('cta-reason')).toHaveText('Slide or tap the ruler');
+  // PLAN 3.3a round 2 (B6): optional, so Continue is on; nothing unconfirmed is saved still.
+  await expect(cta(page)).toBeEnabled();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.bodyweight ?? null)).toBeNull();
   await page.getByTestId('bodyweight-ruler').tap();
   await expect(page.getByTestId('bw-value')).toHaveText(/^155\.0\s*lb$/);
@@ -979,7 +1000,9 @@ test('P13: outdoors asks only about pull up bars and bands; full gym labels neve
   await expect(page.getByTestId('equip-hyperextension_bench')).toHaveText('Back extension bench');
   // Every word fits its chip: nothing wider than its box.
   const broken = await page.evaluate(() =>
+    // PLAN 3.3a: only spans with words (a tile's picture span holds none).
     [...document.querySelectorAll('[data-testid^="equip-"] span')]
+      .filter((el) => (el.textContent ?? '').trim().length > 0)
       .filter((el) => (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 || (el.textContent ?? '').split(' ').some((w) => {
         const r = document.createRange();
         const t = el.firstChild!;
@@ -1034,7 +1057,7 @@ test('P15: the edge swipe goes back on a pushed screen; the first screen has non
   const ruler = (await page.getByTestId('bodyweight-ruler').boundingBox())!;
   expect(ruler.x).toBeGreaterThanOrEqual(strip.x + strip.width);
   await expect(page.getByText('Stays on this phone.')).toBeVisible();
-  await expect(page.getByText("Not used yet. It'll help suggest starting weights.")).toBeVisible();
+  await expect(page.getByTestId('why')).toHaveText('Optional. Suggests starting weights.Coming soon');
 });
 
 test('P1 P9 P10: the selected toggle is the solid lime pill; the body starts unpicked; Units fits the SE with no fade over it', async ({ page }) => {
@@ -1061,6 +1084,8 @@ test('R2: localStorage blocked: the funnel still resumes from IndexedDB; an exis
   await page.goto('./');
   await atStep(page, 'goal');
   await page.getByTestId('q-goal-race').tap();
+  // PLAN 3.3a: the goal takes up to 2, so it has Continue (was auto advance).
+  await cta(page).tap();
   await atStep(page, 'units');
   await expect.poll(async () => JSON.stringify(await dbAll(page, 'kv'))).toContain('"step');
   await page.reload();

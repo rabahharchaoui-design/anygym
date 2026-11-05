@@ -37,7 +37,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: calc(var(--safe-top) + var(--space-2)) calc(var(--space-3) + var(--safe-right)) var(--space-2) calc(var(--space-3) + var(--safe-left));
+  /* P13: right under the safe area, no dead band above the back button. */
+  padding: calc(var(--safe-top) + 2px) calc(var(--space-3) + var(--safe-right)) var(--space-1) calc(var(--space-3) + var(--safe-left));
   view-transition-name: intake-top;
 }
 
@@ -93,7 +94,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) var(--space-6) calc(var(--space-4) + var(--safe-left));
+  padding: var(--space-2) calc(var(--space-4) + var(--safe-right)) var(--space-6) calc(var(--space-4) + var(--safe-left));
 }
 
 .title {
@@ -178,6 +179,181 @@
   flex: none;
 }
 
+/* PLAN 3.3a: "Your plan so far", slim, at the end of the question: on a short screen it sits at
+   the bottom of the space (the space shows progress), on a long one it scrolls in last. */
+.soFar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px var(--space-2);
+  min-height: 40px;
+  margin-top: auto;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--hairline);
+}
+
+/* No room for it whole: out of the flow and out of sight (still measurable). */
+.soFar[data-away] {
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.soFarLabel {
+  flex: none;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.soFarEmpty {
+  color: rgb(154 154 162 / 0.6);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Pills wrap to a second line before a word is ever cut. */
+.soFarSlots {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.soFarSlot {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgb(212 255 58 / 0.4);
+  background: rgb(212 255 58 / 0.08);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: slot-in var(--dur-tap) var(--ease-tap-spring);
+}
+
+@keyframes slot-in {
+  from {
+    transform: scale(0.85);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* PLAN 3.3a: the no plan notice fills with the gym as answered and how a quick workout goes. */
+.noPlanBody {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.gymCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+}
+
+.gymCardTitle {
+  margin: 0;
+  font-weight: 700;
+}
+
+.gymCardKit {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.gymArt {
+  display: flex;
+  gap: var(--space-3);
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--accent);
+}
+
+.gymArt > li {
+  width: 32px;
+  height: 32px;
+}
+
+.quickSteps {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quickStep {
+  flex: 1 1 auto;
+  max-height: 96px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border-radius: 16px;
+  background: var(--surface-1);
+  font-weight: 600;
+}
+
+.quickNum {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+/* B6: a question not used yet says so with a small quiet pill, after its why line. */
+.soon {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+/* The SPEC 14 safety line on the go easy screen, quiet under the options. */
+.safety {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
 /* First screen: quiet, no splash. */
 .intro {
   display: flex;
@@ -213,6 +389,34 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* PLAN 3.3a: options grow to fill the screen above the button, so no screen is mostly empty.
+   Cards share the height (never past a calm maximum); grids stretch their rows. */
+.cards[data-fill],
+.chips[data-fill] {
+  flex: 1 0 auto;
+}
+
+.cards[data-fill] > * {
+  display: flex;
+  flex: 1 1 auto;
+  max-height: 112px;
+  transition: flex-grow var(--dur-base) var(--ease-out);
+}
+
+.cards[data-fill='off'] > * {
+  flex-grow: 0;
+}
+
+.cards[data-fill] > * > button,
+.cards[data-fill] > button {
+  flex: 1;
+  height: auto;
+}
+
+.chips[data-fill]:not([data-fill='off']) {
+  grid-auto-rows: minmax(56px, 1fr);
 }
 
 /* The tapped card pulses while the next screen gets ready (about 250 ms). */
@@ -253,6 +457,19 @@
   grid-column: 1 / -1;
 }
 
+/* P8: the week as one column of days, each a calm row (never a stretched tile). */
+.chips[data-grid='1'][data-fill] {
+  grid-template-columns: minmax(0, 1fr);
+  /* Round 3: 48 pt rows, so Sunday fits the SE above the button. */
+  grid-auto-rows: 48px;
+  gap: 6px;
+  align-content: start;
+}
+
+.chips[data-grid='1'] > :last-child:nth-child(odd) {
+  grid-column: auto;
+}
+
 /* Weekdays: four across. */
 .chips[data-grid='4'] {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -274,22 +491,49 @@
 
 /* Units: four big two option toggles. */
 .units {
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  /* PLAN 3.3a: the rows breathe on taller phones, so the screen is never mostly empty. */
+  gap: clamp(var(--space-2), 2.6dvh, 28px);
 }
 
+/* The label beside its toggle (one line each), so all four fit the SE with the strip. */
 .unitRow {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.unitRow > :last-child {
+  flex: 0 0 58%;
+  min-width: 0;
+}
+
+/* At 130% text the label goes above again. */
+@media (max-width: 340px) {
+  .unitRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 /* The body question is not a unit and not from the region: set apart. */
+.unitApart .unitRow {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.unitApart .unitRow > :last-child {
+  flex: none;
+}
+
 .unitApart {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-top: auto;
   padding-top: 6px;
   border-top: 1px solid var(--hairline);
 }
@@ -331,39 +575,203 @@
   transition-duration: 0ms;
 }
 
+/* PLAN 3.3a: groups of picture tiles, three across. */
+.equipGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.equipGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 34px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* A group's All: a small pill; lime outline and check when every item in it is on. */
+.groupAll {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+/* 44 pt hit area around the 32 pt pill. */
+.groupAll::after {
+  content: '';
+  position: absolute;
+  inset: -6px -4px;
+}
+
+.groupAll:active {
+  transform: scale(0.95);
+  transition-duration: 0ms;
+}
+
+.groupAll[aria-pressed='true'] {
+  border-color: rgb(212 255 58 / 0.55);
+  color: var(--accent);
+}
+
+.groupAllCheck {
+  opacity: 0.35;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.groupAll[aria-pressed='true'] .groupAllCheck {
+  opacity: 1;
+}
+
 .equipGrid {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10em), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
-.equipCell {
+/* The 320 floor (and very large text): two across, so no word breaks inside a tile. */
+@media (max-width: 350px) {
+  .equipGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tileCell {
   position: relative;
   display: flex;
   min-width: 0;
 }
 
-.equipCell > button:first-child {
+/* Round 2 (B3, P11): the picture centred in a 56 pt box, the name below; the check badge in the
+   top left corner and the ⓘ in the top right, both clear of the picture. */
+.tile {
+  position: relative;
+  width: 100%;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 10px 8px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.tile:active {
+  transform: scale(0.96);
+  transition-duration: 0ms;
+}
+
+.tile[aria-pressed='true'] {
+  border-color: rgb(212 255 58 / 0.6);
+  background: linear-gradient(to bottom, rgb(212 255 58 / 0.08), rgb(212 255 58 / 0.02)), var(--surface-1);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tileArt {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  color: var(--text-2);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.tile[aria-pressed='true'] .tileArt {
+  color: var(--accent);
+}
+
+.art {
+  display: block;
+  width: 100%;
   height: 100%;
-  padding-left: 10px;
-  gap: 4px;
 }
 
-/* The ⓘ sits inside the chip's right end, in its own 48 pt hit area. */
-.equipCell:has(.equipInfo) > button:first-child {
-  /* The glyph ends 12 pt from the edge of its 48 pt hit area: 38 keeps a long word whole at 360 wide. */
-  padding-right: 38px;
-}
-
-.equipInfo {
+/* On: a small lime badge in the top left corner. Scales in on the tap spring, never from 0. */
+.tileCheck {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  margin: auto 0;
+  top: 8px;
+  left: 8px;
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    transform var(--dur-tap) var(--ease-tap-spring),
+    opacity 120ms var(--ease-out);
+}
+
+.tile[aria-pressed='true'] .tileCheck {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tileName {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.005em;
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+
+.tileInfo {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  margin: 0;
 }
 
 /* Dumbbell range: a full row right under Dumbbells. */
@@ -521,15 +929,16 @@
   gap: var(--space-2);
 }
 
-/* Bodyweight and height */
+/* Bodyweight and height. PLAN 3.3a: it breathes on taller phones, stays compact on the SE. */
 .measure {
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: clamp(var(--space-2), 2.4dvh, var(--space-6));
 }
 
 .bigNumber {
-  margin: var(--space-3) 0 0;
+  margin: clamp(0px, 1.5dvh, var(--space-5)) 0 0;
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -725,6 +1134,45 @@
   line-height: 1.35;
 }
 
+/* Round 3: "Why this plan", a quiet disclosure for the fit details. */
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.whySummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  margin: -8px 0;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.whySummary::-webkit-details-marker {
+  display: none;
+}
+
+.whySummary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.why[open] > .whySummary::after {
+  transform: translateY(1px) rotate(225deg);
+}
+
 .caveat {
   margin: 0;
   color: var(--text-2);
@@ -810,6 +1258,15 @@
 @media (prefers-reduced-motion: reduce) {
   .pulseWrap[data-pulse] {
     animation: none;
+  }
+  .tile:active,
+  .groupAll:active {
+    transform: none;
+    opacity: var(--press-dim);
+  }
+  .tileCheck,
+  .tile[aria-pressed='true'] .tileCheck {
+    transform: none;
   }
   .weekRow {
     transform: none;
