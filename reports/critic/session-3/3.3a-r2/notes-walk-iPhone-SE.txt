@@ -1,0 +1,17 @@
+units | why: Set from your phone's region. | (no strip) | screens 0.72
+focus | why: Optional. Adds sets for these areas.Coming soon | (no strip) | screens 0.72
+win | why: Optional. Shapes your coach tips.Coming soon | (no strip) | screens 0.72
+experience | why: Helps pick a plan at your level. |  | screens 0.82
+days | why: Picks a plan with this many days. |  | screens 0.82
+weekdays | why: Pick 3. Used to lay out your week. | (no strip) | screens 0.93
+minutes | why: Checked against how long each plan takes. | Your plan so far / Muscle + fat loss / Brand new / 3 days | screens 0.82
+place | why: Sets up your gym and what it has. |  | screens 0.82
+equipment | why: Plans use what is on, or swap. Tap ⓘ if unsure. | (no strip) | screens 2.53
+style | why: Optional. Steers the exercises you get.Coming soon | (no strip) | screens 0.82
+cardio | why: Optional. Suggests cardio you like.Coming soon | (no strip) | screens 0.72
+easyOn | why: Optional. Swaps lifts that strain these.Coming soon | (no strip) | screens 0.66
+when | why: Optional. Times your reminders.Coming soon | (no strip) | screens 0.75
+bodyweight | why: Optional. Suggests starting weights.Coming soon | (no strip) | screens 0.64
+about | why: All optional. Only what you add is kept. | (no strip) | screens 1.08
+reveal | why: - | (no strip) | screens 1.12
+We don't have a 3 day, 45 minute beginner plan yet | The closest plan we have, if you want it: | Classic 5 Day Split | Picked for your full gym and your muscle goal. It runs 5 days a week. It expects some experience, so start light. 1 move swapped for your gym. | Main: muscle. Also: fat loss, coming soon. | About 81 min, 5 days. You asked for 45 min, 3 days. Focus isn't built in yet. | Day 1 | Legs (hamstring focus) | ~90 min | Day 2 | Chest and triceps | ~77 min | Day 3 | Back and biceps | ~78 min | Day 4 | Legs (quad focus) | ~98 min | Day 5 | Shoulders and calves | ~63 min | Or pick a curated plan | Six Week Volume Builder | 5 days a week | Start Day 1 | Start a quick workout | Stays on this phone.
