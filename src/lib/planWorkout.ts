@@ -210,8 +210,11 @@ export function advancesAfterLog(entries: readonly WorkoutEntry[], doneBefore: D
  */
 export const QUICK_DEFAULT = { sets: 3, reps: [8, 12] as RepRange, restSec: 90 } as const;
 
-/** A day list entry for an exercise added by hand to a quick workout. */
-export function quickEntry(exerciseId: string, name: string, loadType: ExerciseLoadType | undefined, block: number): WorkoutEntry {
+/**
+ * A day list entry for an exercise added by hand to a quick workout. `restSec`: the rest Up next
+ * suggested for it (SPEC 22 rule 6, kept on the session), shown as its rest.
+ */
+export function quickEntry(exerciseId: string, name: string, loadType: ExerciseLoadType | undefined, block: number, restSec?: number): WorkoutEntry {
   const timed = loadType === 'timed';
   const t = timed ? { sets: QUICK_DEFAULT.sets } : { sets: QUICK_DEFAULT.sets, reps: QUICK_DEFAULT.reps };
   const e: WorkoutEntry = {
@@ -223,12 +226,13 @@ export function quickEntry(exerciseId: string, name: string, loadType: ExerciseL
     pairIndex: 0,
     pairSize: 1,
     sets: t.sets,
-    restSec: QUICK_DEFAULT.restSec,
+    restSec: restSec ?? QUICK_DEFAULT.restSec,
     setsText: setsText(t),
     line: setsText(t),
     amount: amountText(t),
   };
   if (!timed) e.reps = QUICK_DEFAULT.reps;
+  if (restSec !== undefined) e.statedRest = restSec;
   return e;
 }
 

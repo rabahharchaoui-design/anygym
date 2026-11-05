@@ -81,6 +81,7 @@ export function GymDetail() {
   const remove = async () => {
     try {
       const receipt = await deleteGym(gymId);
+      setToast(null);
       go('/settings/gyms', { kind: 'pop', replace: true, state: { gymDeleted: receipt } });
     } catch (err) {
       setToast({

@@ -108,6 +108,32 @@ describe('rename, equipment, delete', () => {
   });
 });
 
+describe('Undo of deleting the active gym', () => {
+  it('both gym records come back byte identical, one active, lastUsedAt exact', async () => {
+    const g = await addGym({ preset: 'hotel', name: '', unit: 'lb' }, db);
+    await switchGym(g.id, null, db, 500);
+    await switchGym(full.id, null, db, 900);
+    await switchGym(g.id, null, db, 1200);
+    const before = JSON.stringify((await db.gyms.orderBy('createdAt').toArray()));
+    const r = await deleteGym(g.id, db);
+    expect((await db.gyms.toArray()).filter((x) => x.isActive)).toHaveLength(1);
+    await undoDeleteGym(r, db);
+    expect(JSON.stringify(await db.gyms.orderBy('createdAt').toArray())).toBe(before);
+  });
+});
+
+describe('Undo of deleting the active gym after the other gym was touched', () => {
+  it('still byte identical: the hand off and a stray switch cannot leave the restored gym inactive', async () => {
+    const g = await addGym({ preset: 'hotel', name: '', unit: 'lb' }, db);
+    await switchGym(g.id, null, db, 1200);
+    const before = JSON.stringify(await db.gyms.orderBy('createdAt').toArray());
+    const r = await deleteGym(g.id, db);
+    await switchGym(full.id, null, db, 5000);
+    await undoDeleteGym(r, db);
+    expect(JSON.stringify(await db.gyms.orderBy('createdAt').toArray())).toBe(before);
+  });
+});
+
 describe('switching without a workout', () => {
   it('one write: one active gym, lastUsedAt set; Undo restores', async () => {
     const g = await addGym({ preset: 'hotel', name: '', unit: 'lb' }, db);

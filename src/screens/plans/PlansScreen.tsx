@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { useNav } from '../../ui/nav';
-import { PLANS } from '../../data/plans';
+import { PLANS, basePlanOf } from '../../data/plans';
 import { PLACE_TILES } from '../../data/places';
 import { getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
 import { PlanCard } from './PlanCard';
+import { planLink } from './planWords';
 import { PlaceIcon } from './PlaceIcon';
 import styles from './Plans.module.css';
 
@@ -56,7 +57,7 @@ export function PlansScreen() {
       <ul className={styles.list}>
         {PLANS.map((p) => (
           <li key={p.id}>
-            <PlanCard plan={p} to={`/plans/${p.id}`} active={activeId === p.id} />
+            <PlanCard plan={p} to={planLink(`/plans/${p.id}`, basePlanOf(activeId)?.id === p.id ? activeId : undefined)} active={basePlanOf(activeId)?.id === p.id} />
           </li>
         ))}
       </ul>

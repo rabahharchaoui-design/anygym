@@ -5,9 +5,11 @@ import { EmptyState } from '../../ui/EmptyState';
 import { useNav } from '../../ui/nav';
 import { placeById } from '../../lib/places';
 import { plansForPlace } from '../../data/places';
+import { basePlanOf } from '../../data/plans';
 import { getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
 import { PlanCard } from './PlanCard';
+import { planLink } from './planWords';
 import { PlaceIcon } from './PlaceIcon';
 import styles from './Plans.module.css';
 
@@ -31,7 +33,7 @@ export function PlacePlans({ placeId: fixed }: { placeId?: string } = {}) {
         <ul className={styles.list}>
           {plans.map((p) => (
             <li key={p.id}>
-              <PlanCard plan={p} to={`/plans/place/${place!.id}/${p.id}`} active={state.data?.planId === p.id} />
+              <PlanCard plan={p} to={planLink(`/plans/place/${place!.id}/${p.id}`, basePlanOf(state.data?.planId)?.id === p.id ? state.data?.planId : undefined)} active={basePlanOf(state.data?.planId)?.id === p.id} />
             </li>
           ))}
         </ul>

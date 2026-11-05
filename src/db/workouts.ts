@@ -99,6 +99,23 @@ export async function addExercise(sessionId: string, exerciseId: string, db: Any
   });
 }
 
+/**
+ * PLAN 3.4a: Up next adds an exercise with its suggested rest (SPEC 22 rule 6), kept on the session
+ * so a reload shows the same rest. Already in the workout: nothing changes.
+ */
+export async function addSuggested(sessionId: string, exerciseId: string, restSec: number, db: AnyGymDB = defaultDb): Promise<Session> {
+  return db.transaction('rw', db.sessions, async () => {
+    const s = await db.sessions.get(sessionId);
+    if (!s) throw new Error('Workout not found');
+    if (s.endedAt !== undefined) throw new WorkoutFinishedError();
+    const ids = s.exerciseIds ?? [];
+    if (ids.includes(exerciseId)) return s;
+    const next = { ...s, exerciseIds: [...ids, exerciseId], suggestedRest: { ...s.suggestedRest, [exerciseId]: restSec } };
+    await db.sessions.put(next);
+    return next;
+  });
+}
+
 export type NewSet = {
   /** Made by the caller before the tap; the same id twice writes one set (double tap safe). */
   id: string;

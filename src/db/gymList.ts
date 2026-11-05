@@ -80,7 +80,13 @@ export class LastGymError extends Error {
 }
 
 /** What Undo puts back: the gym as it was, its own machine answers, and which gym was active. */
-export type GymDeleteReceipt = { gym: Gym; settings: ExerciseSetting[]; activeAfter: string | null };
+export type GymDeleteReceipt = {
+  gym: Gym;
+  settings: ExerciseSetting[];
+  activeAfter: string | null;
+  /** Every other gym's active flag and lastUsedAt as they were before the delete (Undo puts them back exactly). */
+  others: Array<Pick<Gym, 'id' | 'isActive' | 'lastUsedAt'>>;
+};
 
 /**
  * Deletes a gym with no workouts, and its own machine answers. Never the last gym. When it was the
@@ -93,6 +99,7 @@ export async function deleteGym(gymId: string, db: AnyGymDB = defaultDb): Promis
     if (await gymInUse(gymId, db)) throw new GymInUseError();
     const others = (await db.gyms.toArray()).filter((g) => g.id !== gymId);
     if (!others.length) throw new LastGymError();
+    const snapshot = others.map((g) => ({ id: g.id, isActive: g.isActive, ...(g.lastUsedAt !== undefined ? { lastUsedAt: g.lastUsedAt } : {}) }));
     const settings = await db.exerciseSettings.filter((x) => x.gymId === gymId).toArray();
     await db.exerciseSettings.bulkDelete(settings.map((s) => [s.exerciseId, s.gymId] as [string, string]));
     await db.gyms.delete(gymId);
@@ -102,16 +109,24 @@ export async function deleteGym(gymId: string, db: AnyGymDB = defaultDb): Promis
       await db.gyms.put({ ...next, isActive: true });
       activeAfter = next.id;
     }
-    return { gym, settings, activeAfter };
+    return { gym, settings, activeAfter, others: snapshot };
   });
 }
 
-/** Undo of deleteGym: the gym and its answers are back, active again if it was. */
+/**
+ * Undo of deleteGym, one transaction: the gym and its answers are back, and the active flag and
+ * lastUsedAt of every gym are what they were before the delete (the gym that took over gives it up).
+ */
 export async function undoDeleteGym(r: GymDeleteReceipt, db: AnyGymDB = defaultDb): Promise<void> {
   await db.transaction('rw', [db.gyms, db.exerciseSettings], async () => {
     if (await db.gyms.get(r.gym.id)) return;
-    if (r.gym.isActive) {
-      for (const g of await db.gyms.toArray()) if (g.isActive) await db.gyms.put({ ...g, isActive: false });
+    for (const o of r.others) {
+      const g = await db.gyms.get(o.id);
+      if (!g) continue;
+      const next: Gym = { ...g, isActive: o.isActive && !r.gym.isActive };
+      if (o.lastUsedAt === undefined) delete next.lastUsedAt;
+      else next.lastUsedAt = o.lastUsedAt;
+      if (next.isActive !== g.isActive || next.lastUsedAt !== g.lastUsedAt) await db.gyms.put(next);
     }
     await db.gyms.add(r.gym);
     if (r.settings.length) await db.exerciseSettings.bulkPut(r.settings);
