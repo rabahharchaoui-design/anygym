@@ -148,6 +148,13 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
     // Already logged under this id with other values (PLAN 2.0l): never acknowledged as this input.
     // The journal entry stays until the caller's input is kept as a row of its own.
     if (receipt?.fp !== undefined && receipt.fp !== fp) throw new LogConflictError(receipt.rev, receipt.fp);
+    // A receipt from before 2.0l has no fingerprint (PLAN 3.2b): a matching revision is not evidence
+    // that this input was saved. What the set holds now is compared; other values are a conflict
+    // (the input is kept as the next row), never acknowledged.
+    if (existing && receipt && receipt.fp === undefined) {
+      const saved = payloadFp({ ...(existing.reps !== undefined ? { reps: existing.reps } : {}), ...(existing.seconds !== undefined ? { seconds: existing.seconds } : {}), load: existing.load!, kind: existing.kind, failure: !!existing.failure });
+      if (saved !== fp) throw new LogConflictError(receipt.rev, saved);
+    }
     if (existing) {
       await db.journal.delete(input.id);
       return existing;
@@ -391,6 +398,12 @@ export const MUTATION_HELD_PREFIX = 'anygym-mutheld:';
  * corrections is "registered before it landed", never a comparison of clocks.
  */
 export const MUTATION_SUP_PREFIX = 'anygym-mutsup:';
+/**
+ * kv rows of the failed Logs the user gave up (PLAN 3.2b), written in the transaction that deletes
+ * their journal entry: `anygym-logcancel:<sessionId>:<draft id>`. A tab holding the old marked
+ * draft, also after a restart or Finish then Undo, never retries it.
+ */
+export const LOG_CANCEL_PREFIX = 'anygym-logcancel:';
 
 /**
  * A change of this workout that is held outside the journal (the localStorage fallback another tab
@@ -493,7 +506,8 @@ async function finishLocked(sessionId: string, db: AnyGymDB, now: number, pendin
       await db.kv.where('key').startsWith(`${RESTORED_PREFIX}${sessionId}:`).delete();
       // Finish runs only once no failed row is left (rowLog.prepareFinish): the journal is done.
       await db.journal.where('sessionId').equals(sessionId).delete();
-      await db.kv.where('key').startsWith(`${MUTATION_REV_PREFIX}${sessionId}:`).delete();
+      // The change revision counters stay (PLAN 3.2b): Finish then Undo reopens the workout, and a
+      // correction made then must never reuse an operation id a suspended tab still holds.
       await db.kv.where('key').startsWith(`${MUTATION_HELD_PREFIX}${sessionId}:`).delete();
       // The supersession markers stay (PLAN 2.0i): Finish then Undo reopens the workout, and a held copy
       // a later save superseded must stay superseded. They go with the workout (discarded below).
@@ -509,6 +523,8 @@ async function finishLocked(sessionId: string, db: AnyGymDB, now: number, pendin
       await db.submissions.where('sessionId').equals(sessionId).delete();
       await db.kv.where('key').startsWith(`${MUTATION_DONE_PREFIX}${sessionId}:`).delete();
       await db.kv.where('key').startsWith(`${MUTATION_SUP_PREFIX}${sessionId}:`).delete();
+      await db.kv.where('key').startsWith(`${MUTATION_REV_PREFIX}${sessionId}:`).delete();
+      await db.kv.where('key').startsWith(`${LOG_CANCEL_PREFIX}${sessionId}:`).delete();
       return { saved: false };
     }
     // The rows added or removed by hand, as the workout ends (from the kept extra sets value and

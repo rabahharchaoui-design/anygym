@@ -202,7 +202,8 @@ describe('PLAN 1.7h (1): Finish never discards a failed Log write', () => {
     expect(await failedRows(s.id, deps)).toHaveLength(2);
     await discardFailed(s.id, deps);
     expect(await failedRows(s.id, deps)).toEqual([]);
-    expect(loadDraft(s.id, rowKey('squat', 0), deps.storage)).toMatchObject({ id: 'a', reps: 10 });
+    expect(loadDraft(s.id, rowKey('squat', 0), deps.storage)).toMatchObject({ reps: 10 });
+    expect(loadDraft(s.id, rowKey('squat', 0), deps.storage)?.id).not.toBe('a'); // a fresh identity (PLAN 3.2b)
     expect(loadDraft(s.id, rowKey('squat', 0), deps.storage)?.submitted).toBeUndefined();
     await discardFailed(s.id, deps); // nothing left: a no-op
   });

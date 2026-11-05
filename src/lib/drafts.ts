@@ -189,7 +189,9 @@ export function draftsDurableMerge(s = storage()): ((kv: KvLike) => Promise<void
       const theirs = rows[k];
       // PLAN 2.0l (Codex 1811 #3): a clean row at the stored revision or older is another tab's
       // committed word (two tabs can reach one revision on their own): never replaced by this copy.
-      if (dirty.has(k) || !validDraft(theirs) || (d.rev ?? 0) > (theirs.rev ?? 0)) rows[k] = d;
+      // PLAN 3.2b (Codex 1105 #2): revisions compare only within one draft identity. A clean row
+      // whose slot now holds another identity (another tab logged and the rows shifted) adopts it.
+      if (dirty.has(k) || !validDraft(theirs) || (theirs.id === d.id && (d.rev ?? 0) > (theirs.rev ?? 0))) rows[k] = d;
     }
     for (const k of dirty) if (!mine.has(k)) delete rows[k];
     if (Object.keys(rows).length) store[session] = rows;

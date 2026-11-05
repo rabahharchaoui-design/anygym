@@ -463,14 +463,13 @@ export function WorkoutScreen() {
       });
     for (const x of own) markDeleted(sessionId, x.id, null);
     setHidden((h) => new Set([...h, ...ids]));
-    const gone: WorkoutSet[] = [];
+    let gone: WorkoutSet[] = [];
     try {
-      for (const x of own) {
-        await deletes.remove(x, { hold: true });
-        // Deleted by another tab first (PLAN 2.0i): nothing of ours to put back for it.
-        if (deletes.canUndo(x.id)) gone.push(x);
-      }
-      const at = await removeExercise(sessionId, id);
+      // One admitted operation (PLAN 3.2b): Finish waits for it, and a failure rolls every set back.
+      let at = -1;
+      gone = await deletes.removeAll(own, async () => {
+        at = await removeExercise(sessionId, id);
+      });
       justAdded.current.delete(id);
       if (routeRef.current === id) goList();
       const n = gone.length;
