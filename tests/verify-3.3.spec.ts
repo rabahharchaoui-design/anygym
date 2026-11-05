@@ -15,8 +15,12 @@ const shot = async (page: Page, name: string) => {
   await page.waitForTimeout(450);
   await page.screenshot({ path: `reports/shots/3.3/v-${name}-${phone.replace(/ /g, '-')}.png` });
 };
-const draft = (page: Page, step: string, answers: Record<string, unknown>) =>
-  page.evaluate(([s, a]) => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: s, answers: a })), [step, answers] as const);
+const draft = async (page: Page, step: string, answers: Record<string, unknown>) => {
+  // The funnel writes its own first draft in an effect after it mounts: let that land first.
+  await page.waitForFunction(() => localStorage.getItem('anygym.intakeDraft') !== null);
+  await page.evaluate(([s, a]) => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: s, answers: a })), [step, answers] as const);
+  await page.waitForTimeout(300); // WebKit flushes localStorage writes asynchronously
+};
 
 const dbAll = (page: Page, store: string) =>
   page.evaluate(
@@ -36,6 +40,7 @@ const dbAll = (page: Page, store: string) =>
     store,
   );
 
+const greyScreens: string[] = [];
 /** Per screen: what the chrome must show. kind: auto = single choice, cta = Continue. */
 async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { back: boolean }) {
   await atStep(page, step);
@@ -46,7 +51,10 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   expect(hb.x, `${step} title left`).toBeLessThan(40);
   expect(hb.y, `${step} title top`).toBeLessThan(200);
   expect(hb.x + hb.width, `${step} title inside`).toBeLessThanOrEqual(vw);
-  await expect(page.getByText('Stays on this phone.').first()).toBeVisible();
+  // The one reserved line under the button shows the reason while Continue is grey, the quiet note otherwise.
+  const greyNow = kind === 'cta' && (await cta(page).isDisabled());
+  if (greyNow) greyScreens.push(step);
+  else await expect(page.getByText('Stays on this phone.').first(), `${step} note`).toBeVisible();
   const back = page.locator('header').getByRole('button', { name: 'Back', exact: true });
   if (opts.back) {
     const b = (await back.boundingBox())!;
@@ -141,6 +149,7 @@ test('all 22 screens: title top left, round back, Stays on this phone, auto adva
   seen.push('reveal');
   await atStep(page, 'reveal');
   expect(seen).toHaveLength(22);
+  test.info().annotations.push({ type: 'note replaced by reason while grey', description: greyScreens.join(',') });
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/Apple Health|HealthKit|Rabah|Harchaoui/i);
   await shot(page, 'reveal-home');
@@ -163,6 +172,7 @@ test('double tap a choice card advances exactly one screen; back mid auto-advanc
 
 test('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved until moved, ends are clamped', async ({ page }) => {
   await page.goto('./');
+  await atStep(page, 'goal');
   await draft(page, 'bodyweight', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' } });
   await page.reload();
   await atStep(page, 'bodyweight');
@@ -229,6 +239,7 @@ for (const [name, extra, reason, button] of REVEALS) {
 
 test('Start Day 1 double tap makes one workout; offline start still works; reload mid funnel resumes', async ({ page, context }) => {
   await page.goto('./');
+  await atStep(page, 'goal');
   await draft(page, 'reveal', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, days: 5, place: 'full' });
   await page.reload();
   await atStep(page, 'reveal');
@@ -284,6 +295,7 @@ test('a user with only a plan in use is an existing user; a corrupt draft starts
 
 test('corrupt draft starts at the first screen without errors', async ({ page }) => {
   await page.goto('./');
+  await atStep(page, 'goal');
   await page.evaluate(() => localStorage.setItem('anygym.intakeDraft', '{"step":"nope","answers":{"goal":7,"bodyweight":{"value":-5,"unit":"kg"}}}'));
   await page.reload();
   await atStep(page, 'goal');
