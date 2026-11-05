@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => simulateSafeAreas(page));
 
 const intake = (page: Page) => page.getByTestId('intake');
 const atStep = (page: Page, step: string) => expect(intake(page)).toHaveAttribute('data-step', step);
-const cta = (page: Page) => page.getByTestId('intake-cta').getByRole('button');
+const cta = (page: Page) => page.getByTestId('intake-cta').locator('button[data-variant="primary"]');
 const SHOTS = new Set(['iPhone SE', 'iPhone 17 Pro Max']);
 const shot = async (page: Page, name: string) => {
   const phone = test.info().project.name;
@@ -54,7 +54,7 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   // Rule (f): the quiet note on every screen; while Continue is grey its reason is inside the button.
   const greyNow = kind === 'cta' && (await cta(page).isDisabled());
   if (greyNow) greyScreens.push(step);
-  await expect(page.getByText('Stays on this phone.').first(), `${step} note`).toBeVisible();
+  await expect(page.getByText(/stays? on this phone\./i).first(), `${step} note`).toBeVisible();
   const back = page.locator('header').getByRole('button', { name: 'Back', exact: true });
   if (opts.back) {
     const b = (await back.boundingBox())!;
@@ -72,7 +72,7 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   await checkLayout(page, {});
 }
 
-test('all 22 screens: title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
+test('all 18 questions, the no plan notice and the reveal: title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
   await page.goto('./');
   await expect(page).toHaveURL(/#\/welcome$/);
   const seen: string[] = [];
@@ -80,7 +80,7 @@ test('all 22 screens: title top left, round back, Stays on this phone, auto adva
   const disabledWithReason = async (step: string) => {
     await expect(cta(page), `${step} Continue starts grey`).toBeDisabled();
     const reason = await page.getByTestId('intake-cta').innerText();
-    expect(reason.replace(/Continue|Stays on this phone\./g, '').trim().length, `${step} has a reason`).toBeGreaterThan(3);
+    expect(reason.replace(/Continue|Stays on this phone\.|Skip the rest/g, '').trim().length, `${step} has a reason`).toBeGreaterThan(3);
   };
   const auto = async (step: string, pick: string, back = true) => {
     await chrome(page, step, 'auto', { back });
@@ -107,7 +107,7 @@ test('all 22 screens: title top left, round back, Stays on this phone, auto adva
   await cta(page).tap();
   await multi('focus', 'q-focus-arms');
   await multi('win', 'q-win-energy');
-  await auto('experience', 'q-experience-new');
+  await auto('experience', 'q-experience-months');
   await auto('days', 'q-days-3');
   await chrome(page, 'weekdays', 'cta', { back: true });
   seen.push('weekdays');
@@ -120,35 +120,31 @@ test('all 22 screens: title top left, round back, Stays on this phone, auto adva
   seen.push('equipment');
   await shot(page, 'equipment-home');
   await cta(page).tap();
+  await chrome(page, 'noPlan', 'auto', { back: true });
+  seen.push('noPlan');
+  await page.getByTestId('noplan-continue').tap();
   await auto('style', 'q-style-bodyweight');
   await auto('cardio', 'q-cardio-love');
   await multi('cardioFavorites', 'q-cardioFavorites-running');
   await multi('easyOn', 'q-easyOn-knees');
-  await chrome(page, 'love', 'cta', { back: true });
-  seen.push('love');
-  await disabledWithReason('love');
-  await page.getByTestId('skip').tap();
-  await chrome(page, 'never', 'cta', { back: true });
-  seen.push('never');
+  await chrome(page, 'exercises', 'cta', { back: true });
+  seen.push('exercises');
+  await disabledWithReason('exercises');
   await page.getByTestId('skip').tap();
   await auto('when', 'q-when-lunch');
-  await chrome(page, 'name', 'cta', { back: true });
-  seen.push('name');
-  await disabledWithReason('name');
-  await page.getByTestId('name-input').fill('Alex');
-  await cta(page).tap();
   await chrome(page, 'bodyweight', 'cta', { back: true });
   seen.push('bodyweight');
   await disabledWithReason('bodyweight');
   await page.getByTestId('skip').tap();
-  await chrome(page, 'height', 'cta', { back: true });
-  seen.push('height');
-  await disabledWithReason('height');
-  await page.getByTestId('skip').tap();
-  await auto('age', 'q-age-25_34');
+  await chrome(page, 'about', 'cta', { back: true });
+  seen.push('about');
+  await disabledWithReason('about');
+  await page.getByTestId('name-input').fill('Alex');
+  await t('q-age-25_34').tap();
+  await cta(page).tap();
   seen.push('reveal');
   await atStep(page, 'reveal');
-  expect(seen).toHaveLength(22);
+  expect(seen).toHaveLength(20);
   test.info().annotations.push({ type: 'reason inside the grey button', description: greyScreens.join(',') });
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/Apple Health|HealthKit|Rabah|Harchaoui/i);
@@ -161,7 +157,7 @@ test('double tap a choice card advances exactly one screen; back mid auto-advanc
   await card.dblclick();
   await page.waitForTimeout(900);
   await atStep(page, 'units');
-  await page.getByTestId('intake-cta').getByRole('button').tap();
+  await cta(page).tap();
   await atStep(page, 'focus');
   // Back straight after a tap on a single choice screen: lands on the previous screen, not skipped ahead.
   await page.locator('header').getByRole('button', { name: 'Back', exact: true }).tap();
@@ -197,15 +193,15 @@ test('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved unt
   // 180 / 2.20462 = 81.6466 -> nearest 0.5 = 81.5
   await expect(page.getByTestId('bw-value')).toHaveText(/^81\.5\s*kg$/);
   await cta(page).tap();
-  await atStep(page, 'height');
+  await atStep(page, 'about');
   expect(((await stored()) as { unit: string }).unit).toBe('kg');
 });
 
 const REVEALS: Array<[string, Record<string, unknown>, RegExp, string]> = [
-  ['hotel', { place: 'hotel' }, /No plan made for hotel gyms yet/, 'Start a quick workout'],
-  ['home', { place: 'home' }, /No plan made for home/i, 'Start a quick workout'],
-  ['outdoors', { place: 'outdoors' }, /No plan made for (outdoors|outdoor)/i, 'Start a quick workout'],
-  ['full', { place: 'full', days: 4 }, /\w/, 'Start Day 1'],
+  ['hotel', { place: 'hotel' }, /No hotel plan yet/, 'Start a quick workout'],
+  ['home', { place: 'home' }, /No home plan yet/, 'Start a quick workout'],
+  ['outdoors', { place: 'outdoors' }, /No outdoor plan yet/, 'Start a quick workout'],
+  ['full', { place: 'full', days: 4 }, /Closest plan we have/, 'Start Day 1'],
 ];
 for (const [name, extra, reason, button] of REVEALS) {
   test(`reveal for ${name}: honest reason, right button, draws the check, saved gym matches @matrix`, async ({ page }) => {
@@ -213,20 +209,25 @@ for (const [name, extra, reason, button] of REVEALS) {
     await draft(page, 'reveal', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, days: 4, ...extra });
     await page.reload();
     await atStep(page, 'reveal');
-    await expect(page.getByTestId('reveal-reason')).toHaveText(reason);
+    await expect(page.locator('h1')).toHaveText(reason);
     await expect(page.getByTestId('reveal-cta').getByRole('button', { name: button })).toBeVisible();
     if (button === 'Start Day 1') await expect(page.getByTestId('reveal-week')).toBeVisible();
     else {
       await expect(page.getByTestId('reveal-week')).toHaveCount(0);
       await expect(page.getByTestId('reveal-card')).not.toContainText(/Day 1|Mon /);
     }
-    // The lime check: its mark is stroke-animated (dash offset moves from drawn-off to drawn).
-    const mark = page.getByTestId('reveal-check').locator('path');
-    const first = await mark.evaluate((el) => getComputedStyle(el).strokeDashoffset);
-    await page.waitForTimeout(1600);
-    const last = await mark.evaluate((el) => getComputedStyle(el).strokeDashoffset);
-    expect(parseFloat(last)).toBeCloseTo(0, 1);
-    test.info().annotations.push({ type: 'check', description: `dashoffset ${first} -> ${last}` });
+    if (button === 'Start Day 1') {
+      // The lime check: its mark is stroke-animated (dash offset moves from drawn-off to drawn).
+      const mark = page.getByTestId('reveal-check').locator('path');
+      const first = await mark.evaluate((el) => getComputedStyle(el).strokeDashoffset);
+      await page.waitForTimeout(1600);
+      const last = await mark.evaluate((el) => getComputedStyle(el).strokeDashoffset);
+      expect(parseFloat(last)).toBeCloseTo(0, 1);
+      test.info().annotations.push({ type: 'check', description: `dashoffset ${first} -> ${last}` });
+    } else {
+      // No plan is not a win: no check.
+      await expect(page.getByTestId('reveal-check')).toHaveCount(0);
+    }
     await shot(page, `reveal-${name}`);
     const gyms = await dbAll(page, 'gyms');
     const type = { hotel: 'hotel', home: 'home', outdoors: 'none', full: 'full' }[name];
@@ -308,7 +309,7 @@ test('130% text and reduced motion on the SE: no clipping, no sideways scroll', 
   await simulateSafeAreas(page);
   await page.goto('./');
   await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));
-  for (const step of ['goal', 'equipment', 'bodyweight', 'height', 'reveal']) {
+  for (const step of ['goal', 'equipment', 'bodyweight', 'about', 'reveal']) {
     await draft(page, step, { goal: 'muscle', units: { weight: 'kg', distance: 'km', measure: 'cm', body: 'male' }, place: 'full', days: 5 });
     await page.reload();
     await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));

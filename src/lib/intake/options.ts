@@ -125,8 +125,7 @@ export const WHEN = [
 export type WhenId = (typeof WHEN)[number]['id'];
 
 export const AGE_RANGES = [
-  { id: 'under_18', label: 'Under 18' },
-  { id: '18_24', label: '18 to 24' },
+  { id: 'under_25', label: 'Under 25' },
   { id: '25_34', label: '25 to 34' },
   { id: '35_44', label: '35 to 44' },
   { id: '45_54', label: '45 to 54' },
@@ -157,7 +156,7 @@ export const EQUIPMENT_LABEL: Record<EquipmentId, string> = {
   shoulder_press_machine: 'Shoulder press machine',
   calf_raise_machine: 'Calf raise machine',
   hip_adductor_abductor: 'Inner and outer thigh machine',
-  hyperextension_bench: 'Hyperextension bench',
+  hyperextension_bench: 'Back extension bench',
   pull_up_bar: 'Pull up bar',
   dip_station: 'Dip station',
   resistance_bands: 'Resistance bands',
@@ -185,5 +184,9 @@ export const EQUIPMENT_INFO: Partial<Record<EquipmentId, string>> = {
   resistance_bands: 'resistance-band',
   ez_curl_bar: 'ez-curl-bar',
   chest_press_machine: 'weight-stack-machine',
+  leg_extension: 'weight-stack-machine',
+  leg_curl: 'weight-stack-machine',
+  calf_raise_machine: 'weight-stack-machine',
+  hip_adductor_abductor: 'weight-stack-machine',
   shoulder_press_machine: 'weight-stack-machine',
 };

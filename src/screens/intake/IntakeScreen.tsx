@@ -3,23 +3,37 @@
 // themselves about 250 ms after the tap (the card pulses, the next screen slides in on the shared
 // page transition); multi select and form screens have Continue, greyed until there is an answer.
 // The answers are kept as a draft on every change, saved on the profile at the reveal.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
+import { Button } from '../../ui/Button';
+import { EdgeSwipe } from '../../ui/EdgeSwipe';
+import { useTapGuard } from '../../hooks/useTapGuard';
+import { PLANS } from '../../data/plans';
+import { planNeeds } from '../../data/places';
+import { getActiveGym, startDb } from '../../db/bootstrap';
+import { startWorkout } from '../../db/workouts';
+import type { DumbbellRange } from '../../db/types';
+import { noPlanWords, pickPlan } from '../../lib/intake/planPick';
+import { persistAnswers } from './persist';
 import { useNav, withTransition, type NavKind } from '../../ui/nav';
 import { bodyPref } from '../../lib/bodyPref';
 import {
   ANSWER_KEY,
   canContinue,
+  equipmentChoices,
   funnelReducer,
   KIND,
   needsDumbbellRange,
   parseDraft,
+  PERSONAL_GROUP,
+  prevScreen,
   progressOf,
   serializeDraft,
   SKIPPABLE,
   startState,
+  type AnswerId,
   type FunnelAction,
   type FunnelState,
   type IntakeAnswers,
@@ -27,7 +41,6 @@ import {
 } from '../../lib/intake/funnel';
 import { phoneLocale, unitsForLocale } from '../../lib/intake/region';
 import {
-  AGE_RANGES,
   CARDIO,
   CARDIO_FAVORITES,
   DAYS,
@@ -43,16 +56,16 @@ import {
   WINS,
   type Option,
 } from '../../lib/intake/options';
-import { getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, redoAnswers } from '../../db/intake';
-import { BodyweightStep, EquipmentStep, ExercisesStep, HeightStep, MultiChoice, NameStep, SingleChoice, UnitsStep } from './Steps';
+import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, redoAnswers } from '../../db/intake';
+import { AboutStep, BodyweightStep, BothExercisesStep, EquipmentStep, MultiChoice, SingleChoice, UnitsStep } from './Steps';
 import { Reveal } from './Reveal';
-import { STAYS_HERE } from './copy';
+import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
 
 /** How long a tapped card pulses before the next screen comes in. */
 export const AUTO_ADVANCE_MS = 250;
 
-const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days a week` }));
+const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days` }));
 const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min` }));
 
 type Copy = { title: string; sub?: string };
@@ -66,18 +79,16 @@ const COPY: Record<ScreenId, Copy> = {
   weekdays: { title: 'Which days work best?', sub: 'Used to lay out your week.' },
   minutes: { title: 'How long per workout?' },
   place: { title: 'Where do you usually train?' },
-  equipment: { title: "What's there?", sub: 'Tap to turn on or off. Tap ⓘ for anything new.' },
+  equipment: { title: 'What does your gym have?', sub: 'Tap to turn on or off. Tap ⓘ for anything new.' },
   style: { title: 'How do you like to train?' },
   cardio: { title: 'How do you feel about cardio?' },
   cardioFavorites: { title: 'Any cardio you like?', sub: 'Pick any.' },
   easyOn: { title: 'Anything to go easy on?', sub: 'If something hurts, stop and check with a professional.' },
-  love: { title: 'Any exercises you love?', sub: 'Optional. Tap any you like.' },
-  never: { title: 'Any you never want to see?', sub: 'Optional.' },
+  exercises: { title: 'Exercises you love or never want', sub: 'Optional. Tap any.' },
   when: { title: 'When do you usually work out?' },
-  name: { title: 'What should we call you?', sub: 'For your passport.' },
-  bodyweight: { title: 'What do you weigh?', sub: 'Only used to suggest starting weights.' },
-  height: { title: 'How tall are you?' },
-  age: { title: 'How old are you?' },
+  bodyweight: { title: 'What do you weigh?', sub: 'Saved for later. Nothing uses it yet.' },
+  about: { title: 'About you', sub: 'All optional.' },
+  noPlan: { title: '' },
   reveal: { title: 'Your plan' },
 };
 
@@ -90,9 +101,8 @@ const SINGLE_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
   style: STYLES,
   cardio: CARDIO,
   when: WHEN,
-  age: AGE_RANGES,
 };
-const NUMERIC: ReadonlySet<ScreenId> = new Set<ScreenId>(['days', 'minutes']);
+const NUMERIC: ReadonlySet<string> = new Set(['days', 'minutes']);
 
 const MULTI_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
   focus: FOCUS,
@@ -110,11 +120,9 @@ const WHY: Partial<Record<ScreenId, string>> = {
   weekdays: 'Pick your days, or skip',
   cardioFavorites: 'Pick one, or skip',
   easyOn: 'Pick one, or None',
-  love: 'Pick one, or skip',
-  never: 'Pick one, or skip',
-  name: 'Type your name, or skip',
-  bodyweight: 'Slide the ruler, or skip',
-  height: 'Spin the wheel, or skip',
+  exercises: 'Pick one, or skip',
+  bodyweight: 'Slide or tap the ruler',
+  about: 'Add one, or skip',
 };
 
 function withUnits(a: IntakeAnswers): IntakeAnswers {
@@ -152,7 +160,7 @@ export function IntakeScreen() {
     };
   }, [redo]);
   if (leave) return <Navigate to="/" replace />;
-  if (!state) return <div className={styles.screen} />;
+  if (!state) return <div className={styles.frame} />;
   return <Funnel initial={state} redo={redo} />;
 }
 
@@ -163,6 +171,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const timer = useRef<number>(undefined);
   const [pulse, setPulse] = useState<string | null>(null);
   const scroller = useRef<HTMLElement>(null);
+  const layer = useRef<HTMLDivElement>(null);
   // What a gym is compared with when saving: a redo's starting answers, then what was last saved.
   const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
 
@@ -192,21 +201,30 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     scroller.current?.scrollTo({ top: 0 });
   }, [state.step]);
 
-  const set = (screen: Exclude<ScreenId, 'reveal'>, value: unknown) => apply({ type: 'set', screen, value }, 'none');
-  const next = () => apply({ type: 'next' }, 'push');
+  const set = (screen: AnswerId, value: unknown) => apply({ type: 'set', screen, value }, 'none');
+  const next = () => {
+    const a = ref.current.answers;
+    // Right after the equipment: when no plan can fit, say so now, not 9 questions later.
+    const noFit = ref.current.step === 'equipment' && pickPlan(PLANS, planNeeds, a).kind === 'none';
+    apply({ type: 'next', noFit }, 'push');
+  };
   const skip = () => {
     window.clearTimeout(timer.current);
     apply({ type: 'skip' }, 'push');
   };
-  const back = () => {
+  const skipRest = () => {
+    window.clearTimeout(timer.current);
+    apply({ type: 'skipRest' }, 'push');
+  };
+  const back = (kind: NavKind = 'pop') => {
     window.clearTimeout(timer.current);
     if (ref.current.step === 'goal') {
-      if (redo) go('/settings', { kind: 'pop', replace: true });
+      if (redo) go('/settings', { kind, replace: true });
       return;
     }
-    apply({ type: 'back' }, 'pop');
+    apply({ type: 'back' }, kind);
   };
-  const pickAndGo = (screen: Exclude<ScreenId, 'reveal'>, id: string) => {
+  const pickAndGo = (screen: AnswerId, id: string) => {
     set(screen, NUMERIC.has(screen) ? Number(id) : id);
     setPulse(id);
     window.clearTimeout(timer.current);
@@ -214,86 +232,196 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   };
 
   const { step, answers } = state;
-  const kind = KIND[step];
-  const copy = COPY[step];
-  const showBack = step !== 'goal' || redo;
-  const skippable = SKIPPABLE.has(step);
+  const handlers: StepHandlers = { set, pickAndGo, range: (value) => apply({ type: 'range', value }, 'none') };
+  const previous = prevScreen(step, answers);
 
-  let body: ReactNode = null;
-  if (step === 'reveal') {
-    return <Reveal answers={answers} redo={redo} onBack={back} baseline={baseline} />;
+  let content: ReactNode;
+  if (step === 'reveal') content = <Reveal answers={answers} redo={redo} onBack={() => back()} baseline={baseline} />;
+  else if (step === 'noPlan') content = <NoPlanNotice answers={answers} baseline={baseline} onBack={() => back()} onKeepGoing={() => apply({ type: 'next' }, 'push')} />;
+  else {
+    const kind = KIND[step];
+    const copy = COPY[step];
+    const showBack = step !== 'goal' || redo;
+    const first = step === 'goal';
+    // On the last question Skip already goes to the reveal.
+    const skipRestButton = PERSONAL_GROUP.has(step) && step !== 'about' ? (
+      <button type="button" className={`${styles.skipRest} pressable`} onClick={skipRest} data-testid="skip-rest">
+        Skip the rest
+      </button>
+    ) : null;
+    const ready = canContinue(step, answers);
+    content = (
+      <div className={styles.screen} data-testid="intake" data-step={step}>
+        <header className={styles.top}>
+          {showBack ? <BackButton label="Back" onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
+          <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
+            <span className={styles.progressFill} style={{ width: `${Math.max(4, progressOf(step, answers) * 100)}%` }} />
+          </div>
+          {SKIPPABLE.has(step) ? (
+            <button type="button" className={`${styles.skip} pressable`} onClick={skip} data-testid="skip">
+              Skip
+            </button>
+          ) : (
+            <span className={styles.topSpacer} aria-hidden="true" />
+          )}
+        </header>
+        <main ref={scroller} className={styles.body} data-scroller>
+          {first && !redo && (
+            <div className={styles.intro} data-testid="intake-intro">
+              <span className={styles.wordmark}>AnyGym</span>
+              <p className={styles.introLine}>A plan for whatever gym you&apos;re in. About 2 minutes.</p>
+            </div>
+          )}
+          <h1 className={styles.title}>{copy.title}</h1>
+          {copy.sub && <p className={styles.sub}>{copy.sub}</p>}
+          {stepBody(step, answers, handlers, pulse)}
+        </main>
+        {kind === 'single' ? (
+          <div className={styles.foot}>
+            {skipRestButton}
+            <p className={styles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
+          </div>
+        ) : (
+          <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonInButton above={skipRestButton} note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
+            Continue
+          </BottomCTA>
+        )}
+      </div>
+    );
   }
-  const screen = step as Exclude<ScreenId, 'reveal'>;
-  if (kind === 'single') {
-    body = <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} />;
-  } else if (MULTI_OPTIONS[step]) {
-    body = (
+  return (
+    <div className={styles.frame}>
+      <div ref={layer} className={styles.layer}>
+        {content}
+      </div>
+      {/* SPEC 23.1: the edge swipe on every pushed screen. The ruler sits clear of the 20 pt strip. */}
+      {previous && previous !== 'noPlan' && previous !== 'reveal' && (
+        <EdgeSwipe
+          key={`swipe-${step}`}
+          layerRef={layer}
+          onBack={() => back('none')}
+          under={() => (
+            <div className={styles.screen}>
+              <div className={styles.top}>
+                <span className={styles.topSpacer} />
+              </div>
+              <div className={styles.body}>
+                <h2 className={styles.title}>{COPY[previous].title}</h2>
+                {COPY[previous].sub && <p className={styles.sub}>{COPY[previous].sub}</p>}
+                {stepBody(previous, answers, NO_HANDLERS, null)}
+              </div>
+            </div>
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+type StepHandlers = { set: (screen: AnswerId, value: unknown) => void; pickAndGo: (screen: AnswerId, id: string) => void; range: (value: DumbbellRange | undefined) => void };
+const NO_HANDLERS: StepHandlers = { set: () => undefined, pickAndGo: () => undefined, range: () => undefined };
+
+/** The question part of a screen: what the user answers. */
+function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answers: IntakeAnswers, h: StepHandlers, pulse: string | null): ReactNode {
+  if (KIND[step] === 'single') {
+    const screen = step as AnswerId;
+    return <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => h.pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} />;
+  }
+  if (MULTI_OPTIONS[step]) {
+    const screen = step as AnswerId;
+    return (
       <MultiChoice
         options={MULTI_OPTIONS[step]!}
         value={answers[ANSWER_KEY[screen]] as string[] | undefined}
-        onChange={(v) => set(screen, v)}
+        onChange={(v) => h.set(screen, v)}
         only={step === 'easyOn' ? 'none' : undefined}
+        columns={step === 'weekdays' ? '4' : '2'}
         testId={`q-${step}`}
       />
     );
-  } else if (step === 'units') {
-    body = <UnitsStep value={answers.units!} onChange={(v) => set('units', v)} />;
-  } else if (step === 'equipment') {
-    body = (
-      <EquipmentStep
-        value={answers.equipment ?? []}
-        onChange={(v) => set('equipment', v)}
-        askRange={needsDumbbellRange(answers)}
-        range={answers.dumbbellRange}
-        unit={answers.units?.weight ?? 'kg'}
-        onRange={(value) => apply({ type: 'range', value }, 'none')}
-      />
-    );
-  } else if (step === 'love' || step === 'never') {
-    body = (
-      <ExercisesStep
-        value={answers[step] ?? []}
-        exclude={step === 'never' ? (answers.love ?? []) : (answers.never ?? [])}
-        onChange={(v) => set(step, v.length ? v : undefined)}
-        testId={`q-${step}`}
-      />
-    );
-  } else if (step === 'name') {
-    body = <NameStep value={answers.name ?? ''} onChange={(v) => set('name', v || undefined)} onDone={next} />;
-  } else if (step === 'bodyweight') {
-    body = <BodyweightStep value={answers.bodyweight} unit={answers.units?.weight ?? 'kg'} onChange={(v) => set('bodyweight', v)} />;
-  } else if (step === 'height') {
-    body = <HeightStep value={answers.height} measure={answers.units?.measure ?? 'cm'} onChange={(v) => set('height', v)} />;
   }
+  switch (step) {
+    case 'units':
+      return <UnitsStep value={answers.units!} onChange={(v) => h.set('units', v)} />;
+    case 'equipment':
+      return (
+        <EquipmentStep
+          value={answers.equipment ?? []}
+          onChange={(v) => h.set('equipment', v)}
+          askRange={needsDumbbellRange(answers)}
+          range={answers.dumbbellRange}
+          unit={answers.units?.weight ?? 'kg'}
+          onRange={h.range}
+          choices={equipmentChoices(answers.place)}
+        />
+      );
+    case 'exercises':
+      return <BothExercisesStep love={answers.love ?? []} never={answers.never ?? []} onLove={(v) => h.set('love', v.length ? v : undefined)} onNever={(v) => h.set('never', v.length ? v : undefined)} />;
+    case 'bodyweight':
+      return <BodyweightStep value={answers.bodyweight} unit={answers.units?.weight ?? 'kg'} onChange={(v) => h.set('bodyweight', v)} />;
+    case 'about':
+      return <AboutStep answers={answers} measure={answers.units?.measure ?? 'cm'} onName={(v) => h.set('name', v)} onHeight={(v) => h.set('height', v)} onAge={(v) => h.set('age', v)} />;
+    default:
+      return null;
+  }
+}
 
-  const ready = canContinue(step, answers);
+/** Right after the equipment, when no plan can fit: say so, and let them start or keep going. */
+function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: IntakeAnswers; baseline: MutableRefObject<IntakeAnswers | undefined>; onBack: () => void; onKeepGoing: () => void }) {
+  const go = useNav();
+  const words = noPlanWords(answers.place);
+  const [error, setError] = useState('');
+  const busy = useRef(false);
+  const quick = useTapGuard(async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setError('');
+    try {
+      await persistAnswers(answers, baseline);
+      const gym = (await getActiveGym()) ?? (await startDb());
+      const s = await startWorkout(gym.id);
+      clearIntakeDraft();
+      go(`/workout/${s.id}`, { kind: 'push', replace: true });
+    } catch {
+      setError('Could not start the workout. Try again.');
+    } finally {
+      busy.current = false;
+    }
+  });
   return (
-    <div className={styles.screen} data-testid="intake" data-step={step}>
+    <div className={styles.screen} data-testid="intake" data-step="noPlan">
       <header className={styles.top}>
-        {showBack ? <BackButton label="Back" onPress={back} /> : <span className={styles.topSpacer} aria-hidden="true" />}
-        <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
-          <span className={styles.progressFill} style={{ width: `${Math.max(4, progressOf(step, answers) * 100)}%` }} />
+        <BackButton label="Back" onPress={onBack} />
+        <div className={styles.progress} aria-hidden="true">
+          <span className={styles.progressFill} style={{ width: `${Math.max(4, progressOf('noPlan', answers) * 100)}%` }} />
         </div>
-        {skippable ? (
-          <button type="button" className={`${styles.skip} pressable`} onClick={skip} data-testid="skip">
-            Skip
-          </button>
-        ) : (
-          <span className={styles.topSpacer} aria-hidden="true" />
-        )}
+        <span className={styles.topSpacer} aria-hidden="true" />
       </header>
-      <main ref={scroller} className={styles.body} data-scroller>
-        <h1 className={styles.title}>{copy.title}</h1>
-        {copy.sub && <p className={styles.sub}>{copy.sub}</p>}
-        {body}
+      <main className={styles.body} data-scroller>
+        <h1 className={styles.title}>{words.title}</h1>
+        <p className={styles.sub}>{words.quick}</p>
+        <p className={styles.sub}>Your answers so far are kept either way.</p>
       </main>
-      {kind === 'single' ? (
-        <p className={styles.footNote}>{STAYS_HERE}</p>
-      ) : (
-        <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonInButton note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
-          Continue
-        </BottomCTA>
-      )}
+      <BottomCTA
+        onPress={() => void quick()}
+        note={STAYS_HERE}
+        testId="noplan-cta"
+        className={styles.cta}
+        above={
+          <>
+            {error && (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            )}
+            <Button variant="secondary" className={styles.keepGoing} onClick={onKeepGoing} data-testid="noplan-continue">
+              Keep going
+            </Button>
+          </>
+        }
+      >
+        Start a quick workout
+      </BottomCTA>
     </div>
   );
 }

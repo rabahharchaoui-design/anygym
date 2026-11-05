@@ -1,12 +1,34 @@
 /* The intake funnel (SPEC 14, PLAN 3.3). Calm and big: one question, a bold title top left, the
    action in the thumb zone. Fluid from 320 wide to the Pro Max, and up to 130% text. */
-.screen {
+.frame {
   position: fixed;
   inset: 0 0 auto;
   height: var(--app-height);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* The screen that follows the finger on an edge swipe, over the one before it. */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--bg);
+}
+
+.screen {
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  /* The font's tabular 1 has a heavy slab (critic P9): proportional numerals here. */
+  font-variant-numeric: proportional-nums;
+  font-feature-settings: 'pnum' 1;
+}
+
+.screen :global(.num) {
+  font-variant-numeric: proportional-nums;
+  font-feature-settings: 'pnum' 1;
 }
 
 /* Back, progress, Skip: stays put while the question slides (its own view transition layer). */
@@ -71,7 +93,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) var(--space-5) calc(var(--space-4) + var(--safe-left));
+  padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) var(--space-6) calc(var(--space-4) + var(--safe-left));
 }
 
 .title {
@@ -93,6 +115,66 @@
 
 .cta {
   view-transition-name: intake-cta;
+  border-top: 0;
+  padding-top: var(--space-1);
+}
+
+/* A soft fade over whatever scrolls under the button, never a hard line. */
+.cta::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 24px;
+  background: linear-gradient(rgb(0 0 0 / 0), var(--bg));
+  pointer-events: none;
+}
+
+.keepGoing {
+  margin-bottom: var(--space-2);
+}
+
+.skipRest {
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  color: var(--text-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.skipRest:active {
+  opacity: 0.6;
+  transition-duration: 0ms;
+}
+
+.foot {
+  flex: none;
+}
+
+/* First screen: quiet, no splash. */
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.introLine {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-base);
+  line-height: 1.35;
 }
 
 /* Single choice screens have no button: the quiet line sits where its note would. */
@@ -139,10 +221,28 @@
   gap: var(--space-2);
 }
 
-/* Chips with icons line up in two columns (one column when the text is large). */
+/* One grid for short options: two columns (one when the text is large), a lone last one takes the row. */
 .chips[data-grid] {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5em), 1fr));
+}
+
+.chips[data-grid] > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+/* Weekdays: four across. */
+.chips[data-grid='4'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.chips[data-grid='4'] > :last-child:nth-child(odd) {
+  grid-column: auto;
+}
+
+.chips[data-grid='4'] button {
+  justify-content: center;
+  padding-inline: var(--space-1);
 }
 
 .chips[data-grid] > .pulseWrap > button,
@@ -161,6 +261,13 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* The body question is not a unit and not from the region: set apart. */
+.unitApart {
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--hairline);
 }
 
 .unitLabel {
@@ -283,6 +390,15 @@
   font-weight: 600;
 }
 
+.rangeInput::placeholder {
+  color: var(--text-2);
+  opacity: 0.5;
+}
+
+.rangeInput[aria-invalid] {
+  border-color: var(--amber);
+}
+
 .rangeInput:focus {
   outline: none;
   border-color: var(--accent);
@@ -347,6 +463,36 @@
   border-color: var(--accent);
 }
 
+/* About you */
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.aboutGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldHint {
+  min-height: 1.3em;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+
+.fieldHint[data-limit] {
+  color: var(--amber);
+}
+
+.measureTight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* Bodyweight and height */
 .measure {
   display: flex;
@@ -396,6 +542,8 @@
 
 .ruler {
   position: relative;
+  /* Clear of the edge swipe strip (20 pt). */
+  margin-inline: var(--space-1);
   height: 96px;
   border-radius: 18px;
   background: var(--surface-1);
@@ -488,13 +636,14 @@
 /* Reveal */
 .revealHead {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--space-3);
 }
 
 .check {
-  width: 56px;
-  height: 56px;
+  flex: none;
+  width: 40px;
+  height: 40px;
   fill: none;
   stroke: var(--accent);
   stroke-linecap: round;
@@ -505,16 +654,15 @@
   stroke-width: 3;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: draw 420ms var(--ease-out) forwards;
-  animation-delay: calc(var(--rows, 0) * 70ms + 160ms);
+  animation: draw 300ms var(--ease-out) 300ms forwards;
 }
 
 .checkMark {
   stroke-width: 4.5;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: draw 300ms var(--ease-out) forwards;
-  animation-delay: calc(var(--rows, 0) * 70ms + 460ms);
+  /* Done by 860 ms (SPEC 23.3: celebrations up to 900 ms). */
+  animation: draw 260ms var(--ease-out) 600ms forwards;
 }
 
 @keyframes draw {
@@ -526,8 +674,8 @@
 .planCard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
   border-radius: 22px;
   background: linear-gradient(to bottom, rgb(212 255 58 / 0.07), rgb(212 255 58 / 0) 60%), var(--surface-1);
   border: 1px solid rgb(212 255 58 / 0.3);
@@ -552,7 +700,7 @@
 .caveat {
   margin: 0;
   color: var(--text-2);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -569,14 +717,14 @@
 .weekRow {
   display: flex;
   align-items: baseline;
-  gap: var(--space-3);
-  padding: 10px var(--space-3);
-  border-radius: 14px;
+  gap: var(--space-2);
+  padding: clamp(5px, 1.2dvh, 10px) var(--space-3);
+  border-radius: 12px;
   background: var(--surface-2);
   opacity: 0;
   transform: translateY(8px);
-  animation: row-in 260ms var(--ease-out) forwards;
-  animation-delay: calc(var(--i) * 70ms + 80ms);
+  animation: row-in 200ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i) * 50ms + 60ms);
 }
 
 @keyframes row-in {
@@ -588,15 +736,23 @@
 
 .weekDay {
   flex: none;
-  min-width: 3.6em;
+  min-width: 3em;
   color: var(--accent);
   font-family: var(--font-display);
   font-weight: 700;
 }
 
 .weekName {
+  flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.weekTime {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 

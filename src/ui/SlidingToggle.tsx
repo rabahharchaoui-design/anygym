@@ -21,9 +21,11 @@ type Props<T extends string> = {
   disabled?: boolean;
   /** Fill the row (intake screens); otherwise as wide as the longest label needs. */
   block?: boolean;
+  /** A tinted pill instead of solid lime, for screens where the button is the one solid lime thing. */
+  calm?: boolean;
 };
 
-export function SlidingToggle<T extends string>({ options, value, onChange, label, labelledBy, testId, disabled, block }: Props<T>) {
+export function SlidingToggle<T extends string>({ options, value, onChange, label, labelledBy, testId, disabled, block, calm }: Props<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const index = Math.max(
     0,
@@ -52,6 +54,7 @@ export function SlidingToggle<T extends string>({ options, value, onChange, labe
       aria-disabled={disabled || undefined}
       data-testid={testId}
       data-block={block || undefined}
+      data-calm={calm || undefined}
       style={{ '--n': options.length, '--i': index } as CSSProperties}
       onKeyDown={onKey}
     >

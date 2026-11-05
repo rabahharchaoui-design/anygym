@@ -7,10 +7,10 @@ import { SlidingToggle } from '../../ui/SlidingToggle';
 import { WheelColumn } from '../../ui/WheelColumn';
 import { InfoButton } from '../../components/info/InfoButton';
 import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type Unit } from '../../db/types';
-import { EQUIPMENT_INFO, EQUIPMENT_LABEL, type Option } from '../../lib/intake/options';
-import { HEIGHT_CM, HEIGHT_FT, type Height, type UnitsAnswer } from '../../lib/intake/funnel';
+import { AGE_RANGES, EQUIPMENT_INFO, EQUIPMENT_LABEL, type AgeRangeId, type Option } from '../../lib/intake/options';
+import { HEIGHT_CM, HEIGHT_FT, type Height, type IntakeAnswers, type UnitsAnswer } from '../../lib/intake/funnel';
 import { flipBodyweight, RULER_START } from '../../lib/intake/ruler';
-import { cmToFtIn, formatAmount, formatBodyweight, ftInToCm, parseDumbbellRange } from '../../lib/load';
+import { cmToFtIn, dumbbellRangeProblems, formatAmount, formatBodyweight, ftInToCm, parseDumbbellRange, type DumbbellRangeProblems } from '../../lib/load';
 import { PLAN_EXERCISES } from '../../data/planExercises';
 import { POPULAR_IDS, pickerName } from '../../lib/picker';
 import { normalizeName } from '../../lib/import/anygymImportV1';
@@ -25,12 +25,14 @@ export function SingleChoice<T extends string | number>({
   onPick,
   pulse,
   testId,
+  columns,
 }: {
   options: readonly Option<string>[];
   value: T | undefined;
   onPick: (id: string) => void;
   pulse: string | null;
   testId: string;
+  columns?: '2' | '4';
 }) {
   if (options.length <= 5)
     return (
@@ -43,7 +45,7 @@ export function SingleChoice<T extends string | number>({
       </div>
     );
   return (
-    <div className={styles.chips} data-grid={options.some((o) => o.icon) || undefined} role="group" data-testid={testId}>
+    <div className={styles.chips} data-grid={columns ?? '2'} role="group" data-testid={testId}>
       {options.map((o) => (
         <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
           <Chip block icon={iconFor(o.icon)} label={o.label} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
@@ -60,12 +62,14 @@ export function MultiChoice({
   onChange,
   only,
   testId,
+  columns,
 }: {
   options: readonly Option<string>[];
   value: readonly string[] | undefined;
   onChange: (v: string[]) => void;
   only?: string;
   testId: string;
+  columns?: '2' | '4';
 }) {
   const picked = new Set(value ?? []);
   const toggle = (id: string) => {
@@ -82,15 +86,15 @@ export function MultiChoice({
       </div>
     );
   return (
-    <div className={styles.chips} data-grid={options.some((o) => o.icon) || undefined} role="group" data-testid={testId}>
+    <div className={styles.chips} data-grid={columns ?? '2'} role="group" data-testid={testId}>
       {options.map((o) => (
-        <Chip key={o.id} block={options.some((x) => x.icon)} icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} testId={`${testId}-${o.id}`} />
+        <Chip key={o.id} block icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} testId={`${testId}-${o.id}`} />
       ))}
     </div>
   );
 }
 
-/** The calm units screen: four big two option toggles, preselected from the phone's region. */
+/** The calm units screen: big two option toggles, the units preselected from the phone's region. */
 export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (v: UnitsAnswer) => void }) {
   const row = (id: string, label: string, toggle: React.ReactNode) => (
     <div className={styles.unitRow}>
@@ -105,23 +109,25 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
       {row(
         'u-weight',
         'Weight',
-        <SlidingToggle block labelledBy="u-weight" testId="units-weight" options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} value={value.weight} onChange={(weight) => onChange({ ...value, weight })} />,
+        <SlidingToggle block calm labelledBy="u-weight" testId="units-weight" options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} value={value.weight} onChange={(weight) => onChange({ ...value, weight })} />,
       )}
       {row(
         'u-distance',
         'Distance',
-        <SlidingToggle block labelledBy="u-distance" testId="units-distance" options={[{ value: 'km', label: 'km' }, { value: 'mi', label: 'miles' }]} value={value.distance} onChange={(distance) => onChange({ ...value, distance })} />,
+        <SlidingToggle block calm labelledBy="u-distance" testId="units-distance" options={[{ value: 'km', label: 'km' }, { value: 'mi', label: 'miles' }]} value={value.distance} onChange={(distance) => onChange({ ...value, distance })} />,
       )}
       {row(
         'u-measure',
         'Body measurements',
-        <SlidingToggle block labelledBy="u-measure" testId="units-measure" options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'inches' }]} value={value.measure} onChange={(measure) => onChange({ ...value, measure })} />,
+        <SlidingToggle block calm labelledBy="u-measure" testId="units-measure" options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'inches' }]} value={value.measure} onChange={(measure) => onChange({ ...value, measure })} />,
       )}
-      {row(
-        'u-body',
-        'Body for the muscle map',
-        <SlidingToggle block labelledBy="u-body" testId="units-body" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={value.body} onChange={(body) => onChange({ ...value, body })} />,
-      )}
+      <div className={styles.unitApart}>
+        {row(
+          'u-body',
+          'Which body should the muscle map show?',
+          <SlidingToggle block calm labelledBy="u-body" testId="units-body" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={value.body} onChange={(body) => onChange({ ...value, body })} />,
+        )}
+      </div>
     </div>
   );
 }
@@ -134,6 +140,7 @@ export function EquipmentStep({
   range,
   unit,
   onRange,
+  choices,
 }: {
   value: readonly EquipmentId[];
   onChange: (v: EquipmentId[]) => void;
@@ -142,23 +149,25 @@ export function EquipmentStep({
   range: DumbbellRange | undefined;
   unit: Unit;
   onRange: (r: DumbbellRange | undefined) => void;
+  /** What this place asks about. */
+  choices: readonly EquipmentId[];
 }) {
   const on = new Set(value);
-  const all = on.size === EQUIPMENT_IDS.length;
+  const all = choices.every((id) => on.has(id));
   return (
     <>
       <div className={styles.equipBar}>
         <span className={`${styles.equipCount} num`} aria-live="polite">
-          {on.size === 0 ? 'Nothing: bodyweight only' : `${on.size} of ${EQUIPMENT_IDS.length} on`}
+          {on.size === 0 ? 'Nothing: bodyweight only' : `${on.size} of ${choices.length} on`}
         </span>
-        <button type="button" className={`${styles.textButton} pressable`} onClick={() => onChange(all ? [] : [...EQUIPMENT_IDS])} data-testid="equip-all">
+        <button type="button" className={`${styles.textButton} pressable`} onClick={() => onChange(all ? [] : [...choices])} data-testid="equip-all">
           {all ? 'Turn all off' : 'Turn all on'}
         </button>
       </div>
       <ul className={styles.equipGrid} data-testid="equipment">
-        {EQUIPMENT_IDS.flatMap((id) => [
+        {choices.flatMap((id) => [
           <li key={id} className={styles.equipCell}>
-            <Chip block label={EQUIPMENT_LABEL[id]} picked={on.has(id)} onPress={() => onChange(on.has(id) ? value.filter((x) => x !== id) : EQUIPMENT_IDS.filter((x) => on.has(x) || x === id))} testId={`equip-${id}`} />
+            <Chip block soft label={EQUIPMENT_LABEL[id]} picked={on.has(id)} onPress={() => onChange(on.has(id) ? value.filter((x) => x !== id) : EQUIPMENT_IDS.filter((x) => on.has(x) || x === id))} testId={`equip-${id}`} />
             {EQUIPMENT_INFO[id] && <InfoButton id={EQUIPMENT_INFO[id]!} className={styles.equipInfo} />}
           </li>,
           ...(id === 'dumbbells' && askRange
@@ -174,7 +183,21 @@ export function EquipmentStep({
   );
 }
 
-/** Lightest, heaviest and the jump between them, typed by the user (SPEC 3). Checked by load.ts. */
+const RANGE_WORDS: Record<NonNullable<DumbbellRangeProblems['min' | 'max' | 'step']>, string> = {
+  number: 'type a number.',
+  zero: 'must be above 0.',
+  'under-min': 'must not be under the lightest.',
+  'too-heavy': 'is more than any dumbbell weighs.',
+  'too-small': 'is not a step dumbbells come in.',
+  'misses-max': 'never lands on the heaviest.',
+};
+const RANGE_LABEL = { min: 'Lightest', max: 'Heaviest', step: 'Goes up by' } as const;
+const RANGE_EXAMPLE: Record<Unit, Record<keyof typeof RANGE_LABEL, string>> = {
+  lb: { min: '5', max: '50', step: '5' },
+  kg: { min: '2', max: '24', step: '2' },
+};
+
+/** Lightest, heaviest and the jump between them, typed by the user (SPEC 3). load.ts checks them. */
 function DumbbellRangeFields({ range, unit, onRange }: { range: DumbbellRange | undefined; unit: Unit; onRange: (r: DumbbellRange | undefined) => void }) {
   const [text, setText] = useState({ min: range ? formatAmount(range.min) : '', max: range ? formatAmount(range.max) : '', step: range ? formatAmount(range.step) : '' });
   const change = (key: keyof typeof text, v: string) => {
@@ -182,23 +205,33 @@ function DumbbellRangeFields({ range, unit, onRange }: { range: DumbbellRange | 
     setText(next);
     onRange(parseDumbbellRange(next.min, next.max, next.step, unit) ?? undefined);
   };
-  const full = text.min.trim() && text.max.trim() && text.step.trim();
-  const field = (key: keyof typeof text, label: string) => (
+  const problems = dumbbellRangeProblems(text.min, text.max, text.step, unit);
+  const first = (['min', 'max', 'step'] as const).find((k) => problems[k]);
+  const field = (key: keyof typeof text) => (
     <label className={styles.rangeField}>
-      <span className={styles.fieldLabel}>{label}</span>
-      <input className={`${styles.rangeInput} num`} inputMode="decimal" enterKeyHint="next" value={text[key]} onChange={(e) => change(key, e.target.value)} data-testid={`range-${key}`} />
+      <span className={styles.fieldLabel}>{RANGE_LABEL[key]}</span>
+      <input
+        className={`${styles.rangeInput} num`}
+        inputMode="decimal"
+        enterKeyHint="next"
+        placeholder={RANGE_EXAMPLE[unit][key]}
+        value={text[key]}
+        aria-invalid={problems[key] ? true : undefined}
+        onChange={(e) => change(key, e.target.value)}
+        data-testid={`range-${key}`}
+      />
     </label>
   );
   return (
     <fieldset className={styles.range} data-testid="dumbbell-range">
       <legend className={styles.rangeTitle}>Your dumbbells, in {unit}</legend>
       <div className={styles.rangeFields}>
-        {field('min', 'Lightest')}
-        {field('max', 'Heaviest')}
-        {field('step', 'Goes up by')}
+        {field('min')}
+        {field('max')}
+        {field('step')}
       </div>
-      <p className={styles.rangeNote} role="status">
-        {full && !range ? 'Check these: the lightest must be above 0 and under the heaviest.' : ''}
+      <p className={styles.rangeNote} role="status" data-testid="range-note">
+        {first ? `${RANGE_LABEL[first]}: ${RANGE_WORDS[problems[first]!]}` : ''}
       </p>
     </fieldset>
   );
@@ -245,25 +278,71 @@ export function ExercisesStep({ value, onChange, exclude, testId }: { value: rea
   );
 }
 
-export function NameStep({ value, onChange, onDone }: { value: string; onChange: (v: string) => void; onDone: () => void }) {
+/** One optional screen for both lists (SPEC 14 step 11): the toggle says which one a tap fills. */
+export function BothExercisesStep({ love, never, onLove, onNever }: { love: readonly string[]; never: readonly string[]; onLove: (v: string[]) => void; onNever: (v: string[]) => void }) {
+  const [mode, setMode] = useState<'love' | 'never'>(love.length === 0 && never.length > 0 ? 'never' : 'love');
   return (
-    <label className={styles.nameField}>
-      <span className={styles.fieldLabel}>Your name</span>
-      <input
-        type="text"
-        className={styles.nameInput}
-        value={value}
-        maxLength={40}
-        autoComplete="given-name"
-        autoCapitalize="words"
-        enterKeyHint="next"
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onDone();
-        }}
-        data-testid="name-input"
-      />
-    </label>
+    <>
+      <SlidingToggle block calm label="Which list" testId="ex-mode" options={[{ value: 'love', label: `Love${love.length ? ` (${love.length})` : ''}` }, { value: 'never', label: `Never${never.length ? ` (${never.length})` : ''}` }]} value={mode} onChange={setMode} />
+      {mode === 'love' ? <ExercisesStep key="love" value={love} exclude={never} onChange={onLove} testId="q-love" /> : <ExercisesStep key="never" value={never} exclude={love} onChange={onNever} testId="q-never" />}
+    </>
+  );
+}
+
+/** The most a name can be (lib/intake/funnel.ts sanitize keeps the same). */
+const NAME_MAX = 40;
+
+/** SPEC 14 step 13: name, height and age on one optional screen. Each is saved only if given. */
+export function AboutStep({
+  answers,
+  onName,
+  onHeight,
+  onAge,
+  measure,
+}: {
+  answers: Pick<IntakeAnswers, 'name' | 'height' | 'age'>;
+  onName: (v: string | undefined) => void;
+  onHeight: (v: Height) => void;
+  onAge: (v: AgeRangeId | undefined) => void;
+  measure: 'cm' | 'in';
+}) {
+  const name = answers.name ?? '';
+  return (
+    <div className={styles.about}>
+      <label className={styles.nameField}>
+        <span className={styles.fieldLabel}>Your name</span>
+        <input
+          type="text"
+          className={styles.nameInput}
+          value={name}
+          maxLength={NAME_MAX}
+          autoComplete="given-name"
+          autoCapitalize="words"
+          enterKeyHint="done"
+          onChange={(e) => onName(e.target.value || undefined)}
+          data-testid="name-input"
+        />
+        <span className={styles.fieldHint} data-limit={name.length >= NAME_MAX || undefined} data-testid="name-hint">
+          {name.length >= NAME_MAX ? `That's the limit: ${NAME_MAX} letters.` : 'Shown on your profile. Optional.'}
+        </span>
+      </label>
+      <div className={styles.aboutGroup}>
+        <span className={styles.fieldLabel}>Height</span>
+        <HeightStep value={answers.height} measure={measure} onChange={onHeight} />
+        <span className={styles.fieldHint}>Saved for later. Nothing uses it yet.</span>
+      </div>
+      <div className={styles.aboutGroup}>
+        <span className={styles.fieldLabel} id="age-label">
+          Age
+        </span>
+        <div className={styles.chips} data-grid="2" role="group" aria-labelledby="age-label" data-testid="q-age">
+          {AGE_RANGES.map((o) => (
+            <Chip key={o.id} block label={o.label} picked={answers.age === o.id} onPress={() => onAge(answers.age === o.id ? undefined : o.id)} testId={`q-age-${o.id}`} />
+          ))}
+        </div>
+        <span className={styles.fieldHint}>Saved for later. Nothing uses it yet.</span>
+      </div>
+    </div>
   );
 }
 
@@ -289,14 +368,14 @@ export function BodyweightStep({
   };
   return (
     <div className={styles.measure}>
-      <SlidingToggle block label="Weight unit" testId="bw-unit" options={[{ value: 'kg', label: 'Kilograms' }, { value: 'lb', label: 'Pounds' }]} value={unit} onChange={flip} />
+      <SlidingToggle block calm label="Weight unit" testId="bw-unit" options={[{ value: 'kg', label: 'Kilograms' }, { value: 'lb', label: 'Pounds' }]} value={unit} onChange={flip} />
       <p className={`${styles.bigNumber} num`} data-touched={!!value || undefined} aria-live="polite" data-testid="bw-value">
         {formatBodyweight(current)}
         <span className={styles.bigUnit}>{unit}</span>
       </p>
       <BodyweightRuler unit={unit} value={current} touched={!!value} onChange={(v) => onChange({ value: v, unit })} />
       <p className={styles.measureHint} data-hidden={!!value || undefined}>
-        Slide the ruler to your weight
+        Slide or tap to confirm
       </p>
     </div>
   );
@@ -325,20 +404,20 @@ export function HeightStep({ value, measure, onChange }: { value: Height | undef
     }
   };
   return (
-    <div className={styles.measure}>
-      <SlidingToggle block label="Height unit" testId="height-unit" options={[{ value: 'cm', label: 'Centimeters' }, { value: 'in', label: 'Feet and inches' }]} value={unit} onChange={flip} />
+    <div className={styles.measureTight}>
+      <SlidingToggle block calm label="Height unit" testId="height-unit" options={[{ value: 'cm', label: 'Centimeters' }, { value: 'in', label: 'Feet and inches' }]} value={unit} onChange={flip} />
       <div className={styles.wheels} data-testid="height-wheels">
         {unit === 'cm' ? (
-          <WheelColumn items={CM_ITEMS} value={cm} picked={!!value} label="Height in centimeters" testId="wheel-cm" onChange={(v) => onChange({ unit: 'cm', cm: v })} />
+          <WheelColumn rows={3} items={CM_ITEMS} value={cm} picked={!!value} label="Height in centimeters" testId="wheel-cm" onChange={(v) => onChange({ unit: 'cm', cm: v })} />
         ) : (
           <>
-            <WheelColumn items={FT_ITEMS} value={ftIn.ft} picked={!!value} label="Feet" testId="wheel-ft" onChange={(v) => onChange({ unit: 'in', ft: v, in: ftIn.in })} />
-            <WheelColumn items={IN_ITEMS} value={ftIn.in} picked={!!value} label="Inches" testId="wheel-in" onChange={(v) => onChange({ unit: 'in', ft: ftIn.ft, in: v })} />
+            <WheelColumn rows={3} items={FT_ITEMS} value={ftIn.ft} picked={!!value} label="Feet" testId="wheel-ft" onChange={(v) => onChange({ unit: 'in', ft: v, in: ftIn.in })} />
+            <WheelColumn rows={3} items={IN_ITEMS} value={ftIn.in} picked={!!value} label="Inches" testId="wheel-in" onChange={(v) => onChange({ unit: 'in', ft: ftIn.ft, in: v })} />
           </>
         )}
       </div>
       <p className={styles.measureHint} data-hidden={!!value || undefined}>
-        Spin to your height
+        Spin or tap to confirm
       </p>
     </div>
   );

@@ -1,17 +1,17 @@
-/* PLAN 3.3: a vertical wheel column. Seven rows tall, the middle one under a soft band. */
+/* PLAN 3.3: a vertical wheel column. Five (or three) rows tall, the middle one under a soft band. */
 .wrap {
   --row: 44px;
   position: relative;
   flex: 1;
   min-width: 0;
-  height: calc(var(--row) * 5);
+  height: calc(var(--row) * var(--rows, 5));
 }
 
 .band {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(var(--row) * 2);
+  top: calc(var(--row) * (var(--rows, 5) - 1) / 2);
   height: var(--row);
   border-radius: 14px;
   background: var(--surface-2);
@@ -52,7 +52,7 @@
 
 .spacer {
   display: block;
-  height: calc(var(--row) * 2);
+  height: calc(var(--row) * (var(--rows, 5) - 1) / 2);
 }
 
 .row {
@@ -87,7 +87,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  height: calc(var(--row) * 1.6);
+  height: calc(var(--row) * (var(--rows, 5) - 1) * 0.4);
   pointer-events: none;
 }
 

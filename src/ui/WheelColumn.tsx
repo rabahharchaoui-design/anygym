@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { tick } from './haptics';
 import styles from './WheelColumn.module.css';
@@ -14,6 +14,8 @@ type Props<T extends number | string> = {
   onChange: (v: T) => void;
   label: string;
   testId?: string;
+  /** Rows showing, the middle one under the band. */
+  rows?: 3 | 5;
 };
 
 /** Row pitch in px; three rows show above and below the band. */
@@ -24,7 +26,7 @@ export const WHEEL_ROW = 44;
  * scroll with CSS snap; the row in the band is published as it passes (a tick per detent).
  * A mouse drags it (tests, desktop); arrow keys step it. Only the user's own scroll picks.
  */
-export function WheelColumn<T extends number | string>({ items, value, picked, onChange, label, testId }: Props<T>) {
+export function WheelColumn<T extends number | string>({ items, value, picked, onChange, label, testId, rows = 5 }: Props<T>) {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const programmatic = useRef(false);
@@ -115,7 +117,7 @@ export function WheelColumn<T extends number | string>({ items, value, picked, o
   };
 
   return (
-    <div className={styles.wrap} data-picked={picked || undefined}>
+    <div className={styles.wrap} data-picked={picked || undefined} style={{ '--rows': rows } as CSSProperties}>
       <div className={styles.band} aria-hidden="true" />
       <div
         ref={ref}

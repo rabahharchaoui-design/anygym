@@ -180,6 +180,12 @@ export function SettingsScreen() {
           My profile
         </h2>
         <div className={styles.card}>
+          {profile.data?.name && (
+            <p className={`${styles.row} ${styles.divided}`} data-testid="profile-name">
+              <span>Name</span>
+              <span className={styles.value}>{profile.data.name}</span>
+            </p>
+          )}
           <button type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => go('/welcome?redo=1', { kind: 'push' })} data-testid="redo-intake">
             <span className={styles.unitText}>
               <span className={styles.unitLabel}>Answer the questions again</span>

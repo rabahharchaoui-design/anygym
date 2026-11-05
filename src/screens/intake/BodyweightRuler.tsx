@@ -18,7 +18,8 @@ type Props = {
 /**
  * PLAN 3.3: the horizontal bodyweight ruler. Scrubbed with the thumb (native momentum scroll), it
  * snaps to a tick every 0.5 once it settles; the value under the needle is published as it passes
- * each tick, with a haptic tick. Arrow keys step 0.5 (a slider for assistive tech).
+ * each tick, with a haptic tick. A tap confirms what it shows. Arrow keys step 0.5 (a slider for
+ * assistive tech).
  */
 export function BodyweightRuler({ unit, value, touched, onChange }: Props) {
   const reduce = useReducedMotion();
@@ -94,7 +95,15 @@ export function BodyweightRuler({ unit, value, touched, onChange }: Props) {
     onScroll();
   };
 
+  // A tap (or Enter) confirms the value under the needle, as a wheel row does: someone who weighs
+  // exactly the number shown never has to slide away and back. Read from the strip, not the prop:
+  // the click that ends a drag fires before the new value renders.
+  const confirm = () => {
+    if (ref.current) publish(valueAt(ref.current.scrollLeft, unit));
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') return confirm();
     const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
     if (!d) return;
     e.preventDefault();
@@ -131,6 +140,7 @@ export function BodyweightRuler({ unit, value, touched, onChange }: Props) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onKeyDown={onKeyDown}
+        onClick={confirm}
         data-testid="bodyweight-ruler"
       >
         <span className={styles.rulerSpacer} aria-hidden="true" />

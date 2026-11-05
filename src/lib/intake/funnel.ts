@@ -70,8 +70,8 @@ export type IntakeAnswers = {
   bodyweight?: Bodyweight;
   height?: Height;
   age?: AgeRangeId;
-  /** Screens the user skipped (their answer is empty on purpose). */
-  skipped?: ScreenId[];
+  /** Answers the user skipped (empty on purpose). */
+  skipped?: AnswerId[];
 };
 
 export const SCREENS = [
@@ -89,18 +89,36 @@ export const SCREENS = [
   'cardio',
   'cardioFavorites',
   'easyOn',
-  'love',
-  'never',
+  'exercises',
   'when',
-  'name',
   'bodyweight',
-  'height',
-  'age',
+  'about',
+  'noPlan',
   'reveal',
 ] as const;
 export type ScreenId = (typeof SCREENS)[number];
 
-export type ScreenKind = 'single' | 'multi' | 'form' | 'reveal';
+/** One stored answer. Merged screens fill several: exercises (love, never), about (name, height, age). */
+export type AnswerId =
+  | Exclude<ScreenId, 'reveal' | 'noPlan' | 'exercises' | 'about'>
+  | 'love'
+  | 'never'
+  | 'name'
+  | 'height'
+  | 'age';
+const ANSWER_IDS: readonly AnswerId[] = ['goal', 'units', 'focus', 'win', 'experience', 'days', 'weekdays', 'minutes', 'place', 'equipment', 'style', 'cardio', 'cardioFavorites', 'easyOn', 'love', 'never', 'when', 'name', 'bodyweight', 'height', 'age'];
+
+/** The stored answers behind each merged screen. */
+const FIELDS_OF: Partial<Record<ScreenId, readonly AnswerId[]>> = { exercises: ['love', 'never'], about: ['name', 'height', 'age'] };
+const fieldsOf = (s: ScreenId): readonly AnswerId[] => FIELDS_OF[s] ?? (s === 'reveal' || s === 'noPlan' ? [] : [s as AnswerId]);
+
+/** Older drafts stopped on a screen that is now merged. */
+const MERGED_STEP: Readonly<Record<string, ScreenId>> = { love: 'exercises', never: 'exercises', name: 'about', height: 'about', age: 'about' };
+
+/** The personal group (SPEC 14): from here on "Skip the rest" goes straight to the reveal. */
+export const PERSONAL_GROUP: ReadonlySet<ScreenId> = new Set<ScreenId>(['easyOn', 'exercises', 'when', 'bodyweight', 'about']);
+
+export type ScreenKind = 'single' | 'multi' | 'form' | 'notice' | 'reveal';
 
 /** Single choice screens advance on their own after the tap; the rest have Continue. */
 export const KIND: Record<ScreenId, ScreenKind> = {
@@ -118,21 +136,19 @@ export const KIND: Record<ScreenId, ScreenKind> = {
   cardio: 'single',
   cardioFavorites: 'multi',
   easyOn: 'multi',
-  love: 'multi',
-  never: 'multi',
+  exercises: 'multi',
   when: 'single',
-  name: 'form',
   bodyweight: 'form',
-  height: 'form',
-  age: 'single',
+  about: 'form',
+  noPlan: 'notice',
   reveal: 'reveal',
 };
 
 /** Personal or optional screens get a Skip (SPEC 14). */
-export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'cardioFavorites', 'easyOn', 'love', 'never', 'when', 'name', 'bodyweight', 'height', 'age']);
+export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'cardioFavorites', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
 
-/** Which answer field each question screen fills. */
-export const ANSWER_KEY: Record<Exclude<ScreenId, 'reveal'>, keyof IntakeAnswers> = {
+/** Which answer field each answer id fills. */
+export const ANSWER_KEY: Record<AnswerId, keyof IntakeAnswers> = {
   goal: 'goal',
   units: 'units',
   focus: 'focus',
@@ -156,9 +172,17 @@ export const ANSWER_KEY: Record<Exclude<ScreenId, 'reveal'>, keyof IntakeAnswers
   age: 'age',
 };
 
-/** The screens that show for these answers (no favorites when cardio is None). */
+/**
+ * The screens that show for these answers: no favorites when cardio is None, no exercise lists for
+ * someone brand new. The no plan notice is not in the list: only Continue from the equipment opens it.
+ */
 export function visibleScreens(a: IntakeAnswers): ScreenId[] {
-  return SCREENS.filter((s) => !(s === 'cardioFavorites' && a.cardio === 'none'));
+  return SCREENS.filter((s) => s !== 'noPlan' && !(s === 'cardioFavorites' && a.cardio === 'none') && !(s === 'exercises' && a.experience === 'new'));
+}
+
+/** What the equipment screen asks about at this place. Outdoors there is little to carry. */
+export function equipmentChoices(place: PlaceAnswer | undefined): readonly EquipmentId[] {
+  return place === 'outdoors' ? ['pull_up_bar', 'resistance_bands'] : EQUIPMENT_IDS;
 }
 
 /** Where a place answer puts the gym (SPEC 3 presets). A mix starts from the full gym. */
@@ -183,10 +207,13 @@ export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
     case 'equipment':
       // Nothing picked is a real answer: floor and bodyweight only. Dumbbells may need their range.
       return !needsDumbbellRange(a) || (!!a.dumbbellRange && validDumbbellRange(a.dumbbellRange));
-    case 'name':
-      return !!a.name?.trim();
     case 'reveal':
+    case 'noPlan':
       return true;
+    case 'about':
+      return !!a.name?.trim() || a.height !== undefined || a.age !== undefined;
+    case 'exercises':
+      return !!a.love?.length || !!a.never?.length;
     default: {
       const v = a[ANSWER_KEY[screen]];
       return Array.isArray(v) ? v.length > 0 : v !== undefined;
@@ -197,22 +224,24 @@ export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
 export type FunnelState = { step: ScreenId; answers: IntakeAnswers };
 
 export type FunnelAction =
-  | { type: 'set'; screen: Exclude<ScreenId, 'reveal'>; value: unknown }
+  | { type: 'set'; screen: AnswerId; value: unknown }
   | { type: 'range'; value: DumbbellRange | undefined }
-  | { type: 'next' }
+  /** noFit: no plan can fit this equipment; Continue from the equipment says so first. */
+  | { type: 'next'; noFit?: boolean }
   | { type: 'skip' }
+  | { type: 'skipRest' }
   | { type: 'back' }
   | { type: 'goto'; screen: ScreenId };
 
 export const startState = (answers: IntakeAnswers = {}): FunnelState => ({ step: 'goal', answers });
 
-const unskip = (a: IntakeAnswers, s: ScreenId): ScreenId[] | undefined => {
+const unskip = (a: IntakeAnswers, s: AnswerId): AnswerId[] | undefined => {
   const left = (a.skipped ?? []).filter((x) => x !== s);
   return left.length ? left : undefined;
 };
 
 /** Sets one answer, with its knock on effects (a new place presets the equipment). */
-export function setAnswer(a: IntakeAnswers, screen: Exclude<ScreenId, 'reveal'>, value: unknown): IntakeAnswers {
+export function setAnswer(a: IntakeAnswers, screen: AnswerId, value: unknown): IntakeAnswers {
   const key = ANSWER_KEY[screen];
   const next: IntakeAnswers = { ...a, [key]: value };
   const skipped = unskip(next, screen);
@@ -240,6 +269,7 @@ const clean = (a: IntakeAnswers): IntakeAnswers => {
 /** The screen after `step` for these answers (reveal is last). */
 export function nextScreen(step: ScreenId, a: IntakeAnswers): ScreenId {
   const list = visibleScreens(a);
+  if (step === 'noPlan') return nextScreen('equipment', a);
   const i = list.indexOf(step);
   return list[Math.min(list.length - 1, i + 1)] ?? 'reveal';
 }
@@ -247,6 +277,7 @@ export function nextScreen(step: ScreenId, a: IntakeAnswers): ScreenId {
 /** The screen before `step`, or null on the first one. */
 export function prevScreen(step: ScreenId, a: IntakeAnswers): ScreenId | null {
   const list = visibleScreens(a);
+  if (step === 'noPlan') return 'equipment';
   const i = list.indexOf(step);
   if (i > 0) return list[i - 1]!;
   if (i === 0) return null;
@@ -256,22 +287,38 @@ export function prevScreen(step: ScreenId, a: IntakeAnswers): ScreenId | null {
   return null;
 }
 
+const isBlank = (v: unknown) => v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
+
+/** Clears these answers and remembers they were skipped. */
+function markSkipped(a: IntakeAnswers, fields: readonly AnswerId[]): IntakeAnswers {
+  const out: IntakeAnswers = { ...a };
+  for (const f of fields) delete out[ANSWER_KEY[f]];
+  out.skipped = [...(a.skipped ?? []).filter((s) => !fields.includes(s)), ...fields];
+  return out;
+}
+
 export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelState {
   switch (action.type) {
     case 'set':
       return { ...state, answers: setAnswer(state.answers, action.screen, action.value) };
     case 'range':
       return { ...state, answers: clean({ ...state.answers, dumbbellRange: action.value }) };
-    case 'next':
+    case 'next': {
       if (!canContinue(state.step, state.answers)) return state;
-      return { ...state, step: nextScreen(state.step, state.answers) };
-    case 'skip': {
-      if (!SKIPPABLE.has(state.step) || state.step === 'reveal') return state;
-      const key = ANSWER_KEY[state.step as Exclude<ScreenId, 'reveal'>];
-      const answers: IntakeAnswers = { ...state.answers };
-      delete answers[key];
-      answers.skipped = [...(answers.skipped ?? []).filter((s) => s !== state.step), state.step];
+      if (state.step === 'equipment' && action.noFit) return { ...state, step: 'noPlan' };
+      // What was left blank on a merged screen is skipped on purpose (a cleared name goes).
+      const blank = state.step === 'about' || state.step === 'exercises' ? fieldsOf(state.step).filter((f) => isBlank(state.answers[ANSWER_KEY[f]])) : [];
+      const answers = blank.length ? markSkipped(state.answers, blank) : state.answers;
       return { step: nextScreen(state.step, answers), answers };
+    }
+    case 'skip': {
+      if (!SKIPPABLE.has(state.step)) return state;
+      const answers = markSkipped(state.answers, fieldsOf(state.step));
+      return { step: nextScreen(state.step, answers), answers };
+    }
+    case 'skipRest': {
+      if (!PERSONAL_GROUP.has(state.step)) return state;
+      return { step: 'reveal', answers: markSkipped(state.answers, [...PERSONAL_GROUP].flatMap(fieldsOf)) };
     }
     case 'back': {
       const prev = prevScreen(state.step, state.answers);
@@ -285,7 +332,7 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
 /** 0 on the first screen, 1 on the reveal. */
 export function progressOf(step: ScreenId, a: IntakeAnswers): number {
   const list = visibleScreens(a);
-  const i = Math.max(0, list.indexOf(step));
+  const i = Math.max(0, list.indexOf(step === 'noPlan' ? 'equipment' : step));
   return list.length > 1 ? i / (list.length - 1) : 1;
 }
 
@@ -364,8 +411,9 @@ export function sanitizeAnswers(v: unknown): IntakeAnswers {
     name: typeof o.name === 'string' && o.name.trim() ? o.name.trim().slice(0, 40) : undefined,
     bodyweight: bodyweight(o.bodyweight),
     height: height(o.height),
-    age: oneOf(ids(AGE_RANGES), o.age),
-    skipped: manyOf(SCREENS, o.skipped),
+    // Older answers: the two youngest ranges are now one.
+    age: oneOf(ids(AGE_RANGES), o.age === 'under_18' || o.age === '18_24' ? 'under_25' : o.age),
+    skipped: manyOf(ANSWER_IDS, o.skipped),
   };
   if (a.skipped && !a.skipped.length) delete a.skipped;
   return clean(a);
@@ -377,8 +425,9 @@ export function parseDraft(text: string | null): FunnelState | null {
   try {
     const o = JSON.parse(text) as Record<string, unknown>;
     const answers = sanitizeAnswers(o.answers);
-    const step = oneOf(SCREENS, o.step) ?? 'goal';
-    return { step: visibleScreens(answers).includes(step) ? step : 'goal', answers };
+    const raw = typeof o.step === 'string' ? (MERGED_STEP[o.step] ?? o.step) : o.step;
+    const step = oneOf(SCREENS, raw) ?? 'goal';
+    return { step: step === 'noPlan' || visibleScreens(answers).includes(step) ? step : 'goal', answers };
   } catch {
     return null;
   }

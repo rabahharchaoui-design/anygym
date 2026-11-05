@@ -8,12 +8,12 @@ import { BottomCTA } from '../../ui/BottomCTA';
 import { ChoiceCard } from '../../ui/ChoiceCard';
 import { useNav } from '../../ui/nav';
 import { useTapGuard } from '../../hooks/useTapGuard';
-import { bodyPref } from '../../lib/bodyPref';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
-import { caveatFor, pickPlan, reasonFor, weekOf } from '../../lib/intake/planPick';
+import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/planPick';
+import { persistAnswers } from './persist';
 import { PLANS, planById } from '../../data/plans';
 import { planNeeds } from '../../data/places';
-import { clearIntakeDraft, saveIntake } from '../../db/intake';
+import { clearIntakeDraft } from '../../db/intake';
 import { getActiveGym, startDb } from '../../db/bootstrap';
 import { choosePlan, choosePlanUndoable } from '../../db/planState';
 import { startPlanDay, startWorkout } from '../../db/workouts';
@@ -29,17 +29,14 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
   const plan = planById(chosenId ?? undefined);
   const fits = pick.kind === 'plan' ? [pick.plan, ...pick.others] : [];
   const week = plan ? weekOf(plan, answers) : [];
-  const reason = plan ? reasonFor(plan) : pick.reason;
-  const caveat = plan ? caveatFor(plan, answers) : pick.kind === 'none' ? pick.caveat : null;
+  const words = plan ? explainPick(plan, answers) : null;
+  const none = noPlanWords(answers.place);
 
   // The answers are saved as the reveal opens (profile, units, the first gym, the muscle map body).
   const [error, setError] = useState('');
   const saved = useRef<Promise<unknown> | null>(null);
   const save = () => {
-    const p = saveIntake(answers, undefined, undefined, { start: baseline.current }).then(() => {
-      baseline.current = answers;
-      if (answers.units) bodyPref.set(answers.units.body);
-    });
+    const p = persistAnswers(answers, baseline);
     saved.current = p;
     p.catch(() => setError('Could not save your answers. Try again.'));
     return p;
@@ -84,7 +81,6 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
   });
 
   const label = redo ? (plan ? 'Use this plan' : 'Done') : plan ? 'Start Day 1' : 'Start a quick workout';
-  const rows = plan ? week.length : 0;
 
   return (
     <div className={styles.screen} data-testid="intake" data-step="reveal">
@@ -95,30 +91,44 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         </div>
         <span className={styles.topSpacer} aria-hidden="true" />
       </header>
-      <main className={styles.body} data-scroller style={{ '--rows': rows } as CSSProperties}>
+      <main className={styles.body} data-scroller>
         <div className={styles.revealHead}>
-          <svg className={styles.check} viewBox="0 0 52 52" aria-hidden="true" data-testid="reveal-check">
-            <circle className={styles.checkRing} cx="26" cy="26" r="23" pathLength={1} />
-            <path className={styles.checkMark} d="M15 27 L23 35 L38 18" pathLength={1} />
-          </svg>
-          <h1 className={styles.title}>{plan ? 'Your plan' : 'Your start'}</h1>
+          {/* A check only for a real plan: no plan is not a win (critic B3). */}
+          {plan && (
+            <svg className={styles.check} viewBox="0 0 52 52" aria-hidden="true" data-testid="reveal-check">
+              <circle className={styles.checkRing} cx="26" cy="26" r="23" pathLength={1} />
+              <path className={styles.checkMark} d="M15 27 L23 35 L38 18" pathLength={1} />
+            </svg>
+          )}
+          <h1 className={styles.title}>{words ? words.title : none.title}</h1>
         </div>
         <section className={styles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
           {plan && <p className={styles.planName}>{plan.name}</p>}
           <p className={styles.reason} data-testid="reveal-reason">
-            {reason}
+            {words ? words.reason : none.saved}
           </p>
-          {caveat && (
-            <p className={styles.caveat} data-testid="reveal-caveat">
-              {caveat}
+          {words?.notBuilt && (
+            <p className={styles.caveat} data-testid="reveal-not-built">
+              {words.notBuilt}
             </p>
           )}
+          {!plan && (
+            <p className={styles.caveat} data-testid="reveal-quick">
+              {none.quick}
+            </p>
+          )}
+          {words?.notes.map((n) => (
+            <p key={n} className={styles.caveat} data-testid="reveal-note">
+              {n}
+            </p>
+          ))}
           {plan && (
             <ol className={styles.week} data-testid="reveal-week">
               {week.map((w, i) => (
                 <li key={`${w.label}-${i}`} className={styles.weekRow} style={{ '--i': i } as CSSProperties}>
                   <span className={`${styles.weekDay} num`}>{w.label}</span>
                   <span className={styles.weekName}>{w.dayName}</span>
+                  <span className={`${styles.weekTime} num`}>~{words!.minutes[w.dayIndex]} min</span>
                 </li>
               ))}
             </ol>

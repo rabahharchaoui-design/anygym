@@ -66,6 +66,16 @@
   outline-offset: 2px;
 }
 
+/* Calm: a tint and a thin line; the screen's button stays the one solid lime thing. */
+.toggle[data-calm] .pill {
+  background: rgb(212 255 58 / 0.14);
+  box-shadow: inset 0 0 0 1.5px rgb(212 255 58 / 0.55);
+}
+
+.toggle[data-calm] .option[aria-checked='true'] {
+  color: var(--text);
+}
+
 .toggle[aria-disabled] {
   opacity: 0.55;
 }
