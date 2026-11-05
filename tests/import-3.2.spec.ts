@@ -104,9 +104,10 @@ test.describe('3.2 import: catalog mapping', () => {
     // PLAN 3.2a: the cost of Keep the name is said before the tap, and no row runs under the footer.
     await expect(pick.getByTestId('pick-keep-hint')).toHaveText('Keep the name saves “Moon press” without photos or muscles.');
     const gap = await pick.evaluate((el) => {
-      const top = el.querySelector<HTMLElement>('[data-testid="pick-keep-hint"]')!.getBoundingClientRect().top;
-      const body = Array.from(el.querySelectorAll<HTMLElement>('ul')).map((u) => u.closest('div')!.getBoundingClientRect().bottom);
-      return { top, bodyBottom: Math.max(...body) };
+      const rows = Array.from(el.querySelectorAll<HTMLElement>('ul li button'));
+      const last = rows[rows.length - 1]!;
+      last.scrollIntoView({ block: 'end' });
+      return { top: el.querySelector<HTMLElement>('[data-testid="pick-keep-hint"]')!.getBoundingClientRect().top, bodyBottom: last.getBoundingClientRect().bottom };
     });
     expect(gap.bodyBottom).toBeLessThanOrEqual(gap.top + 1);
     await pick.getByTestId('pick-keep-name').tap();
