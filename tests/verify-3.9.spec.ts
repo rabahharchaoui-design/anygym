@@ -16,7 +16,6 @@ const sets = async (p: Page) => {
   const live = (await dbAll<Sess>(p, 'sessions')).find((s) => s.endedAt === undefined);
   return (await dbAll<S>(p, 'sets')).filter((x) => !live || x.sessionId === live.id).sort((a, b) => a.id.localeCompare(b.id));
 };
-const allSets = async (p: Page) => (await dbAll<S>(p, 'sets')).sort((a, b) => a.id.localeCompare(b.id));
 const live = async (p: Page) => (await sessions(p)).find((s) => s.endedAt === undefined)!;
 const SHOTS = '3.9/verify';
 
@@ -122,7 +121,7 @@ test('V2 the pill on Today, the day list and Run opens the sheet in one tap; a s
   await usePlan(page);
   await expect.poll(async () => (await gyms(page)).length).toBe(1);
   const base = (await gyms(page))[0]!;
-  await dbPut(page, { gyms: [{ ...base, id: 'gym-b', name: 'Casa', type: 'home', equipment: [], dumbbellRange: null, isActive: false, createdAt: base.createdAt + 5 }] });
+  await dbPut(page, { gyms: [{ ...base, id: 'gym-b', name: 'Casa', type: 'home', equipment: [], dumbbellRange: null, isActive: false, createdAt: (base.createdAt as number) + 5 }] });
   const sheet = page.getByRole('dialog', { name: 'Gyms' });
   const ids = async () => (await gyms(page)).find((g) => g.isActive)!.id;
 
@@ -244,7 +243,7 @@ test('V4 Last time follows the active gym for machines; free weights are shared 
   const B = mk('hist-b', 'gym-b', 1, ex, 12, { kind: 'stack', unit: 'lb', total: 35, stackValue: 35 });
   const FA = mk('hist-fa', a.id, 4, 'barbell-back-squat', 5, { kind: 'barbell', unit: 'lb', total: 225, barWeight: 45, perSide: [45, 45] });
   await dbPut(page, {
-    gyms: [{ ...a, id: 'gym-b', name: 'Other gym', isActive: false, createdAt: a.createdAt + 5 }],
+    gyms: [{ ...a, id: 'gym-b', name: 'Other gym', isActive: false, createdAt: (a.createdAt as number) + 5 }],
     sessions: [A.s, B.s, FA.s],
     sets: [A.w, B.w, FA.w],
   });
@@ -376,7 +375,7 @@ test('V7 plates follow the active gym inventory @matrix', async ({ page }) => {
   await expect.poll(async () => (await gyms(page)).length).toBe(1);
   const a = (await gyms(page))[0]!;
   const inv = (a.plateInventory as Array<{ weight: number; enabled: boolean }>).map((p) => ({ ...p }));
-  await dbPut(page, { gyms: [{ ...a, id: 'gym-b', name: 'No 45s', isActive: false, createdAt: a.createdAt + 5, plateInventory: inv.map((p) => (p.weight === 45 ? { ...p, enabled: false } : p)) }] });
+  await dbPut(page, { gyms: [{ ...a, id: 'gym-b', name: 'No 45s', isActive: false, createdAt: (a.createdAt as number) + 5, plateInventory: inv.map((p) => (p.weight === 45 ? { ...p, enabled: false } : p)) }] });
   const names = async () => {
     await quickWith(page, [['back squat', 'Barbell Back Squat']]);
     await exerciseView(page, 'barbell-back-squat').getByTestId('weight-cell').first().tap();
