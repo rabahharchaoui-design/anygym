@@ -98,6 +98,7 @@ test('V1 Settings Gyms: list, exact hotel preset, rename, make active, equipment
   // Delete the active hotel gym: the other takes over; Undo gives the active flag back too.
   await rowOf(page, 'Hilton').tap();
   await page.getByTestId('make-active').tap();
+  await expect(page.getByTestId('gym-is-active')).toBeVisible();
   const gymsBefore = JSON.stringify(sorted(await gyms(page)));
   await page.getByTestId('delete-gym').tap();
   await expect(page.getByTestId('gyms-list')).not.toContainText('Hilton');
