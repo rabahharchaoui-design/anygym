@@ -7,5 +7,5 @@ import type { IntakeAnswers } from '../../lib/intake/funnel';
 export async function persistAnswers(answers: IntakeAnswers, baseline: MutableRefObject<IntakeAnswers | undefined>): Promise<void> {
   await saveIntake(answers, undefined, undefined, { start: baseline.current });
   baseline.current = answers;
-  if (answers.units) bodyPref.set(answers.units.body);
+  if (answers.units?.body) bodyPref.set(answers.units.body);
 }

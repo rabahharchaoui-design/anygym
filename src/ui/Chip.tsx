@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import { Check, type LucideIcon } from 'lucide-react';
 import styles from './Chip.module.css';
 
 type Props = {
@@ -10,7 +10,7 @@ type Props = {
   testId?: string;
   /** Fill the cell (grids of chips); otherwise as wide as the label. */
   block?: boolean;
-  /** A quiet picked state, for long lists where most start on. */
+  /** A quiet picked state with a small check, for long lists where most start on. */
   soft?: boolean;
 };
 
@@ -22,6 +22,7 @@ type Props = {
 export function Chip({ label, icon: Icon, picked, onPress, testId, block, soft }: Props) {
   return (
     <button type="button" className={`${styles.chip} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} data-block={block || undefined} data-soft={soft || undefined}>
+      {soft && <Check className={styles.check} width={14} height={14} strokeWidth={3} aria-hidden="true" />}
       {Icon && <Icon className={styles.icon} width={18} height={18} strokeWidth={2} aria-hidden="true" />}
       <span className={styles.label}>{label}</span>
     </button>

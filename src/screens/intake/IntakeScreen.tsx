@@ -17,6 +17,7 @@ import { startWorkout } from '../../db/workouts';
 import type { DumbbellRange } from '../../db/types';
 import { noPlanWords, pickPlan } from '../../lib/intake/planPick';
 import { persistAnswers } from './persist';
+import { useMoreBelow } from './useMoreBelow';
 import { useNav, withTransition, type NavKind } from '../../ui/nav';
 import { bodyPref } from '../../lib/bodyPref';
 import {
@@ -33,6 +34,7 @@ import {
   serializeDraft,
   SKIPPABLE,
   startState,
+  weekdayCountNote,
   type AnswerId,
   type FunnelAction,
   type FunnelState,
@@ -41,8 +43,6 @@ import {
 } from '../../lib/intake/funnel';
 import { phoneLocale, unitsForLocale } from '../../lib/intake/region';
 import {
-  CARDIO,
-  CARDIO_FAVORITES,
   DAYS,
   EASY_ON,
   EXPERIENCE,
@@ -57,7 +57,7 @@ import {
   type Option,
 } from '../../lib/intake/options';
 import { clearIntakeDraft, getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, redoAnswers } from '../../db/intake';
-import { AboutStep, BodyweightStep, BothExercisesStep, EquipmentStep, MultiChoice, SingleChoice, UnitsStep } from './Steps';
+import { AboutStep, BodyweightStep, BothExercisesStep, CardioStep, EquipmentStep, MultiChoice, SingleChoice, UnitsStep } from './Steps';
 import { Reveal } from './Reveal';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
@@ -82,11 +82,10 @@ const COPY: Record<ScreenId, Copy> = {
   equipment: { title: 'What does your gym have?', sub: 'Tap to turn on or off. Tap ⓘ for anything new.' },
   style: { title: 'How do you like to train?' },
   cardio: { title: 'How do you feel about cardio?' },
-  cardioFavorites: { title: 'Any cardio you like?', sub: 'Pick any.' },
   easyOn: { title: 'Anything to go easy on?', sub: 'If something hurts, stop and check with a professional.' },
-  exercises: { title: 'Exercises you love or never want', sub: 'Optional. Tap any.' },
+  exercises: { title: 'Any favorites, or ones to avoid?', sub: 'Optional. Tap any.' },
   when: { title: 'When do you usually work out?' },
-  bodyweight: { title: 'What do you weigh?', sub: 'Saved for later. Nothing uses it yet.' },
+  bodyweight: { title: 'What do you weigh?', sub: "Not used yet. It'll help suggest starting weights." },
   about: { title: 'About you', sub: 'All optional.' },
   noPlan: { title: '' },
   reveal: { title: 'Your plan' },
@@ -99,7 +98,6 @@ const SINGLE_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
   minutes: MINUTE_OPTIONS,
   place: PLACES,
   style: STYLES,
-  cardio: CARDIO,
   when: WHEN,
 };
 const NUMERIC: ReadonlySet<string> = new Set(['days', 'minutes']);
@@ -108,7 +106,6 @@ const MULTI_OPTIONS: Partial<Record<ScreenId, readonly Option[]>> = {
   focus: FOCUS,
   win: WINS,
   weekdays: WEEKDAYS,
-  cardioFavorites: CARDIO_FAVORITES,
   easyOn: EASY_ON,
 };
 
@@ -118,15 +115,23 @@ const WHY: Partial<Record<ScreenId, string>> = {
   focus: 'Pick at least one',
   win: 'Pick at least one',
   weekdays: 'Pick your days, or skip',
-  cardioFavorites: 'Pick one, or skip',
+  cardio: 'Pick one',
   easyOn: 'Pick one, or None',
   exercises: 'Pick one, or skip',
   bodyweight: 'Slide or tap the ruler',
   about: 'Add one, or skip',
 };
 
+/** Units from the region; the body starts unpicked unless this phone already chose one. */
 function withUnits(a: IntakeAnswers): IntakeAnswers {
-  return a.units ? a : { ...a, units: { ...unitsForLocale(phoneLocale()), body: bodyPref.get() } };
+  if (a.units) return a;
+  return { ...a, units: { ...unitsForLocale(phoneLocale()), ...(bodyPref.get() === 'female' ? { body: 'female' as const } : {}) } };
+}
+
+/** The line under a title; the weekdays one repeats the days per week answer. */
+function subOf(step: ScreenId, a: IntakeAnswers): string | undefined {
+  if (step === 'weekdays' && a.days) return `Pick ${a.days}. Used to lay out your week.`;
+  return COPY[step].sub;
 }
 
 function readDraft(): FunnelState | null {
@@ -172,6 +177,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const [pulse, setPulse] = useState<string | null>(null);
   const scroller = useRef<HTMLElement>(null);
   const layer = useRef<HTMLDivElement>(null);
+  useMoreBelow(scroller);
   // What a gym is compared with when saving: a redo's starting answers, then what was last saved.
   const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
 
@@ -269,11 +275,11 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
           {first && !redo && (
             <div className={styles.intro} data-testid="intake-intro">
               <span className={styles.wordmark}>AnyGym</span>
-              <p className={styles.introLine}>A plan for whatever gym you&apos;re in. About 2 minutes.</p>
+              <p className={styles.introLine}>Train in any gym. About 2 minutes.</p>
             </div>
           )}
           <h1 className={styles.title}>{copy.title}</h1>
-          {copy.sub && <p className={styles.sub}>{copy.sub}</p>}
+          {subOf(step, answers) && <p className={styles.sub}>{subOf(step, answers)}</p>}
           {stepBody(step, answers, handlers, pulse)}
         </main>
         {kind === 'single' ? (
@@ -282,7 +288,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <p className={styles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
-          <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonInButton above={skipRestButton} note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
+          <BottomCTA onPress={next} disabled={!ready} disabledReason={WHY[step]} reasonAndNote above={skipRestButton} note={STAYS_HERE} testId="intake-cta" className={styles.cta}>
             Continue
           </BottomCTA>
         )}
@@ -307,7 +313,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
               </div>
               <div className={styles.body}>
                 <h2 className={styles.title}>{COPY[previous].title}</h2>
-                {COPY[previous].sub && <p className={styles.sub}>{COPY[previous].sub}</p>}
+                {subOf(previous, answers) && <p className={styles.sub}>{subOf(previous, answers)}</p>}
                 {stepBody(previous, answers, NO_HANDLERS, null)}
               </div>
             </div>
@@ -329,18 +335,28 @@ function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answe
   }
   if (MULTI_OPTIONS[step]) {
     const screen = step as AnswerId;
+    const countNote = step === 'weekdays' ? weekdayCountNote(answers) : null;
     return (
-      <MultiChoice
-        options={MULTI_OPTIONS[step]!}
-        value={answers[ANSWER_KEY[screen]] as string[] | undefined}
-        onChange={(v) => h.set(screen, v)}
-        only={step === 'easyOn' ? 'none' : undefined}
-        columns={step === 'weekdays' ? '4' : '2'}
-        testId={`q-${step}`}
-      />
+      <>
+        <MultiChoice
+          options={MULTI_OPTIONS[step]!}
+          value={answers[ANSWER_KEY[screen]] as string[] | undefined}
+          onChange={(v) => h.set(screen, v)}
+          only={step === 'easyOn' ? 'none' : undefined}
+          columns={step === 'weekdays' ? '4' : '2'}
+          testId={`q-${step}`}
+        />
+        {step === 'weekdays' && (
+          <p className={styles.countNote} role="status" data-testid="weekday-count">
+            {countNote ?? ''}
+          </p>
+        )}
+      </>
     );
   }
   switch (step) {
+    case 'cardio':
+      return <CardioStep cardio={answers.cardio} favorites={answers.cardioFavorites} onCardio={(id) => h.set('cardio', id)} onFavorites={(v) => h.set('cardioFavorites', v)} />;
     case 'units':
       return <UnitsStep value={answers.units!} onChange={(v) => h.set('units', v)} />;
     case 'equipment':
@@ -414,8 +430,9 @@ function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: Int
                 {error}
               </p>
             )}
+            <p className={styles.keepHint}>It won&apos;t change what you can do today.</p>
             <Button variant="secondary" className={styles.keepGoing} onClick={onKeepGoing} data-testid="noplan-continue">
-              Keep going
+              Finish my profile
             </Button>
           </>
         }

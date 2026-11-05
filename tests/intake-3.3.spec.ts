@@ -21,6 +21,7 @@ const intake = (page: Page) => page.getByTestId('intake');
 const atStep = (page: Page, step: string) => expect(intake(page)).toHaveAttribute('data-step', step);
 const cta = (page: Page) => page.getByTestId('intake-cta').locator('button[data-variant="primary"]');
 /** The round back button in the header (a focus chip is also called Back). */
+const revealPrimary = (page: Page) => page.getByTestId('reveal-cta').locator('button[data-variant="primary"]');
 const backButton = (page: Page) => page.locator('header').getByRole('button', { name: 'Back', exact: true });
 
 /** Counts every tap a user makes. */
@@ -132,8 +133,7 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
   await t.pick('style', 'mix');
   await screen('cardio');
   await t.pick('cardio', 'little');
-  await screen('cardioFavorites');
-  await t.skip();
+  await t.next();
   await screen('easyOn');
   if (!opts.skipRest) await t.skip();
   if (opts.skipRest) {
@@ -148,7 +148,7 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
     await screen('about');
     await t.skip();
   }
-  await screen('reveal', page.getByTestId('reveal-cta').getByRole('button'));
+  await screen('reveal', revealPrimary(page));
   return t.n;
 }
 
@@ -163,7 +163,7 @@ test('a new user goes through the funnel in 21 taps, every screen fits, Start Da
   await expect(page.getByRole('heading', { name: "What's your main goal?" })).toBeVisible();
   await expect(backButton(page)).toHaveCount(0);
   await expect(page.getByText('Your answers stay on this phone.')).toBeVisible();
-  await expect(page.getByTestId('intake-intro')).toContainText('A plan for whatever gym you\'re in. About 2 minutes.');
+  await expect(page.getByTestId('intake-intro')).toContainText('Train in any gym. About 2 minutes.');
   await expect(page.getByText(/Apple Health/)).toHaveCount(0);
   const taps = await fastPath(page, { layout: true, shots: true });
   await expect(page.getByTestId('reveal-card')).toContainText('Classic 5 Day Split');
@@ -250,7 +250,9 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await t.tap(page.getByTestId('noplan-continue'));
   await t.pick('style', 'free');
   await t.pick('cardio', 'none');
-  // Cardio None: no favorites screen.
+  // Cardio None: nothing more to ask here.
+  await expect(page.getByTestId('q-cardioFavorites')).toHaveCount(0);
+  await t.next();
   await atStep(page, 'easyOn');
   await t.pick('easyOn', 'knees');
   await t.pick('easyOn', 'none');
@@ -397,7 +399,8 @@ for (const [locale, weight, distance, measure] of [
         ['units-measure', measure],
       ] as const)
         await expect(page.getByTestId(id).getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
-      await expect(page.getByTestId('units-body').getByRole('radio', { name: 'Male', exact: true })).toHaveAttribute('aria-checked', 'true');
+      // No body is implied from the region: unpicked, and Continue still works.
+      await expect(page.getByTestId('units-body').getByRole('radio', { checked: true })).toHaveCount(0);
       await expect(cta(page)).toBeEnabled();
       await shot(page, `units-${locale}`);
       await cta(page).tap();
@@ -465,8 +468,7 @@ test('Settings → Answer the questions again: answers come back, Back leaves, t
   await cta(page).tap();
   await page.getByTestId('q-style-mix').tap();
   await page.getByTestId('q-cardio-little').tap();
-  await atStep(page, 'cardioFavorites');
-  await page.getByTestId('skip').tap();
+  await cta(page).tap();
   await atStep(page, 'easyOn');
   await page.getByTestId('skip-rest').tap();
   await atStep(page, 'reveal');
@@ -518,7 +520,7 @@ test('130% text on the SE: every screen fits, nothing cut off, the button stays 
   await page.goto('./');
   await fastPath(page, { layout: true, text: true });
   await text130(page);
-  await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button') });
+  await checkLayout(page, { primary: revealPrimary(page) });
   await shot(page, 'reveal-130');
 });
 
@@ -580,19 +582,30 @@ test('home with Dumbbells asks for the range: Continue waits, only what was type
   await expect.poll(async () => (await dbAll(page, 'gyms'))[0]?.dumbbellRange).toEqual({ min: 10, max: 40, step: 10 });
 });
 
-test('three weekdays on a five day plan: every workout shows as Day 1 to 5, with the one line why @matrix', async ({ page }) => {
+test('B3: 4 days then 3 weekdays: the weekdays screen says so, the reveal repeats the 4, every workout shows @matrix', async ({ page }) => {
+  await drafted(page, 'weekdays', { goal: 'muscle', days: 4, place: 'full', experience: '3y', units: US });
+  await expect(page.getByText('Pick 4. Used to lay out your week.')).toBeVisible();
+  await expect(page.getByTestId('weekday-count')).toHaveText('');
+  const before = await cta(page).boundingBox();
+  for (const d of ['mon', 'wed', 'fri']) await page.getByTestId(`q-weekdays-${d}`).tap();
+  await expect(page.getByTestId('weekday-count')).toHaveText('That is 3 days. You said 4.');
+  await expect(cta(page)).toBeEnabled();
+  expect(await cta(page).boundingBox()).toEqual(before);
+  await shot(page, 'weekdays-count');
   await page.goto('./#/settings');
-  await page.evaluate(() =>
-    localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'reveal', answers: { goal: 'muscle', days: 5, place: 'full', weekdays: ['mon', 'wed', 'fri'], experience: '3y' } })),
-  );
   await page.goto('./#/welcome');
+  await page.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!);
+    d.step = 'reveal';
+    localStorage.setItem('anygym.intakeDraft', JSON.stringify(d));
+  });
+  await page.reload();
   await atStep(page, 'reveal');
   const rows = page.getByTestId('reveal-week').getByRole('listitem');
   await expect(rows).toHaveCount(5);
   await expect(rows.nth(4)).toContainText('Day 5');
   await expect(rows.nth(4)).toContainText('Shoulders and calves');
-  await expect(page.getByTestId('reveal-note').filter({ hasText: 'You picked 3 days and this plan has 5. Do them in order at your own pace.' })).toBeVisible();
-  await shot(page, 'reveal-weekdays-mismatch');
+  await expect(page.getByTestId('reveal-warning')).toHaveText('5 days a week. You asked for 4 days.');
 });
 
 test('a redo left alone never touches the gym Settings changed; skipping Name deletes it', async ({ page }) => {
@@ -639,7 +652,8 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
   await cta(page).tap();
   await page.getByTestId('q-style-mix').tap();
   await page.getByTestId('q-cardio-little').tap();
-  for (const step of ['cardioFavorites', 'easyOn', 'exercises']) {
+  await cta(page).tap();
+  for (const step of ['easyOn', 'exercises']) {
     await atStep(page, step);
     await page.getByTestId('skip').tap();
   }
@@ -679,7 +693,7 @@ test('reloading or reopening on the reveal brings a fresh user back to it, until
   await expect(page).not.toHaveURL(/welcome/);
 });
 
-test('rule (f): the note shows under a grey Continue too; the reason is in the button; nothing moves when it turns valid @matrix', async ({ page }) => {
+test('rule (f): under a grey Continue the reason and the note both show; nothing moves when it turns valid @matrix', async ({ page }) => {
   await page.goto('./');
   await atStep(page, 'goal');
   await page.evaluate(() => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'focus', answers: { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' } } })));
@@ -687,17 +701,19 @@ test('rule (f): the note shows under a grey Continue too; the reason is in the b
   await atStep(page, 'focus');
   const bar = page.getByTestId('intake-cta');
   await expect(cta(page)).toBeDisabled();
-  await expect(cta(page)).toHaveText('Pick at least one');
+  await expect(cta(page)).toHaveText('Continue');
+  await expect(page.getByTestId('cta-reason')).toHaveText('Pick at least one');
   await expect(bar.getByText('Stays on this phone.')).toBeVisible();
   const before = await cta(page).boundingBox();
   await page.getByTestId('q-focus-arms').tap();
   await expect(cta(page)).toBeEnabled();
   await expect(cta(page)).toHaveText('Continue');
+  await expect(page.getByTestId('cta-reason')).toHaveText('');
   await expect(bar.getByText('Stays on this phone.')).toBeVisible();
   expect(await cta(page).boundingBox()).toEqual(before);
 });
 
-test('130% text on the SE: the longest reason stays on one line, the button does not grow', async ({ page }) => {
+test('130% text on the SE: the button keeps its size and place when the reason goes', async ({ page }) => {
   test.skip(test.info().project.name !== 'iPhone SE', 'SE only');
   await page.goto('./');
   await atStep(page, 'goal');
@@ -710,26 +726,111 @@ test('130% text on the SE: the longest reason stays on one line, the button does
   for (const [k, v] of [['min', '10'], ['max', '40'], ['step', '10']] as const) await page.getByTestId(`range-${k}`).fill(v);
   await expect(cta(page)).toBeEnabled();
   await text130(page);
-  expect((await cta(page).boundingBox())!.height).toBe(grey.height);
-  expect(grey.height).toBeLessThanOrEqual(56);
+  const valid = (await cta(page).boundingBox())!;
+  expect(valid.height).toBe(grey.height);
+  expect(valid.y).toBe(grey.y);
 });
 
 // ---------------------------------------------------------------- round 3 (ux-critic)
 
-test('B1 B2: a race goal in a full gym is the closest plan, says what is not built in, and the session length matches the workout @matrix', async ({ page }) => {
-  await drafted(page, 'reveal', { goal: 'race', days: 3, minutes: 45, place: 'full', easyOn: ['knees'], experience: 'new', units: US });
+test('B1 B2: a race goal is the closest plan: no check, at most two lines of warning, length matches the workout @matrix', async ({ page }) => {
+  await drafted(page, 'reveal', { goal: 'race', days: 3, minutes: 45, place: 'full', easyOn: ['knees'], experience: '3y', units: US });
   await expect(page.getByRole('heading', { name: 'Closest plan we have' })).toBeVisible();
+  await expect(page.getByTestId('reveal-check')).toHaveCount(0);
   await expect(page.getByTestId('reveal-reason')).toHaveText('Picked for your full gym. It builds muscle, 5 days a week.');
-  await expect(page.getByTestId('reveal-not-built')).toHaveText("Your race goal and going easy on your knees aren't built in yet.");
+  const warning = page.getByTestId('reveal-warning');
+  await expect(warning).toHaveText(/^About \d+ min, 5 days\. You asked for 45 min, 3 days\. Race goal and knees aren't built in yet\.$/);
   await expect(page.getByTestId('reveal-card')).not.toContainText('built to add muscle');
-  await expect(page.getByTestId('reveal-note').filter({ hasText: /These sessions run about \d+ min, longer than the 45 you picked\./ })).toBeVisible();
-  await expect(page.getByTestId('reveal-note').filter({ hasText: 'You picked 3 days and this plan has 5.' })).toBeVisible();
+  if (test.info().project.name !== '320 floor') {
+    const lines = await warning.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+    expect(lines).toBeLessThanOrEqual(2);
+  }
   await shot(page, 'reveal-closest');
-  const firstRow = page.getByTestId('reveal-week').getByRole('listitem').first();
-  const minutes = /~(\d+) min/.exec((await firstRow.textContent())!)![1]!;
-  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' }).tap();
+  // Every day row can be reached, on one line each where it fits, and the alternatives too.
+  const rows = page.getByTestId('reveal-week').getByRole('listitem');
+  await rows.nth(4).scrollIntoViewIfNeeded();
+  await expect(rows.nth(4)).toBeInViewport({ ratio: 1 });
+  if (test.info().project.name !== '320 floor') {
+    const heights = await rows.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+    expect(new Set(heights).size).toBe(1);
+  }
+  await page.getByTestId('reveal-plan-six-week-volume').scrollIntoViewIfNeeded();
+  await expect(page.getByTestId('reveal-plan-six-week-volume')).toBeInViewport({ ratio: 1 });
+  const minutes = /~(\d+) min/.exec((await rows.first().textContent())!)![1]!;
+  // Well over the time picked: a quick workout beside Start Day 1.
+  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
+  await revealPrimary(page).tap();
   await expect(page).toHaveURL(/#\/workout\//);
   await expect(page.getByText(new RegExp(`~${minutes} min`)).first()).toBeVisible();
+});
+
+test('B2: a 30 minute pick makes the quick workout the main action; Start Day 1 stays one tap away; a true match has only the check and Start Day 1 @matrix', async ({ page }) => {
+  await drafted(page, 'reveal', { goal: 'muscle', days: 5, minutes: 30, place: 'full', units: US });
+  await expect(revealPrimary(page)).toHaveText('Start a quick workout');
+  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start Day 1');
+  await checkLayout(page, { primary: revealPrimary(page) });
+  await shot(page, 'reveal-30');
+  await revealPrimary(page).tap();
+  await expect(page).toHaveURL(/#\/workout\//);
+  expect(await dbAll(page, 'planState')).toEqual([]);
+  expect((await dbAll(page, 'sessions'))[0]!.planId).toBeUndefined();
+});
+
+test('B2: brand new is offered a quick workout too; Start Day 1 from the secondary spot starts the plan', async ({ page }) => {
+  await drafted(page, 'reveal', { goal: 'muscle', days: 5, place: 'full', experience: 'new', units: US });
+  await expect(revealPrimary(page)).toHaveText('Start Day 1');
+  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
+  await expect(page.getByTestId('reveal-reason')).toContainText('It expects some experience, so start light.');
+  await page.getByTestId('reveal-secondary').tap();
+  await expect(page).toHaveURL(/#\/workout\//);
+  expect(await dbAll(page, 'planState')).toEqual([]);
+});
+
+test('P4: favorites sit on the cardio screen, shown once a feeling is picked; None hides them @matrix', async ({ page }) => {
+  await drafted(page, 'cardio', { goal: 'muscle', units: US });
+  await expect(cta(page)).toBeDisabled();
+  await expect(page.getByTestId('cta-reason')).toHaveText('Pick one');
+  await expect(page.getByTestId('q-cardioFavorites')).toHaveCount(0);
+  await page.getByTestId('q-cardio-love').tap();
+  // No auto advance here: there is more to pick.
+  await page.waitForTimeout(400);
+  await atStep(page, 'cardio');
+  await page.getByTestId('q-cardioFavorites-bike').tap();
+  await shot(page, 'cardio-favorites');
+  await checkLayout(page, { primary: cta(page) });
+  await cta(page).tap();
+  await atStep(page, 'easyOn');
+  const d = await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers);
+  expect(d).toMatchObject({ cardio: 'love', cardioFavorites: ['bike'] });
+  await backButton(page).tap();
+  await page.getByTestId('q-cardio-none').tap();
+  await expect(page.getByTestId('q-cardioFavorites')).toHaveCount(0);
+});
+
+test('P8: Back after Skip the rest returns to the screen where it was tapped', async ({ page }) => {
+  await drafted(page, 'bodyweight', { goal: 'muscle', units: US, place: 'full', days: 5 });
+  await page.getByTestId('skip-rest').tap();
+  await atStep(page, 'reveal');
+  await backButton(page).tap();
+  await atStep(page, 'bodyweight');
+});
+
+test('P2: equipment that is on shows a small check; turning it on moves nothing', async ({ page }) => {
+  await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'hotel', equipmentFor: 'hotel', equipment: ['treadmill'] });
+  const chip = page.getByTestId('equip-flat_bench');
+  const label = chip.locator('span').first();
+  const check = chip.locator('svg');
+  await expect(check).toHaveCSS('opacity', '0');
+  const before = await label.boundingBox();
+  await chip.tap();
+  await expect(check).toHaveCSS('opacity', '1');
+  expect(await label.boundingBox()).toEqual(before);
+});
+
+test('P7: the notice says finishing the profile changes nothing today', async ({ page }) => {
+  await drafted(page, 'noPlan', { goal: 'muscle', units: US, place: 'home', equipmentFor: 'home', equipment: [] });
+  await expect(page.getByTestId('noplan-continue')).toHaveText('Finish my profile');
+  await expect(page.getByText("It won't change what you can do today.")).toBeVisible();
 });
 
 test('B3: no plan is said right after the equipment; Start a quick workout from there saves the gym @matrix', async ({ page }) => {
@@ -796,7 +897,7 @@ test('B5: a tap confirms the shown value on the ruler and on the wheels; nothing
   await drafted(page, 'bodyweight', { goal: 'muscle', units: US });
   await expect(page.getByText('Slide or tap to confirm')).toBeVisible();
   await expect(cta(page)).toBeDisabled();
-  await expect(cta(page)).toHaveText('Slide or tap the ruler');
+  await expect(page.getByTestId('cta-reason')).toHaveText('Slide or tap the ruler');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.bodyweight ?? null)).toBeNull();
   await page.getByTestId('bodyweight-ruler').tap();
   await expect(page.getByTestId('bw-value')).toHaveText(/^155\.0\s*lb$/);
@@ -820,6 +921,7 @@ test('B5: a tap confirms the shown value on the ruler and on the wheels; nothing
 test('B7: About says what the name is for and shows when the limit is reached', async ({ page }) => {
   await drafted(page, 'about', { goal: 'muscle', units: US });
   await expect(page.getByTestId('name-hint')).toHaveText('Shown on your profile. Optional.');
+  await expect(page.getByText(/Not used yet|Saved for later/)).toHaveCount(0);
   await expect(page.getByTestId('skip-rest')).toHaveCount(0);
   await page.getByTestId('name-input').fill('x'.repeat(40));
   await expect(page.getByTestId('name-hint')).toHaveText("That's the limit: 40 letters.");
@@ -901,7 +1003,7 @@ test('P14: on the reveal the check finishes by 900 ms beside the title; weekdays
   const alt = page.getByTestId('reveal-plan-six-week-volume');
   await alt.scrollIntoViewIfNeeded();
   await expect(alt).toBeInViewport();
-  await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button') });
+  await checkLayout(page, { primary: revealPrimary(page) });
   await shot(page, 'reveal-weekdays');
 });
 
@@ -925,14 +1027,23 @@ test('P15: the edge swipe goes back on a pushed screen; the first screen has non
   const ruler = (await page.getByTestId('bodyweight-ruler').boundingBox())!;
   expect(ruler.x).toBeGreaterThanOrEqual(strip.x + strip.width);
   await expect(page.getByText('Stays on this phone.')).toBeVisible();
-  await expect(page.getByText('Saved for later. Nothing uses it yet.')).toBeVisible();
+  await expect(page.getByText("Not used yet. It'll help suggest starting weights.")).toBeVisible();
 });
 
-test('P11: toggles are calm; solid lime only on the button; the body question stands apart', async ({ page }) => {
-  await drafted(page, 'units', { goal: 'muscle', units: US });
+test('P1 P9 P10: the selected toggle is the solid lime pill; the body starts unpicked; Units fits the SE with no fade over it', async ({ page }) => {
+  await drafted(page, 'units', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in' } });
   await expect(page.getByText('Which body should the muscle map show?')).toBeVisible();
-  const pill = await page.getByTestId('units-weight').locator('[data-pill]').evaluate((el) => getComputedStyle(el).backgroundImage + getComputedStyle(el).backgroundColor);
-  expect(pill).toContain('0.14');
+  const bg = await page.getByTestId('units-weight').locator('[data-pill]').evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(bg).toContain('gradient');
+  expect(bg).not.toContain('0.14');
+  await expect(page.getByTestId('units-body').getByRole('radio', { checked: true })).toHaveCount(0);
+  await expect(cta(page)).toBeEnabled();
   await checkLayout(page, { primary: cta(page) });
-  await shot(page, 'units-calm');
+  if (test.info().project.name === 'iPhone SE') expect(await intake(page).getAttribute('data-more')).toBeNull();
+  await shot(page, 'units');
+  // Unpicked stays unpicked: the muscle map keeps its default, nothing stored.
+  await cta(page).tap();
+  await atStep(page, 'focus');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.units.body ?? null)).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('anygym.muscleBody'))).toBeNull();
 });

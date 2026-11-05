@@ -94,63 +94,85 @@ const GOAL_WORD: Record<GoalId, string> = {
 
 const list = (items: readonly string[]): string => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 const capital = (t: string): string => t.charAt(0).toUpperCase() + t.slice(1);
+const average = (ns: readonly number[]): number => Math.round(ns.reduce((x, y) => x + y, 0) / ns.length);
 
-/** One line when the sessions run longer than the time picked; numbers from the workout header's estimator. */
-export function sessionWarning(plan: Plan, a: IntakeAnswers): string | null {
-  // 75+ has no upper end.
-  if (a.minutes === undefined || a.minutes >= 75) return null;
-  const minutes = plan.days.map((d) => estimateDayMinutes(d));
-  const over = minutes.filter((m) => m > a.minutes!);
-  if (over.length === 0) return null;
-  if (over.length === minutes.length) return `These sessions run about ${Math.round(minutes.reduce((x, y) => x + y, 0) / minutes.length)} min, longer than the ${a.minutes} you picked.`;
-  return `Some sessions run about ${Math.max(...over)} min, longer than the ${a.minutes} you picked.`;
-}
+/** Sessions this much over the time picked count as well over: offer a quick workout. */
+const WELL_OVER = 1.25;
 
 export type PlanExplain = {
   /** "Your plan" only when the plan truly matches the goal and the days. */
   title: 'Your plan' | 'Closest plan we have';
+  /** The lime check: earned only by "Your plan". */
+  check: boolean;
   /** What the pick really used, then what the plan is when that was not their answer. */
   reason: string;
-  /** What they told us that is not built in yet; null when nothing is left out. */
-  notBuilt: string | null;
-  /** One line each: session length, schedule, level, place. */
-  notes: string[];
+  /** At most two lines on an iPhone: what differs from what they asked, what is not built in yet. */
+  warning: string | null;
+  /** Offer a quick workout too: as the main action when the time picked is short. */
+  quick: 'primary' | 'secondary' | null;
   /** Per plan day, the estimate the workout header shows. */
   minutes: number[];
 };
 
 /**
- * The one place the reveal's words come from. The pick uses the equipment; goal and days count
- * only when they truly match the plan's own data. Everything else the user said is named as not
- * built in yet, never implied. The generator (PLAN 3.5) replaces this.
+ * The one place the reveal's words and offer come from. The pick uses the equipment; goal and days
+ * count only when they truly match the plan's own data. Everything else the user said is named as
+ * not built in yet, never implied. The numbers repeated are the days per week answer and the time
+ * picked (never the weekday count). The generator (PLAN 3.5) replaces this.
  */
 export function explainPick(plan: Plan, a: IntakeAnswers): PlanExplain {
   const goalMatch = a.goal === 'muscle' && plan.goal === 'muscle';
   const daysMatch = a.days === plan.daysPerWeek;
-  const used = [plan.gymType === 'full' ? 'your full gym' : 'your equipment'];
+  const newLifter = a.experience === 'new' || a.experience === 'months';
+
+  const gym = plan.gymType === 'full' ? (a.place === 'mix' ? 'your full gym days' : 'your full gym') : 'your equipment';
+  const used = [gym];
   if (goalMatch) used.push(`your ${GOAL_WORD[a.goal!]} goal`);
   if (daysMatch) used.push(`your ${plan.daysPerWeek} days`);
   const builds = !goalMatch && plan.goal === 'muscle';
-  const fact = builds && !daysMatch ? `It builds muscle, ${plan.daysPerWeek} days a week.` : builds ? 'It builds muscle.' : !daysMatch ? `It runs ${plan.daysPerWeek} days a week.` : '';
-  const reason = `Picked for ${list(used)}.${fact ? ` ${fact}` : ''}`;
+  const facts = [
+    builds && !daysMatch ? `It builds muscle, ${plan.daysPerWeek} days a week.` : builds ? 'It builds muscle.' : !daysMatch ? `It runs ${plan.daysPerWeek} days a week.` : null,
+    newLifter && plan.level === 'intermediate' ? 'It expects some experience, so start light.' : null,
+  ].filter((x): x is string => !!x);
+  const reason = [`Picked for ${list(used)}.`, ...facts].join(' ');
+
+  const minutes = plan.days.map((d) => estimateDayMinutes(d));
+  const avg = average(minutes);
+  // 75+ has no upper end.
+  const timed = a.minutes !== undefined && a.minutes < 75;
+  const longer = timed && avg > a.minutes!;
+  const otherDays = a.days !== undefined && !daysMatch;
+  const compared =
+    longer && otherDays
+      ? `About ${avg} min, ${plan.daysPerWeek} days. You asked for ${a.minutes} min, ${a.days} days.`
+      : longer
+        ? `About ${avg} min. You asked for ${a.minutes} min.`
+        : otherDays
+          ? `${plan.daysPerWeek} days a week. You asked for ${a.days} days.`
+          : null;
 
   const left: string[] = [];
-  if (a.goal && !goalMatch) left.push(`your ${GOAL_WORD[a.goal]} goal`);
+  if (a.goal && !goalMatch) left.push(`${GOAL_WORD[a.goal]} goal`);
   const easy = (a.easyOn ?? []).filter((e) => e !== 'none');
-  if (easy.length) left.push(`going easy on your ${list(easy.map((e) => (labelOf(EASY_ON, e) ?? e).toLowerCase()))}`);
-  if ((a.focus ?? []).some((f) => f !== 'balance')) left.push('your focus areas');
+  if (easy.length === 1) left.push((labelOf(EASY_ON, easy[0]) ?? easy[0]!).toLowerCase());
+  else if (easy.length > 1) left.push('easy-on areas');
+  if (a.style === 'bodyweight' && plan.gymType !== 'bodyweight') left.push('bodyweight only');
+  if ((a.focus ?? []).some((f) => f !== 'balance')) left.push('focus');
   if (a.never?.length) left.push('exercises to avoid');
-  const notBuilt = left.length ? `${capital(list(left))} ${left.length > 1 ? "aren't" : "isn't"} built in yet.` : null;
+  const named = left.length > 3 ? [...left.slice(0, 2), 'more'] : left;
+  const plural = named.length > 1 || (/s$/.test(named[0] ?? '') && named[0] !== 'focus') || named[0] === 'exercises to avoid';
+  const notBuilt = named.length ? `${capital(list(named))} ${plural ? "aren't" : "isn't"} built in yet.` : null;
 
-  const picked = a.weekdays?.length || a.days;
-  const notes = [
-    sessionWarning(plan, a),
-    picked && picked !== plan.days.length ? `You picked ${picked} days and this plan has ${plan.days.length}. Do them in order at your own pace.` : null,
-    a.experience && !SEASONED.has(a.experience) && plan.level === 'intermediate' ? 'It is made for lifters with some experience, so start light.' : null,
-    a.place === 'mix' ? 'It needs a full gym. On the road, start a quick workout.' : null,
-  ].filter((n): n is string => !!n);
+  const quick = timed && longer && a.minutes! <= 30 ? 'primary' : (timed && avg >= a.minutes! * WELL_OVER) || a.experience === 'new' ? 'secondary' : null;
 
-  return { title: goalMatch && daysMatch ? 'Your plan' : 'Closest plan we have', reason, notBuilt, notes, minutes: plan.days.map((d) => estimateDayMinutes(d)) };
+  return {
+    title: goalMatch && daysMatch ? 'Your plan' : 'Closest plan we have',
+    check: goalMatch && daysMatch,
+    reason,
+    warning: [compared, notBuilt].filter(Boolean).join(' ') || null,
+    quick,
+    minutes,
+  };
 }
 
 export type NoPlanWords = { title: string; saved: string; quick: string };

@@ -17,7 +17,6 @@ import {
   setAnswer,
   SKIPPABLE,
   startState,
-  visibleScreens,
   type FunnelState,
   type AnswerId,
   type IntakeAnswers,
@@ -80,7 +79,7 @@ describe('the funnel state machine', () => {
   it('walks every screen in order, saving each answer as it is given', () => {
     let s = startState();
     const seen: ScreenId[] = [];
-    const fields: Partial<Record<ScreenId, AnswerId[]>> = { exercises: ['love', 'never'], about: ['name', 'height', 'age'] };
+    const fields: Partial<Record<ScreenId, AnswerId[]>> = { cardio: ['cardio', 'cardioFavorites'], exercises: ['love', 'never'], about: ['name', 'height', 'age'] };
     while (s.step !== 'reveal') {
       seen.push(s.step);
       const screen = s.step;
@@ -90,7 +89,7 @@ describe('the funnel state machine', () => {
       s = funnelReducer(s, { type: 'next' });
     }
     expect(seen).toEqual(SCREENS.filter((x) => x !== 'reveal' && x !== 'noPlan'));
-    expect(seen).toHaveLength(18);
+    expect(seen).toHaveLength(17);
     // Equipment was set after the place preset: the user's pick is kept.
     expect(s.answers).toMatchObject({ ...ANSWER, equipmentFor: 'hotel' });
     expect(s.answers.skipped).toBeUndefined();
@@ -112,11 +111,11 @@ describe('the funnel state machine', () => {
 
   it('single choice screens are the ones that advance on their own; the rest have Continue', () => {
     const single = SCREENS.filter((s) => KIND[s] === 'single');
-    expect(single).toEqual(['goal', 'experience', 'days', 'minutes', 'place', 'style', 'cardio', 'when']);
+    expect(single).toEqual(['goal', 'experience', 'days', 'minutes', 'place', 'style', 'when']);
   });
 
   it('Skip only on personal screens: clears the answer, remembers the skip, moves on', () => {
-    expect([...SKIPPABLE].sort()).toEqual(['about', 'bodyweight', 'cardioFavorites', 'easyOn', 'exercises', 'weekdays', 'when'].sort());
+    expect([...SKIPPABLE].sort()).toEqual(['about', 'bodyweight', 'easyOn', 'exercises', 'weekdays', 'when'].sort());
     const s = walk(startState(), { type: 'goto', screen: 'bodyweight' }, { type: 'set', screen: 'bodyweight', value: { value: 80, unit: 'kg' } }, { type: 'skip' });
     expect(s.step).toBe('about');
     expect(s.answers.bodyweight).toBeUndefined();
@@ -138,15 +137,6 @@ describe('the funnel state machine', () => {
     expect(b.answers).toEqual(s.answers);
     expect(funnelReducer(b, { type: 'back' })).toBe(b);
     expect(prevScreen('goal', {})).toBeNull();
-  });
-
-  it('cardio None hides the favorites screen and clears them', () => {
-    const a: IntakeAnswers = { cardio: 'little', cardioFavorites: ['bike'] };
-    expect(visibleScreens(a)).toContain('cardioFavorites');
-    const s = walk({ step: 'cardio', answers: a }, { type: 'set', screen: 'cardio', value: 'none' }, { type: 'next' });
-    expect(s.step).toBe('easyOn');
-    expect(s.answers.cardioFavorites).toBeUndefined();
-    expect(funnelReducer(s, { type: 'back' }).step).toBe('cardio');
   });
 
   it('a new place presets the equipment (SPEC 3); the same place keeps the edits', () => {
@@ -257,7 +247,7 @@ describe('the plan reveal picks honestly from the plans that exist', () => {
     if (p.kind !== 'plan') return;
     expect(p.plan.id).toBe('five-day-split');
     expect(explainPick(p.plan, full).reason).toBe('Picked for your full gym, your muscle goal and your 5 days.');
-    expect(explainPick(p.plan, full).notes).toEqual([]);
+    expect(explainPick(p.plan, full).warning).toBeNull();
     expect(p.others.map((o) => o.id)).toEqual(['six-week-volume']);
     expect(weekOf(p.plan, full).map((w) => w.label)).toEqual(['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5']);
   });
@@ -296,12 +286,12 @@ describe('the plan reveal picks honestly from the plans that exist', () => {
     const w = weekOf(plan, a);
     expect(w.map((x) => x.label)).toEqual(['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5']);
     expect(w.map((x) => x.dayIndex)).toEqual([0, 1, 2, 3, 4]);
-    expect(explainPick(plan, a).notes).toEqual([`You picked ${weekdays.length} days and this plan has 5. Do them in order at your own pace.`]);
+    expect(explainPick(plan, a).warning).toBeNull();
   });
 
   it('matching weekdays need no scheduling caveat', () => {
     const plan = PLANS[0]!;
-    expect(explainPick(plan, { ...full, weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'] }).notes).toEqual([]);
+    expect(explainPick(plan, { ...full, weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'] }).warning).toBeNull();
   });
 
   it('ranks by days, goal and experience; ties keep the shipped order', () => {

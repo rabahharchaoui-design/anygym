@@ -5,7 +5,7 @@ import { planNeeds } from '../../data/places';
 import { dumbbellRangeProblems, parseDumbbellRange } from '../load';
 import { estimateDayMinutes } from '../plans';
 import { canContinue, equipmentChoices, funnelReducer, parseDraft, sanitizeAnswers, SCREENS, startState, visibleScreens, type IntakeAnswers } from '../intake/funnel';
-import { explainPick, noPlanWords, pickPlan, sessionWarning } from '../intake/planPick';
+import { explainPick, noPlanWords, pickPlan } from '../intake/planPick';
 import { GLOSSARY } from '../../data/glossary';
 import { EQUIPMENT_INFO, EQUIPMENT_LABEL } from '../intake/options';
 
@@ -23,9 +23,9 @@ describe('B1: the line says only what the pick really used', () => {
   });
 
   it('a race goal with bad knees is told plainly, and "muscle" is the plan, not their goal', () => {
-    const e = explainPick(plan, { ...full, goal: 'race', days: 5, easyOn: ['knees'], minutes: 45 });
+    const e = explainPick(plan, { ...full, goal: 'race', days: 5, easyOn: ['knees'] });
     expect(e.reason).toBe('Picked for your full gym and your 5 days. It builds muscle.');
-    expect(e.notBuilt).toBe("Your race goal and going easy on your knees aren't built in yet.");
+    expect(e.warning).toBe("Race goal and knees aren't built in yet.");
     expect(e.reason).not.toMatch(/built to add muscle/);
   });
 
@@ -33,34 +33,23 @@ describe('B1: the line says only what the pick really used', () => {
     const e = explainPick(plan, { ...full, goal: 'muscle', days: 5 });
     expect(e.title).toBe('Your plan');
     expect(e.reason).toBe('Picked for your full gym, your muscle goal and your 5 days.');
-    expect(e.notBuilt).toBeNull();
+    expect(e.warning).toBeNull();
   });
 
   it('lists focus and never as not built in; None and whole body balance are not a claim', () => {
-    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, focus: ['arms'], never: ['x'] }).notBuilt).toBe("Your focus areas and exercises to avoid aren't built in yet.");
-    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, focus: ['balance'], easyOn: ['none'] }).notBuilt).toBeNull();
-    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, easyOn: ['knees', 'wrists', 'neck'] }).notBuilt).toBe("Going easy on your knees, wrists and neck isn't built in yet.");
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, focus: ['arms'], never: ['x'] }).warning).toBe("Focus and exercises to avoid aren't built in yet.");
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, focus: ['balance'], easyOn: ['none'] }).warning).toBeNull();
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, easyOn: ['knees', 'wrists', 'neck'] }).warning).toBe("Easy-on areas aren't built in yet.");
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, easyOn: ['knees'] }).warning).toBe("Knees aren't built in yet.");
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, easyOn: ['neck'] }).warning).toBe("Neck isn't built in yet.");
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, focus: ['arms'] }).warning).toBe("Focus isn't built in yet.");
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5, never: ['x'] }).warning).toBe("Exercises to avoid aren't built in yet.");
   });
 });
 
 describe('B2: session length comes from the workout header estimator', () => {
-  const minutes = plan.days.map((d) => estimateDayMinutes(d));
   it('every row carries the same number the workout header shows', () => {
-    const e = explainPick(plan, { ...full, goal: 'muscle', days: 5 });
-    expect(e.minutes).toEqual(minutes);
-  });
-  it('warns when the sessions run longer than the time picked', () => {
-    const avg = Math.round(minutes.reduce((a, b) => a + b, 0) / minutes.length);
-    expect(sessionWarning(plan, { minutes: 20 })).toBe(`These sessions run about ${avg} min, longer than the 20 you picked.`);
-    expect(sessionWarning(plan, { minutes: 75 })).toBeNull();
-    expect(sessionWarning(plan, {})).toBeNull();
-    expect(explainPick(plan, { ...full, minutes: 20 }).notes).toContain(sessionWarning(plan, { minutes: 20 }));
-  });
-  it('warns on days, level and mix too, one line each', () => {
-    const notes = explainPick(plan, { ...full, days: 3, experience: 'new', place: 'mix' }).notes;
-    expect(notes).toContain('You picked 3 days and this plan has 5. Do them in order at your own pace.');
-    expect(notes).toContain('It is made for lifters with some experience, so start light.');
-    expect(notes).toContain('It needs a full gym. On the road, start a quick workout.');
+    expect(explainPick(plan, { ...full, goal: 'muscle', days: 5 }).minutes).toEqual(plan.days.map((d) => estimateDayMinutes(d)));
   });
 });
 
@@ -94,8 +83,8 @@ describe('B3: no plan', () => {
 
 describe('B4: shorter', () => {
   const q = (a: IntakeAnswers) => visibleScreens(a).filter((s) => s !== 'reveal');
-  it('18 question screens at most; brand new skips the exercise screen', () => {
-    expect(q({})).toHaveLength(18);
+  it('17 question screens at most; brand new skips the exercise screen', () => {
+    expect(q({})).toHaveLength(17);
     expect(q({ experience: 'new' })).not.toContain('exercises');
     expect(q({ experience: 'new', cardio: 'none' })).toHaveLength(16);
     expect(SCREENS).not.toContain('love');

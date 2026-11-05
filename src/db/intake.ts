@@ -80,6 +80,7 @@ export type SaveIntakeOptions = {
  */
 export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb, now = Date.now(), opts: SaveIntakeOptions = {}): Promise<Profile> {
   const answers = sanitizeAnswers(input);
+  delete answers.skipRestFrom;
   const profile = await db.transaction('rw', [db.profile, db.gyms, db.sessions, db.sets], async () => {
     const existing = await getProfile(db);
     const baseline = opts.start ?? (existing?.intake ? sanitizeAnswers(existing.intake) : undefined);
@@ -173,7 +174,7 @@ export async function redoAnswers(current: Pick<UnitsAnswer, 'distance' | 'measu
       weight: gym?.unit ?? p?.defaultUnit ?? 'lb',
       distance: p?.distanceUnit ?? saved.units?.distance ?? current.distance,
       measure: p?.measureUnit ?? saved.units?.measure ?? current.measure,
-      body: current.body,
+      ...(current.body ? { body: current.body } : {}),
     },
   };
   delete answers.dumbbellRange;

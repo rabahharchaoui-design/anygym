@@ -51,7 +51,7 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   expect(hb.x, `${step} title left`).toBeLessThan(40);
   expect(hb.y, `${step} title top`).toBeLessThan(200);
   expect(hb.x + hb.width, `${step} title inside`).toBeLessThanOrEqual(vw);
-  // Rule (f): the quiet note on every screen; while Continue is grey its reason is inside the button.
+  // Rule (f): the quiet note on every screen; while Continue is grey its reason has its own line.
   const greyNow = kind === 'cta' && (await cta(page).isDisabled());
   if (greyNow) greyScreens.push(step);
   await expect(page.getByText(/stays? on this phone\./i).first(), `${step} note`).toBeVisible();
@@ -72,7 +72,7 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   await checkLayout(page, {});
 }
 
-test('all 18 questions, the no plan notice and the reveal: title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
+test('all 17 questions, the no plan notice and the reveal: title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
   await page.goto('./');
   await expect(page).toHaveURL(/#\/welcome$/);
   const seen: string[] = [];
@@ -124,8 +124,7 @@ test('all 18 questions, the no plan notice and the reveal: title top left, round
   seen.push('noPlan');
   await page.getByTestId('noplan-continue').tap();
   await auto('style', 'q-style-bodyweight');
-  await auto('cardio', 'q-cardio-love');
-  await multi('cardioFavorites', 'q-cardioFavorites-running');
+  await multi('cardio', 'q-cardio-love');
   await multi('easyOn', 'q-easyOn-knees');
   await chrome(page, 'exercises', 'cta', { back: true });
   seen.push('exercises');
@@ -144,8 +143,8 @@ test('all 18 questions, the no plan notice and the reveal: title top left, round
   await cta(page).tap();
   seen.push('reveal');
   await atStep(page, 'reveal');
-  expect(seen).toHaveLength(20);
-  test.info().annotations.push({ type: 'reason inside the grey button', description: greyScreens.join(',') });
+  expect(seen).toHaveLength(19);
+  test.info().annotations.push({ type: 'reason under the grey button', description: greyScreens.join(',') });
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/Apple Health|HealthKit|Rabah|Harchaoui/i);
   await shot(page, 'reveal-home');
@@ -201,7 +200,7 @@ const REVEALS: Array<[string, Record<string, unknown>, RegExp, string]> = [
   ['hotel', { place: 'hotel' }, /No hotel plan yet/, 'Start a quick workout'],
   ['home', { place: 'home' }, /No home plan yet/, 'Start a quick workout'],
   ['outdoors', { place: 'outdoors' }, /No outdoor plan yet/, 'Start a quick workout'],
-  ['full', { place: 'full', days: 4 }, /Closest plan we have/, 'Start Day 1'],
+  ['full', { place: 'full', days: 5 }, /Your plan/, 'Start Day 1'],
 ];
 for (const [name, extra, reason, button] of REVEALS) {
   test(`reveal for ${name}: honest reason, right button, draws the check, saved gym matches @matrix`, async ({ page }) => {

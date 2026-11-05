@@ -11,6 +11,8 @@ import { useTapGuard } from '../../hooks/useTapGuard';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/planPick';
 import { persistAnswers } from './persist';
+import { useMoreBelow } from './useMoreBelow';
+import { Button } from '../../ui/Button';
 import { PLANS, planById } from '../../data/plans';
 import { planNeeds } from '../../data/places';
 import { clearIntakeDraft } from '../../db/intake';
@@ -46,8 +48,11 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const scroller = useRef<HTMLElement>(null);
+  useMoreBelow(scroller);
+
   const busy = useRef(false);
-  const act = useTapGuard(async () => {
+  const act = useTapGuard(async (quickWorkout: boolean) => {
     if (busy.current) return;
     busy.current = true;
     setError('');
@@ -63,7 +68,7 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         go('/', { kind: 'pop', replace: true, state: r.changed ? { toast: 'Plan saved', planUndo: { chosen: r.state, previous: r.previous ?? null } } : { toast: 'Answers saved' } });
         return;
       }
-      if (!plan) {
+      if (!plan || quickWorkout) {
         const s = await startWorkout(gym.id);
         clearIntakeDraft();
         go(`/workout/${s.id}`, { kind: 'push', replace: true });
@@ -80,7 +85,11 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
     }
   });
 
-  const label = redo ? (plan ? 'Use this plan' : 'Done') : plan ? 'Start Day 1' : 'Start a quick workout';
+  // A redo only sets the plan; a first run can also start something lighter (critic B2).
+  const quick = plan && !redo ? (words?.quick ?? null) : null;
+  const planLabel = redo ? 'Use this plan' : 'Start Day 1';
+  const label = !plan ? (redo ? 'Done' : 'Start a quick workout') : quick === 'primary' ? 'Start a quick workout' : planLabel;
+  const secondary = quick === 'primary' ? planLabel : quick === 'secondary' ? 'Start a quick workout' : null;
 
   return (
     <div className={styles.screen} data-testid="intake" data-step="reveal">
@@ -91,10 +100,10 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         </div>
         <span className={styles.topSpacer} aria-hidden="true" />
       </header>
-      <main className={styles.body} data-scroller>
+      <main ref={scroller} className={styles.body} data-scroller>
         <div className={styles.revealHead}>
-          {/* A check only for a real plan: no plan is not a win (critic B3). */}
-          {plan && (
+          {/* The check is earned by a true match only, never by a closest plan or no plan. */}
+          {words?.check && (
             <svg className={styles.check} viewBox="0 0 52 52" aria-hidden="true" data-testid="reveal-check">
               <circle className={styles.checkRing} cx="26" cy="26" r="23" pathLength={1} />
               <path className={styles.checkMark} d="M15 27 L23 35 L38 18" pathLength={1} />
@@ -107,9 +116,9 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
           <p className={styles.reason} data-testid="reveal-reason">
             {words ? words.reason : none.saved}
           </p>
-          {words?.notBuilt && (
-            <p className={styles.caveat} data-testid="reveal-not-built">
-              {words.notBuilt}
+          {words?.warning && (
+            <p className={styles.caveat} data-testid="reveal-warning">
+              {words.warning}
             </p>
           )}
           {!plan && (
@@ -117,11 +126,6 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
               {none.quick}
             </p>
           )}
-          {words?.notes.map((n) => (
-            <p key={n} className={styles.caveat} data-testid="reveal-note">
-              {n}
-            </p>
-          ))}
           {plan && (
             <ol className={styles.week} data-testid="reveal-week">
               {week.map((w, i) => (
@@ -147,7 +151,26 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
           </section>
         )}
       </main>
-      <BottomCTA onPress={() => void act()} note={STAYS_HERE} above={error ? <p className={styles.error} role="alert">{error}</p> : null} testId="reveal-cta" className={styles.cta}>
+      <BottomCTA
+        onPress={() => void act(quick === 'primary')}
+        note={STAYS_HERE}
+        above={
+          <>
+            {error ? (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            ) : null}
+            {secondary ? (
+              <Button variant="secondary" className={styles.keepGoing} onClick={() => void act(quick === 'secondary')} data-testid="reveal-secondary">
+                {secondary}
+              </Button>
+            ) : null}
+          </>
+        }
+        testId="reveal-cta"
+        className={styles.cta}
+      >
         {label}
       </BottomCTA>
     </div>

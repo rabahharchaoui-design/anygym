@@ -43,6 +43,23 @@
   background: var(--surface-2);
 }
 
+/* Its space is always kept, so a label never moves when it turns on. */
+.check {
+  flex: none;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.chip[aria-pressed='true'] .check {
+  opacity: 1;
+}
+
+.chip[data-soft] {
+  padding-left: var(--space-3);
+  gap: 6px;
+}
+
 .icon {
   flex: none;
   color: var(--text-2);

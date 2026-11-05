@@ -7,7 +7,7 @@ import { SlidingToggle } from '../../ui/SlidingToggle';
 import { WheelColumn } from '../../ui/WheelColumn';
 import { InfoButton } from '../../components/info/InfoButton';
 import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type Unit } from '../../db/types';
-import { AGE_RANGES, EQUIPMENT_INFO, EQUIPMENT_LABEL, type AgeRangeId, type Option } from '../../lib/intake/options';
+import { AGE_RANGES, CARDIO, CARDIO_FAVORITES, EQUIPMENT_INFO, EQUIPMENT_LABEL, type AgeRangeId, type Option } from '../../lib/intake/options';
 import { HEIGHT_CM, HEIGHT_FT, type Height, type IntakeAnswers, type UnitsAnswer } from '../../lib/intake/funnel';
 import { flipBodyweight, RULER_START } from '../../lib/intake/ruler';
 import { cmToFtIn, dumbbellRangeProblems, formatAmount, formatBodyweight, ftInToCm, parseDumbbellRange, type DumbbellRangeProblems } from '../../lib/load';
@@ -109,23 +109,23 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
       {row(
         'u-weight',
         'Weight',
-        <SlidingToggle block calm labelledBy="u-weight" testId="units-weight" options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} value={value.weight} onChange={(weight) => onChange({ ...value, weight })} />,
+        <SlidingToggle block labelledBy="u-weight" testId="units-weight" options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} value={value.weight} onChange={(weight) => onChange({ ...value, weight })} />,
       )}
       {row(
         'u-distance',
         'Distance',
-        <SlidingToggle block calm labelledBy="u-distance" testId="units-distance" options={[{ value: 'km', label: 'km' }, { value: 'mi', label: 'miles' }]} value={value.distance} onChange={(distance) => onChange({ ...value, distance })} />,
+        <SlidingToggle block labelledBy="u-distance" testId="units-distance" options={[{ value: 'km', label: 'km' }, { value: 'mi', label: 'miles' }]} value={value.distance} onChange={(distance) => onChange({ ...value, distance })} />,
       )}
       {row(
         'u-measure',
         'Body measurements',
-        <SlidingToggle block calm labelledBy="u-measure" testId="units-measure" options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'inches' }]} value={value.measure} onChange={(measure) => onChange({ ...value, measure })} />,
+        <SlidingToggle block labelledBy="u-measure" testId="units-measure" options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'inches' }]} value={value.measure} onChange={(measure) => onChange({ ...value, measure })} />,
       )}
       <div className={styles.unitApart}>
         {row(
           'u-body',
           'Which body should the muscle map show?',
-          <SlidingToggle block calm labelledBy="u-body" testId="units-body" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={value.body} onChange={(body) => onChange({ ...value, body })} />,
+          <SlidingToggle block labelledBy="u-body" testId="units-body" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={value.body} onChange={(body) => onChange({ ...value, body })} />,
         )}
       </div>
     </div>
@@ -278,12 +278,27 @@ export function ExercisesStep({ value, onChange, exclude, testId }: { value: rea
   );
 }
 
+/** How they feel about cardio, and right there which they like (SPEC 14 step 9). */
+export function CardioStep({ cardio, favorites, onCardio, onFavorites }: { cardio: string | undefined; favorites: readonly string[] | undefined; onCardio: (id: string) => void; onFavorites: (v: string[]) => void }) {
+  return (
+    <>
+      <SingleChoice options={CARDIO} value={cardio} onPick={onCardio} pulse={null} testId="q-cardio" />
+      {cardio && cardio !== 'none' && (
+        <section className={styles.aboutGroup}>
+          <span className={styles.fieldLabel}>Any you like? Optional.</span>
+          <MultiChoice options={CARDIO_FAVORITES} value={favorites} onChange={onFavorites} testId="q-cardioFavorites" />
+        </section>
+      )}
+    </>
+  );
+}
+
 /** One optional screen for both lists (SPEC 14 step 11): the toggle says which one a tap fills. */
 export function BothExercisesStep({ love, never, onLove, onNever }: { love: readonly string[]; never: readonly string[]; onLove: (v: string[]) => void; onNever: (v: string[]) => void }) {
   const [mode, setMode] = useState<'love' | 'never'>(love.length === 0 && never.length > 0 ? 'never' : 'love');
   return (
     <>
-      <SlidingToggle block calm label="Which list" testId="ex-mode" options={[{ value: 'love', label: `Love${love.length ? ` (${love.length})` : ''}` }, { value: 'never', label: `Never${never.length ? ` (${never.length})` : ''}` }]} value={mode} onChange={setMode} />
+      <SlidingToggle block label="Which list" testId="ex-mode" options={[{ value: 'love', label: `Love${love.length ? ` (${love.length})` : ''}` }, { value: 'never', label: `Never${never.length ? ` (${never.length})` : ''}` }]} value={mode} onChange={setMode} />
       {mode === 'love' ? <ExercisesStep key="love" value={love} exclude={never} onChange={onLove} testId="q-love" /> : <ExercisesStep key="never" value={never} exclude={love} onChange={onNever} testId="q-never" />}
     </>
   );
@@ -329,7 +344,6 @@ export function AboutStep({
       <div className={styles.aboutGroup}>
         <span className={styles.fieldLabel}>Height</span>
         <HeightStep value={answers.height} measure={measure} onChange={onHeight} />
-        <span className={styles.fieldHint}>Saved for later. Nothing uses it yet.</span>
       </div>
       <div className={styles.aboutGroup}>
         <span className={styles.fieldLabel} id="age-label">
@@ -340,7 +354,6 @@ export function AboutStep({
             <Chip key={o.id} block label={o.label} picked={answers.age === o.id} onPress={() => onAge(answers.age === o.id ? undefined : o.id)} testId={`q-age-${o.id}`} />
           ))}
         </div>
-        <span className={styles.fieldHint}>Saved for later. Nothing uses it yet.</span>
       </div>
     </div>
   );
@@ -368,7 +381,7 @@ export function BodyweightStep({
   };
   return (
     <div className={styles.measure}>
-      <SlidingToggle block calm label="Weight unit" testId="bw-unit" options={[{ value: 'kg', label: 'Kilograms' }, { value: 'lb', label: 'Pounds' }]} value={unit} onChange={flip} />
+      <SlidingToggle block label="Weight unit" testId="bw-unit" options={[{ value: 'kg', label: 'Kilograms' }, { value: 'lb', label: 'Pounds' }]} value={unit} onChange={flip} />
       <p className={`${styles.bigNumber} num`} data-touched={!!value || undefined} aria-live="polite" data-testid="bw-value">
         {formatBodyweight(current)}
         <span className={styles.bigUnit}>{unit}</span>
@@ -405,7 +418,7 @@ export function HeightStep({ value, measure, onChange }: { value: Height | undef
   };
   return (
     <div className={styles.measureTight}>
-      <SlidingToggle block calm label="Height unit" testId="height-unit" options={[{ value: 'cm', label: 'Centimeters' }, { value: 'in', label: 'Feet and inches' }]} value={unit} onChange={flip} />
+      <SlidingToggle block label="Height unit" testId="height-unit" options={[{ value: 'cm', label: 'Centimeters' }, { value: 'in', label: 'Feet and inches' }]} value={unit} onChange={flip} />
       <div className={styles.wheels} data-testid="height-wheels">
         {unit === 'cm' ? (
           <WheelColumn rows={3} items={CM_ITEMS} value={cm} picked={!!value} label="Height in centimeters" testId="wheel-cm" onChange={(v) => onChange({ unit: 'cm', cm: v })} />

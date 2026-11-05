@@ -39,7 +39,8 @@ import {
 
 export type DistanceUnit = 'km' | 'mi';
 export type MeasureUnit = 'cm' | 'in';
-export type UnitsAnswer = { weight: Unit; distance: DistanceUnit; measure: MeasureUnit; body: BodyKind };
+/** body: no pick until the user makes one (the muscle map keeps its default). */
+export type UnitsAnswer = { weight: Unit; distance: DistanceUnit; measure: MeasureUnit; body?: BodyKind };
 export type Bodyweight = { value: number; unit: Unit };
 export type Height = { unit: 'cm'; cm: number } | { unit: 'in'; ft: number; in: number };
 
@@ -70,6 +71,8 @@ export type IntakeAnswers = {
   bodyweight?: Bodyweight;
   height?: Height;
   age?: AgeRangeId;
+  /** Skip the rest was tapped here: Back from the reveal returns here (never saved on the profile). */
+  skipRestFrom?: ScreenId;
   /** Answers the user skipped (empty on purpose). */
   skipped?: AnswerId[];
 };
@@ -87,7 +90,6 @@ export const SCREENS = [
   'equipment',
   'style',
   'cardio',
-  'cardioFavorites',
   'easyOn',
   'exercises',
   'when',
@@ -101,6 +103,7 @@ export type ScreenId = (typeof SCREENS)[number];
 /** One stored answer. Merged screens fill several: exercises (love, never), about (name, height, age). */
 export type AnswerId =
   | Exclude<ScreenId, 'reveal' | 'noPlan' | 'exercises' | 'about'>
+  | 'cardioFavorites'
   | 'love'
   | 'never'
   | 'name'
@@ -113,7 +116,7 @@ const FIELDS_OF: Partial<Record<ScreenId, readonly AnswerId[]>> = { exercises: [
 const fieldsOf = (s: ScreenId): readonly AnswerId[] => FIELDS_OF[s] ?? (s === 'reveal' || s === 'noPlan' ? [] : [s as AnswerId]);
 
 /** Older drafts stopped on a screen that is now merged. */
-const MERGED_STEP: Readonly<Record<string, ScreenId>> = { love: 'exercises', never: 'exercises', name: 'about', height: 'about', age: 'about' };
+const MERGED_STEP: Readonly<Record<string, ScreenId>> = { cardioFavorites: 'cardio', love: 'exercises', never: 'exercises', name: 'about', height: 'about', age: 'about' };
 
 /** The personal group (SPEC 14): from here on "Skip the rest" goes straight to the reveal. */
 export const PERSONAL_GROUP: ReadonlySet<ScreenId> = new Set<ScreenId>(['easyOn', 'exercises', 'when', 'bodyweight', 'about']);
@@ -133,8 +136,7 @@ export const KIND: Record<ScreenId, ScreenKind> = {
   place: 'single',
   equipment: 'multi',
   style: 'single',
-  cardio: 'single',
-  cardioFavorites: 'multi',
+  cardio: 'form',
   easyOn: 'multi',
   exercises: 'multi',
   when: 'single',
@@ -145,7 +147,7 @@ export const KIND: Record<ScreenId, ScreenKind> = {
 };
 
 /** Personal or optional screens get a Skip (SPEC 14). */
-export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'cardioFavorites', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
+export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
 
 /** Which answer field each answer id fills. */
 export const ANSWER_KEY: Record<AnswerId, keyof IntakeAnswers> = {
@@ -173,11 +175,10 @@ export const ANSWER_KEY: Record<AnswerId, keyof IntakeAnswers> = {
 };
 
 /**
- * The screens that show for these answers: no favorites when cardio is None, no exercise lists for
- * someone brand new. The no plan notice is not in the list: only Continue from the equipment opens it.
+ * The screens that show for these answers: no exercise lists for someone brand new. The no plan notice is not in the list: only Continue from the equipment opens it.
  */
 export function visibleScreens(a: IntakeAnswers): ScreenId[] {
-  return SCREENS.filter((s) => s !== 'noPlan' && !(s === 'cardioFavorites' && a.cardio === 'none') && !(s === 'exercises' && a.experience === 'new'));
+  return SCREENS.filter((s) => s !== 'noPlan' && !(s === 'exercises' && a.experience === 'new'));
 }
 
 /** What the equipment screen asks about at this place. Outdoors there is little to carry. */
@@ -197,6 +198,13 @@ export function presetEquipment(place: PlaceAnswer): EquipmentId[] {
 export function needsDumbbellRange(a: IntakeAnswers): boolean {
   if (!a.place || !a.equipment?.includes('dumbbells')) return false;
   return equipmentPreset(GYM_TYPE_OF[a.place], 'lb').dumbbellRange === null;
+}
+
+/** Before Continue: the weekdays picked differ from the days per week answer. Says so, never blocks. */
+export function weekdayCountNote(a: IntakeAnswers): string | null {
+  const n = a.weekdays?.length ?? 0;
+  if (!a.days || n === 0 || n === a.days) return null;
+  return `That is ${n} ${n === 1 ? 'day' : 'days'}. You said ${a.days}.`;
 }
 
 /** Whether the screen has what it needs for Continue (or to advance). */
@@ -278,6 +286,7 @@ export function nextScreen(step: ScreenId, a: IntakeAnswers): ScreenId {
 export function prevScreen(step: ScreenId, a: IntakeAnswers): ScreenId | null {
   const list = visibleScreens(a);
   if (step === 'noPlan') return 'equipment';
+  if (step === 'reveal' && a.skipRestFrom) return a.skipRestFrom;
   const i = list.indexOf(step);
   if (i > 0) return list[i - 1]!;
   if (i === 0) return null;
@@ -318,11 +327,14 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
     }
     case 'skipRest': {
       if (!PERSONAL_GROUP.has(state.step)) return state;
-      return { step: 'reveal', answers: markSkipped(state.answers, [...PERSONAL_GROUP].flatMap(fieldsOf)) };
+      return { step: 'reveal', answers: { ...markSkipped(state.answers, [...PERSONAL_GROUP].flatMap(fieldsOf)), skipRestFrom: state.step } };
     }
     case 'back': {
       const prev = prevScreen(state.step, state.answers);
-      return prev ? { ...state, step: prev } : state;
+      if (!prev) return state;
+      const answers = { ...state.answers };
+      delete answers.skipRestFrom;
+      return { step: prev, answers };
     }
     case 'goto':
       return visibleScreens(state.answers).includes(action.screen) ? { ...state, step: action.screen } : state;
@@ -355,7 +367,8 @@ function units(v: unknown): UnitsAnswer | undefined {
   const distance = oneOf<DistanceUnit>(['km', 'mi'], o.distance);
   const measure = oneOf<MeasureUnit>(['cm', 'in'], o.measure);
   const body = oneOf<BodyKind>(['male', 'female'], o.body);
-  return weight && distance && measure && body ? { weight, distance, measure, body } : undefined;
+  if (!weight || !distance || !measure) return undefined;
+  return body ? { weight, distance, measure, body } : { weight, distance, measure };
 }
 
 function dumbbells(v: unknown): DumbbellRange | undefined {
@@ -413,6 +426,7 @@ export function sanitizeAnswers(v: unknown): IntakeAnswers {
     height: height(o.height),
     // Older answers: the two youngest ranges are now one.
     age: oneOf(ids(AGE_RANGES), o.age === 'under_18' || o.age === '18_24' ? 'under_25' : o.age),
+    skipRestFrom: oneOf([...PERSONAL_GROUP], o.skipRestFrom),
     skipped: manyOf(ANSWER_IDS, o.skipped),
   };
   if (a.skipped && !a.skipped.length) delete a.skipped;
