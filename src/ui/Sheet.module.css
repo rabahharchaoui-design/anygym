@@ -124,6 +124,11 @@
   max-height: calc(var(--app-height) - var(--safe-top) - 12px);
 }
 
+.sheet[data-footer][data-scroll='true'][data-clear-top] {
+  /* The grabber's hit area reaches 32 px above the sheet: keep that clear of the status bar too. */
+  max-height: calc(var(--app-height) - var(--safe-top) - 44px);
+}
+
 .sheet[data-footer] .scrollBody {
   max-height: none;
   flex: 1 1 auto;

@@ -40,6 +40,8 @@ import { TAP_GUARD_MS } from '../../hooks/useTapGuard';
 import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { SwapSheet } from './SwapSheet';
+import { TimeBudgetSheet } from './TimeBudgetSheet';
+import { useTimeBudget } from './useTimeBudget';
 import { SwapPendingError, SwapUndoStaleError, stopAlways, swapExercise, undoSwap } from '../../db/swaps';
 import { swapLine } from '../../lib/swap';
 import { RestDock } from './RestDock';
@@ -148,6 +150,20 @@ export function WorkoutScreen() {
     saveRest(r);
   }, []);
   const notice = (text: string, retry?: () => void) => setToast(toastOf(text, retry ? { label: 'Try again', onPress: retry } : undefined));
+  // PLAN 3.6: "How much time today?" from the day list's estimate (SPEC 7.4).
+  const time = useTimeBudget(w, sessionId, {
+    onNotice: (text) => notice(text),
+    onUndoable: (text, undo) => {
+      const shown = toastOf(text, {
+        label: 'Undo',
+        onPress: () => {
+          setToast((cur) => (cur?.id === shown.id ? null : cur));
+          undo();
+        },
+      });
+      setToast(shown);
+    },
+  });
 
   // ---------------------------------------------------------------- navigation
 
@@ -792,6 +808,8 @@ export function WorkoutScreen() {
       sessionId={sessionId}
       onChangeSwap={setSwapFor}
       onToast={setToast}
+      onTime={time.available ? time.open : undefined}
+      timeLine={time.line}
       onRestoreSwap={(id) => {
         const slot = w.swapOf(id)?.slot;
         if (slot) void doSwap(id, slot);
@@ -998,6 +1016,7 @@ export function WorkoutScreen() {
           </button>
         </div>
       </Sheet>
+      {time.sheet && <TimeBudgetSheet {...time.sheet} />}
       {w.ready && (
         <SwapSheet
           open={swapFor !== null}

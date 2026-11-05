@@ -39,6 +39,8 @@ export type PlanBlock = {
   items: PlanItem[];
   sets?: number;
   restSec?: number;
+  /** PLAN 3.6 (SPEC 7.4): a time budget's combined stretches, done back to back as one block. */
+  mobility?: true;
 };
 
 /**
@@ -292,7 +294,8 @@ const CHANGE_SEC = 60;
 /**
  * Estimated minutes for a day (SPEC 7.4): every set is 40 s of work (a hold: its time) plus the
  * rest after it; a pair rests once per round; 60 s per exercise change. Warm up blocks count like
- * any other block. A finisher adds its minutes when the plan gives them (plus the change to it).
+ * any other block; a combined mobility block (PLAN 3.6) is one exercise change, its stretches flow
+ * back to back. A finisher adds its minutes when the plan gives them (plus the change to it).
  * Rounded to the nearest minute.
  */
 export function estimateDayMinutes(day: PlanDay, weekIndex = 0): number {
@@ -307,7 +310,7 @@ export function estimateDayMinutes(day: PlanDay, weekIndex = 0): number {
       sec += t.sets * work;
     }
     sec += rounds * rest;
-    exercises += b.items.length;
+    exercises += b.mobility ? 1 : b.items.length;
   }
   if (day.finisher?.minutes) {
     sec += day.finisher.minutes * 60;

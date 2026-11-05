@@ -30,6 +30,9 @@
   flex-wrap: wrap;
   align-items: center;
   column-gap: var(--space-2);
+  /* When the music pills wrap under it (large text), the estimate's 48 pt keeps its own room (the
+     links reach 6 px out of their row). */
+  row-gap: 8px;
   min-height: 36px;
 }
 
@@ -49,6 +52,68 @@
 .minutes {
   flex: none;
   white-space: nowrap;
+}
+
+.minutesSep {
+  flex: none;
+}
+
+/* PLAN 3.6: the estimate is a button (opens "How much time today?"): same quiet words, a dotted
+   underline says it can be tapped, a 48 pt hit area like the gym pill beside it. */
+.minutesButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  white-space: nowrap;
+  color: var(--text);
+  font: inherit;
+  text-decoration: underline dotted rgb(255 255 255 / 0.35);
+  text-underline-offset: 4px;
+}
+
+.minutesButton[data-trimmed] {
+  color: var(--accent);
+  text-decoration-color: rgb(212 255 58 / 0.45);
+}
+
+/* One quiet line under the title: the time offer, or what the time budget did. */
+.timeLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-2);
+  margin-top: 2px;
+  padding: 2px 0 2px 2px;
+}
+
+.timeText {
+  flex: 1 1 160px;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.timeAction {
+  flex: none;
+  min-height: 48px;
+  padding: 0 4px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.timeClose {
+  flex: none;
+  min-width: 48px;
+  min-height: 48px;
+  margin-right: -12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
 }
 
 .list,
@@ -173,6 +238,15 @@
 
 .pair[data-warmup] {
   border-left-color: var(--amber);
+}
+
+/* PLAN 3.6: a time budget's stretches, done back to back as one block. */
+.pair[data-mobility] {
+  border-left-color: var(--text-2);
+}
+
+.pair[data-mobility] .pairLabel {
+  color: var(--text-2);
 }
 
 .pairLabel {

@@ -1,0 +1,111 @@
+/* "How much time today?" (PLAN 3.6, SPEC 7.4): chips, one big number, what it cuts, Apply. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* Clear of the grabber's 52 pt close zone above it. */
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.unit {
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-4);
+  border-radius: 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+}
+
+/* The one number: "Fits in ~42 min". */
+.fit {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 6.4vw, 26px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.fit > span {
+  color: var(--accent);
+}
+
+/* Over the time even after every cut the rules allow: said plainly, no lime. */
+.fit[data-over] > span {
+  color: var(--amber);
+}
+
+.planned {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+/* Room for two lines is kept, so a pick with fewer changes barely moves the sheet. */
+.changes {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.change,
+.none {
+  position: relative;
+  padding-left: 14px;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.change::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.none {
+  padding-left: 0;
+  color: var(--text-2);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  text-align: center;
+}
