@@ -1,0 +1,21 @@
+equipment on entry: ["barbell_rack","flat_bench","adjustable_bench","dumbbells","kettlebells","cable_station","smith_machine","leg_press","leg_extension","leg_curl","chest_press_machine","pec_deck","lat_pulldown","seated_row","shoulder_press_machine","calf_raise_machine","hip_adductor_abductor","hyperextension_bench","pull_up_bar","dip_station","resistance_bands","ez_curl_bar","treadmill","bike","stair_climber","rower","jump_rope"]
+after Continue untouched: style
+text: How do you like to train?
+
+Not used yet: it'll steer the exercises you get.
+
+Free weights
+Machines
+Mix
+Bodyweight
+Whatever works
+Your plan so far
+4 days
+45 min
+Full gym
+
+Stays on this phone.
+reveal new 3d: Closest plan we have | Classic 5 Day Split | Picked for your full gym and your muscle goal. It runs 5 days a week. It expects some experience, so start light. | About 81 min, 5 days. You asked for 45 min, 3 days. Fat loss goal isn't built in yet. | Day 1 | Legs (hamstring focus) | ~90 min | Day 2 | Chest and triceps | ~77 min | Day 3 | Back and biceps | ~78 min | Day 4 | Legs (quad focus) | ~98 min | Day 5 | Shoulders and calves | ~63 min | Or pick a curated plan | Classic 5 Day Split | 5 days a week | Six Week Volume Builder | 5 days a week | Start a quick workout | Start Day 1 | Stays on this phone.
+reveal new 4d: Closest plan we have | Classic 5 Day Split | Picked for your full gym and your muscle goal. It runs 5 days a week. It expects some experience, so start light. | About 81 min, 5 days. You asked for 45 min, 4 days. Fat loss goal isn't built in yet. | Day 1 | Legs (hamstring focus) | ~90 min | Day 2 | Chest and triceps | ~77 min | Day 3 | Back and biceps | ~78 min | Day 4 | Legs (quad focus) | ~98 min | Day 5 | Shoulders and calves | ~63 min | Or pick a curated plan | Classic 5 Day Split | 5 days a week | Six Week Volume Builder | 5 days a week | Start a quick workout | Start Day 1 | Stays on this phone.
+reveal 3y 4d: Closest plan we have | Classic 5 Day Split | Picked for your full gym and your muscle goal. It runs 5 days a week. | About 81 min, 5 days. You asked for 45 min, 4 days. Fat loss goal isn't built in yet. | Day 1 | Legs (hamstring focus) | ~90 min | Day 2 | Chest and triceps | ~77 min | Day 3 | Back and biceps | ~78 min | Day 4 | Legs (quad focus) | ~98 min | Day 5 | Shoulders and calves | ~63 min | Or pick a curated plan | Classic 5 Day Split | 5 days a week | Six Week Volume Builder | 5 days a week | Start a quick workout | Start Day 1 | Stays on this phone.
+reveal months 3d: Closest plan we have | Classic 5 Day Split | Picked for your full gym and your muscle goal. It runs 5 days a week. It expects some experience, so start light. | About 81 min, 5 days. You asked for 45 min, 3 days. Fat loss goal isn't built in yet. | Day 1 | Legs (hamstring focus) | ~90 min | Day 2 | Chest and triceps | ~77 min | Day 3 | Back and biceps | ~78 min | Day 4 | Legs (quad focus) | ~98 min | Day 5 | Shoulders and calves | ~63 min | Or pick a curated plan | Classic 5 Day Split | 5 days a week | Six Week Volume Builder | 5 days a week | Start a quick workout | Start Day 1 | Stays on this phone.

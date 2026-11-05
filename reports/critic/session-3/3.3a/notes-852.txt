@@ -1,0 +1,17 @@
+goal {"sh":659,"ch":579,"ih":852} screens=0.77
+units {"sh":579,"ch":579,"ih":852} screens=0.68
+focus {"sh":579,"ch":579,"ih":852} screens=0.68
+win {"sh":631,"ch":579,"ih":852} screens=0.74
+experience {"sh":651,"ch":651,"ih":852} screens=0.76
+days {"sh":651,"ch":651,"ih":852} screens=0.76
+weekdays {"sh":579,"ch":579,"ih":852} screens=0.68
+minutes {"sh":651,"ch":651,"ih":852} screens=0.76
+place {"sh":651,"ch":651,"ih":852} screens=0.76
+equipment {"sh":1536,"ch":579,"ih":852} screens=1.80
+style {"sh":651,"ch":651,"ih":852} screens=0.76
+cardio {"sh":579,"ch":579,"ih":852} screens=0.68
+easyOn {"sh":531,"ch":531,"ih":852} screens=0.62
+when {"sh":603,"ch":603,"ih":852} screens=0.71
+bodyweight {"sh":531,"ch":531,"ih":852} screens=0.62
+about {"sh":782,"ch":579,"ih":852} screens=0.92
+reveal {"sh":684,"ch":523,"ih":852} screens=0.80

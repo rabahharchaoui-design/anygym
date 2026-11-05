@@ -1,0 +1,110 @@
+[
+ {
+  "id": "barbell_rack",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"barbell_rack\"><path d=\"M13 7v34M35 7v34M8 41h10M30 41h10M13 22h3M35 22h-3\"></path><path d=\"M3 19h42\"></path><rect x=\"5\" y=\"12\" width=\"4\" height=\"14\" rx=\"1.5\"></rect><rect x=\"39\" y=\"12\" width=\"4\" height=\"14\" rx=\"1.5\"></rect></svg>"
+ },
+ {
+  "id": "ez_curl_bar",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"ez_curl_bar\"><path d=\"M11 24h5l2.5-3 3 6 3-6 3 6 2.5-3h5\"></path><rect x=\"5\" y=\"16\" width=\"4\" height=\"16\" rx=\"1.5\"></rect><rect x=\"39\" y=\"16\" width=\"4\" height=\"16\" rx=\"1.5\"></rect><path d=\"M2 24h3M43 24h3\"></path></svg>"
+ },
+ {
+  "id": "dumbbells",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"dumbbells\"><path d=\"M17 24h14\"></path><rect x=\"10\" y=\"15\" width=\"7\" height=\"18\" rx=\"2\"></rect><rect x=\"31\" y=\"15\" width=\"7\" height=\"18\" rx=\"2\"></rect><path d=\"M10 20H7v8h3M38 20h3v8h-3\"></path></svg>"
+ },
+ {
+  "id": "kettlebells",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"kettlebells\"><path d=\"M17 21c-1.5-11 15.5-11 14 0\"></path><path d=\"M18 41a12 12 0 1 1 12 0z\"></path></svg>"
+ },
+ {
+  "id": "flat_bench",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"flat_bench\"><rect x=\"5\" y=\"19\" width=\"38\" height=\"6\" rx=\"3\"></rect><path d=\"M12 25v14M36 25v14M8 39h8M32 39h8\"></path></svg>"
+ },
+ {
+  "id": "adjustable_bench",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"adjustable_bench\"><rect x=\"23\" y=\"25\" width=\"19\" height=\"5\" rx=\"2.5\"></rect><rect x=\"3\" y=\"25\" width=\"19\" height=\"5\" rx=\"2.5\" transform=\"rotate(45 22.5 27.5)\"></rect><path d=\"M27 30v10M39 30v10M23 40h20M13 22l10 12\"></path></svg>"
+ },
+ {
+  "id": "hyperextension_bench",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"hyperextension_bench\"><path d=\"M8 41h32M12 41l18-22M36 41 30 19\"></path><rect x=\"24\" y=\"13\" width=\"14\" height=\"5\" rx=\"2.5\" transform=\"rotate(-38 31 15.5)\"></rect><circle cx=\"15.5\" cy=\"31\" r=\"3\"></circle><path d=\"M18.5 31h4\"></path></svg>"
+ },
+ {
+  "id": "pull_up_bar",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"pull_up_bar\"><path d=\"M8 42V6h32v36\"></path><path d=\"M5 16h38\"></path><path d=\"M13 13.5v5M17 13.5v5M31 13.5v5M35 13.5v5\"></path></svg>"
+ },
+ {
+  "id": "dip_station",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"dip_station\"><path d=\"M6 16h12M30 16h12\"></path><path d=\"M12 16v26M36 16v26M12 31h24\"></path><path d=\"M7 42h10M31 42h10\"></path></svg>"
+ },
+ {
+  "id": "smith_machine",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"smith_machine\"><path d=\"M6 7h36M6 41h36M11 7v34M37 7v34\"></path><path d=\"M4 21h40\"></path><rect x=\"14\" y=\"15\" width=\"3\" height=\"12\" rx=\"1\"></rect><rect x=\"31\" y=\"15\" width=\"3\" height=\"12\" rx=\"1\"></rect><path d=\"M11 33h4M37 33h-4\"></path></svg>"
+ },
+ {
+  "id": "leg_press",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"leg_press\"><path d=\"M4 41h40M18 41 40 13\"></path><path d=\"M31 9l12 9.5\"></path><path d=\"M33 21l4 3\"></path><path d=\"M5 23l5 11h10\"></path><path d=\"M10 34v7\"></path></svg>"
+ },
+ {
+  "id": "leg_extension",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"leg_extension\"><path d=\"M10 10v20\"></path><rect x=\"10\" y=\"27\" width=\"17\" height=\"5\" rx=\"2.5\"></rect><path d=\"M15 32v9M8 41h22\"></path><path d=\"M27 30l8 7\"></path><circle cx=\"38\" cy=\"38\" r=\"3.5\"></circle><path d=\"M10 18l-2 6\"></path></svg>"
+ },
+ {
+  "id": "leg_curl",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"leg_curl\"><rect x=\"4\" y=\"22\" width=\"30\" height=\"5\" rx=\"2.5\"></rect><path d=\"M10 27v14M28 27v14M6 41h26\"></path><path d=\"M34 24.5l6-8\"></path><circle cx=\"41.5\" cy=\"14\" r=\"3.5\"></circle></svg>"
+ },
+ {
+  "id": "chest_press_machine",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"chest_press_machine\"><rect x=\"10\" y=\"9\" width=\"6\" height=\"22\" rx=\"3\"></rect><rect x=\"10\" y=\"31\" width=\"16\" height=\"5\" rx=\"2.5\"></rect><path d=\"M16 36v5M9 41h20\"></path><path d=\"M16 17h18M34 12v10M16 25h12\"></path></svg>"
+ },
+ {
+  "id": "pec_deck",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"pec_deck\"><rect x=\"20\" y=\"8\" width=\"8\" height=\"22\" rx=\"3\"></rect><path d=\"M20 14 8 10v18M28 14l12-4v18\"></path><rect x=\"17\" y=\"30\" width=\"14\" height=\"5\" rx=\"2.5\"></rect><path d=\"M24 35v6M15 41h18\"></path></svg>"
+ },
+ {
+  "id": "shoulder_press_machine",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"shoulder_press_machine\"><rect x=\"20\" y=\"10\" width=\"8\" height=\"21\" rx=\"3\"></rect><rect x=\"16\" y=\"31\" width=\"16\" height=\"5\" rx=\"2.5\"></rect><path d=\"M24 36v5M15 41h18\"></path><path d=\"M10 6v14l10 2M38 6v14l-10 2\"></path></svg>"
+ },
+ {
+  "id": "calf_raise_machine",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"calf_raise_machine\"><path d=\"M9 6v35M5 41h34\"></path><path d=\"M9 14h20\"></path><rect x=\"18\" y=\"11\" width=\"9\" height=\"5\" rx=\"2.5\"></rect><rect x=\"29\" y=\"11\" width=\"9\" height=\"5\" rx=\"2.5\"></rect><rect x=\"20\" y=\"35\" width=\"14\" height=\"6\" rx=\"1.5\"></rect></svg>"
+ },
+ {
+  "id": "hip_adductor_abductor",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"hip_adductor_abductor\"><rect x=\"20\" y=\"7\" width=\"8\" height=\"20\" rx=\"3\"></rect><rect x=\"17\" y=\"27\" width=\"14\" height=\"5\" rx=\"2.5\"></rect><path d=\"M19 30 9 38M29 30l10 8\"></path><rect x=\"4\" y=\"35\" width=\"9\" height=\"5\" rx=\"2.5\" transform=\"rotate(-38 8.5 37.5)\"></rect><rect x=\"35\" y=\"35\" width=\"9\" height=\"5\" rx=\"2.5\" transform=\"rotate(38 39.5 37.5)\"></rect><path d=\"M24 32v9M18 41h12\"></path></svg>"
+ },
+ {
+  "id": "cable_station",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"cable_station\"><path d=\"M8 41V6h16M4 41h22\"></path><rect x=\"11\" y=\"24\" width=\"9\" height=\"16\" rx=\"1.5\"></rect><path d=\"M11 29h9M11 34h9\"></path><circle cx=\"24\" cy=\"9\" r=\"3\"></circle><path d=\"M26.5 11 37 31\"></path><path d=\"M33 32.5h8\"></path></svg>"
+ },
+ {
+  "id": "lat_pulldown",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"lat_pulldown\"><path d=\"M32 41V5h-8M26 41h12\"></path><path d=\"M24 5v9\"></path><path d=\"M8 17c5-3.5 27-3.5 32 0\"></path><rect x=\"13\" y=\"25\" width=\"13\" height=\"4\" rx=\"2\"></rect><rect x=\"13\" y=\"33\" width=\"13\" height=\"4\" rx=\"2\"></rect><path d=\"M19.5 37v4M14 41h12\"></path></svg>"
+ },
+ {
+  "id": "seated_row",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"seated_row\"><path d=\"M4 41h38M40 41V9\"></path><rect x=\"6\" y=\"33\" width=\"13\" height=\"4\" rx=\"2\"></rect><path d=\"M31 27l2 14\"></path><path d=\"M40 23 23 26\"></path><path d=\"M23 26l-3-3.5M23 26l-3 3.5\"></path></svg>"
+ },
+ {
+  "id": "resistance_bands",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"resistance_bands\"><path d=\"M11 13c8 0 6 22 13 22s5-22 13-22\"></path><rect x=\"4\" y=\"9\" width=\"7\" height=\"8\" rx=\"2.5\"></rect><rect x=\"37\" y=\"9\" width=\"7\" height=\"8\" rx=\"2.5\"></rect></svg>"
+ },
+ {
+  "id": "jump_rope",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"jump_rope\"><rect x=\"9\" y=\"6\" width=\"5\" height=\"11\" rx=\"2.5\"></rect><rect x=\"34\" y=\"6\" width=\"5\" height=\"11\" rx=\"2.5\"></rect><path d=\"M11.5 17c-4 26 29 26 25 0\"></path></svg>"
+ },
+ {
+  "id": "treadmill",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"treadmill\"><rect x=\"3\" y=\"34\" width=\"34\" height=\"6\" rx=\"3\"></rect><path d=\"M33 34 38 10M34 9h9M36.5 17H29\"></path></svg>"
+ },
+ {
+  "id": "bike",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"bike\"><circle cx=\"34\" cy=\"30\" r=\"7\"></circle><path d=\"M18 14l5 22h11M23 36 17 41M23 36l6 5M10 41h30\"></path><path d=\"M13 13h9\"></path><path d=\"M34 30 37 12h5\"></path><path d=\"M21 25h13\"></path></svg>"
+ },
+ {
+  "id": "stair_climber",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"stair_climber\"><path d=\"M6 41v-7h8v-7h8v-7h8v-7h6\"></path><path d=\"M6 41h36M42 41V8M42 16l-6 0\"></path></svg>"
+ },
+ {
+  "id": "rower",
+  "html": "<svg class=\"_art_1htr6_698\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" data-art=\"rower\"><path d=\"M4 37h30\"></path><circle cx=\"38\" cy=\"31\" r=\"6\"></circle><rect x=\"9\" y=\"31\" width=\"11\" height=\"4\" rx=\"2\"></rect><path d=\"M26 29l2 8\"></path><path d=\"M33 29h-9M24 26.5v5\"></path><path d=\"M6 37v4M38 37v4M32 41h10\"></path></svg>"
+ }
+]
