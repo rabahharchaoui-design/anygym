@@ -497,3 +497,53 @@ test.describe('3.5a verify reduced motion', () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe('3.5a verify round 2', () => {
+  test('r2a. real 130% (root font size): Swap, Keep, Start in view, nothing clipped', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await page.goto('./#/quick?min=45');
+    await page.reload();
+    await page.evaluate(() => { document.documentElement.style.fontSize = '130%'; });
+    await page.waitForTimeout(400);
+    await shot(page, 'choose-r130');
+    await page.locator('[data-concept]').first().tap();
+    await expect(card(page)).toBeVisible();
+    await page.waitForTimeout(600);
+    await shot(page, 'deck-r130');
+    const vh = page.viewportSize()!.height;
+    const bx: Record<string, { x: number; y: number; width: number; height: number }> = {};
+    for (const id of ['deck-keep', 'deck-swap', 'quick-start', 'deck-card', 'deck-name', 'deck-sets', 'deck-never']) {
+      bx[id] = (await page.getByTestId(id).boundingBox())!;
+      console.log('r130', id, JSON.stringify(bx[id]), 'vh', vh);
+      expect.soft(bx[id]!.y, `${id} top`).toBeGreaterThanOrEqual(0);
+      expect.soft(bx[id]!.y + bx[id]!.height, `${id} bottom in view`).toBeLessThanOrEqual(vh + 1);
+    }
+    expect.soft(bx['deck-keep']!.y + bx['deck-keep']!.height <= bx['quick-start']!.y + 1, 'Keep clear of Start').toBe(true);
+    expect.soft(bx['deck-sets']!.y + bx['deck-sets']!.height <= bx['deck-card']!.y + bx['deck-card']!.height + 1, 'sets inside card').toBe(true);
+    expect.soft(bx['deck-card']!.y + bx['deck-card']!.height <= bx['deck-keep']!.y + 1, 'card above buttons').toBe(true);
+    expect.soft(bx['deck-never']!.height, 'never 48').toBeGreaterThanOrEqual(48);
+    const clipped = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('h1,h2,p,span,button')).filter((el) => !el.closest('[aria-hidden="true"],[data-under]')).filter((el) => { const s = getComputedStyle(el); return (/(hidden|clip)/.test(s.overflowX) || s.textOverflow === 'ellipsis') && el.scrollWidth > el.clientWidth + 1; }).map((e) => (e.textContent ?? '').slice(0, 30)));
+    expect.soft(clipped).toEqual([]);
+    // Taps still reach Keep and Swap.
+    await page.getByTestId('deck-keep').tap();
+    await expect(card(page).locator('p').first()).toContainText('2 of');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test('r2e. overhead tricep extension photo shows the dumbbell', async ({ page }) => {
+    await pastIntake(page, DUMBBELLS);
+    await page.goto('./#/quick?min=45');
+    await page.reload();
+    await page.locator('[data-concept]').first().tap();
+    for (let i = 0; i < 8; i++) {
+      if ((await card(page).getAttribute('data-exercise')) === 'dumbbell-single-arm-overhead-tricep-extension') break;
+      await page.getByTestId('deck-keep').tap();
+      await page.waitForTimeout(450);
+    }
+    await expect(card(page)).toHaveAttribute('data-exercise', 'dumbbell-single-arm-overhead-tricep-extension');
+    await page.waitForTimeout(500);
+    await shot(page, 'tricep-deck');
+  });
+});
