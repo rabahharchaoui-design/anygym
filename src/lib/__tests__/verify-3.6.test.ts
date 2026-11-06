@@ -142,7 +142,7 @@ describe('verify 3.6 check 2: trim order on a constructed day', () => {
 
 describe('dbg2', () => {
   it('restore step on constructed day', () => {
-    for (const logged of [{}, { 'barbell-bicep-curl': 1 }]) {
+    for (const logged of [{} as Record<string, number>, { 'barbell-bicep-curl': 1 } as Record<string, number>]) {
       const r = trimDay(day, { budget: 51, profileOf, logged });
       console.log('D51', JSON.stringify(logged), r.minutes, JSON.stringify(r.trim), JSON.stringify(changeWords(r.changes)), JSON.stringify(setsOf(r.day)));
     }
