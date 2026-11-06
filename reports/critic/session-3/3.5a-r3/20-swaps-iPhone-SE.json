@@ -1,0 +1,25 @@
+{
+  "log": [
+    {
+      "b": "Front Squat",
+      "a": "Barbell Back Squat",
+      "label": "Swap"
+    },
+    {
+      "b": "Barbell Back Squat",
+      "a": "Leg Press",
+      "label": "Swap"
+    },
+    {
+      "b": "Leg Press",
+      "a": "Kettlebell Goblet Squat",
+      "label": "Swap"
+    },
+    {
+      "b": "Kettlebell Goblet Squat",
+      "a": "Kettlebell Goblet Squat",
+      "label": "No other option here"
+    }
+  ],
+  "text": "Hit what's fresh\n\n4 exercises · ~27 min\n\nHold a card: never show it again.\n\n2 of 4\n\nHip Thrust\n\n3 sets × 8 to 12 reps\n\n1 of 4\nSwapped in\nNever show\n\nKettlebell Goblet Squat\n\n3 sets × 8 to 12 reps\n\nSame movement as Front Squat\n\nNo other option here\nKeep\n\nStart workout"
+}

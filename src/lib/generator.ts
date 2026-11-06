@@ -73,6 +73,8 @@ export type GeneratorInput = {
   soft?: Readonly<Record<string, number>>;
   /** PLAN 3.5a: muscles this workout must not train (Quick workout "Hit what's fresh"). */
   avoidMuscles?: readonly Muscle[];
+  /** PLAN 3.5a round 2: a slot takes only its own pattern (a small moves day never falls back to a row). */
+  noFallback?: true;
 };
 
 export type GeneratorDeps = {
@@ -236,7 +238,8 @@ function makeItem(ctx: Ctx, c: Candidate, pattern: Pattern): Item {
 
 /** Fills a slot: its pattern, else a fallback the day does not have yet (never a second of the same). Records what it took. */
 function fill(ctx: Ctx, slot: Slot, dayKeys: Set<string>, dayPatterns: ReadonlySet<Pattern>): Item | undefined {
-  for (const pattern of [slot.pattern, ...FALLBACK[slot.pattern].filter((p) => !dayPatterns.has(p))]) {
+  const patterns = ctx.input.noFallback ? [slot.pattern] : [slot.pattern, ...FALLBACK[slot.pattern].filter((p) => !dayPatterns.has(p))];
+  for (const pattern of patterns) {
     const c = pickFrom(ctx, pattern, slot.variant === true, dayKeys);
     if (!c) continue;
     const item = makeItem(ctx, c, pattern);

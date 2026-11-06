@@ -1,0 +1,53 @@
+{
+  "log": [
+    {
+      "b": "front-squat",
+      "a": "barbell-back-squat",
+      "label": "Swap",
+      "name": "Barbell Back Squat"
+    },
+    {
+      "b": "barbell-back-squat",
+      "a": "leg-press",
+      "label": "Swap",
+      "name": "Leg Press"
+    },
+    {
+      "b": "leg-press",
+      "a": "machine-leg-press",
+      "label": "Swap",
+      "name": "Machine Leg Press"
+    },
+    {
+      "b": "machine-leg-press",
+      "a": "kettlebell-goblet-squat",
+      "label": "Swap",
+      "name": "Kettlebell Goblet Squat"
+    },
+    {
+      "b": "kettlebell-goblet-squat",
+      "a": "barbell-back-squat",
+      "label": "Swap",
+      "name": "Barbell Back Squat"
+    },
+    {
+      "b": "barbell-back-squat",
+      "a": "leg-press",
+      "label": "Swap",
+      "name": "Leg Press"
+    },
+    {
+      "b": "leg-press",
+      "a": "barbell-back-squat",
+      "label": "Swap",
+      "name": "Barbell Back Squat"
+    },
+    {
+      "b": "barbell-back-squat",
+      "a": "leg-press",
+      "label": "Swap",
+      "name": "Leg Press"
+    }
+  ],
+  "text": "Hit what's fresh\n\n4 exercises · ~27 min\n\nWon't show it again · Leg Press\nUndo\n\n2 of 4\n\nHip Thrust\n\n3 sets × 8 to 12 reps\n\n1 of 4\nSwapped in\nNever show\n\nBarbell Back Squat\n\n3 sets × 8 to 12 reps\n\nSame movement as Front Squat\n\nSwap\nKeep\n\nStart workout\nToday\nRun\nHistory\nPlans"
+}

@@ -3,7 +3,7 @@ import { dbAll, dbPut, shotOn, usePlan, watchErrors } from './workout-helpers';
 
 // PLAN 3.5a (SPEC 20.3, G Nov 5): Quick workout builds it for you. "How long?" chips, "Pick one" of
 // 3 honest concepts, the curate deck (right keeps, left swaps for the same movement, long press never
-// shows it again, Keep and Swap buttons, Start as is on every card), learned soft dislikes, and
+// shows it again, Keep and Swap buttons, Start now on every card, Start workout after a change), learned soft dislikes, and
 // Today's "Got 30 min? I'll build it" card. Only exercises with a sure demo and gear in the active gym.
 // Progress note (resumable): lib/quick.ts, db/quick.ts, screens/quick/*, Today card and tests done.
 
@@ -22,8 +22,10 @@ test.describe('Quick workout builds it for you', () => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await expect(page.getByTestId('build-card')).toContainText("Got 30 min? I'll build it");
+    await expect(page.getByTestId('build-card')).toContainText('Pick a workout, tweak it, start');
+    await shotOn(page, '3.5a', 'today');
     // The picker first flow is still on Today, as it was (SPEC 20.4 counts unchanged).
-    await expect(page.getByRole('button', { name: /Quick workout/ })).toContainText('Pick exercises myself');
+    await expect(page.getByRole('button', { name: /Quick workout/ })).toContainText('Build my own');
     const t = counter();
     await t.tap(page.getByTestId('build-card'));
     await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
@@ -127,13 +129,20 @@ test.describe('Quick workout builds it for you', () => {
     expect(errors).toEqual([]);
   });
 
-  test('fewer than 3 sure moves fit: the honest empty state, and Pick exercises myself opens the picker', async ({ page }) => {
+  test('fewer than 3 sure moves fit: Today says add equipment, the empty state leads with Add equipment, Pick exercises myself opens the picker', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page, []);
-    await page.getByTestId('build-card').tap();
+    // Today never promises what it cannot build (round 2, B5).
+    await expect(page.getByTestId('build-card')).toHaveCount(0);
+    await expect(page.getByTestId('build-equipment')).toContainText('Add your equipment to get built workouts');
+    await page.goto('./#/quick');
     await expect(page.getByTestId('quick-empty')).toContainText('Not enough here to build one yet');
     await expect(page.locator('[data-concept]')).toHaveCount(0);
+    await expect(page.getByTestId('min-30')).toHaveCount(0);
     await shotOn(page, '3.5a', 'empty');
+    await page.getByRole('button', { name: 'Add equipment' }).tap();
+    await expect(page).toHaveURL(/#\/settings\/gyms\/[^/]+\/equipment$/);
+    await page.goto('./#/quick');
     await page.getByRole('button', { name: 'Pick exercises myself' }).tap();
     await expect(page.getByRole('dialog', { name: 'Add exercise' })).toBeVisible();
     expect(errors).toEqual([]);
@@ -208,6 +217,7 @@ test.describe('Quick workout builds it for you', () => {
     const names: string[] = [];
     names.push((await page.getByTestId('deck-name').textContent())!);
     await page.getByTestId('deck-keep').tap();
+    await expect(eyebrow(page)).toContainText('2 of');
     await page.getByTestId('deck-swap').tap();
     await expect(card(page)).toContainText('Swapped in');
     await page.getByTestId('quick-start').tap();
@@ -230,7 +240,8 @@ test.describe('Quick workout builds it for you', () => {
     await page.getByTestId('build-card').tap();
     const first = page.locator('[data-concept]').first();
     await expect(first).toHaveAttribute('data-concept', 'plan');
-    await expect(first).toContainText(/^Your .+ day, short/);
+    await expect(first).toContainText(/^.+, short/);
+    await expect(first).toContainText('From your Classic 5 Day Split');
     await shotOn(page, '3.5a', 'concepts-plan');
     await first.tap();
     await page.getByTestId('quick-start').tap();
@@ -255,6 +266,159 @@ test.describe('Quick workout builds it for you', () => {
     await expect.poll(at).toBeLessThan(m45);
     await page.getByTestId('min-60').tap();
     await expect.poll(at).toBeGreaterThan(m45 - 1);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('round 2', () => {
+  test('B3: every concept fits the chip picked (2 min over at most), and 15 min still offers one @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await page.goto('./#/quick');
+    for (const m of [15, 30, 45, 60]) {
+      await page.getByTestId(`min-${m}`).tap();
+      await expect(page.getByTestId(`min-${m}`)).toHaveAttribute('aria-pressed', 'true');
+      const metas = await page.getByTestId('concept-meta').allTextContents();
+      expect(metas.length, `${m} min`).toBeGreaterThan(0);
+      for (const t of metas) expect(Number(t.match(/~(\d+) min/)![1]), `${t} under ${m}`).toBeLessThanOrEqual(m + 2);
+    }
+    await page.getByTestId('min-15').tap();
+    await shotOn(page, '3.5a', 'concepts-15');
+    expect(errors).toEqual([]);
+  });
+
+  test('B2, B6: never with nothing to swap says so above the card with the new time; Keep works while it shows; a failed swap shakes and Swap says why', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page, DUMBBELLS);
+    await openQuick(page);
+    await page.locator('[data-concept="push"]').tap();
+    const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
+    // Walk to the overhead triceps extension: nothing else with a sure demo fits it here (and it is not last).
+    const NAME = 'Dumbbell Single Arm Overhead Tricep Extension';
+    for (let i = 0; i < total; i++) {
+      await expect(eyebrow(page)).toContainText(`${i + 1} of`);
+      if ((await page.getByTestId('deck-name').textContent()) === NAME) break;
+      await page.getByTestId('deck-keep').tap();
+    }
+    await expect(page.getByTestId('deck-name')).toHaveText(NAME);
+    await expect(page.getByTestId('quick-start')).toHaveText('Start now');
+    await page.getByTestId('deck-swap').tap();
+    await expect(page.getByTestId('swap-label')).toHaveText('No other option here');
+    await expect(page.getByTestId('deck-name')).toHaveText(NAME);
+    await shotOn(page, '3.5a', 'swap-none');
+    await expect(page.getByTestId('swap-label')).toHaveText('Swap', { timeout: 4000 });
+    // Never: it leaves, the line above the card says the new time, Undo is right there.
+    const before = Number((await page.getByTestId('curate-meta').textContent())!.match(/~(\d+) min/)![1]);
+    await page.getByTestId('deck-never').tap();
+    const notice = page.getByTestId('deck-hint');
+    await expect(notice).toContainText(/Won't show it again · Nothing else fits here, removed: workout is now \d+ min/);
+    const after = Number((await notice.textContent())!.match(/now (\d+) min/)![1]);
+    expect(after).toBeLessThan(before);
+    await expect(page.getByTestId('curate-meta')).toContainText(`~${after} min`);
+    await expect(page.getByTestId('curate-meta')).toContainText(`${total - 1} exercises`);
+    await expect(page.getByTestId('quick-start')).toHaveText('Start workout');
+    await shotOn(page, '3.5a', 'never-gap');
+    // The notice is above the card (or above the list once it was the last), never over the buttons, and Keep still works.
+    if (await card(page).count()) {
+      const n = (await notice.boundingBox())!;
+      const c = (await card(page).boundingBox())!;
+      expect(n.y + n.height).toBeLessThanOrEqual(c.y + 1);
+      const pos = Number((await eyebrow(page).textContent())!.match(/^(\d+)/)![1]);
+      await page.getByTestId('deck-keep').tap();
+      await expect(async () => {
+        const done = await page.getByRole('heading', { name: 'Ready to go' }).isVisible();
+        if (!done) expect(Number((await eyebrow(page).textContent())!.match(/^(\d+)/)![1])).toBe(pos + 1);
+      }).toPass();
+    } else {
+      await expect(page.getByRole('heading', { name: 'Ready to go' })).toBeVisible();
+      const n = (await notice.boundingBox())!;
+      const st = (await page.getByTestId('quick-start').boundingBox())!;
+      expect(n.y + n.height).toBeLessThanOrEqual(st.y);
+    }
+    expect(errors).toEqual([]);
+  });
+
+  test('round 3 B2: swiping left shows each option once (one leg press), then No other option here and it stops', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await openQuick(page);
+    await page.locator('[data-concept="lower"]').tap();
+    // The squat card of the legs day.
+    const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
+    for (let i = 0; i < total; i++) {
+      await expect(eyebrow(page)).toContainText(`${i + 1} of`);
+      if (/Squat/.test((await page.getByTestId('deck-name').textContent())!)) break;
+      await page.getByTestId('deck-keep').tap();
+    }
+    const names = [(await page.getByTestId('deck-name').textContent())!];
+    for (let i = 0; i < 12; i++) {
+      const was = await card(page).getAttribute('data-exercise');
+      await page.getByTestId('deck-swap').tap();
+      const stopped = await expect(page.getByTestId('swap-label'))
+        .toHaveText('No other option here', { timeout: 1500 })
+        .then(() => true)
+        .catch(() => false);
+      if (stopped) break;
+      await expect(card(page)).not.toHaveAttribute('data-exercise', was!);
+      names.push((await page.getByTestId('deck-name').textContent())!);
+    }
+    console.log('squat slot options:', names.join(' > '));
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.filter((n) => /leg press/i.test(n)).length).toBeLessThanOrEqual(1);
+    await expect(page.getByTestId('swap-label')).toHaveText('No other option here');
+    // Never on the last option: the rejected ones never come back, the slot leaves with the gap said.
+    const last = (await page.getByTestId('deck-name').textContent())!;
+    await page.getByTestId('swap-label').waitFor();
+    await page.getByTestId('deck-never').tap();
+    await expect(page.getByTestId('deck-hint')).toContainText('Nothing else fits here');
+    await expect(page.getByTestId('deck-name')).not.toHaveText(last);
+    for (const n of names) await expect(page.getByTestId('deck-name')).not.toHaveText(n);
+    expect(errors).toEqual([]);
+  });
+
+  test('a double tap on Keep decides one card', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await openQuick(page);
+    await page.locator('[data-concept]').first().tap();
+    await expect(eyebrow(page)).toContainText('1 of');
+    await page.getByTestId('deck-keep').dblclick();
+    await page.waitForTimeout(600);
+    await expect(eyebrow(page)).toContainText('2 of');
+    expect(errors).toEqual([]);
+  });
+
+  test('P9: holding a card presses it in and fills a ring before Never show', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await openQuick(page);
+    await page.locator('[data-concept]').first().tap();
+    const box = (await card(page).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.4);
+    await page.mouse.down();
+    await page.waitForTimeout(300);
+    await expect(card(page)).toHaveAttribute('data-holding', '');
+    await shotOn(page, '3.5a', 'hold');
+    await page.mouse.up();
+    await expect(card(page)).not.toHaveAttribute('data-holding', '');
+    expect(errors).toEqual([]);
+  });
+
+  test('P8: the last Keep fades the buttons and Ready to go comes in', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await openQuick(page);
+    await page.locator('[data-concept]').first().tap();
+    const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
+    for (let i = 0; i < total - 1; i++) {
+      await expect(eyebrow(page)).toContainText(`${i + 1} of`);
+      await page.getByTestId('deck-keep').tap();
+    }
+    await expect(eyebrow(page)).toContainText(`${total} of`);
+    await page.getByTestId('deck-keep').tap();
+    await expect(page.getByRole('heading', { name: 'Ready to go' })).toBeVisible();
+    await expect(page.getByTestId('quick-start')).toHaveText('Start workout');
+    await shotOn(page, '3.5a', 'ready');
     expect(errors).toEqual([]);
   });
 });
@@ -298,7 +462,7 @@ test.describe('layout', () => {
     expect(r.scroll).toBeLessThanOrEqual(r.w);
   }
 
-  test('SE and 320: the choose screen, the deck and its buttons fit, Start as is in reach @matrix', async ({ page }) => {
+  test('SE, 360 and 320: the choose screen, the deck and its buttons fit, Start in reach @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page);
@@ -307,11 +471,19 @@ test.describe('layout', () => {
     await expect(card(page)).toBeVisible();
     await fits(page);
     const vh = page.viewportSize()!.height;
-    for (const id of ['deck-card', 'deck-keep', 'deck-swap', 'quick-start']) {
+    for (const id of ['deck-card', 'deck-keep', 'deck-swap', 'quick-start', 'deck-never']) {
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(b.y + b.height, id).toBeLessThanOrEqual(vh + 1);
-      expect(b.height, id).toBeGreaterThanOrEqual(44);
+      expect(b.height, id).toBeGreaterThanOrEqual(48);
+      expect(b.width, id).toBeGreaterThanOrEqual(48);
     }
+    // Keep and Swap never sit under the Start bar (round 2, B1), and their words fit.
+    const keep = (await page.getByTestId('deck-keep').boundingBox())!;
+    const startBox = (await page.getByTestId('quick-start').boundingBox())!;
+    expect(keep.y + keep.height).toBeLessThanOrEqual(startBox.y + 1);
+    await expect(page.getByTestId('deck-keep')).toContainText('Keep');
+    await expect(page.getByTestId('deck-swap')).toContainText('Swap');
+    await shotOn(page, '3.5a', 'deck-fit');
     expect(errors).toEqual([]);
   });
 
@@ -319,15 +491,17 @@ test.describe('layout', () => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page);
-    const scale = () =>
-      page.evaluate(() => {
-        for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
-          const s = getComputedStyle(el);
-          el.style.fontSize = `${parseFloat(s.fontSize) * 1.3}px`;
-          const line = parseFloat(s.lineHeight);
-          if (Number.isFinite(line)) el.style.lineHeight = `${line * 1.3}px`;
-        }
-      });
+    // Round 3 (P8): a real root font size of 130% (the deck and choose screen are in rem), never
+    // nested scaling. The text really grows: the card name is checked bigger afterwards.
+    const scale = async () => {
+      await page.evaluate(() => (document.documentElement.style.fontSize = ''));
+      await page.waitForTimeout(100);
+      const before = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-concept] span, [data-testid="deck-name"]')!).fontSize));
+      await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));
+      await page.waitForTimeout(150);
+      const after = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-concept] span, [data-testid="deck-name"]')!).fontSize));
+      expect(after / before).toBeGreaterThan(1.25);
+    };
     const clipped = () =>
       page.evaluate(() =>
         Array.from(document.querySelectorAll<HTMLElement>('h1, h2, p, span, button'))
@@ -345,7 +519,21 @@ test.describe('layout', () => {
     await page.locator('[data-concept]').first().tap();
     await expect(card(page)).toBeVisible();
     await scale();
+    await page.waitForTimeout(200);
     expect(await clipped()).toEqual([]);
+    // Keep and Swap stay above Start, all in view; the sets and why lines are not cut by the card.
+    const vh = page.viewportSize()!.height;
+    const keep = (await page.getByTestId('deck-keep').boundingBox())!;
+    const startBox = (await page.getByTestId('quick-start').boundingBox())!;
+    expect(keep.y + keep.height).toBeLessThanOrEqual(startBox.y + 1);
+    expect(startBox.y + startBox.height).toBeLessThanOrEqual(vh + 1);
+    const cardBox = (await card(page).boundingBox())!;
+    for (const id of ['deck-sets', 'deck-name']) {
+      const b = (await page.getByTestId(id).boundingBox())!;
+      expect(b.y + b.height, id).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+    }
+    const why = (await card(page).locator('p').last().boundingBox())!;
+    expect(why.y + why.height).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
     await shotOn(page, '3.5a', 'deck-130');
     expect(errors).toEqual([]);
   });

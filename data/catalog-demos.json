@@ -1,0 +1,6 @@
+{
+  "note": "PLAN 3.5a round 2: catalog exercises with no plan entry whose own photos were opened and show exactly the named exercise, so a swap to them can show the demo (SPEC 4.3). Same rule as an exact match: both photos checked by hand.",
+  "exercises": [
+    { "catalogId": "Seated_Leg_Curl", "reason": "Both photos: seated leg curl machine, pad on the shins, knees bend under the seat." }
+  ]
+}

@@ -56,7 +56,8 @@ test.describe('3.5a verify', () => {
     await expect(page.getByTestId('build-card')).toContainText("Got 30 min? I'll build it");
     await shot(page, 'today-intake');
     const old = page.getByRole('button', { name: /Quick workout/ });
-    await expect(old).toContainText('Pick exercises myself');
+    // Round 2 (B7): the picker first flow is the quieter "Build my own" row (SPEC 20.3's words).
+    await expect(old).toContainText('Build my own');
     const b = (await old.boundingBox())!;
     expect(b.height).toBeGreaterThanOrEqual(48);
     await old.tap();
@@ -94,6 +95,8 @@ test.describe('3.5a verify', () => {
   });
 
   test('3a. full gym and dumbbell gym: every exercise sure demo + gear; images saved', async ({ page }) => {
+    // Round 2: three gyms, every card of every concept: more than 30 s on the slower Android projects.
+    test.setTimeout(120_000);
     const errors = watchErrors(page);
     for (const eq of [undefined, DUMBBELLS, ['dumbbells', 'adjustable_bench', 'flat_bench', 'kettlebells']]) {
       await pastIntake(page, eq);
@@ -186,6 +189,7 @@ test.describe('3.5a verify', () => {
   });
 
   test('4. deck: swap keeps pattern, never + Undo additive, start carries sets reps rest', async ({ page }) => {
+    test.setTimeout(90_000);
     const errors = watchErrors(page);
     await pastIntake(page);
     await dbPut(page, { profile: [{ ...PROFILE, dislikes: { soft: { 'pre-soft': 2 }, never: ['pre-never'] } }] });
@@ -201,12 +205,25 @@ test.describe('3.5a verify', () => {
     await expect(card(page)).not.toHaveAttribute('data-exercise', a0);
     const a1 = (await card(page).getAttribute('data-exercise'))!;
     expect.soft(facts(a1).pattern, `${a0} -> ${a1}`).toBe(facts(a0).pattern);
-    // swipe left x3 on the same card: each stays in pattern, doable, sure demo
+    // swipe left up to 3 more times on the same card: each new one stays in pattern, doable, sure
+    // demo, and never one already shown (round 3, B2: each option once, then it stops and says so).
     let prev = a1;
+    const shownIds = [a0, a1];
     for (let i = 0; i < 3; i++) {
       await swipe(page, -260);
-      await expect.poll(async () => card(page).getAttribute('data-exercise')).not.toBe(prev);
+      // Either a new card, or the Swap button says there is nothing else (it says so for about 2 s).
+      let state = '';
+      await expect
+        .poll(async () => {
+          if ((await card(page).getAttribute('data-exercise')) !== prev) return (state = 'moved');
+          if ((await page.getByTestId('swap-label').textContent()) === 'No other option here') return (state = 'none');
+          return '';
+        })
+        .not.toBe('');
+      if (state === 'none') break;
       const now = (await card(page).getAttribute('data-exercise'))!;
+      expect.soft(shownIds, `${now} shown twice`).not.toContain(now);
+      shownIds.push(now);
       expect.soft(facts(now).pattern, `${prev} -> ${now}`).toBe(facts(a0).pattern);
       expect.soft(doable(facts(now).requires, equipment), now).toBe(true);
       expect.soft(sureDemo(now), now).toBe(true);
@@ -237,8 +254,14 @@ test.describe('3.5a verify', () => {
     for (let guard = 0; guard < 20; guard++) {
       if (await page.getByRole('heading', { name: 'Ready to go' }).isVisible()) break;
       final.push({ id: (await card(page).getAttribute('data-exercise'))!, name: '', why: '', sets: (await page.getByTestId('deck-sets').textContent())! });
+      // Round 2: wait for this Keep to land (the next card, or Ready to go) before the next tap, so a
+      // tap never races the last card's flight on a slow phone.
+      const was = await card(page).locator('p').first().textContent();
       await page.getByTestId('deck-keep').tap();
-      await page.waitForTimeout(350);
+      await expect(async () => {
+        if (await page.getByRole('heading', { name: 'Ready to go' }).isVisible()) return;
+        expect(await card(page).locator('p').first().textContent()).not.toBe(was);
+      }).toPass();
     }
     await expect(page.getByRole('heading', { name: 'Ready to go' })).toBeVisible();
     await shot(page, 'ready');
@@ -366,6 +389,12 @@ test.describe('3.5a verify', () => {
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await expect(page.locator('[data-concept]').first()).toBeVisible();
     // offline start
+    // Round 2: offline only once the service worker holds the app, or an offline reload has nothing to load.
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) {
+      await page.reload();
+      await expect(page.locator('[data-concept]').first()).toBeVisible();
+    }
     await page.locator('[data-concept]').first().tap();
     await context.setOffline(true);
     await page.getByTestId('quick-start').dblclick();
@@ -415,12 +444,11 @@ test.describe('3.5a verify', () => {
     await measure('start', '[data-testid="quick-start"]');
     await shot(page, 'deck');
     console.log('target sizes', JSON.stringify(sizes));
-    // 130% text
+    // 130% text (round 2: every size read first, then scaled once, the way iOS grows text; scaling
+    // inside the loop compounded inherited sizes to 1.3 per level and overstated it).
     await page.evaluate(() => {
-      for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
-        const s = getComputedStyle(el);
-        el.style.fontSize = `${parseFloat(s.fontSize) * 1.3}px`;
-      }
+      const els = Array.from(document.querySelectorAll<HTMLElement>('body *')).map((el) => ({ el, size: parseFloat(getComputedStyle(el).fontSize) }));
+      for (const { el, size } of els) el.style.fontSize = `${size * 1.3}px`;
     });
     await page.waitForTimeout(300);
     await shot(page, 'deck-130');
@@ -480,5 +508,55 @@ test.describe('3.5a verify reduced motion', () => {
     expect(tilted).toEqual([]);
     expect(Math.min(...r.o.map(Number))).toBeLessThan(0.9);
     expect(errors).toEqual([]);
+  });
+});
+
+test.describe('3.5a verify round 2', () => {
+  test('r2a. real 130% (root font size): Swap, Keep, Start in view, nothing clipped', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await page.goto('./#/quick?min=45');
+    await page.reload();
+    await page.evaluate(() => { document.documentElement.style.fontSize = '130%'; });
+    await page.waitForTimeout(400);
+    await shot(page, 'choose-r130');
+    await page.locator('[data-concept]').first().tap();
+    await expect(card(page)).toBeVisible();
+    await page.waitForTimeout(600);
+    await shot(page, 'deck-r130');
+    const vh = page.viewportSize()!.height;
+    const bx: Record<string, { x: number; y: number; width: number; height: number }> = {};
+    for (const id of ['deck-keep', 'deck-swap', 'quick-start', 'deck-card', 'deck-name', 'deck-sets', 'deck-never']) {
+      bx[id] = (await page.getByTestId(id).boundingBox())!;
+      console.log('r130', id, JSON.stringify(bx[id]), 'vh', vh);
+      expect.soft(bx[id]!.y, `${id} top`).toBeGreaterThanOrEqual(0);
+      expect.soft(bx[id]!.y + bx[id]!.height, `${id} bottom in view`).toBeLessThanOrEqual(vh + 1);
+    }
+    expect.soft(bx['deck-keep']!.y + bx['deck-keep']!.height <= bx['quick-start']!.y + 1, 'Keep clear of Start').toBe(true);
+    expect.soft(bx['deck-sets']!.y + bx['deck-sets']!.height <= bx['deck-card']!.y + bx['deck-card']!.height + 1, 'sets inside card').toBe(true);
+    expect.soft(bx['deck-card']!.y + bx['deck-card']!.height <= bx['deck-keep']!.y + 1, 'card above buttons').toBe(true);
+    expect.soft(bx['deck-never']!.height, 'never 48').toBeGreaterThanOrEqual(48);
+    const clipped = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('h1,h2,p,span,button')).filter((el) => !el.closest('[aria-hidden="true"],[data-under]')).filter((el) => { const s = getComputedStyle(el); return (/(hidden|clip)/.test(s.overflowX) || s.textOverflow === 'ellipsis') && el.scrollWidth > el.clientWidth + 1; }).map((e) => (e.textContent ?? '').slice(0, 30)));
+    expect.soft(clipped).toEqual([]);
+    // Taps still reach Keep and Swap.
+    await page.getByTestId('deck-keep').tap();
+    await expect(card(page).locator('p').first()).toContainText('2 of');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test('r2e. overhead tricep extension photo shows the dumbbell', async ({ page }) => {
+    await pastIntake(page, DUMBBELLS);
+    await page.goto('./#/quick?min=45');
+    await page.reload();
+    await page.locator('[data-concept]').first().tap();
+    for (let i = 0; i < 8; i++) {
+      if ((await card(page).getAttribute('data-exercise')) === 'dumbbell-single-arm-overhead-tricep-extension') break;
+      await page.getByTestId('deck-keep').tap();
+      await page.waitForTimeout(450);
+    }
+    await expect(card(page)).toHaveAttribute('data-exercise', 'dumbbell-single-arm-overhead-tricep-extension');
+    await page.waitForTimeout(500);
+    await shot(page, 'tricep-deck');
   });
 });
