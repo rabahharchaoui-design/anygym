@@ -146,6 +146,43 @@
   text-wrap: balance;
 }
 
+/* PLAN 3.6: the estimate in the title is a button (opens "How much time today?" before Start). A
+   dotted underline says it can be tapped; its 48 pt hit area reaches past the line without moving it. */
+.dayTime {
+  position: relative;
+  display: inline;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  white-space: nowrap;
+  text-decoration: underline dotted rgb(255 255 255 / 0.35);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.dayTime::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 48px;
+  transform: translateY(-50%);
+}
+
+.dayTime[data-trimmed] {
+  color: var(--accent);
+  text-decoration-color: rgb(212 255 58 / 0.45);
+}
+
+.dayFits {
+  margin: -4px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .dayCard .dayStart {
   min-height: 64px;
   margin-top: var(--space-1);

@@ -23,6 +23,7 @@ import { LoadError } from '../../components/LoadError';
 import { exerciseNamer, setCount, workoutTitle } from '../history/historyWords';
 import { finishRows, slotProgress } from '../../lib/swap';
 import styles from './Finish.module.css';
+import { trimmedPlan } from '../../lib/timeBudget';
 
 /**
  * The finish screen (SPEC 21.1, minimal): how long, how many sets, total lifted (when there is
@@ -76,7 +77,7 @@ export function FinishScreen() {
   const plan = d ? planById(d.session.planId) : undefined;
   const dayIndex = plan && d ? dayIndexOf(plan, d.session.dayId) : -1;
   // The rows the lifter really had (PLAN 2.2d round 2: rows added or removed, kept on the session).
-  const planDay = plan && d && dayIndex >= 0 ? dayWorkout(plan, dayIndex, d.session.weekIndex ?? 0) : [];
+  const planDay = plan && d && dayIndex >= 0 ? dayWorkout(trimmedPlan(plan, dayIndex, d.session.trim, d.session.weekIndex ?? 0), dayIndex, d.session.weekIndex ?? 0) : [];
   const swaps = d?.session.swaps;
   // A changed workout (PLAN 3.4): the rows it really had, and one slot per plan exercise in the count.
   const dayEntries = d && swaps?.length ? finishRows(planDay, d.session, d.sets, exerciseNamer(d.session)) : adjustEntries(planDay, d?.session.rowAdjust);

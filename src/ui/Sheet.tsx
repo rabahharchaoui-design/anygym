@@ -20,6 +20,11 @@ type Props = {
   footer?: boolean;
   /** A pinned header (Back, PLAN 2.0k) above the scrolling body: it never scrolls away. */
   header?: ReactNode;
+  /**
+   * PLAN 3.6: at its tallest (large text on a short phone) the sheet stops low enough that the
+   * grabber's hit area, which reaches above the sheet, stays clear of the status bar.
+   */
+  clearTop?: boolean;
 };
 
 const FooterSlot = createContext<HTMLElement | null>(null);
@@ -38,7 +43,7 @@ export function SheetFooter({ children }: { children: ReactNode }) {
  * close. A real modal dialog: focus moves in on open and back out on close, Tab stays inside, the
  * app behind is inert, and Escape or the Back button closes only the top sheet.
  */
-export function Sheet({ open, onClose, label, children, scroll = false, onDragClose, footer = false, header }: Props) {
+export function Sheet({ open, onClose, label, children, scroll = false, onDragClose, footer = false, header, clearTop = false }: Props) {
   // Every open is a new frame: reopened while the last one is still sliding away, it starts fresh
   // (its content never keeps the cancelled state of the closing one).
   const opens = useRef(0);
@@ -48,7 +53,7 @@ export function Sheet({ open, onClose, label, children, scroll = false, onDragCl
   return createPortal(
     <AnimatePresence>
       {open && (
-        <SheetFrame key={`sheet-${opens.current}`} onClose={onClose} onDragClose={onDragClose} label={label} scroll={scroll} footer={footer} header={header}>
+        <SheetFrame key={`sheet-${opens.current}`} onClose={onClose} onDragClose={onDragClose} label={label} scroll={scroll} footer={footer} header={header} clearTop={clearTop}>
           {children}
         </SheetFrame>
       )}
@@ -70,7 +75,7 @@ const SHADOW_CLEARANCE = 64;
 /** Longest the entrance can take before the content takes taps anyway (the spring settles in ~240 ms). */
 const SETTLE_FALLBACK_MS = 600;
 
-function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, header }: Omit<Props, 'open'> & { scroll: boolean }) {
+function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, header, clearTop }: Omit<Props, 'open'> & { scroll: boolean }) {
   const reduce = useReducedMotion();
   const controls = useDragControls();
   // While it slides away, a closing sheet is no longer a dialog and takes no taps.
@@ -156,6 +161,7 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, hea
         className={styles.sheet}
         data-scroll={scrolling}
         data-footer={footer || undefined}
+        data-clear-top={clearTop || undefined}
         data-state={settled ? 'open' : 'opening'}
         onAnimationComplete={() => setSettled(true)}
         onKeyDown={trapTab}

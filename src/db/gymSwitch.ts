@@ -17,6 +17,7 @@ import { db as defaultDb, type AnyGymDB } from './schema';
 import type { Gym, Session, SessionSwap, WorkoutSet } from './types';
 import { getActiveSession, WorkoutFinishedError } from './workouts';
 import { SwapPendingError } from './swaps';
+import { trimmedPlan } from '../lib/timeBudget';
 
 /** The workout changed since the preview: nothing was written; preview again. */
 export class SwitchStaleError extends Error {
@@ -71,7 +72,7 @@ const sessionSets = (sessionId: string, db: AnyGymDB) => db.sets.where('[session
 export function workoutAtGym(session: Session, sets: readonly WorkoutSet[], gym: Pick<Gym, 'equipment' | 'dumbbellRange'>): SwitchPlan {
   const plan = planById(session.planId);
   const dayIndex = plan ? dayIndexOf(plan, session.dayId) : -1;
-  const planEntries = plan && dayIndex >= 0 ? dayWorkout(plan, dayIndex, session.weekIndex ?? 0) : [];
+  const planEntries = plan && dayIndex >= 0 ? dayWorkout(trimmedPlan(plan, dayIndex, session.trim, session.weekIndex ?? 0), dayIndex, session.weekIndex ?? 0) : [];
   const byPlan = new Map(planEntries.map((e) => [e.exerciseId, e]));
   const nameOf = (id: string) => byPlan.get(id)?.name ?? exerciseNameOf(id) ?? id;
   const loadOf = (id: string) => planExercise(id)?.loadType ?? candidateLoadOf(id);

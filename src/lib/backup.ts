@@ -200,7 +200,7 @@ const gymShape = shape({
     isActive: bool,
     createdAt: num,
   },
-  opt: { city: str, lastUsedAt: num },
+  opt: { city: str, lastUsedAt: num, timeBudgetMin: num },
 });
 
 /** Every plate in a gym's inventory, enabled or not, is a real plate of the gym's unit (PLAN 1.7k: a 999 kg plate crashed loading). */
@@ -210,6 +210,12 @@ const inventoryKnown = (g: Rec): boolean => (g.plateInventory as Array<{ weight:
 const sessionSwap = shape({
   req: { slot: str, current: str },
   opt: { kept: listOf(str), auto: bool, always: bool, reason: str, noFit: bool },
+});
+
+/** What a time budget left out of a workout's plan day (PLAN 3.6). */
+const dayTrim = shape({
+  req: { drop: listOf(str), sets: recordOf(num) },
+  opt: { mobility: listOf(str) },
 });
 
 /** What every stored record must look like, per table. Exported for the tests. */
@@ -224,7 +230,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
     req: { id: str, gymId: str, startedAt: num, imported: bool },
-    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num) },
+    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num), trim: dayTrim },
   }),
   sets: isSet,
   runs: shape({

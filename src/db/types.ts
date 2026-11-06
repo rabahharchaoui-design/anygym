@@ -1,4 +1,5 @@
 import type { DistanceUnit, IntakeAnswers, MeasureUnit } from '../lib/intake/funnel';
+import type { DayTrim } from '../lib/timeBudget';
 // Stored record shapes (SPEC 2, 3, 5.3, 5.5, 12.11). Every id is a string.
 
 export type Unit = 'lb' | 'kg';
@@ -85,6 +86,8 @@ export type Gym = {
   city?: string;
   /** PLAN 3.9 (additive, not indexed): when this gym was last made the active one, for "recent gyms". */
   lastUsedAt?: number;
+  /** PLAN 3.6 (additive, not indexed): the last "How much time today?" pick at this gym (SPEC 7.4). */
+  timeBudgetMin?: number;
 };
 
 export type Profile = {
@@ -163,6 +166,12 @@ export type Session = {
    * indexed; missing = the plan as written. Sets always keep the exercise really performed.
    */
   swaps?: SessionSwap[];
+  /**
+   * PLAN 3.6 (SPEC 7.4, additive, not indexed): what the time budget left out of the plan day for this
+   * workout only (lib/timeBudget.ts DayTrim), with the minutes picked in timeBudgetMin. Missing = the
+   * day as planned. The plan and its JSON are never changed; logged sets are never touched.
+   */
+  trim?: DayTrim;
 };
 
 /**

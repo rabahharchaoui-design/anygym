@@ -208,3 +208,21 @@ test('Settings, the sheet and the preview fit at 130% text; the equipment picker
   await shotOn(page, '3.9', 'sheet-130');
   expect(errors).toEqual([]);
 });
+
+test('switch with the pill on Today, then Start without a reload: the workout is at the new gym', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openGyms(page);
+  await addHotel(page, 'Hotel in Tokyo', 'Tokyo');
+  await usePlan(page);
+  await page.getByTestId('gym-pill').first().tap();
+  const sheet = page.getByRole('dialog', { name: 'Gyms' });
+  const hotel = (await gyms(page)).find((g) => g.name === 'Hotel in Tokyo')!;
+  await sheet.getByTestId(`gym-${hotel.id}`).tap();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByTestId('gym-pill').first()).toContainText('Hotel in Tokyo');
+  await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  await expect.poll(async () => (await session(page))?.gymId).toBe(hotel.id);
+  await expect(page.getByTestId('workout-meta')).toContainText('Hotel in Tokyo');
+  expect(errors).toEqual([]);
+});

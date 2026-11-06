@@ -7,7 +7,7 @@ import { demoFor } from '../../data/exerciseInfo';
 import { swapLine } from '../../lib/swap';
 import { Ring } from '../../ui/Ring';
 import { Button } from '../../ui/Button';
-import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon } from '../../ui/icons';
+import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon, XIcon } from '../../ui/icons';
 import type { Workout } from './useWorkout';
 import type { ToastMessage } from '../../ui/Toast';
 import { UpNextCard, useUpNext } from './UpNext';
@@ -29,7 +29,14 @@ type Props = {
   /** PLAN 3.4a: a quick workout's Up next adds one exercise and opens it. */
   onAddOne?: (exerciseId: string, restSec: number) => void;
   sessionId?: string;
+  /** PLAN 3.6: the time estimate opens "How much time today?". */
+  onTime?: () => void;
+  /** PLAN 3.6: one quiet line under the title (the time offer, or what the trim did). */
+  timeLine?: TimeLine | null;
 };
+
+/** A quiet line with one action ("Make it fit") and, for an offer, a close button. */
+export type TimeLine = { text: string; action: string; onAction: () => void; onDismiss?: () => void };
 
 /** Empty, a ring filling per set done, then a check (SPEC 20.1). */
 function Progress({ done, total }: { done: number; total: number }) {
@@ -56,7 +63,7 @@ function nameHero(row: HTMLElement) {
  * its demo tile, name, sets × reps and the plan's rest. Pairs share a colored rail. Done rows dim,
  * the next one is highlighted. Tap a row to open it; that is the only navigation needed.
  */
-export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap, onToast, onAddOne, sessionId = '' }: Props) {
+export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap, onToast, onAddOne, sessionId = '', onTime, timeLine }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   const ideas = useUpNext(w, sessionId);
   /** A row's photo is being decoded before its screen opens: a second tap does nothing. */
@@ -173,8 +180,8 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
       const group: WorkoutEntry[] = [];
       while (i < entries.length && entries[i]!.kind === 'pair' && entries[i]!.block === e.block) group.push(entries[i++]!);
       blocks.push(
-        <li key={`pair-${e.block}`} className={styles.pair} data-warmup={e.warmup || undefined} data-testid="pair-group">
-          <p className={styles.pairLabel}>{e.warmup ? 'Warm up · Pair: back to back' : 'Pair: back to back'}</p>
+        <li key={`pair-${e.block}`} className={styles.pair} data-warmup={e.warmup || undefined} data-mobility={e.mobility || undefined} data-testid={e.mobility ? 'mobility-group' : 'pair-group'}>
+          <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : 'Pair: back to back'}</p>
           <ol className={styles.pairRows}>{group.map(row)}</ol>
         </li>,
       );
@@ -201,7 +208,17 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
           {/* One quiet metadata line: "My Gym · ~90 min". */}
           <p className={`${styles.meta} num`} data-testid="workout-meta">
             <GymPill align="start" still={still} onToast={onToast} inWorkout />
-            {w.minutes !== undefined && <span className={styles.minutes}>{'\u00a0· '}~{w.minutes} min</span>}
+            {w.minutes !== undefined &&
+              (onTime && !still ? (
+                <>
+                  <span className={styles.minutesSep}>{'\u00a0·\u00a0'}</span>
+                  <button type="button" className={`${styles.minutesButton} pressable`} data-testid="time-estimate" data-trimmed={!!w.session?.trim || undefined} aria-label={`About ${w.minutes} min. How much time today?`} onClick={onTime}>
+                    ~{w.minutes} min
+                  </button>
+                </>
+              ) : (
+                <span className={styles.minutes}>{'\u00a0· '}~{w.minutes} min</span>
+              ))}
           </p>
           <span className={styles.music}>
             <a className={`${styles.musicLink} pressable`} href="https://open.spotify.com/" target="_blank" rel="noopener" aria-label="Open Spotify">
@@ -218,6 +235,19 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
             </a>
           </span>
         </div>
+        {timeLine && !still && (
+          <div className={styles.timeLine} data-testid="time-line">
+            <p className={styles.timeText}>{timeLine.text}</p>
+            <button type="button" className={`${styles.timeAction} pressable`} onClick={timeLine.onAction}>
+              {timeLine.action}
+            </button>
+            {timeLine.onDismiss && (
+              <button type="button" className={`${styles.timeClose} pressable`} aria-label="Not today" onClick={timeLine.onDismiss}>
+                <XIcon width={16} height={16} strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
       </header>
       {entries.length === 0 ? (
         <div className={styles.empty}>

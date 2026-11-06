@@ -38,6 +38,8 @@ export type WorkoutEntry = {
   finisher?: true;
   /** weekly_table: the week's prescription for the progression engine (SPEC 6 rule 6). */
   prescription?: { sets: number; reps: number };
+  /** PLAN 3.6: one of a time budget's combined stretches (a mobility block, done back to back). */
+  mobility?: true;
   /** PLAN 3.4: the gym lacks the gear and nothing fits. Skippable: never "up next" until a set is logged on it. */
   noFit?: true;
 };
@@ -65,6 +67,7 @@ export function dayWorkout(plan: Plan, dayIndex: number, weekIndex = 0): Workout
         amount: amountText(t, it.eachSide),
       };
       if (it.note) e.note = it.note;
+      if (b.mobility) e.mobility = true;
       if (it.eachSide) e.eachSide = true;
       const stated = planRest(b);
       if (stated !== undefined) e.statedRest = stated;

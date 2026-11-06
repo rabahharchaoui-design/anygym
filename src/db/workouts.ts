@@ -20,6 +20,7 @@ import { dropSessionIntents, dropUndoIntent, hasUndoIntent } from './undoIntents
 import { phone, readFallback, type KV } from './mutationFallback';
 import { withSessionLock } from './sessionLock';
 import { ANY_GYM, type JournalEntry, type Load, type PlanState, type Session, type SetKind, type WorkoutSet } from './types';
+import { trimmedPlan } from '../lib/timeBudget';
 
 /** kv row Finish writes (one at a time): the plan state just before that Finish, for its Undo. */
 export const FINISH_PLAN_PREFIX = 'anygym-finish-plan:';
@@ -421,9 +422,11 @@ async function planProgress(s: Session, db: AnyGymDB, adjust: Session['rowAdjust
   const i = plan ? dayIndexOf(plan, s.dayId) : -1;
   if (!plan || i < 0) return undefined;
   // A changed workout counts one slot per plan exercise, whatever filled it (PLAN 3.4).
-  if (s.swaps?.length) return slotProgress(dayWorkout(plan, i, s.weekIndex ?? 0), s.swaps, adjust, await db.sets.where('sessionId').equals(s.id).toArray());
+  // A time budget trim (PLAN 3.6) is the day this workout really had.
+  const day = dayWorkout(trimmedPlan(plan, i, s.trim, s.weekIndex ?? 0), i, s.weekIndex ?? 0);
+  if (s.swaps?.length) return slotProgress(day, s.swaps, adjust, await db.sets.where('sessionId').equals(s.id).toArray());
   // The rows the lifter really had (PLAN 2.2d round 2: + Add set and Remove set count).
-  const entries = adjustEntries(dayWorkout(plan, i, s.weekIndex ?? 0), adjust);
+  const entries = adjustEntries(day, adjust);
   const done = doneCounts(entries, await db.sets.where('sessionId').equals(s.id).toArray());
   return dayProgress(entries, (id) => done[id] ?? 0);
 }

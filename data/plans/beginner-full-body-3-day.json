@@ -211,19 +211,6 @@
      "restSec": 120
     },
     {
-     "type": "single",
-     "exercise": "One-Legged Cable Kickback",
-     "id": "One-Legged_Cable_Kickback",
-     "reps": [
-      8,
-      12
-     ],
-     "eachSide": true,
-     "note": "Stop with 2 to 3 reps left",
-     "sets": 3,
-     "restSec": 120
-    },
-    {
      "type": "superset",
      "sets": 2,
      "restSec": 60,
@@ -248,6 +235,19 @@
        "note": "Stop with 2 to 3 reps left"
       }
      ]
+    },
+    {
+     "type": "single",
+     "exercise": "One-Legged Cable Kickback",
+     "id": "One-Legged_Cable_Kickback",
+     "reps": [
+      10,
+      15
+     ],
+     "eachSide": true,
+     "note": "Stop with 2 to 3 reps left",
+     "sets": 2,
+     "restSec": 60
     }
    ]
   }

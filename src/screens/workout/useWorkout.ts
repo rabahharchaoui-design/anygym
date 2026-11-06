@@ -25,6 +25,7 @@ import { progress, type PastSession, type PastSet, type Progression } from '../.
 import { liveRowAdjustments } from '../../lib/extraSets';
 import { useLive } from '../../hooks/useLive';
 import { barIdFor, loadSetupFor } from './exerciseLoad';
+import { applyTrim, trimmedPlan } from '../../lib/timeBudget';
 
 export type Workout = {
   /** Every required read landed and none failed: logging and Finish may run. */
@@ -123,7 +124,9 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   const dayIndex = plan ? dayIndexOf(plan, session.data?.dayId) : -1;
   const weekIndex = session.data?.weekIndex ?? 0;
   const day = plan && dayIndex >= 0 ? plan.days[dayIndex] : undefined;
-  const planEntries = useMemo(() => (plan && dayIndex >= 0 ? dayWorkout(plan, dayIndex, weekIndex) : []), [plan, dayIndex, weekIndex]);
+  // PLAN 3.6: this workout's time budget trim, when it has one (the plan itself never changes).
+  const trim = session.data?.trim;
+  const planEntries = useMemo(() => (plan && dayIndex >= 0 ? dayWorkout(trimmedPlan(plan, dayIndex, trim, weekIndex), dayIndex, weekIndex) : []), [plan, dayIndex, weekIndex, trim]);
   const planEntryOf = useMemo(() => new Map(planEntries.map((e) => [e.exerciseId, e])), [planEntries]);
   const list = settings.data ?? [];
 
@@ -260,7 +263,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     gym: gym.data,
     plan,
     day,
-    minutes: day ? estimateDayMinutes(day, weekIndex) : undefined,
+    minutes: day ? estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex) : undefined,
     sets,
     setsOfExercise: (id) => sets.filter((s) => s.exerciseId === id),
     entries,
