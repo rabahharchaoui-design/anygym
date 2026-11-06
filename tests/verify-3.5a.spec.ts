@@ -205,12 +205,25 @@ test.describe('3.5a verify', () => {
     await expect(card(page)).not.toHaveAttribute('data-exercise', a0);
     const a1 = (await card(page).getAttribute('data-exercise'))!;
     expect.soft(facts(a1).pattern, `${a0} -> ${a1}`).toBe(facts(a0).pattern);
-    // swipe left x3 on the same card: each stays in pattern, doable, sure demo
+    // swipe left up to 3 more times on the same card: each new one stays in pattern, doable, sure
+    // demo, and never one already shown (round 3, B2: each option once, then it stops and says so).
     let prev = a1;
+    const shownIds = [a0, a1];
     for (let i = 0; i < 3; i++) {
       await swipe(page, -260);
-      await expect.poll(async () => card(page).getAttribute('data-exercise')).not.toBe(prev);
+      // Either a new card, or the Swap button says there is nothing else (it says so for about 2 s).
+      let state = '';
+      await expect
+        .poll(async () => {
+          if ((await card(page).getAttribute('data-exercise')) !== prev) return (state = 'moved');
+          if ((await page.getByTestId('swap-label').textContent()) === 'No other option here') return (state = 'none');
+          return '';
+        })
+        .not.toBe('');
+      if (state === 'none') break;
       const now = (await card(page).getAttribute('data-exercise'))!;
+      expect.soft(shownIds, `${now} shown twice`).not.toContain(now);
+      shownIds.push(now);
       expect.soft(facts(now).pattern, `${prev} -> ${now}`).toBe(facts(a0).pattern);
       expect.soft(doable(facts(now).requires, equipment), now).toBe(true);
       expect.soft(sureDemo(now), now).toBe(true);

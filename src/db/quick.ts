@@ -35,6 +35,14 @@ export const recordNever = (id: string, db: AnyGymDB = defaultDb) => updateDisli
 /** Undo of a long press. */
 export const undoNever = (id: string, db: AnyGymDB = defaultDb) => updateDislikes((d) => unlearnNever(d, id), db);
 
+/** When the latest workout with logged working sets in the last 3 days was started (null: none). */
+export async function readRecentAt(now = Date.now(), db: AnyGymDB = defaultDb): Promise<number | null> {
+  const sessions = (await db.sessions.where('startedAt').aboveOrEqual(now - RECENT_MS).toArray()).filter((s) => !s.imported && s.startedAt <= now);
+  let at: number | null = null;
+  for (const s of sessions) if ((await db.sets.where('sessionId').equals(s.id).filter((x) => x.kind !== 'warmup').count()) > 0) at = Math.max(at ?? 0, s.startedAt);
+  return at;
+}
+
 /** Muscles with logged working sets in workouts started in the last 3 days (logged sets only). */
 export async function readRecentMuscles(now = Date.now(), db: AnyGymDB = defaultDb): Promise<Muscle[]> {
   return db.transaction('r', db.sessions, db.sets, async () => {

@@ -37,6 +37,7 @@ import {
   withDislikes,
   wordList,
   type Concept,
+  type QuickItem,
 } from '../quick';
 
 const FULL: GymKit = { equipment: [...EQUIPMENT_IDS], dumbbellRange: { min: 5, max: 100, step: 5 } };
@@ -93,7 +94,7 @@ describe('concepts', () => {
     const cs = buildConcepts({ base: base(FULL), minutes: 45, recent: [...recent] }, QUICK_DEPS);
     expect(cs[0]!.id).toBe('fresh');
     expect(cs[0]!.title).toBe("Hit what's fresh");
-    expect(cs[0]!.line).toBe('Skips the chest, triceps and quads you trained lately');
+    expect(cs[0]!.line).toBe('Skips chest and triceps (trained lately)');
     for (const it of cs[0]!.items) for (const m of profileFor(it.id).targets) expect(recent as readonly string[]).not.toContain(m);
     expect(cs).toHaveLength(3);
     expectHonest(cs, FULL);
@@ -327,5 +328,36 @@ describe('round 2', () => {
       expect(to).not.toBe('deadlift');
       seen.push(to);
     }
+  });
+});
+
+describe('round 3', () => {
+  const ok = (id: string) => demoFor(id) !== null;
+  const nameOf = (id: string) => QUICK_DEPS.name(id);
+  it('B2: each option once per slot, one leg press, then nothing: no loop', () => {
+    const start: QuickItem = { id: 'front-squat', slot: 'front-squat', origin: 'front-squat', name: 'Front Squat', pattern: 'squat' as const, sets: 3, reps: [8, 12] as [number, number], restSec: 150, why: 'x' };
+    let item = start;
+    const tried: string[] = [];
+    const shown = [item.id];
+    for (let i = 0; i < 20; i++) {
+      const to = nextSwap(item, [item], tried, { data: SWAP_DATA, gym: FULL, ok, nameOf, profile: (id) => profileFor(id) });
+      if (!to) break;
+      tried.push(item.id);
+      item = swapItem(item, to, nameOf(to), false, 'Front Squat');
+      shown.push(to);
+    }
+    expect(new Set(shown).size).toBe(shown.length);
+    expect(shown.filter((id) => /leg press/i.test(nameOf(id)))).toHaveLength(1);
+    expect(shown.length).toBeLessThan(8);
+    // Exhausted: null, so the screen says "No other option here".
+    expect(nextSwap(item, [item], tried, { data: SWAP_DATA, gym: FULL, ok, nameOf })).toBeNull();
+  });
+
+  it('B1: a rejected card never comes back, and never "Same movement as X" on X', () => {
+    const a = { id: 'dumbbell-lateral-raise', slot: 'dumbbell-lateral-raise', origin: 'dumbbell-lateral-raise', name: 'Dumbbell Lateral Raise', pattern: 'lateral delt' as const, sets: 3, reps: [10, 15] as [number, number], restSec: 60, why: 'Isolates your shoulders' };
+    // Nothing else with a sure demo fits a lateral raise: the slot's own exercise is never offered back.
+    expect(nextSwap(a, [a], [], { data: SWAP_DATA, gym: FULL, ok, nameOf })).toBeNull();
+    const back = swapItem(a, 'leg-press', 'Leg Press', false, 'Leg Press');
+    expect(back.why).toBe(a.why);
   });
 });

@@ -195,8 +195,10 @@ export type QuickInput = {
   /** The intake answers as the generator reads them, with the active gym, never list and soft dislikes merged in. */
   base: GeneratorInput;
   minutes: number;
-  /** Muscles with logged working sets in the last 3 days. */
+  /** Muscles with logged working sets in the last 3 days, most trained first. */
   recent: readonly Muscle[];
+  /** When the latest of those workouts was, in words ("yesterday"). */
+  recentWhen?: string;
   /** The plan day concept, built first (planConcept), or null. */
   plan?: Concept | null;
 };
@@ -261,7 +263,7 @@ export function buildConcepts(input: QuickInput, deps: QuickDeps): Concept[] {
     const r = generateDay({ ...gen, avoidMuscles: recent }, freshDeps, { name: 'fresh', slots });
     if (r.ok) {
       const items = itemsOf(deps, r.items, (it) => `${cap(wordList(targetsOf(deps, it.id).map(muscleWord)))}: not trained in 3 days`);
-      all.push({ id: 'fresh', title: titleOf('fresh', goalMuscle, []), line: `Skips the ${wordList(recent.map(muscleWord))} you trained lately`, items, minutes: r.minutes, over: r.over });
+      all.push({ id: 'fresh', title: titleOf('fresh', goalMuscle, []), line: `Skips ${wordList([...new Set(recent.map(muscleWord))].slice(0, 2))} (trained ${input.recentWhen ?? 'lately'})`, items, minutes: r.minutes, over: r.over });
     }
   }
   for (const id of FALLBACK_ORDER) {
@@ -449,6 +451,8 @@ export type SwapContext = {
   soft?: Readonly<Record<string, number>>;
   /** The ordering profile (heavy lifts stay heavy, light slots stay light). */
   profile?: (id: string) => Profile;
+  /** Plain names: one option under two names is offered once (round 3, B2). */
+  nameOf?: (id: string) => string;
 };
 
 /**
@@ -459,23 +463,40 @@ export type SwapContext = {
 export function nextSwap(item: QuickItem, items: readonly QuickItem[], tried: readonly string[], ctx: SwapContext): string | null {
   const mode = item.seconds !== undefined && item.reps === undefined ? 'seconds' : 'reps';
   const exclude = items.filter((x) => x !== item).map((x) => x.id);
-  // The slot's own exercise is a candidate too (it can come back after a swap).
   const pool = swapCandidates(ctx.data, item.slot, ctx.gym, { mode, exclude: [...exclude, item.id] }).map(workoutIdOf);
-  const own = item.slot !== item.id && !exclude.some((x) => ctx.data.sameAs(x) === ctx.data.sameAs(item.slot)) ? [item.slot] : [];
   // Round 2 (P15, SPEC 7.3): a slot that is not a heavy lift never turns into one, and a conventional
   // deadlift only ever stands in for a deadlift (never a Deadlift at 10 to 12 for an RDL slot).
   const p = ctx.profile;
   const slotP = p?.(item.slot);
   const tooHeavy = (id: string) => !!p && !!slotP && ((!isHeavy(slotP) && isHeavy(p(id))) || (liftWord(p(id)) === 'deadlift' && liftWord(slotP) !== 'deadlift'));
-  const usable = [...pool, ...own].filter((id) => ctx.data.sameAs(id) !== ctx.data.sameAs(item.id) && ctx.ok(id) && sureGear(ctx.data, id, ctx.gym) && !tooHeavy(id));
-  const ranked = rankSoft(usable, ctx.soft);
-  const triedKeys = new Set(tried.map(ctx.data.sameAs));
-  return ranked.find((id) => !triedKeys.has(ctx.data.sameAs(id))) ?? ranked[0] ?? null;
+  // Round 3 (B1, B2): each option once per slot. Never the one on the card, one already swiped away
+  // or rejected (the slot's own first exercise included), or the same option under another name
+  // (Leg Press and Angled Machine Leg Press are one leg press). Nothing new left: null, and the card
+  // says "No other option here"; a rejected card never comes back.
+  const keyOf = (id: string) => (ctx.nameOf ? optionKey(ctx.nameOf(id)) : ctx.data.sameAs(id));
+  const seen = new Set([item.id, item.slot, ...tried, ...exclude].flatMap((id) => [ctx.data.sameAs(id), keyOf(id)]));
+  const usable = pool.filter((id) => !seen.has(ctx.data.sameAs(id)) && !seen.has(keyOf(id)) && ctx.ok(id) && sureGear(ctx.data, id, ctx.gym) && !tooHeavy(id));
+  // Two names for one option in the same ladder: the first (the ladder's best) stands for both.
+  const once = usable.filter((id, i) => usable.findIndex((x) => keyOf(x) === keyOf(id)) === i);
+  return rankSoft(once, ctx.soft)[0] ?? null;
 }
+
+/**
+ * The option an exercise is, by its plain name: "Machine Leg Press", "Angled Machine Leg Press" and
+ * "Leg Press" are the same leg press at a gym (the machine words only say how it is built).
+ */
+export const optionKey = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/\b(machine|angled|lever|leverage)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /** The card after a swap: the slot's targets stay (sets, reps, rest), only the exercise changes. */
 export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean, slotName?: string): QuickItem {
-  const next: QuickItem = { ...item, id: to, name, why: to === item.slot ? item.why : `Same movement as ${slotName ?? item.name}` };
+  // Never "Same movement as X" on X itself (round 3, B1).
+  const from = slotName ?? item.name;
+  const next: QuickItem = { ...item, id: to, name, why: to === item.slot || optionKey(from) === optionKey(name) ? item.why : `Same movement as ${from}` };
   if (eachSide) next.eachSide = true;
   else delete next.eachSide;
   return next;
@@ -517,7 +538,18 @@ export function recentMuscles(
   now: number,
 ): Muscle[] {
   const ids = new Set(sessions.filter((x) => !x.imported && x.startedAt >= now - RECENT_MS && x.startedAt <= now).map((x) => x.id));
-  const out = new Set<Muscle>();
-  for (const st of sets) if (ids.has(st.sessionId) && st.kind !== 'warmup') for (const m of targets(st.exerciseId)) out.add(m);
-  return [...out];
+  // Most trained first (round 3, P7: the subtitle names the main areas).
+  const count = new Map<Muscle, number>();
+  for (const st of sets) if (ids.has(st.sessionId) && st.kind !== 'warmup') for (const m of targets(st.exerciseId)) count.set(m, (count.get(m) ?? 0) + 1);
+  return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => m);
+}
+
+/** "today", "yesterday", "2 days ago": when the last of those workouts was (local days). */
+export function whenWords(at: number, now: number): string {
+  const day = (t: number) => {
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const n = Math.round((day(now) - day(at)) / 86_400_000);
+  return n <= 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`;
 }

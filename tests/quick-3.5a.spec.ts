@@ -293,24 +293,25 @@ test.describe('round 2', () => {
     await openQuick(page);
     await page.locator('[data-concept="push"]').tap();
     const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
-    // Walk to the lateral raise: nothing else with a sure demo fits it here.
+    // Walk to the overhead triceps extension: nothing else with a sure demo fits it here (and it is not last).
+    const NAME = 'Dumbbell Single Arm Overhead Tricep Extension';
     for (let i = 0; i < total; i++) {
       await expect(eyebrow(page)).toContainText(`${i + 1} of`);
-      if ((await page.getByTestId('deck-name').textContent()) === 'Dumbbell Lateral Raise') break;
+      if ((await page.getByTestId('deck-name').textContent()) === NAME) break;
       await page.getByTestId('deck-keep').tap();
     }
-    await expect(page.getByTestId('deck-name')).toHaveText('Dumbbell Lateral Raise');
+    await expect(page.getByTestId('deck-name')).toHaveText(NAME);
     await expect(page.getByTestId('quick-start')).toHaveText('Start now');
     await page.getByTestId('deck-swap').tap();
     await expect(page.getByTestId('swap-label')).toHaveText('No other option here');
-    await expect(page.getByTestId('deck-name')).toHaveText('Dumbbell Lateral Raise');
+    await expect(page.getByTestId('deck-name')).toHaveText(NAME);
     await shotOn(page, '3.5a', 'swap-none');
     await expect(page.getByTestId('swap-label')).toHaveText('Swap', { timeout: 4000 });
     // Never: it leaves, the line above the card says the new time, Undo is right there.
     const before = Number((await page.getByTestId('curate-meta').textContent())!.match(/~(\d+) min/)![1]);
     await page.getByTestId('deck-never').tap();
     const notice = page.getByTestId('deck-hint');
-    await expect(notice).toContainText(/Won't show it again · Removed, workout is now \d+ min/);
+    await expect(notice).toContainText(/Won't show it again · Nothing else fits here, removed: workout is now \d+ min/);
     const after = Number((await notice.textContent())!.match(/now (\d+) min/)![1]);
     expect(after).toBeLessThan(before);
     await expect(page.getByTestId('curate-meta')).toContainText(`~${after} min`);
@@ -334,6 +335,44 @@ test.describe('round 2', () => {
       const st = (await page.getByTestId('quick-start').boundingBox())!;
       expect(n.y + n.height).toBeLessThanOrEqual(st.y);
     }
+    expect(errors).toEqual([]);
+  });
+
+  test('round 3 B2: swiping left shows each option once (one leg press), then No other option here and it stops', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await openQuick(page);
+    await page.locator('[data-concept="lower"]').tap();
+    // The squat card of the legs day.
+    const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
+    for (let i = 0; i < total; i++) {
+      await expect(eyebrow(page)).toContainText(`${i + 1} of`);
+      if (/Squat/.test((await page.getByTestId('deck-name').textContent())!)) break;
+      await page.getByTestId('deck-keep').tap();
+    }
+    const names = [(await page.getByTestId('deck-name').textContent())!];
+    for (let i = 0; i < 12; i++) {
+      const was = await card(page).getAttribute('data-exercise');
+      await page.getByTestId('deck-swap').tap();
+      const stopped = await expect(page.getByTestId('swap-label'))
+        .toHaveText('No other option here', { timeout: 1500 })
+        .then(() => true)
+        .catch(() => false);
+      if (stopped) break;
+      await expect(card(page)).not.toHaveAttribute('data-exercise', was!);
+      names.push((await page.getByTestId('deck-name').textContent())!);
+    }
+    console.log('squat slot options:', names.join(' > '));
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.filter((n) => /leg press/i.test(n)).length).toBeLessThanOrEqual(1);
+    await expect(page.getByTestId('swap-label')).toHaveText('No other option here');
+    // Never on the last option: the rejected ones never come back, the slot leaves with the gap said.
+    const last = (await page.getByTestId('deck-name').textContent())!;
+    await page.getByTestId('swap-label').waitFor();
+    await page.getByTestId('deck-never').tap();
+    await expect(page.getByTestId('deck-hint')).toContainText('Nothing else fits here');
+    await expect(page.getByTestId('deck-name')).not.toHaveText(last);
+    for (const n of names) await expect(page.getByTestId('deck-name')).not.toHaveText(n);
     expect(errors).toEqual([]);
   });
 
@@ -452,19 +491,17 @@ test.describe('layout', () => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page);
-    // Every computed size read first, then each scaled once by 1.3 (a larger iOS text size), never compounded.
-    const scale = () =>
-      page.evaluate(() => {
-        document.documentElement.style.fontSize = '130%';
-        const els = Array.from(document.querySelectorAll<HTMLElement>('body *')).map((el) => {
-          const st = getComputedStyle(el);
-          return { el, size: parseFloat(st.fontSize), line: parseFloat(st.lineHeight) };
-        });
-        for (const { el, size, line } of els) {
-          el.style.fontSize = `${size * 1.3}px`;
-          if (Number.isFinite(line)) el.style.lineHeight = `${line * 1.3}px`;
-        }
-      });
+    // Round 3 (P8): a real root font size of 130% (the deck and choose screen are in rem), never
+    // nested scaling. The text really grows: the card name is checked bigger afterwards.
+    const scale = async () => {
+      await page.evaluate(() => (document.documentElement.style.fontSize = ''));
+      await page.waitForTimeout(100);
+      const before = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-concept] span, [data-testid="deck-name"]')!).fontSize));
+      await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));
+      await page.waitForTimeout(150);
+      const after = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-concept] span, [data-testid="deck-name"]')!).fontSize));
+      expect(after / before).toBeGreaterThan(1.25);
+    };
     const clipped = () =>
       page.evaluate(() =>
         Array.from(document.querySelectorAll<HTMLElement>('h1, h2, p, span, button'))

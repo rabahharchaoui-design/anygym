@@ -58,7 +58,15 @@ function Photo({ id }: { id: string }) {
   const src = !demo ? null : photos.kind === 'net' ? assetUrl(demo.webp[0]!) : photos.kind === 'cache' ? photos.urls[0] : null;
   return (
     <div className={styles.photo} data-demo={demo ? '' : undefined}>
-      {src ? <img src={src} alt="" decoding="async" draggable={false} /> : <span className={styles.photoOff}>Photo when you are back online</span>}
+      {src ? (
+        <>
+          {/* Round 3 (P5): the same photo, soft and dim, fills the box: no dark bands, nothing cropped. */}
+          <img className={styles.photoFill} src={src} alt="" decoding="async" draggable={false} aria-hidden="true" />
+          <img className={styles.photoMain} src={src} alt="" decoding="async" draggable={false} />
+        </>
+      ) : (
+        <span className={styles.photoOff}>Photo when you are back online</span>
+      )}
     </div>
   );
 }
@@ -68,15 +76,14 @@ function Card({ item, position, of, under, action }: { item: QuickItem; position
   return (
     <>
       <Photo id={item.id} />
-      <span className={styles.edge} data-side="keep" aria-hidden="true">
-        <span className={styles.cue}>
-          <CheckIcon width={26} height={26} strokeWidth={3} />
-        </span>
+      <span className={styles.edge} data-side="keep" aria-hidden="true" />
+      <span className={styles.edge} data-side="swap" aria-hidden="true" />
+      {/* Round 3 (P4): the chip sits toward the screen's centre, so it stays in view as the card leaves. */}
+      <span className={styles.cue} data-side="keep" aria-hidden="true">
+        <CheckIcon width={26} height={26} strokeWidth={3} />
       </span>
-      <span className={styles.edge} data-side="swap" aria-hidden="true">
-        <span className={styles.cue}>
-          <SwapIcon width={24} height={24} strokeWidth={2.4} />
-        </span>
+      <span className={styles.cue} data-side="swap" aria-hidden="true">
+        <SwapIcon width={24} height={24} strokeWidth={2.4} />
       </span>
       <div className={styles.cardBody}>
         <p className={`${styles.cardEyebrow} num`}>
@@ -122,6 +129,11 @@ export function Deck({ items, index, canSwap, reduced, onDecide, onFlyStart, onN
     el.style.transform = reduced ? `translate3d(${x}px,0,0)` : `translate3d(${x}px,0,0) rotate(${(x / w) * TILT}deg)`;
     el.style.setProperty('--keep', String(Math.max(0, p)));
     el.style.setProperty('--swap', String(Math.max(0, -p)));
+    // The chip is fully there by about 40 px, the glow keeps growing to the threshold.
+    el.style.setProperty('--keep-chip', String(Math.min(1, Math.max(0, x) / 40)));
+    el.style.setProperty('--swap-chip', String(Math.min(1, Math.max(0, -x) / 40)));
+    if (Math.abs(x) > 2) el.dataset.dragging = '';
+    else delete el.dataset.dragging;
     const under = underRef.current;
     if (under && !reduced) under.style.transform = `translate3d(0,${10 - 10 * Math.min(1, Math.abs(p))}px,0) scale(${0.94 + 0.06 * Math.min(1, Math.abs(p))})`;
   };
@@ -155,8 +167,11 @@ export function Deck({ items, index, canSwap, reduced, onDecide, onFlyStart, onN
       el.style.transform = '';
       el.style.removeProperty('--keep');
       el.style.removeProperty('--swap');
+      el.style.removeProperty('--keep-chip');
+      el.style.removeProperty('--swap-chip');
       el.style.opacity = '';
       delete el.dataset.holding;
+      delete el.dataset.dragging;
       const was = shown.current;
       if (top && was && was.index === index && was.id !== top.id) {
         el.animate(

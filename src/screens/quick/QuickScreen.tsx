@@ -13,7 +13,7 @@ import { startDb } from '../../db/bootstrap';
 import { getProfile } from '../../db/intake';
 import { getPlanState, weekFor } from '../../db/planState';
 import { useActiveGym } from '../../db/useActiveGym';
-import { alwaysPicks, getDislikes, readRecentMuscles, recordNever, recordSwapAway, startBuilt, undoNever } from '../../db/quick';
+import { alwaysPicks, getDislikes, readRecentAt, readRecentMuscles, recordNever, recordSwapAway, startBuilt, undoNever } from '../../db/quick';
 import { getActiveSession, startWorkout } from '../../db/workouts';
 import { planById } from '../../data/plans';
 import { SWAP_DATA, countsEachSide } from '../../data/patterns';
@@ -32,6 +32,7 @@ import {
   planConcept,
   QUICK_MINUTES,
   swapItem,
+  whenWords,
   type Concept,
   type Dislikes,
   type PlanPart,
@@ -52,6 +53,7 @@ type Loaded = {
   answers: IntakeAnswers | undefined;
   dislikes: Dislikes;
   recent: Muscle[];
+  recentWhen?: string;
   plan: { plan: Plan; dayIndex: number; weekIndex: number; always: Record<string, string> } | null;
 };
 
@@ -83,14 +85,14 @@ export function QuickScreen() {
     let alive = true;
     (async () => {
       await startDb();
-      const [profile, state, recent, dislikes] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(), getDislikes()]);
+      const [profile, state, recent, dislikes, recentAt] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(), getDislikes(), readRecentAt()]);
       const plan = planById(state?.planId);
       let planPart: Loaded['plan'] = null;
       if (plan && state) {
         const dayIndex = Math.max(0, Math.min(state.nextDayIndex, plan.days.length - 1));
         planPart = { plan, dayIndex, weekIndex: weekFor(state, plan.id), always: await alwaysPicks(plan.id) };
       }
-      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, plan: planPart });
+      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, ...(recentAt !== null ? { recentWhen: whenWords(recentAt, Date.now()) } : {}), plan: planPart });
     })().catch(() => alive && setFailed(true));
     return () => {
       alive = false;
@@ -105,7 +107,7 @@ export function QuickScreen() {
     if (!loaded || !kit || !base) return null;
     const p = loaded.plan;
     const plan = p ? planConcept({ plan: p.plan, dayIndex: p.dayIndex, weekIndex: p.weekIndex, minutes: chip, gym: kit, always: p.always, ...(base.never ? { never: base.never } : {}), ...(base.soft ? { soft: base.soft } : {}) }, QUICK_DEPS) : null;
-    return buildConcepts({ base, minutes: chip, recent: loaded.recent, plan }, QUICK_DEPS);
+    return buildConcepts({ base, minutes: chip, recent: loaded.recent, ...(loaded.recentWhen ? { recentWhen: loaded.recentWhen } : {}), plan }, QUICK_DEPS);
     // Concepts are worked out for the chip picked; a "never" learned in the deck applies next time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, kit, chip]);
@@ -119,7 +121,7 @@ export function QuickScreen() {
   const swapFor = (c: Curating): string | null => {
     const item = c.items[c.index];
     if (!item || !kit) return null;
-    return nextSwap(item, c.items, [...(c.tried[item.slot] ?? []), item.id], { data: SWAP_DATA, gym: kit, ok: okFor, profile: QUICK_DEPS.profile, ...(base?.soft ? { soft: base.soft } : {}) });
+    return nextSwap(item, c.items, [...(c.tried[item.slot] ?? []), item.id], { data: SWAP_DATA, gym: kit, ok: okFor, profile: QUICK_DEPS.profile, nameOf: QUICK_DEPS.name, ...(base?.soft ? { soft: base.soft } : {}) });
   };
   const canSwap = stage ? swapFor(stage) !== null : false;
 
@@ -156,6 +158,8 @@ export function QuickScreen() {
   };
   useEffect(() => {
     if (stage && stage.index < stage.items.length) setLeaving(false);
+    // Round 3 (P3): the deck is done: its notice (and its Undo) goes with it.
+    if (stage && stage.index >= stage.items.length) setNotice(null);
   }, [stage]);
 
   const nothingToSwap = () => {
@@ -186,7 +190,7 @@ export function QuickScreen() {
     const id = Date.now();
     setNotice({
       id,
-      text: to ? `Won't show it again · ${item.name}` : `Won't show it again · Removed, workout is now ${after} min`,
+      text: to ? `Won't show it again · ${item.name}` : `Won't show it again · Nothing else fits here, removed: workout is now ${after} min`,
       undo: () => {
         setNotice((n) => (n?.id === id ? null : n));
         void undoNever(item.id).catch(() => undefined);
@@ -271,7 +275,6 @@ export function QuickScreen() {
             <h1 className={styles.deckTitle}>{done ? 'Ready to go' : stage.concept.title}</h1>
             <p className={`${styles.deckMeta} num`} data-testid="curate-meta">
               {stage.items.length} {stage.items.length === 1 ? 'exercise' : 'exercises'} · ~{total} min
-              {stage.concept.plan ? <span className={styles.deckFrom}> · {stage.concept.line}</span> : null}
             </p>
           </div>
         </header>
@@ -338,7 +341,7 @@ export function QuickScreen() {
             <DumbbellIcon width={36} height={36} strokeWidth={1.6} />
           </span>
           <h2 className={styles.emptyTitle}>Not enough here to build one yet</h2>
-          <p className={styles.emptyText}>We only build with moves we can show you, and fewer than 3 fit this gym's equipment.</p>
+          <p className={styles.emptyText}>We only build with moves we can show you, and fewer than 3 fit this gym's equipment. Bodyweight moves don't have demos we're sure of yet, so a gym with no equipment can't get one for now.</p>
           <Button onClick={addEquipment}>Add equipment</Button>
           <Button variant="secondary" onClick={() => void pickMyself()}>
             Pick exercises myself
