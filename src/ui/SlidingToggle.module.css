@@ -34,13 +34,18 @@
   transform: translateX(calc(var(--i) * 100%));
   transition: transform var(--dur-tap) var(--ease-tap-spring);
   will-change: transform;
+  /* Only paint: every option owns its whole hit area, at every width (PLAN 3.6). */
+  pointer-events: none;
 }
 
 .option {
   position: relative;
   z-index: 1;
-  /* 48 pt hit area (SPEC 13.3). */
-  min-height: 48px;
+  /* 48 pt hit area (SPEC 13.3), reaching over the track's own padding top and bottom so no sliver
+     of the track sits between an option's edge and its probe points at any width (PLAN 3.6). The
+     track keeps its height; the pill stays inset. */
+  min-height: calc(48px + 2 * var(--pad));
+  margin-block: calc(var(--pad) * -1);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   color: var(--text-2);
