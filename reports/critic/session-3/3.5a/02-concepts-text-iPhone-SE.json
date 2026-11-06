@@ -1,0 +1,22 @@
+{
+  "pressT": "matrix(0.97, 0, 0, 0.97, 0, 0)",
+  "openMs": 32,
+  "text": "Quick workout\nQuick workout\nHow long?\n15 min\n30 min\n45 min\n60 min\nPick one\nYour Legs (hamstring focus) day, short\nFrom Classic 5 Day Split, made to fit\n4 exercises · ~29 min\nHit what's fresh\nSkips the chest and back you trained lately\n3 exercises · ~29 min\nFull body pump\nQuads, glutes, chest and back\n3 exercises · ~31 min\nPick exercises myself",
+  "concepts": [
+    {
+      "id": "plan",
+      "text": "Your Legs (hamstring focus) day, short\nFrom Classic 5 Day Split, made to fit\n4 exercises · ~29 min",
+      "h": 168.375
+    },
+    {
+      "id": "fresh",
+      "text": "Hit what's fresh\nSkips the chest and back you trained lately\n3 exercises · ~29 min",
+      "h": 122.375
+    },
+    {
+      "id": "full",
+      "text": "Full body pump\nQuads, glutes, chest and back\n3 exercises · ~31 min",
+      "h": 112
+    }
+  ]
+}

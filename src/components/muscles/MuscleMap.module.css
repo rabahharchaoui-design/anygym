@@ -386,3 +386,24 @@
   margin-bottom: var(--space-3);
   font-weight: 600;
 }
+
+/* PLAN 3.5a: the mini map on a Quick workout concept card (two still bodies side by side). */
+.mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.miniBody {
+  display: block;
+  width: 34px;
+}
+
+.miniBody .svg {
+  position: relative;
+  inset: auto;
+  height: auto;
+  aspect-ratio: 1 / 2;
+}

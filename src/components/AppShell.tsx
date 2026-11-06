@@ -14,7 +14,7 @@ import styles from './AppShell.module.css';
 
 /** The screen a pushed screen goes back to (null on a tab root). */
 export function parentOf(pathname: string): string | null {
-  if (pathname === '/settings' || pathname.startsWith('/dev/')) return '/';
+  if (pathname === '/settings' || pathname === '/quick' || pathname.startsWith('/dev/')) return '/';
   // PLAN 3.9: Settings, Gyms, a gym, its equipment: each goes back one level.
   const gyms = /^(\/settings\/gyms(?:\/[^/]+)?)\/[^/]+$/.exec(pathname);
   if (gyms) return gyms[1]!;
@@ -48,7 +48,7 @@ export function AppShell() {
   const go = useNav();
   const layerRef = useRef<HTMLElement>(null);
   const parent = parentOf(pathname);
-  const pushed = pathname === '/settings' || pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
+  const pushed = pathname === '/settings' || pathname === '/quick' || pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
   const active = useLive(() => getActiveSession(), []);
   // Today has its own in progress card; the bar is for the other tabs.
   const resuming = !!active.data && !pushed && pathname !== '/';

@@ -13,6 +13,7 @@ import { pickBar, pickLoadType, pickNote, pickRest, pickRestOff } from '../../db
 import { planExercise } from '../../data/planExercises';
 import { planById } from '../../data/plans';
 import { dayIndexOf, estimateDayMinutes, type Plan, type PlanDay } from '../../lib/plans';
+import { quickDayOf } from '../../lib/quick';
 import { dayWorkout, doneCounts, quickEntry, repRangeOf, upNext, type DoneCounts, type WorkoutEntry } from '../../lib/planWorkout';
 import { SWAP_SHEET_MAX, liveEntries, patternOf, slotOf, swapCandidates, swapOfRow, swapReason, workoutIdOf } from '../../lib/swap';
 import { SWAP_DATA, candidateBarOf, candidateLoadOf, countsEachSide } from '../../data/patterns';
@@ -159,7 +160,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
       liveEntries({
         planEntries,
         exerciseIds,
-        make: (id, block) => quickEntry(id, nameOf(id), loadTypeOf(id), block, session.data?.suggestedRest?.[id]),
+        make: (id, block) => quickEntry(id, nameOf(id), loadTypeOf(id), block, session.data?.suggestedRest?.[id], session.data?.targets?.[id]),
         swaps,
         adjust: liveRowAdjustments(sessionId, new Set(presentKey ? presentKey.split('|') : [])),
         sets,
@@ -167,7 +168,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
         eachSideOf: countsEachSide,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [planEntries, exerciseIds, sessionId, extraTick, settings.data, gym.data, presentKey, kindKey, swaps, session.data?.suggestedRest],
+    [planEntries, exerciseIds, sessionId, extraTick, settings.data, gym.data, presentKey, kindKey, swaps, session.data?.suggestedRest, session.data?.targets],
   );
   const entryMap = useMemo(() => new Map(entries.map((e) => [e.exerciseId, e])), [entries]);
 
@@ -263,7 +264,12 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     gym: gym.data,
     plan,
     day,
-    minutes: day ? estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex) : undefined,
+    // PLAN 3.5a: a built Quick workout shows the same estimate its concept card showed (one estimator).
+    minutes: day
+      ? estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex)
+      : session.data?.targets
+        ? estimateDayMinutes(quickDayOf(entries.map((e) => ({ id: e.exerciseId, name: e.name, sets: e.sets, restSec: e.restSec, ...(e.reps !== undefined ? { reps: e.reps } : {}), ...(e.seconds !== undefined ? { seconds: e.seconds } : {}) }))))
+        : undefined,
     sets,
     setsOfExercise: (id) => sets.filter((s) => s.exerciseId === id),
     entries,

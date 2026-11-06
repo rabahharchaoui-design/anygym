@@ -213,3 +213,20 @@ export function muscleReportLines(exercises: CatalogMuscles[], overrides: Muscle
     '',
   ];
 }
+
+/**
+ * PLAN 3.5a: one map for a whole workout (the Quick workout concept cards): every region a sure
+ * exercise lights, primary wherever any exercise works it hard. Exercises without sure muscles add
+ * nothing (never a guess); none at all: null, and no map is drawn.
+ */
+export function mergeMuscleMaps(maps: readonly (MuscleMapData | null | undefined)[]): MuscleMapData | null {
+  const sure = maps.filter((m): m is MuscleMapData => !!m && m.primary.length > 0);
+  if (!sure.length) return null;
+  const shading: MuscleMapData['shading'] = {};
+  for (const m of sure)
+    for (const [r, shade] of Object.entries(m.shading) as [Region, Shade][]) if (shade === 'primary' || shading[r] === undefined) shading[r] = shade;
+  const seen = new Set<string>();
+  const primary = sure.flatMap((m) => m.primary).filter((t) => (seen.has(t.label) ? false : (seen.add(t.label), true)));
+  const secondary = sure.flatMap((m) => m.secondary).filter((t) => (seen.has(t.label) ? false : (seen.add(t.label), true)));
+  return { primary, secondary, shading, text: muscleText(primary, []) };
+}

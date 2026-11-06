@@ -4,7 +4,7 @@ import { COLLAPSE_PX, TopBar } from '../ui/TopBar';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
-import { SettingsIcon } from '../ui/icons';
+import { ChevronRight, CoachIcon, SettingsIcon } from '../ui/icons';
 import { useNav } from '../ui/nav';
 import { GymPill } from '../components/GymPill';
 import { LoadError } from '../components/LoadError';
@@ -315,11 +315,24 @@ export function TodayScreen() {
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
           </section>
         )}
+        {/* PLAN 3.5a (SPEC 20.3): past the intake, Quick workout builds it for you, 30 min preselected. */}
+        {data.ready && !active && !!profile.data?.intakeDoneAt && (
+          <button type="button" className={`${styles.build} pressable`} onClick={() => go('/quick?min=30', { kind: 'push' })} data-testid="build-card">
+            <span className={styles.buildIcon} aria-hidden="true">
+              <CoachIcon width={20} height={20} strokeWidth={2.2} />
+            </span>
+            <span className={styles.buildText}>
+              <span className={styles.buildLabel}>Got 30 min? I'll build it</span>
+              <span className={styles.buildSub}>Pick one, keep or swap, go</span>
+            </span>
+            <ChevronRight className={styles.buildChevron} width={20} height={20} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        )}
         {/* Also when the saved workouts could not be read: a quick workout still works (no dead end). */}
         {((data.ready && !active) || failed) && (
           <button type="button" ref={quickRef} className={`${styles.quick} pressable`} onClick={() => void quick()} data-testid="quick-card">
             <span className={styles.quickLabel}>Quick workout</span>
-            <span className={styles.quickSub}>Start empty, add exercises as you go</span>
+            <span className={styles.quickSub}>Pick exercises myself</span>
           </button>
         )}
         <BackupReminder

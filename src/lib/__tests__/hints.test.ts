@@ -26,6 +26,8 @@ describe('hint store', () => {
       setCard: 'Tap the check when you finish a set',
       // PLAN 2.2d round 2 (P1): once, after the first logged set.
       swipeSet: 'Swipe a set left to delete it',
+      // PLAN 3.5a (SPEC 20.3): once, on the first Quick workout deck.
+      deckSwipe: 'Right keeps it, left swaps it.',
     });
   });
 

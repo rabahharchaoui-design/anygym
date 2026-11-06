@@ -80,7 +80,7 @@ export function workoutAtGym(session: Session, sets: readonly WorkoutSet[], gym:
   const rows = liveEntries({
     planEntries,
     exerciseIds,
-    make: (id, block) => quickEntry(id, nameOf(id), loadOf(id), block),
+    make: (id, block) => quickEntry(id, nameOf(id), loadOf(id), block, undefined, session.targets?.[id]),
     swaps: session.swaps,
     adjust: liveRowAdjustments(session.id, new Set(sets.map((s) => s.id))),
     sets,

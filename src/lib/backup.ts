@@ -213,6 +213,10 @@ const sessionSwap = shape({
 });
 
 /** What a time budget left out of a workout's plan day (PLAN 3.6). */
+/** A built Quick workout's targets for one exercise (PLAN 3.5a). */
+const range = (v: unknown) => num(v) || tuple(num, num)(v);
+const quickTarget = shape({ req: { sets: num, restSec: num }, opt: { reps: range, seconds: range } });
+
 const dayTrim = shape({
   req: { drop: listOf(str), sets: recordOf(num) },
   opt: { mobility: listOf(str) },
@@ -222,7 +226,7 @@ const dayTrim = shape({
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
     req: { id: str, defaultUnit: unit, createdAt: num },
-    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in') },
+    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str) } }) },
   }),
   gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
   // PLAN 3.5: a generated plan's definition must be one this app can run, under the row's own id.
@@ -230,7 +234,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
     req: { id: str, gymId: str, startedAt: num, imported: bool },
-    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num), trim: dayTrim },
+    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num), trim: dayTrim, targets: recordOf(quickTarget) },
   }),
   sets: isSet,
   runs: shape({
