@@ -10,10 +10,20 @@ const audit = readFileSync('reports/audit-2.5.md', 'utf8')
   .filter((l) => /^\| [a-z0-9-]+ \|/.test(l) && !l.startsWith('| planId'))
   .map((l) => l.split('|').map((c) => c.trim()))
   .map((c) => ({ planId: c[1]!, match: c[2]!, catalogId: c[3]!, verdict: c[6]! }));
-const keptIds = new Set(audit.filter((a) => a.verdict === 'keep').map((a) => a.catalogId));
+// PLAN 3.5a round 2: plus the catalog only swap candidates checked by hand (data/catalog-demos.json).
+const handChecked = (JSON.parse(readFileSync('data/catalog-demos.json', 'utf8')) as { exercises: { catalogId: string; reason: string }[] }).exercises;
+const keptIds = new Set([...audit.filter((a) => a.verdict === 'keep').map((a) => a.catalogId), ...handChecked.map((e) => e.catalogId)]);
 const rejectedIds = new Set(audit.filter((a) => a.verdict !== 'keep').map((a) => a.catalogId));
 
 describe('catalog photo eligibility', () => {
+  it('the hand checked list only adds catalog exercises no audit rejected, each with its reason', () => {
+    for (const e of handChecked) {
+      expect(rejectedIds.has(e.catalogId), e.catalogId).toBe(false);
+      expect(e.reason.length).toBeGreaterThan(10);
+      expect(CATALOG.some((c) => c.id === e.catalogId)).toBe(true);
+    }
+  });
+
   it('reads the audit table', () => {
     expect(audit.length).toBe(48);
     expect(keptIds.size).toBeGreaterThan(30);

@@ -31,6 +31,44 @@
   flex: 1 0 auto;
 }
 
+/* Round 2 (B1, P14): the deck's one compact bar, title and meta on their own two short lines. */
+.deckHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: calc(var(--safe-top) + 60px);
+  padding-top: var(--safe-top);
+  margin-left: -8px;
+}
+
+.deckHeadText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.deckTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.deckMeta {
+  margin: 1px 0 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.deckFrom {
+  color: var(--text-2);
+}
+
 .meta {
   margin: 2px 0 0;
   color: var(--text-2);
@@ -159,35 +197,59 @@
 
 /* ---------------------------------------------------------------- the deck */
 
-.hint {
-  margin: var(--space-2) 0 var(--space-3);
-  min-height: 1.3em;
+/* The hint, or a notice with its Undo (round 2, B2): above the card, its height kept. */
+.notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
   color: var(--text-2);
   font-size: var(--text-sm);
   text-align: center;
 }
 
+.noticeText {
+  color: var(--text);
+  min-width: 0;
+}
+
+.undo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.08);
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* Full bleed, clipped sideways only: a card flying off never makes the page scroll sideways, and it
-   leaves at the screen's edge, not the page's padding. */
+   leaves at the screen's edge. It takes the room the bar, buttons and Start leave (round 2, B1). */
 .deckWrap {
+  flex: 1 1 0;
+  display: flex;
   margin: 0 calc(-1 * var(--page-pad-r, 24px)) 0 calc(-1 * var(--page-pad-l, 24px));
   padding: 0 var(--page-pad-r, 24px) 0 var(--page-pad-l, 24px);
   overflow-x: clip;
-  flex: 1 1 auto;
-  min-height: 280px;
-  max-height: 600px;
 }
 
+/* The cards stack in one grid cell: the deck is never shorter than a card's words. */
 .deck {
-  position: relative;
-  /* The card takes the room between the title and the buttons; never under 300 pt (SE, 320 wide). */
-  height: 100%;
+  flex: 1;
+  display: grid;
+  max-height: 600px;
   margin: 0 2px;
 }
 
 .card {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -212,17 +274,18 @@
   pointer-events: none;
 }
 
-.card[data-under] .stamp,
-.card[data-under] .cardWhy {
+.card[data-under] .cardWhy,
+.card[data-under] .edge {
   visibility: hidden;
 }
 
+/* The photo gives way first when room is short; the words never do. Never cropped (P12). */
 .photo {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 120px;
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface-2);
 }
 
 .photo img {
@@ -230,12 +293,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   pointer-events: none;
-}
-
-.photo:not([data-demo]) {
-  background: var(--surface-2);
 }
 
 .photoOff {
@@ -247,38 +306,53 @@
   color: var(--text-2);
   font-size: var(--text-sm);
   text-align: center;
-  background: var(--surface-2);
 }
 
-/* Keep and Swap words fade in with the drag (written as --keep and --swap, 0 to 1). */
-.stamp {
+/* Round 2 (P10): our own cue, a glow growing on the side the card moves toward, with a chip. */
+.edge {
   position: absolute;
-  top: 68px;
-  padding: 4px 12px;
-  border: 3px solid currentColor;
-  border-radius: 12px;
-  background: rgb(0 0 0 / 0.55);
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0;
+  top: 0;
+  bottom: 0;
+  width: 46%;
+  display: flex;
+  align-items: center;
   pointer-events: none;
 }
 
-.stamp[data-stamp='keep'] {
-  left: 18px;
-  color: var(--accent);
-  transform: rotate(-10deg);
+.edge[data-side='keep'] {
+  right: 0;
+  justify-content: flex-end;
+  padding-right: 26px;
+  background: linear-gradient(to left, rgb(212 255 58 / 0.5), rgb(212 255 58 / 0));
   opacity: var(--keep, 0);
 }
 
-.stamp[data-stamp='swap'] {
-  right: 18px;
-  color: var(--pair);
-  transform: rotate(10deg);
+.edge[data-side='swap'] {
+  left: 0;
+  padding-left: 26px;
+  background: linear-gradient(to right, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0));
   opacity: var(--swap, 0);
+}
+
+.cue {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+}
+
+.edge[data-side='keep'] .cue {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--accent-glow);
+  transform: scale(calc(0.7 + 0.3 * var(--keep, 0)));
+}
+
+.edge[data-side='swap'] .cue {
+  background: rgb(255 255 255 / 0.92);
+  color: #000;
+  transform: scale(calc(0.7 + 0.3 * var(--swap, 0)));
 }
 
 .cardBody {
@@ -286,13 +360,14 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: var(--space-3) var(--space-5) var(--space-5);
+  padding: var(--space-3) var(--space-5) var(--space-4);
   background: var(--surface-1);
 }
 
 .cardEyebrow {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin: 0;
   color: var(--text-2);
@@ -302,8 +377,8 @@
 .swappedTag {
   padding: 1px 8px;
   border-radius: var(--radius-pill);
-  background: rgb(124 196 255 / 0.15);
-  color: var(--pair);
+  background: rgb(255 255 255 / 0.1);
+  color: var(--text);
   font-size: 12px;
   font-weight: 700;
 }
@@ -311,9 +386,9 @@
 .cardName {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  line-height: 1.12;
+  line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
@@ -330,58 +405,136 @@
   line-height: 1.35;
 }
 
+/* "Never show": a labelled 48 pt pill (round 2, tester, P12). */
 .never {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
+  margin: -8px -10px -8px auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px 0 12px;
   border: 1px solid var(--glass-line);
-  border-radius: 50%;
-  background: rgb(0 0 0 / 0.55);
-  color: var(--text);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
 }
 
-/* While dragging a card the Swap stamp sits under the never button: the button steps back. */
 .card[data-top] .never {
   opacity: calc(1 - var(--swap, 0) - var(--keep, 0));
 }
 
-.deckButtons {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-6);
-  margin: var(--space-3) 0 var(--space-2);
-}
-
-.round {
-  display: flex;
+/* The hold (round 2, P9): a ring fills over the hold, then Never show. */
+.hold {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  display: none;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  width: 72px;
-  min-height: 64px;
-  padding: 8px 0 6px;
-  border: 1px solid var(--glass-line);
-  border-radius: 22px;
-  background: rgb(255 255 255 / 0.06);
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.card[data-holding] .hold {
+  display: flex;
+}
+
+.hold svg {
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 2px 8px rgb(0 0 0 / 0.6));
+}
+
+.holdTrack {
+  fill: rgb(0 0 0 / 0.5);
+  stroke: rgb(255 255 255 / 0.25);
+  stroke-width: 6;
+}
+
+.holdFill {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: hold-fill var(--hold-ms, 480ms) linear forwards;
+}
+
+.holdWord {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.65);
   color: var(--text);
   font-size: 13px;
   font-weight: 700;
 }
 
+@keyframes hold-fill {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holdFill {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Fixed 56 pt buttons: they never give way to the card (round 2, B1). */
+.deckButtons {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 var(--space-1);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.deckButtons[data-leaving] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.round {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 6px 12px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* Lime is for Keep only (P13); Swap is glass. */
 .round[data-kind='keep'] {
-  border-color: rgb(212 255 58 / 0.4);
+  border-color: rgb(212 255 58 / 0.45);
   background: var(--accent-soft);
   color: var(--accent);
 }
 
-.round[data-kind='swap'] {
-  color: var(--pair);
+.round[data-note] {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+
+/* Start: full bleed under the deck, at the bottom of its column, never over the buttons. */
+.cta {
+  position: static;
+  margin: 0 calc(-1 * var(--page-pad-r, 24px)) 0 calc(-1 * var(--page-pad-l, 24px));
+  border-top: 0;
 }
 
 /* ---------------------------------------------------------------- ready */
@@ -390,12 +543,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin: var(--space-4) 0 var(--space-4);
+  margin: var(--space-3) 0 var(--space-4);
   padding: 0;
   list-style: none;
-  counter-reset: ready;
 }
 
+/* Ready to go comes in on the same spring the last card left on (P8). */
 .readyRow {
   display: flex;
   flex-direction: column;
@@ -404,6 +557,25 @@
   border: 1px solid var(--glass-line);
   border-radius: 18px;
   background: var(--surface-1);
+  animation: ready-in 280ms var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+.ready[data-reduced] .readyRow {
+  animation: ready-fade 160ms ease-out both;
+}
+
+@keyframes ready-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.97);
+  }
+}
+
+@keyframes ready-fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .readyName {
@@ -416,8 +588,44 @@
   font-size: var(--text-sm);
 }
 
-/* Start as is: full bleed under the deck, at the bottom of its column. */
-.cta {
-  margin: 0 calc(-1 * var(--page-pad-r, 24px)) 0 calc(-1 * var(--page-pad-l, 24px));
-  border-top: 0;
+/* ---------------------------------------------------------------- nothing to build */
+
+.emptyBox {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--glass-line);
+  border-radius: 24px;
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.emptyIcon {
+  align-self: center;
+  color: var(--text-2);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.emptyText {
+  margin: 0 0 var(--space-2);
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.noFit {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--glass-line);
+  border-radius: 20px;
+  color: var(--text-2);
+  text-align: center;
 }

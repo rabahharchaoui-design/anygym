@@ -1,6 +1,7 @@
 // Exercise sheet lookups (SPEC 4.4) over the committed catalog, plan map and cue file.
 import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
+import catalogDemos from '../../data/catalog-demos.json';
 import { catalogInfo, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
 import type { MatchKind } from '../lib/catalog';
 import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
@@ -19,6 +20,8 @@ for (const e of EXERCISE_MAP) {
   if (e.match === 'none' || !e.catalogId) continue;
   if (e.match === 'exact' || !ELIGIBLE.has(e.catalogId)) ELIGIBLE.set(e.catalogId, e.match);
 }
+// PLAN 3.5a round 2: catalog only swap candidates whose photos were checked by hand (data/catalog-demos.json).
+for (const e of (catalogDemos as { exercises: { catalogId: string }[] }).exercises) if (CATALOG.has(e.catalogId) && !ELIGIBLE.has(e.catalogId)) ELIGIBLE.set(e.catalogId, 'exact');
 export function photoEligibility(catalogId: string | null | undefined): MatchKind {
   return (catalogId && ELIGIBLE.get(catalogId)) || 'none';
 }

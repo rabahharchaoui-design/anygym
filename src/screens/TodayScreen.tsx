@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { COLLAPSE_PX, TopBar } from '../ui/TopBar';
 import { IconButton } from '../ui/IconButton';
@@ -35,6 +35,9 @@ import { useActiveGym } from '../db/useActiveGym';
 import { getProfile } from '../db/intake';
 import { rememberBudget } from '../db/timeBudget';
 import { AS_PLANNED, fitWords } from '../lib/timeBudget';
+import { canBuild } from '../lib/quick';
+import { QUICK_DEPS } from '../data/quick';
+import { baseInput, equipmentPath, kitOf } from './quick/quickInput';
 import styles from './TodayScreen.module.css';
 
 const NO_LOGGED: Readonly<Record<string, number>> = {};
@@ -194,6 +197,9 @@ export function TodayScreen() {
   // PLAN 3.6 (SPEC 7.4): "How much time today?" before Start, from the day card's estimate.
   const gym = useActiveGym();
   const profile = useLive(() => getProfile(), []);
+  const intakeAnswers = profile.data?.intake;
+  const dislikes = profile.data?.dislikes;
+  const buildable = useMemo(() => (gym ? canBuild(baseInput(intakeAnswers, kitOf(gym), dislikes), QUICK_DEPS) : null), [gym, intakeAnswers, dislikes]);
   const [timeOpen, setTimeOpen] = useState(false);
   const [pickTick, setPickTick] = useState(0);
   const nextIndex = plan && planState ? Math.max(0, Math.min(planState.nextDayIndex, plan.days.length - 1)) : 0;
@@ -315,24 +321,32 @@ export function TodayScreen() {
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
           </section>
         )}
-        {/* PLAN 3.5a (SPEC 20.3): past the intake, Quick workout builds it for you, 30 min preselected. */}
-        {data.ready && !active && !!profile.data?.intakeDoneAt && (
-          <button type="button" className={`${styles.build} pressable`} onClick={() => go('/quick?min=30', { kind: 'push' })} data-testid="build-card">
-            <span className={styles.buildIcon} aria-hidden="true">
-              <CoachIcon width={20} height={20} strokeWidth={2.2} />
-            </span>
-            <span className={styles.buildText}>
-              <span className={styles.buildLabel}>Got 30 min? I'll build it</span>
-              <span className={styles.buildSub}>Pick one, keep or swap, go</span>
-            </span>
-            <ChevronRight className={styles.buildChevron} width={20} height={20} strokeWidth={2.2} aria-hidden="true" />
-          </button>
-        )}
-        {/* Also when the saved workouts could not be read: a quick workout still works (no dead end). */}
+        {/* PLAN 3.5a (SPEC 20.3): past the intake, Quick workout builds it for you, 30 min preselected.
+            Round 2 (B5): only when this gym can build one; else the way to make it able to. */}
+        {data.ready && !active && !!profile.data?.intakeDoneAt && buildable !== null &&
+          (buildable ? (
+            <button type="button" className={`${styles.build} pressable`} onClick={() => go('/quick?min=30', { kind: 'push' })} data-testid="build-card">
+              <span className={styles.buildIcon} aria-hidden="true">
+                <CoachIcon width={20} height={20} strokeWidth={2.2} />
+              </span>
+              <span className={styles.buildText}>
+                <span className={styles.buildLabel}>Got 30 min? I'll build it</span>
+                <span className={styles.buildSub}>Pick a workout, tweak it, start</span>
+              </span>
+              <ChevronRight className={styles.buildChevron} width={20} height={20} strokeWidth={2.2} aria-hidden="true" />
+            </button>
+          ) : (
+            <button type="button" className={`${styles.quick} pressable`} onClick={() => gym && go(equipmentPath(gym.id), { kind: 'push' })} data-testid="build-equipment">
+              <span className={styles.quickLabel}>Add your equipment to get built workouts</span>
+              <span className={styles.quickSub}>Too little here that we can show you yet</span>
+            </button>
+          ))}
+        {/* Also when the saved workouts could not be read: a quick workout still works (no dead end).
+            Round 2 (B7): the picker first flow, as SPEC 20.3 names it, a quieter row. */}
         {((data.ready && !active) || failed) && (
-          <button type="button" ref={quickRef} className={`${styles.quick} pressable`} onClick={() => void quick()} data-testid="quick-card">
-            <span className={styles.quickLabel}>Quick workout</span>
-            <span className={styles.quickSub}>Pick exercises myself</span>
+          <button type="button" ref={quickRef} className={`${styles.quick} pressable`} data-small="" onClick={() => void quick()} data-testid="quick-card" aria-label="Build my own Quick workout: pick the exercises yourself">
+            <span className={styles.quickLabel}>Build my own</span>
+            <span className={styles.quickSub}>Pick the exercises yourself</span>
           </button>
         )}
         <BackupReminder

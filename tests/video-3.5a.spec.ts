@@ -15,7 +15,7 @@ test('the flow on video (reports/videos/3.5a)', async ({ page }, info) => {
   await page.waitForTimeout(600);
   await page.locator('[data-concept]').first().tap();
   await page.waitForTimeout(600);
-  await swipe(page, 90, { steps: 20 });
+  await swipe(page, 90, { steps: 20, slow: true });
   await page.waitForTimeout(500);
   await swipe(page, 260, { steps: 20 });
   await page.waitForTimeout(500);

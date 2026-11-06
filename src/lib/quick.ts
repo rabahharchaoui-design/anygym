@@ -15,7 +15,7 @@
 import type { GymKit } from './picker';
 import { generateDay, type DayItem, type GeneratorDeps, type GeneratorInput } from './generator';
 import type { Range, Slot } from './generatorRules';
-import { muscleWord, patternTargets, type Muscle, type Profile } from './order';
+import { isCompound, isHeavy, liftWord, muscleWord, patternTargets, type Muscle, type Profile } from './order';
 import { isStretchName, dayWorkout } from './planWorkout';
 import { estimateDayMinutes, itemTarget, blockRest, type Plan, type PlanBlock, type PlanDay } from './plans';
 import { adaptDay, requiresOf, supports, swapCandidates, workoutIdOf, type Pattern, type SwapData } from './swap';
@@ -54,7 +54,7 @@ export type QuickItem = {
   why: string;
 };
 
-export type ConceptId = 'plan' | 'fresh' | 'full' | 'upper' | 'lower' | 'push' | 'pull' | 'arms' | 'core';
+export type ConceptId = 'plan' | 'fresh' | 'full' | 'upper' | 'lower' | 'push' | 'pull' | 'arms' | 'upperPump' | 'legPump' | 'core';
 
 export type PlanPart = { planId: string; dayIndex: number; weekIndex: number; day: PlanDay; trim: DayTrim | null };
 
@@ -76,6 +76,10 @@ export type QuickDeps = GeneratorDeps & {
   usable: (id: string) => boolean;
   /** The ordering profile of any id with a name (plan rows). */
   profileOf: (id: string, name?: string) => Profile;
+  /** Round 2 (B4): the map regions an exercise's sure muscle map lights (primary or secondary). */
+  litRegions?: (id: string) => readonly string[];
+  /** Round 2 (B4): the map regions a muscle word covers ("back" covers the upper and lower back). */
+  muscleRegions?: (m: Muscle) => readonly string[];
 };
 
 /** Learned soft dislikes (additive on the profile, PLAN 3.5a). */
@@ -105,13 +109,20 @@ const TEMPLATES: Record<Exclude<ConceptId, 'plan' | 'fresh'>, Slot[]> = {
   push: [s('horizontal push'), s('vertical push'), s('horizontal push', true), s('lateral delt'), s('chest isolation'), s('triceps'), s('triceps', true)],
   pull: [s('vertical pull'), s('horizontal pull'), s('horizontal pull', true), s('rear delt'), s('biceps'), s('biceps', true)],
   arms: [s('lateral delt'), s('biceps'), s('triceps'), s('rear delt'), s('biceps', true), s('triceps', true)],
+  // Short times (round 2, B3): the same areas with the small moves only, so 15 min holds a real workout.
+  upperPump: [s('chest isolation'), s('lateral delt'), s('rear delt'), s('biceps'), s('triceps'), s('lateral delt', true)],
+  legPump: [s('quads isolation'), s('hamstrings isolation'), s('calves'), s('glutes'), s('core')],
   core: [s('core'), s('core', true), s('core', true), s('core', true)],
 };
 
 /** The fresh concept's pool, big moves first; only the patterns that train no recent muscle stay. */
 const FRESH_POOL: Pattern[] = ['squat', 'hinge', 'horizontal push', 'horizontal pull', 'vertical push', 'vertical pull', 'lunge', 'glutes', 'lateral delt', 'chest isolation', 'rear delt', 'biceps', 'triceps', 'quads isolation', 'hamstrings isolation', 'calves', 'core'];
 
-const FALLBACK_ORDER: Array<Exclude<ConceptId, 'plan' | 'fresh'>> = ['full', 'upper', 'lower', 'push', 'pull', 'arms', 'core'];
+const FALLBACK_ORDER: Array<Exclude<ConceptId, 'plan' | 'fresh'>> = ['full', 'upper', 'lower', 'push', 'pull', 'arms', 'upperPump', 'legPump', 'core'];
+
+/** Round 2 (B3): a concept is offered only when its estimate is at or under the minutes picked, 2 more at most. */
+export const FIT_SLACK = 2;
+export const fits = (minutes: number, budget: number): boolean => minutes <= budget + FIT_SLACK;
 
 /** Whether a concept's name is true of what it holds (no "Full body" without legs, a push and a pull). */
 export function honest(id: ConceptId, patterns: readonly (Pattern | null)[]): boolean {
@@ -132,6 +143,10 @@ export function honest(id: ConceptId, patterns: readonly (Pattern | null)[]): bo
       return all(PULL) && any(BIG_PULL);
     case 'arms':
       return all(ARMS);
+    case 'upperPump':
+      return ps.every((p) => ARMS.has(p) || p === 'chest isolation') && any(new Set<Pattern>(['chest isolation', 'triceps', 'lateral delt'])) && any(new Set<Pattern>(['rear delt', 'biceps']));
+    case 'legPump':
+      return ps.filter((p) => LEGS.has(p)).length >= 2 && ps.every((p) => LEGS.has(p) || p === 'core');
     case 'core':
       return ps.every((p) => p === 'core');
     default:
@@ -162,9 +177,13 @@ function titleOf(id: Exclude<ConceptId, 'plan'>, goalMuscle: boolean, patterns: 
     case 'lower':
       return 'Legs';
     case 'push':
-      return 'Push: chest, shoulders, triceps';
+      return 'Push';
     case 'pull':
-      return 'Pull: back and biceps';
+      return 'Pull';
+    case 'upperPump':
+      return 'Upper body pump';
+    case 'legPump':
+      return 'Leg pump';
     case 'arms':
       return patterns.some((p) => p !== null && DELTS.has(p)) ? 'Arms and shoulders' : 'Arms';
     case 'core':
@@ -182,9 +201,31 @@ export type QuickInput = {
   plan?: Concept | null;
 };
 
+/**
+ * Round 2 (P11): one real reason per card, from where it sits in the workout and what it trains
+ * (SPEC 22 rules 1 and 4), never the concept's own title again.
+ */
+export function reasonsFor(ids: readonly string[], deps: Pick<QuickDeps, 'profileOf'>, names?: (id: string) => string): string[] {
+  const ps = ids.map((id) => deps.profileOf(id, names?.(id)));
+  return ps.map((p, i) => {
+    const words = wordList([...new Set(p.targets.map(muscleWord))]);
+    if (!words) return 'Part of this workout';
+    if (p.role !== 'lift') return `Works your ${words}`;
+    if (isCompound(p)) return i === 0 ? `Big lift first, while you're fresh` : `A big lift for your ${words}`;
+    const before = ps.slice(0, i).find((q) => isCompound(q) && p.targets.some((m) => q.targets.includes(m) || q.helpers.includes(m)));
+    if (before) {
+      const shared = p.targets.find((m) => before.targets.includes(m) || before.helpers.includes(m))!;
+      return `Finishes the ${muscleWord(shared)} your ${liftWord(before)} warmed up`;
+    }
+    if (p.tier >= 3) return `A short finish for your ${words}`;
+    return `Isolates your ${words}`;
+  });
+}
+
 /** A generated day as Quick workout items. */
-function itemsOf(deps: QuickDeps, day: readonly DayItem[], why: (it: DayItem) => string): QuickItem[] {
-  return day.map((it) => ({
+function itemsOf(deps: QuickDeps, day: readonly DayItem[], why?: (it: DayItem) => string): QuickItem[] {
+  const reasons = reasonsFor(day.map((it) => it.id), deps);
+  return day.map((it, i) => ({
     id: it.id,
     slot: it.id,
     origin: it.id,
@@ -195,7 +236,7 @@ function itemsOf(deps: QuickDeps, day: readonly DayItem[], why: (it: DayItem) =>
     ...(it.seconds ? { seconds: it.seconds } : {}),
     ...(it.eachSide ? { eachSide: true } : {}),
     restSec: it.restSec,
-    why: why(it),
+    why: why ? why(it) : reasons[i]!,
   }));
 }
 
@@ -213,29 +254,37 @@ export function buildConcepts(input: QuickInput, deps: QuickDeps): Concept[] {
 
   const recent = [...new Set(input.recent)];
   if (recent.length) {
+    // Round 2 (B4): nothing on this card may light a muscle the Skips line names, on its map either.
+    const blocked = new Set(recent.flatMap((m) => deps.muscleRegions?.(m) ?? []));
+    const freshDeps: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !(deps.litRegions?.(id) ?? []).some((r) => blocked.has(r)) };
     const slots = FRESH_POOL.filter((p) => !patternTargets(p).some((m) => recent.includes(m))).map((p) => s(p));
-    const r = generateDay({ ...gen, avoidMuscles: recent }, deps, { name: 'fresh', slots });
+    const r = generateDay({ ...gen, avoidMuscles: recent }, freshDeps, { name: 'fresh', slots });
     if (r.ok) {
       const items = itemsOf(deps, r.items, (it) => `${cap(wordList(targetsOf(deps, it.id).map(muscleWord)))}: not trained in 3 days`);
       all.push({ id: 'fresh', title: titleOf('fresh', goalMuscle, []), line: `Skips the ${wordList(recent.map(muscleWord))} you trained lately`, items, minutes: r.minutes, over: r.over });
     }
   }
   for (const id of FALLBACK_ORDER) {
-    const r = generateDay(gen, deps, { name: id, slots: TEMPLATES[id] });
+    const small = id === 'arms' || id === 'upperPump' || id === 'legPump' || id === 'core';
+    const r = generateDay(small ? { ...gen, noFallback: true } : gen, deps, { name: id, slots: TEMPLATES[id] });
     if (!r.ok || !honest(id, r.items.map((it) => it.pattern))) continue;
-    const items = itemsOf(deps, r.items, (it) => `Works your ${wordList(targetsOf(deps, it.id).map(muscleWord))}`);
+    const items = itemsOf(deps, r.items);
     const words = r.items.flatMap((it) => targetsOf(deps, it.id)).map(muscleWord);
     all.push({ id, title: titleOf(id, goalMuscle, r.items.map((it) => it.pattern)), line: cap(wordList(words, 4)), items, minutes: r.minutes, over: r.over });
   }
-  // A minute or two over is still "about" the time (the estimate is rounded); far over goes last.
-  const far = (c: Concept) => c.minutes > input.minutes + Math.max(2, Math.round(input.minutes * 0.1));
+  // Round 2 (B3): only what fits the minutes picked is offered; one that cannot fit is left out.
   const out: Concept[] = [];
-  for (const c of [...all.filter((c) => !far(c)), ...all.filter(far)]) {
+  for (const c of all) {
     if (out.length >= 3) break;
+    if (!fits(c.minutes, input.minutes)) continue;
     if (!out.some((o) => sameSet(o.items, c.items))) out.push(c);
   }
-  // Shown in their own order (plan, fresh, then the rest), whichever made the cut.
-  return out.sort((a, b) => all.indexOf(a) - all.indexOf(b));
+  return out;
+}
+
+/** Round 2 (B5): whether anything at all can be built at this gym (the longest chip, nothing learned in the way of it). */
+export function canBuild(base: GeneratorInput, deps: QuickDeps): boolean {
+  return buildConcepts({ base, minutes: QUICK_MINUTES[QUICK_MINUTES.length - 1]!, recent: [] }, deps).length > 0;
 }
 
 // ---------------------------------------------------------------- the plan day concept
@@ -307,12 +356,16 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
   const part: PlanPart = { planId: plan.id, dayIndex, weekIndex, day, trim };
   const items = planItems(part, deps, (slot) => currentOf.get(slot) ?? slot, (slot) => swapTo.get(slot));
   if (items.length < 3) return null;
+  const reasons = reasonsFor(items.map((it) => it.id), deps, (id) => items.find((it) => it.id === id)!.name);
+  items.forEach((it, i) => {
+    if (it.id === it.slot) it.why = reasons[i]!;
+  });
   const minutes = planMinutes(part);
   const short = !!trim && (trim.drop.length > 0 || Object.keys(trim.sets).length > 0);
   return {
     id: 'plan',
-    title: `Your ${day.name} day${short ? ', short' : ''}`,
-    line: `From ${plan.name}, made to fit`,
+    title: `${day.name}${short ? ', short' : ''}`,
+    line: `From your ${plan.name}`,
     items,
     minutes,
     over: input.minutes < 75 && minutes > input.minutes,
@@ -342,7 +395,7 @@ function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: string) => 
         ...(t.seconds !== undefined ? { seconds: t.seconds } : {}),
         ...(it.eachSide ? { eachSide: true } : {}),
         restSec: blockRest(b as PlanBlock),
-        why: swapped ? `Stands in for ${it.name}: same movement` : `From your ${part.day.name} day`,
+        why: swapped ? `Same movement as ${it.name}` : `From your ${part.day.name} day`,
       });
     }
   }
@@ -394,6 +447,8 @@ export type SwapContext = {
   /** A sure demo and nothing that rules it out (never list, go easy on). */
   ok: (id: string) => boolean;
   soft?: Readonly<Record<string, number>>;
+  /** The ordering profile (heavy lifts stay heavy, light slots stay light). */
+  profile?: (id: string) => Profile;
 };
 
 /**
@@ -407,15 +462,20 @@ export function nextSwap(item: QuickItem, items: readonly QuickItem[], tried: re
   // The slot's own exercise is a candidate too (it can come back after a swap).
   const pool = swapCandidates(ctx.data, item.slot, ctx.gym, { mode, exclude: [...exclude, item.id] }).map(workoutIdOf);
   const own = item.slot !== item.id && !exclude.some((x) => ctx.data.sameAs(x) === ctx.data.sameAs(item.slot)) ? [item.slot] : [];
-  const fits = [...pool, ...own].filter((id) => ctx.data.sameAs(id) !== ctx.data.sameAs(item.id) && ctx.ok(id) && sureGear(ctx.data, id, ctx.gym));
-  const ranked = rankSoft(fits, ctx.soft);
+  // Round 2 (P15, SPEC 7.3): a slot that is not a heavy lift never turns into one, and a conventional
+  // deadlift only ever stands in for a deadlift (never a Deadlift at 10 to 12 for an RDL slot).
+  const p = ctx.profile;
+  const slotP = p?.(item.slot);
+  const tooHeavy = (id: string) => !!p && !!slotP && ((!isHeavy(slotP) && isHeavy(p(id))) || (liftWord(p(id)) === 'deadlift' && liftWord(slotP) !== 'deadlift'));
+  const usable = [...pool, ...own].filter((id) => ctx.data.sameAs(id) !== ctx.data.sameAs(item.id) && ctx.ok(id) && sureGear(ctx.data, id, ctx.gym) && !tooHeavy(id));
+  const ranked = rankSoft(usable, ctx.soft);
   const triedKeys = new Set(tried.map(ctx.data.sameAs));
   return ranked.find((id) => !triedKeys.has(ctx.data.sameAs(id))) ?? ranked[0] ?? null;
 }
 
 /** The card after a swap: the slot's targets stay (sets, reps, rest), only the exercise changes. */
-export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean): QuickItem {
-  const next: QuickItem = { ...item, id: to, name, why: to === item.slot && item.why.startsWith('From your') ? item.why : 'Swapped in: same movement' };
+export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean, slotName?: string): QuickItem {
+  const next: QuickItem = { ...item, id: to, name, why: to === item.slot ? item.why : `Same movement as ${slotName ?? item.name}` };
   if (eachSide) next.eachSide = true;
   else delete next.eachSide;
   return next;

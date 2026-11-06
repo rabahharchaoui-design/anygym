@@ -10,6 +10,7 @@ import { planExercise } from '../../data/planExercises';
 import { PLANS } from '../../data/plans';
 import { dayWorkout, firstOpen, upNext, type WorkoutEntry } from '../planWorkout';
 import { PATTERNS, adaptDay, applySwap, finishRows, liveEntries, missingWord, patternOf, requiresOf, revertSwap, slotProgress, supports, swapCandidates, swapLine, swapReason, validatePatterns, workoutIdOf, type PatternFile } from '../swap';
+import catalogDemos from '../../../data/catalog-demos.json';
 
 const CATALOG = new Set((catalog as { exercises: Array<{ id: string }> }).exercises.map((e) => e.id));
 const PLAN_IDS = (planExercises as Array<{ id: string }>).map((e) => e.id);
@@ -18,6 +19,8 @@ const FULL = kit([...EQUIPMENT_IDS]);
 const HOTEL = kit(['dumbbells', 'adjustable_bench', 'cable_station', 'treadmill', 'bike']);
 const NOTHING = kit([]);
 const ids = (id: string, gym = FULL, opts = {}) => swapCandidates(SWAP_DATA, id, gym, opts).map(workoutIdOf);
+
+const HAND_CHECKED = (catalogDemos as { exercises: { catalogId: string }[] }).exercises.map((e) => e.catalogId);
 
 describe('data/patterns.json', () => {
   it('is valid: all 17 patterns, every id in the catalog, every plan exercise has a row', () => {
@@ -60,7 +63,8 @@ describe('data/patterns.json', () => {
   });
 
   it('every candidate it can show has a photo only through an audited match', () => {
-    const eligible = new Set(EXERCISE_MAP.filter((e) => e.match !== 'none').map((e) => e.catalogId));
+    // PLAN 3.5a round 2: or a catalog exercise whose photos were checked by hand (data/catalog-demos.json).
+    const eligible = new Set([...EXERCISE_MAP.filter((e) => e.match !== 'none').map((e) => e.catalogId), ...HAND_CHECKED]);
     for (const ladder of Object.values(PATTERN_FILE.patterns)) {
       for (const c of ladder.candidates) if (demoFor(workoutIdOf(c))) expect(eligible.has(c.id), c.id).toBe(true);
     }

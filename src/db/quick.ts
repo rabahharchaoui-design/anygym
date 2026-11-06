@@ -41,7 +41,12 @@ export async function readRecentMuscles(now = Date.now(), db: AnyGymDB = default
     const sessions = await db.sessions.where('startedAt').aboveOrEqual(now - RECENT_MS).toArray();
     const ids = sessions.filter((s) => !s.imported).map((s) => s.id);
     const sets = ids.length ? await db.sets.where('sessionId').anyOf(ids).toArray() : [];
-    return recentMuscles(sessions, sets, (id) => profileFor(id).targets, now);
+    // What a lift trains hard and the helpers a compound tires (bench: chest, then triceps and front
+    // delts), so the day after bench never brings triceps as "fresh". Grip is left out.
+    return recentMuscles(sessions, sets, (id) => {
+      const p = profileFor(id);
+      return [...p.targets, ...p.helpers.filter((m) => m !== 'forearms')];
+    }, now);
   });
 }
 

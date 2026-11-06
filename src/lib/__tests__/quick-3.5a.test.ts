@@ -2,7 +2,7 @@
 // swap and the learned soft dislikes.
 import { describe, expect, it } from 'vitest';
 import { EQUIPMENT_IDS, type EquipmentId } from '../../db/types';
-import { QUICK_DEPS } from '../../data/quick';
+import { MUSCLE_MAP_REGIONS, QUICK_DEPS, workoutMuscles } from '../../data/quick';
 import { PLANS } from '../../data/plans';
 import { SWAP_DATA } from '../../data/patterns';
 import { demoFor } from '../../data/exerciseInfo';
@@ -15,6 +15,10 @@ import { applyTrim } from '../timeBudget';
 import { patternOf } from '../swap';
 import {
   buildConcepts,
+  canBuild,
+  fits,
+  reasonsFor,
+  QUICK_MINUTES,
   chipFor,
   conceptMinutes,
   dropSlot,
@@ -205,7 +209,8 @@ describe('the plan day concept', () => {
   it('the plan day trimmed to the time, only sure demos and gear, the header estimate', () => {
     const c = planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: 30, gym: FULL }, QUICK_DEPS)!;
     expect(c).not.toBeNull();
-    expect(c.title).toBe(`Your ${split.days[0]!.name} day, short`);
+    expect(c.title).toBe(`${split.days[0]!.name}, short`);
+    expect(c.line).toBe(`From your ${split.name}`);
     expectHonest([c], FULL);
     expect(c.minutes).toBe(estimateDayMinutes(applyTrim(split.days[0]!, c.plan!.trim, 0), 0));
     // Every deck card is a plan slot that survived the trim.
@@ -267,5 +272,60 @@ describe('helpers', () => {
     expect(m.shading).toEqual({ chest: 'primary', triceps: 'primary' });
     expect(m.text).toBe('Chest, triceps');
     expect(mergeMuscleMaps([null, undefined])).toBeNull();
+  });
+});
+
+describe('round 2', () => {
+  const ok = (id: string) => demoFor(id) !== null;
+  it('B3: every concept offered fits the minutes picked (2 over at most), at every chip, full and dumbbell gyms', () => {
+    for (const gym of [FULL, DUMBBELLS])
+      for (const m of QUICK_MINUTES) {
+        const cs = buildConcepts({ base: base(gym), minutes: m, recent: ['chest'] }, QUICK_DEPS);
+        for (const c of cs) expect(fits(c.minutes, m), `${c.title} ${c.minutes} min under ${m}`).toBe(true);
+        expectHonest(cs, gym);
+      }
+    // 15 minutes in a full gym still offers something real.
+    expect(buildConcepts({ base: base(FULL), minutes: 15, recent: [] }, QUICK_DEPS).length).toBeGreaterThan(0);
+  });
+
+  it('B4: no muscle the Skips line names is lit on the fresh card map', () => {
+    for (const recent of [['back'], ['chest', 'triceps'], ['quads', 'glutes'], ['back', 'biceps'], ['hamstrings']] as const) {
+      const c = buildConcepts({ base: base(FULL), minutes: 45, recent: [...recent] }, QUICK_DEPS).find((x) => x.id === 'fresh');
+      if (!c) continue;
+      const lit = Object.keys(workoutMuscles(c.items.map((it) => it.id))?.shading ?? {});
+      for (const m of recent) for (const r of MUSCLE_MAP_REGIONS[m]) expect(lit, `${recent.join('+')}: ${r}`).not.toContain(r);
+    }
+  });
+
+  it('B5: nothing can be built with a pull up bar or bodyweight only; a full gym can', () => {
+    expect(canBuild(base(NOTHING), QUICK_DEPS)).toBe(false);
+    expect(canBuild(base({ equipment: ['pull_up_bar'], dumbbellRange: null }), QUICK_DEPS)).toBe(false);
+    expect(canBuild(base(FULL), QUICK_DEPS)).toBe(true);
+  });
+
+  it('B6: the lying leg curl swaps for the seated one (photos checked), which has a demo', () => {
+    const item = { id: 'machine-lying-leg-curl', slot: 'machine-lying-leg-curl', origin: 'machine-lying-leg-curl', name: 'Machine Lying Leg Curl', pattern: 'hamstrings isolation' as const, sets: 3, reps: [10, 15] as [number, number], restSec: 60, why: 'x' };
+    expect(nextSwap(item, [item], [item.id], { data: SWAP_DATA, gym: FULL, ok })).toBe('Seated_Leg_Curl');
+    expect(demoFor('Seated_Leg_Curl')).not.toBeNull();
+  });
+
+  it('P11: one real reason per card, never the title again', () => {
+    const cs = buildConcepts({ base: base(FULL), minutes: 60, recent: [] }, QUICK_DEPS);
+    for (const c of cs) {
+      expect(c.items[0]!.why).toBe("Big lift first, while you're fresh");
+      for (const it of c.items) expect(it.why.toLowerCase()).not.toContain(c.title.toLowerCase());
+    }
+    expect(reasonsFor(['barbell-incline-bench-press', 'cable-tricep-pushdown'], QUICK_DEPS)).toEqual(["Big lift first, while you're fresh", 'Finishes the triceps your bench warmed up']);
+  });
+
+  it('P15: a light slot is never swapped into a heavy lift', () => {
+    const item = { id: 'romanian-deadlift', slot: 'romanian-deadlift', origin: 'romanian-deadlift', name: 'Romanian Deadlift', pattern: 'hinge' as const, sets: 3, reps: [10, 12] as [number, number], restSec: 90, why: 'x' };
+    const seen: string[] = [item.id];
+    for (let i = 0; i < 6; i++) {
+      const to = nextSwap(item, [item], seen, { data: SWAP_DATA, gym: FULL, ok, profile: (id) => profileFor(id) });
+      if (!to) break;
+      expect(to).not.toBe('deadlift');
+      seen.push(to);
+    }
   });
 });

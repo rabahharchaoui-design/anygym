@@ -56,7 +56,8 @@ test.describe('3.5a verify', () => {
     await expect(page.getByTestId('build-card')).toContainText("Got 30 min? I'll build it");
     await shot(page, 'today-intake');
     const old = page.getByRole('button', { name: /Quick workout/ });
-    await expect(old).toContainText('Pick exercises myself');
+    // Round 2 (B7): the picker first flow is the quieter "Build my own" row (SPEC 20.3's words).
+    await expect(old).toContainText('Build my own');
     const b = (await old.boundingBox())!;
     expect(b.height).toBeGreaterThanOrEqual(48);
     await old.tap();
@@ -94,6 +95,8 @@ test.describe('3.5a verify', () => {
   });
 
   test('3a. full gym and dumbbell gym: every exercise sure demo + gear; images saved', async ({ page }) => {
+    // Round 2: three gyms, every card of every concept: more than 30 s on the slower Android projects.
+    test.setTimeout(120_000);
     const errors = watchErrors(page);
     for (const eq of [undefined, DUMBBELLS, ['dumbbells', 'adjustable_bench', 'flat_bench', 'kettlebells']]) {
       await pastIntake(page, eq);
@@ -186,6 +189,7 @@ test.describe('3.5a verify', () => {
   });
 
   test('4. deck: swap keeps pattern, never + Undo additive, start carries sets reps rest', async ({ page }) => {
+    test.setTimeout(90_000);
     const errors = watchErrors(page);
     await pastIntake(page);
     await dbPut(page, { profile: [{ ...PROFILE, dislikes: { soft: { 'pre-soft': 2 }, never: ['pre-never'] } }] });
@@ -237,8 +241,14 @@ test.describe('3.5a verify', () => {
     for (let guard = 0; guard < 20; guard++) {
       if (await page.getByRole('heading', { name: 'Ready to go' }).isVisible()) break;
       final.push({ id: (await card(page).getAttribute('data-exercise'))!, name: '', why: '', sets: (await page.getByTestId('deck-sets').textContent())! });
+      // Round 2: wait for this Keep to land (the next card, or Ready to go) before the next tap, so a
+      // tap never races the last card's flight on a slow phone.
+      const was = await card(page).locator('p').first().textContent();
       await page.getByTestId('deck-keep').tap();
-      await page.waitForTimeout(350);
+      await expect(async () => {
+        if (await page.getByRole('heading', { name: 'Ready to go' }).isVisible()) return;
+        expect(await card(page).locator('p').first().textContent()).not.toBe(was);
+      }).toPass();
     }
     await expect(page.getByRole('heading', { name: 'Ready to go' })).toBeVisible();
     await shot(page, 'ready');
@@ -366,6 +376,12 @@ test.describe('3.5a verify', () => {
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await expect(page.locator('[data-concept]').first()).toBeVisible();
     // offline start
+    // Round 2: offline only once the service worker holds the app, or an offline reload has nothing to load.
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) {
+      await page.reload();
+      await expect(page.locator('[data-concept]').first()).toBeVisible();
+    }
     await page.locator('[data-concept]').first().tap();
     await context.setOffline(true);
     await page.getByTestId('quick-start').dblclick();
@@ -415,12 +431,11 @@ test.describe('3.5a verify', () => {
     await measure('start', '[data-testid="quick-start"]');
     await shot(page, 'deck');
     console.log('target sizes', JSON.stringify(sizes));
-    // 130% text
+    // 130% text (round 2: every size read first, then scaled once, the way iOS grows text; scaling
+    // inside the loop compounded inherited sizes to 1.3 per level and overstated it).
     await page.evaluate(() => {
-      for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
-        const s = getComputedStyle(el);
-        el.style.fontSize = `${parseFloat(s.fontSize) * 1.3}px`;
-      }
+      const els = Array.from(document.querySelectorAll<HTMLElement>('body *')).map((el) => ({ el, size: parseFloat(getComputedStyle(el).fontSize) }));
+      for (const { el, size } of els) el.style.fontSize = `${size * 1.3}px`;
     });
     await page.waitForTimeout(300);
     await shot(page, 'deck-130');
