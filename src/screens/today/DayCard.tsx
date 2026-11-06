@@ -45,7 +45,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
               className={`${styles.dayTime} num pressable`}
               data-testid="day-card-time"
               data-trimmed={fitsIn !== undefined || undefined}
-              aria-label={`About ${minutes ?? estimateDayMinutes(day, weekIndex)} min. How much time today?`}
+              aria-label={`~${minutes ?? estimateDayMinutes(day, weekIndex)} min, change how long`}
               onClick={onTime}
             >
               ~{minutes ?? estimateDayMinutes(day, weekIndex)} min

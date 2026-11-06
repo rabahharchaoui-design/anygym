@@ -114,9 +114,11 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
   await screen('units', cta(page));
   await t.next();
   await screen('focus', cta(page));
-  // PLAN 3.3a round 2 (B6): focus is not used yet, so it is optional (was grey until a pick).
+  // PLAN 3.3a round 2 (B6): focus is optional (was grey until a pick). Since 3.6a a focus area is
+  // honoured by building a plan (a curated plan is never a match for it), so the fast path picks
+  // Whole body balance: the same one tap, and the curated match stays what this path checks.
   await expect(cta(page)).toBeEnabled();
-  await t.pick('focus', 'arms');
+  await t.pick('focus', 'balance');
   await t.next();
   await screen('win');
   await t.pick('win', 'energy');

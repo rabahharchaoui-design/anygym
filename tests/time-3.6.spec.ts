@@ -232,8 +232,9 @@ test('before Start (SPEC 7.4): the day card estimate opens the sheet, the pick t
   // Nothing exists yet: no workout was made by picking.
   expect((await dbAll<Sess>(page, 'sessions')).filter((s) => s.endedAt === undefined)).toHaveLength(0);
   await shotOn(page, '3.6', 'today-picked');
-  // Undo puts the plan's estimate back; pick again.
-  await page.getByRole('button', { name: 'Undo' }).tap();
+  // Undo puts the plan's estimate back; pick again. (The toast's own Undo: an earlier toast, Plan
+  // saved, may still be sliding away, and it takes no taps.)
+  await page.getByRole('status').filter({ hasText: 'when you start' }).getByRole('button', { name: 'Undo' }).tap();
   await expect(time).toHaveText(`~${planned} min`);
   await expect(page.getByTestId('day-card-fits')).toHaveCount(0);
   await time.tap();
