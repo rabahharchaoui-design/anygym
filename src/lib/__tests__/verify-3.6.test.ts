@@ -161,3 +161,29 @@ describe('dbg2', () => {
     console.log('SHIPPED scanned', n, 'viol', bad);
   });
 });
+
+describe('verify 3.6 round 2: bringing blocks back keeps the SPEC 7.4 order', () => {
+  const accessories = ['barbell-bicep-curl', 'machine-seated-chest-fly', 'dumbbell-lateral-raise', 'machine-seated-reverse-fly', 'cable-rope-tricep-extension', 'machine-seated-calf-raise', 'wrist-twist'];
+  const check = (d: PlanDay, budget: number, logged: Record<string, number>) => {
+    const r = trimDay(d, { budget, profileOf, logged });
+    if (!r.trim?.drop.length) return;
+    const left = idsOf(r.day);
+    const now = setsOf(r.day);
+    const free = accessories.filter((a) => !logged[a] && idsOf(d).includes(a));
+    // Accessory sets to 2 first: nothing kept above 2 while any accessory is cut.
+    for (const a of free) if (left.includes(a)) expect(now[a], `${a} at ${budget}`).toBeLessThanOrEqual(2);
+    // Then drop last first: the cut accessories are the tail of the day's accessories.
+    const cut = free.filter((a) => !left.includes(a));
+    if (cut.length) expect(free.slice(free.length - cut.length), `suffix at ${budget}`).toEqual(cut);
+  };
+  it('the 51 min case: Wrist Twist never keeps 3 sets while earlier accessories are cut', () => {
+    const r = trimDay(day, { budget: 51, profileOf });
+    expect(r.trim!.drop.length).toBeGreaterThan(0);
+    const now = setsOf(r.day);
+    if (idsOf(r.day).includes('wrist-twist')) expect(now['wrist-twist']).toBeLessThanOrEqual(2);
+    check(day, 51, {});
+  });
+  it('every budget, with and without a logged curl', () => {
+    for (const logged of [{}, { 'barbell-bicep-curl': 1 }] as Record<string, number>[]) for (let b = 74; b >= 5; b--) check(day, b, logged);
+  });
+});

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sheet, SheetFooter } from '../../ui/Sheet';
 import { SlidingToggle } from '../../ui/SlidingToggle';
 import { Button } from '../../ui/Button';
@@ -25,6 +25,33 @@ type Props = {
 
 const OPTIONS = BUDGETS.map((m) => ({ value: String(m), label: m >= AS_PLANNED ? '75+' : String(m) }));
 const profileOf = (id: string, name: string) => profileFor(id, name);
+/**
+ * After Apply, a tap this soon and this close to it is the rest of a double tap: it never reaches what
+ * is under the closing sheet. Any other tap (Start, elsewhere) goes through at once.
+ */
+export const APPLY_GUARD_MS = 450;
+const APPLY_GUARD_PX = 44;
+
+function swallowRepeat(x: number, y: number, ms: number): void {
+  const near = (e: Event) => {
+    const p = e as MouseEvent & Partial<TouchEvent>;
+    const t = p.changedTouches?.[0];
+    const px = t ? t.clientX : p.clientX;
+    const py = t ? t.clientY : p.clientY;
+    return typeof px === 'number' && typeof py === 'number' && Math.hypot(px - x, py - y) <= APPLY_GUARD_PX;
+  };
+  const stop = (e: Event) => {
+    if (!near(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const types = ['click', 'pointerup', 'touchend'] as const;
+  for (const t of types) window.addEventListener(t, stop, true);
+  window.setTimeout(() => {
+    for (const t of types) window.removeEventListener(t, stop, true);
+  }, ms);
+}
+
 const same = (a: DayTrim | null | undefined, b: DayTrim | null | undefined) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /**
@@ -34,7 +61,10 @@ const same = (a: DayTrim | null | undefined, b: DayTrim | null | undefined) => J
  */
 export function TimeBudgetSheet({ open, onClose, day, weekIndex, initial, current, logged, onApply }: Props) {
   const [picked, setPicked] = useState<number | undefined>(initial);
+  /** One Apply per open (a double tap applies once). */
+  const applied = useRef(false);
   useEffect(() => {
+    if (open) applied.current = false;
     if (open) setPicked(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -79,7 +109,18 @@ export function TimeBudgetSheet({ open, onClose, day, weekIndex, initial, curren
           {/* The pinned bar: Apply is always in reach, whatever the text size (the body scrolls above it). */}
           <SheetFooter>
             <div className={styles.footer}>
-              <Button onClick={() => result && picked !== undefined && onApply(picked, result)} disabled={!!reason} disabledReason={reason}>
+              <Button
+                onClick={(e) => {
+                  if (applied.current || !result || picked === undefined) return;
+                  applied.current = true;
+                  // The second tap of a double tap would land on the row under the closing sheet.
+                  const box = e.currentTarget.getBoundingClientRect();
+                  swallowRepeat(e.clientX || box.left + box.width / 2, e.clientY || box.top + box.height / 2, APPLY_GUARD_MS);
+                  onApply(picked, result);
+                }}
+                disabled={!!reason}
+                disabledReason={reason}
+              >
                 Apply to this workout
               </Button>
               <p className={styles.note}>Your plan stays the same. Logged sets stay.</p>

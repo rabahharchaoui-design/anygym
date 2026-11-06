@@ -31,8 +31,15 @@ async function activeGymIn(db: AnyGymDB): Promise<Gym | undefined> {
 
 let started: Promise<Gym> | null = null;
 
-/** App start: run ensureFirstGym once per page load and share the result. */
+/**
+ * App start: run ensureFirstGym once per page load. Resolves to the gym active NOW (read again on
+ * every call), never the one that was active at page load: a switch from the pill counts at once.
+ */
 export function startDb(db: AnyGymDB = defaultDb): Promise<Gym> {
+  return firstGymOnce(db).then(async (first) => (await getActiveGym(db)) ?? first);
+}
+
+function firstGymOnce(db: AnyGymDB): Promise<Gym> {
   if (!started) {
     const attempt: Promise<Gym> = ensureFirstGym(db);
     started = attempt;

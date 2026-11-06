@@ -2,7 +2,7 @@
 // pick 30, the estimate drops live with the change list, Apply for this workout only, the title's
 // estimate updates, logged sets stay, Undo restores, reload keeps the trim, the once a day offer
 // when the intake's minutes are under the day, SE and 320 fit, 130% text, no console errors.
-// Progress: lib + db + UI + this spec done.
+// Progress: round 2 (bring back order, Today entry before Start, Apply double tap guard) done.
 import { expect, test, type Page } from './fixtures';
 import { checkControls, checkLayout, fullyShown, simulateSafeAreas } from './helpers/layout';
 import { bar185, dbAll, dbPut, shotOn, usePlan, watchErrors } from './workout-helpers';
@@ -209,5 +209,80 @@ test('the sheet and the trimmed list fit SE and the 320 floor, at normal and 130
       await expect(page.getByTestId('time-line')).toHaveCount(0);
     }
   }
+  expect(errors).toEqual([]);
+});
+
+test('before Start (SPEC 7.4): the day card estimate opens the sheet, the pick trims the workout Start makes @matrix', async ({ page }) => {
+  const errors = watchErrors(page);
+  await usePlan(page);
+  const time = page.getByTestId('day-card-time');
+  const planned = Number(/~(\d+) min/.exec((await time.textContent()) ?? '')?.[1]);
+  await expect(page.getByTestId('day-card-title')).toHaveText(`Day 1 · Legs (hamstring focus) · ~${planned} min`);
+  await time.tap();
+  const sheet = sheetOf(page);
+  await expect(sheet).toBeVisible();
+  await chip(page, '30').tap();
+  const fit = Number(/~(\d+) min/.exec((await sheet.getByTestId('time-fit').textContent()) ?? '')?.[1]);
+  expect(fit).toBeLessThanOrEqual(30);
+  await shotOn(page, '3.6', 'today-sheet');
+  await sheet.getByRole('button', { name: 'Apply to this workout' }).tap();
+  await expect(sheet).toHaveCount(0);
+  await expect(time).toHaveText(`~${fit} min`);
+  await expect(page.getByTestId('day-card-fits')).toHaveText('Shortened to fit 30 min');
+  // Nothing exists yet: no workout was made by picking.
+  expect((await dbAll<Sess>(page, 'sessions')).filter((s) => s.endedAt === undefined)).toHaveLength(0);
+  await shotOn(page, '3.6', 'today-picked');
+  // Undo puts the plan's estimate back; pick again.
+  await page.getByRole('button', { name: 'Undo' }).tap();
+  await expect(time).toHaveText(`~${planned} min`);
+  await expect(page.getByTestId('day-card-fits')).toHaveCount(0);
+  await time.tap();
+  await expect(chip(page, '30')).toHaveAttribute('aria-checked', 'true'); // the gym's last pick
+  await sheetOf(page).getByRole('button', { name: 'Apply to this workout' }).tap();
+  await expect(time).toHaveText(`~${fit} min`);
+
+  await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  await expect(page.getByTestId('time-estimate')).toHaveText(`~${fit} min`);
+  await expect(page.getByTestId('time-line')).toContainText('Shortened to fit 30 min today');
+  const s = await session(page);
+  expect(s.timeBudgetMin).toBe(30);
+  expect(s.trim?.drop.length).toBeGreaterThan(0);
+  for (const id of s.trim!.drop) expect(s.exerciseIds).not.toContain(id);
+  expect(errors).toEqual([]);
+});
+
+test('a double tap on Apply applies once and never opens the row under the closing sheet', async ({ page }) => {
+  const errors = watchErrors(page);
+  await usePlan(page);
+  await start(page);
+  await page.getByTestId('time-estimate').tap();
+  await chip(page, '30').tap();
+  const apply = sheetOf(page).getByRole('button', { name: 'Apply to this workout' });
+  await apply.evaluate((el: HTMLElement) => {
+    el.click();
+    el.click();
+  });
+  await expect(sheetOf(page)).toHaveCount(0);
+  await page.waitForTimeout(800);
+  await expect(page.getByTestId('time-estimate')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to the list' })).toHaveCount(0);
+  const s = await session(page);
+  expect(new Set(s.exerciseIds).size).toBe(s.exerciseIds.length);
+  expect(s.timeBudgetMin).toBe(30);
+  expect(errors).toEqual([]);
+});
+
+test('a real double tap on Apply: the second tap lands nowhere', async ({ page }) => {
+  const errors = watchErrors(page);
+  await usePlan(page);
+  await start(page);
+  await page.getByTestId('time-estimate').tap();
+  await chip(page, '30').tap();
+  await sheetOf(page).getByRole('button', { name: 'Apply to this workout' }).dblclick();
+  await expect(sheetOf(page)).toHaveCount(0);
+  await page.waitForTimeout(800);
+  await expect(page.getByRole('button', { name: 'Back to the list' })).toHaveCount(0);
+  await expect(page.getByTestId('time-estimate')).toBeVisible();
   expect(errors).toEqual([]);
 });

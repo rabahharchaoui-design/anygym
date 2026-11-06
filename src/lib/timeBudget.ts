@@ -179,13 +179,20 @@ export function trimDay(day: PlanDay, input: TrimInput): TrimResult {
   const protectedBlocks = new Set(compounds.slice(0, 2));
   const working = () =>
     applyTrim(day, trim, weekIndex).blocks.filter((b) => !b.warmup && !b.mobility).reduce((n, b) => n + b.items.filter((it) => kindOf(input.profileOf(it.exerciseId, it.name), it.name) !== 'stretch').length, 0);
+  // What step 2 set, so a block that comes back keeps it (never a third set back while anything is cut).
+  const reduced: Record<string, number> = {};
+  const cutOrder: number[] = [];
   const tryDrop = (bi: number) => {
     const b = day.blocks[bi]!;
     if (loggedIn(b) > 0 || protectedBlocks.has(bi)) return;
     const ids = b.items.map((it) => it.exerciseId);
     if (working() - ids.length < MIN_MOVES) return;
     trim.drop.push(...ids);
-    for (const id of ids) delete trim.sets[id];
+    for (const id of ids) {
+      if (trim.sets[id] !== undefined) reduced[id] = trim.sets[id]!;
+      delete trim.sets[id];
+    }
+    cutOrder.push(bi);
   };
   for (const bi of order) {
     if (!over()) break;
@@ -195,14 +202,18 @@ export function trimDay(day: PlanDay, input: TrimInput): TrimResult {
     if (!over()) break;
     if (!day.blocks[bi]!.warmup && kinds[bi]!.includes('compound')) tryDrop(bi);
   }
-  // A block dropped last may have overshot: the ones dropped earliest in the day come back while the
-  // day still fits (only ever the plan's own blocks, never anything new).
-  const dropped = day.blocks.map((b, bi) => ({ b, bi })).filter(({ b }) => b.items.some((it) => trim.drop.includes(it.exerciseId)));
-  for (const { b } of dropped) {
-    const ids = new Set(b.items.map((it) => it.exerciseId));
+  // The block cut last may have overshot: blocks come back in the reverse of the cut order, with the
+  // sets step 2 gave them, while the day still fits; the first one that does not fit stays cut, and
+  // so does everything cut before it (the cuts stay "last in the day first").
+  for (const bi of [...cutOrder].reverse()) {
+    const ids = new Set(day.blocks[bi]!.items.map((it) => it.exerciseId));
     const was = trim.drop;
     trim.drop = was.filter((id) => !ids.has(id));
-    if (over()) trim.drop = was;
+    for (const id of ids) if (reduced[id] !== undefined) trim.sets[id] = reduced[id]!;
+    if (!over()) continue;
+    trim.drop = was;
+    for (const id of ids) delete trim.sets[id];
+    break;
   }
   trim.drop = day.blocks.flatMap((b) => b.items.map((it) => it.exerciseId)).filter((id) => trim.drop.includes(id));
 

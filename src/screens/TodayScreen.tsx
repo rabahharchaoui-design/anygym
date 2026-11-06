@@ -29,7 +29,15 @@ import { BackupReminder } from './today/BackupReminder';
 import { useBackup } from './settings/useBackup';
 import { snoozeBackupReminder } from '../db/backup';
 import { onlyOnPhone, reminderReason, shouldRemind, SNOOZE_MS } from '../lib/backup';
+import { TimeBudgetSheet } from './workout/TimeBudgetSheet';
+import { applyNextStart, localDay, pickFor, readNextStart, trimFor, writeNextStart } from './today/startBudget';
+import { useActiveGym } from '../db/useActiveGym';
+import { getProfile } from '../db/intake';
+import { rememberBudget } from '../db/timeBudget';
+import { AS_PLANNED, fitWords } from '../lib/timeBudget';
 import styles from './TodayScreen.module.css';
+
+const NO_LOGGED: Readonly<Record<string, number>> = {};
 
 export function TodayScreen() {
   const navigate = useNavigate();
@@ -183,11 +191,48 @@ export function TodayScreen() {
     }
   });
 
+  // PLAN 3.6 (SPEC 7.4): "How much time today?" before Start, from the day card's estimate.
+  const gym = useActiveGym();
+  const profile = useLive(() => getProfile(), []);
+  const [timeOpen, setTimeOpen] = useState(false);
+  const [pickTick, setPickTick] = useState(0);
+  const nextIndex = plan && planState ? Math.max(0, Math.min(planState.nextDayIndex, plan.days.length - 1)) : 0;
+  const nextDay = plan?.days[nextIndex];
+  const nextWeek = plan && planState && plan.progressionMode === 'weekly_table' ? planState.weekIndex : 0;
+  void pickTick;
+  const pick = plan && nextDay ? pickFor(gym?.id, plan.id, nextIndex) : null;
+  const picked = pick && nextDay && pick.minutes < AS_PLANNED ? trimFor(nextDay, pick.minutes, nextWeek) : null;
+  const applyTime = (minutes: number, r: { trim: unknown; minutes: number; fits: boolean }) => {
+    setTimeOpen(false);
+    if (!gym || !plan) return;
+    const before = readNextStart();
+    const gymBefore = gym.timeBudgetMin;
+    writeNextStart(r.trim ? { gymId: gym.id, planId: plan.id, dayIndex: nextIndex, minutes, date: localDay() } : null);
+    setPickTick((n) => n + 1);
+    rememberBudget(gym.id, minutes).catch(() => undefined);
+    const shown: ToastMessage = {
+      id: Date.now(),
+      text: r.trim ? `${fitWords(r)} when you start` : 'The whole day, as planned',
+      action: {
+        label: 'Undo',
+        onPress: () => {
+          setToast((cur) => (cur?.id === shown.id ? null : cur));
+          writeNextStart(before);
+          setPickTick((n) => n + 1);
+          if (gymBefore !== undefined) rememberBudget(gym.id, gymBefore).catch(() => undefined);
+        },
+      },
+    };
+    setToast(shown);
+  };
+
   const startDay = useTapGuard(async () => {
     if (!plan || !planState) return;
     setError(false);
     try {
       const session = await startPlanDay((await startDb()).id, plan.id, planState.nextDayIndex);
+      // The time picked on Today for this day trims the workout now (never anything not picked).
+      await applyNextStart(session, (await db.sets.where('sessionId').equals(session.id).count()) > 0).catch(() => undefined);
       // The day card expands into the workout and Start becomes its header (SPEC 13.2).
       go(`/workout/${session.id}`, { kind: 'expand', state: { expand: true } });
     } catch {
@@ -255,7 +300,14 @@ export function TodayScreen() {
             </span>
           </button>
         ) : plan && planState ? (
-          <DayCard plan={plan} state={planState} onStart={() => void startDay()} onChangeDay={(i) => setChanging(i ?? true)} />
+          <DayCard
+            plan={plan}
+            state={planState}
+            onStart={() => void startDay()}
+            onChangeDay={(i) => setChanging(i ?? true)}
+            onTime={gym ? () => setTimeOpen(true) : undefined}
+            {...(picked?.trim ? { minutes: picked.minutes, fitsIn: pick!.minutes } : {})}
+          />
         ) : (
           <section className={styles.pick} aria-label="Pick a plan">
             <h2 className={styles.pickTitle}>Pick a plan</h2>
@@ -288,6 +340,18 @@ export function TodayScreen() {
           plan={plan}
           state={planState}
           onPick={(i) => void pickDay(i)}
+        />
+      )}
+      {plan && nextDay && (
+        <TimeBudgetSheet
+          open={timeOpen}
+          onClose={() => setTimeOpen(false)}
+          day={nextDay}
+          weekIndex={nextWeek}
+          initial={pick?.minutes ?? gym?.timeBudgetMin ?? profile.data?.intake?.minutes}
+          current={picked?.trim ?? undefined}
+          logged={NO_LOGGED}
+          onApply={applyTime}
         />
       )}
       <Toast toast={toast} bottom={toastBottom} />

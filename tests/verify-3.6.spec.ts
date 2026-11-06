@@ -79,14 +79,13 @@ test('Day 1: header 90 min is a button, chips, live 30, Apply, Undo exact, reloa
   const changes = await sheet.getByTestId('time-changes').innerText();
   const apply = sheet.getByRole('button', { name: 'Apply to this workout' });
   expect((await apply.boundingBox())!.height).toBeGreaterThanOrEqual(48);
-  // Double tap Apply: one trim, no duplicate rows. FINDING: the 2nd tap lands on the list row under the closing sheet.
+  // Double tap Apply: one trim, no duplicate rows. (Round 2: the 2nd tap is swallowed.)
   await apply.dblclick().catch(() => undefined);
   await expect(sheet).toHaveCount(0);
   await page.waitForTimeout(1200);
-  if ((await header.count()) === 0) {
-    test.info().annotations.push({ type: 'FINDING', description: 'double tap on Apply opened the exercise view of the row under the sheet' });
-    await page.getByRole('button', { name: 'Back to the list' }).tap();
-  }
+  // Round 2: fixed. The second tap never reaches the row under the closing sheet.
+  await expect(header).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Back to the list' })).toHaveCount(0);
   await expect(header).toHaveText(`~${f30} min`);
   const trimmed = await active(page);
   expect(new Set(trimmed.exerciseIds).size).toBe(trimmed.exerciseIds.length);

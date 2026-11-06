@@ -13,6 +13,12 @@ type Props = {
   onChangeDay: (dayIndex?: number) => void;
   /** This day's workout is in progress: the card says so and Start becomes Resume. */
   active?: { dayIndex: number; sets: number };
+  /** PLAN 3.6: the estimate after the time picked for this Start (the plan's own when none). */
+  minutes?: number;
+  /** PLAN 3.6: the minutes picked for this Start, when one shortens the day. */
+  fitsIn?: number;
+  /** PLAN 3.6: the estimate opens "How much time today?" (SPEC 7.4: before Start). */
+  onTime?: () => void;
 };
 
 /**
@@ -20,7 +26,7 @@ type Props = {
  * pips (done, part done as a ring, up next) and Change day. While the day is in progress it is the
  * one card on Today: "Day 1 · in progress · 2 sets" with Resume.
  */
-export function DayCard({ plan, state, onStart, onChangeDay, active }: Props) {
+export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime }: Props) {
   const dayIndex = Math.max(0, Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1));
   const day = plan.days[dayIndex]!;
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
@@ -29,8 +35,31 @@ export function DayCard({ plan, state, onStart, onChangeDay, active }: Props) {
     <section className={styles.dayCard} aria-label="Today's plan day" data-active={active ? 'true' : undefined}>
       <p className={styles.planName}>{plan.name}</p>
       <h2 className={styles.dayTitle} data-testid="day-card-title">
-        {active ? dayTitle(day.n, day.name) : `${dayTitle(day.n, day.name)} · ~${estimateDayMinutes(day, weekIndex)} min`}
+        {active ? (
+          dayTitle(day.n, day.name)
+        ) : onTime ? (
+          <>
+            {`${dayTitle(day.n, day.name)} · `}
+            <button
+              type="button"
+              className={`${styles.dayTime} num pressable`}
+              data-testid="day-card-time"
+              data-trimmed={fitsIn !== undefined || undefined}
+              aria-label={`About ${minutes ?? estimateDayMinutes(day, weekIndex)} min. How much time today?`}
+              onClick={onTime}
+            >
+              ~{minutes ?? estimateDayMinutes(day, weekIndex)} min
+            </button>
+          </>
+        ) : (
+          `${dayTitle(day.n, day.name)} · ~${estimateDayMinutes(day, weekIndex)} min`
+        )}
       </h2>
+      {!active && fitsIn !== undefined && (
+        <p className={styles.dayFits} data-testid="day-card-fits">
+          Shortened to fit {fitsIn} min
+        </p>
+      )}
       {active && (
         <p className={`${styles.inProgress} num`} data-testid="day-card-progress">
           In progress · {active.sets} {active.sets === 1 ? 'set' : 'sets'}
