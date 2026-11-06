@@ -22,7 +22,6 @@ function sureDemo(id: string): boolean {
 const doable = (req: string[][] | null, eq: string[]) => req !== null && req.every((g) => g.some((x) => eq.includes(x)));
 
 type Seen = { id: string; name: string; why: string; sets: string };
-const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 const project = () => test.info().project.name.replace(/ /g, '-');
 const shot = async (page: Page, name: string) => { await page.waitForTimeout(700); await page.screenshot({ path: `reports/shots/3.5a/verify/${name}-${project()}.png` }); };
 
