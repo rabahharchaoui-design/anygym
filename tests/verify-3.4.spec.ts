@@ -17,6 +17,7 @@ type Cand = { id: string; planId?: string; requires: Req; load?: string; timed?:
 const PATTERNS = JSON.parse(readFileSync('data/patterns.json', 'utf8')) as { patterns: Record<string, { candidates: Cand[] }>; planExercises: Record<string, { pattern: string | null; requires: Req | null }> };
 const CATALOG = (JSON.parse(readFileSync('data/catalog.json', 'utf8')) as { exercises: Array<{ id: string; equipment: string | null; images: string[] }> }).exercises;
 const MAP = JSON.parse(readFileSync('data/exercise-map.json', 'utf8')) as Array<{ planId: string; match: string; catalogId: string | null }>;
+const DEMO_LIST = new Set<string>((JSON.parse(readFileSync('data/catalog-demos.json', 'utf8')) as { exercises: Array<{ catalogId: string }> }).exercises.map((e) => e.catalogId));
 const planExercises = new Map((JSON.parse(readFileSync('data/plan-exercises.json', 'utf8')) as PlanExercise[]).map((e) => [e.id, e]));
 const FIVE: Plan = normalizePlan(JSON.parse(readFileSync('data/plans/five-day-split.json', 'utf8')), (n: string) => planExercises.get(slugify(n)));
 
@@ -167,7 +168,8 @@ test('V2 Replace is first; every choice is a same pattern, gym supported candida
         expect(c, `${g} is in the ${pat} ladder`).toBeTruthy();
         expect(supported(c!.requires, gym), `${g} is doable in ${kit} gym`).toBe(true);
         const hasPhoto = (await sheet.getByTestId(`swap-choice-${g}`).locator('[data-photo]').count()) > 0;
-        const sure = c!.planId ? !!byPlan.get(c!.planId) && byPlan.get(c!.planId)!.match !== 'none' : eligible.has(c!.id);
+        // PLAN 3.5a: data/catalog-demos.json lists catalog exercises whose own photos were opened and judged (Seated_Leg_Curl).
+        const sure = c!.planId ? !!byPlan.get(c!.planId) && byPlan.get(c!.planId)!.match !== 'none' : eligible.has(c!.id) || DEMO_LIST.has(c!.id);
         if (hasPhoto) {
           photos++;
           expect(sure, `${g} shows a photo`).toBe(true);
