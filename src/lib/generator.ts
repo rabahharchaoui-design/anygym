@@ -66,6 +66,13 @@ export type GeneratorInput = {
   place?: PlaceAnswer;
   /** Frozen curated plans: their own id, name, summary and gym type. */
   meta?: { id: string; name: string; summary: string; gymType: string };
+  /**
+   * PLAN 3.5a: learned soft dislikes (Quick workout left swipes), by exercise id: a higher count ranks
+   * the exercise lower among what fits, never out (never a ban).
+   */
+  soft?: Readonly<Record<string, number>>;
+  /** PLAN 3.5a: muscles this workout must not train (Quick workout "Hit what's fresh"). */
+  avoidMuscles?: readonly Muscle[];
 };
 
 export type GeneratorDeps = {
@@ -74,6 +81,8 @@ export type GeneratorDeps = {
   profile: (id: string) => Profile;
   /** The plain name of an exercise id. */
   name: (id: string) => string;
+  /** PLAN 3.5a: only these may be picked (Quick workout: a sure demo). Missing: anything that fits. */
+  usable?: (id: string) => boolean;
 };
 
 // ---------------------------------------------------------------- the shipped JSON shape
@@ -155,6 +164,7 @@ type Ctx = {
   family: GoalFamily;
   loveKeys: Set<string>;
   neverKeys: Set<string>;
+  softOf: Map<string, number>;
   weekUsed: Map<Pattern, Set<string>>;
 };
 
@@ -190,8 +200,11 @@ function allowed(ctx: Ctx, c: Candidate, timedOk: boolean): boolean {
   if (c.timed && !timedOk) return false;
   const id = workoutIdOf(c);
   if (ctx.neverKeys.has(ctx.deps.data.sameAs(id))) return false;
+  if (ctx.deps.usable && !ctx.deps.usable(id)) return false;
   const p = ctx.deps.profile(id);
   if (easyOnAvoids(ctx.input.easyOn, p)) return false;
+  const avoid = ctx.input.avoidMuscles;
+  if (avoid?.length && p.targets.some((m) => avoid.includes(m))) return false;
   if (p.advanced && ctx.input.experience !== '3y') return false;
   return true;
 }
@@ -209,8 +222,10 @@ function pickFrom(ctx: Ctx, pattern: Pattern, variant: boolean, dayKeys: Readonl
       loved: ctx.loveKeys.has(x.key) && !variant ? 0 : 1,
       fresh: variant && used.has(x.key) ? 1 : 0,
       style: style ? style[kindOf(x.c.requires)] : 0,
+      soft: ctx.softOf.get(x.key) ?? 0,
     }));
-  scored.sort((a, b) => a.loved - b.loved || a.fresh - b.fresh || a.style - b.style || a.i - b.i);
+  // Learned soft dislikes rank after a loved one and before variety and style (PLAN 3.5a).
+  scored.sort((a, b) => a.loved - b.loved || a.soft - b.soft || a.fresh - b.fresh || a.style - b.style || a.i - b.i);
   return scored[0]?.c;
 }
 
@@ -476,13 +491,14 @@ function rawBlock(ctx: Ctx, u: Item[]): RawSingle | RawPair {
   return { type: 'superset', sets, restSec, items: u.map((it) => rawItem(ctx, it)) };
 }
 
-/** Builds the plan, or says plainly which day cannot be built here. */
-export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): GeneratorResult {
+/** The working context of one generation: goals, and the love, never and soft lists by sameAs key. */
+function contextOf(input: GeneratorInput, deps: GeneratorDeps): Ctx {
   const goals = input.goals.filter((g, i, all) => all.indexOf(g) === i && FAMILY_OF[g] !== undefined);
   const main: GoalId = goals[0] ?? 'health';
   const also: GoalId | null = goals[1] ?? null;
-  const daysPerWeek = input.days !== undefined && Number.isInteger(input.days) && input.days >= 2 && input.days <= 6 ? input.days : 3;
   const key = (id: string) => deps.data.sameAs(id);
+  const softOf = new Map<string, number>();
+  for (const [id, n] of Object.entries(input.soft ?? {})) if (n > 0) softOf.set(key(id), (softOf.get(key(id)) ?? 0) + n);
   const ctx: Ctx = {
     input,
     deps,
@@ -491,10 +507,61 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
     family: FAMILY_OF[main],
     loveKeys: new Set((input.love ?? []).map(key)),
     neverKeys: new Set((input.never ?? []).map(key)),
+    softOf,
     weekUsed: new Map(),
   };
   // Never wins over love (SPEC 15: never want means never).
   for (const k of ctx.neverKeys) ctx.loveKeys.delete(k);
+  return ctx;
+}
+
+/** One day's item as the Quick workout holds it (PLAN 3.5a). */
+export type DayItem = { id: string; pattern: Pattern; sets: number; reps?: Range; seconds?: Range; restSec: number; eachSide?: true; compound: boolean };
+
+export type DayResult = { ok: true; name: string; items: DayItem[]; minutes: number; over: boolean } | { ok: false; name: string; moves: number };
+
+/**
+ * PLAN 3.5a: one day from a slot template, for a Quick workout. The plan's own rules: the slots
+ * filled the same way (gear, never, go easy on, loved, soft dislikes, style, `usable`), the same
+ * prescriptions, SPEC 22 order and the SPEC 7.4 trim to the minutes. Straight sets only (a quick
+ * workout has no pairs) and no finisher. Fewer than 3 moves is an honest failure.
+ */
+export function generateDay(input: GeneratorInput, deps: GeneratorDeps, template: { name: string; slots: readonly Slot[] }): DayResult {
+  const ctx = contextOf(input, deps);
+  const want = movesFor(input.minutes);
+  const dayKeys = new Set<string>();
+  const items: Item[] = [];
+  for (const slot of template.slots) {
+    if (items.length >= want) break;
+    const it = fill(ctx, slot, dayKeys, new Set(items.map((x) => x.pattern)));
+    if (it) items.push(it);
+  }
+  if (items.length < MIN_MOVES) return { ok: false, name: template.name, moves: items.length };
+  const lead = heaviestOf(items.map((it) => it.profile));
+  for (const it of items) prescribe(ctx, it, it.profile.id === lead?.id);
+  const focusMuscles: Muscle[] = (input.focus ?? []).flatMap((f) => (f === 'balance' ? [] : FOCUS_RULES[f].muscles));
+  const d: Day = { name: template.name, items, units: orderUnits(items.map((it) => unitOf([it])), { focus: focusMuscles }).map((u) => u.ref) };
+  trim(d, input.minutes);
+  const minutes = minutesOf(d);
+  const out: DayItem[] = d.units.flat().map((it) => ({
+    id: it.id,
+    pattern: it.pattern,
+    sets: it.sets,
+    ...(it.reps ? { reps: it.reps } : {}),
+    ...(it.seconds ? { seconds: it.seconds } : {}),
+    restSec: it.rest,
+    ...(it.candidate.eachSide ? { eachSide: true as const } : {}),
+    compound: isCompound(it.profile),
+  }));
+  return { ok: true, name: template.name, items: out, minutes, over: input.minutes !== undefined && input.minutes < 75 && minutes > input.minutes };
+}
+
+/** Builds the plan, or says plainly which day cannot be built here. */
+export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): GeneratorResult {
+  const daysPerWeek = input.days !== undefined && Number.isInteger(input.days) && input.days >= 2 && input.days <= 6 ? input.days : 3;
+  const key = (id: string) => deps.data.sameAs(id);
+  const ctx = contextOf(input, deps);
+  const { main, also } = ctx;
   const split = splitFor(daysPerWeek);
   const want = movesFor(input.minutes);
   const gaps = new Set<Pattern>();

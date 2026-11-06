@@ -31,6 +31,9 @@ export {
   ArrowLeftRight as SwitchIcon,
   Sparkles as CoachIcon,
   ArrowRight as ArrowRightIcon,
+  Shuffle as SwapIcon,
+  EyeOff as NeverIcon,
+  Undo2 as UndoIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

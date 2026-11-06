@@ -4,7 +4,7 @@
 // current after a set is logged (pairs alternate: A1, B1, rest, A2, B2, rest...).
 import type { RepRange } from './progression';
 import { slugify } from './loadTypeRule';
-import { amountText, blockRest, itemLine, itemTarget, planRest, setsText, type Plan, type PlanReps, type PlanSeconds } from './plans';
+import { amountText, blockRest, itemLine, itemTarget, planRest, setsText, type ItemTarget, type Plan, type PlanReps, type PlanSeconds } from './plans';
 import type { ExerciseLoadType } from './loadTypeRule';
 import type { SetKind } from '../db/types';
 
@@ -217,9 +217,22 @@ export const QUICK_DEFAULT = { sets: 3, reps: [8, 12] as RepRange, restSec: 90 }
  * A day list entry for an exercise added by hand to a quick workout. `restSec`: the rest Up next
  * suggested for it (SPEC 22 rule 6, kept on the session), shown as its rest.
  */
-export function quickEntry(exerciseId: string, name: string, loadType: ExerciseLoadType | undefined, block: number, restSec?: number): WorkoutEntry {
+export function quickEntry(
+  exerciseId: string,
+  name: string,
+  loadType: ExerciseLoadType | undefined,
+  block: number,
+  restSec?: number,
+  /** PLAN 3.5a: the targets a built Quick workout gave it (sets, reps or hold, rest). */
+  target?: { sets: number; reps?: PlanReps; seconds?: PlanSeconds; restSec: number },
+): WorkoutEntry {
   const timed = loadType === 'timed';
-  const t = timed ? { sets: QUICK_DEFAULT.sets } : { sets: QUICK_DEFAULT.sets, reps: QUICK_DEFAULT.reps };
+  const t: ItemTarget = target
+    ? { sets: target.sets, ...(target.reps !== undefined ? { reps: target.reps } : {}), ...(target.seconds !== undefined ? { seconds: target.seconds } : {}) }
+    : timed
+      ? { sets: QUICK_DEFAULT.sets }
+      : { sets: QUICK_DEFAULT.sets, reps: QUICK_DEFAULT.reps };
+  const rest = target ? target.restSec : restSec;
   const e: WorkoutEntry = {
     exerciseId,
     name,
@@ -229,13 +242,14 @@ export function quickEntry(exerciseId: string, name: string, loadType: ExerciseL
     pairIndex: 0,
     pairSize: 1,
     sets: t.sets,
-    restSec: restSec ?? QUICK_DEFAULT.restSec,
+    restSec: rest ?? QUICK_DEFAULT.restSec,
     setsText: setsText(t),
     line: setsText(t),
     amount: amountText(t),
   };
-  if (!timed) e.reps = QUICK_DEFAULT.reps;
-  if (restSec !== undefined) e.statedRest = restSec;
+  if (t.reps !== undefined) e.reps = t.reps;
+  if (t.seconds !== undefined) e.seconds = t.seconds;
+  if (rest !== undefined) e.statedRest = rest;
   return e;
 }
 

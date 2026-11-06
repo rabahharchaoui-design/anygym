@@ -112,7 +112,15 @@ export type Profile = {
   distanceUnit?: DistanceUnit;
   /** PLAN 3.3 (additive): unit for body measurements (cm or in). */
   measureUnit?: MeasureUnit;
+  /**
+   * PLAN 3.5a (additive, not indexed): learned soft dislikes from Quick workout. `soft`: left swipes
+   * per exercise id (ranked lower later, never a ban); `never`: "Never show me this". History is never touched.
+   */
+  dislikes?: { soft?: Record<string, number>; never?: string[] };
 };
+
+/** PLAN 3.5a: the targets Quick workout built for one exercise (a range or a number, like a plan's). */
+export type QuickTarget = { sets: number; reps?: [number, number] | number; seconds?: [number, number] | number; restSec: number };
 
 export type Plan = {
   id: string;
@@ -172,6 +180,11 @@ export type Session = {
    * day as planned. The plan and its JSON are never changed; logged sets are never touched.
    */
   trim?: DayTrim;
+  /**
+   * PLAN 3.5a (additive, not indexed): a built Quick workout's targets per exercise id (sets, reps or
+   * hold, rest), so the list shows exactly what the deck showed. Missing: the quick defaults.
+   */
+  targets?: Record<string, QuickTarget>;
 };
 
 /**

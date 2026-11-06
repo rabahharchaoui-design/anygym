@@ -342,3 +342,30 @@ export function MusclePair({ data, exercises = false, compact = false }: { data:
     </figure>
   );
 }
+
+/**
+ * PLAN 3.5a: the mini map on a Quick workout concept card: front and back, tiny and still, in the
+ * body chosen in Settings. Decorative (the card's text says the muscles); nothing when no muscle
+ * of the workout is sure (SPEC 4.3).
+ */
+export function MiniMusclePair({ data, className }: { data: MuscleMapData | null; className?: string }) {
+  const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as BodyKind);
+  const glowId = `glow${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  if (!data || !Object.keys(data.shading).length) return null;
+  return (
+    <span className={`${styles.mini} ${className ?? ''}`} aria-hidden="true" data-testid="mini-map">
+      <svg width="0" height="0" className={styles.defs} focusable="false">
+        <defs>
+          <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="14" />
+          </filter>
+        </defs>
+      </svg>
+      {(['front', 'back'] as const).map((view) => (
+        <span key={view} className={styles.miniBody}>
+          <Body body={body} view={view} data={data} picked={null} glowId={glowId} still />
+        </span>
+      ))}
+    </span>
+  );
+}

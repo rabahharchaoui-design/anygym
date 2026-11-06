@@ -87,6 +87,9 @@ const PATTERN_FACTS: Record<Pattern, PatternFacts> = {
   core: { targets: ['abs'], helpers: [], tier: 3, load: 1 },
 };
 
+/** What a pattern trains hard (PLAN 3.5a: Quick workout concepts). */
+export const patternTargets = (p: Pattern): readonly Muscle[] => PATTERN_FACTS[p].targets;
+
 /** Machine (and one kettlebell) versions of a big pattern are secondary compounds (rule 1); bars, dumbbells and bodyweight lead. */
 const SECONDARY_IMPLEMENTS: ReadonlySet<Implement> = new Set(['plate machine', 'machine', 'cable', 'kettlebell']);
 
