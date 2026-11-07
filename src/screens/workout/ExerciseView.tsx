@@ -8,7 +8,7 @@ import { newId } from '../../db/ids';
 import { beatLine } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
 import { addExtraSet, removeExtraSet } from '../../lib/extraSets';
-import { blockedReason, dropSlot, insertSlot, lastTimeNote, materializeFrom, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { blockedReason, dropSlot, insertSlot, isAutoWarmUp, lastTimeNote, materializeFrom, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
 import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio, warmAudio } from '../../lib/tone';
@@ -33,6 +33,9 @@ import { WeightSheet, type WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
+import { seedWarmUps, warmUpsSeeded } from './coachWarmUps';
+import { EffortChip } from './EffortChip';
+import { START_LIGHT } from '../../lib/coach';
 import styles from './Workout.module.css';
 
 // The muscles and form tips: their own chunk (body maps), mounted after the table (PLAN 2.2d).
@@ -177,7 +180,15 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // can never be logged a second time.
   adoptJournal(sessionId, w.journal, w.committed, {}, exerciseId);
   reconcileExercise(sessionId, exerciseId, w.committed);
+  // PLAN 3.8 (SPEC 15): the coach's warm ups on the first big lift of the day, added once, before
+  // anything of it was logged or changed (written before the rows are read: no flash, no shift).
+  if (kind && progression && !logQueue.closed(sessionId)) {
+    const setup = w.setupOf(exerciseId);
+    if (setup) seedWarmUps(sessionId, exerciseId, kind, w.warmUpsOf(exerciseId), setup, logged.length === 0 && rowsOf(sessionId, exerciseId).length === 0);
+  }
   const slots = rowsOf(sessionId, exerciseId);
+  /** Coach warm ups still to do: rows of their own, beyond the planned sets. */
+  const autoPending = slots.filter(isAutoWarmUp).length;
   /** A pending row's draft as stored right now, by slot (0 = the first row still to do). */
   const draftAt = (slot: number) => loadDraft(sessionId, rowKey(exerciseId, slot));
   const slotOf = (row: PendingRow) => row.index - logged.length;
@@ -187,7 +198,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const rows: PendingRow[] = kind
     ? pendingRows({
         // Every drafted row stays visible (a newer edit kept after a delayed write adds a row).
-        count: logged.length + Math.max((entry?.sets ?? 3) - workDone, slots.length),
+        count: logged.length + Math.max((entry?.sets ?? 3) - workDone + autoPending, slots.length),
         logged,
         workLogged: workDone,
         progression,
@@ -202,6 +213,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         planSeconds: entry ? targetSecondsOf(entry) : undefined,
         defaultType: entry?.warmup ? 'warmup' : 'normal',
         lastSets: w.lastSetsOf(exerciseId),
+        byKind: warmUpsSeeded(sessionId, exerciseId),
       })
     : [];
   const current = rows[0];
@@ -244,6 +256,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
   // A bar or plate machine whose base weight is not known yet: nothing can be loaded until it is answered.
   const baseUnknown = (kind === 'barbell' || kind === 'plate_machine') && rebuild(null, []) === null;
+  /** The light test set of a first timer (SPEC 15): the first row, while nothing is logged yet. */
+  const testSet = (row: PendingRow) => progression?.next.reason === START_LIGHT && logged.length === 0 && row.index === 0;
   const blockedOf = (row: PendingRow) => (kind ? blockedReason(kind, row, row.index === current?.index ? liveSeconds : 0, baseUnknown) : 'Pick a weight');
 
   // A double tap on one ✓ logs one set; checking the next row right after is fine (SPEC 13.3).
@@ -364,7 +378,9 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (!ok) return onNotice(pick.unit !== gym.unit ? `Units changed to ${gym.unit}. Pick the weight again.` : 'That weight cannot be loaded here now. Pick it again.');
     // A warm up's weight is for that warm up only; a working row's weight goes to it and the
     // working rows below it, never into a warm up (SPEC 20.2, gate 3).
-    const targets = from.type === 'warmup' ? [from] : rows.filter((r) => r.index >= from.index && r.type !== 'warmup');
+    // A first timer's light test set (PLAN 3.8, SPEC 15) is for that set only: the rows below get the
+    // number the coach sets from it.
+    const targets = from.type === 'warmup' || testSet(from) ? [from] : rows.filter((r) => r.index >= from.index && r.type !== 'warmup');
     for (const r of targets) writeRow(r, { load: ok.load, plates: ok.plates, unit: ok.unit }, { load: true });
   };
 
@@ -452,8 +468,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     // The rows below keep what they show (their own targets), then the slot goes (Codex 2.2d #2).
     const shown = materializeFrom(before, rows, at, slotOf, newId);
     const draft = shown[at] ?? null;
+    // A coach warm up is a row of its own: skipping it never takes a planned set away (PLAN 3.8).
+    const ownRow = isAutoWarmUp(draft);
     writeDrafts(sessionId, slotChanges(exerciseId, before, dropSlot(shown, at)));
-    removeExtraSet(sessionId, exerciseId);
+    if (!ownRow) removeExtraSet(sessionId, exerciseId);
     if (draft && (editing === draft.id || picking?.id === draft.id)) {
       setEditing(null);
       setPicking(null);
@@ -465,7 +483,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       const now = rowsOf(sessionId, exerciseId);
       if (draft) rowReturning(draft.id);
       writeDrafts(sessionId, slotChanges(exerciseId, now, insertSlot(now, at, draft)));
-      addExtraSet(sessionId, exerciseId);
+      if (!ownRow) addExtraSet(sessionId, exerciseId);
       w.bump();
     });
   };
@@ -521,7 +539,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // One target line (the LAST TIME column already shows each set): "Beat last time: 11 reps at
   // 185 lb", plus why when the weight moved; without a weight to beat, the reason alone.
   const beat = progression && lastTime ? beatLine(progression) : null;
-  const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || !progression.next.load) ? progression.next.reason : '';
+  const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || progression.next.kind === 'coach' || !progression.next.load) ? progression.next.reason : '';
+  // PLAN 3.8: a first timer's number, set from their light test set (SPEC 15).
+  const yourNumber = progression && !lastTime && progression.next.kind === 'first_time' && progression.next.load && logged.length > 0 && rows.length > 0 ? progression.next.reason : '';
+  const allDone = rows.length === 0 && logged.some((s) => s.kind === 'work');
   const notes = [entry?.note, w.noteOf(exerciseId)].filter((n): n is string => !!n);
   const note = notes.join(' · ');
   // SPEC 4.4: photos, muscles and cues only when the match is sure (SPEC 4.3). One object per
@@ -710,6 +731,13 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
                     {progression.next.reason}
                   </p>
                 )}
+                {yourNumber && !statusShown && (
+                  <p className={`${styles.firstTime} num`} data-testid="coach-number">
+                    {yourNumber}
+                  </p>
+                )}
+                {/* PLAN 3.8 (SPEC 15): one optional tap after the last set, never per set. */}
+                {allDone && <EffortChip sessionId={sessionId} exerciseId={exerciseId} />}
               </>
             }
             footer={
@@ -744,7 +772,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
           onClose={() => setPicking(null)}
           title={pickRow ? rowName(pickRow) : ''}
           untilPicked={picking?.why && pickRow?.load === null ? picking.why : undefined}
-          sub={!pickRow ? '' : pickRow.type === 'warmup' ? 'Just this warm up' : rows.some((r) => r.index > pickRow.index && r.type !== 'warmup') ? 'This set and the ones below' : 'This set'}
+          sub={!pickRow ? '' : pickRow.type === 'warmup' ? 'Just this warm up' : testSet(pickRow) ? 'Just this test set: pick something light' : rows.some((r) => r.index > pickRow.index && r.type !== 'warmup') ? 'This set and the ones below' : 'This set'}
           loadType={kind}
           gym={gym}
           exerciseId={exerciseId}

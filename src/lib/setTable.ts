@@ -14,6 +14,9 @@ import { payloadFp, UNKNOWN_FP } from './submission';
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
 
+/** PLAN 3.8: a coach warm up still to do (Draft.auto): its own row, beyond the planned sets. */
+export const isAutoWarmUp = (d: Pick<Draft, 'auto' | 'type'> | null | undefined): boolean => !!d && d.auto === true && d.type === 'warmup';
+
 /** The order of the choices in the "Set type" sheet (SPEC 21.1): Normal, Warm up, Drop set, Until you can't. */
 export const SET_TYPES: SetType[] = ['normal', 'warmup', 'drop', 'failure'];
 
@@ -269,6 +272,12 @@ export type BuildInput = {
    * LAST TIME lines up row by row. Without it the progression's working sets are used.
    */
   lastSets?: readonly PastSet[] | null;
+  /**
+   * PLAN 3.8: this exercise got the coach's warm ups this workout. LAST TIME then lines up by kind:
+   * a warm up row with last time's warm ups, a working row with last time's working sets (the
+   * coach's warm ups would push every working row off its own last time otherwise).
+   */
+  byKind?: boolean;
 };
 
 /** The rows still to do, filled as described at the top of this file. */
@@ -281,10 +290,26 @@ export function pendingRows(input: BuildInput): PendingRow[] {
   // weighted dips last time in lb never become an unweighted row in a kg gym).
   const historyBlocks = !!progression?.lastTime && !progression.next.load;
   const out: PendingRow[] = [];
+  // PLAN 3.8: the coach's warm ups still to do are rows of their own, so the working rows after them
+  // take the targets of the planned sets they are (never shifted by a warm up).
+  let autoAhead = 0;
+  const lastWarm = (input.lastSets ?? []).filter((s) => s.kind === 'warmup');
+  const lastWork = (input.lastSets ?? []).filter((s) => s.kind !== 'warmup');
+  let warmSeen = (logged as ReadonlyArray<{ kind?: SetKind }>).filter((s) => s.kind === 'warmup').length;
+  let workSeen = logged.length - warmSeen;
   for (let i = logged.length; i < count; i++) {
-    const target = perSet[i - shift]?.target ?? perSet[perSet.length - 1]?.target;
-    const lastTime = input.lastSets !== undefined ? (input.lastSets?.[i] ?? undefined) : (perSet[i]?.lastTime ?? progression?.lastTime?.sets[i]);
     const d = draftOf(i);
+    const auto = isAutoWarmUp(d);
+    const target = perSet[i - shift - autoAhead]?.target ?? perSet[perSet.length - 1]?.target;
+    const asWarm = auto || d?.type === 'warmup';
+    const lastTime = input.byKind
+      ? (asWarm ? lastWarm[warmSeen] : lastWork[workSeen])
+      : input.lastSets !== undefined
+        ? (input.lastSets?.[i] ?? undefined)
+        : (perSet[i]?.lastTime ?? progression?.lastTime?.sets[i]);
+    if (asWarm) warmSeen++;
+    else workSeen++;
+    if (auto) autoAhead++;
     let load: Load | null;
     let plates: number[];
     let kept: KeptPick | undefined;

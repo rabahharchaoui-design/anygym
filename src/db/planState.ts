@@ -80,6 +80,33 @@ export async function setNextDay(dayIndex: number, db: AnyGymDB = defaultDb): Pr
   });
 }
 
+/**
+ * "Rebuild the week" (PLAN 3.8, competitor gap 3): after missed workouts, this pass through the plan
+ * starts again from its first day; the days done in it are cleared (the logged workouts are never
+ * touched) and a weekly table stays on its week. Returns the pointer before and after (for Undo),
+ * or undefined with no plan in use.
+ */
+export async function rebuildWeek(db: AnyGymDB = defaultDb): Promise<{ before: PlanState; after: PlanState } | undefined> {
+  return db.transaction('rw', db.planState, async () => {
+    const before = await db.planState.get('active');
+    if (!before || !planById(before.planId)) return undefined;
+    const after: PlanState = { ...before, nextDayIndex: 0, doneDays: [] };
+    delete after.partial;
+    await db.planState.put(after);
+    return { before, after };
+  });
+}
+
+/** Undo of rebuildWeek: puts the pointer back, only while it is still exactly as rebuilt (else false). */
+export async function undoRebuildWeek(r: { before: PlanState; after: PlanState }, db: AnyGymDB = defaultDb): Promise<boolean> {
+  return db.transaction('rw', db.planState, async () => {
+    const now = await db.planState.get('active');
+    if (!now || JSON.stringify(now) !== JSON.stringify(r.after)) return false;
+    await db.planState.put(r.before);
+    return true;
+  });
+}
+
 /** The week a plan day starts in: the state's week for a weekly table, else 0. */
 export function weekFor(state: PlanState | undefined, planId: string): number {
   const plan = planById(planId);

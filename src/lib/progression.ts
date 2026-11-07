@@ -67,7 +67,8 @@ export type ProgressionInput = {
 
 export type SetLine = { reps?: number; seconds?: number; load: Load };
 
-export type NextKind = 'increase' | 'reset' | 'beat_reps' | 'first_time' | 'converted';
+/** 'coach' (PLAN 3.8): a coach decision for this lift won over the rules above (lib/coach/target.ts). */
+export type NextKind = 'increase' | 'reset' | 'beat_reps' | 'first_time' | 'converted' | 'coach';
 
 export type Next = {
   load: Load | null;

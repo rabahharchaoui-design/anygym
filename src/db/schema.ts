@@ -1,5 +1,7 @@
 import Dexie, { type EntityTable, type Table } from 'dexie';
 import type { CrashSignatureRow, ReportPreferencesRow, ReportQueueRow } from '../lib/reporting/types';
+import type { CoachCardRow, CoachLiftRow, EffortRow } from './coachTypes';
+import type { ChangeRecord } from '../lib/coach/types';
 import type { ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from './types';
 
 export const DB_NAME = 'anygym';
@@ -96,11 +98,30 @@ export const SCHEMA_V9 = {
   reportPreferences: 'id',
 } as const;
 
+/**
+ * Version 10 (PLAN 3.8, SPEC 15), additive: the coach, all on this phone.
+ * - coachLifts: one row per lift (lib/coach liftKey): the coach's target for it (wins over SPEC 6's
+ *   Next until used) and what it learned (the smoothed strength estimate, the weekly rate and the
+ *   raise scale; internal only, never shown).
+ * - coachChanges: every change the coach made, old → new per lift, with what it replaced, for Undo
+ *   and for learning from outcomes.
+ * - coachCards: Today's coach cards already answered (dismissed or used), by card id.
+ * - efforts: the Easy / Good / Hard tap after the last set of an exercise, per workout.
+ * Not backed up (not in lib/backup.ts TABLE_NAMES): suggestions and taps the coach can live without;
+ * the workouts themselves are.
+ */
+export const SCHEMA_V10 = {
+  coachLifts: 'key, exerciseId',
+  coachChanges: 'id, cardId, key, appliedAt',
+  coachCards: 'id',
+  efforts: '[sessionId+exerciseId], exerciseId, sessionId',
+} as const;
+
 /** One mirrored localStorage key (lib/durable.ts): its value (null = removed) and write stamp. */
 export type KvRow = { key: string; value: string | null; at: number };
 
 /** The current schema version (the highest this.version below). Backups record it (lib/backup.ts). */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
@@ -124,6 +145,10 @@ export class AnyGymDB extends Dexie {
   reportQueue!: EntityTable<ReportQueueRow, 'id'>;
   crashSignatures!: Table<CrashSignatureRow, [string, string]>;
   reportPreferences!: EntityTable<ReportPreferencesRow, 'id'>;
+  coachLifts!: EntityTable<CoachLiftRow, 'key'>;
+  coachChanges!: EntityTable<ChangeRecord, 'id'>;
+  coachCards!: EntityTable<CoachCardRow, 'id'>;
+  efforts!: Table<EffortRow, [string, string]>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -149,6 +174,7 @@ export class AnyGymDB extends Dexie {
     this.version(7).stores(SCHEMA_V7);
     this.version(8).stores(SCHEMA_V8);
     this.version(9).stores(SCHEMA_V9);
+    this.version(10).stores(SCHEMA_V10);
   }
 }
 

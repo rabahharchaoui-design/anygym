@@ -1,0 +1,81 @@
+/* Settings → Coach → Auto level up: the first time example sheet (PLAN 3.8, SPEC 15). */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1) var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.sub {
+  margin: -4px 0 0;
+  color: var(--text-2);
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* The one real example, from the user's own lifts. */
+.example {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-4);
+  border: 1px solid rgb(212 255 58 / 0.22);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgb(212 255 58 / 0.08), rgb(212 255 58 / 0.02) 60%);
+  text-align: center;
+}
+
+.exName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.exNumbers {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 8vw, 32px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.exNumbers b {
+  color: var(--accent);
+}
+
+.exWhen {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.none {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--glass-line);
+  border-radius: 20px;
+  color: var(--text-2);
+  line-height: 1.4;
+  text-align: center;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.error {
+  margin: 0;
+  min-height: 18px;
+  color: var(--red);
+  font-size: var(--text-sm);
+  text-align: center;
+}

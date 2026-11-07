@@ -38,6 +38,11 @@ import { AS_PLANNED, fitWords } from '../lib/timeBudget';
 import { canBuild } from '../lib/quick';
 import { QUICK_DEPS } from '../data/quick';
 import { baseInput, equipmentPath, kitOf } from './quick/quickInput';
+import { useCoach } from './today/useCoach';
+import { CoachCard, CoachLine } from './today/CoachCard';
+import { FreshMuscles } from './today/FreshMuscles';
+import { LeveledUpSheet } from './today/LeveledUpSheet';
+import { applyLighterWeek } from './today/coachStart';
 import styles from './TodayScreen.module.css';
 
 const NO_LOGGED: Readonly<Record<string, number>> = {};
@@ -80,7 +85,10 @@ export function TodayScreen() {
   }, [dbOpen]);
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
-  const data = { ready: dbOpen && live.ready && live.data != null, value: live.data ?? undefined };
+  // PLAN 3.8: the coach reads with Today, so its card never shifts the page in after the rest.
+  const coach = useCoach(dbOpen);
+  const [seeChanges, setSeeChanges] = useState(false);
+  const data = { ready: dbOpen && live.ready && live.data != null && coach.ready, value: live.data ?? undefined };
   const failed = dbOpen && live.error !== null && !data.ready;
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [updateReady, setUpdateReady] = useState(isUpdateReady);
@@ -237,6 +245,8 @@ export function TodayScreen() {
     setError(false);
     try {
       const session = await startPlanDay((await startDb()).id, plan.id, planState.nextDayIndex);
+      // A lighter week (PLAN 3.8): one set fewer on its exercises, this workout only.
+      await applyLighterWeek(session).catch(() => 0);
       // The time picked on Today for this day trims the workout now (never anything not picked).
       await applyNextStart(session, (await db.sets.where('sessionId').equals(session.id).count()) > 0).catch(() => undefined);
       // The day card expands into the workout and Start becomes its header (SPEC 13.2).
@@ -321,6 +331,13 @@ export function TodayScreen() {
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
           </section>
         )}
+        {/* PLAN 3.8 (SPEC 15): the coach's one card, or its one line, never both. */}
+        {data.ready && !failed && (
+          <>
+            <CoachCard card={coach.today?.card ?? null} data={coach.data} onToast={setToast} onSeeChanges={() => setSeeChanges(true)} />
+            {!coach.today?.card && <CoachLine line={coach.today?.line ?? null} />}
+          </>
+        )}
         {/* PLAN 3.5a (SPEC 20.3): past the intake, Quick workout builds it for you, 30 min preselected.
             Round 2 (B5): only when this gym can build one; else the way to make it able to. */}
         {data.ready && !active && !!profile.data?.intakeDoneAt && buildable !== null &&
@@ -349,6 +366,8 @@ export function TodayScreen() {
             <span className={styles.quickSub}>Pick the exercises yourself</span>
           </button>
         )}
+        {/* Competitor gap 4: from logged sets only; nothing logged lately, no card. */}
+        {data.ready && !failed && !active && <FreshMuscles bands={coach.fresh} />}
         <BackupReminder
           show={remind}
           reason={reminderReason({ onlyHere: data.value?.onlyHere ?? 0, lastBackupAt: data.value?.lastBackupAt, now: Date.now() })}
@@ -381,6 +400,11 @@ export function TodayScreen() {
           onApply={applyTime}
         />
       )}
+      <LeveledUpSheet
+        open={seeChanges && coach.today?.card?.kind === 'leveled_up'}
+        onClose={() => setSeeChanges(false)}
+        changes={coach.today?.card?.kind === 'leveled_up' ? coach.today.card.changes : []}
+      />
       <Toast toast={toast} bottom={toastBottom} />
     </>
   );

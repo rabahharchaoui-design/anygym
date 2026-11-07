@@ -24,6 +24,9 @@ export class ActiveWorkoutError extends Error {
 }
 
 const tablesOf = (db: AnyGymDB) => TABLE_NAMES.map((t) => db.table(t));
+/** PLAN 3.8: the coach tables (schema v10), never backed up, cleared by a replace restore. */
+export const COACH_TABLES = ['coachLifts', 'coachChanges', 'coachCards', 'efforts'] as const;
+const coachTablesOf = (db: AnyGymDB) => COACH_TABLES.map((t) => db.table(t));
 
 /** Where drafts live (undefined: localStorage, through the drafts module's default; tests pass their own). */
 type DraftStorage = Parameters<typeof exportDrafts>[0];
@@ -142,9 +145,12 @@ async function storeDraftsDurably(db: AnyGymDB, blob: DraftsBlob): Promise<void>
  * backup's drafts durably, all in one transaction. localStorage is filled once it committed.
  */
 export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, drafts: DraftStorage = undefined): Promise<RestoreResult> {
-  const result = await db.transaction('rw', [...tablesOf(db), db.kv], async () => {
+  const result = await db.transaction('rw', [...tablesOf(db), db.kv, ...coachTablesOf(db)], async () => {
     await refuseIfActive(db);
     for (const t of TABLE_NAMES) await db.table(t).clear();
+    // PLAN 3.8 round 2 (Codex #2): the coach's targets, changes, answered cards and effort taps belong
+    // to the history being replaced; the coach rebuilds from the restored workouts.
+    for (const t of coachTablesOf(db)) await t.clear();
     // Undo intents of workouts that are gone with the old data (PLAN 1.7k); other kv rows stay.
     await db.kv.where('key').startsWith(UNDO_PREFIX).delete();
     // The change revision counters of the old data (PLAN 2.0e): the restored journal's own revisions count from here.

@@ -30,6 +30,7 @@ import { gymFacts } from '../lib/reporting/feedback';
 import { useLive } from '../hooks/useLive';
 import { getProfile, setProfileUnits } from '../db/intake';
 import { db } from '../db/schema';
+import { CoachSettings } from './settings/CoachSettings';
 import styles from './Settings.module.css';
 
 let toastSeq = 0;
@@ -268,6 +269,7 @@ export function SettingsScreen() {
           </div>
         </div>
       </section>
+      <CoachSettings />
       <section className={styles.group} aria-labelledby="set-gyms">
         <h2 id="set-gyms" className={styles.groupTitle}>
           Gyms

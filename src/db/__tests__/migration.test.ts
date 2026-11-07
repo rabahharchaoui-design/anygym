@@ -311,7 +311,7 @@ describe('schema v8 → v9 migration (PLAN 1.11a: the report queue, crash signat
     const db = new AnyGymDB(name);
     await db.open();
     expect(db.verno).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(9);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(9);
     for (const t of Object.keys(before)) expect(JSON.stringify(await db.table(t).toArray()), t).toBe(before[t]);
     expect(await db.reportQueue.count()).toBe(0);
     expect(await db.crashSignatures.count()).toBe(0);
