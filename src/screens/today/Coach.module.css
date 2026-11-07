@@ -1,0 +1,303 @@
+/* The coach on Today (PLAN 3.8, SPEC 15): one card at most, or one quiet line. The memorable part is
+   the old → new number per lift; everything around it stays quiet. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border: 1px solid var(--glass-line);
+  border-radius: 24px;
+  background:
+    radial-gradient(90% 60% at 0% 0%, rgb(212 255 58 / 0.07), transparent 65%),
+    rgb(255 255 255 / 0.035);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+.card[data-quiet] {
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  background: rgb(255 255 255 / 0.03);
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 24px;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.whoIcon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(19px, 5.4vw, 21px);
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.text {
+  margin: -4px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.name {
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.change {
+  justify-self: end;
+  align-self: start;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.change b {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.why {
+  grid-column: 1 / -1;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.row[data-undone] .change b {
+  color: var(--text-2);
+}
+
+/* "2 holding steady": a disclosure that opens without moving anything above it. */
+.more {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* 48 pt tall to tap (SPEC 13.1), the negative margins keep the card's rhythm. */
+  min-height: 48px;
+  margin: -8px 0 -8px;
+  padding: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.more svg {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.more[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-out);
+}
+
+.reveal[data-open] {
+  grid-template-rows: 1fr;
+}
+
+.reveal > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.primary,
+.secondary,
+.later {
+  flex: none;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.primary {
+  background: linear-gradient(to bottom, #e0ff6a, var(--accent) 55%);
+  color: var(--on-accent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    var(--accent-glow);
+}
+
+.secondary {
+  border: 1px solid var(--glass-line);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--text);
+}
+
+.later {
+  margin-right: auto;
+  padding: 0 var(--space-2);
+  color: var(--text-2);
+}
+
+/* The quiet Leveled up card: one line, See changes and a close. */
+.quietRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quietText {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.quietRow .whoIcon {
+  flex: none;
+  color: var(--accent);
+}
+
+.link {
+  align-self: flex-start;
+  min-height: 48px;
+  margin: -10px 0 -2px 32px;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: -8px calc(-1 * var(--space-3)) -8px 0;
+  color: var(--text-2);
+}
+
+/* One Coach line, when there is no card. */
+.line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-1);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.line .whoIcon {
+  flex: none;
+  color: var(--accent);
+  margin-top: -2px;
+}
+
+.line b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The See changes sheet. */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1) var(--space-4);
+}
+
+.sheetTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-align: center;
+}
+
+.sheetSub {
+  margin: -6px 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.undo {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+  align-self: center;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.undone {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+  align-self: center;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.sheetRow {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.sheetRow .why {
+  grid-column: 1 / 3;
+}

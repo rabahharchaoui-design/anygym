@@ -1,0 +1,134 @@
+/* Fresh muscles (PLAN 3.8, competitor gap 4): the body shaded by how recently a logged set worked
+   each muscle. Lime at full strength for under 24 h, fading with time; untouched stays graphite. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--glass-line);
+  border-radius: 24px;
+  background: rgb(255 255 255 / 0.03);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.sub {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.stage {
+  display: flex;
+  justify-content: center;
+  gap: clamp(16px, 8vw, 40px);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: min(112px, 34%, 15svh);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 2;
+  overflow: visible;
+}
+
+.svg path {
+  stroke: var(--bg);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.svg .outline {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 3;
+}
+
+.rest {
+  fill: color-mix(in srgb, var(--text-2) 30%, var(--bg));
+}
+
+.skull {
+  fill: color-mix(in srgb, var(--text-2) 20%, var(--bg));
+}
+
+.day {
+  fill: var(--accent);
+}
+
+.two {
+  fill: color-mix(in srgb, var(--accent) 58%, var(--bg));
+}
+
+.three {
+  fill: color-mix(in srgb, var(--accent) 30%, var(--bg));
+}
+
+.view {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.swatch.day {
+  background: var(--accent);
+}
+
+.swatch.two {
+  background: color-mix(in srgb, var(--accent) 58%, var(--bg));
+}
+
+.swatch.three {
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg));
+}
+
+.note {
+  margin: -4px 0 0;
+  color: var(--text-2);
+  font-size: 12px;
+  text-align: center;
+}

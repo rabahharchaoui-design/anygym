@@ -117,6 +117,11 @@ export type Profile = {
    * per exercise id (ranked lower later, never a ban); `never`: "Never show me this". History is never touched.
    */
   dislikes?: { soft?: Record<string, number>; never?: string[] };
+  /**
+   * PLAN 3.8 (additive, not indexed): the coach's settings. `autoLevelUp`: Settings → Coach → Auto
+   * level up (SPEC 15, off by default). `autoIntroAt`: when its first time example sheet was shown.
+   */
+  coach?: { autoLevelUp?: boolean; autoIntroAt?: number };
 };
 
 /** PLAN 3.5a: the targets Quick workout built for one exercise (a range or a number, like a plan's). */

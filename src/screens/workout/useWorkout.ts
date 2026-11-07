@@ -27,6 +27,27 @@ import { liveRowAdjustments } from '../../lib/extraSets';
 import { useLive } from '../../hooks/useLive';
 import { barIdFor, loadSetupFor } from './exerciseLoad';
 import { applyTrim, trimmedPlan } from '../../lib/timeBudget';
+import { getProfile } from '../../db/intake';
+import { goalsOf } from '../../lib/intake/funnel';
+import { historyKeyFor } from '../../db/history';
+import { loadAt, pickedWeight, testSetNumber, type LoadSetup, type WarmUp } from '../../lib/load';
+import {
+  KEEP_NUMBER,
+  START_LIGHT,
+  TEST_SET_REPS,
+  autoWarmUps,
+  coachRest,
+  firstCompound,
+  liftClass,
+  liftKey,
+  targetActive,
+  weighted,
+  weightWords,
+  withTarget,
+  wantsWarmUps,
+  yourNumber,
+  type CoachTarget,
+} from '../../lib/coach';
 
 export type Workout = {
   /** Every required read landed and none failed: logging and Finish may run. */
@@ -83,6 +104,13 @@ export type Workout = {
   recordOf: (setId: string) => SetRecord | undefined;
   /** Bumps when "+ Add set" adds a row. */
   bump: () => void;
+  /**
+   * PLAN 3.8 (SPEC 15): the coach's warm ups for this exercise (the first big lift of the day, for
+   * intermediate lifters and up, from its working weight), else none.
+   */
+  warmUpsOf: (id: string) => WarmUp[];
+  /** PLAN 3.8: what this exercise can load at this gym (load.ts LoadSetup), for the coach's warm ups. */
+  setupOf: (id: string) => LoadSetup | undefined;
 };
 
 export type SwapChoice = { id: string; name: string; reason: string; loadType: Load['kind'] | undefined; photo: DemoImages | null };
@@ -118,6 +146,15 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   const gymId = session.data?.gymId;
   const gym = useLive(() => (gymId ? db.gyms.get(gymId) : Promise.resolve(undefined)), [gymId]);
   const settings = useLive(() => db.exerciseSettings.toArray(), []);
+  // PLAN 3.8: the coach's targets per lift and the intake (experience, goal). A failed read leaves
+  // the coach out (SPEC 6 as is); it never blocks logging.
+  const coachRows = useLive(() => db.coachLifts.toArray(), []);
+  const profile = useLive(() => getProfile(), []);
+  const coachReady = (coachRows.ready || !!coachRows.error) && (profile.ready || !!profile.error);
+  const targets = useMemo(() => new Map((coachRows.error ? [] : (coachRows.data ?? [])).filter((r) => r.target).map((r) => [r.key, r.target!] as [string, CoachTarget])), [coachRows.data, coachRows.error]);
+  const intake = profile.error ? undefined : profile.data?.intake;
+  const experience = intake?.experience;
+  const goal = intake ? goalsOf(intake)[0] : undefined;
   const [extraTick, setExtraTick] = useState(0);
   const exerciseIds = useMemo(() => session.data?.exerciseIds ?? [], [session.data?.exerciseIds]);
 
@@ -200,20 +237,68 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     return afterPaint(() => setRecordMap(next));
   }, [wins.data, wins.error]);
 
+  const setupOf = (id: string): LoadSetup | undefined => {
+    const kind = loadTypeOf(id);
+    return kind && gym.data ? { unit: gym.data.unit, ...loadSetupFor(gym.data, kind, id, nameOf(id), barOf(id)) } : undefined;
+  };
+
   const progressionOf = (id: string): Progression | undefined => {
     const kind = loadTypeOf(id);
     const past = history.data?.get(id)?.past;
-    if (!kind || !past || !gym.data) return undefined;
+    if (!kind || !past || !gym.data || !coachReady) return undefined;
     const entry = entryMap.get(id);
-    return progress({
+    const setup = setupOf(id)!;
+    const range = entry && kind !== 'timed' ? repRangeOf(entry) : null;
+    const prescription = entry?.prescription && kind !== 'timed' ? entry.prescription : undefined;
+    const p = progress({
       exerciseId: id,
       loadKind: kind,
       unit: gym.data.unit,
       gym: loadSetupFor(gym.data, kind, id, nameOf(id), barOf(id)),
-      repRange: entry && kind !== 'timed' ? repRangeOf(entry) : null,
+      repRange: range,
       history: past,
-      ...(entry?.prescription && kind !== 'timed' ? { prescription: entry.prescription } : {}),
+      ...(prescription ? { prescription } : {}),
     });
+    // PLAN 3.8 (SPEC 15): a coach decision for this lift wins over SPEC 6's Next, with its reason.
+    const smith = kind === 'barbell' && barIdFor(nameOf(id), barOf(id)) === 'smith';
+    const t = targets.get(liftKey(id, kind, historyKeyFor(kind, gym.data.id, smith), smith));
+    if (targetActive(t, past[0]?.date, Date.now(), gym.data.unit, kind)) {
+      const load = loadAt(kind, t.value, setup);
+      if (load) return withTarget(p, t, load, range, prescription);
+    }
+    // First timers (SPEC 15): no fake number. A light test set first, then the number from it.
+    if (p.next.kind === 'first_time' && experience === 'new' && weighted(kind)) return startLight(p, id, kind, setup, entry, range);
+    return p;
+  };
+
+  /** SPEC 15 starting weights: "Start light: 10 easy reps, then we'll set your number". */
+  const startLight = (p: Progression, id: string, kind: Load['kind'], setup: LoadSetup, entry: WorkoutEntry | undefined, range: [number, number] | null): Progression => {
+    const rows = entry?.sets ?? 3;
+    const low = range?.[0] ?? 8;
+    const test = sets.find((s): s is WorkoutSet & { load: Load; reps: number } => s.exerciseId === id && s.kind === 'work' && !!s.load && s.load.kind === kind && !!s.reps);
+    if (!test) return { ...p, next: { ...p.next, reason: START_LIGHT }, perSet: Array.from({ length: rows }, (_, i) => ({ target: { load: null, reps: i === 0 ? TEST_SET_REPS : low } })) };
+    const value = pickedWeight(test.load);
+    const n = value === null || test.load.unit !== setup.unit ? null : testSetNumber(kind, value, test.reps, low, setup);
+    const load = n === null ? null : loadAt(kind, n, setup);
+    if (!load || n === null) return p;
+    const reason = n === value ? KEEP_NUMBER : yourNumber(weightWords(kind, n, setup.unit));
+    return {
+      lastTime: null,
+      next: { load, reps: range ?? low, reason, kind: 'first_time' },
+      perSet: Array.from({ length: rows }, (_, i) => ({ target: i === 0 ? { load: test.load, reps: test.reps } : { load, reps: low } })),
+    };
+  };
+
+  // PLAN 3.8 (SPEC 15): the first big lift of the day gets warm ups, for intermediate lifters and up.
+  const classOf = (id: string) => liftClass(patternOf(SWAP_DATA, id));
+  const firstBig = wantsWarmUps(experience) ? firstCompound(entries, classOf, loadTypeOf) : null;
+  const warmUpsOf = (id: string): WarmUp[] => {
+    if (id !== firstBig) return [];
+    const p = progressionOf(id);
+    const kind = loadTypeOf(id);
+    const setup = setupOf(id);
+    if (!p?.next.load || !kind || !setup) return [];
+    return autoWarmUps(experience, kind, pickedWeight(p.next.load), setup);
   };
 
   // Working sets only: a warm up on a normal lift leaves its planned rows to do (PLAN 1.7j).
@@ -222,9 +307,17 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   // Rest timer Off (PLAN 2.2d) is a user rest of none: logging a set starts no countdown.
   const restOffOf = (id: string) => pickRestOff(list, id);
   const userRestOf = (id: string) => (restOffOf(id) ? 0 : pickRest(list, id));
-  const restOf = (id: string) => userRestOf(id) ?? entryMap.get(id)?.restSec ?? 90;
+  // PLAN 3.8 (SPEC 15): with no rest from the user or stated by the plan, the coach's rest for the
+  // goal and the kind of lift; without a goal or a known lift, the plan's default as before.
+  const planRestOf = (id: string): number | undefined => {
+    const e = entryMap.get(id);
+    if (!e) return undefined;
+    if (e.statedRest !== undefined || e.warmup || e.finisher || e.mobility) return e.restSec;
+    return coachRest(goal, classOf(id)) ?? e.restSec;
+  };
+  const restOf = (id: string) => userRestOf(id) ?? planRestOf(id) ?? 90;
   /** The rest time to show and edit (kept while the timer is off). */
-  const restTimeOf = (id: string) => pickRest(list, id) ?? entryMap.get(id)?.restSec ?? 90;
+  const restTimeOf = (id: string) => pickRest(list, id) ?? planRestOf(id) ?? 90;
 
   const swapChoices = (id: string): SwapChoices => {
     const kit = gym.data;
@@ -253,7 +346,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
   };
 
   return {
-    ready: !error && !!(session.data && gym.data && allSets.ready && settings.ready && history.ready),
+    ready: !error && !!(session.data && gym.data && allSets.ready && settings.ready && history.ready && coachReady),
     error,
     retry,
     session: session.data,
@@ -291,6 +384,8 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     isQuick: !plan,
     recordOf: (setId) => recordMap.get(setId),
     bump: () => setExtraTick((t) => t + 1),
+    warmUpsOf,
+    setupOf,
   };
 }
 

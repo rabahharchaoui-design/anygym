@@ -50,6 +50,14 @@ async function writeAlways(slot: string, planId: string, to: string | undefined,
   return before;
 }
 
+/**
+ * PLAN 3.8 (a plateau's "Try a variation"): `to` becomes the plan's pick for this slot from now on, like
+ * "Always use this" (`undefined` clears it). Returns the pick it replaced, for Undo.
+ */
+export async function setAlwaysUse(slot: string, planId: string, to: string | undefined, db: AnyGymDB = defaultDb): Promise<string | undefined> {
+  return db.transaction('rw', db.exerciseSettings, () => writeAlways(slot, planId, to, db));
+}
+
 /** This workout does `to` in `from`'s place; `always` also makes it the plan's pick from now on. */
 export async function swapExercise(sessionId: string, from: string, to: string, opts: { always?: boolean } = {}, db: AnyGymDB = defaultDb): Promise<SwapReceipt> {
   return db.transaction('rw', [db.sessions, db.sets, db.journal, db.submissions, db.tombstones, db.exerciseSettings], async () => {

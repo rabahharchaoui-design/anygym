@@ -48,6 +48,11 @@ export type Draft = {
    * unknown (load null, plates only): a pick is never rebuilt under another load kind.
    */
   pickKind?: Load['kind'];
+  /**
+   * PLAN 3.8 (SPEC 15, additive): a warm up the coach added before the first big lift. While it is a
+   * warm up still to do it is a row of its own, beyond the planned sets; it never uses one up.
+   */
+  auto?: true;
 };
 
 const KEY = 'anygym-drafts';
