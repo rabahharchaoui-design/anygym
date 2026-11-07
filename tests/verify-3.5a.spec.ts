@@ -239,7 +239,7 @@ test.describe('3.5a verify', () => {
     await page.waitForTimeout(600);
     const victim = (await card(page).getAttribute('data-exercise'))!;
     await longPress(page);
-    await expect(page.getByText("Won't show it again")).toBeVisible();
+    await expect(page.getByTestId('deck-hint')).toContainText(/ hidden/); // PLAN 3.8a
     await shot(page, 'never-toast');
     await expect.poll(async () => (await soft()).never).toEqual(expect.arrayContaining(['pre-never', victim]));
     await page.getByRole('button', { name: 'Undo' }).tap();

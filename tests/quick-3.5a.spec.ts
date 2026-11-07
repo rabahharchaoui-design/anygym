@@ -180,7 +180,8 @@ test.describe('Quick workout builds it for you', () => {
     // Long press: never show it again, something of the same movement takes its place; Undo puts it back.
     const third = (await card(page).getAttribute('data-exercise'))!;
     await longPress(page);
-    await expect(page.getByText("Won't show it again")).toBeVisible();
+    // PLAN 3.8a: the notice names the hidden exercise.
+    await expect(page.getByTestId('deck-hint')).toContainText(/ hidden/);
     await expect(card(page)).not.toHaveAttribute('data-exercise', third);
     const nevers = async () => (await dbAll<{ id: string; dislikes?: { never?: string[] } }>(page, 'profile')).find((p) => p.id === 'me')?.dislikes?.never ?? [];
     await expect.poll(nevers).toContain(third);
@@ -311,9 +312,18 @@ test.describe('round 2', () => {
     const before = Number((await page.getByTestId('curate-meta').textContent())!.match(/~(\d+) min/)![1]);
     await page.getByTestId('deck-never').tap();
     const notice = page.getByTestId('deck-hint');
-    await expect(notice).toContainText(/Won't show it again · Nothing else fits here, removed: workout is now \d+ min/);
-    const after = Number((await notice.textContent())!.match(/now (\d+) min/)![1]);
+    await expect(notice).toContainText(new RegExp(`^${NAME} hidden\\. No replacement available\\. Workout now ~\\d+ min\\.`)); // PLAN 3.8a
+    const after = Number((await notice.textContent())!.match(/~(\d+) min/)![1]);
     expect(after).toBeLessThan(before);
+    // PLAN 3.8a: the whole named line is visible (wraps, never clipped) and Undo is a 48 pt target beside it.
+    const box = await page.evaluate(() => {
+      const t = document.querySelector<HTMLElement>('[data-testid="deck-hint"] span')!;
+      const u = document.querySelector<HTMLElement>('[data-testid="deck-hint"] button')!;
+      return { clipped: t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1, undoH: u.getBoundingClientRect().height, right: u.getBoundingClientRect().right, vw: window.innerWidth };
+    });
+    expect(box.clipped).toBe(false);
+    expect(box.undoH).toBeGreaterThanOrEqual(48);
+    expect(box.right).toBeLessThanOrEqual(box.vw);
     await expect(page.getByTestId('curate-meta')).toContainText(`~${after} min`);
     await expect(page.getByTestId('curate-meta')).toContainText(`${total - 1} exercises`);
     await expect(page.getByTestId('quick-start')).toHaveText('Start workout');
@@ -370,7 +380,7 @@ test.describe('round 2', () => {
     const last = (await page.getByTestId('deck-name').textContent())!;
     await page.getByTestId('swap-label').waitFor();
     await page.getByTestId('deck-never').tap();
-    await expect(page.getByTestId('deck-hint')).toContainText('Nothing else fits here');
+    await expect(page.getByTestId('deck-hint')).toContainText(`${last} hidden. No replacement available.`); // PLAN 3.8a
     await expect(page.getByTestId('deck-name')).not.toHaveText(last);
     for (const n of names) await expect(page.getByTestId('deck-name')).not.toHaveText(n);
     expect(errors).toEqual([]);

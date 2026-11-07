@@ -190,7 +190,8 @@ export function QuickScreen() {
     const id = Date.now();
     setNotice({
       id,
-      text: to ? `Won't show it again · ${item.name}` : `Won't show it again · Nothing else fits here, removed: workout is now ${after} min`,
+      // PLAN 3.8a (Codex ui-3.5a #5): the line always names the exercise that was hidden.
+      text: to ? `${item.name} hidden` : `${item.name} hidden. No replacement available. Workout now ~${after} min.`,
       undo: () => {
         setNotice((n) => (n?.id === id ? null : n));
         void undoNever(item.id).catch(() => undefined);

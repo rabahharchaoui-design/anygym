@@ -50,7 +50,7 @@ export function pickLoadType(settings: ExerciseSetting[], exerciseId: string, gy
  * setting can never move them between histories later. Ambiguous ones get the unresolved mark.
  */
 export async function saveBarChoice(exerciseId: string, gymId: string, barId: BarId, db: AnyGymDB = defaultDb, exerciseBar?: BarId): Promise<ExerciseSetting> {
-  return db.transaction('rw', [db.exerciseSettings, db.sets, db.sessions, db.gyms], async () => {
+  return db.transaction('rw', [db.exerciseSettings, db.sets, db.sessions, db.gyms, db.tombstones], async () => {
     if (exerciseBar) {
       const gym = await db.gyms.get(gymId);
       // Same resolver and marks as a unit or bar change (PLAN 2.0c); aliases of the exercise too.

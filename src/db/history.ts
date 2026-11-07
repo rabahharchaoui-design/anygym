@@ -82,18 +82,31 @@ export function exerciseBarOf(exerciseId: string): BarId {
  * exercise ids (a bar choice), `exerciseBar`: their own bar when the caller knows it.
  */
 export async function preserveLegacyBars(db: AnyGymDB, gymBefore: Gym, only?: readonly string[], exerciseBar?: BarId): Promise<number> {
-  const sessions = await db.sessions.where('gymId').equals(gymBefore.id).toArray();
-  if (!sessions.length) return 0;
-  const here = new Set(sessions.map((x) => x.id));
-  const sets = only
-    ? await db.sets.where('exerciseId').anyOf([...only]).toArray()
-    : await db.sets.where('sessionId').anyOf([...here]).toArray();
+  // PLAN 3.8a (Codex batch 1108-0111): a set belongs to this gym by its own stamp (its workout may
+  // have moved on to another gym, PLAN 3.9) or, unstamped, by its workout's gym; and a deleted set
+  // waiting for Undo (tombstone) is covered like a live one, so Undo never brings back a set with no bar.
+  const sessionGym = new Map<string, string>();
+  const gymOfSession = async (id: string) => {
+    if (!sessionGym.has(id)) sessionGym.set(id, (await db.sessions.get(id))?.gymId ?? '');
+    return sessionGym.get(id)!;
+  };
+  const wanted = async (x: WorkoutSet) =>
+    x.load?.kind === 'barbell' && x.load.barId === undefined && !x.load.legacyBarUnresolved && (x.gymId !== undefined ? x.gymId : await gymOfSession(x.sessionId)) === gymBefore.id;
+  const fixed = (x: WorkoutSet & { load: Load }): WorkoutSet => {
+    const bar = legacyBarOf(x.load, exerciseBar ?? exerciseBarOf(x.exerciseId), gymBefore);
+    return { ...x, load: bar === null ? { ...x.load, legacyBarUnresolved: true } : { ...x.load, barId: bar } };
+  };
+  const sets = only ? await db.sets.where('exerciseId').anyOf([...only]).toArray() : await db.sets.toArray();
   let n = 0;
   for (const x of sets) {
-    // PLAN 3.9: a set lifted at another gym before its workout moved here answers to that gym.
-    if (!here.has(x.sessionId) || (x.gymId !== undefined && x.gymId !== gymBefore.id) || x.load?.kind !== 'barbell' || x.load.barId !== undefined || x.load.legacyBarUnresolved) continue;
-    const bar = legacyBarOf(x.load, exerciseBar ?? exerciseBarOf(x.exerciseId), gymBefore);
-    await db.sets.put({ ...x, load: bar === null ? { ...x.load, legacyBarUnresolved: true } : { ...x.load, barId: bar } });
+    if (!(await wanted(x))) continue;
+    await db.sets.put(fixed(x as WorkoutSet & { load: Load }));
+    n++;
+  }
+  for (const t of await db.tombstones.toArray()) {
+    if (only && !only.includes(t.set.exerciseId)) continue;
+    if (!(await wanted(t.set))) continue;
+    await db.tombstones.put({ ...t, set: fixed(t.set as WorkoutSet & { load: Load }) });
     n++;
   }
   return n;

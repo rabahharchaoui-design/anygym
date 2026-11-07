@@ -215,6 +215,7 @@
 .noticeText {
   color: var(--text);
   min-width: 0;
+  overflow-wrap: anywhere; /* PLAN 3.8a: the whole line wraps, never clipped */
 }
 
 .undo {
@@ -222,7 +223,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 var(--space-3);
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-pill);

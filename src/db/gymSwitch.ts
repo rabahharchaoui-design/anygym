@@ -132,7 +132,7 @@ async function activate(gymId: string, now: number, db: AnyGymDB): Promise<{ fro
  * the workout's rows change exactly as previewed or nothing is written (SwitchStaleError).
  */
 export async function switchGym(gymId: string, expect: string | null, db: AnyGymDB = defaultDb, now = Date.now()): Promise<SwitchReceipt> {
-  return db.transaction('rw', [db.gyms, db.sessions, db.sets, db.journal, db.submissions], async () => {
+  return db.transaction('rw', [db.gyms, db.sessions, db.sets, db.journal, db.submissions, db.tombstones], async () => {
     const gym = await db.gyms.get(gymId);
     if (!gym) throw new GymMissingError();
     const session = await getActiveSession(db);
@@ -154,6 +154,12 @@ export async function switchGym(gymId: string, expect: string | null, db: AnyGym
         await db.sets.put({ ...x, gymId: session.gymId });
         stamped.push(x.id);
       }
+      // PLAN 3.8a (Codex batch 1108-0111): a deleted set waiting for Undo keeps the gym it was lifted at too.
+      for (const t of await db.tombstones.where('sessionId').equals(session.id).toArray()) {
+        if (t.set.gymId !== undefined) continue;
+        await db.tombstones.put({ ...t, set: { ...t.set, gymId: session.gymId } });
+        stamped.push(t.id);
+      }
     }
     const updated: Session = { ...session, gymId, exerciseIds: plan.state.exerciseIds };
     if (plan.state.swaps.length) updated.swaps = plan.state.swaps;
@@ -170,7 +176,7 @@ export async function switchGym(gymId: string, expect: string | null, db: AnyGym
 
 /** Undo of switchGym: the gym before is active again and the workout is exactly as it was. */
 export async function undoGymSwitch(r: SwitchReceipt, db: AnyGymDB = defaultDb): Promise<void> {
-  await db.transaction('rw', [db.gyms, db.sessions, db.sets], async () => {
+  await db.transaction('rw', [db.gyms, db.sessions, db.sets, db.tombstones], async () => {
     if (r.workout) {
       const w = r.workout;
       const s = await db.sessions.get(w.sessionId);
@@ -182,7 +188,15 @@ export async function undoGymSwitch(r: SwitchReceipt, db: AnyGymDB = defaultDb):
       await db.sessions.put(back);
       for (const id of w.stamped) {
         const x = await db.sets.get(id);
-        if (!x) continue;
+        if (!x) {
+          const t = await db.tombstones.get(id);
+          if (t) {
+            const set = { ...t.set };
+            delete set.gymId;
+            await db.tombstones.put({ ...t, set });
+          }
+          continue;
+        }
         const next = { ...x };
         delete next.gymId;
         await db.sets.put(next);

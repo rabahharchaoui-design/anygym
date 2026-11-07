@@ -81,7 +81,7 @@ export type SaveIntakeOptions = {
 export async function saveIntake(input: IntakeAnswers, db: AnyGymDB = defaultDb, now = Date.now(), opts: SaveIntakeOptions = {}): Promise<Profile> {
   const answers = sanitizeAnswers(input);
   delete answers.skipRestFrom;
-  const profile = await db.transaction('rw', [db.profile, db.gyms, db.sessions, db.sets], async () => {
+  const profile = await db.transaction('rw', [db.profile, db.gyms, db.sessions, db.sets, db.tombstones], async () => {
     const existing = await getProfile(db);
     const baseline = opts.start ?? (existing?.intake ? sanitizeAnswers(existing.intake) : undefined);
     const gyms = await db.gyms.orderBy('createdAt').toArray();

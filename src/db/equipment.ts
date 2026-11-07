@@ -34,7 +34,7 @@ export async function setEquipmentWeight(
   unit?: Unit,
 ): Promise<Gym> {
   if (!machineId || !valid(entry)) throw new Error('Invalid equipment weight');
-  return db.transaction('rw', [db.gyms, db.sets, db.sessions], async () => {
+  return db.transaction('rw', [db.gyms, db.sets, db.sessions, db.tombstones], async () => {
     const gym = await db.gyms.get(gymId);
     if (!gym) throw new Error('Gym not found');
     if (unit !== undefined && unit !== gym.unit) throw new UnitChangedError();
@@ -72,7 +72,7 @@ export async function setPlateColors(gymId: string, mode: PlateColors, db: AnyGy
  */
 export async function setGymUnit(gymId: string, unit: Unit, db: AnyGymDB = defaultDb): Promise<Gym> {
   if (unit !== 'lb' && unit !== 'kg') throw new Error('Invalid unit');
-  return db.transaction('rw', [db.gyms, db.sets, db.sessions], async () => {
+  return db.transaction('rw', [db.gyms, db.sets, db.sessions, db.tombstones], async () => {
     const gym = await db.gyms.get(gymId);
     if (!gym) throw new Error('Gym not found');
     if (gym.unit === unit) return gym;
