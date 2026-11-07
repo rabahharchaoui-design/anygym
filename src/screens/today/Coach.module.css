@@ -169,6 +169,17 @@
   line-height: 1.15;
 }
 
+.pair {
+  flex-wrap: wrap;
+  justify-content: stretch;
+}
+
+/* PLAN 3.8b: two equal 48 pt buttons in one row; at large text they wrap to two rows, never narrower. */
+.pair > .primary,
+.pair > .secondary {
+  flex: 1 1 140px;
+}
+
 .primary {
   background: linear-gradient(to bottom, #e0ff6a, var(--accent) 55%);
   color: var(--on-accent);

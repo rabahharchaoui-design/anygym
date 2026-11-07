@@ -53,6 +53,12 @@ export type Draft = {
    * warm up still to do it is a row of its own, beyond the planned sets; it never uses one up.
    */
   auto?: true;
+  /**
+   * PLAN 3.8b (bughunt 1108-0142 #7, additive): the gym the lifter was at when Log was tapped. It travels
+   * unchanged through the journal and the saved set, so a gym switch before the write lands never
+   * re-homes the set.
+   */
+  gymId?: string;
 };
 
 const KEY = 'anygym-drafts';
@@ -89,6 +95,7 @@ function validDraft(v: unknown): v is Draft {
   if (d.rev !== undefined && !isNum(d.rev)) return false;
   if (d.submitted !== undefined && !isNum(d.submitted)) return false;
   if (d.op !== undefined && typeof d.op !== 'string') return false;
+  if (d.gymId !== undefined && typeof d.gymId !== 'string') return false;
   if (d.seconds !== undefined && !isNum(d.seconds)) return false;
   if (d.type !== undefined && !['normal', 'warmup', 'drop', 'failure'].includes(d.type as string)) return false;
   if (d.pickKind !== undefined && !PICK_KINDS.includes(d.pickKind as string)) return false;
@@ -357,9 +364,15 @@ function mirror(m: Memory, s: StorageLike | null): boolean {
       // #1): a tab opened before another tab's localStorage failure (never hydrated) holds a stale
       // localStorage view, and its whole snapshot would wipe a row IndexedDB alone keeps. The
       // merged result is then handed to localStorage in the same transaction (persistRows).
-      if (isPhone(s)) persistRows(m, s);
-      else void mirrorDurable(s, KEY, undefined, undefined, value);
-      m.dirty.clear();
+      if (isPhone(s)) {
+        // PLAN 3.8b (bughunt 1108-0142 #2): localStorage took it, but the rows stay dirty until their
+        // IndexedDB transaction commits (persistRows settles each unchanged row), so a failed commit
+        // never lets the next merge or startup take the older stored copy over newer input.
+        persistRows(m, s);
+      } else {
+        void mirrorDurable(s, KEY, undefined, undefined, value);
+        m.dirty.clear();
+      }
       ok = true;
     }
   } else {

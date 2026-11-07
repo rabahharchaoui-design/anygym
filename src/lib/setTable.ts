@@ -187,7 +187,7 @@ export function reconcileRows(slots: ReadonlyArray<Draft | null>, committed: Com
 }
 
 /** What a Log set write stores: the row's values at the tap. */
-export type RowValues = { load: Load; reps?: number; seconds?: number; type: SetType };
+export type RowValues = { load: Load; reps?: number; seconds?: number; type: SetType; /** PLAN 3.8b: the gym the lifter was at when Log was tapped. */ gymId?: string };
 
 /**
  * Before a Log set write of pending slot `slot` (PLAN 1.7h): the rows above it keep what they
@@ -210,6 +210,7 @@ export function markSubmitted(
   delete draft.seconds;
   if (values.reps !== undefined) draft.reps = values.reps;
   if (values.seconds !== undefined) draft.seconds = values.seconds;
+  if (values.gymId !== undefined) draft.gymId = values.gymId;
   out[slot] = draft;
   return { slots: out, draft };
 }

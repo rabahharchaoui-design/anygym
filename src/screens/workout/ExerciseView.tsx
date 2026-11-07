@@ -70,6 +70,8 @@ type Props = {
   onRemoveSet: (set: WorkoutSet) => void;
   /** A short message with Undo (a row still to do was removed). */
   onUndoable: (text: string, undo: () => void) => void;
+  /** PLAN 3.8b: the optional effort question got an answer (the screen may now move on). */
+  onEffortAnswered?: (exerciseId: string) => void;
 };
 
 const DEFAULT_REPS = 10;
@@ -87,7 +89,7 @@ function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
  * The exercise view (SPEC 20.2, 21.1): the demo tile, name and note, "Last time", and the set
  * table already filled with today's targets. Logging a set is one tap on its ✓.
  */
-export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable }: Props) {
+export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable, onEffortAnswered }: Props) {
   const gym = w.gym!;
   const name = w.nameOf(exerciseId);
   const entry = w.entryOf(exerciseId);
@@ -285,7 +287,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     // Stored before the write (PLAN 1.7h): the row's id, values and version with its submitted
     // mark, and what the rows above show, so a kill at any point loses and duplicates nothing.
     const before = rowsOf(sessionId, exerciseId);
-    const marked = markSubmitted(before, rows, slotOf(row), { load: row.load, type: row.type, ...(timed ? { seconds } : { reps: row.reps }) }, newId);
+    const marked = markSubmitted(before, rows, slotOf(row), { load: row.load, type: row.type, gymId: gym.id, ...(timed ? { seconds } : { reps: row.reps }) }, newId);
     writeDrafts(sessionId, slotChanges(exerciseId, before, marked.slots));
     const at = performance.now();
     setFresh((f) => new Map(f).set(marked.draft.id, at));
@@ -714,6 +716,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             repsCue={!!current && !slots[slotOf(current)]?.repsEdited}
             onBlocked={onBlocked}
             nudge={nudge}
+            hideSwipeHint={allDone}
             onRemove={removeRow}
             onClaim={claimRow}
             onRemoveId={(id) => latestRemove.current(id)}
@@ -737,7 +740,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
                   </p>
                 )}
                 {/* PLAN 3.8 (SPEC 15): one optional tap after the last set, never per set. */}
-                {allDone && <EffortChip sessionId={sessionId} exerciseId={exerciseId} />}
+                {allDone && <EffortChip sessionId={sessionId} exerciseId={exerciseId} onAnswered={() => onEffortAnswered?.(exerciseId)} />}
               </>
             }
             footer={

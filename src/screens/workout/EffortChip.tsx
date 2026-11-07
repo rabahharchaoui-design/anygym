@@ -8,7 +8,7 @@ import { EFFORTS, EFFORT_HINT, EFFORT_WORDS, type Effort } from '../../lib/coach
 import { tick } from '../../ui/haptics';
 import styles from './Effort.module.css';
 
-export function EffortChip({ sessionId, exerciseId }: { sessionId: string; exerciseId: string }) {
+export function EffortChip({ sessionId, exerciseId, onAnswered }: { sessionId: string; exerciseId: string; onAnswered?: () => void }) {
   const id = useId();
   const live = useLive(() => effortOf(sessionId, exerciseId), [sessionId, exerciseId]);
   const [failed, setFailed] = useState(false);
@@ -22,7 +22,11 @@ export function EffortChip({ sessionId, exerciseId }: { sessionId: string; exerc
     setFailed(false);
     setOptimistic({ value });
     saveEffort(sessionId, exerciseId, value).then(
-      () => setOptimistic(null),
+      () => {
+        setOptimistic(null);
+        // PLAN 3.8b: an answer lets the finished exercise move on (clearing one does not).
+        if (value) onAnswered?.();
+      },
       () => {
         setOptimistic(null);
         setFailed(true);

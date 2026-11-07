@@ -30,6 +30,7 @@ import { gymFacts } from '../lib/reporting/feedback';
 import { useLive } from '../hooks/useLive';
 import { getProfile, setProfileUnits } from '../db/intake';
 import { db } from '../db/schema';
+import { phoneLocale, unitsForLocale } from '../lib/intake/region';
 import { CoachSettings } from './settings/CoachSettings';
 import styles from './Settings.module.css';
 
@@ -214,7 +215,7 @@ export function SettingsScreen() {
                 { value: 'km', label: 'km' },
                 { value: 'mi', label: 'mi' },
               ]}
-              value={profile.data?.distanceUnit}
+              value={profile.data?.distanceUnit ?? profile.data?.intake?.units?.distance ?? unitsForLocale(phoneLocale()).distance}
               disabled={!profile.ready}
               onChange={(distanceUnit) => profileUnits({ distanceUnit })}
             />
@@ -233,7 +234,7 @@ export function SettingsScreen() {
                 { value: 'cm', label: 'cm' },
                 { value: 'in', label: 'in' },
               ]}
-              value={profile.data?.measureUnit}
+              value={profile.data?.measureUnit ?? profile.data?.intake?.units?.measure ?? unitsForLocale(phoneLocale()).measure}
               disabled={!profile.ready}
               onChange={(measureUnit) => profileUnits({ measureUnit })}
             />

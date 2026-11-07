@@ -1138,6 +1138,17 @@ export function weightChange(from: number, to: number): number {
   return add(to, -from);
 }
 
+/**
+ * What the empty bar weighs at this gym, as the lifter loads it: the bar plus any competition collars
+ * (PLAN 3.8b: a women's 15 kg bar with 5 kg collars is a 20 kg warm up, never 15). null when the bar
+ * is not known or this gym cannot load that weight exactly.
+ */
+export function emptyBarWeight(s: LoadSetup): number | null {
+  if (s.base === null || !(s.base > 0)) return null;
+  const total = add(s.base, collarsWeight(s.collars, s.unit));
+  return loadAt('barbell', total, s)?.total ?? null;
+}
+
 /** One warm up set (SPEC 15): a picked weight and its reps. */
 export type WarmUp = { value: number; reps: number };
 
@@ -1150,7 +1161,7 @@ export type WarmUp = { value: number; reps: number };
 export function warmUpLadder(kind: Load['kind'], work: number, s: LoadSetup): WarmUp[] {
   if (kind === 'bodyweight' || kind === 'timed' || !(work > 0)) return [];
   if ((kind === 'barbell' || kind === 'plate_machine') && s.base === null) return [];
-  const first: number | null = kind === 'barbell' ? (s.base !== null && s.base > 0 ? s.base : null) : nearestLoadable(kind, scale(work, 0.3), s);
+  const first: number | null = kind === 'barbell' ? emptyBarWeight(s) : nearestLoadable(kind, scale(work, 0.3), s);
   const steps: Array<[number | null, number]> = [
     [first, 10],
     [nearestLoadable(kind, scale(work, 0.5), s), 5],

@@ -1,8 +1,9 @@
 /* PLAN 2.2e round 2 (critic B3): the PR chip. Lime with black text, 22 pt tall, 12 pt bold text,
    inside a 48 pt transparent button (SPEC 13.3). Springs in once; the row pulses once (below). */
 .hit {
-  width: 48px;
+  min-width: 48px;
   height: 48px;
+  padding: 0 4px;
   display: grid;
   place-items: center;
   border-radius: 12px;
@@ -14,17 +15,21 @@
   flex: none;
   display: inline-grid;
   place-items: center;
-  height: 22px;
+  /* PLAN 3.8b: "New best" on two short lines, so the chip is no wider than "PR" was and the weight
+     and reps columns keep their room. */
+  width: min-content;
   min-width: 28px;
-  padding: 0 6px;
+  height: 26px;
+  padding: 0 4px;
+  text-align: center;
   border-radius: 7px;
   background: var(--accent);
   color: var(--on-accent);
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.02em;
+  line-height: 1.05;
+  letter-spacing: 0;
   box-shadow: 0 2px 10px rgb(212 255 58 / 0.35);
   -webkit-tap-highlight-color: transparent;
   transition: transform 160ms var(--ease-out);

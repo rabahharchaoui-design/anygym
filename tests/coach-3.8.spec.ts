@@ -221,8 +221,10 @@ test.describe('the coach (PLAN 3.8)', () => {
     await page.goto('./');
     const card = page.getByTestId('coach-card');
     await expect(card).toHaveAttribute('data-kind', 'missed_days');
-    await expect(card).toContainText('Missed 2 workouts. Pick up where you left off, or rebuild the week?');
-    await expect(card).toContainText('Pick up with Day 3, or start the week again at Day 1. Nothing changes until you pick.');
+    await expect(card).toContainText('Missed 2 workouts');
+    await expect(card).toContainText('Nothing changes until you pick.')
+    await expect(card.getByTestId('coach-pick-up')).toHaveText('Resume Day 3');
+    await expect(card.getByTestId('coach-rebuild')).toHaveText('Restart Day 1');;
     // Nothing changed yet.
     expect((await dbAll<{ nextDayIndex: number }>(page, 'planState'))[0]!.nextDayIndex).toBe(2);
     await shotOn(page, '3.8', 'missed-days');

@@ -220,7 +220,8 @@ test.describe('components (#/dev/ui)', () => {
     const before = await cells();
     await page.getByRole('button', { name: 'Log a best set' }).tap();
     const badge = row.getByTestId('pr-badge');
-    await expect(badge).toHaveText('PR');
+    // PLAN 3.8b: the chip reads "New best" (SPEC 23), was "PR".
+    await expect(badge).toHaveText('New best');
     const chipEl = badge.locator('[data-chip]');
     expect(await chipEl.evaluate((el) => getComputedStyle(el).animationName)).toMatch(/pr-in/);
     expect(await chipEl.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(212, 255, 58)');
@@ -228,9 +229,10 @@ test.describe('components (#/dev/ui)', () => {
     expect(await row.getAttribute('data-pr-fresh')).toBe('');
     await page.waitForTimeout(400); // sprung in
     const b = await box(chipEl);
+    // PLAN 3.8b: "New best" on two short lines (26 pt tall, 10 pt text) so the columns keep their room.
     expect(b.height).toBeGreaterThanOrEqual(20);
-    expect(b.height).toBeLessThanOrEqual(22.5);
-    expect(parseFloat(await chipEl.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12);
+    expect(b.height).toBeLessThanOrEqual(27);
+    expect(parseFloat(await chipEl.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(10);
     const reps = await box(row.locator('span.num').nth(2));
     expect(b.x).toBeGreaterThan(reps.x);
     await unmoved(cells, before);

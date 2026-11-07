@@ -63,7 +63,14 @@ export type SwitchReceipt = {
     stamped: string[];
     /** The workout's set count right after the switch. */
     sets: number;
+    /** PLAN 3.8b: each set's id and gym stamp right after the switch; Undo needs this exact set list. */
+    setStamps: { id: string; gymId: string | undefined }[];
   };
+};
+
+const sameSets = (now: readonly WorkoutSet[], then: readonly { id: string; gymId: string | undefined }[]) => {
+  const stamp = new Map(then.map((x) => [x.id, x.gymId]));
+  return now.length === stamp.size && now.every((x) => stamp.has(x.id) && stamp.get(x.id) === x.gymId);
 };
 
 const sessionSets = (sessionId: string, db: AnyGymDB) => db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
@@ -166,10 +173,11 @@ export async function switchGym(gymId: string, expect: string | null, db: AnyGym
     else delete updated.swaps;
     await db.sessions.put(updated);
     const active = await activate(gymId, now, db);
+    const setStamps = (await sessionSets(session.id, db)).map((x) => ({ id: x.id, gymId: x.gymId })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     return {
       to: gymId,
       ...active,
-      workout: { sessionId: session.id, gymBefore: session.gymId, exerciseIds: session.exerciseIds ?? [], swaps: session.swaps, stamped, sets: sets.length },
+      workout: { sessionId: session.id, gymBefore: session.gymId, exerciseIds: session.exerciseIds ?? [], swaps: session.swaps, stamped, sets: sets.length, setStamps },
     };
   });
 }
@@ -181,7 +189,10 @@ export async function undoGymSwitch(r: SwitchReceipt, db: AnyGymDB = defaultDb):
       const w = r.workout;
       const s = await db.sessions.get(w.sessionId);
       if (!s || s.endedAt !== undefined) throw new WorkoutFinishedError();
-      if ((await sessionSets(w.sessionId, db)).length !== w.sets) throw new SwitchUndoStaleError();
+      // The same sets, not just the same number: a deleted set plus a new one keeps the count but is a
+      // different workout (PLAN 3.8b), and Undo would move the new set's history to the wrong gym.
+      const now = await sessionSets(w.sessionId, db);
+      if (now.length !== w.sets || (w.setStamps && !sameSets(now, w.setStamps))) throw new SwitchUndoStaleError();
       const back: Session = { ...s, gymId: w.gymBefore, exerciseIds: w.exerciseIds };
       if (w.swaps?.length) back.swaps = w.swaps;
       else delete back.swaps;

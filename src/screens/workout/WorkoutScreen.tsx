@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, addSuggested, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
+import { effortOf } from '../../db/coach';
 import { extraSets, markDeleted } from '../../lib/extraSets';
 import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
@@ -212,15 +213,21 @@ export function WorkoutScreen() {
   const chipTimer = useRef<number | undefined>(undefined);
   /** "Nice. Next: Romanian deadlift" for a moment, then `then` if the user is still on that exercise. */
   const chipArm = useRef<((ms: number) => void) | null>(null);
-  const showChip = (text: string, ms: number, from: string, then: () => void, open?: string) => {
+  const showChip = (text: string, ms: number, from: string, then: () => void, open?: string, hold?: () => Promise<boolean>) => {
     window.clearTimeout(chipTimer.current);
     const c: Chip = { id: ++toastSeq, text, ...(open ? { open } : {}) };
     setChip(c);
     const arm = (wait: number) => {
       window.clearTimeout(chipTimer.current);
       chipTimer.current = window.setTimeout(() => {
-        setChip((cur) => (cur?.id === c.id ? null : cur));
-        if (routeRef.current === from) then();
+        const fire = () => {
+          setChip((cur) => (cur?.id === c.id ? null : cur));
+          if (routeRef.current === from) then();
+        };
+        // PLAN 3.8b: while the optional effort question is open, the finished exercise stays (and its
+        // chip, the way on); an answer re-arms this.
+        if (!hold || routeRef.current !== from) return fire();
+        hold().then((held) => (held ? undefined : fire()), fire);
       }, wait);
     };
     chipArm.current = arm;
@@ -257,7 +264,7 @@ export function WorkoutScreen() {
     if (advancesAfterLog(entries, w.done, id, kind, extraSets(sessionId, id))) {
       const after = upNext(entries, done, id);
       // The chip is a button straight into the next exercise; untouched, it returns to the list (SPEC 20.2).
-      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', CHIP_MS, id, () => goList(), after ?? undefined);
+      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', CHIP_MS, id, () => goList(), after ?? undefined, () => effortOf(sessionId, id).then((r) => r.effort === null));
       return;
     }
     // Still here for another set: a "Nice. Next" chip from the last working set never pulls the
@@ -270,6 +277,11 @@ export function WorkoutScreen() {
       // A pair: its partner is one tap away on the chip, never an automatic jump (PLAN 2.0g).
       showChip(`Pair: ${w.nameOf(next)} next`, CHIP_MS, id, () => undefined, next);
     }
+  };
+
+  /** The effort question was answered: the held return to the list goes ahead after a beat. */
+  const effortAnswered = (id: string) => {
+    if (routeRef.current === id) chipArm.current?.(900);
   };
 
   const swipeNext = () => {
@@ -786,6 +798,7 @@ export function WorkoutScreen() {
       onMenu={() => setMenuFor(exerciseId)}
       onSwipeNext={swipeNext}
       onNotice={notice}
+      onEffortAnswered={effortAnswered}
       onRemoveSet={(set) => void onDelete(set, true)}
       onUndoable={(text, undo) => {
         const shown = toastOf(text, {

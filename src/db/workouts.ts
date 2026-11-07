@@ -131,6 +131,11 @@ export type NewSet = {
   failure?: boolean;
   /** The pending row's draft version this write submits (PLAN 1.7h), kept in its submission. */
   rev?: number;
+  /**
+   * PLAN 3.8b (bughunt 1108-0142 #7): the gym the lifter was at when Log was tapped. A set written
+   * after a gym switch keeps it (stamped on the set), so the switch cannot re-home it.
+   */
+  gymId?: string;
 };
 
 /**
@@ -221,6 +226,8 @@ export async function logSet(input: NewSet, db: AnyGymDB = defaultDb): Promise<W
     if (input.reps !== undefined) set.reps = input.reps;
     if (input.seconds !== undefined) set.seconds = input.seconds;
     if (input.failure && set.kind === 'work') set.failure = true;
+    // Tapped at one gym, written after the workout moved to another: the set stays at the gym it was lifted at.
+    if (input.gymId !== undefined && input.gymId !== session.gymId) set.gymId = input.gymId;
     await db.sets.add(set);
     await db.submissions.put({ id: input.id, sessionId: input.sessionId, exerciseId: input.exerciseId, rev: input.rev ?? 0, fp });
     // Its pending write journal entry (PLAN 1.7i) is used up in the same transaction.

@@ -218,7 +218,7 @@
 
 .setNo {
   width: 48px;
-  height: 48px;
+  height: 0px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -439,7 +439,7 @@
 .checkDone,
 .checkCircle {
   width: 48px;
-  height: 48px;
+  height: 0px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -591,6 +591,12 @@
   z-index: 4;
 }
 
+/* PLAN 3.8b: while the swipe tip shows it has its own room (a compact bubble and its arrow), so it
+   never draws over "+ Add set" or the effort question. */
+.tipSlotReserved {
+  height: 0px;
+}
+
 .swipeHint {
   top: 2px;
   left: 0;
@@ -633,7 +639,7 @@
 .stepperDone {
   flex: none;
   min-width: 64px;
-  height: 48px;
+  height: 0px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--accent);
@@ -718,8 +724,8 @@
   position: absolute;
   z-index: 2;
   top: 50%;
-  /* The 48 pt button is centered on a chip at the reps column's right edge. */
-  right: calc(4px + 52px + 6px - 9px);
+  /* The 48 pt tall button ends 4 pt past the chip, the chip at the reps column's right edge. */
+  right: calc(4px + 52px + 6px - 10px);
   margin-top: -24px;
 }
 

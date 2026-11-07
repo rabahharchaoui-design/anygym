@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { Check as CheckGlyph } from 'lucide-react';
 import { Odometer } from '../../ui/Odometer';
 import { Ring } from '../../ui/Ring';
@@ -13,6 +13,7 @@ import { SET_TYPE_CHIP, SET_TYPE_WORDS, setNumbers, keptCell, lastTimeCell, save
 import type { PastSet, SetLine } from '../../lib/progression';
 import { RepsStepper } from './RepsStepper';
 import { Hint } from '../../components/hint/Hint';
+import { hints } from '../../lib/hints';
 import { SwipeRow } from './SwipeRow';
 import { PRBadge } from '../../ui/PRBadge';
 import type { SetRecord } from '../../lib/records';
@@ -60,6 +61,8 @@ type Props = {
    * the row's target with a ring (or up, when there is no target).
    */
   hold?: { running: boolean; onToggle: () => void };
+  /** PLAN 3.8b: the effort question is on screen, so the swipe tip waits. */
+  hideSwipeHint?: boolean;
   /** The first time hint "Tap the check when you finish a set", over the header, pointing down at the first row's ✓. */
   checkHint?: boolean;
   /**
@@ -406,6 +409,8 @@ const TodoRow = memo(
 export function SetTable(props: Props) {
   const { kind, unit, logged, rows, editing } = props;
   const timed = kind === 'timed';
+  const swipeTip = logged.length > 0 && !props.checkHint && !props.nudge && !props.hideSwipeHint;
+  const swipeActive = useSyncExternalStore(hints.subscribe, hints.active, () => null) === 'swipeSet';
   const current = rows[0]?.index;
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => keepInView(ref.current), [current, editing, logged.length]);
@@ -515,8 +520,9 @@ export function SetTable(props: Props) {
       {props.footer}
       {/* The tip slot under "+ Add set" (gate P4): the swipe tip never draws over it. Zero height
           and absolute, so nothing moves. Once, with a logged set and no other tip (PLAN 2.2d P1). */}
-      <div className={styles.tipSlot}>
-        {logged.length > 0 && !props.checkHint && !props.nudge && <Hint id="swipeSet" className={styles.swipeHint} point="up" compact />}
+      {/* PLAN 3.8b: not while the effort question shows, and while it is up it has its own room. */}
+      <div className={`${styles.tipSlot} ${swipeTip && swipeActive ? styles.tipSlotReserved : ''}`}>
+        {swipeTip && <Hint id="swipeSet" className={styles.swipeHint} point="up" compact />}
       </div>
       {props.underRows}
     </div>
