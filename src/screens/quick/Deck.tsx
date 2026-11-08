@@ -72,7 +72,8 @@ function Photo({ id }: { id: string }) {
 }
 
 function Card({ item, position, of, under, action }: { item: QuickItem; position: number; of: number; under?: boolean; action?: ReactNode }) {
-  const swapped = item.id !== item.slot;
+  // 3.5b round 4 (M10): only a swap the person made; a plan move the gym changed says why on its line.
+  const swapped = item.swapped === true;
   return (
     <>
       <Photo id={item.id} />

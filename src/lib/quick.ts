@@ -75,6 +75,8 @@ export type QuickItem = {
   why: string;
   /** PLAN 3.5b: items sharing a group are done back to back (2: a superset, 3 or more: a circuit). */
   group?: number;
+  /** 3.5b round 4 (M10): the person swapped it in on the deck (the card says "Swapped in" only then). */
+  swapped?: true;
 };
 
 export type ConceptId = 'plan' | 'fresh' | StyleId;
@@ -107,7 +109,13 @@ export type Concept = {
   short?: 'moves' | 'caps';
   /** Who the card is for: a newer lifter (the caps reason words). */
   newer?: boolean;
+  /** 3.5b round 4 (M12): a style card's body area ("legs and back"): two cards of one style differ by it. */
+  variant?: string;
+  variantLabel?: string;
 };
+
+/** A card's identity on screen (a style can come back in More ideas with another body area). */
+export const cardKey = (c: Pick<Concept, 'id' | 'variant'>): string => (c.variant ? `${c.id}:${c.variant}` : c.id);
 
 export type QuickDeps = GeneratorDeps & {
   /** A sure demo (exact or variant): the only exercises Quick workout shows. */
@@ -234,11 +242,9 @@ export function metaLine(items: readonly Pick<QuickItem, 'group' | 'sets'>[], mi
   const n = items.length;
   const st = structureOf(items);
   const parts = [`${n} ${n === 1 ? 'exercise' : 'exercises'}`];
-  if (st.rounds !== null) parts.push(`${st.rounds} ${st.rounds === 1 ? 'round' : 'rounds'}`);
-  else {
-    if (st.circuits) parts.push(`${st.circuits} ${st.circuits === 1 ? 'circuit' : 'circuits'}`);
-    if (st.supersets) parts.push(`${st.supersets} ${st.supersets === 1 ? 'superset' : 'supersets'}`);
-  }
+  // 3.5b round 4 (M9, SPEC 13.1): plain words, one of each: "pairs" (never "supersets") and "circuit" (never "rounds").
+  if (st.circuits) parts.push(`${st.circuits} ${st.circuits === 1 ? 'circuit' : 'circuits'}`);
+  if (st.supersets) parts.push(`${st.supersets} ${st.supersets === 1 ? 'pair' : 'pairs'}`);
   parts.push(`~${minutes} min`);
   return parts.join(' · ');
 }
@@ -311,7 +317,7 @@ function chipOf(style: StyleDef | null, items: readonly QuickItem[]): string {
   if (style?.chip) return style.chip;
   const st = structureOf(items);
   if (st.circuits) return 'Circuit';
-  if (st.supersets) return 'Supersets';
+  if (st.supersets) return 'Pairs';
   return 'Straight sets';
 }
 
@@ -323,12 +329,24 @@ function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input
   const built = buildCard(styleSpec(style, variant, { ...input.base, minutes: input.minutes }, input.minutes), BUILD(deps), input.minutes);
   if (!built || !fits(built.minutes, input.minutes)) return null;
   if (!style.honest(built.items.map((it) => deps.profile(it.id)), built.items)) return null;
+  // 3.5b round 4 (B1): a card holds G's count for the minutes; fewer is never offered as a full card
+  // (Strength focus is fewer on purpose, and its 4th and 5th lifts come before extra sets).
+  if (!style.maxMoves && built.items.length < densityFor(input.minutes).min) return null;
   const items = itemsOf(deps, built.items);
   const ids = items.map((it) => it.id);
   const easyOn = (input.base.easyOn ?? []).filter((j) => JOINT_WORD[j]);
-  const blurb = style.id === 'easy' && easyOn.length ? `A light day, easy on your ${wordList(easyOn.map((j) => JOINT_WORD[j]!), 2)}` : BLURB[style.id];
+  // 3.5b round 4 (M6): a pump names what it pairs ("Chest and back pairs"), never a generic line.
+  const pairWords = style.id === 'pump' ? mainWords(items, deps).words : [];
+  const blurb =
+    style.id === 'easy' && easyOn.length
+      ? `A light day, easy on your ${wordList(easyOn.map((j) => JOINT_WORD[j]!), 2)}`
+      : pairWords.length
+        ? `${cap(wordList(pairWords))} pairs`
+        : BLURB[style.id];
   return {
     id: style.id,
+    variant: variant.key,
+    variantLabel: variant.label,
     title: style.title,
     line: restedLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? blurb,
     items,
@@ -350,7 +368,9 @@ export function shortLine(c: Pick<Concept, 'short' | 'newer' | 'id'>): string | 
   if (!c.short) return null;
   if (c.short === 'caps' && c.newer) return 'Beginner set cap';
   if (c.id === 'plan') return "All of today's plan this gym can do";
-  return c.short === 'caps' ? 'As long as this style goes' : 'All this gym can do in one go';
+  // 3.5b round 4 (B1): never "All this gym can do" while the gym has other moves: say what ran out.
+  if (c.id === 'fresh') return c.short === 'caps' ? 'As long as this style goes' : 'No more rested moves here';
+  return c.short === 'caps' ? 'As long as this style goes' : 'No more moves of this kind here';
 }
 
 const FRESH_REST: StyleDef['rest'] = { group: 60, single: 60, floor: 45, cap: 90 };
@@ -415,13 +435,26 @@ export type Ideas = Batch<Concept>;
  * (quickStyles.ts chooseBatch): "Your plan, short", "Hit what's fresh", then the styles in rotation;
  * `more` are the other styles that would still keep the cards diverse in place of card `swapAt`.
  */
-export function buildIdeas(input: QuickInput, deps: QuickDeps): Ideas {
+/** Every style card that can be built for this person, gym and minutes, by style (the batch picks from these). */
+export function buildStyleCards(input: QuickInput, deps0: QuickDeps): Map<StyleId, Concept[]> {
+  const deps = quickDepsFor(input.base, deps0);
   const styles = new Map<StyleId, Concept[]>();
   for (const id of STYLE_ORDER) {
     const style = STYLES[id];
-    const cards = style.variants.map((v) => styleCard(style, v, input, deps)).filter((c): c is Concept => c !== null);
+    // 3.5b round 4 (B3): a brand new lifter is never offered heavy 4 to 6 rep barbell work.
+    if (id === 'strength' && input.base.experience === 'new') continue;
+    // 3.5b round 4 (B2): sore knees or hips never get a legs only Easy start.
+    const sore = (input.base.easyOn ?? []).some((j) => j === 'knees' || j === 'hips');
+    const variants = style.variants.filter((v) => !(id === 'easy' && v.key === 'legs' && sore));
+    const cards = variants.map((v) => styleCard(style, v, input, deps)).filter((c): c is Concept => c !== null);
     if (cards.length) styles.set(id, cards);
   }
+  return styles;
+}
+
+export function buildIdeas(input: QuickInput, deps0: QuickDeps): Ideas {
+  const deps = quickDepsFor(input.base, deps0);
+  const styles = buildStyleCards(input, deps0);
   // 3.5b round 2: card 1 is always the plan when one is active (fitted, or the honest smaller card).
   const plan = input.plan ?? null;
   return chooseBatch({
@@ -432,6 +465,40 @@ export function buildIdeas(input: QuickInput, deps: QuickDeps): Ideas {
     lastShown: input.lastShown ?? [],
     needEasy: needsEasy(input.base),
   });
+}
+
+const KNEE_SAFE_SQUAT = /leg.?press/i;
+
+/**
+ * 3.5b round 4 (B2, SPEC 15): what Quick leaves out for a joint on the Go easy on list, on every card,
+ * on top of the generator's own rule (order.ts easyOnAvoids). Knees: no leg extension and no deep
+ * squat (a leg press stays: SPEC 15 names it the knee friendly squat); lower back: no loaded hinge,
+ * no bent over row, no barbell squat (easyOnAvoids), and no back extension either.
+ */
+export function quickAvoids(easyOn: readonly string[] | undefined, p: Profile): boolean {
+  if (easyOnAvoids(easyOn, p)) return true;
+  const on = new Set(easyOn ?? []);
+  if (on.has('knees') && (p.pattern === 'quads isolation' || (p.pattern === 'squat' && !KNEE_SAFE_SQUAT.test(p.name) && !KNEE_SAFE_SQUAT.test(p.id)))) return true;
+  if (on.has('lower_back') && p.pattern === 'hinge') return true;
+  return false;
+}
+
+/** A pull up hangs your whole bodyweight: Quick offers a pulldown instead, except to 3+ year lifters (B4). */
+const bodyweightHang = (requires: readonly (readonly string[])[] | null) => !!requires && requires.length > 0 && requires.every((g) => g.every((id) => id === 'pull_up_bar'));
+
+const barbellOnly = (requires: readonly (readonly string[])[] | null) => !!requires && requires.some((g) => g.every((id) => id === 'barbell_rack'));
+
+/** The deps every Quick card is built with for this person: Go easy on, and no pull ups for newer lifters. */
+function quickDepsFor(base: GeneratorInput, deps: QuickDeps): QuickDeps {
+  return {
+    ...deps,
+    usable: (id) =>
+      deps.usable(id) &&
+      !quickAvoids(base.easyOn, deps.profile(id)) &&
+      (base.experience === '3y' || !bodyweightHang(requiresOf(deps.data, id))) &&
+      // 3.5b round 4 (B3): a brand new lifter starts on machines and dumbbells, never a heavy barbell lift.
+      !(base.experience === 'new' && isHeavy(deps.profile(id)) && barbellOnly(requiresOf(deps.data, id))),
+  };
 }
 
 /** The cards alone (PLAN 3.5a's entry point, kept). */
@@ -568,7 +635,7 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
   if (!day) return null;
   const data = deps.data;
   const neverKeys = new Set((input.never ?? []).map(data.sameAs));
-  const ok = (id: string) => !neverKeys.has(data.sameAs(id)) && deps.usable(id) && sureGear(data, id, gym) && !easyOnAvoids(input.easyOn, deps.profile(id));
+  const ok = (id: string) => !neverKeys.has(data.sameAs(id)) && deps.usable(id) && sureGear(data, id, gym) && !quickAvoids(input.easyOn, deps.profile(id));
   const entries = dayWorkout(plan, dayIndex, weekIndex);
   const unique = entries.filter((e, i) => entries.findIndex((x) => x.exerciseId === e.exerciseId) === i);
   const adapted = adaptDay(data, unique, gym, input.always ?? {});
@@ -657,7 +724,8 @@ function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: string) => 
         ...(t.seconds !== undefined ? { seconds: t.seconds } : {}),
         ...(it.eachSide ? { eachSide: true } : {}),
         restSec: blockRest(b as PlanBlock),
-        why: swapped ? `Same movement as ${it.name}` : `From your ${part.day.name} day`,
+        // 3.5b round 4 (M10): a move put in for the plan's own says why, in plain words.
+        why: swapped || origin !== it.exerciseId ? `Instead of ${it.name}: same movement, gear this gym surely has` : `From your ${part.day.name} day`,
         ...(pair !== undefined ? { group: pair } : {}),
       });
     }
@@ -785,7 +853,7 @@ export const optionKey = (name: string): string =>
 export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean, slotName?: string): QuickItem {
   // Never "Same movement as X" on X itself (round 3, B1).
   const from = slotName ?? item.name;
-  const next: QuickItem = { ...item, id: to, name, why: to === item.slot || optionKey(from) === optionKey(name) ? item.why : `Same movement as ${from}` };
+  const next: QuickItem = { ...item, id: to, name, why: to === item.slot || optionKey(from) === optionKey(name) ? item.why : `Same movement as ${from}`, swapped: true };
   if (eachSide) next.eachSide = true;
   else delete next.eachSide;
   return next;

@@ -276,7 +276,8 @@ export function WorkoutScreen() {
     setChip(null);
     const next = nextCurrent(entries, done, id);
     const partner = entries.find((x) => x.exerciseId === next);
-    if (next !== id && e.kind === 'pair' && partner?.block === e.block) {
+    // 3.5b round 4 (M7): a Quick group's next member is a button under the set table, not a pill over the rows.
+    if (next !== id && e.kind === 'pair' && partner?.block === e.block && !e.roundRest) {
       // A pair: its partner is one tap away on the chip, never an automatic jump (PLAN 2.0g).
       showChip(`${e.pairSize > 2 ? 'Circuit' : 'Pair'}: ${w.nameOf(next)} next`, CHIP_MS, id, () => undefined, next);
     }
@@ -800,6 +801,7 @@ export function WorkoutScreen() {
       onAskLoadType={() => setAsking(exerciseId)}
       onMenu={() => setMenuFor(exerciseId)}
       onSwipeNext={swipeNext}
+      onOpen={switchExercise}
       onNotice={notice}
       onEffortAnswered={effortAnswered}
       onRemoveSet={(set) => void onDelete(set, true)}

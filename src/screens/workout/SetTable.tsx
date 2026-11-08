@@ -54,6 +54,11 @@ type Props = {
   footer?: ReactNode;
   /** Right under the rows, above the tip slot (the quiet first time line), so a tip never covers it. */
   underRows?: ReactNode;
+  /**
+   * 3.5b round 4 (M8): a Quick pair or circuit member waiting for its partner's set this round: no
+   * row is "next" here (the Next button under the table is the one thing to do).
+   */
+  waiting?: boolean;
   /** One line right under the current row ("First time: pick a weight you could do 2 more reps with"). */
   currentNote?: string;
   /**
@@ -411,7 +416,7 @@ export function SetTable(props: Props) {
   const timed = kind === 'timed';
   const swipeTip = logged.length > 0 && !props.checkHint && !props.nudge && !props.hideSwipeHint;
   const swipeActive = useSyncExternalStore(hints.subscribe, hints.active, () => null) === 'swipeSet';
-  const current = rows[0]?.index;
+  const current = props.waiting ? undefined : rows[0]?.index;
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => keepInView(ref.current), [current, editing, logged.length]);
 

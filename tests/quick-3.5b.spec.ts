@@ -8,7 +8,8 @@ import { card, pastIntake, PROFILE } from './helpers/quick';
 // SE at 130% scrolls cleanly; beginners get an Easy start; Start carries sets, reps, rest and
 // supersets into the workout.
 
-const META = /^(\d+) exercises? (?:· (\d+) (rounds?|circuits?|supersets?) )*· ~(\d+) min$/;
+// 3.5b round 4 (M9): plain words, "pairs" and "circuit" (never supersets or rounds).
+const META = /^(\d+) exercises? (?:· (\d+) (circuits?|pairs?) )*· ~(\d+) min$/;
 const SHOTS = ['iPhone SE', 'iPhone 15'];
 
 async function openQuick(page: Page, minutes = 30) {
@@ -51,7 +52,7 @@ test.describe('Quick workout ideas: diverse and full', () => {
       expect(new Set(cards.map((c) => c.id)).size).toBe(cards.length);
       expect(new Set(cards.map((c) => c.title)).size).toBe(cards.length);
       for (const c of cards) {
-        expect(c.chip, c.id).toMatch(/^(Supersets|Circuit|Strength|Low impact|Straight sets|Your plan)$/);
+        expect(c.chip, c.id).toMatch(/^(Pairs|Circuit|Strength|Low impact|Straight sets|Your plan)$/);
         expect(c.dots).toBe(3);
         expect(c.level).toBeGreaterThanOrEqual(1);
         expect(c.level).toBeLessThanOrEqual(3);
@@ -63,8 +64,9 @@ test.describe('Quick workout ideas: diverse and full', () => {
         expect(Number(mm![4])).toBeLessThanOrEqual(m);
       }
       // G: 30 min is 5 to 6 moves with 2 supersets (the pump says so on its line).
-      if (m === 30) expect(cards.some((c) => /^[56] exercises · 2 supersets · ~\d+ min$/.test(c.meta))).toBe(true);
-      if (m === 15) expect(cards.some((c) => / · 3 rounds · /.test(c.meta))).toBe(true);
+      if (m === 30) expect(cards.some((c) => /^[56] exercises · 2 pairs · ~\d+ min$/.test(c.meta))).toBe(true);
+      if (m === 15) expect(cards.some((c) => / · 1 circuit · /.test(c.meta))).toBe(true);
+      for (const c of cards) expect(c.meta + c.chip).not.toMatch(/superset|round/i);
       if (m === 30) await shotOn(page, '3.5b', 'cards-30', SHOTS);
       if (m === 15) await shotOn(page, '3.5b', 'cards-15', ['iPhone 15']);
       if (m === 60) await shotOn(page, '3.5b', 'cards-60', ['iPhone 15']);
@@ -196,8 +198,8 @@ test.describe('Quick workout ideas: diverse and full', () => {
       seen.add(id);
       const meta = (await c.getByTestId('concept-meta').textContent())!;
       const count = Number(meta.match(/^(\d+)/)![1]);
-      const supersets = Number(meta.match(/(\d+) supersets?/)?.[1] ?? 0);
-      const circuits = Number(meta.match(/(\d+) circuits?/)?.[1] ?? (/ rounds? /.test(meta) ? 1 : 0));
+      const supersets = Number(meta.match(/(\d+) pairs?/)?.[1] ?? 0);
+      const circuits = Number(meta.match(/(\d+) circuits?/)?.[1] ?? 0);
       const minutes = Number(meta.match(/~(\d+) min/)![1]);
       await c.tap();
       await expect(card(page)).toBeVisible();

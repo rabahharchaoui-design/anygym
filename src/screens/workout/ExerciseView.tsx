@@ -65,6 +65,8 @@ type Props = {
   onAskLoadType: () => void;
   onMenu: () => void;
   onSwipeNext: () => void;
+  /** 3.5b round 4 (M7, M8): open another exercise (a Quick group's next member). */
+  onOpen?: (exerciseId: string) => void;
   onNotice: (text: string, retry?: () => void) => void;
   /** PLAN 2.2d: a logged set removed from its row (swipe or Remove set): deleted with Undo, its row goes. */
   onRemoveSet: (set: WorkoutSet) => void;
@@ -89,10 +91,17 @@ function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
  * The exercise view (SPEC 20.2, 21.1): the demo tile, name and note, "Last time", and the set
  * table already filled with today's targets. Logging a set is one tap on its ✓.
  */
-export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable, onEffortAnswered }: Props) {
+export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onOpen, onNotice, onRemoveSet, onUndoable, onEffortAnswered }: Props) {
   const gym = w.gym!;
   const name = w.nameOf(exerciseId);
   const entry = w.entryOf(exerciseId);
+  // 3.5b round 4 (M7, M8): in a Quick pair or circuit, once this round's set is done here the next
+  // member is the one thing to do: one button under the table (never a pill over a row), no row lit.
+  const mineDone = w.done[exerciseId] ?? 0;
+  const groupNext =
+    entry?.roundRest && entry.kind === 'pair'
+      ? w.entries.find((x) => x !== entry && x.kind === 'pair' && x.block === entry.block && (w.done[x.exerciseId] ?? 0) < mineDone && (w.done[x.exerciseId] ?? 0) < x.sets)
+      : undefined;
   const kind = w.loadTypeOf(exerciseId);
   const bar = w.barOf(exerciseId);
   const progression = w.progressionOf(exerciseId);
@@ -724,6 +733,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             removable={!logQueue.closed(sessionId)}
             keyOf={(r) => slots[slotOf(r)]?.id ?? `i${r.index}`}
             recordOf={w.recordOf}
+            waiting={!!groupNext}
             underRows={
               <>
                 {/* First time: one quiet line under the rows, never a guessed weight (SPEC 6 rule 5).
@@ -738,6 +748,11 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
                   <p className={`${styles.firstTime} num`} data-testid="coach-number">
                     {yourNumber}
                   </p>
+                )}
+                {groupNext && (
+                  <button type="button" className={`${styles.groupNext} pressable`} data-testid="group-next" onClick={() => onOpen?.(groupNext.exerciseId)}>
+                    Next in the {entry!.pairSize > 2 ? 'circuit' : 'pair'}: {groupNext.name}
+                  </button>
                 )}
                 {/* PLAN 3.8 (SPEC 15): one optional tap after the last set, never per set. */}
                 {allDone && <EffortChip sessionId={sessionId} exerciseId={exerciseId} onAnswered={() => onEffortAnswered?.(exerciseId)} />}

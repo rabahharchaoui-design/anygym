@@ -19,6 +19,7 @@ import { dayWorkout, quickEntry, restAfter, upNext, type WorkoutEntry } from '..
 import { applyTrim, trimmedPlan } from '../timeBudget';
 import {
   buildIdeas,
+  buildStyleCards,
   conceptMinutes,
   daysSince,
   gearOf,
@@ -26,6 +27,7 @@ import {
   needsEasy,
   planConcept,
   QUICK_MINUTES,
+  quickAvoids,
   regroup,
   restedLine,
   safePairs,
@@ -35,7 +37,6 @@ import {
   type QuickItem,
 } from '../quick';
 import { buildCard, chooseBatch, densityFor, diverse, quickDayOf, quickMinutes, STYLE_ORDER, STYLES, styleSpec, structureOf, type Pickable, type StyleId } from '../quickStyles';
-import { requiresOf as reqOf } from '../swap';
 
 /** A small seeded random (mulberry32): the same cases every run. */
 function rng(seed: number) {
@@ -114,7 +115,7 @@ function expectHonestCards(cards: readonly Concept[], gym: GymKit, minutes: numb
       expect(new Set(g.map((it) => it.restSec)).size).toBe(1);
     }
     expect(c.gear).toEqual(gearOf(c.items.map((it) => it.id), SWAP_DATA, gym));
-    expect(metaLine(c.items, c.minutes)).toMatch(/^\d+ exercises? (· \d+ (rounds?|circuits?|supersets?) )*· ~\d+ min$/);
+    expect(metaLine(c.items, c.minutes)).toMatch(/^\d+ exercises? (· \d+ (circuits?|pairs?) )*· ~\d+ min$/);
   }
 }
 
@@ -145,13 +146,16 @@ describe('the diversity rule (random gyms, intakes and histories)', () => {
         const swapped = [...ideas.cards];
         swapped.splice(ideas.swapAt, 1, alt);
         expectDiverse(swapped, `${label} more ${alt.id}`);
-        expect(ideas.cards.some((c) => c.id === alt.id)).toBe(false);
+        // 3.5b round 4 (M12): another style, or another body area of card 4's own style.
+        expect(ideas.cards.some((c, i) => i !== ideas.swapAt && c.id === alt.id)).toBe(false);
+        if (ideas.cards[ideas.swapAt]?.id === alt.id) expect(alt.variant).not.toBe(ideas.cards[ideas.swapAt]!.variant);
       }
       // A style done in the last 2 quick workouts never leads the styles while another is shown.
       const styleCards = ideas.cards.filter((c) => c.id !== 'plan' && c.id !== 'fresh');
-      if (styleCards.some((c) => !h.done.includes(c.id))) expect(h.done).not.toContain(styleCards[0]!.id);
+      // 3.5b round 4 (B3): a beginner's Easy start leads even if it was done lately.
+      if (!needsEasy(base) && styleCards.some((c) => !h.done.includes(c.id))) expect(h.done).not.toContain(styleCards[0]!.id);
       // Beginners and Go easy on: an Easy start whenever one can be built next to the plan and fresh.
-      if (needsEasy(base) && STYLES.easy.variants.some((v) => buildCard(styleSpec(STYLES.easy, v, base, minutes), { ...QUICK_DEPS, requires: (id) => reqOf(SWAP_DATA, id) }, minutes)) && !plan && !Object.keys(h.lastTrained).length && !h.recent.length)
+      if (needsEasy(base) && buildStyleCards({ base, minutes, recent: [] }, QUICK_DEPS).has('easy') && !plan && !Object.keys(h.lastTrained).length && !h.recent.length)
         expect(ideas.cards.map((c) => c.id)).toContain('easy');
     }
     // Most random gyms still fill the screen with 4.
@@ -229,7 +233,8 @@ describe('the rotation', () => {
         expect(batch.cards.length === best || (same(ids, lastShown) ? false : batch.cards.length === best)).toBe(true);
         if (others.length) expect(same(ids, lastShown), `case ${n} visit ${visit}`).toBe(false);
         const styleIds = ids.filter((id) => id !== 'plan');
-        if (styleIds.some((id) => !done.includes(id))) expect(done).not.toContain(styleIds[0]);
+        // 3.5b round 4 (B3): a beginner's Easy start leads even if it was done lately.
+        if (!needEasy && styleIds.some((id) => !done.includes(id))) expect(done).not.toContain(styleIds[0]);
         lastShown = ids;
       }
     }
@@ -303,7 +308,8 @@ describe('the time math (one estimator), every length and every place preset', (
                 // A heavy lift is never inside a group, and keeps its prescribed rest.
                 for (const it of card.items) if (isHeavy(profileFor(it.id))) expect(it.group, `${label} ${it.id}`).toBeUndefined();
                 // 3.5b round 2: a gym with only 3 sure pump moves gets the 1 superset it can hold.
-                if ((m === 15 || m === 30) && id === 'pump' && n >= 4) expect(st.supersets, label).toBe(2);
+                // 3.5b round 4: pairs only where two moves suit each other (a hotel has fewer such pairs).
+                if ((m === 15 || m === 30) && id === 'pump') expect(st.supersets, label).toBeGreaterThanOrEqual(1);
                 expect(st.supersets, label).toBeLessThanOrEqual(d.supersets);
               }
             }
@@ -497,10 +503,10 @@ describe('3.5b round 2', () => {
       for (const m of QUICK_MINUTES)
         for (const c of buildIdeas({ base: { goals: ['muscle'], experience, gym: hotel }, minutes: m, recent: [] }, QUICK_DEPS).cards) {
           if (c.minutes >= m - 2) continue;
-          expect(shortLine(c), `${experience} ${m} ${c.id}`).toMatch(/^(All this gym can do in one go|Beginner set cap|As long as this style goes|All of today's plan this gym can do)$/);
+          expect(shortLine(c), `${experience} ${m} ${c.id}`).toMatch(/^(No more moves of this kind here|No more rested moves here|Beginner set cap|As long as this style goes|All of today's plan this gym can do)$/);
         }
     expect(shortLine({ id: 'easy', short: 'caps', newer: true })).toBe('Beginner set cap');
-    expect(shortLine({ id: 'pump', short: 'moves' })).toBe('All this gym can do in one go');
+    expect(shortLine({ id: 'pump', short: 'moves' })).toBe('No more moves of this kind here');
     expect(shortLine({ id: 'pump' })).toBeNull();
   });
 
@@ -524,5 +530,132 @@ describe('3.5b round 2', () => {
     // Every muscle named is one the card works.
     for (const w of words) expect(fresh.items.some((it) => profileFor(it.id).targets.some((m) => m === w || (w === 'shoulders' && /delts/.test(m))))).toBe(true);
     expect(restedLine(fresh.items, QUICK_DEPS, {}, NOW)).toBeNull();
+  });
+});
+
+describe('3.5b round 4 (ux-critic)', () => {
+  const HOTEL: GymKit = { equipment: ['dumbbells', 'adjustable_bench', 'cable_station', 'treadmill', 'bike'] as EquipmentId[], dumbbellRange: { min: 5, max: 50, step: 5 } };
+  const JOINTS = ['knees', 'lower_back', 'shoulders', 'wrists', 'neck', 'hips'];
+
+  it('B1: hotel cards hold G\'s count for the minutes, fill to the chip, and never claim the gym ran out while it has more', () => {
+    for (const experience of ['new', '1_2y', '3y'] as ExperienceId[])
+      for (const m of [30, 45, 60]) {
+        const cards = buildIdeas({ base: { goals: ['muscle'], experience, gym: HOTEL }, minutes: m, recent: [] }, QUICK_DEPS).cards;
+        expect(cards.length, `${experience} ${m}`).toBeGreaterThan(0);
+        for (const c of cards) {
+          const label = `${experience} ${m} ${c.id}: ${c.items.map((it) => it.name).join(', ')}`;
+          if (c.id !== 'strength') expect(c.items.length, label).toBeGreaterThanOrEqual(densityFor(m).min);
+          expect(c.minutes, label).toBeLessThanOrEqual(m);
+          if (c.minutes < m - 2) expect(shortLine(c), label).not.toBeNull();
+          expect(shortLine(c) ?? '', label).not.toMatch(/All this gym can do/);
+        }
+      }
+  });
+
+  it('B2: every Go easy on joint is respected on every card (knees: no leg extension or deep squat, never a legs only Easy start)', () => {
+    for (const joint of JOINTS)
+      for (const gym of [FULL, HOTEL])
+        for (const m of QUICK_MINUTES) {
+          const base: GeneratorInput = { goals: ['muscle'], experience: 'new', easyOn: [joint], gym };
+          const ideas = buildIdeas({ base, minutes: m, recent: [] }, QUICK_DEPS);
+          for (const c of [...ideas.cards, ...ideas.more])
+            for (const it of c.items) expect(quickAvoids([joint], profileFor(it.id)), `${joint} ${m} ${c.id} ${it.id}`).toBe(false);
+          if (joint === 'knees') {
+            for (const c of [...ideas.cards, ...ideas.more]) {
+              const names = c.items.map((it) => it.name);
+              expect(names.some((n) => /leg extension|squat/i.test(n) && !/leg press/i.test(n)), `${m} ${c.id} ${names.join(', ')}`).toBe(false);
+              // One knee dominant move at most (a leg press).
+              expect(c.items.filter((it) => profileFor(it.id).pattern === 'squat').length, `${m} ${c.id}`).toBeLessThanOrEqual(1);
+            }
+            const easy = ideas.cards.find((c) => c.id === 'easy');
+            if (easy) expect(easy.variant).not.toBe('legs');
+          }
+        }
+    // The rule itself, per joint.
+    const p = (id: string) => profileFor(id);
+    expect(quickAvoids(['knees'], p('leg-extension'))).toBe(true);
+    expect(quickAvoids(['knees'], p('barbell-back-squat'))).toBe(true);
+    expect(quickAvoids(['knees'], p('leg-press'))).toBe(false);
+    expect(quickAvoids(['lower_back'], p('deadlift'))).toBe(true);
+    expect(quickAvoids(['lower_back'], p('barbell-bent-over-row'))).toBe(true);
+    expect(quickAvoids(['lower_back'], p('cable-seated-close-grip-row'))).toBe(false);
+    expect(quickAvoids(['shoulders'], p('overhead-press'))).toBe(true);
+    expect(quickAvoids(['wrists'], p('barbell-bicep-curl'))).toBe(true);
+    expect(quickAvoids(['hips'], p('dumbbell-bench-press'))).toBe(false);
+  });
+
+  it('B3: a brand new lifter never sees Strength focus and gets Easy start first (second after the plan)', () => {
+    const split = PLANS.find((x) => x.id === 'five-day-split')!;
+    for (const gym of [FULL, HOTEL])
+      for (const m of QUICK_MINUTES) {
+        const base: GeneratorInput = { goals: ['muscle'], experience: 'new', gym };
+        const ideas = buildIdeas({ base, minutes: m, recent: [] }, QUICK_DEPS);
+        expect([...ideas.cards, ...ideas.more].some((c) => c.id === 'strength')).toBe(false);
+        expect(ideas.cards[0]!.id, `${m}`).toBe('easy');
+        // No heavy barbell lift for a brand new lifter, anywhere.
+        for (const c of ideas.cards) for (const it of c.items) expect(isHeavy(profileFor(it.id)) && requiresOf(SWAP_DATA, it.id)!.some((g) => g.every((x) => x === 'barbell_rack')), `${m} ${c.id} ${it.id}`).toBe(false);
+        const plan = planConcept({ plan: split, dayIndex: 1, weekIndex: 0, minutes: m, gym, experience: 'new' }, QUICK_DEPS);
+        if (!plan) continue;
+        const withPlan = buildIdeas({ base, minutes: m, recent: [], plan }, QUICK_DEPS).cards;
+        expect(withPlan[0]!.id).toBe('plan');
+        if (withPlan.some((c) => c.id === 'easy')) expect(withPlan[1]!.id).toBe('easy');
+      }
+  });
+
+  it('B4: a Full body circuit has a real leg lift, opens on a compound, holds one heavy lift at most (a leg lift, on its own) and no pull ups for newer lifters', () => {
+    const r = rng(404);
+    let seen = 0;
+    for (let n = 0; n < 120; n++) {
+      const gym = randomGym(r);
+      const base = randomInput(r, gym);
+      for (const m of QUICK_MINUTES) {
+        const c = buildStyleCards({ base, minutes: m, recent: [] }, QUICK_DEPS).get('circuit')?.[0];
+        if (!c) continue;
+        seen++;
+        const ps = c.items.map((it) => profileFor(it.id));
+        const label = `${m}: ${c.items.map((it) => it.name).join(', ')}`;
+        expect(ps.some((p) => p.pattern !== null && ['squat', 'hinge', 'lunge', 'glutes'].includes(p.pattern) && p.tier <= 1), label).toBe(true);
+        expect(ps[0]!.tier <= 1 && ps[0]!.role === 'lift', label).toBe(true);
+        const heavy = c.items.filter((it) => isHeavy(profileFor(it.id)));
+        expect(heavy.length, label).toBeLessThanOrEqual(1);
+        for (const it of heavy) {
+          expect(it.group, label).toBeUndefined();
+          expect(['squat', 'hinge', 'lunge', 'glutes']).toContain(profileFor(it.id).pattern);
+        }
+        if (base.experience !== '3y') expect(c.items.some((it) => /pull.?up/i.test(it.name)), label).toBe(false);
+      }
+    }
+    expect(seen).toBeGreaterThan(20);
+  });
+
+  it('B5: Strength focus on a full gym holds 4 lifts at 45 and 5 at 60 before any extra set', () => {
+    for (const [m, n] of [[45, 4], [60, 5]] as const) {
+      const c = buildStyleCards({ base: { goals: ['muscle'], experience: '1_2y', gym: FULL }, minutes: m, recent: [] }, QUICK_DEPS).get('strength')!;
+      for (const v of c) {
+        expect(v.items.length, `${m} ${v.variant}`).toBe(n);
+        expect(shortLine(v)).toBeNull();
+      }
+    }
+  });
+
+  it('M6: a Superset pump opens on a main lift, holds one calf move at most, and its line names the muscles it pairs', () => {
+    for (const gym of [FULL, HOTEL])
+      for (const m of QUICK_MINUTES)
+        for (const c of buildStyleCards({ base: { goals: ['muscle'], experience: '1_2y', gym }, minutes: m, recent: [] }, QUICK_DEPS).get('pump') ?? []) {
+          const ps = c.items.map((it) => profileFor(it.id));
+          expect(ps[0]!.tier <= 1, `${m} ${c.variant}`).toBe(true);
+          expect(ps.filter((p) => p.pattern === 'calves').length).toBeLessThanOrEqual(1);
+          expect(c.line).toMatch(/^[A-Z][a-z ,]+ pairs$/);
+          expect(c.chip).toBe('Pairs');
+        }
+  });
+
+  it('M9: plain words on every card: pairs and circuits, never supersets or rounds', () => {
+    for (const gym of [FULL, HOTEL])
+      for (const m of QUICK_MINUTES)
+        for (const c of buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym }, minutes: m, recent: [] }, QUICK_DEPS).cards) {
+          expect(metaLine(c.items, c.minutes)).not.toMatch(/superset|round/i);
+          expect(c.chip).not.toMatch(/superset/i);
+        }
   });
 });

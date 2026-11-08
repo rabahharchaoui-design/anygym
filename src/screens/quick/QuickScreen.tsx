@@ -404,7 +404,7 @@ export function QuickScreen() {
         </section>
       ) : (
         <>
-          <section className={styles.section} aria-labelledby="quick-long">
+          <section className={`${styles.section} ${styles.longSection}`} aria-labelledby="quick-long">
             <h2 id="quick-long" className={styles.sectionTitle}>
               How long?
             </h2>

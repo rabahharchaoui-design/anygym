@@ -160,7 +160,8 @@ export function DayList({ w, heroId, onOpen, onAdd, effortFor = null, still = fa
           <span className={styles.text}>
             <span className={styles.name}>{name}</span>
             {e.setsText && <span className={`${styles.sets} num`}>{e.setsText}</span>}
-            {rest !== undefined && rest > 0 && <span className={`${styles.rest} num`}>{rest} s rest</span>}
+            {/* 3.5b round 4 (M8): inside a Quick pair or circuit the rest is said once, on the group. */}
+            {rest !== undefined && rest > 0 && !e.roundRest && <span className={`${styles.rest} num`}>{rest} s rest</span>}
           </span>
           <Progress done={done} total={e.sets} />
         </button>
@@ -195,6 +196,11 @@ export function DayList({ w, heroId, onOpen, onAdd, effortFor = null, still = fa
       blocks.push(
         <li key={`pair-${e.block}`} className={styles.pair} data-warmup={e.warmup || undefined} data-mobility={e.mobility || undefined} data-testid={e.mobility ? 'mobility-group' : 'pair-group'}>
           <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : group.length > 2 ? 'Circuit: one after another' : 'Pair: back to back'}</p>
+          {e.roundRest && e.restSec > 0 && (
+            <p className={`${styles.pairRest} num`} data-testid="group-rest">
+              Rest {w.userRestOf(e.exerciseId) ?? e.restSec} s after each round
+            </p>
+          )}
           <ol className={styles.pairRows}>{group.map(row)}</ol>
         </li>,
       );

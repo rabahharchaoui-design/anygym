@@ -1004,3 +1004,22 @@ button.nextChip {
 }
 
 /* A sheet's main button stays in reach while its body scrolls (the weight picker on iPhone SE). */
+
+/* 3.5b round 4 (M7): a Quick pair or circuit's next member, in the slot under the set table. */
+.groupNext {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  margin-top: var(--space-3);
+  padding: 10px var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

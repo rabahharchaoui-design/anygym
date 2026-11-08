@@ -363,7 +363,7 @@ export function TodayScreen() {
         {((data.ready && !active) || failed) && (
           <button type="button" ref={quickRef} className={`${styles.quick} pressable`} data-small="" onClick={() => void quick()} data-testid="quick-card" aria-label="Build my own Quick workout: pick the exercises yourself">
             <span className={styles.quickLabel}>Build my own</span>
-            <span className={styles.quickSub}>Pick the exercises yourself</span>
+            <span className={styles.quickSub}>Pick exercises myself</span>
           </button>
         )}
         {/* Competitor gap 4: from logged sets only; nothing logged lately, no card. */}

@@ -79,7 +79,8 @@ describe('concepts', () => {
   // PLAN 3.5b: four cards that differ by style (was three body part concepts, Full body first).
   it('a full gym with no history: four honest style cards, Full body circuit first', () => {
     const cs = buildConcepts({ base: base(FULL), minutes: 30, recent: [] }, QUICK_DEPS);
-    expect(cs.map((c) => c.id)).toEqual(['circuit', 'pump', 'strength', 'armsAbs']);
+    // 3.5b round 4: G's counts gate every card, so the set at 30 min is circuit, pump, arms and abs, Easy start.
+    expect(cs.map((c) => c.id)).toEqual(['circuit', 'pump', 'armsAbs', 'easy']);
     expect(cs[0]!.title).toBe('Full body circuit');
     expectHonest(cs, FULL);
     // No fresh concept without logged sets: it would claim something it does not know.
@@ -149,11 +150,12 @@ describe('learned soft dislikes', () => {
   });
 
   it('soft dislikes rank an exercise lower in the generator, never out', () => {
-    const plain = withSquat(buildConcepts({ base: base(FULL), minutes: 30, recent: [] }, QUICK_DEPS));
+    // 3.5b round 4: the Strength focus card at 45 min (its squat slot has barbell options to rank).
+    const plain = withSquat(buildConcepts({ base: base(FULL), minutes: 45, recent: [] }, QUICK_DEPS).filter((c) => c.id === 'strength'));
     const squat = plain.items.find((it) => it.pattern === 'squat')!;
     const input = withDislikes(base(FULL), learnSwap({}, squat.id));
     expect(input.soft).toEqual({ [squat.id]: 1 });
-    const after = withSquat(buildConcepts({ base: input, minutes: 30, recent: [] }, QUICK_DEPS));
+    const after = withSquat(buildConcepts({ base: input, minutes: 45, recent: [] }, QUICK_DEPS).filter((c) => c.id === 'strength'));
     const squat2 = after.items.find((it) => it.pattern === 'squat')!;
     expect(squat2.id).not.toBe(squat.id);
     // Never a ban: with nothing else that fits, the disliked one still comes.

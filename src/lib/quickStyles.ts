@@ -92,7 +92,7 @@ export type StyleDef = {
   /** 1 to 3 dots: how hard the style is meant to be. */
   effort: 1 | 2 | 3;
   /** Different body areas of the same style; the first one that keeps the cards diverse is used. */
-  variants: ReadonlyArray<{ key: string; slots: readonly Slot[] }>;
+  variants: ReadonlyArray<{ key: string; label: string; slots: readonly Slot[] }>;
   /** Shorter than this, the style is not offered (Strength focus needs its long rest). */
   minMinutes?: number;
   shape: (minutes: number) => Shape;
@@ -113,6 +113,8 @@ export type StyleDef = {
   only?: (p: Profile, requires: Requires | null) => boolean;
   /** Is its name true of what it holds. */
   honest: (ps: readonly Profile[], items: readonly { group?: number }[]) => boolean;
+  /** 3.5b round 4: the most heavy lifts on the card. */
+  maxHeavy?: number;
 };
 
 const s = (pattern: Pattern, variant = false): Slot => (variant ? { pattern, variant: true } : { pattern });
@@ -142,37 +144,44 @@ export function lowImpact(p: Profile, requires: Requires | null): boolean {
 
 const timedOr = (newer: boolean, a: number, b: number) => (newer ? a : b);
 
+/** 3.5b round 4 (B4): a real leg move: knee or hip dominant and a compound (never a back extension or a leg extension alone). */
+export const realLegs = (p: Profile): boolean => p.pattern !== null && ['squat', 'hinge', 'lunge', 'glutes'].includes(p.pattern) && isCompound(p);
+
+/** Fill patterns after a variant's own slots: the card reaches the minutes with what the gym surely has (3.5b round 4, B1). */
+const UPPER_FILL: Slot[] = [s('horizontal push', true), s('horizontal pull', true), s('vertical push', true), s('vertical pull', true), s('lateral delt', true), s('biceps', true), s('triceps', true), s('chest isolation', true), s('rear delt', true)];
+const LOWER_FILL: Slot[] = [s('squat', true), s('hinge', true), s('glutes', true), s('lunge', true), s('hamstrings isolation', true), s('quads isolation', true), s('calves', true)];
+const CORE_FILL: Slot[] = [s('core', true), s('core', true)];
+
 export const STYLES: Record<StyleId, StyleDef> = {
   circuit: {
     id: 'circuit',
     title: 'Full body circuit',
     effort: 3,
+    // Round 4 (B4): a big leg lift leads (on its own, at its own rest), then legs, a push and a pull take turns.
     variants: [
-      // Legs, a push and a pull in every round; more moves wait at the end for the longer times.
-      { key: 'a', slots: [s('squat'), s('horizontal push'), s('horizontal pull'), s('hinge'), s('vertical push'), s('vertical pull'), s('core'), s('quads isolation'), s('lateral delt'), s('hamstrings isolation'), s('biceps'), s('triceps'), s('calves')] },
-      { key: 'b', slots: [s('squat'), s('vertical push'), s('vertical pull'), s('quads isolation'), s('horizontal push'), s('horizontal pull'), s('core'), s('calves'), s('lateral delt'), s('triceps'), s('biceps')] },
-      { key: 'c', slots: [s('hinge'), s('horizontal push'), s('horizontal pull'), s('hamstrings isolation'), s('vertical push'), s('vertical pull'), s('core'), s('glutes'), s('rear delt'), s('triceps')] },
-      { key: 'd', slots: [s('quads isolation'), s('horizontal push'), s('horizontal pull'), s('hamstrings isolation'), s('vertical push'), s('vertical pull'), s('calves'), s('core'), s('lateral delt')] },
+      { key: 'a', label: 'squat first', slots: [s('squat'), s('horizontal push'), s('horizontal pull'), s('hinge'), s('vertical push'), s('vertical pull'), s('core'), s('glutes'), s('lateral delt'), s('hamstrings isolation'), s('biceps'), s('triceps')] },
+      { key: 'b', label: 'hinge first', slots: [s('hinge'), s('vertical push'), s('vertical pull'), s('squat'), s('horizontal push'), s('horizontal pull'), s('core'), s('calves'), s('lateral delt'), s('triceps'), s('biceps')] },
+      { key: 'c', label: 'glutes first', slots: [s('glutes'), s('horizontal push'), s('vertical pull'), s('hamstrings isolation'), s('vertical push'), s('horizontal pull'), s('core'), s('quads isolation'), s('rear delt')] },
     ],
     shape: (m) => (m <= 20 ? 'circuit' : 'tri'),
     reps: { compound: [8, 12], other: [10, 15] },
     sets: (newer) => timedOr(newer, 2, 3),
     maxSets: (newer) => timedOr(newer, 3, 5),
     rest: { group: 60, single: 60, floor: 45, cap: 120 },
-    // 3.5b round 2 (Codex #1, SPEC 22 rules 5 and 6): a heavy lift is never done inside a circuit.
-    only: (p) => !isHeavy(p),
-    honest: (ps, items) => has(ps, LEGS) && has(ps, PUSH) && has(ps, PULL) && grouped(items, (n) => n >= 2),
+    // Round 4 (B4): one heavy lift at most, and only a leg lift (it leads, on its own, at full rest).
+    only: (p) => !isHeavy(p) || realLegs(p),
+    maxHeavy: 1,
+    honest: (ps, items) => ps.some(realLegs) && has(ps, PUSH) && has(ps, PULL) && isCompound(ps[0]!) && grouped(items, (n) => n >= 3),
   },
   pump: {
     id: 'pump',
     title: 'Superset pump',
     effort: 2,
+    // Round 4 (M6): pairs built around a main push and pull (or a hip and a pull), one calf move at most.
     variants: [
-      { key: 'upper', slots: [s('chest isolation'), s('rear delt'), s('lateral delt'), s('biceps'), s('triceps'), s('horizontal push'), s('horizontal pull'), s('biceps', true), s('triceps', true)] },
-      { key: 'legs', slots: [s('quads isolation'), s('hamstrings isolation'), s('glutes'), s('calves'), s('core'), s('core', true), s('hinge')] },
-      { key: 'mix', slots: [s('horizontal push'), s('horizontal pull'), s('quads isolation'), s('hamstrings isolation'), s('lateral delt'), s('biceps'), s('triceps'), s('core'), s('calves')] },
-      // Shoulders and legs: clear of a circuit's chest and back and of an arms card.
-      { key: 'shoulders', slots: [s('lateral delt'), s('quads isolation'), s('rear delt'), s('calves'), s('core'), s('calves', true), s('core', true), s('lateral delt', true)] },
+      { key: 'upper', label: 'chest and back', slots: [s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull'), s('lateral delt'), s('rear delt'), s('biceps'), s('triceps'), s('chest isolation'), s('biceps', true), s('triceps', true), ...CORE_FILL] },
+      { key: 'lower', label: 'legs and back', slots: [s('glutes'), s('vertical pull'), s('hamstrings isolation'), s('horizontal pull'), s('quads isolation'), s('lateral delt'), s('calves'), s('rear delt'), ...CORE_FILL] },
+      { key: 'shoulders', label: 'shoulders and legs', slots: [s('vertical push'), s('hamstrings isolation'), s('lateral delt'), s('quads isolation'), s('rear delt'), s('calves'), s('glutes'), ...CORE_FILL] },
     ],
     shape: () => 'pairs',
     noFallback: true,
@@ -180,19 +189,18 @@ export const STYLES: Record<StyleId, StyleDef> = {
     maxSets: (newer) => timedOr(newer, 3, 5),
     rest: { group: 60, single: 60, floor: 45, cap: 90 },
     only: (p) => !isHeavy(p),
-    honest: (_ps, items) => grouped(items, (n) => n === 2),
+    honest: (ps, items) => grouped(items, (n) => n === 2) && isCompound(ps[0]!) && ps.filter((p) => p.pattern === 'calves').length <= 1,
   },
   strength: {
     id: 'strength',
     title: 'Strength focus',
     chip: 'Strength',
     effort: 3,
+    // Round 4 (B5): a 4th and a 5th lift (an upper press and a pull) come before any extra set.
     variants: [
-      { key: 'legs', slots: [s('squat'), s('hinge'), s('lunge'), s('glutes')] },
-      { key: 'upper', slots: [s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull')] },
-      { key: 'full', slots: [s('squat'), s('horizontal push'), s('horizontal pull'), s('hinge'), s('vertical push')] },
-      // The back of the legs: deadlifts and hip thrusts.
-      { key: 'posterior', slots: [s('hinge'), s('hinge', true), s('glutes'), s('hinge', true)] },
+      { key: 'legs', label: 'legs first', slots: [s('squat'), s('hinge'), s('horizontal push'), s('horizontal pull'), s('glutes'), s('vertical push'), s('vertical pull')] },
+      { key: 'upper', label: 'upper first', slots: [s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull'), s('squat'), s('hinge')] },
+      { key: 'posterior', label: 'hips first', slots: [s('hinge'), s('glutes'), s('vertical push'), s('vertical pull'), s('hinge', true), s('horizontal push')] },
     ],
     minMinutes: 30,
     shape: () => 'straight',
@@ -209,7 +217,7 @@ export const STYLES: Record<StyleId, StyleDef> = {
     title: 'Cardio and core',
     effort: 2,
     // No cardio move has a demo we are sure of yet: with only abs moves the name would not be true.
-    variants: [{ key: 'a', slots: [s('core'), s('core', true), s('core', true), s('core', true)] }],
+    variants: [{ key: 'a', label: 'cardio and abs', slots: [s('core'), s('core', true), s('core', true), s('core', true)] }],
     shape: () => 'circuit',
     noFallback: true,
     maxSets: () => 4,
@@ -222,7 +230,7 @@ export const STYLES: Record<StyleId, StyleDef> = {
     chip: 'Low impact',
     effort: 1,
     // Stretches only, and none has a demo we are sure of yet: never offered until one has.
-    variants: [{ key: 'a', slots: [s('core')] }],
+    variants: [{ key: 'a', label: 'stretches', slots: [s('core')] }],
     shape: () => 'circuit',
     noFallback: true,
     maxSets: () => 3,
@@ -235,8 +243,8 @@ export const STYLES: Record<StyleId, StyleDef> = {
     effort: 2,
     // Arms (biceps and triceps) and abs only: true to its name, and clear of a pump's shoulders and chest.
     variants: [
-      { key: 'a', slots: [s('biceps'), s('triceps'), s('core'), s('biceps', true), s('triceps', true), s('core', true), s('biceps', true), s('triceps', true)] },
-      { key: 'b', slots: [s('biceps'), s('triceps'), s('core'), s('lateral delt'), s('rear delt'), s('core', true), s('biceps', true), s('triceps', true)] },
+      { key: 'a', label: 'arms and abs', slots: [s('biceps'), s('triceps'), s('core'), s('biceps', true), s('triceps', true), s('core', true), s('biceps', true), s('triceps', true)] },
+      { key: 'b', label: 'arms, shoulders and abs', slots: [s('biceps'), s('triceps'), s('core'), s('lateral delt'), s('rear delt'), s('core', true), s('biceps', true), s('triceps', true)] },
     ],
     shape: (m) => (m <= 20 ? 'circuit' : 'pairs'),
     noFallback: true,
@@ -244,7 +252,7 @@ export const STYLES: Record<StyleId, StyleDef> = {
     maxSets: (newer) => timedOr(newer, 3, 5),
     rest: { group: 45, single: 45, floor: 30, cap: 90 },
     honest: (ps, items) =>
-        ps.every((p) => p.pattern !== null && (ARMS.has(p.pattern) || p.pattern === 'core')) && ps.some((p) => p.pattern === 'core') && ps.some((p) => p.pattern === 'biceps' || p.pattern === 'triceps') && grouped(items, (n) => n >= 2),
+      ps.every((p) => p.pattern !== null && (ARMS.has(p.pattern) || p.pattern === 'core')) && ps.some((p) => p.pattern === 'core') && ps.some((p) => p.pattern === 'biceps' || p.pattern === 'triceps') && grouped(items, (n) => n >= 2),
   },
   easy: {
     id: 'easy',
@@ -252,9 +260,9 @@ export const STYLES: Record<StyleId, StyleDef> = {
     chip: 'Low impact',
     effort: 1,
     variants: [
-      { key: 'full', slots: [s('squat'), s('horizontal pull'), s('horizontal push'), s('vertical pull'), s('hamstrings isolation'), s('quads isolation'), s('core'), s('lateral delt'), s('core', true)] },
-      { key: 'upper', slots: [s('horizontal pull'), s('horizontal push'), s('vertical pull'), s('lateral delt'), s('biceps'), s('triceps'), s('core'), s('rear delt'), s('core', true)] },
-      { key: 'legs', slots: [s('squat'), s('quads isolation'), s('hamstrings isolation'), s('glutes'), s('calves'), s('core'), s('core', true)] },
+      { key: 'full', label: 'whole body', slots: [s('squat'), s('horizontal pull'), s('horizontal push'), s('vertical pull'), s('hamstrings isolation'), s('lateral delt'), s('core'), s('quads isolation'), s('core', true), ...UPPER_FILL] },
+      { key: 'upper', label: 'upper body', slots: [s('horizontal pull'), s('horizontal push'), s('vertical pull'), s('lateral delt'), s('biceps'), s('triceps'), s('core'), s('rear delt'), s('core', true), ...UPPER_FILL] },
+      { key: 'legs', label: 'legs', slots: [s('squat'), s('hamstrings isolation'), s('glutes'), s('quads isolation'), s('calves'), s('core'), s('core', true), ...LOWER_FILL] },
     ],
     shape: (m) => (m <= 20 ? 'circuit' : 'straight'),
     reps: { compound: [10, 12], other: [10, 15] },
@@ -262,6 +270,7 @@ export const STYLES: Record<StyleId, StyleDef> = {
     maxSets: () => 3,
     rest: { group: 60, single: 60, floor: 45, cap: 90 },
     only: lowImpact,
+    maxHeavy: 1,
     honest: (ps) => ps.length >= 3,
   },
 };
@@ -273,7 +282,17 @@ export type BuildDeps = GeneratorDeps & {
   requires: (id: string) => Requires | null;
 };
 
+/** The option an exercise is, by its plain name (machine words dropped): quick.ts optionKey's rule. */
+const optionWord = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/\b(machine|angled|lever|leverage)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 export type BuildSpec = {
+  /** 3.5b round 4: the most heavy lifts the card may hold. */
+  maxHeavy?: number;
   name: string;
   slots: readonly Slot[];
   shape: Shape;
@@ -402,8 +421,19 @@ export type Built = {
 };
 
 export function buildCard(spec: BuildSpec, deps: BuildDeps, budget: number): Built | null {
-  const usable = (id: string) => deps.usable(id) && (!spec.only || spec.only(deps.profile(id), deps.requires(id)));
-  const r = generateDay({ ...spec.input, minutes: undefined }, { ...deps, usable }, { name: spec.name, slots: spec.slots, want: spec.want });
+  const left = new Set<string>();
+  const usable = (id: string) => !left.has(id) && deps.usable(id) && (!spec.only || spec.only(deps.profile(id), deps.requires(id)));
+  // 3.5b round 4: one option once ("Leg Press" and "Machine Leg Press" are one leg press at a gym).
+  const sameAs = (id: string) => optionWord(deps.name(id));
+  const gen = { ...deps, usable, data: { ...deps.data, sameAs } };
+  let r = generateDay({ ...spec.input, minutes: undefined }, gen, { name: spec.name, slots: spec.slots, want: spec.want });
+  // At most `maxHeavy` heavy lifts: the later ones make room for lighter moves (a circuit leads with one big leg lift).
+  for (let guard = 0; r.ok && spec.maxHeavy !== undefined && guard < 6; guard++) {
+    const extra = r.items.filter((it) => isHeavy(deps.profile(it.id))).slice(spec.maxHeavy);
+    if (!extra.length) break;
+    for (const it of extra) left.add(it.id);
+    r = generateDay({ ...spec.input, minutes: undefined }, gen, { name: spec.name, slots: spec.slots, want: spec.want });
+  }
   if (!r.ok) return null;
   let items: Work[] = r.items.map((it) => {
     const profile = deps.profile(it.id);
@@ -510,6 +540,7 @@ export function styleSpec(style: StyleDef, variant: StyleDef['variants'][number]
   if (style.reps) spec.reps = style.reps;
   if (style.sets) spec.sets = style.sets(newer);
   if (style.only) spec.only = style.only;
+  if (style.maxHeavy !== undefined) spec.maxHeavy = style.maxHeavy;
   return spec;
 }
 
@@ -634,20 +665,32 @@ export function chooseBatch<T extends Pickable>(input: BatchInput<T>): Batch<T> 
   const styles = cards.slice(fixed.length);
   styles.sort((a, b) => Number(input.done.includes(a.id)) - Number(input.done.includes(b.id)));
   cards = [...fixed, ...styles];
+  // 3.5b round 4 (B3): beginners and Go easy on see Easy start first (right after the plan, when there is one).
+  const easy = input.needEasy ? cards.find((c) => c.id === 'easy') : undefined;
+  if (easy) {
+    const lead = cards[0]?.id === 'plan' ? [cards[0]] : [];
+    cards = [...lead, easy, ...cards.filter((c) => c !== easy && !lead.includes(c))];
+  }
 
-  // More ideas: every other style that is diverse from the cards it would sit with.
-  let swapAt = cards.length >= max ? cards.length - 1 : cards.length;
-  if (swapAt < cards.length && (swapAt < fixed.length || (input.needEasy && cards[swapAt]!.id === 'easy'))) {
-    const at = cards.findLastIndex((c, i) => i >= fixed.length && !(input.needEasy && c.id === 'easy'));
+  // More ideas: every other style that is diverse from the cards it would sit with, and (3.5b round 4,
+  // M12) the other body areas of the swapped card's own style ("Superset pump: legs and back").
+  const swappable = (c: T) => c.id !== 'plan' && c.id !== 'fresh' && !(input.needEasy && c.id === 'easy');
+  let swapAt = cards.length;
+  if (cards.length >= max) {
+    const at = cards.findLastIndex(swappable);
     swapAt = at === -1 ? cards.length : at;
   }
-  if (swapAt >= max) swapAt = cards.length;
   const others = cards.filter((_, i) => i !== swapAt);
   const more: T[] = [];
   for (const id of STYLE_ORDER) {
     if (cards.some((c) => c.id === id)) continue;
     const v = variantFor(id, others);
     if (v) more.push(v);
+  }
+  const current = cards[swapAt];
+  if (current) {
+    const same = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x));
+    for (const v of input.styles.get(current.id as StyleId) ?? []) if (v !== current && !same(v.primary, current.primary) && okWith(v, others)) more.push(v);
   }
   return { cards, more, swapAt };
 }

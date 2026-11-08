@@ -101,7 +101,7 @@
 
 .chip {
   min-height: 48px;
-  padding: 0 4px;
+  padding: 0 2px;
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-pill);
   background: rgb(255 255 255 / 0.05);
@@ -234,6 +234,7 @@
 }
 
 .conceptLine {
+  text-wrap: pretty;
   color: var(--text-2);
   font-size: 0.875rem;
   line-height: 1.35;
@@ -787,4 +788,16 @@
   border-radius: 20px;
   color: var(--text-2);
   text-align: center;
+}
+
+/* 3.5b round 4 (M11): the four minute chips go 2 by 2 when "60 min" would touch the pill edge
+   (SE or 360 wide at 130% text); em here follows the text size. */
+.longSection {
+  container-type: inline-size;
+}
+
+@container (max-width: 20em) {
+  .chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

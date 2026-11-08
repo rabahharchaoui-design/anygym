@@ -333,7 +333,8 @@ test.describe('verify 3.5b', () => {
     const plan = page.locator('[data-concept="plan"]');
     const meta = (await plan.getByTestId('concept-meta').textContent())!;
     const n = countOf(meta);
-    const supers = Number(meta.match(/(\d+) supersets?/)?.[1] ?? 0);
+    // 3.5b round 4 (M9): the line says "pairs" now (was "supersets").
+    const supers = Number(meta.match(/(\d+) (?:supersets?|pairs?)/)?.[1] ?? 0);
     await plan.tap();
     await expect(card(page)).toBeVisible();
     for (let k = 0; k < n; k++) {
