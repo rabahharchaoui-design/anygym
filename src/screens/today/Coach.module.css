@@ -312,3 +312,18 @@
 .sheetRow .why {
   grid-column: 1 / 3;
 }
+
+/* PLAN 3.8b: the missed days card is one heading, one line and two 48 pt buttons: tighter, so both
+   buttons sit on the first screen of Today above the tab bar on an iPhone 15 at 100% text. */
+.card[data-kind='missed_days'] {
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.card[data-kind='missed_days'] .who {
+  min-height: 20px;
+}
+
+.card[data-kind='missed_days'] .text {
+  margin: 0;
+}

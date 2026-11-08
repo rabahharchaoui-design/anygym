@@ -218,7 +218,8 @@
 
 .setNo {
   width: 48px;
-  height: 0px;
+  height: 48px;
+  min-height: 48px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -439,7 +440,8 @@
 .checkDone,
 .checkCircle {
   width: 48px;
-  height: 0px;
+  height: 48px;
+  min-height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -594,7 +596,7 @@
 /* PLAN 3.8b: while the swipe tip shows it has its own room (a compact bubble and its arrow), so it
    never draws over "+ Add set" or the effort question. */
 .tipSlotReserved {
-  height: 0px;
+  height: 34px;
 }
 
 .swipeHint {
@@ -639,7 +641,8 @@
 .stepperDone {
   flex: none;
   min-width: 64px;
-  height: 0px;
+  height: 48px;
+  min-height: 48px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--accent);
@@ -727,6 +730,13 @@
   /* The 48 pt tall button ends 4 pt past the chip, the chip at the reps column's right edge. */
   right: calc(4px + 52px + 6px - 10px);
   margin-top: -24px;
+}
+
+/* PLAN 3.8b round 2: the chip's own slot. A record row hands the right end of its middle button to the
+   chip, so the columns (and the digits, left aligned) end before it at 100% and at large text. The
+   font sizes never shrink; the weight and reps columns just share what is left. */
+.wrap .loggedBody:has([data-pr]) {
+  padding-right: 12px;
 }
 
 .cellValue[data-pr] {

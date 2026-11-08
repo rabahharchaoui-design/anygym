@@ -312,7 +312,10 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     const chip = await box(first.getByTestId('pr-badge').locator('[data-chip]'));
     const amount = await box(first.getByTestId('saved-amount'));
     expect(chip.x).toBeGreaterThan(amount.x);
-    expect(chip.x + chip.width).toBeLessThanOrEqual(amount.x + amount.width + 1);
+    // 3.8b round 2: the chip has its own slot at the end of the middle button (the reps column gives it room), so
+    // it may sit past the reps cell; it still ends before the Done check.
+    const done = await box(first.locator('[class*="checkDone"]'));
+    expect(chip.x + chip.width).toBeLessThanOrEqual(done.x + 1);
     // The chip never covers the reps number, two digits included (the 320 floor).
     const digits = await first.getByTestId('saved-amount').evaluate((el) => {
       const r = document.createRange();

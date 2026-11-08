@@ -73,6 +73,8 @@ const toastOf = (text: string, action?: ToastMessage['action'], subject?: string
 
 /** How long "Nice. Next" stays before the list comes back (SPEC 20.2). */
 const CHIP_MS = 2500;
+/** How long the unanswered Easy/Good/Hard question holds the return to the list, after the message. */
+const EFFORT_HOLD_MS = 8000;
 
 /** `open`: the chip is a button that opens this exercise. */
 type Chip = { id: number; text: string; open?: string };
@@ -225,9 +227,15 @@ export function WorkoutScreen() {
           if (routeRef.current === from) then();
         };
         // PLAN 3.8b: while the optional effort question is open, the finished exercise stays (and its
-        // chip, the way on); an answer re-arms this.
+        // chip, the way on) for a bounded time, so an unanswered question never traps the user
+        // (SPEC 15: the tap is optional; SPEC 20.2: the return follows the message). An answer
+        // re-arms this and returns after a beat; the chip and Back return at once.
         if (!hold || routeRef.current !== from) return fire();
-        hold().then((held) => (held ? undefined : fire()), fire);
+        hold().then((held) => {
+          if (!held) return fire();
+          window.clearTimeout(chipTimer.current);
+          chipTimer.current = window.setTimeout(fire, EFFORT_HOLD_MS);
+        }, fire);
       }, wait);
     };
     chipArm.current = arm;
