@@ -45,6 +45,8 @@ async function quickWithTwoSets(page: Page, exerciseId: string, load: Record<str
 
 /** Logs the last set and waits for the list with Up next (the "every set is done" chip returns to it). */
 async function logLastSet(page: Page) {
+  // 3.8c: let the push into the exercise settle first; on the SE a tap during the slide hit the set type sheet.
+  await page.waitForTimeout(600);
   await page.getByTestId('check-current').tap();
   const card = page.getByTestId('up-next');
   await expect(card).toBeVisible({ timeout: 10_000 });

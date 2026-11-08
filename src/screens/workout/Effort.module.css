@@ -9,8 +9,32 @@
   border: 1px solid var(--glass-line);
   border-radius: 18px;
   background: rgb(255 255 255 / 0.03);
-  /* scrollIntoView keeps this much clear below it: the "Nice. Next" chip and the rest bar float there. */
-  scroll-margin-bottom: 176px;
+}
+
+.effort[data-compact] {
+  /* On the day list: one compact row right under the exercise's row. */
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 6px;
+  padding: 6px var(--space-2);
+}
+.effort[data-compact] .q {
+  flex: 0 0 auto;
+  max-width: 34%;
+  font-size: var(--text-sm);
+  line-height: 1.15;
+}
+.effort[data-compact] .row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.effort[data-compact] .note {
+  flex: 1 0 100%;
+}
+.effort[data-compact] .choice {
+  min-height: 48px;
 }
 
 .q {

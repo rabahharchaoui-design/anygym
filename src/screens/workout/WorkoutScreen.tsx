@@ -5,7 +5,6 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, addSuggested, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
-import { effortOf } from '../../db/coach';
 import { extraSets, markDeleted } from '../../lib/extraSets';
 import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
@@ -73,8 +72,6 @@ const toastOf = (text: string, action?: ToastMessage['action'], subject?: string
 
 /** How long "Nice. Next" stays before the list comes back (SPEC 20.2). */
 const CHIP_MS = 2500;
-/** How long the unanswered Easy/Good/Hard question holds the return to the list, after the message. */
-const EFFORT_HOLD_MS = 8000;
 
 /** `open`: the chip is a button that opens this exercise. */
 type Chip = { id: number; text: string; open?: string };
@@ -192,17 +189,23 @@ export function WorkoutScreen() {
     return () => window.clearTimeout(t);
   }, [expanding]);
 
-  const openExercise = (id: string, instant = false) =>
+  /** PLAN 3.8c: the exercise just finished, whose Easy/Good/Hard question also sits on the day list. */
+  const [justDone, setJustDone] = useState<string | null>(null);
+  const openExercise = (id: string, instant = false) => {
+    setJustDone((cur) => (cur === id ? cur : null));
     go(`/workout/${sessionId}/${encodeURIComponent(id)}`, {
       kind: instant ? 'none' : 'push',
       state: { fromList: true, ...(instant ? { instant: true } : {}) },
     });
-  const switchExercise = (id: string) =>
+  };
+  const switchExercise = (id: string) => {
+    setJustDone((cur) => (cur === id ? cur : null));
     go(`/workout/${sessionId}/${encodeURIComponent(id)}`, {
       kind: 'push',
       replace: true,
       state: { fromList },
     });
+  };
   const goList = (kind: 'pop' | 'none' = 'pop') => {
     if (fromList) go(-1, { kind });
     else go(`/workout/${sessionId}`, { kind, replace: true });
@@ -215,7 +218,7 @@ export function WorkoutScreen() {
   const chipTimer = useRef<number | undefined>(undefined);
   /** "Nice. Next: Romanian deadlift" for a moment, then `then` if the user is still on that exercise. */
   const chipArm = useRef<((ms: number) => void) | null>(null);
-  const showChip = (text: string, ms: number, from: string, then: () => void, open?: string, hold?: () => Promise<boolean>) => {
+  const showChip = (text: string, ms: number, from: string, then: () => void, open?: string) => {
     window.clearTimeout(chipTimer.current);
     const c: Chip = { id: ++toastSeq, text, ...(open ? { open } : {}) };
     setChip(c);
@@ -226,16 +229,7 @@ export function WorkoutScreen() {
           setChip((cur) => (cur?.id === c.id ? null : cur));
           if (routeRef.current === from) then();
         };
-        // PLAN 3.8b: while the optional effort question is open, the finished exercise stays (and its
-        // chip, the way on) for a bounded time, so an unanswered question never traps the user
-        // (SPEC 15: the tap is optional; SPEC 20.2: the return follows the message). An answer
-        // re-arms this and returns after a beat; the chip and Back return at once.
-        if (!hold || routeRef.current !== from) return fire();
-        hold().then((held) => {
-          if (!held) return fire();
-          window.clearTimeout(chipTimer.current);
-          chipTimer.current = window.setTimeout(fire, EFFORT_HOLD_MS);
-        }, fire);
+        fire();
       }, wait);
     };
     chipArm.current = arm;
@@ -271,8 +265,9 @@ export function WorkoutScreen() {
     // last working set moves on (never a warm up, a stretch, or an extra set after going back).
     if (advancesAfterLog(entries, w.done, id, kind, extraSets(sessionId, id))) {
       const after = upNext(entries, done, id);
+      setJustDone(id);
       // The chip is a button straight into the next exercise; untouched, it returns to the list (SPEC 20.2).
-      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', CHIP_MS, id, () => goList(), after ?? undefined, () => effortOf(sessionId, id).then((r) => r.effort === null));
+      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', CHIP_MS, id, () => goList(), after ?? undefined);
       return;
     }
     // Still here for another set: a "Nice. Next" chip from the last working set never pulls the
@@ -823,6 +818,7 @@ export function WorkoutScreen() {
     <DayList
       w={w}
       heroId={lastViewed}
+      effortFor={justDone}
       onOpen={openExercise}
       onAdd={() => setPicking(true)}
       onAddOne={(id, rest) => void addSuggestion(id, rest)}
