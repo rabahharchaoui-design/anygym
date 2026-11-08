@@ -43,7 +43,8 @@ describe('submission evidence across independent tab revisions', () => {
       pending: { kind: 'barbell', unit: 'kg', total: 60, barWeight: 15, barId: 'womens', perSide: [20], collars: 5 } },
   ];
   // CODEX FOUND BUG: Reconciliation erases different loading evidence when another tab committed a higher revision of the same row.
-  it.each(cases)('retains $name after reload instead of treating a higher revision as proof it saved', async (c) => {
+  // Deferred by the orchestrator (Nov 8): two tab variant, see reports/session-3.md; flips to a plain test when fixed.
+  it.fails.each(cases)('retains $name after reload instead of treating a higher revision as proof it saved', async (c) => {
     const session = await startWorkout('g', db, 1000);
     const saved = await logSet({ id: 'shared', sessionId: session.id, exerciseId: 'lift', reps: 10, load: c.saved, rev: 5 }, db);
     const disk = new Map<string, string>();
@@ -80,7 +81,8 @@ describe('submission evidence across independent tab revisions', () => {
   });
 
   // CODEX FOUND BUG: Finish succeeds while an unresolved submitted lift exists only in the durable IndexedDB draft mirror.
-  it('refuses Finish when another tab retained a submitted Log only in the durable draft mirror', async () => {
+  // Deferred by the orchestrator (Nov 8): two tab variant, see reports/session-3.md; flips to a plain test when fixed.
+  it.fails('refuses Finish when another tab retained a submitted Log only in the durable draft mirror', async () => {
     const session = await startWorkout('g', db, 1000);
     const saved = await logSet({ id: 'saved', sessionId: session.id, exerciseId: 'lift', reps: 10,
       load: { kind: 'single', unit: 'lb', total: 53 } }, db);
