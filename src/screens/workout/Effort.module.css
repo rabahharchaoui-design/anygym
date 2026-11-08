@@ -9,6 +9,8 @@
   border: 1px solid var(--glass-line);
   border-radius: 18px;
   background: rgb(255 255 255 / 0.03);
+  /* scrollIntoView keeps this much clear below it: the "Nice. Next" chip and the rest bar float there. */
+  scroll-margin-bottom: 176px;
 }
 
 .q {

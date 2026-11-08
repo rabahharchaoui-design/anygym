@@ -169,6 +169,8 @@ test.describe('verify 3.8', () => {
     // Turn on, reload, still on.
     await page.getByTestId('settings-coach').getByText('Auto level up', { exact: true }).tap();
     await page.getByRole('dialog', { name: 'Auto level up' }).getByRole('button', { name: 'Turn on' }).tap();
+    // The app closes the sheet only after the IndexedDB write is saved; reloading before that raced the write on Chromium (tester 3.8b).
+    await expect(page.getByRole('dialog', { name: 'Auto level up' })).toHaveCount(0);
     await page.reload();
     await expect(page.getByTestId('settings-coach').getByRole('switch', { name: /Auto level up/ })).toBeChecked();
     // Today: quiet card once.
@@ -490,6 +492,8 @@ test.describe('verify 3.8', () => {
     await tapSize(sheet.getByRole('button'), 'auto sheet button', bad);
     await snap(page, 'v10-auto-sheet');
     await sheet.getByRole('button', { name: 'Turn on' }).tap();
+    // Wait for the app to close the sheet (it does so after the write is saved) before leaving the page (tester 3.8b).
+    await expect(sheet).toHaveCount(0);
     await page.goto('./');
     await page.reload();
     await expect(page.getByTestId('coach-card')).toHaveAttribute('data-kind', 'leveled_up');

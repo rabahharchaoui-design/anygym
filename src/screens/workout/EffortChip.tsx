@@ -1,7 +1,8 @@
 // "How did that feel?" after the last set of an exercise (PLAN 3.8, SPEC 15): Easy (3+ reps left),
 // Good (1 to 2), Hard (none). One optional tap, never per set; tapping it again clears it. Last
 // time's tap is offered as the default (a dashed edge) but only a tap saves anything.
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { useLive } from '../../hooks/useLive';
 import { effortOf, saveEffort } from '../../db/coach';
 import { EFFORTS, EFFORT_HINT, EFFORT_WORDS, type Effort } from '../../lib/coach';
@@ -10,6 +11,15 @@ import styles from './Effort.module.css';
 
 export function EffortChip({ sessionId, exerciseId, onAnswered }: { sessionId: string; exerciseId: string; onAnswered?: () => void }) {
   const id = useId();
+  const box = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotionLive();
+  // PLAN 3.8b: it appears under the last set, which on a short phone can be below the fold behind the
+  // "Nice. Next" chip and the rest bar: bring it into view once (nearest: no move if already seen).
+  useEffect(() => {
+    box.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    // Once per time it appears; a later motion setting change must not scroll the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const live = useLive(() => effortOf(sessionId, exerciseId), [sessionId, exerciseId]);
   const [failed, setFailed] = useState(false);
   // Shown at once on a tap (the write follows), so the press answers within a frame.
@@ -35,7 +45,7 @@ export function EffortChip({ sessionId, exerciseId, onAnswered }: { sessionId: s
   };
   const note = failed ? 'Could not save that. Try again.' : effort ? 'Thanks. The coach uses this for next week.' : last ? `Last time: ${EFFORT_WORDS[last]}. Optional.` : 'Optional. It helps the coach set next week.';
   return (
-    <div className={styles.effort} role="group" aria-labelledby={id} data-testid="effort">
+    <div ref={box} className={styles.effort} role="group" aria-labelledby={id} data-testid="effort">
       <span id={id} className={styles.q}>
         How did that feel?
       </span>
