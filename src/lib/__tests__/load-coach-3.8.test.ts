@@ -3,6 +3,7 @@ import {
   COACH_MIN_ADD,
   formatBodyweight,
   MAX_ESTIMATE_REPS,
+  emptyBarWeight,
   estimatedMax,
   levelUpWeight,
   loadAt,
@@ -203,5 +204,21 @@ describe('load.ts stays fully covered (SPEC 5.4)', () => {
   it('formatBodyweight keeps one decimal', () => {
     expect(formatBodyweight(72.5)).toBe('72.5');
     expect(formatBodyweight(70)).toBe('70.0');
+  });
+});
+
+// PLAN 3.8b: the empty bar warm up is the bar as this gym loads it, competition collars included.
+describe('emptyBarWeight (PLAN 3.8b)', () => {
+  const women: LoadSetup = { unit: 'kg', base: 15, plates: [25, 20, 15, 10, 5, 2.5, 1.25], collars: 'competition', sleeveLength: 320, dumbbellRange: null, stackStep: 2.5 };
+  it('adds competition collars to the bar, none for spring clips, null for an unknown bar', () => {
+    expect(emptyBarWeight(women)).toBe(20);
+    expect(emptyBarWeight({ ...women, collars: 'none' })).toBe(15);
+    expect(emptyBarWeight({ ...women, base: null })).toBeNull();
+    expect(emptyBarWeight({ ...women, base: 20 })).toBe(25);
+  });
+  it('the ladder starts at that weight and every step can be loaded', () => {
+    const ladder = warmUpLadder('barbell', 100, women);
+    expect(ladder[0]).toEqual({ value: 20, reps: 10 });
+    for (const step of ladder) expect(loadAt('barbell', step.value, women)).not.toBeNull();
   });
 });

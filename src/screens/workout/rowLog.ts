@@ -214,7 +214,7 @@ function setOf(sessionId: string, exerciseId: string, d: Draft, id: string) {
   const count = timed ? d.seconds : d.reps;
   if (!count) return null;
   const t = storedType(d.type ?? 'normal');
-  return { id, sessionId, exerciseId, ...(timed ? { seconds: count } : { reps: count }), load: d.load, kind: t.kind, failure: t.failure, rev: d.submitted ?? d.rev ?? 0 };
+  return { id, sessionId, exerciseId, ...(timed ? { seconds: count } : { reps: count }), load: d.load, kind: t.kind, failure: t.failure, rev: d.submitted ?? d.rev ?? 0, ...(d.gymId !== undefined ? { gymId: d.gymId } : {}) };
 }
 
 /**

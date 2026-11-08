@@ -63,7 +63,14 @@ export type SwitchReceipt = {
     stamped: string[];
     /** The workout's set count right after the switch. */
     sets: number;
+    /** PLAN 3.8b: each set's id and gym stamp right after the switch; Undo needs this exact set list. */
+    setStamps: { id: string; gymId: string | undefined }[];
   };
+};
+
+const sameSets = (now: readonly WorkoutSet[], then: readonly { id: string; gymId: string | undefined }[]) => {
+  const stamp = new Map(then.map((x) => [x.id, x.gymId]));
+  return now.length === stamp.size && now.every((x) => stamp.has(x.id) && stamp.get(x.id) === x.gymId);
 };
 
 const sessionSets = (sessionId: string, db: AnyGymDB) => db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
@@ -132,7 +139,7 @@ async function activate(gymId: string, now: number, db: AnyGymDB): Promise<{ fro
  * the workout's rows change exactly as previewed or nothing is written (SwitchStaleError).
  */
 export async function switchGym(gymId: string, expect: string | null, db: AnyGymDB = defaultDb, now = Date.now()): Promise<SwitchReceipt> {
-  return db.transaction('rw', [db.gyms, db.sessions, db.sets, db.journal, db.submissions], async () => {
+  return db.transaction('rw', [db.gyms, db.sessions, db.sets, db.journal, db.submissions, db.tombstones], async () => {
     const gym = await db.gyms.get(gymId);
     if (!gym) throw new GymMissingError();
     const session = await getActiveSession(db);
@@ -154,35 +161,53 @@ export async function switchGym(gymId: string, expect: string | null, db: AnyGym
         await db.sets.put({ ...x, gymId: session.gymId });
         stamped.push(x.id);
       }
+      // PLAN 3.8a (Codex batch 1108-0111): a deleted set waiting for Undo keeps the gym it was lifted at too.
+      for (const t of await db.tombstones.where('sessionId').equals(session.id).toArray()) {
+        if (t.set.gymId !== undefined) continue;
+        await db.tombstones.put({ ...t, set: { ...t.set, gymId: session.gymId } });
+        stamped.push(t.id);
+      }
     }
     const updated: Session = { ...session, gymId, exerciseIds: plan.state.exerciseIds };
     if (plan.state.swaps.length) updated.swaps = plan.state.swaps;
     else delete updated.swaps;
     await db.sessions.put(updated);
     const active = await activate(gymId, now, db);
+    const setStamps = (await sessionSets(session.id, db)).map((x) => ({ id: x.id, gymId: x.gymId })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     return {
       to: gymId,
       ...active,
-      workout: { sessionId: session.id, gymBefore: session.gymId, exerciseIds: session.exerciseIds ?? [], swaps: session.swaps, stamped, sets: sets.length },
+      workout: { sessionId: session.id, gymBefore: session.gymId, exerciseIds: session.exerciseIds ?? [], swaps: session.swaps, stamped, sets: sets.length, setStamps },
     };
   });
 }
 
 /** Undo of switchGym: the gym before is active again and the workout is exactly as it was. */
 export async function undoGymSwitch(r: SwitchReceipt, db: AnyGymDB = defaultDb): Promise<void> {
-  await db.transaction('rw', [db.gyms, db.sessions, db.sets], async () => {
+  await db.transaction('rw', [db.gyms, db.sessions, db.sets, db.tombstones], async () => {
     if (r.workout) {
       const w = r.workout;
       const s = await db.sessions.get(w.sessionId);
       if (!s || s.endedAt !== undefined) throw new WorkoutFinishedError();
-      if ((await sessionSets(w.sessionId, db)).length !== w.sets) throw new SwitchUndoStaleError();
+      // The same sets, not just the same number: a deleted set plus a new one keeps the count but is a
+      // different workout (PLAN 3.8b), and Undo would move the new set's history to the wrong gym.
+      const now = await sessionSets(w.sessionId, db);
+      if (now.length !== w.sets || (w.setStamps && !sameSets(now, w.setStamps))) throw new SwitchUndoStaleError();
       const back: Session = { ...s, gymId: w.gymBefore, exerciseIds: w.exerciseIds };
       if (w.swaps?.length) back.swaps = w.swaps;
       else delete back.swaps;
       await db.sessions.put(back);
       for (const id of w.stamped) {
         const x = await db.sets.get(id);
-        if (!x) continue;
+        if (!x) {
+          const t = await db.tombstones.get(id);
+          if (t) {
+            const set = { ...t.set };
+            delete set.gymId;
+            await db.tombstones.put({ ...t, set });
+          }
+          continue;
+        }
         const next = { ...x };
         delete next.gymId;
         await db.sets.put(next);

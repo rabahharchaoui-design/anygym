@@ -37,5 +37,5 @@ export function missedWorkouts({ last, now, weekdays, daysPerWeek }: MissedInput
 
 export const missedCardId = (last: number): string => `missed:${last}`;
 
-/** "Missed 2 workouts. Pick up where you left off, or rebuild the week?" */
-export const missedTitle = (n: number): string => `Missed ${n} workouts. Pick up where you left off, or rebuild the week?`;
+/** "Missed 2 workouts" (PLAN 3.8b: short; the choice is explained once, under it). */
+export const missedTitle = (n: number): string => `Missed ${n} ${n === 1 ? 'workout' : 'workouts'}`;

@@ -176,8 +176,8 @@ export function CoachCard({ card, data, onToast, onSeeChanges }: Props) {
         return (
           <>
             <h2 className={styles.title}>{card.title}</h2>
-            <p className={styles.text}>Pick up with {next}, or start the week again at Day 1. Nothing changes until you pick.</p>
-            <div className={styles.actions}>
+            <p className={styles.text}>Nothing changes until you pick.</p>
+            <div className={`${styles.actions} ${styles.pair}`}>
               <button type="button" className={`${styles.secondary} pressable`} disabled={busy} data-testid="coach-rebuild"
                 onClick={() =>
                   void run(async () => {
@@ -192,7 +192,7 @@ export function CoachCard({ card, data, onToast, onSeeChanges }: Props) {
                   })
                 }
               >
-                Rebuild the week
+                Restart Day 1
               </button>
               <button type="button" className={`${styles.primary} pressable`} disabled={busy} data-testid="coach-pick-up"
                 onClick={() =>
@@ -202,7 +202,7 @@ export function CoachCard({ card, data, onToast, onSeeChanges }: Props) {
                   })
                 }
               >
-                Pick up where I left off
+                {at === null ? 'Resume' : `Resume ${next}`}
               </button>
             </div>
           </>

@@ -335,7 +335,7 @@ describe('Today: one card at most, in priority order, honest when empty', () => 
     expect(c1.cards.map((c) => c.kind)).toEqual(['deload', 'level_up']);
     const c2 = candidates(base({ lifts: [streak], dates, plan: { daysPerWeek: 7 } }));
     expect(c2.cards.map((c) => c.kind)).toEqual(['missed_days', 'deload', 'level_up']);
-    expect(c2.cards[0]).toMatchObject({ missed: 5, title: 'Missed 5 workouts. Pick up where you left off, or rebuild the week?' });
+    expect(c2.cards[0]).toMatchObject({ missed: 5, title: 'Missed 5 workouts' });
     const later = nov(16, 12);
     const c3 = candidates(base({ now: later, lifts: [streak], dates, plan: { daysPerWeek: 7 } }));
     expect(c3.cards.map((c) => c.kind)).toEqual(['welcome_back', 'missed_days']);
