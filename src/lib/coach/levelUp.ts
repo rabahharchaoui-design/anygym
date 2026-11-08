@@ -65,7 +65,7 @@ export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: n
   const top = `${latest.sets.length} × ${range[1]}`;
   const reason = `${changeWords(lift.loadKind, weightChange(comparableWeight(at.load, at.unit), to), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${easy ? ', with reps to spare' : ''}`;
   return {
-    raise: { ...base, loadKind: lift.loadKind, unit: setup.unit, from: at.value, to, reason, source: 'level_up', reps: 'low' },
+    raise: { ...base, loadKind: lift.loadKind, unit: setup.unit, from: at.value, fromTotal: comparableWeight(at.load, at.unit), to, reason, source: 'level_up', reps: 'low' },
   };
 }
 

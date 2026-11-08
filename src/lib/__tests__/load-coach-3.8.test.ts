@@ -56,6 +56,12 @@ describe('levelUpWeight on a stack pin with weight added', () => {
     expect(levelUpWeight('stack', 50, { ...rule, minAdd: 2.5 }, KG, 10)).toBe(62.5);
     expect(levelUpWeight('stack', 100, rule, LB, 2.5)).toBeGreaterThan(102.5);
   });
+  it('the raise comes from the real total: 200 lb pin + 2.5 lb is 202.5, so +5 minimum lands on 210 (Codex 3.5c)', () => {
+    expect(levelUpWeight('stack', 200, rule, LB, 2.5)).toBe(210);
+  });
+  it('same in kg: 100 kg pin + 1.25 kg wants 103.75, so the pin is 105, not 102.5', () => {
+    expect(levelUpWeight('stack', 100, { pct: 0.025, minAdd: 2.5, capPct: 0.05 }, KG, 1.25)).toBe(105);
+  });
   it('without an add-on nothing changes', () => {
     expect(levelUpWeight('stack', 100, rule, LB, 0)).toBe(levelUpWeight('stack', 100, rule, LB));
   });
