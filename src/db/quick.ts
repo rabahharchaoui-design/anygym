@@ -140,12 +140,16 @@ export async function recordShown(ids: readonly ConceptId[], db: AnyGymDB = defa
 export async function startBuilt(gymId: string, concept: Pick<Concept, 'items' | 'plan'> & { id?: ConceptId }, minutes: number, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Session> {
   const part = concept.plan;
   if (part && planById(part.planId)) {
-    const before = await getActiveSession(db);
-    if (before) return before;
-    const session = await startPlanDay(gymId, part.planId, part.dayIndex, db, now);
-    if (part.trim) await setWorkoutTrim(session.id, minutes, part.trim, db);
-    for (const it of concept.items) if (it.id !== it.origin) await swapExercise(session.id, it.origin, it.id, {}, db);
-    return (await db.sessions.get(session.id)) ?? session;
+    // One transaction over every table: the session, its trim, each swap and the gym's remembered
+    // minutes commit together or not at all, so a failure leaves nothing and Retry starts the same deck.
+    return db.transaction('rw', db.tables, async () => {
+      const before = await getActiveSession(db);
+      if (before) return before;
+      const session = await startPlanDay(gymId, part.planId, part.dayIndex, db, now);
+      if (part.trim) await setWorkoutTrim(session.id, minutes, part.trim, db);
+      for (const it of concept.items) if (it.id !== it.origin) await swapExercise(session.id, it.origin, it.id, {}, db);
+      return (await db.sessions.get(session.id)) ?? session;
+    });
   }
   return db.transaction('rw', db.sessions, async () => {
     const active = await getActiveSession(db);

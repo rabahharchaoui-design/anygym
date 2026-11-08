@@ -46,6 +46,21 @@ describe('estimatedMax (internal only, never shown)', () => {
   });
 });
 
+describe('levelUpWeight on a stack pin with weight added', () => {
+  const rule = { pct: 0.025, minAdd: 5, capPct: 0.05 };
+  it('lands on a pin heavier than pin plus added, never lighter (lb)', () => {
+    const to = levelUpWeight('stack', 100, rule, LB, 25)!;
+    expect(to).toBe(130);
+  });
+  it('same in kg, and an off-grid total starts from the pin under it', () => {
+    expect(levelUpWeight('stack', 50, { ...rule, minAdd: 2.5 }, KG, 10)).toBe(62.5);
+    expect(levelUpWeight('stack', 100, rule, LB, 2.5)).toBeGreaterThan(102.5);
+  });
+  it('without an add-on nothing changes', () => {
+    expect(levelUpWeight('stack', 100, rule, LB, 0)).toBe(levelUpWeight('stack', 100, rule, LB));
+  });
+});
+
 describe('levelUpWeight: about pct heavier, at least minAdd, in real loadable steps', () => {
   it('SPEC 15 defaults at an lb gym', () => {
     // Squat 200: +5% = 10, min +10 lb → 210. Bench 135: 2.5% = 3.4, min +5 → 140.

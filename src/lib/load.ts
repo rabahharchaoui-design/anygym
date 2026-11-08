@@ -1117,7 +1117,18 @@ export type LevelUpRule = {
  * load. The first step up is always allowed (the smallest jump there is); later steps only while
  * they stay within `capPct`. null when there is no step up here (top of the rack, a full sleeve).
  */
-export function levelUpWeight(kind: Load['kind'], value: number, rule: LevelUpRule, s: LoadSetup): number | null {
+export function levelUpWeight(kind: Load['kind'], value: number, rule: LevelUpRule, s: LoadSetup, added = 0): number | null {
+  // A stack pin with weight added on top: the raise starts from the whole resistance (pin + added),
+  // so the pin it lands on is always heavier than what was lifted, never lighter (the target is a
+  // pin only). Start from the highest pin at or under that total; the first step up is above it.
+  if (kind === 'stack' && added > 0) {
+    const step = s.stackStep;
+    const total = stackTotal(value, added);
+    if (validStackStep(step)) {
+      const floor = fromInt(Math.floor(toInt(total) / toInt(step) + EPS) * toInt(step));
+      return levelUpWeight(kind, floor, rule, s);
+    }
+  }
   const want = add(value, Math.max(scale(value, rule.pct), rule.minAdd));
   const cap = add(value, Math.max(scale(value, rule.capPct), rule.minAdd));
   let best: number | null = null;
