@@ -177,7 +177,9 @@
 /* PLAN 3.8b: two equal 48 pt buttons in one row; at large text they wrap to two rows, never narrower. */
 .pair > .primary,
 .pair > .secondary {
-  flex: 1 1 140px;
+  /* PLAN 3.8c: 120 so both stay in one row on a 360 wide phone (it wrapped to two rows there). */
+  flex: 1 1 120px;
+  padding: 0 var(--space-3);
 }
 
 .primary {
