@@ -153,8 +153,9 @@ test.describe('3.5a verify', () => {
     const seen = await walk(page);
     console.log('fresh items:', seen.map((s) => `${s.name} (${s.why})`).join(' ; '));
     for (const s of seen) {
-      expect.soft(s.why, s.id).not.toMatch(/chest|triceps|front delt|shoulder/i);
-      expect.soft(s.id).not.toMatch(/bench|press|fly|dip|tricep|pushdown/i);
+      // 3.5b round 2: rear shoulders (a reverse fly) are not worked by an incline bench, so they are fresh.
+      expect.soft(s.why, s.id).not.toMatch(/chest|triceps|front delt|(?<!rear )shoulder/i);
+      expect.soft(s.id).not.toMatch(/bench|press|(?<!reverse-)fly|dip|tricep|pushdown/i);
     }
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await page.locator('[data-concept="plan"]').tap();
@@ -313,7 +314,9 @@ test.describe('3.5a verify', () => {
     const SETS: Record<string, number> = { 'barbell-back-squat': 4, 'angled-machine-leg-press': 3, 'machine-lying-leg-curl': 2, 'barbell-straight-leg-romanian-deadlift': 3 };
     const rows: unknown[] = [];
     let order = 0;
-    for (const id of live.exerciseIds) for (let k = 0; k < SETS[id]!; k++) rows.push({ id: `v-${id}-${k}`, sessionId: live.id, exerciseId: id, order: order++, kind: 'work', uncertain: false, reps: 8, load: bar185 });
+    // 3.5b round 2: the plan card is fitted to the time (other moves and sets than the 3.6 trim):
+    // every other move gets 5 sets, at least what the fitted day asks (5 is the fit's most).
+    for (const id of live.exerciseIds) for (let k = 0; k < (SETS[id] ?? 5); k++) rows.push({ id: `v-${id}-${k}`, sessionId: live.id, exerciseId: id, order: order++, kind: 'work', uncertain: false, reps: 8, load: bar185 });
     await dbPut(page, { sets: rows });
     await page.reload();
     await page.getByRole('button', { name: 'Back to the list' }).tap();
@@ -549,7 +552,8 @@ test.describe('3.5a verify round 2', () => {
     await pastIntake(page, DUMBBELLS);
     await page.goto('./#/quick?min=45');
     await page.reload();
-    await page.locator('[data-concept]').first().tap();
+    // PLAN 3.5b: the Arms and abs finisher holds it here (cards differ by style and rotate per visit).
+    await page.locator('[data-concept="armsAbs"]').tap();
     for (let i = 0; i < 8; i++) {
       if ((await card(page).getAttribute('data-exercise')) === 'dumbbell-single-arm-overhead-tricep-extension') break;
       await page.getByTestId('deck-keep').tap();

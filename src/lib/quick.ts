@@ -1,25 +1,46 @@
 // Quick workout builds it for you (PLAN 3.5a, SPEC 20.3, G Nov 5). Pure: no JSON, no Dexie, no React
 // (src/data/quick.ts binds the committed data). Four things live here:
 //   1. the "How long?" chip that opens preselected from the intake minutes;
-//   2. up to 3 honest concepts: "Your <day> day, short" (the plan day trimmed the SPEC 7.4 way),
-//      "Hit what's fresh" (muscles not trained in the last 3 days, from logged sets only), then the
-//      first honest of Full body, Upper body, Legs, Push, Pull, Arms and Core. Each is built by the
-//      plan generator's own rules (generator.ts generateDay) and is only offered when its name is
-//      true of what it holds (Full body: legs, a push and a pull);
+//   2. PLAN 3.5b: up to 4 cards that differ by style (quickStyles.ts): "Your plan, short" (the plan
+//      day trimmed the SPEC 7.4 way), "Hit what's fresh" (muscles not trained in the last 3 days, from
+//      logged sets only), then styles in rotation (Full body circuit, Superset pump, Strength focus,
+//      Arms and abs finisher, Easy start; Cardio and core and Mobility reset wait for sure demos).
+//      Each is built by the plan generator's own rules, fitted to the minutes with supersets, rounds,
+//      sets and rest through the one estimate, and only offered when its name is true of what it holds;
 //   3. the deck's swap: another exercise of the same movement pattern that fits the gym (swap.ts),
 //      soft dislikes ranked last;
 //   4. learning: a left swipe counts as a soft dislike (ranks lower later, never a ban), a long press
 //      is "never show me this". Nothing here ever deletes history.
 // Only exercises with a sure demo (exact or variant) and gear this gym surely has (`usable`, plus
 // a known requirement) ever reach a concept. Fewer than 3 of them: no concept (an honest empty state).
+import type { EquipmentId } from '../db/types';
 import type { GymKit } from './picker';
-import { generateDay, type DayItem, type GeneratorDeps, type GeneratorInput } from './generator';
-import type { Range, Slot } from './generatorRules';
-import { isCompound, isHeavy, liftWord, muscleWord, patternTargets, type Muscle, type Profile } from './order';
-import { isStretchName, dayWorkout } from './planWorkout';
+import type { GeneratorDeps, GeneratorInput } from './generator';
+import type { Range } from './generatorRules';
+import { canPair, easyOnAvoids, isCompound, isHeavy, liftWord, muscleWord, patternTargets, type Muscle, type Profile } from './order';
+import { finisherId, isStretchName, dayWorkout } from './planWorkout';
 import { estimateDayMinutes, itemTarget, blockRest, type Plan, type PlanBlock, type PlanDay } from './plans';
 import { adaptDay, requiresOf, supports, swapCandidates, workoutIdOf, type Pattern, type SwapData } from './swap';
-import { applyTrim, trimDay, type DayTrim } from './timeBudget';
+import { applyTrim, type DayTrim } from './timeBudget';
+import {
+  buildCard,
+  chooseBatch,
+  densityFor,
+  quickMinutes,
+  SLACK,
+  structureOf,
+  STYLE_ORDER,
+  STYLES,
+  styleSpec,
+  type Batch,
+  type BuildDeps,
+  type BuildSpec,
+  type GroupedItem,
+  type StyleDef,
+  type StyleId,
+} from './quickStyles';
+
+export { quickDayOf, structureOf, STYLES, STYLE_ORDER, type StyleId } from './quickStyles';
 
 // ---------------------------------------------------------------- How long?
 
@@ -52,16 +73,18 @@ export type QuickItem = {
   restSec: number;
   /** Why it is here, in one true line. */
   why: string;
+  /** PLAN 3.5b: items sharing a group are done back to back (2: a superset, 3 or more: a circuit). */
+  group?: number;
 };
 
-export type ConceptId = 'plan' | 'fresh' | 'full' | 'upper' | 'lower' | 'push' | 'pull' | 'arms' | 'upperPump' | 'legPump' | 'core';
+export type ConceptId = 'plan' | 'fresh' | StyleId;
 
 export type PlanPart = { planId: string; dayIndex: number; weekIndex: number; day: PlanDay; trim: DayTrim | null };
 
 export type Concept = {
   id: ConceptId;
   title: string;
-  /** One quiet line under the title. */
+  /** The why line: specific, from logged sets when it names a rest ("Back and biceps rested 4 days"). */
   line: string;
   items: QuickItem[];
   minutes: number;
@@ -69,6 +92,21 @@ export type Concept = {
   over: boolean;
   /** A plan day concept: it starts as that plan day, with this trim. */
   plan?: PlanPart;
+  /** PLAN 3.5b: the style chip (Supersets, Circuit, Strength, Low impact, Your plan). */
+  chip: string;
+  /** PLAN 3.5b: 1 to 3 effort dots. */
+  effort: 1 | 2 | 3;
+  /** PLAN 3.5b: the gear it uses at this gym (each requirement's option this gym has), in order. */
+  gear: EquipmentId[];
+  /** PLAN 3.5b: the catalog's primary muscles of every exercise (map regions), for the diversity rule. */
+  primary: ReadonlySet<string>;
+  /**
+   * PLAN 3.5b round 2: more than 2 min under the minutes, and why: the gym (or the plan day) has no
+   * more sure moves, or every set is at its cap (a newer lifter's). Said on the card, never silent.
+   */
+  short?: 'moves' | 'caps';
+  /** Who the card is for: a newer lifter (the caps reason words). */
+  newer?: boolean;
 };
 
 export type QuickDeps = GeneratorDeps & {
@@ -80,6 +118,8 @@ export type QuickDeps = GeneratorDeps & {
   litRegions?: (id: string) => readonly string[];
   /** Round 2 (B4): the map regions a muscle word covers ("back" covers the upper and lower back). */
   muscleRegions?: (m: Muscle) => readonly string[];
+  /** PLAN 3.5b: the map regions of an exercise's sure primary muscles (the catalog's); missing: its targets. */
+  primaryOf?: (id: string) => readonly string[];
 };
 
 /** Learned soft dislikes (additive on the profile, PLAN 3.5a). */
@@ -90,69 +130,13 @@ export type Dislikes = {
   never?: string[];
 };
 
-const PUSH: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal push', 'vertical push', 'chest isolation', 'triceps', 'lateral delt']);
-const PULL: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal pull', 'vertical pull', 'rear delt', 'biceps']);
-const LEGS: ReadonlySet<Pattern> = new Set<Pattern>(['squat', 'hinge', 'lunge', 'quads isolation', 'hamstrings isolation', 'glutes', 'calves']);
-const BIG_PUSH: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal push', 'vertical push']);
-const BIG_PULL: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal pull', 'vertical pull']);
-const ARMS: ReadonlySet<Pattern> = new Set<Pattern>(['lateral delt', 'rear delt', 'biceps', 'triceps']);
-const DELTS: ReadonlySet<Pattern> = new Set<Pattern>(['lateral delt', 'rear delt']);
-
-const s = (pattern: Pattern, variant = false): Slot => (variant ? { pattern, variant: true } : { pattern });
-
-/** Most important first: the trim takes from the end (SPEC 7.4). */
-const TEMPLATES: Record<Exclude<ConceptId, 'plan' | 'fresh'>, Slot[]> = {
-  // One big lift per area first, so the trim (last first) keeps legs, a push and a pull.
-  full: [s('squat'), s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull'), s('hamstrings isolation'), s('lateral delt'), s('biceps'), s('triceps'), s('core'), s('calves')],
-  upper: [s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull'), s('lateral delt'), s('biceps'), s('triceps'), s('rear delt'), s('chest isolation')],
-  lower: [s('squat'), s('hinge'), s('lunge'), s('quads isolation'), s('hamstrings isolation'), s('glutes'), s('calves'), s('core')],
-  push: [s('horizontal push'), s('vertical push'), s('horizontal push', true), s('lateral delt'), s('chest isolation'), s('triceps'), s('triceps', true)],
-  pull: [s('vertical pull'), s('horizontal pull'), s('horizontal pull', true), s('rear delt'), s('biceps'), s('biceps', true)],
-  arms: [s('lateral delt'), s('biceps'), s('triceps'), s('rear delt'), s('biceps', true), s('triceps', true)],
-  // Short times (round 2, B3): the same areas with the small moves only, so 15 min holds a real workout.
-  upperPump: [s('chest isolation'), s('lateral delt'), s('rear delt'), s('biceps'), s('triceps'), s('lateral delt', true)],
-  legPump: [s('quads isolation'), s('hamstrings isolation'), s('calves'), s('glutes'), s('core')],
-  core: [s('core'), s('core', true), s('core', true), s('core', true)],
-};
-
 /** The fresh concept's pool, big moves first; only the patterns that train no recent muscle stay. */
 const FRESH_POOL: Pattern[] = ['squat', 'hinge', 'horizontal push', 'horizontal pull', 'vertical push', 'vertical pull', 'lunge', 'glutes', 'lateral delt', 'chest isolation', 'rear delt', 'biceps', 'triceps', 'quads isolation', 'hamstrings isolation', 'calves', 'core'];
-
-const FALLBACK_ORDER: Array<Exclude<ConceptId, 'plan' | 'fresh'>> = ['full', 'upper', 'lower', 'push', 'pull', 'arms', 'upperPump', 'legPump', 'core'];
+const LEG_PATTERNS: ReadonlySet<Pattern> = new Set<Pattern>(['squat', 'hinge', 'lunge', 'glutes', 'quads isolation', 'hamstrings isolation', 'calves']);
 
 /** Round 2 (B3): a concept is offered only when its estimate is at or under the minutes picked, 2 more at most. */
-export const FIT_SLACK = 2;
+export const FIT_SLACK = SLACK;
 export const fits = (minutes: number, budget: number): boolean => minutes <= budget + FIT_SLACK;
-
-/** Whether a concept's name is true of what it holds (no "Full body" without legs, a push and a pull). */
-export function honest(id: ConceptId, patterns: readonly (Pattern | null)[]): boolean {
-  const ps = patterns.filter((p): p is Pattern => p !== null);
-  if (ps.length < 3) return false;
-  const any = (set: ReadonlySet<Pattern>) => ps.some((p) => set.has(p));
-  const all = (set: ReadonlySet<Pattern>) => ps.every((p) => set.has(p));
-  switch (id) {
-    case 'full':
-      return any(LEGS) && any(BIG_PUSH) && any(BIG_PULL);
-    case 'upper':
-      return any(BIG_PUSH) && any(BIG_PULL) && !any(LEGS);
-    case 'lower':
-      return ps.filter((p) => LEGS.has(p)).length >= 2 && ps.every((p) => LEGS.has(p) || p === 'core');
-    case 'push':
-      return all(PUSH) && any(BIG_PUSH);
-    case 'pull':
-      return all(PULL) && any(BIG_PULL);
-    case 'arms':
-      return all(ARMS);
-    case 'upperPump':
-      return ps.every((p) => ARMS.has(p) || p === 'chest isolation') && any(new Set<Pattern>(['chest isolation', 'triceps', 'lateral delt'])) && any(new Set<Pattern>(['rear delt', 'biceps']));
-    case 'legPump':
-      return ps.filter((p) => LEGS.has(p)).length >= 2 && ps.every((p) => LEGS.has(p) || p === 'core');
-    case 'core':
-      return ps.every((p) => p === 'core');
-    default:
-      return true;
-  }
-}
 
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
@@ -166,31 +150,6 @@ export function wordList(words: readonly string[], max = 3): string {
 
 const targetsOf = (deps: QuickDeps, id: string): readonly Muscle[] => deps.profile(id).targets;
 
-function titleOf(id: Exclude<ConceptId, 'plan'>, goalMuscle: boolean, patterns: readonly (Pattern | null)[]): string {
-  switch (id) {
-    case 'fresh':
-      return "Hit what's fresh";
-    case 'full':
-      return goalMuscle ? 'Full body pump' : 'Full body';
-    case 'upper':
-      return 'Upper body';
-    case 'lower':
-      return 'Legs';
-    case 'push':
-      return 'Push';
-    case 'pull':
-      return 'Pull';
-    case 'upperPump':
-      return 'Upper body pump';
-    case 'legPump':
-      return 'Leg pump';
-    case 'arms':
-      return patterns.some((p) => p !== null && DELTS.has(p)) ? 'Arms and shoulders' : 'Arms';
-    case 'core':
-      return 'Core';
-  }
-}
-
 export type QuickInput = {
   /** The intake answers as the generator reads them, with the active gym, never list and soft dislikes merged in. */
   base: GeneratorInput;
@@ -201,6 +160,14 @@ export type QuickInput = {
   recentWhen?: string;
   /** The plan day concept, built first (planConcept), or null. */
   plan?: Concept | null;
+  /** PLAN 3.5b: when each muscle last had logged working sets (never warm ups, never imports). */
+  lastTrained?: Readonly<Partial<Record<Muscle, number>>>;
+  /** PLAN 3.5b: the time the batch is worked out for (the why lines' "rested N days"). */
+  now?: number;
+  /** PLAN 3.5b: the styles of the last 2 quick workouts done, latest first. */
+  done?: readonly string[];
+  /** PLAN 3.5b: the card ids shown last time. */
+  lastShown?: readonly string[];
 };
 
 /**
@@ -224,8 +191,8 @@ export function reasonsFor(ids: readonly string[], deps: Pick<QuickDeps, 'profil
   });
 }
 
-/** A generated day as Quick workout items. */
-function itemsOf(deps: QuickDeps, day: readonly DayItem[], why?: (it: DayItem) => string): QuickItem[] {
+/** A built day as Quick workout items (a group: done back to back). */
+function itemsOf(deps: QuickDeps, day: readonly GroupedItem[], why?: (it: GroupedItem) => string): QuickItem[] {
   const reasons = reasonsFor(day.map((it) => it.id), deps);
   return day.map((it, i) => ({
     id: it.id,
@@ -239,50 +206,236 @@ function itemsOf(deps: QuickDeps, day: readonly DayItem[], why?: (it: DayItem) =
     ...(it.eachSide ? { eachSide: true } : {}),
     restSec: it.restSec,
     why: why ? why(it) : reasons[i]!,
+    ...(it.group !== undefined ? { group: it.group } : {}),
   }));
 }
 
-const sameSet = (a: readonly QuickItem[], b: readonly QuickItem[]) => a.length === b.length && a.every((x) => b.some((y) => y.id === x.id));
+// ---------------------------------------------------------------- what a card shows (PLAN 3.5b)
 
-/**
- * Up to 3 concepts: the plan day, then fresh, then the honest fallbacks in order; ones that fit the
- * minutes picked go before ones that do not (said on the card, never hidden). Each distinct.
- */
-export function buildConcepts(input: QuickInput, deps: QuickDeps): Concept[] {
-  const all: Concept[] = [];
-  if (input.plan) all.push(input.plan);
-  const gen: GeneratorInput = { ...input.base, minutes: input.minutes };
-  const goalMuscle = ['muscle', 'tone'].includes(input.base.goals[0] ?? '');
+const hasGear = (id: EquipmentId, gym: GymKit) => gym.equipment.includes(id) && (id !== 'dumbbells' || gym.dumbbellRange !== null);
 
-  const recent = [...new Set(input.recent)];
-  if (recent.length) {
-    // Round 2 (B4): nothing on this card may light a muscle the Skips line names, on its map either.
-    const blocked = new Set(recent.flatMap((m) => deps.muscleRegions?.(m) ?? []));
-    const freshDeps: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !(deps.litRegions?.(id) ?? []).some((r) => blocked.has(r)) };
-    const slots = FRESH_POOL.filter((p) => !patternTargets(p).some((m) => recent.includes(m))).map((p) => s(p));
-    const r = generateDay({ ...gen, avoidMuscles: recent }, freshDeps, { name: 'fresh', slots });
-    if (r.ok) {
-      const items = itemsOf(deps, r.items, (it) => `${cap(wordList(targetsOf(deps, it.id).map(muscleWord)))}: not trained in 3 days`);
-      all.push({ id: 'fresh', title: titleOf('fresh', goalMuscle, []), line: `Skips ${wordList([...new Set(recent.map(muscleWord))].slice(0, 2))} (trained ${input.recentWhen ?? 'lately'})`, items, minutes: r.minutes, over: r.over });
-    }
-  }
-  for (const id of FALLBACK_ORDER) {
-    const small = id === 'arms' || id === 'upperPump' || id === 'legPump' || id === 'core';
-    const r = generateDay(small ? { ...gen, noFallback: true } : gen, deps, { name: id, slots: TEMPLATES[id] });
-    if (!r.ok || !honest(id, r.items.map((it) => it.pattern))) continue;
-    const items = itemsOf(deps, r.items);
-    const words = r.items.flatMap((it) => targetsOf(deps, it.id)).map(muscleWord);
-    all.push({ id, title: titleOf(id, goalMuscle, r.items.map((it) => it.pattern)), line: cap(wordList(words, 4)), items, minutes: r.minutes, over: r.over });
-  }
-  // Round 2 (B3): only what fits the minutes picked is offered; one that cannot fit is left out.
-  const out: Concept[] = [];
-  for (const c of all) {
-    if (out.length >= 3) break;
-    if (!fits(c.minutes, input.minutes)) continue;
-    if (!out.some((o) => sameSet(o.items, c.items))) out.push(c);
+/** The gear a workout uses here: for each requirement the first option this gym has (never both of an either/or). */
+export function gearOf(ids: readonly string[], data: SwapData, gym: GymKit): EquipmentId[] {
+  const out: EquipmentId[] = [];
+  for (const id of ids) for (const g of requiresOf(data, id) ?? []) {
+    const pick = g.find((x) => hasGear(x, gym));
+    if (pick && !out.includes(pick)) out.push(pick);
   }
   return out;
 }
+
+/** The primary muscles of a workout (map regions), for the diversity rule. */
+export function primaryOf(ids: readonly string[], deps: Pick<QuickDeps, 'primaryOf' | 'profile'>): Set<string> {
+  return new Set(ids.flatMap((id) => (deps.primaryOf ? deps.primaryOf(id) : deps.profile(id).targets)));
+}
+
+/** "5 exercises · 2 supersets · ~30 min", "4 exercises · 3 rounds · ~14 min" (every number from the items and the one estimate). */
+export function metaLine(items: readonly Pick<QuickItem, 'group' | 'sets'>[], minutes: number): string {
+  const n = items.length;
+  const st = structureOf(items);
+  const parts = [`${n} ${n === 1 ? 'exercise' : 'exercises'}`];
+  if (st.rounds !== null) parts.push(`${st.rounds} ${st.rounds === 1 ? 'round' : 'rounds'}`);
+  else {
+    if (st.circuits) parts.push(`${st.circuits} ${st.circuits === 1 ? 'circuit' : 'circuits'}`);
+    if (st.supersets) parts.push(`${st.supersets} ${st.supersets === 1 ? 'superset' : 'supersets'}`);
+  }
+  parts.push(`~${minutes} min`);
+  return parts.join(' · ');
+}
+
+const DAY_MS = 86_400_000;
+const localDay = (t: number) => {
+  const d = new Date(t);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
+/** Whole local days between a logged workout and now. */
+export const daysSince = (at: number, now: number): number => Math.max(0, Math.round((localDay(now) - localDay(at)) / DAY_MS));
+
+/** The two muscles a workout works most (by sets), in plain words, without repeats. */
+function mainWords(items: readonly QuickItem[], deps: QuickDeps): { muscles: Muscle[]; words: string[] } {
+  const count = new Map<Muscle, number>();
+  for (const it of items) for (const m of targetsOf(deps, it.id)) count.set(m, (count.get(m) ?? 0) + it.sets);
+  const muscles: Muscle[] = [];
+  const words: string[] = [];
+  for (const [m] of [...count.entries()].sort((a, b) => b[1] - a[1])) {
+    const w = muscleWord(m);
+    if (words.includes(w)) {
+      muscles.push(m);
+      continue;
+    }
+    if (words.length >= 2) break;
+    words.push(w);
+    muscles.push(m);
+  }
+  return { muscles, words };
+}
+
+/**
+ * "Back and biceps rested 4 days" (3.5b round 2, tester bug 3): of the muscles the card really
+ * trains, the two with the longest logged rest are named, and the number is the shorter rest of
+ * those two. Only muscles with a logged date count; none (or under `least` days): null.
+ */
+export function restedLine(items: readonly QuickItem[], deps: QuickDeps, lastTrained: QuickInput['lastTrained'], now: number, least = 2): string | null {
+  if (!lastTrained) return null;
+  const byWord = new Map<string, number>();
+  for (const it of items)
+    for (const m of targetsOf(deps, it.id)) {
+      const at = lastTrained[m];
+      if (at === undefined || at > now) continue;
+      const days = daysSince(at, now);
+      const w = muscleWord(m);
+      // A word covering two muscles (side and front delts: shoulders) is as rested as its least rested one.
+      byWord.set(w, Math.min(byWord.get(w) ?? Infinity, days));
+    }
+  const named = [...byWord.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2);
+  if (!named.length) return null;
+  const days = Math.min(...named.map(([, d]) => d));
+  if (days < least) return null;
+  return `${cap(wordList(named.map(([w]) => w)))} rested ${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
+const BLURB: Record<StyleId, string> = {
+  circuit: 'Legs, push and pull, one after another',
+  pump: 'Moves in pairs, short rest',
+  strength: 'Fewer moves, heavier, longer rest',
+  cardioCore: 'Cardio and abs, one after another',
+  mobility: 'Stretches, nothing heavy',
+  armsAbs: 'Arms and abs, back to back',
+  easy: 'A light day: no barbell, nothing jumpy',
+};
+
+const JOINT_WORD: Record<string, string> = { lower_back: 'lower back', knees: 'knees', shoulders: 'shoulders', wrists: 'wrists', neck: 'neck', hips: 'hips' };
+
+/** The chip a card's structure earns (a style's own chip first). */
+function chipOf(style: StyleDef | null, items: readonly QuickItem[]): string {
+  if (style?.chip) return style.chip;
+  const st = structureOf(items);
+  if (st.circuits) return 'Circuit';
+  if (st.supersets) return 'Supersets';
+  return 'Straight sets';
+}
+
+const BUILD = (deps: QuickDeps): BuildDeps => ({ ...deps, requires: (id) => requiresOf(deps.data, id) });
+
+/** A style card, or null when the gym, the never list or the minutes leave too little for its name to be true. */
+function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input: QuickInput, deps: QuickDeps): Concept | null {
+  if (style.minMinutes !== undefined && input.minutes < style.minMinutes) return null;
+  const built = buildCard(styleSpec(style, variant, { ...input.base, minutes: input.minutes }, input.minutes), BUILD(deps), input.minutes);
+  if (!built || !fits(built.minutes, input.minutes)) return null;
+  if (!style.honest(built.items.map((it) => deps.profile(it.id)), built.items)) return null;
+  const items = itemsOf(deps, built.items);
+  const ids = items.map((it) => it.id);
+  const easyOn = (input.base.easyOn ?? []).filter((j) => JOINT_WORD[j]);
+  const blurb = style.id === 'easy' && easyOn.length ? `A light day, easy on your ${wordList(easyOn.map((j) => JOINT_WORD[j]!), 2)}` : BLURB[style.id];
+  return {
+    id: style.id,
+    title: style.title,
+    line: restedLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? blurb,
+    items,
+    minutes: built.minutes,
+    over: false,
+    chip: chipOf(style, items),
+    effort: style.effort,
+    gear: gearOf(ids, deps.data, input.base.gym),
+    primary: primaryOf(ids, deps),
+    ...(built.short ? { short: built.short } : {}),
+    ...(newerOf(input.base) ? { newer: true } : {}),
+  };
+}
+
+const newerOf = (base: Pick<GeneratorInput, 'experience'>) => base.experience === undefined || base.experience === 'new' || base.experience === 'months' || base.experience === 'break';
+
+/** The one plain line a short card shows (PLAN 3.5b round 2), or null. */
+export function shortLine(c: Pick<Concept, 'short' | 'newer' | 'id'>): string | null {
+  if (!c.short) return null;
+  if (c.short === 'caps' && c.newer) return 'Beginner set cap';
+  if (c.id === 'plan') return "All of today's plan this gym can do";
+  return c.short === 'caps' ? 'As long as this style goes' : 'All this gym can do in one go';
+}
+
+const FRESH_REST: StyleDef['rest'] = { group: 60, single: 60, floor: 45, cap: 90 };
+
+/** "Hit what's fresh": muscles with no logged sets in the last 3 days, all of them, then upper or legs only. */
+function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
+  const recent = [...new Set(input.recent)];
+  const logged = recent.length > 0 || Object.keys(input.lastTrained ?? {}).length > 0;
+  if (!logged) return [];
+  // Round 2 (B4): nothing on this card may light a muscle the Skips line names, on its map either.
+  const blocked = new Set(recent.flatMap((m) => deps.muscleRegions?.(m) ?? []));
+  const freshDeps: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !(deps.litRegions?.(id) ?? []).some((r) => blocked.has(r)) };
+  const pool = FRESH_POOL.filter((p) => !patternTargets(p).some((m) => recent.includes(m)));
+  const pools = [pool, pool.filter((p) => !LEG_PATTERNS.has(p)), pool.filter((p) => LEG_PATTERNS.has(p) || p === 'core')];
+  const out: Concept[] = [];
+  const density = densityFor(input.minutes);
+  for (const [k, ps] of pools.entries()) {
+    if (ps.length < 3) continue;
+    const spec: BuildSpec = {
+      name: `fresh-${k}`,
+      slots: ps.map((p) => ({ pattern: p })),
+      shape: input.minutes <= 20 ? 'circuit' : 'pairs',
+      input: { ...input.base, avoidMuscles: recent, ...(k > 0 ? { noFallback: true as const } : {}) },
+      want: density.max,
+      density,
+      maxSets: input.base.experience === 'new' ? 3 : 4,
+      rest: FRESH_REST,
+    };
+    const built = buildCard(spec, BUILD(freshDeps), input.minutes);
+    if (!built || !fits(built.minutes, input.minutes)) continue;
+    const items = itemsOf(deps, built.items, (it) => `${cap(wordList(targetsOf(deps, it.id).map(muscleWord)))}: not trained in 3 days`);
+    if (out.some((o) => o.items.length === items.length && o.items.every((x) => items.some((y) => y.id === x.id)))) continue;
+    const ids = items.map((it) => it.id);
+    const rested = restedLine(items, deps, input.lastTrained, input.now ?? Date.now(), 1);
+    const skips = recent.length ? `Skips ${wordList([...new Set(recent.map(muscleWord))].slice(0, 2))} (trained ${input.recentWhen ?? 'lately'})` : null;
+    out.push({
+      id: 'fresh',
+      title: "Hit what's fresh",
+      line: rested ?? skips ?? `${cap(wordList(mainWords(items, deps).words))}: not trained in 3 days`,
+      items,
+      minutes: built.minutes,
+      over: false,
+      chip: chipOf(null, items),
+      effort: 2,
+      gear: gearOf(ids, deps.data, input.base.gym),
+      primary: primaryOf(ids, deps),
+      ...(built.short ? { short: built.short } : {}),
+      ...(newerOf(input.base) ? { newer: true } : {}),
+    });
+  }
+  return out;
+}
+
+/** Beginners and Go easy on always get one Easy start (Low impact) card. */
+export const needsEasy = (base: Pick<GeneratorInput, 'experience' | 'easyOn'>): boolean =>
+  base.experience === 'new' || base.experience === 'months' || (base.easyOn ?? []).some((j) => j !== 'none');
+
+export type Ideas = Batch<Concept>;
+
+/**
+ * PLAN 3.5b: up to 4 cards that differ by style, never sharing more than half their primary muscles
+ * (quickStyles.ts chooseBatch): "Your plan, short", "Hit what's fresh", then the styles in rotation;
+ * `more` are the other styles that would still keep the cards diverse in place of card `swapAt`.
+ */
+export function buildIdeas(input: QuickInput, deps: QuickDeps): Ideas {
+  const styles = new Map<StyleId, Concept[]>();
+  for (const id of STYLE_ORDER) {
+    const style = STYLES[id];
+    const cards = style.variants.map((v) => styleCard(style, v, input, deps)).filter((c): c is Concept => c !== null);
+    if (cards.length) styles.set(id, cards);
+  }
+  // 3.5b round 2: card 1 is always the plan when one is active (fitted, or the honest smaller card).
+  const plan = input.plan ?? null;
+  return chooseBatch({
+    plan,
+    fresh: freshCards(input, deps),
+    styles,
+    done: input.done ?? [],
+    lastShown: input.lastShown ?? [],
+    needEasy: needsEasy(input.base),
+  });
+}
+
+/** The cards alone (PLAN 3.5a's entry point, kept). */
+export const buildConcepts = (input: QuickInput, deps: QuickDeps): Concept[] => buildIdeas(input, deps).cards;
 
 /** Round 2 (B5): whether anything at all can be built at this gym (the longest chip, nothing learned in the way of it). */
 export function canBuild(base: GeneratorInput, deps: QuickDeps): boolean {
@@ -302,6 +455,10 @@ export type PlanConceptInput = {
   /** Never show (intake never list and long presses): never in the concept. */
   never?: readonly string[];
   soft?: Readonly<Record<string, number>>;
+  /** PLAN 3.5b: Go easy on joints: a lift they skip is swapped or left out, like the generator does. */
+  easyOn?: readonly string[];
+  /** PLAN 3.5b round 2: the intake level (a newer lifter's sets stay at 3 at most when the fit adds sets). */
+  experience?: string;
 };
 
 /** Sure gear: the requirement is known and this gym has it (the deck never shows a maybe). */
@@ -309,6 +466,95 @@ export const sureGear = (data: SwapData, id: string, gym: GymKit): boolean => {
   const r = requiresOf(data, id);
   return r !== null && supports(r, gym);
 };
+
+const workingBlocks = (d: PlanDay): PlanBlock[] => d.blocks.filter((b) => !b.warmup && !b.mobility);
+
+/**
+ * PLAN 3.5b round 2: the plan day fitted to the minutes the way the style cards are (the one
+ * estimate, never over the chip, within 2 min under it when it can be). Long: two small moves next
+ * to each other become a superset (SPEC 22 rule 5: never a heavy lift, never a shared muscle), then
+ * tighter rest (never on a heavy lift, SPEC 22 rule 6), then fewer sets (small moves first, 2 at
+ * least), then the last moves go (the first two compound lifts last of all). Short: one more set at
+ * a time (3 at most for a newer lifter, 5 otherwise), then a little more rest. Everything is a
+ * DayTrim, so the workout starts exactly as the card says. When even one lift cannot fit, the card
+ * is the honest smaller one.
+ */
+export function fitPlanDay(
+  day: PlanDay,
+  base: DayTrim | null,
+  weekIndex: number,
+  budget: number,
+  profileOf: (id: string, name: string) => Profile,
+  newer: boolean,
+): { trim: DayTrim | null; short?: 'moves' | 'caps' } {
+  const t: DayTrim = { drop: [...(base?.drop ?? [])], sets: {}, rest: {}, pairs: [] };
+  const est = () => estimateDayMinutes(applyTrim(day, t, weekIndex), weekIndex);
+  const blocks = () => workingBlocks(applyTrim(day, t, weekIndex));
+  const prof = (it: PlanBlock['items'][number]) => profileOf(it.exerciseId, it.name);
+  const heavy = (b: PlanBlock) => b.items.some((it) => isHeavy(prof(it)));
+  const compound = (b: PlanBlock) => b.items.some((it) => isCompound(prof(it)));
+  const setsOf = (b: PlanBlock) => Math.max(...b.items.map((it) => itemTarget(b, it, weekIndex).sets));
+  const setSets = (b: PlanBlock, n: number) => b.items.forEach((it) => (t.sets[it.exerciseId] = n));
+  const setRest = (b: PlanBlock, n: number) => b.items.forEach((it) => (t.rest![it.exerciseId] = n));
+  const floor = (b: PlanBlock) => (compound(b) ? 60 : 45);
+  const cap = newer ? 3 : 5;
+  const firstTwo = new Set(blocks().filter((b) => compound(b)).slice(0, 2).map((b) => b.items[0]!.exerciseId));
+  if (budget < 75) {
+    for (let guard = 0; est() > budget && guard < 200; guard++) {
+      const bs = blocks();
+      // A superset of two small moves side by side.
+      const at = bs.findIndex((b, i) => {
+        const n = bs[i + 1];
+        return !!n && b.kind === 'single' && n.kind === 'single' && b.items.length === 1 && n.items.length === 1 && !heavy(b) && !heavy(n) && canPair(prof(b.items[0]!), prof(n.items[0]!));
+      });
+      if (at !== -1) {
+        const [a, b] = [bs[at]!, bs[at + 1]!];
+        const sets = Math.max(setsOf(a), setsOf(b));
+        setSets(a, sets);
+        setSets(b, sets);
+        t.pairs!.push([a.items[0]!.exerciseId, b.items[0]!.exerciseId]);
+        const rest = compound(a) || compound(b) ? 90 : 60;
+        setRest(a, rest);
+        setRest(b, rest);
+        continue;
+      }
+      const tighter = bs.filter((b) => !heavy(b) && blockRest(b) - 15 >= floor(b));
+      if (tighter.length) {
+        for (const b of tighter) setRest(b, blockRest(b) - 15);
+        continue;
+      }
+      const fewer = [...bs].reverse().filter((b) => setsOf(b) > 2).sort((a, b) => Number(compound(a)) - Number(compound(b)) || Number(heavy(a)) - Number(heavy(b)))[0];
+      if (fewer) {
+        setSets(fewer, setsOf(fewer) - 1);
+        continue;
+      }
+      if (bs.length <= 1) break;
+      const last = [...bs].reverse().find((b) => !b.items.some((it) => firstTwo.has(it.exerciseId))) ?? bs[bs.length - 1]!;
+      t.drop.push(...last.items.map((it) => it.exerciseId));
+      t.pairs = t.pairs!.filter((p) => !p.some((id) => t.drop.includes(id)));
+    }
+    const fitsNow = (fn: () => void): boolean => {
+      const before = JSON.stringify(t);
+      fn();
+      if (est() <= budget) return true;
+      Object.assign(t, JSON.parse(before) as DayTrim);
+      return false;
+    };
+    for (let guard = 0; est() < budget - SLACK && guard < 200; guard++) {
+      const bs = blocks();
+      const more = bs.find((b) => setsOf(b) < cap && fitsNow(() => setSets(b, setsOf(b) + 1)));
+      if (more) continue;
+      const rest = bs.find((b) => !heavy(b) && blockRest(b) + 15 <= 120 && fitsNow(() => setRest(b, blockRest(b) + 15)));
+      if (!rest) break;
+    }
+  }
+  if (!Object.keys(t.rest!).length) delete t.rest;
+  if (!t.pairs!.length) delete t.pairs;
+  const trim = t.drop.length || Object.keys(t.sets).length || t.rest || t.pairs ? t : null;
+  const m = est();
+  if (budget >= 75 || m >= budget - SLACK) return { trim };
+  return { trim, short: newer ? 'caps' : 'moves' };
+}
 
 /**
  * "Your Pull day, short": the plan day as this gym does it (adaptDay, like Start), only its working
@@ -322,7 +568,7 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
   if (!day) return null;
   const data = deps.data;
   const neverKeys = new Set((input.never ?? []).map(data.sameAs));
-  const ok = (id: string) => !neverKeys.has(data.sameAs(id)) && deps.usable(id) && sureGear(data, id, gym);
+  const ok = (id: string) => !neverKeys.has(data.sameAs(id)) && deps.usable(id) && sureGear(data, id, gym) && !easyOnAvoids(input.easyOn, deps.profile(id));
   const entries = dayWorkout(plan, dayIndex, weekIndex);
   const unique = entries.filter((e, i) => entries.findIndex((x) => x.exerciseId === e.exerciseId) === i);
   const adapted = adaptDay(data, unique, gym, input.always ?? {});
@@ -350,28 +596,39 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
     if (pick) swapTo.set(slot, pick);
     else drop.push(slot);
   }
+  // 3.5b round 2: the cardio finisher has no demo and no card: Quick's plan day leaves it out.
+  if (day.finisher) drop.push(finisherId(day.finisher.name));
   const base: DayTrim | null = drop.length ? { drop, sets: {} } : null;
-  const kept = applyTrim(day, base, weekIndex);
-  const fit = trimDay(kept, { budget: input.minutes, weekIndex, profileOf: (id, name) => deps.profileOf(id, name) });
-  const trim: DayTrim | null =
-    base || fit.trim ? { drop: [...drop, ...(fit.trim?.drop ?? [])], sets: { ...(fit.trim?.sets ?? {}) }, ...(fit.trim?.mobility ? { mobility: fit.trim.mobility } : {}) } : null;
+  // The gym cannot do the day: fewer than 3 of its lifts with a sure demo and sure gear.
+  if (workingBlocks(applyTrim(day, base, weekIndex)).reduce((n, b) => n + b.items.length, 0) < 3) return null;
+  const newer = input.experience === undefined || ['new', 'months', 'break'].includes(input.experience);
+  const fitted = fitPlanDay(day, base, weekIndex, input.minutes, (id, name) => deps.profileOf(id, name), newer);
+  const trim = fitted.trim;
   const part: PlanPart = { planId: plan.id, dayIndex, weekIndex, day, trim };
   const items = planItems(part, deps, (slot) => currentOf.get(slot) ?? slot, (slot) => swapTo.get(slot));
-  if (items.length < 3) return null;
+  if (!items.length) return null;
   const reasons = reasonsFor(items.map((it) => it.id), deps, (id) => items.find((it) => it.id === id)!.name);
   items.forEach((it, i) => {
     if (it.id === it.slot) it.why = reasons[i]!;
   });
   const minutes = planMinutes(part);
-  const short = !!trim && (trim.drop.length > 0 || Object.keys(trim.sets).length > 0);
+  const short = !!trim && (trim.drop.length > 0 || Object.keys(trim.sets).length > 0 || Object.keys(trim.rest ?? {}).length > 0 || (trim.pairs ?? []).length > 0);
+  const ids = items.map((it) => it.id);
   return {
+    ...(fitted.short ? { short: fitted.short } : {}),
+    // PLAN 3.5b: card 1 is "Your plan, short" (the day and the plan named on its line).
     id: 'plan',
-    title: `${day.name}${short ? ', short' : ''}`,
-    line: `From your ${plan.name}`,
+    title: short ? 'Your plan, short' : 'Your plan',
+    line: `${day.name} from your ${plan.name}`,
     items,
     minutes,
     over: input.minutes < 75 && minutes > input.minutes,
     plan: part,
+    chip: 'Your plan',
+    effort: 2,
+    ...(newer ? { newer: true } : {}),
+    gear: gearOf(ids, data, gym),
+    primary: primaryOf(ids, deps),
   };
 }
 
@@ -379,8 +636,11 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
 function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: string) => string, swappedOf: (slot: string) => string | undefined): QuickItem[] {
   const day = applyTrim(part.day, part.trim, part.weekIndex);
   const out: QuickItem[] = [];
+  let group = 0;
   for (const b of day.blocks) {
     if (b.warmup || b.mobility) continue;
+    // PLAN 3.5b: a plan pair stays a pair on the card (its line counts it).
+    const pair = b.kind === 'pair' && b.items.length > 1 ? group++ : undefined;
     for (const it of b.items) {
       const t = itemTarget(b, it, part.weekIndex);
       const origin = originOf(it.exerciseId);
@@ -398,6 +658,7 @@ function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: string) => 
         ...(it.eachSide ? { eachSide: true } : {}),
         restSec: blockRest(b as PlanBlock),
         why: swapped ? `Same movement as ${it.name}` : `From your ${part.day.name} day`,
+        ...(pair !== undefined ? { group: pair } : {}),
       });
     }
   }
@@ -415,22 +676,50 @@ export function dropSlot(part: PlanPart, slot: string): PlanPart {
 
 // ---------------------------------------------------------------- a quick workout's day
 
-/** Quick items as a plan day (straight sets), for the one estimator (SPEC 7.4). */
-export function quickDayOf(items: readonly Pick<QuickItem, 'id' | 'name' | 'sets' | 'reps' | 'seconds' | 'restSec'>[]): PlanDay {
-  return {
-    n: 1,
-    name: 'Quick workout',
-    blocks: items.map((it) => ({
-      kind: 'single' as const,
-      sets: it.sets,
-      restSec: it.restSec,
-      items: [{ exerciseId: it.id, name: it.name, ...(it.reps !== undefined ? { reps: it.reps } : {}), ...(it.seconds !== undefined ? { seconds: it.seconds } : {}) }],
-    })),
+/** A concept's estimate now (after the deck's changes). */
+export const conceptMinutes = (c: Pick<Concept, 'items' | 'plan'>): number => (c.plan ? planMinutes(c.plan) : quickMinutes(c.items));
+
+/**
+ * PLAN 3.5b: a superset whose partners no longer suit each other after a swap (they now share a
+ * muscle, or one is a heavy lift) is done as two single moves instead (rest after every set).
+ */
+export function safePairs(items: readonly QuickItem[], profile: (id: string) => Profile): QuickItem[] {
+  const split = new Set<number>();
+  const members = new Map<number, QuickItem[]>();
+  for (const it of items) if (it.group !== undefined) members.set(it.group, [...(members.get(it.group) ?? []), it]);
+  for (const [g, m] of members) {
+    if (m.length !== 2) continue;
+    const [a, b] = m.map((it) => profile(it.id));
+    if (isHeavy(a!) || isHeavy(b!) || !canPair(a!, b!)) split.add(g);
+  }
+  if (!split.size) return [...items];
+  const single = (it: QuickItem): QuickItem => {
+    const out = { ...it };
+    delete out.group;
+    return out;
   };
+  return regroup(items.map((it) => (it.group !== undefined && split.has(it.group) ? single(it) : it)));
 }
 
-/** A concept's estimate now (after the deck's changes). */
-export const conceptMinutes = (c: Pick<Concept, 'items' | 'plan'>): number => (c.plan ? planMinutes(c.plan) : estimateDayMinutes(quickDayOf(c.items)));
+/**
+ * PLAN 3.5b: groups after the deck removed an exercise: a group left with one member is a single,
+ * and the groups are numbered in order again. Sets never change here (a pair already has equal sets).
+ */
+export function regroup(items: readonly QuickItem[]): QuickItem[] {
+  const size = new Map<number, number>();
+  for (const it of items) if (it.group !== undefined) size.set(it.group, (size.get(it.group) ?? 0) + 1);
+  const renumber = new Map<number, number>();
+  return items.map((it) => {
+    if (it.group === undefined) return it;
+    if ((size.get(it.group) ?? 0) < 2) {
+      const { group: _g, ...rest } = it;
+      void _g;
+      return rest;
+    }
+    if (!renumber.has(it.group)) renumber.set(it.group, renumber.size);
+    return { ...it, group: renumber.get(it.group)! };
+  });
+}
 
 // ---------------------------------------------------------------- the deck's swap
 

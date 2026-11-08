@@ -283,7 +283,7 @@ export function WorkoutScreen() {
     const partner = entries.find((x) => x.exerciseId === next);
     if (next !== id && e.kind === 'pair' && partner?.block === e.block) {
       // A pair: its partner is one tap away on the chip, never an automatic jump (PLAN 2.0g).
-      showChip(`Pair: ${w.nameOf(next)} next`, CHIP_MS, id, () => undefined, next);
+      showChip(`${e.pairSize > 2 ? 'Circuit' : 'Pair'}: ${w.nameOf(next)} next`, CHIP_MS, id, () => undefined, next);
     }
   };
 

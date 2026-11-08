@@ -1,9 +1,11 @@
 // Quick workout builds it for you (PLAN 3.5a): what it reads (recent muscles, learned dislikes,
 // "Always use this" picks) and what it writes (the built workout, the learned dislikes). Additive
 // only: dislikes live on the profile, a built workout's targets on its session; history is never touched.
+// PLAN 3.5b adds the rotation memory: the cards shown last time (on the profile), the style a quick
+// workout started from (on its session), and when each muscle last had logged sets (read only).
 import { planById } from '../data/plans';
 import { profileFor } from '../data/order';
-import { learnNever, learnSwap, recentMuscles, RECENT_MS, unlearnNever, type Concept, type Dislikes } from '../lib/quick';
+import { learnNever, learnSwap, recentMuscles, RECENT_MS, unlearnNever, type Concept, type ConceptId, type Dislikes } from '../lib/quick';
 import type { Muscle } from '../lib/order';
 import { getProfile } from './intake';
 import { newId } from './ids';
@@ -65,19 +67,77 @@ export async function alwaysPicks(planId: string, db: AnyGymDB = defaultDb): Pro
   return out;
 }
 
-const targetOf = (it: Concept['items'][number]): QuickTarget => ({
+const targetOf = (it: Concept['items'][number], pair?: QuickTarget['pair']): QuickTarget => ({
   sets: it.sets,
   restSec: it.restSec,
   ...(it.reps !== undefined ? { reps: it.reps } : {}),
   ...(it.seconds !== undefined ? { seconds: it.seconds } : {}),
+  ...(pair ? { pair } : {}),
 });
+
+/** PLAN 3.5b: each grouped item's place in its superset or circuit (a group of one is a single). */
+export function pairsOf(items: Concept['items']): Map<string, NonNullable<QuickTarget['pair']>> {
+  const members = new Map<number, string[]>();
+  for (const it of items) if (it.group !== undefined) members.set(it.group, [...(members.get(it.group) ?? []), it.id]);
+  const out = new Map<string, NonNullable<QuickTarget['pair']>>();
+  for (const [group, ids] of members) if (ids.length > 1) ids.forEach((id, index) => out.set(id, { group, index, size: ids.length }));
+  return out;
+}
+
+// ---------------------------------------------------------------- rotation memory (PLAN 3.5b)
+
+const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * When each muscle last had logged working sets (never warm ups, never imports, never a future
+ * date), over the last 30 days. A muscle missing here has no date the app is sure of.
+ */
+export async function readLastTrained(now = Date.now(), db: AnyGymDB = defaultDb): Promise<Partial<Record<Muscle, number>>> {
+  return db.transaction('r', db.sessions, db.sets, async () => {
+    const sessions = (await db.sessions.where('startedAt').between(now - LOOKBACK_MS, now, true, true).toArray()).filter((s) => !s.imported);
+    const at = new Map(sessions.map((s) => [s.id, s.startedAt]));
+    const sets = at.size ? await db.sets.where('sessionId').anyOf([...at.keys()]).toArray() : [];
+    const out: Partial<Record<Muscle, number>> = {};
+    for (const st of sets) {
+      if (st.kind === 'warmup') continue;
+      const t = at.get(st.sessionId)!;
+      for (const m of profileFor(st.exerciseId).targets) out[m] = Math.max(out[m] ?? 0, t);
+    }
+    return out;
+  });
+}
+
+/** The styles of the last 2 quick workouts done (finished, with logged working sets), latest first. */
+export async function readDoneStyles(db: AnyGymDB = defaultDb): Promise<string[]> {
+  const out: string[] = [];
+  const rows = await db.sessions.orderBy('startedAt').reverse().filter((s) => !!s.quickStyle && s.endedAt !== undefined && !s.imported).limit(20).toArray();
+  for (const s of rows) {
+    if (out.length >= 2) break;
+    if ((await db.sets.where('sessionId').equals(s.id).filter((x) => x.kind !== 'warmup').count()) > 0) out.push(s.quickStyle!);
+  }
+  return out;
+}
+
+/** The cards shown last time (empty: none yet). */
+export async function readShown(db: AnyGymDB = defaultDb): Promise<string[]> {
+  return (await getProfile(db))?.quickIdeas?.shown ?? [];
+}
+
+/** Remembers the cards shown now (no profile yet: nothing is remembered). */
+export async function recordShown(ids: readonly ConceptId[], db: AnyGymDB = defaultDb): Promise<void> {
+  await db.transaction('rw', db.profile, async () => {
+    const p = await getProfile(db);
+    if (!p) return;
+    await db.profile.put({ ...p, quickIdeas: { ...p.quickIdeas, shown: [...ids] } });
+  });
+}
 
 /**
  * Starts the curated workout. A plan day concept starts as that plan day (it counts for the plan),
  * with its trim and the deck's swaps; any other concept is a quick workout holding exactly the
  * deck's exercises and targets. A workout already in progress is returned untouched.
  */
-export async function startBuilt(gymId: string, concept: Pick<Concept, 'items' | 'plan'>, minutes: number, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Session> {
+export async function startBuilt(gymId: string, concept: Pick<Concept, 'items' | 'plan'> & { id?: ConceptId }, minutes: number, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Session> {
   const part = concept.plan;
   if (part && planById(part.planId)) {
     const before = await getActiveSession(db);
@@ -91,9 +151,12 @@ export async function startBuilt(gymId: string, concept: Pick<Concept, 'items' |
     const active = await getActiveSession(db);
     if (active) return active;
     const ids = [...new Set(concept.items.map((it) => it.id))];
+    // PLAN 3.5b: supersets and circuits go into the workout as they were on the card.
+    const pairs = pairsOf(concept.items);
     const targets: Record<string, QuickTarget> = {};
-    for (const it of concept.items) targets[it.id] ??= targetOf(it);
+    for (const it of concept.items) targets[it.id] ??= targetOf(it, pairs.get(it.id));
     const session: Session = { id: newId(), gymId, startedAt: now, imported: false, exerciseIds: ids, targets, timeBudgetMin: minutes };
+    if (concept.id && concept.id !== 'plan') session.quickStyle = concept.id;
     await db.sessions.add(session);
     return session;
   });

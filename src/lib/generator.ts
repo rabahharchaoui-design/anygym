@@ -529,9 +529,11 @@ export type DayResult = { ok: true; name: string; items: DayItem[]; minutes: num
  * prescriptions, SPEC 22 order and the SPEC 7.4 trim to the minutes. Straight sets only (a quick
  * workout has no pairs) and no finisher. Fewer than 3 moves is an honest failure.
  */
-export function generateDay(input: GeneratorInput, deps: GeneratorDeps, template: { name: string; slots: readonly Slot[] }): DayResult {
+export function generateDay(input: GeneratorInput, deps: GeneratorDeps, template: { name: string; slots: readonly Slot[]; want?: number }): DayResult {
   const ctx = contextOf(input, deps);
-  const want = movesFor(input.minutes);
+  // PLAN 3.5b: Quick workout's styles ask for G's move counts themselves (and fit the time with
+  // supersets and rest, lib/quickStyles.ts), so they pass `want` and no minutes (no plan trim).
+  const want = template.want ?? movesFor(input.minutes);
   const dayKeys = new Set<string>();
   const items: Item[] = [];
   for (const slot of template.slots) {

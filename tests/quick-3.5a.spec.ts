@@ -46,7 +46,9 @@ test.describe('Quick workout builds it for you', () => {
     await pastIntake(page);
     const started = Date.now();
     await page.getByTestId('build-card').tap();
-    await page.locator('[data-concept]').first().tap();
+    // PLAN 3.5b: the Strength focus card (its second card, the squat, has a same movement swap; the
+    // first card's second move may have none at a full gym now that cards differ by style).
+    await page.locator('[data-concept="strength"]').tap();
     await expect(card(page)).toBeVisible();
     const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
     for (let i = 0; i < total; i++) {
@@ -69,18 +71,19 @@ test.describe('Quick workout builds it for you', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a full gym: three honest concepts, every card with a sure demo, the estimate the workout shows @matrix', async ({ page }) => {
+  // PLAN 3.5b: four cards that differ by style (was three body part concepts, Full body pump first).
+  test('a full gym: four honest style cards, every card with a sure demo, the estimate the workout shows @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page);
     const concepts = page.locator('[data-concept]');
-    await expect(concepts).toHaveCount(3);
-    expect(await concepts.evaluateAll((els) => els.map((e) => e.getAttribute('data-concept')))).toEqual(['full', 'upper', 'lower']);
-    await expect(concepts.first()).toContainText('Full body pump');
+    await expect(concepts).toHaveCount(4);
+    expect(await concepts.evaluateAll((els) => els.map((e) => e.getAttribute('data-concept')))).toEqual(['circuit', 'pump', 'strength', 'armsAbs']);
+    await expect(concepts.first()).toContainText('Full body circuit');
     // Every concept card has its mini muscle map.
-    await expect(page.getByTestId('mini-map')).toHaveCount(3);
+    await expect(page.getByTestId('mini-map')).toHaveCount(4);
     await shotOn(page, '3.5a', 'concepts-full');
-    for (let c = 0; c < 3; c++) {
+    for (let c = 0; c < 4; c++) {
       await concepts.nth(c).tap();
       const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
       for (let i = 0; i < total; i++) {
@@ -93,7 +96,8 @@ test.describe('Quick workout builds it for you', () => {
     }
     // Start the first as is: the workout holds exactly those exercises and shows the same estimate.
     const meta = (await concepts.first().getByTestId('concept-meta').textContent())!;
-    const [, count, minutes] = meta.match(/^(\d+) exercises · ~(\d+) min$/)!;
+    // PLAN 3.5b: the line also counts circuits or supersets ("6 exercises · 2 circuits · ~29 min").
+    const [, count, minutes] = meta.match(/^(\d+) exercises (?:· .+ )?· ~(\d+) min$/)!;
     await concepts.first().tap();
     await page.getByTestId('quick-start').tap();
     await expect(page.getByTestId('check-current')).toBeVisible();
@@ -152,7 +156,8 @@ test.describe('Quick workout builds it for you', () => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page);
-    await page.locator('[data-concept]').first().tap();
+    // PLAN 3.5b: the Strength focus card, whose second move (the squat) has same movement swaps.
+    await page.locator('[data-concept="strength"]').tap();
     await expect(page.getByTestId('deck-hint')).toHaveText('Right keeps it, left swaps it.');
     await shotOn(page, '3.5a', 'deck');
     const first = await card(page).getAttribute('data-exercise');
@@ -214,7 +219,8 @@ test.describe('Quick workout builds it for you', () => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page);
-    await page.locator('[data-concept]').nth(1).tap();
+    // 3.5b round 2: the Strength focus card, whose second move (the squat) has a same movement swap.
+    await page.locator('[data-concept="strength"]').tap();
     const names: string[] = [];
     names.push((await page.getByTestId('deck-name').textContent())!);
     await page.getByTestId('deck-keep').tap();
@@ -241,8 +247,9 @@ test.describe('Quick workout builds it for you', () => {
     await page.getByTestId('build-card').tap();
     const first = page.locator('[data-concept]').first();
     await expect(first).toHaveAttribute('data-concept', 'plan');
-    await expect(first).toContainText(/^.+, short/);
-    await expect(first).toContainText('From your Classic 5 Day Split');
+    // PLAN 3.5b: "Your plan, short", the day and the plan named on its why line.
+    await expect(first).toContainText('Your plan, short');
+    await expect(first).toContainText('from your Classic 5 Day Split');
     await shotOn(page, '3.5a', 'concepts-plan');
     await first.tap();
     await page.getByTestId('quick-start').tap();
@@ -292,7 +299,8 @@ test.describe('round 2', () => {
     const errors = watchErrors(page);
     await pastIntake(page, DUMBBELLS);
     await openQuick(page);
-    await page.locator('[data-concept="push"]').tap();
+    // PLAN 3.5b: the Arms and abs finisher holds the overhead triceps extension here (was the Push concept).
+    await page.locator('[data-concept="armsAbs"]').tap();
     const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
     // Walk to the overhead triceps extension: nothing else with a sure demo fits it here (and it is not last).
     const NAME = 'Dumbbell Single Arm Overhead Tricep Extension';
@@ -330,9 +338,15 @@ test.describe('round 2', () => {
     await shotOn(page, '3.5a', 'never-gap');
     // The notice is above the card (or above the list once it was the last), never over the buttons, and Keep still works.
     if (await card(page).count()) {
-      const n = (await notice.boundingBox())!;
-      const c = (await card(page).boundingBox())!;
-      expect(n.y + n.height).toBeLessThanOrEqual(c.y + 1);
+      // PLAN 3.5b: the deck header's line can change height after Never (supersets counted), so the
+      // positions are read once the layout has settled.
+      await expect
+        .poll(async () => {
+          const n = (await notice.boundingBox())!;
+          const c = (await card(page).boundingBox())!;
+          return n.y + n.height <= c.y + 1;
+        })
+        .toBe(true);
       const pos = Number((await eyebrow(page).textContent())!.match(/^(\d+)/)![1]);
       await page.getByTestId('deck-keep').tap();
       await expect(async () => {
@@ -352,7 +366,8 @@ test.describe('round 2', () => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page);
-    await page.locator('[data-concept="lower"]').tap();
+    // PLAN 3.5b: the Strength focus card holds the barbell squat (was the Legs concept).
+    await page.locator('[data-concept="strength"]').tap();
     // The squat card of the legs day.
     const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
     for (let i = 0; i < total; i++) {

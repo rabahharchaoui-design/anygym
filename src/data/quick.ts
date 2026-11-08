@@ -38,6 +38,8 @@ export const QUICK_DEPS: QuickDeps = {
   profileOf: (id, name) => profileFor(id, name),
   litRegions: (id) => Object.keys(infoForExercise(id).muscles?.shading ?? {}),
   muscleRegions: (m) => MUSCLE_MAP_REGIONS[m],
+  // PLAN 3.5b: the diversity rule counts the catalog's sure primary muscles only (never secondary).
+  primaryOf: (id) => [...new Set((infoForExercise(id).muscles?.primary ?? []).flatMap((t) => t.regions))],
 };
 
 /** The sure muscles of every exercise of a workout, as one map (null: none sure). */

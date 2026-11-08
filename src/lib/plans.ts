@@ -41,6 +41,8 @@ export type PlanBlock = {
   restSec?: number;
   /** PLAN 3.6 (SPEC 7.4): a time budget's combined stretches, done back to back as one block. */
   mobility?: true;
+  /** PLAN 3.5b round 2: a group made by Quick workout: no rest between its members, the rest after each round. */
+  roundRest?: true;
 };
 
 /**

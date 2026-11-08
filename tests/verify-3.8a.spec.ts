@@ -44,7 +44,8 @@ for (const scale of [100, 130]) {
       const errors = watchErrors(page);
       await pastIntake(page, DUMBBELLS);
       await page.getByTestId('build-card').tap();
-      await page.locator('[data-concept="push"]').tap();
+      // PLAN 3.5b: the Arms and abs finisher holds the overhead triceps extension here (was Push).
+      await page.locator('[data-concept="armsAbs"]').tap();
       const total = Number((await page.getByTestId('curate-meta').textContent())!.match(/^(\d+)/)![1]);
       const NAME = 'Dumbbell Single Arm Overhead Tricep Extension';
       for (let i = 0; i < total; i++) {

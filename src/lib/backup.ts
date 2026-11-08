@@ -215,18 +215,21 @@ const sessionSwap = shape({
 /** What a time budget left out of a workout's plan day (PLAN 3.6). */
 /** A built Quick workout's targets for one exercise (PLAN 3.5a). */
 const range = (v: unknown) => num(v) || tuple(num, num)(v);
-const quickTarget = shape({ req: { sets: num, restSec: num }, opt: { reps: range, seconds: range } });
+// PLAN 3.5b: `pair` marks a superset or circuit member (its group, its place in it, the group's size).
+const quickPair = (v: unknown) => shape({ req: { group: num, index: num, size: num } })(v) && (v as Rec).size === Math.round((v as Rec).size as number) && ((v as Rec).size as number) >= 2 && ((v as Rec).index as number) >= 0 && ((v as Rec).index as number) < ((v as Rec).size as number);
+const quickTarget = (v: unknown) => shape({ req: { sets: num, restSec: num }, opt: { reps: range, seconds: range, pair: quickPair } })(v);
 
 const dayTrim = shape({
   req: { drop: listOf(str), sets: recordOf(num) },
-  opt: { mobility: listOf(str) },
+  // PLAN 3.5b round 2: a fitted plan day's rest and pairs (additive).
+  opt: { mobility: listOf(str), rest: recordOf(num), pairs: listOf(listOf(str)) },
 });
 
 /** What every stored record must look like, per table. Exported for the tests. */
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
     req: { id: str, defaultUnit: unit, createdAt: num },
-    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }) },
+    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }), quickIdeas: shape({ req: {}, opt: { shown: listOf(str) } }) },
   }),
   gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
   // PLAN 3.5: a generated plan's definition must be one this app can run, under the row's own id.
@@ -234,7 +237,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
     req: { id: str, gymId: str, startedAt: num, imported: bool },
-    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num), trim: dayTrim, targets: recordOf(quickTarget) },
+    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num), trim: dayTrim, targets: recordOf(quickTarget), quickStyle: str },
   }),
   sets: isSet,
   runs: shape({

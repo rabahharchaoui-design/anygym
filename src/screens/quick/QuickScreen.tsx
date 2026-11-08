@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
@@ -13,7 +13,7 @@ import { startDb } from '../../db/bootstrap';
 import { getProfile } from '../../db/intake';
 import { getPlanState, weekFor } from '../../db/planState';
 import { useActiveGym } from '../../db/useActiveGym';
-import { alwaysPicks, getDislikes, readRecentAt, readRecentMuscles, recordNever, recordSwapAway, startBuilt, undoNever } from '../../db/quick';
+import { alwaysPicks, getDislikes, readDoneStyles, readLastTrained, readRecentAt, readRecentMuscles, readShown, recordNever, recordShown, recordSwapAway, startBuilt, undoNever } from '../../db/quick';
 import { getActiveSession, startWorkout } from '../../db/workouts';
 import { planById } from '../../data/plans';
 import { SWAP_DATA, countsEachSide } from '../../data/patterns';
@@ -23,29 +23,38 @@ import { easyOnAvoids, type Muscle } from '../../lib/order';
 import type { Plan } from '../../lib/plans';
 import { hints } from '../../lib/hints';
 import {
-  buildConcepts,
+  buildIdeas,
   canBuild,
   chipFor,
   conceptMinutes,
   dropSlot,
+  metaLine,
   nextSwap,
+  shortLine,
   planConcept,
   QUICK_MINUTES,
+  regroup,
+  safePairs,
   swapItem,
   whenWords,
   type Concept,
+  type ConceptId,
   type Dislikes,
   type PlanPart,
   type QuickItem,
   type QuickMinutes,
 } from '../../lib/quick';
+import { EQUIPMENT_LABEL } from '../../lib/intake/options';
 import { MiniMusclePair } from '../../components/muscles/MuscleMap';
+import { EquipmentArt } from '../intake/EquipmentArt';
 import { Deck, DeckButtons, itemLine, type Decision } from './Deck';
 import { baseInput, equipmentPath, kitOf } from './quickInput';
 import styles from './Quick.module.css';
 
 // Quick workout builds it for you (PLAN 3.5a, SPEC 20.3, G Nov 5): "How long?" chips, "Pick one" of
-// up to 3 concepts that fit the time, then "Curate it": a deck of the workout, one exercise per card.
+// up to 4 cards that differ by style (PLAN 3.5b: a style chip, the gear it uses, 3 effort dots, the
+// mini map and a specific why line), a "More ideas" row that swaps card 4 for another style, then
+// "Curate it": a deck of the workout, one exercise per card.
 // Start now on every card (Start workout once anything changed or after the last card).
 // "Pick exercises myself" keeps the old picker flow.
 
@@ -55,6 +64,11 @@ type Loaded = {
   recent: Muscle[];
   recentWhen?: string;
   plan: { plan: Plan; dayIndex: number; weekIndex: number; always: Record<string, string> } | null;
+  /** PLAN 3.5b: when each muscle last had logged sets, the styles of the last 2 quick workouts, the cards shown last time. */
+  lastTrained: Partial<Record<Muscle, number>>;
+  done: string[];
+  shown: string[];
+  now: number;
 };
 
 type Curating = { concept: Concept; items: QuickItem[]; plan?: PlanPart; index: number; tried: Record<string, string[]>; changed: boolean };
@@ -85,14 +99,15 @@ export function QuickScreen() {
     let alive = true;
     (async () => {
       await startDb();
-      const [profile, state, recent, dislikes, recentAt] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(), getDislikes(), readRecentAt()]);
+      const now = Date.now();
+      const [profile, state, recent, dislikes, recentAt, lastTrained, done, shown] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(now), getDislikes(), readRecentAt(now), readLastTrained(now), readDoneStyles(), readShown()]);
       const plan = planById(state?.planId);
       let planPart: Loaded['plan'] = null;
       if (plan && state) {
         const dayIndex = Math.max(0, Math.min(state.nextDayIndex, plan.days.length - 1));
         planPart = { plan, dayIndex, weekIndex: weekFor(state, plan.id), always: await alwaysPicks(plan.id) };
       }
-      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, ...(recentAt !== null ? { recentWhen: whenWords(recentAt, Date.now()) } : {}), plan: planPart });
+      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, ...(recentAt !== null ? { recentWhen: whenWords(recentAt, now) } : {}), plan: planPart, lastTrained, done, shown, now });
     })().catch(() => alive && setFailed(true));
     return () => {
       alive = false;
@@ -103,14 +118,49 @@ export function QuickScreen() {
   const kit = useMemo(() => (gym ? kitOf(gym) : null), [gym]);
   const base = useMemo(() => (loaded && kit ? baseInput(loaded.answers, kit, { ...loaded.dislikes, never: [...(loaded.dislikes.never ?? []), ...neverNow] }) : null), [loaded, kit, neverNow]);
   const buildable = useMemo(() => (base ? canBuild(base, QUICK_DEPS) : null), [loaded, kit]); // eslint-disable-line react-hooks/exhaustive-deps
-  const concepts = useMemo(() => {
+  const ideas = useMemo(() => {
     if (!loaded || !kit || !base) return null;
     const p = loaded.plan;
-    const plan = p ? planConcept({ plan: p.plan, dayIndex: p.dayIndex, weekIndex: p.weekIndex, minutes: chip, gym: kit, always: p.always, ...(base.never ? { never: base.never } : {}), ...(base.soft ? { soft: base.soft } : {}) }, QUICK_DEPS) : null;
-    return buildConcepts({ base, minutes: chip, recent: loaded.recent, ...(loaded.recentWhen ? { recentWhen: loaded.recentWhen } : {}), plan }, QUICK_DEPS);
+    const plan = p
+      ? planConcept({ plan: p.plan, dayIndex: p.dayIndex, weekIndex: p.weekIndex, minutes: chip, gym: kit, always: p.always, ...(base.never ? { never: base.never } : {}), ...(base.soft ? { soft: base.soft } : {}), ...(base.easyOn ? { easyOn: base.easyOn } : {}), ...(base.experience ? { experience: base.experience } : {}) }, QUICK_DEPS)
+      : null;
+    return buildIdeas(
+      { base, minutes: chip, recent: loaded.recent, ...(loaded.recentWhen ? { recentWhen: loaded.recentWhen } : {}), plan, lastTrained: loaded.lastTrained, now: loaded.now, done: loaded.done, lastShown: loaded.shown },
+      QUICK_DEPS,
+    );
     // Concepts are worked out for the chip picked; a "never" learned in the deck applies next time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, kit, chip]);
+
+  // PLAN 3.5b: More ideas swaps card 4 for another style (per chip; a new chip starts fresh).
+  const [picked, setPicked] = useState<{ chip: QuickMinutes; id: ConceptId } | null>(null);
+  const concepts = useMemo(() => {
+    if (!ideas) return null;
+    const alt = picked?.chip === chip ? ideas.more.find((c) => c.id === picked.id) : undefined;
+    if (!alt) return ideas.cards;
+    const out = [...ideas.cards];
+    out.splice(ideas.swapAt, 1, alt);
+    return out;
+  }, [ideas, picked, chip]);
+  const moreIdeas = useMemo(() => {
+    if (!ideas || !concepts) return [];
+    const original = ideas.cards[ideas.swapAt];
+    const pool = [...(original ? [original] : []), ...ideas.more];
+    return pool.filter((c) => !concepts.some((x) => x.id === c.id));
+  }, [ideas, concepts]);
+  const [swappedIn, setSwappedIn] = useState<ConceptId | null>(null);
+  const pickMore = (c: Concept) => {
+    setPicked({ chip, id: c.id });
+    setSwappedIn(c.id);
+  };
+
+  // The rotation remembers the first cards shown on each visit (once; a later chip does not count).
+  const remembered = useRef(false);
+  useEffect(() => {
+    if (!ideas || remembered.current || !ideas.cards.length) return;
+    remembered.current = true;
+    void recordShown(ideas.cards.map((c) => c.id)).catch(() => undefined);
+  }, [ideas]);
 
   // ------------------------------------------------------------ the deck
 
@@ -135,7 +185,11 @@ export function QuickScreen() {
   const replaceTop = (c: Curating, to: string): Curating => {
     const item = c.items[c.index]!;
     if (!slotNames.current.has(item.slot)) slotNames.current.set(item.slot, item.name);
-    const items = c.items.map((it, i) => (i === c.index ? swapItem(item, to, QUICK_DEPS.name(to), countsEachSide(to), slotNames.current.get(item.slot)) : it));
+    // PLAN 3.5b: a superset whose new partner no longer suits it is done as two single moves.
+    const items = safePairs(
+      c.items.map((it, i) => (i === c.index ? swapItem(item, to, QUICK_DEPS.name(to), countsEachSide(to), slotNames.current.get(item.slot)) : it)),
+      QUICK_DEPS.profile,
+    );
     return { ...c, items, changed: true, tried: { ...c.tried, [item.slot]: [...(c.tried[item.slot] ?? []), item.id] } };
   };
 
@@ -184,7 +238,7 @@ export function QuickScreen() {
     const to = swapFor(stage);
     const next: Curating = to
       ? replaceTop(stage, to)
-      : { ...stage, changed: true, items: stage.items.filter((_, i) => i !== stage.index), ...(stage.plan ? { plan: dropSlot(stage.plan, item.slot) } : {}) };
+      : { ...stage, changed: true, items: regroup(stage.items.filter((_, i) => i !== stage.index)), ...(stage.plan ? { plan: dropSlot(stage.plan, item.slot) } : {}) };
     setStage(next);
     const after = conceptMinutes({ items: next.items, ...(next.plan ? { plan: next.plan } : {}) });
     const id = Date.now();
@@ -221,7 +275,7 @@ export function QuickScreen() {
     if (!stage || !gym || !stage.items.length) return;
     setError('');
     try {
-      const session = await startBuilt(gym.id, { items: stage.items, ...(stage.plan ? { plan: stage.plan } : {}) }, chip);
+      const session = await startBuilt(gym.id, { id: stage.concept.id, items: stage.items, ...(stage.plan ? { plan: stage.plan } : {}) }, chip);
       const first = session.exerciseIds?.[0];
       // Straight to the first exercise: the first set is one tap away (SPEC 20.3: under 4 taps).
       go(first ? `/workout/${session.id}/${encodeURIComponent(first)}` : `/workout/${session.id}`, { kind: 'push', replace: true });
@@ -275,7 +329,7 @@ export function QuickScreen() {
           <div className={styles.deckHeadText}>
             <h1 className={styles.deckTitle}>{done ? 'Ready to go' : stage.concept.title}</h1>
             <p className={`${styles.deckMeta} num`} data-testid="curate-meta">
-              {stage.items.length} {stage.items.length === 1 ? 'exercise' : 'exercises'} · ~{total} min
+              {metaLine(stage.items, total)}
             </p>
           </div>
         </header>
@@ -368,9 +422,9 @@ export function QuickScreen() {
             </h2>
             {!concepts ? (
               <div className={styles.concepts}>
-                <Skeleton height={132} radius={24} />
-                <Skeleton height={132} radius={24} />
-                <Skeleton height={132} radius={24} />
+                {[0, 1, 2, 3].map((i) => (
+                  <Skeleton key={i} height={156} radius={24} />
+                ))}
               </div>
             ) : concepts.length === 0 ? (
               // Something can be built here, just not in this little time (round 2, B3).
@@ -380,11 +434,25 @@ export function QuickScreen() {
             ) : (
               <div className={styles.concepts}>
                 {concepts.map((c) => (
-                  <ConceptCard key={c.id} concept={c} onPick={() => curate(c)} />
+                  <ConceptCard key={c.id} concept={c} onPick={() => curate(c)} entering={c.id === swappedIn} reduced={reduced} />
                 ))}
               </div>
             )}
           </section>
+          {concepts && moreIdeas.length > 0 && (
+            <section className={styles.section} aria-labelledby="quick-more" data-testid="more-ideas">
+              <h2 id="quick-more" className={styles.sectionTitle}>
+                More ideas
+              </h2>
+              <div className={styles.moreChips} role="group" aria-labelledby="quick-more">
+                {moreIdeas.map((c) => (
+                  <button key={c.id} type="button" className={`${styles.moreChip} pressable`} onClick={() => pickMore(c)} data-testid={`more-${c.id}`} aria-label={`${c.title}: show it in place of the last card`}>
+                    {c.title}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           <button type="button" className={`${styles.myself} pressable`} onClick={() => void pickMyself()} data-testid="pick-myself">
             Pick exercises myself
           </button>
@@ -397,15 +465,66 @@ export function QuickScreen() {
   );
 }
 
-function ConceptCard({ concept, onPick }: { concept: Concept; onPick: () => void }) {
+/** At most this many gear drawings on a card; more say "+N". */
+const GEAR_MAX = 4;
+
+function ConceptCard({ concept, onPick, entering, reduced }: { concept: Concept; onPick: () => void; entering: boolean; reduced: boolean }) {
   const muscles = useMemo(() => workoutMuscles(concept.items.map((it) => it.id)), [concept]);
+  const gear = concept.gear.slice(0, GEAR_MAX);
+  const extra = concept.gear.length - gear.length;
+  const gearWords = concept.gear.map((g) => EQUIPMENT_LABEL[g].toLowerCase()).join(', ');
   return (
-    <button type="button" className={`${styles.concept} pressable`} onClick={onPick} data-testid={`concept-${concept.id}`} data-concept={concept.id}>
+    <button
+      type="button"
+      className={`${styles.concept} pressable`}
+      onClick={onPick}
+      data-testid={`concept-${concept.id}`}
+      data-concept={concept.id}
+      data-entering={entering || undefined}
+      data-reduced={reduced || undefined}
+    >
       <span className={styles.conceptText}>
-        <span className={styles.conceptTitle}>{concept.title}</span>
-        <span className={styles.conceptLine}>{concept.line}</span>
+        <span className={styles.conceptTop}>
+          <span className={styles.styleChip} data-testid="style-chip" data-kind={concept.chip}>
+            {concept.chip}
+          </span>
+          <span className={styles.effort} role="img" aria-label={`Effort ${concept.effort} of 3`} data-testid="effort" data-level={concept.effort}>
+            {[1, 2, 3].map((n) => (
+              <span key={n} className={styles.dot} data-on={n <= concept.effort || undefined} />
+            ))}
+          </span>
+        </span>
+        <span className={styles.conceptTitle} data-testid="concept-title">{concept.title}</span>
+        <span className={styles.conceptLine} data-testid="concept-why">
+          {concept.line}
+        </span>
         <span className={`${styles.conceptMeta} num`} data-testid="concept-meta">
-          {concept.items.length} exercises · ~{concept.minutes} min
+          {/* Each part stays on one line ("~28 min" never splits); the line breaks between parts. */}
+          {metaLine(concept.items, concept.minutes)
+            .split(' · ')
+            .map((part, i) => (
+              <Fragment key={i}>
+                {i > 0 ? ' · ' : ''}
+                <span className={styles.metaPart}>{part}</span>
+              </Fragment>
+            ))}
+        </span>
+        {shortLine(concept) && (
+          <span className={styles.conceptShort} data-testid="concept-short">
+            {shortLine(concept)}
+          </span>
+        )}
+        <span className={styles.gear} data-testid="concept-gear" role="img" aria-label={gearWords ? `Uses ${gearWords}` : 'No equipment'}>
+          {gear.length ? (
+            <>
+              {gear.map((g) => (
+                <EquipmentArt key={g} id={g} className={styles.gearIcon} />
+              ))}
+              {extra > 0 && <span className={`${styles.gearMore} num`}>+{extra}</span>}
+            </>
+          ) : (
+            <span className={styles.gearNone}>No equipment</span>
+          )}
         </span>
       </span>
       <MiniMusclePair data={muscles} className={styles.conceptMap} />

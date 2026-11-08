@@ -181,7 +181,7 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
       while (i < entries.length && entries[i]!.kind === 'pair' && entries[i]!.block === e.block) group.push(entries[i++]!);
       blocks.push(
         <li key={`pair-${e.block}`} className={styles.pair} data-warmup={e.warmup || undefined} data-mobility={e.mobility || undefined} data-testid={e.mobility ? 'mobility-group' : 'pair-group'}>
-          <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : 'Pair: back to back'}</p>
+          <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : group.length > 2 ? 'Circuit: one after another' : 'Pair: back to back'}</p>
           <ol className={styles.pairRows}>{group.map(row)}</ol>
         </li>,
       );

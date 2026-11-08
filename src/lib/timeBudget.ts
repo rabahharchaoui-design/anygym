@@ -15,7 +15,7 @@
 
 import { MIN_MOVES } from './generatorRules';
 import { isCompound, type Profile } from './order';
-import { isStretchName } from './planWorkout';
+import { finisherId, isStretchName } from './planWorkout';
 import { estimateDayMinutes, itemTarget, type Plan, type PlanBlock, type PlanDay } from './plans';
 
 /** The chips (SPEC 7.4). 75 is "75+ min": the day as planned. */
@@ -33,12 +33,19 @@ export const budgetLabel = (m: number): string => (m >= AS_PLANNED ? '75+ min' :
  * session; missing = the day as planned.
  */
 export type DayTrim = {
-  /** Blocks left out (a pair goes whole: every id of it is here). */
+  /** Exercises left out (3.6 leaves a pair out whole; 3.5b round 3: Quick may leave out one member, the other stays as a single). */
   drop: string[];
   /** New set count per exercise (a pair's items share one). */
   sets: Record<string, number>;
   /** The stretches combined into one mobility block, in day order. */
   mobility?: string[];
+  /** PLAN 3.5b round 2 (Quick "Your plan, short"): a block's rest, by any exercise id of it. */
+  rest?: Record<string, number>;
+  /**
+   * PLAN 3.5b round 2: two single blocks next to each other done back to back (a superset made to
+   * fit the time). Their rest comes after each round, like every Quick workout group.
+   */
+  pairs?: string[][];
 };
 
 export type TrimChange =
@@ -102,7 +109,14 @@ export function applyTrim(day: PlanDay, trim: DayTrim | null | undefined, weekIn
   const blocks: PlanBlock[] = [];
   let merged: PlanBlock | null = null;
   for (const b of out.blocks) {
-    if (b.items.some((it) => drop.has(it.exerciseId))) continue;
+    // 3.6 drops a pair whole. 3.5b round 3: Quick's plan card can leave out one member a gym cannot
+    // do (no sure gear); the other stays, as a single exercise with the block's sets and rest.
+    if (b.items.some((it) => drop.has(it.exerciseId))) {
+      const left = b.items.filter((it) => !drop.has(it.exerciseId));
+      if (!left.length) continue;
+      b.items = left;
+      if (left.length === 1) b.kind = 'single';
+    }
     for (const it of b.items) {
       if (!it.weeks?.length) continue;
       const row = it.weeks[Math.max(0, Math.min(it.weeks.length - 1, Math.floor(weekIndex)))]!;
@@ -110,6 +124,8 @@ export function applyTrim(day: PlanDay, trim: DayTrim | null | undefined, weekIn
     }
     const set = b.items.map((it) => trim.sets[it.exerciseId]).find((n) => n !== undefined);
     if (set !== undefined) setBlockSets(b, set);
+    const rest = b.items.map((it) => trim.rest?.[it.exerciseId]).find((n) => n !== undefined);
+    if (rest !== undefined) b.restSec = rest;
     if (b.items.length === 1 && mobility.has(b.items[0]!.exerciseId) && !b.warmup) {
       if (!merged) {
         merged = { kind: 'single', mobility: true, items: [], sets: 1, restSec: 0 };
@@ -123,6 +139,18 @@ export function applyTrim(day: PlanDay, trim: DayTrim | null | undefined, weekIn
     }
     blocks.push(b);
   }
+  // PLAN 3.5b round 2: Quick "Your plan, short" can leave the cardio finisher out (its id in drop).
+  if (out.finisher && drop.has(finisherId(out.finisher.name))) delete out.finisher;
+  // PLAN 3.5b round 2: pairs made to fit the time, from two single blocks next to each other.
+  for (const pair of trim.pairs ?? []) {
+    const at = pair.map((id) => blocks.findIndex((b) => b.items.length === 1 && b.kind === 'single' && !b.warmup && !b.mobility && b.items[0]!.exerciseId === id));
+    if (at.some((i) => i === -1) || at.some((i, k) => k > 0 && i !== at[0]! + k)) continue;
+    const members = at.map((i) => blocks[i]!);
+    const sets = Math.max(...members.map((b) => blockSets(b, weekIndex)));
+    const merged: PlanBlock = { kind: 'pair', items: members.flatMap((b) => b.items), sets, restSec: Math.max(...members.map((b) => b.restSec ?? 0)), roundRest: true };
+    for (const it of merged.items) if (it.weeks?.length) it.weeks = it.weeks.map((w) => ({ ...w, sets }));
+    blocks.splice(at[0]!, members.length, merged);
+  }
   out.blocks = blocks;
   return out;
 }
@@ -134,7 +162,7 @@ export function trimmedPlan(plan: Plan, dayIndex: number, trim: DayTrim | null |
   return { ...plan, days: plan.days.map((d, i) => (i === dayIndex ? applyTrim(d, trim, weekIndex) : d)) };
 }
 
-const isEmpty = (t: DayTrim): boolean => !t.drop.length && !Object.keys(t.sets).length && !t.mobility?.length;
+const isEmpty = (t: DayTrim): boolean => !t.drop.length && !Object.keys(t.sets).length && !t.mobility?.length && !Object.keys(t.rest ?? {}).length && !t.pairs?.length;
 
 /**
  * Trims a plan day to the budget, the SPEC 7.4 way (see the top of this file). Deterministic: the same

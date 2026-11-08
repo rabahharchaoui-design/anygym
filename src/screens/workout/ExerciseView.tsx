@@ -575,7 +575,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       {/* A pair says so from the start, before any check (round 2, P9). */}
       {entry?.kind === 'pair' && entry.pairSize > 1 && (
         <p className={`${styles.pairLine} num`} data-testid="pair-line">
-          Pair · {entry.pairIndex + 1} of {entry.pairSize}
+          {entry.pairSize > 2 ? 'Circuit' : 'Pair'} · {entry.pairIndex + 1} of {entry.pairSize}
         </p>
       )}
       {withNote && note && (

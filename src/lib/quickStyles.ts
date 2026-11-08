@@ -1,0 +1,653 @@
+// Quick workout ideas: diverse and full (PLAN 3.5b, G Nov 8, extends 3.5a and SPEC 20.3). Pure: no
+// JSON, no Dexie, no React. Three things live here:
+//   1. STYLES: how a workout is done, not just what it trains (Full body circuit, Superset pump,
+//      Strength focus, Cardio and core, Mobility reset, Arms and abs finisher, Easy start), each with
+//      its slots, its prescriptions and the honest test of its name;
+//   2. DENSITY: the minutes decide the count (15 min: 3 to 4 moves as a circuit, 30: 5 to 6 with 2
+//      supersets, 45: 6 to 7, 60: 7 to 9), and the time is fitted with supersets, rounds, sets and
+//      rest through the one estimator (plans.ts estimateDayMinutes over quickDayOf);
+//   3. the diversity rule and the rotation: no two cards share more than half their primary muscles
+//      (the catalog's primary muscles), a style done in the last 2 quick workouts never comes first,
+//      and the same 4 cards never show twice in a row.
+// Nothing here pads: fewer sure moves than a style needs is a smaller card or no card.
+import type { GoalId } from './intake/options';
+import type { Range, Slot } from './generatorRules';
+import { generateDay, type DayItem, type GeneratorDeps, type GeneratorInput } from './generator';
+import { canPair, isCompound, isHeavy, type Profile } from './order';
+import { estimateDayMinutes, type PlanDay } from './plans';
+import type { Pattern, Requires } from './swap';
+
+export type StyleId = 'circuit' | 'pump' | 'strength' | 'cardioCore' | 'mobility' | 'armsAbs' | 'easy';
+
+/** The rotation's own order (cards 3 and 4 walk it, the least recently shown and done first). */
+export const STYLE_ORDER: readonly StyleId[] = ['circuit', 'pump', 'strength', 'armsAbs', 'easy', 'cardioCore', 'mobility'];
+
+/** A grouped item: items sharing `group` are done back to back (2: a superset, 3 or more: a circuit). */
+export type GroupedItem = DayItem & { group?: number };
+
+// ---------------------------------------------------------------- the one estimate
+
+type DayRow = { id: string; name: string; sets: number; reps?: Range | number; seconds?: Range | number; restSec: number; group?: number };
+
+/**
+ * Quick items as a plan day, for the one estimator (SPEC 7.4): a run of items sharing a group is one
+ * block (a superset or a circuit: its rest once per round), anything else a single.
+ */
+export function quickDayOf(items: readonly DayRow[]): PlanDay {
+  const blocks: PlanDay['blocks'] = [];
+  for (let i = 0; i < items.length; ) {
+    const g = items[i]!.group;
+    const run: DayRow[] = [items[i++]!];
+    while (g !== undefined && i < items.length && items[i]!.group === g) run.push(items[i++]!);
+    blocks.push({
+      kind: run.length > 1 ? 'pair' : 'single',
+      sets: Math.max(...run.map((it) => it.sets)),
+      restSec: Math.max(...run.map((it) => it.restSec)),
+      items: run.map((it) => ({ exerciseId: it.id, name: it.name, ...(it.reps !== undefined ? { reps: it.reps } : {}), ...(it.seconds !== undefined ? { seconds: it.seconds } : {}) })),
+    });
+  }
+  return { n: 1, name: 'Quick workout', blocks };
+}
+
+/** Minutes of quick items: the workout header's own estimate. */
+export const quickMinutes = (items: readonly DayRow[]): number => estimateDayMinutes(quickDayOf(items));
+
+/** How a card is done: supersets (groups of 2) and circuits (3 or more), from its items. */
+export function structureOf(items: readonly { group?: number; sets: number }[]): { supersets: number; circuits: number; rounds: number | null } {
+  const sizes = new Map<number, number>();
+  for (const it of items) if (it.group !== undefined) sizes.set(it.group, (sizes.get(it.group) ?? 0) + 1);
+  const all = [...sizes.values()];
+  const supersets = all.filter((n) => n === 2).length;
+  const circuits = all.filter((n) => n >= 3).length;
+  // One circuit holding the whole workout: its rounds are the workout's.
+  const whole = circuits === 1 && supersets === 0 && items.length > 0 && items.every((it) => it.group === items[0]!.group);
+  return { supersets, circuits, rounds: whole ? Math.max(...items.map((it) => it.sets)) : null };
+}
+
+// ---------------------------------------------------------------- density (G's counts)
+
+export type Density = { min: number; max: number; supersets: number };
+
+/** 15: 3 to 4 moves (a circuit) · 30: 5 to 6 with 2 supersets · 45: 6 to 7 · 60: 7 to 9. */
+export function densityFor(minutes: number): Density {
+  // A circuit at 15 (the pump does its 4 moves as 2 supersets).
+  if (minutes <= 20) return { min: 3, max: 4, supersets: 2 };
+  if (minutes <= 37) return { min: 5, max: 6, supersets: 2 };
+  if (minutes <= 52) return { min: 6, max: 7, supersets: 3 };
+  return { min: 7, max: 9, supersets: 4 };
+}
+
+/** A card is within this many minutes of the chip (G: "~30 min" means about 30). */
+export const SLACK = 2;
+
+// ---------------------------------------------------------------- styles
+
+type Shape = 'circuit' | 'tri' | 'pairs' | 'straight';
+
+export type StyleDef = {
+  id: StyleId;
+  title: string;
+  /** The chip when the structure does not decide it (Strength, Low impact). */
+  chip?: 'Strength' | 'Low impact';
+  /** 1 to 3 dots: how hard the style is meant to be. */
+  effort: 1 | 2 | 3;
+  /** Different body areas of the same style; the first one that keeps the cards diverse is used. */
+  variants: ReadonlyArray<{ key: string; slots: readonly Slot[] }>;
+  /** Shorter than this, the style is not offered (Strength focus needs its long rest). */
+  minMinutes?: number;
+  shape: (minutes: number) => Shape;
+  /** The goal its prescriptions come from (Strength focus trains like strength). */
+  goals?: readonly GoalId[];
+  /** Only the slots' own patterns (a small moves style never falls back to a row). */
+  noFallback?: true;
+  /** Fewer moves than the minutes would allow (Strength focus: fewer, heavier). */
+  maxMoves?: (minutes: number) => number;
+  /** Reps for every lift that is not timed, compounds and the rest. */
+  reps?: { compound: Range; other: Range };
+  /** Starting sets (rounds for a circuit); the fit adds or takes from there. */
+  sets?: (newer: boolean) => number;
+  maxSets: (newer: boolean) => number;
+  /** Rest after a round of a group, after a single small move, and the least either may get. */
+  rest: { group: number; single: number; floor: number; cap: number };
+  /** May this exercise be in it at all (Easy start: low impact only). */
+  only?: (p: Profile, requires: Requires | null) => boolean;
+  /** Is its name true of what it holds. */
+  honest: (ps: readonly Profile[], items: readonly { group?: number }[]) => boolean;
+};
+
+const s = (pattern: Pattern, variant = false): Slot => (variant ? { pattern, variant: true } : { pattern });
+
+const LEGS: ReadonlySet<Pattern> = new Set<Pattern>(['squat', 'hinge', 'lunge', 'quads isolation', 'hamstrings isolation', 'glutes', 'calves']);
+const PUSH: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal push', 'vertical push', 'chest isolation', 'triceps']);
+const PULL: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal pull', 'vertical pull', 'rear delt', 'biceps']);
+const ARMS: ReadonlySet<Pattern> = new Set<Pattern>(['biceps', 'triceps', 'lateral delt', 'rear delt']);
+const has = (ps: readonly Profile[], set: ReadonlySet<Pattern>) => ps.some((p) => p.pattern !== null && set.has(p.pattern));
+const grouped = (items: readonly { group?: number }[], size: (n: number) => boolean) => [...structureCounts(items).values()].some(size);
+function structureCounts(items: readonly { group?: number }[]): Map<number, number> {
+  const m = new Map<number, number>();
+  for (const it of items) if (it.group !== undefined) m.set(it.group, (m.get(it.group) ?? 0) + 1);
+  return m;
+}
+
+/**
+ * Low impact: no barbell, nothing hanging from or pressing your own bodyweight, and a big lift only
+ * on a machine that holds the path for you (a leg press, never a loaded squat or hinge).
+ */
+export function lowImpact(p: Profile, requires: Requires | null): boolean {
+  if (!requires || p.role !== 'lift' || p.advanced) return false;
+  const hard = new Set(['barbell_rack', 'pull_up_bar', 'dip_station']);
+  if (!requires.every((g) => !g.every((id) => hard.has(id)))) return false;
+  return !isHeavy(p) || requires.some((g) => g.every((id) => id === 'leg_press'));
+}
+
+const timedOr = (newer: boolean, a: number, b: number) => (newer ? a : b);
+
+export const STYLES: Record<StyleId, StyleDef> = {
+  circuit: {
+    id: 'circuit',
+    title: 'Full body circuit',
+    effort: 3,
+    variants: [
+      // Legs, a push and a pull in every round; more moves wait at the end for the longer times.
+      { key: 'a', slots: [s('squat'), s('horizontal push'), s('horizontal pull'), s('hinge'), s('vertical push'), s('vertical pull'), s('core'), s('quads isolation'), s('lateral delt'), s('hamstrings isolation'), s('biceps'), s('triceps'), s('calves')] },
+      { key: 'b', slots: [s('squat'), s('vertical push'), s('vertical pull'), s('quads isolation'), s('horizontal push'), s('horizontal pull'), s('core'), s('calves'), s('lateral delt'), s('triceps'), s('biceps')] },
+      { key: 'c', slots: [s('hinge'), s('horizontal push'), s('horizontal pull'), s('hamstrings isolation'), s('vertical push'), s('vertical pull'), s('core'), s('glutes'), s('rear delt'), s('triceps')] },
+      { key: 'd', slots: [s('quads isolation'), s('horizontal push'), s('horizontal pull'), s('hamstrings isolation'), s('vertical push'), s('vertical pull'), s('calves'), s('core'), s('lateral delt')] },
+    ],
+    shape: (m) => (m <= 20 ? 'circuit' : 'tri'),
+    reps: { compound: [8, 12], other: [10, 15] },
+    sets: (newer) => timedOr(newer, 2, 3),
+    maxSets: (newer) => timedOr(newer, 3, 5),
+    rest: { group: 60, single: 60, floor: 45, cap: 120 },
+    // 3.5b round 2 (Codex #1, SPEC 22 rules 5 and 6): a heavy lift is never done inside a circuit.
+    only: (p) => !isHeavy(p),
+    honest: (ps, items) => has(ps, LEGS) && has(ps, PUSH) && has(ps, PULL) && grouped(items, (n) => n >= 2),
+  },
+  pump: {
+    id: 'pump',
+    title: 'Superset pump',
+    effort: 2,
+    variants: [
+      { key: 'upper', slots: [s('chest isolation'), s('rear delt'), s('lateral delt'), s('biceps'), s('triceps'), s('horizontal push'), s('horizontal pull'), s('biceps', true), s('triceps', true)] },
+      { key: 'legs', slots: [s('quads isolation'), s('hamstrings isolation'), s('glutes'), s('calves'), s('core'), s('core', true), s('hinge')] },
+      { key: 'mix', slots: [s('horizontal push'), s('horizontal pull'), s('quads isolation'), s('hamstrings isolation'), s('lateral delt'), s('biceps'), s('triceps'), s('core'), s('calves')] },
+      // Shoulders and legs: clear of a circuit's chest and back and of an arms card.
+      { key: 'shoulders', slots: [s('lateral delt'), s('quads isolation'), s('rear delt'), s('calves'), s('core'), s('calves', true), s('core', true), s('lateral delt', true)] },
+    ],
+    shape: () => 'pairs',
+    noFallback: true,
+    reps: { compound: [8, 12], other: [10, 15] },
+    maxSets: (newer) => timedOr(newer, 3, 5),
+    rest: { group: 60, single: 60, floor: 45, cap: 90 },
+    only: (p) => !isHeavy(p),
+    honest: (_ps, items) => grouped(items, (n) => n === 2),
+  },
+  strength: {
+    id: 'strength',
+    title: 'Strength focus',
+    chip: 'Strength',
+    effort: 3,
+    variants: [
+      { key: 'legs', slots: [s('squat'), s('hinge'), s('lunge'), s('glutes')] },
+      { key: 'upper', slots: [s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull')] },
+      { key: 'full', slots: [s('squat'), s('horizontal push'), s('horizontal pull'), s('hinge'), s('vertical push')] },
+      // The back of the legs: deadlifts and hip thrusts.
+      { key: 'posterior', slots: [s('hinge'), s('hinge', true), s('glutes'), s('hinge', true)] },
+    ],
+    minMinutes: 30,
+    shape: () => 'straight',
+    goals: ['strength'],
+    noFallback: true,
+    // Fewer moves, heavier, longer rest: never more than this, whatever the minutes.
+    maxMoves: (m) => (m <= 37 ? 3 : m <= 52 ? 4 : 5),
+    maxSets: () => 5,
+    rest: { group: 150, single: 150, floor: 150, cap: 180 },
+    honest: (ps) => ps.length >= 3 && ps.every((p) => isCompound(p)),
+  },
+  cardioCore: {
+    id: 'cardioCore',
+    title: 'Cardio and core',
+    effort: 2,
+    // No cardio move has a demo we are sure of yet: with only abs moves the name would not be true.
+    variants: [{ key: 'a', slots: [s('core'), s('core', true), s('core', true), s('core', true)] }],
+    shape: () => 'circuit',
+    noFallback: true,
+    maxSets: () => 4,
+    rest: { group: 60, single: 45, floor: 30, cap: 90 },
+    honest: (ps) => ps.some((p) => p.role === 'cardio') && ps.some((p) => p.pattern === 'core'),
+  },
+  mobility: {
+    id: 'mobility',
+    title: 'Mobility reset',
+    chip: 'Low impact',
+    effort: 1,
+    // Stretches only, and none has a demo we are sure of yet: never offered until one has.
+    variants: [{ key: 'a', slots: [s('core')] }],
+    shape: () => 'circuit',
+    noFallback: true,
+    maxSets: () => 3,
+    rest: { group: 30, single: 30, floor: 15, cap: 60 },
+    honest: (ps) => ps.length >= 3 && ps.every((p) => p.role === 'stretch' || p.role === 'dynamic'),
+  },
+  armsAbs: {
+    id: 'armsAbs',
+    title: 'Arms and abs finisher',
+    effort: 2,
+    // Arms (biceps and triceps) and abs only: true to its name, and clear of a pump's shoulders and chest.
+    variants: [
+      { key: 'a', slots: [s('biceps'), s('triceps'), s('core'), s('biceps', true), s('triceps', true), s('core', true), s('biceps', true), s('triceps', true)] },
+      { key: 'b', slots: [s('biceps'), s('triceps'), s('core'), s('lateral delt'), s('rear delt'), s('core', true), s('biceps', true), s('triceps', true)] },
+    ],
+    shape: (m) => (m <= 20 ? 'circuit' : 'pairs'),
+    noFallback: true,
+    reps: { compound: [8, 12], other: [10, 15] },
+    maxSets: (newer) => timedOr(newer, 3, 5),
+    rest: { group: 45, single: 45, floor: 30, cap: 90 },
+    honest: (ps, items) =>
+        ps.every((p) => p.pattern !== null && (ARMS.has(p.pattern) || p.pattern === 'core')) && ps.some((p) => p.pattern === 'core') && ps.some((p) => p.pattern === 'biceps' || p.pattern === 'triceps') && grouped(items, (n) => n >= 2),
+  },
+  easy: {
+    id: 'easy',
+    title: 'Easy start',
+    chip: 'Low impact',
+    effort: 1,
+    variants: [
+      { key: 'full', slots: [s('squat'), s('horizontal pull'), s('horizontal push'), s('vertical pull'), s('hamstrings isolation'), s('quads isolation'), s('core'), s('lateral delt'), s('core', true)] },
+      { key: 'upper', slots: [s('horizontal pull'), s('horizontal push'), s('vertical pull'), s('lateral delt'), s('biceps'), s('triceps'), s('core'), s('rear delt'), s('core', true)] },
+      { key: 'legs', slots: [s('squat'), s('quads isolation'), s('hamstrings isolation'), s('glutes'), s('calves'), s('core'), s('core', true)] },
+    ],
+    shape: (m) => (m <= 20 ? 'circuit' : 'straight'),
+    reps: { compound: [10, 12], other: [10, 15] },
+    sets: () => 2,
+    maxSets: () => 3,
+    rest: { group: 60, single: 60, floor: 45, cap: 90 },
+    only: lowImpact,
+    honest: (ps) => ps.length >= 3,
+  },
+};
+
+// ---------------------------------------------------------------- building one card
+
+export type BuildDeps = GeneratorDeps & {
+  usable: (id: string) => boolean;
+  requires: (id: string) => Requires | null;
+};
+
+export type BuildSpec = {
+  name: string;
+  slots: readonly Slot[];
+  shape: Shape;
+  input: GeneratorInput;
+  /** The most moves to start from. */
+  want: number;
+  density: Density;
+  reps?: StyleDef['reps'];
+  sets?: number;
+  maxSets: number;
+  rest: StyleDef['rest'];
+  /** Rest after a heavy or big compound done on its own is never shortened (SPEC 22 rule 6). */
+  only?: (p: Profile, requires: Requires | null) => boolean;
+};
+
+type Work = GroupedItem & { profile: Profile; keepRest: boolean };
+
+const minutesOfWork = (items: readonly Work[], deps: BuildDeps) => quickMinutes(items.map((it) => ({ ...it, name: deps.name(it.id) })));
+
+const areaOf = (p: Profile): number => (p.pattern === null ? 3 : LEGS.has(p.pattern) ? 0 : PUSH.has(p.pattern) ? 1 : PULL.has(p.pattern) ? 2 : 3);
+
+/** Legs, push, pull, legs, push, pull... then the rest (abs, shoulders), each area in its own order. */
+function interleave<T extends { profile: Profile }>(items: readonly T[]): T[] {
+  const buckets: T[][] = [[], [], [], []];
+  for (const it of items) buckets[areaOf(it.profile)]!.push(it);
+  const out: T[] = [];
+  while (buckets.slice(0, 3).some((b) => b.length)) for (const b of buckets.slice(0, 3)) if (b.length) out.push(b.shift()!);
+  return [...out, ...buckets[3]!];
+}
+
+/** Groups the items the style's way; a group's members get the same sets and the group's rest. */
+function groupUp(items: Work[], shape: Shape, spec: BuildSpec): Work[] {
+  for (const it of items) delete it.group;
+  if (shape === 'straight') return items;
+  if (shape === 'circuit' || shape === 'tri') {
+    // 3.5b round 2 (Codex #1): a heavy lift is never in a circuit: it goes first, on its own, at its own rest.
+    const heavy = items.filter((x) => isHeavy(x.profile));
+    const rest = items.filter((x) => !isHeavy(x.profile));
+    if (heavy.length) return [...heavy, ...groupUp(rest, shape, spec)];
+    // Legs, a push and a pull take turns, so every round works the whole body and no muscle goes twice in a row.
+    items = interleave(items);
+    const sizes: number[] = [];
+    if (shape === 'circuit') sizes.push(items.length);
+    else {
+      // Circuits of 3; a leftover of 1 joins the last one, of 2 is a superset.
+      let n = items.length;
+      while (n > 0) {
+        if (n === 4) {
+          sizes.push(4);
+          n = 0;
+        } else if (n === 2) {
+          sizes.push(2);
+          n = 0;
+        } else {
+          sizes.push(Math.min(3, n));
+          n -= Math.min(3, n);
+        }
+      }
+    }
+    let at = 0;
+    sizes.forEach((size, g) => {
+      const run = items.slice(at, at + size);
+      at += size;
+      if (run.length < 2) return;
+      const rounds = Math.max(...run.map((x) => x.sets));
+      for (const it of run) {
+        it.group = g;
+        it.sets = rounds;
+        it.restSec = spec.rest.group;
+      }
+    });
+    return items;
+  }
+  // Supersets: two moves that share no muscle, never a heavy lift, as many as the minutes ask for.
+  const out: Work[] = [];
+  const used = new Set<number>();
+  let g = 0;
+  for (let i = 0; i < items.length; i++) {
+    if (used.has(i)) continue;
+    const a = items[i]!;
+    used.add(i);
+    out.push(a);
+    if (g >= spec.density.supersets || isHeavy(a.profile)) continue;
+    const j = items.findIndex((b, k) => k > i && !used.has(k) && !isHeavy(b.profile) && canPair(a.profile, b.profile));
+    if (j === -1) continue;
+    const b = items[j]!;
+    used.add(j);
+    const sets = Math.max(a.sets, b.sets);
+    a.sets = sets;
+    b.sets = sets;
+    a.group = g;
+    b.group = g;
+    const rest = isCompound(a.profile) || isCompound(b.profile) ? Math.max(spec.rest.group, 90) : spec.rest.group;
+    a.restSec = rest;
+    b.restSec = rest;
+    out.push(b);
+    g++;
+  }
+  return out;
+}
+
+/** The units of a grouped list: each group once, each single once, in order. */
+function unitsOf(items: readonly Work[]): Work[][] {
+  const out: Work[][] = [];
+  for (const it of items) {
+    const last = out[out.length - 1];
+    if (it.group !== undefined && last && last[0]!.group === it.group) last.push(it);
+    else out.push([it]);
+  }
+  return out;
+}
+
+const restMovable = (u: readonly Work[]) => u.length > 1 || !u[0]!.keepRest;
+
+/**
+ * One card: the slots filled the plan generator's way (gear, never, go easy on, loved, soft dislikes,
+ * a sure demo), grouped the style's way, then fitted to the minutes through the one estimate: rest
+ * first, then sets, then the last moves (never under 3) when it is long; sets, then rest when it is
+ * short. null when fewer than 3 sure moves fit, or it still cannot fit.
+ */
+export type Built = {
+  items: GroupedItem[];
+  minutes: number;
+  /** Still more than 2 min under the minutes: the gym had no more sure moves, or every set and rest is at its cap. */
+  short?: 'moves' | 'caps';
+};
+
+export function buildCard(spec: BuildSpec, deps: BuildDeps, budget: number): Built | null {
+  const usable = (id: string) => deps.usable(id) && (!spec.only || spec.only(deps.profile(id), deps.requires(id)));
+  const r = generateDay({ ...spec.input, minutes: undefined }, { ...deps, usable }, { name: spec.name, slots: spec.slots, want: spec.want });
+  if (!r.ok) return null;
+  let items: Work[] = r.items.map((it) => {
+    const profile = deps.profile(it.id);
+    // A heavy lift keeps its prescribed rest always (SPEC 22 rule 6); other compounds keep theirs outside circuits.
+    const w: Work = { ...it, profile, keepRest: isHeavy(profile) || (isCompound(profile) && spec.shape !== 'circuit' && spec.shape !== 'tri') };
+    if (spec.reps && w.reps) w.reps = isCompound(profile) ? [...spec.reps.compound] : [...spec.reps.other];
+    if (spec.sets !== undefined) w.sets = spec.sets;
+    w.sets = Math.min(w.sets, spec.maxSets);
+    if (!w.keepRest) w.restSec = spec.rest.single;
+    return w;
+  });
+  items = groupUp(items, spec.shape, spec);
+  // A card never says more than the minutes picked ("~17 min" on the 15 chip reads wrong).
+  const over = () => minutesOfWork(items, deps) > budget;
+  const fits = (fn: () => void): boolean => {
+    const before = items.map((it) => ({ ...it }));
+    fn();
+    if (over()) {
+      items = before;
+      return false;
+    }
+    return true;
+  };
+
+  // Long: tighter rest, then fewer sets (small moves first), then the last moves go.
+  for (let guard = 0; over() && guard < 200; guard++) {
+    const units = unitsOf(items);
+    const rest = units.filter((u) => restMovable(u) && u[0]!.restSec - 15 >= spec.rest.floor);
+    if (rest.length) {
+      for (const u of rest) for (const it of u) it.restSec -= 15;
+      continue;
+    }
+    const cut = [...units].reverse().filter((u) => u[0]!.sets > 2).sort((a, b) => Number(isCompound(a[0]!.profile)) - Number(isCompound(b[0]!.profile)) || b[0]!.sets - a[0]!.sets)[0];
+    if (cut) {
+      for (const it of cut) it.sets--;
+      continue;
+    }
+    if (items.length <= 3) break;
+    // 3.5b round 2: one heavy lift is plenty for a short workout: a second one goes before any light
+    // move (its long rest would cost two light moves that pair up).
+    const heavy = items.filter((x) => isHeavy(x.profile));
+    const out = heavy.length > 1 ? heavy[heavy.length - 1]! : items[items.length - 1]!;
+    items = groupUp(items.filter((x) => x !== out), spec.shape, spec);
+  }
+  if (over()) return null;
+
+  // Short: one more set or round where it still fits, then a little more rest.
+  for (let guard = 0; minutesOfWork(items, deps) < budget - SLACK && guard < 200; guard++) {
+    const units = unitsOf(items);
+    let grew = false;
+    for (const u of units) {
+      if (u[0]!.sets >= spec.maxSets) continue;
+      if (fits(() => unitsOf(items).find((x) => x[0]!.id === u[0]!.id)!.forEach((it) => it.sets++))) {
+        grew = true;
+        break;
+      }
+    }
+    if (grew) continue;
+    for (const u of units) {
+      if (!restMovable(u) || u[0]!.restSec + 15 > spec.rest.cap) continue;
+      if (fits(() => unitsOf(items).find((x) => x[0]!.id === u[0]!.id)!.forEach((it) => (it.restSec += 15)))) {
+        grew = true;
+        break;
+      }
+    }
+    if (!grew) break;
+  }
+
+  // Groups numbered in order; a group of one is a single.
+  const sizes = structureCounts(items);
+  const renumber = new Map<number, number>();
+  const out: GroupedItem[] = items.map((w) => {
+    const { profile: _p, keepRest: _k, ...it } = w;
+    void _p;
+    void _k;
+    if (it.group === undefined || (sizes.get(it.group) ?? 0) < 2) {
+      delete it.group;
+      return it;
+    }
+    if (!renumber.has(it.group)) renumber.set(it.group, renumber.size);
+    it.group = renumber.get(it.group)!;
+    return it;
+  });
+  const minutes = quickMinutes(out.map((it) => ({ ...it, name: deps.name(it.id) })));
+  if (minutes >= budget - SLACK) return { items: out, minutes };
+  return { items: out, minutes, short: r.items.length < spec.want ? 'moves' : 'caps' };
+}
+
+/** The spec of a style variant for this person and these minutes. */
+export function styleSpec(style: StyleDef, variant: StyleDef['variants'][number], input: GeneratorInput, minutes: number): BuildSpec {
+  const newer = input.experience === 'new' || input.experience === 'months' || input.experience === undefined || input.experience === 'break';
+  const density = densityFor(minutes);
+  const want = Math.min(density.max, style.maxMoves?.(minutes) ?? density.max);
+  const spec: BuildSpec = {
+    name: `${style.id}-${variant.key}`,
+    slots: variant.slots,
+    shape: style.shape(minutes),
+    input: { ...input, ...(style.goals ? { goals: style.goals } : {}), ...(style.noFallback ? { noFallback: true as const } : {}) },
+    want,
+    density: style.maxMoves ? { ...density, min: Math.min(density.min, want) } : density,
+    maxSets: style.maxSets(newer),
+    rest: style.rest,
+  };
+  if (style.reps) spec.reps = style.reps;
+  if (style.sets) spec.sets = style.sets(newer);
+  if (style.only) spec.only = style.only;
+  return spec;
+}
+
+// ---------------------------------------------------------------- diversity and rotation
+
+/**
+ * The diversity rule (G, PLAN 3.5b round 2: the strict reading): two cards may share at most half
+ * the primary muscles of either one (shared × 2 ≤ the smaller card's count). A card with no sure
+ * primary muscle cannot show it is different: never next to another. Under this rule some gyms can
+ * only fill 3 cards honestly (chooseBatch shows 3 then, never a near copy).
+ */
+export function diverse(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size === 0 || b.size === 0) return false;
+  let shared = 0;
+  for (const m of a) if (b.has(m)) shared++;
+  return 2 * shared <= Math.min(a.size, b.size);
+}
+
+export type Pickable = { id: string; primary: ReadonlySet<string> };
+
+export type BatchInput<T extends Pickable> = {
+  plan: T | null;
+  /** "Hit what's fresh", variants in order (the first that keeps the cards diverse). */
+  fresh: readonly T[];
+  styles: ReadonlyMap<StyleId, readonly T[]>;
+  /** Styles of the last 2 quick workouts done (logged sets), latest first. */
+  done: readonly string[];
+  /** The card ids shown last time, in order. */
+  lastShown: readonly string[];
+  /** Beginner or Go easy on: one Easy start (Low impact) card always. */
+  needEasy: boolean;
+  max?: number;
+};
+
+export type Batch<T> = { cards: T[]; more: T[]; /** The card a More ideas chip replaces (or cards.length: it is added). */ swapAt: number };
+
+const sameIds = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x) => b.includes(x));
+
+/** Styles least recently done first, then the ones not shown last time, then the rotation order. */
+export function rankStyles(available: readonly StyleId[], done: readonly string[], lastShown: readonly string[]): StyleId[] {
+  return [...available].sort((a, b) => Number(done.includes(a)) - Number(done.includes(b)) || Number(lastShown.includes(a)) - Number(lastShown.includes(b)) || STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b));
+}
+
+/**
+ * The 4 cards: the plan day first (when a plan is active), then "Hit what's fresh" (when there are
+ * logged sets), then styles in rotation, each kept only when it is diverse from every card before it.
+ * Beginners and Go easy on always get an Easy start; a style done in the last 2 quick workouts never
+ * leads the styles; the same 4 never show twice in a row while another diverse 4 exists.
+ */
+export function chooseBatch<T extends Pickable>(input: BatchInput<T>): Batch<T> {
+  const max = input.max ?? 4;
+  const okWith = (c: T, others: readonly T[]) => others.every((o) => o === c || diverse(c.primary, o.primary));
+  const fixed: T[] = [];
+  if (input.plan) fixed.push(input.plan);
+  const fresh = input.fresh.find((f) => okWith(f, fixed));
+  if (fresh) fixed.push(fresh);
+  const available = STYLE_ORDER.filter((id) => (input.styles.get(id) ?? []).length > 0);
+  const ranked = rankStyles(available, input.done, input.lastShown);
+  const variantFor = (id: StyleId, others: readonly T[]) => (input.styles.get(id) ?? []).find((v) => okWith(v, others));
+
+  // Every combination is tried (a greedy pick can block a valid fourth card): the most cards first,
+  // then the styles in rank order, each style's variants in order.
+  type Accept = (cards: readonly T[]) => boolean;
+  // 3.5b round 2: among the largest diverse sets that keep the rotation's first style, the one that
+  // leaves the most styles for More ideas wins (so the row below the cards has something to offer).
+  const moreCount = (combo: readonly T[]): number => {
+    const others = combo.length >= max && combo.length > fixed.length ? combo.slice(0, -1) : combo;
+    return ranked.filter((id) => !combo.some((c) => c.id === id) && !!variantFor(id, others)).length;
+  };
+  const search = (accept: Accept): T[] => {
+    let size = fixed.length;
+    let found: T[][] = [];
+    const cur = [...fixed];
+    const rec = (i: number) => {
+      if (found.length >= 400) return;
+      if (cur.length === max || i === ranked.length) {
+        if (!accept(cur)) return;
+        if (cur.length > size || !found.length) {
+          size = Math.max(size, cur.length);
+          found = cur.length >= size ? [[...cur]] : found;
+        } else if (cur.length === size) found.push([...cur]);
+        return;
+      }
+      if (found.length && cur.length + (ranked.length - i) < size) return;
+      for (const v of input.styles.get(ranked[i]!) ?? []) {
+        if (!okWith(v, cur)) continue;
+        cur.push(v);
+        rec(i + 1);
+        cur.pop();
+      }
+      rec(i + 1);
+    };
+    rec(0);
+    if (!found.length) return [...fixed];
+    let best = found[0]!;
+    let bestMore = moreCount(best);
+    // With no plan and no fresh card the rotation's first style keeps card 1. With them only cards 3
+    // and 4 rotate, and More ideas is the way to every other style: room for it wins.
+    const lead = fixed.length ? undefined : best[0]?.id;
+    for (const f of found.slice(1)) {
+      if (lead !== undefined && f[0]?.id !== lead) continue;
+      const n = moreCount(f);
+      if (n > bestMore) {
+        best = f;
+        bestMore = n;
+      }
+    }
+    return best;
+  };
+  const easyIn = (cs: readonly T[]) => cs.some((c) => c.id === 'easy');
+  const any: Accept = () => true;
+  let cards = search(any);
+  // Beginners and Go easy on: one Easy start whenever one fits with the rest.
+  const easyRule: Accept = input.needEasy && easyIn(search((cs) => easyIn(cs))) ? easyIn : any;
+  if (easyRule !== any) cards = search(easyRule);
+  // Never the same 4 twice in a row, while another set of as many diverse cards exists.
+  if (sameIds(cards.map((c) => c.id), input.lastShown)) {
+    const next = search((cs) => easyRule(cs) && !sameIds(cs.map((c) => c.id), input.lastShown));
+    if (next.length >= cards.length) cards = next;
+  }
+  // A style done in the last 2 quick workouts never leads the styles (the order otherwise stays).
+  const styles = cards.slice(fixed.length);
+  styles.sort((a, b) => Number(input.done.includes(a.id)) - Number(input.done.includes(b.id)));
+  cards = [...fixed, ...styles];
+
+  // More ideas: every other style that is diverse from the cards it would sit with.
+  let swapAt = cards.length >= max ? cards.length - 1 : cards.length;
+  if (swapAt < cards.length && (swapAt < fixed.length || (input.needEasy && cards[swapAt]!.id === 'easy'))) {
+    const at = cards.findLastIndex((c, i) => i >= fixed.length && !(input.needEasy && c.id === 'easy'));
+    swapAt = at === -1 ? cards.length : at;
+  }
+  if (swapAt >= max) swapAt = cards.length;
+  const others = cards.filter((_, i) => i !== swapAt);
+  const more: T[] = [];
+  for (const id of STYLE_ORDER) {
+    if (cards.some((c) => c.id === id)) continue;
+    const v = variantFor(id, others);
+    if (v) more.push(v);
+  }
+  return { cards, more, swapAt };
+}
