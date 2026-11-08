@@ -1,0 +1,141 @@
+{
+  "15:circuit": {
+    "meta": "4 exercises · 3 rounds · ~14 min",
+    "why": "Legs, push and pull, one after another",
+    "items": [
+      "1 of 4 | Never show | Hyperextension Roman Chair Back Extension | 3 sets × 10 to 15 reps | Isolates your lower back",
+      "2 of 4 | Never show | Dumbbell Bench Press | 3 sets × 8 to 12 reps | A big lift for your chest",
+      "3 of 4 | Never show | Cable Seated Close Grip Row | 3 sets × 8 to 12 reps | A big lift for your back",
+      "4 of 4 | Never show | Overhead Press | 3 sets × 8 to 12 reps | A big lift for your shoulders"
+    ],
+    "ready": "Hyperextension Roman Chair Back Extension\n3 sets × 10 to 15 reps\nDumbbell Bench Press\n3 sets × 8 to 12 reps\nCable Seated Close Grip Row\n3 sets × 8 to 12 reps\nOverhead Press\n3 sets × 8 to 12 reps"
+  },
+  "15:pump": {
+    "meta": "4 exercises · 2 supersets · ~15 min",
+    "why": "Moves in pairs, short rest",
+    "items": [
+      "1 of 4 | Never show | Barbell Bicep Curl | 3 sets × 10 to 15 reps | Isolates your biceps",
+      "2 of 4 | Never show | Machine Seated Chest Fly | 3 sets × 10 to 15 reps | Isolates your chest",
+      "3 of 4 | Never show | Dumbbell Lateral Raise | 2 sets × 10 to 15 reps | Isolates your shoulders",
+      "4 of 4 | Never show | Machine Seated Reverse Fly | 2 sets × 10 to 15 reps | Isolates your rear shoulders"
+    ],
+    "ready": "Barbell Bicep Curl\n3 sets × 10 to 15 reps\nMachine Seated Chest Fly\n3 sets × 10 to 15 reps\nDumbbell Lateral Raise\n2 sets × 10 to 15 reps\nMachine Seated Reverse Fly\n2 sets × 10 to 15 reps"
+  },
+  "15:armsAbs": {
+    "meta": "4 exercises · 3 rounds · ~13 min",
+    "why": "Arms and abs, back to back",
+    "items": [
+      "1 of 4 | Never show | Cable Tricep Pushdown | 3 sets × 10 to 15 reps | Isolates your triceps",
+      "2 of 4 | Never show | Barbell Bicep Curl | 3 sets × 10 to 15 reps | Isolates your biceps",
+      "3 of 4 | Never show | Cable Single Arm Bicep Curl | 3 sets × 10 to 15 reps each side | Isolates your biceps",
+      "4 of 4 | Never show | Crunch | 3 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Cable Tricep Pushdown\n3 sets × 10 to 15 reps\nBarbell Bicep Curl\n3 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n3 sets × 10 to 15 reps each side\nCrunch\n3 sets × 10 to 15 reps"
+  },
+  "15:easy": {
+    "meta": "4 exercises · 1 circuit · ~15 min",
+    "why": "A light day, easy on your knees",
+    "items": [
+      "1 of 4 | Never show | Leg Press | 2 sets × 10 to 12 reps | Big lift first, while you're fresh",
+      "2 of 4 | Never show | Leg Extension | 2 sets × 10 to 15 reps | Finishes the quads your leg press warmed up",
+      "3 of 4 | Never show | Hyperextension Roman Chair Back Extension | 2 sets × 10 to 15 reps | Isolates your lower back",
+      "4 of 4 | Never show | Machine Lying Leg Curl | 2 sets × 10 to 15 reps | Isolates your hamstrings"
+    ],
+    "ready": "Leg Press\n2 sets × 10 to 12 reps\nLeg Extension\n2 sets × 10 to 15 reps\nHyperextension Roman Chair Back Extension\n2 sets × 10 to 15 reps\nMachine Lying Leg Curl\n2 sets × 10 to 15 reps"
+  },
+  "30:pump": {
+    "meta": "6 exercises · 2 supersets · ~29 min",
+    "why": "Moves in pairs, short rest",
+    "items": [
+      "1 of 6 | Never show | Dumbbell Lateral Raise | 3 sets × 10 to 15 reps | Isolates your shoulders",
+      "2 of 6 | Never show | Leg Extension | 3 sets × 10 to 15 reps | Isolates your quads",
+      "3 of 6 | Never show | Machine Seated Reverse Fly | 3 sets × 10 to 15 reps | Isolates your rear shoulders",
+      "4 of 6 | Never show | Machine Seated Calf Raise | 3 sets × 10 to 15 reps | A short finish for your calves",
+      "5 of 6 | Never show | Crunch | 3 sets × 10 to 15 reps | A short finish for your abs",
+      "6 of 6 | Never show | Leg Press Machine Calf Raise | 3 sets × 10 to 15 reps | A short finish for your calves"
+    ],
+    "ready": "Dumbbell Lateral Raise\n3 sets × 10 to 15 reps\nLeg Extension\n3 sets × 10 to 15 reps\nMachine Seated Reverse Fly\n3 sets × 10 to 15 reps\nMachine Seated Calf Raise\n3 sets × 10 to 15 reps\nCrunch\n3 sets × 10 to 15 reps\nLeg Press Machine Calf Raise\n3 sets × 10 to 15 reps"
+  },
+  "30:strength": {
+    "meta": "3 exercises · ~30 min",
+    "why": "Fewer moves, heavier, longer rest",
+    "items": [
+      "1 of 3 | Never show | Deadlift | 3 sets × 4 to 6 reps | Big lift first, while you're fresh",
+      "2 of 3 | Never show | Barbell Back Squat | 3 sets × 4 to 6 reps | A big lift for your quads and glutes",
+      "3 of 3 | Never show | Hip Thrust | 2 sets × 4 to 6 reps | A big lift for your glutes"
+    ],
+    "ready": "Deadlift\n3 sets × 4 to 6 reps\nBarbell Back Squat\n3 sets × 4 to 6 reps\nHip Thrust\n2 sets × 4 to 6 reps"
+  },
+  "30:armsAbs": {
+    "meta": "6 exercises · 2 supersets · ~28 min",
+    "why": "Arms and abs, back to back",
+    "items": [
+      "1 of 6 | Never show | Barbell Bicep Curl | 3 sets × 10 to 15 reps | Isolates your biceps",
+      "2 of 6 | Never show | Cable Tricep Pushdown | 3 sets × 10 to 15 reps | Isolates your triceps",
+      "3 of 6 | Never show | Cable Single Arm Bicep Curl | 3 sets × 10 to 15 reps each side | Isolates your biceps",
+      "4 of 6 | Never show | Cable Overhead Tricep Extension | 3 sets × 10 to 15 reps | Isolates your triceps",
+      "5 of 6 | Never show | Crunch | 3 sets × 10 to 15 reps | A short finish for your abs",
+      "6 of 6 | Never show | Dead Bug | 3 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Barbell Bicep Curl\n3 sets × 10 to 15 reps\nCable Tricep Pushdown\n3 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n3 sets × 10 to 15 reps each side\nCable Overhead Tricep Extension\n3 sets × 10 to 15 reps\nCrunch\n3 sets × 10 to 15 reps\nDead Bug\n3 sets × 10 to 15 reps"
+  },
+  "30:easy": {
+    "meta": "5 exercises · ~29 min",
+    "why": "A light day, easy on your knees",
+    "items": [
+      "1 of 5 | Never show | Dumbbell Bench Press | 2 sets × 10 to 12 reps | Big lift first, while you're fresh",
+      "2 of 5 | Never show | Leg Press | 2 sets × 10 to 12 reps | A big lift for your quads and glutes",
+      "3 of 5 | Never show | Cable Seated Close Grip Row | 2 sets × 10 to 12 reps | A big lift for your back",
+      "4 of 5 | Never show | Lat Machine Wide Grip Pulldown | 2 sets × 10 to 12 reps | A big lift for your back",
+      "5 of 5 | Never show | Leg Extension | 2 sets × 10 to 15 reps | Finishes the quads your leg press warmed up"
+    ],
+    "ready": "Dumbbell Bench Press\n2 sets × 10 to 12 reps\nLeg Press\n2 sets × 10 to 12 reps\nCable Seated Close Grip Row\n2 sets × 10 to 12 reps\nLat Machine Wide Grip Pulldown\n2 sets × 10 to 12 reps\nLeg Extension\n2 sets × 10 to 15 reps"
+  },
+  "60:armsAbs": {
+    "meta": "8 exercises · 3 supersets · ~46 min",
+    "why": "Arms and abs, back to back",
+    "items": [
+      "1 of 8 | Never show | Barbell Bicep Curl | 3 sets × 10 to 15 reps | Isolates your biceps",
+      "2 of 8 | Never show | Dumbbell Single Arm Overhead Tricep Extension | 3 sets × 10 to 15 reps each side | Isolates your triceps",
+      "3 of 8 | Never show | Dumbbell Single Arm Preacher Curl | 3 sets × 10 to 15 reps each side | Isolates your biceps",
+      "4 of 8 | Never show | Cable Tricep Pushdown | 3 sets × 10 to 15 reps | Isolates your triceps",
+      "5 of 8 | Never show | Cable Single Arm Bicep Curl | 3 sets × 10 to 15 reps each side | Isolates your biceps",
+      "6 of 8 | Never show | Cable Overhead Tricep Extension | 3 sets × 10 to 15 reps | Isolates your triceps",
+      "7 of 8 | Never show | Crunch | 3 sets × 10 to 15 reps | A short finish for your abs",
+      "8 of 8 | Never show | Dead Bug | 3 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Barbell Bicep Curl\n3 sets × 10 to 15 reps\nDumbbell Single Arm Overhead Tricep Extension\n3 sets × 10 to 15 reps each side\nDumbbell Single Arm Preacher Curl\n3 sets × 10 to 15 reps each side\nCable Tricep Pushdown\n3 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n3 sets × 10 to 15 reps each side\nCable Overhead Tricep Extension\n3 sets × 10 to 15 reps\nCrunch\n3 sets × 10 to 15 reps\nDead Bug\n3 sets × 10 to 15 reps"
+  },
+  "60:pump": {
+    "meta": "9 exercises · 4 supersets · ~49 min",
+    "why": "Moves in pairs, short rest",
+    "items": [
+      "1 of 9 | Never show | Dumbbell Bench Press | 3 sets × 8 to 12 reps | Big lift first, while you're fresh",
+      "2 of 9 | Never show | Cable Seated Close Grip Row | 3 sets × 8 to 12 reps | A big lift for your back",
+      "3 of 9 | Never show | Machine Seated Chest Fly | 3 sets × 10 to 15 reps | Finishes the chest your bench warmed up",
+      "4 of 9 | Never show | Cable Tricep Pushdown | 3 sets × 10 to 15 reps | Finishes the triceps your bench warmed up",
+      "5 of 9 | Never show | Barbell Bicep Curl | 3 sets × 10 to 15 reps | Finishes the biceps your rows warmed up",
+      "6 of 9 | Never show | Cable Overhead Tricep Extension | 3 sets × 10 to 15 reps | Finishes the triceps your bench warmed up",
+      "7 of 9 | Never show | Machine Seated Reverse Fly | 3 sets × 10 to 15 reps | Finishes the rear shoulders your rows warmed up",
+      "8 of 9 | Never show | Cable Single Arm Bicep Curl | 3 sets × 10 to 15 reps each side | Finishes the biceps your rows warmed up",
+      "9 of 9 | Never show | Dumbbell Lateral Raise | 3 sets × 10 to 15 reps | Isolates your shoulders"
+    ],
+    "ready": "Dumbbell Bench Press\n3 sets × 8 to 12 reps\nCable Seated Close Grip Row\n3 sets × 8 to 12 reps\nMachine Seated Chest Fly\n3 sets × 10 to 15 reps\nCable Tricep Pushdown\n3 sets × 10 to 15 reps\nBarbell Bicep Curl\n3 sets × 10 to 15 reps\nCable Overhead Tricep Extension\n3 sets × 10 to 15 reps\nMachine Seated Reverse Fly\n3 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n3 sets × 10 to 15 reps each side\nDumbbell Lateral Raise\n3 sets × 10 to 15 reps"
+  },
+  "60:easy": {
+    "meta": "9 exercises · ~58 min",
+    "why": "A light day, easy on your knees",
+    "items": [
+      "1 of 9 | Never show | Dumbbell Bench Press | 3 sets × 10 to 12 reps | Big lift first, while you're fresh",
+      "2 of 9 | Never show | Leg Press | 3 sets × 10 to 12 reps | A big lift for your quads and glutes",
+      "3 of 9 | Never show | Cable Seated Close Grip Row | 3 sets × 10 to 12 reps | A big lift for your back",
+      "4 of 9 | Never show | Lat Machine Wide Grip Pulldown | 3 sets × 10 to 12 reps | A big lift for your back",
+      "5 of 9 | Never show | Leg Extension | 2 sets × 10 to 15 reps | Finishes the quads your leg press warmed up",
+      "6 of 9 | Never show | Machine Lying Leg Curl | 2 sets × 10 to 15 reps | Isolates your hamstrings",
+      "7 of 9 | Never show | Dumbbell Lateral Raise | 2 sets × 10 to 15 reps | Isolates your shoulders",
+      "8 of 9 | Never show | Crunch | 2 sets × 10 to 15 reps | A short finish for your abs",
+      "9 of 9 | Never show | Dead Bug | 2 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Dumbbell Bench Press\n3 sets × 10 to 12 reps\nLeg Press\n3 sets × 10 to 12 reps\nCable Seated Close Grip Row\n3 sets × 10 to 12 reps\nLat Machine Wide Grip Pulldown\n3 sets × 10 to 12 reps\nLeg Extension\n2 sets × 10 to 15 reps\nMachine Lying Leg Curl\n2 sets × 10 to 15 reps\nDumbbell Lateral Raise\n2 sets × 10 to 15 reps\nCrunch\n2 sets × 10 to 15 reps\nDead Bug\n2 sets × 10 to 15 reps"
+  }
+}

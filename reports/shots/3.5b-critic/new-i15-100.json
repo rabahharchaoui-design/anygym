@@ -1,0 +1,149 @@
+{
+  "todayText": "Today\nMy Gym\nPick a plan\n\nFollow a plan and every day is lined up for you: exercises, sets and rest.\n\nSee plans\nGot 30 min? I'll build it\nPick a workout, tweak it, start\nBuild my own\nPick the exercises yourself\n\nToday\nRun\nHistory\nPlans",
+  "hasBuild": 1,
+  "buildToCardsMs": 68,
+  "quickHeader": "Quick workout\nQuick workout\nHow long?\n15 min\n30 min\n45 min\n60 min\nPick one\nCircuit\nFull body circuit\nLegs, push and pull, one after another\n6 exercises · 2 circuits · ~29 min\n+2\nSupersets\nSuperset pump\nMoves in pairs, short rest\n6 exercises · 2 supersets · ~29 min\n+1\nStrength\nStrength focus\nFewer moves, heavier, longer rest\n3 exercises · ~30 min\nSupersets\nArms and abs finisher\nArms and abs, back to back\n6 exercises · 2 supersets · ~28 min\nPick exercises myself\n\nToday\nRun\nHistory\nPlans",
+  "cards": {
+    "15": [
+      {
+        "id": "circuit",
+        "text": "Circuit | Full body circuit | Legs, push and pull, one after another | 4 exercises · 3 rounds · ~14 min | +1",
+        "gearLabel": "Uses back extension bench, dumbbells, flat bench, seated row, barbell and rack",
+        "effort": "Effort 3 of 3",
+        "h": 184,
+        "y": 276
+      },
+      {
+        "id": "pump",
+        "text": "Supersets | Superset pump | Moves in pairs, short rest | 4 exercises · 2 supersets · ~13 min",
+        "gearLabel": "Uses barbell and rack, pec deck, dumbbells",
+        "effort": "Effort 2 of 3",
+        "h": 185,
+        "y": 472
+      },
+      {
+        "id": "armsAbs",
+        "text": "Circuit | Arms and abs finisher | Arms and abs, back to back | 4 exercises · 3 rounds · ~13 min",
+        "gearLabel": "Uses cable station, barbell and rack",
+        "effort": "Effort 2 of 3",
+        "h": 165,
+        "y": 669
+      },
+      {
+        "id": "easy",
+        "text": "Low impact | Easy start | A light day: no barbell, nothing jumpy | 4 exercises · 1 circuit · ~15 min",
+        "gearLabel": "Uses leg press, leg extension, back extension bench, leg curl",
+        "effort": "Effort 1 of 3",
+        "h": 184,
+        "y": 846
+      }
+    ],
+    "30": [
+      {
+        "id": "circuit",
+        "text": "Circuit | Full body circuit | Legs, push and pull, one after another | 6 exercises · 2 circuits · ~29 min | +2",
+        "gearLabel": "Uses back extension bench, dumbbells, flat bench, pull up bar, barbell and rack, seated row",
+        "effort": "Effort 3 of 3",
+        "h": 184,
+        "y": 276
+      },
+      {
+        "id": "pump",
+        "text": "Supersets | Superset pump | Moves in pairs, short rest | 6 exercises · 2 supersets · ~29 min | +1",
+        "gearLabel": "Uses dumbbells, leg extension, pec deck, calf raise machine, leg press",
+        "effort": "Effort 2 of 3",
+        "h": 185,
+        "y": 472
+      },
+      {
+        "id": "strength",
+        "text": "Strength | Strength focus | Fewer moves, heavier, longer rest | 3 exercises · ~30 min",
+        "gearLabel": "Uses barbell and rack, flat bench",
+        "effort": "Effort 3 of 3",
+        "h": 184,
+        "y": 669
+      },
+      {
+        "id": "armsAbs",
+        "text": "Supersets | Arms and abs finisher | Arms and abs, back to back | 6 exercises · 2 supersets · ~28 min",
+        "gearLabel": "Uses barbell and rack, cable station",
+        "effort": "Effort 2 of 3",
+        "h": 185,
+        "y": 865
+      }
+    ],
+    "45": [
+      {
+        "id": "circuit",
+        "text": "Circuit | Full body circuit | Legs, push and pull, one after another | 7 exercises · 2 circuits · ~43 min | +3",
+        "gearLabel": "Uses back extension bench, dumbbells, flat bench, pull up bar, leg curl, barbell and rack, seated row",
+        "effort": "Effort 3 of 3",
+        "h": 184,
+        "y": 276
+      },
+      {
+        "id": "pump",
+        "text": "Supersets | Superset pump | Moves in pairs, short rest | 7 exercises · 3 supersets · ~44 min | +1",
+        "gearLabel": "Uses dumbbells, leg extension, pec deck, calf raise machine, leg press",
+        "effort": "Effort 2 of 3",
+        "h": 185,
+        "y": 472
+      },
+      {
+        "id": "strength",
+        "text": "Strength | Strength focus | Fewer moves, heavier, longer rest | 3 exercises · ~45 min",
+        "gearLabel": "Uses barbell and rack, flat bench",
+        "effort": "Effort 3 of 3",
+        "h": 184,
+        "y": 669
+      },
+      {
+        "id": "armsAbs",
+        "text": "Supersets | Arms and abs finisher | Arms and abs, back to back | 7 exercises · 3 supersets · ~43 min",
+        "gearLabel": "Uses barbell and rack, cable station, dumbbells, adjustable bench",
+        "effort": "Effort 2 of 3",
+        "h": 185,
+        "y": 865
+      }
+    ],
+    "60": [
+      {
+        "id": "circuit",
+        "text": "Circuit | Full body circuit | Legs, push and pull, one after another | 9 exercises · 3 circuits · ~58 min | +4",
+        "gearLabel": "Uses leg extension, dumbbells, flat bench, pull up bar, leg curl, barbell and rack, seated row, calf raise machine",
+        "effort": "Effort 3 of 3",
+        "h": 184,
+        "y": 276
+      },
+      {
+        "id": "pump",
+        "text": "Supersets | Superset pump | Moves in pairs, short rest | 9 exercises · 4 supersets · ~58 min | +2",
+        "gearLabel": "Uses dumbbells, flat bench, seated row, pec deck, cable station, barbell and rack",
+        "effort": "Effort 2 of 3",
+        "h": 185,
+        "y": 472
+      },
+      {
+        "id": "strength",
+        "text": "Strength | Strength focus | Fewer moves, heavier, longer rest | 3 exercises · ~55 min | All this gym can do in one go",
+        "gearLabel": "Uses barbell and rack, flat bench",
+        "effort": "Effort 3 of 3",
+        "h": 205,
+        "y": 669
+      }
+    ]
+  },
+  "preselected": "min-30",
+  "more15": null,
+  "more30": null,
+  "more45": null,
+  "more60": null,
+  "moreCount": 0,
+  "cardToDeckMs": 41,
+  "deckText": "Full body circuit\n\n6 exercises · 2 circuits · ~29 min\n\nRight keeps it, left swaps it.\n\n2 of 6\n\nDumbbell Bench Press\n\n5 sets × 8 to 12 reps\n\n1 of 6\nNever show\n\nHyperextension Roman Chair Back Extension\n\n5 sets × 10 to 15 reps\n\nIsolates your lower back\n\nSwap\nKeep\n\nStart now\nToday\nRun\nHistory\nPlans",
+  "firstExText": "0:00\n0\n sets\nFinish\nHyperextension Roman Chair Back Extension\n\nSet 1 of 5 · 10 to 15 reps\n\nCircuit · 1 of 3\n\nSet\nLast time\n+ lb\nReps\nDone\n\nTap the check when you finish a set\n\n1\n–\nJust you\n10\nLog\n2\n–\nJust you\n10\n3\n–\nJust you\n10\n4\n–\nJust you\n10\n5\n–\nJust you\n10\n+ Add set\n\nFirst time: stop when you could do 2 more reps\n\nFront\nBack\nLower back · Glutes, hamstrings\nTap a muscle to see its exercises\nPick a muscle\nHOW TO\nAnkles under the pads, thighs flat on the wide pad.\nBend forward slowly at the waist, back flat.\nRise back up slowly to a straight line.\nWATCH OUT\n\nNever round your back, and do not swing.\n\nGOOD FOR\n\nBuilds the lower back, glutes and hamstrings.",
+  "afterSet1": "0:01\n1\n set\nFinish\nHyperextension Roman Chair Back Extension\n\nSet 2 of 5 · 10 to 15 reps\n\nCircuit · 1 of 3\n\nSet\nLast time\n+ lb\nReps\nDone\n1\n–\nJust you\n10\n2\n–\nJust you\n10\n3\n–\nJust you\n10\n4\n–\nJust you\n10\n5\n–\nJust you\n10\n+ Add set\n\nSwipe a set left to delete it\n\nFront\nBack\nLower back · Glutes, hamstrings\nTap a muscle to see its exercises\nPick a muscle\nHOW TO\nAnkles under the pads, thighs flat on the wide pad.\nBend forward slowly at the waist, back flat.\nRise back up slowly to a straight line.\nWATCH OUT\n\nNever round your back, and do not swing.\n\nGOOD FOR\n\nBuilds the lower back, glutes and hamstrings.\n\nCircuit: Dumbbell Bench Press next",
+  "afterSet2": "0:02\n2\n sets\nFinish\nHyperextension Roman Chair Back Extension\n\nSet 3 of 5 · 10 to 15 reps\n\nCircuit · 1 of 3\n\nSet\nLast time\n+ lb\nReps\nDone\n1\n–\nJust you\n10\n2\n–\nJust you\n10\n3\n–\nJust you\n10\n4\n–\nJust you\n10\n5\n–\nJust you\n10\n+ Add set\n\nFront\nBack\nLower back · Glutes, hamstrings\nTap a muscle to see its exercises\nPick a muscle\nHOW TO\nAnkles under the pads, thighs flat on the wide pad.\nBend forward slowly at the waist, back flat.\nRise back up slowly to a straight line.\nWATCH OUT\n\nNever round your back, and do not swing.\n\nGOOD FOR\n\nBuilds the lower back, glutes and hamstrings.\n\nCircuit: Dumbbell Bench Press next",
+  "dayList": "0:03\n2\n sets\nFinish\nQuick workout\n\nMy Gym\n · ~29 min\n\nSpotify\nMusic\n\nCircuit: one after another\n\nHyperextension Roman Chair Back Extension\n5 sets × 10 to 15\n60 s rest\nDumbbell Bench Press\n5 sets × 8 to 12\n60 s rest\nWide Grip Pull Up\n5 sets × 8 to 12\n60 s rest\n\nCircuit: one after another\n\nOverhead Press\n3 sets × 8 to 12\n60 s rest\nCable Seated Close Grip Row\n3 sets × 8 to 12\n60 s rest\nCrunch\n3 sets × 10 to 15\n60 s rest\n\n+ Add exercise",
+  "errors": []
+}
