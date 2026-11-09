@@ -353,4 +353,25 @@ test.describe('Quick workout ideas: diverse and full', () => {
     await shotOn(page, '3.5b/round4', 'cards-30-130', ['iPhone SE']);
     expect(errors).toEqual([]);
   });
+
+  test('3.5b round 4 shots: SE, 15 and Pro Max at 100% and 130%, no history: 4 cards, More ideas, nothing clipped', async ({ page }, info) => {
+    const errors = watchErrors(page);
+    const all = ['iPhone SE', 'iPhone 15', 'iPhone 17 Pro Max'];
+    await pastIntake(page);
+    await openQuick(page, 30);
+    await expect(page.locator('[data-concept]')).toHaveCount(4);
+    // M12: always a More ideas row, so the screen below the cards is never empty.
+    await expect(page.getByTestId('more-ideas')).toBeVisible();
+    await shotOn(page, '3.5b/round4', 'quick-30-100', all);
+    for (const scale of ['100%', '130%']) {
+      await page.evaluate((v) => (document.documentElement.style.fontSize = v), scale);
+      await page.waitForTimeout(250);
+      for (const m of [15, 30, 45, 60]) expect(await page.getByTestId(`min-${m}`).evaluate((b) => b.scrollWidth > b.clientWidth + 1), `${m} at ${scale} on ${info.project.name}`).toBe(false);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    }
+    await shotOn(page, '3.5b/round4', 'quick-30-130', all);
+    await page.getByTestId('more-ideas').scrollIntoViewIfNeeded();
+    await shotOn(page, '3.5b/round4', 'quick-30-130-bottom', all);
+    expect(errors).toEqual([]);
+  });
 });

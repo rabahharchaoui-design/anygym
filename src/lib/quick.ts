@@ -538,12 +538,21 @@ export function hasSureLegs(base: GeneratorInput, deps0: QuickDeps): boolean {
   return false;
 }
 
-/** The line under fewer than 4 cards: what ran out, in plain words. */
-export function fewerLine(count: number, minutes: number, legs: boolean, easyOn: readonly string[] | undefined): string | undefined {
+/**
+ * The line under fewer than 4 cards: what ran out, in plain words. 3.5b round 4 (B1): never "all this
+ * gym can do" while More ideas offers other kinds: the cards are the ones different enough to show
+ * together, and the row below is pointed to when it has something.
+ */
+export function fewerLine(count: number, minutes: number, legs: boolean, easyOn: readonly string[] | undefined, more = 0): string | undefined {
   if (count === 0 || count >= 4) return undefined;
   const knees = (easyOn ?? []).some((j) => j === 'knees' || j === 'hips');
-  if (!legs) return knees ? 'Going easy on your knees leaves no leg lift we can show you here, so these are all the different workouts we can build.' : 'This gym has no leg lift we can show you yet, so these are all the different workouts we can build here.';
-  return `These are all the different workouts we can build here in ${minutes} min.`;
+  const these = count === 1 ? 'this is the one workout' : 'these are the workouts';
+  const why = !legs
+    ? knees
+      ? `Going easy on your knees leaves no leg lift we can show you here, so ${these} different enough to show together.`
+      : `This gym has no leg lift we can show you yet, so ${these} different enough to show together.`
+    : `In ${minutes} min ${these} different enough to show together here.`;
+  return more > 0 ? `${why} More ideas has other kinds.` : why;
 }
 
 /**
@@ -581,7 +590,7 @@ export function buildIdeas(input: QuickInput, deps0: QuickDeps): Ideas {
     lastShown: input.lastShown ?? [],
     needEasy: needsEasy(input.base),
   });
-  const fewer = fewerLine(batch.cards.length, input.minutes, hasSureLegs(input.base, deps0), input.base.easyOn);
+  const fewer = fewerLine(batch.cards.length, input.minutes, hasSureLegs(input.base, deps0), input.base.easyOn, batch.more.length);
   return fewer ? { ...batch, fewer } : batch;
 }
 

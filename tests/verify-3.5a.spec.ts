@@ -65,7 +65,7 @@ test.describe('3.5a verify', () => {
     expect(errors).toEqual([]);
   });
 
-  test('2. chips: nearest to intake minutes, 30 from the Today card', async ({ page }) => {
+  test('2. chips: nearest to intake minutes, the intake minutes from the Today card', async ({ page }) => {
     const errors = watchErrors(page);
     for (const [mins, want] of [[10, 15], [20, 15], [25, 30], [38, 45], [52, 45], [53, 60], [90, 60], [45, 45]] as const) {
       await pastIntake(page);
@@ -82,8 +82,10 @@ test.describe('3.5a verify', () => {
     await expect(page.locator('[data-testid^="min-"]')).toHaveCount(4);
     await dbPut(page, { profile: [PROFILE] });
     await page.goto('./');
+    // 3.5b round 4 (P15): the Today card says and opens the intake's own minutes (45 here), not 30.
+    await expect(page.getByTestId('build-card')).toContainText('Got 45 min?');
     await page.getByTestId('build-card').tap();
-    await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('min-45')).toHaveAttribute('aria-pressed', 'true');
     await shot(page, 'chips-from-card');
     // Odd values never break it.
     for (const v of ['0', '-5', 'abc', '99999999999', '']) {
@@ -550,7 +552,8 @@ test.describe('3.5a verify round 2', () => {
 
   test('r2e. overhead tricep extension photo shows the dumbbell', async ({ page }) => {
     await pastIntake(page, DUMBBELLS);
-    await page.goto('./#/quick?min=45');
+    // 3.5b round 4: at 45 this gym has one card (the pump); the Arms and abs finisher is the 30 chip's.
+    await page.goto('./#/quick?min=30');
     await page.reload();
     // PLAN 3.5b: the Arms and abs finisher holds it here (cards differ by style and rotate per visit).
     await page.locator('[data-concept="armsAbs"]').tap();

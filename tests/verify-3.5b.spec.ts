@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { dbAll, dbPut, seedFinished, watchErrors } from './workout-helpers';
+import { dbAll, dbPut, seedFinished, shotOn, watchErrors } from './workout-helpers';
 import { card, pastIntake, PROFILE } from './helpers/quick';
 
 // Tester checks for PLAN 3.5b (independent of tests/quick-3.5b.spec.ts).
@@ -61,7 +61,8 @@ async function usePlanSeed(page: Page) {
 async function seedLoads(page: Page, ids: string[]) {
   const gymId = (await dbAll<{ id: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.id;
   const start = Date.now() - 6 * 86_400_000;
-  const loadOf = (id: string) => (/^dumbbell|^kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
+  // 3.5b round 4 (M6): the pump now opens on a main lift (Hip Thrust, a barbell lift without "barbell" in its id).
+  const loadOf = (id: string) => (/^dumbbell|^kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
   await dbPut(page, {
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: ids }],
     sets: ids.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
@@ -388,9 +389,15 @@ test.describe('verify 3.5b', () => {
     const afterFirst = await page.getByTestId('rest-timer').count();
     console.log('R2-4 rest timer after first member:', afterFirst);
     await shot(page, 'r2-pump-after-first-member');
+    // 3.5b round 4 (M7, M8): the next member is a button under the table, never over a row.
+    await shotOn(page, '3.5b/round4', 'pair-after-first-member', ['iPhone 15', 'iPhone SE']);
+    const next = (await page.getByTestId('group-next').boundingBox())!;
+    const rowsBottom = await page.locator('[aria-label="Sets"] > li').evaluateAll((els) => Math.max(...els.map((e) => e.getBoundingClientRect().bottom)));
+    expect(next.y).toBeGreaterThanOrEqual(rowsBottom - 1);
     expect(afterFirst).toBe(0);
     // the partner is one tap away on the chip: open it, and log it.
-    await page.getByRole('button', { name: /next/ }).first().tap();
+    // 3.5b round 4 (M7): the partner is the "Next in the pair: X" button under the set table (was a pill).
+    await page.getByTestId('group-next').tap();
     await expect(page.getByTestId(`exercise-${s.exerciseIds[1]}`)).toBeVisible();
     console.log('R2-4 now on', s.exerciseIds[1]);
     await page.getByTestId('check-current').tap();

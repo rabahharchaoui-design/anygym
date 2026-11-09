@@ -22,6 +22,7 @@ import {
   buildStyleCards,
   conceptMinutes,
   daysSince,
+  fewerLine,
   gearOf,
   metaLine,
   needsEasy,
@@ -774,6 +775,20 @@ describe('3.5b round 4, the rest of the critic list', () => {
           expect(area(a!.pattern)).not.toBe(area(b!.pattern));
           expect(c.line).not.toMatch(/Moves in pairs/);
         }
+  });
+
+  it('B1: the line under fewer cards says why and never claims it is all the gym can do while More ideas has more', () => {
+    expect(fewerLine(4, 30, false, undefined)).toBeUndefined();
+    expect(fewerLine(0, 30, false, undefined)).toBeUndefined();
+    expect(fewerLine(2, 30, false, undefined)).toBe('This gym has no leg lift we can show you yet, so these are the workouts different enough to show together.');
+    expect(fewerLine(1, 45, false, undefined, 2)).toBe('This gym has no leg lift we can show you yet, so this is the one workout different enough to show together. More ideas has other kinds.');
+    expect(fewerLine(3, 30, false, ['knees'], 1)).toMatch(/^Going easy on your knees leaves no leg lift/);
+    expect(fewerLine(3, 60, true, undefined)).toBe('In 60 min these are the workouts different enough to show together here.');
+    for (const m of QUICK_MINUTES) {
+      const got = buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym: HOTEL }, minutes: m, recent: [] }, QUICK_DEPS);
+      expect(got.fewer ?? '').not.toMatch(/all (this gym|the different)/i);
+      if (got.more.length && got.fewer) expect(got.fewer).toMatch(/More ideas has other kinds\.$/);
+    }
   });
 
   it('M12: a full gym always offers a More ideas row, with or without history', () => {
