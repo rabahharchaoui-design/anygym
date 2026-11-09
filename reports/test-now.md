@@ -21,3 +21,5 @@
 3.8a | Mostly behind the scenes: a deleted set keeps its gym and bar even if you change units or gyms before Undo. One visible change: in a built quick workout, hold a card for Never show and the message now names the exercise it hid, with Undo beside it.
 3.8b | Small fixes from testing. In a workout, after the last set the Easy, Good, Hard question waits for you a few seconds instead of jumping away; a record set now says New best instead of PR; Settings shows your current units highlighted.
 3.8c | After the last set of an exercise the app goes back to the list on its own again, and the Easy, Good, Hard question now also waits for you there, under that exercise, so you can answer it or ignore it.
+3.5b | Quick workout ideas are richer. Today, tap Got 45 min? I'll build it (it uses your intake minutes): four different cards with a style chip, gear, effort dots and a muscle map, a line like 6 exercises · 2 pairs · ~30 min, then a More ideas row of other styles. Not perfect yet: see the report.
+3.5c | Nothing to test, behind the scenes (starting a built workout saves all at once, and a coach raise on a stack machine with an add-on never lands lighter).

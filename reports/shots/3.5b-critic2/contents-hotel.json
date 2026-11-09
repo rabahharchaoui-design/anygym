@@ -1,0 +1,95 @@
+{
+  "15:list": {
+    "n": 3,
+    "more": "More ideas\nSuperset pump"
+  },
+  "15:0:fresh": {
+    "card": "Circuit | Hit what's fresh | Back and biceps rested 4 days | 3 exercises · 4 rounds · ~14 min | Cable",
+    "items": [
+      "1 of 3 | Never show | Cable Seated Close Grip Row | 4 sets × 8 to 12 reps | Back: not trained in 3 days",
+      "2 of 3 | Never show | Cable Single Arm Bicep Curl | 4 sets × 10 to 15 reps each side | Biceps: not trained in 3 days",
+      "3 of 3 | Never show | Crunch | 4 sets × 10 to 15 reps | Abs: not trained in 3 days"
+    ],
+    "ready": "Cable Seated Close Grip Row\n4 sets × 8 to 12 reps\nCable Single Arm Bicep Curl\n4 sets × 10 to 15 reps each side\nCrunch\n4 sets × 10 to 15 reps"
+  },
+  "15:1:easy": {
+    "card": "Low impact | Easy start | Shoulders and back rested 4 days | 4 exercises · 3 rounds · ~14 min | Dumbbells, bench +1",
+    "items": [
+      "1 of 4 | Never show | Dumbbell Bench Press | 3 sets × 10 to 12 reps | Big lift first, while you're fresh",
+      "2 of 4 | Never show | Cable Seated Close Grip Row | 3 sets × 10 to 12 reps | A big lift for your back",
+      "3 of 4 | Never show | Dumbbell Lateral Raise | 3 sets × 10 to 15 reps | Isolates your shoulders",
+      "4 of 4 | Never show | Crunch | 3 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Dumbbell Bench Press\n3 sets × 10 to 12 reps\nCable Seated Close Grip Row\n3 sets × 10 to 12 reps\nDumbbell Lateral Raise\n3 sets × 10 to 15 reps\nCrunch\n3 sets × 10 to 15 reps"
+  },
+  "15:2:armsAbs": {
+    "card": "Circuit | Arms and abs finisher | Shoulders and biceps rested 4 days | 4 exercises · 3 rounds · ~13 min | Cable, dumbbells",
+    "items": [
+      "1 of 4 | Never show | Cable Tricep Pushdown | 3 sets × 10 to 15 reps | Isolates your triceps",
+      "2 of 4 | Never show | Cable Single Arm Bicep Curl | 3 sets × 10 to 15 reps each side | Isolates your biceps",
+      "3 of 4 | Never show | Dumbbell Lateral Raise | 3 sets × 10 to 15 reps | Isolates your shoulders",
+      "4 of 4 | Never show | Crunch | 3 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Cable Tricep Pushdown\n3 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n3 sets × 10 to 15 reps each side\nDumbbell Lateral Raise\n3 sets × 10 to 15 reps\nCrunch\n3 sets × 10 to 15 reps"
+  },
+  "30:list": {
+    "n": 2,
+    "more": "More ideas\nSuperset pump\nEasy start"
+  },
+  "30:0:fresh": {
+    "card": "Pairs | Hit what's fresh | Back and biceps rested 4 days | 3 exercises · 1 pair · ~22 min | No more rested moves here | Cable",
+    "items": [
+      "1 of 3 | Never show | Cable Seated Close Grip Row | 4 sets × 8 to 12 reps | Back: not trained in 3 days",
+      "2 of 3 | Never show | Crunch | 4 sets × 10 to 15 reps | Abs: not trained in 3 days",
+      "3 of 3 | Never show | Cable Single Arm Bicep Curl | 4 sets × 10 to 15 reps each side | Biceps: not trained in 3 days"
+    ],
+    "ready": "Cable Seated Close Grip Row\n4 sets × 8 to 12 reps\nCrunch\n4 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n4 sets × 10 to 15 reps each side"
+  },
+  "30:1:strength": {
+    "card": "Strength | Strength focus | Shoulders and back rested 4 days | 3 exercises · ~27 min | As long as this style goes | Dumbbells, bench +1",
+    "items": [
+      "1 of 3 | Never show | Dumbbell Bench Press | 3 sets × 4 to 6 reps | Big lift first, while you're fresh",
+      "2 of 3 | Never show | Dumbbell Arnold Shoulder Press | 3 sets × 4 to 6 reps | A big lift for your shoulders",
+      "3 of 3 | Never show | Cable Seated Close Grip Row | 2 sets × 4 to 6 reps | A big lift for your back"
+    ],
+    "ready": "Dumbbell Bench Press\n3 sets × 4 to 6 reps\nDumbbell Arnold Shoulder Press\n3 sets × 4 to 6 reps\nCable Seated Close Grip Row\n2 sets × 4 to 6 reps"
+  },
+  "60:list": {
+    "n": 3,
+    "more": null
+  },
+  "60:0:fresh": {
+    "card": "Pairs | Hit what's fresh | Back and biceps rested 4 days | 3 exercises · 1 pair · ~22 min | No more rested moves here | Cable",
+    "items": [
+      "1 of 3 | Never show | Cable Seated Close Grip Row | 4 sets × 8 to 12 reps | Back: not trained in 3 days",
+      "2 of 3 | Never show | Crunch | 4 sets × 10 to 15 reps | Abs: not trained in 3 days",
+      "3 of 3 | Never show | Cable Single Arm Bicep Curl | 4 sets × 10 to 15 reps each side | Biceps: not trained in 3 days"
+    ],
+    "ready": "Cable Seated Close Grip Row\n4 sets × 8 to 12 reps\nCrunch\n4 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n4 sets × 10 to 15 reps each side"
+  },
+  "60:1:pump": {
+    "card": "Pairs | Superset pump | Shoulders and back rested 4 days | 9 exercises · 4 pairs · ~58 min | Dumbbells, bench +1",
+    "items": [
+      "1 of 9 | Never show | Dumbbell Bench Press | 5 sets × 8 to 12 reps | Big lift first, while you're fresh",
+      "2 of 9 | Never show | Cable Seated Close Grip Row | 5 sets × 8 to 12 reps | A big lift for your back",
+      "3 of 9 | Never show | Dumbbell Arnold Shoulder Press | 5 sets × 8 to 12 reps | A big lift for your shoulders",
+      "4 of 9 | Never show | Dumbbell Single Arm Preacher Curl | 5 sets × 10 to 15 reps each side | Finishes the biceps your rows warmed up",
+      "5 of 9 | Never show | Cable Tricep Pushdown | 4 sets × 10 to 15 reps | Finishes the triceps your bench warmed up",
+      "6 of 9 | Never show | Dumbbell Lateral Raise | 4 sets × 10 to 15 reps | Finishes the shoulders your overhead press warmed up",
+      "7 of 9 | Never show | Cable Overhead Tricep Extension | 3 sets × 10 to 15 reps | Finishes the triceps your bench warmed up",
+      "8 of 9 | Never show | Cable Single Arm Bicep Curl | 3 sets × 10 to 15 reps each side | Finishes the biceps your rows warmed up",
+      "9 of 9 | Never show | Crunch | 3 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Dumbbell Bench Press\n5 sets × 8 to 12 reps\nCable Seated Close Grip Row\n5 sets × 8 to 12 reps\nDumbbell Arnold Shoulder Press\n5 sets × 8 to 12 reps\nDumbbell Single Arm Preacher Curl\n5 sets × 10 to 15 reps each side\nCable Tricep Pushdown\n4 sets × 10 to 15 reps\nDumbbell Lateral Raise\n4 sets × 10 to 15 reps\nCable Overhead Tricep Extension\n3 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n3 sets × 10 to 15 reps each side\nCrunch\n3 sets × 10 to 15 reps"
+  },
+  "60:2:strength": {
+    "card": "Strength | Strength focus | Shoulders and back rested 4 days | 4 exercises · ~60 min | Dumbbells, bench +1",
+    "items": [
+      "1 of 4 | Never show | Dumbbell Bench Press | 5 sets × 4 to 6 reps | Big lift first, while you're fresh",
+      "2 of 4 | Never show | Single Arm Dumbbell Row | 5 sets × 4 to 6 reps each side | A big lift for your back",
+      "3 of 4 | Never show | Dumbbell Arnold Shoulder Press | 5 sets × 4 to 6 reps | A big lift for your shoulders",
+      "4 of 4 | Never show | Cable Seated Close Grip Row | 3 sets × 4 to 6 reps | A big lift for your back"
+    ],
+    "ready": "Dumbbell Bench Press\n5 sets × 4 to 6 reps\nSingle Arm Dumbbell Row\n5 sets × 4 to 6 reps each side\nDumbbell Arnold Shoulder Press\n5 sets × 4 to 6 reps\nCable Seated Close Grip Row\n3 sets × 4 to 6 reps"
+  }
+}
