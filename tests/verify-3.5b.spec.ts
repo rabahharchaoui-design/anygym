@@ -179,9 +179,13 @@ test.describe('verify 3.5b', () => {
     const before = await read(page);
     const target = (await chips.first().getAttribute('data-testid'))!.replace('more-', '');
     await chips.first().tap();
-    await expect(page.locator('[data-concept]').nth(3)).toHaveAttribute('data-concept', target);
+    await expect(page.locator(`[data-concept="${target}"]`)).toBeVisible();
     const after = await read(page);
-    expect(after.slice(0, 3).map((c) => c.id)).toEqual(before.slice(0, 3).map((c) => c.id));
+    // 3.5b round 4 (M12): the new idea takes one card's place (card 4, or the one it is too close to);
+    // the plan and fresh cards stay.
+    const changed = after.map((c, i) => (c.id === before[i]!.id ? -1 : i)).filter((i) => i !== -1);
+    expect(changed).toHaveLength(1);
+    expect(['plan', 'fresh']).not.toContain(before[changed[0]!]!.id);
     await shot(page, 'after-swap-30');
     await page.getByTestId('pick-myself').scrollIntoViewIfNeeded();
     await shot(page, 'bottom-30');

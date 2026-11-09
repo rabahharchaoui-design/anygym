@@ -19,11 +19,15 @@ import { planById } from '../../data/plans';
 import { SWAP_DATA, countsEachSide } from '../../data/patterns';
 import { QUICK_DEPS, workoutMuscles } from '../../data/quick';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
-import { easyOnAvoids, type Muscle } from '../../lib/order';
+import type { Muscle } from '../../lib/order';
 import type { Plan } from '../../lib/plans';
 import { hints } from '../../lib/hints';
 import {
   buildIdeas,
+  cardKey,
+  gearWords,
+  moreLabel,
+  quickAvoids,
   canBuild,
   chipFor,
   conceptMinutes,
@@ -38,7 +42,6 @@ import {
   swapItem,
   whenWords,
   type Concept,
-  type ConceptId,
   type Dislikes,
   type PlanPart,
   type QuickItem,
@@ -132,26 +135,32 @@ export function QuickScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, kit, chip]);
 
-  // PLAN 3.5b: More ideas swaps card 4 for another style (per chip; a new chip starts fresh).
-  const [picked, setPicked] = useState<{ chip: QuickMinutes; id: ConceptId } | null>(null);
+  // PLAN 3.5b: More ideas puts another style in the place it can take (3.5b round 4: card 4, or the
+  // one card it is too close to); per chip, a new chip starts fresh. Its chip row then offers the card
+  // it replaced, to go back.
+  const [picked, setPicked] = useState<{ chip: QuickMinutes; key: string } | null>(null);
+  const pickedAt = ideas && picked?.chip === chip ? ideas.more.findIndex((c) => cardKey(c) === picked.key) : -1;
   const concepts = useMemo(() => {
     if (!ideas) return null;
-    const alt = picked?.chip === chip ? ideas.more.find((c) => c.id === picked.id) : undefined;
-    if (!alt) return ideas.cards;
+    if (pickedAt === -1) return ideas.cards;
     const out = [...ideas.cards];
-    out.splice(ideas.swapAt, 1, alt);
+    out.splice(ideas.moreAt[pickedAt]!, 1, ideas.more[pickedAt]!);
     return out;
-  }, [ideas, picked, chip]);
+  }, [ideas, pickedAt]);
   const moreIdeas = useMemo(() => {
     if (!ideas || !concepts) return [];
-    const original = ideas.cards[ideas.swapAt];
-    const pool = [...(original ? [original] : []), ...ideas.more];
-    return pool.filter((c) => !concepts.some((x) => x.id === c.id));
-  }, [ideas, concepts]);
-  const [swappedIn, setSwappedIn] = useState<ConceptId | null>(null);
-  const pickMore = (c: Concept) => {
-    setPicked({ chip, id: c.id });
-    setSwappedIn(c.id);
+    const out: { concept: Concept; back: boolean }[] = [];
+    if (pickedAt !== -1) {
+      const replaced = ideas.cards[ideas.moreAt[pickedAt]!];
+      if (replaced) out.push({ concept: replaced, back: true });
+    }
+    for (const c of ideas.more) if (!concepts.includes(c)) out.push({ concept: c, back: false });
+    return out;
+  }, [ideas, concepts, pickedAt]);
+  const [swappedIn, setSwappedIn] = useState<string | null>(null);
+  const pickMore = (c: Concept, back: boolean) => {
+    setPicked(back ? null : { chip, key: cardKey(c) });
+    setSwappedIn(cardKey(c));
   };
 
   // The rotation remembers the first cards shown on each visit (once; a later chip does not count).
@@ -166,7 +175,8 @@ export function QuickScreen() {
 
   const okFor = useMemo(() => {
     const never = new Set([...(base?.never ?? []), ...neverNow].map(SWAP_DATA.sameAs));
-    return (id: string) => QUICK_DEPS.usable(id) && !never.has(SWAP_DATA.sameAs(id)) && !easyOnAvoids(base?.easyOn, QUICK_DEPS.profile(id));
+    // 3.5b round 4 (B2): a swap keeps the Go easy on rules every card is built with.
+    return (id: string) => QUICK_DEPS.usable(id) && !never.has(SWAP_DATA.sameAs(id)) && !quickAvoids(base?.easyOn, QUICK_DEPS.profile(id));
   }, [base, neverNow]);
   const swapFor = (c: Curating): string | null => {
     const item = c.items[c.index];
@@ -434,9 +444,15 @@ export function QuickScreen() {
             ) : (
               <div className={styles.concepts}>
                 {concepts.map((c) => (
-                  <ConceptCard key={c.id} concept={c} onPick={() => curate(c)} entering={c.id === swappedIn} reduced={reduced} />
+                  <ConceptCard key={cardKey(c)} concept={c} onPick={() => curate(c)} entering={cardKey(c) === swappedIn} reduced={reduced} />
                 ))}
               </div>
+            )}
+            {/* 3.5b round 4 (B1): fewer than 4 cards always says why, in one plain line. */}
+            {concepts && concepts.length > 0 && ideas?.fewer && (
+              <p className={styles.fewer} data-testid="quick-fewer">
+                {ideas.fewer}
+              </p>
             )}
           </section>
           {concepts && moreIdeas.length > 0 && (
@@ -445,11 +461,14 @@ export function QuickScreen() {
                 More ideas
               </h2>
               <div className={styles.moreChips} role="group" aria-labelledby="quick-more">
-                {moreIdeas.map((c) => (
-                  <button key={c.id} type="button" className={`${styles.moreChip} pressable`} onClick={() => pickMore(c)} data-testid={`more-${c.id}`} aria-label={`${c.title}: show it in place of the last card`}>
-                    {c.title}
-                  </button>
-                ))}
+                {moreIdeas.map(({ concept: c, back }) => {
+                  const label = moreLabel(c, [...concepts, ...moreIdeas.map((m) => m.concept)]);
+                  return (
+                    <button key={cardKey(c)} type="button" className={`${styles.moreChip} pressable`} onClick={() => pickMore(c, back)} data-testid={`more-${c.id}`} data-key={cardKey(c)} aria-label={`${label}: show this idea in the list`}>
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -471,8 +490,8 @@ const GEAR_MAX = 4;
 function ConceptCard({ concept, onPick, entering, reduced }: { concept: Concept; onPick: () => void; entering: boolean; reduced: boolean }) {
   const muscles = useMemo(() => workoutMuscles(concept.items.map((it) => it.id)), [concept]);
   const gear = concept.gear.slice(0, GEAR_MAX);
-  const extra = concept.gear.length - gear.length;
-  const gearWords = concept.gear.map((g) => EQUIPMENT_LABEL[g].toLowerCase()).join(', ');
+  const allGear = concept.gear.map((g) => EQUIPMENT_LABEL[g].toLowerCase()).join(', ');
+  const gearLine = gearWords(concept.gear);
   return (
     <button
       type="button"
@@ -500,12 +519,13 @@ function ConceptCard({ concept, onPick, entering, reduced }: { concept: Concept;
         </span>
         <span className={`${styles.conceptMeta} num`} data-testid="concept-meta">
           {/* Each part stays on one line ("~28 min" never splits); the line breaks between parts. */}
+          {/* 3.5b round 4 (P13): "· ~28 min" stays together; the line only breaks before a dot. */}
           {metaLine(concept.items, concept.minutes)
             .split(' · ')
             .map((part, i) => (
               <Fragment key={i}>
-                {i > 0 ? ' · ' : ''}
-                <span className={styles.metaPart}>{part}</span>
+                {i > 0 ? ' ' : ''}
+                <span className={styles.metaPart}>{i > 0 ? `· ${part}` : part}</span>
               </Fragment>
             ))}
         </span>
@@ -514,17 +534,14 @@ function ConceptCard({ concept, onPick, entering, reduced }: { concept: Concept;
             {shortLine(concept)}
           </span>
         )}
-        <span className={styles.gear} data-testid="concept-gear" role="img" aria-label={gearWords ? `Uses ${gearWords}` : 'No equipment'}>
-          {gear.length ? (
-            <>
-              {gear.map((g) => (
-                <EquipmentArt key={g} id={g} className={styles.gearIcon} />
-              ))}
-              {extra > 0 && <span className={`${styles.gearMore} num`}>+{extra}</span>}
-            </>
-          ) : (
-            <span className={styles.gearNone}>No equipment</span>
-          )}
+        {/* 3.5b round 4 (P14): the gear in words ("Dumbbells, bench +2"), small drawings beside it. */}
+        <span className={styles.gear} data-testid="concept-gear" aria-label={allGear ? `Uses ${allGear}` : 'No equipment'}>
+          {gear.slice(0, 2).map((g) => (
+            <EquipmentArt key={g} id={g} className={styles.gearIcon} />
+          ))}
+          <span className={styles.gearWords} aria-hidden="true">
+            {gearLine}
+          </span>
         </span>
       </span>
       <MiniMusclePair data={muscles} className={styles.conceptMap} />

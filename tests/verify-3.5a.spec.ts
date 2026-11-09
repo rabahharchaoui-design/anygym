@@ -53,11 +53,11 @@ test.describe('3.5a verify', () => {
     await expect(page.getByTestId('build-card')).toHaveCount(0);
     await shot(page, 'today-no-intake');
     await pastIntake(page);
-    await expect(page.getByTestId('build-card')).toContainText("Got 30 min? I'll build it");
+    await expect(page.getByTestId('build-card')).toContainText(/Got (15|30|45|60) min\? I'll build it/);
     await shot(page, 'today-intake');
     const old = page.getByRole('button', { name: /Quick workout/ });
-    // Round 2 (B7): the picker first flow is the quieter "Build my own" row (SPEC 20.3's words).
-    await expect(old).toContainText('Build my own');
+    // Round 2 (B7): the picker first flow is the quieter row, one label on Today and Quick (3.5b round 4, P15).
+    await expect(old).toContainText('Pick exercises myself');
     const b = (await old.boundingBox())!;
     expect(b.height).toBeGreaterThanOrEqual(48);
     await old.tap();

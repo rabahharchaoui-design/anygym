@@ -115,7 +115,7 @@ function expectHonestCards(cards: readonly Concept[], gym: GymKit, minutes: numb
       expect(new Set(g.map((it) => it.restSec)).size).toBe(1);
     }
     expect(c.gear).toEqual(gearOf(c.items.map((it) => it.id), SWAP_DATA, gym));
-    expect(metaLine(c.items, c.minutes)).toMatch(/^\d+ exercises? (· \d+ (circuits?|pairs?) )*· ~\d+ min$/);
+    expect(metaLine(c.items, c.minutes)).toMatch(/^\d+ exercises? (· \d+ (rounds?|pairs?) )*· ~\d+ min$/);
   }
 }
 
@@ -141,15 +141,20 @@ describe('the diversity rule (random gyms, intakes and histories)', () => {
       // Card 1 is the plan when there is one; card 2 is fresh only from logged sets.
       if (ideas.cards.some((c) => c.id === 'plan')) expect(ideas.cards[0]!.id).toBe('plan');
       if (!Object.keys(h.lastTrained).length && !h.recent.length) expect(ideas.cards.some((c) => c.id === 'fresh')).toBe(false);
-      // More ideas: each one, in place of card 4, keeps every card diverse.
-      for (const alt of ideas.more) {
+      // More ideas: each one, in the place it takes, keeps every card diverse.
+      expect(ideas.moreAt.length).toBe(ideas.more.length);
+      ideas.more.forEach((alt, k) => {
+        const at = ideas.moreAt[k]!;
         const swapped = [...ideas.cards];
-        swapped.splice(ideas.swapAt, 1, alt);
+        swapped.splice(at, 1, alt);
         expectDiverse(swapped, `${label} more ${alt.id}`);
-        // 3.5b round 4 (M12): another style, or another body area of card 4's own style.
-        expect(ideas.cards.some((c, i) => i !== ideas.swapAt && c.id === alt.id)).toBe(false);
-        if (ideas.cards[ideas.swapAt]?.id === alt.id) expect(alt.variant).not.toBe(ideas.cards[ideas.swapAt]!.variant);
-      }
+        // Never in place of the plan, the fresh card or a beginner's Easy start.
+        const out = ideas.cards[at];
+        if (out) expect(['plan', 'fresh'].includes(out.id) || (needsEasy(base) && out.id === 'easy'), `${label} more replaces ${out.id}`).toBe(false);
+        // 3.5b round 4 (M12): another style, or another body area of the style it replaces.
+        expect(swapped.filter((c) => c.id === alt.id).length).toBe(1);
+        if (out?.id === alt.id) expect(alt.variant).not.toBe(out.variant);
+      });
       // A style done in the last 2 quick workouts never leads the styles while another is shown.
       const styleCards = ideas.cards.filter((c) => c.id !== 'plan' && c.id !== 'fresh');
       // 3.5b round 4 (B3): a beginner's Easy start leads even if it was done lately.
@@ -165,8 +170,8 @@ describe('the diversity rule (random gyms, intakes and histories)', () => {
   it('a full gym never shows two cards that are the same workout under two names (G: Upper and Upper body)', () => {
     for (const m of QUICK_MINUTES) {
       const cards = buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym: FULL }, minutes: m, recent: [] }, QUICK_DEPS).cards;
-      // 3.5b round 2 (strict rule): 4 at 15, 30 and 45; at 60 only 3 diverse cards exist at a full gym.
-      expect(cards.length).toBe(m === 60 ? 3 : 4);
+      // 3.5b round 4 (M12): the rule compares each card's main muscles, so a full gym fills 4 at every chip.
+      expect(cards.length).toBe(4);
       expect(new Set(cards.map((c) => c.title)).size).toBe(cards.length);
       expect(new Set(cards.map((c) => c.chip)).size).toBeGreaterThanOrEqual(2);
       expectDiverse(cards, `${m} min`);
@@ -503,9 +508,9 @@ describe('3.5b round 2', () => {
       for (const m of QUICK_MINUTES)
         for (const c of buildIdeas({ base: { goals: ['muscle'], experience, gym: hotel }, minutes: m, recent: [] }, QUICK_DEPS).cards) {
           if (c.minutes >= m - 2) continue;
-          expect(shortLine(c), `${experience} ${m} ${c.id}`).toMatch(/^(No more moves of this kind here|No more rested moves here|Beginner set cap|As long as this style goes|All of today's plan this gym can do)$/);
+          expect(shortLine(c), `${experience} ${m} ${c.id}`).toMatch(/^(No more moves of this kind here|No more rested moves here|Fewer sets while you're new|As long as this style goes|All of today's plan this gym can do)$/);
         }
-    expect(shortLine({ id: 'easy', short: 'caps', newer: true })).toBe('Beginner set cap');
+    expect(shortLine({ id: 'easy', short: 'caps', newer: true })).toBe("Fewer sets while you're new");
     expect(shortLine({ id: 'pump', short: 'moves' })).toBe('No more moves of this kind here');
     expect(shortLine({ id: 'pump' })).toBeNull();
   });
@@ -575,7 +580,9 @@ describe('3.5b round 4 (ux-critic)', () => {
     const p = (id: string) => profileFor(id);
     expect(quickAvoids(['knees'], p('leg-extension'))).toBe(true);
     expect(quickAvoids(['knees'], p('barbell-back-squat'))).toBe(true);
-    expect(quickAvoids(['knees'], p('leg-press'))).toBe(false);
+    // 3.5b round 4 (B2, G's brief): knees: no leg press either.
+    expect(quickAvoids(['knees'], p('leg-press'))).toBe(true);
+    expect(quickAvoids(['knees'], p('hip-thrust'))).toBe(false);
     expect(quickAvoids(['lower_back'], p('deadlift'))).toBe(true);
     expect(quickAvoids(['lower_back'], p('barbell-bent-over-row'))).toBe(true);
     expect(quickAvoids(['lower_back'], p('cable-seated-close-grip-row'))).toBe(false);
@@ -650,12 +657,131 @@ describe('3.5b round 4 (ux-critic)', () => {
         }
   });
 
-  it('M9: plain words on every card: pairs and circuits, never supersets or rounds', () => {
+  it('M9: one vocabulary on every card: pairs and rounds, never supersets or "1 circuit"', () => {
     for (const gym of [FULL, HOTEL])
       for (const m of QUICK_MINUTES)
         for (const c of buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym }, minutes: m, recent: [] }, QUICK_DEPS).cards) {
-          expect(metaLine(c.items, c.minutes)).not.toMatch(/superset|round/i);
+          const line = metaLine(c.items, c.minutes);
+          expect(line).not.toMatch(/superset|circuit/i);
           expect(c.chip).not.toMatch(/superset/i);
+          // A circuit card counts its rounds; a pairs card its pairs.
+          if (c.chip === 'Circuit') expect(line).toMatch(/· \d+ rounds? ·/);
+          if (c.chip === 'Pairs') expect(line).toMatch(/· \d+ pairs? ·/);
         }
+    expect(metaLine([{ sets: 3, group: 0 }, { sets: 3, group: 0 }, { sets: 3, group: 0 }, { sets: 3, group: 0 }], 14)).toBe('4 exercises · 3 rounds · ~14 min');
+    expect(metaLine([{ sets: 3, group: 0 }, { sets: 3, group: 0 }, { sets: 3, group: 1 }, { sets: 3, group: 1 }, { sets: 3 }, { sets: 3 }], 30)).toBe('6 exercises · 2 pairs · ~30 min');
   });
 });
+
+describe('3.5b round 4, the rest of the critic list', () => {
+  const HOTEL: GymKit = { equipment: presetEquipment('hotel'), dumbbellRange: { min: 5, max: 50, step: 5 } };
+  const ideas = (base: GeneratorInput, minutes: number, extra: Partial<Parameters<typeof buildIdeas>[0]> = {}) => buildIdeas({ base, minutes, recent: [], ...extra }, QUICK_DEPS);
+
+  it('B1: the hotel preset at 30, 45 and 60: every card filled to the minutes (G\'s count), 4 cards or the honest reason, a More ideas row', () => {
+    for (const hist of [false, true])
+      for (const m of [30, 45, 60]) {
+        const extra = hist ? { recent: ['quads', 'glutes'] as Muscle[], lastTrained: { quads: NOW - DAY, glutes: NOW - DAY, back: NOW - 4 * DAY } as Partial<Record<Muscle, number>>, now: NOW } : {};
+        const got = ideas({ goals: ['muscle'], experience: '1_2y', gym: HOTEL }, m, extra);
+        const label = `hotel ${m} hist=${hist}`;
+        if (got.cards.length < 4) expect(got.fewer, label).toMatch(/no leg lift we can show you/);
+        else expect(got.fewer).toBeUndefined();
+        for (const c of got.cards) {
+          if (c.id !== 'strength') expect(c.items.length, `${label} ${c.id}`).toBeGreaterThanOrEqual(densityFor(m).min);
+          expect(c.minutes, `${label} ${c.id}`).toBeLessThanOrEqual(m);
+          if (c.minutes < m - 2) expect(shortLine(c), `${label} ${c.id}`).not.toBeNull();
+        }
+        if (!hist) expect(got.more.length, label).toBeGreaterThan(0);
+      }
+    // The rested muscles rank a style card's moves, never remove them: the pump still opens on a big lift.
+    const pump = buildStyleCards({ base: { goals: ['muscle'], experience: '1_2y', gym: HOTEL }, minutes: 30, recent: ['chest', 'back'] }, QUICK_DEPS).get('pump')!;
+    expect(pump[0]!.items.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('B2: one test per joint, on every card and every More idea, full gym and hotel', () => {
+    const banned: Record<string, (id: string, name: string) => boolean> = {
+      knees: (_id, name) => /leg press|leg extension|squat|lunge/i.test(name) && !/calf/i.test(name),
+      lower_back: (_id, name) => /good morning|deadlift|bent over|back extension|barbell squat|back squat/i.test(name),
+      shoulders: (_id, name) => /overhead press|shoulder press|military|arnold|\bdips?\b|upright/i.test(name),
+      wrists: (id) => /barbell-bicep-curl|skullcrusher/i.test(id),
+      hips: (id) => /sumo|adductor|abductor/i.test(id),
+      neck: (id) => /shrug|upright/i.test(id),
+    };
+    for (const [joint, bad] of Object.entries(banned)) {
+      let seen = 0;
+      for (const gym of [FULL, HOTEL])
+        for (const experience of ['new', '1_2y'] as ExperienceId[])
+          for (const m of QUICK_MINUTES) {
+            const got = ideas({ goals: ['muscle'], experience, easyOn: [joint], gym }, m);
+            for (const c of [...got.cards, ...got.more])
+              for (const it of c.items) {
+                seen++;
+                expect(bad(it.id, it.name), `${joint} ${m} ${c.id}: ${it.name}`).toBe(false);
+              }
+          }
+      expect(seen, joint).toBeGreaterThan(50);
+    }
+  });
+
+  it('B3: a brand new lifter (with history or a plan too) gets Easy start first and never Strength focus', () => {
+    const split = PLANS.find((x) => x.id === 'five-day-split')!;
+    for (const m of QUICK_MINUTES)
+      for (const easyOn of [[], ['knees']]) {
+        const base: GeneratorInput = { goals: ['muscle'], experience: 'new', easyOn, gym: FULL };
+        const hist = { recent: ['chest'] as Muscle[], lastTrained: { chest: NOW - DAY, back: NOW - 5 * DAY } as Partial<Record<Muscle, number>>, now: NOW };
+        const a = ideas(base, m, hist);
+        expect(a.cards[0]!.id, `${m}`).toBe('easy');
+        expect([...a.cards, ...a.more].some((c) => c.id === 'strength')).toBe(false);
+        const plan = planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: m, gym: FULL, experience: 'new', easyOn }, QUICK_DEPS);
+        const b = ideas(base, m, { ...hist, plan });
+        expect(b.cards.map((c) => c.id).slice(0, plan ? 2 : 1)).toEqual(plan ? ['plan', 'easy'] : ['easy']);
+      }
+  });
+
+  it('B4: a full body card always holds a real leg lift and opens on a big lift, never an isolation; pull ups are 5 to 8 reps', () => {
+    for (const gym of [FULL, placeGym('home'), HOTEL])
+      for (const experience of EXPS)
+        for (const m of QUICK_MINUTES)
+          for (const c of buildStyleCards({ base: { goals: ['muscle'], experience, gym }, minutes: m, recent: [] }, QUICK_DEPS).get('circuit') ?? []) {
+            const ps = c.items.map((it) => profileFor(it.id));
+            expect(ps.some((p) => p.pattern !== null && ['squat', 'hinge', 'lunge', 'glutes'].includes(p.pattern) && p.tier <= 1)).toBe(true);
+            expect(ps[0]!.role === 'lift' && ps[0]!.tier <= 1).toBe(true);
+            for (const it of c.items) if (/pull.?up|chin.?up/i.test(it.name)) expect(it.reps).toEqual([5, 8]);
+          }
+    // honest(): "legs" is a real leg pattern; a back extension or a leg extension alone is not.
+    const ps = ['hyperextension-roman-chair-back-extension', 'dumbbell-bench-press', 'cable-seated-close-grip-row'].map((id) => profileFor(id));
+    expect(STYLES.circuit.honest(ps, [{ group: 0 }, { group: 0 }, { group: 0 }])).toBe(false);
+  });
+
+  it('B5: Strength focus on a full gym at 60 holds 5 lifts (a press and a pull among them) and no reason line', () => {
+    for (const c of buildStyleCards({ base: { goals: ['muscle'], experience: '1_2y', gym: FULL }, minutes: 60, recent: [] }, QUICK_DEPS).get('strength')!) {
+      expect(c.items.length).toBe(5);
+      expect(c.items.some((it) => it.pattern === 'horizontal push' || it.pattern === 'vertical push')).toBe(true);
+      expect(c.items.some((it) => it.pattern === 'horizontal pull' || it.pattern === 'vertical pull')).toBe(true);
+      expect(shortLine(c)).toBeNull();
+    }
+  });
+
+  it('M6: a pump\'s first pair is its main lift with a move of another area (push + pull, legs + upper)', () => {
+    const area = (p: string | null) => (p === null ? null : ['squat', 'hinge', 'lunge', 'glutes', 'quads isolation', 'hamstrings isolation'].includes(p) ? 'legs' : ['horizontal push', 'vertical push', 'chest isolation', 'triceps'].includes(p) ? 'push' : ['horizontal pull', 'vertical pull', 'rear delt', 'biceps'].includes(p) ? 'pull' : null);
+    for (const gym of [FULL, HOTEL])
+      for (const m of QUICK_MINUTES)
+        for (const c of buildStyleCards({ base: { goals: ['muscle'], experience: '1_2y', gym }, minutes: m, recent: [] }, QUICK_DEPS).get('pump') ?? []) {
+          const [a, b] = c.items;
+          expect(a!.group).toBe(0);
+          expect(b!.group).toBe(0);
+          expect(area(a!.pattern)).not.toBeNull();
+          expect(area(b!.pattern)).not.toBeNull();
+          expect(area(a!.pattern)).not.toBe(area(b!.pattern));
+          expect(c.line).not.toMatch(/Moves in pairs/);
+        }
+  });
+
+  it('M12: a full gym always offers a More ideas row, with or without history', () => {
+    for (const m of QUICK_MINUTES)
+      for (const experience of ['new', '1_2y', '3y'] as ExperienceId[]) {
+        const got = ideas({ goals: ['muscle'], experience, gym: FULL }, m);
+        expect(got.more.length, `${experience} ${m}`).toBeGreaterThan(0);
+      }
+  });
+});
+

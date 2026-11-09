@@ -359,14 +359,16 @@ function groupUp(items: Work[], shape: Shape, spec: BuildSpec): Work[] {
     const sizes: number[] = [];
     if (shape === 'circuit') sizes.push(items.length);
     else {
-      // Circuits of 3; a leftover of 1 joins the last one, of 2 is a superset.
+      // Circuits of 3; a leftover of 1 or 2 joins the last one (3.5b round 4, M9: a circuit card is all
+      // rounds, never "3 rounds · 1 pair"); 2 alone is a pair.
       let n = items.length;
       while (n > 0) {
         if (n === 4) {
           sizes.push(4);
           n = 0;
         } else if (n === 2) {
-          sizes.push(2);
+          if (sizes.length) sizes[sizes.length - 1]! += 2;
+          else sizes.push(2);
           n = 0;
         } else {
           sizes.push(Math.min(3, n));
@@ -629,7 +631,10 @@ export function chooseBatch<T extends Pickable>(input: BatchInput<T>): Batch<T> 
   const okWith = (c: T, others: readonly T[]) => others.every((o) => o === c || diverse(c.primary, o.primary));
   const fixed: T[] = [];
   if (input.plan) fixed.push(input.plan);
-  const fresh = input.fresh.find((f) => okWith(f, fixed));
+  // 3.5b round 4 (B3): beginners and Go easy on: an Easy start that fits next to the plan wins over
+  // "Hit what's fresh" (fresh only when one of its variants leaves room for it).
+  const easyOk = input.needEasy ? (input.styles.get('easy') ?? []).filter((v) => okWith(v, fixed)) : [];
+  const fresh = input.fresh.find((f) => okWith(f, fixed) && (!easyOk.length || easyOk.some((e) => okWith(e, [...fixed, f]))));
   if (fresh) fixed.push(fresh);
   const available = STYLE_ORDER.filter((id) => (input.styles.get(id) ?? []).length > 0);
   const ranked = rankStyles(available, input.done, input.lastShown);

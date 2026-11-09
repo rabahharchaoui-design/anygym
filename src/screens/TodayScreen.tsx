@@ -35,7 +35,7 @@ import { useActiveGym } from '../db/useActiveGym';
 import { getProfile } from '../db/intake';
 import { rememberBudget } from '../db/timeBudget';
 import { AS_PLANNED, fitWords } from '../lib/timeBudget';
-import { canBuild } from '../lib/quick';
+import { canBuild, chipFor } from '../lib/quick';
 import { QUICK_DEPS } from '../data/quick';
 import { baseInput, equipmentPath, kitOf } from './quick/quickInput';
 import { useCoach } from './today/useCoach';
@@ -207,6 +207,7 @@ export function TodayScreen() {
   const profile = useLive(() => getProfile(), []);
   const intakeAnswers = profile.data?.intake;
   const dislikes = profile.data?.dislikes;
+  const buildMin = chipFor(intakeAnswers?.minutes);
   const buildable = useMemo(() => (gym ? canBuild(baseInput(intakeAnswers, kitOf(gym), dislikes), QUICK_DEPS) : null), [gym, intakeAnswers, dislikes]);
   const [timeOpen, setTimeOpen] = useState(false);
   const [pickTick, setPickTick] = useState(0);
@@ -342,12 +343,13 @@ export function TodayScreen() {
             Round 2 (B5): only when this gym can build one; else the way to make it able to. */}
         {data.ready && !active && !!profile.data?.intakeDoneAt && buildable !== null &&
           (buildable ? (
-            <button type="button" className={`${styles.build} pressable`} onClick={() => go('/quick?min=30', { kind: 'push' })} data-testid="build-card">
+            <button type="button" className={`${styles.build} pressable`} onClick={() => go(`/quick?min=${buildMin}`, { kind: 'push' })} data-testid="build-card">
               <span className={styles.buildIcon} aria-hidden="true">
                 <CoachIcon width={20} height={20} strokeWidth={2.2} />
               </span>
               <span className={styles.buildText}>
-                <span className={styles.buildLabel}>Got 30 min? I'll build it</span>
+                {/* 3.5b round 4 (P15): the intake's own minutes ("Got 45 min?"), the chip Quick opens on. */}
+                <span className={`${styles.buildLabel} num`}>Got {buildMin} min? I'll build it</span>
                 <span className={styles.buildSub}>Pick a workout, tweak it, start</span>
               </span>
               <ChevronRight className={styles.buildChevron} width={20} height={20} strokeWidth={2.2} aria-hidden="true" />
@@ -361,9 +363,9 @@ export function TodayScreen() {
         {/* Also when the saved workouts could not be read: a quick workout still works (no dead end).
             Round 2 (B7): the picker first flow, as SPEC 20.3 names it, a quieter row. */}
         {((data.ready && !active) || failed) && (
-          <button type="button" ref={quickRef} className={`${styles.quick} pressable`} data-small="" onClick={() => void quick()} data-testid="quick-card" aria-label="Build my own Quick workout: pick the exercises yourself">
-            <span className={styles.quickLabel}>Build my own</span>
-            <span className={styles.quickSub}>Pick exercises myself</span>
+          // 3.5b round 4 (P15): the picker has one label on Today and on Quick workout.
+          <button type="button" ref={quickRef} className={`${styles.quick} pressable`} data-small="" onClick={() => void quick()} data-testid="quick-card" aria-label="Quick workout: pick exercises myself">
+            <span className={styles.quickLabel}>Pick exercises myself</span>
           </button>
         )}
         {/* Competitor gap 4: from logged sets only; nothing logged lately, no card. */}

@@ -21,11 +21,11 @@ test.describe('Quick workout builds it for you', () => {
   test('Today to the first set in 3 taps with the defaults; curating every card stays under 30 s @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
-    await expect(page.getByTestId('build-card')).toContainText("Got 30 min? I'll build it");
+    await expect(page.getByTestId('build-card')).toContainText(/Got (15|30|45|60) min\? I'll build it/);
     await expect(page.getByTestId('build-card')).toContainText('Pick a workout, tweak it, start');
     await shotOn(page, '3.5a', 'today');
     // The picker first flow is still on Today, as it was (SPEC 20.4 counts unchanged).
-    await expect(page.getByRole('button', { name: /Quick workout/ })).toContainText('Build my own');
+    await expect(page.getByRole('button', { name: /Quick workout/ })).toContainText('Pick exercises myself');
     const t = counter();
     await t.tap(page.getByTestId('build-card'));
     await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');

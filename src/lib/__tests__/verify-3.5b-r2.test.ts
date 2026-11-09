@@ -54,7 +54,7 @@ describe('verify 3.5b r2', () => {
               const ideas = run(gym, m, h, pd, exp);
               const cs = ideas.cards;
               ((counts[`${gn}/${exp}`] ??= {})[m] ??= new Set()).add(cs.length);
-              const sets = [cs, ...ideas.more.map((alt) => { const x = [...cs]; x.splice(ideas.swapAt, 1, alt); return x; })];
+              const sets = [cs, ...ideas.more.map((alt, k) => { const x = [...cs]; x.splice(ideas.moreAt[k]!, 1, alt); return x; })];
               for (const grp of sets)
                 for (let i = 0; i < grp.length; i++)
                   for (let j = i + 1; j < grp.length; j++) {
@@ -196,7 +196,8 @@ describe('verify 3.5b r2', () => {
     }
     console.log('fresh lines checked', checked);
     expect(checked).toBeGreaterThan(50);
-  });
+    // 3.5b round 4: many histories × every card build; 20 s so it never times out on a loaded machine.
+  }, 20_000);
 });
 export type _C = Concept;
 

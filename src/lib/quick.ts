@@ -14,6 +14,7 @@
 // Only exercises with a sure demo (exact or variant) and gear this gym surely has (`usable`, plus
 // a known requirement) ever reach a concept. Fewer than 3 of them: no concept (an honest empty state).
 import type { EquipmentId } from '../db/types';
+import { EQUIPMENT_LABEL } from './intake/options';
 import type { GymKit } from './picker';
 import type { GeneratorDeps, GeneratorInput } from './generator';
 import type { Range } from './generatorRules';
@@ -236,6 +237,31 @@ export function gearOf(ids: readonly string[], data: SwapData, gym: GymKit): Equ
   return out;
 }
 
+/** Short gear words for a card's gear line (3.5b round 4, P14): "bench" for either bench, "cable" for the station. */
+const GEAR_WORD: Partial<Record<EquipmentId, string>> = {
+  barbell_rack: 'barbell',
+  flat_bench: 'bench',
+  adjustable_bench: 'bench',
+  cable_station: 'cable',
+  hyperextension_bench: 'back extension bench',
+  hip_adductor_abductor: 'thigh machine',
+};
+
+/** "Dumbbells, bench +2": the first two in words, the rest counted; none: "No equipment". */
+export function gearWords(gear: readonly EquipmentId[], shown = 2): string {
+  const words = [...new Set(gear.map((g) => GEAR_WORD[g] ?? EQUIPMENT_LABEL[g].toLowerCase()))];
+  if (!words.length) return 'No equipment';
+  const head = words.slice(0, shown).join(', ');
+  const rest = words.length - shown;
+  return cap(head) + (rest > 0 ? ` +${rest}` : '');
+}
+
+/** A More ideas chip: the style's title, with what it trains when another idea has the same title. */
+export function moreLabel(c: Pick<Concept, 'title' | 'focus'>, all: readonly Pick<Concept, 'title' | 'focus'>[]): string {
+  const twin = all.some((o) => o !== c && o.title === c.title);
+  return twin && c.focus ? `${c.title}: ${c.focus.toLowerCase()}` : c.title;
+}
+
 /** The primary muscles of a workout (map regions), every one of them. */
 export function primaryOf(ids: readonly string[], deps: Pick<QuickDeps, 'primaryOf' | 'profile'>): Set<string> {
   return new Set(ids.flatMap((id) => (deps.primaryOf ? deps.primaryOf(id) : deps.profile(id).targets)));
@@ -428,7 +454,7 @@ const newerOf = (base: Pick<GeneratorInput, 'experience'>) => base.experience ==
 /** The one plain line a short card shows (PLAN 3.5b round 2), or null. */
 export function shortLine(c: Pick<Concept, 'short' | 'newer' | 'id'>): string | null {
   if (!c.short) return null;
-  if (c.short === 'caps' && c.newer) return 'Beginner set cap';
+  if (c.short === 'caps' && c.newer) return "Fewer sets while you're new";
   if (c.id === 'plan') return "All of today's plan this gym can do";
   // 3.5b round 4 (B1): never "All this gym can do" while the gym has other moves: say what ran out.
   if (c.id === 'fresh') return c.short === 'caps' ? 'As long as this style goes' : 'No more rested moves here';
@@ -484,6 +510,12 @@ function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
     });
   }
   return out;
+}
+
+/** 3.5b round 4 (P15): a built Quick workout's day list header: the card's own title. */
+export function quickTitleOf(style: string | undefined): string {
+  if (style === 'fresh') return "Hit what's fresh";
+  return style && style in STYLES ? STYLES[style as StyleId].title : 'Quick workout';
 }
 
 /** Beginners and Go easy on always get one Easy start (Low impact) card. */
@@ -757,7 +789,17 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
   const fitted = fitPlanDay(day, base, weekIndex, input.minutes, (id, name) => deps.profileOf(id, name), newer);
   const trim = fitted.trim;
   const part: PlanPart = { planId: plan.id, dayIndex, weekIndex, day, trim };
-  const items = planItems(part, deps, (slot) => currentOf.get(slot) ?? slot, (slot) => swapTo.get(slot));
+  // 3.5b round 4 (M10): a plan move put in for the plan's own says why the plan's one is not here.
+  const whyReplaced = (slot: string): string => {
+    const r = requiresOf(data, slot);
+    const missing = r?.find((g) => !g.some((x) => hasGear(x, gym)));
+    if (missing?.length) return `your gym has no ${EQUIPMENT_LABEL[missing[0]!].toLowerCase()}`;
+    if (neverKeys.has(data.sameAs(slot))) return 'you asked never to see it';
+    const joints = (input.easyOn ?? []).filter((j) => JOINT_WORD[j] && quickAvoids([j], deps.profile(slot)));
+    if (joints.length) return `easy on your ${wordList(joints.map((j) => JOINT_WORD[j]!), 2)}`;
+    return 'this one has a demo we can show you';
+  };
+  const items = planItems(part, deps, (slot) => currentOf.get(slot) ?? slot, (slot) => swapTo.get(slot), whyReplaced);
   if (!items.length) return null;
   const reasons = reasonsFor(items.map((it) => it.id), deps, (id) => items.find((it) => it.id === id)!.name);
   items.forEach((it, i) => {
@@ -785,7 +827,7 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
 }
 
 /** The deck items of a plan part: every working item left after the trim, in day order. */
-function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: string) => string, swappedOf: (slot: string) => string | undefined): QuickItem[] {
+function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: string) => string, swappedOf: (slot: string) => string | undefined, whyReplaced: (slot: string) => string): QuickItem[] {
   const day = applyTrim(part.day, part.trim, part.weekIndex);
   const out: QuickItem[] = [];
   let group = 0;
@@ -810,7 +852,7 @@ function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: string) => 
         ...(it.eachSide ? { eachSide: true } : {}),
         restSec: blockRest(b as PlanBlock),
         // 3.5b round 4 (M10): a move put in for the plan's own says why, in plain words.
-        why: swapped || origin !== it.exerciseId ? `Instead of ${it.name}: same movement, gear this gym surely has` : `From your ${part.day.name} day`,
+        why: swapped || origin !== it.exerciseId ? `Instead of ${it.name}: ${whyReplaced(it.exerciseId)}` : `From your ${part.day.name} day`,
         ...(pair !== undefined ? { group: pair } : {}),
       });
     }

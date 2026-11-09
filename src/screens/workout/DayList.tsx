@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { GymPill } from '../../components/GymPill';
 import type { WorkoutEntry } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
+import { quickTitleOf } from '../../lib/quick';
 import { Thumb } from './Thumb';
 import { demoFor } from '../../data/exerciseInfo';
 import { swapLine } from '../../lib/swap';
@@ -89,7 +90,7 @@ export function DayList({ w, heroId, onOpen, onAdd, effortFor = null, still = fa
   const pillName = nextEntry ? w.nameOf(nextEntry.exerciseId) : '';
   const pillSet = nextEntry && nextDone > 0 ? `set ${Math.min(nextDone + 1, nextEntry.sets)} of ${nextEntry.sets}` : '';
   const pillLabel = !nextEntry ? '' : `${pillVerb} ${pillName}${pillSet ? `, ${pillSet}` : ''}`;
-  const title = w.day ? dayTitle(w.day.n, w.day.name) : 'Quick workout';
+  const title = w.day ? dayTitle(w.day.n, w.day.name) : quickTitleOf(w.session?.quickStyle);
   // "Continue · Squat · set 3 of 4" when it fits; on a narrow phone the second "·" goes before the
   // name shortens (gate round 2 P5). Measured, so the pill never guesses.
   const nameRef = useRef<HTMLSpanElement>(null);
@@ -195,7 +196,7 @@ export function DayList({ w, heroId, onOpen, onAdd, effortFor = null, still = fa
       while (i < entries.length && entries[i]!.kind === 'pair' && entries[i]!.block === e.block) group.push(entries[i++]!);
       blocks.push(
         <li key={`pair-${e.block}`} className={styles.pair} data-warmup={e.warmup || undefined} data-mobility={e.mobility || undefined} data-testid={e.mobility ? 'mobility-group' : 'pair-group'}>
-          <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : group.length > 2 ? 'Circuit: one after another' : 'Pair: back to back'}</p>
+          <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : group.length > 2 ? `Circuit: ${e.sets} ${e.sets === 1 ? 'round' : 'rounds'}, one after another` : 'Pair: back to back'}</p>
           {e.roundRest && e.restSec > 0 && (
             <p className={`${styles.pairRest} num`} data-testid="group-rest">
               Rest {w.userRestOf(e.exerciseId) ?? e.restSec} s after each round

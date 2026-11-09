@@ -8,8 +8,8 @@ import { card, pastIntake, PROFILE } from './helpers/quick';
 // SE at 130% scrolls cleanly; beginners get an Easy start; Start carries sets, reps, rest and
 // supersets into the workout.
 
-// 3.5b round 4 (M9): plain words, "pairs" and "circuit" (never supersets or rounds).
-const META = /^(\d+) exercises? (?:· (\d+) (circuits?|pairs?) )*· ~(\d+) min$/;
+// 3.5b round 4 (M9, SPEC 13.1): one vocabulary: "pairs" and "rounds" (never supersets, never "1 circuit").
+const META = /^(\d+) exercises? (?:· (\d+) (rounds?|pairs?) )*· ~(\d+) min$/;
 const SHOTS = ['iPhone SE', 'iPhone 15'];
 
 async function openQuick(page: Page, minutes = 30) {
@@ -46,8 +46,10 @@ test.describe('Quick workout ideas: diverse and full', () => {
     for (const m of [15, 30, 45, 60]) {
       await page.getByTestId(`min-${m}`).tap();
       await expect(page.getByTestId(`min-${m}`)).toHaveAttribute('aria-pressed', 'true');
-      // 3.5b round 2 (strict diversity): a full gym has 4 diverse cards at 15, 30 and 45, only 3 at 60.
-      await expect(page.locator('[data-concept]')).toHaveCount(m === 60 ? 3 : 4);
+      // 3.5b round 4 (M12): a full gym has 4 diverse cards at every length, and a More ideas row.
+      await expect(page.locator('[data-concept]')).toHaveCount(4);
+      await expect(page.getByTestId('more-ideas')).toBeVisible();
+      await expect(page.getByTestId('quick-fewer')).toHaveCount(0);
       const cards = await readCards(page);
       expect(new Set(cards.map((c) => c.id)).size).toBe(cards.length);
       expect(new Set(cards.map((c) => c.title)).size).toBe(cards.length);
@@ -65,8 +67,10 @@ test.describe('Quick workout ideas: diverse and full', () => {
       }
       // G: 30 min is 5 to 6 moves with 2 supersets (the pump says so on its line).
       if (m === 30) expect(cards.some((c) => /^[56] exercises · 2 pairs · ~\d+ min$/.test(c.meta))).toBe(true);
-      if (m === 15) expect(cards.some((c) => / · 1 circuit · /.test(c.meta))).toBe(true);
-      for (const c of cards) expect(c.meta + c.chip).not.toMatch(/superset|round/i);
+      if (m === 15) expect(cards.some((c) => / · \d+ rounds · /.test(c.meta))).toBe(true);
+      for (const c of cards) expect(c.meta + c.chip).not.toMatch(/superset|circuits?\b(?! *$)/i);
+      for (const c of cards) if (c.chip === 'Circuit') expect(c.meta).toMatch(/ · \d+ rounds? · /);
+      for (const c of cards) if (c.chip === 'Pairs') expect(c.meta).toMatch(/ · \d+ pairs? · /);
       if (m === 30) await shotOn(page, '3.5b', 'cards-30', SHOTS);
       if (m === 15) await shotOn(page, '3.5b', 'cards-15', ['iPhone 15']);
       if (m === 60) await shotOn(page, '3.5b', 'cards-60', ['iPhone 15']);
@@ -74,7 +78,7 @@ test.describe('Quick workout ideas: diverse and full', () => {
     expect(errors).toEqual([]);
   });
 
-  test('More ideas swaps card 4 for another style; cards 1 to 3 stay; the old one comes back as a chip @matrix', async ({ page }) => {
+  test('More ideas puts another style in place of one card; the others stay; the old one comes back as a chip @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
     // 3.5b round 2: with the strict rule a full gym without a plan has no fifth diverse style at 30;
@@ -101,12 +105,16 @@ test.describe('Quick workout ideas: diverse and full', () => {
     expect(chips).toBeGreaterThan(0);
     const target = (await more.first().getAttribute('data-testid'))!.replace('more-', '');
     await more.first().tap();
-    await expect(page.locator('[data-concept]').nth(3)).toHaveAttribute('data-concept', target);
+    await expect(page.locator(`[data-concept="${target}"]`)).toBeVisible();
     const after = await ids(page);
-    expect(after.slice(0, 3)).toEqual(before.slice(0, 3));
     expect(after).toHaveLength(4);
+    // 3.5b round 4: one card changed (card 4, or the one card the new idea was too close to); the
+    // plan and fresh cards never move.
+    const changed = after.map((id, i) => (id === before[i] ? -1 : i)).filter((i) => i !== -1);
+    expect(changed).toHaveLength(1);
+    expect(['plan', 'fresh']).not.toContain(before[changed[0]!]);
     // The card it replaced is offered back.
-    await expect(page.getByTestId(`more-${before[3]}`)).toBeVisible();
+    await expect(page.getByTestId(`more-${before[changed[0]!]}`)).toBeVisible();
     for (const b of await more.all()) expect(((await b.boundingBox())!.height)).toBeGreaterThanOrEqual(47.5);
     // Its own card opens the deck like any other.
     await page.locator(`[data-concept="${target}"]`).tap();
@@ -197,9 +205,10 @@ test.describe('Quick workout ideas: diverse and full', () => {
       const id = (await c.getAttribute('data-concept'))!;
       seen.add(id);
       const meta = (await c.getByTestId('concept-meta').textContent())!;
+      const title = (await c.getByTestId('concept-title').textContent())!;
       const count = Number(meta.match(/^(\d+)/)![1]);
       const supersets = Number(meta.match(/(\d+) pairs?/)?.[1] ?? 0);
-      const circuits = Number(meta.match(/(\d+) circuits?/)?.[1] ?? 0);
+      const rounds = Number(meta.match(/(\d+) rounds?/)?.[1] ?? 0);
       const minutes = Number(meta.match(/~(\d+) min/)![1]);
       await c.tap();
       await expect(card(page)).toBeVisible();
@@ -228,12 +237,21 @@ test.describe('Quick workout ideas: diverse and full', () => {
         if (t.pair) groups.set(t.pair.group, t.pair.size);
       });
       expect([...groups.values()].filter((n) => n === 2)).toHaveLength(supersets);
-      expect([...groups.values()].filter((n) => n >= 3)).toHaveLength(circuits);
+      const circuits = [...groups.values()].filter((n) => n >= 3).length;
+      // A card says rounds exactly when it holds a circuit.
+      expect(circuits > 0).toBe(rounds > 0);
       // The day list groups them and shows the card's own estimate.
       await page.getByRole('button', { name: /Back to the list|Back/ }).first().tap();
       await expect(page.getByTestId('workout-meta')).toContainText(`~${minutes} min`);
+      // 3.5b round 4 (P15): the day list header carries the card's own title.
+      await expect(page.getByTestId('workout-title')).toHaveText(title);
       await expect(page.getByTestId('pair-group')).toHaveCount(supersets + circuits);
-      if (circuits) await expect(page.getByTestId('pair-group').first()).toContainText(/Circuit: one after another|Pair: back to back/);
+      // M8: the rest is said once per group ("Rest 60 s after each round"), never on its rows.
+      for (const g of await page.getByTestId('pair-group').all()) {
+        await expect(g.getByTestId('group-rest')).toHaveText(/^Rest \d+ s after each round$/);
+        await expect(g.getByText(/^\d+ s rest$/)).toHaveCount(0);
+      }
+      if (circuits) await expect(page.getByTestId('pair-group').first()).toContainText(/Circuit: \d+ rounds?, one after another|Pair: back to back/);
       // Done with this one: end it so the next card can start.
       await dbPut(page, { sessions: [{ ...s, endedAt: Date.now() }] });
     }
@@ -267,6 +285,72 @@ test.describe('Quick workout ideas: diverse and full', () => {
     for (const n of names) await expect(page.locator('[data-testid^="row-"]').filter({ hasText: n })).toHaveCount(1);
     await expect(page.getByTestId('workout-meta')).toContainText(`~${minutes} min`);
     await shotOn(page, '3.5b', 'plan-daylist-30', SHOTS);
+    expect(errors).toEqual([]);
+  });
+
+  test('3.5b round 4 (B1): the hotel preset at 30 min fills each card to the minutes and says why it shows fewer than 4 @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page, ['dumbbells', 'adjustable_bench', 'cable_station', 'treadmill', 'bike']);
+    await openQuick(page, 30);
+    const cards = await readCards(page);
+    for (const c of cards) {
+      const mm = c.meta.match(META)!;
+      expect(Number(mm[1]), `${c.id}: ${c.meta}`).toBeGreaterThanOrEqual(c.id === 'strength' ? 3 : 5);
+      expect(Number(mm[4])).toBeGreaterThanOrEqual(27);
+    }
+    await expect(page.getByText('All this gym can do')).toHaveCount(0);
+    if (cards.length < 4) await expect(page.getByTestId('quick-fewer')).toContainText('no leg lift we can show you');
+    await expect(page.getByTestId('more-ideas')).toBeVisible();
+    await shotOn(page, '3.5b/round4', 'hotel-30', ['iPhone 15']);
+    expect(errors).toEqual([]);
+  });
+
+  test('3.5b round 4 (B2, B3): a brand new lifter with knees on Go easy on gets Easy start first, no leg press, squat or leg extension anywhere @matrix', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await dbPut(page, { profile: [{ ...PROFILE, intake: { ...PROFILE.intake, experience: 'new', easyOn: ['knees'] } }] });
+    await page.reload();
+    await openQuick(page, 30);
+    await expect(page.locator('[data-concept]').first()).toHaveAttribute('data-concept', 'easy');
+    await expect(page.locator('[data-concept="strength"]')).toHaveCount(0);
+    await expect(page.getByTestId('more-strength')).toHaveCount(0);
+    await expect(page.locator('[data-concept="easy"]').getByTestId('concept-why')).toContainText('easy on your knees');
+    await shotOn(page, '3.5b/round4', 'beginner-knees-30', ['iPhone 15']);
+    for (let i = 0; i < (await page.locator('[data-concept]').count()); i++) {
+      await openQuick(page, 30);
+      await page.locator('[data-concept]').nth(i).tap();
+      await expect(card(page)).toBeVisible();
+      await page.getByTestId('quick-start').tap();
+      await expect(page.getByTestId('check-current')).toBeVisible();
+      await page.getByRole('button', { name: /Back to the list|Back/ }).first().tap();
+      const names = await page.locator('[data-testid^="row-"]').allTextContents();
+      for (const n of names) expect(n).not.toMatch(/leg press|leg extension|squat|lunge/i);
+      type S = { id: string; endedAt?: number };
+      const s = (await dbAll<S>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
+      await dbPut(page, { sessions: [{ ...s, endedAt: Date.now() }] });
+    }
+    expect(errors).toEqual([]);
+  });
+
+  test('3.5b round 4: a full gym at 30 and 60 on the 15, and the SE at 130%: every chip label whole @matrix', async ({ page }, info) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await openQuick(page, 30);
+    await shotOn(page, '3.5b/round4', 'full-30', ['iPhone 15']);
+    await page.getByTestId('min-60').tap();
+    await expect(page.locator('[data-concept]')).toHaveCount(4);
+    await shotOn(page, '3.5b/round4', 'full-60', ['iPhone 15']);
+    await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));
+    await page.waitForTimeout(250);
+    // M11: no minute chip label is cut.
+    for (const m of [15, 30, 45, 60]) {
+      const cut = await page.getByTestId(`min-${m}`).evaluate((b) => b.scrollWidth > b.clientWidth + 1);
+      expect(cut, `${m} min chip on ${info.project.name}`).toBe(false);
+    }
+    // P13: "· ~T min" is never split from its dot.
+    for (const part of await page.getByTestId('concept-meta').locator('span').allTextContents()) expect(part).not.toMatch(/^·\s*$/);
+    await page.getByTestId('min-30').tap();
+    await shotOn(page, '3.5b/round4', 'cards-30-130', ['iPhone SE']);
     expect(errors).toEqual([]);
   });
 });
