@@ -140,7 +140,7 @@ export function autoExample(lifts: readonly Lift[], changes: readonly ChangeReco
   for (const l of recent) {
     const at = lastPicked(l.sessions[0]);
     if (!at || at.unit !== l.setup!.unit) continue;
-    const to = nextWeight(l.loadKind, at.value, { cls: liftClass(l.pattern)!, rate: weeklyRate(l.sessions, at.unit, now), sessions: l.sessions.length, scale: learnedScale(l, changes), easy: false }, l.setup!);
+    const to = nextWeight(l.loadKind, at.value, { cls: liftClass(l.pattern)!, rate: weeklyRate(l.sessions, at.unit, now), sessions: l.sessions.length, scale: learnedScale(l, changes), easy: false }, l.setup!, at.load.added ?? 0);
     if (to === null) continue;
     return { key: l.key, exerciseId: l.exerciseId, name: l.name, loadKind: l.loadKind, unit: at.unit, from: at.value, to, reason: '', source: 'auto' };
   }

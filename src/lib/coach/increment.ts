@@ -44,7 +44,7 @@ export function raiseRule(input: IncrementInput, unit: Unit): LevelUpRule {
   return { pct, minAdd, capPct: MAX_PCT[c] };
 }
 
-/** The next weight for one lift, or null when there is no step up at this gym. */
-export function nextWeight(kind: Load['kind'], value: number, input: IncrementInput, setup: LoadSetup): number | null {
-  return levelUpWeight(kind, value, raiseRule(input, setup.unit), setup);
+/** The next weight for one lift (`added`: weight on a stack pin, kept in the raise), or null when there is no step up at this gym. */
+export function nextWeight(kind: Load['kind'], value: number, input: IncrementInput, setup: LoadSetup, added = 0): number | null {
+  return levelUpWeight(kind, value, raiseRule(input, setup.unit), setup, added);
 }

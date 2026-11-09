@@ -2,7 +2,7 @@
 // working set at the top of its range, every workout that week, no missed reps) and which hold
 // steady, and why, in one plain line each. It never raises a lift that missed reps, never one done
 // since (its Next already moved on), and every new weight comes from load.ts, loadable here.
-import { weightChange } from '../load';
+import { comparableWeight, weightChange } from '../load';
 import { liftClass, weighted } from './classify';
 import { nextWeight } from './increment';
 import { learnedScale } from './outcome';
@@ -58,14 +58,14 @@ export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: n
   if (!sameWeight(latest.sets) || !allTop(latest.sets, range)) return hold(`aim for ${range[1]} reps on every set first`);
   if (latest.effort === 'hard') return hold('it felt hard, so one more week at this weight');
   const easy = latest.effort === 'easy';
-  const to = nextWeight(lift.loadKind, at.value, { cls, rate: weeklyRate(lift.sessions, setup.unit, now), sessions: lift.sessions.length, scale: learnedScale(lift, changes), easy }, setup);
+  const to = nextWeight(lift.loadKind, at.value, { cls, rate: weeklyRate(lift.sessions, setup.unit, now), sessions: lift.sessions.length, scale: learnedScale(lift, changes), easy }, setup, at.load.added ?? 0);
   if (to === null) return hold('no heavier weight here yet. Add a rep to each set instead');
   const before = lift.sessions.find((s) => s.date < week.start);
   const twice = !!before && before.date >= week.start - 7 * 24 * 60 * 60 * 1000 && sameTop(latest, before);
   const top = `${latest.sets.length} × ${range[1]}`;
-  const reason = `${changeWords(lift.loadKind, weightChange(at.value, to), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${easy ? ', with reps to spare' : ''}`;
+  const reason = `${changeWords(lift.loadKind, weightChange(comparableWeight(at.load, at.unit), to), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${easy ? ', with reps to spare' : ''}`;
   return {
-    raise: { ...base, loadKind: lift.loadKind, unit: setup.unit, from: at.value, to, reason, source: 'level_up', reps: 'low' },
+    raise: { ...base, loadKind: lift.loadKind, unit: setup.unit, from: at.value, fromTotal: comparableWeight(at.load, at.unit), to, reason, source: 'level_up', reps: 'low' },
   };
 }
 

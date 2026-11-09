@@ -30,12 +30,12 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const failed = (): ToastMessage => ({ id: toastId(), text: 'Could not save that. Try again.' });
 
 /** One lift's change: name, old → new (new in lime), the one line why. */
-export function ChangeRow({ c, undone, trailing }: { c: Pick<PlannedChange, 'name' | 'loadKind' | 'unit' | 'from' | 'to' | 'reason'>; undone?: boolean; trailing?: ReactNode }) {
+export function ChangeRow({ c, undone, trailing }: { c: Pick<PlannedChange, 'name' | 'loadKind' | 'unit' | 'from' | 'to' | 'reason'> & { fromTotal?: number }; undone?: boolean; trailing?: ReactNode }) {
   return (
     <li className={`${styles.row} ${trailing ? styles.sheetRow : ''}`} data-undone={undone || undefined} data-testid="coach-change">
       <span className={styles.name}>{c.name}</span>
-      <span className={`${styles.change} num`} aria-label={`${weightWords(c.loadKind, c.from, c.unit)} to ${weightWords(c.loadKind, c.to, c.unit)}`}>
-        {formatAmount(c.from)} → <b>{weightWords(c.loadKind, c.to, c.unit)}</b>
+      <span className={`${styles.change} num`} aria-label={`${weightWords(c.loadKind, c.fromTotal ?? c.from, c.unit)} to ${weightWords(c.loadKind, c.to, c.unit)}`}>
+        {formatAmount(c.fromTotal ?? c.from)} → <b>{weightWords(c.loadKind, c.to, c.unit)}</b>
       </span>
       <span className={styles.why}>{c.reason}</span>
       {trailing}

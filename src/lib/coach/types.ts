@@ -79,6 +79,8 @@ export type PlannedChange = {
   loadKind: Load['kind'];
   unit: Unit;
   from: number;
+  /** What the lifter really used (pin + added weight), for showing old → new. Absent: `from`. */
+  fromTotal?: number;
   to: number;
   reason: string;
   source: TargetSource;
