@@ -144,6 +144,25 @@ export function lowImpact(p: Profile, requires: Requires | null): boolean {
 
 const timedOr = (newer: boolean, a: number, b: number) => (newer ? a : b);
 
+/** Legs, push or pull (null: abs, shoulders' small moves, anything else). */
+const bodyArea = (p: Profile): 'legs' | 'push' | 'pull' | null =>
+  p.pattern === null ? null : LEGS.has(p.pattern) && p.pattern !== 'calves' ? 'legs' : PUSH.has(p.pattern) ? 'push' : PULL.has(p.pattern) ? 'pull' : null;
+
+/**
+ * 3.5b round 4 (M6): a pump is built around a main lift: the card opens on a big lift, and its first
+ * pair is that lift with a move of another area (a push with a pull, a leg move with an upper one),
+ * never a big lift next to an ab move.
+ */
+function mainPair(ps: readonly Profile[], items: readonly { group?: number }[]): boolean {
+  if (!ps.length || !isCompound(ps[0]!) || items[0]?.group === undefined) return false;
+  const g = items[0].group;
+  const partner = items.findIndex((it, i) => i > 0 && it.group === g);
+  if (partner === -1) return false;
+  const a = bodyArea(ps[0]!);
+  const b = bodyArea(ps[partner]!);
+  return a !== null && b !== null && a !== b;
+}
+
 /** 3.5b round 4 (B4): a real leg move: knee or hip dominant and a compound (never a back extension or a leg extension alone). */
 export const realLegs = (p: Profile): boolean => p.pattern !== null && ['squat', 'hinge', 'lunge', 'glutes'].includes(p.pattern) && isCompound(p);
 
@@ -151,6 +170,8 @@ export const realLegs = (p: Profile): boolean => p.pattern !== null && ['squat',
 const UPPER_FILL: Slot[] = [s('horizontal push', true), s('horizontal pull', true), s('vertical push', true), s('vertical pull', true), s('lateral delt', true), s('biceps', true), s('triceps', true), s('chest isolation', true), s('rear delt', true)];
 const LOWER_FILL: Slot[] = [s('squat', true), s('hinge', true), s('glutes', true), s('lunge', true), s('hamstrings isolation', true), s('quads isolation', true), s('calves', true)];
 const CORE_FILL: Slot[] = [s('core', true), s('core', true)];
+/** Big lifts of another kind (a second row, a second press): Strength focus's 4th and 5th lift where a gym has few. */
+const COMPOUND_FILL: Slot[] = [s('horizontal pull', true), s('horizontal push', true), s('vertical pull', true), s('vertical push', true), s('squat', true)];
 
 export const STYLES: Record<StyleId, StyleDef> = {
   circuit: {
@@ -189,7 +210,7 @@ export const STYLES: Record<StyleId, StyleDef> = {
     maxSets: (newer) => timedOr(newer, 3, 5),
     rest: { group: 60, single: 60, floor: 45, cap: 90 },
     only: (p) => !isHeavy(p),
-    honest: (ps, items) => grouped(items, (n) => n === 2) && isCompound(ps[0]!) && ps.filter((p) => p.pattern === 'calves').length <= 1,
+    honest: (ps, items) => mainPair(ps, items) && ps.filter((p) => p.pattern === 'calves').length <= 1,
   },
   strength: {
     id: 'strength',
@@ -197,10 +218,11 @@ export const STYLES: Record<StyleId, StyleDef> = {
     chip: 'Strength',
     effort: 3,
     // Round 4 (B5): a 4th and a 5th lift (an upper press and a pull) come before any extra set.
+    // A second press or row of another kind fills a gym with few big lifts (a hotel: dumbbell and cable).
     variants: [
-      { key: 'legs', label: 'legs first', slots: [s('squat'), s('hinge'), s('horizontal push'), s('horizontal pull'), s('glutes'), s('vertical push'), s('vertical pull')] },
-      { key: 'upper', label: 'upper first', slots: [s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull'), s('squat'), s('hinge')] },
-      { key: 'posterior', label: 'hips first', slots: [s('hinge'), s('glutes'), s('vertical push'), s('vertical pull'), s('hinge', true), s('horizontal push')] },
+      { key: 'legs', label: 'legs first', slots: [s('squat'), s('hinge'), s('horizontal push'), s('horizontal pull'), s('glutes'), s('vertical push'), s('vertical pull'), ...COMPOUND_FILL] },
+      { key: 'upper', label: 'upper first', slots: [s('horizontal push'), s('horizontal pull'), s('vertical push'), s('vertical pull'), s('squat'), s('hinge'), ...COMPOUND_FILL] },
+      { key: 'posterior', label: 'hips first', slots: [s('hinge'), s('glutes'), s('vertical push'), s('vertical pull'), s('hinge', true), s('horizontal push'), ...COMPOUND_FILL] },
     ],
     minMinutes: 30,
     shape: () => 'straight',
@@ -407,6 +429,9 @@ function unitsOf(items: readonly Work[]): Work[][] {
 
 const restMovable = (u: readonly Work[]) => u.length > 1 || !u[0]!.keepRest;
 
+/** Only a pull up bar: the lift hangs your whole bodyweight (pull ups, chin ups). */
+export const hangsBodyweight = (requires: Requires | null): boolean => !!requires && requires.length > 0 && requires.every((g) => g.every((id) => id === 'pull_up_bar'));
+
 /**
  * One card: the slots filled the plan generator's way (gear, never, go easy on, loved, soft dislikes,
  * a sure demo), grouped the style's way, then fitted to the minutes through the one estimate: rest
@@ -440,6 +465,8 @@ export function buildCard(spec: BuildSpec, deps: BuildDeps, budget: number): Bui
     // A heavy lift keeps its prescribed rest always (SPEC 22 rule 6); other compounds keep theirs outside circuits.
     const w: Work = { ...it, profile, keepRest: isHeavy(profile) || (isCompound(profile) && spec.shape !== 'circuit' && spec.shape !== 'tri') };
     if (spec.reps && w.reps) w.reps = isCompound(profile) ? [...spec.reps.compound] : [...spec.reps.other];
+    // 3.5b round 4 (B4): a bodyweight pull up is a reachable 5 to 8 reps, never 8 to 12 (or a pulldown: quick.ts).
+    if (w.reps && hangsBodyweight(deps.requires(it.id))) w.reps = [5, 8];
     if (spec.sets !== undefined) w.sets = spec.sets;
     w.sets = Math.min(w.sets, spec.maxSets);
     if (!w.keepRest) w.restSec = spec.rest.single;
@@ -575,7 +602,14 @@ export type BatchInput<T extends Pickable> = {
   max?: number;
 };
 
-export type Batch<T> = { cards: T[]; more: T[]; /** The card a More ideas chip replaces (or cards.length: it is added). */ swapAt: number };
+export type Batch<T> = {
+  cards: T[];
+  more: T[];
+  /** Where each More ideas card goes: the card it replaces (or cards.length: it is added). */
+  moreAt: number[];
+  /** Card 4, the one a More ideas card replaces when it is diverse from all the others. */
+  swapAt: number;
+};
 
 const sameIds = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
@@ -672,25 +706,40 @@ export function chooseBatch<T extends Pickable>(input: BatchInput<T>): Batch<T> 
     cards = [...lead, easy, ...cards.filter((c) => c !== easy && !lead.includes(c))];
   }
 
-  // More ideas: every other style that is diverse from the cards it would sit with, and (3.5b round 4,
-  // M12) the other body areas of the swapped card's own style ("Superset pump: legs and back").
+  // More ideas (3.5b round 4, M12): every other style, and the other body areas of a style on screen
+  // ("Superset pump: legs and back"), each in the place it can take: added when there is room, else
+  // in place of card 4 when it is diverse from all the others, else in place of the one card it is
+  // too close to (never the plan, fresh or a beginner's Easy start). The cards stay diverse either way.
   const swappable = (c: T) => c.id !== 'plan' && c.id !== 'fresh' && !(input.needEasy && c.id === 'easy');
   let swapAt = cards.length;
   if (cards.length >= max) {
     const at = cards.findLastIndex(swappable);
     swapAt = at === -1 ? cards.length : at;
   }
-  const others = cards.filter((_, i) => i !== swapAt);
+  const placeFor = (v: T): number => {
+    if (cards.length < max && okWith(v, cards)) return cards.length;
+    const without = (i: number) => cards.filter((_, k) => k !== i);
+    if (swapAt < cards.length && okWith(v, without(swapAt))) return swapAt;
+    const close = cards.map((c, i) => (diverse(v.primary, c.primary) ? -1 : i)).filter((i) => i !== -1);
+    if (close.length === 1 && swappable(cards[close[0]!]!) && okWith(v, without(close[0]!))) return close[0]!;
+    return -1;
+  };
   const more: T[] = [];
+  const moreAt: number[] = [];
   for (const id of STYLE_ORDER) {
-    if (cards.some((c) => c.id === id)) continue;
-    const v = variantFor(id, others);
-    if (v) more.push(v);
+    const shown = cards.findIndex((c) => c.id === id);
+    for (const v of input.styles.get(id) ?? []) {
+      if (cards.includes(v)) continue;
+      // Another body area of a style on screen takes that card's place (one card per style).
+      const at = shown === -1 ? placeFor(v) : swappable(cards[shown]!) && okWith(v, cards.filter((_, k) => k !== shown)) ? shown : -1;
+      if (at === -1 || (shown !== -1 && sameMuscles(v.primary, cards[shown]!.primary))) continue;
+      more.push(v);
+      moreAt.push(at);
+      // One chip per style not on screen (its first variant that fits).
+      if (shown === -1) break;
+    }
   }
-  const current = cards[swapAt];
-  if (current) {
-    const same = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x));
-    for (const v of input.styles.get(current.id as StyleId) ?? []) if (v !== current && !same(v.primary, current.primary) && okWith(v, others)) more.push(v);
-  }
-  return { cards, more, swapAt };
+  return { cards, more, moreAt, swapAt };
 }
+
+const sameMuscles = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x));

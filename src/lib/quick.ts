@@ -26,7 +26,9 @@ import {
   buildCard,
   chooseBatch,
   densityFor,
+  hangsBodyweight,
   quickMinutes,
+  realLegs,
   SLACK,
   structureOf,
   STYLE_ORDER,
@@ -112,6 +114,8 @@ export type Concept = {
   /** 3.5b round 4 (M12): a style card's body area ("legs and back"): two cards of one style differ by it. */
   variant?: string;
   variantLabel?: string;
+  /** 3.5b round 4: what it mostly trains, in words ("Chest and back"): a More ideas chip of a style already shown says it. */
+  focus?: string;
 };
 
 /** A card's identity on screen (a style can come back in More ideas with another body area). */
@@ -232,21 +236,59 @@ export function gearOf(ids: readonly string[], data: SwapData, gym: GymKit): Equ
   return out;
 }
 
-/** The primary muscles of a workout (map regions), for the diversity rule. */
+/** The primary muscles of a workout (map regions), every one of them. */
 export function primaryOf(ids: readonly string[], deps: Pick<QuickDeps, 'primaryOf' | 'profile'>): Set<string> {
   return new Set(ids.flatMap((id) => (deps.primaryOf ? deps.primaryOf(id) : deps.profile(id).targets)));
 }
 
-/** "5 exercises · 2 supersets · ~30 min", "4 exercises · 3 rounds · ~14 min" (every number from the items and the one estimate). */
+/** How many main muscles a card is known by (the diversity rule compares these). */
+export const MAIN_MUSCLES = 3;
+
+/**
+ * 3.5b round 4 (B1, M12): a card's primary muscles, the ones the diversity rule compares: the map
+ * regions that get the most working sets on it (the catalog's primary muscles of each exercise,
+ * counted by its sets), the first ones in the workout first on a tie, at most MAIN_MUSCLES. A 9
+ * move full body card and a 6 move arms card are told apart by what they mostly train, not by the
+ * one curl the first one ends on.
+ */
+export function mainMuscles(items: readonly Pick<QuickItem, 'id' | 'sets'>[], deps: Pick<QuickDeps, 'primaryOf' | 'profile'>): Set<string> {
+  const count = new Map<string, { n: number; at: number }>();
+  items.forEach((it, i) => {
+    const regions = deps.primaryOf ? deps.primaryOf(it.id) : deps.profile(it.id).targets;
+    for (const r of new Set(regions)) {
+      const c = count.get(r);
+      count.set(r, { n: (c?.n ?? 0) + it.sets, at: c?.at ?? i });
+    }
+  });
+  return new Set(
+    [...count.entries()]
+      .sort((a, b) => b[1].n - a[1].n || a[1].at - b[1].at)
+      .slice(0, MAIN_MUSCLES)
+      .map(([r]) => r),
+  );
+}
+
+/**
+ * "6 exercises · 2 pairs · ~30 min", "4 exercises · 3 rounds · ~14 min" (every number from the items
+ * and the one estimate). 3.5b round 4 (M9, SPEC 13.1): one vocabulary on every card and the day
+ * list: a superset is a "pair", a circuit is counted in "rounds" (never "1 circuit").
+ */
 export function metaLine(items: readonly Pick<QuickItem, 'group' | 'sets'>[], minutes: number): string {
   const n = items.length;
   const st = structureOf(items);
   const parts = [`${n} ${n === 1 ? 'exercise' : 'exercises'}`];
-  // 3.5b round 4 (M9, SPEC 13.1): plain words, one of each: "pairs" (never "supersets") and "circuit" (never "rounds").
-  if (st.circuits) parts.push(`${st.circuits} ${st.circuits === 1 ? 'circuit' : 'circuits'}`);
+  const rounds = roundsOf(items);
+  if (rounds) parts.push(`${rounds} ${rounds === 1 ? 'round' : 'rounds'}`);
   if (st.supersets) parts.push(`${st.supersets} ${st.supersets === 1 ? 'pair' : 'pairs'}`);
   parts.push(`~${minutes} min`);
   return parts.join(' · ');
+}
+
+/** The rounds of a card's circuits (3 or more moves one after another), the most of them; 0: no circuit. */
+export function roundsOf(items: readonly Pick<QuickItem, 'group' | 'sets'>[]): number {
+  const size = new Map<number, number>();
+  for (const it of items) if (it.group !== undefined) size.set(it.group, (size.get(it.group) ?? 0) + 1);
+  return Math.max(0, ...items.filter((it) => it.group !== undefined && (size.get(it.group) ?? 0) >= 3).map((it) => it.sets));
 }
 
 const DAY_MS = 86_400_000;
@@ -323,10 +365,28 @@ function chipOf(style: StyleDef | null, items: readonly QuickItem[]): string {
 
 const BUILD = (deps: QuickDeps): BuildDeps => ({ ...deps, requires: (id) => requiresOf(deps.data, id) });
 
+/**
+ * 3.5b round 4 (B1): muscles trained in the last 3 days rank a style card's moves, never remove them:
+ * a move for one of them counts as one more soft dislike (the generator puts it after the others that
+ * fit the slot, and still uses it when nothing else does). "Hit what's fresh" is the card that leaves them out.
+ */
+export function restedFirst(base: GeneratorInput, recent: readonly Muscle[], deps: Pick<QuickDeps, 'data' | 'profile'>): GeneratorInput {
+  if (!recent.length) return base;
+  const tired = new Set(recent);
+  const soft: Record<string, number> = { ...base.soft };
+  for (const ladder of Object.values(deps.data.patterns))
+    for (const c of ladder.candidates) {
+      const id = workoutIdOf(c);
+      if (deps.profile(id).targets.some((m) => tired.has(m))) soft[id] = (soft[id] ?? 0) + 1;
+    }
+  return { ...base, soft };
+}
+
 /** A style card, or null when the gym, the never list or the minutes leave too little for its name to be true. */
 function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input: QuickInput, deps: QuickDeps): Concept | null {
   if (style.minMinutes !== undefined && input.minutes < style.minMinutes) return null;
-  const built = buildCard(styleSpec(style, variant, { ...input.base, minutes: input.minutes }, input.minutes), BUILD(deps), input.minutes);
+  const base = restedFirst(input.base, input.recent, deps);
+  const built = buildCard(styleSpec(style, variant, { ...base, minutes: input.minutes }, input.minutes), BUILD(deps), input.minutes);
   if (!built || !fits(built.minutes, input.minutes)) return null;
   if (!style.honest(built.items.map((it) => deps.profile(it.id)), built.items)) return null;
   // 3.5b round 4 (B1): a card holds G's count for the minutes; fewer is never offered as a full card
@@ -343,10 +403,12 @@ function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input
       : pairWords.length
         ? `${cap(wordList(pairWords))} pairs`
         : BLURB[style.id];
+  const focus = mainWords(items, deps).words;
   return {
     id: style.id,
     variant: variant.key,
     variantLabel: variant.label,
+    ...(focus.length ? { focus: cap(wordList(focus)) } : {}),
     title: style.title,
     line: restedLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? blurb,
     items,
@@ -355,7 +417,7 @@ function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input
     chip: chipOf(style, items),
     effort: style.effort,
     gear: gearOf(ids, deps.data, input.base.gym),
-    primary: primaryOf(ids, deps),
+    primary: mainMuscles(items, deps),
     ...(built.short ? { short: built.short } : {}),
     ...(newerOf(input.base) ? { newer: true } : {}),
   };
@@ -416,7 +478,7 @@ function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
       chip: chipOf(null, items),
       effort: 2,
       gear: gearOf(ids, deps.data, input.base.gym),
-      primary: primaryOf(ids, deps),
+      primary: mainMuscles(items, deps),
       ...(built.short ? { short: built.short } : {}),
       ...(newerOf(input.base) ? { newer: true } : {}),
     });
@@ -428,7 +490,29 @@ function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
 export const needsEasy = (base: Pick<GeneratorInput, 'experience' | 'easyOn'>): boolean =>
   base.experience === 'new' || base.experience === 'months' || (base.easyOn ?? []).some((j) => j !== 'none');
 
-export type Ideas = Batch<Concept>;
+export type Ideas = Batch<Concept> & {
+  /** 3.5b round 4 (B1): fewer than 4 cards, and why, in one plain line (never silent). */
+  fewer?: string;
+};
+
+/** Whether this gym has a sure leg lift for this person (a knee or hip dominant compound with a sure demo and gear). */
+export function hasSureLegs(base: GeneratorInput, deps0: QuickDeps): boolean {
+  const deps = quickDepsFor(base, deps0);
+  for (const ladder of Object.values(deps.data.patterns))
+    for (const c of ladder.candidates) {
+      const id = workoutIdOf(c);
+      if (deps.usable(id) && sureGear(deps.data, id, base.gym) && realLegs(deps.profile(id))) return true;
+    }
+  return false;
+}
+
+/** The line under fewer than 4 cards: what ran out, in plain words. */
+export function fewerLine(count: number, minutes: number, legs: boolean, easyOn: readonly string[] | undefined): string | undefined {
+  if (count === 0 || count >= 4) return undefined;
+  const knees = (easyOn ?? []).some((j) => j === 'knees' || j === 'hips');
+  if (!legs) return knees ? 'Going easy on your knees leaves no leg lift we can show you here, so these are all the different workouts we can build.' : 'This gym has no leg lift we can show you yet, so these are all the different workouts we can build here.';
+  return `These are all the different workouts we can build here in ${minutes} min.`;
+}
 
 /**
  * PLAN 3.5b: up to 4 cards that differ by style, never sharing more than half their primary muscles
@@ -457,7 +541,7 @@ export function buildIdeas(input: QuickInput, deps0: QuickDeps): Ideas {
   const styles = buildStyleCards(input, deps0);
   // 3.5b round 2: card 1 is always the plan when one is active (fitted, or the honest smaller card).
   const plan = input.plan ?? null;
-  return chooseBatch({
+  const batch = chooseBatch({
     plan,
     fresh: freshCards(input, deps),
     styles,
@@ -465,26 +549,27 @@ export function buildIdeas(input: QuickInput, deps0: QuickDeps): Ideas {
     lastShown: input.lastShown ?? [],
     needEasy: needsEasy(input.base),
   });
+  const fewer = fewerLine(batch.cards.length, input.minutes, hasSureLegs(input.base, deps0), input.base.easyOn);
+  return fewer ? { ...batch, fewer } : batch;
 }
-
-const KNEE_SAFE_SQUAT = /leg.?press/i;
 
 /**
  * 3.5b round 4 (B2, SPEC 15): what Quick leaves out for a joint on the Go easy on list, on every card,
- * on top of the generator's own rule (order.ts easyOnAvoids). Knees: no leg extension and no deep
- * squat (a leg press stays: SPEC 15 names it the knee friendly squat); lower back: no loaded hinge,
- * no bent over row, no barbell squat (easyOnAvoids), and no back extension either.
+ * on top of the generator's own rule (order.ts easyOnAvoids). Knees: nothing that bends the knee under
+ * load (no squat of any kind, the leg press included, no leg extension, no lunge); lower back: no
+ * loaded hinge, no bent over row, no barbell squat (easyOnAvoids), and no back extension either;
+ * shoulders: no overhead pressing (easyOnAvoids).
  */
 export function quickAvoids(easyOn: readonly string[] | undefined, p: Profile): boolean {
   if (easyOnAvoids(easyOn, p)) return true;
   const on = new Set(easyOn ?? []);
-  if (on.has('knees') && (p.pattern === 'quads isolation' || (p.pattern === 'squat' && !KNEE_SAFE_SQUAT.test(p.name) && !KNEE_SAFE_SQUAT.test(p.id)))) return true;
+  if (on.has('knees') && (p.pattern === 'squat' || p.pattern === 'quads isolation' || p.pattern === 'lunge')) return true;
   if (on.has('lower_back') && p.pattern === 'hinge') return true;
   return false;
 }
 
 /** A pull up hangs your whole bodyweight: Quick offers a pulldown instead, except to 3+ year lifters (B4). */
-const bodyweightHang = (requires: readonly (readonly string[])[] | null) => !!requires && requires.length > 0 && requires.every((g) => g.every((id) => id === 'pull_up_bar'));
+const bodyweightHang = hangsBodyweight;
 
 const barbellOnly = (requires: readonly (readonly string[])[] | null) => !!requires && requires.some((g) => g.every((id) => id === 'barbell_rack'));
 
@@ -695,7 +780,7 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
     effort: 2,
     ...(newer ? { newer: true } : {}),
     gear: gearOf(ids, data, gym),
-    primary: primaryOf(ids, deps),
+    primary: mainMuscles(items, deps),
   };
 }
 
