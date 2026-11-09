@@ -1,6 +1,17 @@
 {
   "note": "PLAN 3.5a round 2: catalog exercises with no plan entry whose own photos were opened and show exactly the named exercise, so a swap to them can show the demo (SPEC 4.3). Same rule as an exact match: both photos checked by hand.",
   "exercises": [
-    { "catalogId": "Seated_Leg_Curl", "reason": "Both photos: seated leg curl machine, pad on the shins, knees bend under the seat." }
+    {
+      "catalogId": "Seated_Leg_Curl",
+      "reason": "Both photos: seated leg curl machine, pad on the shins, knees bend under the seat."
+    },
+    {
+      "catalogId": "Smith_Machine_Bench_Press",
+      "reason": "3.5d: both photos opened: flat bench under the Smith bar, bar lowered to the chest and pressed up the rails."
+    },
+    {
+      "catalogId": "Machine_Bench_Press",
+      "reason": "3.5d: both photos opened: seated chest press machine, handles pushed forward from the chest."
+    }
   ]
 }

@@ -125,7 +125,7 @@ test('H3. screenshot: menu + sheet on a plain exercise', async ({ page }) => {
 
 const lb = (total: number, per: number[]) => ({ kind: 'barbell', unit: 'lb', total, barWeight: 45, perSide: per });
 
-test('S-a. LAST TIME shows warm up with W tag first', async ({ page }) => {
+test('S-a. LAST TIME skips last time\'s warm up (3.5d: by work set number)', async ({ page }) => {
   const errors = watchErrors(page);
   await usePlan(page);
   await seedFinished(page, { 'barbell-back-squat': [{ reps: 8, kind: 'warmup', load: lb(95, [25]) }, { reps: 10, load: lb(185, [45, 25]) }, { reps: 10, load: lb(185, [45, 25]) }, { reps: 10, load: lb(185, [45, 25]) }] });
@@ -138,8 +138,9 @@ test('S-a. LAST TIME shows warm up with W tag first', async ({ page }) => {
   const lasts = await view.getByRole('button', { name: /Copy into set|no last time/ }).allInnerTexts();
   console.log('LAST cells', JSON.stringify(lasts), '| weights', await view.getByTestId('weight-cell').allInnerTexts(), '| types', await view.getByTestId('set-type').allInnerTexts());
   await shot(page, 'last-warmup');
-  expect(lasts[0]).toMatch(/W/);
-  expect(lasts[0]).toContain('95');
+  // 3.5d: LAST TIME is by work set number: set 1 shows last time's first working set, never its warm up.
+  expect(lasts[0]).not.toMatch(/W|95/);
+  expect(lasts[0]).toContain('185');
   expect(lasts[1]).toContain('185');
   expect(errors).toEqual([]);
 });

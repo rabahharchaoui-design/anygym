@@ -21,10 +21,11 @@ import type { Range } from './generatorRules';
 import { canPair, easyOnAvoids, isCompound, isHeavy, liftWord, muscleWord, patternTargets, type Muscle, type Profile } from './order';
 import { finisherId, isStretchName, dayWorkout } from './planWorkout';
 import { estimateDayMinutes, itemTarget, blockRest, type Plan, type PlanBlock, type PlanDay } from './plans';
-import { adaptDay, requiresOf, supports, swapCandidates, workoutIdOf, type Pattern, type SwapData } from './swap';
+import { adaptDay, candidateFacts, requiresOf, supports, swapCandidates, workoutIdOf, type Pattern, type SwapData } from './swap';
 import { applyTrim, type DayTrim } from './timeBudget';
 import {
   buildCard,
+  diverse,
   chooseBatch,
   densityFor,
   hangsBodyweight,
@@ -91,6 +92,8 @@ export type Concept = {
   title: string;
   /** The why line: specific, from logged sets when it names a rest ("Back and biceps rested 4 days"). */
   line: string;
+  /** 3.5d (9): other true lines for this card, used when an earlier card already has its line. */
+  altLines?: string[];
   items: QuickItem[];
   minutes: number;
   /** Still over the minutes picked after the trim (said, never hidden). */
@@ -408,16 +411,53 @@ export function restedFirst(base: GeneratorInput, recent: readonly Muscle[], dep
   return { ...base, soft };
 }
 
+/** 3.5d (9): the muscles trained in the last 48 h (logged working sets only) stay out of the style cards. */
+const TIRED_MS = 48 * 60 * 60 * 1000;
+export function trainedWithin(lastTrained: QuickInput['lastTrained'], now: number, ms: number): Muscle[] {
+  return (Object.entries(lastTrained ?? {}) as Array<[Muscle, number]>).filter(([, at]) => at <= now && now - at < ms).map(([m]) => m);
+}
+
+/** "Leaves out chest and triceps (trained yesterday)": what the 48 h rule kept out of a card. */
+function leavesOut(tired: readonly Muscle[], input: Pick<QuickInput, 'lastTrained' | 'now'>): string {
+  const now = input.now ?? Date.now();
+  const at = (m: Muscle) => input.lastTrained?.[m] ?? 0;
+  const words = [...new Set([...tired].sort((a, b) => at(b) - at(a)).map(muscleWord))].slice(0, 2);
+  return `Leaves out ${wordList(words, 2)} (trained ${whenWords(at(tired.reduce((a, b) => (at(b) > at(a) ? b : a))), now)})`;
+}
+
 /** A style card, or null when the gym, the never list or the minutes leave too little for its name to be true. */
 function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input: QuickInput, deps: QuickDeps): Concept | null {
   if (style.minMinutes !== undefined && input.minutes < style.minMinutes) return null;
   const base = restedFirst(input.base, input.recent, deps);
-  const built = buildCard(styleSpec(style, variant, { ...base, minutes: input.minutes }, input.minutes), BUILD(deps), input.minutes);
-  if (!built || !fits(built.minutes, input.minutes)) return null;
-  if (!style.honest(built.items.map((it) => deps.profile(it.id)), built.items)) return null;
-  // 3.5b round 4 (B1): a card holds G's count for the minutes; fewer is never offered as a full card
-  // (Strength focus is fewer on purpose, and its 4th and 5th lifts come before extra sets).
-  if (!style.maxMoves && built.items.length < densityFor(input.minutes).min) return null;
+  const attempt = (d: QuickDeps) => {
+    const b = buildCard(styleSpec(style, variant, { ...base, minutes: input.minutes }, input.minutes), BUILD(d), input.minutes);
+    if (!b || !fits(b.minutes, input.minutes)) return null;
+    if (!style.honest(b.items.map((it) => d.profile(it.id)), b.items)) return null;
+    // 3.5b round 4 (B1): a card holds G's count for the minutes; fewer is never offered as a full card
+    // (Strength focus is fewer on purpose, and its 4th and 5th lifts come before extra sets).
+    if (!style.maxMoves && b.items.length < densityFor(input.minutes).min) return null;
+    return b;
+  };
+  // 3.5d (9): muscles trained in the last 48 h stay out of a style card when the card can still be
+  // built without them; only when it cannot do they rank last, as before (never an empty slot).
+  const tired = trainedWithin(input.lastTrained, input.now ?? Date.now(), TIRED_MS);
+  // Round 2: when every tired muscle cannot go (yesterday's chest press also tires front delts and
+  // triceps, so a shoulder press would go too), the big ones go and the small helpers may stay.
+  const SMALL: readonly Muscle[] = ['front delts', 'triceps', 'biceps', 'forearms'];
+  const ladder = [tired, tired.filter((m) => !SMALL.includes(m))].filter((t, i, all) => t.length > 0 && (i === 0 || t.length < all[0]!.length));
+  let kept: readonly Muscle[] = [];
+  let built: ReturnType<typeof attempt> = null;
+  for (const t of ladder) {
+    const rested: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !targetsOf(deps, id).some((m) => t.includes(m)) };
+    built = attempt(rested);
+    if (built) {
+      kept = t;
+      break;
+    }
+  }
+  const strict = built;
+  built = built ?? attempt(deps);
+  if (!built) return null;
   const items = itemsOf(deps, built.items);
   const ids = items.map((it) => it.id);
   const easyOn = (input.base.easyOn ?? []).filter((j) => JOINT_WORD[j]);
@@ -437,6 +477,7 @@ function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input
     ...(focus.length ? { focus: cap(wordList(focus)) } : {}),
     title: style.title,
     line: restedLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? blurb,
+    altLines: [...(strict && kept.length ? [leavesOut(kept, input)] : []), blurb],
     items,
     minutes: built.minutes,
     over: false,
@@ -470,7 +511,11 @@ function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
   if (!logged) return [];
   // Round 2 (B4): nothing on this card may light a muscle the Skips line names, on its map either.
   const blocked = new Set(recent.flatMap((m) => deps.muscleRegions?.(m) ?? []));
-  const freshDeps: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !(deps.litRegions?.(id) ?? []).some((r) => blocked.has(r)) };
+  // 3.5d round 3: and no move whose main muscle was trained in the last 3 days, whatever its pattern.
+  const freshDeps: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !targetsOf(deps, id).some((m) => recent.includes(m)) && !(deps.litRegions?.(id) ?? []).some((r) => blocked.has(r)) };
+  // The why line names only muscles truly not trained in the last 3 days (a word shared with a trained muscle, shoulders, is out too).
+  const tiredWords = new Set(recent.map(muscleWord));
+  const restedOnly = Object.fromEntries(Object.entries(input.lastTrained ?? {}).filter(([m]) => !tiredWords.has(muscleWord(m as Muscle)))) as QuickInput['lastTrained'];
   const pool = FRESH_POOL.filter((p) => !patternTargets(p).some((m) => recent.includes(m)));
   const pools = [pool, pool.filter((p) => !LEG_PATTERNS.has(p)), pool.filter((p) => LEG_PATTERNS.has(p) || p === 'core')];
   const out: Concept[] = [];
@@ -492,7 +537,7 @@ function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
     const items = itemsOf(deps, built.items, (it) => `${cap(wordList(targetsOf(deps, it.id).map(muscleWord)))}: not trained in 3 days`);
     if (out.some((o) => o.items.length === items.length && o.items.every((x) => items.some((y) => y.id === x.id)))) continue;
     const ids = items.map((it) => it.id);
-    const rested = restedLine(items, deps, input.lastTrained, input.now ?? Date.now(), 1);
+    const rested = restedLine(items, deps, restedOnly, input.now ?? Date.now(), 1);
     const skips = recent.length ? `Skips ${wordList([...new Set(recent.map(muscleWord))].slice(0, 2))} (trained ${input.recentWhen ?? 'lately'})` : null;
     out.push({
       id: 'fresh',
@@ -518,9 +563,15 @@ export function quickTitleOf(style: string | undefined): string {
   return style && style in STYLES ? STYLES[style as StyleId].title : 'Quick workout';
 }
 
+/** 3.5d: the longest estimate (minutes picked) Arms and abs is offered at: the 15 and 30 chips. */
+const ARMS_ABS_MAX_MIN = 37;
+
 /** Beginners and Go easy on always get one Easy start (Low impact) card. */
+/** 3.5d: no intake answers (experience unknown) means the beginner rules. */
+const noIntake = (base: Pick<GeneratorInput, 'experience'>): boolean => base.experience === undefined;
+
 export const needsEasy = (base: Pick<GeneratorInput, 'experience' | 'easyOn'>): boolean =>
-  base.experience === 'new' || base.experience === 'months' || (base.easyOn ?? []).some((j) => j !== 'none');
+  noIntake(base) || base.experience === 'new' || base.experience === 'months' || (base.easyOn ?? []).some((j) => j !== 'none');
 
 export type Ideas = Batch<Concept> & {
   /** 3.5b round 4 (B1): fewer than 4 cards, and why, in one plain line (never silent). */
@@ -567,7 +618,9 @@ export function buildStyleCards(input: QuickInput, deps0: QuickDeps): Map<StyleI
   for (const id of STYLE_ORDER) {
     const style = STYLES[id];
     // 3.5b round 4 (B3): a brand new lifter is never offered heavy 4 to 6 rep barbell work.
-    if (id === 'strength' && input.base.experience === 'new') continue;
+    if (id === 'strength' && (input.base.experience === 'new' || noIntake(input.base))) continue;
+    // 3.5d: Arms and abs is a 15 and 30 minute card only.
+    if (id === 'armsAbs' && input.minutes > ARMS_ABS_MAX_MIN) continue;
     // 3.5b round 4 (B2): sore knees or hips never get a legs only Easy start.
     const sore = (input.base.easyOn ?? []).some((j) => j === 'knees' || j === 'hips');
     const variants = style.variants.filter((v) => !(id === 'easy' && v.key === 'legs' && sore));
@@ -590,8 +643,90 @@ export function buildIdeas(input: QuickInput, deps0: QuickDeps): Ideas {
     lastShown: input.lastShown ?? [],
     needEasy: needsEasy(input.base),
   });
+  const owned = ownLines(distinctCards(batch, input, deps));
   const fewer = fewerLine(batch.cards.length, input.minutes, hasSureLegs(input.base, deps0), input.base.easyOn, batch.more.length);
-  return fewer ? { ...batch, fewer } : batch;
+  return fewer ? { ...owned, fewer } : owned;
+}
+
+/**
+ * 3.5d (6): no exercise stands in two of the cards on screen (or in a card and the More ideas card
+ * that would sit beside it) when the sure catalog allows: a repeated move takes the next option of its
+ * own slot's pattern that no card shows. The plan day and "Hit what's fresh" are never changed. When
+ * nothing else fits, the card keeps the move (a slot is never left empty), and a swap that would take
+ * the card over its minutes or change the muscles it trains is not made.
+ */
+export function distinctCards(batch: Batch<Concept>, input: QuickInput, deps: QuickDeps): Batch<Concept> {
+  const never = new Set((input.base.never ?? []).map(deps.data.sameAs));
+  const ok = (id: string) => deps.usable(id) && !never.has(deps.data.sameAs(id));
+  const keys = (c: Concept) => c.items.map((it) => deps.data.sameAs(it.id));
+  const fix = (c: Concept, others: readonly Concept[], beside: (c: Concept) => readonly Concept[]): Concept => {
+    if (c.id === 'plan' || c.id === 'fresh' || !(c.id in STYLES)) return c;
+    const taken = new Set(others.flatMap(keys));
+    if (!c.items.some((it) => taken.has(deps.data.sameAs(it.id)))) return c;
+    let items = c.items;
+    for (const it of c.items) {
+      if (!taken.has(deps.data.sameAs(it.id))) continue;
+      const to = nextSwap(it, items, [], { data: deps.data, gym: input.base.gym, ok, profile: deps.profile, nameOf: deps.name, avoid: [...taken], ...(input.base.soft ? { soft: input.base.soft } : {}) });
+      if (!to) continue;
+      // Built this way, not swapped: the card's own exercise now (its slot, so a later swipe can still reach the others).
+      const next = { ...swapItem(it, to, deps.name(to), candidateFacts(deps.data, to)?.eachSide === true, undefined, hangsBodyweight(requiresOf(deps.data, to))), slot: to, origin: to };
+      delete next.swapped;
+      const tryItems = safePairs(items.map((x) => (x === it ? next : x)), deps.profile);
+      const reasons = reasonsFor(tryItems.map((x) => x.id), deps);
+      const withWhy = tryItems.map((x, i) => (x.id === to ? { ...x, why: reasons[i]! } : x));
+      if (!fits(quickMinutes(withWhy), input.minutes)) continue;
+      const primary = mainMuscles(withWhy, deps);
+      // The card keeps the muscles it showed. Round 2: a replacement that moves one of its three main
+      // muscles (a Romanian deadlift for a deadlift: back to hamstrings) is let in only when the card is
+      // still named for the same muscles and the diversity rule still holds against every card beside it.
+      // 3.5d round 3 (4), why the Romanian deadlift is not always there: at 30 and 60 min the strength card's
+      // Deadlift repeats the circuit's, and the replacement is available and fits, but it moves the card's
+      // main muscles from lower back to hamstrings and glutes, which the pump card (or the More ideas card
+      // beside it) already trains: `diverse` fails, so the card keeps the Deadlift. Two cards training the
+      // same muscles is the worse trade, so the rule stays as it is (at 45 the strength card is built with it).
+      const same = primary.size === c.primary.size && [...primary].every((m) => c.primary.has(m));
+      if (!same && (mainWords(withWhy, deps).words.join() !== mainWords(c.items, deps).words.join() || !beside(c).every((o) => diverse(primary, o.primary)))) continue;
+      items = withWhy;
+    }
+    if (items === c.items) return c;
+    const style = STYLES[c.id as StyleId];
+    const ids = items.map((x) => x.id);
+    return {
+      ...c,
+      items,
+      minutes: quickMinutes(items),
+      chip: chipOf(style, items),
+      gear: gearOf(ids, deps.data, input.base.gym),
+      primary: mainMuscles(items, deps),
+      line: restedLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? c.altLines?.[c.altLines.length - 1] ?? c.line,
+    };
+  };
+  const cards: Concept[] = [];
+  // A card's replacement must stay diverse from the other cards and from every More ideas card that would sit beside it.
+  batch.cards.forEach((c, k) => cards.push(fix(c, cards, (x) => [...batch.cards.filter((o) => o !== x), ...batch.more.filter((_, i) => batch.moreAt[i] !== k)])));
+  const more = batch.more.map((c, i) => {
+    const sit = cards.filter((_, k) => k !== batch.moreAt[i]);
+    return fix(c, sit, () => sit);
+  });
+  return { ...batch, cards, more };
+}
+
+/**
+ * 3.5d (9): every card on screen has its own why line. A later card whose line an earlier one already
+ * shows takes its next true line (what it leaves out, then what it is); a More ideas card is checked
+ * against the cards it would sit with.
+ */
+function ownLines(batch: Batch<Concept>): Batch<Concept> {
+  const { cards, more, moreAt } = batch;
+  const pick = (c: Concept, taken: ReadonlySet<string>): Concept => {
+    if (c.id === 'plan' || !taken.has(c.line)) return c;
+    const next = (c.altLines ?? []).find((l) => !taken.has(l));
+    return next ? { ...c, line: next } : c;
+  };
+  const out: Concept[] = [];
+  for (const c of cards) out.push(pick(c, new Set(out.map((x) => x.line))));
+  const outMore = more.map((c, i) => pick(c, new Set(out.filter((_, k) => k !== moreAt[i]).map((x) => x.line))));
+  return { ...batch, cards: out, more: outMore };
 }
 
 /**
@@ -623,7 +758,7 @@ function quickDepsFor(base: GeneratorInput, deps: QuickDeps): QuickDeps {
       !quickAvoids(base.easyOn, deps.profile(id)) &&
       (base.experience === '3y' || !bodyweightHang(requiresOf(deps.data, id))) &&
       // 3.5b round 4 (B3): a brand new lifter starts on machines and dumbbells, never a heavy barbell lift.
-      !(base.experience === 'new' && isHeavy(deps.profile(id)) && barbellOnly(requiresOf(deps.data, id))),
+      !((base.experience === 'new' || noIntake(base)) && isHeavy(deps.profile(id)) && barbellOnly(requiresOf(deps.data, id))),
   };
 }
 
@@ -680,7 +815,7 @@ export function fitPlanDay(
   profileOf: (id: string, name: string) => Profile,
   newer: boolean,
 ): { trim: DayTrim | null; short?: 'moves' | 'caps' } {
-  const t: DayTrim = { drop: [...(base?.drop ?? [])], sets: {}, rest: {}, pairs: [] };
+  const t: DayTrim = { drop: [...(base?.drop ?? [])], sets: {}, rest: {}, pairs: [], ...(base?.straight ? { straight: { ...base.straight } } : {}) };
   const est = () => estimateDayMinutes(applyTrim(day, t, weekIndex), weekIndex);
   const blocks = () => workingBlocks(applyTrim(day, t, weekIndex));
   const prof = (it: PlanBlock['items'][number]) => profileOf(it.exerciseId, it.name);
@@ -741,9 +876,12 @@ export function fitPlanDay(
       if (!rest) break;
     }
   }
+  // 3.5d round 3 (3): one source of truth for a straight set's rest, the block's own as the trim left it
+  // (applyTrim lets t.rest win over straight), so the card and the day list read the same number.
+  if (t.straight) for (const id of Object.keys(t.straight)) if (t.rest![id] !== undefined) t.straight[id] = t.rest![id]!;
   if (!Object.keys(t.rest!).length) delete t.rest;
   if (!t.pairs!.length) delete t.pairs;
-  const trim = t.drop.length || Object.keys(t.sets).length || t.rest || t.pairs ? t : null;
+  const trim = t.drop.length || Object.keys(t.sets).length || t.rest || t.pairs || t.straight ? t : null;
   const m = est();
   if (budget >= 75 || m >= budget - SLACK) return { trim };
   return { trim, short: newer ? 'caps' : 'moves' };
@@ -773,6 +911,7 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
   }
   const drop: string[] = [];
   const swapTo = new Map<string, string>();
+  const straight: Record<string, number> = {};
   const taken = () => [...currentOf.entries()].filter(([slot]) => !drop.includes(slot)).map(([slot, cur]) => swapTo.get(slot) ?? cur);
   for (const e of unique) {
     if (e.finisher) continue;
@@ -786,12 +925,21 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
     if (ok(cur)) continue;
     const mode = e.seconds !== undefined && e.reps === undefined ? 'seconds' : 'reps';
     const pick = rankSoft(swapCandidates(data, cur, gym, { mode, exclude: taken().filter((x) => x !== cur) }).map(workoutIdOf).filter(ok), input.soft)[0];
-    if (pick) swapTo.set(slot, pick);
-    else drop.push(slot);
+    // 3.5d: a stand in never makes a heavy lift part of a plan pair (SPEC 22 rule 5): it is left out instead.
+    const block = day.blocks.find((b) => b.items.some((x) => x.exerciseId === slot));
+    const inHeavyPair = !!block && block.kind === 'pair' && block.items.length > 1 && (isHeavy(deps.profile(pick ?? cur)) || block.items.some((x) => x.exerciseId !== slot && isHeavy(deps.profileOf(x.exerciseId, x.name))));
+    if (!pick) drop.push(slot);
+    else {
+      swapTo.set(slot, pick);
+      // Round 2 (Codex #1): the stand in stays; its pair is done as straight sets instead (the plan's own rest after every
+      // set, a heavy lift keeps the rest it was written with), so planned work is never silently removed.
+      if (inHeavyPair && block)
+        for (const x of block.items) straight[x.exerciseId] = blockRest(block as PlanBlock);
+    }
   }
   // 3.5b round 2: the cardio finisher has no demo and no card: Quick's plan day leaves it out.
   if (day.finisher) drop.push(finisherId(day.finisher.name));
-  const base: DayTrim | null = drop.length ? { drop, sets: {} } : null;
+  const base: DayTrim | null = drop.length || Object.keys(straight).length ? { drop, sets: {}, ...(Object.keys(straight).length ? { straight } : {}) } : null;
   // The gym cannot do the day: fewer than 3 of its lifts with a sure demo and sure gear.
   if (workingBlocks(applyTrim(day, base, weekIndex)).reduce((n, b) => n + b.items.length, 0) < 3) return null;
   const newer = input.experience === undefined || ['new', 'months', 'break'].includes(input.experience);
@@ -946,6 +1094,8 @@ export type SwapContext = {
   profile?: (id: string) => Profile;
   /** Plain names: one option under two names is offered once (round 3, B2). */
   nameOf?: (id: string) => string;
+  /** 3.5d: more ids that are taken (another card of the batch). */
+  avoid?: readonly string[];
 };
 
 /**
@@ -967,7 +1117,7 @@ export function nextSwap(item: QuickItem, items: readonly QuickItem[], tried: re
   // (Leg Press and Angled Machine Leg Press are one leg press). Nothing new left: null, and the card
   // says "No other option here"; a rejected card never comes back.
   const keyOf = (id: string) => (ctx.nameOf ? optionKey(ctx.nameOf(id)) : ctx.data.sameAs(id));
-  const seen = new Set([item.id, item.slot, ...tried, ...exclude].flatMap((id) => [ctx.data.sameAs(id), keyOf(id)]));
+  const seen = new Set([item.id, item.slot, ...tried, ...exclude, ...(ctx.avoid ?? [])].flatMap((id) => [ctx.data.sameAs(id), keyOf(id)]));
   const usable = pool.filter((id) => !seen.has(ctx.data.sameAs(id)) && !seen.has(keyOf(id)) && ctx.ok(id) && sureGear(ctx.data, id, ctx.gym) && !tooHeavy(id));
   // Two names for one option in the same ladder: the first (the ladder's best) stands for both.
   const once = usable.filter((id, i) => usable.findIndex((x) => keyOf(x) === keyOf(id)) === i);
@@ -986,12 +1136,14 @@ export const optionKey = (name: string): string =>
     .trim();
 
 /** The card after a swap: the slot's targets stay (sets, reps, rest), only the exercise changes. */
-export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean, slotName?: string): QuickItem {
+export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean, slotName?: string, hangs = false): QuickItem {
   // Never "Same movement as X" on X itself (round 3, B1).
   const from = slotName ?? item.name;
   const next: QuickItem = { ...item, id: to, name, why: to === item.slot || optionKey(from) === optionKey(name) ? item.why : `Same movement as ${from}`, swapped: true };
   if (eachSide) next.eachSide = true;
   else delete next.eachSide;
+  // A bodyweight pull up is a reachable 5 to 8 reps, never 8 to 12 (the same as a card built with one).
+  if (hangs && next.reps) next.reps = [5, 8];
   return next;
 }
 

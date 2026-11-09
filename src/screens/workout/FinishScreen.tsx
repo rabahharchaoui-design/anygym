@@ -5,6 +5,7 @@ import { db } from '../../db/schema';
 import { finishedDetail, workoutRecords, workoutWins } from '../../db/history';
 import { useLive } from '../../hooks/useLive';
 import { formatSession, formatSet, sameSets } from '../../lib/setWords';
+import { workSetCount } from '../../lib/workSets';
 import { formatTotal, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
@@ -102,7 +103,7 @@ export function FinishScreen() {
   const done = () => {
     if (saving) return;
     setSaving(true);
-    go('/', { kind: 'fade', replace: true, state: d ? { toast: `Workout saved · ${setCount(d.sets.length)}`, undo: { sessionId } } : null });
+    go('/', { kind: 'fade', replace: true, state: d ? { toast: `Workout saved · ${setCount(workSetCount(d.sets))}`, undo: { sessionId } } : null });
   };
   const loading = !detail.error && (!d || !v);
   // Each exercise of the workout with its best set; "3 of 5 exercises done" when some were skipped.
@@ -146,7 +147,7 @@ export function FinishScreen() {
               <h1 className={styles.title} data-testid="finish-title">
                 {partialDay ? (
                   <>
-                    Workout saved · <span className={styles.nowrap}>{setCount(d.sets.length)}</span>
+                    Workout saved · <span className={styles.nowrap}>{setCount(workSetCount(d.sets))}</span>
                   </>
                 ) : (
                   'Workout saved'
@@ -179,9 +180,9 @@ export function FinishScreen() {
               </motion.div>
               <motion.div className={styles.stat} {...item(2)}>
                 <span className={`${styles.value} num`} data-testid="finish-sets">
-                  <Odometer value={d.sets.length} countUp={!reduce} />
+                  <Odometer value={workSetCount(d.sets)} countUp={!reduce} />
                 </span>
-                <span className={styles.label}>{d.sets.length === 1 ? 'Set' : 'Sets'}</span>
+                <span className={styles.label}>{workSetCount(d.sets) === 1 ? 'Set' : 'Sets'}</span>
               </motion.div>
               {lifted > 0 && (
                 <motion.div className={`${styles.stat} ${styles.wide}`} {...item(3)}>

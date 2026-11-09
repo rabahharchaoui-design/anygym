@@ -246,11 +246,12 @@ describe('the rotation', () => {
     }
   });
 
+  // 3.5d: at 30 (Arms and abs is a 15 and 30 card only, so at 45 the rotation has one style fewer).
   it('real data: visit after visit at a full gym, the 4 cards change and a done style never leads', () => {
     let lastShown: string[] = [];
     let done: string[] = [];
     for (let visit = 0; visit < 8; visit++) {
-      const cards = buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym: FULL }, minutes: 45, recent: [], lastShown, done }, QUICK_DEPS).cards;
+      const cards = buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym: FULL }, minutes: 30, recent: [], lastShown, done }, QUICK_DEPS).cards;
       const ids = cards.map((c) => c.id);
       if (visit > 0) expect([...ids].sort()).not.toEqual([...lastShown].sort());
       expect(done).not.toContain(ids[0]);
@@ -465,7 +466,7 @@ describe('3.5b round 2', () => {
     expect(entries.some((e) => e.finisher)).toBe(false);
   });
 
-  it('#4 the timers follow the estimate: a 30 min Superset pump walked set by set rests only after each round', () => {
+  it('#4 the timers follow the estimate: a 30 min Pairs, back to back (3.5d: was Superset pump) walked set by set rests only after each round', () => {
     const pump = buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym: FULL }, minutes: 30, recent: [] }, QUICK_DEPS).cards.find((c) => c.id === 'pump')!;
     const members = new Map<number, string[]>();
     for (const it of pump.items) if (it.group !== undefined) members.set(it.group, [...(members.get(it.group) ?? []), it.id]);
@@ -646,7 +647,7 @@ describe('3.5b round 4 (ux-critic)', () => {
     }
   });
 
-  it('M6: a Superset pump opens on a main lift, holds one calf move at most, and its line names the muscles it pairs', () => {
+  it('M6: a Pairs, back to back opens on a main lift, holds one calf move at most, and its line names the muscles it pairs', () => {
     for (const gym of [FULL, HOTEL])
       for (const m of QUICK_MINUTES)
         for (const c of buildStyleCards({ base: { goals: ['muscle'], experience: '1_2y', gym }, minutes: m, recent: [] }, QUICK_DEPS).get('pump') ?? []) {

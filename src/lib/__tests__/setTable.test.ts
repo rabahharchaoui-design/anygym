@@ -8,6 +8,7 @@ import {
   blockedReason,
   lastTimeCell,
   lastTimeNote,
+  loggedLastTime,
   SET_TYPE_CHIP,
   SET_TYPE_INFO,
   SET_TYPE_WORDS,
@@ -200,9 +201,9 @@ describe('PLAN 1.7c round 2', () => {
       { kind: 'work' as const, reps: 8, load: b185 },
     ];
     const withLast = pendingRows(input({ lastSets: last }));
-    expect(withLast[0]!.lastTime).toEqual(last[0]);
-    expect(withLast[1]!.lastTime).toEqual(last[1]);
-    expect(withLast[2]!.lastTime).toBeUndefined();
+    // 3.5d: matched by work set number: the first working row is last time's first working set.
+    expect(withLast[0]!.lastTime).toEqual(last[1]);
+    expect(withLast[1]!.lastTime).toBeUndefined();
     expect(pendingRows(input({ lastSets: null }))[0]!.lastTime).toBeUndefined();
   });
   it('LAST TIME tags warm ups and drops and names another unit', () => {
@@ -223,6 +224,31 @@ describe('PLAN 1.7c round 2', () => {
     expect(reconcileRows([{ id: 'a', load: b185, reps: 9, rev: 3, submitted: 2 }], new Map([['a', 2]]), id)).toEqual([{ id: 'a~1', load: b185, reps: 9, rev: 3 }]);
     // Nothing committed: unchanged.
     expect(reconcileRows([x], new Map([['other', 1]]), id)).toBeNull();
+  });
+});
+
+describe('3.5d: LAST TIME by work set number', () => {
+  const last = [
+    { kind: 'warmup' as const, reps: 10, load: bar([25]) },
+    { kind: 'work' as const, reps: 8, load: b185 },
+    { kind: 'work' as const, reps: 7, load: b185 },
+  ];
+  it('warm up rows show nothing and never push the work rows off their own set', () => {
+    const warm = (n: number): Draft => ({ id: `w${n}`, load: bar([25]), reps: 10, rev: 1, type: 'warmup', auto: true });
+    const rows = pendingRows(input({ lastSets: last, count: 4, draftOf: (i) => (i < 2 ? warm(i) : null) }));
+    expect(rows.map((r) => r.type)).toEqual(['warmup', 'warmup', 'normal', 'normal']);
+    expect(rows[0]!.lastTime).toBeUndefined();
+    expect(rows[1]!.lastTime).toBeUndefined();
+    expect(rows[2]!.lastTime).toEqual(last[1]);
+    expect(rows[3]!.lastTime).toEqual(last[2]);
+  });
+  it('after logging warm ups, set 1 and set 2 keep their own last time', () => {
+    const kinds = ['warmup' as const, 'warmup' as const, 'work' as const];
+    expect(loggedLastTime(last, kinds, 0)).toBeUndefined();
+    expect(loggedLastTime(last, kinds, 1)).toBeUndefined();
+    expect(loggedLastTime(last, kinds, 2)).toEqual(last[1]);
+    const rows = pendingRows(input({ lastSets: last, count: 4, logged: [{ reps: 10 }, { reps: 10 }, { reps: 8 }].map((s, i) => ({ ...s, kind: i < 2 ? 'warmup' : 'work' })) as never, workLogged: 1 }));
+    expect(rows[0]!.lastTime).toEqual(last[2]);
   });
 });
 

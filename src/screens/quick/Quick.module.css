@@ -150,6 +150,29 @@
   animation: cardFade 180ms ease both;
 }
 
+/* 3.5d (4): a brief glow on the card a More ideas tap brought in (DUR.celebrate in motion.ts, 900 ms). */
+.concept[data-flash] {
+  animation: cardIn 240ms var(--ease-out) both, cardGlow 900ms var(--ease-out) 120ms both;
+}
+
+.concept[data-flash][data-reduced] {
+  /* Reduced motion: no glow, only the fade. */
+  animation: cardFade 180ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .concept[data-flash] {
+    animation: cardFade 180ms ease both;
+  }
+}
+
+@keyframes cardGlow {
+  from {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 28px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+}
+
 @keyframes cardIn {
   from {
     opacity: 0;
@@ -795,14 +818,6 @@
 }
 
 /* 3.5b round 4 (B1): fewer than 4 cards says why, quietly, under them. */
-.fewer {
-  margin: var(--space-3) 0 0;
-  color: var(--text-2);
-  font-size: 0.875rem;
-  line-height: 1.4;
-  text-wrap: pretty;
-}
-
 .noFit {
   margin: 0;
   padding: var(--space-4);

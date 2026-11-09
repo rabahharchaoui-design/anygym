@@ -16,8 +16,10 @@ function facts(id: string): { pattern: string | null; requires: string[][] | nul
   for (const [pattern, l] of Object.entries(patterns.patterns)) for (const c of l.candidates) if (c.id === id || c.planId === id) return { pattern, requires: c.requires };
   return { pattern: null, requires: null };
 }
+// 3.5d: and the catalog exercises whose photos were opened by hand (data/catalog-demos.json, 3.5a round 2).
+const handChecked = new Set((JSON.parse(readFileSync('data/catalog-demos.json', 'utf8')) as { exercises: { catalogId: string }[] }).exercises.map((e) => e.catalogId));
 function sureDemo(id: string): boolean {
-  return map.some((e) => (e.planId === id || e.catalogId === id) && (e.match === 'exact' || e.match === 'variant') && !!e.catalogId);
+  return handChecked.has(id) || map.some((e) => (e.planId === id || e.catalogId === id) && (e.match === 'exact' || e.match === 'variant') && !!e.catalogId);
 }
 const doable = (req: string[][] | null, eq: string[]) => req !== null && req.every((g) => g.some((x) => eq.includes(x)));
 

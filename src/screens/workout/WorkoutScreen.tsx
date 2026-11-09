@@ -6,6 +6,7 @@ import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, addSuggested, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
 import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
 import { extraSets, markDeleted } from '../../lib/extraSets';
+import { workSetCount } from '../../lib/workSets';
 import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
@@ -45,6 +46,7 @@ import { useTimeBudget } from './useTimeBudget';
 import { SwapPendingError, SwapUndoStaleError, stopAlways, swapExercise, undoSwap } from '../../db/swaps';
 import { swapLine } from '../../lib/swap';
 import { RestDock } from './RestDock';
+import { groupNextOf } from './groupNext';
 import { useWorkout } from './useWorkout';
 import { discardFailed, failedRows, prepareFinish, retryFailed, shownRows, type ShownRow } from './rowLog';
 import { UNDO_MS } from '../../lib/undoQueue';
@@ -253,7 +255,9 @@ export function WorkoutScreen() {
     const counts = countsToward(entries.find((x) => x.exerciseId === id), kind);
     const done = counts ? { ...w.done, [id]: (w.done[id] ?? 0) + 1 } : w.done;
     const r = restAfter(entries, done, id);
-    const seconds = r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
+    // 3.5d: a warm up row on a lift (the coach's, or one the person set) starts no rest timer, never the
+    // lift's own 1:30. A plan's own warm up exercises keep theirs.
+    const seconds = kind === 'warmup' && !counts ? 0 : r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
     // Started now (the countdown is right) and saved now (an app kill right after the set keeps the
     // rest), shown once the check's frame has painted (critic B6).
     const started = seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null;
@@ -791,6 +795,7 @@ export function WorkoutScreen() {
   const menuEntry = menuId ? w.entryOf(menuId) : undefined;
   const ids = w.session?.exerciseIds ?? [];
 
+  const pairNext = exerciseId && w.ready && order.includes(exerciseId) ? groupNextOf(w.entries, w.done, exerciseId) : undefined;
   const view = exerciseId ? (
     <ExerciseView
       w={w}
@@ -837,7 +842,7 @@ export function WorkoutScreen() {
   );
 
   return (
-    <div className={styles.screen} data-resting={(rest && !w.error) || undefined}>
+    <div className={styles.screen} data-resting={(rest && !w.error) || undefined} data-pair={pairNext ? true : undefined}>
       <header className={styles.topBar}>
         {exerciseId ? (
           <BackButton onPress={() => goList()} label="Back to the list" />
@@ -855,7 +860,7 @@ export function WorkoutScreen() {
             {/* No count the app is not sure of while a read failed (PLAN 1.7h). */}
             {w.error ? null : (
               <>
-                <Odometer value={w.sets.length} /> {w.sets.length === 1 ? 'set' : 'sets'}
+                <Odometer value={workSetCount(w.sets)} /> {workSetCount(w.sets) === 1 ? 'set' : 'sets'}
                 {lifted > 0 ? (
                   <>
                     {' · '}
@@ -873,7 +878,7 @@ export function WorkoutScreen() {
           </span>
           {/* The full line as plain text, unseen: does it fit on one line? */}
           <span ref={measureRef} className={`${styles.statLine} ${styles.statMeasure} num`} aria-hidden="true">
-            {`${w.sets.length} ${w.sets.length === 1 ? 'set' : 'sets'}${lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}`}
+            {`${workSetCount(w.sets)} ${workSetCount(w.sets) === 1 ? 'set' : 'sets'}${lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}`}
           </span>
         </div>
         <button type="button" className={`${styles.finish} pressable`} onClick={() => finish()}>
@@ -969,6 +974,24 @@ export function WorkoutScreen() {
             </motion.div>
           )}
         </AnimatePresence>
+        {/* 3.5d (10): after a set inside a pair or circuit, the next member is one tap in the bottom bar. */}
+        <AnimatePresence>
+          {pairNext && (
+            <motion.div
+              key={`pair-${pairNext.exerciseId}`}
+              className={styles.groupDock}
+              data-rest={!!(rest && !w.error) || undefined}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.16 } }}
+              transition={reduce ? FADE : SHEET_SPRING}
+            >
+              <button type="button" className={`${styles.groupNext} pressable`} data-testid="group-next" onClick={() => switchExercise(pairNext.exerciseId)}>
+                Next in the {(w.entryOf(exerciseId!)?.pairSize ?? 2) > 2 ? 'circuit' : 'pair'}: {pairNext.name}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <AnimatePresence>
           {rest && !w.error && (
             <RestDock
@@ -987,7 +1010,7 @@ export function WorkoutScreen() {
           the pill rides var(--rest-height) + 2 × 8 px above the bottom and is 52 px tall). */}
       <Toast
         toast={toast}
-        bottom={!exerciseId && !w.isQuick && !!w.nextId && !w.error ? 'calc(var(--rest-height) + 2 * var(--space-2) + 52px + 8px)' : rest && !w.error ? 'calc(var(--rest-height) + 8px)' : '8px'}
+        bottom={!exerciseId && !w.isQuick && !!w.nextId && !w.error ? 'calc(var(--rest-height) + 2 * var(--space-2) + 52px + 8px)' : (rest && !w.error) || pairNext ? `calc(var(--rest-height) * ${rest && !w.error && pairNext ? 2 : 1} + 8px)` : '8px'}
       />
 
       <ExercisePicker open={picking || autoOpen} onClose={closePicker} gym={w.gym} added={ids} onAdd={(list) => void add(list)} />

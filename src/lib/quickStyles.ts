@@ -196,7 +196,7 @@ export const STYLES: Record<StyleId, StyleDef> = {
   },
   pump: {
     id: 'pump',
-    title: 'Superset pump',
+    title: 'Pairs, back to back',
     effort: 2,
     // Round 4 (M6): pairs built around a main push and pull (or a hip and a pull), one calf move at most.
     variants: [
@@ -261,7 +261,7 @@ export const STYLES: Record<StyleId, StyleDef> = {
   },
   armsAbs: {
     id: 'armsAbs',
-    title: 'Arms and abs finisher',
+    title: 'Arms and abs',
     effort: 2,
     // Arms (biceps and triceps) and abs only: true to its name, and clear of a pump's shoulders and chest.
     variants: [
@@ -711,6 +711,9 @@ export function chooseBatch<T extends Pickable>(input: BatchInput<T>): Batch<T> 
     cards = [...lead, easy, ...cards.filter((c) => c !== easy && !lead.includes(c))];
   }
 
+  // 3.5d: Arms and abs is a finishing card: never the first one shown (slot 1), unless it is the only card.
+  if (cards.length > 1 && cards[0]!.id === 'armsAbs') cards = [...cards.slice(1), cards[0]!];
+
   // More ideas (3.5b round 4, M12): every other style, and the other body areas of a style on screen
   // ("Superset pump: legs and back"), each in the place it can take: added when there is room, else
   // in place of card 4 when it is diverse from all the others, else in place of the one card it is
@@ -736,7 +739,9 @@ export function chooseBatch<T extends Pickable>(input: BatchInput<T>): Batch<T> 
     for (const v of input.styles.get(id) ?? []) {
       if (cards.includes(v)) continue;
       // Another body area of a style on screen takes that card's place (one card per style).
-      const at = shown === -1 ? placeFor(v) : swappable(cards[shown]!) && okWith(v, cards.filter((_, k) => k !== shown)) ? shown : -1;
+      let at = shown === -1 ? placeFor(v) : swappable(cards[shown]!) && okWith(v, cards.filter((_, k) => k !== shown)) ? shown : -1;
+      // 3.5d: and never put in as the first card.
+      if (v.id === 'armsAbs' && at === 0) at = -1;
       if (at === -1 || (shown !== -1 && sameMuscles(v.primary, cards[shown]!.primary))) continue;
       more.push(v);
       moreAt.push(at);

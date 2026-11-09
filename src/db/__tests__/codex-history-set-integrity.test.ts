@@ -110,8 +110,9 @@ describe('completed logger and history: exact saved evidence (SPEC 0, 5, 6, 13, 
     await reopen();
     const list = await listFinished(db);
     expect(list).toHaveLength(730);
-    expect(list[0]).toEqual({ session: sessions[729], sets: 20 });
-    expect(list[729]).toEqual({ session: sessions[0], sets: 20 });
+    // 3.5d round 2: the list counts working sets only (the 2 warm ups of each day are left out).
+    expect(list[0]).toEqual({ session: sessions[729], sets: 18 });
+    expect(list[729]).toEqual({ session: sessions[0], sets: 18 });
     for (const day of [0, 729]) expect((await finishedDetail(`day-${day}`, db))!.sets).toEqual(sets.slice(day * 20, day * 20 + 20));
     const history = await getPastSessions('bench', 'home', 'barbell', 6, { db });
     expect(history.map((x) => x.date)).toEqual(sessions.slice(-6).reverse().map((x) => x.startedAt));

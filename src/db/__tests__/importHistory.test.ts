@@ -76,7 +76,8 @@ describe('writeImport', () => {
     expect((await db.exerciseSettings.get(['wide-lunge', ANY_GYM]))?.loadType).toBe('dumbbell_each');
     // Imported sessions are never the workout in progress, and they show in History.
     expect(await getActiveSession(db)).toBeUndefined();
-    expect((await listFinished(db)).map((f) => f.sets)).toEqual([2, 3, 5, 3, 3]);
+    // 3.5d round 2: working sets only (the last workout has a warm up set).
+    expect((await listFinished(db)).map((f) => f.sets)).toEqual([2, 3, 5, 3, 2]);
   });
 
   it('is idempotent: the same file twice writes nothing the second time', async () => {

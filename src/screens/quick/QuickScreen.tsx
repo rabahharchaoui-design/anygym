@@ -6,6 +6,7 @@ import { BottomCTA } from '../../ui/BottomCTA';
 import { Button } from '../../ui/Button';
 import { Skeleton } from '../../ui/Skeleton';
 import { useNav } from '../../ui/nav';
+import { DUR } from '../../ui/motion';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { DumbbellIcon, UndoIcon } from '../../ui/icons';
 import { useTapGuard } from '../../hooks/useTapGuard';
@@ -47,6 +48,8 @@ import {
   type QuickItem,
   type QuickMinutes,
 } from '../../lib/quick';
+import { requiresOf } from '../../lib/swap';
+import { hangsBodyweight } from '../../lib/quickStyles';
 import { EQUIPMENT_LABEL } from '../../lib/intake/options';
 import { MiniMusclePair } from '../../components/muscles/MuscleMap';
 import { EquipmentArt } from '../intake/EquipmentArt';
@@ -158,10 +161,20 @@ export function QuickScreen() {
     return out;
   }, [ideas, concepts, pickedAt]);
   const [swappedIn, setSwappedIn] = useState<string | null>(null);
+  // 3.5d (4): the card a More ideas tap brought in is scrolled into view and glows once (motion.ts DUR.celebrate).
+  const [flash, setFlash] = useState<string | null>(null);
   const pickMore = (c: Concept, back: boolean) => {
     setPicked(back ? null : { chip, key: cardKey(c) });
     setSwappedIn(cardKey(c));
+    setFlash(cardKey(c));
   };
+  useEffect(() => {
+    if (!flash) return;
+    const card = Array.from(document.querySelectorAll<HTMLElement>('[data-concept]')).find((e) => e.dataset.key === flash);
+    card?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    const t = window.setTimeout(() => setFlash(null), DUR.celebrate + 200);
+    return () => window.clearTimeout(t);
+  }, [flash, reduced]);
 
   // The rotation remembers the first cards shown on each visit (once; a later chip does not count).
   const remembered = useRef(false);
@@ -197,7 +210,7 @@ export function QuickScreen() {
     if (!slotNames.current.has(item.slot)) slotNames.current.set(item.slot, item.name);
     // PLAN 3.5b: a superset whose new partner no longer suits it is done as two single moves.
     const items = safePairs(
-      c.items.map((it, i) => (i === c.index ? swapItem(item, to, QUICK_DEPS.name(to), countsEachSide(to), slotNames.current.get(item.slot)) : it)),
+      c.items.map((it, i) => (i === c.index ? swapItem(item, to, QUICK_DEPS.name(to), countsEachSide(to), slotNames.current.get(item.slot), hangsBodyweight(requiresOf(SWAP_DATA, to))) : it)),
       QUICK_DEPS.profile,
     );
     return { ...c, items, changed: true, tried: { ...c.tried, [item.slot]: [...(c.tried[item.slot] ?? []), item.id] } };
@@ -444,16 +457,11 @@ export function QuickScreen() {
             ) : (
               <div className={styles.concepts}>
                 {concepts.map((c) => (
-                  <ConceptCard key={cardKey(c)} concept={c} onPick={() => curate(c)} entering={cardKey(c) === swappedIn} reduced={reduced} />
+                  <ConceptCard key={cardKey(c)} concept={c} onPick={() => curate(c)} entering={cardKey(c) === swappedIn} flash={cardKey(c) === flash} label={cardKey(c) === swappedIn && c.focus ? `${c.title}: ${c.focus.toLowerCase()}` : c.title} reduced={reduced} />
                 ))}
               </div>
             )}
-            {/* 3.5b round 4 (B1): fewer than 4 cards always says why, in one plain line. */}
-            {concepts && concepts.length > 0 && ideas?.fewer && (
-              <p className={styles.fewer} data-testid="quick-fewer">
-                {ideas.fewer}
-              </p>
-            )}
+            {/* 3.5d (5): no note under the cards: the cards are what they are. */}
           </section>
           {concepts && moreIdeas.length > 0 && (
             <section className={styles.section} aria-labelledby="quick-more" data-testid="more-ideas">
@@ -484,10 +492,16 @@ export function QuickScreen() {
   );
 }
 
+/** The meta line's parts as they may break: the last two ("2 pairs · ~28 min") are one part. */
+function metaParts(line: string): string[] {
+  const parts = line.split(' · ');
+  return parts.length > 2 ? [...parts.slice(0, -2), parts.slice(-2).join(' · ')] : parts;
+}
+
 /** At most this many gear drawings on a card; more say "+N". */
 const GEAR_MAX = 4;
 
-function ConceptCard({ concept, onPick, entering, reduced }: { concept: Concept; onPick: () => void; entering: boolean; reduced: boolean }) {
+function ConceptCard({ concept, onPick, entering, flash, label, reduced }: { concept: Concept; onPick: () => void; entering: boolean; flash: boolean; label: string; reduced: boolean }) {
   const muscles = useMemo(() => workoutMuscles(concept.items.map((it) => it.id)), [concept]);
   const gear = concept.gear.slice(0, GEAR_MAX);
   const allGear = concept.gear.map((g) => EQUIPMENT_LABEL[g].toLowerCase()).join(', ');
@@ -499,7 +513,9 @@ function ConceptCard({ concept, onPick, entering, reduced }: { concept: Concept;
       onClick={onPick}
       data-testid={`concept-${concept.id}`}
       data-concept={concept.id}
+      data-key={cardKey(concept)}
       data-entering={entering || undefined}
+      data-flash={flash || undefined}
       data-reduced={reduced || undefined}
     >
       <span className={styles.conceptText}>
@@ -513,21 +529,21 @@ function ConceptCard({ concept, onPick, entering, reduced }: { concept: Concept;
             ))}
           </span>
         </span>
-        <span className={styles.conceptTitle} data-testid="concept-title">{concept.title}</span>
+        <span className={styles.conceptTitle} data-testid="concept-title">{label}</span>
         <span className={styles.conceptLine} data-testid="concept-why">
           {concept.line}
         </span>
         <span className={`${styles.conceptMeta} num`} data-testid="concept-meta">
           {/* Each part stays on one line ("~28 min" never splits); the line breaks between parts. */}
           {/* 3.5b round 4 (P13): "· ~28 min" stays together; the line only breaks before a dot. */}
-          {metaLine(concept.items, concept.minutes)
-            .split(' · ')
-            .map((part, i) => (
-              <Fragment key={i}>
-                {i > 0 ? ' ' : ''}
-                <span className={styles.metaPart}>{i > 0 ? `· ${part}` : part}</span>
-              </Fragment>
-            ))}
+          {/* 3.5d (11): a break never starts a line with a dot: each part carries its own dot after it, and
+              the last two ("2 pairs · ~28 min") stay together. */}
+          {metaParts(metaLine(concept.items, concept.minutes)).map((part, i, all) => (
+            <Fragment key={i}>
+              {i > 0 ? ' ' : ''}
+              <span className={styles.metaPart}>{part}{i < all.length - 1 ? ' ·' : ''}</span>
+            </Fragment>
+          ))}
         </span>
         {shortLine(concept) && (
           <span className={styles.conceptShort} data-testid="concept-short">

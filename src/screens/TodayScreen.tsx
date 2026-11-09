@@ -11,6 +11,7 @@ import { LoadError } from '../components/LoadError';
 import { Toast, type ToastMessage } from '../ui/Toast';
 import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
+import { workSetCount } from '../lib/workSets';
 import { db } from '../db/schema';
 import { setCount, workoutTitle } from './history/historyWords';
 import { startDb } from '../db/bootstrap';
@@ -73,7 +74,7 @@ export function TodayScreen() {
     if (!dbOpen) return null;
     const active = await getActiveSession();
     const planState = await getPlanState();
-    const activeSets = active ? await db.sets.where('sessionId').equals(active.id).count() : 0;
+    const activeSets = active ? workSetCount(await db.sets.where('sessionId').equals(active.id).toArray()) : 0;
     // The backup reminder (SPEC 9.1): finished workouts and when the last backup was.
     const profile = await db.profile.toCollection().first();
     const done = await db.sessions.filter((s) => s.endedAt !== undefined || s.imported).toArray();

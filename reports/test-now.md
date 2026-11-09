@@ -23,3 +23,4 @@
 3.8c | After the last set of an exercise the app goes back to the list on its own again, and the Easy, Good, Hard question now also waits for you there, under that exercise, so you can answer it or ignore it.
 3.5b | Quick workout ideas are richer. Today, tap Got 45 min? I'll build it (it uses your intake minutes): four different cards with a style chip, gear, effort dots and a muscle map, a line like 6 exercises · 2 pairs · ~30 min, then a More ideas row of other styles. Not perfect yet: see the report.
 3.5c | Nothing to test, behind the scenes (starting a built workout saves all at once, and a coach raise on a stack machine with an add-on never lands lighter).
+3.5d | In a workout with warm up rows, the Last time column now shows – on the warm ups and the right numbers on your real sets, and set counts everywhere count only real sets. In the quick ideas, tap a More ideas chip: the changed card scrolls into view and names the idea.

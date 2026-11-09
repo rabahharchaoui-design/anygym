@@ -146,6 +146,16 @@
   padding-bottom: calc(var(--rest-height) + var(--safe-bottom) + var(--space-4));
 }
 
+/* 3.5d round 2: the Next in the pair bar takes a rest bar's height of its own, and both show together:
+   the page keeps the real height of every bar that shows, so the last control scrolls clear of them. */
+.screen[data-pair] .exMain {
+  padding-bottom: calc(var(--rest-height) + var(--safe-bottom) + var(--space-4));
+}
+
+.screen[data-pair][data-resting] .exMain {
+  padding-bottom: calc(var(--rest-height) * 2 + var(--safe-bottom) + var(--space-4));
+}
+
 /* The title and its set line are controls (a tap opens the demo), never selected text, also not by
    the edge swipe (round 2, P6). */
 .heroCaption,
@@ -1005,21 +1015,40 @@ button.nextChip {
 
 /* A sheet's main button stays in reach while its body scrolls (the weight picker on iPhone SE). */
 
-/* 3.5b round 4 (M7): a Quick pair or circuit's next member, in the slot under the set table. */
+/* 3.5d (10): a Quick pair or circuit's next member: a bar in the rest bar's own slot at the bottom, where
+   the action is (no layout shift: the set table already keeps that room free). Above the rest bar when both show. */
+.groupDock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--rest-height);
+  display: flex;
+  align-items: center;
+  padding: 6px calc(var(--space-3) + var(--safe-right)) 6px calc(var(--space-3) + var(--safe-left));
+  background: var(--glass-bg-strong);
+  border-top: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.groupDock[data-rest] {
+  bottom: calc(100% + var(--rest-height));
+}
+
 .groupNext {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 52px;
-  margin-top: var(--space-3);
-  padding: 10px var(--space-4);
+  padding: 6px var(--space-4);
   border-radius: var(--radius-pill);
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 700;
   font-size: 1rem;
-  line-height: 1.2;
+  line-height: 1.15;
   text-align: center;
   overflow-wrap: anywhere;
 }

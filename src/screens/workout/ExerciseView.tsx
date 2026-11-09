@@ -3,12 +3,13 @@ import { Suspense, lazy, type ComponentType, useEffect, useLayoutEffect, useMemo
 import type { Load, SetKind, WorkoutSet } from '../../db/types';
 import { saveMutation } from '../../db/mutations';
 import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
+import { workSetCount } from '../../lib/workSets';
 import { logKey, logQueue } from '../../lib/logQueue';
 import { newId } from '../../db/ids';
 import { beatLine } from '../../lib/progression';
 import { setLine, targetSecondsOf } from '../../lib/planWorkout';
 import { addExtraSet, removeExtraSet } from '../../lib/extraSets';
-import { blockedReason, dropSlot, insertSlot, isAutoWarmUp, lastTimeNote, materializeFrom, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
+import { blockedReason, dropSlot, insertSlot, isAutoWarmUp, lastTimeNote, loggedLastTime, materializeFrom, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
 import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { unlockAudio, warmAudio } from '../../lib/tone';
@@ -33,7 +34,8 @@ import { WeightSheet, type WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
-import { seedWarmUps, warmUpsSeeded } from './coachWarmUps';
+import { groupNextOf } from './groupNext';
+import { seedWarmUps } from './coachWarmUps';
 import { EffortChip } from './EffortChip';
 import { START_LIGHT } from '../../lib/coach';
 import styles from './Workout.module.css';
@@ -91,17 +93,13 @@ function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
  * The exercise view (SPEC 20.2, 21.1): the demo tile, name and note, "Last time", and the set
  * table already filled with today's targets. Logging a set is one tap on its ✓.
  */
-export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onOpen, onNotice, onRemoveSet, onUndoable, onEffortAnswered }: Props) {
+export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable, onEffortAnswered }: Props) {
   const gym = w.gym!;
   const name = w.nameOf(exerciseId);
   const entry = w.entryOf(exerciseId);
   // 3.5b round 4 (M7, M8): in a Quick pair or circuit, once this round's set is done here the next
   // member is the one thing to do: one button under the table (never a pill over a row), no row lit.
-  const mineDone = w.done[exerciseId] ?? 0;
-  const groupNext =
-    entry?.roundRest && entry.kind === 'pair'
-      ? w.entries.find((x) => x !== entry && x.kind === 'pair' && x.block === entry.block && (w.done[x.exerciseId] ?? 0) < mineDone && (w.done[x.exerciseId] ?? 0) < x.sets)
-      : undefined;
+  const groupNext = groupNextOf(w.entries, w.done, exerciseId);
   const kind = w.loadTypeOf(exerciseId);
   const bar = w.barOf(exerciseId);
   const progression = w.progressionOf(exerciseId);
@@ -224,7 +222,6 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         planSeconds: entry ? targetSecondsOf(entry) : undefined,
         defaultType: entry?.warmup ? 'warmup' : 'normal',
         lastSets: w.lastSetsOf(exerciseId),
-        byKind: warmUpsSeeded(sessionId, exerciseId),
       })
     : [];
   const current = rows[0];
@@ -571,7 +568,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const targetText = !kind
     ? (entry?.line ?? '')
     : rows.length === 0 && logged.length > 0
-      ? `All ${logged.length} ${logged.length === 1 ? 'set' : 'sets'} done`
+      ? `All ${workSetCount(logged)} ${workSetCount(logged) === 1 ? 'set' : 'sets'} done`
       : entry
         ? setLine(entry, setNumber)
         : `Set ${setNumber}`;
@@ -701,7 +698,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
             kind={kind}
             unit={gym.unit}
             logged={logged}
-            lastTimeOf={(i) => w.lastSetsOf(exerciseId)?.[i]}
+            lastTimeOf={(i) => loggedLastTime(w.lastSetsOf(exerciseId), logged.map((s) => s.kind), i)}
             rows={rows}
             blockedOf={blockedOf}
             liveSeconds={liveSeconds}
@@ -749,11 +746,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
                     {yourNumber}
                   </p>
                 )}
-                {groupNext && (
-                  <button type="button" className={`${styles.groupNext} pressable`} data-testid="group-next" onClick={() => onOpen?.(groupNext.exerciseId)}>
-                    Next in the {entry!.pairSize > 2 ? 'circuit' : 'pair'}: {groupNext.name}
-                  </button>
-                )}
+                {/* 3.5d (10): the next member's button is in the bottom action bar (WorkoutScreen), not down here. */}
                 {/* PLAN 3.8 (SPEC 15): one optional tap after the last set, never per set. */}
                 {allDone && <EffortChip sessionId={sessionId} exerciseId={exerciseId} onAnswered={() => onEffortAnswered?.(exerciseId)} />}
               </>

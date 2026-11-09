@@ -46,6 +46,12 @@ export type DayTrim = {
    * fit the time). Their rest comes after each round, like every Quick workout group.
    */
   pairs?: string[][];
+  /**
+   * PLAN 3.5d round 2: a plan pair whose member was put in by Quick and would make it unsafe (a heavy
+   * lift in a pair, SPEC 22 rule 5) is done as straight sets: each member of the pair, by exercise id,
+   * with its own rest after every set (seconds).
+   */
+  straight?: Record<string, number>;
 };
 
 export type TrimChange =
@@ -108,7 +114,15 @@ export function applyTrim(day: PlanDay, trim: DayTrim | null | undefined, weekIn
   const mobility = new Set(trim.mobility ?? []);
   const blocks: PlanBlock[] = [];
   let merged: PlanBlock | null = null;
-  for (const b of out.blocks) {
+  const split = (b: PlanBlock): PlanBlock[] =>
+    b.kind === 'pair' && !b.warmup && !b.mobility && b.items.some((it) => trim.straight?.[it.exerciseId] !== undefined)
+      ? b.items.map((it) => {
+          const { roundRest: _r, ...rest } = b;
+          void _r;
+          return { ...rest, kind: 'single' as const, items: [it], restSec: trim.straight?.[it.exerciseId] ?? b.restSec };
+        })
+      : [b];
+  for (const b of out.blocks.flatMap(split)) {
     // 3.6 drops a pair whole. 3.5b round 3: Quick's plan card can leave out one member a gym cannot
     // do (no sure gear); the other stays, as a single exercise with the block's sets and rest.
     if (b.items.some((it) => drop.has(it.exerciseId))) {
@@ -162,7 +176,7 @@ export function trimmedPlan(plan: Plan, dayIndex: number, trim: DayTrim | null |
   return { ...plan, days: plan.days.map((d, i) => (i === dayIndex ? applyTrim(d, trim, weekIndex) : d)) };
 }
 
-const isEmpty = (t: DayTrim): boolean => !t.drop.length && !Object.keys(t.sets).length && !t.mobility?.length && !Object.keys(t.rest ?? {}).length && !t.pairs?.length;
+const isEmpty = (t: DayTrim): boolean => !t.drop.length && !Object.keys(t.sets).length && !t.mobility?.length && !Object.keys(t.rest ?? {}).length && !t.pairs?.length && !Object.keys(t.straight ?? {}).length;
 
 /**
  * Trims a plan day to the budget, the SPEC 7.4 way (see the top of this file). Deterministic: the same

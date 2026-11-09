@@ -255,7 +255,8 @@ test.describe('Quick workout ideas: diverse and full', () => {
       // Done with this one: end it so the next card can start.
       await dbPut(page, { sessions: [{ ...s, endedAt: Date.now() }] });
     }
-    expect(seen.size).toBeGreaterThanOrEqual(3);
+    // 3.5d: Arms and abs never leads and rotation puts a done style last, so two different styles is what four visits are sure to show.
+    expect(seen.size).toBeGreaterThanOrEqual(2);
     expect(errors).toEqual([]);
   });
 
@@ -299,7 +300,8 @@ test.describe('Quick workout ideas: diverse and full', () => {
       expect(Number(mm[4])).toBeGreaterThanOrEqual(27);
     }
     await expect(page.getByText('All this gym can do')).toHaveCount(0);
-    if (cards.length < 4) await expect(page.getByTestId('quick-fewer')).toContainText('no leg lift we can show you');
+    // 3.5d (5): the note under the cards is gone, with fewer cards or not.
+    await expect(page.getByTestId('quick-fewer')).toHaveCount(0);
     await expect(page.getByTestId('more-ideas')).toBeVisible();
     await shotOn(page, '3.5b/round4', 'hotel-30', ['iPhone 15']);
     expect(errors).toEqual([]);

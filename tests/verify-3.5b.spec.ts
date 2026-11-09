@@ -63,8 +63,10 @@ async function seedLoads(page: Page, ids: string[]) {
   const gymId = (await dbAll<{ id: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.id;
   const start = Date.now() - 6 * 86_400_000;
   // 3.5b round 4 (M6): the pump now opens on a main lift (Hip Thrust, a barbell lift without "barbell" in its id).
-  const loadOf = (id: string) => (/^dumbbell|^kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
+  const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
+  // 3.5d: no coach warm up rows here (they start no rest, and this test is about the group rest): 'months' gets none.
   await dbPut(page, {
+    profile: [{ ...PROFILE, intake: { ...PROFILE.intake, experience: 'months' } }],
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: ids }],
     sets: ids.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
   });
@@ -393,8 +395,8 @@ test.describe('verify 3.5b', () => {
     // 3.5b round 4 (M7, M8): the next member is a button under the table, never over a row.
     await shotOn(page, '3.5b/round4', 'pair-after-first-member', ['iPhone 15', 'iPhone SE']);
     const next = (await page.getByTestId('group-next').boundingBox())!;
-    const rowsBottom = await page.locator('[aria-label="Sets"] > li').evaluateAll((els) => Math.max(...els.map((e) => e.getBoundingClientRect().bottom)));
-    expect(next.y).toBeGreaterThanOrEqual(rowsBottom - 1);
+    // 3.5d (10): the button is in the bottom action bar now (was under the rows).
+    expect(next.y + next.height).toBeGreaterThan(page.viewportSize()!.height - 100);
     expect(afterFirst).toBe(0);
     // the partner is one tap away on the chip: open it, and log it.
     // 3.5b round 4 (M7): the partner is the "Next in the pair: X" button under the set table (was a pill).
@@ -506,6 +508,7 @@ test.describe('verify 3.5b', () => {
 
 // ---- Round 4 recheck (tester) ----
 const R4 = 'reports/shots/3.5b-verify/round4';
+void R4; // 3.5d: unused, kept for the report; keeps `tsc --noEmit` (npm run build) green
 type PatEntry = { id: string; requires?: string[][] | null; planId?: string };
 const PATS = JSON.parse(readFileSync('data/patterns.json', 'utf8')) as { patterns: Record<string, { candidates: PatEntry[] }> };
 const CATNAME = new Map((JSON.parse(readFileSync('data/catalog.json', 'utf8')) as { exercises: { id: string; name: string }[] }).exercises.map((e) => [e.id, e.name]));
@@ -524,6 +527,7 @@ function lookup(name: string) {
 }
 const gearOk = (req: string[][] | null | undefined, eq: string[]) => !req || req.length === 0 || req.every((g) => g.some((id) => eq.includes(id)));
 const ALL_GEAR = ['barbell_rack', 'dumbbells', 'adjustable_bench', 'cable_station', 'leg_press', 'smith_machine', 'pull_up_bar', 'dip_station', 'treadmill', 'bike'];
+void ALL_GEAR; // 3.5d: unused, kept as data
 
 type Inspected = { id: string; title: string; chip: string; meta: string; short: string; names: string[]; demo: boolean[]; ready: string[] };
 async function inspectAll(page: Page, m: number): Promise<Inspected[]> {
@@ -808,7 +812,9 @@ test.describe('verify 3.5b round 4 part 2', () => {
     const vh = page.viewportSize()!.height;
     console.log(`C5 next button y=${nb.y} h=${nb.height} bottom=${nb.y + nb.height} rowsBottom=${lastRow} vh=${vh} tabbar`, await page.locator('nav').count());
     console.log('C5 view text after first member:', (await page.getByTestId(`exercise-${first}`).innerText()).replace(/\n+/g, ' / ').slice(0, 400));
-    expect(nb.y).toBeGreaterThanOrEqual(lastRow - 1);
+    // 3.5d (10): in the bottom action bar, not under the rows.
+    expect(nb.y + nb.height).toBeGreaterThan(vh - 100);
+    void lastRow;
     expect(nb.height).toBeGreaterThanOrEqual(47.5);
     // no row overlap: every row's box is above the button
     // rows highlighted: capture the computed background of rows vs the button
