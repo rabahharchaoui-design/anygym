@@ -23,6 +23,7 @@ import { InfoDevScreen } from './screens/dev/InfoDevScreen';
 import { ViewportDevScreen } from './screens/dev/ViewportDevScreen';
 import { UiDevScreen } from './screens/dev/UiDevScreen';
 import { ReviewScreen } from './screens/review/ReviewScreen';
+import { CandidateReviewScreen } from './screens/review/CandidateReviewScreen';
 import { devToolsEnabled } from './screens/dev/devFlag';
 import { AppMarkLoader } from './ui/AppMarkLoader';
 import { IntakeGate } from './components/IntakeGate';
@@ -53,6 +54,7 @@ export function App() {
           />
         )}
         <Route path="review" element={<ReviewScreen />} />
+        <Route path="review/new" element={<CandidateReviewScreen />} />
         <Route path="welcome" element={<IntakeScreen />} />
         <Route path="workout/:sessionId/done" element={<FinishScreen />} />
         <Route path="workout/:sessionId/*" element={<WorkoutScreen />} />

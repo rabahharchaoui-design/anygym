@@ -4,6 +4,8 @@ import exerciseMap from '../../data/exercise-map.json';
 import overrides from '../../data/muscle-overrides.json';
 import type { MapEntry } from '../lib/catalog';
 import { resolveMuscles, resolvePlanMuscles, type CatalogMuscles, type MuscleMapData, type MuscleOverrides } from '../lib/muscles';
+import { candidateMuscles } from '../lib/candidates/view';
+import { approvedCandidate } from './candidateGate';
 
 export interface CatalogExercise extends CatalogMuscles {
   name: string;
@@ -15,9 +17,12 @@ const OVERRIDES = overrides as MuscleOverrides;
 const BY_ID = new Map<string, CatalogMuscles>(CATALOG.map((e) => [e.id, e]));
 const PLAN_BY_ID = new Map(EXERCISE_MAP.map((e) => [e.planId, e]));
 
-/** Muscle map for a catalog exercise; null when not known for sure. */
+/** Muscle map for a catalog exercise (or a candidate G approved, PLAN 3.5e); null when not known for sure. */
 export function musclesForCatalog(id: string): MuscleMapData | null {
-  return resolveMuscles(BY_ID.get(id), OVERRIDES);
+  const own = BY_ID.get(id);
+  if (own) return resolveMuscles(own, OVERRIDES);
+  const c = approvedCandidate(id);
+  return c ? candidateMuscles(c) : null;
 }
 
 /** Muscle map for a plan exercise; null for match none (SPEC 4.3) or an unknown id. */

@@ -101,6 +101,22 @@ export function catalogInfo(
   };
 }
 
+/**
+ * The sure demo ids (SPEC 4.3, audit 2.5): a catalog id may show its photos only when a plan entry
+ * maps to it as exact or variant (exact wins), or its own photos were checked by hand
+ * (data/catalog-demos.json, PLAN 3.5a round 2). Anything else has no sure demo. Pure, so the app
+ * (src/data/exerciseInfo.ts) and the coverage report (PLAN 3.5e) share one definition.
+ */
+export function eligibleDemos(map: readonly MapEntry[], handChecked: readonly { catalogId: string }[], catalogIds: ReadonlySet<string>): Map<string, Exclude<MapEntry['match'], 'none'>> {
+  const out = new Map<string, Exclude<MapEntry['match'], 'none'>>();
+  for (const e of map) {
+    if (e.match === 'none' || !e.catalogId) continue;
+    if (e.match === 'exact' || !out.has(e.catalogId)) out.set(e.catalogId, e.match);
+  }
+  for (const e of handChecked) if (catalogIds.has(e.catalogId) && !out.has(e.catalogId)) out.set(e.catalogId, 'exact');
+  return out;
+}
+
 /** The one line the collapsed workout block shows: a variant's difference first, else the first cue. */
 export function firstLine(info: ExerciseInfo): string | null {
   return info.variantNote ?? info.cues[0] ?? null;

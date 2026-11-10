@@ -7,7 +7,7 @@ import { cardKey, gearWords, metaLine, shortLine, type Concept } from '../../lib
 import { EQUIPMENT_LABEL } from '../../lib/intake/options';
 import { MiniMusclePair } from '../../components/muscles/MuscleMap';
 import { EquipmentArt } from '../intake/EquipmentArt';
-import styles from './Quick.module.css';
+import styles from './ConceptCard.module.css';
 
 /** The meta line's parts as they may break: the last two ("2 pairs · ~28 min") are one part. */
 function metaParts(line: string): string[] {

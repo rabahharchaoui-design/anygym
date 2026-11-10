@@ -8,13 +8,17 @@
 // workout back exactly as it was; otherwise they are left out (empty arrays). The same goes for
 // `drafts`: the sets being entered in a workout in progress (lib/drafts.ts, kept in localStorage),
 // stored per workout and exercise with their ids, revisions, submission markers and stopwatches.
-import type { DumbbellRange, ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
+import type { ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
 import { RENAMED_PLAN_IDS, SCHEMA_VERSION } from '../db/schema';
 import type { DraftsBlob } from './drafts';
 import { definitionPlan, planById } from '../data/plans';
 import { MAX_EXTRA_SETS } from './extraSets';
 import { MAX_ROW_SLOT } from './setTable';
-import { isKnownPlate, validDumbbellRange, validStackStep } from './load';
+import type { CandidateReviewRow } from './candidates/review';
+import { RECORD_CHECKS, isDraft, isMutation, isObj, knownPlates, num, oneOf, recordOf, shape, str, type Check, type Rec } from './backupChecks';
+
+export { RECORD_CHECKS, isDraft, isLoad } from './backupChecks';
+export { REMIND_AFTER_MS, REMIND_MIN_SESSIONS, SNOOZE_MS, backedUpIds, onlyOnPhone, reminderReason, shouldRemind, type ReminderInput } from './backupReminder';
 
 export const BACKUP_FORMAT = 'anygym-backup-v1';
 
@@ -32,12 +36,14 @@ export type BackupTables = {
   submissions: Submission[];
   tombstones: Tombstone[];
   journal: JournalEntry[];
+  /** PLAN 3.5e: G's decisions on candidate moves (schema 11). */
+  candidateReviews: CandidateReviewRow[];
 };
 
 export type TableName = keyof BackupTables;
 
 /** Every table a backup carries, in write order. */
-export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones', 'journal'];
+export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones', 'journal', 'candidateReviews'];
 
 export type Backup = {
   format: typeof BACKUP_FORMAT;
@@ -101,6 +107,8 @@ export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersi
       submissions: active ? tables.submissions : [],
       tombstones: active ? tables.tombstones : [],
       journal: active ? tables.journal.filter((j) => activeIds.has(j.sessionId)) : [],
+      // PLAN 3.5e: tables read before schema 11 have no decisions.
+      candidateReviews: tables.candidateReviews ?? [],
     },
     drafts: Object.fromEntries(Object.entries(drafts).filter(([id, d]) => activeIds.has(id) && Object.keys(d).length > 0)),
   };
@@ -114,184 +122,6 @@ export function backupFileName(ts: number): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `anygym-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
 }
-
-// ---- checking ----
-// Table driven: each record type lists its required fields and, when present, its optional ones.
-// A backup with one record that does not match is refused before anything on the phone changes.
-
-type Rec = Record<string, unknown>;
-type Check = (v: unknown) => boolean;
-const isObj = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
-const str: Check = (v) => typeof v === 'string';
-const num: Check = (v) => typeof v === 'number' && Number.isFinite(v);
-const bool: Check = (v) => typeof v === 'boolean';
-const oneOf = (...xs: unknown[]): Check => (v) => xs.includes(v);
-const orNull = (c: Check): Check => (v) => v === null || c(v);
-const listOf = (c: Check): Check => (v) => Array.isArray(v) && v.every(c);
-const recordOf = (c: Check): Check => (v) => isObj(v) && Object.values(v).every(c);
-const tuple = (...cs: Check[]): Check => (v) => Array.isArray(v) && v.length === cs.length && cs.every((c, i) => c(v[i]));
-
-type Shape = { req: Record<string, Check>; opt?: Record<string, Check> };
-const shape = ({ req, opt = {} }: Shape): Check => (v) =>
-  isObj(v) && Object.entries(req).every(([k, c]) => c(v[k])) && Object.entries(opt).every(([k, c]) => v[k] === undefined || c(v[k]));
-
-const unit = oneOf('lb', 'kg');
-const LOAD_KINDS = ['barbell', 'dumbbell_each', 'single', 'stack', 'plate_machine', 'bodyweight', 'timed'] as const;
-const BAR_IDS = ['olympic', 'womens', 'ez_curl', 'trap', 'smith'] as const;
-
-/** Plates per side that are all real plates of that unit (PLATE_SPECS): an unknown size would crash drawing and solving. */
-const knownPlates = (u: unknown): Check => (v) => listOf(num)(v) && (u === 'lb' || u === 'kg') && (v as number[]).every((w) => isKnownPlate(w, u));
-
-/**
- * A stored load (SPEC 5.5): kind, unit and a numeric total; every other number numeric when there,
- * and its plates per side real plates of the load's own unit (PLAN 1.7k).
- */
-export const isLoad: Check = (v) =>
-  shape({
-    req: { kind: oneOf(...LOAD_KINDS), unit, total: num },
-    opt: { barWeight: num, barId: oneOf(...BAR_IDS), legacyBarUnresolved: oneOf(true), perSide: listOf(num), collars: num, stackValue: num, added: num },
-  })(v) &&
-  ((v as Rec).perSide === undefined || knownPlates((v as Rec).unit)((v as Rec).perSide)) &&
-  // An unresolved legacy bar (PLAN 2.0c) is a barbell set without a barId: never both.
-  ((v as Rec).legacyBarUnresolved === undefined || ((v as Rec).kind === 'barbell' && (v as Rec).barId === undefined));
-
-const isSet = shape({
-  req: { id: str, sessionId: str, exerciseId: str, order: num, kind: oneOf('warmup', 'work', 'drop'), uncertain: bool },
-  opt: {
-    reps: num,
-    seconds: num,
-    load: isLoad,
-    rpe: num,
-    note: str,
-    failure: bool,
-    importMap: shape({ req: { fileName: str, catalogId: orNull(str), match: oneOf('exact', 'variant', 'none'), by: oneOf('name', 'you') } }),
-    gymId: str,
-  },
-});
-
-/** A dumbbell range that makes sense (positive step, min ≥ 0, max ≥ min, a bounded list): never a frozen picker. */
-const dumbbellRange: Check = (v) => shape({ req: { min: num, max: num, step: num } })(v) && validDumbbellRange(v as DumbbellRange);
-
-/** A machine's saved answer: a stack step that makes sense, any other weight a finite number ≥ 0. */
-const equipmentWeight: Check = (v) => {
-  if (!shape({ req: { kind: oneOf('plates_only', 'starting_resistance', 'stack_step', 'bar_weight'), value: orNull(num) } })(v)) return false;
-  const { kind, value } = v as { kind: string; value: number | null };
-  if (value === null) return true;
-  return kind === 'stack_step' ? validStackStep(value) : value >= 0;
-};
-
-const bars = shape({ req: Object.fromEntries(BAR_IDS.map((b) => [b, orNull(num)])) });
-
-const gymShape = shape({
-  req: {
-    id: str,
-    name: str,
-    type: oneOf('full', 'hotel', 'home', 'none'),
-    unit,
-    equipment: listOf(str),
-    dumbbellRange: orNull(dumbbellRange),
-    bars,
-    // A step that would break the pin list (0, negative, 1e-12) is refused before anything is replaced (PLAN 1.7j).
-    stackStep: (v) => num(v) && validStackStep(v as number),
-    equipmentWeights: recordOf(equipmentWeight),
-    plateInventory: listOf(shape({ req: { weight: num, enabled: bool } })),
-    collars: oneOf('none', 'competition'),
-    plateColors: oneOf('black', 'color'),
-    isActive: bool,
-    createdAt: num,
-  },
-  opt: { city: str, lastUsedAt: num, timeBudgetMin: num },
-});
-
-/** Every plate in a gym's inventory, enabled or not, is a real plate of the gym's unit (PLAN 1.7k: a 999 kg plate crashed loading). */
-const inventoryKnown = (g: Rec): boolean => (g.plateInventory as Array<{ weight: number }>).every((p) => isKnownPlate(p.weight, g.unit as 'lb' | 'kg'));
-
-/** One changed slot of a workout (PLAN 3.4). */
-const sessionSwap = shape({
-  req: { slot: str, current: str },
-  opt: { kept: listOf(str), auto: bool, always: bool, reason: str, noFit: bool },
-});
-
-/** What a time budget left out of a workout's plan day (PLAN 3.6). */
-/** A built Quick workout's targets for one exercise (PLAN 3.5a). */
-const range = (v: unknown) => num(v) || tuple(num, num)(v);
-// PLAN 3.5b: `pair` marks a superset or circuit member (its group, its place in it, the group's size).
-const quickPair = (v: unknown) => shape({ req: { group: num, index: num, size: num } })(v) && (v as Rec).size === Math.round((v as Rec).size as number) && ((v as Rec).size as number) >= 2 && ((v as Rec).index as number) >= 0 && ((v as Rec).index as number) < ((v as Rec).size as number);
-const quickTarget = (v: unknown) => shape({ req: { sets: num, restSec: num }, opt: { reps: range, seconds: range, pair: quickPair } })(v);
-
-const dayTrim = shape({
-  req: { drop: listOf(str), sets: recordOf(num) },
-  // PLAN 3.5b round 2: a fitted plan day's rest and pairs (additive).
-  opt: { mobility: listOf(str), rest: recordOf(num), pairs: listOf(listOf(str)) },
-});
-
-/** What every stored record must look like, per table. Exported for the tests. */
-export const RECORD_CHECKS: Record<TableName, Check> = {
-  profile: shape({
-    req: { id: str, defaultUnit: unit, createdAt: num },
-    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }), quickIdeas: shape({ req: {}, opt: { shown: listOf(str) } }) },
-  }),
-  gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
-  // PLAN 3.5: a generated plan's definition must be one this app can run, under the row's own id.
-  plans: (v) => shape({ req: { id: str, name: str, source: oneOf('curated', 'generated'), createdAt: num }, opt: { definition: (d) => definitionPlan(d)?.id === (v as Rec).id } })(v),
-  planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
-  sessions: shape({
-    req: { id: str, gymId: str, startedAt: num, imported: bool },
-    opt: { planId: str, dayId: str, endedAt: num, timeBudgetMin: num, importSeq: num, importHash: str, note: str, exerciseIds: listOf(str), weekIndex: num, rowAdjust: recordOf(num), swaps: listOf(sessionSwap), suggestedRest: recordOf(num), trim: dayTrim, targets: recordOf(quickTarget), quickStyle: str },
-  }),
-  sets: isSet,
-  runs: shape({
-    req: { id: str, startedAt: num, type: str, movingSec: num, elapsedSec: num, distanceM: num, points: listOf(tuple(num, num, num, num)), gaps: listOf(tuple(num, num)), splits: listOf(num) },
-    opt: { endedAt: num, goal: str, city: str, country: str, ghostOfRunId: str, intervalPreset: str },
-  }),
-  exerciseSettings: shape({ req: { exerciseId: str, gymId: str }, opt: { loadType: oneOf(...LOAD_KINDS), barId: oneOf(...BAR_IDS), restSec: num, restOff: bool, note: str, alwaysUse: recordOf(str) } }),
-  planState: shape({
-    req: { id: oneOf('active'), planId: str, startedAt: num, weekIndex: num, nextDayIndex: num, doneDays: listOf(num) },
-    opt: { partial: recordOf(num) },
-  }),
-  orderCounters: shape({ req: { sessionId: str, next: num } }),
-  submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num }, opt: { fp: str } }),
-  tombstones: shape({ req: { id: str, sessionId: str, set: isSet, expiresAt: num }, opt: { undo: bool, token: str } }),
-  // A pending Log set write (PLAN 1.7i): its id, draft key, revision and every value of the row.
-  // With `mutation` (PLAN 2.0c): a change to a logged set not landed yet (db/mutations.ts).
-  journal: (v) =>
-    shape({ req: { id: str, sessionId: str, exerciseId: str, key: str, rev: num, draft: isDraft, at: num }, opt: { mutation: isMutation, covers: listOf(str) } })(v) &&
-    (v as Rec).id === ((v as Rec).draft as Rec).id &&
-    ((v as Rec).mutation === undefined || mutationIdOk(v as Rec)),
-};
-
-/**
- * A change's id names its own set, kind and revision (PLAN 2.0e): `mut:<kind>:<setId>:<rev>` with
- * the entry's whole revision 1 or more, or `mut:<kind>:<setId>` with revision 0 (before 2.0e).
- */
-function mutationIdOk(j: Rec): boolean {
-  const m = j.mutation as Rec;
-  const base = `mut:${m.kind as string}:${m.setId as string}`;
-  const rev = j.rev as number;
-  if (j.id === base) return rev === 0;
-  return Number.isInteger(rev) && rev >= 1 && j.id === `${base}:${rev}`;
-}
-
-/** A change to a logged set (PLAN 2.0c, db/types.ts MutationIntent): an edit's values or a set type. */
-const isMutation: Check = (v) =>
-  shape({ req: { kind: oneOf('edit'), setId: str, change: shape({ req: { load: (x) => isLoad(x) }, opt: { reps: num, seconds: num } }) } })(v) ||
-  shape({ req: { kind: oneOf('type'), setId: str, setKind: oneOf('warmup', 'work', 'drop'), failure: bool } })(v);
-
-/** A pending set draft (lib/drafts.ts): ids, revisions, submission marker and stopwatch kept as they are. */
-export const isDraft = shape({
-  req: { id: str, load: orNull(isLoad) },
-  opt: {
-    plates: listOf(num),
-    reps: num,
-    seconds: num,
-    type: oneOf('normal', 'warmup', 'drop', 'failure'),
-    watch: shape({ req: { startedAt: orNull(num), accumulated: num } }),
-    rev: num,
-    submitted: num,
-    pickKind: oneOf(...LOAD_KINDS),
-    unit,
-  },
-});
 
 /** The schema version each table first appeared in (db/schema.ts). */
 export const TABLE_SINCE: Record<TableName, number> = {
@@ -308,6 +138,7 @@ export const TABLE_SINCE: Record<TableName, number> = {
   submissions: 6,
   tombstones: 6,
   journal: 8,
+  candidateReviews: 11,
 };
 
 /** The primary key of a record, as a string, so duplicates can be found. */
@@ -521,51 +352,4 @@ export const workoutCount = (n: number) => plural(n, 'workout', 'workouts');
 export function summaryLine(s: BackupSummary): string {
   const date = new Date(s.exportedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   return `This backup has ${workoutCount(s.workouts)}, ${plural(s.sets, 'set', 'sets')}, ${plural(s.gyms, 'gym', 'gyms')}, from ${date}.`;
-}
-
-// ---- reminder (SPEC 9.1) ----
-
-const DAY = 24 * 60 * 60 * 1000;
-export const REMIND_AFTER_MS = 14 * DAY;
-export const SNOOZE_MS = 7 * DAY;
-export const REMIND_MIN_SESSIONS = 6;
-
-export type ReminderInput = {
-  /** Finished workouts on the phone (ended or imported). */
-  sessions: number;
-  lastBackupAt?: number;
-  snoozeUntil?: number;
-  activeWorkout: boolean;
-  now: number;
-};
-
-/** "Back up your workouts": more than 5 workouts, no backup in 14 days, not snoozed, never mid workout. */
-export function shouldRemind({ sessions, lastBackupAt, snoozeUntil, activeWorkout, now }: ReminderInput): boolean {
-  if (activeWorkout || sessions < REMIND_MIN_SESSIONS) return false;
-  if (snoozeUntil !== undefined && now < snoozeUntil) return false;
-  return lastBackupAt === undefined || now - lastBackupAt >= REMIND_AFTER_MS;
-}
-
-/**
- * The reason line under "Back up your workouts": "6 workouts are only on this phone. Last backup
- * 15 days ago." or "… No backup yet." `onlyHere` counts finished workouts newer than the last
- * backup (all of them when there is none).
- */
-export function reminderReason({ onlyHere, lastBackupAt, now }: { onlyHere: number; lastBackupAt?: number; now: number }): string {
-  const count = onlyHere <= 0 ? '' : onlyHere === 1 ? '1 workout is only on this phone. ' : `${onlyHere} workouts are only on this phone. `;
-  if (lastBackupAt === undefined) return `${count}No backup yet.`;
-  const days = Math.max(0, Math.floor((now - lastBackupAt) / DAY));
-  const ago = days === 0 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`;
-  return `${count}Last backup ${ago}.`;
-}
-
-/** The finished (or imported) workouts a backup holds, by id: what "only on this phone" is measured against. */
-export function backedUpIds(backup: Pick<Backup, 'tables'>): string[] {
-  return backup.tables.sessions.filter((s) => s.endedAt !== undefined || s.imported).map((s) => s.id);
-}
-
-/** Finished workouts not in the last successful backup (all of them when no backup recorded which). */
-export function onlyOnPhone(finishedIds: readonly string[], backedUp: readonly string[] | undefined): number {
-  const held = new Set(backedUp ?? []);
-  return finishedIds.filter((id) => !held.has(id)).length;
 }

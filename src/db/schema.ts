@@ -2,6 +2,7 @@ import Dexie, { type EntityTable, type Table } from 'dexie';
 import type { CrashSignatureRow, ReportPreferencesRow, ReportQueueRow } from '../lib/reporting/types';
 import type { CoachCardRow, CoachLiftRow, EffortRow } from './coachTypes';
 import type { ChangeRecord } from '../lib/coach/types';
+import type { CandidateReviewRow } from '../lib/candidates/review';
 import type { ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from './types';
 
 export const DB_NAME = 'anygym';
@@ -117,11 +118,20 @@ export const SCHEMA_V10 = {
   efforts: '[sessionId+exerciseId], exerciseId, sessionId',
 } as const;
 
+/**
+ * Version 11 (PLAN 3.5e), additive: candidateReviews, G's decision on each candidate move (approve,
+ * wrong, fix with a reason and note), keyed by the candidate id. Only approved ids reach the app
+ * (src/data/candidateGate.ts). Backed up (lib/backup.ts TABLE_NAMES): it is his work.
+ */
+export const SCHEMA_V11 = {
+  candidateReviews: 'id',
+} as const;
+
 /** One mirrored localStorage key (lib/durable.ts): its value (null = removed) and write stamp. */
 export type KvRow = { key: string; value: string | null; at: number };
 
 /** The current schema version (the highest this.version below). Backups record it (lib/backup.ts). */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
@@ -149,6 +159,7 @@ export class AnyGymDB extends Dexie {
   coachChanges!: EntityTable<ChangeRecord, 'id'>;
   coachCards!: EntityTable<CoachCardRow, 'id'>;
   efforts!: Table<EffortRow, [string, string]>;
+  candidateReviews!: EntityTable<CandidateReviewRow, 'id'>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -175,6 +186,7 @@ export class AnyGymDB extends Dexie {
     this.version(8).stores(SCHEMA_V8);
     this.version(9).stores(SCHEMA_V9);
     this.version(10).stores(SCHEMA_V10);
+    this.version(11).stores(SCHEMA_V11);
   }
 }
 

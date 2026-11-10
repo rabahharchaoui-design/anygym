@@ -1,10 +1,11 @@
 // The movement pattern ladders over the committed data (PLAN 3.4, SPEC 7.2).
 import file from '../../data/patterns.json';
-import { candidateFacts, type Candidate, type PatternFile, type SwapData } from '../lib/swap';
+import { PATTERNS, candidateFacts, type Candidate, type PatternFile, type PatternLadder, type Pattern, type SwapData } from '../lib/swap';
 import { pickerId } from '../lib/picker';
 import type { BarId } from '../db/types';
 import type { ExerciseLoadType } from '../lib/loadTypeRule';
 import { EXERCISE_MAP } from './muscles';
+import { approvedLadder, approvedVersion } from './candidateGate';
 
 export const PATTERN_FILE = file as unknown as PatternFile;
 
@@ -15,8 +16,27 @@ for (const ladder of Object.values(PATTERN_FILE.patterns)) {
   for (const c of ladder.candidates as Candidate[]) if (c.planId && !KEY.has(c.planId)) KEY.set(c.planId, c.id);
 }
 
+// PLAN 3.5e: a candidate G approved on this phone joins its ladder last, behind every sure move.
+// Nothing approved: the committed ladders themselves, unchanged.
+let ladders: { version: number; patterns: Record<Pattern, PatternLadder> } = { version: 0, patterns: PATTERN_FILE.patterns };
+function laddersNow(): Record<Pattern, PatternLadder> {
+  const v = approvedVersion();
+  if (ladders.version !== v) {
+    const patterns = {} as Record<Pattern, PatternLadder>;
+    for (const p of PATTERNS) {
+      const base = PATTERN_FILE.patterns[p];
+      patterns[p] = { ...base, candidates: [...base.candidates, ...approvedLadder(p)] };
+    }
+    ladders = { version: v, patterns };
+  }
+  return ladders.patterns;
+}
+
 export const SWAP_DATA: SwapData = {
-  ...PATTERN_FILE,
+  get patterns() {
+    return laddersNow();
+  },
+  planExercises: PATTERN_FILE.planExercises,
   sameAs: (id) => {
     const shown = pickerId(id);
     return KEY.get(shown) ?? KEY.get(id) ?? shown;

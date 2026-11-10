@@ -107,6 +107,8 @@ test.describe('verify 3.8c', () => {
     for (let i = 1; i <= 4; i++) {
       await tapCircle(page, view);
       if (i < 4) await expect(loggedRows(view)).toHaveCount(i);
+      // 3.5g: a second tap on the same spot within 350 ms is ignored (double tap guard), so wait like logAllTimed does.
+      await page.waitForTimeout(400);
     }
     await expect(page.getByTestId('next-chip')).toBeVisible();
     await expect(page.getByTestId('workout-title')).toBeVisible({ timeout: 9000 });

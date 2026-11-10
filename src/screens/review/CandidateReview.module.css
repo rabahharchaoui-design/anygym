@@ -1,0 +1,184 @@
+/* New exercises (PLAN 3.5e): the owner review deck. One full height column, like Quick workout's
+   deck: the card takes exactly the room between the title and the buttons on every phone; it still
+   scrolls at large text. Tokens only. */
+.page {
+  --page-pad-l: calc(var(--space-4) + var(--safe-left));
+  --page-pad-r: calc(var(--space-4) + var(--safe-right));
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  padding: calc(var(--safe-top) + var(--space-2)) var(--page-pad-r) calc(var(--safe-bottom) + var(--space-3)) var(--page-pad-l);
+  display: flex;
+  flex-direction: column;
+  font-size: 1rem;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 48px;
+}
+
+.progress {
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.title {
+  flex: none;
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.gear {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.muscles {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+.map {
+  flex: none;
+}
+
+.map > span {
+  width: 40px;
+}
+
+.muscleText {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+/* One line under the deck; its height is kept when empty, so nothing moves (no layout shift). */
+.notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  margin: var(--space-1) 0 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.noticeText {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.undo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.08);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.empty {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.emptyText,
+.message {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.message {
+  min-height: 1.4em;
+  text-align: center;
+}
+
+/* Fix sheet */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.sheetTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.sheetName {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.noteBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+
+.textarea {
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--surface-1);
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  padding: var(--space-2) var(--space-3);
+  resize: none;
+}

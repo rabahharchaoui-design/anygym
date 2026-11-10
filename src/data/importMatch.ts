@@ -5,6 +5,7 @@ import catalog from '../../data/catalog.json';
 import { nameOnlyOf, type CatalogName, type MatchData } from '../lib/import/exerciseMatch';
 import { EXERCISE_MAP } from './muscles';
 import { PLAN_EXERCISES, planExercise } from './planExercises';
+import { approvedCandidate } from './candidateGate';
 
 export const CATALOG_NAMES: readonly CatalogName[] = (catalog as { exercises: CatalogName[] }).exercises.map(({ id, name }) => ({ id, name }));
 
@@ -12,7 +13,7 @@ const CATALOG_BY_ID = new Map(CATALOG_NAMES.map((c) => [c.id, c.name]));
 
 export const MATCH_DATA: MatchData = { planExercises: PLAN_EXERCISES, map: EXERCISE_MAP, catalog: CATALOG_NAMES };
 
-/** The plain name for an exercise id: the plan's, the catalog's, or an imported name kept as is. */
+/** The plain name for an exercise id: the plan's, the catalog's (or an approved candidate's, PLAN 3.5e), or an imported name kept as is. */
 export function exerciseNameOf(id: string): string | undefined {
-  return planExercise(id)?.name ?? CATALOG_BY_ID.get(id) ?? nameOnlyOf(id);
+  return planExercise(id)?.name ?? CATALOG_BY_ID.get(id) ?? approvedCandidate(id)?.name ?? nameOnlyOf(id);
 }

@@ -83,7 +83,7 @@ describe('schema v9 → v10 (PLAN 3.8: the coach tables)', () => {
     const up = new AnyGymDB(old);
     await up.open();
     expect(up.verno).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(10);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(10); // 11 since PLAN 3.5e (candidateReviews)
     for (const t of Object.keys(before)) expect(JSON.stringify(await up.table(t).toArray()), t).toBe(before[t]);
     for (const t of ['coachLifts', 'coachChanges', 'coachCards', 'efforts']) expect(await up.table(t).count(), t).toBe(0);
     // The new tables work at once.

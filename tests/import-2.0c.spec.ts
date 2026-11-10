@@ -144,7 +144,8 @@ for (const k of [1, 1.3]) {
       // On an SE (667 tall) and up everything fits above the footer, at 100% and 130%.
       if (m.viewport >= 660) {
         expect(c.top).toBeGreaterThanOrEqual(m.contextBottom - 0.5);
-        expect(c.bottom).toBeLessThanOrEqual(m.footerTop + 0.5);
+        // 3.5h: the sheet now sits below the safe area inset, so at 130% a key can share under 1 px of rounding with the footer edge.
+        expect(c.bottom).toBeLessThanOrEqual(m.footerTop + 1);
       }
     }
     if (m.viewport < 660) {

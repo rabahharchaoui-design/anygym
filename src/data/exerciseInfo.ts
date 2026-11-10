@@ -2,9 +2,10 @@
 import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import catalogDemos from '../../data/catalog-demos.json';
-import { catalogInfo, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
+import { catalogInfo, eligibleDemos, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
 import type { MatchKind } from '../lib/catalog';
 import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
+import { approvedCandidate, isApprovedCandidate, onApprovedChange } from './candidateGate';
 
 const CUES = cueFile as CueFile;
 const CATALOG = new Map((catalog as { exercises: CatalogImages[] }).exercises.map((e) => [e.id, e]));
@@ -13,18 +14,19 @@ const PLAN = new Map(EXERCISE_MAP.map((e) => [e.planId, e]));
 /**
  * The one photo eligibility lookup (SPEC 4.3, audit 2.5): a catalog id may show its photos only when
  * a plan entry maps to it as exact or variant. The map already holds the audit's verdicts (the three
- * downgraded entries are match none), so a rejected or unaudited id is "none".
+ * downgraded entries are match none), so a rejected or unaudited id is "none". PLAN 3.5a round 2:
+ * plus catalog only swap candidates whose photos were checked by hand (data/catalog-demos.json).
+ * PLAN 3.5e: plus a candidate move G approved on this phone (src/data/candidateGate.ts), never another.
  */
-const ELIGIBLE = new Map<string, Exclude<MatchKind, 'none'>>();
-for (const e of EXERCISE_MAP) {
-  if (e.match === 'none' || !e.catalogId) continue;
-  if (e.match === 'exact' || !ELIGIBLE.has(e.catalogId)) ELIGIBLE.set(e.catalogId, e.match);
-}
-// PLAN 3.5a round 2: catalog only swap candidates whose photos were checked by hand (data/catalog-demos.json).
-for (const e of (catalogDemos as { exercises: { catalogId: string }[] }).exercises) if (CATALOG.has(e.catalogId) && !ELIGIBLE.has(e.catalogId)) ELIGIBLE.set(e.catalogId, 'exact');
+const ELIGIBLE = eligibleDemos(EXERCISE_MAP, (catalogDemos as { exercises: { catalogId: string }[] }).exercises, new Set(CATALOG.keys()));
 export function photoEligibility(catalogId: string | null | undefined): MatchKind {
-  return (catalogId && ELIGIBLE.get(catalogId)) || 'none';
+  if (!catalogId) return 'none';
+  return ELIGIBLE.get(catalogId) ?? (isApprovedCandidate(catalogId) ? 'exact' : 'none');
 }
+
+/** A catalog exercise, or a candidate G approved on this phone (PLAN 3.5e). */
+const catalogOf = (id: string): CatalogImages | undefined => CATALOG.get(id) ?? approvedCandidate(id);
+const inCatalog = (id: string): boolean => CATALOG.has(id) || isApprovedCandidate(id);
 
 /** The sheet for a plan exercise (by plan id); notes are the plan's own lines for match none. */
 export function infoForPlan(planId: string, notes: string[] = []): ExerciseInfo {
@@ -36,6 +38,8 @@ export function infoForPlan(planId: string, notes: string[] = []): ExerciseInfo 
 }
 
 const DEMOS = new Map<string, ExerciseInfo['demo']>();
+// An approval changes which photos are sure: worked out again from then on.
+onApprovedChange(() => DEMOS.clear());
 /**
  * Only the sure demo photos of a plan exercise, worked out once per exercise (round 3: the day list
  * asks for every row on each render, and the same object keeps the photo hooks stable).
@@ -50,14 +54,14 @@ export function demoForPlan(planId: string): ExerciseInfo['demo'] {
  * exercise's (a swap candidate), photos only when eligible either way. Its own notes when it has no cues.
  */
 export function infoForExercise(id: string, notes: string[] = []): ExerciseInfo {
-  if (PLAN.has(id) || !CATALOG.has(id)) return infoForPlan(id, notes);
+  if (PLAN.has(id) || !inCatalog(id)) return infoForPlan(id, notes);
   const info = infoForCatalog(id);
   return info.cues.length ? info : { ...info, cues: notes.map((n) => n.trim()).filter(Boolean) };
 }
 
 /** infoForExercise's sure photos, one object per exercise like demoForPlan. */
 export function demoFor(id: string): ExerciseInfo['demo'] {
-  if (PLAN.has(id) || !CATALOG.has(id)) return demoForPlan(id);
+  if (PLAN.has(id) || !inCatalog(id)) return demoForPlan(id);
   if (!DEMOS.has(id)) DEMOS.set(id, infoForCatalog(id).demo);
   return DEMOS.get(id) ?? null;
 }
@@ -69,7 +73,7 @@ export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
 
 /** The public sheet for a bare catalog exercise (muscle lists): photos only when eligible. */
 export function infoForCatalog(id: string): ExerciseInfo {
-  return catalogInfo(photoEligibility(id), CATALOG.get(id), CUES.exercises[id], musclesForCatalog(id));
+  return catalogInfo(photoEligibility(id), catalogOf(id), CUES.exercises[id], musclesForCatalog(id));
 }
 
 /** Owner preview (Review, SPEC 9.4 only): every catalog photo, including audit rejects, to inspect them. */
