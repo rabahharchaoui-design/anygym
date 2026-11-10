@@ -1,5 +1,6 @@
-/* Fresh muscles (PLAN 3.8, competitor gap 4): the body shaded by how recently a logged set worked
-   each muscle. Lime at full strength for under 24 h, fading with time; untouched stays graphite. */
+/* Worked lately (PLAN 3.8, competitor gap 4; 3.5g): the body shaded by how recently a logged set
+   worked each muscle. Amber for under 24 h (just worked), then lime fading with time; untouched or
+   not mappable stays graphite. */
 
 .card {
   display: flex;
@@ -73,15 +74,15 @@
 }
 
 .day {
-  fill: var(--accent);
+  fill: var(--amber);
 }
 
 .two {
-  fill: color-mix(in srgb, var(--accent) 58%, var(--bg));
+  fill: color-mix(in srgb, var(--accent) 72%, var(--bg));
 }
 
 .three {
-  fill: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  fill: color-mix(in srgb, var(--accent) 36%, var(--bg));
 }
 
 .view {
@@ -115,15 +116,15 @@
 }
 
 .swatch.day {
-  background: var(--accent);
+  background: var(--amber);
 }
 
 .swatch.two {
-  background: color-mix(in srgb, var(--accent) 58%, var(--bg));
+  background: color-mix(in srgb, var(--accent) 72%, var(--bg));
 }
 
 .swatch.three {
-  background: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  background: color-mix(in srgb, var(--accent) 36%, var(--bg));
 }
 
 .note {

@@ -115,6 +115,28 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   if (applied.lovedMissed.length) misses.push(applied.lovedMissed.length === 1 ? 'the exercise you love' : `${applied.lovedMissed.length} exercises you love`);
   if (misses.length) notes.push(`No room for ${list(misses)} here.`);
   const timed = a.minutes !== undefined && a.minutes < 75;
-  if (applied.over && timed) notes.push(`Some days run a bit over your ${a.minutes} min.`);
+  // PLAN 3.5g: the real minutes, and what to do about it (the workout offers Make it fit at the start).
+  const over = applied.over && timed ? overWords(applied.minutes, a.minutes!) : null;
+  if (over) notes.push(over);
   return { reason, goals, warning: notes.length ? capital(notes.join(' ')) : null, minutes: applied.minutes };
 }
+
+/**
+ * PLAN 3.5g: "Day 1 takes about 37 min, longer than your 20. Tap Make it fit when you start." The
+ * days over the time picked, with their own estimates (the reveal's numbers); null when none is.
+ */
+const range = (ms: readonly number[]): string => (Math.min(...ms) === Math.max(...ms) ? `about ${ms[0]}` : `${Math.min(...ms)} to ${Math.max(...ms)}`);
+
+export function overWords(minutes: readonly number[], budget: number): string | null {
+  const over = minutes.map((m, i) => ({ m, day: i + 1 })).filter((x) => x.m > budget);
+  if (!over.length) return null;
+  const [a, b] = over;
+  const days =
+    over.length === 1
+      ? `Day ${a!.day} takes about ${a!.m} min`
+      : over.length === 2
+        ? `Day ${a!.day} takes about ${a!.m} min and Day ${b!.day} about ${b!.m}`
+        : `Days ${list(over.map((x) => String(x.day)))} take ${range(over.map((x) => x.m))} min`;
+  return `${days}, longer than your ${budget}. Tap Make it fit when you start.`;
+}
+

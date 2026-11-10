@@ -1,6 +1,8 @@
-// Fresh muscles on Today (PLAN 3.8, competitor gap 4): front and back, each muscle shaded by how
-// recently a logged working set worked it (lib/coach/fresh.ts states the rule). Only from logged
-// sets: nothing logged in the last 3 days, no card. No recovery science is claimed.
+// Worked lately on Today (PLAN 3.8, competitor gap 4; 3.5g: the honest title and legend): front and
+// back, each muscle shaded by how recently a logged working set worked it (lib/coach/fresh.ts states
+// the rule), amber under 24 h. Only from logged sets: nothing logged in the last 3 days, no card. An
+// exercise whose muscles are not confirmed is named under the map, never drawn on it. No recovery
+// science is claimed.
 import { useSyncExternalStore } from 'react';
 import { BODIES, REGION_NAMES, type BodyKind, type Region } from '../../lib/bodyArt';
 import { bodyPref } from '../../lib/bodyPref';
@@ -19,18 +21,27 @@ export function freshWords(bands: Partial<Record<Region, FreshBand>>): string {
   return parts.join('. ');
 }
 
-export function FreshMuscles({ bands }: { bands: Partial<Record<Region, FreshBand>> }) {
+/** "Not on the map: Hip Thrust and Crunch (muscles not confirmed)". */
+export function unmappedLine(names: readonly string[]): string | null {
+  if (!names.length) return null;
+  const shown = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} more`] : [...names];
+  const list = shown.length < 2 ? shown[0]! : `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}`;
+  return `Not on the map: ${list} (muscles not confirmed)`;
+}
+
+export function FreshMuscles({ bands, unmapped = [] }: { bands: Partial<Record<Region, FreshBand>>; unmapped?: readonly string[] }) {
   const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as BodyKind);
   const shaded = Object.keys(bands).length > 0;
-  if (!shaded) return null;
+  if (!shaded && !unmapped.length) return null;
+  const off = unmappedLine(unmapped);
   const used = BANDS.filter((b) => Object.values(bands).includes(b));
   return (
-    <section className={styles.card} aria-label="Fresh muscles" data-testid="fresh-muscles">
+    <section className={styles.card} aria-label="Worked lately" data-testid="fresh-muscles">
       <div className={styles.head}>
-        <h2 className={styles.title}>Fresh muscles</h2>
+        <h2 className={styles.title}>Worked lately</h2>
         <p className={styles.sub}>Based on your logged sets</p>
       </div>
-      <div className={styles.stage} role="img" aria-label={`Muscles you worked lately. ${freshWords(bands)}. Everything else: not worked in the last 3 days.`}>
+      <div className={styles.stage} role="img" aria-label={`Muscles you worked lately. ${shaded ? `${freshWords(bands)}. ` : ''}Everything else: no logged sets we can map.`}>
         {(['front', 'back'] as const).map((view) => {
           const art = BODIES[body][view];
           return (
@@ -62,7 +73,12 @@ export function FreshMuscles({ bands }: { bands: Partial<Record<Region, FreshBan
           </li>
         ))}
       </ul>
-      <p className={styles.note}>Gray: not worked in the last 3 days</p>
+      <p className={styles.note}>Gray: no logged sets we can map</p>
+      {off && (
+        <p className={styles.note} data-testid="fresh-unmapped">
+          {off}
+        </p>
+      )}
     </section>
   );
 }

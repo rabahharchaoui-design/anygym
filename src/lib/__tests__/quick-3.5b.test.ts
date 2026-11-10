@@ -496,12 +496,13 @@ describe('3.5b round 2', () => {
     expect(Math.round((before.seconds + changesSec) / 60)).toBeGreaterThan(pump.minutes + 2);
   });
 
-  it('#4 curated plan pairs keep their rest after every set', () => {
+  // 3.5g: curated plan pairs are back to back like Quick's: no rest after the first lift, the rest after the round.
+  it('#4 curated plan pairs rest once the round is done (3.5g)', () => {
     const entries = split.days.flatMap((_, i) => dayWorkout(split, i, 0)).filter((e) => e.kind === 'pair');
     const pair = entries[0]!;
-    expect(pair.roundRest).toBeUndefined();
+    expect(pair.roundRest).toBe(true);
     const done = { [pair.exerciseId]: 1 };
-    expect(restAfter(entries, done, pair.exerciseId)).toBe(pair.restSec);
+    expect(restAfter(entries, done, pair.exerciseId)).toBe(0);
   });
 
   it('#5 a card more than 2 min under the chip says why in one plain line', () => {

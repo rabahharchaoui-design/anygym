@@ -5,7 +5,7 @@ import { Sheet } from '../../ui/Sheet';
 import { undoChange } from '../../db/coach';
 import { formatWeight } from '../../lib/load';
 import type { ChangeRecord } from '../../lib/coach';
-import { ChangeRow } from './CoachCard';
+import { ChangeRow } from './CoachList';
 import styles from './Coach.module.css';
 
 type Props = { open: boolean; onClose: () => void; changes: readonly ChangeRecord[] };

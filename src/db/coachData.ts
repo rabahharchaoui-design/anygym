@@ -46,6 +46,12 @@ export type CoachData = {
   fresh: TrainedSet[];
   /** Main muscles worked yesterday and in the next plan day (the recovery note). */
   recovery: { yesterday: Region[]; next: Region[] } | undefined;
+  /** PLAN 3.5g: the exercises of the plan day up next (a coach card lists these lifts first). */
+  todayIds: string[];
+  /** PLAN 3.5g: when each coach card was answered (no backup reminder on a coach card's day). */
+  answeredAt: number[];
+  /** PLAN 3.5g: logged exercises of the last 3 days whose muscles are not confirmed (not on the map). */
+  unmapped: string[];
 };
 
 export const regionWord = (r: Region): string => REGION_NAMES[r].toLowerCase();
@@ -148,16 +154,43 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     lifts.push(lift);
   }
 
-  // Fresh muscles: the last 3 days of logged working sets (all of them, any load).
+  // Fresh muscles: the last 3 days of logged working sets (all of them, any load). PLAN 3.5g: an
+  // exercise without sure muscles is named under the map, never guessed onto it.
   const fresh: TrainedSet[] = [];
+  const unmapped = new Set<string>();
   for (const x of sets) {
     const s = sessionOf.get(x.sessionId);
     if (!s || x.kind !== 'work' || x.uncertain || s.startedAt < now - 3 * DAY) continue;
     const regions = primaryRegions(x.exerciseId);
     if (regions.length) fresh.push({ at: s.startedAt, regions });
+    else unmapped.add(nameOf(x.exerciseId));
   }
 
-  return { now, gym, profile, planState, active, dates, lifts, changes: rows.changes, closed, liftRows: rows.lifts, fresh, recovery: recoveryRegions(recent, sets, planState, now) };
+  return {
+    now,
+    gym,
+    profile,
+    planState,
+    active,
+    dates,
+    lifts,
+    changes: rows.changes,
+    closed,
+    liftRows: rows.lifts,
+    fresh,
+    recovery: recoveryRegions(recent, sets, planState, now),
+    todayIds: nextDayIds(planState),
+    answeredAt: rows.cards.map((c) => c.at),
+    unmapped: [...unmapped],
+  };
+}
+
+/** The working exercises of the plan day up next, in order (none without a plan). */
+function nextDayIds(planState: PlanState | undefined): string[] {
+  const plan = planById(planState?.planId);
+  if (!plan || !planState) return [];
+  const index = Math.max(0, Math.min(planState.nextDayIndex, plan.days.length - 1));
+  return dayWorkout(plan, index, planState.weekIndex).filter((e) => !e.warmup && !e.finisher).map((e) => e.exerciseId);
 }
 
 /** Main muscles of yesterday's logged working sets, and of the next plan day (sure muscles only). */

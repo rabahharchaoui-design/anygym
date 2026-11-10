@@ -40,6 +40,9 @@ test.describe('3.5d logging', () => {
     await page.waitForTimeout(500);
     await expect(page.getByTestId('rest-timer')).toHaveCount(0);
     const loggedLast = (i: number) => loggedRows(view).nth(i).getByRole('button', { name: /Edit/ }).locator('span').first().innerText();
+    // 3.5g: the three finished warm ups fold into one row; Show brings them back to read.
+    await expect(view.getByTestId('warmups-done')).toHaveText(/3 warm ups done/);
+    await view.getByTestId('warmups-done').getByRole('button').tap();
     expect(await Promise.all([0, 1, 2].map(loggedLast))).toEqual(['–', '–', '–']);
     // Set 1 (the first working set) still shows its own last time, after logging it too.
     await expect(todo.nth(0).getByRole('button', { name: /last time/i })).toHaveText('185 × 10');

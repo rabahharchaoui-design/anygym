@@ -16,3 +16,4 @@ export * from './warmup';
 export * from './target';
 export * from './words';
 export * from './today';
+export * from './shortList';

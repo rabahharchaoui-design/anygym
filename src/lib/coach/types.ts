@@ -28,8 +28,8 @@ export type LiftSession = {
   effort?: Effort;
 };
 
-/** Where a coach target came from. */
-export type TargetSource = 'level_up' | 'auto' | 'deload' | 'welcome_back' | 'plateau';
+/** Where a coach target came from. 'hold' (PLAN 3.5g): Not now on the Level up card keeps last week's weight. */
+export type TargetSource = 'level_up' | 'auto' | 'deload' | 'welcome_back' | 'plateau' | 'hold';
 
 /**
  * A coach decision for one lift (stored per lift): the weight to use next, in the unit it was made

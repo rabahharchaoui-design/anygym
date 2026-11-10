@@ -321,7 +321,8 @@ test.describe('verify 3.8', () => {
     expect(errors).toEqual([]);
   });
 
-  test('7 effort chip: once after the last set, persists after reload, second tap clears, skipping still finishes @matrix', async ({ page }) => {
+  // 3.5g: the effort question is asked on the day list row only, never on the exercise view.
+  test('7 effort chip: once after the last set, on the list row, persists after reload, skipping still finishes @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('./');
     await seedAt(page, Date.now() - 3 * DAY, three('barbell-back-squat', 10, lb(185, [45, 25])));
@@ -331,26 +332,22 @@ test.describe('verify 3.8', () => {
       await checkCurrent(view).tap();
       await expect(loggedRows(view)).toHaveCount(i);
     }
-    await expect(view.getByTestId('effort')).toHaveCount(1);
-    await view.getByTestId('effort-hard').tap();
-    await expect(view.getByTestId('effort-hard')).toHaveAttribute('aria-pressed', 'true');
-    await expect.poll(async () => (await dbAll(page, 'efforts')).length).toBe(1);
-    await page.reload();
-    const view2 = exerciseView(page, 'barbell-back-squat');
-    if (!(await view2.isVisible())) await page.getByTestId('row-barbell-back-squat').tap();
-    await expect(view2.getByTestId('effort-hard')).toHaveAttribute('aria-pressed', 'true');
-    await view2.getByTestId('effort-hard').tap();
-    await expect(view2.getByTestId('effort-hard')).toHaveAttribute('aria-pressed', 'false');
-    await expect.poll(async () => (await dbAll(page, 'efforts')).length).toBe(0);
-    await snap(page, 'v7-effort');
+    await expect(view.getByTestId('effort')).toHaveCount(0);
+    const prompt = page.getByTestId('list-effort');
+    await expect(prompt).toHaveCount(1, { timeout: 8000 });
     const bad: string[] = [];
-    await tapSize(view2.getByTestId('effort').getByRole('button'), 'effort', bad);
+    await tapSize(prompt.getByRole('button'), 'effort', bad);
     expect(bad).toEqual([]);
-    // Finish without any effort tap
-    await page.getByRole('button', { name: 'Back' }).first().tap().catch(() => {});
-    const fin = page.getByRole('button', { name: 'Finish' });
-    if (!(await fin.isVisible())) await page.goBack();
-    await fin.tap();
+    await snap(page, 'v7-effort');
+    await page.getByTestId('list-effort-hard').tap();
+    await expect.poll(async () => (await dbAll<{ effort: string }>(page, 'efforts')).map((e) => e.effort)).toEqual(['hard']);
+    await expect(prompt).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('row-barbell-back-squat')).toBeVisible();
+    await expect(page.getByTestId('list-effort')).toHaveCount(0);
+    expect((await dbAll(page, 'efforts')).length).toBe(1);
+    // Finish (the tap is optional either way).
+    await page.getByRole('button', { name: 'Finish' }).tap();
     await expect(page).toHaveURL(/\/done$/);
     expect(errors).toEqual([]);
   });

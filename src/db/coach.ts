@@ -42,7 +42,7 @@ export type Applied = { cardId: string; records: ChangeRecord[] };
 /**
  * Applies a card's changes in one transaction: each lift gets its target (it wins over SPEC 6's
  * Next until used, lib/coach/target.ts), each change is recorded old → new with the target it
- * replaced, and the card is marked used. `learned` (per lift key) is kept on the lift's row.
+ * replaced, and the card is marked used (or dismissed, for a Not now hold). `learned` (per lift key) is kept on the lift's row.
  */
 export async function applyChanges(
   cardId: string,
@@ -51,6 +51,8 @@ export async function applyChanges(
   db: AnyGymDB = defaultDb,
   now = Date.now(),
   learned: Readonly<Record<string, CoachLiftRow['learned']>> = {},
+  /** PLAN 3.5g: Not now on the Level up card stores its hold the same way, the card marked dismissed. */
+  cardState: CoachCardRow['state'] = 'used',
 ): Promise<Applied> {
   return db.transaction('rw', db.coachLifts, db.coachChanges, db.coachCards, async () => {
     const records: ChangeRecord[] = [];
@@ -65,7 +67,7 @@ export async function applyChanges(
       await db.coachChanges.add(record);
       records.push(record);
     }
-    await db.coachCards.put({ id: cardId, state: 'used', at: now });
+    await db.coachCards.put({ id: cardId, state: cardState, at: now });
     return { cardId, records };
   });
 }

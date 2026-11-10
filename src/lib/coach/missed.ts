@@ -39,3 +39,15 @@ export const missedCardId = (last: number): string => `missed:${last}`;
 
 /** "Missed 2 workouts" (PLAN 3.8b: short; the choice is explained once, under it). */
 export const missedTitle = (n: number): string => `Missed ${n} ${n === 1 ? 'workout' : 'workouts'}`;
+
+/**
+ * PLAN 3.5g: the missed days card's buttons. With the next day somewhere in the week: Resume that day
+ * (primary) or Restart Day 1. When the next day already is Day 1 those two are the same thing, so one
+ * Start Day 1 (primary) and Rebuild my week (a fresh week: no day counted as done). `next` is the
+ * plan's next day index, or null when it is not known.
+ */
+export type MissedChoice = { primary: { kind: 'resume' | 'start'; label: string }; secondary: { kind: 'restart' | 'rebuild'; label: string } };
+export function missedChoice(next: number | null): MissedChoice {
+  if (next === 0) return { primary: { kind: 'start', label: 'Start Day 1' }, secondary: { kind: 'rebuild', label: 'Rebuild my week' } };
+  return { primary: { kind: 'resume', label: next === null ? 'Resume' : `Resume Day ${next + 1}` }, secondary: { kind: 'restart', label: 'Restart Day 1' } };
+}

@@ -339,6 +339,34 @@
   }
 }
 
+/* PLAN 3.5g (SPEC 13.5): once a set is logged the picture gives its room to the rows and the rest
+   bar. A registered length, so the height glides (and the pinned foot rides with it) instead of jumping. */
+@property --hero-h {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 150px;
+}
+
+.hero {
+  transition: --hero-h 260ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.hero[data-small] {
+  --hero-h: clamp(140px, 20svh, 220px);
+}
+
+@media (max-height: 740px) {
+  .hero[data-small] {
+    --hero-h: clamp(112px, 17svh, 130px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero {
+    transition: none;
+  }
+}
+
 /* ---- no sure demo: the compact header */
 .head {
   display: flex;

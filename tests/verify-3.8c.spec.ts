@@ -69,9 +69,10 @@ test.describe('verify 3.8c', () => {
       expect(b.height).toBeGreaterThanOrEqual(47.5);
     }
     await snap(page, 'c2-list-prompt');
-    // opening the finished exercise again: its own prompt is still there
+    // 3.5g: opening the finished exercise again asks nothing (the list row is the one place)
     await page.getByTestId('row-barbell-back-squat').tap();
-    await expect(view.getByTestId('effort')).toHaveCount(1);
+    await expect(view).toBeVisible();
+    await expect(view.getByTestId('effort')).toHaveCount(0);
     await page.getByRole('button', { name: /Back/ }).first().tap();
     await expect(page.getByTestId('list-effort')).toHaveCount(1);
     // double tap on one chip saves once
@@ -143,7 +144,8 @@ test('C2c reopen-then-back, then raw tap on a list chip @matrix', async ({ page 
   await logAllTimed(view);
   await expect(page.getByTestId('list-effort')).toHaveCount(1, { timeout: 8000 });
   await page.getByTestId('row-barbell-back-squat').tap();
-  await expect(view.getByTestId('effort')).toHaveCount(1);
+  await expect(view).toBeVisible();
+  await expect(view.getByTestId('effort')).toHaveCount(0); // 3.5g: asked on the list row only
   await page.getByRole('button', { name: /Back/ }).first().tap();
   await expect(page.getByTestId('list-effort')).toHaveCount(1);
   for (const w of [900, 1500, 3000]) {

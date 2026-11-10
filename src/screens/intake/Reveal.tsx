@@ -25,6 +25,9 @@ import { choosePlan, choosePlanUndoable } from '../../db/planState';
 import { saveGeneratedPlan } from '../../db/savedPlans';
 import { startPlanDay, startWorkout } from '../../db/workouts';
 import { STAYS_HERE } from './copy';
+import { canBuild, chipFor } from '../../lib/quick';
+import { QUICK_DEPS } from '../../data/quick';
+import { baseInput, kitOf } from '../quick/quickInput';
 import styles from './Intake.module.css';
 
 type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
@@ -88,8 +91,14 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         return;
       }
       if (!plan || quickWorkout) {
-        const s = await startWorkout(gym.id);
         void clearIntakeDraft();
+        // PLAN 3.5g: the quick link opens the built ideas (Quick workout, at the minutes just picked)
+        // when this gym can build one; else the empty quick workout with its exercise picker.
+        if (canBuild(baseInput(answers, kitOf(gym), undefined), QUICK_DEPS)) {
+          go(`/quick?min=${chipFor(answers.minutes)}`, { kind: 'push', replace: true });
+          return;
+        }
+        const s = await startWorkout(gym.id);
         go(`/workout/${s.id}`, { kind: 'push', replace: true });
         return;
       }

@@ -8,7 +8,7 @@ import { nextWeight } from './increment';
 import { learnedScale } from './outcome';
 import { allTop, changeWords, lastPicked, missedCount, sameWeight } from './sets';
 import { weeklyRate } from './strength';
-import { lastWeek } from './time';
+import { lastWeek, weekStartFrom } from './time';
 import type { ChangeRecord, Hold, Lift, LiftSession, PlannedChange } from './types';
 
 export type LevelUpDecision = {
@@ -82,6 +82,19 @@ export function weeklyLevelUp(lifts: readonly Lift[], changes: readonly ChangeRe
   }
   if (!earned.length && !holding.length) return null;
   return { weekKey: week.key, cardId: levelUpCardId(week.key), earned, holding };
+}
+
+/** The exercise's Next line after Not now on the Level up card (PLAN 3.5g). */
+export const HOLD_REASON = 'Same as last time, you chose not to add weight';
+
+/**
+ * PLAN 3.5g: Not now on the Level up card is a decision too. Each lift that earned a raise keeps last
+ * week's weight for this whole week (to the next Monday), aiming for the top of its range again, so the
+ * card is the only place a raise happens. Stored like any change (db/coach.ts), Undo takes it back.
+ */
+export function holdChanges(decision: Pick<LevelUpDecision, 'earned'>, now: number): PlannedChange[] {
+  const until = weekStartFrom(now, 1);
+  return decision.earned.map((c) => ({ key: c.key, exerciseId: c.exerciseId, name: c.name, loadKind: c.loadKind, unit: c.unit, from: c.from, ...(c.fromTotal !== undefined ? { fromTotal: c.fromTotal } : {}), to: c.from, reason: HOLD_REASON, source: 'hold' as const, until, reps: 'high' as const }));
 }
 
 /** "You hit all your reps on 5 lifts last week. Add weight?" */

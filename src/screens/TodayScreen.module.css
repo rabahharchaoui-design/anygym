@@ -29,6 +29,30 @@
   view-transition-name: workout-head;
 }
 
+/* PLAN 3.5g: an empty workout in progress: Resume with a quiet Discard beside it (red text, SPEC 23.2). */
+.resume {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.resume > .start {
+  flex: 1;
+  min-width: 0;
+}
+
+.discard {
+  flex: none;
+  min-width: 96px;
+  min-height: 96px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--glass-line);
+  border-radius: 28px;
+  background: rgb(255 255 255 / 0.04);
+  color: var(--red);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
 .startLabel {
   font-family: var(--font-display);
   font-size: var(--text-xl);

@@ -5,7 +5,7 @@ import { useLive } from '../../hooks/useLive';
 import { coachData, regionWord, weekdaysOf, type CoachData } from '../../db/coachData';
 import { applyChanges, resolveOutcomes } from '../../db/coach';
 import { planById } from '../../data/plans';
-import { coachToday, currentEstimate, freshBands, learnedScale, newOutcomes, weeklyRate, type CoachToday, type FreshBand } from '../../lib/coach';
+import { coachDay, coachToday, currentEstimate, freshBands, learnedScale, newOutcomes, weeklyRate, type CoachToday, type FreshBand } from '../../lib/coach';
 import type { Region } from '../../lib/bodyArt';
 import type { CoachLiftRow } from '../../db/coachTypes';
 
@@ -16,7 +16,13 @@ export type CoachView = {
   data: CoachData | undefined;
   /** Fresh muscles: regions by band, only from logged sets; empty without any. */
   fresh: Partial<Record<Region, FreshBand>>;
+  /** PLAN 3.5g: logged lately, muscles not confirmed (named under the map, never drawn on it). */
+  unmapped: readonly string[];
+  /** PLAN 3.5g: the coach has (or had today) a card: Today shows no backup reminder. */
+  busy: boolean;
 };
+
+const NO_NAMES: readonly string[] = [];
 
 const NONE: Partial<Record<Region, FreshBand>> = {};
 
@@ -69,5 +75,6 @@ export function useCoach(enabled: boolean): CoachView {
     });
   }, [auto, data]);
 
-  return { ready: !enabled || live.ready, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh };
+  const busy = !live.error && !!data && coachDay(!!today?.card, data.answeredAt, data.now);
+  return { ready: !enabled || live.ready, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
 }

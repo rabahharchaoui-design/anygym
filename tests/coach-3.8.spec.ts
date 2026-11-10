@@ -172,30 +172,23 @@ test.describe('the coach (PLAN 3.8)', () => {
     for (let i = 1; i <= 3; i++) {
       await checkCurrent(view).tap();
       await expect(loggedRows(view)).toHaveCount(i);
-      if (i < 3) await expect(view.getByTestId('effort')).toHaveCount(0);
     }
-    const effort = view.getByTestId('effort');
-    await expect(effort).toBeVisible();
+    // 3.5g: the question is asked on the day list row only (the exercise view's own prompt was yanked away
+    // by the SPEC 20.2 return), after the last set: never on the exercise view.
+    await expect(view.getByTestId('effort')).toHaveCount(0);
+    const effort = page.getByTestId('list-effort');
+    await expect(effort).toBeVisible({ timeout: 8000 });
     await expect(effort).toContainText('How did that feel?');
-    await expect(effort.getByTestId('effort-easy')).toContainText('3+ reps left');
-    await effort.getByTestId('effort-good').tap();
-    await expect(effort.getByTestId('effort-good')).toHaveAttribute('aria-pressed', 'true');
+    await expect(effort.getByTestId('list-effort-easy')).toHaveAttribute('aria-label', 'Easy: 3+ reps left');
+    await effort.getByTestId('list-effort-good').tap();
     await expect.poll(async () => (await dbAll<{ exerciseId: string; effort: string }>(page, 'efforts')).map((e) => [e.exerciseId, e.effort])).toEqual([['barbell-back-squat', 'good']]);
-    // 3.8c: SPEC 20.2 return restored; the prompt lives on the day list too.
-    // 3.8b round 2: an answer moves on to the list after about a second (SPEC 20.2), so the rest of this
-    // test reloads onto the exercise first (no chip after a reload: the exercise stays, the answer is kept).
-    await page.reload();
-    const row = page.getByTestId('row-barbell-back-squat');
-    await expect(view.or(row)).toBeVisible();
-    if (!(await view.isVisible())) await row.tap();
-    await expect(view.getByTestId('effort-good')).toHaveAttribute('aria-pressed', 'true');
+    // Answered: the row's question goes; reopening the exercise asks nothing.
+    await expect(page.getByTestId('list-effort')).toHaveCount(0);
     await shotOn(page, '3.8', 'effort');
-    // A second tap clears it (skippable).
-    await effort.getByTestId('effort-good').tap();
-    await expect(effort.getByTestId('effort-good')).toHaveAttribute('aria-pressed', 'false');
-    await expect.poll(async () => (await dbAll(page, 'efforts')).length).toBe(0);
-    await effort.getByTestId('effort-hard').tap();
-    await expect.poll(async () => (await dbAll(page, 'efforts')).length).toBe(1);
+    await page.getByTestId('row-barbell-back-squat').tap();
+    await expect(view).toBeVisible();
+    await expect(view.getByTestId('effort')).toHaveCount(0);
+    expect((await dbAll(page, 'efforts')).length).toBe(1);
   });
 
   test('Fresh muscles: no logged sets, no card; logged sets shade the map, labelled honestly @matrix', async ({ page }) => {
@@ -209,8 +202,10 @@ test.describe('the coach (PLAN 3.8)', () => {
     await page.goto('./');
     const fresh = page.getByTestId('fresh-muscles');
     await expect(fresh).toBeVisible();
-    await expect(fresh).toContainText('Fresh muscles');
+    // 3.5g: "Worked lately", an honest legend (gray is what no logged set maps to), amber under 24 h.
+    await expect(fresh).toContainText('Worked lately');
     await expect(fresh).toContainText('Based on your logged sets');
+    await expect(fresh).toContainText('Gray: no logged sets we can map');
     await expect(fresh).toContainText('Under 24 h');
     await expect(fresh).toContainText('1 to 2 days');
     expect(await fresh.locator('[data-band="day"]').count()).toBeGreaterThan(0);

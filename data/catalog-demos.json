@@ -12,6 +12,10 @@
     {
       "catalogId": "Machine_Bench_Press",
       "reason": "3.5d: both photos opened: seated chest press machine, handles pushed forward from the chest."
+    },
+    {
+      "catalogId": "Barbell_Glute_Bridge",
+      "reason": "3.5g: both photos opened: lying on the floor, knees bent, a loaded barbell across the hips, the hips lowered then pushed up."
     }
   ]
 }

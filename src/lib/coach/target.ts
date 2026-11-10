@@ -36,7 +36,7 @@ export function withTarget(p: Progression, t: CoachTarget, load: Load, range: Re
   const perSet = p.perSet.length ? p.perSet.map((r) => ({ ...r, target: target() })) : Array.from({ length: rows }, () => ({ target: target() }));
   return {
     lastTime: p.lastTime,
-    next: { load, reps: prescription?.reps ?? range ?? rowReps ?? p.next.reps, reason: t.reason, kind: 'coach' },
+    next: { load, reps: prescription?.reps ?? range ?? rowReps ?? p.next.reps, reason: t.reason, kind: 'coach', ...(t.source === 'hold' ? { held: true as const } : {}) },
     perSet,
   };
 }

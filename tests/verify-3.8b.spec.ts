@@ -57,9 +57,9 @@ test.describe('verify 3.8b', () => {
     const view = await twoExerciseWorkout(page);
     await logAll(view);
     await expect(page.getByTestId('next-chip')).toContainText('Nice. Next:');
-    await expect(view.getByTestId('effort')).toHaveCount(1);
+    // 3.5g: the exercise view never asks (the SPEC 20.2 return yanked its prompt away); the list row does.
+    await expect(view.getByTestId('effort')).toHaveCount(0);
     await snap(page, 'e1-prompt');
-    // 3.8c: SPEC 20.2 return restored; the prompt lives on the day list too.
     await expect(view).toHaveCount(0, { timeout: 6000 });
     await expect(page.getByTestId('list-effort')).toHaveCount(1);
     await page.reload();
@@ -67,25 +67,28 @@ test.describe('verify 3.8b', () => {
     await page.getByTestId('row-barbell-back-squat').tap();
     const v2 = exerciseView(page, 'barbell-back-squat');
     await expect(loggedRows(v2)).toHaveCount(3);
-    await expect(v2.getByTestId('effort')).toHaveCount(1);
-    await v2.getByTestId('effort-good').tap();
-    await expect.poll(async () => (await dbAll(page, 'efforts')).length).toBe(1);
+    await expect(v2.getByTestId('effort')).toHaveCount(0);
+    await page.getByRole('button', { name: /Back/ }).first().tap();
+    await expect(page.getByTestId('workout-title')).toBeVisible();
+    // Optional: unanswered before the reload, nothing was saved, and nothing nags afterwards.
+    expect(await dbAll(page, 'efforts')).toHaveLength(0);
     expect(errors).toEqual([]);
   });
 
-  test('1e answering moves on after about a second @matrix', async ({ page }) => {
+  // 3.5g: nothing to answer on the exercise view: the SPEC 20.2 return takes the list after about 2.5 s,
+  // where the row asks once.
+  test('1e the last set returns to the list after about 2.5 s, where the row asks @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     const view = await twoExerciseWorkout(page);
     await logAll(view);
-    // 3.8c: SPEC 20.2 return restored; the prompt lives on the day list too.
     const t0 = Date.now();
-    await view.getByTestId('effort-good').tap();
-    await expect(view).toHaveCount(0, { timeout: 4000 });
+    await expect(view.getByTestId('effort')).toHaveCount(0);
+    await expect(view).toHaveCount(0, { timeout: 6000 });
     const ms = Date.now() - t0;
-    console.log('ANSWER->LEFT ms', ms);
-    expect(ms).toBeGreaterThan(500);
-    expect(ms).toBeLessThan(3500); // 3.8c: loosened, the 900 ms beat is slower under a loaded matrix run
+    console.log('LAST SET->LEFT ms', ms);
+    expect(ms).toBeLessThan(5000);
     await snap(page, 'e1-after-answer');
+    await page.getByTestId('list-effort-good').tap();
     await expect.poll(async () => (await dbAll(page, 'efforts')).length).toBe(1);
     expect(errors).toEqual([]);
   });
@@ -131,7 +134,7 @@ test.describe('verify 3.8b', () => {
     const errors = watchErrors(page);
     const view = await twoExerciseWorkout(page);
     await logAll(view);
-    await expect(view.getByTestId('effort')).toBeVisible();
+    await expect(view.getByTestId('effort')).toHaveCount(0); // 3.5g: asked on the list row only
     await page.getByRole('button', { name: /Back/ }).first().tap();
     await expect(view).toHaveCount(0, { timeout: 1500 });
     await expect(page.getByTestId('workout-title')).toBeVisible();
@@ -368,18 +371,13 @@ test.describe('verify 3.8b swipe hint', () => {
     await tapCircle(page, view);
     await tapCircle(page, view);
     await expect(loggedRows(view)).toHaveCount(3);
-    await expect(view.getByTestId('effort')).toBeVisible();
+    // 3.5g: the effort question is asked on the day list row only; with every set done the swipe tip still waits.
+    await expect(view.getByTestId('effort')).toHaveCount(0);
     await page.waitForTimeout(300);
-    const prompt = view.getByText('How did that feel?');
-    await expect(prompt).toBeVisible();
     const hintNow = await hint.count();
-    const pr = await rect(prompt);
-    let overlap = false;
-    if (hintNow) overlap = inter(await rect(hint), pr);
-    console.log('HINT4 prompt', JSON.stringify({ hintNow, overlap, prompt: pr }));
+    console.log('HINT4 all done', JSON.stringify({ hintNow }));
     await snap(page, 'h4-prompt');
-    expect(hintNow, 'swipe hint must be hidden while the effort prompt shows').toBe(0);
-    expect(overlap).toBe(false);
+    expect(hintNow, 'swipe hint hidden once every set is done').toBe(0);
     if (shown) {
       expect.soft(info.hintOverlapsAdd, 'hint overlaps + Add set').toBe(false);
       expect.soft((info.slot as { h: number }).h, 'swipe hint slot has real height').toBeGreaterThan(20);
@@ -516,22 +514,29 @@ test.describe('verify 3.8b round 2', () => {
     expect(await dbAll(page, 'efforts')).toHaveLength(0);
     await page.getByTestId('row-barbell-back-squat').tap();
     const v = exerciseView(page, 'barbell-back-squat');
-    await expect(v.getByTestId('effort')).toBeVisible();
-    await v.getByTestId('effort-good').tap();
+    // 3.5g: the reopened exercise never asks; back on the list the row still does.
+    await expect(v).toBeVisible();
+    await expect(v.getByTestId('effort')).toHaveCount(0);
+    await page.getByRole('button', { name: /Back/ }).first().tap();
+    await expect(page.getByTestId('list-effort')).toBeVisible();
+    await page.getByTestId('list-effort-good').tap();
     await expect.poll(async () => (await dbAll(page, 'efforts')).length).toBe(1);
     await snap(page, 'r3-reopened-answered');
     expect(errors).toEqual([]);
   });
 
+  // 3.5g: the question is on the day list row (the list the SPEC 20.2 return lands on).
   test('R4 effort buttons are in view and clear of the chip and rest dock without scrolling @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     const view = await twoExerciseWorkout(page);
     await logAll(view);
-    await page.waitForTimeout(1500);
+    await expect(view).toHaveCount(0, { timeout: 6000 });
+    await expect(page.getByTestId('list-effort')).toBeVisible();
+    await page.waitForTimeout(400);
     const info = await page.evaluate(() => {
       const box = (el: Element | null) => { if (!el) return null; const r = el.getBoundingClientRect(); return { t: r.top, b: r.bottom, l: r.left, r: r.right }; };
-      const btns = Array.from(document.querySelectorAll('[data-testid^="effort-"]')).map(box);
-      const grp = box(document.querySelector('[data-testid="effort"]'));
+      const btns = Array.from(document.querySelectorAll('[data-testid^="list-effort-"]')).map(box);
+      const grp = box(document.querySelector('[data-testid="list-effort"]'));
       const chip = box(document.querySelector('[data-testid="next-chip"]'));
       const rest = box(document.querySelector('[data-testid="rest-timer"]'));
       const nav = box(document.querySelector('nav[aria-label="Main"]'));
@@ -539,6 +544,7 @@ test.describe('verify 3.8b round 2', () => {
     });
     console.log('R4', test.info().project.name, JSON.stringify(info));
     await snap(page, 'r4-effort-visible');
+    expect(info.btns.length).toBe(3);
     const lowest = Math.max(...info.btns.map((b) => b!.b));
     const topmost = Math.min(...info.btns.map((b) => b!.t));
     expect(topmost).toBeGreaterThanOrEqual(0);
@@ -570,12 +576,12 @@ test.describe('verify 3.8b round 2', () => {
       });
       console.log('R4b', test.info().project.name, JSON.stringify(info));
       await snap(page, 'r4b-effort-130');
-      // 3.8c: at 130% text the prompt may sit below the fold (the page never scrolls the set table or the
-      // guide away); the day list offers the same question, so it is reachable.
-      expect(info.btns.length).toBeGreaterThan(0);
+      // 3.5g: no prompt on the exercise view; the guide stays in view and the day list row asks.
+      expect(info.btns.length).toBe(0);
       await expect(view.getByTestId('set-next')).toBeInViewport({ ratio: 1 });
       await expect(view).toHaveCount(0, { timeout: 6000 });
       await expect(page.getByTestId('list-effort')).toBeVisible();
+      for (const e of ['easy', 'good', 'hard']) expect((await page.getByTestId(`list-effort-${e}`).boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
       expect(errors).toEqual([]);
     });
   }

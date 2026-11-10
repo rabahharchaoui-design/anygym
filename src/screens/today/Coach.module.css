@@ -329,3 +329,12 @@
 .card[data-kind='missed_days'] .text {
   margin: 0;
 }
+
+/* PLAN 3.5g: the quiet label over today's lifts when more lifts wait in the sheet. */
+.listLabel {
+  margin: 0 0 -6px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

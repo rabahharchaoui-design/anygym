@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { COLLAPSE_PX, TopBar } from '../ui/TopBar';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
@@ -8,18 +8,16 @@ import { ChevronRight, CoachIcon, SettingsIcon } from '../ui/icons';
 import { useNav } from '../ui/nav';
 import { GymPill } from '../components/GymPill';
 import { LoadError } from '../components/LoadError';
-import { Toast, type ToastMessage } from '../ui/Toast';
+import { Toast, undoToast, type ToastMessage } from '../ui/Toast';
 import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
 import { workSetCount } from '../lib/workSets';
 import { db } from '../db/schema';
-import { setCount, workoutTitle } from './history/historyWords';
 import { startDb } from '../db/bootstrap';
-import { getPlanState, setNextDay, undoChoosePlan } from '../db/planState';
-import type { PlanState } from '../db/types';
-import { getActiveSession, reopenWorkoutWithPending, startPlanDay, startWorkout } from '../db/workouts';
-import { restorePending } from '../lib/finishPending';
-import { logQueue } from '../lib/logQueue';
+import { getPlanState, setNextDay } from '../db/planState';
+import { getActiveSession, startPlanDay, startWorkout } from '../db/workouts';
+import { discardEmptyWorkout, undoDiscard } from '../db/discard';
+import { clearSessionDrafts } from '../lib/drafts';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
 import { applyUpdate, isUpdateReady, onUpdateReady } from '../lib/pwaUpdate';
@@ -44,12 +42,13 @@ import { CoachCard, CoachLine } from './today/CoachCard';
 import { FreshMuscles } from './today/FreshMuscles';
 import { LeveledUpSheet } from './today/LeveledUpSheet';
 import { applyLighterWeek } from './today/coachStart';
+import { ResumeCard } from './today/ResumeCard';
+import { useArrivalToast } from './today/useArrivalToast';
 import styles from './TodayScreen.module.css';
 
 const NO_LOGGED: Readonly<Record<string, number>> = {};
 
 export function TodayScreen() {
-  const navigate = useNavigate();
   const go = useNav();
   // Hidden: 7 taps on the title within 3 s opens the viewport diagnostics (PLAN 1.10b).
   const titleTaps = useRef<number[]>([]);
@@ -74,7 +73,8 @@ export function TodayScreen() {
     if (!dbOpen) return null;
     const active = await getActiveSession();
     const planState = await getPlanState();
-    const activeSets = active ? workSetCount(await db.sets.where('sessionId').equals(active.id).toArray()) : 0;
+    const activeRows = active ? await db.sets.where('sessionId').equals(active.id).toArray() : [];
+    const activeSets = workSetCount(activeRows);
     // The backup reminder (SPEC 9.1): finished workouts and when the last backup was.
     const profile = await db.profile.toCollection().first();
     const done = await db.sessions.filter((s) => s.endedAt !== undefined || s.imported).toArray();
@@ -82,7 +82,7 @@ export function TodayScreen() {
     // Only on this phone: finished workouts the last successful backup did not hold, by id (never
     // guessed from dates or from being imported).
     const onlyHere = onlyOnPhone(done.map((s) => s.id), profile?.backedUpSessionIds);
-    return { active: active ?? null, planState: planState ?? null, activeSets, finished: done.length, onlyHere, lastBackupAt: last, snoozeUntil: profile?.backupSnoozeUntil };
+    return { active: active ?? null, planState: planState ?? null, activeSets, activeEmpty: !!active && activeRows.length === 0, finished: done.length, onlyHere, lastBackupAt: last, snoozeUntil: profile?.backupSnoozeUntil };
   }, [dbOpen]);
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
@@ -128,66 +128,15 @@ export function TodayScreen() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  // A message from the workout screen ("Workout saved · 6 sets"), shown once. After Finish it
-  // carries Undo: the workout opens again and the plan goes back to where it was (SPEC 13.1).
-  const undoing = useRef(false);
-  useEffect(() => {
-    const st = location.state as { toast?: string; undo?: { sessionId: string }; planUndo?: { chosen: PlanState; previous: PlanState | null } } | null;
-    const text = st?.toast;
-    if (!text) return;
-    const undo = st?.undo;
-    const planUndo = st?.planUndo;
-    const id = Date.now();
-    setToast({
-      id,
-      text,
-      // "Plan saved" (PLAN 2.2d): Undo puts back the plan that was in use, only if nothing moved since.
-      ...(planUndo
-        ? {
-            action: {
-              label: 'Undo',
-              onPress: () => {
-                setToast(null);
-                undoChoosePlan(planUndo.chosen, planUndo.previous ?? undefined)
-                  .then((ok) => !ok && setToast({ id: Date.now(), text: 'Could not undo. The plan is saved.' }))
-                  .catch(() => setToast({ id: Date.now(), text: 'Could not undo. The plan is saved.' }));
-              },
-            },
-          }
-        : {}),
-      ...(undo
-        ? {
-            action: {
-              label: 'Undo',
-              onPress: () => {
-                if (undoing.current) return;
-                undoing.current = true;
-                setToast(null);
-                reopenWorkoutWithPending(undo.sessionId)
-                  .then(({ ok, pending }) => {
-                    if (ok) {
-                      // The rows still to do and the added rows come back exactly as they were (PLAN 2.0c).
-                      if (pending) restorePending(pending);
-                      // Finish closed its log queue; the workout is active again, so ✓ logs again (PLAN 1.7h).
-                      logQueue.reopen(undo.sessionId);
-                      go(`/workout/${undo.sessionId}`, { kind: 'push' });
-                    }
-                    else setToast({ id: Date.now(), text: 'Could not undo. The workout is saved.' });
-                  })
-                  .catch(() => setToast({ id: Date.now(), text: 'Could not undo. The workout is saved.' }))
-                  .finally(() => (undoing.current = false));
-              },
-            },
-          }
-        : {}),
-    });
-    navigate('.', { replace: true, state: null });
-  }, [location.state, navigate, go]);
+  // A message from the workout screen ("Workout saved · 6 sets"), shown once, with its Undo.
+  useArrivalToast(setToast, go);
 
   const backUp = useBackup(setToast);
   const active = data.value?.active ?? null;
+  // PLAN 3.5g: one card at a time: never the backup reminder on a day the coach has a card.
   const remind =
     data.ready &&
+    !coach.busy &&
     shouldRemind({ sessions: data.value?.finished ?? 0, lastBackupAt: data.value?.lastBackupAt, snoozeUntil: data.value?.snoozeUntil, activeWorkout: active !== null, now: Date.now() });
   const later = () => void snoozeBackupReminder(Date.now() + SNOOZE_MS).catch(() => setToast({ id: Date.now(), text: 'Could not save that. Try again.' }));
   const planState = data.value?.planState ?? null;
@@ -241,6 +190,27 @@ export function TodayScreen() {
     };
     setToast(shown);
   };
+
+  // PLAN 3.5g: an empty workout in progress goes with one tap, with Undo (SPEC 13.1).
+  const discard = useTapGuard(async () => {
+    if (!active) return;
+    const failedText = 'Could not discard it. It has sets now.';
+    try {
+      const d = await discardEmptyWorkout(active.id);
+      if (!d) return setToast({ id: Date.now(), text: failedText });
+      clearSessionDrafts(active.id);
+      setToast(
+        undoToast(Date.now(), 'Empty workout discarded', () => {
+          setToast(null);
+          undoDiscard(d)
+            .then((ok) => !ok && setToast({ id: Date.now(), text: 'Could not undo. Another workout is in progress.' }))
+            .catch(() => setToast({ id: Date.now(), text: 'Could not undo that. Try again.' }));
+        }),
+      );
+    } catch {
+      setToast({ id: Date.now(), text: 'Could not discard it. Try again.' });
+    }
+  });
 
   const startDay = useTapGuard(async () => {
     if (!plan || !planState) return;
@@ -311,12 +281,7 @@ export function TodayScreen() {
             onChangeDay={() => undefined}
           />
         ) : active ? (
-          <button type="button" className={`${styles.start} pressable`} data-continue onClick={() => void quick()}>
-            <span className={styles.startLabel}>Resume</span>
-            <span className={`${styles.startSub} num`}>
-              {workoutTitle(active)} · in progress · {setCount(data.value?.activeSets ?? 0)}
-            </span>
-          </button>
+          <ResumeCard active={active} sets={data.value?.activeSets ?? 0} empty={!!data.value?.activeEmpty} onResume={() => void quick()} onDiscard={() => void discard()} />
         ) : plan && planState ? (
           <DayCard
             plan={plan}
@@ -336,7 +301,7 @@ export function TodayScreen() {
         {/* PLAN 3.8 (SPEC 15): the coach's one card, or its one line, never both. */}
         {data.ready && !failed && (
           <>
-            <CoachCard card={coach.today?.card ?? null} data={coach.data} onToast={setToast} onSeeChanges={() => setSeeChanges(true)} />
+            <CoachCard card={coach.today?.card ?? null} data={coach.data} onToast={setToast} onSeeChanges={() => setSeeChanges(true)} onStartDay={() => void startDay()} />
             {!coach.today?.card && <CoachLine line={coach.today?.line ?? null} />}
           </>
         )}
@@ -370,7 +335,7 @@ export function TodayScreen() {
           </button>
         )}
         {/* Competitor gap 4: from logged sets only; nothing logged lately, no card. */}
-        {data.ready && !failed && !active && <FreshMuscles bands={coach.fresh} />}
+        {data.ready && !failed && !active && <FreshMuscles bands={coach.fresh} unmapped={coach.unmapped} />}
         <BackupReminder
           show={remind}
           reason={reminderReason({ onlyHere: data.value?.onlyHere ?? 0, lastBackupAt: data.value?.lastBackupAt, now: Date.now() })}
