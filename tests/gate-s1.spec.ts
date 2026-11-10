@@ -145,12 +145,15 @@ test('set type sheet: four plain choices with ⓘ, the row shows a word chip, st
   await expect(loggedRows(view)).toHaveCount(1);
   await expect.poll(async () => (await dbAll<{ id: string; kind: string }>(page, 'sets')).filter((s) => !s.id.startsWith('seed-')).map((s) => s.kind)).toEqual(['warmup']);
   // Warm ups never count toward Total lifted (SPEC 21.1).
-  await expect(page.getByTestId('live-stats')).toHaveText('1 set');
+  // 3.5d: warm ups show – and do not count: the only logged set is a warm up, so 0 sets.
+  await expect(page.getByTestId('live-stats')).toHaveText('0 sets');
   // A logged set changes through the same sheet.
   await loggedRows(view).first().getByTestId('set-type').tap();
   await expect(sheet.getByRole('radio', { name: /^Warm up/ })).toHaveAttribute('aria-checked', 'true');
   await sheet.getByTestId('set-type-drop').tap();
   await expect.poll(async () => (await dbAll<{ id: string; kind: string }>(page, 'sets')).filter((s) => !s.id.startsWith('seed-')).map((s) => s.kind)).toEqual(['drop']);
+  // 3.5d: a drop counts as a work set.
+  await expect(page.getByTestId('live-stats')).toHaveText(/^1 set\b/);
   await expect(loggedRows(view).first().getByTestId('set-type-chip')).toHaveText('Drop set');
   // A drop set is quiet (secondary text), never the old blue.
   const [drop, quiet] = await view.evaluate((el) => [

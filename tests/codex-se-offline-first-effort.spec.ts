@@ -56,7 +56,11 @@ test('offline SE: first-time completion keeps every set visible and saves the op
     // EffortChip's delayed scroll runs after 150 ms; inspect while the completion
     // chip is still showing, before the normal return to the day list (~2.5 s).
     await page.waitForTimeout(400);
-    await setTableInFirstScreen(page);
+    // Relaxed (SE): EffortChip may scroll the main area by the few points that reveal the Easy/Good/Hard
+    // prompt when the guide stays in view (PLAN 3.8b), so scrollTop is not 0 here; every logged set row must
+    // still be fully in the first screen and nothing scrolls sideways.
+    for (const row of await loggedRows(view).all()) await expect(row).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
     await expect(page.getByTestId('workout-title')).toBeVisible({ timeout: 8000 });
     await expect(page.getByTestId('list-effort')).toHaveCount(1);
     const good = page.getByTestId('list-effort-good');

@@ -177,3 +177,14 @@ export async function fillReps(view: Locator, row: Locator, reps: number) {
   }
   await view.getByRole('button', { name: 'Done', exact: true }).tap();
 }
+
+/** 3.5d: a warm up row has no last time to copy, so its weight (45 lb plate a side) and reps are filled by hand. */
+export async function fillWarmUpByHand(page: Page, view: Locator, row: Locator) {
+  await row.getByTestId('weight-cell').tap();
+  const w = page.getByRole('dialog', { name: 'Pick the weight' });
+  await w.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+  await w.getByRole('button', { name: 'Done' }).tap();
+  await row.getByTestId('reps-cell').tap();
+  for (let i = 0; i < 5; i++) await view.getByRole('button', { name: 'More reps' }).tap();
+  await view.getByRole('button', { name: 'Done', exact: true }).tap();
+}

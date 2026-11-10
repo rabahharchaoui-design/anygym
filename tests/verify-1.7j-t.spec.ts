@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { bar185, checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, seedFinished, shotOn, usePlan, watchErrors, pickSetType } from './workout-helpers';
+import { bar185, checkCurrent, fillWarmUpByHand, dbAll, dbPut, exerciseView, loggedRows, quickWith, seedFinished, shotOn, usePlan, watchErrors, pickSetType } from './workout-helpers';
 
 const SQUAT = 'barbell-back-squat';
 type S = { id: string; order: number; kind: string; sessionId: string; reps?: number; load?: { total: number; unit: string } };
@@ -62,7 +62,7 @@ test('a: 4 rows, row 3 first, then highlighted, then the rest', async ({ page })
   expect(errors).toEqual([]);
 });
 
-test('c: 4 set lift, all W: ring not complete, no advance, 4 working rows remain', async ({ page }) => {
+test('c: 4 set lift, all W: ring not complete, no advance, the 4 rows stay to do', async ({ page }) => {
   const errors = watchErrors(page);
   await usePlan(page);
   await seedSquat4(page);
@@ -73,8 +73,11 @@ test('c: 4 set lift, all W: ring not complete, no advance, 4 working rows remain
   for (let i = 0; i < 4; i++) {
     await pickSetType(page, view.getByTestId('set-todo').first().getByTestId('set-type'), 'warmup');
     await expect(view.getByTestId('set-todo').first().getByTestId('set-type')).toHaveAttribute('aria-label', /Warm up/);
-    // Gate 2: a warm up drops the working target; fill it from LAST TIME.
-    await view.getByTestId('set-todo').first().getByRole('button', { name: /^Last time .*Copy into set/ }).tap();
+    // Gate 2: a warm up drops the working target; fill it by hand.
+    // 3.5d: warm ups show – and do not count: no copy button on the row.
+    const warm = view.getByTestId('set-todo').first();
+    await expect(warm.getByRole('button', { name: /Copy into set/ })).toHaveCount(0);
+    await fillWarmUpByHand(page, view, warm);
     await page.waitForTimeout(500);
     await checkCurrent(view).tap();
     await expect(loggedRows(view)).toHaveCount(i + 1);

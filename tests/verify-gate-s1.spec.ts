@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { bar185, checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, seedFinished, usePlan, watchErrors } from './workout-helpers';
+import { bar185, checkCurrent, fillWarmUpByHand, dbAll, dbPut, exerciseView, loggedRows, quickWith, seedFinished, usePlan, watchErrors } from './workout-helpers';
 
 // Independent tester spec for the Session 1 merge gate recheck (blockers 1 to 8, 12, 14, data exactness).
 const DAY = 86_400_000;
@@ -39,9 +39,11 @@ test('1 set type sheet: 4 choices, chip words, stored kinds work/warmup/drop/wor
     await expect(sheet).toHaveCount(0);
     if (chip) await expect(row.getByTestId('set-type-chip')).toHaveText(chip);
     if (type === 'warmup') {
-      // Gate 2: a warm up drops the working target; it is filled by hand (here from LAST TIME).
+      // Gate 2: a warm up drops the working target; it is filled by hand.
+      // 3.5d: warm ups show – and do not count: no last time, so no copy button on the row.
       await expect(row.getByTestId('weight-cell')).toHaveText('Pick');
-      await row.getByRole('button', { name: /^Last time .*Copy into set/ }).tap();
+      await expect(row.getByRole('button', { name: /Copy into set/ })).toHaveCount(0);
+      await fillWarmUpByHand(page, view, row);
     }
     await checkCurrent(view).tap();
     await expect(loggedRows(view)).toHaveCount(i + 1);
