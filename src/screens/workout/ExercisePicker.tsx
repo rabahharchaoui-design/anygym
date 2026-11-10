@@ -26,7 +26,7 @@ const CHIPS: BodyPart[] = [...BODY_PARTS, 'More'];
  */
 export function ExercisePicker({ open, onClose, gym, added, onAdd }: Props) {
   return (
-    <Sheet open={open} onClose={onClose} label="Add exercise" scroll>
+    <Sheet open={open} onClose={onClose} label="Add exercise" scroll fill>
       {open && <PickerBody gym={gym} added={added} onAdd={onAdd} />}
     </Sheet>
   );
