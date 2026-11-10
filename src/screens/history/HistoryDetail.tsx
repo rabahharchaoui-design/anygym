@@ -8,6 +8,7 @@ import type { WorkoutSet } from '../../db/types';
 import { LoadError } from '../../components/LoadError';
 import { useLive } from '../../hooks/useLive';
 import { formatSet } from '../../lib/setWords';
+import { workSetCount } from '../../lib/workSets';
 import { formatTotal, totalLifted } from '../../lib/load';
 import { isImportOrder } from '../../lib/import/importOrder';
 import { exerciseNamer, setCount, workoutDate, workoutTitle } from './historyWords';
@@ -40,7 +41,7 @@ export function HistoryDetail() {
   const meta = value
     ? [
         workoutDate(value.session.startedAt),
-        setCount(value.sets.length),
+        setCount(workSetCount(value.sets)),
         ...(minutes !== null ? [minutes < 1 ? '<1 min' : `${minutes} min`] : []),
         // Dumbbells count both hands: say so, so the number is never a surprise.
         ...(lifted > 0 && value.unit ? [`${formatTotal(lifted, value.unit)} lifted${value.sets.some((x) => x.kind !== 'warmup' && x.load?.kind === 'dumbbell_each') ? ' (both hands)' : ''}`] : []),

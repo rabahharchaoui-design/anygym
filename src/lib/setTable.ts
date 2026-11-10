@@ -273,13 +273,18 @@ export type BuildInput = {
    * LAST TIME lines up row by row. Without it the progression's working sets are used.
    */
   lastSets?: readonly PastSet[] | null;
-  /**
-   * PLAN 3.8: this exercise got the coach's warm ups this workout. LAST TIME then lines up by kind:
-   * a warm up row with last time's warm ups, a working row with last time's working sets (the
-   * coach's warm ups would push every working row off its own last time otherwise).
-   */
-  byKind?: boolean;
 };
+
+/**
+ * LAST TIME of a logged row (3.5d): by work set number, nothing on a warm up. `loggedKinds` are the
+ * kinds of the sets logged this workout, in order.
+ */
+export function loggedLastTime(lastSets: readonly PastSet[] | null | undefined, loggedKinds: ReadonlyArray<SetKind>, i: number): PastSet | undefined {
+  if (!lastSets || loggedKinds[i] === 'warmup') return undefined;
+  let n = 0;
+  for (let j = 0; j < i; j++) if (loggedKinds[j] !== 'warmup') n++;
+  return lastSets.filter((s) => s.kind !== 'warmup')[n];
+}
 
 /** The rows still to do, filled as described at the top of this file. */
 export function pendingRows(input: BuildInput): PendingRow[] {
@@ -294,22 +299,21 @@ export function pendingRows(input: BuildInput): PendingRow[] {
   // PLAN 3.8: the coach's warm ups still to do are rows of their own, so the working rows after them
   // take the targets of the planned sets they are (never shifted by a warm up).
   let autoAhead = 0;
-  const lastWarm = (input.lastSets ?? []).filter((s) => s.kind === 'warmup');
   const lastWork = (input.lastSets ?? []).filter((s) => s.kind !== 'warmup');
-  let warmSeen = (logged as ReadonlyArray<{ kind?: SetKind }>).filter((s) => s.kind === 'warmup').length;
-  let workSeen = logged.length - warmSeen;
+  let workSeen = (logged as ReadonlyArray<{ kind?: SetKind }>).filter((s) => s.kind !== 'warmup').length;
   for (let i = logged.length; i < count; i++) {
     const d = draftOf(i);
     const auto = isAutoWarmUp(d);
     const target = perSet[i - shift - autoAhead]?.target ?? perSet[perSet.length - 1]?.target;
     const asWarm = auto || d?.type === 'warmup';
-    const lastTime = input.byKind
-      ? (asWarm ? lastWarm[warmSeen] : lastWork[workSeen])
+    // 3.5d: last time lines up by WORK set number; a warm up row shows nothing (–). Counting by how
+    // many sets are done (3.8) pushed every row off its own set once warm up rows existed.
+    const lastTime = asWarm
+      ? undefined
       : input.lastSets !== undefined
-        ? (input.lastSets?.[i] ?? undefined)
-        : (perSet[i]?.lastTime ?? progression?.lastTime?.sets[i]);
-    if (asWarm) warmSeen++;
-    else workSeen++;
+        ? lastWork[workSeen]
+        : (perSet[workSeen]?.lastTime ?? progression?.lastTime?.sets[workSeen]);
+    if (!asWarm) workSeen++;
     if (auto) autoAhead++;
     let load: Load | null;
     let plates: number[];

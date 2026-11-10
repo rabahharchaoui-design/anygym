@@ -438,3 +438,11 @@
 .startLabel[data-tight] .startSet {
   margin-left: 0.28em;
 }
+
+/* 3.5b round 4 (M8): a Quick group's rest, said once for the round. */
+.pairRest {
+  margin: 0 0 var(--space-2);
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+}

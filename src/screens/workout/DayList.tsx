@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { GymPill } from '../../components/GymPill';
 import type { WorkoutEntry } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
+import { quickTitleOf } from '../../lib/quick';
 import { Thumb } from './Thumb';
 import { demoFor } from '../../data/exerciseInfo';
 import { swapLine } from '../../lib/swap';
@@ -10,6 +11,9 @@ import { Button } from '../../ui/Button';
 import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon, XIcon } from '../../ui/icons';
 import type { Workout } from './useWorkout';
 import type { ToastMessage } from '../../ui/Toast';
+import { EffortChip } from './EffortChip';
+import { effortOf } from '../../db/coach';
+import { useLive } from '../../hooks/useLive';
 import { UpNextCard, useUpNext } from './UpNext';
 import styles from './DayList.module.css';
 
@@ -19,6 +23,8 @@ type Props = {
   heroId: string | null;
   onOpen: (exerciseId: string) => void;
   onAdd: () => void;
+  /** PLAN 3.8c: the exercise just finished; its feel question shows right under its row until answered. */
+  effortFor?: string | null;
   /** A still copy (drawn under the edge swipe): no hint, no Start pill. */
   still?: boolean;
   /** PLAN 3.4: a swapped row's Change and Restore. */
@@ -37,6 +43,13 @@ type Props = {
 
 /** A quiet line with one action ("Make it fit") and, for an offer, a close button. */
 export type TimeLine = { text: string; action: string; onAction: () => void; onDismiss?: () => void };
+
+/** The compact Easy/Good/Hard row under the exercise just finished; gone once it has an answer. */
+function ListEffort({ sessionId, exerciseId }: { sessionId: string; exerciseId: string }) {
+  const live = useLive(() => effortOf(sessionId, exerciseId), [sessionId, exerciseId]);
+  if (!live.ready || live.data?.effort) return null;
+  return <EffortChip compact sessionId={sessionId} exerciseId={exerciseId} />;
+}
 
 /** Empty, a ring filling per set done, then a check (SPEC 20.1). */
 function Progress({ done, total }: { done: number; total: number }) {
@@ -63,7 +76,7 @@ function nameHero(row: HTMLElement) {
  * its demo tile, name, sets × reps and the plan's rest. Pairs share a colored rail. Done rows dim,
  * the next one is highlighted. Tap a row to open it; that is the only navigation needed.
  */
-export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap, onRestoreSwap, onToast, onAddOne, sessionId = '', onTime, timeLine }: Props) {
+export function DayList({ w, heroId, onOpen, onAdd, effortFor = null, still = false, onChangeSwap, onRestoreSwap, onToast, onAddOne, sessionId = '', onTime, timeLine }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   const ideas = useUpNext(w, sessionId);
   /** A row's photo is being decoded before its screen opens: a second tap does nothing. */
@@ -77,7 +90,7 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
   const pillName = nextEntry ? w.nameOf(nextEntry.exerciseId) : '';
   const pillSet = nextEntry && nextDone > 0 ? `set ${Math.min(nextDone + 1, nextEntry.sets)} of ${nextEntry.sets}` : '';
   const pillLabel = !nextEntry ? '' : `${pillVerb} ${pillName}${pillSet ? `, ${pillSet}` : ''}`;
-  const title = w.day ? dayTitle(w.day.n, w.day.name) : 'Quick workout';
+  const title = w.day ? dayTitle(w.day.n, w.day.name) : quickTitleOf(w.session?.quickStyle);
   // "Continue · Squat · set 3 of 4" when it fits; on a narrow phone the second "·" goes before the
   // name shortens (gate round 2 P5). Measured, so the pill never guesses.
   const nameRef = useRef<HTMLSpanElement>(null);
@@ -148,7 +161,8 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
           <span className={styles.text}>
             <span className={styles.name}>{name}</span>
             {e.setsText && <span className={`${styles.sets} num`}>{e.setsText}</span>}
-            {rest !== undefined && rest > 0 && <span className={`${styles.rest} num`}>{rest} s rest</span>}
+            {/* 3.5b round 4 (M8): inside a Quick pair or circuit the rest is said once, on the group. */}
+            {rest !== undefined && rest > 0 && !e.roundRest && <span className={`${styles.rest} num`}>{rest} s rest</span>}
           </span>
           <Progress done={done} total={e.sets} />
         </button>
@@ -167,6 +181,7 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
             )}
           </div>
         )}
+        {!still && sessionId && effortFor === e.exerciseId && <ListEffort sessionId={sessionId} exerciseId={e.exerciseId} />}
       </li>
     );
   };
@@ -181,7 +196,12 @@ export function DayList({ w, heroId, onOpen, onAdd, still = false, onChangeSwap,
       while (i < entries.length && entries[i]!.kind === 'pair' && entries[i]!.block === e.block) group.push(entries[i++]!);
       blocks.push(
         <li key={`pair-${e.block}`} className={styles.pair} data-warmup={e.warmup || undefined} data-mobility={e.mobility || undefined} data-testid={e.mobility ? 'mobility-group' : 'pair-group'}>
-          <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : 'Pair: back to back'}</p>
+          <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : group.length > 2 ? `Circuit: ${e.sets} ${e.sets === 1 ? 'round' : 'rounds'}, one after another` : 'Pair: back to back'}</p>
+          {e.roundRest && e.restSec > 0 && (
+            <p className={`${styles.pairRest} num`} data-testid="group-rest">
+              Rest {w.userRestOf(e.exerciseId) ?? e.restSec} s after each round
+            </p>
+          )}
           <ol className={styles.pairRows}>{group.map(row)}</ol>
         </li>,
       );

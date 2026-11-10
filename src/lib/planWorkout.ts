@@ -42,6 +42,11 @@ export type WorkoutEntry = {
   mobility?: true;
   /** PLAN 3.4: the gym lacks the gear and nothing fits. Skippable: never "up next" until a set is logged on it. */
   noFit?: true;
+  /**
+   * PLAN 3.5b round 2: a Quick workout superset or circuit: no rest while another member is still
+   * behind in this round, the group's rest after the round (what the estimate charges).
+   */
+  roundRest?: true;
 };
 
 /** Every exercise of a plan day for the given week, in order. */
@@ -68,6 +73,7 @@ export function dayWorkout(plan: Plan, dayIndex: number, weekIndex = 0): Workout
       };
       if (it.note) e.note = it.note;
       if (b.mobility) e.mobility = true;
+      if (b.roundRest && b.kind === 'pair') e.roundRest = true;
       if (it.eachSide) e.eachSide = true;
       const stated = planRest(b);
       if (stated !== undefined) e.statedRest = stated;
@@ -187,6 +193,12 @@ export function restAfter(entries: WorkoutEntry[], done: DoneCounts, logged: str
   const e = entries.find((x) => x.exerciseId === logged);
   if (!e) return null;
   if (firstOpen(entries, done) === null) return 0;
+  // PLAN 3.5b round 2: inside a Quick group the next member goes straight on; the rest comes once the round is done.
+  if (e.roundRest && e.kind === 'pair') {
+    const mine = done[logged] ?? 0;
+    const behind = entries.some((x) => x !== e && x.block === e.block && x.kind === 'pair' && open(x, done) && (done[x.exerciseId] ?? 0) < mine);
+    if (behind) return 0;
+  }
   return e.restSec;
 }
 
@@ -223,8 +235,8 @@ export function quickEntry(
   loadType: ExerciseLoadType | undefined,
   block: number,
   restSec?: number,
-  /** PLAN 3.5a: the targets a built Quick workout gave it (sets, reps or hold, rest). */
-  target?: { sets: number; reps?: PlanReps; seconds?: PlanSeconds; restSec: number },
+  /** PLAN 3.5a: the targets a built Quick workout gave it (sets, reps or hold, rest; 3.5b: its superset or circuit). */
+  target?: { sets: number; reps?: PlanReps; seconds?: PlanSeconds; restSec: number; pair?: { group: number; index: number; size: number } },
 ): WorkoutEntry {
   const timed = loadType === 'timed';
   const t: ItemTarget = target
@@ -250,8 +262,19 @@ export function quickEntry(
   if (t.reps !== undefined) e.reps = t.reps;
   if (t.seconds !== undefined) e.seconds = t.seconds;
   if (rest !== undefined) e.statedRest = rest;
+  // PLAN 3.5b: a superset or circuit member shares its group's block (far from any list index).
+  if (target?.pair && target.pair.size > 1) {
+    e.kind = 'pair';
+    e.block = QUICK_GROUP_BLOCK + target.pair.group;
+    e.pairIndex = target.pair.index;
+    e.pairSize = target.pair.size;
+    e.roundRest = true;
+  }
   return e;
 }
+
+/** PLAN 3.5b: the block numbers of a built Quick workout's groups start here (never an exercise's own index). */
+export const QUICK_GROUP_BLOCK = 100_000;
 
 /**
  * The workout's entries in the session's own order (Reorder, Remove): plan entries for the

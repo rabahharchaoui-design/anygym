@@ -16,8 +16,10 @@ function facts(id: string): { pattern: string | null; requires: string[][] | nul
   for (const [pattern, l] of Object.entries(patterns.patterns)) for (const c of l.candidates) if (c.id === id || c.planId === id) return { pattern, requires: c.requires };
   return { pattern: null, requires: null };
 }
+// 3.5d: and the catalog exercises whose photos were opened by hand (data/catalog-demos.json, 3.5a round 2).
+const handChecked = new Set((JSON.parse(readFileSync('data/catalog-demos.json', 'utf8')) as { exercises: { catalogId: string }[] }).exercises.map((e) => e.catalogId));
 function sureDemo(id: string): boolean {
-  return map.some((e) => (e.planId === id || e.catalogId === id) && (e.match === 'exact' || e.match === 'variant') && !!e.catalogId);
+  return handChecked.has(id) || map.some((e) => (e.planId === id || e.catalogId === id) && (e.match === 'exact' || e.match === 'variant') && !!e.catalogId);
 }
 const doable = (req: string[][] | null, eq: string[]) => req !== null && req.every((g) => g.some((x) => eq.includes(x)));
 
@@ -53,11 +55,11 @@ test.describe('3.5a verify', () => {
     await expect(page.getByTestId('build-card')).toHaveCount(0);
     await shot(page, 'today-no-intake');
     await pastIntake(page);
-    await expect(page.getByTestId('build-card')).toContainText("Got 30 min? I'll build it");
+    await expect(page.getByTestId('build-card')).toContainText(/Got (15|30|45|60) min\? I'll build it/);
     await shot(page, 'today-intake');
     const old = page.getByRole('button', { name: /Quick workout/ });
-    // Round 2 (B7): the picker first flow is the quieter "Build my own" row (SPEC 20.3's words).
-    await expect(old).toContainText('Build my own');
+    // Round 2 (B7): the picker first flow is the quieter row, one label on Today and Quick (3.5b round 4, P15).
+    await expect(old).toContainText('Pick exercises myself');
     const b = (await old.boundingBox())!;
     expect(b.height).toBeGreaterThanOrEqual(48);
     await old.tap();
@@ -65,7 +67,7 @@ test.describe('3.5a verify', () => {
     expect(errors).toEqual([]);
   });
 
-  test('2. chips: nearest to intake minutes, 30 from the Today card', async ({ page }) => {
+  test('2. chips: nearest to intake minutes, the intake minutes from the Today card', async ({ page }) => {
     const errors = watchErrors(page);
     for (const [mins, want] of [[10, 15], [20, 15], [25, 30], [38, 45], [52, 45], [53, 60], [90, 60], [45, 45]] as const) {
       await pastIntake(page);
@@ -82,8 +84,10 @@ test.describe('3.5a verify', () => {
     await expect(page.locator('[data-testid^="min-"]')).toHaveCount(4);
     await dbPut(page, { profile: [PROFILE] });
     await page.goto('./');
+    // 3.5b round 4 (P15): the Today card says and opens the intake's own minutes (45 here), not 30.
+    await expect(page.getByTestId('build-card')).toContainText('Got 45 min?');
     await page.getByTestId('build-card').tap();
-    await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('min-45')).toHaveAttribute('aria-pressed', 'true');
     await shot(page, 'chips-from-card');
     // Odd values never break it.
     for (const v of ['0', '-5', 'abc', '99999999999', '']) {
@@ -153,8 +157,9 @@ test.describe('3.5a verify', () => {
     const seen = await walk(page);
     console.log('fresh items:', seen.map((s) => `${s.name} (${s.why})`).join(' ; '));
     for (const s of seen) {
-      expect.soft(s.why, s.id).not.toMatch(/chest|triceps|front delt|shoulder/i);
-      expect.soft(s.id).not.toMatch(/bench|press|fly|dip|tricep|pushdown/i);
+      // 3.5b round 2: rear shoulders (a reverse fly) are not worked by an incline bench, so they are fresh.
+      expect.soft(s.why, s.id).not.toMatch(/chest|triceps|front delt|(?<!rear )shoulder/i);
+      expect.soft(s.id).not.toMatch(/bench|press|(?<!reverse-)fly|dip|tricep|pushdown/i);
     }
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await page.locator('[data-concept="plan"]').tap();
@@ -313,7 +318,9 @@ test.describe('3.5a verify', () => {
     const SETS: Record<string, number> = { 'barbell-back-squat': 4, 'angled-machine-leg-press': 3, 'machine-lying-leg-curl': 2, 'barbell-straight-leg-romanian-deadlift': 3 };
     const rows: unknown[] = [];
     let order = 0;
-    for (const id of live.exerciseIds) for (let k = 0; k < SETS[id]!; k++) rows.push({ id: `v-${id}-${k}`, sessionId: live.id, exerciseId: id, order: order++, kind: 'work', uncertain: false, reps: 8, load: bar185 });
+    // 3.5b round 2: the plan card is fitted to the time (other moves and sets than the 3.6 trim):
+    // every other move gets 5 sets, at least what the fitted day asks (5 is the fit's most).
+    for (const id of live.exerciseIds) for (let k = 0; k < (SETS[id] ?? 5); k++) rows.push({ id: `v-${id}-${k}`, sessionId: live.id, exerciseId: id, order: order++, kind: 'work', uncertain: false, reps: 8, load: bar185 });
     await dbPut(page, { sets: rows });
     await page.reload();
     await page.getByRole('button', { name: 'Back to the list' }).tap();
@@ -547,9 +554,11 @@ test.describe('3.5a verify round 2', () => {
 
   test('r2e. overhead tricep extension photo shows the dumbbell', async ({ page }) => {
     await pastIntake(page, DUMBBELLS);
-    await page.goto('./#/quick?min=45');
+    // 3.5b round 4: at 45 this gym has one card (the pump); the Arms and abs finisher is the 30 chip's.
+    await page.goto('./#/quick?min=30');
     await page.reload();
-    await page.locator('[data-concept]').first().tap();
+    // PLAN 3.5b: the Arms and abs finisher holds it here (cards differ by style and rotate per visit).
+    await page.locator('[data-concept="armsAbs"]').tap();
     for (let i = 0; i < 8; i++) {
       if ((await card(page).getAttribute('data-exercise')) === 'dumbbell-single-arm-overhead-tricep-extension') break;
       await page.getByTestId('deck-keep').tap();

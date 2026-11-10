@@ -1,0 +1,83 @@
+{
+  "15:fresh": {
+    "meta": "3 exercises · 4 rounds · ~14 min",
+    "why": "Back and biceps rested 4 days",
+    "items": [
+      "1 of 3 | Never show | Cable Seated Close Grip Row | 4 sets × 8 to 12 reps | Back: not trained in 3 days",
+      "2 of 3 | Never show | Cable Single Arm Bicep Curl | 4 sets × 10 to 15 reps each side | Biceps: not trained in 3 days",
+      "3 of 3 | Never show | Crunch | 4 sets × 10 to 15 reps | Abs: not trained in 3 days"
+    ],
+    "ready": "Cable Seated Close Grip Row\n4 sets × 8 to 12 reps\nCable Single Arm Bicep Curl\n4 sets × 10 to 15 reps each side\nCrunch\n4 sets × 10 to 15 reps"
+  },
+  "15:pump": {
+    "meta": "4 exercises · 2 supersets · ~13 min",
+    "why": "Shoulders and biceps rested 4 days",
+    "items": [
+      "1 of 4 | Never show | Dumbbell Bench Press | 3 sets × 8 to 12 reps | Big lift first, while you're fresh",
+      "2 of 4 | Never show | Dumbbell Lateral Raise | 3 sets × 10 to 15 reps | Isolates your shoulders",
+      "3 of 4 | Never show | Cable Tricep Pushdown | 2 sets × 10 to 15 reps | Finishes the triceps your bench warmed up",
+      "4 of 4 | Never show | Cable Single Arm Bicep Curl | 2 sets × 10 to 15 reps each side | Isolates your biceps"
+    ],
+    "ready": "Dumbbell Bench Press\n3 sets × 8 to 12 reps\nDumbbell Lateral Raise\n3 sets × 10 to 15 reps\nCable Tricep Pushdown\n2 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n2 sets × 10 to 15 reps each side"
+  },
+  "30:fresh": {
+    "meta": "3 exercises · 1 superset · ~22 min",
+    "why": "Back and biceps rested 4 days",
+    "items": [
+      "1 of 3 | Never show | Cable Seated Close Grip Row | 4 sets × 8 to 12 reps | Back: not trained in 3 days",
+      "2 of 3 | Never show | Crunch | 4 sets × 10 to 15 reps | Abs: not trained in 3 days",
+      "3 of 3 | Never show | Cable Single Arm Bicep Curl | 4 sets × 10 to 15 reps each side | Biceps: not trained in 3 days"
+    ],
+    "ready": "Cable Seated Close Grip Row\n4 sets × 8 to 12 reps\nCrunch\n4 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n4 sets × 10 to 15 reps each side"
+  },
+  "30:pump": {
+    "meta": "3 exercises · 1 superset · ~27 min",
+    "why": "Shoulders rested 6 days",
+    "items": [
+      "1 of 3 | Never show | Dumbbell Lateral Raise | 5 sets × 10 to 15 reps | Isolates your shoulders",
+      "2 of 3 | Never show | Crunch | 5 sets × 10 to 15 reps | A short finish for your abs",
+      "3 of 3 | Never show | Dead Bug | 5 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Dumbbell Lateral Raise\n5 sets × 10 to 15 reps\nCrunch\n5 sets × 10 to 15 reps\nDead Bug\n5 sets × 10 to 15 reps"
+  },
+  "30:strength": {
+    "meta": "3 exercises · ~27 min",
+    "why": "Shoulders and back rested 4 days",
+    "items": [
+      "1 of 3 | Never show | Dumbbell Bench Press | 3 sets × 4 to 6 reps | Big lift first, while you're fresh",
+      "2 of 3 | Never show | Dumbbell Arnold Shoulder Press | 3 sets × 4 to 6 reps | A big lift for your shoulders",
+      "3 of 3 | Never show | Cable Seated Close Grip Row | 2 sets × 4 to 6 reps | A big lift for your back"
+    ],
+    "ready": "Dumbbell Bench Press\n3 sets × 4 to 6 reps\nDumbbell Arnold Shoulder Press\n3 sets × 4 to 6 reps\nCable Seated Close Grip Row\n2 sets × 4 to 6 reps"
+  },
+  "60:fresh": {
+    "meta": "3 exercises · 1 superset · ~22 min",
+    "why": "Back and biceps rested 4 days",
+    "items": [
+      "1 of 3 | Never show | Cable Seated Close Grip Row | 4 sets × 8 to 12 reps | Back: not trained in 3 days",
+      "2 of 3 | Never show | Crunch | 4 sets × 10 to 15 reps | Abs: not trained in 3 days",
+      "3 of 3 | Never show | Cable Single Arm Bicep Curl | 4 sets × 10 to 15 reps each side | Biceps: not trained in 3 days"
+    ],
+    "ready": "Cable Seated Close Grip Row\n4 sets × 8 to 12 reps\nCrunch\n4 sets × 10 to 15 reps\nCable Single Arm Bicep Curl\n4 sets × 10 to 15 reps each side"
+  },
+  "60:pump": {
+    "meta": "3 exercises · 1 superset · ~27 min",
+    "why": "Shoulders rested 6 days",
+    "items": [
+      "1 of 3 | Never show | Dumbbell Lateral Raise | 5 sets × 10 to 15 reps | Isolates your shoulders",
+      "2 of 3 | Never show | Crunch | 5 sets × 10 to 15 reps | A short finish for your abs",
+      "3 of 3 | Never show | Dead Bug | 5 sets × 10 to 15 reps | A short finish for your abs"
+    ],
+    "ready": "Dumbbell Lateral Raise\n5 sets × 10 to 15 reps\nCrunch\n5 sets × 10 to 15 reps\nDead Bug\n5 sets × 10 to 15 reps"
+  },
+  "60:strength": {
+    "meta": "3 exercises · ~50 min",
+    "why": "Shoulders and back rested 4 days",
+    "items": [
+      "1 of 3 | Never show | Dumbbell Bench Press | 5 sets × 4 to 6 reps | Big lift first, while you're fresh",
+      "2 of 3 | Never show | Dumbbell Arnold Shoulder Press | 5 sets × 4 to 6 reps | A big lift for your shoulders",
+      "3 of 3 | Never show | Cable Seated Close Grip Row | 5 sets × 4 to 6 reps | A big lift for your back"
+    ],
+    "ready": "Dumbbell Bench Press\n5 sets × 4 to 6 reps\nDumbbell Arnold Shoulder Press\n5 sets × 4 to 6 reps\nCable Seated Close Grip Row\n5 sets × 4 to 6 reps"
+  }
+}

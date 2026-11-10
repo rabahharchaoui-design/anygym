@@ -15,14 +15,15 @@ import { applyTrim } from '../timeBudget';
 import { patternOf } from '../swap';
 import {
   buildConcepts,
+  buildStyleCards,
   canBuild,
   fits,
   reasonsFor,
+  STYLES,
   QUICK_MINUTES,
   chipFor,
   conceptMinutes,
   dropSlot,
-  honest,
   learnNever,
   learnSwap,
   nextSwap,
@@ -57,7 +58,8 @@ function expectHonest(concepts: Concept[], gym: GymKit) {
       expect(it.why.length).toBeGreaterThan(5);
     }
     expect(c.minutes).toBe(conceptMinutes(c));
-    if (c.id !== 'plan' && c.id !== 'fresh') expect(honest(c.id, c.items.map((it) => it.pattern))).toBe(true);
+    // PLAN 3.5b: a style card's name is true of what it holds (its own honest test).
+    if (c.id !== 'plan' && c.id !== 'fresh') expect(STYLES[c.id].honest(c.items.map((it) => profileFor(it.id)), c.items)).toBe(true);
     expect(new Set(c.items.map((it) => it.id)).size).toBe(c.items.length);
   }
 }
@@ -75,18 +77,21 @@ describe('How long chips', () => {
 });
 
 describe('concepts', () => {
-  it('a full gym with no history: three honest concepts, Full body first', () => {
+  // PLAN 3.5b: four cards that differ by style (was three body part concepts, Full body first).
+  it('a full gym with no history: four honest style cards, Full body circuit first', () => {
     const cs = buildConcepts({ base: base(FULL), minutes: 30, recent: [] }, QUICK_DEPS);
-    expect(cs.map((c) => c.id)).toEqual(['full', 'upper', 'lower']);
-    expect(cs[0]!.title).toBe('Full body pump');
+    // 3.5b round 4: the diversity rule compares each card's main muscles, so Strength focus fits next to the circuit.
+    expect(cs.map((c) => c.id)).toEqual(['circuit', 'pump', 'strength', 'armsAbs']);
+    expect(cs[0]!.title).toBe('Full body circuit');
     expectHonest(cs, FULL);
     // No fresh concept without logged sets: it would claim something it does not know.
     expect(cs.some((c) => c.id === 'fresh')).toBe(false);
   });
 
-  it('a strength goal calls it Full body, not a pump', () => {
+  // PLAN 3.5b: titles name the style, whatever the goal (was "Full body" for a strength goal).
+  it('a strength goal still gets style cards named for how they are done', () => {
     const cs = buildConcepts({ base: base(FULL, { goals: ['strength'] }), minutes: 45, recent: [] }, QUICK_DEPS);
-    expect(cs[0]!.title).toBe('Full body');
+    for (const c of cs) expect(c.title).toBe(STYLES[c.id as keyof typeof STYLES].title);
   });
 
   it("Hit what's fresh never trains a muscle trained in the last 3 days", () => {
@@ -96,7 +101,8 @@ describe('concepts', () => {
     expect(cs[0]!.title).toBe("Hit what's fresh");
     expect(cs[0]!.line).toBe('Skips chest and triceps (trained lately)');
     for (const it of cs[0]!.items) for (const m of profileFor(it.id).targets) expect(recent as readonly string[]).not.toContain(m);
-    expect(cs).toHaveLength(3);
+    // PLAN 3.5b: up to four cards (was three).
+    expect(cs.length).toBeGreaterThanOrEqual(3);
     expectHonest(cs, FULL);
   });
 
@@ -112,8 +118,8 @@ describe('concepts', () => {
   it('a dumbbell only gym: only concepts whose name is true, every card doable with a sure demo', () => {
     const cs = buildConcepts({ base: base(DUMBBELLS), minutes: 30, recent: [] }, QUICK_DEPS);
     expect(cs.length).toBeGreaterThanOrEqual(2);
-    // No sure demo of a dumbbell leg move: never "Full body" or "Legs" here.
-    expect(cs.some((c) => c.id === 'full' || c.id === 'lower')).toBe(false);
+    // No sure demo of a dumbbell leg move: never a Full body circuit here (PLAN 3.5b ids).
+    expect(cs.some((c) => c.id === 'circuit')).toBe(false);
     expectHonest(cs, DUMBBELLS);
   });
 
@@ -129,6 +135,9 @@ describe('concepts', () => {
   });
 });
 
+// 3.5b round 2: a circuit never holds a heavy lift (SPEC 22), so the squat lives on another card.
+const withSquat = (cs: Concept[]) => cs.find((c) => c.items.some((it) => it.pattern === 'squat'))!;
+
 describe('learned soft dislikes', () => {
   it('a left swipe counts, a long press is never, undo takes the never back, history is not involved', () => {
     let d = learnSwap({}, 'barbell-back-squat');
@@ -142,18 +151,20 @@ describe('learned soft dislikes', () => {
   });
 
   it('soft dislikes rank an exercise lower in the generator, never out', () => {
-    const plain = buildConcepts({ base: base(FULL), minutes: 30, recent: [] }, QUICK_DEPS)[0]!;
+    // 3.5b round 4: the Strength focus card at 45 min (its squat slot has barbell options to rank).
+    const plain = withSquat(buildStyleCards({ base: base(FULL), minutes: 45, recent: [] }, QUICK_DEPS).get('strength') ?? []);
     const squat = plain.items.find((it) => it.pattern === 'squat')!;
     const input = withDislikes(base(FULL), learnSwap({}, squat.id));
     expect(input.soft).toEqual({ [squat.id]: 1 });
-    const after = buildConcepts({ base: input, minutes: 30, recent: [] }, QUICK_DEPS)[0]!;
+    const after = withSquat(buildStyleCards({ base: input, minutes: 45, recent: [] }, QUICK_DEPS).get('strength') ?? []);
     const squat2 = after.items.find((it) => it.pattern === 'squat')!;
     expect(squat2.id).not.toBe(squat.id);
     // Never a ban: with nothing else that fits, the disliked one still comes.
     const only: GymKit = { equipment: ['barbell_rack', 'flat_bench', 'adjustable_bench'], dumbbellRange: null };
     const disliked = withDislikes(base(only), { soft: { 'barbell-back-squat': 9, 'front-squat': 9 } });
-    const c = buildConcepts({ base: disliked, minutes: 45, recent: [] }, QUICK_DEPS)[0]!;
-    expect(c.items.some((it) => it.pattern === 'squat')).toBe(true);
+    // PLAN 3.5b: a circuit never takes a heavy barbell lift, so the squat comes on another card.
+    const cs = buildConcepts({ base: disliked, minutes: 45, recent: [] }, QUICK_DEPS);
+    expect(cs.some((c) => c.items.some((it) => it.pattern === 'squat'))).toBe(true);
   });
 
   it('never show merges into the generator never list', () => {
@@ -172,7 +183,7 @@ describe('learned soft dislikes', () => {
 describe('the deck swap', () => {
   const ok = (id: string) => demoFor(id) !== null;
   it('swaps for the same movement pattern, sure gear and demo, never one already in the workout, cycling through', () => {
-    const c = buildConcepts({ base: base(FULL), minutes: 45, recent: [] }, QUICK_DEPS)[0]!;
+    const c = withSquat(buildConcepts({ base: base(FULL), minutes: 45, recent: [] }, QUICK_DEPS));
     const squat = c.items.find((it) => it.pattern === 'squat')!;
     const ctx = { data: SWAP_DATA, gym: FULL, ok };
     const first = nextSwap(squat, c.items, [squat.id], ctx)!;
@@ -191,7 +202,7 @@ describe('the deck swap', () => {
   });
 
   it('soft dislikes rank swap candidates last', () => {
-    const c = buildConcepts({ base: base(FULL), minutes: 45, recent: [] }, QUICK_DEPS)[0]!;
+    const c = withSquat(buildConcepts({ base: base(FULL), minutes: 45, recent: [] }, QUICK_DEPS));
     const squat = c.items.find((it) => it.pattern === 'squat')!;
     const first = nextSwap(squat, c.items, [squat.id], { data: SWAP_DATA, gym: FULL, ok })!;
     const later = nextSwap(squat, c.items, [squat.id], { data: SWAP_DATA, gym: FULL, ok, soft: { [first]: 3 } })!;
@@ -210,8 +221,9 @@ describe('the plan day concept', () => {
   it('the plan day trimmed to the time, only sure demos and gear, the header estimate', () => {
     const c = planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: 30, gym: FULL }, QUICK_DEPS)!;
     expect(c).not.toBeNull();
-    expect(c.title).toBe(`${split.days[0]!.name}, short`);
-    expect(c.line).toBe(`From your ${split.name}`);
+    // PLAN 3.5b: card 1 reads "Your plan, short"; the day and the plan are named on its line.
+    expect(c.title).toBe('Your plan, short');
+    expect(c.line).toBe(`${split.days[0]!.name} from your ${split.name}`);
     expectHonest([c], FULL);
     expect(c.minutes).toBe(estimateDayMinutes(applyTrim(split.days[0]!, c.plan!.trim, 0), 0));
     // Every deck card is a plan slot that survived the trim.
@@ -230,7 +242,8 @@ describe('the plan day concept', () => {
     const plan = planConcept({ plan: split, dayIndex: 1, weekIndex: 0, minutes: 45, gym: FULL }, QUICK_DEPS);
     const cs = buildConcepts({ base: base(FULL), minutes: 45, recent: [], plan }, QUICK_DEPS);
     expect(cs[0]!.id).toBe('plan');
-    expect(cs).toHaveLength(3);
+    // PLAN 3.5b: four cards (was three).
+    expect(cs).toHaveLength(4);
   });
 
   it('a gym where too little of the day fits: no plan concept', () => {
@@ -313,7 +326,8 @@ describe('round 2', () => {
   it('P11: one real reason per card, never the title again', () => {
     const cs = buildConcepts({ base: base(FULL), minutes: 60, recent: [] }, QUICK_DEPS);
     for (const c of cs) {
-      expect(c.items[0]!.why).toBe("Big lift first, while you're fresh");
+      // PLAN 3.5b: a pump or an arms card starts with a small move; only a big first lift says so.
+      if (profileFor(c.items[0]!.id).tier <= 1) expect(c.items[0]!.why).toBe("Big lift first, while you're fresh");
       for (const it of c.items) expect(it.why.toLowerCase()).not.toContain(c.title.toLowerCase());
     }
     expect(reasonsFor(['barbell-incline-bench-press', 'cable-tricep-pushdown'], QUICK_DEPS)).toEqual(["Big lift first, while you're fresh", 'Finishes the triceps your bench warmed up']);

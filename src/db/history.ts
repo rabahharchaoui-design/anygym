@@ -9,6 +9,7 @@ import { candidateBarOf } from '../data/patterns';
 import { exerciseNameOf } from '../data/importMatch';
 import { dayIndexOf } from '../lib/plans';
 import { dayWorkout } from '../lib/planWorkout';
+import { isWorkSet } from '../lib/workSets';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { ANY_GYM, type BarId, type Gym, type Load, type Session, type WorkoutSet } from './types';
 
@@ -219,7 +220,7 @@ export type FinishedWorkout = { session: Session; sets: number };
 export async function listFinished(db: AnyGymDB = defaultDb): Promise<FinishedWorkout[]> {
   const sessions = (await db.sessions.orderBy('startedAt').reverse().toArray()).filter((s) => s.endedAt !== undefined || s.imported);
   const counts = new Map<string, number>();
-  await db.sets.each((s) => counts.set(s.sessionId, (counts.get(s.sessionId) ?? 0) + 1));
+  await db.sets.each((s) => isWorkSet(s) && counts.set(s.sessionId, (counts.get(s.sessionId) ?? 0) + 1));
   return sessions.map((session) => ({ session, sets: counts.get(session.id) ?? 0 }));
 }
 

@@ -122,10 +122,19 @@ export type Profile = {
    * level up (SPEC 15, off by default). `autoIntroAt`: when its first time example sheet was shown.
    */
   coach?: { autoLevelUp?: boolean; autoIntroAt?: number };
+  /** PLAN 3.5b (additive, not indexed): the Quick workout cards shown last time (plan, fresh or a style id), for the rotation. */
+  quickIdeas?: { shown?: string[] };
 };
 
 /** PLAN 3.5a: the targets Quick workout built for one exercise (a range or a number, like a plan's). */
-export type QuickTarget = { sets: number; reps?: [number, number] | number; seconds?: [number, number] | number; restSec: number };
+export type QuickTarget = {
+  sets: number;
+  reps?: [number, number] | number;
+  seconds?: [number, number] | number;
+  restSec: number;
+  /** PLAN 3.5b: done back to back with others: its group, its place in it, the group's size (2: a superset, 3+: a circuit). */
+  pair?: { group: number; index: number; size: number };
+};
 
 export type Plan = {
   id: string;
@@ -190,6 +199,8 @@ export type Session = {
    * hold, rest), so the list shows exactly what the deck showed. Missing: the quick defaults.
    */
   targets?: Record<string, QuickTarget>;
+  /** PLAN 3.5b (additive, not indexed): the Quick workout card this started from (fresh or a style id), for the rotation. */
+  quickStyle?: string;
 };
 
 /**

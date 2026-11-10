@@ -361,7 +361,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     minutes: day
       ? estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex)
       : session.data?.targets
-        ? estimateDayMinutes(quickDayOf(entries.map((e) => ({ id: e.exerciseId, name: e.name, sets: e.sets, restSec: e.restSec, ...(e.reps !== undefined ? { reps: e.reps } : {}), ...(e.seconds !== undefined ? { seconds: e.seconds } : {}) }))))
+        ? estimateDayMinutes(quickDayOf(entries.map((e) => ({ id: e.exerciseId, name: e.name, sets: e.sets, restSec: e.restSec, ...(e.reps !== undefined ? { reps: e.reps } : {}), ...(e.seconds !== undefined ? { seconds: e.seconds } : {}), ...(e.kind === 'pair' ? { group: e.block } : {}) }))))
         : undefined,
     sets,
     setsOfExercise: (id) => sets.filter((s) => s.exerciseId === id),

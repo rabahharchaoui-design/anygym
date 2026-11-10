@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { collarsSettingOf, sumLoad } from '../src/lib/load';
-import { bar185, dbAll, seedFinished, usePlan, watchErrors, pickSetType, setTableInFirstScreen } from './workout-helpers';
+import { bar185, dbAll, seedFinished, usePlan, watchErrors, pickSetType, setTableInFirstScreen, fillReps } from './workout-helpers';
 
 // Independent tester spec for PLAN 1.7c / 1.10e. Taps are counted by my own page-level listener
 // (capture phase "click" and "pointerdown"), not by the builder's helper.
@@ -174,8 +174,16 @@ test('D1. set types W D F, LAST TIME copy, and finish numbers match the db', asy
   for (const presses of [1, 2, 3]) {
     const row = view.getByTestId('set-todo').first();
     await pickSetType(page, row.getByTestId('set-type'), (['warmup', 'drop', 'failure'] as const)[presses - 1]!);
-    // Gate 2: a warm up drops the working target; fill it from LAST TIME (10 × 185).
-    if (presses === 1) await row.getByRole('button', { name: /^Last time .*Copy into set/ }).tap();
+    // Gate 2: a warm up drops the working target. 3.5d: and its LAST TIME is – (last time is by work set), so the
+    // warm up gets its own weight (bar + 25 each side) and reps.
+    if (presses === 1) {
+      await expect(row.getByRole('button', { name: /no last time/ })).toBeDisabled();
+      await row.getByTestId('weight-cell').tap();
+      const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
+      await sheet.getByRole('button', { name: 'Add 25 lb plate to each side' }).tap();
+      await sheet.getByRole('button', { name: 'Done' }).tap();
+      await fillReps(view, row, 10);
+    }
     console.log('type', presses, await row.getByTestId('set-type').innerText());
     await view.getByTestId('check-current').tap();
     await expect(view.getByTestId('set-row')).toHaveCount(presses);
@@ -212,7 +220,8 @@ test('D1. set types W D F, LAST TIME copy, and finish numbers match the db', asy
   const shown = await page.getByTestId('finish-total').innerText();
   const mins = await page.getByTestId('finish-duration').innerText();
   console.log('finish:', shown, '| expected', expectTotal, '| duration', mins, '| ms', (ss.endedAt ?? 0) - ss.startedAt, '| sets', await page.getByTestId('finish-sets').innerText());
-  expect(await page.getByTestId('finish-sets').innerText()).toBe(String(db.length));
+  // 3.5d round 2: warm ups count toward nothing, the set tile too (SPEC 2.5).
+  expect(await page.getByTestId('finish-sets').innerText()).toBe(String(db.filter((s) => s.kind !== 'warmup').length));
   expect(Number(shown.replace(/[^\d.]/g, ''))).toBe(expectTotal);
   const dm = Math.round(((ss.endedAt ?? 0) - ss.startedAt) / 60000);
   expect(mins).toBe(dm < 1 ? '<1 min' : `${dm} min`);

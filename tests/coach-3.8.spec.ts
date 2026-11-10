@@ -181,6 +181,7 @@ test.describe('the coach (PLAN 3.8)', () => {
     await effort.getByTestId('effort-good').tap();
     await expect(effort.getByTestId('effort-good')).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(async () => (await dbAll<{ exerciseId: string; effort: string }>(page, 'efforts')).map((e) => [e.exerciseId, e.effort])).toEqual([['barbell-back-squat', 'good']]);
+    // 3.8c: SPEC 20.2 return restored; the prompt lives on the day list too.
     // 3.8b round 2: an answer moves on to the list after about a second (SPEC 20.2), so the rest of this
     // test reloads onto the exercise first (no chip after a reload: the exercise stays, the answer is kept).
     await page.reload();
