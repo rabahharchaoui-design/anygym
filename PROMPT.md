@@ -98,3 +98,5 @@ UNATTENDED RUN RULES (you run headless, nobody is watching)
 - Keep going item after item until the STOP line or a usage limit.
 
 TEST NOW HONESTY (G, Nov 5): every step in a reports/test-now.md line must exist in the LIVE app at that moment (master as deployed). Before writing the line, the tester follows the exact tap path on the live build; never name a screen, button or setting from a later PLAN item. If the feature cannot be reached by hand yet, say so: "<id> | Not testable by hand yet: needs <item>."
+
+FABLE 5.2 ROUTING (G, Nov 11 council verdict): you, the orchestrator, run on Fable 5.2. For flagship UI items (intake, plan reveal, Today, Quick workout deck, workout logging, finish screen, run start and live run, run finish and share card, passport) delegate to the designer subagent (Fable 5.2) instead of the builder. Everything else stays on the builder (Opus, or Sonnet for routine work). Fable uses the weekly limit faster: keep designer for flagship screens only, never for fix lists or tests. Use the fable-auditor subagent only when PLAN asks for it.

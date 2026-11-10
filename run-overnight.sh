@@ -14,7 +14,7 @@ CFG=.loop-budget
 STATE=.loop-hours
 [ -f $CFG ] || cat > $CFG <<'CFGEOF'
 # AnyGym loop budget. The loop rereads this before every run.
-MODEL=claude-fable-5-1
+MODEL=claude-fable-5-2
 START_HOUR=12       # Guam time: runs may start from noon (G sleeps 3 PM to 11 PM)
 END_HOUR=0          # Guam time: any run still going at midnight is stopped (0 = midnight)
 DAY_HOURS=5         # most loop hours per day, spreads the week evenly
