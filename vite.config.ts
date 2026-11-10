@@ -110,7 +110,9 @@ export default defineConfig({
         // downloads the app shell and is offline ready in seconds. Each photo (WebP or its JPG twin)
         // is cached the first time it shows and then works offline.
         globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}'],
-        globIgnores: ['**/ex/**'],
+        // PLAN 3.5e: the candidate move list is only for the owner review and a phone with approvals:
+        // never precached for everyone; kept once it loaded (below).
+        globIgnores: ['**/ex/**', '**/catalog-candidates-*.js'],
         runtimeCaching: [
           {
             // A RegExp, never a closure: the matcher is copied into sw.js as source text, where BASE
@@ -118,6 +120,17 @@ export default defineConfig({
             urlPattern: /\/ex\/[^/]+\/[01]\.(?:webp|jpg)$/,
             handler: 'CacheFirst',
             options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600 } },
+          },
+          {
+            urlPattern: /\/assets\/catalog-candidates-[^/]+\.js$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'candidate-list', expiration: { maxEntries: 2 } },
+          },
+          {
+            // PLAN 3.5e: candidate move photos (public/exc/), kept once seen (the review fetches each batch's).
+            urlPattern: /\/exc\/[^/]+\/[01]\.webp$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'candidate-photos', expiration: { maxEntries: 700 } },
           },
         ],
         // HashRouter: every route is index.html, so any navigation falls back to it.
