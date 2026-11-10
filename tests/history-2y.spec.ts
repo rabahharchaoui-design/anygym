@@ -90,11 +90,13 @@ test.describe('two years of history @matrix', () => {
     await expect(rows).toHaveCount(h.sessions.length);
     // Newest first: the first row opens the newest workout, with exactly its sets.
     const newest = [...h.sessions].sort((a, b) => b.startedAt - a.startedAt)[0]!;
-    const count = h.sets.filter((s) => s.sessionId === newest.id).length;
+    // 3.5d: warm ups show – and do not count: the row's set count is work, drop and failure sets only.
+    const count = h.sets.filter((s) => s.sessionId === newest.id && s.kind !== 'warmup').length;
     await expect(rows.first()).toContainText(`${count} sets`);
     await rows.first().tap();
     await expect(page).toHaveURL(new RegExp(`#/history/${newest.id}$`));
-    await expect(page.getByTestId('history-set')).toHaveCount(count);
+    // The detail lists every set, warm ups included.
+    await expect(page.getByTestId('history-set')).toHaveCount(h.sets.filter((s) => s.sessionId === newest.id).length);
     // No horizontal scroll with a long list.
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   });
