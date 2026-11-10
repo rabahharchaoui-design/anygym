@@ -226,7 +226,7 @@ describe('group 7a: "Finish without it" discards only the failed Logs the user w
     const deps = rowDeps();
     await failedLog(s.id, 'squat', 'r1', 5, 1, deps);
     const shown = shownRows(await failedRows(s.id, deps));
-    expect(shown).toEqual([{ id: 'r1', submitted: 1 }]);
+    expect(shown).toEqual([{ id: 'r1', submitted: 1, body: expect.any(String) }]);
     await failedLog(s.id, 'bench', 'r2', 8, 1, deps); // another tab, while the sheet is open
     await discardFailed(s.id, deps, shown);
     expect((await failedRows(s.id, deps)).map((f) => f.draft.id)).toEqual(['r2']);

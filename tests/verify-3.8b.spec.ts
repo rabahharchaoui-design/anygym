@@ -48,6 +48,8 @@ async function logAll(view: Locator, n = 3) {
   for (let i = 1; i <= n; i++) {
     await tapCircle(page, view);
     await expect(loggedRows(view)).toHaveCount(i);
+    // 3.5g: the app ignores a second tap on the same spot within 350 ms; a person is never that fast.
+    await page.waitForTimeout(400);
   }
 }
 

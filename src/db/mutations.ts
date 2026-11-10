@@ -355,13 +355,17 @@ async function register(sessionId: string, exerciseId: string, m: MutationIntent
         mem.delete(memId);
         throw err instanceof WorkoutFinishedError ? err : new WorkoutFinishedError();
       }
+      let durable = false;
       try {
         writeFallback(ls, [...readFallback(ls).filter((e) => e.id !== memId), held]);
+        durable = true;
       } catch {
         /* memory (and IndexedDB, below) hold it */
       }
       // localStorage may refuse it too: IndexedDB keeps it across a kill when it can (PLAN 2.0j).
-      await db.kv.bulkPut(heldRows([held])).catch(() => undefined);
+      await db.kv.bulkPut(heldRows([held])).then(() => { durable = true; }, () => undefined);
+      // Retry: the old copy goes only once its replacement is durably written, never before.
+      if (replaces !== undefined && durable) await forget(db, ls, (x) => x.id === replaces);
       throw err;
     }
   });
@@ -397,10 +401,10 @@ export async function retryMutations(sessionId: string, db: AnyGymDB = defaultDb
         if (e.id.startsWith(MEMORY_PREFIX)) {
           // Never journaled: journaled now (a new revision covering it), then written, but only if it
           // is still the newest of its set and kind under the workout's lock (PLAN 2.0k). If the journal
-          // write fails again, the new held copy stands for it (one change).
+          // write fails again, the old copy is KEPT (never deleted before a replacement is durable):
+          // the new held copy covers it, and both stand for one change.
           const r = await register(sessionId, e.exerciseId, e.mutation!, db, Math.max(Date.now(), e.at + 1), ls, e.id).catch(() => 'failed' as const);
-          if (r === 'failed') await forget(db, ls, (x) => x.id === e.id);
-          else if (r) await settle(r, db, ls).catch(() => undefined);
+          if (r && r !== 'failed') await settle(r, db, ls).catch(() => undefined);
         } else {
           const ok = await apply(e.id, db).then(
             () => true,

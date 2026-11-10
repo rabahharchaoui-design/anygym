@@ -338,10 +338,13 @@ export async function retryFailed(sessionId: string, deps: Deps = {}): Promise<b
 }
 
 /** A failed row as the unsaved sheet showed it (PLAN 2.0k): its id and the revision it submitted. */
-export type ShownRow = { id: string; submitted: number; /** The operation shown (PLAN 3.2c); absent on a mark from before. */ op?: string };
+export type ShownRow = { id: string; submitted: number; /** The operation shown (PLAN 3.2c); absent on a mark from before. */ op?: string; /** What the sheet showed: weight, reps and the rest of the payload; absent on a mark from before. */ body?: string };
+
+/** The weight, reps and load breakdown of a draft as one comparable string. */
+const payloadOf = (d: Draft): string => JSON.stringify([d.load ?? null, d.reps ?? null, d.seconds ?? null, d.plates ?? null, d.unit ?? null, d.type ?? null]);
 
 /** What the unsaved sheet snapshots of the failed rows it tells about. */
-export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.map((f) => ({ id: f.draft.id, submitted: f.draft.submitted ?? 0, ...(f.draft.op !== undefined ? { op: f.draft.op } : {}) }));
+export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.map((f) => ({ id: f.draft.id, submitted: f.draft.submitted ?? 0, ...(f.draft.op !== undefined ? { op: f.draft.op } : {}), body: payloadOf(f.draft) }));
 
 /**
  * "Finish without it": the failed rows lose their mark and their journal entries (their values
@@ -352,7 +355,7 @@ export const shownRows = (failed: readonly FailedRow[]): ShownRow[] => failed.ma
 export async function discardFailed(sessionId: string, deps: Deps = {}, shown?: readonly ShownRow[]): Promise<void> {
   const { db, makeId } = parts(deps);
   const all = await failedRows(sessionId, deps);
-  const wanted = shown ? all.filter((f) => shown.some((x) => x.id === f.draft.id && x.submitted === f.draft.submitted && x.op === f.draft.op)) : all;
+  const wanted = shown ? all.filter((f) => shown.some((x) => x.id === f.draft.id && x.submitted === f.draft.submitted && x.op === f.draft.op && (x.body === undefined || x.body === payloadOf(f.draft)))) : all;
   // Inside one transaction: a journal entry stored since at another revision is never discarded.
   const failed = await db.transaction('rw', db.journal, db.kv, async () => {
     const out: FailedRow[] = [];
@@ -361,6 +364,10 @@ export async function discardFailed(sessionId: string, deps: Deps = {}, shown?: 
       // PLAN 3.2c: only the very operation shown. Another tab can journal other input under the same
       // id and revision; its operation id differs, so it stays unresolved (Finish asks about it).
       if (j && (j.mutation || j.rev !== f.draft.submitted || (j.draft as { op?: string }).op !== f.draft.op)) continue;
+      // The payload too: the same operation id can carry other weight or reps (a Retry); what the
+      // sheet did not show is kept and surfaced again, never deleted.
+      const seen = shown?.find((x) => x.id === f.draft.id && x.submitted === f.draft.submitted && x.op === f.draft.op)?.body;
+      if (j && seen !== undefined && payloadOf(j.draft as Draft) !== seen) continue;
       if (j) await db.journal.delete(j.id);
       // The cancellation commits with the journal deletion (PLAN 3.2b), so no tab can write it again.
       await db.kv.put({ key: cancelKey(sessionId, f.draft.id), value: String(f.draft.submitted ?? 0), at: Date.now() });
