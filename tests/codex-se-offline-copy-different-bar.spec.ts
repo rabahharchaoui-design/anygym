@@ -29,7 +29,11 @@ test('offline SE: copying a 185 lb lift onto a 35 lb bar preserves resistance th
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   const view = exerciseView(page, 'barbell-back-squat');
   const currentSets = async () => (await dbAll<WorkoutSet>(page, 'sets')).filter((s) => !s.id.startsWith('seed-'));
-  const history = (await dbAll<WorkoutSet>(page, 'sets')).filter((s) => s.id.startsWith('seed-'));
+  // Changing bars pins legacy history to its original Olympic bar (PLAN 2.0c).
+  // Every other stored field must survive the offline lifecycle unchanged.
+  const history = (await dbAll<WorkoutSet>(page, 'sets'))
+    .filter((s) => s.id.startsWith('seed-'))
+    .map((s) => ({ ...s, load: { ...s.load!, barId: 'olympic' as const } }));
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
   await expect(view).toBeVisible();
