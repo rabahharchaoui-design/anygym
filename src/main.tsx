@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import { startDb } from './db/bootstrap';
 import { loadSavedPlans } from './db/savedPlans';
+import { loadApprovals } from './db/candidateReviews';
 import { restoreMirrors } from './lib/durable';
 import { DRAFTS_KEY, hydrateDrafts } from './lib/drafts';
 import { REST_KEY, hydrateRest } from './lib/rest';
@@ -62,7 +63,9 @@ const showApp = () =>
 // PLAN 3.5: plans generated from the user's answers are known before any screen looks one up. A
 // phone whose storage cannot be read has none (the shell still works, like startDb below).
 const savedPlans = () => loadSavedPlans().catch((err: unknown) => console.warn('AnyGym saved plans unavailable', err));
-const restore = () => Promise.all([restoreMirrors(undefined, undefined, hydrators), savedPlans()]).then(showApp);
+// PLAN 3.5e: candidate moves G approved on this phone are sure moves before any screen asks.
+const approvals = () => loadApprovals().catch((err: unknown) => console.warn('AnyGym approvals unavailable', err));
+const restore = () => Promise.all([restoreMirrors(undefined, undefined, hydrators), savedPlans(), approvals()]).then(showApp);
 void restore().catch(() => reactRoot.render(<StartupError onRetry={restore} />));
 
 // After first paint: open the database and create the first gym if needed.

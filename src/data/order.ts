@@ -11,6 +11,7 @@ import type { GymKit } from '../lib/picker';
 import { SWAP_DATA, candidateLoadOf } from './patterns';
 import { planExercise } from './planExercises';
 import { exerciseNameOf } from './importMatch';
+import { onApprovedChange } from './candidateGate';
 
 type Override = NonNullable<Parameters<typeof profileOf>[0]['override']>;
 
@@ -86,6 +87,8 @@ const LOAD_IMPLEMENT: Partial<Record<ExerciseLoadType, Implement>> = {
 };
 
 const CACHE = new Map<string, Profile>();
+// PLAN 3.5e: an approved candidate gets its pattern from then on.
+onApprovedChange(() => CACHE.clear());
 
 /** The ordering profile of any exercise id a workout or plan can hold. */
 export function profileFor(id: string, name?: string): Profile {

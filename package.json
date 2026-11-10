@@ -16,7 +16,9 @@
     "test:coverage": "vitest run --coverage",
     "plan-exercises": "node scripts/build-plan-exercises.ts",
     "catalog": "node scripts/build-catalog.ts",
-    "muscle-report": "node scripts/muscle-report.ts"
+    "muscle-report": "node scripts/muscle-report.ts",
+    "candidates": "node --import ./scripts/ts-resolve.mjs scripts/build-candidates.ts",
+    "coverage-report": "node --import ./scripts/ts-resolve.mjs scripts/coverage-report.ts"
   },
   "dependencies": {
     "dexie": "^4.4.7",

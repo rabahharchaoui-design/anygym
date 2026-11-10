@@ -104,6 +104,10 @@ export function ReviewScreen() {
           {progressText(done)}
         </span>
       </header>
+      {/* PLAN 3.5e: the candidate moves waiting for G, as a swipe deck of their own. */}
+      <Button variant="secondary" onClick={() => go('/review/new')} data-testid="open-new-exercises">
+        Review new exercises
+      </Button>
       {loadError && (
         <div role="alert" data-testid="review-read-error">
           <p className={styles.message}>Could not read your saved decisions. Nothing was changed.</p>

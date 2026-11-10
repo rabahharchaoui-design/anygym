@@ -126,8 +126,9 @@ test('reminder card, layout, never mid workout, 130% sheet', async ({ page }) =>
   await expect.poll(async () => (await dbAll(page, 'gyms')).length).toBeGreaterThan(0);
   const gym = (await dbAll<Gym>(page, 'gyms'))[0]!;
   const now = Date.now();
-  const sessions = Array.from({ length: 6 }, (_, i) => ({ id: `o${i}`, gymId: gym.id, startedAt: now - (30 - i) * DAY, endedAt: now - (30 - i) * DAY + 3_600_000, imported: false, exerciseIds: ['x'] }));
-  const sets = sessions.map((s, i) => ({ id: `t${i}`, sessionId: s.id, exerciseId: 'barbell-incline-bench-press', order: 0, kind: 'work', reps: 8, load: bar185, uncertain: false }));
+  // 3.5g: a coach card day (25 days away, Ease in) hides the backup reminder, so the last session is recent and reps climb (no stalled lift card).
+  const sessions = Array.from({ length: 6 }, (_, i) => ({ id: `o${i}`, gymId: gym.id, startedAt: now - (6 - i) * DAY, endedAt: now - (6 - i) * DAY + 3_600_000, imported: false, exerciseIds: ['x'] }));
+  const sets = sessions.map((s, i) => ({ id: `t${i}`, sessionId: s.id, exerciseId: 'barbell-incline-bench-press', order: 0, kind: 'work', reps: 8 + i, load: bar185, uncertain: false }));
   await dbPut(page, { sessions, sets, profile: [{ id: 'me', defaultUnit: 'lb', createdAt: 1, lastBackupAt: now - 20 * DAY }] });
   await page.reload();
   const card = page.getByTestId('backup-reminder');

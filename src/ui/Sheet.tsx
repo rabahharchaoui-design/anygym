@@ -88,17 +88,17 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, hea
   // Until the entrance settles, the content takes no taps (the sheet itself swallows them, so an
   // early tap never lands on a row that is still moving, nor falls through to the scrim).
   const [settled, setSettled] = useState(false);
-  // A sheet taller than a short phone (the 320 x 568 floor: the Type it pad, the Smith question
-  // over the plates) would run off the top: then its body scrolls and the grabber drags, like a
-  // `scroll` sheet. Measured once before the first paint.
+  // A sheet taller than the room under the top inset (the 320 x 568 floor: the Type it pad, the
+  // Smith question over the plates) overflows its CSS height cap: then its body scrolls and the
+  // grabber drags, like a `scroll` sheet. One that fits is left alone. Measured once before the
+  // first paint (an overflow of 1 px or less is rounding).
   const [tall, setTall] = useState(false);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const scrolling = scroll || tall;
   useLayoutEffect(() => {
     if (scroll) return;
     const sheet = dialogRef.current;
-    const room = rootRef.current?.clientHeight ?? window.innerHeight;
-    if (sheet && sheet.offsetHeight > room * 0.88) setTall(true);
+    if (sheet && sheet.scrollHeight > sheet.clientHeight + 1) setTall(true);
   }, [scroll]);
   useEffect(() => {
     const t = window.setTimeout(() => setSettled(true), SETTLE_FALLBACK_MS);

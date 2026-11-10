@@ -6,6 +6,11 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  /* The room the grabber's hit area (the Close button) needs above the sheet, 24 px plus a margin:
+     under a status bar or island it keeps the hit area clear of it; with no top inset (nothing to
+     reach into) a sheet may use all the height. A sheet that fits is never held to this: it is
+     only the cap of a taller one (the body then scrolls, the footer stays pinned). */
+  --sheet-top-gap: clamp(0px, calc(var(--safe-top) * 1000), 28px);
 }
 
 .scrim {
@@ -44,6 +49,9 @@
   will-change: transform;
   display: flex;
   flex-direction: column;
+  /* Content that fits is never clipped. Content taller than the room under the inset overflows
+     the cap, which the frame measures once (data-scroll) and then scrolls the body. */
+  max-height: calc(var(--app-height) - var(--safe-top) - var(--sheet-top-gap));
 }
 
 .root[data-closing] {
@@ -108,7 +116,9 @@
 }
 
 .scrollBody {
-  max-height: calc(88dvh - var(--safe-top) - 48px);
+  /* Takes what is left under the sheet's cap (above a header's and a footer's room) and scrolls. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -116,20 +126,6 @@
   touch-action: pan-x pan-y;
   margin: 0 calc(var(--space-4) * -1);
   padding: 0 var(--space-4);
-}
-
-/* A sheet with a pinned action bar (2.0b): the sheet itself has the height cap, the body takes
-   what is left above the bar and scrolls, the bar (and the safe area under it) is always clear. */
-.sheet[data-footer][data-scroll='true'] {
-  /* The grabber's hit area (the Close button) reaches 32 px above the sheet: at full height it
-     stays below the status bar, on every phone, not only at large text. */
-  max-height: calc(var(--app-height) - var(--safe-top) - 44px);
-}
-
-.sheet[data-footer] .scrollBody {
-  max-height: none;
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .footer {

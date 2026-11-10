@@ -25,7 +25,7 @@ import {
 } from '../backup';
 import { SCHEMA_VERSION } from '../../db/schema';
 
-const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [], journal: [] });
+const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [], journal: [], candidateReviews: [] });
 
 const gym = { id: 'g', name: 'Home', type: 'home', unit: 'kg', equipment: [], dumbbellRange: null, bars: { olympic: 45, womens: 35, ez_curl: null, trap: null, smith: 0 }, stackStep: 2.5, equipmentWeights: {}, plateInventory: [], collars: 'none', plateColors: 'color', isActive: true, createdAt: 1 };
 const session = { id: 's', gymId: 'g', startedAt: 10, endedAt: 20, imported: false };
@@ -191,6 +191,7 @@ const good: Record<TableName, Record<string, unknown>> = {
   submissions: { id: 'x', sessionId: 's', exerciseId: 'bench', rev: 1 },
   tombstones: { id: 'x', sessionId: 's', set, expiresAt: 5, undo: true },
   journal: { id: 'j', sessionId: 's', exerciseId: 'bench', key: 'bench@0', rev: 2, draft: { id: 'j', load: set.load, plates: [25, 15, 1.25], reps: 5, rev: 2, unit: 'kg' }, at: 9 },
+  candidateReviews: { id: 'Incline_Dumbbell_Press', decision: 'fix', reason: 'photo', note: 'grip', at: 3 },
 };
 
 const without = (r: Record<string, unknown>, k: string) => {
@@ -232,6 +233,8 @@ const bad: Array<[TableName, string, Record<string, unknown>]> = [
   ['journal', 'no rev', without(good.journal, 'rev')],
   ['journal', 'bad draft', { ...good.journal, draft: { id: 'j', load: { kind: 'barbell' } } }],
   ['journal', 'draft of another row', { ...good.journal, draft: { id: 'other', load: null } }],
+  ['candidateReviews', 'unknown decision', { ...good.candidateReviews, decision: 'maybe' }],
+  ['candidateReviews', 'a reason on an approval', { id: 'x', decision: 'approve', reason: 'photo', at: 1 }],
 ];
 
 describe('RECORD_CHECKS', () => {

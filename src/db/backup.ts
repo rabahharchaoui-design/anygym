@@ -9,6 +9,7 @@ import { REST_KEY, loadRest, saveRest } from '../lib/rest';
 import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob } from '../lib/drafts';
 import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
+import { loadApprovals } from './candidateReviews';
 import { newId } from './ids';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, intentMatches, readUndoIntentList } from './undoIntents';
@@ -180,6 +181,8 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
   resetStartDb();
   // PLAN 3.5: the restored generated plans are known at once.
   await loadSavedPlans(db).catch(() => 0);
+  // PLAN 3.5e: the restored candidate approvals reach the gate at once.
+  await loadApprovals(db).catch(() => 0);
   return result;
 }
 
@@ -234,6 +237,8 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
   resetStartDb();
   // PLAN 3.5: the merged generated plans are known at once.
   await loadSavedPlans(db).catch(() => 0);
+  // PLAN 3.5e: the restored candidate approvals reach the gate at once.
+  await loadApprovals(db).catch(() => 0);
   return { workouts: result.workouts, sets: result.sets };
 }
 
