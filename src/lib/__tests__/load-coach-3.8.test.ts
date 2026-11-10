@@ -133,6 +133,11 @@ describe('stepDown and scaledWeight (lighter weeks)', () => {
     expect(scaledWeight('dumbbell_each', 5, 0.9, LB, true)).toBeNull();
     expect(scaledWeight('barbell', 200, 0.9, { ...LB, base: null }, true)).toBeNull();
     expect(scaledWeight('stack', 100, 0.9, LB, true)).toBe(90);
+    // A stack pin with weight added: 90% of the whole resistance (100 + 50 = 150 -> 135), as a pin.
+    expect(scaledWeight('stack', 100, 0.9, LB, true, 50)).toBe(135);
+    expect(scaledWeight('stack', 50, 0.9, KG, true, 25)).toBe(67.5);
+    // Added weight only matters on a stack.
+    expect(scaledWeight('barbell', 200, 0.9, LB, true, 50)).toBe(180);
   });
   it('weightChange is exact', () => {
     expect(weightChange(132.5, 137.5)).toBe(5);

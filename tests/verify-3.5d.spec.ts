@@ -51,7 +51,8 @@ for (const exp of ['1_2y', '3y']) {
       await checkCurrent(view).tap();
       await expect(loggedRows(view)).toHaveCount(warm + i + 1);
     }
-    const logged = await Promise.all(Array.from({ length: warm + 3 }, (_, i) => loggedRows(view).nth(i).getByRole('button', { name: /Edit/ }).locator('span').first().innerText()));
+    // 3.5g: the finished warm ups fold into one row (still in the table, hidden): read every row's text.
+    const logged = await Promise.all(Array.from({ length: warm + 3 }, (_, i) => loggedRows(view).nth(i).locator('button[aria-label$="Edit"] span').first().evaluate((el) => (el.textContent ?? '').trim())));
     expect(logged).toEqual([...Array(warm).fill('–'), '185 × 10', '185 × 9', '185 × 8']);
     await expect(page.getByTestId('rest-timer')).toBeVisible();
     await shot(page, `lasttime-${exp}`);

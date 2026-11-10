@@ -16,17 +16,13 @@ import { unlockAudio, warmAudio } from '../../lib/tone';
 import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { Button } from '../../ui/Button';
-import { MoreIcon } from '../../ui/icons';
 import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
 import { removeRowAnimated, rowReturning } from './SwipeRow';
 import { SetTypeSheet } from './SetTypeSheet';
-import { Thumb } from './Thumb';
-import { FormDemo } from '../../components/exercise/FormDemo';
-import { ExerciseSheet } from '../../components/exercise/ExerciseSheet';
+import { ExerciseHead } from './ExerciseHead';
 import { demoFor, infoForExercise } from '../../data/exerciseInfo';
 import type { ExerciseInfo } from '../../lib/exerciseInfo';
-import { DemoViewer } from '../../components/exercise/DemoViewer';
 import { useDemoPhotos } from '../../hooks/usePhotos';
 import { useMedia } from '../../hooks/useMedia';
 import { useAfterPaint } from '../../hooks/useAfterPaint';
@@ -36,8 +32,8 @@ import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
 import { groupNextOf } from './groupNext';
 import { seedWarmUps } from './coachWarmUps';
-import { EffortChip } from './EffortChip';
 import { START_LIGHT } from '../../lib/coach';
+import { SETTLE_MS } from '../../lib/warmUpFold';
 import styles from './Workout.module.css';
 
 // The muscles and form tips: their own chunk (body maps), mounted after the table (PLAN 2.2d).
@@ -74,8 +70,6 @@ type Props = {
   onRemoveSet: (set: WorkoutSet) => void;
   /** A short message with Undo (a row still to do was removed). */
   onUndoable: (text: string, undo: () => void) => void;
-  /** PLAN 3.8b: the optional effort question got an answer (the screen may now move on). */
-  onEffortAnswered?: (exerciseId: string) => void;
 };
 
 const DEFAULT_REPS = 10;
@@ -93,7 +87,7 @@ function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
  * The exercise view (SPEC 20.2, 21.1): the demo tile, name and note, "Last time", and the set
  * table already filled with today's targets. Logging a set is one tap on its ✓.
  */
-export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable, onEffortAnswered }: Props) {
+export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable }: Props) {
   const gym = w.gym!;
   const name = w.nameOf(exerciseId);
   const entry = w.entryOf(exerciseId);
@@ -120,16 +114,10 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
    * draft commits or goes.
    */
   const [editing, setEditing] = useState<string | null>(null);
-  const [demo, setDemo] = useState(false);
-  /** The full screen demo (the hero's tap). */
-  const [full, setFull] = useState(false);
   /** A tap on a ✓ that cannot log yet: the row, its why, and a count that restarts the pulse. */
   const [nudge, setNudge] = useState<{ index: number; text: string; n: number } | null>(null);
   const nudgeTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(nudgeTimer.current), []);
-  /** The hero folded into its compact title bar (scrolled past the picture). */
-  const [folded, setFolded] = useState(false);
-  /** The hero's foot (name, set, ⋯) stays pinned when the picture scrolls away: its height, measured. */
   // Offline and never kept, the photos cannot show: the compact header instead (gate s2), never a
   // broken or empty picture.
   const baseDemo = demoFor(exerciseId);
@@ -142,32 +130,6 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // with the demo as its tile instead; a tap opens the form sheet with the photos.
   const short = useMedia(SHORT_SCREEN);
   const hasDemo = photosOk && !short;
-  const heroRef = useRef<HTMLDivElement>(null);
-  const captionRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const hero = heroRef.current;
-    const cap = captionRef.current;
-    if (!hero || !cap) return;
-    const scroller = hero.parentElement!;
-    let pinPx = 0;
-    const pin = () => {
-      // The bar keeps 8 px of the fade above the name; the rest of the fade scrolls away.
-      const capPx = cap.getBoundingClientRect().height;
-      pinPx = Math.ceil(capPx - Math.max(0, parseFloat(getComputedStyle(cap).paddingTop) - 8));
-      hero.style.setProperty('--pin', `${pinPx}px`);
-      hero.style.setProperty('--cap', `${Math.floor(capPx)}px`);
-    };
-    pin();
-    // Folded once the picture has scrolled away: one attribute flip, CSS does the rest.
-    const onScroll = () => setFolded(scroller.scrollTop > hero.offsetHeight - pinPx - 24);
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(pin);
-    ro?.observe(cap);
-    return () => {
-      ro?.disconnect();
-      scroller.removeEventListener('scroll', onScroll);
-    };
-  }, [hasDemo]);
   // The rest tone's audio context, made while idle so the first ✓ stays light (PLAN 2.2d).
   useEffect(() => warmAudio(), []);
   /** The "Set type" sheet: a row still to do, or a logged set. */
@@ -536,6 +498,16 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (dx < -80) onSwipeNext();
   };
 
+  // PLAN 3.5g (SPEC 13.5): once a set is logged the hero gives its room to the rows, a moment after the
+  // check (lib/warmUpFold SETTLE_MS); opened with sets done: at once.
+  const anyLogged = logged.length > 0;
+  const [small, setSmall] = useState(anyLogged);
+  useEffect(() => {
+    if (!anyLogged) return setSmall(false);
+    const t = window.setTimeout(() => setSmall(true), SETTLE_MS);
+    return () => window.clearTimeout(t);
+  }, [anyLogged]);
+
   const lastTime = progression?.lastTime;
   // The first time line stays for as long as this view is open once it showed (PLAN 2.0e): it going
   // away with the first logged set moved every row up under the thumb, so the second tap of a fast
@@ -572,25 +544,6 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
       : entry
         ? setLine(entry, setNumber)
         : `Set ${setNumber}`;
-  const titleBlock = (withNote: boolean) => (
-    <div className={styles.heroText}>
-      <h2 className={styles.exName}>{name}</h2>
-      <p className={`${styles.exTarget} num`} data-testid="set-target">
-        {targetText}
-      </p>
-      {/* A pair says so from the start, before any check (round 2, P9). */}
-      {entry?.kind === 'pair' && entry.pairSize > 1 && (
-        <p className={`${styles.pairLine} num`} data-testid="pair-line">
-          {entry.pairSize > 2 ? 'Circuit' : 'Pair'} · {entry.pairIndex + 1} of {entry.pairSize}
-        </p>
-      )}
-      {withNote && note && (
-        <p className={styles.exNote} data-testid="set-plan">
-          {note}
-        </p>
-      )}
-    </div>
-  );
   const onBlocked = (r: PendingRow) => {
     const why = blockedOf(r);
     if (!why || logQueue.closed(sessionId)) return;
@@ -605,18 +558,6 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     setNudge((n) => ({ index: r.index, text: why, n: (n?.n ?? 0) + 1 }));
     nudgeTimer.current = window.setTimeout(() => setNudge(null), 1700);
   };
-  // The pictures are memoized elements (PLAN 2.2d): a tap on a row never re-renders them. The
-  // tapped day list tile grows into them (the shared "ex-hero" view transition, SPEC 23.1).
-  const heroArt = useMemo(() => (info.demo ? <FormDemo demo={info.demo} name={name} hero vtName="ex-hero" /> : null), [info.demo, name]);
-  const tileArt = useMemo(
-    () => (photosOk && info.demo ? <FormDemo demo={info.demo} name={name} compact vtName="ex-hero" /> : <Thumb name={name} loadType={kind} size="hero" vtName="ex-hero" />),
-    [photosOk, info.demo, name, kind],
-  );
-  const moreButton = (
-    <button type="button" className={`${styles.moreButton} pressable`} onClick={onMenu} aria-label={`More for ${name}`}>
-      <MoreIcon width={22} height={22} strokeWidth={2.4} aria-hidden="true" />
-    </button>
-  );
   // "Pick a weight" is what the lime Pick button already says (PLAN 2.2b); any other reason (a bar
   // weight to set first, a pick in the other unit) stays as a quiet line. Screen readers hear all.
   const statusText = status && current ? `${rowName(current)}: ${status}` : '';
@@ -624,49 +565,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
   return (
     <main className={styles.exMain} data-hero={hasDemo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-      {hasDemo && info.demo ? (
-        // The demo hero (PLAN 2.2b): the photos loop like a gif; the name and set ride on its foot,
-        // which stays pinned (with the ⋯) while the picture scrolls away above it.
-        <div className={styles.hero} ref={heroRef} data-testid="ex-hero" data-folded={folded || undefined}>
-          <span className={styles.heroArt} aria-hidden="true">
-            <span className={styles.heroMedia}>
-              {heroArt}
-            </span>
-          </span>
-          {/* The picture's tap target ends where the foot starts, so each has its own whole hit area
-              (SPEC 13.3); a tap on the foot opens the demo too. */}
-          <button type="button" className={styles.heroStage} onClick={() => setFull(true)} aria-label={`How to do ${name}`} tabIndex={folded ? -1 : undefined} />
-          {/* The foot is on top of the picture (the name is what a tap lands on, SPEC 13.5) and a tap
-              on it opens the demo like the picture does; the ⋯ keeps its own tap. */}
-          <div
-            className={styles.heroCaption}
-            ref={captionRef}
-            // Rides with its page above the flying photo (round 2, critic B1).
-            style={{ viewTransitionName: 'ex-caption' }}
-            onClick={(e) => {
-              if (!folded && !(e.target as Element).closest('button')) setFull(true);
-            }}
-          >
-            {titleBlock(false)}
-            {moreButton}
-          </div>
-        </div>
-      ) : (
-        // No sure demo (SPEC 4.3): a compact header, never a broken or empty picture.
-        <div className={styles.head} data-testid="ex-head">
-          <button type="button" className={`${styles.heroTile} pressable`} onClick={() => setDemo(true)} aria-label={`How to do ${name}`}>
-            {tileArt}
-          </button>
-          {titleBlock(true)}
-          {moreButton}
-        </div>
-      )}
-      {/* The plan's own note, under the picture (the hero's foot stays two lines). */}
-      {hasDemo && note && (
-        <p className={`${styles.exNote} ${styles.planNote}`} data-testid="set-plan">
-          {note}
-        </p>
-      )}
+      <ExerciseHead name={name} kind={kind} info={info} photosOk={photosOk} hasDemo={hasDemo} note={note} targetText={targetText} entry={entry} onMenu={onMenu} small={small} />
 
       {kind && progression && lastTime && (
         <div className={styles.guides}>
@@ -747,8 +646,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
                   </p>
                 )}
                 {/* 3.5d (10): the next member's button is in the bottom action bar (WorkoutScreen), not down here. */}
-                {/* PLAN 3.8 (SPEC 15): one optional tap after the last set, never per set. */}
-                {allDone && <EffortChip sessionId={sessionId} exerciseId={exerciseId} onAnswered={() => onEffortAnswered?.(exerciseId)} />}
+                {/* PLAN 3.5g: the Easy / Good / Hard question is asked on the day list row only (SPEC 15:
+                    one optional tap after the last set), never here where the automatic return yanks it away. */}
               </>
             }
             footer={
@@ -823,15 +722,6 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         }}
       />
 
-      {hasDemo && info.demo && (
-        <DemoViewer
-          open={full}
-          onClose={() => setFull(false)}
-          name={name}
-          demo={info.demo}
-        />
-      )}
-      <ExerciseSheet open={demo} onClose={() => setDemo(false)} name={name} info={info} placeholder={<Thumb name={name} loadType={kind} size="hero" />} />
     </main>
   );
 }

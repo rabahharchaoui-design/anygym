@@ -13,7 +13,7 @@ import { learnedScale } from './outcome';
 import { WELCOME_BACK_DAYS, daysOff, deloadCardId, deloadChanges, deloadSignal, plateauOf, welcomeCardId, welcomeChanges, type Plateau } from './recovery';
 import { lastPicked } from './sets';
 import { weeklyRate } from './strength';
-import { weekStart } from './time';
+import { startOfDay, weekStart } from './time';
 import type { ChangeRecord, Lift, PlannedChange } from './types';
 
 export type CoachInput = {
@@ -145,4 +145,12 @@ export function autoExample(lifts: readonly Lift[], changes: readonly ChangeReco
     return { key: l.key, exerciseId: l.exerciseId, name: l.name, loadKind: l.loadKind, unit: at.unit, from: at.value, to, reason: '', source: 'auto' };
   }
   return null;
+}
+
+/**
+ * PLAN 3.5g: Today shows one card at a time, so the backup reminder never shows on a day the coach
+ * has a card, or had one the user answered today (it would pop up the moment the card goes).
+ */
+export function coachDay(card: boolean, answeredAt: readonly number[], now: number): boolean {
+  return card || answeredAt.some((at) => at >= startOfDay(now) && at <= now);
 }

@@ -77,6 +77,8 @@ export type Next = {
   seconds?: number;
   reason: string;
   kind: NextKind;
+  /** PLAN 3.5g: the coach holds the weight (Not now on the Level up card): no "Beat last time". */
+  held?: true;
 };
 
 export type SetTarget = { load: Load | null; reps?: number; seconds?: number };
@@ -275,9 +277,11 @@ export function beatLine(p: Pick<Progression, 'next' | 'perSet'>): string | null
   const reps: RepTarget | null = first ?? p.next.reps;
   if (reps === null) return null;
   const r = `${repsText(reps)} ${reps === 1 ? 'rep' : 'reps'}`;
-  if (load.kind === 'bodyweight') return `Beat last time: ${load.added ? `${r} + ${formatWeight(load.added, load.unit)}` : r}`;
-  if (load.kind === 'dumbbell_each') return `Beat last time: ${r} at ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
-  return `Beat last time: ${r} at ${formatWeight(load.total, load.unit)}`;
+  // PLAN 3.5g: a held weight is the same as last time, not a number to beat.
+  const lead = p.next.held ? '' : 'Beat last time: ';
+  if (load.kind === 'bodyweight') return `${lead}${load.added ? `${r} + ${formatWeight(load.added, load.unit)}` : r}`;
+  if (load.kind === 'dumbbell_each') return `${lead}${r} at ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
+  return `${lead}${r} at ${formatWeight(load.total, load.unit)}`;
 }
 
 /** Last time's sets in the one wording (setWords.formatSession): "4 sets × 10 at 185 lb", "185 lb × 12, 12, 10". */

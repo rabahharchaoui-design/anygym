@@ -12,7 +12,7 @@ import { useNow } from '../../hooks/useNow';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { Toast, keepUndoOnly, type ToastMessage } from '../../ui/Toast';
-import { FADE, PAGE_SPRING, SHEET_SPRING, pageVariants, pageVariantsReduced } from '../../ui/motion';
+import { FADE, PAGE_SPRING, pageVariants, pageVariantsReduced } from '../../ui/motion';
 import { BackButton } from '../../ui/BackButton';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown } from '../../ui/icons';
@@ -30,7 +30,7 @@ import { clearExtraSets } from '../../lib/extraSets';
 import { snapshotPending } from '../../lib/finishPending';
 import { changeCount, dropMutations, pendingMutations, retryMutations, saveMutation } from '../../db/mutations';
 import { hints } from '../../lib/hints';
-import { durableRest, extendRest, loadRest, restUnreadable, saveRest, shortenRest, startRest, type Rest } from '../../lib/rest';
+import { durableRest, loadRest, restUnreadable, saveRest, startRest, type Rest } from '../../lib/rest';
 import { formatElapsed } from '../../lib/timer';
 import { formatTotal, totalLifted } from '../../lib/load';
 import { DayList } from './DayList';
@@ -45,7 +45,7 @@ import { TimeBudgetSheet } from './TimeBudgetSheet';
 import { useTimeBudget } from './useTimeBudget';
 import { SwapPendingError, SwapUndoStaleError, stopAlways, swapExercise, undoSwap } from '../../db/swaps';
 import { swapLine } from '../../lib/swap';
-import { RestDock } from './RestDock';
+import { WorkoutDock, type Chip } from './WorkoutDock';
 import { groupNextOf } from './groupNext';
 import { useWorkout } from './useWorkout';
 import { discardFailed, failedRows, prepareFinish, retryFailed, shownRows, type ShownRow } from './rowLog';
@@ -75,8 +75,6 @@ const toastOf = (text: string, action?: ToastMessage['action'], subject?: string
 /** How long "Nice. Next" stays before the list comes back (SPEC 20.2). */
 const CHIP_MS = 2500;
 
-/** `open`: the chip is a button that opens this exercise. */
-type Chip = { id: number; text: string; open?: string };
 
 /**
  * The workout (SPEC 20, 21.1): the day list at #/workout/:id and one exercise at
@@ -285,11 +283,6 @@ export function WorkoutScreen() {
       // A pair: its partner is one tap away on the chip, never an automatic jump (PLAN 2.0g).
       showChip(`${e.pairSize > 2 ? 'Circuit' : 'Pair'}: ${w.nameOf(next)} next`, CHIP_MS, id, () => undefined, next);
     }
-  };
-
-  /** The effort question was answered: the held return to the list goes ahead after a beat. */
-  const effortAnswered = (id: string) => {
-    if (routeRef.current === id) chipArm.current?.(900);
   };
 
   const swipeNext = () => {
@@ -808,7 +801,6 @@ export function WorkoutScreen() {
       onSwipeNext={swipeNext}
       onOpen={switchExercise}
       onNotice={notice}
-      onEffortAnswered={effortAnswered}
       onRemoveSet={(set) => void onDelete(set, true)}
       onUndoable={(text, undo) => {
         const shown = toastOf(text, {
@@ -938,73 +930,22 @@ export function WorkoutScreen() {
 
       {/* The bottom of the frame: the rest bar floats over space every screen keeps free, so it
           never covers a heading or a row, and nothing moves when it comes or goes. */}
-      <div className={styles.dockWrap}>
-        <AnimatePresence>
-          {chip && (
-            <motion.div
-              key={chip.id}
-              className={styles.nextChipWrap}
-              role="status"
-              data-testid="next-chip"
-              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
-              animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.15 } }}
-              transition={reduce ? FADE : SHEET_SPRING}
-            >
-              {chip.open ? (
-                <button
-                  type="button"
-                  className={`${styles.nextChip} pressable`}
-                  onPointerDown={holdChip}
-                  onPointerCancel={releaseChip}
-                  onPointerLeave={(e) => e.buttons && releaseChip()}
-                  onClick={() => {
-                    window.clearTimeout(chipTimer.current);
-                    const next = chip.open!;
-                    // It fades out first, so it never rides along with the view that slides in.
-                    setChip(null);
-                    window.setTimeout(() => switchExercise(next), 160);
-                  }}
-                >
-                  {chip.text}
-                </button>
-              ) : (
-                <span className={styles.nextChip}>{chip.text}</span>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        {/* 3.5d (10): after a set inside a pair or circuit, the next member is one tap in the bottom bar. */}
-        <AnimatePresence>
-          {pairNext && (
-            <motion.div
-              key={`pair-${pairNext.exerciseId}`}
-              className={styles.groupDock}
-              data-rest={!!(rest && !w.error) || undefined}
-              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
-              animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
-              exit={{ opacity: 0, transition: { duration: 0.16 } }}
-              transition={reduce ? FADE : SHEET_SPRING}
-            >
-              <button type="button" className={`${styles.groupNext} pressable`} data-testid="group-next" onClick={() => switchExercise(pairNext.exerciseId)}>
-                Next in the {(w.entryOf(exerciseId!)?.pairSize ?? 2) > 2 ? 'circuit' : 'pair'}: {pairNext.name}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {rest && !w.error && (
-            <RestDock
-              key="rest"
-              rest={rest}
-              onExtend={() => setRest(extendRest(rest, Date.now()))}
-              onShorten={() => setRest(shortenRest(rest, Date.now()))}
-              onSkip={() => setRest(null)}
-              onDone={() => setRest(null)}
-            />
-          )}
-        </AnimatePresence>
-      </div>
+      <WorkoutDock
+        chip={chip}
+        reduce={!!reduce}
+        onChipHold={holdChip}
+        onChipRelease={releaseChip}
+        onChipOpen={(next) => {
+          window.clearTimeout(chipTimer.current);
+          // It fades out first, so it never rides along with the view that slides in.
+          setChip(null);
+          window.setTimeout(() => switchExercise(next), 160);
+        }}
+        pairNext={pairNext ? { exerciseId: pairNext.exerciseId, name: pairNext.name, circuit: (w.entryOf(exerciseId!)?.pairSize ?? 2) > 2 } : null}
+        onPairNext={() => pairNext && switchExercise(pairNext.exerciseId)}
+        rest={rest && !w.error ? rest : null}
+        onRest={setRest}
+      />
 
       {/* On the day list the toast stacks above the floating Start pill, never over it (round 3, P3;
           the pill rides var(--rest-height) + 2 × 8 px above the bottom and is 52 px tall). */}

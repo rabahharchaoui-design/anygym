@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
@@ -14,46 +14,17 @@ import { startDb } from '../../db/bootstrap';
 import { getProfile } from '../../db/intake';
 import { getPlanState, weekFor } from '../../db/planState';
 import { useActiveGym } from '../../db/useActiveGym';
-import { alwaysPicks, getDislikes, readDoneStyles, readLastTrained, readRecentAt, readRecentMuscles, readShown, recordNever, recordShown, recordSwapAway, startBuilt, undoNever } from '../../db/quick';
+import { alwaysPicks, getDislikes, readDoneStyles, readLastTrained, readRecentAt, readRecentMuscles, readShown, recordShown, startBuilt } from '../../db/quick';
 import { getActiveSession, startWorkout } from '../../db/workouts';
 import { planById } from '../../data/plans';
-import { SWAP_DATA, countsEachSide } from '../../data/patterns';
-import { QUICK_DEPS, workoutMuscles } from '../../data/quick';
+import { QUICK_DEPS } from '../../data/quick';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import type { Muscle } from '../../lib/order';
 import type { Plan } from '../../lib/plans';
-import { hints } from '../../lib/hints';
-import {
-  buildIdeas,
-  cardKey,
-  gearWords,
-  moreLabel,
-  quickAvoids,
-  canBuild,
-  chipFor,
-  conceptMinutes,
-  dropSlot,
-  metaLine,
-  nextSwap,
-  shortLine,
-  planConcept,
-  QUICK_MINUTES,
-  regroup,
-  safePairs,
-  swapItem,
-  whenWords,
-  type Concept,
-  type Dislikes,
-  type PlanPart,
-  type QuickItem,
-  type QuickMinutes,
-} from '../../lib/quick';
-import { requiresOf } from '../../lib/swap';
-import { hangsBodyweight } from '../../lib/quickStyles';
-import { EQUIPMENT_LABEL } from '../../lib/intake/options';
-import { MiniMusclePair } from '../../components/muscles/MuscleMap';
-import { EquipmentArt } from '../intake/EquipmentArt';
-import { Deck, DeckButtons, itemLine, type Decision } from './Deck';
+import { buildIdeas, cardKey, moreLabel, canBuild, chipFor, conceptMinutes, metaLine, planConcept, QUICK_MINUTES, whenWords, type Concept, type Dislikes, type QuickMinutes } from '../../lib/quick';
+import { Deck, DeckButtons, itemLine } from './Deck';
+import { ConceptCard } from './ConceptCard';
+import { useDeck } from './useDeck';
 import { baseInput, equipmentPath, kitOf } from './quickInput';
 import styles from './Quick.module.css';
 
@@ -77,10 +48,6 @@ type Loaded = {
   now: number;
 };
 
-type Curating = { concept: Concept; items: QuickItem[]; plan?: PlanPart; index: number; tried: Record<string, string[]>; changed: boolean };
-
-/** One line above the card (round 2, B2): never over the buttons, never swallowing a tap. */
-type Notice = { id: number; text: string; undo?: () => void };
 
 export function QuickScreen() {
   const go = useNav();
@@ -90,15 +57,9 @@ export function QuickScreen() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
   const [minutes, setMinutes] = useState<QuickMinutes | null>(() => (params.get('min') ? chipFor(Number(params.get('min'))) : null));
-  const [stage, setStage] = useState<Curating | null>(null);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [swapNote, setSwapNote] = useState<string | null>(null);
-  const [leaving, setLeaving] = useState(false);
-  const [fling, setFling] = useState<{ kind: Decision; n: number } | null>(null);
   const [error, setError] = useState('');
   // Learned this visit: never shown again here either (the profile has them for next time).
   const [neverNow, setNeverNow] = useState<string[]>([]);
-  const [hint, setHint] = useState(() => !hints.seen('deckSwipe'));
 
   // One read when the screen opens: concepts never reshuffle while the person is choosing.
   useEffect(() => {
@@ -185,112 +146,7 @@ export function QuickScreen() {
   }, [ideas]);
 
   // ------------------------------------------------------------ the deck
-
-  const okFor = useMemo(() => {
-    const never = new Set([...(base?.never ?? []), ...neverNow].map(SWAP_DATA.sameAs));
-    // 3.5b round 4 (B2): a swap keeps the Go easy on rules every card is built with.
-    return (id: string) => QUICK_DEPS.usable(id) && !never.has(SWAP_DATA.sameAs(id)) && !quickAvoids(base?.easyOn, QUICK_DEPS.profile(id));
-  }, [base, neverNow]);
-  const swapFor = (c: Curating): string | null => {
-    const item = c.items[c.index];
-    if (!item || !kit) return null;
-    return nextSwap(item, c.items, [...(c.tried[item.slot] ?? []), item.id], { data: SWAP_DATA, gym: kit, ok: okFor, profile: QUICK_DEPS.profile, nameOf: QUICK_DEPS.name, ...(base?.soft ? { soft: base.soft } : {}) });
-  };
-  const canSwap = stage ? swapFor(stage) !== null : false;
-
-  const seenHint = () => {
-    if (!hint) return;
-    hints.dismiss('deckSwipe');
-    setHint(false);
-  };
-
-  const slotNames = useRef(new Map<string, string>());
-  const replaceTop = (c: Curating, to: string): Curating => {
-    const item = c.items[c.index]!;
-    if (!slotNames.current.has(item.slot)) slotNames.current.set(item.slot, item.name);
-    // PLAN 3.5b: a superset whose new partner no longer suits it is done as two single moves.
-    const items = safePairs(
-      c.items.map((it, i) => (i === c.index ? swapItem(item, to, QUICK_DEPS.name(to), countsEachSide(to), slotNames.current.get(item.slot), hangsBodyweight(requiresOf(SWAP_DATA, to))) : it)),
-      QUICK_DEPS.profile,
-    );
-    return { ...c, items, changed: true, tried: { ...c.tried, [item.slot]: [...(c.tried[item.slot] ?? []), item.id] } };
-  };
-
-  const decide = (d: Decision) => {
-    seenHint();
-    setStage((c) => {
-      if (!c) return c;
-      if (d === 'keep') return { ...c, index: c.index + 1 };
-      const to = swapFor(c);
-      if (!to) return c;
-      // A left swipe quietly ranks the one swapped away lower next time (never a ban).
-      void recordSwapAway(c.items[c.index]!.id).catch(() => undefined);
-      return replaceTop(c, to);
-    });
-  };
-
-  // The last card kept: the buttons fade out while Ready to go comes in (round 2, P8).
-  const flyStart = (d: Decision) => {
-    if (d === 'keep' && stage && stage.index === stage.items.length - 1) setLeaving(true);
-  };
-  useEffect(() => {
-    if (stage && stage.index < stage.items.length) setLeaving(false);
-    // Round 3 (P3): the deck is done: its notice (and its Undo) goes with it.
-    if (stage && stage.index >= stage.items.length) setNotice(null);
-  }, [stage]);
-
-  const nothingToSwap = () => {
-    setSwapNote('No other option here');
-  };
-  useEffect(() => {
-    if (!swapNote) return;
-    const t = window.setTimeout(() => setSwapNote(null), 1800);
-    return () => window.clearTimeout(t);
-  }, [swapNote]);
-
-  const never = () => {
-    if (!stage) return;
-    seenHint();
-    const before = stage;
-    const item = stage.items[stage.index];
-    if (!item) return;
-    void recordNever(item.id).catch(() => undefined);
-    setNeverNow((n) => [...n, item.id]);
-    // Something else of the same movement takes its place; nothing fits: it leaves the workout, and
-    // the line says so with the new time (round 2, B6), never a silent gap.
-    const to = swapFor(stage);
-    const next: Curating = to
-      ? replaceTop(stage, to)
-      : { ...stage, changed: true, items: regroup(stage.items.filter((_, i) => i !== stage.index)), ...(stage.plan ? { plan: dropSlot(stage.plan, item.slot) } : {}) };
-    setStage(next);
-    const after = conceptMinutes({ items: next.items, ...(next.plan ? { plan: next.plan } : {}) });
-    const id = Date.now();
-    setNotice({
-      id,
-      // PLAN 3.8a (Codex ui-3.5a #5): the line always names the exercise that was hidden.
-      text: to ? `${item.name} hidden` : `${item.name} hidden. No replacement available. Workout now ~${after} min.`,
-      undo: () => {
-        setNotice((n) => (n?.id === id ? null : n));
-        void undoNever(item.id).catch(() => undefined);
-        setNeverNow((n) => n.filter((x) => x !== item.id));
-        setStage(before);
-      },
-    });
-  };
-
-  useEffect(() => {
-    if (!notice) return;
-    const t = window.setTimeout(() => setNotice((cur) => (cur?.id === notice.id ? null : cur)), 5000);
-    return () => window.clearTimeout(t);
-  }, [notice]);
-
-  const curate = (c: Concept) => {
-    setError('');
-    setNotice(null);
-    setLeaving(false);
-    slotNames.current = new Map();
-    setStage({ concept: c, items: c.items.map((it) => ({ ...it })), ...(c.plan ? { plan: c.plan } : {}), index: 0, tried: {}, changed: false });
-  };
+  const { stage, setStage, notice, swapNote, leaving, fling, setFling, hint, canSwap, decide, flyStart, never, nothingToSwap, curate } = useDeck(base, kit, neverNow, setNeverNow, setError);
 
   // ------------------------------------------------------------ start
 
@@ -489,78 +345,5 @@ export function QuickScreen() {
         {error}
       </p>
     </div>
-  );
-}
-
-/** The meta line's parts as they may break: the last two ("2 pairs · ~28 min") are one part. */
-function metaParts(line: string): string[] {
-  const parts = line.split(' · ');
-  return parts.length > 2 ? [...parts.slice(0, -2), parts.slice(-2).join(' · ')] : parts;
-}
-
-/** At most this many gear drawings on a card; more say "+N". */
-const GEAR_MAX = 4;
-
-function ConceptCard({ concept, onPick, entering, flash, label, reduced }: { concept: Concept; onPick: () => void; entering: boolean; flash: boolean; label: string; reduced: boolean }) {
-  const muscles = useMemo(() => workoutMuscles(concept.items.map((it) => it.id)), [concept]);
-  const gear = concept.gear.slice(0, GEAR_MAX);
-  const allGear = concept.gear.map((g) => EQUIPMENT_LABEL[g].toLowerCase()).join(', ');
-  const gearLine = gearWords(concept.gear);
-  return (
-    <button
-      type="button"
-      className={`${styles.concept} pressable`}
-      onClick={onPick}
-      data-testid={`concept-${concept.id}`}
-      data-concept={concept.id}
-      data-key={cardKey(concept)}
-      data-entering={entering || undefined}
-      data-flash={flash || undefined}
-      data-reduced={reduced || undefined}
-    >
-      <span className={styles.conceptText}>
-        <span className={styles.conceptTop}>
-          <span className={styles.styleChip} data-testid="style-chip" data-kind={concept.chip}>
-            {concept.chip}
-          </span>
-          <span className={styles.effort} role="img" aria-label={`Effort ${concept.effort} of 3`} data-testid="effort" data-level={concept.effort}>
-            {[1, 2, 3].map((n) => (
-              <span key={n} className={styles.dot} data-on={n <= concept.effort || undefined} />
-            ))}
-          </span>
-        </span>
-        <span className={styles.conceptTitle} data-testid="concept-title">{label}</span>
-        <span className={styles.conceptLine} data-testid="concept-why">
-          {concept.line}
-        </span>
-        <span className={`${styles.conceptMeta} num`} data-testid="concept-meta">
-          {/* Each part stays on one line ("~28 min" never splits); the line breaks between parts. */}
-          {/* 3.5b round 4 (P13): "· ~28 min" stays together; the line only breaks before a dot. */}
-          {/* 3.5d (11): a break never starts a line with a dot: each part carries its own dot after it, and
-              the last two ("2 pairs · ~28 min") stay together. */}
-          {metaParts(metaLine(concept.items, concept.minutes)).map((part, i, all) => (
-            <Fragment key={i}>
-              {i > 0 ? ' ' : ''}
-              <span className={styles.metaPart}>{part}{i < all.length - 1 ? ' ·' : ''}</span>
-            </Fragment>
-          ))}
-        </span>
-        {shortLine(concept) && (
-          <span className={styles.conceptShort} data-testid="concept-short">
-            {shortLine(concept)}
-          </span>
-        )}
-        {/* 3.5b round 4 (P14): the gear in words ("Dumbbells, bench +2"), small drawings beside it. */}
-        <span className={styles.gear} data-testid="concept-gear" aria-label={allGear ? `Uses ${allGear}` : 'No equipment'}>
-          {gear.slice(0, 2).map((g) => (
-            <EquipmentArt key={g} id={g} className={styles.gearIcon} />
-          ))}
-          <span className={styles.gearWords} aria-hidden="true">
-            {gearLine}
-          </span>
-        </span>
-      </span>
-      <MiniMusclePair data={muscles} className={styles.conceptMap} />
-    </button>
   );
 }

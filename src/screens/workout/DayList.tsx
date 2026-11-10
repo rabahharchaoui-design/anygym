@@ -197,9 +197,10 @@ export function DayList({ w, heroId, onOpen, onAdd, effortFor = null, still = fa
       blocks.push(
         <li key={`pair-${e.block}`} className={styles.pair} data-warmup={e.warmup || undefined} data-mobility={e.mobility || undefined} data-testid={e.mobility ? 'mobility-group' : 'pair-group'}>
           <p className={styles.pairLabel}>{e.mobility ? 'Stretches: back to back' : e.warmup ? 'Warm up · Pair: back to back' : group.length > 2 ? `Circuit: ${e.sets} ${e.sets === 1 ? 'round' : 'rounds'}, one after another` : 'Pair: back to back'}</p>
-          {e.roundRest && e.restSec > 0 && (
+          {/* PLAN 3.5g: only a rest the plan (or the person) states, like every other row. */}
+          {e.roundRest && (w.userRestOf(e.exerciseId) ?? e.statedRest ?? 0) > 0 && (
             <p className={`${styles.pairRest} num`} data-testid="group-rest">
-              Rest {w.userRestOf(e.exerciseId) ?? e.restSec} s after each round
+              Rest {w.userRestOf(e.exerciseId) ?? e.statedRest} s after each round
             </p>
           )}
           <ol className={styles.pairRows}>{group.map(row)}</ol>

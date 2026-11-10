@@ -96,7 +96,9 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(pairs.nth(1).locator('p').first()).toHaveText('Pair: back to back');
   await expect(pairs.nth(1).getByTestId('row-barbell-incline-bench-press')).toBeVisible();
   await expect(pairs.nth(1).getByTestId('row-incline-plate-press')).toContainText('4 sets × 10 to 12');
-  await expect(pairs.nth(1).getByTestId('row-incline-plate-press')).toContainText('90 s rest');
+  // 3.5g: a pair is back to back: its rest is said once, after each round.
+  await expect(pairs.nth(1).getByTestId('row-incline-plate-press')).not.toContainText('rest');
+  await expect(pairs.nth(1).getByTestId('group-rest')).toHaveText('Rest 90 s after each round');
   await shot(page, 'workout-pair');
   await page.getByTestId('row-band-internal-shoulder-rotation-0-degrees').tap();
   // Band work is known to be reps only (PLAN 1.7c hand mapped list): nothing is asked.
@@ -105,10 +107,13 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(first.getByTestId('set-target')).toHaveText('Set 1 of 3 · 10 to 12 reps');
   await expect(first.getByTestId('set-plan')).toHaveText('Warm up. Band, cable or dumbbell');
   await expect(first.getByTestId('set-type').first().getByTestId('set-type-chip')).toHaveText('Warm up');
-  // A pair (PLAN 2.0g): logging a set stays on that exercise; the partner is one tap away on the chip.
+  // A pair (PLAN 2.0g, 3.5g): logging a set stays on that exercise, no rest; the partner is one tap away
+  // on the Next in the pair bar.
   await first.getByTestId('check-current').tap();
   await expect(first.getByTestId('set-row')).toHaveCount(1);
-  const toPartner = page.getByTestId('next-chip').getByRole('button', { name: 'Pair: Band Internal Shoulder Rotation (90 degrees) next' });
+  await expect(page.getByTestId('rest-timer')).toHaveCount(0);
+  const toPartner = page.getByTestId('group-next');
+  await expect(toPartner).toHaveText('Next in the pair: Band Internal Shoulder Rotation (90 degrees)');
   await expect(toPartner).toBeVisible();
   await expect(first).toBeVisible();
   // Warm up block sets are stored as warm ups (SPEC 6 rule 1).
@@ -116,10 +121,11 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await toPartner.tap();
   const partner = page.getByTestId('exercise-band-internal-shoulder-rotation-90-degrees');
   await expect(partner).toBeVisible();
-  // The partner's set: it stays there too, and the chip leads back to the first one, its warm up set tagged.
+  // The partner's set: the round is done (the rest runs), and the bar leads back to the first one, its warm up set tagged.
   await partner.getByTestId('check-current').tap();
   await expect(partner.getByTestId('set-row')).toHaveCount(1);
-  await page.getByTestId('next-chip').getByRole('button', { name: /^Pair: Band Internal Shoulder Rotation \(0 degrees\) next$/ }).tap();
+  await expect(page.getByTestId('group-next')).toHaveText('Next in the pair: Band Internal Shoulder Rotation (0 degrees)');
+  await page.getByTestId('group-next').tap();
   await expect(first).toBeVisible();
   await expect(first.getByTestId('set-row')).toHaveCount(1);
   await expect(first.getByTestId('set-row').getByTestId('set-type').getByTestId('set-type-chip')).toHaveText('Warm up');

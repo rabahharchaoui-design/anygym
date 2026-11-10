@@ -169,8 +169,10 @@ async function seedSix(page: Page, lastBackupAt?: number) {
   await expect.poll(async () => (await dbAll(page, 'gyms')).length).toBeGreaterThan(0);
   const gym = (await dbAll<{ id: string }>(page, 'gyms'))[0]!;
   const now = Date.now();
-  const sessions = Array.from({ length: 6 }, (_, i) => ({ id: `old-${i}`, gymId: gym.id, startedAt: now - (30 - i) * DAY, endedAt: now - (30 - i) * DAY + 3_600_000, imported: false, exerciseIds: ['barbell-incline-bench-press'] }));
-  const sets = sessions.map((s, i) => ({ id: `set-${i}`, sessionId: s.id, exerciseId: 'barbell-incline-bench-press', order: 0, kind: 'work', reps: 8, load: bar185, uncertain: false }));
+  // 3.5g: Today shows one card at a time, and a coach card keeps the reminder away that day: these six are
+  // recent (no Welcome back) and rising (no plateau), so no coach card shows.
+  const sessions = Array.from({ length: 6 }, (_, i) => ({ id: `old-${i}`, gymId: gym.id, startedAt: now - (6 - i) * DAY, endedAt: now - (6 - i) * DAY + 3_600_000, imported: false, exerciseIds: ['barbell-incline-bench-press'] }));
+  const sets = sessions.map((s, i) => ({ id: `set-${i}`, sessionId: s.id, exerciseId: 'barbell-incline-bench-press', order: 0, kind: 'work', reps: 6 + i, load: bar185, uncertain: false }));
   await dbPut(page, { sessions, sets, profile: [{ id: 'me', defaultUnit: 'lb', createdAt: now - 60 * DAY, ...(lastBackupAt ? { lastBackupAt } : {}) }] });
   await page.reload();
 }

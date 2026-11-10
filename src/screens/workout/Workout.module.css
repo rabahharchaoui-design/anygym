@@ -167,7 +167,7 @@
 
 /* ---- the demo hero (PLAN 2.2b): about 30% of the screen, less on short phones */
 .hero {
-  --hero-h: clamp(150px, 30svh, 320px);
+  --hero-h: max(clamp(150px, 30svh, 320px), calc(var(--cap, 0px) + 52px));
   position: sticky;
   /* Scrolls up until only its foot (name, set, ⋯) is left, then stays pinned over the table. */
   top: calc(var(--pin, 76px) - var(--hero-h));
@@ -187,7 +187,9 @@
   transition: opacity var(--dur-base) var(--ease-out);
 }
 
-/* The picture's tap target: the hero above its foot (the foot opens the demo on its own). */
+/* The picture's tap target: the hero above its foot (the foot opens the demo on its own). The hero
+   is never shorter than the foot plus 52 px (see --hero-h below), so this is a 48 pt target in both
+   hero states (SPEC 13.3). */
 .heroStage {
   position: absolute;
   inset: 0 0 var(--cap, 0px);
@@ -328,14 +330,42 @@
 /* Short phones (iPhone SE): a smaller picture so the whole set table stays in the first screen. */
 @media (max-height: 740px) {
   .hero {
-    --hero-h: clamp(120px, 26svh, 190px);
+    --hero-h: max(clamp(120px, 26svh, 190px), calc(var(--cap, 0px) + 52px));
   }
 }
 
 /* 360 x 640 class phones: a touch less again, so five rows clear the rest bar. */
 @media (max-height: 660px) {
   .hero {
-    --hero-h: clamp(120px, 24svh, 190px);
+    --hero-h: max(clamp(120px, 24svh, 190px), calc(var(--cap, 0px) + 52px));
+  }
+}
+
+/* PLAN 3.5g (SPEC 13.5): once a set is logged the picture gives its room to the rows and the rest
+   bar. A registered length, so the height glides (and the pinned foot rides with it) instead of jumping. */
+@property --hero-h {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 150px;
+}
+
+.hero {
+  transition: --hero-h 260ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.hero[data-small] {
+  --hero-h: max(clamp(140px, 20svh, 220px), calc(var(--cap, 0px) + 52px));
+}
+
+@media (max-height: 740px) {
+  .hero[data-small] {
+    --hero-h: max(clamp(112px, 17svh, 130px), calc(var(--cap, 0px) + 52px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero {
+    transition: none;
   }
 }
 

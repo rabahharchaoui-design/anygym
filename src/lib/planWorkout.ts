@@ -73,7 +73,9 @@ export function dayWorkout(plan: Plan, dayIndex: number, weekIndex = 0): Workout
       };
       if (it.note) e.note = it.note;
       if (b.mobility) e.mobility = true;
-      if (b.roundRest && b.kind === 'pair') e.roundRest = true;
+      // PLAN 3.5g: every pair and circuit is done back to back, a plan's own as much as Quick's: no rest
+      // while a member is still behind in the round, the block's rest once the round is done.
+      if (b.kind === 'pair' && b.items.length > 1) e.roundRest = true;
       if (it.eachSide) e.eachSide = true;
       const stated = planRest(b);
       if (stated !== undefined) e.statedRest = stated;
@@ -184,16 +186,16 @@ export function nextCurrent(entries: WorkoutEntry[], done: DoneCounts, logged: s
 }
 
 /**
- * Rest after a set of `logged`, in seconds (0 = no rest): the block's rest, also inside a pair
- * (PLAN 2.0g: checking a set keeps the user on that exercise with the rest running; the partner is
- * one tap away), and none after the very last set of the day. null for an exercise that is not in
- * the plan day (added by hand).
+ * Rest after a set of `logged`, in seconds (0 = no rest): the block's rest, and none after the very
+ * last set of the day. Inside a pair or circuit (PLAN 3.5b, 3.5g: Quick groups and plan pairs alike)
+ * none while another member is still behind in this round: the rest comes once the round is done.
+ * null for an exercise that is not in the plan day (added by hand).
  */
 export function restAfter(entries: WorkoutEntry[], done: DoneCounts, logged: string): number | null {
   const e = entries.find((x) => x.exerciseId === logged);
   if (!e) return null;
   if (firstOpen(entries, done) === null) return 0;
-  // PLAN 3.5b round 2: inside a Quick group the next member goes straight on; the rest comes once the round is done.
+  // PLAN 3.5b round 2, 3.5g: inside a group the next member goes straight on; the rest comes once the round is done.
   if (e.roundRest && e.kind === 'pair') {
     const mine = done[logged] ?? 0;
     const behind = entries.some((x) => x !== e && x.block === e.block && x.kind === 'pair' && open(x, done) && (done[x.exerciseId] ?? 0) < mine);

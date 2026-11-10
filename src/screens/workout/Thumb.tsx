@@ -1,7 +1,9 @@
 import type { Load } from '../../db/types';
 import type { DemoImages } from '../../lib/exerciseInfo';
-import { assetUrl } from '../../data/exerciseInfo';
+import { useRef } from 'react';
 import { useDemoPhotos } from '../../hooks/usePhotos';
+import { useInView } from '../../hooks/useInView';
+import { DemoFrames } from '../../components/exercise/FormDemo';
 import styles from './Thumb.module.css';
 
 type Props = {
@@ -16,6 +18,8 @@ type Props = {
    * same picture the hero shows, so the shared transition moves a photo into a photo.
    */
   photo?: DemoImages | null;
+  /** PLAN 3.5h: false keeps the start photo still (default: it moves while on screen). */
+  moving?: boolean;
   /** No load type known: a neutral drawing instead of the name's initials (the muscle list, gate round 2). */
   neutral?: boolean;
 };
@@ -33,22 +37,25 @@ const initials = (name: string) =>
  * wrong picture is the worst bug (SPEC 4.3). So: a calm tile with the equipment it is done with,
  * which the load type makes certain, or the exercise's initials when that is not known.
  */
-export function Thumb({ name, loadType, size = 'row', vtName, photo, neutral = false }: Props) {
+export function Thumb({ name, loadType, size = 'row', vtName, photo, neutral = false, moving = true }: Props) {
   const photos = useDemoPhotos(photo ?? null);
-  // Online the WebP (the hero's own picture, so it is already decoded when the hero shows), offline
-  // only a kept copy; none kept: the drawing, never a broken picture.
-  const src = !photo ? null : photos.kind === 'net' ? assetUrl(photo.webp[0]!) : photos.kind === 'cache' ? photos.urls[0] : null;
+  const ref = useRef<HTMLSpanElement>(null);
+  // Online the hero's own pictures, offline only a kept copy; none kept: the drawing, never a broken picture.
+  const shown = !!photo && (photos.kind === 'net' || (photos.kind === 'cache' && !!photos.urls[0]));
+  // PLAN 3.5h: the same moving demo as the exercise screen, but only while the tile is on screen.
+  const inView = useInView(ref, shown && moving);
   return (
     <span
+      ref={ref}
       className={styles.tile}
       data-size={size}
-      data-photo={src ? '' : undefined}
+      data-photo={shown ? '' : undefined}
       aria-hidden="true"
       data-testid="thumb"
       style={vtName ? { viewTransitionName: vtName } : undefined}
     >
-      {src ? (
-        <img className={styles.photo} src={src} alt="" decoding="async" draggable={false} />
+      {shown && photo ? (
+        <DemoFrames demo={photo} photos={photos} fit="cover" still={!moving || !inView} />
       ) : loadType ? (
         <Glyph kind={loadType} />
       ) : neutral ? (

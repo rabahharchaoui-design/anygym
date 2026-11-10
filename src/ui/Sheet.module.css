@@ -121,11 +121,8 @@
 /* A sheet with a pinned action bar (2.0b): the sheet itself has the height cap, the body takes
    what is left above the bar and scrolls, the bar (and the safe area under it) is always clear. */
 .sheet[data-footer][data-scroll='true'] {
-  max-height: calc(var(--app-height) - var(--safe-top) - 12px);
-}
-
-.sheet[data-footer][data-scroll='true'][data-clear-top] {
-  /* The grabber's hit area reaches 32 px above the sheet: keep that clear of the status bar too. */
+  /* The grabber's hit area (the Close button) reaches 32 px above the sheet: at full height it
+     stays below the status bar, on every phone, not only at large text. */
   max-height: calc(var(--app-height) - var(--safe-top) - 44px);
 }
 

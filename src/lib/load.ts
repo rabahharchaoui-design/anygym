@@ -1092,10 +1092,13 @@ export function stepDown(kind: Load['kind'], value: number, s: LoadSetup): numbe
  * back: 0.9). When `lighter` and the rounding lands on the weight itself (coarse dumbbell steps),
  * one step down instead, so a lighter week is really lighter. null when nothing fits.
  */
-export function scaledWeight(kind: Load['kind'], value: number, factor: number, s: LoadSetup, lighter = false): number | null {
-  const near = nearestLoadable(kind, scale(value, factor), s);
+export function scaledWeight(kind: Load['kind'], value: number, factor: number, s: LoadSetup, lighter = false, added = 0): number | null {
+  // A stack pin with weight added on top: the factor applies to the whole resistance (pin + added),
+  // like levelUpWeight. The result is a pin only (the added weight is not carried into the target).
+  const whole = kind === 'stack' && added > 0 ? stackTotal(value, added) : value;
+  const near = nearestLoadable(kind, scale(whole, factor), s);
   if (near === null) return null;
-  if (lighter && factor < 1 && near >= value - EPS) return stepDown(kind, value, s);
+  if (lighter && factor < 1 && near >= whole - EPS) return stepDown(kind, whole, s);
   return near;
 }
 

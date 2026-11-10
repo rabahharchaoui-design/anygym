@@ -413,7 +413,8 @@ test.describe('verify 3.5b', () => {
     expect(errors).toEqual([]);
   });
 
-  test('R2-4b curated Classic 5 Day Split day 2 pair: rest after every set', async ({ page }) => {
+  // 3.5g: curated plan pairs are back to back like Quick's: no rest after the first member, the Next bar instead.
+  test('R2-4b curated Classic 5 Day Split day 2 pair: back to back, rest after the round', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
     await usePlanSeed(page);
@@ -434,7 +435,8 @@ test.describe('verify 3.5b', () => {
       await page.waitForTimeout(700);
       const t = await page.getByTestId('rest-timer').count();
       console.log('R2-4b rest timer after first member of curated pair:', t);
-      expect(t).toBe(1);
+      expect(t).toBe(0);
+      await expect(page.getByTestId('group-next')).toBeVisible();
     }
     expect(errors).toEqual([]);
   });

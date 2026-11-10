@@ -37,25 +37,29 @@ test('checking a set stays on the exercise; only the last set moves on; an extra
   test.skip(!DEVICES.includes(test.info().project.name), 'iPhone SE and iPhone 17 Pro Max (PLAN 2.0g)');
   const errors = watchErrors(page);
   const view = await openIncline(page);
+  // 3.5g: the incline press is the first lift of a plan pair, done back to back: a check logs and stays,
+  // no rest yet, the partner is one tap away on the Next in the pair bar (no row lit while it waits).
+  const nextCheck = () => view.getByTestId('set-todo').first().locator('[data-testid="check-current"], [data-testid="check"]').first();
 
-  // Set 1: logged, rest running, same exercise.
-  await view.getByTestId('check-current').tap();
+  // Set 1: logged, same exercise, the partner offered.
+  await nextCheck().tap();
   await expect(view.getByTestId('set-row')).toHaveCount(1);
-  await expect(page.getByTestId('rest-timer')).toBeVisible();
+  await expect(page.getByTestId('rest-timer')).toHaveCount(0);
+  await expect(page.getByTestId('group-next')).toBeVisible();
   await stillThere(page);
   await expect(view.getByTestId('set-target')).toHaveText('Set 2 of 4 · 10 to 12 reps');
 
   // Set 2: the same.
-  await view.getByTestId('check-current').tap();
+  await nextCheck().tap();
   await expect(view.getByTestId('set-row')).toHaveCount(2);
-  await expect(page.getByTestId('rest-timer')).toBeVisible();
+  await expect(page.getByTestId('group-next')).toBeVisible();
   await stillThere(page);
 
   // Sets 3 and 4: the last one moves on ("Nice. Next: …", then back on the list).
-  await view.getByTestId('check-current').tap();
+  await nextCheck().tap();
   await expect(view.getByTestId('set-row')).toHaveCount(3);
   await stillThere(page);
-  await view.getByTestId('check-current').tap();
+  await nextCheck().tap();
   await expect(page.getByTestId('next-chip')).toContainText('Nice. Next:');
   await expect(page.getByTestId(`exercise-${ID}`)).toHaveCount(0, { timeout: 6000 });
   await expect(page.getByTestId(`row-${ID}`)).toHaveAttribute('data-state', 'done');
@@ -65,7 +69,7 @@ test('checking a set stays on the exercise; only the last set moves on; an extra
   const again = page.getByTestId(`exercise-${ID}`);
   await expect(again.getByTestId('set-row')).toHaveCount(4);
   await again.getByRole('button', { name: '+ Add set' }).tap();
-  await again.getByTestId('check-current').tap();
+  await again.getByTestId('set-todo').first().locator('[data-testid="check-current"], [data-testid="check"]').first().tap();
   await expect(again.getByTestId('set-row')).toHaveCount(5);
   await expect(page.getByTestId('next-chip').filter({ hasText: 'Nice' })).toHaveCount(0);
   await stillThere(page);

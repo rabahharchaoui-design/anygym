@@ -52,6 +52,25 @@ function Picture({ demo, i, photos, className, alt, lazy = true, fill = false, s
 }
 
 /**
+ * The demo's two photos (start and end) stacked, the end one crossfading in on the form demo's own
+ * loop (1.35 s, 0.15 s fade). One loop for every preview (PLAN 3.5h): the hero, the sheet, the
+ * workout tiles, Up next, the Replace list and the Quick deck card. Our source has two photos per
+ * exercise, so this is a two frame loop. `still`: the start photo only, nothing animates (off
+ * screen, or a deck card that is not in play). Reduced motion stops the loop in CSS.
+ */
+export function DemoFrames({ demo, photos, name, lazy = true, sync = false, still = false, fit = 'contain' }: { demo: DemoImages; photos: Photos; name?: string; lazy?: boolean; sync?: boolean; still?: boolean; fit?: 'contain' | 'cover' }) {
+  // Modifier classes on the two frames themselves (no wrapper box: the frames lay out in whatever box shows them).
+  const mods = [fit === 'cover' ? styles.cover : '', still ? styles.still : ''].filter(Boolean).join(' ');
+  const cls = (end: boolean) => [styles.frame, end ? styles.end : '', mods].filter(Boolean).join(' ');
+  return (
+    <>
+      <Picture demo={demo} i={0} photos={photos} alt={name ? `${name}, start position` : ''} lazy={lazy} sync={sync} className={cls(false)} />
+      <Picture demo={demo} i={1} photos={photos} alt={name ? `${name}, end position` : ''} lazy={lazy} className={cls(true)} />
+    </>
+  );
+}
+
+/**
  * The form demo (SPEC 4.4): start and end photos crossfading in a loop (1.35 s, 0.15 s fade,
  * 1.35 s; round 2 P4: a short fade never shows a double exposure in a still), tap to pause. No position counter or dots (PLAN 2.2b). Reduced motion shows
  * both side by side (the tile and the hero then show the start photo still). The loop is pure CSS,
@@ -60,19 +79,9 @@ function Picture({ demo, i, photos, className, alt, lazy = true, fill = false, s
 export function FormDemo({ demo, name, compact = false, hero = false, vtName, onOpen, fit = false }: Props) {
   const [paused, setPaused] = useState(false);
   const photos = useDemoPhotos(demo);
-  const frames = (
-    <>
-      <Picture demo={demo} i={0} photos={photos} alt={`${name}, start position`} className={styles.frame ?? ''} />
-      <Picture demo={demo} i={1} photos={photos} alt={`${name}, end position`} className={`${styles.frame} ${styles.end ?? ''}`} />
-    </>
-  );
+  const frames = <DemoFrames demo={demo} photos={photos} name={name} />;
   // The hero's frames load at once (the list tile already fetched frame 1): never lazy, never late.
-  const heroFrames = (
-    <>
-      <Picture demo={demo} i={0} photos={photos} alt={`${name}, start position`} lazy={false} sync className={styles.frame ?? ''} />
-      <Picture demo={demo} i={1} photos={photos} alt={`${name}, end position`} lazy={false} className={`${styles.frame} ${styles.end ?? ''}`} />
-    </>
-  );
+  const heroFrames = <DemoFrames demo={demo} photos={photos} name={name} lazy={false} sync />;
   if (hero) {
     // The whole photo, never cropped (feet and bar stay in), over a soft blurred copy that fills the box.
     return (

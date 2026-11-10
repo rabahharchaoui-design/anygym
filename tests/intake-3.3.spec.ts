@@ -788,9 +788,11 @@ test('B2: a 30 minute pick makes the quick workout the main action; Start Day 1 
   await checkLayout(page, { primary: revealPrimary(page) });
   await shot(page, 'reveal-30');
   await revealPrimary(page).tap();
-  await expect(page).toHaveURL(/#\/workout\//);
+  // 3.5g: the quick link opens the built ideas at the minutes picked, no plan chosen, nothing started yet.
+  await expect(page).toHaveURL(/#\/quick\?min=30$/);
+  await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
   expect(await dbAll(page, 'planState')).toEqual([]);
-  expect((await dbAll(page, 'sessions'))[0]!.planId).toBeUndefined();
+  expect(await dbAll(page, 'sessions')).toEqual([]);
 });
 
 test('B2: brand new is offered a quick workout too; Start Day 1 from the secondary spot starts the plan', async ({ page }) => {
@@ -799,7 +801,8 @@ test('B2: brand new is offered a quick workout too; Start Day 1 from the seconda
   await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
   await expect(page.getByTestId('reveal-reason')).toContainText('It expects some experience, so start light.');
   await page.getByTestId('reveal-secondary').tap();
-  await expect(page).toHaveURL(/#\/workout\//);
+  // 3.5g: the quick link opens the built ideas.
+  await expect(page).toHaveURL(/#\/quick\?min=\d+$/);
   expect(await dbAll(page, 'planState')).toEqual([]);
 });
 
