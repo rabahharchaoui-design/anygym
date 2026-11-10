@@ -8,8 +8,9 @@
   justify-content: flex-end;
   /* The room the grabber's hit area (the Close button) needs above the sheet, 24 px plus a margin:
      under a status bar or island it keeps the hit area clear of it; with no top inset (nothing to
-     reach into) a sheet may use all the height. A sheet that fits is never held to this: it is
-     only the cap of a taller one (the body then scrolls, the footer stays pinned). */
+     reach into) a sheet that fits may use all the height. A sheet that fits is never held to this:
+     it is only the cap of a taller one. Once it overflows (data-scroll) its body scrolls and the
+     cap always keeps the room, inset or not, so Close stays on screen. */
   --sheet-top-gap: clamp(0px, calc(var(--safe-top) * 1000), 28px);
 }
 
@@ -52,6 +53,14 @@
   /* Content that fits is never clipped. Content taller than the room under the inset overflows
      the cap, which the frame measures once (data-scroll) and then scrolls the body. */
   max-height: calc(var(--app-height) - var(--safe-top) - var(--sheet-top-gap));
+}
+
+.sheet[data-fill] {
+  height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), 28px));
+}
+
+.sheet[data-capped] {
+  max-height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), 28px));
 }
 
 .root[data-closing] {

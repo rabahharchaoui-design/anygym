@@ -25,6 +25,8 @@ type Props = {
    * grabber's hit area, which reaches above the sheet, stays clear of the status bar.
    */
   clearTop?: boolean;
+  /** Always as tall as a sheet may be (a search picker): fewer results never shrink it while typing. */
+  fill?: boolean;
 };
 
 const FooterSlot = createContext<HTMLElement | null>(null);
@@ -43,7 +45,7 @@ export function SheetFooter({ children }: { children: ReactNode }) {
  * close. A real modal dialog: focus moves in on open and back out on close, Tab stays inside, the
  * app behind is inert, and Escape or the Back button closes only the top sheet.
  */
-export function Sheet({ open, onClose, label, children, scroll = false, onDragClose, footer = false, header, clearTop = false }: Props) {
+export function Sheet({ open, onClose, label, children, scroll = false, onDragClose, footer = false, header, clearTop = false, fill = false }: Props) {
   // Every open is a new frame: reopened while the last one is still sliding away, it starts fresh
   // (its content never keeps the cancelled state of the closing one).
   const opens = useRef(0);
@@ -53,7 +55,7 @@ export function Sheet({ open, onClose, label, children, scroll = false, onDragCl
   return createPortal(
     <AnimatePresence>
       {open && (
-        <SheetFrame key={`sheet-${opens.current}`} onClose={onClose} onDragClose={onDragClose} label={label} scroll={scroll} footer={footer} header={header} clearTop={clearTop}>
+        <SheetFrame key={`sheet-${opens.current}`} onClose={onClose} onDragClose={onDragClose} label={label} scroll={scroll} footer={footer} header={header} clearTop={clearTop} fill={fill}>
           {children}
         </SheetFrame>
       )}
@@ -75,7 +77,7 @@ const SHADOW_CLEARANCE = 64;
 /** Longest the entrance can take before the content takes taps anyway (the spring settles in ~240 ms). */
 const SETTLE_FALLBACK_MS = 600;
 
-function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, header, clearTop }: Omit<Props, 'open'> & { scroll: boolean }) {
+function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, header, clearTop, fill }: Omit<Props, 'open'> & { scroll: boolean }) {
   const reduce = useReducedMotion();
   const controls = useDragControls();
   // While it slides away, a closing sheet is no longer a dialog and takes no taps.
@@ -95,11 +97,28 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, hea
   const [tall, setTall] = useState(false);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const scrolling = scroll || tall;
+  // `capped`: it overflows even at full height, so the cap must also keep the grabber's room (CSS data-capped).
+  const [capped, setCapped] = useState(false);
   useLayoutEffect(() => {
-    if (scroll) return;
     const sheet = dialogRef.current;
-    if (sheet && sheet.scrollHeight > sheet.clientHeight + 1) setTall(true);
+    if (!sheet) return;
+    if (!scroll && sheet.scrollHeight > sheet.clientHeight + 1) setTall(true);
   }, [scroll]);
+  // Content that grows later (large text, a loaded picture) can reach the cap after the first paint,
+  // so this follows the sheet's size: at its cap (filling or overflowing it) the cap keeps the
+  // grabber's room too.
+  useLayoutEffect(() => {
+    const sheet = dialogRef.current;
+    if (!sheet) return;
+    const check = () => {
+      const cap = parseFloat(getComputedStyle(sheet).maxHeight);
+      setCapped(Number.isFinite(cap) && sheet.offsetHeight >= cap - 1);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(sheet);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     const t = window.setTimeout(() => setSettled(true), SETTLE_FALLBACK_MS);
     return () => window.clearTimeout(t);
@@ -162,6 +181,8 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, hea
         data-scroll={scrolling}
         data-footer={footer || undefined}
         data-clear-top={clearTop || undefined}
+        data-fill={fill || undefined}
+        data-capped={capped || undefined}
         data-state={settled ? 'open' : 'opening'}
         onAnimationComplete={() => setSettled(true)}
         onKeyDown={trapTab}

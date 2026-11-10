@@ -395,7 +395,7 @@ test.describe('verify 3.8', () => {
     });
   }
 
-  test('9 a v9 shaped database upgrades to v10 in the browser without losing history, gyms, plan state', async ({ page }) => {
+  test('9 a v9 shaped database upgrades to the current schema in the browser without losing history, gyms, plan state', async ({ page }) => {
     const errors = watchErrors(page);
     await usePlan(page);
     const before = (await dbAll<Record<string, unknown>>(page, 'planState'))[0]!;
@@ -447,7 +447,8 @@ test.describe('verify 3.8', () => {
     await page.goto('./');
     await page.reload();
     await expect(page.getByTestId('day-card-title')).toBeVisible();
-    await expect.poll(async () => page.evaluate(() => new Promise<number>((r) => { const q = indexedDB.open('anygym'); q.onsuccess = () => { const v = q.result.version; q.result.close(); r(v); }; })), { timeout: 15000 }).toBe(100);
+    // 3.5e: schema v11 (IndexedDB 110); the v9 data must survive both upgrade steps.
+    await expect.poll(async () => page.evaluate(() => new Promise<number>((r) => { const q = indexedDB.open('anygym'); q.onsuccess = () => { const v = q.result.version; q.result.close(); r(v); }; })), { timeout: 15000 }).toBe(110);
     expect((await dbAll(page, 'gyms')).length).toBe(gymCount);
     expect((await dbAll(page, 'sets')).length).toBe(setCount);
     expect((await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]).toMatchObject({ nextDayIndex: 3, doneDays: [0, 1, 2] });
