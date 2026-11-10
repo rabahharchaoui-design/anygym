@@ -88,7 +88,8 @@ async function readWorkout(page: Page) {
       const el = c as HTMLElement;
       rows.push({
         name: ((el.querySelector('[class*="_name_"]') as HTMLElement | null)?.innerText ?? '').trim(),
-        text: el.innerText,
+        // PLAN 3.5g: a plan pair says its one rest once, on the group ("Rest 90 s after each round").
+        text: `${el.innerText}${g?.querySelector('[data-testid="group-rest"]') ? `\n${(g.querySelector('[data-testid="group-rest"]') as HTMLElement).innerText.replace(/Rest (\d+) s after each round/, '$1 s rest')}` : ''}`,
         kind: g ? 'pair' : 'single',
         warm: !!g && g.hasAttribute('data-warmup'),
         grp: g ? String([...main.querySelectorAll('[data-testid="pair-group"]')].indexOf(g)) : `s-${rows.length}`,

@@ -1,11 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { animate } from 'motion/react';
 import type { QuickItem } from '../../lib/quick';
-import { setsText } from '../../lib/plans';
-import { assetUrl, demoFor } from '../../data/exerciseInfo';
-import { useDemoPhotos } from '../../hooks/usePhotos';
 import { tick } from '../../ui/haptics';
 import { CheckIcon, NeverIcon, SwapIcon } from '../../ui/icons';
+import { Card, itemLine } from './DeckCard';
 import styles from './Quick.module.css';
 
 // The curate deck (PLAN 3.5a, SPEC 20.3): one card per exercise, our own card design. The card tilts
@@ -30,6 +28,8 @@ const FLY = { type: 'tween' as const, duration: 0.22, ease: [0.23, 1, 0.32, 1] a
 
 export type Decision = 'keep' | 'swap';
 
+export { itemLine };
+
 type Props = {
   items: readonly QuickItem[];
   index: number;
@@ -46,63 +46,6 @@ type Props = {
 };
 
 type Drag = { id: number; x: number; y: number; axis: 'x' | 'y' | null; dx: number; lastX: number; lastT: number; v: number };
-
-const amount = (it: QuickItem) => setsText({ sets: it.sets, ...(it.reps !== undefined ? { reps: it.reps } : {}), ...(it.seconds !== undefined ? { seconds: it.seconds } : {}) });
-
-export const itemLine = (it: QuickItem): string => `${amount(it)}${it.reps !== undefined ? ' reps' : ''}${it.eachSide ? ' each side' : ''}`;
-
-/** The whole demo photo, never cropped: a head or the dumbbell over it is never cut off (round 2, P12). */
-function Photo({ id }: { id: string }) {
-  const demo = demoFor(id);
-  const photos = useDemoPhotos(demo);
-  const src = !demo ? null : photos.kind === 'net' ? assetUrl(demo.webp[0]!) : photos.kind === 'cache' ? photos.urls[0] : null;
-  return (
-    <div className={styles.photo} data-demo={demo ? '' : undefined}>
-      {src ? (
-        <>
-          {/* Round 3 (P5): the same photo, soft and dim, fills the box: no dark bands, nothing cropped. */}
-          <img className={styles.photoFill} src={src} alt="" decoding="async" draggable={false} aria-hidden="true" />
-          <img className={styles.photoMain} src={src} alt="" decoding="async" draggable={false} />
-        </>
-      ) : (
-        <span className={styles.photoOff}>Photo when you are back online</span>
-      )}
-    </div>
-  );
-}
-
-function Card({ item, position, of, under, action }: { item: QuickItem; position: number; of: number; under?: boolean; action?: ReactNode }) {
-  // 3.5b round 4 (M10): only a swap the person made; a plan move the gym changed says why on its line.
-  const swapped = item.swapped === true;
-  return (
-    <>
-      <Photo id={item.id} />
-      <span className={styles.edge} data-side="keep" aria-hidden="true" />
-      <span className={styles.edge} data-side="swap" aria-hidden="true" />
-      {/* Round 3 (P4): the chip sits toward the screen's centre, so it stays in view as the card leaves. */}
-      <span className={styles.cue} data-side="keep" aria-hidden="true">
-        <CheckIcon width={26} height={26} strokeWidth={3} />
-      </span>
-      <span className={styles.cue} data-side="swap" aria-hidden="true">
-        <SwapIcon width={24} height={24} strokeWidth={2.4} />
-      </span>
-      <div className={styles.cardBody}>
-        <p className={`${styles.cardEyebrow} num`}>
-          {position} of {of}
-          {swapped && <span className={styles.swappedTag}>Swapped in</span>}
-          {action}
-        </p>
-        <h2 className={styles.cardName} data-testid={under ? undefined : 'deck-name'}>
-          {item.name}
-        </h2>
-        <p className={`${styles.cardSets} num`} data-testid={under ? undefined : 'deck-sets'}>
-          {itemLine(item)}
-        </p>
-        <p className={styles.cardWhy}>{item.why}</p>
-      </div>
-    </>
-  );
-}
 
 export function Deck({ items, index, canSwap, reduced, onDecide, onFlyStart, onNever, onNothingToSwap, fling }: Props) {
   const topRef = useRef<HTMLElement>(null);

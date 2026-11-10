@@ -13,6 +13,8 @@ import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { StartupError } from './components/StartupError';
 import { AppMarkLoader } from './ui/AppMarkLoader';
 import { installReporting } from './lib/reporting/capture';
+import { installSafeAreaFloor } from './ui/safeArea';
+import { installKeepTop } from './ui/keepTop';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/transitions.css';
@@ -24,6 +26,11 @@ document.addEventListener('touchstart', () => {}, { passive: true });
 installReporting();
 
 registerAppUpdates();
+
+// PLAN 3.5h: every header starts below the status bar and the Dynamic Island, even when iOS reports
+// no top inset or leaves the page scrolled after the keyboard.
+installSafeAreaFloor();
+installKeepTop();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');

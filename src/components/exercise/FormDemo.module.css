@@ -54,7 +54,7 @@
 
 .end {
   opacity: 0;
-  animation: demo-end var(--demo-cycle) ease-in-out infinite;
+  animation: demo-end var(--demo-cycle, 3s) ease-in-out infinite;
 }
 
 /* 1.35 s each photo, a 0.15 s fade between (round 2 P4: no double exposure in a still). */
@@ -70,6 +70,15 @@
   100% {
     opacity: 0;
   }
+}
+
+/* A preview that is off screen (or a deck card not in play): the start photo, nothing animating. */
+.end.still {
+  animation: none;
+}
+
+.cover img {
+  object-fit: cover;
 }
 
 .wrap[data-paused] .end {

@@ -1,0 +1,12 @@
+/* PLAN 3.5h: the deck card's moving demo (FormDemo's DemoFrames) fills the photo box, drawn whole
+   (contain) over the soft start photo fill, so the frames are transparent around the figure. */
+.moving {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.moving picture img {
+  pointer-events: none;
+  background: transparent;
+}

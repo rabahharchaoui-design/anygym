@@ -35,16 +35,10 @@
   letter-spacing: 0.02em;
 }
 
-/* The demo's start photo (PLAN 2.2d round 2): cropped to the tile, centered like the hero's. */
+/* The demo's two photos (PLAN 2.2d round 2, 3.5h): cropped to the tile, centered like the hero's,
+   the end photo crossfading in on the form demo's loop (FormDemo DemoFrames). */
 .tile[data-photo] {
+  position: relative;
   overflow: hidden;
   background: var(--surface-2);
-}
-
-.photo {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
 }

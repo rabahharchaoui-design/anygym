@@ -11,6 +11,18 @@ body,
   margin: 0;
 }
 
+/* PLAN 3.5h: the document itself never scrolls. Every screen is a fixed frame with its own
+   scroller; a scrollable document (the scaled back app behind an open sheet reached 26 px past the
+   bottom) lets iOS lift the whole frame, header included, under the status bar. The body clips what
+   pokes out (fixed frames and sheets are not clipped by it), and the viewport does not scroll. */
+html {
+  overflow: hidden;
+}
+body {
+  overflow: hidden;
+  overflow: clip;
+}
+
 /* True black behind everything, so no stray band can ever show a different color. */
 html {
   background: var(--bg);
