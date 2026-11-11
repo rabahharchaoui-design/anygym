@@ -41,9 +41,7 @@ test('fresh SE: complete intake, log three exact squat sets offline without scro
   await step('focus');
   await pick('focus', 'balance');
   await next();
-  await step('win');
-  await pick('win', 'energy');
-  await next();
+  // 3.5u: win, when and bodyweight are hidden until their features exist.
   await step('experience');
   await pick('experience', '3y');
   await step('days');
@@ -65,16 +63,16 @@ test('fresh SE: complete intake, log three exact squat sets offline without scro
   await skip();
   await step('exercises');
   await skip();
-  await step('when');
-  await pick('when', 'after_work');
-  await step('bodyweight');
-  await skip();
   await step('about');
   await skip();
   await step('reveal');
   await expect(page.getByTestId('reveal-card')).toContainText('Classic 5 Day Split');
-  await tap(page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1', exact: true }));
-  expect(taps).toBe(23); // Existing 22-tap path plus explicitly choosing pounds.
+  // 3.5u: Looks good lands on Today (no workout starts); Start on the day card begins Day 1.
+  await tap(page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }));
+  await expect(page).toHaveURL(/#\/$/);
+  expect(await dbAll(page, 'sessions')).toEqual([]);
+  await tap(page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }));
+  expect(taps).toBe(20); // 3.5u: the 18-tap path, explicitly choosing pounds, then Start on Today.
   await expect(page.getByTestId('workout-title')).toBeVisible();
   await tap(page.getByTestId('row-barbell-back-squat'));
   const view = exerciseView(page, 'barbell-back-squat');

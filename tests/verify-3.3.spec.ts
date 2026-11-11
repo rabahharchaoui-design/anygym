@@ -73,7 +73,8 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   await checkLayout(page, {});
 }
 
-test('all 17 questions and the reveal (PLAN 3.5: no no plan notice at home): title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
+// 3.5u: 14 questions now: win, when and bodyweight are hidden until their features exist.
+test('all 14 questions and the reveal (PLAN 3.5: no no plan notice at home): title top left, round back, Stays on this phone, auto advance or grey Continue; no Apple Health, no names @matrix', async ({ page }) => {
   await page.goto('./');
   await expect(page).toHaveURL(/#\/welcome$/);
   const seen: string[] = [];
@@ -114,7 +115,6 @@ test('all 17 questions and the reveal (PLAN 3.5: no no plan notice at home): tit
   await shot(page, 'units');
   await cta(page).tap();
   await multi('focus', 'q-focus-arms', true);
-  await multi('win', 'q-win-energy', true);
   await auto('experience', 'q-experience-months');
   await auto('days', 'q-days-3');
   await chrome(page, 'weekdays', 'cta', { back: true });
@@ -137,11 +137,6 @@ test('all 17 questions and the reveal (PLAN 3.5: no no plan notice at home): tit
   seen.push('exercises');
   await expect(cta(page), 'exercises is optional').toBeEnabled();
   await page.getByTestId('skip').tap();
-  await auto('when', 'q-when-lunch');
-  await chrome(page, 'bodyweight', 'cta', { back: true });
-  seen.push('bodyweight');
-  await expect(cta(page), 'bodyweight is optional').toBeEnabled();
-  await page.getByTestId('skip').tap();
   await chrome(page, 'about', 'cta', { back: true });
   seen.push('about');
   await disabledWithReason('about');
@@ -150,7 +145,7 @@ test('all 17 questions and the reveal (PLAN 3.5: no no plan notice at home): tit
   await cta(page).tap();
   seen.push('reveal');
   await atStep(page, 'reveal');
-  expect(seen).toHaveLength(18);
+  expect(seen).toHaveLength(15);
   test.info().annotations.push({ type: 'reason under the grey button', description: greyScreens.join(',') });
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/Apple Health|HealthKit|Rabah|Harchaoui/i);
@@ -175,7 +170,9 @@ test('double tap a choice card advances exactly one screen; back mid auto-advanc
   await atStep(page, 'days');
 });
 
-test('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved until moved, ends are clamped', async ({ page }) => {
+// 3.5u: the bodyweight question is hidden until starting weights use it (HIDDEN_SCREENS in
+// lib/intake/funnel.ts); the ruler stays in the code and this test comes back with the question.
+test.skip('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved until moved, ends are clamped', async ({ page }) => {
   await page.goto('./');
   await atStep(page, 'goal');
   await draft(page, 'bodyweight', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' } });
@@ -210,10 +207,11 @@ test('bodyweight: 180 lb flips to 81.5 kg (load.ts, 0.5 snap), nothing saved unt
 const REVEALS: Array<[string, Record<string, unknown>, RegExp, string]> = [
   // PLAN 3.5: hotel, home and outdoors get Your plan built from the answers (with nothing at home or
   // outdoors, 3 full body days; 4 days of upper and lower need gear: see generator-3.5).
-  ['hotel', { place: 'hotel' }, /Your plan/, 'Start Day 1'],
-  ['home', { place: 'home', days: 3 }, /Your plan/, 'Start Day 1'],
-  ['outdoors', { place: 'outdoors', days: 3 }, /Your plan/, 'Start Day 1'],
-  ['full', { place: 'full', days: 5 }, /Your plan/, 'Start Day 1'],
+  // 3.5u: the button is Looks good (it lands on Today, no workout starts).
+  ['hotel', { place: 'hotel' }, /Your plan/, 'Looks good'],
+  ['home', { place: 'home', days: 3 }, /Your plan/, 'Looks good'],
+  ['outdoors', { place: 'outdoors', days: 3 }, /Your plan/, 'Looks good'],
+  ['full', { place: 'full', days: 5 }, /Your plan/, 'Looks good'],
 ];
 for (const [name, extra, reason, button] of REVEALS) {
   test(`reveal for ${name}: honest reason, right button, draws the check, saved gym matches @matrix`, async ({ page }) => {
@@ -223,12 +221,12 @@ for (const [name, extra, reason, button] of REVEALS) {
     await atStep(page, 'reveal');
     await expect(page.locator('h1')).toHaveText(reason);
     await expect(page.getByTestId('reveal-cta').getByRole('button', { name: button })).toBeVisible();
-    if (button === 'Start Day 1') await expect(page.getByTestId('reveal-week')).toBeVisible();
+    if (button === 'Looks good') await expect(page.getByTestId('reveal-week')).toBeVisible();
     else {
       await expect(page.getByTestId('reveal-week')).toHaveCount(0);
       await expect(page.getByTestId('reveal-card')).not.toContainText(/Day 1|Mon /);
     }
-    if (button === 'Start Day 1') {
+    if (button === 'Looks good') {
       // The lime check: its mark is stroke-animated (dash offset moves from drawn-off to drawn).
       const mark = page.getByTestId('reveal-check').locator('path');
       const first = await mark.evaluate((el) => getComputedStyle(el).strokeDashoffset);
@@ -250,18 +248,19 @@ for (const [name, extra, reason, button] of REVEALS) {
   });
 }
 
-test('Start Day 1 double tap makes one workout; offline start still works; reload mid funnel resumes', async ({ page, context }) => {
+// 3.5u: Looks good chooses the plan once and lands on Today; no workout is made, also offline.
+test('Looks good double tap chooses the plan once and starts nothing; offline still works; Today, never the funnel again', async ({ page, context }) => {
   await page.goto('./');
   await atStep(page, 'goal');
   await draft(page, 'reveal', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' }, days: 5, place: 'full' });
   await page.reload();
   await atStep(page, 'reveal');
   await context.setOffline(true);
-  const start = page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' });
+  const start = page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good' });
   await start.dblclick();
-  await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
+  await expect(page).toHaveURL(/#\/$/);
   await page.waitForTimeout(500);
-  expect(await dbAll(page, 'sessions')).toHaveLength(1);
+  expect(await dbAll(page, 'sessions')).toHaveLength(0);
   expect(await dbAll(page, 'planState')).toHaveLength(1);
   await context.setOffline(false);
   // Back to Today by URL: never the funnel again.
@@ -321,7 +320,8 @@ test('130% text and reduced motion on the SE: no clipping, no sideways scroll', 
   await simulateSafeAreas(page);
   await page.goto('./');
   await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));
-  for (const step of ['goal', 'equipment', 'bodyweight', 'about', 'reveal']) {
+  // 3.5u: bodyweight is hidden.
+  for (const step of ['goal', 'equipment', 'about', 'reveal']) {
     await draft(page, step, { goal: 'muscle', units: { weight: 'kg', distance: 'km', measure: 'cm', body: 'male' }, place: 'full', days: 5 });
     await page.reload();
     await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));

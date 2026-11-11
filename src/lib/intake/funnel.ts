@@ -185,10 +185,18 @@ export const ANSWER_KEY: Record<AnswerId, keyof IntakeAnswers> = {
 };
 
 /**
- * The screens that show for these answers: no exercise lists for someone brand new. The no plan notice is not in the list: only Continue from the equipment opens it.
+ * PLAN 3.5u: questions whose feature does not exist yet (reminders, win based coach tips, starting
+ * weights from bodyweight) are not asked. The answers model, the stored answers and the screens stay
+ * ready: take an id out of this set when the feature it feeds ships.
+ */
+export const HIDDEN_SCREENS: ReadonlySet<ScreenId> = new Set<ScreenId>(['win', 'when', 'bodyweight']);
+
+/**
+ * The screens that show for these answers: no exercise lists for someone brand new, none that is
+ * hidden (3.5u). The no plan notice is not in the list: only Continue from the equipment opens it.
  */
 export function visibleScreens(a: IntakeAnswers): ScreenId[] {
-  return SCREENS.filter((s) => s !== 'noPlan' && !(s === 'exercises' && a.experience === 'new'));
+  return SCREENS.filter((s) => s !== 'noPlan' && !HIDDEN_SCREENS.has(s) && !(s === 'exercises' && a.experience === 'new'));
 }
 
 /** What the equipment screen asks about at this place. Outdoors there is little to carry. */
@@ -363,7 +371,9 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
     }
     case 'skipRest': {
       if (!PERSONAL_GROUP.has(state.step)) return state;
-      return { step: 'reveal', answers: { ...markSkipped(state.answers, [...PERSONAL_GROUP].flatMap(fieldsOf)), skipRestFrom: state.step } };
+      // 3.5u: a hidden question was never asked, so an older saved answer to it is kept, not cleared.
+      const asked = [...PERSONAL_GROUP].filter((s) => !HIDDEN_SCREENS.has(s));
+      return { step: 'reveal', answers: { ...markSkipped(state.answers, asked.flatMap(fieldsOf)), skipRestFrom: state.step } };
     }
     case 'back': {
       const prev = prevScreen(state.step, state.answers);
@@ -465,7 +475,7 @@ export function sanitizeAnswers(v: unknown): IntakeAnswers {
     height: height(o.height),
     // Older answers: the two youngest ranges are now one.
     age: oneOf(ids(AGE_RANGES), o.age === 'under_18' || o.age === '18_24' ? 'under_25' : o.age),
-    skipRestFrom: oneOf([...PERSONAL_GROUP], o.skipRestFrom),
+    skipRestFrom: oneOf([...PERSONAL_GROUP].filter((s) => !HIDDEN_SCREENS.has(s)), o.skipRestFrom),
     skipped: manyOf(ANSWER_IDS, o.skipped),
   };
   if (a.skipped && !a.skipped.length) delete a.skipped;
@@ -480,7 +490,10 @@ export function parseDraft(text: string | null): FunnelState | null {
     const answers = sanitizeAnswers(o.answers);
     const raw = typeof o.step === 'string' ? (MERGED_STEP[o.step] ?? o.step) : o.step;
     const step = oneOf(SCREENS, raw) ?? 'goal';
-    return { step: step === 'noPlan' || visibleScreens(answers).includes(step) ? step : 'goal', answers };
+    if (step === 'noPlan' || visibleScreens(answers).includes(step)) return { step, answers };
+    // 3.5u: an older draft left on a question that is hidden now picks up at the next one that shows.
+    const after = HIDDEN_SCREENS.has(step) ? SCREENS.slice(SCREENS.indexOf(step) + 1).find((s) => visibleScreens(answers).includes(s)) : undefined;
+    return { step: after ?? 'goal', answers };
   } catch {
     return null;
   }

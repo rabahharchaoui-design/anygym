@@ -230,8 +230,8 @@ test.describe('fresh phone', () => {
     await pick('goal', 'muscle');
     await step(page, 'intake-goal-picked', async () => {});
     await next(); await at('units'); await next(); await at('focus');
-    await pick('focus', 'balance'); await next(); await at('win');
-    await pick('win', 'energy'); await next(); await at('experience');
+    // 3.5u: win, when and bodyweight are hidden until their features exist.
+    await pick('focus', 'balance'); await next(); await at('experience');
     await pick('experience', '3y'); await at('days');
     await step(page, 'intake-days', async () => {});
     await pick('days', '5'); await at('weekdays'); await skip(); await at('minutes');
@@ -240,8 +240,6 @@ test.describe('fresh phone', () => {
     await next(); await at('style'); await pick('style', 'mix'); await at('cardio');
     await pick('cardio', 'little'); await next(); await at('easyOn'); await skip(); await at('exercises');
     await step(page, 'intake-exercises-deck', async () => {});
-    await skip(); await at('when'); await pick('when', 'after_work'); await at('bodyweight');
-    await step(page, 'intake-bodyweight', async () => {});
     await skip(); await at('about'); await skip(); await at('reveal');
     await step(page, 'intake-reveal', async () => { await page.waitForTimeout(1200); });
   });

@@ -56,7 +56,9 @@ test.describe('fresh phones', () => {
   test.use({ intake: 'fresh' });
   test.beforeEach(async ({ page }) => simulateSafeAreas(page));
   for (const p of PATHS) {
-    test(`${p.name}: Your plan, true reason, one tap start (double tap), Plans, backup and restore @matrix`, async ({ page }) => {
+    // 3.5u: Looks good (double tap) lands on Today with the plan chosen and nothing started; the
+    // workout is started from Today's day card.
+    test(`${p.name}: Your plan, true reason, Looks good (double tap) then Start on Today, Plans, backup and restore @matrix`, async ({ page }) => {
       await noShare(page);
       const answers = { goal: p.goal, goals: [p.goal], units: US, experience: 'new', days: p.days, minutes: p.minutes, place: p.place, equipmentFor: p.place, equipment: p.equipment };
       await toReveal(page, answers);
@@ -66,11 +68,16 @@ test.describe('fresh phones', () => {
       expect(reason).toContain(`${p.days} days`);
       expect(reason).toMatch(p.word);
       await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(p.days);
-      await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
+      await expect(page.getByTestId('reveal-secondary')).toHaveCount(0);
+      await expect(primary(page)).toHaveText('Looks good');
       await checkLayout(page, { primary: primary(page) });
       await shot(page, `reveal-${p.name.replace(/ /g, '-')}`);
-      // Double tap: exactly one workout.
+      // Double tap: one plan chosen, no workout; then Start on Today (inside the welcome's light): exactly one workout.
       await primary(page).dblclick();
+      await expect(page).toHaveURL(/#\/$/);
+      await page.waitForTimeout(500);
+      expect((await dbAll(page, 'sessions')).length).toBe(0);
+      await page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }).tap();
       await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
       await page.waitForTimeout(500);
       expect((await dbAll(page, 'sessions')).length).toBe(1);
@@ -115,16 +122,17 @@ test.describe('fresh phones', () => {
     });
   }
 
-  test('offline start works; back from the workout keeps one plan @matrix', async ({ page, context }) => {
+  // 3.5u: offline, Looks good lands on Today with one plan and no workout.
+  test('offline Looks good works: Today, one plan, nothing started @matrix', async ({ page, context }) => {
     await toReveal(page, { goal: 'muscle', goals: ['muscle'], units: US, experience: '3y', days: 6, minutes: 75, place: 'full', equipmentFor: 'full', equipment: ['barbell_rack', 'flat_bench', 'dumbbells', 'cable_station', 'pull_up_bar'] });
     await context.setOffline(true);
     await primary(page).tap();
-    await expect(page).toHaveURL(/#\/workout\//);
+    await expect(page).toHaveURL(/#\/$/);
     await page.waitForTimeout(400);
     if (test.info().project.use.browserName === 'webkit') await page.reload();
-    await expect(page).toHaveURL(/#\/workout\//);
+    await expect(page).toHaveURL(/#\/$/);
     expect((await dbAll(page, 'plans')).length).toBe(1);
-    expect((await dbAll(page, 'sessions')).length).toBe(1);
+    expect((await dbAll(page, 'sessions')).length).toBe(0);
     await context.setOffline(false);
   });
 
@@ -219,6 +227,7 @@ test.describe('hotel 3 days', () => {
     const body = await page.locator('main').innerText();
     test.info().annotations.push({ type: 'hotel3', description: body.replace(/\n+/g, ' | ').slice(0, 300) });
     await shot(page, 'reveal-hotel-3');
-    await expect(primary(page)).toHaveText('Start Day 1');
+    // 3.5u: the button is Looks good.
+    await expect(primary(page)).toHaveText('Looks good');
   });
 });

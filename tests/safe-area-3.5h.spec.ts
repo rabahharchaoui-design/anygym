@@ -230,9 +230,7 @@ test.describe('safe areas: the intake funnel @matrix', () => {
     await at('focus');
     await pick('focus', 'balance');
     await next();
-    await at('win');
-    await pick('win', 'energy');
-    await next();
+    // 3.5u: win is hidden until coach tips use it.
     await at('experience');
     await pick('experience', '3y');
     await at('days');

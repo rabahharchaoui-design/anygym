@@ -1,8 +1,9 @@
 // The plan reveal (SPEC 14 step 14, PLAN 3.3, 3.5): the week builds in, one plain line on why it
-// fits, then an accent check draws itself, and Start Day 1 goes straight into the workout. A curated plan
-// that truly matches the answers shows as it is; otherwise the generator builds "Your plan" from the
-// answers (PLAN 3.5), saved on the phone when it is started, with the curated plans that fit as other
-// choices. When even the generator cannot build a week here it says why and offers a quick workout.
+// fits, then an accent check draws itself. PLAN 3.5u: "Looks good" saves the plan and lands on Today
+// (with its short welcome); the intake never starts a workout. A curated plan that truly matches the
+// answers shows as it is; otherwise the generator builds "Your plan" from the answers (PLAN 3.5),
+// saved on the phone when it is chosen, with the curated plans that fit as other choices. When even
+// the generator cannot build a week here it says why; Today has the quick workout.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
@@ -14,20 +15,16 @@ import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/pla
 import { generatorInputOf } from '../../lib/intake/yourPlan';
 import { persistAnswers } from './persist';
 import { useMoreBelow } from './useMoreBelow';
-import { Button } from '../../ui/Button';
 import { PLANS, definitionPlan, planById } from '../../data/plans';
 import { SWAP_DATA } from '../../data/patterns';
 import { generate } from '../../data/generator';
 import { planFit } from '../../lib/intake/planFit';
 import { clearIntakeDraft } from '../../db/intake';
-import { getActiveGym, startDb } from '../../db/bootstrap';
+import { startDb } from '../../db/bootstrap';
+import { armWelcomeTour } from '../../db/welcomeTour';
 import { choosePlan, choosePlanUndoable } from '../../db/planState';
 import { saveGeneratedPlan } from '../../db/savedPlans';
-import { startPlanDay, startWorkout } from '../../db/workouts';
 import { STAYS_HERE } from './copy';
-import { canBuild, chipFor } from '../../lib/quick';
-import { QUICK_DEPS } from '../../data/quick';
-import { baseInput, kitOf } from '../quick/quickInput';
 import styles from './Intake.module.css';
 
 type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
@@ -73,13 +70,13 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
   useMoreBelow(scroller);
 
   const busy = useRef(false);
-  const act = useTapGuard(async (quickWorkout: boolean) => {
+  const act = useTapGuard(async () => {
     if (busy.current) return;
     busy.current = true;
     setError('');
     try {
       await (saved.current ?? save()).catch(() => save());
-      const gym = (await getActiveGym()) ?? (await startDb());
+      await startDb();
       if (redo) {
         if (!plan) {
           go('/settings', { kind: 'pop', replace: true });
@@ -90,25 +87,18 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         go('/', { kind: 'pop', replace: true, state: r.changed ? { toast: 'Plan saved', planUndo: { chosen: r.state, previous: r.previous ?? null } } : { toast: 'Answers saved' } });
         return;
       }
-      if (!plan || quickWorkout) {
-        void clearIntakeDraft();
-        // PLAN 3.5g: the quick link opens the built ideas (Quick workout, at the minutes just picked)
-        // when this gym can build one; else the empty quick workout with its exercise picker.
-        if (canBuild(baseInput(answers, kitOf(gym), undefined), QUICK_DEPS)) {
-          go(`/quick?min=${chipFor(answers.minutes)}`, { kind: 'push', replace: true });
-          return;
-        }
-        const s = await startWorkout(gym.id);
-        go(`/workout/${s.id}`, { kind: 'push', replace: true });
-        return;
+      // PLAN 3.5u: a first run ends on Today, plan chosen, nothing started. With no plan Today
+      // offers the quick workout and Plans.
+      if (plan) {
+        if (isMine && built?.ok) await saveGeneratedPlan(built.plan as unknown as Record<string, unknown>);
+        await choosePlan(plan.id);
       }
-      if (isMine && built?.ok) await saveGeneratedPlan(built.plan as unknown as Record<string, unknown>);
-      await choosePlan(plan.id);
-      const s = await startPlanDay(gym.id, plan.id, 0);
-      void clearIntakeDraft();
-      go(`/workout/${s.id}`, { kind: 'push', replace: true });
+      // The welcome is a nicety: a failed write never keeps anyone in the funnel.
+      await armWelcomeTour().catch(() => undefined);
+      await clearIntakeDraft();
+      go('/', { kind: 'fade', replace: true });
     } catch {
-      setError(redo ? 'Could not save that. Try again.' : 'Could not start the workout. Try again.');
+      setError('Could not save that. Try again.');
     } finally {
       busy.current = false;
     }
@@ -116,11 +106,7 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
 
   // B2: the plan already shown is not offered again; "Your plan" comes back as a choice once another is picked.
   const others = [...(mine && !isMine ? [mine] : []), ...fits.filter((p) => p.id !== chosenId)];
-  // A redo only sets the plan; a first run can also start something lighter (critic B2).
-  const quick = plan && !redo ? (words?.quick ?? null) : null;
-  const planLabel = redo ? 'Use this plan' : 'Start Day 1';
-  const label = !plan ? (redo ? 'Done' : 'Start a quick workout') : quick === 'primary' ? 'Start a quick workout' : planLabel;
-  const secondary = quick === 'primary' ? planLabel : quick === 'secondary' ? 'Start a quick workout' : null;
+  const label = redo ? (plan ? 'Use this plan' : 'Done') : plan ? 'Looks good' : 'Go to Today';
 
   return (
     <div className={styles.screen} data-testid="intake" data-step="reveal">
@@ -223,22 +209,15 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         )}
       </main>
       <BottomCTA
-        onPress={() => void act(quick === 'primary')}
+        onPress={() => void act()}
         reasonAndNote
         note={STAYS_HERE}
         above={
-          <>
-            {error ? (
-              <p className={styles.error} role="alert">
-                {error}
-              </p>
-            ) : null}
-            {secondary ? (
-              <Button variant="secondary" className={styles.keepGoing} onClick={() => void act(quick === 'secondary')} data-testid="reveal-secondary">
-                {secondary}
-              </Button>
-            ) : null}
-          </>
+          error ? (
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+          ) : null
         }
         testId="reveal-cta"
         className={styles.cta}

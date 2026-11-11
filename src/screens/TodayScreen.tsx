@@ -44,6 +44,8 @@ import { LeveledUpSheet } from './today/LeveledUpSheet';
 import { applyLighterWeek } from './today/coachStart';
 import { ResumeCard } from './today/ResumeCard';
 import { useArrivalToast } from './today/useArrivalToast';
+import { WelcomeTour } from './today/WelcomeTour';
+import { shouldShowTour } from '../lib/welcomeTour';
 import styles from './TodayScreen.module.css';
 
 const NO_LOGGED: Readonly<Record<string, number>> = {};
@@ -293,7 +295,7 @@ export function TodayScreen() {
             {...(picked?.trim ? { minutes: picked.minutes, fitsIn: pick!.minutes } : {})}
           />
         ) : (
-          <section className={styles.pick} aria-label="Pick a plan">
+          <section className={styles.pick} aria-label="Pick a plan" data-tour="pick">
             <h2 className={styles.pickTitle}>Pick a plan</h2>
             <p className={styles.pickSub}>Follow a plan and every day is lined up for you: exercises, sets and rest.</p>
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
@@ -310,7 +312,7 @@ export function TodayScreen() {
             Round 2 (B5): only when this gym can build one; else the way to make it able to. */}
         {data.ready && !active && !!profile.data?.intakeDoneAt && buildable !== null &&
           (buildable ? (
-            <button type="button" className={`${styles.build} pressable`} onClick={() => go(`/quick?min=${buildMin}`, { kind: 'push' })} data-testid="build-card">
+            <button type="button" className={`${styles.build} pressable`} onClick={() => go(`/quick?min=${buildMin}`, { kind: 'push' })} data-testid="build-card" data-tour="quick">
               <span className={styles.buildIcon} aria-hidden="true">
                 <CoachIcon width={20} height={20} strokeWidth={2.2} />
               </span>
@@ -375,6 +377,8 @@ export function TodayScreen() {
         changes={coach.today?.card?.kind === 'leveled_up' ? coach.today.card.changes : []}
       />
       <Toast toast={toast} bottom={toastBottom} />
+      {/* PLAN 3.5u: once, right after a first intake; never over a toast and its Undo. */}
+      <WelcomeTour show={shouldShowTour(profile.data?.welcomeTour, { ready: data.ready && !failed && buildable !== null && !toast, activeWorkout: active !== null })} />
     </>
   );
 }

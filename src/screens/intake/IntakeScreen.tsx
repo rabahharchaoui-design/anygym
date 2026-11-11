@@ -47,16 +47,16 @@ export const AUTO_ADVANCE_MS = 250;
 
 /**
  * PLAN 3.3a: every screen has its title and one short honest line on why it asks: what the answer
- * does today, or plainly "Not used yet" with what it is for. Never a use that does not exist.
+ * does today. Never a use that does not exist: PLAN 3.5u, a question whose feature is not built
+ * (win, when, bodyweight) is not asked at all (HIDDEN_SCREENS in lib/intake/funnel.ts).
  */
-type Copy = { title: string; why: string; soon?: true };
+type Copy = { title: string; why: string };
 const COPY: Record<ScreenId, Copy> = {
   goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
   units: { title: 'Your units', why: "Set from your phone's region." },
-  // PLAN 3.3a round 2 (B6): not used yet = optional, what it is for, and a small "Coming soon".
   // PLAN 3.5: a plan built from the answers uses focus, style, cardio, go easy on and the exercise lists.
   focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets here.' },
-  win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.', soon: true },
+  win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.' },
   experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
   days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
   weekdays: { title: 'Which days work best?', why: 'Used to lay out your week.' },
@@ -67,8 +67,8 @@ const COPY: Record<ScreenId, Copy> = {
   cardio: { title: 'How do you feel about cardio?', why: 'Optional. Suggests cardio you like.' },
   easyOn: { title: 'Anything to go easy on?', why: 'Optional. Swaps lifts that strain these.' },
   exercises: { title: 'Any favorites, or ones to avoid?', why: 'Optional. Plans will add or leave these out.' },
-  when: { title: 'When do you usually work out?', why: 'Optional. Times your reminders.', soon: true },
-  bodyweight: { title: 'What do you weigh?', why: 'Optional. Suggests starting weights.', soon: true },
+  when: { title: 'When do you usually work out?', why: 'Optional. Times your reminders.' },
+  bodyweight: { title: 'What do you weigh?', why: 'Optional. Suggests starting weights.' },
   about: { title: 'About you', why: 'All optional. Only what you add is kept.' },
   noPlan: { title: '', why: '' },
   reveal: { title: 'Your plan', why: '' },
@@ -213,7 +213,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
 
   let content: ReactNode;
   if (step === 'reveal') content = <Reveal answers={answers} redo={redo} onBack={() => back()} baseline={baseline} />;
-  else if (step === 'noPlan') content = <NoPlanNotice answers={answers} baseline={baseline} onBack={() => back()} onKeepGoing={() => apply({ type: 'next' }, 'push')} />;
+  else if (step === 'noPlan') content = <NoPlanNotice answers={answers} onBack={() => back()} onKeepGoing={() => apply({ type: 'next' }, 'push')} />;
   else {
     const kind = KIND[step];
     const copy = COPY[step];
@@ -254,11 +254,6 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
           {subOf(step, answers) && (
             <p className={styles.sub} data-testid="why">
               {subOf(step, answers)}
-              {copy.soon && (
-                <span className={styles.soon} data-testid="soon">
-                  Coming soon
-                </span>
-              )}
             </p>
           )}
           {stepBody(step, answers, handlers, pulse)}

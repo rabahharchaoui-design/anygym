@@ -170,9 +170,15 @@ test('(10) reveal states the real minutes; the quick link opens the built ideas'
   const rows = await page.getByTestId('reveal-week').getByRole('listitem').allInnerTexts();
   console.log('WEEK', rows.map((r) => r.replace(/\n+/g, ' ')).join(' || '));
   const cta = page.getByTestId('reveal-cta').locator('button[data-variant="primary"]');
-  console.log('CTA', await cta.innerText(), '| secondary', await page.getByTestId('reveal-secondary').innerText());
+  console.log('CTA', await cta.innerText());
   expect(warn).toMatch(/(longer than your 20|You asked for 20)/);
-  await page.getByTestId('reveal-secondary').or(cta).filter({ hasText: /quick/i }).first().tap();
+  // 3.5u: the reveal has one action, Looks good, which lands on Today; the built ideas open from
+  // Today's "Got 20 min?" card (inside the welcome's light on its second step).
+  await expect(cta).toHaveText('Looks good');
+  await cta.tap();
+  await expect(page).toHaveURL(/#\/$/);
+  await page.getByTestId('tour-skip').tap();
+  await page.getByTestId('build-card').tap();
   await expect(page).toHaveURL(/#\/quick\?min=(15|20)$/);
   await expect(page.locator('[data-concept]').first()).toBeVisible();
   await shot(page, 'quick-from-reveal');

@@ -4,6 +4,7 @@ import { BODYWEIGHT_STEP, cmToFtIn, convertBodyweight, convertForGym, ftInToCm, 
 import { regionOf, unitsForLocale } from '../intake/region';
 import {
   canContinue,
+  HIDDEN_SCREENS,
   funnelReducer,
   KIND,
   needsDumbbellRange,
@@ -90,10 +91,12 @@ describe('the funnel state machine', () => {
       for (const f of fields[screen] ?? [screen as AnswerId]) s = funnelReducer(s, { type: 'set', screen: f, value: ANSWER[f] });
       s = funnelReducer(s, { type: 'next' });
     }
-    expect(seen).toEqual(SCREENS.filter((x) => x !== 'reveal' && x !== 'noPlan'));
-    expect(seen).toHaveLength(17);
+    // 3.5u: the three questions whose feature is not built yet (win, when, bodyweight) are not asked.
+    expect(seen).toEqual(SCREENS.filter((x) => x !== 'reveal' && x !== 'noPlan' && !HIDDEN_SCREENS.has(x)));
+    expect(seen).toHaveLength(14);
     // Equipment was set after the place preset: the user's pick is kept.
-    expect(s.answers).toMatchObject({ ...ANSWER, equipmentFor: 'hotel' });
+    const asked = Object.fromEntries(Object.entries(ANSWER).filter(([k]) => !HIDDEN_SCREENS.has(k as ScreenId)));
+    expect(s.answers).toMatchObject({ ...asked, equipmentFor: 'hotel' });
     expect(s.answers.skipped).toBeUndefined();
     expect(progressOf('reveal', s.answers)).toBe(1);
     expect(progressOf('goal', s.answers)).toBe(0);
@@ -106,9 +109,10 @@ describe('the funnel state machine', () => {
     expect(focus.step).toBe('focus');
     // PLAN 3.3a round 2 (B6, supersedes): focus is not used yet, so it is optional; blank is skipped.
     const blank = walk(focus, { type: 'set', screen: 'focus', value: [] }, { type: 'next' });
-    expect(blank.step).toBe('win');
+    // 3.5u: win is hidden, so experience comes next.
+    expect(blank.step).toBe('experience');
     expect(blank.answers.skipped).toEqual(['focus']);
-    expect(walk(focus, { type: 'set', screen: 'focus', value: ['back'] }, { type: 'next' }).step).toBe('win');
+    expect(walk(focus, { type: 'set', screen: 'focus', value: ['back'] }, { type: 'next' }).step).toBe('experience');
     const units = walk(s, { type: 'goto', screen: 'units' });
     expect(canContinue('units', { ...units.answers, units: undefined })).toBe(false);
     // A blank name is no name.
@@ -125,13 +129,14 @@ describe('the funnel state machine', () => {
   it('Skip only on personal screens: clears the answer, remembers the skip, moves on', () => {
     // PLAN 3.3a round 2: style (not used yet, a single choice with no Continue) gets Skip too.
     expect([...SKIPPABLE].sort()).toEqual(['about', 'bodyweight', 'easyOn', 'exercises', 'style', 'weekdays', 'when'].sort());
-    const s = walk(startState(), { type: 'goto', screen: 'bodyweight' }, { type: 'set', screen: 'bodyweight', value: { value: 80, unit: 'kg' } }, { type: 'skip' });
-    expect(s.step).toBe('about');
-    expect(s.answers.bodyweight).toBeUndefined();
-    expect(s.answers.skipped).toEqual(['bodyweight']);
+    // 3.5u: bodyweight is hidden, so the same walk runs on easyOn (exercises comes next).
+    const s = walk(startState(), { type: 'goto', screen: 'easyOn' }, { type: 'set', screen: 'easyOn', value: ['knees'] }, { type: 'skip' });
+    expect(s.step).toBe('exercises');
+    expect(s.answers.easyOn).toBeUndefined();
+    expect(s.answers.skipped).toEqual(['easyOn']);
     // Answering later takes it off the skipped list.
-    const back = walk(s, { type: 'back' }, { type: 'set', screen: 'bodyweight', value: { value: 81, unit: 'kg' } });
-    expect(back.step).toBe('bodyweight');
+    const back = walk(s, { type: 'back' }, { type: 'set', screen: 'easyOn', value: ['knees'] });
+    expect(back.step).toBe('easyOn');
     expect(back.answers.skipped).toBeUndefined();
     // Skip on a question that is not personal does nothing.
     const goal = startState();

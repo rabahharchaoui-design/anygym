@@ -65,7 +65,6 @@ const SCREENS: Array<[string, Record<string, unknown>]> = [
   ['goal', {}],
   ['units', { goal: 'muscle', units: US }],
   ['focus', FULL],
-  ['win', FULL],
   ['experience', FULL],
   ['days', FULL],
   ['weekdays', FULL],
@@ -76,8 +75,7 @@ const SCREENS: Array<[string, Record<string, unknown>]> = [
   ['cardio', FULL],
   ['easyOn', FULL],
   ['exercises', FULL],
-  ['when', FULL],
-  ['bodyweight', FULL],
+  // 3.5u: win, when and bodyweight are hidden until their features exist.
   ['about', FULL],
   ['noPlan', { ...FULL, place: 'home', equipmentFor: 'home', equipment: [] }],
   ['reveal', FULL],
@@ -357,18 +355,20 @@ test('B2 (PLAN 3.5): brand new, 3 days, 45 min: the Beginner Full Body 3 Day pla
   });
   expect(shownDays).toBeGreaterThanOrEqual(2);
   // Brand new: the plan leads, a quick workout is the quiet option.
-  await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Start Day 1');
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
+  // 3.5u: one action, Looks good; the quick workout is on Today.
+  await expect(page.getByTestId('reveal-cta').locator('button[data-variant="primary"]')).toHaveText('Looks good');
+  await expect(page.getByTestId('reveal-secondary')).toHaveCount(0);
   await expect(page.getByTestId('reveal-goals')).toHaveText('Main muscle · Also fat loss (soon)');
   // The plan shown is not offered again below.
   await expect(page.getByTestId('reveal-plan-beginner-full-body-3-day')).toHaveCount(0);
   await shot(page, 'b2-new-3d');
 });
 
-test('B6: questions not used yet are optional, say what they are for, and carry a quiet Coming soon', async ({ page }) => {
+// 3.5u (supersedes B6): a question the app does not use yet is not asked at all, so nothing says Coming soon.
+test('B6 (3.5u): optional questions say what they are for; nothing says Coming soon', async ({ page }) => {
   // PLAN 3.5: the generator uses focus, cardio, go easy on and the exercise lists: optional, no pill.
-  const optional = ['focus', 'win', 'cardio', 'easyOn', 'exercises', 'bodyweight'];
-  const soon = new Set(['win', 'bodyweight']);
+  const optional = ['focus', 'cardio', 'easyOn', 'exercises'];
+  const soon = new Set<string>();
   for (const step of optional) {
     await drafted(page, step, { ...FULL });
     await expect(cta(page), `${step} Continue`).toBeEnabled();
@@ -379,7 +379,7 @@ test('B6: questions not used yet are optional, say what they are for, and carry 
   // Untouched Continue is a skip, never a made up answer.
   await drafted(page, 'focus', { ...FULL });
   await cta(page).tap();
-  await atStep(page, 'win');
+  await atStep(page, 'experience');
   await expect.poll(async () => (await draftAnswers(page)).skipped).toEqual(['focus']);
   // Go easy: said plainly what uses it, next to the stop and check line.
   await drafted(page, 'easyOn', { ...FULL });
