@@ -186,7 +186,7 @@ describe('weekly Level up', () => {
     expect(weeklyLevelUp([mixed], [], NOW)!.holding[0]!.reason).toBe('Holding steady: aim for 12 reps on every set first');
     expect(weeklyLevelUp([squatTop(bar(200), 'hard')], [], NOW)!.holding[0]!.reason).toBe('Holding steady: it felt hard, so one more week at this weight');
     const top = lift({ loadKind: 'dumbbell_each', pattern: 'horizontal push', sessions: [sess(nov(6), [10, 10], db(100), [8, 10])] });
-    expect(weeklyLevelUp([top], [], NOW)!.holding[0]!.reason).toBe('Holding steady: no heavier weight here yet. Add a rep to each set instead');
+    expect(weeklyLevelUp([top], [], NOW)!.holding[0]!.reason).toBe('Holding steady: Heaviest dumbbell here is 100 lb: add reps');
   });
   it('leaves out what it cannot judge: no range, other unit, not loadable here, unknown pattern, bodyweight, trained since, not last week', () => {
     const cases: Lift[] = [

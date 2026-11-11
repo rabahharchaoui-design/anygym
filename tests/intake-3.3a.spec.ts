@@ -179,14 +179,14 @@ const GROUPS: Record<string, string[]> = {
   benches: ['flat_bench', 'adjustable_bench', 'hyperextension_bench', 'pull_up_bar', 'dip_station'],
   machines: ['smith_machine', 'leg_press', 'leg_extension', 'leg_curl', 'chest_press_machine', 'pec_deck', 'shoulder_press_machine', 'calf_raise_machine', 'hip_adductor_abductor'],
   cables: ['cable_station', 'lat_pulldown', 'seated_row'],
-  extras: ['resistance_bands', 'jump_rope', 'treadmill', 'bike', 'stair_climber', 'rower'],
+  extras: ['resistance_bands', 'jump_rope', 'yoga_mat', 'treadmill', 'elliptical', 'bike', 'stair_climber', 'rower'],
 };
 
-test("equipment: 27 picture tiles in 5 groups, three across; every group's All turns its own items on and off @matrix", async ({ page }) => {
+test("equipment: 29 picture tiles (3.5j: + elliptical, yoga mat) in 5 groups, three across; every group's All turns its own items on and off @matrix", async ({ page }) => {
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'full', equipmentFor: 'full', equipment: [] });
   const titles = await page.getByTestId('equipment').locator('h2').allTextContents();
   expect(titles).toEqual(['Free weights', 'Benches and bars', 'Machines', 'Cables', 'Cardio and extras']);
-  await expect(page.getByTestId('equipment').locator('[data-testid^="equip-"][aria-pressed]:not([data-testid^="equip-all"])')).toHaveCount(27);
+  await expect(page.getByTestId('equipment').locator('[data-testid^="equip-"][aria-pressed]:not([data-testid^="equip-all"])')).toHaveCount(29);
   // Three across (two on the 320 floor): the first row of Machines shares one top, then a new row.
   const across = page.viewportSize()!.width <= 350 ? 2 : 3;
   const tops = await Promise.all(GROUPS.machines!.slice(0, across + 1).map(async (id) => Math.round((await page.getByTestId(`equip-${id}`).boundingBox())!.y)));
@@ -216,7 +216,7 @@ test("equipment: 27 picture tiles in 5 groups, three across; every group's All t
   await shot(page, 'equipment-all-on');
 });
 
-test('equipment drawings: one for each of the 27, one style (2 stroke, rounded, no fill), lime when picked', async ({ page }) => {
+test('equipment drawings: one for each of the 29, one style (2 stroke, rounded, no fill), lime when picked', async ({ page }) => {
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'full', equipmentFor: 'full', equipment: ['dumbbells'] });
   const art = await page.locator('[data-testid="equipment"] svg[data-art]').evaluateAll((svgs) =>
     svgs.map((s) => ({
@@ -232,8 +232,8 @@ test('equipment drawings: one for each of the 27, one style (2 stroke, rounded, 
       color: getComputedStyle(s).color,
     })),
   );
-  expect(art).toHaveLength(27);
-  expect(new Set(art.map((a) => a.id)).size).toBe(27);
+  expect(art).toHaveLength(29);
+  expect(new Set(art.map((a) => a.id)).size).toBe(29);
   for (const a of art) {
     expect(a.tile, `${a.id} sits in its own tile`).toBe(`equip-${a.id}`);
     expect([a.stroke, a.cap, a.join, a.fill, a.overrides], `${a.id} style`).toEqual(['2', 'round', 'round', 'none', 0]);

@@ -5,7 +5,7 @@ import { pickerId } from '../lib/picker';
 import type { BarId } from '../db/types';
 import type { ExerciseLoadType } from '../lib/loadTypeRule';
 import { EXERCISE_MAP } from './muscles';
-import { approvedLadder, approvedVersion } from './candidateGate';
+import { approvedCandidate, approvedLadder, approvedVersion } from './candidateGate';
 
 export const PATTERN_FILE = file as unknown as PatternFile;
 
@@ -44,7 +44,8 @@ export const SWAP_DATA: SwapData = {
 };
 
 /** How a catalog only candidate is loaded (plan exercises answer this themselves). */
-export const candidateLoadOf = (id: string): ExerciseLoadType | undefined => candidateFacts(SWAP_DATA, id)?.load;
+// PLAN 3.5j: an approved move outside the ladders (a treadmill run) says its own load (timed).
+export const candidateLoadOf = (id: string): ExerciseLoadType | undefined => candidateFacts(SWAP_DATA, id)?.load ?? approvedCandidate(id)?.load;
 export const candidateBarOf = (id: string): BarId | undefined => candidateFacts(SWAP_DATA, id)?.bar;
 /** Sets of this exercise count each side, when the ladder knows it. */
 export const countsEachSide = (id: string): boolean => candidateFacts(SWAP_DATA, id)?.eachSide === true;

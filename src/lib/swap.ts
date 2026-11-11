@@ -142,6 +142,8 @@ const GEAR: Record<EquipmentId, { word: string; uses: string }> = {
   stair_climber: { word: 'stair climber', uses: 'a stair climber' },
   rower: { word: 'rower', uses: 'a rower' },
   jump_rope: { word: 'jump rope', uses: 'a jump rope' },
+  elliptical: { word: 'elliptical', uses: 'an elliptical' },
+  yoga_mat: { word: 'yoga mat', uses: 'a yoga mat' },
 };
 
 /** The first thing this gym lacks, in plain words ("cable"), or null when it has it all. */

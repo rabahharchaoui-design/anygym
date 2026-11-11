@@ -9,6 +9,7 @@
 // (loadCandidateFile), so everyone else never downloads it.
 import type { CandidateFile, CandidateRecord } from '../lib/candidates/types';
 import type { Candidate, Pattern } from '../lib/swap';
+import { rankCardio, type CardioMove } from '../lib/cardio';
 
 let FILE: CandidateFile | null = null;
 let ALL = new Map<string, CandidateRecord>();
@@ -69,6 +70,19 @@ export function approvedLadder(pattern: Pattern): Candidate[] {
     out.push({ id: c.id, requires: c.requires.map((g) => [...g]), load: c.load, ...(c.bar ? { bar: c.bar } : {}), ...(c.eachSide ? { eachSide: true } : {}), ...(c.timed ? { timed: true } : {}) });
   }
   return out;
+}
+
+/**
+ * PLAN 3.5j: the cardio moves G approved on this phone that are done on a machine (treadmill,
+ * elliptical, stairs, bike, rower), best first. None approved: none (a warm up or finisher slot stays empty).
+ */
+export function approvedCardio(): CardioMove[] {
+  const out: CardioMove[] = [];
+  for (const id of approved) {
+    const c = ALL.get(id)!;
+    if (c.pattern === 'cardio' && c.requires.length) out.push({ id: c.id, requires: c.requires.map((g) => [...g]) });
+  }
+  return rankCardio(out);
 }
 
 /** Owner Review screen only (SPEC 9.4): every candidate, approved or not, to decide on (after loadCandidateFile). */

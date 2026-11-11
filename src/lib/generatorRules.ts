@@ -56,6 +56,11 @@ export function setsFor(experience: ExperienceId | undefined, compound: boolean,
   return comeback ? Math.min(sets, 3) : sets;
 }
 
+/** SPEC 7.3 as a ceiling: no move in a plan ever gets more sets than this (new 3, under 2 years 3, 2+ years 4, a comeback 3). */
+export function maxSetsFor(experience: ExperienceId | undefined, comeback: boolean): number {
+  return setsFor(experience, true, comeback);
+}
+
 /** SPEC 22 rule 8: new lifters (and anyone coming back) stop further from failure on everything. */
 export const NEWER: ReadonlySet<ExperienceId> = new Set<ExperienceId>(['new', 'months', 'break']);
 

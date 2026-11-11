@@ -14,6 +14,8 @@ import { addGym, undoDeleteGym, type GymDeleteReceipt, type NewGym } from '../..
 import { UNDO_MS } from '../../lib/undoQueue';
 import { gymLine, recentGyms } from '../../lib/gymPresets';
 import { NewGymForm } from '../../components/gym/NewGymForm';
+import { SwitchSheet, useActiveName } from '../../components/gym/MakeActive';
+import { useGymSwitch } from '../../components/gym/useGymSwitch';
 import { TYPE_ICON } from '../../components/gym/gymIcons';
 import styles from '../Settings.module.css';
 import gymStyles from './Gyms.module.css';
@@ -36,6 +38,8 @@ export function GymsScreen() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const active = gyms.data?.find((g) => g.isActive) ?? gyms.data?.[0];
+  const activeName = useActiveName();
+  const sw = useGymSwitch(setToast, () => activeName.data);
 
   // Back from a gym that was deleted: "Deleted Hotel gym · Undo" (SPEC 13.1: Undo, never a confirm).
   useEffect(() => {
@@ -70,7 +74,12 @@ export function GymsScreen() {
     try {
       const gym = await addGym(input);
       setAdding(false);
-      setToast({ id: ++toastSeq, lead: 'Added', subject: gym.name, text: '' });
+      // PLAN 3.5j: the next step is right there ("+ New gym, Hotel gym, tap your equipment, Make active").
+      const makeActive = () => {
+        setToast(null);
+        void sw.pick(gym);
+      };
+      setToast({ id: ++toastSeq, lead: 'Added', subject: gym.name, text: '', action: { label: 'Make active', onPress: makeActive } });
     } catch {
       setToast({ id: ++toastSeq, text: 'Could not add that gym. Try again.' });
     } finally {
@@ -125,6 +134,7 @@ export function GymsScreen() {
       <Sheet open={adding} onClose={() => setAdding(false)} label="New gym" scroll footer>
         {adding && <NewGymForm unit={active?.unit ?? 'lb'} busy={busy} submitLabel="Add gym" onSubmit={(g) => void add(g)} />}
       </Sheet>
+      <SwitchSheet sw={sw} fromName={activeName.data} />
       <Toast toast={toast} />
     </>
   );

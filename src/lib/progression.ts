@@ -43,6 +43,7 @@ import {
   stepUp,
   timedLoad,
   type LoadSetup,
+  heaviestHeld,
 } from './load';
 
 export type RepRange = [number, number];
@@ -79,6 +80,8 @@ export type Next = {
   kind: NextKind;
   /** PLAN 3.5g: the coach holds the weight (Not now on the Level up card): no "Beat last time". */
   held?: true;
+  /** PLAN 3.5j: the weight is the heaviest this gym has, under what last time was or what is due ("Heaviest here is 22 kg: add reps"). */
+  atTop?: true;
 };
 
 export type SetTarget = { load: Load | null; reps?: number; seconds?: number };
@@ -153,6 +156,11 @@ export function progress(input: ProgressionInput): Progression {
   const here = converted ? convertForGym(quoted, ref.unit, unit) : picked;
   const added = !converted && ref.kind === 'stack' ? (ref.added ?? 0) : 0;
   const base = !converted && loadAt(loadKind, here, setup, added) ? here : nearestLoadable(loadKind, here, setup);
+  // PLAN 3.5j: last time was heavier than anything on this rack (another gym, or the gym's dumbbell
+  // max): the target is the heaviest here, and the line says so ("Heaviest here is 22 kg: add reps").
+  const top = loadKind === 'dumbbell_each' || loadKind === 'single' ? heaviestHeld(loadKind, setup) : null;
+  const heaviestLine = top === null ? '' : `Heaviest here is ${formatWeight(top, unit)}: add reps`;
+  const capped = top !== null && here > top + 1e-9;
 
   // Equivalent loads count as the same: 20 kg and 44.09 lb, a 100 + 25 stack and a 125 pin (PLAN 1.7k).
   const exactHeld = loadKind === 'single' && !!setup.heldExact && !setup.heldPlates;
@@ -187,7 +195,7 @@ export function progress(input: ProgressionInput): Progression {
         repsFor = plusOne;
         // A weight typed exactly (a kettlebell, PLAN 1.7k): the gym's list is not known, so the
         // next one up is never claimed or made up.
-        reason = exactHeld ? `All sets hit ${range[1]}. Go heavier if you have it, or add a rep to each set` : 'Heaviest weight here. Add a rep to each set';
+        reason = exactHeld ? `All sets hit ${range[1]}. Go heavier if you have it, or add a rep to each set` : top !== null ? heaviestLine : 'Heaviest weight here. Add a rep to each set';
       } else {
         kind = 'increase';
         value = up;
@@ -216,6 +224,8 @@ export function progress(input: ProgressionInput): Progression {
     kind = 'converted';
     reason = `≈ ${formatWeight(loadKind === 'stack' ? load.total : pickedWeight(load)!, unit)}, last time ${formatWeight(quoted, ref.unit)}`;
   }
+  const atTop = !!load && top !== null && kind !== 'reset' && (capped || reason === heaviestLine);
+  if (load && capped && kind !== 'reset') reason = heaviestLine;
   if (!load) reason = noLoadReason(loadKind, setup);
   if (!load && exactHeld) {
     // Typed exactly (PLAN 1.7k): no lighter or converted weight is made up; the user types it.
@@ -234,7 +244,7 @@ export function progress(input: ProgressionInput): Progression {
 
   return {
     lastTime,
-    next: { load, reps: nextReps, reason, kind },
+    next: { load, reps: nextReps, reason, kind, ...(atTop ? { atTop: true as const } : {}) },
     perSet: fill((i) => ({ lastTime: lastAt(i), target: { load, reps: targetReps(i) } })),
   };
 }

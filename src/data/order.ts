@@ -11,12 +11,13 @@ import type { GymKit } from '../lib/picker';
 import { SWAP_DATA, candidateLoadOf } from './patterns';
 import { planExercise } from './planExercises';
 import { exerciseNameOf } from './importMatch';
-import { onApprovedChange } from './candidateGate';
+import { approvedCandidate, onApprovedChange } from './candidateGate';
 
 type Override = NonNullable<Parameters<typeof profileOf>[0]['override']>;
 
 const STRETCH: Override = { role: 'stretch', tier: 4, targets: [], helpers: [], load: 0 };
 const WARMUP: Override = { role: 'warmup', tier: -1, targets: [], helpers: [], load: 0 };
+const CARDIO: Override = { role: 'cardio', tier: 5, targets: [], helpers: [], load: 0 };
 
 /** Facts for exercises the patterns do not describe, or describe too broadly. */
 export const PROFILE_OVERRIDES: Readonly<Record<string, Override>> = {
@@ -26,7 +27,7 @@ export const PROFILE_OVERRIDES: Readonly<Record<string, Override>> = {
   'dynamic-hip-flexor-stretch': { ...WARMUP, role: 'dynamic' },
   'band-internal-shoulder-rotation-0-degrees': WARMUP,
   'band-internal-shoulder-rotation-90-degrees': WARMUP,
-  '30-second-interval-sprint': { role: 'cardio', tier: 5, targets: [], helpers: [], load: 0 },
+  '30-second-interval-sprint': CARDIO,
   'forearm-finger-roll': { targets: ['forearms'], helpers: [], tier: 3, load: 1 },
   'wrist-twist': { targets: ['forearms'], helpers: [], tier: 3, load: 1 },
   'dumbbell-shrug': { targets: ['traps'], helpers: [], tier: 2, load: 2 },
@@ -97,7 +98,8 @@ export function profileFor(id: string, name?: string): Profile {
   const requires = requiresOf(SWAP_DATA, id);
   const loadType = planExercise(id)?.loadType ?? candidateLoadOf(id);
   const implement = requires ? implementOfRequires(requires) : ((loadType && LOAD_IMPLEMENT[loadType]) ?? 'unknown');
-  const override = PROFILE_OVERRIDES[id];
+  // PLAN 3.5j: an approved cardio move is cardio (a warm up or finisher), never a lift.
+  const override = PROFILE_OVERRIDES[id] ?? (approvedCandidate(id)?.pattern === 'cardio' ? CARDIO : undefined);
   const p = profileOf({ id, name: name ?? planExercise(id)?.name ?? exerciseNameOf(id) ?? id, pattern: patternOf(SWAP_DATA, id), implement, ...(override ? { override } : {}) });
   CACHE.set(id, p);
   return p;

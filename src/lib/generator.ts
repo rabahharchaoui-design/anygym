@@ -17,9 +17,10 @@
 // A day with fewer than 3 moves the gym can do is an honest failure, never a padded plan.
 import type { EquipmentId } from '../db/types';
 import type { GymKit } from './picker';
-import { canPair, easyOnAvoids, heaviestOf, isCompound, orderUnits, restFor, type Muscle, type Profile, type Unit } from './order';
+import { canPair, easyOnAvoids, heaviestOf, isCompound, isHeavy, orderUnits, restFor, type Muscle, type Profile, type Unit } from './order';
 import { estimateDayMinutes, type PlanBlock, type PlanDay } from './plans';
 import { supports, workoutIdOf, type Candidate, type Pattern, type Requires, type SwapData } from './swap';
+import { cardioFor, type CardioMove } from './cardio';
 import type { CardioFavoriteId, CardioId, ExperienceId, FocusId, GoalId, PlaceAnswer, StyleId } from './intake/options';
 import {
   EFFORT,
@@ -37,6 +38,7 @@ import {
   NEWER,
   PRESCRIPTION,
   setsFor,
+  maxSetsFor,
   splitFor,
   type GoalFamily,
   type Range,
@@ -44,7 +46,7 @@ import {
 } from './generatorRules';
 
 /** Bump when the rules change what comes out: frozen plans and saved plans name the version that made them. */
-export const GENERATOR_VERSION = 1;
+export const GENERATOR_VERSION = 2;
 
 export type GeneratorInput = {
   /** Main first, Also second (SPEC 14 step 1). None: stay fit. */
@@ -85,12 +87,17 @@ export type GeneratorDeps = {
   name: (id: string) => string;
   /** PLAN 3.5a: only these may be picked (Quick workout: a sure demo). Missing: anything that fits. */
   usable?: (id: string) => boolean;
+  /**
+   * PLAN 3.5j: sure cardio moves (G approved them on this phone), best first, with the machine each
+   * needs. A day may open with one as its warm up. Missing or empty: no cardio move, never a guess.
+   */
+  cardio?: () => readonly CardioMove[];
 };
 
 // ---------------------------------------------------------------- the shipped JSON shape
 
 export type RawItem = { exercise: string; id: string; reps?: Range; seconds?: Range; eachSide?: true; note?: string };
-export type RawSingle = { type: 'single'; sets: number; restSec: number } & RawItem;
+export type RawSingle = { type: 'single'; sets: number; restSec: number; warmup?: true } & RawItem;
 export type RawPair = { type: 'superset'; sets: number; restSec: number; items: RawItem[] };
 export type RawFinisher = { name: string; minutes: number; requires: Requires };
 export type RawDay = { n: number; name: string; blocks: Array<RawSingle | RawPair>; finisher?: RawFinisher };
@@ -128,10 +135,14 @@ export type Applied = {
   /** Patterns a day wanted that nothing at this gym does (after fallbacks). */
   gaps: Pattern[];
   finisher: string | null;
+  /** PLAN 3.5j: the sure cardio move each day opens with (missing: none). */
+  warmUp?: string;
   /** Per day, the workout header's estimate. */
   minutes: number[];
   /** Some day is still over the time picked after the trim. */
   over: boolean;
+  /** PLAN 3.5j: a strength plan kept its long rests, so a short time fits fewer than 5 lifts a day. */
+  restKept?: boolean;
 };
 
 export type GeneratorResult =
@@ -156,7 +167,7 @@ export type Item = {
   note?: string;
 };
 
-type Day = { name: string; items: Item[]; units: Item[][]; finisher?: RawFinisher };
+type Day = { name: string; items: Item[]; units: Item[][]; finisher?: RawFinisher; warmUp?: string };
 
 type Ctx = {
   input: GeneratorInput;
@@ -256,6 +267,12 @@ function fill(ctx: Ctx, slot: Slot, dayKeys: Set<string>, dayPatterns: ReadonlyS
 
 const ruleGoal = (f: GoalFamily) => (f === 'strength' ? 'strength' : 'muscle');
 
+/** SPEC 7.3's ceiling for this lifter (every rule that adds sets stays under it). */
+const setCap = (ctx: Ctx): number => maxSetsFor(ctx.input.experience, ctx.main === 'comeback' || ctx.also === 'comeback');
+
+/** SPEC 15 may lift an item past its usual sets (to MAX_ITEM_SETS), but a new lifter or a comeback keeps SPEC 7.3's ceiling. */
+const focusCap = (ctx: Ctx): number => (ctx.input.experience === 'new' || ctx.main === 'comeback' || ctx.also === 'comeback' ? Math.min(MAX_ITEM_SETS, setCap(ctx)) : MAX_ITEM_SETS);
+
 /** Sets, reps or hold, rest and the effort words of one item. `lead`: the day's heaviest lift. */
 function prescribe(ctx: Ctx, it: Item, lead: boolean): void {
   const { family, also } = ctx;
@@ -301,12 +318,14 @@ function alsoChanges(ctx: Ctx, finisher: RawFinisher | undefined): boolean {
 
 type CardioPick = { name: string; requires: Requires };
 
-const MACHINE_CARDIO: Array<{ fav: CardioFavoriteId; gear: EquipmentId; name: string; sprint: string }> = [
+const MACHINE_CARDIO: Array<{ fav?: CardioFavoriteId; gear: EquipmentId; name: string; sprint: string }> = [
   { fav: 'treadmill', gear: 'treadmill', name: 'Treadmill', sprint: 'Treadmill intervals' },
+  // PLAN 3.5j: no favourite names it (SPEC 14 step 9), so it comes after the ones that can be loved.
   { fav: 'bike', gear: 'bike', name: 'Bike', sprint: 'Bike sprints' },
   { fav: 'rower', gear: 'rower', name: 'Rower', sprint: 'Rower sprints' },
   { fav: 'stairs', gear: 'stair_climber', name: 'Stair climber', sprint: 'Stair climber intervals' },
   { fav: 'jump_rope', gear: 'jump_rope', name: 'Jump rope', sprint: 'Jump rope intervals' },
+  { gear: 'elliptical', name: 'Elliptical', sprint: 'Elliptical intervals' },
 ];
 
 /**
@@ -325,7 +344,7 @@ function finisherFor(ctx: Ctx): RawFinisher | undefined {
   const gear = ctx.input.gym.equipment;
   const favs = ctx.input.cardioFavorites ?? [];
   const machines = MACHINE_CARDIO.filter((m) => gear.includes(m.gear));
-  const machine = machines.find((m) => favs.includes(m.fav)) ?? machines[0];
+  const machine = machines.find((m) => m.fav !== undefined && favs.includes(m.fav)) ?? machines[0];
   let pick: CardioPick;
   if (athletic && !fat) pick = machine && !noCardio ? { name: machine.sprint, requires: [[machine.gear]] } : { name: 'Bodyweight circuit', requires: [] };
   else if (fat) pick = machine && !noCardio ? { name: machine.name, requires: [[machine.gear]] } : { name: 'Bodyweight circuit', requires: [] };
@@ -334,6 +353,23 @@ function finisherFor(ctx: Ctx): RawFinisher | undefined {
   else pick = { name: favs.includes('running') ? 'Easy run' : 'Brisk walk', requires: [] };
   return { name: pick.name, minutes: FINISHER_MINUTES, requires: pick.requires };
 }
+
+/** PLAN 3.5j: a sure cardio warm up opens a day this long (5 min, one exercise change). */
+export const WARM_UP_SEC = 300;
+/** Shorter days keep their minutes for the lifts (a 30 min day still holds 5 moves). */
+export const WARM_UP_MIN_MINUTES = 45;
+
+/**
+ * PLAN 3.5j: the day's cardio warm up, only from a sure move (approved on this phone) on a machine
+ * this gym has, never with "no cardio" answered, never on a day that already ends with cardio.
+ */
+function warmUpFor(ctx: Ctx, finisher: RawFinisher | undefined): string | undefined {
+  if (finisher || ctx.input.cardio === 'none') return undefined;
+  if (ctx.input.minutes !== undefined && ctx.input.minutes < WARM_UP_MIN_MINUTES) return undefined;
+  return cardioFor(ctx.deps.cardio?.() ?? [], ctx.input.gym, ctx.input.cardio)?.id;
+}
+
+const warmUpBlock = (id: string): PlanBlock => ({ kind: 'single', warmup: true, items: [{ exerciseId: id, name: id, seconds: [WARM_UP_SEC, WARM_UP_SEC] }], sets: 1, restSec: 0 });
 
 // ---------------------------------------------------------------- focus (SPEC 15)
 
@@ -375,7 +411,7 @@ function applyFocus(ctx: Ctx, days: Day[]): void {
         grew = false;
         for (const it of items) {
           if (added >= target) break;
-          if (it.sets >= MAX_ITEM_SETS || it.extra >= 2) continue;
+          if (it.sets >= focusCap(ctx) || it.extra >= 2) continue;
           it.sets++;
           it.extra++;
           it.focus ??= f;
@@ -408,6 +444,26 @@ export function pairUp(units: Item[][], all: Item[]): Item[][] {
   return out;
 }
 
+/**
+ * PLAN 3.5j: when a day is over its minutes, two big lifts of different areas next to each other
+ * pair up before any move is dropped (SPEC 22 rule 5: chest with back is a time saving pair). Never
+ * the day's heaviest lift, never two that share a muscle (canPair), only equal set counts. Returns
+ * whether it paired one.
+ */
+function pairToFit(d: Day): boolean {
+  const all = d.units.flat();
+  const heaviest = heaviestOf(all.map((i) => i.profile));
+  const heavy = new Set(heaviest ? [heaviest.id] : []);
+  for (let i = 0; i + 1 < d.units.length; i++) {
+    const a = d.units[i]!;
+    const b = d.units[i + 1]!;
+    if (a.length !== 1 || b.length !== 1 || a[0]!.sets !== b[0]!.sets || !canPair(a[0]!.profile, b[0]!.profile, heavy)) continue;
+    d.units.splice(i, 2, [a[0]!, b[0]!]);
+    return true;
+  }
+  return false;
+}
+
 /** A pair whose partners no longer have the same set count (trimming) becomes two single moves. */
 export function splitUnequalPairs(units: Item[][]): Item[][] {
   return units.flatMap((u) => (u.length > 1 && u.some((it) => it.sets !== u[0]!.sets) ? u.map((it) => [it]) : [u]));
@@ -422,7 +478,8 @@ const blockOf = (u: Item[]): PlanBlock => ({
 
 /** The day as the workout header estimates it (SPEC 7.4). */
 function minutesOf(d: Day): number {
-  const day: PlanDay = { n: 1, name: d.name, blocks: d.units.map(blockOf), ...(d.finisher ? { finisher: { name: d.finisher.name, minutes: d.finisher.minutes } } : {}) };
+  const blocks = [...(d.warmUp ? [warmUpBlock(d.warmUp)] : []), ...d.units.map(blockOf)];
+  const day: PlanDay = { n: 1, name: d.name, blocks, ...(d.finisher ? { finisher: { name: d.finisher.name, minutes: d.finisher.minutes } } : {}) };
   return estimateDayMinutes(day);
 }
 
@@ -433,12 +490,14 @@ const moveCount = (d: Day) => d.units.reduce((n, u) => n + u.length, 0);
  * never on compounds), accessory sets down to 2 (focus sets last), then the lowest priority moves go,
  * last in the day first. Never the first two compound lifts, never under 3 moves.
  */
-function trim(d: Day, budget: number | undefined): void {
+function trim(d: Day, budget: number | undefined, pairs = false, compoundRestFloor?: number): void {
   if (budget === undefined || budget >= 75) return;
   const over = () => minutesOf(d) > budget;
   const items = () => d.units.flat();
   if (!over()) return;
   for (const it of items()) if (!isCompound(it.profile) && it.rest > 60) it.rest = 60;
+  // PLAN 3.5j round 2: a compound that is not heavy (SPEC 22 rule 6 keeps the heavy rest) may rest down to the goal's own floor (SPEC 7.3), never a strength day's.
+  if (compoundRestFloor !== undefined) for (const it of items()) if (isCompound(it.profile) && !isHeavy(it.profile) && !it.candidate.timed && it.rest > compoundRestFloor) it.rest = compoundRestFloor;
   for (const focusPass of [false, true]) {
     for (const it of [...items()].reverse()) {
       if (!over()) return;
@@ -448,7 +507,22 @@ function trim(d: Day, budget: number | undefined): void {
       it.extra = Math.max(0, it.extra - cut);
     }
   }
+  // PLAN 3.5j: a 2+ year lifter's 4 sets on a big lift go to 3 (SPEC 7.3: 3 to 4) before a move goes,
+  // the day's heaviest lift last; then pairs (not for a strength day: its big lifts get straight sets).
+  for (const it of [...items()].reverse()) {
+    if (!over()) return;
+    if (isCompound(it.profile) && it.sets > 3) it.sets = 3;
+  }
+  while (pairs && over() && pairToFit(d));
+  if (!over()) return;
   const protectedIds = new Set(items().filter((it) => isCompound(it.profile)).slice(0, 2).map((it) => it.id));
+  // PLAN 3.5j round 2: a short day keeps its moves (G: 5 to 7 at 30 and 45 min). The big lifts after
+  // the first two go to 2 sets, last first, before any move is dropped; the long rests stay.
+  for (const it of [...items()].reverse()) {
+    if (!over()) return;
+    if (isCompound(it.profile) && !protectedIds.has(it.id) && it.sets > 2) it.sets = 2;
+  }
+  if (!over()) return;
   while (over() && moveCount(d) > MIN_MOVES) {
     let at = -1;
     for (let i = d.units.length - 1; i >= 0; i--) {
@@ -461,6 +535,93 @@ function trim(d: Day, budget: number | undefined): void {
     const u = d.units[at]!;
     if (u.length > 1) d.units[at] = u.slice(0, -1);
     else d.units.splice(at, 1);
+  }
+}
+
+/** PLAN 3.5j: a day is "about" its minutes within this many (G: ~30 min means about 30). */
+export const FIT_SLACK = 2;
+/** The most sets a small move gets from filling the time. */
+const FILL_MAX_SETS = 4;
+
+/** PLAN 3.5j: the small moves a short day may add at its end, after its own slots that did not make it. */
+const FILL_PATTERNS: readonly Pattern[] = ['lateral delt', 'biceps', 'triceps', 'hamstrings isolation', 'quads isolation', 'rear delt', 'chest isolation', 'calves', 'core'];
+/** The most moves a day holds (G: 5 to 7 at 30 and 45 min). */
+const MAX_MOVES = 7;
+
+/**
+ * PLAN 3.5j: a day the trim left more than 2 min under the time picked gets small moves at its end
+ * (the day's own slots first, then FILL_PATTERNS), each only while it still fits: never a big lift
+ * after the small ones (SPEC 22 rule 1), never a second of a pattern, never past 7 moves. The plan
+ * generator's own pick (gear, never, go easy on, loved, style, week variety).
+ */
+function addMoves(ctx: Ctx, d: Day, slots: readonly Slot[], budget: number | undefined): void {
+  if (budget === undefined || budget >= 75) return;
+  const order = [...slots.map((x) => x.pattern), ...FILL_PATTERNS].filter((p, i, all) => all.indexOf(p) === i);
+  for (const pattern of order) {
+    if (minutesOf(d) >= budget - FIT_SLACK || moveCount(d) >= MAX_MOVES) return;
+    const all = d.units.flat();
+    if (all.some((it) => it.pattern === pattern)) continue;
+    const keys = new Set(all.map((it) => it.key));
+    const c = pickFrom(ctx, pattern, true, keys);
+    if (!c) continue;
+    const it = makeItem(ctx, c, pattern);
+    if (isCompound(it.profile) || it.profile.role !== 'lift') continue;
+    prescribe(ctx, it, false);
+    it.sets = 2;
+    if (!isCompound(it.profile) && it.rest > 60) it.rest = 60;
+    d.units.push([it]);
+    if (minutesOf(d) > budget) {
+      d.units.pop();
+      continue;
+    }
+    const used = ctx.weekUsed.get(pattern) ?? new Set<string>();
+    used.add(it.key);
+    ctx.weekUsed.set(pattern, used);
+  }
+}
+
+/** G: a day holds at least this many moves at 30 and 45 min when the gym has them. */
+const DENSE_MOVES = 5;
+
+/**
+ * PLAN 3.5j round 2: a short day still under 5 moves (all big lifts with long rests) lets the big
+ * lifts after the day's first go to 2 sets, last first, and re adds small moves each time (pairs
+ * again, the long rests kept) until it holds 5 moves. Never over the minutes (addMoves only adds
+ * what fits); if nothing helps the day stays as it is.
+ */
+function densify(ctx: Ctx, d: Day, slots: readonly Slot[], budget: number | undefined): void {
+  if (budget === undefined || budget > 45 || moveCount(d) >= DENSE_MOVES) return;
+  const lead = d.units.flat().find((it) => isCompound(it.profile));
+  // The day's first big lift keeps its sets unless every other big lift is already at 2 and the day is still short.
+  const order = [...d.units.flat().filter((x) => x !== lead).reverse(), ...(lead ? [lead] : [])];
+  for (const it of order) {
+    if (moveCount(d) >= DENSE_MOVES) return;
+    if (!isCompound(it.profile) || it.sets <= 2) continue;
+    it.sets = 2;
+    d.units = splitUnequalPairs(d.units);
+    d.units = pairUp(d.units, d.items);
+    addMoves(ctx, d, slots, budget);
+  }
+}
+
+/**
+ * PLAN 3.5j: a day more than 2 min under the time picked gets one more set on a small move (the
+ * last in the day first, a pair's partners together) while it still fits; never a compound, never
+ * past 4 sets, never over the minutes.
+ */
+function fillUp(ctx: Ctx, d: Day, budget: number | undefined): void {
+  const cap = Math.min(FILL_MAX_SETS, setCap(ctx));
+  if (budget === undefined || budget >= 75) return;
+  for (let guard = 0; guard < 40 && minutesOf(d) < budget - FIT_SLACK; guard++) {
+    const unit = [...d.units].reverse().find((u) => {
+      if (!u.every((it) => !isCompound(it.profile) && it.profile.role === 'lift' && it.sets < cap)) return false;
+      for (const it of u) it.sets++;
+      const ok = minutesOf(d) <= budget;
+      for (const it of u) it.sets--;
+      return ok;
+    });
+    if (!unit) return;
+    for (const it of unit) it.sets++;
   }
 }
 
@@ -572,7 +733,9 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
   const gaps = new Set<Pattern>();
 
   const days: Day[] = [];
+  const templates: Slot[][] = [];
   for (const t of split.days) {
+    templates.push(t.slots);
     const dayKeys = new Set<string>();
     const items: Item[] = [];
     for (const slot of t.slots) {
@@ -594,12 +757,19 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
 
   const focusMuscles: Muscle[] = (input.focus ?? []).flatMap((f) => (f === 'balance' ? [] : FOCUS_RULES[f].muscles));
   const finisher = finisherFor(ctx);
-  for (const d of days) {
+  const warmUp = warmUpFor(ctx, finisher);
+  const strength = FAMILY_OF[main] === 'strength';
+  for (const [i, d] of days.entries()) {
     const ordered = orderUnits(d.items.map((it) => unitOf([it])), { focus: focusMuscles }).map((u) => u.ref);
-    d.units = FAMILY_OF[main] === 'strength' ? ordered : pairUp(ordered, d.items);
+    d.units = strength ? ordered : pairUp(ordered, d.items);
     if (finisher) d.finisher = finisher;
-    trim(d, input.minutes);
+    if (warmUp) d.warmUp = warmUp;
+    trim(d, input.minutes, !strength, strength ? undefined : PRESCRIPTION[ctx.family].compoundRest);
     d.units = splitUnequalPairs(d.units);
+    if (!strength) d.units = pairUp(d.units, d.items);
+    addMoves(ctx, d, templates[i]!, input.minutes);
+    if (!strength) densify(ctx, d, templates[i]!, input.minutes);
+    fillUp(ctx, d, input.minutes);
   }
 
   const kept = days.flatMap((d) => d.units.flat());
@@ -619,7 +789,8 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
   const level = input.experience === 'new' || input.experience === 'months' ? 'beginner' : 'intermediate';
 
   const rawDays: RawDay[] = days.map((d, i) => {
-    const out: RawDay = { n: i + 1, name: d.name, blocks: d.units.map((u) => rawBlock(ctx, u)) };
+    const head: RawSingle[] = d.warmUp ? [{ type: 'single', exercise: deps.name(d.warmUp), id: d.warmUp, seconds: [WARM_UP_SEC, WARM_UP_SEC], sets: 1, restSec: 0, warmup: true }] : [];
+    const out: RawDay = { n: i + 1, name: d.name, blocks: [...head, ...d.units.map((u) => rawBlock(ctx, u))] };
     if (d.finisher) out.finisher = d.finisher;
     return out;
   });
@@ -654,8 +825,10 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
       easyOn: (input.easyOn ?? []).filter((j) => j !== 'none'),
       gaps: [...gaps],
       finisher: finisher?.name ?? null,
+      ...(warmUp ? { warmUp: deps.name(warmUp) } : {}),
       minutes,
       over: timed && minutes.some((m) => m > input.minutes!),
+      ...(timed && main === 'strength' && days.some((d) => d.units.length < 5) ? { restKept: true } : {}),
     },
   };
 }

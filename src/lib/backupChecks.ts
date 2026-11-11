@@ -118,7 +118,7 @@ const dayTrim = shape({
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
     req: { id: str, defaultUnit: unit, createdAt: num },
-    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str), lefts: recordOf(listOf(str)), asked: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }), quickIdeas: shape({ req: {}, opt: { shown: listOf(str) } }) },
+    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str), lefts: recordOf(listOf(str)), asked: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }), quickIdeas: shape({ req: {}, opt: { shown: listOf(str), prev: listOf(str), at: num } }) },
   }),
   gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
   // PLAN 3.5: a generated plan's definition must be one this app can run, under the row's own id.

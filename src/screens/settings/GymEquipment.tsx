@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
 import { Skeleton } from '../../ui/Skeleton';
+import { Toast, type ToastMessage } from '../../ui/Toast';
+import { MakeActive } from '../../components/gym/MakeActive';
 import { useLive } from '../../hooks/useLive';
 import { db } from '../../db/schema';
 import { setGymEquipment } from '../../db/gymList';
@@ -14,12 +16,19 @@ import gymStyles from './Gyms.module.css';
 /**
  * A gym's equipment (PLAN 3.9, SPEC 3): the intake's picture picker, grouped, each group with its
  * All. Every tap saves. With dumbbells on, their range is asked right under them; until it is given
- * the gym counts as having no dumbbells it can load (no guessed range).
+ * the gym counts as having no dumbbells it can load (no guessed range). PLAN 3.5j: the heaviest
+ * dumbbell may be typed in kg or lb, and Make active is right under the equipment.
  */
 export function GymEquipment() {
   const { gymId = '' } = useParams();
   const gym = useLive(() => db.gyms.get(gymId), [gymId]);
   const [error, setError] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast((now) => (now?.id === toast.id ? null : now)), toast.action ? 5000 : 3000);
+    return () => window.clearTimeout(t);
+  }, [toast]);
   // A range typed here comes back if dumbbells are turned off and on again on this screen.
   const lastRange = useRef<DumbbellRange | null>(null);
   const g = gym.data;
@@ -52,8 +61,10 @@ export function GymEquipment() {
           <p className={styles.error} role="status">
             {error ? 'Could not save that. Try again.' : ''}
           </p>
+          <MakeActive gym={g} onToast={setToast} />
         </div>
       )}
+      <Toast toast={toast} />
     </>
   );
 }

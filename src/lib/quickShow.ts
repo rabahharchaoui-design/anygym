@@ -90,6 +90,8 @@ export const MAIN_MUSCLES = 3;
 export function mainMuscles(items: readonly Pick<QuickItem, 'id' | 'sets'>[], deps: Pick<QuickDeps, 'primaryOf' | 'profile'>): Set<string> {
   const count = new Map<string, { n: number; at: number }>();
   items.forEach((it, i) => {
+    // PLAN 3.5j: a cardio warm up or finisher says nothing about what the card trains.
+    if (deps.profile(it.id).role === 'cardio') return;
     const regions = deps.primaryOf ? deps.primaryOf(it.id) : deps.profile(it.id).targets;
     for (const r of new Set(regions)) {
       const c = count.get(r);

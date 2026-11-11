@@ -123,7 +123,7 @@ describe('rule 2: every working set at the top, same load → one step up', () =
   });
   it('dumbbells at the top of the rack: same weight, one more rep each set', () => {
     const p = run({ loadKind: 'dumbbell_each', history: [session(day(20), same([12, 12], dumbbellLoad(50, 'lb')))] });
-    expect(p.next).toMatchObject({ load: dumbbellLoad(50, 'lb'), kind: 'beat_reps', reason: 'Heaviest weight here. Add a rep to each set' });
+    expect(p.next).toMatchObject({ load: dumbbellLoad(50, 'lb'), kind: 'beat_reps', reason: 'Heaviest here is 50 lb: add reps' });
     expect(p.perSet.map((r) => r.target.reps)).toEqual([13, 13]);
   });
   it('stack: the next pin, keeping an add on weight', () => {

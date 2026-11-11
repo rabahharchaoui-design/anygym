@@ -120,7 +120,9 @@ export function roleAt(items: readonly NoteItem[], i: number): { role: FactRole;
   if (it.swappedFor) return { role: it.swappedFor.close ? 'close' : 'swap', words: { ...words, from: it.swappedFor.from } };
   if (it.standsIn) return { role: 'standin', words: { ...words, from: it.standsIn.from, reason: it.standsIn.reason } };
   if (p.role !== 'lift') return { role: 'other', words };
-  if (i === 0 && isCompound(p) && (it.group === undefined || items.filter((x) => x.group === it.group).length < 3)) return { role: 'first', words };
+  // PLAN 3.5j: a cardio warm up before it does not make the first lift less first.
+  const firstLift = items.slice(0, i).every((x) => x.profile.role === 'cardio');
+  if (firstLift && isCompound(p) && (it.group === undefined || items.filter((x) => x.group === it.group).length < 3)) return { role: 'first', words };
   if (it.group !== undefined) {
     const mates = items.filter((x) => x !== it && x.group === it.group);
     if (mates.length >= 2) return { role: 'circuit', words };

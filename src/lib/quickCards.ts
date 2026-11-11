@@ -5,6 +5,10 @@ import { type BuildDeps, type BuildSpec, type StyleDef, type StyleId, buildCard,
 import type { Concept, QuickDeps, QuickInput, QuickItem } from './quick';
 import type { GeneratorInput } from './generator';
 import { JOINT_WORD, fits, gearOf, itemsOf, mainMuscles } from './quickShow';
+import { CARDIO_ITEM_MINUTES, cardioGear, cardioItem, cardioSlots } from './quickCardio';
+import type { CardioMove } from './cardio';
+import { withNotes } from './quickNotes';
+import { quickMinutes } from './quickStyles';
 import { type Muscle, muscleWord, patternTargets } from './order';
 import { type Pattern, requiresOf, workoutIdOf } from './swap';
 import { TIRED_MS, cap, leavesOut, mainWords, muscleRestLine, restedLine, targetsOf, trainedWithin, wordList } from './quickWhy';
@@ -55,15 +59,28 @@ export function restedFirst(base: GeneratorInput, recent: readonly Muscle[], dep
 export function styleCard(style: StyleDef, variant: StyleDef['variants'][number], input: QuickInput, deps: QuickDeps): Concept | null {
   if (style.minMinutes !== undefined && input.minutes < style.minMinutes) return null;
   const base = restedFirst(input.base, input.recent, deps);
-  const attempt = (d: QuickDeps) => {
-    const b = buildCard(styleSpec(style, variant, { ...base, minutes: input.minutes }, input.minutes), BUILD(d), input.minutes);
-    if (!b || !fits(b.minutes, input.minutes)) return null;
-    if (!style.honest(b.items.map((it) => d.profile(it.id)), b.items)) return null;
+  // PLAN 3.5j: a sure cardio warm up (and Cardio and core's finisher) takes its minutes and its place
+  // in the count first; the lifts fill the rest. None approved: none, and the card is as it was.
+  const slots = input.noCardio?.has(style.id) ? [] : cardioSlots(style.id, input.minutes, input, deps);
+  const once = (d: QuickDeps, cardio: readonly CardioMove[]) => {
+    const lead = cardio.slice(0, 1).map((m) => cardioItem(m, deps));
+    const tail = cardio.slice(1).map((m) => cardioItem(m, deps));
+    const spec = styleSpec(style, variant, { ...base, minutes: input.minutes }, input.minutes);
+    if (cardio.length) spec.want = Math.max(3, spec.want - cardio.length);
+    const b = buildCard(spec, BUILD(d), input.minutes - cardio.length * CARDIO_ITEM_MINUTES);
+    if (!b) return null;
+    const minutes = cardio.length ? quickMinutes([...lead, ...b.items, ...tail].map((it) => ({ ...it, name: d.name(it.id) }))) : b.minutes;
+    if (!fits(minutes, input.minutes)) return null;
+    // The name is true of the lifts (Cardio and core: of the whole card, cardio included).
+    const named = style.id === 'cardioCore' ? [...lead, ...b.items, ...tail] : b.items;
+    if (!style.honest(named.map((it) => d.profile(it.id)), b.items)) return null;
     // 3.5b round 4 (B1): a card holds G's count for the minutes; fewer is never offered as a full card
     // (Strength focus is fewer on purpose, and its 4th and 5th lifts come before extra sets).
-    if (!style.maxMoves && b.items.length < densityFor(input.minutes).min) return null;
-    return b;
+    if (!style.maxMoves && b.items.length + cardio.length < densityFor(input.minutes).min) return null;
+    return { ...b, minutes, cardio, lead, tail };
   };
+  // A card the warm up leaves too little time for is offered as it was, without one.
+  const attempt = (d: QuickDeps) => once(d, slots) ?? (slots.length && style.id !== 'cardioCore' ? once(d, []) : null);
   // 3.5d (9), 3.5g: muscles trained in the last 48 h stay out of every style card (the Full body
   // circuit and the Pairs too). A card that cannot be built without them is not offered at all.
   const tired = trainedWithin(input.lastTrained, input.now ?? Date.now(), TIRED_MS);
@@ -84,8 +101,10 @@ export function styleCard(style: StyleDef, variant: StyleDef['variants'][number]
   if (!built && ladder.length) return null;
   built = built ?? attempt(deps);
   if (!built) return null;
-  const items = itemsOf(deps, built.items);
-  const ids = items.map((it) => it.id);
+  const { cardio, lead, tail } = built;
+  const lifts = itemsOf(deps, built.items);
+  const items = cardio.length ? withNotes([...lead, ...lifts, ...tail], deps) : lifts;
+  const ids = lifts.map((it) => it.id);
   const easyOn = (input.base.easyOn ?? []).filter((j) => JOINT_WORD[j]);
   // 3.5b round 4 (M6): a pump names what it pairs ("Chest and back pairs"), never a generic line.
   const pairWords = style.id === 'pump' ? mainWords(items, deps).words : [];
@@ -110,7 +129,8 @@ export function styleCard(style: StyleDef, variant: StyleDef['variants'][number]
     over: false,
     chip: chipOf(style, items),
     effort: style.effort,
-    gear: gearOf(ids, deps.data, input.base.gym),
+    // The warm up comes first, so does its machine.
+    gear: [...cardioGear(cardio), ...gearOf(ids, deps.data, input.base.gym)],
     primary: mainMuscles(items, deps),
     ...(built.short ? { short: built.short } : {}),
     ...(newerOf(input.base) ? { newer: true } : {}),

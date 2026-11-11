@@ -42,7 +42,7 @@ const dbAll = (page: Page, store: string) =>
 
 const greyScreens: string[] = [];
 /** Per screen: what the chrome must show. kind: auto = single choice, cta = Continue. */
-async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { back: boolean }) {
+async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { back: boolean; note?: boolean }) {
   await atStep(page, step);
   const h1 = page.locator('h1').first();
   await expect(h1).toBeVisible();
@@ -54,7 +54,8 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   // Rule (f): the quiet note on every screen; while Continue is grey its reason has its own line.
   const greyNow = kind === 'cta' && (await cta(page).isDisabled());
   if (greyNow) greyScreens.push(step);
-  await expect(page.getByText(/stays? on this phone\./i).first(), `${step} note`).toBeVisible();
+  // 3.5f: the favorites deck screen has no footer note (every line counts there).
+  if (opts.note !== false) await expect(page.getByText(/stays? on this phone\./i).first(), `${step} note`).toBeVisible();
   const back = page.locator('header').getByRole('button', { name: 'Back', exact: true });
   if (opts.back) {
     const b = (await back.boundingBox())!;
@@ -132,7 +133,7 @@ test('all 17 questions and the reveal (PLAN 3.5: no no plan notice at home): tit
   await auto('style', 'q-style-bodyweight');
   await multi('cardio', 'q-cardio-love', true);
   await multi('easyOn', 'q-easyOn-knees', true);
-  await chrome(page, 'exercises', 'cta', { back: true });
+  await chrome(page, 'exercises', 'cta', { back: true, note: false }); // 3.5f: the deck step
   seen.push('exercises');
   await expect(cta(page), 'exercises is optional').toBeEnabled();
   await page.getByTestId('skip').tap();
@@ -329,6 +330,11 @@ test('130% text and reduced motion on the SE: no clipping, no sideways scroll', 
     const over = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     expect(over, step).toBeLessThanOrEqual(0);
     await checkLayout(page, {});
+    // PLAN 3.5j round 2: no equipment label breaks inside a word (a word wider than its box would overflow it).
+    if (step === 'equipment') {
+      const wide = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[class*="tileName"]')].filter((e) => e.scrollWidth > e.clientWidth + 0.5).map((e) => e.textContent));
+      expect(wide, 'tile labels wider than their tile').toEqual([]);
+    }
     await shot(page, `t130-${step}`);
   }
   await context.close();

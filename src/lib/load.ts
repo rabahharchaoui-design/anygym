@@ -384,6 +384,48 @@ export function nextDumbbell(each: number, range: DumbbellRange): number | null 
   return dumbbellsInRange(range).find((w) => w > each + EPS) ?? null;
 }
 
+// PLAN 3.5j (G's hotel gym, "dumbbells up to 22 kg"): the range's max IS the gym's dumbbell cap. Every
+// weight the app suggests or lists (the wheel, Next, the coach's raises, a reset) comes from
+// dumbbellsInRange, so nothing heavier than `max` is ever offered. These helpers turn a heaviest
+// dumbbell typed in either unit into that max, on the rack's own steps.
+
+/** The heaviest dumbbell the rack has, or null for a range that is not valid. */
+export function heaviestDumbbell(range: DumbbellRange | null | undefined): number | null {
+  if (!range) return null;
+  const all = dumbbellsInRange(range);
+  return all.length ? all[all.length - 1]! : null;
+}
+
+/** The other weight unit. */
+export const otherUnit = (unit: Unit): Unit => (unit === 'lb' ? 'kg' : 'lb');
+
+/**
+ * A heaviest dumbbell typed in `typedUnit`, as the rack's heaviest in the gym's unit: the heaviest
+ * dumbbell on the rack (min + n × step) that is not heavier than what was typed, so a cap is never
+ * rounded up (22 kg in a 5 lb step lb gym → 45 lb, never 50; 50 lb in a 2 kg step kg gym → 22 kg).
+ * null when even the lightest is heavier, or the numbers are not a rack.
+ */
+export function dumbbellCapIn(value: number, typedUnit: Unit, gymUnit: Unit, min: number, step: number): number | null {
+  if (![value, min, step].every(Number.isFinite) || step < MIN_DUMBBELL_STEP || step > MAX_DUMBBELL_STEP || min < 0) return null;
+  const cap = convertForGym(value, typedUnit, gymUnit);
+  // Converted values are not exact: anything within 1e-6 of a dumbbell counts as that dumbbell.
+  const n = Math.floor((toInt(cap) - toInt(min)) / toInt(step) + 1e-6);
+  if (n < 0) return null;
+  return Math.min(add(min, times(step, n)), add(min, times(step, MAX_DUMBBELLS)));
+}
+
+/** "about 20.4 kg": a weight shown in the other unit (display only, never stored). */
+export function formatInOther(value: number, unit: Unit): string {
+  const to = otherUnit(unit);
+  return `about ${formatWeight(convertForGym(value, unit, to), to)}`;
+}
+
+/** The heaviest dumbbell or held weight this setup can give (the top of its list), or null with no list. */
+export function heaviestHeld(kind: Load['kind'], s: Pick<LoadSetup, 'dumbbellRange' | 'heldPlates' | 'heldExact'>): number | null {
+  const all = heldChoices(kind, s);
+  return all && all.length ? all[all.length - 1]! : null;
+}
+
 /**
  * Top of the stack selector when the machine's real stack size is not known: 300 lb / 140 kg.
  * A display range only (how far the pin list scrolls), never stored and never shown as data.
@@ -633,33 +675,43 @@ const typedNumber = (t: string): number | null => {
  * What is wrong with a dumbbell range typed by hand (PLAN 3.3, SPEC 3), per field, so "abc" in one
  * never blames another. Empty fields are simply not filled in yet. A comma counts as a point. A
  * step that can never land on the heaviest is a problem: those dumbbells would not exist.
+ * PLAN 3.5j: `maxUnit`, the unit the heaviest was typed in ("22 kg" at a lb gym). In the other unit
+ * the heaviest is a cap, not a dumbbell: it becomes the rack's heaviest at or under it
+ * (dumbbellCapIn), so it can never miss the steps; under the lightest is the only problem left.
  */
-export function dumbbellRangeProblems(min: string, max: string, step: string, unit: Unit): DumbbellRangeProblems {
+export function dumbbellRangeProblems(min: string, max: string, step: string, unit: Unit, maxUnit: Unit = unit): DumbbellRangeProblems {
   const lo = typedNumber(min);
   const hi = typedNumber(max);
   const by = typedNumber(step);
   const out: DumbbellRangeProblems = {};
   if (Number.isNaN(lo)) out.min = 'number';
   else if (lo !== null && lo <= 0) out.min = 'zero';
-  if (Number.isNaN(hi)) out.max = 'number';
-  else if (hi !== null && hi > MAX_EXACT_HELD[unit]) out.max = 'too-heavy';
-  else if (hi !== null && lo !== null && !Number.isNaN(lo) && !out.min && hi < lo) out.max = 'under-min';
   if (Number.isNaN(by)) out.step = 'number';
   else if (by !== null && (by < MIN_DUMBBELL_STEP || by > MAX_DUMBBELL_STEP)) out.step = 'too-small';
-  else if (by !== null && lo !== null && hi !== null && !out.min && !out.max) {
+  if (Number.isNaN(hi)) out.max = 'number';
+  else if (hi !== null && hi > MAX_EXACT_HELD[maxUnit]) out.max = 'too-heavy';
+  else if (maxUnit !== unit) {
+    if (hi !== null && lo !== null && by !== null && !out.min && !out.step && dumbbellCapIn(hi, maxUnit, unit, lo, by) === null) out.max = 'under-min';
+    return out;
+  } else if (hi !== null && lo !== null && !Number.isNaN(lo) && !out.min && hi < lo) out.max = 'under-min';
+  if (!out.step && by !== null && lo !== null && hi !== null && !out.min && !out.max) {
     const steps = add(hi, -lo) / by;
     if (Math.abs(steps - Math.round(steps)) > 1e-6) out.step = 'misses-max';
   }
   return out;
 }
 
-/** The range, once all three fields are filled in with no problem; else null. */
-export function parseDumbbellRange(min: string, max: string, step: string, unit: Unit): DumbbellRange | null {
-  const problems = dumbbellRangeProblems(min, max, step, unit);
+/** The range, once all three fields are filled in with no problem; else null. `maxUnit`: see dumbbellRangeProblems. */
+export function parseDumbbellRange(min: string, max: string, step: string, unit: Unit, maxUnit: Unit = unit): DumbbellRange | null {
+  const problems = dumbbellRangeProblems(min, max, step, unit, maxUnit);
   if (problems.min || problems.max || problems.step) return null;
-  const range = { min: typedNumber(min), max: typedNumber(max), step: typedNumber(step) };
-  if (range.min === null || range.max === null || range.step === null) return null;
-  const typed = range as DumbbellRange;
+  const lo = typedNumber(min);
+  const hi = typedNumber(max);
+  const by = typedNumber(step);
+  if (lo === null || hi === null || by === null) return null;
+  const top = maxUnit === unit ? hi : dumbbellCapIn(hi, maxUnit, unit, lo, by);
+  if (top === null) return null;
+  const typed: DumbbellRange = { min: lo, max: top, step: by };
   return validDumbbellRange(typed) ? typed : null;
 }
 

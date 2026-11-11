@@ -35,11 +35,11 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
     const heading = await page.locator('h1').first().innerText();
     const primary = await page.getByTestId('reveal-cta').locator('button[data-variant="primary"]').innerText();
     const week = await page.getByTestId('reveal-week').count();
-    console.log(`R2a ${test.info().project.name} off=${27 - n}: ${heading} | primary="${primary}" week=${week} | reason="${reason.replace(/\n/g, ' ')}" | warning="${warn}" | quick="${quick}"`);
-    await page.screenshot({ path: `reports/shots/3.3a/verify/r2-reveal-off${27 - n}-${test.info().project.name.replace(/ /g, '-')}.png` });
+    console.log(`R2a ${test.info().project.name} off=${29 - n}: ${heading} | primary="${primary}" week=${week} | reason="${reason.replace(/\n/g, ' ')}" | warning="${warn}" | quick="${quick}"`);
+    await page.screenshot({ path: `reports/shots/3.3a/verify/r2-reveal-off${29 - n}-${test.info().project.name.replace(/ /g, '-')}.png` });
     // PLAN 3.5: no curated 4 day plan, so the generator builds Your plan from the gear that is on
     // (nothing to swap); one item off still gives a plan, with the check and Start Day 1.
-    expect(week, `plan week shown with ${27 - n} off`).toBe(1);
+    expect(week, `plan week shown with ${29 - n} off`).toBe(1);
     await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(4);
     expect(heading).toBe('Your plan');
     expect(primary).toBe('Start Day 1');
@@ -51,15 +51,15 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
     await page.waitForTimeout(400);
   };
   await page.getByTestId('equip-all').tap();
-  expect(await on()).toHaveLength(27);
+  expect(await on()).toHaveLength(29);
   await page.getByTestId('equip-kettlebells').tap();
-  await reveal(26);
+  await reveal(28);
   await page.getByTestId('equip-rower').scrollIntoViewIfNeeded();
   await page.getByTestId('equip-rower').tap();
-  await reveal(25);
+  await reveal(27);
   await page.getByTestId('equip-hip_adductor_abductor').scrollIntoViewIfNeeded();
   await page.getByTestId('equip-hip_adductor_abductor').tap();
-  await reveal(24);
+  await reveal(26);
 });
 
 test('(b) brand new, 3 days, 45 min (PLAN 3.5): a 3 day plan that fits 45 min is a true match, Start Day 1 leads, a quick workout is the option', async ({ page }) => {

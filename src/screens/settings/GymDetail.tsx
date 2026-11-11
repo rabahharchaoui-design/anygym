@@ -3,17 +3,15 @@ import { Navigate, useParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
 import { Button } from '../../ui/Button';
-import { Sheet } from '../../ui/Sheet';
 import { Skeleton } from '../../ui/Skeleton';
 import { Toast, type ToastMessage } from '../../ui/Toast';
-import { CheckIcon, ChevronRight } from '../../ui/icons';
+import { ChevronRight } from '../../ui/icons';
 import { useNav } from '../../ui/nav';
 import { useLive } from '../../hooks/useLive';
 import { db } from '../../db/schema';
 import { deleteGym, gymInUse, GymInUseError, LastGymError, setGymDetails } from '../../db/gymList';
 import { equipmentSummary } from '../../lib/gymPresets';
-import { useGymSwitch } from '../../components/gym/useGymSwitch';
-import { SwitchPreview } from '../../components/gym/SwitchPreview';
+import { MakeActive } from '../../components/gym/MakeActive';
 import styles from '../Settings.module.css';
 import gymStyles from './Gyms.module.css';
 
@@ -62,8 +60,6 @@ export function GymDetail() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [saveError, setSaveError] = useState(false);
   const g = gym.data;
-  const activeName = useLive(async () => (await db.gyms.toArray()).find((x) => x.isActive)?.name, []);
-  const sw = useGymSwitch(setToast, () => activeName.data);
 
   useEffect(() => {
     if (!toast) return;
@@ -102,16 +98,7 @@ export function GymDetail() {
       ) : (
         <>
           <section className={styles.group} aria-label="Where you train">
-            {g.isActive ? (
-              <p className={gymStyles.here} data-testid="gym-is-active">
-                <CheckIcon width={18} height={18} strokeWidth={3} aria-hidden="true" />
-                You are training here
-              </p>
-            ) : (
-              <Button onClick={() => void sw.pick(g)} disabled={sw.busy} data-testid="make-active">
-                Make active
-              </Button>
-            )}
+            <MakeActive gym={g} onToast={setToast} />
           </section>
           <section className={styles.group} aria-labelledby="gym-about">
             <h2 id="gym-about" className={styles.groupTitle}>
@@ -149,9 +136,6 @@ export function GymDetail() {
           </section>
         </>
       )}
-      <Sheet open={sw.pending !== null} onClose={sw.cancel} label="Switch gym" scroll footer>
-        {sw.pending && <SwitchPreview pending={sw.pending} fromName={activeName.data} busy={sw.busy} onConfirm={() => void sw.confirm()} onStay={sw.cancel} />}
-      </Sheet>
       <Toast toast={toast} />
     </>
   );

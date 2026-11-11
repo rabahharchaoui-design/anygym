@@ -6,6 +6,7 @@ import { definitionPlan, PLANS } from '../../data/plans';
 import { SWAP_DATA } from '../../data/patterns';
 import { EQUIPMENT_IDS } from '../../db/types';
 import { explainPick, pickPlan } from '../intake/planPick';
+import type { Applied } from '../generator';
 import { generatorInputOf, yourPlanWords } from '../intake/yourPlan';
 import { presetEquipment, type IntakeAnswers } from '../intake/funnel';
 
@@ -83,6 +84,11 @@ describe('Your plan words', () => {
     );
     expect(w.reason).toBe('Built to build muscle: 2 days, about 41 min, full gym.');
     expect(w.warning).toBe('No room for extra chest work here.');
+  });
+  it('a strength plan that kept its long rests says why it has fewer lifts', () => {
+    const base: Applied = { main: 'strength', also: null, alsoUsed: false, focus: [], focusMissed: [], loved: [], lovedMissed: [], never: 0, easyOn: [], gaps: [], finisher: null, minutes: [29, 29], over: false };
+    expect(yourPlanWords({ ...base, restKept: true }, { minutes: 30, place: 'hotel' }, 3).warning).toBe('Strength days keep their long rests, so this time fits fewer lifts.');
+    expect(yourPlanWords(base, { minutes: 30, place: 'hotel' }, 3).warning).toBeNull();
   });
   it('a curated plan that truly matches keeps its own words (the generator is only for the rest)', () => {
     const a: IntakeAnswers = { goal: 'muscle', experience: '3y', days: 5, place: 'full', equipment: [...EQUIPMENT_IDS] };

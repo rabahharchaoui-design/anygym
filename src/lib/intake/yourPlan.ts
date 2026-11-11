@@ -118,6 +118,7 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   // PLAN 3.5g: the real minutes, and what to do about it (the workout offers Make it fit at the start).
   const over = applied.over && timed ? overWords(applied.minutes, a.minutes!) : null;
   if (over) notes.push(over);
+  else if (applied.restKept) notes.push('Strength days keep their long rests, so this time fits fewer lifts.');
   return { reason, goals, warning: notes.length ? capital(notes.join(' ')) : null, minutes: applied.minutes };
 }
 

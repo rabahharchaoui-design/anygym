@@ -300,3 +300,31 @@
   font-size: var(--text-sm);
   text-align: center;
 }
+
+/* Make active, once it is (PLAN 3.9; moved here with MakeActive in 3.5j). */
+.here {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* PLAN 3.5j: + New gym asks what the place has, right under its kind. */
+.kit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.kitTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}

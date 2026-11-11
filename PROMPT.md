@@ -24,7 +24,7 @@ MERGE GATE (the last item of each session)
 - Phone alert (G wants these): at every checkpoint ship and every merge gate, send one short push with the item and what changed: `curl -s -H "Title: AnyGym: shipped" -H "Tags: rocket" -d "<item id> <short summary> is live" "ntfy.sh/$(cat ~/.config/anygym/ntfy-topic)"`. Also push when an item gets marked [!]. Never write the topic into the repo.
 
 CHECKPOINTS
-Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. Master is always usable and saved data is never lost.
+Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. NEVER BATCH CHECKPOINTS (G, Nov 11: he opened the app and saw none of the day's work): before starting any item, compare master with the session branch; if any checked item is not on master yet, checkpoint first. A checked item that is not live does not count as done for G. Send the shipped and test now pushes ONLY after the Pages deploy run is green AND the live site serves the new build (fetch the live index and check the new asset hash); G, Nov 11 11:34 PM, opened the app during a deploy and saw the old version. Master is always usable and saved data is never lost.
 
 TEST NOW PUSHES (G wants to know when to open the app and what to try)
 - After a checkpoint ships anything G can see or tap on his iPhone, send a second push titled "AnyGym: test now" that opens the app when tapped:

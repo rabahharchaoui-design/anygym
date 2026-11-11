@@ -520,7 +520,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   // 185 lb", plus why when the weight moved; without a weight to beat, the reason alone.
   // 3.5f round 3 (M11): a hold's line names the hold the row is prefilled with (setTable.pendingRows).
   const beat = progression && lastTime ? (kind === 'timed' && current?.seconds && !current.edited ? `Beat last time: ${current.seconds} s` : beatLine(progression)) : null;
-  const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || progression.next.kind === 'coach' || !progression.next.load) ? progression.next.reason : '';
+  const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || progression.next.kind === 'coach' || progression.next.atTop || !progression.next.load) ? progression.next.reason : '';
   // PLAN 3.8: a first timer's number, set from their light test set (SPEC 15).
   const yourNumber = progression && !lastTime && progression.next.kind === 'first_time' && progression.next.load && logged.length > 0 && rows.length > 0 ? progression.next.reason : '';
   const allDone = rows.length === 0 && logged.some((s) => s.kind === 'work');
