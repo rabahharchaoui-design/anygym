@@ -123,6 +123,7 @@ while [ $n -lt 300 ]; do
   sync_out
   if grep -qE "^[[:space:]]*ALL DONE[.]?[[:space:]]*$" "$RUNLOG"; then say "ALL DONE"; rm -f "$RUNLOG"; break; fi
   if grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your" "$RUNLOG"; then
+    if grep -qiE "weekly|week" "$RUNLOG" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "Press Full reset now: Claude, Settings, Usage, Full reset. The build continues by itself after that." "warning"; say "weekly limit hit, asked G on his phone to press Full reset"; fi
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"
