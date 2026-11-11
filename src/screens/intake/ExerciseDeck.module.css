@@ -1,11 +1,16 @@
 /* PLAN 3.5f: the intake's love / never deck. A height of its own, so the card is the same on every phone. */
 .deck {
+  /* Round 2 (tester): the deck takes exactly the room the toggle and Continue leave, so the card, its
+     three buttons and the footer never overlap, at 100% or 130% text. The card's photo gives way
+     first (it shrinks, never the buttons); a tall phone stops at a comfortable card. */
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  /* The room an iPhone SE leaves between the toggle and Continue, up to a comfortable card on tall phones:
-     Skip, Never and Love are always in reach without scrolling. */
-  height: clamp(264px, calc(var(--app-height, 100vh) - 400px), 460px);
-  margin-top: var(--space-3);
+  min-height: 196px;
+  max-height: 520px;
+  /* The body keeps 24 px under it for the footer's fade; the deck never scrolls under it, so it may
+     take most of that room (8 px still clear above "Skip the rest"). */
+  margin-bottom: calc(-1 * var(--space-4));
 }
 
 .done {

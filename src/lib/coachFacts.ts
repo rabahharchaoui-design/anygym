@@ -6,7 +6,8 @@
 import type { Pattern } from './swap';
 import { type Profile, isCompound, liftWord, muscleWord } from './order';
 
-export const FACT_ROLES = ['first', 'angle', 'compound', 'finish', 'isolation', 'late', 'pair', 'circuit', 'hold', 'swap', 'close', 'standin', 'about', 'other'] as const;
+// 'next': Up next's reason (lib/upNext.ts); 'idea': an idea card's line where no logged rest says more (lib/quickFocus.ts).
+export const FACT_ROLES = ['first', 'angle', 'compound', 'finish', 'isolation', 'late', 'pair', 'circuit', 'hold', 'swap', 'close', 'standin', 'about', 'other', 'next', 'idea'] as const;
 /** Where a move sits: the day's first big lift, a second angle, the finish of a big lift, one of a pair... */
 export type FactRole = (typeof FACT_ROLES)[number];
 
@@ -26,7 +27,7 @@ export const FACT_WORDS = ['name', 'muscle', 'lift', 'from', 'partner', 'reason'
 export type FactWords = Partial<Record<(typeof FACT_WORDS)[number], string>>;
 
 /** The words a role always has (roleAt fills them); every other word may be missing. */
-const SURE_WORDS: Record<FactRole, readonly string[]> = { first: [], angle: [], compound: [], finish: ['muscle', 'lift'], isolation: [], late: [], pair: ['partner'], circuit: [], hold: [], swap: ['from'], close: ['from'], standin: ['from', 'reason'], about: [], other: [] };
+const SURE_WORDS: Record<FactRole, readonly string[]> = { first: [], angle: [], compound: [], finish: ['muscle', 'lift'], isolation: [], late: [], pair: ['partner'], circuit: [], hold: [], swap: ['from'], close: ['from'], standin: ['from', 'reason'], about: [], other: [], next: [], idea: [] };
 
 /** A card's note: the fact it came from and its two texts, words filled in. */
 export type Note = { fact: string; why: string; more: string };
@@ -82,6 +83,18 @@ export function pickFact(facts: readonly CoachFact[], role: FactRole, pattern: P
 }
 
 export const noteOf = (fact: CoachFact, words: FactWords): Note => ({ fact: fact.id, why: fill(fact.line, words), more: fill(fact.more, words) });
+
+/**
+ * A fact chosen by its id (Up next's reasons, an idea card's line): the claim is the file's own
+ * sentence, only the names in {braces} are filled in. A missing id or word is a bug, never a made up line.
+ */
+export function noteById(facts: readonly CoachFact[], id: string, words: FactWords = {}): Note {
+  const fact = facts.find((f) => f.id === id);
+  if (!fact) throw new Error(`No coach fact ${id}`);
+  const missing = wordsIn(fact.line).filter((w) => !words[w as keyof FactWords]);
+  if (missing.length) throw new Error(`Coach fact ${id} needs {${missing.join('}, {')}}`);
+  return noteOf(fact, words);
+}
 
 /** One move of a workout, as the notes read it. */
 export type NoteItem = {

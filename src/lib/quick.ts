@@ -16,7 +16,7 @@
 import type { EquipmentId } from '../db/types';
 import type { GeneratorDeps, GeneratorInput } from './generator';
 import type { Range } from './generatorRules';
-import { AREA_RULES, isHeavy, type Muscle, type Profile, type SessionArea } from './order';
+import { isHeavy, sessionTitle, type Muscle, type Profile } from './order';
 import type { PlanDay } from './plans';
 import { candidateFacts, requiresOf, workoutIdOf, type Pattern } from './swap';
 import type { DayTrim } from './timeBudget';
@@ -33,7 +33,7 @@ import { nextSwap, safePairs, sureGear, swapItem } from './quickDeck';
 // fresh cards (quickCards), the plan day card (quickPlan), the deck's swap and learning (quickDeck).
 export { quickDayOf, structureOf, STYLES, STYLE_ORDER, type StyleId } from './quickStyles';
 export { daysSince, muscleRestLine, restedLine, trainedWithin, whenWords, wordList } from './quickWhy';
-export { FIT_SLACK, MAIN_MUSCLES, fits, gearOf, gearWords, mainMuscles, metaLine, moreLabel, primaryOf, quickAvoids, roundsOf } from './quickShow';
+export { FIT_SLACK, MAIN_MUSCLES, countLine, fits, gearOf, gearWords, mainMuscles, metaLine, moreLabel, primaryOf, quickAvoids, roundsOf } from './quickShow';
 export { restedFirst, shortLine } from './quickCards';
 export { focusCard, focusCards, focusOrder } from './quickFocus';
 export { type PreviewInput, previewConcept } from './quickPreview';
@@ -179,7 +179,7 @@ export type QuickInput = {
 export function quickTitleOf(style: string | undefined): string {
   if (style === 'fresh') return "Hit what's fresh";
   // PLAN 3.5f: an area day is saved as "focus:chest".
-  if (style?.startsWith('focus:')) return AREA_RULES[style.slice(6) as SessionArea]?.title ?? 'Quick workout';
+  if (style?.startsWith('focus:')) return sessionTitle(style.slice(6)) ?? 'Quick workout';
   return style && style in STYLES ? STYLES[style as StyleId].title : 'Quick workout';
 }
 

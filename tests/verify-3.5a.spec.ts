@@ -389,10 +389,14 @@ test.describe('3.5a verify', () => {
     await page.waitForTimeout(500);
     const pos = await card(page).locator('p').first().textContent();
     console.log('after double tap Keep:', pos, 'of', total);
-    // reload mid deck: nothing created, back at the choose screen without stuck state
+    // reload mid deck: nothing created, no stuck state. 3.5f round 2: the deck comes back on the same
+    // card (G: a reload never loses the curation); Back is the way to the choose screen.
     await page.reload();
-    await expect(page.locator('[data-concept]').first()).toBeVisible();
+    await expect(card(page)).toBeVisible();
+    await expect(card(page).locator('p').first()).toHaveText(pos!);
     expect((await dbAll(page, 'sessions')).filter((x) => (x as { endedAt?: number }).endedAt === undefined)).toHaveLength(0);
+    await page.getByRole('button', { name: 'Back to the workouts' }).tap();
+    await expect(page.locator('[data-concept]').first()).toBeVisible();
     // back mid action
     await page.locator('[data-concept]').first().tap();
     await page.getByTestId('deck-swap').tap();

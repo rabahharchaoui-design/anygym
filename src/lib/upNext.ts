@@ -1,7 +1,10 @@
 // "Up next" and the plain words of SPEC 22 (PLAN 3.4a; moved out of order.ts in 3.5f, code
-// organization, behavior unchanged). Pure. Everyone imports these from lib/order.
+// organization, behavior unchanged). Pure. Everyone imports these from lib/order. PLAN 3.5f round 2:
+// every reason is a curated line of data/coach-facts.json chosen by id (role 'next').
 import type { Pattern } from './swap';
 import { type Goal, type Muscle, type Profile, isCompound } from './order';
+import { COACH_FACTS } from '../data/coachFacts';
+import { noteById, type FactWords } from './coachFacts';
 
 // ---------------------------------------------------------------- Up next
 
@@ -18,7 +21,10 @@ export type UpNextContext = {
   experience?: string;
 };
 
-export type Idea = { profile: Profile; reason: string };
+/** `reason` is a curated line of data/coach-facts.json (role 'next'), `fact` its id (PLAN 3.5f: no note is made up). */
+export type Idea = { profile: Profile; reason: string; fact: string };
+
+type Reason = { fact: string; words?: FactWords };
 
 const PUSH: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal push', 'vertical push', 'chest isolation', 'triceps', 'lateral delt']);
 const PULL: ReadonlySet<Pattern> = new Set<Pattern>(['horizontal pull', 'vertical pull', 'rear delt', 'biceps']);
@@ -74,7 +80,7 @@ const MUSCLE_WORD: Record<Muscle, string> = {
 };
 export const muscleWord = (m: Muscle): string => MUSCLE_WORD[m];
 
-type Scored = { p: Profile; score: number; reason: string; at: number };
+type Scored = { p: Profile; score: number; reason: Reason; at: number };
 
 /** Rule 4: the isolation patterns that finish what a compound started. */
 const FOLLOW_UPS: Partial<Record<Pattern, readonly Pattern[]>> = {
@@ -122,11 +128,11 @@ export function upNextIdeas(done: readonly Profile[], pool: readonly Profile[], 
     if (isCompound(p) && p.helpers.some((h) => tired.has(h))) return;
     if (p.advanced && ctx.experience !== '3y') return;
     let score = 0;
-    const why = new Map<Why, string>();
+    const why = new Map<Why, Reason>();
     if (isCompound(p)) {
       if (compounds.length < need) {
         score += 40 - p.tier * 6 + p.load;
-        why.set('compound', lastLift ? `Different pattern after ${liftWord(lastLift)}` : 'Big lift first, while you are fresh');
+        why.set('compound', lastLift ? { fact: 'next-after', words: { lift: liftWord(lastLift) } } : { fact: 'next-first' });
       } else score += 8 - p.tier * 4;
       // Spread the big lifts over the body: another one on the same muscles waits.
       if (compounds.some((c) => c.targets.some((m) => p.targets.includes(m)))) score -= 8;
@@ -135,26 +141,26 @@ export function upNextIdeas(done: readonly Profile[], pool: readonly Profile[], 
       if (anchor && !(p.pattern && patternsDone.has(p.pattern))) {
         score += 25 + (anchor === last ? 8 : 0);
         const m = p.targets.find((x) => anchor.targets.includes(x) || anchor.helpers.includes(x)) ?? p.targets[0];
-        why.set('follow', m ? `Finishes the ${muscleWord(m)} your ${liftWord(anchor)} warmed up` : `Builds on your ${liftWord(anchor)}`);
+        why.set('follow', m ? { fact: 'next-follow', words: { muscle: muscleWord(m), lift: liftWord(anchor) } } : { fact: 'next-builds', words: { lift: liftWord(anchor) } });
       }
       if (compounds.length < need) score -= 20;
       if (p.tier >= 3) {
-        if (done.length >= 3) why.set('late', 'Abs and calves go near the end');
+        if (done.length >= 3) why.set('late', { fact: 'next-late' });
         else score -= 12;
       }
     }
     // Push and pull roughly equal (rule 7), legs never skipped.
     if (p.pattern && PULL.has(p.pattern) && push > pull) {
       score += 12 + (isCompound(p) ? 4 : 0);
-      why.set('balance', 'Balances your push');
+      why.set('balance', { fact: 'next-balance-push' });
     }
     if (p.pattern && PUSH.has(p.pattern) && pull > push) {
       score += 12 + (isCompound(p) ? 4 : 0);
-      why.set('balance', 'Balances your pull');
+      why.set('balance', { fact: 'next-balance-pull' });
     }
     if (p.pattern && LEGS.has(p.pattern) && legs === 0 && done.length >= 3 && push + pull >= 3) {
       score += 10;
-      why.set('legs', 'Your legs get a turn');
+      why.set('legs', { fact: 'next-legs' });
     }
     if (last?.pattern && p.pattern === last.pattern) score -= 50;
     else if (p.pattern && patternsDone.has(p.pattern)) score -= 15;
@@ -163,12 +169,12 @@ export function upNextIdeas(done: readonly Profile[], pool: readonly Profile[], 
     const f = p.targets.find((m) => focus.has(m));
     if (f) {
       score += 10;
-      why.set('focus', `Your focus: ${muscleWord(f)}`);
+      why.set('focus', { fact: 'next-focus', words: { muscle: muscleWord(f) } });
     }
     // Plain moves first, even for those who may do a skill.
     if (p.advanced) score -= 25;
     const order: Why[] = ['focus', 'follow', 'balance', 'legs', 'compound', 'late'];
-    const reason = order.map((w) => why.get(w)).find(Boolean) ?? (isCompound(p) ? 'Next big lift while you are fresh' : 'Rounds out the workout');
+    const reason = order.map((w) => why.get(w)).find(Boolean) ?? { fact: isCompound(p) ? 'next-big' : 'next-plain' };
     scored.push({ p, score, reason, at });
   });
   scored.sort((a, b) => b.score - a.score || a.p.tier - b.p.tier || a.at - b.at);
@@ -185,5 +191,6 @@ export function upNextIdeas(done: readonly Profile[], pool: readonly Profile[], 
     if (out.length > others) break;
     if (!out.includes(s)) out.push(s);
   }
-  return out.map((s) => ({ profile: s.p, reason: s.reason }));
+  // The line shown is the file's own sentence, only the lift and muscle names filled in.
+  return out.map((s) => ({ profile: s.p, reason: noteById(COACH_FACTS, s.reason.fact, s.reason.words).why, fact: s.reason.fact }));
 }

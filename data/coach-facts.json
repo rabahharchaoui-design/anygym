@@ -72,6 +72,21 @@
     { "id": "about-core", "role": "about", "patterns": ["core"], "line": "A move for your abs, the muscles that steady every lift", "more": "Your midsection holds your body still or curls it against resistance. A strong midsection helps every other lift you do." },
     { "id": "about-plain", "role": "about", "line": "A move this gym can do", "more": "It uses only equipment this gym has. Its photo shows the start and the end of one rep." },
 
+    { "id": "next-focus", "role": "next", "line": "Your focus: {muscle}", "more": "You asked for more work on your {muscle}, so a move for them comes up first. It still fits around what you have done today." },
+    { "id": "next-follow", "role": "next", "line": "Finishes the {muscle} your {lift} warmed up", "more": "Your {muscle} already helped on the {lift}, so a smaller move finishes them without heavy weight. Go close to your last good rep." },
+    { "id": "next-builds", "role": "next", "line": "Builds on your {lift}", "more": "This small move trains muscles the {lift} already worked, so they are warm and ready. A few steady sets are enough." },
+    { "id": "next-balance-push", "role": "next", "line": "Balances your push", "more": "You have pressed more than you have pulled today, so a pull evens it out. Pulling as much as you push keeps your shoulders balanced." },
+    { "id": "next-balance-pull", "role": "next", "line": "Balances your pull", "more": "You have pulled more than you have pressed today, so a press evens it out. Pressing as much as you pull keeps your upper body balanced." },
+    { "id": "next-legs", "role": "next", "line": "Your legs get a turn", "more": "Your upper body has done most of the work so far. A leg move now keeps the workout whole." },
+    { "id": "next-after", "role": "next", "line": "Different pattern after {lift}", "more": "A big lift of another kind uses muscles the {lift} did not tire. You can lift heavy again without waiting." },
+    { "id": "next-first", "role": "next", "line": "Big lift first, while you are fresh", "more": "The biggest lifts go before anything tires the muscles that help them. Take a full rest between sets so each one stays strong." },
+    { "id": "next-big", "role": "next", "line": "Next big lift while you are fresh", "more": "Big lifts train several muscles at once, so they come before the small moves. You still have the energy to lift heavy." },
+    { "id": "next-late", "role": "next", "line": "Abs and calves go near the end", "more": "These small muscles steady you in every big lift, so they are trained once those are done. A few steady sets are enough." },
+    { "id": "next-plain", "role": "next", "line": "Rounds out the workout", "more": "This move trains something today's workout has not covered yet. Do it with control, at a pace you can keep for every rep." },
+
+    { "id": "idea-structure", "role": "idea", "line": "Big lift first, then a second angle, then a finish", "more": "The heaviest lift goes first while you are fresh, then a different angle trains more of the muscle. A smaller move at the end finishes it without heavy weight." },
+    { "id": "idea-fewer", "role": "idea", "line": "{name} is the one sure {muscle} move here, so the day works around it", "more": "This gym has few moves for this area that we can show you, so the day adds the muscles that help it. More moves join by themselves once they are approved." },
+
     { "id": "other-any", "role": "other", "line": "Works your {muscle}", "more": "This move is part of the workout as it was built. Do it with control, at a pace you can keep for every rep." },
     { "id": "other-plain", "role": "other", "line": "Part of this workout", "more": "This move is part of the workout as it was built. Do it with control, at a pace you can keep for every rep." }
   ]

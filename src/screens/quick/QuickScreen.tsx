@@ -27,15 +27,20 @@ import { startPreviewedDay } from '../today/startPreview';
 import { CurateStage } from './CurateStage';
 import { ConceptCard } from './ConceptCard';
 import { useDeck } from './useDeck';
+import { clearDeck } from './deckMemory';
+import { useKeptDeck } from './useKeptDeck';
 import { baseInput, equipmentPath, kitOf } from './quickInput';
 import styles from './Quick.module.css';
 
 // Quick workout builds it for you (PLAN 3.5a, SPEC 20.3, G Nov 5): "How long?" chips, "Pick one" of
-// up to 4 cards that differ by style (PLAN 3.5b: a style chip, the gear it uses, 3 effort dots, the
-// mini map and a specific why line), a "More ideas" row that swaps card 4 for another style, then
+// up to 4 cards that differ by style (PLAN 3.5f: a calm face, the title, a why line, the count and
+// minutes and the mini map; the rest behind ⓘ), a "More ideas" row that swaps card 4 for another style, then
 // "Curate it": a deck of the workout, one exercise per card.
 // Start now on every card (Start workout once anything changed or after the last card).
 // "Pick exercises myself" keeps the old picker flow.
+
+/** Taps on More ideas this close together are one double tap. */
+const DOUBLE_TAP_MS = 450;
 
 type Loaded = {
   answers: IntakeAnswers | undefined;
@@ -139,7 +144,13 @@ export function QuickScreen() {
   const [swappedIn, setSwappedIn] = useState<string | null>(null);
   // 3.5d (4): the card a More ideas tap brought in is scrolled into view and glows once (motion.ts DUR.celebrate).
   const [flash, setFlash] = useState<string | null>(null);
+  // A double tap is one decision: the chip that lands under the second tap (the card just replaced,
+  // back in the row) is not picked too.
+  const lastMore = useRef(-Infinity);
   const pickMore = (c: Concept, back: boolean) => {
+    const now = performance.now();
+    if (now - lastMore.current < DOUBLE_TAP_MS) return;
+    lastMore.current = now;
     setPicked(back ? null : { chip, key: cardKey(c) });
     setSwappedIn(cardKey(c));
     setFlash(cardKey(c));
@@ -164,6 +175,9 @@ export function QuickScreen() {
   const deck = useDeck(base, kit, neverNow, setNeverNow, setError);
   const { stage, setStage, curate } = deck;
 
+  // PLAN 3.5f round 2: the minutes stay in the URL, and an open deck comes back after a reload.
+  useKeptDeck({ minutes, setMinutes, chip, preview, ideas: all ? [...all.cards, ...all.more] : null, stage, setStage });
+
   // PLAN 3.5f: Preview: today's plan day as the workout will start it (the time picked on Today
   // applied), one lift per card. No plan day to look through: the Quick workout screen as usual.
   useEffect(() => {
@@ -184,6 +198,8 @@ export function QuickScreen() {
     if (!stage || !gym || !stage.items.length) return;
     setError('');
     try {
+      // The deck is done with once the workout starts: a reload is the workout now, never the deck.
+      clearDeck();
       if (preview && stage.plan) {
         // The plan day starts exactly as Today's Start starts it; only the deck's swaps and hidden moves are applied.
         const s = await startPreviewedDay(gym.id, stage.plan, { items: stage.items, removed: stage.removed });

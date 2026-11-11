@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { dbAll, dbPut, seedFinished, shotOn, watchErrors } from './workout-helpers';
-import { card, pastIntake, PROFILE } from './helpers/quick';
+import { card, pastIntake, PROFILE, readIdea, readIdeas } from './helpers/quick';
 import { readFileSync } from 'node:fs';
 
 // Tester checks for PLAN 3.5b (independent of tests/quick-3.5b.spec.ts).
@@ -18,22 +18,8 @@ async function open(page: Page, m = 30) {
   await expect(page.getByRole('heading', { name: 'Quick workout' })).toBeVisible();
   await expect(page.locator('[data-concept]').first().or(page.getByTestId('quick-nofit')).or(page.getByRole('heading', { name: /Not enough here/ })).first()).toBeVisible();
 }
-const read = (page: Page) =>
-  page.locator('[data-concept]').evaluateAll((els) =>
-    els.map((e) => ({
-      id: e.getAttribute('data-concept')!,
-      title: e.querySelector('[data-testid="concept-title"]')?.textContent ?? '',
-      chip: e.querySelector('[data-testid="style-chip"]')?.textContent ?? '',
-      why: e.querySelector('[data-testid="concept-why"]')?.textContent ?? '',
-      meta: e.querySelector('[data-testid="concept-meta"]')?.textContent ?? '',
-      gearLabel: e.querySelector('[data-testid="concept-gear"]')?.getAttribute('aria-label') ?? '',
-      gearIcons: Array.from(e.querySelectorAll('[data-testid="concept-gear"] svg[data-art]')).map((s) => s.getAttribute('data-art')),
-      dots: e.querySelectorAll('[data-testid="effort"] > span').length,
-      dotsOn: e.querySelectorAll('[data-testid="effort"] > span[data-on]').length,
-      map: e.querySelectorAll('[data-testid="mini-map"]').length,
-      h: e.getBoundingClientRect().height,
-    })),
-  );
+// 3.5f: calm card face: the chip, dots, gear, reason line and the full count line are behind ⓘ.
+const read = readIdeas;
 const minOf = (meta: string) => Number(meta.match(/~(\d+) min/)![1]);
 const countOf = (meta: string) => Number(meta.match(/^(\d+)/)![1]);
 
@@ -325,8 +311,8 @@ test.describe('verify 3.5b', () => {
       await expect(page.getByTestId(`min-${m}`)).toHaveAttribute('aria-pressed', 'true');
       await page.waitForTimeout(250);
       const cs = await read(page);
-      const first = page.locator('[data-concept]').first();
-      const short = await first.getByTestId('concept-short').allTextContents();
+      // 3.5f: calm card face: the reason line is behind the card's info button.
+      const short = cs[0]!.short;
       console.log(`R2 plan ${m}: ${cs[0]!.id} "${cs[0]!.title}" ${cs[0]!.meta} why="${cs[0]!.why}" short=${JSON.stringify(short)}`);
       expect(cs[0]!.id).toBe('plan');
       const mn = minOf(cs[0]!.meta);
@@ -339,7 +325,8 @@ test.describe('verify 3.5b', () => {
     await page.getByTestId('min-30').tap();
     await page.waitForTimeout(250);
     const plan = page.locator('[data-concept="plan"]');
-    const meta = (await plan.getByTestId('concept-meta').textContent())!;
+    // 3.5f: calm card face: the pairs are behind the card's info button.
+    const meta = (await readIdea(page, plan)).meta;
     const n = countOf(meta);
     // 3.5b round 4 (M9): the line says "pairs" now (was "supersets").
     const supers = Number(meta.match(/(\d+) (?:supersets?|pairs?)/)?.[1] ?? 0);
@@ -450,8 +437,8 @@ test.describe('verify 3.5b', () => {
         await page.getByTestId(`min-${m}`).tap();
         await page.waitForTimeout(250);
         for (const c of await page.locator('[data-concept]').all()) {
-          const meta = (await c.getByTestId('concept-meta').textContent())!;
-          const short = await c.getByTestId('concept-short').allTextContents();
+          // 3.5f: calm card face: the reason line is behind the card's info button.
+          const { meta, short } = await readIdea(page, c);
           const under = m - minOf(meta);
           console.log(`R2-5 ${gn} ${m} ${await c.getAttribute('data-concept')} ${meta} under=${under} short=${JSON.stringify(short)}`);
           if (under > 2) expect(short).toHaveLength(1);
@@ -672,7 +659,8 @@ async function inspectAllNoOpen(page: Page): Promise<Inspected[]> {
       continue;
     }
     const c = (await read(page)).find((x) => x.id === c0.id)!;
-    const short = (await loc.getByTestId('concept-short').allTextContents()).join('|');
+    // 3.5f: calm card face: the reason line is behind the card's info button.
+    const short = c.short.join('|');
     const n = countOf(c.meta);
     await loc.tap();
     const names: string[] = [];

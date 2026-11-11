@@ -57,7 +57,9 @@ test.describe('3.5f the deck in Quick workout', () => {
     await expect(card(page)).not.toContainText('Swapped in');
     await expect(card(page).getByTestId('deck-never')).toHaveCount(0);
     // Two lines under the name, nothing else drawn (the card's place is read out, and shown in the bar).
-    await expect(card(page).locator('p:visible')).toHaveCount(2);
+    // Round 2: the screen reader only place ("1 of 6", 1 px, clipped) is not a drawn line: count the drawn ones.
+    const drawn = await card(page).locator('p:visible').evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().width > 2).length);
+    expect(drawn).toBe(2);
     await expect(page.getByTestId('deck-count')).toHaveText(/^1 of \d+$/);
     // One primary action: Keep is lime; Start is glass until the deck is done.
     await expect(page.getByTestId('quick-start').locator('button')).toHaveAttribute('data-variant', 'secondary');
@@ -181,7 +183,9 @@ test.describe('3.5f the deck in Quick workout', () => {
     const id = Object.keys((await profile()).dislikes!.lefts!)[0]!;
     // One workout so far: not asked.
     await expect(page.getByTestId('hide-ask')).toHaveCount(0);
-    // Two earlier workouts already swiped it away.
+    // Two earlier workouts already swiped it away. (Round 2: a reload mid deck comes back to the deck;
+    // Back first, so the reload is a new visit.)
+    await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await dbPut(page, { profile: [{ ...PROFILE, dislikes: { lefts: { [id]: ['deck-1', 'deck-2'] } } }] });
     await page.reload();
     await page.getByTestId('min-30').tap();
@@ -232,6 +236,85 @@ test.describe('3.5f the deck in Quick workout', () => {
     await expect(page).toHaveURL(/#\/workout\/[^/]+\/[^/]+$/);
     const s = (await dbAll<{ quickStyle?: string; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
     expect(s.quickStyle).toBe('focus:chest');
+    expect(errors).toEqual([]);
+  });
+
+  // Round 2 (G's rule 5, calm card face): an idea card shows its title, one why line and
+  // "N exercises · ~T min" with the mini map; the style, effort, pairs and rounds, a short card's
+  // reason and the gear are behind its ⓘ (48 pt).
+  for (const pct of [100, 130])
+    test(`calm idea cards at ${pct}%: three things on the face, the rest behind ⓘ`, async ({ page }) => {
+      const errors = watchErrors(page);
+      await pastIntake(page);
+      await page.getByTestId('build-card').tap();
+      await page.getByTestId('min-30').tap();
+      await expect(page.locator('[data-concept]').first()).toBeVisible();
+      if (pct !== 100) await page.evaluate((p) => (document.documentElement.style.fontSize = `${p}%`), pct);
+      await page.waitForTimeout(200);
+      const cards = page.locator('[data-concept]');
+      expect(await cards.count()).toBeLessThanOrEqual(4);
+      await expect(page.getByTestId('more-ideas')).toBeVisible();
+      for (const c of await cards.all()) {
+        await expect(c.getByTestId('concept-meta')).toHaveText(/^\d+ exercises? · ~\d+ min$/);
+        await expect(c.getByTestId('concept-why')).not.toHaveText('');
+        await expect(c.getByTestId('mini-map')).toHaveCount(1);
+        for (const id of ['style-chip', 'effort', 'concept-gear', 'concept-short']) await expect(c.getByTestId(id)).toHaveCount(0);
+        const box = (await c.getByTestId('concept-info').boundingBox())!;
+        expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(48);
+      }
+      await noSideScroll(page);
+      await shot(page, `round2/idea-cards-${pct}`);
+      const first = cards.first();
+      const title = (await first.getByTestId('concept-title').textContent())!;
+      await first.getByTestId('concept-info').tap();
+      const sheet = page.getByTestId('idea-sheet');
+      await expect(sheet).toBeVisible();
+      await expect(page.getByRole('dialog', { name: `More about ${title}` })).toBeVisible();
+      await expect(sheet.getByTestId('style-chip')).not.toHaveText('');
+      await expect(sheet.getByTestId('effort').locator('span')).toHaveCount(3);
+      await expect(sheet.getByTestId('idea-meta')).toHaveText(/^\d+ exercises? (· \d+ (rounds?|pairs?) )*· ~\d+ min$/);
+      await expect(sheet.getByTestId('concept-gear')).toHaveAttribute('aria-label', /^(Uses .+|No equipment)$/);
+      await shot(page, `round2/idea-info-${pct}`);
+      await page.keyboard.press('Escape');
+      await expect(sheet).toHaveCount(0);
+      // The ⓘ never picks the card; the card still does.
+      await expect(page.getByTestId('deck-card')).toHaveCount(0);
+      await first.tap();
+      await expect(card(page)).toBeVisible();
+      expect(errors).toEqual([]);
+    });
+
+  test('a reload mid deck comes back to the same card with its swaps; Back or Start clears it', async ({ page }) => {
+    const errors = watchErrors(page);
+    await pastIntake(page);
+    await openDeck(page, 'strength', 30);
+    // The minutes picked are in the URL.
+    await expect(page).toHaveURL(/[?&]min=30\b/);
+    await page.getByTestId('deck-keep').tap();
+    await expect(page.getByTestId('deck-count')).toHaveText(/^2 of /);
+    const before = (await page.getByTestId('deck-name').textContent())!;
+    await page.getByTestId('deck-swap').tap();
+    await expect(page.getByTestId('deck-name')).not.toHaveText(before);
+    const swapped = (await page.getByTestId('deck-name').textContent())!;
+    const count = (await page.getByTestId('deck-count').textContent())!;
+    await page.reload();
+    await expect(card(page)).toBeVisible();
+    await expect(page.getByTestId('deck-count')).toHaveText(count);
+    await expect(page.getByTestId('deck-name')).toHaveText(swapped);
+    await expect(page).toHaveURL(/[?&]min=30\b/);
+    // Back: the ideas, and a reload stays there.
+    await page.getByRole('button', { name: 'Back to the workouts' }).tap();
+    await expect(page.locator('[data-concept]').first()).toBeVisible();
+    await page.reload();
+    await expect(page.locator('[data-concept]').first()).toBeVisible();
+    await expect(page.getByTestId('deck-card')).toHaveCount(0);
+    await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
+    // Start: the deck is done with (nothing kept for a reload).
+    await page.locator('[data-concept="strength"]').first().tap();
+    await expect(card(page)).toBeVisible();
+    await page.getByTestId('quick-start').tap();
+    await expect(page).toHaveURL(/#\/workout\//);
+    expect(await page.evaluate(() => sessionStorage.getItem('anygym.quickDeck'))).toBeNull();
     expect(errors).toEqual([]);
   });
 
@@ -326,6 +409,29 @@ test.describe('3.5f the intake: exercises you love / never want', () => {
   const FULL = ['barbell_rack', 'flat_bench', 'adjustable_bench', 'dumbbells', 'cable_station', 'leg_press', 'lat_pulldown', 'seated_row', 'pull_up_bar'];
   const draft = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft') ?? '{}') as { answers?: { love?: string[]; never?: string[] } });
 
+  // Round 2 (tester): the card, its three buttons and the footer never overlap, at 100% and 130%
+  // text; the card's photo gives way, never the buttons, and nothing scrolls under Continue.
+  for (const pct of [100, 130])
+    test(`the deck fits between the toggle and Continue at ${pct}%`, async ({ page }) => {
+      await page.goto('./');
+      await expect(page.getByTestId('intake')).toBeVisible();
+      await page.evaluate(([a]) => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'exercises', answers: a })), [{ goal: 'muscle', units: US, experience: '1_2y', place: 'full', equipment: FULL, dumbbellRange: { min: 5, max: 100, step: 5 } }] as const);
+      await page.reload();
+      await expect(page.getByTestId('ex-deck')).toBeVisible();
+      if (pct !== 100) await page.evaluate((p) => (document.documentElement.style.fontSize = `${p}%`), pct);
+      await page.waitForTimeout(400);
+      const m = await page.evaluate(() => {
+        const r = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+        const body = document.querySelector('[data-scroller]')!;
+        return { card: r('[data-testid=deck-card]').bottom, top: Math.min(...['ex-skip', 'ex-never', 'ex-love'].map((id) => r(`[data-testid=${id}]`).top)), bottom: Math.max(...['ex-skip', 'ex-never', 'ex-love'].map((id) => r(`[data-testid=${id}]`).bottom)), h: r('[data-testid=ex-love]').height, cta: r('[data-testid=intake-cta]').top, scroll: body.scrollHeight - body.clientHeight };
+      });
+      expect(m.card).toBeLessThanOrEqual(m.top + 1);
+      expect(m.bottom + 8).toBeLessThanOrEqual(m.cta + 1);
+      expect(m.h).toBeGreaterThanOrEqual(48);
+      expect(m.scroll).toBeLessThanOrEqual(1);
+      await shot(page, `round2/intake-deck-${pct}`);
+    });
+
   test('right loves, left skips, a hold never wants; buttons too; the lists stay one tap away', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('./');
@@ -418,10 +524,11 @@ test.describe('3.5f Replace', () => {
     seen.push((await sheet.getByTestId('deck-name').textContent())!);
     expect(new Set(seen).size).toBe(3);
     // The third left: "Show all" steps forward; a tap lists the options at once, up to six, best first.
-    await expect(sheet.getByTestId('swap-all')).not.toHaveAttribute('data-offered', '');
+    // Round 2: the attribute is present only once offered (its value is the browser's "true").
+    await expect(sheet.getByTestId('swap-all')).not.toHaveAttribute('data-offered');
     await sheet.getByTestId('swap-next').tap();
     await settle(page);
-    await expect(sheet.getByTestId('swap-all')).toHaveAttribute('data-offered', '');
+    await expect(sheet.getByTestId('swap-all')).toHaveAttribute('data-offered');
     await sheet.getByTestId('swap-all').tap();
     const list = sheet.getByTestId('swap-list');
     await expect(list).toBeVisible();

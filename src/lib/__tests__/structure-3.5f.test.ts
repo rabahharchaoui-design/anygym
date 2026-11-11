@@ -11,7 +11,7 @@ import { equipmentPreset } from '../../db/gyms';
 import { GYM_TYPE_OF, presetEquipment } from '../intake/funnel';
 import type { GeneratorInput } from '../generator';
 import type { GymKit } from '../picker';
-import { AREA_RULES, HARD_SETS, ISOLATION_REST, PAIR_REST, SESSION_AREAS, angleOf, canPair, hardSetsBy, isCompound, isHeavy, restFor, structureSession, type Profile, type SessionArea, type SessionItem } from '../order';
+import { AREA_RULES, FALLBACK_RULES, HARD_SETS, ISOLATION_REST, PAIR_REST, SESSION_AREAS, angleOf, canPair, hardSetsBy, isCompound, isHeavy, restFor, structureSession, type Profile, type SessionArea, type SessionItem } from '../order';
 import { QUICK_MINUTES, conceptMinutes, focusCard, focusCards, focusOrder, quickDepsFor, quickTitleOf, sureGear, type Concept } from '../quick';
 import { quickMinutes } from '../quickStyles';
 import { workoutIdOf, type Pattern } from '../swap';
@@ -32,6 +32,8 @@ for (const place of PLACES)
         CASES.push({ label: `${place} ${experience} ${minutes} ${area}`, area, minutes, gym, input, card: focusCard(area, { base: input, minutes, recent: [] }, QUICK_DEPS) });
       }
 const BUILT = CASES.filter((c): c is Case & { card: Concept } => c.card !== null);
+/** Round 2: the rules a card was built by (fewer than 3 sure moves for the area: its nearest honest day). */
+const ruleOf = (c: Case & { card: Concept }) => (c.card.variant === c.area ? AREA_RULES[c.area] : FALLBACK_RULES[c.area].rule);
 const P = (id: string) => profileFor(id);
 
 /** The first candidate of a pattern this person may get at this gym (the ladder's order: best gear first). */
@@ -87,13 +89,13 @@ describe('3.5f (3) smart structure on every place preset at 15, 30, 45, 60', () 
       // A second compound is a different angle of the area, never the same press twice, never bigger than the first.
       for (const p of compounds.slice(1)) {
         expect(angleOf(p), `${c.label} angle`).not.toBe(angleOf(compounds[0]!));
-        expect(p.targets.some((m) => AREA_RULES[c.area].muscles.includes(m)), `${c.label} angle trains the area`).toBe(true);
+        expect(p.targets.some((m) => ruleOf(c).muscles.includes(m)), `${c.label} angle trains the area`).toBe(true);
       }
       // From 30 min, a gym with an angle variation gets it, right after the first lift.
       if (c.minutes >= 30) {
         const main = ps[0]!;
         const deps = quickDepsFor(c.input, QUICK_DEPS);
-        const hasAngle = AREA_RULES[c.area].angle.some((pattern) =>
+        const hasAngle = ruleOf(c).angle.some((pattern) =>
           SWAP_DATA.patterns[pattern].candidates.map(workoutIdOf).some((id) => id !== main.id && deps.usable(id) && sureGear(SWAP_DATA, id, c.gym) && isCompound(P(id)) && angleOf(deps.profileOf(id, deps.name(id))) !== angleOf(deps.profileOf(main.id, deps.name(main.id))) && P(id).load <= main.load),
         );
         if (hasAngle) expect(isCompound(ps[1]!), `${c.label} angle second`).toBe(true);
@@ -144,8 +146,8 @@ describe('3.5f (3) smart structure on every place preset at 15, 30, 45, 60', () 
   it('6 to 10 hard sets for the area (5 at 15 min), and never more than 10 for any muscle', () => {
     for (const c of BUILT) {
       const by = hardSetsBy(c.card.items.map((it) => ({ sets: it.sets, profile: P(it.id) })));
-      const area = Math.max(...AREA_RULES[c.area].muscles.map((m) => by.get(m) ?? 0));
-      expect(area, `${c.label} area sets`).toBeGreaterThanOrEqual(c.minutes <= 20 ? HARD_SETS.minShort : HARD_SETS.min);
+      const area = Math.max(...ruleOf(c).muscles.map((m) => by.get(m) ?? 0));
+      expect(area, `${c.label} area sets`).toBeGreaterThanOrEqual(ruleOf(c).least ?? (c.minutes <= 20 ? HARD_SETS.minShort : HARD_SETS.min));
       for (const [m, n] of by) expect(n, `${c.label} ${m}`).toBeLessThanOrEqual(HARD_SETS.max);
       for (const it of c.card.items) expect(it.sets).toBeGreaterThanOrEqual(2);
     }

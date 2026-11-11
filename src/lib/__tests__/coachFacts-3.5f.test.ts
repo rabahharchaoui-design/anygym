@@ -5,7 +5,9 @@ import { COACH_FACTS, FACT_FILE, factById } from '../../data/coachFacts';
 import { QUICK_DEPS } from '../../data/quick';
 import { SWAP_DATA } from '../../data/patterns';
 import { PLANS } from '../../data/plans';
-import { profileFor } from '../../data/order';
+import { profileFor, upNextPool } from '../../data/order';
+import { readFileSync } from 'node:fs';
+import { upNextIdeas } from '../order';
 import { equipmentPreset } from '../../db/gyms';
 import { GYM_TYPE_OF, presetEquipment } from '../intake/funnel';
 import type { GymKit } from '../picker';
@@ -153,5 +155,58 @@ describe('3.5f (4) every card gets a fact from the file', () => {
     expect(notesFor(COACH_FACTS, [bench])[0]!.fact).toBe('first-chest');
     expect(aboutNote(COACH_FACTS, P('crunch')).fact).toBe('about-core');
     expect(swapNote(COACH_FACTS, P('crunch'), 'Plank').why).toBe('Same movement as Plank, so the workout stays balanced');
+  });
+});
+
+// Round 2 (G: no note is generated on the fly): Up next's reasons and an area day's line are curated
+// facts too, chosen by id; only the names in {braces} are filled in.
+describe('3.5f round 2: Up next and the area days say only lines of the file', () => {
+  const PULLED = ['dumbbell-bench-press', 'barbell-back-squat', 'Barbell_Bench_Press_-_Medium_Grip', 'barbell-bent-over-row', 'overhead-press', 'cable-tricep-pushdown', 'crunch', 'Romanian_Deadlift', 'lat-machine-wide-grip-pulldown'];
+  /** The words a reason was filled with, matched back against the fact's own line (never trusted). */
+  const fromFile = (reason: string, id: string): boolean => {
+    const f = factById(id);
+    if (!f || f.role !== 'next') return false;
+    const pattern = new RegExp(`^${f.line.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{\w+\}/g, '([a-z ]+)')}$`);
+    return pattern.test(reason);
+  };
+
+  it('every Up next reason, for many days and gyms, is its fact line with names filled in', () => {
+    let n = 0;
+    const seen = new Set<string>();
+    for (const place of PLACES) {
+      const pool = upNextPool(kitOf(place));
+      for (let a = 0; a < PULLED.length; a++)
+        for (let len = 0; len <= 4; len++) {
+          const done = PULLED.slice(a, a + len).map((id) => profileFor(id));
+          for (const focus of [[], ['hamstrings']] as const)
+            for (const idea of upNextIdeas(done, pool, { sameAs: SWAP_DATA.sameAs, focus: [...focus] })) {
+              n++;
+              seen.add(idea.fact);
+              expect(fromFile(idea.reason, idea.fact), `${idea.fact}: ${idea.reason}`).toBe(true);
+              expect(idea.reason).not.toMatch(/[{}]/);
+            }
+        }
+    }
+    expect(n).toBeGreaterThan(200);
+    // The common reasons all come up, each one a fact of the file.
+    for (const id of ['next-first', 'next-after', 'next-follow', 'next-balance-push', 'next-focus']) expect(seen, id).toContain(id);
+  });
+
+  it('an area day line is a logged rest, the structure fact, or the nearest day fact (never written here)', () => {
+    const structure = factById('idea-structure')!.line;
+    for (const place of PLACES)
+      for (const minutes of QUICK_MINUTES)
+        for (const c of focusCards({ base: { goals: ['muscle' as const], gym: kitOf(place), experience: '1_2y' as const }, minutes, recent: [] }, QUICK_DEPS)) {
+          const fewer = fill(factById('idea-fewer')!.line, { muscle: c.variant === 'pull' ? 'back' : c.variant === 'lower' ? 'quads' : c.variant === 'push-shoulders' ? 'shoulders' : 'chest', name: c.items[0]!.name });
+          expect([structure, fewer], `${place} ${minutes} ${c.title}: ${c.line}`).toContain(c.line);
+        }
+  });
+
+  it('the source holds no coaching sentence of its own any more', () => {
+    const src = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    for (const line of ['Finishes the', 'Balances your', 'Your legs get a turn', 'Big lift first', 'Rounds out the workout', 'Different pattern after', 'Abs and calves go near']) {
+      expect(src('upNext.ts'), line).not.toContain(line);
+      expect(src('quickFocus.ts'), line).not.toContain(line);
+    }
   });
 });

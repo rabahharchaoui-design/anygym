@@ -120,6 +120,15 @@ export function metaLine(items: readonly Pick<QuickItem, 'group' | 'sets'>[], mi
   return parts.join(' · ');
 }
 
+/**
+ * PLAN 3.5f (5, calm card face): an idea card's one numbers line, "6 exercises · ~28 min". The pairs
+ * and rounds are behind the card's info button (metaLine), never stacked on the face.
+ */
+export function countLine(items: readonly unknown[], minutes: number): string {
+  const n = items.length;
+  return `${n} ${n === 1 ? 'exercise' : 'exercises'} · ~${minutes} min`;
+}
+
 /** The rounds of a card's circuits (3 or more moves one after another), the most of them; 0: no circuit. */
 export function roundsOf(items: readonly Pick<QuickItem, 'group' | 'sets'>[]): number {
   const size = new Map<number, number>();

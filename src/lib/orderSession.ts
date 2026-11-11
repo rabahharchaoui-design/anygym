@@ -1,7 +1,8 @@
 // Smart structure for one session (PLAN 3.5f, SPEC 22): a day for one area, built the way a good
 // coach lays it out. Pure (moved in beside order.ts; everyone imports it from lib/order).
 //   1. the biggest compound first, while fresh, with the best gear the gym has (the ladder's first
-//      candidate this gym can do: a barbell bench, else dumbbells, else what is there);
+//      candidate this gym can do: a barbell bench, else dumbbells, else what is there); with fewer
+//      than 3 sure moves for the area, the nearest honest day led by that lift (FALLBACK_RULES);
 //   2. an angle variation: a second compound that loads the area another way (an incline after a
 //      flat press, a pulldown after a row, a hinge after a squat);
 //   3. an isolation that finishes the area (a fly, a rear delt raise, a leg extension);
@@ -19,7 +20,7 @@ export type SessionArea = (typeof SESSION_AREAS)[number];
 
 export type SessionRole = 'main' | 'angle' | 'isolation' | 'finisher';
 
-type AreaRule = {
+export type AreaRule = {
   /** The card's words: "Chest day". */
   title: string;
   /** The muscles whose hard sets are counted. */
@@ -31,6 +32,11 @@ type AreaRule = {
   finisher: readonly [readonly Pattern[], readonly Pattern[]];
   /** More pairs for a long session, in order. */
   extra: ReadonlyArray<readonly [readonly Pattern[], readonly Pattern[]]>;
+  /**
+   * A nearest day's least hard sets for its most trained muscle (FALLBACK_RULES): its one sure lead
+   * lift's sets, as many muscles share the day. Default: HARD_SETS (6, 5 at 15 minutes).
+   */
+  least?: number;
 };
 
 export const AREA_RULES: Record<SessionArea, AreaRule> = {
@@ -79,6 +85,38 @@ export const AREA_RULES: Record<SessionArea, AreaRule> = {
   },
 };
 
+/**
+ * PLAN 3.5f round 2: the nearest honest day when a gym has fewer than 3 sure moves for an area (a
+ * hotel with one sure chest press): a push, pull or lower body day led by the area's own big lift,
+ * so the sure move is never lost and nothing unsure is added. Keyed by area; `id` names the day.
+ */
+const PUSH_REST: AreaRule['extra'] = [[['lateral delt'], ['core', 'calves']]];
+/** A nearest day's least hard sets for one muscle: a lead lift's full sets (3). */
+const NEAR_LEAST = 3;
+export const FALLBACK_RULES: Record<SessionArea, { id: string; rule: AreaRule }> = {
+  chest: {
+    id: 'push-chest',
+    rule: { title: 'Push day', muscles: ['chest', 'front delts', 'side delts', 'triceps'], main: ['horizontal push'], angle: ['vertical push', 'horizontal push'], isolation: ['chest isolation', 'lateral delt'], finisher: [['triceps'], ['biceps', 'rear delt', 'core']], extra: PUSH_REST, least: NEAR_LEAST },
+  },
+  shoulders: {
+    id: 'push-shoulders',
+    rule: { title: 'Push day', muscles: ['front delts', 'side delts', 'chest', 'triceps'], main: ['vertical push'], angle: ['horizontal push', 'vertical push'], isolation: ['lateral delt', 'rear delt', 'chest isolation'], finisher: [['triceps'], ['biceps', 'core']], extra: [[['core'], ['calves']]], least: NEAR_LEAST },
+  },
+  back: {
+    id: 'pull',
+    rule: { title: 'Pull day', muscles: ['back', 'rear delts', 'biceps'], main: ['horizontal pull', 'vertical pull'], angle: ['vertical pull', 'horizontal pull'], isolation: ['rear delt', 'biceps'], finisher: [['triceps'], ['core', 'lateral delt']], extra: [[['core'], ['calves']]], least: NEAR_LEAST },
+  },
+  legs: {
+    id: 'lower',
+    rule: { title: 'Lower body', muscles: ['quads', 'hamstrings', 'glutes'], main: ['squat', 'hinge', 'lunge', 'glutes'], angle: ['hinge', 'lunge', 'glutes', 'squat'], isolation: ['quads isolation', 'hamstrings isolation'], finisher: [['calves'], ['core']], extra: [[['hamstrings isolation', 'quads isolation'], ['core', 'calves']]], least: NEAR_LEAST },
+  },
+};
+
+/** A one area day's title from its card variant ("chest", or a nearest day's id, "push-chest"). */
+export function sessionTitle(variant: string): string | undefined {
+  return AREA_RULES[variant as SessionArea]?.title ?? Object.values(FALLBACK_RULES).find((f) => f.id === variant)?.rule.title;
+}
+
 /** How a lift is angled, from its plain name: an incline press is not a flat one. */
 export function angleOf(p: Pick<Profile, 'name' | 'pattern'>): string {
   const n = p.name.toLowerCase();
@@ -100,6 +138,8 @@ export type SessionItem = {
 
 export type SessionInput = {
   area: SessionArea;
+  /** The day's rules (default: the area's own; FALLBACK_RULES for the nearest honest day). */
+  rule?: AreaRule;
   minutes: number;
   /** Per pattern: what this gym surely has and this person may get, best gear first. */
   pool: (pattern: Pattern) => readonly Profile[];
@@ -151,7 +191,7 @@ const ROLE_ORDER: Record<SessionRole, number> = { main: 0, angle: 1, isolation: 
  * (never padded with another area's work, never a compound's rest cut).
  */
 export function structureSession(input: SessionInput): SessionPlan | null {
-  const rule = AREA_RULES[input.area];
+  const rule = input.rule ?? AREA_RULES[input.area];
   const goal = input.goal ?? 'muscle';
   const used = new Set<string>();
   const firstOf = (patterns: readonly Pattern[], ok: (p: Profile) => boolean = () => true): Profile | undefined => {
@@ -201,7 +241,7 @@ export function structureSession(input: SessionInput): SessionPlan | null {
   };
 
   const short = input.minutes <= 20;
-  const least = short ? HARD_SETS.minShort : HARD_SETS.min;
+  const least = rule.least ?? (short ? HARD_SETS.minShort : HARD_SETS.min);
   const minutes = (items: readonly Draft[]) => input.minutesOf(items);
   const hard = (items: readonly Draft[]) => hardSetsOf(items, rule.muscles);
   const capped = (items: readonly Draft[]) => Math.max(0, ...hardSetsBy(items).values()) <= HARD_SETS.max;

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { dbAll, dbPut, shotOn, watchErrors } from './workout-helpers';
-import { card, pastIntake, PROFILE } from './helpers/quick';
+import { card, pastIntake, PROFILE, readIdea, readIdeas } from './helpers/quick';
 
 // PLAN 3.5b (G, Nov 8): Quick workout ideas, diverse and full. Four cards that differ by style, each
 // with a style chip, the gear it uses, 3 effort dots, the mini muscle map and "N exercises · M
@@ -20,23 +20,9 @@ async function openQuick(page: Page, minutes = 30) {
 
 const ids = (page: Page) => page.locator('[data-concept]').evaluateAll((els) => els.map((e) => e.getAttribute('data-concept')!));
 
-/** The finished state of a card, as the person reads it. */
-async function readCards(page: Page) {
-  return page.locator('[data-concept]').evaluateAll((els) =>
-    els.map((e) => ({
-      id: e.getAttribute('data-concept')!,
-      title: e.querySelector('[data-testid="concept-title"]')?.textContent ?? '',
-      chip: e.querySelector('[data-testid="style-chip"]')?.textContent ?? '',
-      level: Number(e.querySelector('[data-testid="effort"]')?.getAttribute('data-level')),
-      dots: e.querySelectorAll('[data-testid="effort"] > span').length,
-      gear: e.querySelectorAll('[data-testid="concept-gear"] svg[data-art]').length,
-      noGear: (e.querySelector('[data-testid="concept-gear"]')?.textContent ?? '').includes('No equipment'),
-      map: e.querySelectorAll('[data-testid="mini-map"]').length,
-      why: e.querySelector('[data-testid="concept-why"]')?.textContent ?? '',
-      meta: e.querySelector('[data-testid="concept-meta"]')?.textContent ?? '',
-    })),
-  );
-}
+/** The finished state of a card, as the person reads it. 3.5f: calm card face: the chip, dots, gear and
+    the full count line are behind the card's info button (readIdeas opens it). */
+const readCards = readIdeas;
 
 test.describe('Quick workout ideas: diverse and full', () => {
   test('four distinct cards with a chip, gear, dots, a map and the count line at 15, 30, 45 and 60 @matrix', async ({ page }) => {
@@ -61,6 +47,8 @@ test.describe('Quick workout ideas: diverse and full', () => {
         expect(c.gear > 0 || c.noGear, `${c.id} gear`).toBe(true);
         expect(c.map, `${c.id} map`).toBe(1);
         expect(c.why.length).toBeGreaterThan(8);
+        // 3.5f: calm card face: the face says only "N exercises · ~T min", the same numbers as behind ⓘ.
+        expect(c.face, c.id).toBe(c.meta.replace(/ · \d+ (rounds?|pairs?)/g, ''));
         const mm = c.meta.match(META);
         expect(mm, `${c.id}: ${c.meta}`).not.toBeNull();
         expect(Number(mm![4])).toBeLessThanOrEqual(m);
@@ -189,7 +177,8 @@ test.describe('Quick workout ideas: diverse and full', () => {
     for (const m of [15, 30, 45, 60]) {
       await page.getByTestId(`min-${m}`).tap();
       await expect(page.locator('[data-concept="easy"]')).toBeVisible();
-      await expect(page.locator('[data-concept="easy"]').getByTestId('style-chip')).toHaveText('Low impact');
+      // 3.5f: calm card face: the style chip is behind the card's info button.
+      expect((await readIdea(page, page.locator('[data-concept="easy"]'))).chip).toBe('Low impact');
     }
     expect(errors).toEqual([]);
   });
@@ -204,7 +193,8 @@ test.describe('Quick workout ideas: diverse and full', () => {
       const c = page.locator('[data-concept]').nth(i);
       const id = (await c.getAttribute('data-concept'))!;
       seen.add(id);
-      const meta = (await c.getByTestId('concept-meta').textContent())!;
+      // 3.5f: calm card face: the pairs and rounds are behind the card's info button.
+      const meta = (await readIdea(page, c)).meta;
       const title = (await c.getByTestId('concept-title').textContent())!;
       const count = Number(meta.match(/^(\d+)/)![1]);
       const supersets = Number(meta.match(/(\d+) pairs?/)?.[1] ?? 0);
