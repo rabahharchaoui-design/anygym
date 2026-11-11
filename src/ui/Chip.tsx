@@ -16,6 +16,8 @@ type Props = {
   tag?: string;
   /** PLAN 3.3a: a tall tile (icon on top, label at the bottom) that grows with its grid row. */
   tile?: boolean;
+  /** PLAN 3.5v: a compact chip, for three in one row on the smallest phone. */
+  small?: boolean;
 };
 
 /**
@@ -23,9 +25,9 @@ type Props = {
  * ChoiceCard). A toggle button (aria-pressed); picked, the border and icon turn accent and the fill
  * tints, answering the press within a frame. 48 pt tall at least.
  */
-export function Chip({ label, icon: Icon, picked, onPress, testId, block, soft, tag, tile }: Props) {
+export function Chip({ label, icon: Icon, picked, onPress, testId, block, soft, tag, tile, small }: Props) {
   return (
-    <button type="button" className={`${styles.chip} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} data-block={block || undefined} data-soft={soft || undefined} data-tile={tile || undefined}>
+    <button type="button" className={`${styles.chip} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} data-block={block || undefined} data-soft={soft || undefined} data-tile={tile || undefined} data-small={small || undefined}>
       {soft && <Check className={styles.check} width={14} height={14} strokeWidth={3} aria-hidden="true" />}
       {Icon && <Icon className={styles.icon} width={18} height={18} strokeWidth={2} aria-hidden="true" />}
       <span className={styles.label}>{label}</span>

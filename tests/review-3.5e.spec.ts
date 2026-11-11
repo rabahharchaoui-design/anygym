@@ -33,6 +33,7 @@ async function openQueue(page: Page) {
   const version = page.getByTestId('app-version');
   for (let i = 0; i < 5; i++) await version.tap();
   await expect(page).toHaveURL(/#\/review$/);
+  await page.getByTestId('review-menu').tap(); // 3.5v: Review new exercises is in the top bar menu
   await page.getByTestId('open-new-exercises').tap();
   await expect(page).toHaveURL(/#\/review\/new$/);
   // 3.5i: a "Check carefully" pile is already one by one; otherwise switch from the grid.
@@ -105,6 +106,7 @@ test('version × 5 → Review → the deck: approve, wrong, fix, undo, reload re
   await expect(topName(page)).toHaveText(fourth);
 
   // Export: a small file with ids and decisions only.
+  await page.getByTestId('review-menu').tap(); // 3.5v: in the top bar menu
   await page.getByTestId('export-approvals').tap();
   await expect(page.getByTestId('candidate-message')).toHaveText('Approvals shared.');
   const shared = await page.evaluate(() => (window as unknown as { __shared: { name: string; text: string } }).__shared);

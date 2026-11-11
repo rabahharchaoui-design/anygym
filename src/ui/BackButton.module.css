@@ -50,3 +50,14 @@
   width: 21px;
   height: 21px;
 }
+
+/* PLAN 3.5v: the review's small yes and no. */
+.face[data-tone='accent'] {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+.face[data-tone='red'] {
+  color: var(--red-text);
+}

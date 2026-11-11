@@ -1,0 +1,331 @@
+/* The one screen review (PLAN 3.5v), shared by the core review and New exercises' one by one deck:
+   a fixed column exactly as tall as the phone, nothing scrolls. Top bar (name and counter on one
+   line), the swipe card (the demo takes all the room the words leave), one notice row (the reason
+   chips, or a message), one row of small icon buttons. Tokens only. */
+.page {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  background: var(--bg-screen);
+  padding: calc(var(--safe-top) + var(--space-1)) calc(var(--space-4) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-2))
+    calc(var(--space-4) + var(--safe-left));
+  display: flex;
+  flex-direction: column;
+  font-size: 1rem;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  margin: 0 -6px var(--space-1);
+}
+
+.name {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count {
+  flex: none;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The deck's room: everything between the bar and the notice row. */
+.stage {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nothing here pans, so the whole gesture belongs to the card. */
+.stage article {
+  touch-action: none;
+}
+
+/* The card's words, under the demo: they keep their height, the demo takes the rest. */
+.info {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+.thumb {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--white) 6%, transparent);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms var(--ease-out);
+}
+
+.thumb:active {
+  transform: scale(0.96);
+  transition-duration: 0ms;
+}
+
+.thumb > span > span {
+  width: 24px;
+}
+
+.chips {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 6px;
+  max-height: 56px;
+  overflow: hidden;
+}
+
+.mchip {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mchip[data-more] {
+  background: none;
+  color: var(--text-2);
+  padding-inline: 2px;
+}
+
+.unsure {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+
+.cueRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0 var(--space-1) var(--space-1) var(--space-4);
+}
+
+.cueLine {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cueLine[data-strong] {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.infoBtn {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text-2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.infoBtn:active {
+  color: var(--text);
+}
+
+/* The decision an exercise already has (going back to one), on the demo's corner. */
+.badge {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--black) 62%, transparent);
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+/* Why the pre check was unsure (New exercises): two lines at most, so the card never grows. */
+.note {
+  flex: none;
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.note b {
+  color: var(--accent);
+}
+
+/* One row under the card, always there, so nothing moves when the chips come and go. */
+.notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 56px;
+  min-width: 0;
+}
+
+.reasons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  animation: reasons-in var(--dur-fast) var(--ease-out);
+}
+
+@keyframes reasons-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+.message {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  line-height: 1.3;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Wrong on the left, Approve on the right (as the swipe goes), Undo between them. */
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+}
+
+.block {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.blockTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.blockText {
+  margin: 0 0 var(--space-2);
+  color: var(--text-2);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+/* Sheets */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.menuHead {
+  margin: 0 0 var(--space-1);
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lines {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  line-height: 1.4;
+}
+
+.line {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.line b {
+  color: var(--text);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reasons {
+    animation: none;
+  }
+  .thumb:active {
+    transform: none;
+  }
+}

@@ -35,6 +35,7 @@ export {
   EyeOff as NeverIcon,
   Undo2 as UndoIcon,
   Minus as PassIcon,
+  Pencil as FixIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

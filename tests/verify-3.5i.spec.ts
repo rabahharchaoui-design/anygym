@@ -27,6 +27,7 @@ async function openReview(page: Page, seed: Row[] = []) {
   const version = page.getByTestId('app-version');
   for (let i = 0; i < 5; i++) await version.tap();
   await expect(page).toHaveURL(/#\/review$/);
+  await page.getByTestId('review-menu').tap(); // 3.5v: Review new exercises is in the top bar menu
   await page.getByTestId('open-new-exercises').tap();
   await expect(page).toHaveURL(/#\/review\/new$/);
   await expect(progress(page)).not.toBeEmpty();
