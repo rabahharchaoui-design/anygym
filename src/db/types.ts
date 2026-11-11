@@ -128,6 +128,12 @@ export type Profile = {
   /** PLAN 3.5b (additive, not indexed): the Quick workout cards shown last time (plan, fresh or a style id), for the rotation. */
   /** PLAN 3.5j round 2: `prev` is the memory the cards of `shown` were chosen with and `at` when: a visit soon after sees the same cards. */
   quickIdeas?: { shown?: string[]; prev?: string[]; at?: number };
+  /**
+   * PLAN 3.5u (additive, not indexed): the first visit welcome on Today. `pending`: the intake was
+   * just finished, show it once; `done`: finished or skipped. Absent (everyone from before 3.5u, and
+   * a restored older backup): never shown.
+   */
+  welcomeTour?: 'pending' | 'done';
 };
 
 /** PLAN 3.5a: the targets Quick workout built for one exercise (a range or a number, like a plan's). */

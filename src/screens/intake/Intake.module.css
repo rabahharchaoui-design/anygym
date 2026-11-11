@@ -146,23 +146,12 @@
   opacity: 1;
 }
 
-.keepHint {
-  margin: 0 0 6px;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
 .countNote {
   margin: 0;
   min-height: 1.3em;
   color: var(--amber);
   font-size: var(--text-sm);
   font-weight: 600;
-}
-
-.keepGoing {
-  margin-bottom: var(--space-2);
 }
 
 .skipRest {
@@ -336,21 +325,6 @@
   font-family: var(--font-display);
   font-size: var(--text-sm);
   font-weight: 700;
-}
-
-/* B6: a question not used yet says so with a small quiet pill, after its why line. */
-.soon {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--hairline);
-  color: var(--text-2);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.4;
-  vertical-align: 1px;
-  white-space: nowrap;
 }
 
 /* The SPEC 14 safety line on the go easy screen, quiet under the options. */

@@ -87,10 +87,11 @@ describe('B3: no plan', () => {
 
 describe('B4: shorter', () => {
   const q = (a: IntakeAnswers) => visibleScreens(a).filter((s) => s !== 'reveal');
-  it('17 question screens at most; brand new skips the exercise screen', () => {
-    expect(q({})).toHaveLength(17);
+  // 3.5u: 14 now, the three not built yet questions are hidden.
+  it('14 question screens at most; brand new skips the exercise screen', () => {
+    expect(q({})).toHaveLength(14);
     expect(q({ experience: 'new' })).not.toContain('exercises');
-    expect(q({ experience: 'new', cardio: 'none' })).toHaveLength(16);
+    expect(q({ experience: 'new', cardio: 'none' })).toHaveLength(13);
     expect(SCREENS).not.toContain('love');
     expect(SCREENS).not.toContain('name');
   });
@@ -135,7 +136,9 @@ describe('B4: shorter', () => {
     expect(s.answers.goal).toBe('muscle');
     expect(s.answers.easyOn).toBeUndefined();
     expect(s.answers.name).toBeUndefined();
-    expect(s.answers.skipped).toEqual(expect.arrayContaining(['easyOn', 'love', 'never', 'when', 'bodyweight', 'name', 'height', 'age']));
+    expect(s.answers.skipped).toEqual(expect.arrayContaining(['easyOn', 'love', 'never', 'name', 'height', 'age']));
+    // 3.5u: a hidden question was never asked, so it is not marked skipped.
+    expect(s.answers.skipped).not.toContain('when');
     // Not before the group starts.
     const goal = startState();
     expect(funnelReducer(goal, { type: 'skipRest' })).toBe(goal);

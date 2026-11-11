@@ -1,19 +1,11 @@
 // The "no plan fits" notice of the intake (PLAN 3.3a). Moved out of IntakeScreen.tsx as it was (PLAN
 // 3.5f, code organization).
-import { useRef, useState, type MutableRefObject } from 'react';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
-import { Button } from '../../ui/Button';
-import { useNav } from '../../ui/nav';
-import { useTapGuard } from '../../hooks/useTapGuard';
-import { getActiveGym, startDb } from '../../db/bootstrap';
-import { clearIntakeDraft } from '../../db/intake';
-import { startWorkout } from '../../db/workouts';
 import { progressOf, type IntakeAnswers } from '../../lib/intake/funnel';
 import { EQUIPMENT_LABEL, PLACES } from '../../lib/intake/options';
 import { noPlanWords } from '../../lib/intake/planPick';
 import { EquipmentArt } from './EquipmentArt';
-import { persistAnswers } from './persist';
 import { STAYS_HERE } from './copy';
 import styles from './Intake.module.css';
 
@@ -55,28 +47,12 @@ function NoPlanBody({ answers }: { answers: IntakeAnswers }) {
   );
 }
 
-/** Right after the equipment, when no plan can fit: say so, and let them start or keep going. */
-export function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answers: IntakeAnswers; baseline: MutableRefObject<IntakeAnswers | undefined>; onBack: () => void; onKeepGoing: () => void }) {
-  const go = useNav();
+/**
+ * Right after the equipment, when no plan can fit: say so, and keep going. PLAN 3.5u: the intake
+ * never starts a workout; the quick workout it describes is on Today, where the intake ends.
+ */
+export function NoPlanNotice({ answers, onBack, onKeepGoing }: { answers: IntakeAnswers; onBack: () => void; onKeepGoing: () => void }) {
   const words = noPlanWords(answers.place);
-  const [error, setError] = useState('');
-  const busy = useRef(false);
-  const quick = useTapGuard(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    setError('');
-    try {
-      await persistAnswers(answers, baseline);
-      const gym = (await getActiveGym()) ?? (await startDb());
-      const s = await startWorkout(gym.id);
-      void clearIntakeDraft();
-      go(`/workout/${s.id}`, { kind: 'push', replace: true });
-    } catch {
-      setError('Could not start the workout. Try again.');
-    } finally {
-      busy.current = false;
-    }
-  });
   return (
     <div className={styles.screen} data-testid="intake" data-step="noPlan">
       <header className={styles.top}>
@@ -91,27 +67,8 @@ export function NoPlanNotice({ answers, baseline, onBack, onKeepGoing }: { answe
         <p className={styles.sub}>{words.quick}</p>
         <NoPlanBody answers={answers} />
       </main>
-      <BottomCTA
-        onPress={() => void quick()}
-        reasonAndNote
-        note={STAYS_HERE}
-        testId="noplan-cta"
-        className={styles.cta}
-        above={
-          <>
-            {error && (
-              <p className={styles.error} role="alert">
-                {error}
-              </p>
-            )}
-            <p className={styles.keepHint}>It won&apos;t change what you can do today.</p>
-            <Button variant="secondary" className={styles.keepGoing} onClick={onKeepGoing} data-testid="noplan-continue">
-              Finish my profile
-            </Button>
-          </>
-        }
-      >
-        Start a quick workout
+      <BottomCTA onPress={onKeepGoing} reasonAndNote note={STAYS_HERE} testId="noplan-cta" className={styles.cta}>
+        Keep going
       </BottomCTA>
     </div>
   );

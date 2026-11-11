@@ -35,7 +35,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
   const done = new Set(state.doneDays);
   return (
-    <section className={styles.dayCard} aria-label="Today's plan day" data-active={active ? 'true' : undefined}>
+    <section className={styles.dayCard} aria-label="Today's plan day" data-tour="day" data-active={active ? 'true' : undefined}>
       <p className={styles.planName}>{plan.name}</p>
       <h2 className={styles.dayTitle} data-testid="day-card-title">
         {active ? (

@@ -42,7 +42,8 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
     expect(week, `plan week shown with ${29 - n} off`).toBe(1);
     await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(4);
     expect(heading).toBe('Your plan');
-    expect(primary).toBe('Start Day 1');
+    // 3.5u: the button is Looks good (it lands on Today, no workout starts).
+    expect(primary).toBe('Looks good');
     expect(reason).toMatch(/^ ?Built to build muscle: 4 days, about \d+ min, full gym\./);
     expect(`${reason} ${warn}`).not.toMatch(/aren't built in|plan yet/);
     await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!); d.step = 'equipment'; localStorage.setItem('anygym.intakeDraft', JSON.stringify(d)); });
@@ -71,8 +72,9 @@ test('(b) brand new, 3 days, 45 min (PLAN 3.5): a 3 day plan that fits 45 min is
   await page.screenshot({ path: `reports/shots/3.3a/verify/r2-brandnew-${test.info().project.name.replace(/ /g, '-')}.png` });
   // The Beginner Full Body 3 Day plan: 3 days, each about 45 min or less, the check earned.
   expect(heading).toBe('Your plan');
-  expect(primary).toBe('Start Day 1');
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
+  // 3.5u: one action, Looks good; the quick workout is on Today.
+  expect(primary).toBe('Looks good');
+  await expect(page.getByTestId('reveal-secondary')).toHaveCount(0);
   await expect(page.getByTestId('reveal-check')).toHaveCount(1);
   await expect(page.getByTestId('reveal-card')).toContainText('Beginner Full Body 3 Day');
   const rows = page.getByTestId('reveal-week').getByRole('listitem');

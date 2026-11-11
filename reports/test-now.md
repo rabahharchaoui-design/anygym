@@ -32,3 +32,4 @@
 3.5f | Swipe to curate in more places. On Today tap Preview on the day card: swipe right to keep, left to swap, after three lefts tap Show me. In a workout, open an exercise menu and Replace. Each card has one why line with an info button.
 3.5j | Your Guam hotel gym: Settings, Gyms, + New gym, Hotel gym, tap your equipment (dumbbells max 22 kg), Make active, then Quick workout. Nothing should ask for a dumbbell above 22 kg. Cardio warm ups appear once you approve the treadmill and stairs moves in Review.
 3.5v | The review now fits one screen and really swipes. Settings, tap the version 5 times, Review: swipe right to approve, left for wrong (then tap a reason or let it default), hold a card to fix it.
+3.5u | Reset the app in Settings, do the intake: it ends on Today with a quick three step tour, and no workout starts. The intake is also shorter: the Coming soon questions are gone.

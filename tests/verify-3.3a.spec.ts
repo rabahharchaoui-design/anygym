@@ -94,13 +94,15 @@ test('(1) goals: Main, Also, swap, promote; stored Main first and old goal equal
   await expect(page.getByTestId('reveal-card')).not.toContainText('Classic 5 Day Split');
   await expect(page.getByTestId('reveal-reason')).toContainText('Built to get stronger');
   await page.screenshot({ path: SHOT('reveal-also-only') });
-  // Start Day 1 (double tap): one session, profile.goal is the Main.
-  const start = page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' });
+  // 3.5u: Looks good (double tap) lands on Today: one plan chosen, no session, profile.goal is the Main.
+  const start = page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good' });
   await start.dblclick();
+  await expect(page).toHaveURL(/#\/$/);
   await expect.poll(async () => (await dbAll(page, 'profile')).length).toBeGreaterThan(0);
   const [p] = await dbAll(page, 'profile');
   expect(p!.goal).toBe('strength');
-  expect(await dbAll(page, 'sessions')).toHaveLength(1);
+  expect(await dbAll(page, 'planState')).toHaveLength(1);
+  expect(await dbAll(page, 'sessions')).toHaveLength(0);
 });
 
 test('(5) an older answer with a single goal loads as Main', async ({ page }) => {
@@ -179,12 +181,13 @@ test('(2) equipment: 29 tiles (3.5j) with a drawing, 3 across, grouped, All is p
 
 const FULL = { goal: 'muscle', goals: ['muscle'], units: US, days: 4, minutes: 45, place: 'full', equipmentFor: 'full', experience: '3y' };
 const SCREENS: Array<[string, Record<string, unknown>]> = [
-  ['goal', {}], ['units', { goal: 'muscle', units: US }], ['focus', FULL], ['win', FULL], ['experience', FULL], ['days', FULL], ['weekdays', FULL],
+  // 3.5u: win, when and bodyweight are hidden until their features exist (16 screens, were 19).
+  ['goal', {}], ['units', { goal: 'muscle', units: US }], ['focus', FULL], ['experience', FULL], ['days', FULL], ['weekdays', FULL],
   ['minutes', FULL], ['place', FULL], ['equipment', { ...FULL, equipment: ['dumbbells'] }], ['style', FULL], ['cardio', FULL], ['easyOn', FULL],
-  ['exercises', FULL], ['when', FULL], ['bodyweight', FULL], ['about', FULL], ['noPlan', { ...FULL, place: 'home', equipmentFor: 'home', equipment: [] }], ['reveal', FULL],
+  ['exercises', FULL], ['about', FULL], ['noPlan', { ...FULL, place: 'home', equipmentFor: 'home', equipment: [] }], ['reveal', FULL],
 ];
 
-test('(3) 19 screens: content share of the space above the button (own measure), why line, strip', async ({ page }) => {
+test('(3) 16 screens: content share of the space above the button (own measure), why line, strip', async ({ page }) => {
   test.skip(!PHONES.has(test.info().project.name));
   test.setTimeout(180_000);
   const rows: string[] = [];

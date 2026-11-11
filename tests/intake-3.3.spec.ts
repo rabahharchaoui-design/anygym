@@ -120,9 +120,7 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
   await expect(cta(page)).toBeEnabled();
   await t.pick('focus', 'balance');
   await t.next();
-  await screen('win');
-  await t.pick('win', 'energy');
-  await t.next();
+  // 3.5u: win, when and bodyweight are hidden until their features exist (3 screens, 4 taps fewer).
   await screen('experience');
   await t.pick('experience', '3y');
   await screen('days');
@@ -147,10 +145,6 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
   } else {
     await screen('exercises');
     await t.skip();
-    await screen('when');
-    await t.pick('when', 'after_work');
-    await screen('bodyweight');
-    await t.skip();
     await screen('about');
     await t.skip();
   }
@@ -161,7 +155,8 @@ async function fastPath(page: Page, opts: Walk = {}): Promise<number> {
 /** SPEC 14 "finish in under 60 seconds", as taps: about 2 s a tap is 44 s. */
 const TAP_BUDGET = 22;
 
-test('a new user goes through the funnel in 22 taps (PLAN 3.3a: +1 for the two pick goal), every screen fits, Start Day 1 lands in the workout @matrix', async ({ page }) => {
+// 3.5u: 18 taps now (three questions hidden), and Looks good lands on Today: no workout starts.
+test('a new user goes through the funnel in 18 taps (3.5u: three questions hidden), every screen fits, Looks good lands on Today @matrix', async ({ page }) => {
   const started = Date.now();
   await page.goto('./');
   await expect(page).toHaveURL(/#\/welcome$/);
@@ -178,17 +173,16 @@ test('a new user goes through the funnel in 22 taps (PLAN 3.3a: +1 for the two p
   await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(5);
   // Both curated plans fit a full gym: "Or pick a curated plan" lists them.
   await expect(page.getByTestId('reveal-plan-six-week-volume')).toBeVisible();
-  const start = page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' });
+  const start = page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good' });
   await start.tap();
   const total = taps + 1;
-  await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
+  await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByText('Legs (hamstring focus)').first()).toBeVisible();
-  expect(total).toBe(22);
+  expect(total).toBe(18);
   expect(total).toBeLessThanOrEqual(TAP_BUDGET);
   test.info().annotations.push({ type: 'taps', description: `${total} taps, ${Math.round((Date.now() - started) / 1000)} s automated` });
-  const sessions = await dbAll(page, 'sessions');
-  expect(sessions).toHaveLength(1);
-  expect(sessions[0]).toMatchObject({ planId: 'five-day-split' });
+  // 3.5u: the plan is chosen, nothing is started.
+  expect(await dbAll(page, 'sessions')).toHaveLength(0);
   expect(await dbAll(page, 'planState')).toMatchObject([{ planId: 'five-day-split', nextDayIndex: 0 }]);
   // Done for good: Today never opens the funnel again, also after a reload.
   await page.goto('./#/');
@@ -220,8 +214,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await t.next();
   await expect(page.getByTestId('q-focus-glutes')).toHaveAttribute('aria-pressed', 'true');
   await t.next();
-  await t.pick('win', 'clothes');
-  await t.next();
+  // 3.5u: win is not asked.
   await t.pick('experience', 'months');
   await t.pick('days', '3');
   await atStep(page, 'weekdays');
@@ -271,17 +264,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await page.getByTestId('q-love-search').fill('squat');
   await page.getByTestId('q-love').getByRole('button', { name: /squat/i }).first().tap();
   await t.next();
-  await t.pick('when', 'early');
-  await atStep(page, 'bodyweight');
-  // Kilograms from the units screen; nothing saved until the ruler moves or is tapped (optional since 3.3a round 2).
-  await expect(cta(page)).toBeEnabled();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.bodyweight ?? null)).toBeNull();
-  await expect(page.getByTestId('bw-unit').getByRole('radio', { name: 'Kilograms' })).toHaveAttribute('aria-checked', 'true');
-  const ruler = page.getByTestId('bodyweight-ruler');
-  await ruler.focus();
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
-  await expect(page.getByTestId('bw-value')).toHaveText(/^72\.5\s*kg$/);
-  await t.next();
+  // 3.5u: when and bodyweight are not asked.
   await atStep(page, 'about');
   await expect(cta(page)).toBeDisabled();
   await page.getByTestId('name-input').fill('Sam');
@@ -310,7 +293,6 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
       goal: 'tone',
       units: { weight: 'kg', distance: 'km', measure: 'cm', body: 'female' },
       focus: ['glutes', 'legs'],
-      win: ['clothes'],
       experience: 'months',
       days: 3,
       weekdays: ['mon', 'wed', 'fri'],
@@ -319,9 +301,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
       style: 'free',
       cardio: 'none',
       easyOn: ['wrists'],
-      when: 'early',
       name: 'Sam',
-      bodyweight: { value: 72.5, unit: 'kg' },
       height: { unit: 'cm', cm: 178 },
       skipped: ['never', 'age'],
     },
@@ -334,16 +314,18 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   const [gym] = await dbAll(page, 'gyms');
   expect(gym).toMatchObject({ unit: 'kg', type: 'hotel', name: 'Hotel gym', dumbbellRange: { min: 2, max: 24, step: 2 } });
 
-  // PLAN 3.5: Your plan leads (a quick workout is offered only to brand new lifters).
-  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' }).tap();
-  await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
+  // 3.5u: Looks good lands on Today.
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good' }).tap();
+  await expect(page).toHaveURL(/#\/$/);
   // Settings shows the female body and the units.
   await page.goto('./#/settings');
   await expect(page.getByTestId('settings-body').getByRole('radio', { name: 'Female' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('settings-distance').getByRole('radio', { name: 'km' })).toHaveAttribute('aria-checked', 'true');
 });
 
-test('the ruler snaps every 0.5 and the unit flip equals the load.ts conversion @matrix', async ({ page }) => {
+// 3.5u: the bodyweight question is hidden until starting weights use it (HIDDEN_SCREENS in lib/intake/funnel.ts);
+// the ruler stays in the code and this test comes back with the question.
+test.skip('the ruler snaps every 0.5 and the unit flip equals the load.ts conversion @matrix', async ({ page }) => {
   await page.goto('./');
   await atStep(page, 'goal');
   // Straight to the bodyweight screen through the draft (the funnel resumes it).
@@ -445,8 +427,9 @@ test('a user with only a workout (no profile) is an existing user too', async ({
 test('Settings → Answer the questions again: answers come back, Back leaves, the plan is chosen with Undo', async ({ page }) => {
   await page.goto('./');
   await fastPath(page);
-  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' }).tap();
-  await expect(page).toHaveURL(/#\/workout\//);
+  // 3.5u: Looks good lands on Today.
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good' }).tap();
+  await expect(page).toHaveURL(/#\/$/);
   await page.goto('./#/settings');
   await page.getByTestId('redo-intake').tap();
   await expect(page).toHaveURL(/#\/welcome\?redo=1$/);
@@ -470,7 +453,8 @@ test('Settings → Answer the questions again: answers come back, Back leaves, t
   await cta(page).tap();
   await atStep(page, 'units');
   // Straight to the reveal: every later screen keeps its saved answer.
-  for (const step of ['units', 'focus', 'win']) {
+  // 3.5u: win is not asked.
+  for (const step of ['units', 'focus']) {
     await atStep(page, step);
     await cta(page).tap();
   }
@@ -666,8 +650,7 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
   await atStep(page, 'focus');
   await page.getByTestId('q-focus-arms').tap();
   await cta(page).tap();
-  await page.getByTestId('q-win-energy').tap();
-  await cta(page).tap();
+  // 3.5u: win, when and bodyweight are not asked.
   await page.getByTestId('q-experience-3y').tap();
   await atStep(page, 'days');
   await page.getByTestId('q-days-5').tap();
@@ -683,9 +666,6 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
     await atStep(page, step);
     await page.getByTestId('skip').tap();
   }
-  await page.getByTestId('q-when-early').tap();
-  await atStep(page, 'bodyweight');
-  await page.getByTestId('skip').tap();
   // Name shows the saved one; Skip discards it.
   await atStep(page, 'about');
   await expect(page.getByTestId('name-input')).toHaveValue('Sam');
@@ -699,7 +679,8 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
 
 // ---------------------------------------------------------------- round 3
 
-test('reloading or reopening on the reveal brings a fresh user back to it, until Start Day 1 @matrix', async ({ page }) => {
+// 3.5u: until Looks good, which lands on Today.
+test('reloading or reopening on the reveal brings a fresh user back to it, until Looks good @matrix', async ({ page }) => {
   await page.goto('./');
   await fastPath(page);
   await expect.poll(async () => (await dbAll(page, 'profile'))[0]?.intakeDoneAt).toBeTruthy();
@@ -710,9 +691,9 @@ test('reloading or reopening on the reveal brings a fresh user back to it, until
   await page.goto('./#/');
   await page.reload();
   await atStep(page, 'reveal');
-  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Start Day 1' }).tap();
-  await expect(page).toHaveURL(/#\/workout\//);
-  expect(await page.evaluate(() => localStorage.getItem('anygym.intakeDraft'))).toBeNull();
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good' }).tap();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('anygym.intakeDraft'))).toBeNull();
   await page.goto('./#/');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
@@ -761,7 +742,8 @@ test('B1 B2 (PLAN 3.5): a race goal gets Your plan built from the answers: the c
   // No curated plan is a race plan for 3 days and 45 min: the generator builds one, and says only what it did.
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
   await expect(page.getByTestId('reveal-check')).toBeVisible();
-  await expect(revealPrimary(page)).toHaveText('Start Day 1');
+  // 3.5u: Looks good, and the length is checked on Today's day card.
+  await expect(revealPrimary(page)).toHaveText('Looks good');
   await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built around your race training: 3 days, about \d+ min, full gym, easy on knees\.$/);
   await expect(page.getByTestId('reveal-card')).not.toContainText("aren't built in yet");
   const reason = page.getByTestId('reveal-reason');
@@ -779,33 +761,34 @@ test('B1 B2 (PLAN 3.5): a race goal gets Your plan built from the answers: the c
   await expect(page.getByTestId('reveal-plan-five-day-split')).toBeInViewport({ ratio: 1 });
   const minutes = /~(\d+) min/.exec((await rows.first().textContent())!)![1]!;
   await revealPrimary(page).tap();
-  await expect(page).toHaveURL(/#\/workout\//);
-  await expect(page.getByText(new RegExp(`~${minutes} min`)).first()).toBeVisible();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.getByTestId('day-card-title')).toContainText(`~${minutes} min`);
 });
 
-test('B2: a 30 minute pick makes the quick workout the main action; Start Day 1 stays one tap away; a true match has only the check and Start Day 1 @matrix', async ({ page }) => {
+// 3.5u (supersedes B2): the reveal has one action, Looks good, which lands on Today; the quick
+// workout at the minutes picked is Today's "Got 30 min?" card, never a start from the intake.
+test('B2 (3.5u): a 30 minute pick has one action, Looks good; Today offers the 30 min quick workout @matrix', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'muscle', days: 5, minutes: 30, place: 'full', units: US });
-  await expect(revealPrimary(page)).toHaveText('Start a quick workout');
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start Day 1');
+  await expect(revealPrimary(page)).toHaveText('Looks good');
+  await expect(page.getByTestId('reveal-secondary')).toHaveCount(0);
   await checkLayout(page, { primary: revealPrimary(page) });
   await shot(page, 'reveal-30');
   await revealPrimary(page).tap();
-  // 3.5g: the quick link opens the built ideas at the minutes picked, no plan chosen, nothing started yet.
-  await expect(page).toHaveURL(/#\/quick\?min=30$/);
-  await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
-  expect(await dbAll(page, 'planState')).toEqual([]);
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.getByTestId('build-card')).toContainText('Got 30 min?');
+  expect(await dbAll(page, 'planState')).toHaveLength(1);
   expect(await dbAll(page, 'sessions')).toEqual([]);
 });
 
-test('B2: brand new is offered a quick workout too; Start Day 1 from the secondary spot starts the plan', async ({ page }) => {
+// 3.5u (supersedes B2): brand new gets the same one action; the quick workout is on Today.
+test('B2 (3.5u): brand new has one action, Looks good; nothing starts', async ({ page }) => {
   await drafted(page, 'reveal', { goal: 'muscle', days: 5, place: 'full', experience: 'new', units: US });
-  await expect(revealPrimary(page)).toHaveText('Start Day 1');
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
+  await expect(revealPrimary(page)).toHaveText('Looks good');
+  await expect(page.getByTestId('reveal-secondary')).toHaveCount(0);
   await expect(page.getByTestId('reveal-reason')).toContainText('It expects some experience, so start light.');
-  await page.getByTestId('reveal-secondary').tap();
-  // 3.5g: the quick link opens the built ideas.
-  await expect(page).toHaveURL(/#\/quick\?min=\d+$/);
-  expect(await dbAll(page, 'planState')).toEqual([]);
+  await revealPrimary(page).tap();
+  await expect(page).toHaveURL(/#\/$/);
+  expect(await dbAll(page, 'sessions')).toEqual([]);
 });
 
 test('P4: favorites sit on the cardio screen, shown once a feeling is picked; None hides them @matrix', async ({ page }) => {
@@ -830,11 +813,12 @@ test('P4: favorites sit on the cardio screen, shown once a feeling is picked; No
 });
 
 test('P8: Back after Skip the rest returns to the screen where it was tapped', async ({ page }) => {
-  await drafted(page, 'bodyweight', { goal: 'muscle', units: US, place: 'full', days: 5 });
+  // 3.5u: bodyweight is hidden, so the same walk runs from easyOn.
+  await drafted(page, 'easyOn', { goal: 'muscle', units: US, place: 'full', days: 5 });
   await page.getByTestId('skip-rest').tap();
   await atStep(page, 'reveal');
   await backButton(page).tap();
-  await atStep(page, 'bodyweight');
+  await atStep(page, 'easyOn');
 });
 
 test('P2: equipment that is on shows a small check; turning it on moves nothing', async ({ page }) => {
@@ -852,13 +836,14 @@ test('P2: equipment that is on shows a small check; turning it on moves nothing'
   await expect.poll(() => label.boundingBox()).toEqual(before);
 });
 
-test('P7: the notice says finishing the profile changes nothing today', async ({ page }) => {
+// 3.5u (supersedes P7): the notice no longer starts a quick workout, so it has one action that keeps going.
+test('P7 (3.5u): the notice has one action, Keep going', async ({ page }) => {
   await drafted(page, 'noPlan', { goal: 'muscle', units: US, place: 'home', equipmentFor: 'home', equipment: [] });
-  await expect(page.getByTestId('noplan-continue')).toHaveText('Finish my profile');
-  await expect(page.getByText("It won't change what you can do today.")).toBeVisible();
+  await expect(page.getByTestId('noplan-cta').getByRole('button')).toHaveText(['Keep going']);
 });
 
-test('B3 (PLAN 3.5): a hotel with only dumbbells and a treadmill gets a plan, so no notice; the gym is saved when Day 1 starts @matrix', async ({ page }) => {
+// 3.5u: the gym is saved by the reveal; Looks good lands on Today.
+test('B3 (PLAN 3.5): a hotel with only dumbbells and a treadmill gets a plan, so no notice; the gym is saved @matrix', async ({ page }) => {
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'hotel', equipmentFor: 'hotel', equipment: ['dumbbells', 'treadmill'] });
   await cta(page).tap();
   await atStep(page, 'style');
@@ -871,7 +856,7 @@ test('B3 (PLAN 3.5): a hotel with only dumbbells and a treadmill gets a plan, so
   await atStep(page, 'reveal');
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
   await revealPrimary(page).tap();
-  await expect(page).toHaveURL(/#\/workout\//);
+  await expect(page).toHaveURL(/#\/$/);
   expect(await dbAll(page, 'gyms')).toMatchObject([{ type: 'hotel', equipment: ['dumbbells', 'treadmill'] }]);
   expect(await page.evaluate(() => localStorage.getItem('anygym.intakeDraft'))).toBeNull();
 });
@@ -892,11 +877,14 @@ test('B4: brand new skips the exercise lists; Skip the rest shows only from the 
   await page.reload();
   await atStep(page, 'easyOn');
   await page.getByTestId('skip').tap();
-  await atStep(page, 'when');
+  // 3.5u: when and bodyweight are hidden (never asked, so never marked skipped): about comes next.
+  await atStep(page, 'about');
+  await backButton(page).tap();
+  await atStep(page, 'easyOn');
   await page.getByTestId('skip-rest').tap();
   await atStep(page, 'reveal');
   const [p] = await dbAll(page, 'profile');
-  expect((p!.intake as { skipped: string[] }).skipped).toEqual(expect.arrayContaining(['easyOn', 'when', 'bodyweight', 'name', 'height', 'age', 'love', 'never']));
+  expect((p!.intake as { skipped: string[] }).skipped).toEqual(expect.arrayContaining(['easyOn', 'name', 'height', 'age', 'love', 'never']));
 });
 
 test('B4: love and never share one optional screen and stay separate answers', async ({ page }) => {
@@ -921,7 +909,9 @@ test('B4: love and never share one optional screen and stay separate answers', a
   expect(d.love[0]).not.toBe(d.never[0]);
 });
 
-test('B5: a tap confirms the shown value on the ruler and on the wheels; nothing unconfirmed is saved @matrix', async ({ page }) => {
+// 3.5u: the bodyweight question is hidden until starting weights use it (HIDDEN_SCREENS in lib/intake/funnel.ts);
+// the ruler stays in the code and this test comes back with the question.
+test.skip('B5: a tap confirms the shown value on the ruler and on the wheels; nothing unconfirmed is saved @matrix', async ({ page }) => {
   await drafted(page, 'bodyweight', { goal: 'muscle', units: US });
   await expect(page.getByText('Slide or tap to confirm')).toBeVisible();
   // PLAN 3.3a round 2 (B6): optional, so Continue is on; nothing unconfirmed is saved still.
@@ -1049,15 +1039,13 @@ test('P15: the edge swipe goes back on a pushed screen; the first screen has non
   await backButton(page).tap();
   await atStep(page, 'goal');
   await expect(page.getByTestId('edge-swipe')).toHaveCount(0);
-  // The ruler starts clear of the strip.
+  // 3.5u: the bodyweight question (and its ruler, and every "Coming soon" mark) is hidden until
+  // starting weights use it; an older draft left there picks up at the next question.
   await page.evaluate(() => localStorage.setItem('anygym.intakeDraft', JSON.stringify({ step: 'bodyweight', answers: { units: { weight: 'lb', distance: 'mi', measure: 'in', body: 'male' } } })));
   await page.reload();
-  await atStep(page, 'bodyweight');
-  const strip = (await page.getByTestId('edge-swipe').boundingBox())!;
-  const ruler = (await page.getByTestId('bodyweight-ruler').boundingBox())!;
-  expect(ruler.x).toBeGreaterThanOrEqual(strip.x + strip.width);
+  await atStep(page, 'about');
   await expect(page.getByText('Stays on this phone.')).toBeVisible();
-  await expect(page.getByTestId('why')).toHaveText('Optional. Suggests starting weights.Coming soon');
+  await expect(page.getByText(/coming soon/i)).toHaveCount(0);
 });
 
 test('P1 P9 P10: the selected toggle is the solid lime pill; the body starts unpicked; Units fits the SE with no fade over it', async ({ page }) => {

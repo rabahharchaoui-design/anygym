@@ -70,7 +70,8 @@ describe('B3: the days answer is what gets repeated', () => {
 describe('P4, P5, P8, P10', () => {
   it('P4: favorites live on the cardio screen, and old drafts land there', () => {
     expect(visibleScreens({})).not.toContain('cardioFavorites');
-    expect(visibleScreens({}).filter((s) => s !== 'reveal')).toHaveLength(17);
+    // 3.5u: 14, the three not built yet questions are hidden.
+    expect(visibleScreens({}).filter((s) => s !== 'reveal')).toHaveLength(14);
     // PLAN 3.3a round 2 (B6): cardio is not used yet, so it is optional.
     expect(canContinue('cardio', {})).toBe(true);
     expect(canContinue('cardio', { cardio: 'little' })).toBe(true);
@@ -86,14 +87,15 @@ describe('P4, P5, P8, P10', () => {
   });
 
   it('P8: Back after Skip the rest returns to where it was tapped', () => {
-    const s = funnelReducer({ step: 'when', answers: { goal: 'muscle' } }, { type: 'skipRest' });
+    // 3.5u: when is hidden, so the same walk runs from easyOn.
+    const s = funnelReducer({ step: 'easyOn', answers: { goal: 'muscle' } }, { type: 'skipRest' });
     expect(s.step).toBe('reveal');
     const b = funnelReducer(s, { type: 'back' });
-    expect(b.step).toBe('when');
+    expect(b.step).toBe('easyOn');
     expect(b.answers.skipRestFrom).toBeUndefined();
     // Afterwards back is ordinary again; a reload on the reveal keeps the way back.
-    expect(funnelReducer(funnelReducer(b, { type: 'skip' }), { type: 'back' }).step).toBe('when');
-    expect(parseDraft(JSON.stringify(s))!.answers.skipRestFrom).toBe('when');
+    expect(funnelReducer(funnelReducer(b, { type: 'skip' }), { type: 'back' }).step).toBe('easyOn');
+    expect(parseDraft(JSON.stringify(s))!.answers.skipRestFrom).toBe('easyOn');
     expect(sanitizeAnswers({ skipRestFrom: 'goal' }).skipRestFrom).toBeUndefined();
   });
 

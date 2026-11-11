@@ -35,7 +35,7 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
   // Pushed screens hide it like iOS: it slides away, and takes no taps or focus while gone.
   return (
     <nav className={styles.bar} aria-label="Main" data-hidden={hidden || undefined} aria-hidden={hidden || undefined} {...(hidden ? { inert: '' } : {})}>
-      <div className={styles.capsule}>
+      <div className={styles.capsule} data-tour="tabs">
         {TABS.map(({ to, label, Icon, also }) => {
           const here = pathname === to || (also as readonly string[]).includes(pathname) || (to !== '/' && pathname.startsWith(`${to}/`));
           const active = pressed ? pressed === to : here;

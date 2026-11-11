@@ -131,7 +131,8 @@ const PATHS: Path[] = [
 ];
 
 for (const p of PATHS) {
-  test(`brand new ${p.name}: Your plan with the check, the week, Start Day 1 goes into the workout @matrix`, async ({ page }) => {
+  // 3.5u: Looks good lands on Today with the plan chosen; Start on the day card goes into the workout.
+  test(`brand new ${p.name}: Your plan with the check, the week, Looks good then Start goes into the workout @matrix`, async ({ page }) => {
     await toReveal(page, p.answers);
     await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
     await expect(page.getByTestId('reveal-check')).toBeVisible();
@@ -142,11 +143,14 @@ for (const p of PATHS) {
     await expect(rows).toHaveCount(p.days);
     await expect(rows.first()).toContainText(p.first);
     await expect(rows.first()).toContainText(/~\d+ min/);
-    await expect(primary(page)).toHaveText('Start Day 1');
+    await expect(primary(page)).toHaveText('Looks good');
     await checkLayout(page, { primary: primary(page) });
     await shot(page, `reveal-${p.name.replace(/ /g, '-')}`);
     const minutes = /~(\d+) min/.exec((await rows.first().textContent())!)![1]!;
     await primary(page).tap();
+    await expect(page).toHaveURL(/#\/$/);
+    expect(await dbAll(page, 'sessions')).toEqual([]);
+    await page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }).tap();
     await expect(page).toHaveURL(/#\/workout\/[^/]+$/);
     await expect(page.getByText(p.first).first()).toBeVisible();
     // The workout header's estimate is the one the reveal showed.
@@ -166,8 +170,9 @@ for (const p of PATHS) {
 
 test('the plan viewer shows Your plan with its pairs and rests; Plans lists it first @matrix', async ({ page }) => {
   await toReveal(page, PATHS[0]!.answers);
+  // 3.5u: Looks good lands on Today.
   await primary(page).tap();
-  await expect(page).toHaveURL(/#\/workout\//);
+  await expect(page).toHaveURL(/#\/$/);
   const [plan] = await dbAll(page, 'plans');
   await page.goto('./#/plans');
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
@@ -211,11 +216,12 @@ test('a curated plan can still be picked instead, and Your plan comes back as a 
   expect(await dbAll(page, 'plans')).toEqual([]);
 });
 
-test('the quick workout option stays: a brand new lifter can start one from Your plan @matrix', async ({ page }) => {
+// 3.5u (supersedes): the reveal has one action; the quick workout is on Today, where the intake ends.
+test('the quick workout option stays, on Today: the reveal has one action and starts nothing @matrix', async ({ page }) => {
   await toReveal(page, PATHS[1]!.answers);
-  await expect(page.getByTestId('reveal-secondary')).toHaveText('Start a quick workout');
-  await page.getByTestId('reveal-secondary').tap();
-  await expect(page).toHaveURL(/#\/workout\//);
-  expect(await dbAll(page, 'planState')).toEqual([]);
-  expect(await dbAll(page, 'plans')).toEqual([]);
+  await expect(page.getByTestId('reveal-secondary')).toHaveCount(0);
+  await primary(page).tap();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.getByTestId('quick-card')).toBeVisible();
+  expect(await dbAll(page, 'sessions')).toEqual([]);
 });
