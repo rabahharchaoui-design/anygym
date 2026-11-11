@@ -1,36 +1,52 @@
-// The owner review queue's state (PLAN 3.5e): the candidate file and this phone's decisions, the
-// queue order (what is short today first), the batch G is in, the last decision for Undo, and the
-// export. Every decision is saved on the phone at once, so the queue resumes where it was, offline too.
+// The owner review's state (PLAN 3.5e, fast review 3.5i): the candidate file, the pre check and this
+// phone's decisions; the two piles (check carefully one by one first, the rest in the grid, 9 per
+// screen); the last decision or screen for Undo; and the export. Every decision is saved on the
+// phone at once (a grid screen in one transaction), so the review resumes where it was, offline too.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../../db/schema';
-import { readCandidateReviews, saveCandidateDecision, undoCandidateDecision } from '../../db/candidateReviews';
+import { readCandidateReviews, saveCandidateDecision, saveCandidateScreen, undoCandidateDecision, undoCandidateScreen } from '../../db/candidateReviews';
+import { readReviewPlace, writeReviewPlace } from '../../db/reviewPlace';
 import { candidateSourceSha, loadCandidateFile, ownerCandidates } from '../../data/candidateGate';
+import { loadPrecheck } from '../../data/candidatePrecheck';
 import { PATTERN_FILE } from '../../data/patterns';
 import { assetUrl, photoEligibility } from '../../data/exerciseInfo';
 import { sureLadderMoves } from '../../lib/candidates/coverage';
-import { BATCH, batchView, currentBatch, reviewOrder } from '../../lib/candidates/queue';
+import { reviewOrder } from '../../lib/candidates/queue';
+import { NO_PRECHECK, deckProgress, gridScreen, marksOn, screenRows, screenText, splitPiles, toggleWrong, type Marks, type Precheck, type ReviewMode } from '../../lib/candidates/fastReview';
 import { approvalsFileName, buildApprovalsExport, decisionRow, type CandidateDecision, type CandidateReviewRow, type FixReason } from '../../lib/candidates/review';
 import type { CandidateRecord } from '../../lib/candidates/types';
 import { shareOrDownload } from '../../lib/shareFile';
 
-type Last = { id: string; decision: CandidateDecision; previous: CandidateReviewRow | undefined };
+/** What Undo takes back: one card, or a whole grid screen. */
+type Last = { words: string; ids: string[]; previous: (CandidateReviewRow | undefined)[]; marks?: Marks };
+type Fix = { reason: FixReason; note: string };
+/** Cards whose photos are fetched ahead of the one on top. */
+const AHEAD = 6;
+const SAVE_FAILED = 'Could not save on this phone. Your earlier decisions are kept. Try again.';
 
 export function useCandidateReview() {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [rows, setRows] = useState<CandidateReviewRow[]>([]);
-  const [batch, setBatch] = useState(0);
+  const [precheck, setPrecheck] = useState<Precheck>(NO_PRECHECK);
+  const [place, setPlaceState] = useState(readReviewPlace);
   const [last, setLast] = useState<Last | null>(null);
   const [message, setMessage] = useState('');
+
+  const setPlace = (next: typeof place) => {
+    setPlaceState(next);
+    writeReviewPlace(next);
+  };
 
   // A failed read never turns into "nothing decided": the screen says so and offers Try again.
   useEffect(() => {
     let alive = true;
-    Promise.all([loadCandidateFile(), readCandidateReviews(db)])
-      .then(([, stored]) => {
+    Promise.all([loadCandidateFile(), readCandidateReviews(db), loadPrecheck()])
+      .then(([, stored, pre]) => {
         if (!alive) return;
         setRows(stored);
+        setPrecheck(pre);
         setFailed(false);
         setLoaded(true);
       })
@@ -43,33 +59,54 @@ export function useCandidateReview() {
   const byId = useMemo(() => new Map(ownerCandidates().map((c) => [c.id, c])), [loaded]);
   // Ordered against today's committed ladders (never the approvals): the order stays put as G works.
   const order = useMemo(() => (loaded ? reviewOrder(ownerCandidates(), sureLadderMoves(PATTERN_FILE.patterns, (id) => photoEligibility(id) !== 'none')) : []), [loaded]);
+  const piles = useMemo(() => splitPiles(order, precheck), [order, precheck]);
   const decided = useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
 
-  // Opens on the batch with the first undecided move (resumes after a reload).
-  useEffect(() => {
-    if (loaded) setBatch(Math.max(0, currentBatch(order, decided)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, order]);
+  // Check carefully comes first, always one by one; then the grid (or one by one, if G prefers).
+  const carefulLeft = piles.careful.some((id) => !decided.has(id));
+  const view: 'careful' | ReviewMode = carefulLeft ? 'careful' : place.mode;
+  const deckPile = view === 'careful' ? piles.careful : order;
+  const cards: CandidateRecord[] = view === 'grid' ? [] : deckPile.filter((id) => !decided.has(id)).map((id) => byId.get(id)!);
+  const grid = gridScreen(piles.grid, decided);
+  const tiles: CandidateRecord[] = grid.ids.map((id) => byId.get(id)!);
+  const marks = marksOn(grid.ids, place.marks);
+  const allDone = loaded && order.length > 0 && order.every((id) => decided.has(id));
+  const progress = !loaded || allDone ? '' : view === 'grid' ? screenText(grid) : deckProgress(deckPile, decided);
 
-  const view = batchView(order, decided, batch);
-  const items: CandidateRecord[] = view.left.map((id) => byId.get(id)!).filter(Boolean);
-  const allDone = loaded && order.length > 0 && currentBatch(order, decided) === -1;
-
-  // The batch's photos are fetched once while online, so the service worker keeps them for the gym basement.
+  // What comes next is fetched once while online, so there is no wait (and the service worker keeps
+  // the photos for the gym basement).
+  const ahead = view === 'grid' ? [...grid.ids, ...grid.next] : cards.slice(0, AHEAD).map((c) => c.id);
+  const aheadKey = ahead.join('|');
+  const fetched = useRef(new Set<string>());
   useEffect(() => {
     if (!loaded || typeof navigator === 'undefined' || !navigator.onLine) return;
-    for (const id of view.ids) for (const p of byId.get(id)?.images.webp ?? []) void fetch(assetUrl(p)).catch(() => undefined);
+    for (const id of ahead) {
+      for (const p of byId.get(id)?.images.webp ?? []) {
+        if (fetched.current.has(p)) continue;
+        fetched.current.add(p);
+        // An image, not a fetch: a reload cancels it without a page error.
+        const img = new Image();
+        img.onerror = () => fetched.current.delete(p);
+        img.src = assetUrl(p);
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, batch]);
+  }, [loaded, aheadKey]);
 
   // Writes run one after another (a fast run of swipes never races itself). The card leaves at once
-  // (the row is shown decided before the write lands); a failed write puts it back and says so.
+  // (the rows are shown decided before the write lands); a failed write puts them back and says so.
   const chain = useRef<Promise<unknown>>(Promise.resolve());
   const run = (work: () => Promise<void>) => {
     chain.current = chain.current.then(work, work);
   };
+  const reread = async (shown: readonly CandidateReviewRow[]) => {
+    const stored = await readCandidateReviews(db).catch(() => null);
+    setRows(stored ?? ((r) => r.filter((x) => !shown.includes(x))));
+    setMessage(SAVE_FAILED);
+  };
 
-  const decide = (id: string, decision: CandidateDecision, fix?: { reason: FixReason; note: string }) => {
+  /** One card of the deck. */
+  const decide = (id: string, decision: CandidateDecision, fix?: Fix) => {
     const row = decisionRow(id, decision, Date.now(), fix);
     setRows((r) => [...r.filter((x) => x.id !== id), row]);
     setLast(null);
@@ -77,11 +114,35 @@ export function useCandidateReview() {
       try {
         const { previous, rows: next } = await saveCandidateDecision(row, db);
         setRows(next);
-        setLast({ id, decision, previous });
+        setLast({ words: decision === 'approve' ? 'Approved' : decision === 'wrong' ? 'Marked wrong' : 'Fix saved', ids: [id], previous: [previous] });
         setMessage('');
       } catch {
-        setRows((await readCandidateReviews(db).catch(() => null)) ?? ((r) => r.filter((x) => x !== row)));
-        setMessage('Could not save on this phone. Your earlier decisions are kept. Try again.');
+        await reread([row]);
+      }
+    });
+  };
+
+  /** The grid: a tap marks a tile Wrong or clears it; Fix marks it with what is wrong. */
+  const toggle = (id: string) => setPlace({ ...place, marks: toggleWrong(marks, id) });
+  const markFix = (id: string, fix: Fix) => setPlace({ ...place, marks: { ...marks, [id]: { decision: 'fix', ...fix } } });
+
+  /** Approve: the whole screen in one transaction, then the next 9. */
+  const approveScreen = () => {
+    if (!grid.ids.length) return;
+    const screen = screenRows(grid.ids, marks, Date.now());
+    const had = marks;
+    setRows((r) => [...r.filter((x) => !grid.ids.includes(x.id)), ...screen]);
+    setPlace({ ...place, marks: {} });
+    setLast(null);
+    run(async () => {
+      try {
+        const { previous, rows: next } = await saveCandidateScreen(screen, db);
+        setRows(next);
+        setLast({ words: `Saved ${screen.length}`, ids: screen.map((r) => r.id), previous, marks: had });
+        setMessage('');
+      } catch {
+        setPlace({ ...place, marks: had });
+        await reread(screen);
       }
     });
   };
@@ -92,17 +153,16 @@ export function useCandidateReview() {
     setLast(null);
     run(async () => {
       try {
-        setRows(await undoCandidateDecision(was.id, was.previous, db));
-        // The batch it came from shows again (it may have been the last move of the batch).
-        setBatch(Math.floor(order.indexOf(was.id) / BATCH));
+        const next = was.ids.length === 1 && !was.marks ? await undoCandidateDecision(was.ids[0]!, was.previous[0], db) : await undoCandidateScreen(was.ids, was.previous, db);
+        setRows(next);
+        // A screen comes back as it was, its Wrong and Fix marks too.
+        if (was.marks) setPlace({ ...place, marks: was.marks });
       } catch {
         setLast(was);
         setMessage('Could not undo. Try again.');
       }
     });
   };
-
-  const nextBatch = () => setBatch(Math.max(0, currentBatch(order, decided)));
 
   const exportApprovals = async () => {
     const now = Date.now();
@@ -113,6 +173,28 @@ export function useCandidateReview() {
   };
 
   const counts = { approved: rows.filter((r) => r.decision === 'approve').length, decided: rows.length, total: order.length };
-  const byName = (id: string) => byId.get(id)?.name ?? '';
-  return { byName, loaded, failed, retry: () => setAttempt((n) => n + 1), items, view, allDone, last, message, decide, undo, nextBatch, exportApprovals, counts };
+  return {
+    loaded,
+    failed,
+    retry: () => setAttempt((n) => n + 1),
+    view,
+    progress,
+    cards,
+    note: (id: string) => (view === 'careful' ? (precheck.notes[id] ?? 'Look closely at this one.') : ''),
+    tiles,
+    screen: grid.screen,
+    marks,
+    allDone,
+    last,
+    forgetLast: () => setLast(null),
+    message,
+    decide,
+    toggle,
+    markFix,
+    approveScreen,
+    undo,
+    setMode: (mode: ReviewMode) => setPlace({ ...place, mode }),
+    exportApprovals,
+    counts,
+  };
 }

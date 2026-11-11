@@ -122,7 +122,10 @@ async function openDeck(page: Page) {
   await shot(page, 'review-home');
   await page.getByTestId('open-new-exercises').tap();
   await expect(page).toHaveURL(/#\/review\/new$/);
-  await expect(page.getByTestId('batch-progress')).toHaveText(/^Batch \d+ of \d+ · \d+ left$/);
+  // 3.5i: the grid is the default; these checks are about the one by one deck ("23 of 288").
+  await expect(page.getByTestId('review-progress')).not.toBeEmpty();
+  if ((await page.getByTestId('candidate-review').getAttribute('data-view')) === 'grid') await page.getByTestId('review-mode').tap();
+  await expect(page.getByTestId('review-progress')).toHaveText(/^\d+ of \d+$/);
 }
 
 async function scale130(page: Page) {
@@ -168,10 +171,12 @@ test('deck UX: swipe left/right, Fix sheet, 48pt, 100% and 130%, offline, resume
   // swipe left = wrong (drag), right = approve
   const a = (await w('candidate-name').textContent())!;
   await swipe(page, -260);
-  await expect(w('candidate-notice')).toContainText(`Marked wrong: ${a}`);
+  await expect(w('candidate-notice')).toContainText('Marked wrong') /* 3.5i: the Undo chip */;
   const b = (await w('candidate-name').textContent())!;
+  expect(b).not.toBe(a);
   await swipe(page, 260);
-  await expect(w('candidate-notice')).toContainText(`Approved: ${b}`);
+  await expect(w('candidate-notice')).toContainText('Approved');
+  await expect(w('candidate-name')).not.toHaveText(b);
   let rows = await dbAll<{ id: string; decision: string; note?: string; reason?: string }>(page, 'candidateReviews');
   expect(rows.map((r) => r.decision).sort()).toEqual(['approve', 'wrong']);
   // Fix with note
@@ -211,10 +216,10 @@ test('deck UX: swipe left/right, Fix sheet, 48pt, 100% and 130%, offline, resume
   await shot(page, 'deck-offline');
   await context.setOffline(false);
   // reload mid batch resumes
-  const left = await w('batch-progress').textContent();
+  const left = await w('review-progress').textContent();
   const nm = await w('candidate-name').textContent();
   await page.reload();
-  await expect(w('batch-progress')).toHaveText(left!);
+  await expect(w('review-progress')).toHaveText(left!);
   await expect(w('candidate-name')).toHaveText(nm!);
   // 130%
   await scale130(page);
@@ -375,7 +380,7 @@ test('offline: app shell loads, precache holds no candidate photos, deck works o
   console.log('caches after deck: ' + JSON.stringify(mid));
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByTestId('batch-progress')).toHaveText(/Batch 1 of/, { timeout: 15000 });
+  await expect(page.getByTestId('review-progress')).toHaveText(/^\d+ of \d+$/, { timeout: 15000 });
   const imgs = page.getByTestId('deck-card').getByTestId('deck-demo').locator('img');
   for (const n of [0, 1]) expect(await imgs.nth(n).evaluate((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await page.getByTestId('candidate-approve').tap();
