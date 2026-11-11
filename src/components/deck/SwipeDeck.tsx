@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { animate } from 'motion/react';
 import { tick } from '../../ui/haptics';
 import styles from './Deck.module.css';
@@ -49,7 +49,7 @@ export type DeckProps<T extends { id: string }> = {
   label: (item: T) => string;
   /** The hold ring's word ("Never show"). */
   holdWord?: string;
-  /** PLAN 3.5i: a light flick decides (velocity, not distance), and the card takes the full height. */
+  /** PLAN 3.5i: a light flick decides (velocity, not distance), the card takes the full height, and (3.5v) the card underneath comes up as it is, no arrival fade. */
   light?: boolean;
   /**
    * 3.5f round 3 (B3): the card a left puts in, drawn under the top card while it is dragged left (the
@@ -59,7 +59,7 @@ export type DeckProps<T extends { id: string }> = {
   swapIn?: T | null;
 };
 
-type Drag = { id: number; x: number; y: number; axis: 'x' | 'y' | null; dx: number; shown: number; lastX: number; lastT: number; v: number };
+type Drag = { src: 'pointer' | 'touch'; id: number; x: number; y: number; axis: 'x' | 'y' | null; dx: number; shown: number; lastX: number; lastT: number; v: number };
 
 /** Round 3 (B3): a left drag with nothing to swap in gives way less and less (at most RESIST px). */
 const RESIST = 44;
@@ -143,7 +143,7 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
       delete el.dataset.holding;
       delete el.dataset.dragging;
       const was = shown.current;
-      if (top && was && was.index === index && was.id !== top.id) {
+      if (!light && top && was && was.index === index && was.id !== top.id) {
         el.animate(
           reduced
             ? [{ opacity: 0 }, { opacity: 1 }]
@@ -159,7 +159,7 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     if (deckRef.current) deckRef.current.dataset.dir = '';
     shown.current = top ? { index, id: top.id } : null;
     busy.current = false;
-  }, [top?.id, index, reduced]);
+  }, [top?.id, index, reduced, light]);
 
   useEffect(
     () => () => {
@@ -223,14 +223,16 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fling]);
 
-  const onPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
-    if (busy.current || drag.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  // One gesture, two ways in (PLAN 3.5v): pointer events (mouse, pen) and touch events (a finger on
+  // the phone, where a touch stream is never taken away mid drag). A finger's pointerdown comes
+  // first; its touchstart then takes the gesture over, and the pointer events are ignored.
+  const begin = (src: Drag['src'], id: number, x: number, y: number, target: Element) => {
+    if (busy.current || drag.current) return;
     // A new press: whatever the last drag or hold swallowed is over.
     swallow.current = false;
-    if ((e.target as Element).closest('button')) return;
+    if (target.closest('button')) return;
     stop.current?.();
-    const now = performance.now();
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, axis: null, dx: 0, shown: 0, lastX: e.clientX, lastT: now, v: 0 };
+    drag.current = { src, id, x, y, axis: null, dx: 0, shown: 0, lastX: x, lastT: performance.now(), v: 0 };
     clearHold();
     if (!onNever) return;
     // The hold shows itself: the card presses in and a ring fills (round 2, P9).
@@ -254,11 +256,9 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     }, LONG_PRESS_MS);
   };
 
-  const onPointerMove = (e: ReactPointerEvent<HTMLElement>) => {
-    const d = drag.current;
-    if (!d || e.pointerId !== d.id) return;
-    const dx = e.clientX - d.x;
-    const dy = e.clientY - d.y;
+  const move = (d: Drag, x: number, y: number, capture?: () => void) => {
+    const dx = x - d.x;
+    const dy = y - d.y;
     if (!d.axis) {
       if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) return;
       clearHold();
@@ -269,21 +269,19 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
       }
       swallow.current = true;
       // Captured only once it is a drag, so a plain tap still reaches the button on the card.
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      capture?.();
     }
     const now = performance.now();
     const dt = Math.max(1, now - d.lastT);
-    d.v = 0.7 * ((e.clientX - d.lastX) / dt) + 0.3 * d.v;
-    d.lastX = e.clientX;
+    d.v = 0.7 * ((x - d.lastX) / dt) + 0.3 * d.v;
+    d.lastX = x;
     d.lastT = now;
     d.dx = dx;
     d.shown = dx < 0 && !canSwap ? resist(dx) : dx;
     schedule(d.shown);
   };
 
-  const end = (e: ReactPointerEvent<HTMLElement>, cancelled: boolean) => {
-    const d = drag.current;
-    if (!d || e.pointerId !== d.id) return;
+  const finish = (d: Drag, cancelled: boolean) => {
     clearHold();
     drag.current = null;
     if (d.axis !== 'x') return;
@@ -300,6 +298,42 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
       return onNothingToSwap();
     }
     fly(kind, d.dx);
+  };
+
+  const pointerDrag = (e: ReactPointerEvent<HTMLElement>) => (drag.current?.src === 'pointer' && drag.current.id === e.pointerId ? drag.current : null);
+  const onPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    begin('pointer', e.pointerId, e.clientX, e.clientY, e.target as Element);
+  };
+  const onPointerMove = (e: ReactPointerEvent<HTMLElement>) => {
+    const d = pointerDrag(e);
+    if (d) move(d, e.clientX, e.clientY, () => e.currentTarget.setPointerCapture?.(e.pointerId));
+  };
+  const end = (e: ReactPointerEvent<HTMLElement>, cancelled: boolean) => {
+    const d = pointerDrag(e);
+    if (d) finish(d, cancelled);
+  };
+
+  const touchOf = (e: ReactTouchEvent<HTMLElement>) => {
+    const d = drag.current;
+    return (d?.src === 'touch' && Array.from(e.changedTouches).find((t) => t.identifier === d.id)) || null;
+  };
+  const onTouchStart = (e: ReactTouchEvent<HTMLElement>) => {
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const d = drag.current;
+    // The same finger's pointerdown already began this gesture: the touch stream carries it on.
+    if (d?.src === 'pointer' && !d.axis) {
+      d.src = 'touch';
+      d.id = t.identifier;
+    } else begin('touch', t.identifier, t.clientX, t.clientY, e.target as Element);
+  };
+  const onTouchMove = (e: ReactTouchEvent<HTMLElement>) => {
+    const t = touchOf(e);
+    if (t && drag.current) move(drag.current, t.clientX, t.clientY);
+  };
+  const touchEnd = (e: ReactTouchEvent<HTMLElement>, cancelled: boolean) => {
+    if (touchOf(e) && drag.current) finish(drag.current, cancelled);
   };
 
   if (!top) return null;
@@ -336,6 +370,10 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
           onPointerMove={onPointerMove}
           onPointerUp={(e) => end(e, false)}
           onPointerCancel={(e) => end(e, true)}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={(e) => touchEnd(e, false)}
+          onTouchCancel={(e) => touchEnd(e, true)}
           onContextMenu={(e) => e.preventDefault()}
           onClickCapture={(e) => {
             if (swallow.current) {

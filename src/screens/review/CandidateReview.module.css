@@ -43,37 +43,6 @@
   line-height: 1.15;
 }
 
-.gear {
-  margin: 0;
-  color: var(--accent);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  hyphens: none;
-  word-break: normal;
-}
-
-.muscles {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-}
-
-.map {
-  flex: none;
-}
-
-.map > span {
-  width: 40px;
-}
-
-.muscleText {
-  min-width: 0;
-  color: var(--text-2);
-  font-size: 0.875rem;
-  line-height: 1.35;
-}
-
 /* The Undo chip's place in the header: its room is kept when empty, so nothing moves. */
 .notice {
   flex: 1 1 0;
@@ -135,23 +104,6 @@
 .wrongCue[data-side='swap'] {
   background: var(--red);
   color: var(--white);
-}
-
-/* Why the pre check was unsure about this one. */
-.note {
-  margin: 0 0 var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--white) 8%, transparent); /* 3.5t */
-  color: var(--text);
-  font-size: 0.875rem;
-  line-height: 1.35;
-  hyphens: none;
-  word-break: normal;
-}
-
-.note b {
-  color: var(--accent);
 }
 
 /* Reduced motion: no wash (the card only fades). */

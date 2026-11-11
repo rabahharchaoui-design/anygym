@@ -105,16 +105,17 @@ export function useCandidateReview() {
     setMessage(SAVE_FAILED);
   };
 
-  /** One card of the deck. */
-  const decide = (id: string, decision: CandidateDecision, fix?: Fix) => {
+  /** One card of the deck. `amend` (3.5v): the same card said more exactly; Undo still takes it all back. */
+  const decide = (id: string, decision: CandidateDecision, fix?: Fix, amend = false) => {
     const row = decisionRow(id, decision, Date.now(), fix);
     setRows((r) => [...r.filter((x) => x.id !== id), row]);
-    setLast(null);
+    if (!amend) setLast(null);
     run(async () => {
       try {
         const { previous, rows: next } = await saveCandidateDecision(row, db);
         setRows(next);
-        setLast({ words: decision === 'approve' ? 'Approved' : decision === 'wrong' ? 'Marked wrong' : 'Fix saved', ids: [id], previous: [previous] });
+        const words = decision === 'approve' ? 'Approved' : decision === 'wrong' ? 'Marked wrong' : 'Fix saved';
+        setLast((was) => ({ words, ids: [id], previous: amend && was?.ids.length === 1 && was.ids[0] === id ? was.previous : [previous] }));
         setMessage('');
       } catch {
         await reread([row]);

@@ -32,6 +32,7 @@ async function openReview(page: Page, precheck: { checkCarefully: string[]; note
   const version = page.getByTestId('app-version');
   for (let i = 0; i < 5; i++) await version.tap();
   await expect(page).toHaveURL(/#\/review$/);
+  await page.getByTestId('review-menu').tap(); // 3.5v: Review new exercises is in the top bar menu
   await page.getByTestId('open-new-exercises').tap();
   await expect(page).toHaveURL(/#\/review\/new$/);
   await expect(progress(page)).not.toBeEmpty();
@@ -179,7 +180,7 @@ test('the Check carefully pile comes first in the deck with its note; a light fl
   // Full height: the card takes the room between the header and the buttons.
   const card = (await page.getByTestId('deck-card').boundingBox())!;
   const buttons = (await page.getByTestId('candidate-approve').boundingBox())!;
-  expect(buttons.y - (card.y + card.height)).toBeLessThan(40);
+  expect(buttons.y - (card.y + card.height)).toBeLessThan(72); // 3.5v: the reason chips' row sits between
   await shot(page, 'deck-careful');
 
   // A slow short drag springs back: distance alone (under the threshold) decides nothing.
@@ -244,6 +245,7 @@ test('one by one for everything: progress "n of 288", a reload resumes on the sa
   expect(await page.getByTestId('deck-card').locator('span[data-side="keep"]').first().evaluate((el) => getComputedStyle(el).display)).toBe('none');
   await page.getByTestId('candidate-approve').tap();
   await expect(progress(page)).toHaveText(`4 of ${CANDS.length}`);
+  await page.getByTestId('review-menu').tap(); // 3.5v: in the top bar menu
   await page.getByTestId('review-mode').tap();
   await expect(tiles(page)).toHaveCount(9);
   expect(await tiles(page).first().locator('picture').nth(1).evaluate((p) => getComputedStyle(p).animationName)).toBe('none');

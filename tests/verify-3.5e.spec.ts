@@ -120,6 +120,7 @@ async function openDeck(page: Page) {
   await expect(page).toHaveURL(/#\/review$/);
   await page.waitForTimeout(900);
   await shot(page, 'review-home');
+  await page.getByTestId('review-menu').tap(); // 3.5v: Review new exercises is in the top bar menu
   await page.getByTestId('open-new-exercises').tap();
   await expect(page).toHaveURL(/#\/review\/new$/);
   // 3.5i: the grid is the default; these checks are about the one by one deck ("23 of 288").
@@ -157,7 +158,7 @@ test('deck UX: swipe left/right, Fix sheet, 48pt, 100% and 130%, offline, resume
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   expect(await overflow()).toBeLessThanOrEqual(0);
   const w = (id: string) => page.getByTestId(id);
-  for (const id of ['candidate-wrong', 'candidate-fix', 'candidate-approve', 'export-approvals']) {
+  for (const id of ['candidate-wrong', 'candidate-fix', 'candidate-approve' /* 3.5v: Export is in the top bar menu */]) {
     const b = (await w(id).boundingBox())!;
     expect(b.height, id).toBeGreaterThanOrEqual(48);
     expect(b.width, id).toBeGreaterThanOrEqual(48);
@@ -232,6 +233,7 @@ test('deck UX: swipe left/right, Fix sheet, 48pt, 100% and 130%, offline, resume
     console.log(`130% ${id} bottom ${Math.round(bb.y + bb.height)} of ${page.viewportSize()!.height}`);
   }
   // export privacy
+  await page.getByTestId('review-menu').tap(); // 3.5v: in the top bar menu
   await w('export-approvals').tap();
   await expect(w('candidate-message')).toHaveText('Approvals shared.');
   const shared = await page.evaluate(() => (window as unknown as { __shared: { text: string } }).__shared.text);

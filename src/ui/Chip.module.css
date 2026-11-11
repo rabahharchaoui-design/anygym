@@ -161,3 +161,18 @@
     opacity: var(--press-dim);
   }
 }
+
+/* PLAN 3.5v: compact, three to a row on a 320 pt phone; the label never wraps. */
+.chip[data-small] {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.chip[data-small] .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

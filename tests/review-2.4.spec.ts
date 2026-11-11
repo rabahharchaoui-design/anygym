@@ -25,20 +25,23 @@ test('5 version taps open Review; approve advances; fix cues needs a note; expor
   await expect(progress).toHaveText(/^0 \/ \d+ reviewed$/);
   const total = Number((await progress.textContent())!.match(/\/ (\d+)/)![1]);
   const card = page.getByTestId('review-card');
+  const approve = page.getByTestId('review-approve'); // 3.5v: the small icon button (the Undo chip also says Approved)
   const firstId = await card.getAttribute('data-id');
-  await expect(page.getByTestId('unreviewed')).toBeVisible();
+  // 3.5v: one card on one fixed screen; an undecided card carries no badge.
+  await expect(page.getByTestId('review-verdict')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Approve' }).tap();
+  await approve.tap();
   await expect(progress).toHaveText(`1 / ${total} reviewed`);
   await expect(card).not.toHaveAttribute('data-id', firstId!);
 
-  await page.getByRole('button', { name: 'Fix cues' }).tap();
+  await page.getByTestId('review-fix').tap(); // 3.5v: Fix cues is in the Fix sheet
   const save = page.getByRole('button', { name: 'Save cue note' });
   await expect(save).toBeDisabled();
   await page.getByTestId('review-note').fill('Too long');
   await save.tap();
   await expect(progress).toHaveText(`2 / ${total} reviewed`);
 
+  await page.getByTestId('review-menu').tap(); // 3.5v: Export is in the top bar menu
   await page.getByRole('button', { name: 'Export review' }).tap();
   await expect(page.getByTestId('review-message')).toHaveText('Review shared.');
   const shared = await page.evaluate(() => (window as unknown as { __shared: { name: string; text: string } }).__shared);
@@ -55,28 +58,24 @@ test('5 version taps open Review; approve advances; fix cues needs a note; expor
   expect(errors).toEqual([]);
 });
 
-// Gate s2 (iOS Simulator): the card's blocks shrank in the fixed height page, so the photo, map and
-// "Tap a muscle to name it" slid under the Approve stack. Nothing in the card may overlap the actions.
-test('review: the card never runs under the action buttons; everything scrolls into view @matrix', async ({ page }) => {
+// Gate s2 (iOS Simulator): the card's blocks slid under the Approve stack. 3.5v: the review is one
+// fixed screen now, so the card ends above the buttons and nothing scrolls at all.
+test('review: the card never runs under the action buttons; nothing scrolls @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./#/review');
-  const card = page.getByTestId('review-card');
+  const card = page.getByTestId('deck-card');
   await expect(card).toBeVisible();
-  const approve = page.getByRole('button', { name: 'Approve' });
-  const parts = [card.getByTestId('muscle-pick'), card.getByTestId('muscle-text'), card.getByRole('radiogroup').first()];
-  for (const part of parts) {
-    const a = (await part.boundingBox())!;
-    const b = (await approve.boundingBox())!;
-    expect(a.y + a.height, 'card part ends above Approve').toBeLessThanOrEqual(b.y + 0.5);
-  }
+  const approve = page.getByTestId('review-approve');
   const cardBox = (await card.boundingBox())!;
-  const lastInCard = await card.evaluate((el) => Math.max(...[...el.querySelectorAll('*')].map((c) => c.getBoundingClientRect().bottom)));
+  const b = (await approve.boundingBox())!;
+  expect(cardBox.y + cardBox.height, 'the card ends above Approve').toBeLessThanOrEqual(b.y + 0.5);
+  const lastInCard = await card.evaluate((el) => Math.max(...[...el.querySelectorAll('p, button, img')].map((c) => c.getBoundingClientRect().bottom)));
   expect(lastInCard).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
-  await approve.scrollIntoViewIfNeeded();
   await expect(approve).toBeInViewport({ ratio: 1 });
-  await page.getByRole('button', { name: 'Export review' }).scrollIntoViewIfNeeded();
-  await expect(page.getByRole('button', { name: 'Export review' })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId('review-menu')).toBeInViewport({ ratio: 1 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0);
+  expect(await page.getByTestId('review-screen').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
   expect(errors).toEqual([]);
 });
 
@@ -94,22 +93,22 @@ test('review: a read failure keeps earlier decisions, blocks verdicts, and Try a
   const progress = page.getByTestId('review-progress');
   await expect(progress).toHaveText(/^0 \/ \d+ reviewed$/);
   const total = Number((await progress.textContent())!.match(/\/ (\d+)/)![1]);
-  await page.getByRole('button', { name: 'Approve' }).tap();
+  await page.getByTestId('review-approve').tap(); // 3.5v
   await expect(progress).toHaveText(`1 / ${total} reviewed`);
-  await page.getByRole('button', { name: 'Approve' }).tap();
+  await page.getByTestId('review-approve').tap(); // 3.5v
   await expect(progress).toHaveText(`2 / ${total} reviewed`);
 
   await page.evaluate(() => sessionStorage.setItem('failReview', '1'));
   await page.reload();
   await expect(page.getByTestId('review-read-error')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+  await expect(page.getByTestId('review-approve')).toHaveCount(0); // 3.5v
   await page.getByRole('button', { name: 'Try again' }).tap();
   await expect(page.getByTestId('review-read-error')).toBeVisible();
 
   await page.evaluate(() => sessionStorage.removeItem('failReview'));
   await page.getByRole('button', { name: 'Try again' }).tap();
   await expect(progress).toHaveText(`2 / ${total} reviewed`);
-  await page.getByRole('button', { name: 'Approve' }).tap();
+  await page.getByTestId('review-approve').tap(); // 3.5v
   await expect(progress).toHaveText(`3 / ${total} reviewed`);
   await page.reload();
   await expect(page.getByTestId('review-progress')).toHaveText(`3 / ${total} reviewed`);

@@ -67,6 +67,31 @@ export function buildExport(state: ReviewState, ids: readonly string[], catalogS
   return { format: REVIEW_FORMAT, catalogSha, exportedAt: new Date(now).toISOString(), ...p, decisions };
 }
 
+/** Puts back what was there before a decision (Undo, PLAN 3.5v): the earlier decision, or none. */
+export function restoreDecision(state: ReviewState, id: string, previous: Decision | undefined): ReviewState {
+  return previous ? { decisions: { ...state.decisions, [id]: previous } } : clearDecision(state, id);
+}
+
+/** The words of a verdict, on the card's badge and the Undo chip. */
+export const VERDICT_WORDS: Record<Verdict, string> = {
+  approved: 'Approved',
+  'wrong-demo': 'Wrong demo',
+  'wrong-muscles': 'Wrong muscles',
+  'fix-cues': 'Fix cues',
+};
+
+/** PLAN 3.5v: the reason chips after a left swipe. Wrong cues is a Fix cues with this note. */
+export const WRONG_REASONS = ['wrong-demo', 'wrong-muscles', 'fix-cues'] as const satisfies readonly Verdict[];
+export type WrongReason = (typeof WRONG_REASONS)[number];
+export const WRONG_CUES_NOTE = 'Wrong cues';
+export const REASON_WORDS: Record<WrongReason, string> = { 'wrong-demo': 'Wrong demo', 'wrong-muscles': 'Wrong muscles', 'fix-cues': WRONG_CUES_NOTE };
+
+/** The primary muscle names as chips (PLAN 3.5v): each once, capitalised, at most `max`, and how many more. */
+export function muscleChips(primary: readonly { label: string }[], max = 3): { chips: string[]; more: number } {
+  const all = [...new Set(primary.map((t) => t.label.charAt(0).toUpperCase() + t.label.slice(1)))];
+  return { chips: all.slice(0, max), more: Math.max(0, all.length - max) };
+}
+
 export const exportName = (now: number) => `anygym-review-${new Date(now).toISOString().slice(0, 10)}.json`;
 
 /** Reads stored JSON defensively; anything unexpected is an empty review. */

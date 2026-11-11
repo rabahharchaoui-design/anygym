@@ -1,199 +1,187 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNav } from '../../ui/nav';
-import { db } from '../../db/schema';
-import { readReview, saveReviewDecision } from '../../db/review';
-import { CATALOG } from '../../data/muscles';
-import { CATALOG_SHA, ownerPreviewForCatalog } from '../../data/exerciseInfo';
-import { FormDemo } from '../../components/exercise/FormDemo';
-import { MuscleMap } from '../../components/muscles/MuscleMap';
+import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
+import type { CatalogExercise } from '../../data/muscles';
+import { ownerPreviewForCatalog } from '../../data/exerciseInfo';
+import { SwipeDeck, type Decision as Swipe } from '../../components/deck/SwipeDeck';
 import { Button } from '../../ui/Button';
-import { shareOrDownload } from '../../lib/shareFile';
-import {
-  buildExport,
-  canDecide,
-  emptyReview,
-  exportName,
-  nextIndex,
-  progress,
-  progressText,
-  type ReviewState,
-  type Verdict,
-} from '../../lib/review';
-import styles from './ReviewScreen.module.css';
+import { REASON_WORDS, VERDICT_WORDS, WRONG_REASONS, progressText, type Decision } from '../../lib/review';
+import { FitFace } from './FitFace';
+import { ReviewActions, ReviewBar, ReviewNotice } from './FitChrome';
+import { CoreFixSheet, InfoSheet, MapSheet, MenuSheet } from './ReviewSheets';
+import { UndoChip } from './UndoChip';
+import { useCoreReview } from './useCoreReview';
+import styles from './Fit.module.css';
 
-const IDS = CATALOG.map((e) => e.id);
-const VERDICT_WORDS: Record<Verdict, string> = {
-  approved: 'Approved',
-  'wrong-demo': 'Wrong demo',
-  'wrong-muscles': 'Wrong muscles',
-  'fix-cues': 'Fix cues',
-};
+const REASONS = WRONG_REASONS.map((key) => ({ key, label: REASON_WORDS[key] }));
+type Open = 'map' | 'info' | 'menu' | 'fix' | null;
 
-/** Hidden owner tool (SPEC 9.4, #/review): every catalog exercise one at a time, with a verdict and an export. */
+/** One catalog exercise's card: its demo, its muscles, its first cue. */
+function CoreFace({ ex, decision, under, onMap, onInfo }: { ex: CatalogExercise; decision: Decision | undefined; under: boolean; onMap: () => void; onInfo: () => void }) {
+  const info = useMemo(() => ownerPreviewForCatalog(ex.id), [ex.id]);
+  return (
+    <FitFace
+      demo={info.demo}
+      none="No photos for this exercise."
+      muscles={info.muscles}
+      line={info.cues[0] ?? 'No cues written yet.'}
+      lineTestId="review-cues"
+      under={under}
+      onMap={onMap}
+      onInfo={onInfo}
+      badge={
+        decision && (
+          <span className={styles.badge} data-testid={under ? undefined : 'review-verdict'}>
+            {VERDICT_WORDS[decision.verdict]}
+          </span>
+        )
+      }
+    />
+  );
+}
+
+/**
+ * Hidden owner tool (SPEC 9.4, #/review): every catalog exercise, one card at a time on one fixed
+ * screen (PLAN 3.5v). Swipe right to approve, left for wrong (then say what, for 3 seconds), hold
+ * to fix. The small buttons do the same; Export and the rest are in the menu.
+ */
 export function ReviewScreen() {
   const go = useNav();
-  const [state, setState] = useState<ReviewState>(emptyReview);
-  const [loaded, setLoaded] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [noting, setNoting] = useState(false);
-  const [note, setNote] = useState('');
-  const [message, setMessage] = useState('');
-  const first = useRef(true);
-
-  const [loadError, setLoadError] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [saving, setSaving] = useState(false);
-
-  // A failed read keeps whatever was read before and never turns into an empty review.
-  useEffect(() => {
-    let alive = true;
-    readReview(db)
-      .then((s) => {
-        if (!alive) return;
-        setState(s);
-        setIndex(nextIndex(s, IDS, -1));
-        setLoadError(false);
-        setLoaded(true);
-      })
-      .catch(() => alive && setLoadError(true));
-    return () => {
-      alive = false;
-    };
-  }, [attempt]);
-
-  const ex = CATALOG[index]!;
-  const info = useMemo(() => ownerPreviewForCatalog(ex.id), [ex.id]);
-  const done = progress(state, IDS);
-  const current = state.decisions[ex.id];
-  const howTo = info.cues;
-
-  useEffect(() => {
-    if (first.current) first.current = false;
-    setNoting(false);
-    setNote(state.decisions[ex.id]?.note ?? '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ex.id]);
-
-  const choose = (verdict: Verdict) => {
-    if (!loaded || saving || !canDecide(verdict, note)) return;
-    setSaving(true);
-    saveReviewDecision(db, ex.id, verdict, note, Date.now())
-      .then((s) => {
-        setState(s);
-        setMessage('');
-        setIndex(nextIndex(s, IDS, index));
-      })
-      .catch(() => setMessage('Could not save on this phone. Your earlier decisions are kept. Try again.'))
-      .finally(() => setSaving(false));
+  const reduced = useReducedMotionLive();
+  const r = useCoreReview();
+  const [open, setOpen] = useState<Open>(null);
+  const [fling, setFling] = useState<{ kind: Swipe; n: number } | null>(null);
+  const press = (kind: Swipe) => setFling((f) => ({ kind, n: (f?.n ?? 0) + 1 }));
+  const info = useMemo(() => ownerPreviewForCatalog(r.ex.id), [r.ex.id]);
+  const note = r.state.decisions[r.ex.id]?.note ?? '';
+  const close = () => setOpen(null);
+  const menu = (act: () => void) => () => {
+    close();
+    act();
   };
-
-  const exportReview = async () => {
-    const now = Date.now();
-    const file = new File([JSON.stringify(buildExport(state, IDS, CATALOG_SHA, now), null, 2)], exportName(now), { type: 'application/json' });
-    const out = await shareOrDownload(file);
-    setMessage(out === 'cancelled' ? '' : out === 'needs-tap' ? 'Tap Export again to share.' : out === 'shared' ? 'Review shared.' : 'Review saved.');
-  };
+  const undo = { words: r.last?.words ?? null, token: r.last, onUndo: r.undo, onGone: r.forgetLast };
+  const deck = r.loaded && !r.allDone;
 
   return (
     <div className={styles.page} data-testid="review-screen">
-      <header className={styles.header}>
-        <Button variant="tertiary" onClick={() => go('/settings', { kind: 'pop' })}>
-          Done
-        </Button>
-        <span className={`${styles.progress} num`} data-testid="review-progress">
-          {progressText(done)}
-        </span>
-      </header>
-      {/* PLAN 3.5e: the candidate moves waiting for G, as a swipe deck of their own. */}
-      <Button variant="secondary" onClick={() => go('/review/new')} data-testid="open-new-exercises">
-        Review new exercises
-      </Button>
-      {loadError && (
-        <div role="alert" data-testid="review-read-error">
-          <p className={styles.message}>Could not read your saved decisions. Nothing was changed.</p>
-          <Button variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+      <ReviewBar
+        name={deck ? r.ex.name : 'Review'}
+        nameTestId="review-name"
+        count={deck ? `${r.index + 1} of ${r.total}` : ''}
+        countTestId="review-pos"
+        backLabel="Back to Settings"
+        onBack={() => go('/settings', { kind: 'pop' })}
+        onMenu={() => setOpen('menu')}
+      />
+      <span className={styles.srOnly} role="status" data-testid="review-progress">
+        {r.loaded ? progressText(r.counts) : ''}
+      </span>
+      {r.loadError && (
+        <div className={styles.block} role="alert" data-testid="review-read-error">
+          <p className={styles.blockText}>Could not read your saved decisions. Nothing was changed.</p>
+          <Button variant="secondary" onClick={r.retry}>
             Try again
           </Button>
         </div>
       )}
-      {loaded && (
-        <>
-          <div className={styles.nav}>
-            <Button variant="tertiary" disabled={index === 0} onClick={() => setIndex(index - 1)} aria-label="Previous exercise">
-              Back
-            </Button>
-            <span className={`${styles.pos} num`}>
-              {index + 1} of {IDS.length}
-            </span>
-            <Button variant="tertiary" disabled={index === IDS.length - 1} onClick={() => setIndex(index + 1)} aria-label="Next exercise">
-              Skip
-            </Button>
-          </div>
-          <section className={styles.card} data-testid="review-card" data-id={ex.id}>
-            <div className={styles.titleRow}>
-              <h1 className={styles.name}>{ex.name}</h1>
-              {current ? (
-                <span className={styles.badge} data-testid="review-verdict">
-                  {VERDICT_WORDS[current.verdict]}
-                </span>
-              ) : (
-                <span className={styles.unreviewed} data-testid="unreviewed">
-                  <span className={styles.dot} aria-hidden="true" />
-                  Unreviewed
-                </span>
-              )}
-            </div>
-            {info.demo ? <FormDemo demo={info.demo} name={ex.name} /> : <p className={styles.none}>No photos for this exercise.</p>}
-            {info.muscles ? <MuscleMap data={info.muscles} /> : <p className={styles.none}>No muscle map (muscles not sure).</p>}
-            {howTo.length > 0 ? (
-              <ol className={styles.cues} data-testid="review-cues">
-                {howTo.map((c, i) => (
-                  <li key={i}>{c}</li>
-                ))}
-              </ol>
-            ) : (
-              <p className={styles.none}>No cues written yet.</p>
-            )}
-            {info.watchOut && <p className={styles.line}>Watch out: {info.watchOut}</p>}
-            {info.goodFor && <p className={styles.line}>Good for: {info.goodFor}</p>}
-            {current?.note && <p className={styles.line}>Your note: {current.note}</p>}
-          </section>
-          {noting && (
-            <label className={styles.noteBox}>
-              What should the cues say?
-              <textarea className={styles.textarea} value={note} onChange={(e) => setNote(e.target.value)} rows={3} data-testid="review-note" />
-            </label>
-          )}
-          <div className={styles.actions}>
-            <Button variant="primary" onClick={() => choose('approved')}>
-              Approve
-            </Button>
-            <div className={styles.row}>
-              <Button variant="secondary" onClick={() => choose('wrong-demo')}>
-                Wrong demo
-              </Button>
-              <Button variant="secondary" onClick={() => choose('wrong-muscles')}>
-                Wrong muscles
-              </Button>
-            </div>
-            {noting ? (
-              <Button variant="secondary" onClick={() => choose('fix-cues')} disabled={!canDecide('fix-cues', note)} disabledReason="Write a note first.">
-                Save cue note
-              </Button>
-            ) : (
-              <Button variant="secondary" onClick={() => setNoting(true)}>
-                Fix cues
-              </Button>
-            )}
-          </div>
-          <Button variant="tertiary" onClick={exportReview}>
+      {r.loaded && r.allDone && (
+        <div className={styles.block} data-testid="review-all-done">
+          <p className={styles.blockTitle}>Every exercise is reviewed</p>
+          <p className={`${styles.blockText} num`}>{progressText(r.counts)}. Export the review so the fixes can go into the app.</p>
+          <Button variant="primary" onClick={() => void r.exportReview()}>
             Export review
           </Button>
-          <p className={styles.message} role="status" data-testid="review-message">
-            {message}
-          </p>
+          <UndoChip {...undo} />
+        </div>
+      )}
+      {deck && (
+        <>
+          <div className={styles.stage} data-testid="review-card" data-id={r.ex.id}>
+            <SwipeDeck
+              items={r.cards}
+              index={0}
+              canSwap
+              light
+              reduced={reduced}
+              onDecide={(d) => (d === 'keep' ? r.decide('approved') : r.decide('wrong-demo', '', true))}
+              // The chips are about the card that left: they go as the next one leaves.
+              onFlyStart={r.closeReasons}
+              onNever={() => setOpen('fix')}
+              holdWord="Fix"
+              onNothingToSwap={() => undefined}
+              fling={fling}
+              label={(e) => `${e.name}. Swipe right to approve, left if it is wrong, hold to fix.`}
+              renderCard={(e, at) => <CoreFace ex={e} decision={r.state.decisions[e.id]} under={at.under} onMap={() => setOpen('map')} onInfo={() => setOpen('info')} />}
+            />
+          </div>
+          <ReviewNotice
+            reasons={r.reasonFor && { options: REASONS, picked: r.reasonFor.picked, token: r.reasonFor.id, onPick: r.pickReason, onGone: r.closeReasons }}
+            message={r.message}
+            messageTestId="review-message"
+          />
+          <ReviewActions undo={undo} onWrong={() => press('swap')} onFix={() => setOpen('fix')} onApprove={() => press('keep')} ids={{ wrong: 'review-wrong', fix: 'review-fix', approve: 'review-approve' }} />
         </>
       )}
+      {r.loaded && r.allDone && <ReviewNotice reasons={null} message={r.message} messageTestId="review-message" />}
+
+      <MapSheet open={open === 'map'} onClose={close} name={r.ex.name} muscles={info.muscles} />
+      <InfoSheet open={open === 'info'} onClose={close} name={r.ex.name}>
+        {info.cues.length > 0 ? (
+          <ol className={styles.lines} data-testid="review-all-cues">
+            {info.cues.map((c, i) => (
+              <li key={i}>{c}</li>
+            ))}
+          </ol>
+        ) : (
+          <p className={styles.line}>No cues written yet.</p>
+        )}
+        {info.watchOut && (
+          <p className={styles.line}>
+            <b>Watch out:</b> {info.watchOut}
+          </p>
+        )}
+        {info.goodFor && (
+          <p className={styles.line}>
+            <b>Good for:</b> {info.goodFor}
+          </p>
+        )}
+        {note && (
+          <p className={styles.line}>
+            <b>Your note:</b> {note}
+          </p>
+        )}
+      </InfoSheet>
+      <CoreFixSheet
+        open={open === 'fix'}
+        onClose={close}
+        name={r.ex.name}
+        note={note}
+        onSave={(verdict, text) => {
+          close();
+          r.decide(verdict, text);
+        }}
+      />
+      <MenuSheet open={open === 'menu'} onClose={close} head={r.loaded ? progressText(r.counts) : undefined}>
+        {r.loaded && (
+          <>
+            <Button variant="secondary" disabled={!r.canBack} onClick={menu(r.back)}>
+              Previous exercise
+            </Button>
+            <Button variant="secondary" disabled={!r.canSkip || r.allDone} onClick={menu(r.skip)}>
+              Skip this one
+            </Button>
+          </>
+        )}
+        {/* PLAN 3.5e: the candidate moves waiting for G, as a review of their own. */}
+        <Button variant="secondary" onClick={menu(() => go('/review/new'))} data-testid="open-new-exercises">
+          Review new exercises
+        </Button>
+        {r.loaded && (
+          <Button variant="secondary" onClick={menu(() => void r.exportReview())}>
+            Export review
+          </Button>
+        )}
+      </MenuSheet>
     </div>
   );
 }
