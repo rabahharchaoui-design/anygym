@@ -85,6 +85,8 @@
   --glass-bg: rgb(30 32 36 / 0.86);
   /* At least 90% opaque (gate 3): bars and toasts never let text show through. */
   --glass-bg-strong: rgb(27 29 33 / 0.93);
+  /* The floating tab bar (3.5t): near solid so page text never reads through it. */
+  --glass-bg-bar: rgb(30 32 36 / 0.97);
   /* Pushed screen top bars once scrolled (gate B3): near solid graphite, the top of the gradient. */
   --bar-fill: 0.95;
   --bar-solid: #282b30;
@@ -147,6 +149,7 @@
     --surface-2: #3a3d43;
     --glass-bg: #1e2024;
     --glass-bg-strong: #1b1d21;
+    --glass-bg-bar: #1e2024;
     --bar-fill: 1;
     --glass-blur: none;
     --card-fill: #2f3237;

@@ -81,7 +81,8 @@
 /* Drawn once (the card moves as one layer), never re-blurred per frame. */
 .photoFill {
   object-fit: cover;
-  transform: scale(1.15);
+  /* No scale up (3.5t): a scaled image's box reached past the screen edge. The blur's soft edge melts
+     into the dark photo background instead. */
   filter: blur(18px) brightness(0.55);
   /* Its own layer: the blur is drawn once and only moved with the card (60 fps on Pro Max). */
   will-change: transform;

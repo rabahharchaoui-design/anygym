@@ -209,7 +209,9 @@ test('(5) chest and quads trained yesterday: no idea card holds them; why lines 
   test.setTimeout(240000);
   const errors = watchErrors(page);
   await pastIntake(page);
-  await seed(page, 'v1', Date.now() - 20 * 3_600_000, [
+  // Clock independent (3.5g): yesterday at noon local, not "20 h ago" which is today after 20:00.
+  const yesterdayNoon = (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1, 12).getTime(); })();
+  await seed(page, 'v1', yesterdayNoon, [
     ...[0, 1, 2].map(() => ({ ex: 'machine-seated-chest-fly', reps: 8, load: STACK50 })),
     ...[0, 1, 2].map(() => ({ ex: 'machine-seated-leg-extension', reps: 8, load: STACK50 })),
   ]);

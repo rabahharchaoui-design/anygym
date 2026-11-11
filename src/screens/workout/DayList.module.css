@@ -321,8 +321,8 @@
   background: color-mix(in srgb, var(--white) 7%, transparent);
   border: 1px solid var(--glass-line);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   color: var(--text);
   font-size: 13px;
   font-weight: 600;

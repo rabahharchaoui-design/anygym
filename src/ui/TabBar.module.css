@@ -54,7 +54,7 @@
   grid-template-columns: repeat(4, 1fr);
   padding: 5px;
   border-radius: var(--radius-pill);
-  background: var(--glass-bg);
+  background: var(--glass-bg-bar);
   border: 1px solid var(--glass-line);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
