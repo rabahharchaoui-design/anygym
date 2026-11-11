@@ -1,4 +1,4 @@
-/* PLAN 3.3: prompt chip. Picked: lime border, a faint lime fill, lime icon; the press answers in one
+/* PLAN 3.3: prompt chip. Picked: accent border, a faint accent fill, accent icon; the press answers in one
    frame (0.96), the release eases out. */
 .chip {
   display: inline-flex;
@@ -35,11 +35,11 @@
 
 .chip[aria-pressed='true'] {
   border-color: var(--accent);
-  background: linear-gradient(to right, rgb(212 255 58 / 0.12), rgb(212 255 58 / 0.05)), var(--surface-1);
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--accent) 5%, transparent)), var(--surface-1);
 }
 
 .chip[data-soft][aria-pressed='true'] {
-  border-color: rgb(212 255 58 / 0.4);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   background: var(--surface-2);
 }
 
@@ -94,7 +94,7 @@
   height: 24px;
 }
 
-/* "Main" or "Also": a small lime tag, top right on a tile, after the label otherwise. It pops in
+/* "Main" or "Also": a small accent tag, top right on a tile, after the label otherwise. It pops in
    on the tap spring (from 0.6, never from nothing) and its place never moves the label. */
 .tag {
   flex: none;
@@ -135,7 +135,7 @@
     padding: 1px 7px;
   }
   .chip[data-tile] .tag[data-tag='Also'] {
-    background: var(--bg);
+    background: var(--surface-solid);
   }
 }
 

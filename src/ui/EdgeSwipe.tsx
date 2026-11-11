@@ -34,7 +34,7 @@ export function EdgeSwipe({ layerRef, onBack, under }: Props) {
     const p = Math.min(1, dx / w);
     if (layer) {
       layer.style.transform = `translate3d(${dx}px,0,0)`;
-      layer.style.boxShadow = '-14px 0 34px rgb(0 0 0 / 0.55)';
+      layer.style.boxShadow = 'var(--shadow-push)';
     }
     if (underRef.current) underRef.current.style.transform = underAt(w, p);
     if (shadeRef.current) shadeRef.current.style.opacity = String((1 - PAGE.dim) * (1 - p));

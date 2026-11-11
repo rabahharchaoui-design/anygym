@@ -4,7 +4,7 @@
   height: var(--app-height);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--bg);
+  background: var(--bg-screen);
   padding: calc(var(--safe-top) + var(--space-4)) calc(var(--space-4) + var(--safe-right))
     calc(var(--safe-bottom) + var(--space-6)) calc(var(--space-4) + var(--safe-left));
   display: flex;

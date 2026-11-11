@@ -197,7 +197,7 @@ export const TodoRow = memo(
             <button
               type="button"
               className={`${styles.cellButton} ${styles.cellValue} num pressable`}
-              // Only the current row asks for a pick (lime); rows further down stay quiet.
+              // Only the current row asks for a pick (accent); rows further down stay quiet.
               data-empty={(!weight && isCurrent) || undefined}
               data-quiet={(!weight && !isCurrent) || undefined}
               data-unknown={(r.load === null && !!weight) || undefined}

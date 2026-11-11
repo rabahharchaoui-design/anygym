@@ -22,7 +22,7 @@
 
 .wrap[data-picked] .band {
   border-color: var(--accent);
-  background: linear-gradient(to right, rgb(212 255 58 / 0.1), rgb(212 255 58 / 0.04)), var(--surface-2);
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 10%, transparent), color-mix(in srgb, var(--accent) 4%, transparent)), var(--surface-2);
 }
 
 .track {
@@ -93,10 +93,10 @@
 
 .fade[data-end='top'] {
   top: 0;
-  background: linear-gradient(var(--bg), rgb(0 0 0 / 0));
+  background: linear-gradient(var(--bg), transparent);
 }
 
 .fade[data-end='bottom'] {
   bottom: 0;
-  background: linear-gradient(rgb(0 0 0 / 0), var(--bg));
+  background: linear-gradient(transparent, var(--bg));
 }

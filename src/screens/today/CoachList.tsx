@@ -11,7 +11,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 type Change = Pick<PlannedChange, 'exerciseId' | 'name' | 'loadKind' | 'unit' | 'from' | 'to' | 'reason'> & { fromTotal?: number; key?: string; id?: string };
 
-/** One lift's change: name, old → new (new in lime), the one line why. */
+/** One lift's change: name, old → new (new in accent), the one line why. */
 export function ChangeRow({ c, undone, trailing }: { c: Omit<Change, 'exerciseId'>; undone?: boolean; trailing?: ReactNode }) {
   return (
     <li className={`${styles.row} ${trailing ? styles.sheetRow : ''}`} data-undone={undone || undefined} data-testid="coach-change">

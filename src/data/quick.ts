@@ -6,6 +6,7 @@ import { mergeMuscleMaps, type MuscleMapData } from '../lib/muscles';
 import { GENERATOR_DEPS } from './generator';
 import { demoFor, infoForExercise } from './exerciseInfo';
 import { profileFor } from './order';
+import { COACH_FACTS } from './coachFacts';
 
 /**
  * Round 2 (B4): the map regions each muscle word covers, as a person reads it: "back" is the whole
@@ -33,6 +34,7 @@ export const MUSCLE_MAP_REGIONS: Record<Muscle, readonly string[]> = {
 
 export const QUICK_DEPS: QuickDeps = {
   ...GENERATOR_DEPS,
+  facts: COACH_FACTS,
   // SPEC 4.3: only an exercise with a sure demo (exact or variant) is ever offered.
   usable: (id) => demoFor(id) !== null,
   profileOf: (id, name) => profileFor(id, name),

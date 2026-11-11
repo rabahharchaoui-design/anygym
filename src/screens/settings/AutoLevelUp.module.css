@@ -28,9 +28,9 @@
   align-items: center;
   gap: 4px;
   padding: var(--space-4);
-  border: 1px solid rgb(212 255 58 / 0.22);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
   border-radius: 20px;
-  background: linear-gradient(135deg, rgb(212 255 58 / 0.08), rgb(212 255 58 / 0.02) 60%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 2%, transparent) 60%);
   text-align: center;
 }
 
@@ -75,7 +75,7 @@
 .error {
   margin: 0;
   min-height: 18px;
-  color: var(--red);
+  color: var(--red-text);
   font-size: var(--text-sm);
   text-align: center;
 }

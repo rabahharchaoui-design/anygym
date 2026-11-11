@@ -8,7 +8,7 @@ type Props = {
   stroke?: number;
   /** Linear glide between updates, matched to how often `fraction` changes (a smooth countdown). */
   glideMs?: number;
-  /** Full: a filled lime disc (done). */
+  /** Full: a filled accent disc (done). */
   full?: boolean;
   className?: string;
   children?: ReactNode;

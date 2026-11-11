@@ -1,5 +1,5 @@
 // Line illustrations for the glossary (SPEC 13.7): 160 × 120, 2px strokes in the text colour,
-// the lime accent on the part that tells you what it is. Drawn from real gym equipment, kept
+// the accent accent on the part that tells you what it is. Drawn from real gym equipment, kept
 // simple. Every one goes through the Review screen before it counts as approved.
 import type { CSSProperties, ReactNode } from 'react';
 

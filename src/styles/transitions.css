@@ -65,14 +65,14 @@ html[data-nav='push']::view-transition-old(root) {
 }
 html[data-nav='push']::view-transition-new(root) {
   animation-name: vt-push-new;
-  box-shadow: -12px 0 32px rgb(0 0 0 / 0.55);
+  box-shadow: -12px 0 32px color-mix(in srgb, var(--black) 55%, transparent);
 }
 
 /* pop: the reverse, the leaving screen on top */
 html[data-nav='pop']::view-transition-old(root) {
   animation-name: vt-pop-old;
   z-index: 1;
-  box-shadow: -12px 0 32px rgb(0 0 0 / 0.55);
+  box-shadow: -12px 0 32px color-mix(in srgb, var(--black) 55%, transparent);
 }
 html[data-nav='pop']::view-transition-new(root) {
   animation-name: vt-pop-new;

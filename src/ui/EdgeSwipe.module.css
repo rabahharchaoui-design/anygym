@@ -15,14 +15,14 @@
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--bg-screen);
   pointer-events: none;
 }
 
 .shade {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: var(--black);
   opacity: 0.45;
   z-index: 2;
 }

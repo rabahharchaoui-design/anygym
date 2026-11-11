@@ -11,7 +11,7 @@ type Props = {
   onPick: (kind: Load['kind']) => void;
   /** Leave choices out (import: reps are never turned into a timed hold). */
   without?: ReadonlyArray<Load['kind']>;
-  /** How it is loaded now: marked with a lime check and "Current". */
+  /** How it is loaded now: marked with an accent check and "Current". */
   current?: Load['kind'];
 };
 

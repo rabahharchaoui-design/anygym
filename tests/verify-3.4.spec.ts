@@ -56,6 +56,8 @@ const openReplace = async (page: Page, name: string) => {
   await page.getByTestId('replace-row').tap();
   const sheet = page.getByRole('dialog', { name: `Replace ${name}` });
   await expect(sheet).toBeVisible();
+  // 3.5f: Replace opens as a swipe deck; "Show all" lists the options as before (one option is a row straight away).
+  if ((await sheet.getByTestId('swap-sheet').getAttribute('data-mode')) === 'deck') await sheet.getByTestId('swap-all').tap();
   return sheet;
 };
 const supported = (req: Req, g: Gym) => req.every((grp) => grp.some((id) => g.equipment.includes(id) && (id !== 'dumbbells' || g.dumbbellRange !== null)));
@@ -156,7 +158,8 @@ test('V2 Replace is first; every choice is a same pattern, gym supported candida
       const sheet = await openReplace(page, name);
       const got = await sheet.locator('[data-testid^="swap-choice-"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!.slice(12)));
       sheets++;
-      expect(got.length).toBeLessThanOrEqual(4);
+      // 3.5f: the list shows up to 6 at once (was SPEC 7.2's 4); the deck shows them one by one.
+      expect(got.length).toBeLessThanOrEqual(6);
       if (!pat) {
         await expect(sheet.getByTestId('swap-empty')).toBeVisible();
         expect(got).toEqual([]);

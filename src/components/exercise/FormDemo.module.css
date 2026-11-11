@@ -148,8 +148,8 @@
 
 .hero .frame {
   inset: 0;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--seam, 0px), #000 calc(100% - var(--seam, 0px)), transparent);
-  mask-image: linear-gradient(to right, transparent, #000 var(--seam, 0px), #000 calc(100% - var(--seam, 0px)), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--seam, 0px), black calc(100% - var(--seam, 0px)), transparent);
+  mask-image: linear-gradient(to right, transparent, black var(--seam, 0px), black calc(100% - var(--seam, 0px)), transparent);
 }
 
 .heroFill img {

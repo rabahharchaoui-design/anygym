@@ -15,7 +15,7 @@ import { planById } from '../../data/plans';
 import { dayIndexOf, estimateDayMinutes, type Plan, type PlanDay } from '../../lib/plans';
 import { quickDayOf } from '../../lib/quick';
 import { dayWorkout, doneCounts, quickEntry, repRangeOf, upNext, type DoneCounts, type WorkoutEntry } from '../../lib/planWorkout';
-import { SWAP_SHEET_MAX, liveEntries, patternOf, slotOf, swapCandidates, swapOfRow, swapReason, workoutIdOf } from '../../lib/swap';
+import { liveEntries, patternOf, slotOf, swapCandidates, swapOfRow, swapReason, workoutIdOf } from '../../lib/swap';
 import { SWAP_DATA, candidateBarOf, candidateLoadOf, countsEachSide } from '../../data/patterns';
 import { exerciseNameOf } from '../../data/importMatch';
 import { demoFor } from '../../data/exerciseInfo';
@@ -120,10 +120,12 @@ export type SwapChoices = {
   restore?: { id: string; name: string };
   /** The plan's "Always use this" pick for this slot, and the slot's id, when there is one. */
   always?: { slot: string; name: string };
-  /** Up to 4, best first (SPEC 7.2): this gym can do them. */
+  /** Best first (SPEC 7.2): this gym can do them. PLAN 3.5f: the whole pool (the deck shows one at a time, the list up to 6). */
   choices: SwapChoice[];
   /** The exercise is in no ladder: the app has no sure swap for it. */
   noPattern: boolean;
+  /** PLAN 3.5f: this workout's id (a left on a Replace card counts once per workout). */
+  workout?: string;
 };
 
 const EMPTY: Committed = new Map();
@@ -324,7 +326,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     const row = swapOfRow(swaps, id);
     const slot = slotOf(swaps, id);
     const entry = entryMap.get(id);
-    const out: SwapChoices = { choices: [], noPattern: !patternOf(SWAP_DATA, slot) && !patternOf(SWAP_DATA, id) };
+    const out: SwapChoices = { choices: [], noPattern: !patternOf(SWAP_DATA, slot) && !patternOf(SWAP_DATA, id), ...(session.data ? { workout: session.data.id } : {}) };
     if (row && row.current !== row.slot) out.restore = { id: row.slot, name: nameOf(row.slot) };
     const pick = session.data?.planId ? list.find((x) => x.exerciseId === slot && x.alwaysUse?.[session.data!.planId!])?.alwaysUse?.[session.data.planId] : undefined;
     if (pick) out.always = { slot, name: nameOf(pick) };
@@ -333,7 +335,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     const mine = new Set([slot, ...(row?.kept ?? [])]);
     const timed = entry?.seconds !== undefined || (entry?.reps === undefined && loadTypeOf(id) === 'timed');
     const found = swapCandidates(SWAP_DATA, patternOf(SWAP_DATA, slot) ? slot : id, kit, { mode: timed ? 'seconds' : 'reps', exclude: exerciseIds.filter((x) => !mine.has(x)).concat(id, slot) });
-    out.choices = found.slice(0, SWAP_SHEET_MAX).map((c) => {
+    out.choices = found.map((c) => {
       const to = workoutIdOf(c);
       return { id: to, name: nameOf(to), reason: swapReason(SWAP_DATA, slot, c, kit), loadType: loadTypeOf(to), photo: demoFor(to) };
     });

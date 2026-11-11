@@ -1,4 +1,4 @@
-/* PLAN 2.2e round 2 (critic B3): the PR chip. Lime with black text, 22 pt tall, 12 pt bold text,
+/* PLAN 2.2e round 2 (critic B3): the PR chip. Accent with black text, 22 pt tall, 12 pt bold text,
    inside a 48 pt transparent button (SPEC 13.3). Springs in once; the row pulses once (below). */
 .hit {
   min-width: 48px;
@@ -30,7 +30,7 @@
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0;
-  box-shadow: 0 2px 10px rgb(212 255 58 / 0.35);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent);
   -webkit-tap-highlight-color: transparent;
   transition: transform 160ms var(--ease-out);
 }
@@ -54,20 +54,20 @@
   }
 }
 
-/* The row's one short lime ring (SPEC 23.3). */
+/* The row's one short accent ring (SPEC 23.3). */
 :global([data-pr-fresh]) {
   animation: pr-ring 800ms var(--ease-out) both;
 }
 
 @keyframes pr-ring {
   0% {
-    box-shadow: inset 0 0 0 0 rgb(212 255 58 / 0);
+    box-shadow: inset 0 0 0 0 transparent;
   }
   25% {
-    box-shadow: inset 0 0 0 2px rgb(212 255 58 / 0.95), 0 0 18px rgb(212 255 58 / 0.25);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 95%, transparent), 0 0 18px color-mix(in srgb, var(--accent) 25%, transparent);
   }
   100% {
-    box-shadow: inset 0 0 0 2px rgb(212 255 58 / 0);
+    box-shadow: inset 0 0 0 2px transparent;
   }
 }
 
@@ -82,10 +82,10 @@
   padding: 10px 14px;
   border-radius: 14px;
   background: var(--glass-bg-strong);
-  border: 1px solid rgb(212 255 58 / 0.4);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--black) 50%, transparent);
   color: var(--text);
   font-size: var(--text-sm);
   font-weight: 600;

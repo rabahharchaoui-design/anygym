@@ -189,7 +189,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
         Type it
       </button>
     ) : null;
-  // Clear is secondary (gray): lime is kept for Type it and Change bar (2.0d critic).
+  // Clear is secondary (gray): accent is kept for Type it and Change bar (2.0d critic).
   const clear = (
     <button type="button" className={`${styles.link} ${styles.quiet} pressable`} onClick={() => change([])} disabled={!value.length}>
       Clear

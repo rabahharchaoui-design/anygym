@@ -16,9 +16,9 @@ type Props = {
 const POPOVER_MS = 3500;
 
 /**
- * PLAN 2.2e: the lime "New best" chip (PLAN 3.8b: SPEC 23 wording, was "PR") on a logged set that beat the exercise's best (round 2, critic B3:
+ * PLAN 2.2e: the accent "New best" chip (PLAN 3.8b: SPEC 23 wording, was "PR") on a logged set that beat the exercise's best (round 2, critic B3:
  * 22 pt tall, 12 pt text, after the reps, 44 pt hit area). The first time it shows it springs in
- * and the row gives one short lime ring pulse (SPEC 23.3); reduced motion: a fade, no pulse. A tap
+ * and the row gives one short accent ring pulse (SPEC 23.3); reduced motion: a fade, no pulse. A tap
  * shows one line saying what it beat. Freshness is decided once per mounted chip and recorded only
  * after commit (Codex 2.2e #2: StrictMode's second render or an abandoned one never consumes it).
  */

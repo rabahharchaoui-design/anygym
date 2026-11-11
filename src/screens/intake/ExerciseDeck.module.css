@@ -1,0 +1,40 @@
+/* PLAN 3.5f: the intake's love / never deck. A height of its own, so the card is the same on every phone. */
+.deck {
+  /* Round 2 (tester): the deck takes exactly the room the toggle and Continue leave, so the card, its
+     three buttons and the footer never overlap, at 100% or 130% text. The card's photo gives way
+     first (it shrinks, never the buttons); a tall phone stops at a comfortable card. */
+  /* 3.5t: the intake body pads by space-4, not the deck's default 24 px, so the full bleed wrap
+     must bleed by the same amount or it (and the card) spills past the right edge. */
+  --page-pad-l: calc(var(--space-4) + var(--safe-left));
+  --page-pad-r: calc(var(--space-4) + var(--safe-right));
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 196px;
+  max-height: 520px;
+  /* The body keeps 24 px under it for the footer's fade; the deck never scrolls under it, so it may
+     take most of that room (8 px still clear above "Skip the rest"). */
+  margin-bottom: calc(-1 * var(--space-4));
+}
+
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.doneTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.doneSub {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.4;
+}

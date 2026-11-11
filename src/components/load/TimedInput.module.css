@@ -6,7 +6,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 35%, #1d1d21, var(--surface-1) 70%);
+  background: radial-gradient(circle at 50% 35%, var(--surface-2), var(--surface-1) 70%);
   touch-action: manipulation;
 }
 
@@ -24,7 +24,7 @@
 }
 
 .dial[data-running='true'] .track {
-  stroke: #33352a;
+  stroke: color-mix(in srgb, var(--white) 12%, transparent);
 }
 
 .progress {

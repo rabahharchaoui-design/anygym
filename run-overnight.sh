@@ -91,6 +91,7 @@ while [ $n -lt 300 ]; do
   if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
   if ! command -v claude >/dev/null 2>&1; then [ "$WAITMSG" != noclaude ] && { say "claude command not found on PATH ($PATH), waiting"; ntfy "AnyGym: needs Claude" "The build loop cannot find the claude command. Tell Claude in chat." "warning"; }; WAITMSG=noclaude; sleep 600; continue; fi
   if [ -f .loop-pause ]; then pu=$(grep -o 'until=[0-9]*' .loop-pause | head -1 | cut -d= -f2); if [ -n "$pu" ] && [ $(date +%s) -ge $pu ]; then mv .loop-pause .loop-pause.expired; say "pause expired, resuming"; fi; fi   # a pause can carry until=<epoch>
+  if [ -f .loop-pause ] && [ "${IGNORE_GOV:-0}" = 1 ] && grep -q "usage governor" .loop-pause; then mv .loop-pause .loop-pause.gov-ignored; say "governor pause ignored: weekly reset is close (IGNORE_GOV)"; fi
   if [ -f .loop-pause ]; then [ "$WAITMSG" != pause ] && say "paused by .loop-pause"; WAITMSG=pause; sleep 300; continue; fi
   usedsec=$(used); weekleft=$(( WEEK_HOURS*3600 - usedsec ))
   if [ $weekleft -lt 900 ]; then [ "$WAITMSG" != week ] && say "weekly loop budget used ($WEEK_HOURS h), waiting for the Thursday 8 PM Guam time reset"; WAITMSG=week; daydone; sleep 900; continue; fi
@@ -122,6 +123,7 @@ while [ $n -lt 300 ]; do
   sync_out
   if grep -qE "^[[:space:]]*ALL DONE[.]?[[:space:]]*$" "$RUNLOG"; then say "ALL DONE"; rm -f "$RUNLOG"; break; fi
   if grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your" "$RUNLOG"; then
+    if grep -qiE "weekly|week" "$RUNLOG" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "Press Full reset now: Claude, Settings, Usage, Full reset. The build continues by itself after that." "warning"; say "weekly limit hit, asked G on his phone to press Full reset"; fi
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"

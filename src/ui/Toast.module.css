@@ -20,11 +20,11 @@
   padding: 0 var(--space-2) 0 var(--space-4);
   border-radius: var(--radius-pill);
   /* Opaque (gate B2): a row or button under it never reads through, blur or not. */
-  background: var(--surface-2);
+  background: var(--surface-solid-2);
   border: 1px solid var(--glass-line);
   box-shadow:
-    0 10px 30px rgb(0 0 0 / 0.5),
-    inset 0 1px 0 rgb(255 255 255 / 0.06);
+    0 10px 30px color-mix(in srgb, var(--black) 50%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent);
 }
 
 .text {
@@ -76,7 +76,7 @@
   font-weight: 700;
 }
 
-/* Undo: lime on a soft lime pill, so the way back is the one thing to see (PLAN 2.2e). */
+/* Undo: accent on a soft accent pill, so the way back is the one thing to see (PLAN 2.2e). */
 .action[data-undo] {
   background: var(--accent-soft);
   margin: 2px 0;

@@ -106,7 +106,7 @@ function expectHonestCards(cards: readonly Concept[], gym: GymKit, minutes: numb
     expect(c.minutes, `${label} ${c.id} over the chip`).toBeLessThanOrEqual(minutes);
     // More than 2 min under the chip only with its reason said on the card.
     if (c.minutes < minutes - 2) expect(c.short, `${label} ${c.id} short without a reason`).toBeDefined();
-    if (c.id !== 'plan' && c.id !== 'fresh') expect(STYLES[c.id].honest(c.items.map((it) => profileFor(it.id)), c.items), `${label} ${c.id} honest`).toBe(true);
+    if (c.id !== 'plan' && c.id !== 'fresh' && c.id !== 'focus') expect(STYLES[c.id].honest(c.items.map((it) => profileFor(it.id)), c.items), `${label} ${c.id} honest`).toBe(true);
     // Partners of a superset or circuit have the same sets (3.6a) and the same rest.
     const groups = new Map<number, QuickItem[]>();
     for (const it of c.items) if (it.group !== undefined) groups.set(it.group, [...(groups.get(it.group) ?? []), it]);

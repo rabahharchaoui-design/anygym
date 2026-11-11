@@ -39,7 +39,7 @@
   overflow: hidden;
 }
 
-/* Centre marker: the lime notch the selected weight snaps under. */
+/* Centre marker: the accent notch the selected weight snaps under. */
 .notch {
   position: absolute;
   left: 50%;
@@ -49,7 +49,7 @@
   transform: translateX(-50%);
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--accent);
-  background: rgba(212, 255, 58, 0.06);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
   pointer-events: none;
 }
 
@@ -115,12 +115,12 @@
 
 .fade[data-end='start'] {
   left: 0;
-  background: linear-gradient(90deg, var(--surface-2), rgba(23, 23, 26, 0));
+  background: linear-gradient(90deg, var(--sheet-bg), transparent);
 }
 
 .fade[data-end='end'] {
   right: 0;
-  background: linear-gradient(270deg, var(--surface-2), rgba(23, 23, 26, 0));
+  background: linear-gradient(270deg, var(--sheet-bg), transparent);
 }
 
 .track::-webkit-scrollbar {

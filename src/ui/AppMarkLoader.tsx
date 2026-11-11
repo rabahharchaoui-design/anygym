@@ -2,7 +2,7 @@ import styles from './AppMarkLoader.module.css';
 
 /**
  * PLAN 2.2e: the AnyGym mark (two plates leaning into an "A", the bar across; scripts/make-icons.mjs)
- * drawing itself in lime, for app level loads only. Invisible for the first 400 ms, so a quick load
+ * drawing itself (titanium legs, the accent bar), for app level loads only. Invisible for the first 400 ms, so a quick load
  * never flashes it; it draws once and stays (no endless spinner). Content keeps its skeletons.
  * Reduced motion: the mark simply appears.
  */

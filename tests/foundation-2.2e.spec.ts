@@ -1,6 +1,7 @@
 // PLAN 2.2e: the premium foundation (motion, shared components, the live PR badge and the finish
 // lead line) and its speed budget on WebKit; round 2 covers the critic's B1 to B6 and the Codex review.
 import { expect, test, type Locator, type Page } from './fixtures';
+import { tokenColor } from './helpers/tokens';
 import { bar185, checkCurrent, exerciseView, fillReps, loggedRows, navIdle, pickExercises, seedFinished, usePlan, watchErrors } from './workout-helpers';
 
 const SHOTS = 'reports/shots/2.2e';
@@ -170,7 +171,8 @@ test.describe('components (#/dev/ui)', () => {
     await expect(card).toHaveAttribute('aria-pressed', 'true');
     await expect(cards.getByRole('button', { name: /Get stronger/ })).toHaveAttribute('aria-pressed', 'false');
     await expect.poll(() => fill.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-    expect(await card.evaluate((el) => getComputedStyle(el).borderColor)).toBe('rgb(212, 255, 58)');
+    // 3.5t: the accent token (ice blue), never a typed colour.
+    expect(await card.evaluate((el) => getComputedStyle(el).borderColor)).toBe(await tokenColor(page, '--accent'));
     await expect(go).toBeEnabled();
     await expect(cta.getByRole('note')).toHaveCount(0);
     // Round 2 (critic B2): the reason and the quiet note swap in one reserved line; the button never moves.
@@ -224,7 +226,8 @@ test.describe('components (#/dev/ui)', () => {
     await expect(badge).toHaveText('New best');
     const chipEl = badge.locator('[data-chip]');
     expect(await chipEl.evaluate((el) => getComputedStyle(el).animationName)).toMatch(/pr-in/);
-    expect(await chipEl.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(212, 255, 58)');
+    // 3.5t: the accent token (ice blue), never a typed colour.
+    expect(await chipEl.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await tokenColor(page, '--accent'));
     // Round 2 (critic B3): a real chip, 20 to 22 pt tall with 12 pt text, after the reps; the row pulses once.
     expect(await row.getAttribute('data-pr-fresh')).toBe('');
     await page.waitForTimeout(400); // sprung in

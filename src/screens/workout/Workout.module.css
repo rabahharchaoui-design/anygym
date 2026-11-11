@@ -7,7 +7,7 @@
   height: var(--app-height);
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--bg-screen);
 }
 
 /* ---------------------------------------------------------------- live header */
@@ -71,7 +71,7 @@
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
-  border: 1px solid rgb(212 255 58 / 0.55);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--accent);
   font-family: var(--font-display);
   font-weight: 700;
@@ -97,7 +97,7 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: var(--bg);
+  background: var(--bg-screen);
 }
 
 .skeleton {
@@ -303,7 +303,7 @@
 }
 
 .heroCaption .exName {
-  text-shadow: 0 1px 12px rgb(0 0 0 / 0.5);
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--black) 50%, transparent);
 }
 
 /* As the page scrolls the picture drifts and fades behind its pinned foot (compositor only). */
@@ -432,7 +432,7 @@
   align-items: center;
   justify-content: center;
   color: var(--text-2);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--white) 6%, transparent);
 }
 
 /* ---- below the table: the muscles and the form tips */
@@ -567,7 +567,7 @@
   opacity: 1;
 }
 
-/* "Current" on the choice in use (lime check and word). */
+/* "Current" on the choice in use (accent check and word). */
 .choiceCurrent {
   display: inline-flex;
   align-items: center;
@@ -590,7 +590,7 @@
   min-height: 48px;
   margin-top: var(--row-gap);
   border-radius: 14px;
-  border: 1px dashed #2e2e35;
+  border: 1px dashed var(--hairline-strong);
   color: var(--text-2);
   font-weight: 600;
   font-size: 15px;
@@ -653,7 +653,7 @@
   width: max-content;
   max-width: calc(100vw - 32px);
   overflow-wrap: anywhere;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--black) 50%, transparent);
   z-index: 3;
   pointer-events: none;
 }
@@ -711,7 +711,7 @@ button.nextChip {
   width: 100%;
   min-height: 52px;
   border-radius: var(--radius-pill);
-  color: var(--red);
+  color: var(--red-text);
   font-weight: 600;
   font-size: 17px;
 }
@@ -724,7 +724,7 @@ button.nextChip {
    region stays in the tree (so it is announced) but cancels the gap it would add. */
 .sheetError {
   margin: 0;
-  color: var(--red);
+  color: var(--red-text);
   font-size: 15px;
   line-height: 20px;
   font-weight: 600;
@@ -807,7 +807,7 @@ button.nextChip {
 }
 
 .menuItem[data-danger] .menuLabel {
-  color: var(--red);
+  color: var(--red-text);
 }
 
 .menuLabel {
@@ -885,7 +885,7 @@ button.nextChip {
   height: var(--tap);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.07);
+  background: color-mix(in srgb, var(--white) 7%, transparent);
   border: 1px solid var(--glass-line);
   font-weight: 700;
   font-size: var(--text-base);

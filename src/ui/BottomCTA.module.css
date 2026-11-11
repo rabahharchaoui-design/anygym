@@ -5,7 +5,10 @@
   bottom: 0;
   z-index: 2;
   padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) calc(var(--space-3) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
-  background: var(--bg);
+  /* Titanium Glass (3.5t): frosted, no fill of its own, so it never draws a dark band where the
+     gradient behind it is still graphite (the finish screen's Done sits mid screen). */
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   border-top: 1px solid var(--hairline);
 }
 
@@ -18,7 +21,7 @@
   z-index: 5;
   padding: var(--space-6) calc(var(--space-5) + var(--safe-right)) calc(var(--space-3) + max(var(--safe-bottom), 8px)) calc(var(--space-5) + var(--safe-left));
   /* Opaque from just above the button to the bottom edge (critic P13): nothing reads through. */
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0), var(--bg) 28px);
+  background: linear-gradient(to bottom, transparent, var(--bg) 28px);
   border-top: 0;
   pointer-events: none;
 }
@@ -44,4 +47,11 @@
 /* The note right under the reason line. */
 .note[data-after] {
   margin-top: 0;
+}
+
+/* Reduce Transparency: no blur, so the bar gets a solid fill (content never reads through). */
+@media (prefers-reduced-transparency: reduce) {
+  .cta:not([data-floating]) {
+    background: var(--bg);
+  }
 }

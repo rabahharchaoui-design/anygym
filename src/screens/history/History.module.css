@@ -36,8 +36,8 @@
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   border: 1px solid var(--glass-line);
   border-radius: 20px;
-  background: linear-gradient(to bottom, #141417, var(--surface-1));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  background: var(--card-fill);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
   color: var(--text);
   text-decoration: none;
 }
@@ -95,7 +95,7 @@
   padding: var(--space-4);
   border: 1px solid var(--glass-line);
   border-radius: 20px;
-  background: linear-gradient(to bottom, #141417, var(--surface-1));
+  background: var(--card-fill);
 }
 
 .exerciseName {
@@ -131,7 +131,8 @@
   place-items: center;
   border-radius: var(--radius-pill);
   background: var(--surface-2);
-  color: var(--text-2);
+  /* On glass on glass, the muted grey falls under AA at the top of the gradient (3.5t). */
+  color: var(--text);
   font-size: 13px;
   font-weight: 700;
 }

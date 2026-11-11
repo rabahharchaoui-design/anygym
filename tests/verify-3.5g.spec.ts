@@ -52,7 +52,8 @@ test('(6) Never show inside a circuit keeps one circuit; hip thrust has a swap',
   await expect(cards.first()).toBeVisible();
   const n = await cards.count();
   for (let i = 0; i < n; i++) console.log(`C${i}: ${(await cards.nth(i).innerText()).replace(/\n+/g, ' | ')}`);
-  const circ = cards.filter({ hasText: /Circuit/ }).first();
+  // 3.5f: calm card face: the style chip is behind ⓘ; the circuit card says so in its title.
+  const circ = cards.filter({ hasText: /circuit/i }).first();
   await expect(circ).toBeVisible();
   await circ.tap();
   const meta = async () => (await page.getByTestId('curate-meta').innerText()).trim();
@@ -86,7 +87,8 @@ test('(6b) hip thrust: swap gives glute bridge or a hip thrust machine, repeated
   await pastIntake(page);
   await page.goto('./#/quick?min=60');
   await page.reload();
-  await page.locator('[data-concept]').filter({ hasText: /Circuit/ }).first().tap();
+  // 3.5f: calm card face: the style chip is behind ⓘ; the circuit card says so in its title.
+  await page.locator('[data-concept]').filter({ hasText: /circuit/i }).first().tap();
   for (let k = 0; k < 14; k++) {
     const name = await page.getByTestId('deck-name').innerText();
     if (/Hip Thrust/i.test(name)) break;
@@ -207,7 +209,9 @@ test('(5) chest and quads trained yesterday: no idea card holds them; why lines 
   test.setTimeout(240000);
   const errors = watchErrors(page);
   await pastIntake(page);
-  await seed(page, 'v1', Date.now() - 20 * 3_600_000, [
+  // Clock independent (3.5g): yesterday at noon local, not "20 h ago" which is today after 20:00.
+  const yesterdayNoon = (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1, 12).getTime(); })();
+  await seed(page, 'v1', yesterdayNoon, [
     ...[0, 1, 2].map(() => ({ ex: 'machine-seated-chest-fly', reps: 8, load: STACK50 })),
     ...[0, 1, 2].map(() => ({ ex: 'machine-seated-leg-extension', reps: 8, load: STACK50 })),
   ]);
@@ -234,6 +238,8 @@ test('(5) chest and quads trained yesterday: no idea card holds them; why lines 
         await page.getByTestId('deck-keep').tap();
         await page.waitForTimeout(400);
       }
+      // 3.5f round 2: a reload comes back to an open deck; Back first, so the reload is a new visit.
+      await page.getByRole('button', { name: 'Back to the workouts' }).tap();
       await page.goto(`./#/quick?min=${min}`);
       await page.reload();
       await expect(cards.first()).toBeVisible();

@@ -1,0 +1,156 @@
+/* The review grid (PLAN 3.5i): 3 × 3 moving tiles between the title and the one Approve button.
+   Tokens only. The stage clips sideways, so a screen sliding away never scrolls the page. */
+.stage {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  margin: 0 calc(-1 * var(--page-pad-r)) var(--space-3) calc(-1 * var(--page-pad-l));
+  padding: 2px var(--page-pad-r) 0 var(--page-pad-l);
+  overflow-x: clip;
+}
+
+.approve {
+  flex: none;
+}
+
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  min-height: 0;
+  gap: var(--space-2);
+  align-content: stretch;
+  will-change: transform;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 0 var(--space-1);
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The photo: the whole 3:2 picture, never cropped. */
+.photo {
+  position: relative;
+  display: block;
+  flex: 1 1 0;
+  min-height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+/* The dim and the red edge are drawn over the photo: nothing changes size when a tile is marked. */
+.photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--black) 60%, transparent);
+  opacity: 0;
+  transition: opacity var(--dur-fast, 160ms) var(--ease-out);
+  pointer-events: none;
+}
+
+.photo::after {
+  z-index: 2;
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--red);
+  opacity: 0;
+  transition: opacity var(--dur-fast, 160ms) var(--ease-out);
+  pointer-events: none;
+}
+
+.photoOff {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-1);
+  color: var(--text-2);
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.name {
+  /* Two lines at most, then an ellipsis: whole words only, never broken in the middle. */
+  flex: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  height: 2.4em;
+  padding: 0 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  hyphens: none;
+  word-break: normal;
+  overflow-wrap: normal;
+  transition: opacity var(--dur-fast, 160ms) var(--ease-out);
+}
+
+.chip {
+  flex: none;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--white) 8%, transparent);
+  color: var(--text-2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Wrong or Fix: the tile dims, its photo gets a red edge and the chip says which. */
+.tile[data-mark] .photo::after {
+  opacity: 1;
+}
+
+.tile[data-mark] .photo::before {
+  opacity: 1;
+}
+
+.tile[data-mark] .name {
+  opacity: 0.45;
+}
+
+.tile[data-mark] .chip {
+  flex: none;
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo::before,
+  .photo::after,
+  .name {
+    transition: none;
+  }
+}

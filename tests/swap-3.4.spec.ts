@@ -1,6 +1,6 @@
 // PLAN 3.4 (SPEC 7.2, 7.5, 21.1): swap with Undo, always use, auto swap in a hotel gym, nothing fits,
 // SE and 320 fit, 130% text, no console errors.
-import { expect, test, type Page } from './fixtures';
+import { expect, test, type Locator, type Page } from './fixtures';
 import { checkControls, checkLayout, fullyShown, simulateSafeAreas } from './helpers/layout';
 import { dbAll, dbPut, exerciseView, loggedRows, shotOn, usePlan, watchErrors } from './workout-helpers';
 
@@ -34,11 +34,18 @@ const text130 = (page: Page, scope: string) =>
     }
   }, scope);
 
+/** 3.5f: Replace opens as a swipe deck (one option per card); "Show all" lists the options as before. One option is a row straight away. */
+const showAll = async (sheet: Locator) => {
+  await expect(sheet.getByTestId('swap-sheet')).toBeVisible();
+  if ((await sheet.getByTestId('swap-sheet').getAttribute('data-mode')) === 'deck') await sheet.getByTestId('swap-all').tap();
+};
+
 const openReplace = async (page: Page, name: string) => {
   await page.getByRole('button', { name: `More for ${name}` }).tap();
   await page.getByTestId('replace-row').tap();
   const sheet = page.getByRole('dialog', { name: `Replace ${name}` });
   await expect(sheet).toBeVisible();
+  await showAll(sheet);
   return sheet;
 };
 
@@ -58,9 +65,10 @@ test('Replace comes first in the ⋯ menu; one tap swaps for this workout; Undo 
 
   const sheet = page.getByRole('dialog', { name: 'Replace Barbell Back Squat' });
   await expect(sheet.getByText('For this workout only')).toBeVisible();
-  // SPEC 7.2: up to 4, each with its reason.
+  await showAll(sheet);
+  // SPEC 7.2: each with its reason. 3.5f: up to 6 at once in the list (the deck shows them one by one).
   const choices = sheet.locator('[data-testid^="swap-choice-"]');
-  await expect(choices).toHaveCount(4);
+  await expect(choices).toHaveCount(6);
   await expect(sheet.getByTestId('swap-choice-front-squat')).toContainText('Same movement · uses a barbell');
   // A demo photo only for a sure match (SPEC 4.3): Front Squat has one, Smith Machine Squat has none.
   await expect(sheet.getByTestId('swap-choice-Smith_Machine_Squat').locator('[data-photo]')).toHaveCount(0);

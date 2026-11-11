@@ -289,6 +289,7 @@ export function TodayScreen() {
             onStart={() => void startDay()}
             onChangeDay={(i) => setChanging(i ?? true)}
             onTime={gym ? () => setTimeOpen(true) : undefined}
+            onPreview={gym ? () => go('/quick?preview=1', { kind: 'push' }) : undefined}
             {...(picked?.trim ? { minutes: picked.minutes, fitsIn: pick!.minutes } : {})}
           />
         ) : (

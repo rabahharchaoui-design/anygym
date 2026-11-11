@@ -26,13 +26,15 @@ type Props = {
   floating?: boolean;
   testId?: string;
   className?: string;
+  /** PLAN 3.5f: glass while another control on the screen is the primary one (a deck's Keep); accent by default. */
+  variant?: 'primary' | 'secondary';
 };
 
 /**
  * PLAN 2.2e: the screen's one primary action, pinned in the thumb zone. Owns the bottom safe area.
- * The button is the app's lime primary (press 0.97 in one frame); disabled it is grey.
+ * The button is the app's accent primary (press 0.97 in one frame); disabled it is grey.
  */
-export function BottomCTA({ children, onPress, disabled, disabledReason, reasonAndNote, above, note, floating, testId, className }: Props) {
+export function BottomCTA({ children, onPress, disabled, disabledReason, reasonAndNote, above, note, floating, testId, className, variant = 'primary' }: Props) {
   // One reserved line under the button (critic B2): the reason while it is grey, the quiet note
   // once it is valid, swapped in place, so the button never moves when it becomes valid.
   const why = disabled && disabledReason ? disabledReason : null;
@@ -40,7 +42,7 @@ export function BottomCTA({ children, onPress, disabled, disabledReason, reasonA
   return (
     <div className={`${styles.cta} ${className ?? ''}`} data-floating={floating || undefined} data-testid={testId} data-bottom-cta>
       {above}
-      <Button onClick={onPress} disabled={disabled}>
+      <Button onClick={onPress} disabled={disabled} variant={variant} {...(variant === 'secondary' ? { size: 'lg' as const } : {})}>
         {children}
       </Button>
       {reasonAndNote ? (

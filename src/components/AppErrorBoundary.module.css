@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: calc(var(--safe-top) + var(--space-5)) calc(var(--safe-right) + var(--space-5)) calc(var(--safe-bottom) + var(--space-5)) calc(var(--safe-left) + var(--space-5));
-  background: var(--bg);
+  background: var(--bg-screen);
 }
 
 .card {

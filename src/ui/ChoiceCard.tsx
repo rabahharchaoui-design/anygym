@@ -18,7 +18,7 @@ type Props = {
 
 /**
  * PLAN 2.2e: a full width choice card. Icon, label, optional hint, and a selection ring on the
- * right; picked, the border turns lime and the ring fills on the tap spring (CSS, compositor only).
+ * right; picked, the border turns accent and the ring fills on the tap spring (CSS, compositor only).
  * A toggle button (aria-pressed), so a group of them reads as "pressed" for the one picked.
  */
 export function ChoiceCard({ icon: Icon, label, hint, detail, picked, onPress, testId, disabled }: Props) {

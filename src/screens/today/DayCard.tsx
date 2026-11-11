@@ -4,6 +4,7 @@ import { dayTitle } from '../plans/planWords';
 import { Button } from '../../ui/Button';
 import { Ring } from '../../ui/Ring';
 import styles from '../TodayScreen.module.css';
+import own from './DayCard.module.css';
 
 type Props = {
   plan: Plan;
@@ -19,6 +20,8 @@ type Props = {
   fitsIn?: number;
   /** PLAN 3.6: the estimate opens "How much time today?" (SPEC 7.4: before Start). */
   onTime?: () => void;
+  /** PLAN 3.5f: look through the day's lifts as a deck before Start (swap or hide any). */
+  onPreview?: () => void;
 };
 
 /**
@@ -26,7 +29,7 @@ type Props = {
  * pips (done, part done as a ring, up next) and Change day. While the day is in progress it is the
  * one card on Today: "Day 1 · in progress · 2 sets" with Resume.
  */
-export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime }: Props) {
+export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime, onPreview }: Props) {
   const dayIndex = Math.max(0, Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1));
   const day = plan.days[dayIndex]!;
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
@@ -124,9 +127,16 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
         </ol>
         {/* The card says "In progress" while a workout runs: no Change day then (it could not apply). */}
         {!active && (
-          <Button variant="tertiary" className={styles.changeDay} onClick={() => onChangeDay()}>
-            Change day
-          </Button>
+          <div className={own.links}>
+            {onPreview && (
+              <Button variant="tertiary" className={styles.changeDay} onClick={onPreview} data-testid="day-preview">
+                Preview
+              </Button>
+            )}
+            <Button variant="tertiary" className={styles.changeDay} onClick={() => onChangeDay()}>
+              Change day
+            </Button>
+          </div>
         )}
       </div>
     </section>

@@ -16,14 +16,16 @@
 import type { EquipmentId } from '../db/types';
 import type { GeneratorDeps, GeneratorInput } from './generator';
 import type { Range } from './generatorRules';
-import { isHeavy, type Muscle, type Profile } from './order';
+import { isHeavy, sessionTitle, type Muscle, type Profile } from './order';
 import type { PlanDay } from './plans';
 import { candidateFacts, requiresOf, workoutIdOf, type Pattern } from './swap';
 import type { DayTrim } from './timeBudget';
 import { diverse, chooseBatch, hangsBodyweight, quickMinutes, realLegs, STYLE_ORDER, STYLES, type Batch, type StyleId } from './quickStyles';
 import { mainWords, muscleRestLine } from './quickWhy';
 import { chipOf, freshCards, styleCard } from './quickCards';
-import { fits, gearOf, mainMuscles, quickAvoids, reasonsFor } from './quickShow';
+import { fits, gearOf, mainMuscles, quickAvoids } from './quickShow';
+import { withNotes } from './quickNotes';
+import type { CoachFact } from './coachFacts';
 import { nextSwap, safePairs, sureGear, swapItem } from './quickDeck';
 
 // PLAN 3.5g (code organization): the parts live in their own files, re-exported here so every caller
@@ -31,9 +33,12 @@ import { nextSwap, safePairs, sureGear, swapItem } from './quickDeck';
 // fresh cards (quickCards), the plan day card (quickPlan), the deck's swap and learning (quickDeck).
 export { quickDayOf, structureOf, STYLES, STYLE_ORDER, type StyleId } from './quickStyles';
 export { daysSince, muscleRestLine, restedLine, trainedWithin, whenWords, wordList } from './quickWhy';
-export { FIT_SLACK, MAIN_MUSCLES, fits, gearOf, gearWords, mainMuscles, metaLine, moreLabel, primaryOf, quickAvoids, reasonsFor, roundsOf } from './quickShow';
+export { FIT_SLACK, MAIN_MUSCLES, countLine, fits, gearOf, gearWords, mainMuscles, metaLine, moreLabel, primaryOf, quickAvoids, roundsOf } from './quickShow';
 export { restedFirst, shortLine } from './quickCards';
+export { focusCard, focusCards, focusOrder } from './quickFocus';
+export { type PreviewInput, previewConcept } from './quickPreview';
 export { type PlanConceptInput, conceptMinutes, dropSlot, fitPlanDay, planConcept, planMinutes } from './quickPlan';
+export { END_LINE, HIDE_ASK_AFTER, SHOW_SIX, SHOW_SIX_AFTER, type Option, learnLeft, sixOf, swapPool } from './curation';
 export { RECENT_MS, type SwapContext, dropItem, learnNever, learnSwap, nextSwap, optionKey, rankSoft, recentMuscles, regroup, safePairs, sureGear, swapItem, unlearnNever, withDislikes } from './quickDeck';
 
 // ---------------------------------------------------------------- How long?
@@ -65,15 +70,23 @@ export type QuickItem = {
   seconds?: Range | number;
   eachSide?: boolean;
   restSec: number;
-  /** Why it is here, in one true line. */
+  /** Why it is here, in one true line: always a fact from data/coach-facts.json (PLAN 3.5f, quickNotes.ts). */
   why: string;
+  /** PLAN 3.5f: the id of that fact, and its two sentences behind the info button. */
+  fact?: string;
+  more?: string;
+  /** PLAN 3.5f: the person swapped it in for this move (the slot's first exercise, by name); `close`: another, close movement pattern. */
+  from?: string;
+  close?: true;
+  /** PLAN 3.5f: a plan move replaced for this gym or this person: what it stands in for, and why. */
+  standsIn?: { from: string; reason: string };
   /** PLAN 3.5b: items sharing a group are done back to back (2: a superset, 3 or more: a circuit). */
   group?: number;
   /** 3.5b round 4 (M10): the person swapped it in on the deck (the card says "Swapped in" only then). */
   swapped?: true;
 };
 
-export type ConceptId = 'plan' | 'fresh' | StyleId;
+export type ConceptId = 'plan' | 'fresh' | 'focus' | StyleId;
 
 export type PlanPart = { planId: string; dayIndex: number; weekIndex: number; day: PlanDay; trim: DayTrim | null };
 
@@ -116,6 +129,8 @@ export type Concept = {
 export const cardKey = (c: Pick<Concept, 'id' | 'variant'>): string => (c.variant ? `${c.id}:${c.variant}` : c.id);
 
 export type QuickDeps = GeneratorDeps & {
+  /** PLAN 3.5f: the curated why notes (data/coach-facts.json): the only source of a card's line. */
+  facts: readonly CoachFact[];
   /** A sure demo (exact or variant): the only exercises Quick workout shows. */
   usable: (id: string) => boolean;
   /** The ordering profile of any id with a name (plan rows). */
@@ -134,6 +149,10 @@ export type Dislikes = {
   soft?: Record<string, number>;
   /** Long press "Never show me this": left out of every later concept, plan and swap. */
   never?: string[];
+  /** PLAN 3.5f: per exercise, the workouts (at most 3 keys) it was swiped away in. */
+  lefts?: Record<string, string[]>;
+  /** PLAN 3.5f: exercises "Hide it for good?" was already asked for (once only). */
+  asked?: string[];
 };
 
 export type QuickInput = {
@@ -159,6 +178,8 @@ export type QuickInput = {
 /** 3.5b round 4 (P15): a built Quick workout's day list header: the card's own title. */
 export function quickTitleOf(style: string | undefined): string {
   if (style === 'fresh') return "Hit what's fresh";
+  // PLAN 3.5f: an area day is saved as "focus:chest".
+  if (style?.startsWith('focus:')) return sessionTitle(style.slice(6)) ?? 'Quick workout';
   return style && style in STYLES ? STYLES[style as StyleId].title : 'Quick workout';
 }
 
@@ -270,9 +291,10 @@ export function distinctCards(batch: Batch<Concept>, input: QuickInput, deps: Qu
       // Built this way, not swapped: the card's own exercise now (its slot, so a later swipe can still reach the others).
       const next = { ...swapItem(it, to, deps.name(to), candidateFacts(deps.data, to)?.eachSide === true, undefined, hangsBodyweight(requiresOf(deps.data, to))), slot: to, origin: to };
       delete next.swapped;
+      delete next.from;
+      delete next.close;
       const tryItems = safePairs(items.map((x) => (x === it ? next : x)), deps.profile);
-      const reasons = reasonsFor(tryItems.map((x) => x.id), deps);
-      const withWhy = tryItems.map((x, i) => (x.id === to ? { ...x, why: reasons[i]! } : x));
+      const withWhy = tryItems;
       if (!fits(quickMinutes(withWhy), input.minutes)) continue;
       const primary = mainMuscles(withWhy, deps);
       // The card keeps the muscles it showed. Round 2: a replacement that moves one of its three main
@@ -288,6 +310,8 @@ export function distinctCards(batch: Batch<Concept>, input: QuickInput, deps: Qu
       items = withWhy;
     }
     if (items === c.items) return c;
+    // PLAN 3.5f: every why line is a curated fact, true of the card as it is now.
+    items = withNotes(items, deps);
     const style = STYLES[c.id as StyleId];
     const ids = items.map((x) => x.id);
     return {
@@ -334,7 +358,7 @@ const bodyweightHang = hangsBodyweight;
 const barbellOnly = (requires: readonly (readonly string[])[] | null) => !!requires && requires.some((g) => g.every((id) => id === 'barbell_rack'));
 
 /** The deps every Quick card is built with for this person: Go easy on, and no pull ups for newer lifters. */
-function quickDepsFor(base: GeneratorInput, deps: QuickDeps): QuickDeps {
+export function quickDepsFor(base: GeneratorInput, deps: QuickDeps): QuickDeps {
   return {
     ...deps,
     usable: (id) =>

@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from './fixtures';
+import { SAME_SPOT_MS } from '../src/lib/warmUpFold';
 import type { WorkoutSet } from '../src/db/types';
 import { checkCurrent, dbAll, exerciseView, loggedRows, quickWith, setTableInFirstScreen } from './workout-helpers';
 
@@ -48,6 +49,9 @@ test('offline SE: first-time completion keeps every set visible and saves the op
     for (let n = 1; n <= 3; n++) {
       await setTableInFirstScreen(page);
       for (const control of await view.locator('[data-testid="weight-cell"], [data-testid="reps-cell"], [data-testid="check-current"]').all()) await exposed(control);
+      // 3.5g: a check within 350 ms and 24 px of the last one is a double tap and logs nothing; the table
+      // scrolls the next row under the same spot, so a machine fast second set must wait that out.
+      if (n > 1) await page.waitForTimeout(SAME_SPOT_MS + 50);
       await checkCurrent(view).tap();
       await expect(loggedRows(view)).toHaveCount(n);
       if (n < 3) await exposed(page.getByRole('button', { name: 'Skip', exact: true }));

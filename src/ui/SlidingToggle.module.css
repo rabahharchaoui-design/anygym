@@ -1,4 +1,4 @@
-/* PLAN 2.2e: the sliding toggle. One lime pill under equal width options; it slides on the tap
+/* PLAN 2.2e: the sliding toggle. One accent pill under equal width options; it slides on the tap
    spring (--ease-tap-spring, a sampled spring with a small overshoot), the labels change color. */
 .toggle {
   --pad: 3px;
@@ -9,8 +9,10 @@
   grid-auto-columns: minmax(56px, 1fr);
   padding: var(--pad);
   border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  /* A well cut into the glass (3.5t): darker than the card it sits on, so the grey labels keep AA
+     even on a card at the top of the gradient. */
+  background: color-mix(in srgb, var(--black) 24%, transparent);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   isolation: isolate;
 }
 
@@ -27,10 +29,10 @@
   left: var(--pad);
   width: calc((100% - 2 * var(--pad)) / var(--n));
   border-radius: var(--radius-pill);
-  background: linear-gradient(to bottom, #e0ff6a, var(--accent) 60%);
+  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 60%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    0 2px 10px rgb(212 255 58 / 0.22);
+    inset 0 1px 0 color-mix(in srgb, var(--white) 50%, transparent),
+    0 2px 10px color-mix(in srgb, var(--accent) 22%, transparent);
   transform: translateX(calc(var(--i) * 100%));
   transition: transform var(--dur-tap) var(--ease-tap-spring);
   will-change: transform;
@@ -75,10 +77,10 @@
   opacity: 0.55;
 }
 
-/* Disabled (critic P15): the pick still shows, as a dim lime outline, never lost. */
+/* Disabled (critic P15): the pick still shows, as a dim accent outline, never lost. */
 .toggle[aria-disabled] .pill {
   background: transparent;
-  box-shadow: inset 0 0 0 1.5px rgb(212 255 58 / 0.5);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .toggle[aria-disabled] .option[aria-checked='true'] {

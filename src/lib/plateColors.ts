@@ -65,8 +65,8 @@ export const PAINT: Record<PlateColor, { fill: string; rim: string; shade: strin
 /** The rubber body of a black iron plate (colour shows as a band); dark, so it gets the edge too. */
 export const IRON_EDGE = PAINT.black.edge!;
 
-/** The sheet the plates are drawn on (tokens.css --surface-2), for the contrast check. */
-export const SHEET_BG = '#17171A';
+/** The sheet the plates are drawn on (tokens.css --sheet-bg; a unit test keeps the two equal), for the contrast check. */
+export const SHEET_BG = '#1B1D21';
 
 /** WCAG relative luminance of a #RRGGBB colour. */
 export function luminance(hex: string): number {

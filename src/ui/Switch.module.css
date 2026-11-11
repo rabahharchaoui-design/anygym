@@ -47,7 +47,7 @@
   width: 52px;
   height: 32px;
   border-radius: var(--radius-pill);
-  background: #39393f;
+  background: color-mix(in srgb, var(--white) 16%, transparent);
   transition: background-color var(--dur-fast) var(--ease-out);
 }
 
@@ -58,8 +58,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  background: var(--white);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--black) 35%, transparent);
   transition: transform var(--dur-base) var(--ease-spring);
 }
 

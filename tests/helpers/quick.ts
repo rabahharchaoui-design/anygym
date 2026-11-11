@@ -63,3 +63,64 @@ export async function longPress(page: Page) {
   await page.mouse.up();
 }
 
+
+/** One idea card as the person reads it: its face, then what is behind its info button (3.5f). */
+export type IdeaRead = {
+  id: string;
+  title: string;
+  why: string;
+  /** The face's one numbers line, "6 exercises · ~28 min". */
+  face: string;
+  /** Behind the info button: the full line, "6 exercises · 2 pairs · ~29 min". */
+  meta: string;
+  chip: string;
+  level: number;
+  dots: number;
+  dotsOn: number;
+  gear: number;
+  gearIcons: string[];
+  gearLabel: string;
+  noGear: boolean;
+  short: string[];
+  map: number;
+  h: number;
+};
+
+/** 3.5f: calm card face. The idea sheet behind one card's info button, read, then closed. */
+export async function readIdea(page: Page, c: Locator): Promise<IdeaRead> {
+  const face = await c.evaluate((e) => ({
+    id: e.getAttribute('data-concept')!,
+    title: e.querySelector('[data-testid="concept-title"]')?.textContent ?? '',
+    why: e.querySelector('[data-testid="concept-why"]')?.textContent ?? '',
+    face: e.querySelector('[data-testid="concept-meta"]')?.textContent ?? '',
+    map: e.querySelectorAll('[data-testid="mini-map"]').length,
+    h: e.getBoundingClientRect().height,
+  }));
+  await c.getByTestId('concept-info').tap();
+  const sheet = page.getByTestId('idea-sheet');
+  await expect(sheet).toBeVisible();
+  const back = await sheet.evaluate((e) => ({
+    chip: e.querySelector('[data-testid="style-chip"]')?.textContent ?? '',
+    level: Number(e.querySelector('[data-testid="effort"]')?.getAttribute('data-level')),
+    dots: e.querySelectorAll('[data-testid="effort"] > span').length,
+    dotsOn: e.querySelectorAll('[data-testid="effort"] > span[data-on]').length,
+    meta: e.querySelector('[data-testid="idea-meta"]')?.textContent ?? '',
+    gear: e.querySelectorAll('[data-testid="concept-gear"] svg[data-art]').length,
+    gearIcons: Array.from(e.querySelectorAll('[data-testid="concept-gear"] svg[data-art]')).map((s) => s.getAttribute('data-art')!),
+    gearLabel: e.querySelector('[data-testid="concept-gear"]')?.getAttribute('aria-label') ?? '',
+    noGear: (e.querySelector('[data-testid="concept-gear"]')?.textContent ?? '').includes('No equipment'),
+    short: Array.from(e.querySelectorAll('[data-testid="concept-short"]')).map((s) => s.textContent ?? ''),
+  }));
+  await page.keyboard.press('Escape');
+  // Gone for good (a closing sheet keeps its words until it is off screen).
+  await expect(sheet).toHaveCount(0);
+  return { ...face, ...back };
+}
+
+/** 3.5f: calm card face. Every idea card on screen, each with what is behind its info button. */
+export async function readIdeas(page: Page): Promise<IdeaRead[]> {
+  const cards = page.locator('[data-concept]');
+  const out: IdeaRead[] = [];
+  for (let i = 0, n = await cards.count(); i < n; i++) out.push(await readIdea(page, cards.nth(i)));
+  return out;
+}

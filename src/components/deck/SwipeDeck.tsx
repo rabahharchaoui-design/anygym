@@ -14,6 +14,9 @@ import styles from './Deck.module.css';
 /** Share of the card's width past which a release decides (or a flick, FLICK px per ms). */
 const DECIDE_SHARE = 0.32;
 const FLICK = 0.55;
+/** PLAN 3.5i, a `light` deck: a light flick decides, by its speed alone (hardly any distance). */
+const LIGHT_FLICK = 0.3;
+const LIGHT_TRAVEL = 10;
 /** Movement before a press counts as a drag (and stops being a long press). */
 const SLOP = 8;
 /** The hold shows itself after HOLD_SHOW_MS, and decides at LONG_PRESS_MS. */
@@ -46,11 +49,13 @@ export type DeckProps<T extends { id: string }> = {
   label: (item: T) => string;
   /** The hold ring's word ("Never show"). */
   holdWord?: string;
+  /** PLAN 3.5i: a light flick decides (velocity, not distance), and the card takes the full height. */
+  light?: boolean;
 };
 
 type Drag = { id: number; x: number; y: number; axis: 'x' | 'y' | null; dx: number; lastX: number; lastT: number; v: number };
 
-export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, reduced, onDecide, onFlyStart, onNever, onNothingToSwap, fling, renderCard, label, holdWord }: DeckProps<T>) {
+export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, reduced, onDecide, onFlyStart, onNever, onNothingToSwap, fling, renderCard, label, holdWord, light }: DeckProps<T>) {
   const topRef = useRef<HTMLElement>(null);
   const underRef = useRef<HTMLElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -266,7 +271,8 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     frame.current = 0;
     pending.current = null;
     write(d.dx);
-    const past = Math.abs(d.dx) > width() * DECIDE_SHARE || (Math.abs(d.v) > FLICK && Math.sign(d.v) === Math.sign(d.dx) && Math.abs(d.dx) > 24);
+    const flick = Math.abs(d.v) > (light ? LIGHT_FLICK : FLICK) && Math.sign(d.v) === Math.sign(d.dx) && Math.abs(d.dx) > (light ? LIGHT_TRAVEL : 24);
+    const past = Math.abs(d.dx) > width() * DECIDE_SHARE || flick;
     if (cancelled || !past) return springBack(d.dx, d.v);
     const kind: Decision = d.dx > 0 ? 'keep' : 'swap';
     if (kind === 'swap' && !canSwap) {
@@ -279,7 +285,7 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
   if (!top) return null;
   return (
     <div className={styles.deckWrap}>
-      <div className={styles.deck} data-testid="deck">
+      <div className={styles.deck} data-testid="deck" data-tall={light || undefined}>
         {next && (
           <article ref={underRef} key={`${index + 1}:${next.id}`} className={styles.card} data-under="" aria-hidden="true">
             {renderCard(next, { position: index + 2, of: items.length, under: true })}

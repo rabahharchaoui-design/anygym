@@ -15,8 +15,8 @@
 .card {
   border: 1px solid var(--glass-line);
   border-radius: 20px;
-  background: linear-gradient(to bottom, #141417, var(--surface-1));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  background: var(--card-fill);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
   overflow: hidden;
 }
 
@@ -47,7 +47,7 @@
 .error {
   margin: 6px 0 0 var(--space-4);
   min-height: 18px;
-  color: var(--red);
+  color: var(--red-text);
   font-size: var(--text-sm);
 }
 

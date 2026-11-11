@@ -68,7 +68,7 @@ Order, top to bottom, with generous spacing:
 3. **How to:** max 3 short cues, each under 12 words, written from the source instructions (never invented).
 4. **Watch out:** 1 cue for the most common mistake (only if the source supports it; otherwise omit).
 5. **Good for:** one practical line ("Builds the upper chest; carries over to overhead strength").
-In the workout (PLAN 2.2b, G Nov 1, supersedes the 2.3 collapsed block with one cue line and "More"): one screen, nothing hidden. On top a demo hero about 30% of the height (smaller on iPhone SE so the whole set table stays in the first screen), the photos crossfading slowly like a gif (reduced motion: the start photo, still); a tap opens a full screen viewer (dark, the photo uncropped at full width, closes with ✕, a tap or a swipe down; no counter or dots). The exercise name, "Set 1 of 3 · 10 to 12 reps" and the plan's note sit on the hero's foot on a dark fade, with the ⋯ button; when the page scrolls past the picture it fades out and the foot folds into a compact dark title bar. Right under it the set table, unchanged, every row and ✓ in the first screen for a typical 3 to 4 set exercise; "First time: ..." is one quiet line under the rows, gone once a weight is picked or a set logged. A tap on a ✓ with no weight (or a bar or start weight to set, or a pick to redo) opens the weight picker for that row with "Pick a weight first" (or the reason) as its sub line; any other reason shows briefly in the tip slot under the rows, never over a number or header. Coach marks live in that slot too. It never logs without a weight. Below the table: a muscle card with the front and back bodies side by side (the body chosen in Settings) and the text line ("Quads · Calves, glutes"), then up to 3 numbered form tips from the catalog cues, a variant's difference as a quiet note above them then Watch out and Good for when the catalog has them: everything is on the page, so there is no details sheet for these (same tip style in the sheet, which also uses the side by side muscle pair; Male/Female lives in Settings). No "Pick a weight" warning line (the lime Pick button says it; other reasons such as "Set the bar weight first" still show). No sure demo: a compact header (equipment tile, name, set line, ⋯) and no picture; no sure muscles: no muscle card at all, never a guess. Nothing sure at all: one small honest card, "No photos or steps for this one yet" / "We only show form we're sure of."
+In the workout (PLAN 2.2b, G Nov 1, supersedes the 2.3 collapsed block with one cue line and "More"): one screen, nothing hidden. On top a demo hero about 30% of the height (smaller on iPhone SE so the whole set table stays in the first screen), the photos crossfading slowly like a gif (reduced motion: the start photo, still); a tap opens a full screen viewer (dark, the photo uncropped at full width, closes with ✕, a tap or a swipe down; no counter or dots). The exercise name, "Set 1 of 3 · 10 to 12 reps" and the plan's note sit on the hero's foot on a dark fade, with the ⋯ button; when the page scrolls past the picture it fades out and the foot folds into a compact dark title bar. Right under it the set table, unchanged, every row and ✓ in the first screen for a typical 3 to 4 set exercise; "First time: ..." is one quiet line under the rows, gone once a weight is picked or a set logged. A tap on a ✓ with no weight (or a bar or start weight to set, or a pick to redo) opens the weight picker for that row with "Pick a weight first" (or the reason) as its sub line; any other reason shows briefly in the tip slot under the rows, never over a number or header. Coach marks live in that slot too. It never logs without a weight. Below the table: a muscle card with the front and back bodies side by side (the body chosen in Settings) and the text line ("Quads · Calves, glutes"), then up to 3 numbered form tips from the catalog cues, a variant's difference as a quiet note above them then Watch out and Good for when the catalog has them: everything is on the page, so there is no details sheet for these (same tip style in the sheet, which also uses the side by side muscle pair; Male/Female lives in Settings). No "Pick a weight" warning line (the accent Pick button says it; other reasons such as "Set the bar weight first" still show). No sure demo: a compact header (equipment tile, name, set line, ⋯) and no picture; no sure muscles: no muscle card at all, never a guess. Nothing sure at all: one small honest card, "No photos or steps for this one yet" / "We only show form we're sure of."
 
 ### 4.5 Muscle map
 Port the SVG polygon data from `giavinh79/react-body-highlighter` (MIT; keep its license file in `third_party/`) into our own small React component. Map catalog muscles to regions:
@@ -157,7 +157,7 @@ The barbell must look like a real, premium Olympic bar, not a flat gray rectangl
   - Tap anywhere on a sleeve to take the outermost plate off both sides (soft haptic, hit area at least 44 pt, a soft light wash while pressed, the plate slides about 14 pt outward; when the camera has nowhere to go it nudges in and back). The screen reader label lists every plate per side.
   - The first time hint sits under the bar ("Tap plates to load the bar. Tap a sleeve to take one off."); a plate loaded machine gets its own, once ("Tap plates to load the machine. Tap the horn to take one off.").
   - The machine horn view uses the same picture style with its own camera: a close up when empty, then about 1.25× with the first plate easing evenly to the full horn. The starting weight is asked up front like the Smith bar ("Plates only" or "Set starting weight"); until then the big number is the plates on both horns with "+ start" under it, never a guess, and answering only takes "+ start" away. Answered, a small "Change start" sits under the total.
-  - Smith or machine counted as plates only: "Plates only" under the total. Clear is a quiet gray text button; lime is kept for Type it, Change bar and Change start. Up to seven plate sizes fit the tray in one row without scrolling (320 pt included).
+  - Smith or machine counted as plates only: "Plates only" under the total. Clear is a quiet gray text button; the accent is kept for Type it, Change bar and Change start. Up to seven plate sizes fit the tray in one row without scrolling (320 pt included).
 
 ### 5.4 Weight math (pure functions in `src/lib/load.ts`, 100% unit tested)
 - `total = bar + 2 × sum(perSidePlates) + collars`.
@@ -251,7 +251,8 @@ Hidden route `#/review` (reachable by tapping the About version number 5 times).
 ## 10. Design direction
 
 - Dark first, true black `#000` background, surfaces `#0E0E10` and `#17171A`, hairlines `#26262B`. Text `#F5F5F7` and secondary `#9A9AA2`.
-- One accent: electric lime `#D4FF3A` for primary actions, progress and primary muscles. Success uses the accent; warnings amber `#FFB020`; destructive `#FF4D4D`.
+- Visual direction: TITANIUM GLASS (G picked it Nov 11; reference .design-ref/style/titanium/, PLAN 3.5t): graphite to near black gradient, frosted glass cards, silver text, Inter.
+- One accent: ice blue `#9FD3FF` (dark text `#0F1114` on it) for primary actions, progress and primary muscles. No lime anywhere. Success uses the accent; warnings amber `#FFB020`; destructive `#FF4D4D`.
 - Typography: a confident grotesk for numbers and headings (e.g. "Space Grotesk" or "Inter Tight", self hosted, subset), tabular numerals for all weights and reps. Numbers are the hero: the total weight is the biggest thing on the set card.
 - Motion: springy but quick (stiffness ~400, damping ~30), plates slide on, cards expand in place, no gratuitous animation. Respect reduced motion.
 - iPhone details: safe areas, no rubber band scroll on fixed bars, bottom sheet pattern for details, inputs never trigger zoom (16px+), pull down to close sheets.
@@ -432,7 +433,7 @@ The app acts like a personal trainer. Recommendations are short, specific, one t
 
 ## 16. The passport book (upgrade of 12.8)
 A real feeling passport. Opening it is a moment:
-- Cover: black leather texture, lime foil AnyGym A logo and "ANYGYM PASSPORT" embossed, subtle shine that moves with the phone tilt where supported.
+- Cover: black leather texture, ice blue foil AnyGym A logo and "ANYGYM PASSPORT" embossed, subtle shine that moves with the phone tilt where supported.
 - Opening animation: the cover swings open in 3D (CSS perspective, about 600 ms, springy), pages fan slightly. Swipe or tap to flip pages with a real page curl turn.
 - ID page: their photo from the camera roll (stays on the phone) or an avatar they build (face shape, skin tone, hair, cap, colors), name, "Home gym", "Issued" date, member number, total cities, total workouts, total distance, and a fake machine readable strip at the bottom in the passport style (decorative, no real personal data beyond what they typed).
 - Stamp pages: one stamp per city, earned by a run there or a workout at a gym tagged with that city. Each stamp looks like an ink stamp: round, rectangle, or hexagon, rotated a few degrees, slightly uneven ink, in a color from the palette, with city name, country flag, date, and "RUN 5.2 km" or "WORKOUT 48 min". New stamps land with a stamping animation and a soft thunk haptic sound.
@@ -492,11 +493,11 @@ Playwright tap count tests that fail if exceeded:
 - Quick workout with one exercise and 3 sets logged: at most 7 taps including search.
 
 ## 21. Learn from the best: Hevy and Bevel (G's request, Oct 24)
-Hevy is the most loved lifting tracker; Bevel is praised for turning complex health data into beautiful, readable summaries. Borrow the PATTERNS that make them great, never their visuals, names, icons, copy, or assets. AnyGym keeps its own black and lime identity.
+Hevy is the most loved lifting tracker; Bevel is praised for turning complex health data into beautiful, readable summaries. Borrow the PATTERNS that make them great, never their visuals, names, icons, copy, or assets. AnyGym keeps its own black and accent identity.
 
 ### 21.1 From Hevy (logging that lifters love)
 - The set table on the exercise view: columns SET · LAST TIME · WEIGHT · REPS · ✓. "Last time" shows exactly what they did in that set last session; tapping it copies those numbers into the row. Combined with our prefilled Next targets (SPEC 20), most sets are just the ✓.
-- Checking a set: the row turns a satisfying lime tint with a smooth check animation and a light haptic style bounce; the rest timer starts for that exercise.
+- Checking a set: the row turns a satisfying accent tint with a smooth check animation and a light haptic style bounce; the rest timer starts for that exercise.
 - Rest timer is per exercise (editable on the exercise), shown as a slim bar at the bottom of the screen with time left, +15 / -15, and Skip. It keeps counting if the user leaves the screen.
 - Set types as a tiny tap target on the set number: normal, W (warm up), D (drop set), F (to failure). Warm ups never count toward progress or PRs.
 - Live workout header: elapsed time, total sets done, total lifted, always visible but compact.
@@ -546,17 +547,17 @@ Read first for every UI item (builder and ux-critic): .design-ref/skills/emil-de
 - Stack screens push in from the right with the previous screen sliding about 30% left and dimming, exactly like iOS. Back reverses it.
 - Back: a round 44 pt glass button top left (blurred translucent surface, thin hairline, chevron icon), plus an interactive edge swipe from the left edge that follows the finger and finishes or cancels by velocity. Both on every pushed screen.
 - Large titles that shrink into a compact centered title in a blurred top bar as you scroll (iOS large title behavior).
-- Tab bar: floating, blurred, with a lime pill that slides between tabs (shared layout animation), icon does a small spring bounce on select. Tab switches crossfade with a 6 to 8 px rise, never a slide.
+- Tab bar: floating, blurred, with an accent pill that slides between tabs (shared layout animation), icon does a small spring bounce on select. Tab switches crossfade with a 6 to 8 px rise, never a slide.
 - Sheets: spring up from the bottom, drag down to dismiss with velocity, the screen behind scales to about 0.94 with rounded corners and dims (iOS card stack). Nested sheets stack.
 - Shared elements: exercise thumbnail grows into the exercise view hero, a plan day card expands into the workout, the Start button morphs into the workout header. View Transitions API where Safari supports it, otherwise motion layout animations.
 ### 23.2 Buttons and controls
-- Primary: lime pill, 52 to 56 pt tall, bold label, subtle top highlight and soft lime glow, press scales to 0.97 instantly. Secondary: glass. Tertiary: text only. Destructive: red text, confirm with undo instead of dialogs where possible.
+- Primary: accent pill, 52 to 56 pt tall, bold label, subtle top highlight and soft accent glow, press scales to 0.97 instantly. Secondary: glass. Tertiary: text only. Destructive: red text, confirm with undo instead of dialogs where possible.
 - Every control: 44 pt minimum hit area, pressed state within one frame, disabled state that still explains why ("Set the starting weight first").
 - One icon family everywhere (Lucide or Phosphor, MIT licensed, one stroke weight), never emoji as icons.
 - Haptics: a tiny tick on set check, plate add, wheel detents and tab switch. iPhone Safari 18+ via the native switch input haptic technique, Android via navigator.vibrate(8). Setting to turn off.
 ### 23.3 Motion that rewards
 - Numbers roll like an odometer when weight or reps change. Rest timer is a smooth ring that counts down.
-- Set check: the check draws in, the row fills lime from left to right, haptic tick. A PR gets a short lime burst and "New best" chip. Finishing a workout: summary cards cascade in with count up stats.
+- Set check: the check draws in, the row fills with the accent from left to right, haptic tick. A PR gets a short accent burst and "New best" chip. Finishing a workout: summary cards cascade in with count up stats.
 - Skeletons, never spinners. Empty states get a simple original illustration and one clear action.
 - Durations 150 to 300 ms with springs; celebrations up to 900 ms. 60 fps on iPhone. prefers-reduced-motion swaps movement for crossfades.
 ### 23.4 Proof

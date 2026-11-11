@@ -49,7 +49,7 @@
   color: var(--accent);
 }
 
-/* Over the time even after every cut the rules allow: said plainly, no lime. */
+/* Over the time even after every cut the rules allow: said plainly, no accent. */
 .fit[data-over] > span {
   color: var(--amber);
 }

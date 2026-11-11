@@ -9,7 +9,8 @@ test('B3: a pushed screen top bar is near solid once scrolled (Settings)', async
   await page.locator('[data-scroller]').first().evaluate((el) => el.scrollTo(0, 400));
   await expect(bar).toHaveAttribute('data-compact', 'true');
   const alpha = await bar.evaluate((el) => {
-    const m = getComputedStyle(el).backgroundColor.match(/rgba?\(([^)]+)\)/)?.[1]?.split(/[ ,/]+/).filter(Boolean) ?? [];
+    // 3.5t: WebKit reports a color-mix as `color(srgb r g b / a)`, others as rgb()/rgba().
+    const m = getComputedStyle(el).backgroundColor.match(/(?:rgba?|color)\(([^)]+)\)/)?.[1]?.replace(/^srgb\s+/, '').split(/[ ,/]+/).filter(Boolean) ?? [];
     return m.length > 3 ? Number(m[3]) : m.length === 3 ? 1 : 0;
   });
   expect(alpha).toBeGreaterThanOrEqual(0.94);
@@ -56,8 +57,16 @@ for (const [name, url] of [
       const clip = { x, y: b.y + b.height - 40, width: Math.max(8, b.x + b.width - 60 - x), height: 30 };
       worst = Math.max(worst, await brightest(page, clip));
     }
-    // White text at 5% through a near black fill stays under ~30; read-through text was 100+.
-    expect(worst).toBeLessThan(40);
+    // 3.5t: derived from the token, not a magic number. The fill's own brightness plus 20 (white text at 5%
+    // through it adds about 11); read-through text was 100+ above the fill.
+    const fill = await page.evaluate(() => {
+      const c = document.createElement('canvas').getContext('2d')!;
+      c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bar-solid').trim();
+      c.fillRect(0, 0, 1, 1);
+      const [r, g, b] = c.getImageData(0, 0, 1, 1).data;
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    });
+    expect(worst).toBeLessThan(fill + 20);
   });
 }
 

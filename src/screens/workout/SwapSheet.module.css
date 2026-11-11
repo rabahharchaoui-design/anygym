@@ -90,3 +90,24 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* PLAN 3.5f: the options as a deck, one per card. The deck has a height of its own inside the sheet. */
+.deckBox {
+  display: flex;
+  flex-direction: column;
+  height: min(52vh, 420px);
+  min-height: 300px;
+}
+
+.line {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  text-align: center;
+}

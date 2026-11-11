@@ -558,7 +558,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     setNudge((n) => ({ index: r.index, text: why, n: (n?.n ?? 0) + 1 }));
     nudgeTimer.current = window.setTimeout(() => setNudge(null), 1700);
   };
-  // "Pick a weight" is what the lime Pick button already says (PLAN 2.2b); any other reason (a bar
+  // "Pick a weight" is what the accent Pick button already says (PLAN 2.2b); any other reason (a bar
   // weight to set first, a pick in the other unit) stays as a quiet line. Screen readers hear all.
   const statusText = status && current ? `${rowName(current)}: ${status}` : '';
   const statusShown = !!status && status !== 'Pick a weight';
