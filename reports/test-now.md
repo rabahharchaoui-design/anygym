@@ -29,3 +29,4 @@
 3.5e | Approve the new exercises: Settings, tap the version 5 times, Review, Review new exercises, then swipe through the batch: right approves, left is wrong, Fix adds a note. Approved moves show up in your suggestions at once. When done, tap Export approvals and send me the file.
 3.5t | The whole app has the new Titanium Glass look: graphite background, glass cards, one ice blue accent, no lime. Open every tab and a workout and tell me anything that still looks like the old app.
 3.5i | Approve the new exercises fast: Settings, tap the version 5 times, Review new exercises. First flick through the 20 I was unsure about (right approves, left is wrong), then on each grid tap only the wrong ones and press Approve 9.
+3.5f | Swipe to curate in more places. On Today tap Preview on the day card: swipe right to keep, left to swap, after three lefts tap Show me. In a workout, open an exercise menu and Replace. Each card has one why line with an info button.

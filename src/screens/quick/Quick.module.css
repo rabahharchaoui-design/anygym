@@ -10,6 +10,13 @@
 
 /* The deck and the ready list: a full screen column of their own (title, card, buttons, Start), so
    the card takes exactly the room between them on every phone. It still scrolls at large text. */
+.screen[data-stage='deck'] {
+  /* 3.5f round 3 (M5): a drag on the deck never selects the bar's or the line's words. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .screen[data-stage='deck'],
 .screen[data-stage='ready'] {
   position: fixed;
@@ -200,7 +207,10 @@
 .noticeText {
   color: var(--text);
   min-width: 0;
-  overflow-wrap: anywhere; /* PLAN 3.8a: the whole line wraps, never clipped */
+  /* Round 3 (M10): the line is only "<Name> hidden" beside Undo (the new time is in the header), so it
+     is one line for most names; a very long one wraps rather than being cut (PLAN 3.8a). */
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .undo {
@@ -227,27 +237,39 @@
 /* ---------------------------------------------------------------- ready */
 
 .ready {
+  /* 3.5f round 3 (M9): one glass card of compact rows, never a stack of full cards. */
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: var(--space-3) 0 var(--space-4);
-  padding: 0;
+  padding: var(--space-1) 0;
   list-style: none;
+  border: 1px solid var(--glass-line);
+  border-radius: 22px;
+  background: var(--surface-1);
+  animation: ready-in 280ms var(--ease-spring) both;
 }
 
 /* Ready to go comes in on the same spring the last card left on (P8). */
 .readyRow {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--glass-line);
-  border-radius: 18px;
-  background: var(--surface-1);
-  animation: ready-in 280ms var(--ease-spring) both;
-  animation-delay: calc(var(--i, 0) * 40ms);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  animation: ready-fade 200ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 25ms);
 }
 
+.readyRow + .readyRow {
+  border-top: 1px solid var(--glass-line);
+}
+
+/* M8: the warm up Start opens with, said before the lifts. */
+.readyRow[data-warmup] .readyName {
+  color: var(--text-2);
+}
+
+.ready[data-reduced],
 .ready[data-reduced] .readyRow {
   animation: ready-fade 160ms ease-out both;
 }
@@ -266,13 +288,19 @@
 }
 
 .readyName {
-  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .readySets {
+  flex: none;
+  max-width: 48%;
   color: var(--text-2);
   font-size: 0.875rem;
+  text-align: right;
 }
 
 /* ---------------------------------------------------------------- nothing to build */

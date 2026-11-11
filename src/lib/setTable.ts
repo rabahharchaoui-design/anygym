@@ -347,7 +347,10 @@ export function pendingRows(input: BuildInput): PendingRow[] {
     }
     const reps = d?.noTarget ? (d.own?.reps ? d.reps : undefined) : (d?.reps ?? target?.reps ?? lastLogged?.reps ?? input.defaultReps);
     // A hold the plan prescribes beats last time's hold (PLAN 1.7c); last time stays in LAST TIME.
-    const seconds = d?.seconds ?? input.planSeconds ?? target?.seconds;
+    // 3.5f round 3 (M11): never under the hold "Beat last time" names (the longer of the two).
+    const aim = progression?.next.seconds;
+    const planned = input.planSeconds !== undefined && aim !== undefined ? Math.max(input.planSeconds, aim) : (input.planSeconds ?? aim);
+    const seconds = d?.seconds ?? planned ?? target?.seconds;
     const row: PendingRow = { index: i, load, plates, type: d?.type ?? input.defaultType, edited: !!d };
     if (kept) row.kept = kept;
     if (reps !== undefined) row.reps = reps;

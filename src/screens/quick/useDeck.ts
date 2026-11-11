@@ -11,7 +11,7 @@ import { recordLeft, recordNever, undoNever } from '../../db/quick';
 import { SWAP_DATA, countsEachSide } from '../../data/patterns';
 import { QUICK_DEPS } from '../../data/quick';
 import { hints } from '../../lib/hints';
-import { END_LINE, SHOW_SIX_AFTER, conceptMinutes, dropItem, dropSlot, quickAvoids, safePairs, sixOf, swapItem, swapPool, type Concept, type Option, type PlanPart, type QuickItem } from '../../lib/quick';
+import { END_LINE, SHOW_SIX_AFTER, dropItem, dropSlot, quickAvoids, safePairs, sixOf, swapItem, swapPool, type Concept, type Option, type PlanPart, type QuickItem } from '../../lib/quick';
 import { withNotes } from '../../lib/quickNotes';
 import type { GeneratorInput } from '../../lib/generator';
 import type { GymKit } from '../../lib/picker';
@@ -47,8 +47,9 @@ export function useDeck(base: GeneratorInput | null, kit: GymKit | null, neverNo
 
   const okFor = useMemo(() => {
     const never = new Set([...(base?.never ?? []), ...neverNow].map(SWAP_DATA.sameAs));
-    // 3.5b round 4 (B2): a swap keeps the Go easy on rules every card is built with.
-    return (id: string) => QUICK_DEPS.usable(id) && !never.has(SWAP_DATA.sameAs(id)) && !quickAvoids(base?.easyOn, QUICK_DEPS.profile(id));
+    // 3.5b round 4 (B2): a swap keeps the Go easy on rules every card is built with. 3.5f round 3 (B1):
+    // no sure demo is asked for, as in Replace (the card then says "No demo for this one yet").
+    return (id: string) => !never.has(SWAP_DATA.sameAs(id)) && !quickAvoids(base?.easyOn, QUICK_DEPS.profile(id));
   }, [base, neverNow]);
   /** The top card's whole ranked pool (PLAN 3.5f): its first is what a left puts in; empty is the true end. */
   const poolFor = (c: Curating): Option[] => {
@@ -62,8 +63,8 @@ export function useDeck(base: GeneratorInput | null, kit: GymKit | null, neverNo
   const [sixOpen, setSixOpen] = useState(false);
   const [ended, setEnded] = useState<string | null>(null);
   const [ask, setAsk] = useState<{ id: string; name: string } | null>(null);
-  /** "Show me 6" is offered from the third left on this card's slot, while there is a choice left to show (one move left: a left just brings it). */
-  const sixOffered = !!top && (stage?.lefts[top.slot] ?? 0) >= SHOW_SIX_AFTER && pool.length > 1;
+  /** "Show me N" is offered from the third left on this card's slot whenever one move or more is left (round 3, B1). */
+  const sixOffered = !!top && (stage?.lefts[top.slot] ?? 0) >= SHOW_SIX_AFTER && pool.length > 0;
   const six = useMemo(() => sixOf(pool).map((o) => ({ ...o, name: QUICK_DEPS.name(o.id) })), [pool]);
   const atEnd = !!top && ended === top.slot && !canSwap;
 
@@ -85,6 +86,9 @@ export function useDeck(base: GeneratorInput | null, kit: GymKit | null, neverNo
     // PLAN 3.5f: every why line is a curated fact, true of the workout as it is now.
     return { ...c, items: withNotes(items, QUICK_DEPS), changed: true, tried: { ...c.tried, [item.slot]: [...(c.tried[item.slot] ?? []), item.id] } };
   };
+
+  /** Round 3 (B3): the card a left puts in, drawn under the top card while it is dragged left. */
+  const incoming = useMemo(() => (stage && pool[0] ? replaceTop(stage, pool[0]).items[stage.index] ?? null : null), [stage, pool]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const decide = (d: Decision) => {
     seenHint();
@@ -157,12 +161,12 @@ export function useDeck(base: GeneratorInput | null, kit: GymKit | null, neverNo
       : // PLAN 3.5g: the rest keeps its structure (a circuit stays a circuit), never a stray pair.
         { ...stage, changed: true, removed: [...stage.removed, item.origin], items: withNotes(dropItem(stage.items, stage.index), QUICK_DEPS), ...(stage.plan ? { plan: dropSlot(stage.plan, item.slot) } : {}) };
     setStage(next);
-    const after = conceptMinutes({ items: next.items, ...(next.plan ? { plan: next.plan } : {}) });
     const id = Date.now();
     setNotice({
       id,
       // PLAN 3.8a (Codex ui-3.5a #5): the line always names the exercise that was hidden.
-      text: to ? `${item.name} hidden` : `${item.name} hidden. No replacement available. Workout now ~${after} min.`,
+      // Round 3 (M10): one short line; the new time is in the header's meta line.
+      text: `${item.name} hidden`,
       undo: () => {
         setNotice((n) => (n?.id === id ? null : n));
         void undoNever(item.id).catch(() => undefined);
@@ -188,5 +192,5 @@ export function useDeck(base: GeneratorInput | null, kit: GymKit | null, neverNo
     setStage({ concept: c, items: c.items.map((it) => ({ ...it })), ...(c.plan ? { plan: c.plan } : {}), index: 0, tried: {}, changed: false, lefts: {}, workout: `deck-${Date.now()}`, removed: [] });
   };
 
-  return { stage, setStage, notice, swapNote, leaving, fling, setFling, hint, canSwap, decide, flyStart, never, nothingToSwap, curate, six, sixOffered, sixOpen, setSixOpen, pickSix, atEnd, endLine: END_LINE, ask, answerAsk };
+  return { stage, setStage, notice, swapNote, leaving, fling, setFling, hint, canSwap, incoming, decide, flyStart, never, nothingToSwap, curate, six, sixOffered, sixOpen, setSixOpen, pickSix, atEnd, endLine: END_LINE, ask, answerAsk };
 }

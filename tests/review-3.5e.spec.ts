@@ -39,6 +39,9 @@ async function openQueue(page: Page) {
   await expect(progress(page)).not.toBeEmpty();
   if ((await page.getByTestId('candidate-review').getAttribute('data-view')) === 'grid') await page.getByTestId('review-mode').tap();
   await expect(progress(page)).toHaveText(/^\d+ of \d+$/);
+  // 3.5f round 3: a swipe while the screen's fade is still running never reaches the card (WebKit hit
+  // tests the view transition), so the first swipe waits for it, as a finger would.
+  await page.waitForFunction(() => !document.documentElement.dataset.nav);
 }
 
 test('version × 5 → Review → the deck: approve, wrong, fix, undo, reload resumes, export @matrix', async ({ page }) => {

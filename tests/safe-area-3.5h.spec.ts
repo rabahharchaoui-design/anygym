@@ -308,9 +308,10 @@ test.describe('moving previews', () => {
     const top = card(page).getByTestId('deck-demo');
     await expect(top.locator('[data-frame="1"] img')).toHaveCount(1);
     expect(await demoOf(top)).toEqual({ frames: ['0', '1'], moving: true, duration: '3s' });
-    // The card under it moves too (it is next); nothing else is drawn.
+    // The card under it moves too (it is next); nothing else is drawn. 3.5f round 3 (B3): the move a
+    // left puts in is drawn under it too (shown only while the card is dragged left).
     const under = page.locator('[data-under] [data-testid="deck-demo"]');
-    if (await under.count()) expect((await demoOf(under)).moving).toBe(true);
+    for (const u of await under.all()) expect((await demoOf(u)).moving).toBe(true);
     await expect(page.getByTestId('deck-demo')).toHaveCount((await under.count()) + 1);
     // The end photo really shows during the loop (both frames loaded, the end one fades to 1).
     await expect.poll(() => top.locator('[data-frame="1"]').evaluate((el) => Number(getComputedStyle(el).opacity)), { timeout: 4000 }).toBeGreaterThan(0.9);

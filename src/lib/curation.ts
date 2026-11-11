@@ -6,11 +6,15 @@
 // 3 lefts on the same move in 3 different workouts ask once "Hide it for good?".
 // The pool is built only from the swap ladders (SWAP_DATA), so a candidate move is in it only after
 // it is approved on this phone (data/candidateGate.ts): it deepens by itself as approvals arrive.
+// Round 3 (B1): the same pattern part is exactly Replace's list (swap.ts swapCandidates, the same
+// gym check, no sure demo asked for): a move without a sure demo is offered with its honest "No demo
+// for this one yet", never a borrowed photo. Only moves already in the workout, already shown on this
+// card, hidden (never) or ruled out by Go easy on are left out.
 import { FALLBACK } from './generatorRules';
-import { isCompound } from './order';
+import { isCompound, isHeavy, liftWord } from './order';
 import type { Dislikes, QuickItem } from './quick';
-import { type SwapContext, optionKey, swapOptions } from './quickDeck';
-import { patternOf } from './swap';
+import { type SwapContext, optionKey, rankSoft, swapOptions } from './quickDeck';
+import { patternOf, swapCandidates, workoutIdOf } from './swap';
 
 /** Lefts on one slot before "Show me 6" is offered, and how many it shows at most. */
 export const SHOW_SIX_AFTER = 3;
@@ -29,7 +33,7 @@ export type Option = { id: string; close: boolean };
  * for a small one), each option once, never one the card already showed. Empty: the true end.
  */
 export function swapPool(item: QuickItem, items: readonly QuickItem[], tried: readonly string[], ctx: SwapContext): Option[] {
-  const same = swapOptions(item, items, tried, ctx).map((id) => ({ id, close: false }));
+  const same = replaceOptions(item, items, tried, ctx).map((id) => ({ id, close: false }));
   const pattern = patternOf(ctx.data, item.slot);
   const p = ctx.profile;
   if (!pattern || !p) return same;
@@ -45,6 +49,28 @@ export function swapPool(item: QuickItem, items: readonly QuickItem[], tried: re
     }
   }
   return [...same, ...close];
+}
+
+/**
+ * Round 3 (B1): Replace's own list for this card's slot (swapCandidates: same pattern, this gym can do
+ * it, the same way of counting), minus moves already in the workout, already shown on this card, the
+ * same option under another name, and what ctx.ok rules out (never, Go easy on). Moves of the slot's
+ * size come first (a light slot's heavy lifts last, never left out), then the fewest lefts first.
+ */
+export function replaceOptions(item: QuickItem, items: readonly QuickItem[], tried: readonly string[], ctx: SwapContext): string[] {
+  const { data } = ctx;
+  const from = patternOf(data, item.slot) ? item.slot : item.id;
+  const mode = item.seconds !== undefined && item.reps === undefined ? 'seconds' : 'reps';
+  const exclude = items.filter((x) => x !== item).map((x) => x.id);
+  const listed = swapCandidates(data, from, ctx.gym, { mode, exclude: [item.id, item.slot, ...exclude] }).map(workoutIdOf);
+  const keyOf = (id: string) => (ctx.nameOf ? optionKey(ctx.nameOf(id)) : data.sameAs(id));
+  const seen = new Set([item.id, item.slot, ...tried, ...exclude, ...(ctx.avoid ?? [])].flatMap((id) => [data.sameAs(id), keyOf(id)]));
+  const usable = listed.filter((id) => !seen.has(data.sameAs(id)) && !seen.has(keyOf(id)) && ctx.ok(id));
+  const once = usable.filter((id, i) => usable.findIndex((x) => keyOf(x) === keyOf(id)) === i);
+  const p = ctx.profile;
+  const slotP = p?.(item.slot);
+  const bigger = (id: string) => !!p && !!slotP && ((!isHeavy(slotP) && isHeavy(p(id))) || (liftWord(p(id)) === 'deadlift' && liftWord(slotP) !== 'deadlift'));
+  return rankSoft([...once.filter((id) => !bigger(id)), ...once.filter(bigger)], ctx.soft);
 }
 
 /** "Show me 6": the next options of the pool, at most six, never padded. */

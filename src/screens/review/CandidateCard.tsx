@@ -14,7 +14,7 @@ export function CandidateCard({ c, under, note }: { c: CandidateRecord; under: b
   const muscles = candidateMuscles(c);
   return (
     <>
-      <DeckPhoto demo={{ webp: c.images.webp, jpg: c.images.jpg }} none="Photos when you are back online" />
+      <DeckPhoto demo={{ webp: c.images.webp, jpg: c.images.jpg }} none="Photos when you are back online" whole />
       <div className={deck.cardBody}>
         {note && (
           <p className={styles.note} data-testid={under ? undefined : 'candidate-note'}>

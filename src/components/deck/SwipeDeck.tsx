@@ -51,13 +51,23 @@ export type DeckProps<T extends { id: string }> = {
   holdWord?: string;
   /** PLAN 3.5i: a light flick decides (velocity, not distance), and the card takes the full height. */
   light?: boolean;
+  /**
+   * 3.5f round 3 (B3): the card a left puts in, drawn under the top card while it is dragged left (the
+   * next card shows under a right drag). Left out: the next card shows either way (Replace, where a
+   * left is "Next"). With canSwap false a left drag meets resistance over "Nothing else to swap".
+   */
+  swapIn?: T | null;
 };
 
-type Drag = { id: number; x: number; y: number; axis: 'x' | 'y' | null; dx: number; lastX: number; lastT: number; v: number };
+type Drag = { id: number; x: number; y: number; axis: 'x' | 'y' | null; dx: number; shown: number; lastX: number; lastT: number; v: number };
 
-export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, reduced, onDecide, onFlyStart, onNever, onNothingToSwap, fling, renderCard, label, holdWord, light }: DeckProps<T>) {
+/** Round 3 (B3): a left drag with nothing to swap in gives way less and less (at most RESIST px). */
+const RESIST = 44;
+const resist = (dx: number) => -RESIST * (1 - Math.exp(dx / 120));
+
+export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, reduced, onDecide, onFlyStart, onNever, onNothingToSwap, fling, renderCard, label, holdWord, light, swapIn }: DeckProps<T>) {
   const topRef = useRef<HTMLElement>(null);
-  const underRef = useRef<HTMLElement>(null);
+  const deckRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   const press = useRef(0);
   const showHold = useRef(0);
@@ -68,6 +78,10 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
   const pending = useRef<number | null>(null);
   const top = items[index];
   const next = items[index + 1];
+  /** What shows under a left drag: the move a left puts in, the next card, or nothing to swap. */
+  const leftUnder: T | null = !canSwap ? null : swapIn === undefined ? (next ?? null) : swapIn;
+  const split = !canSwap || swapIn !== undefined;
+  const unders = () => Array.from(deckRef.current?.querySelectorAll<HTMLElement>('[data-under]') ?? []);
 
   const width = () => topRef.current?.offsetWidth || 320;
 
@@ -86,8 +100,12 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     el.style.setProperty('--swap-chip', String(Math.min(1, Math.max(0, -x) / 40)));
     if (Math.abs(x) > 2) el.dataset.dragging = '';
     else delete el.dataset.dragging;
-    const under = underRef.current;
-    if (under && !reduced) under.style.transform = `translate3d(0,${10 - 10 * Math.min(1, Math.abs(p))}px,0) scale(${0.94 + 0.06 * Math.min(1, Math.abs(p))})`;
+    const deck = deckRef.current;
+    if (deck) {
+      const dir = x < -2 ? 'swap' : x > 2 ? 'keep' : '';
+      if (deck.dataset.dir !== dir) deck.dataset.dir = dir;
+    }
+    if (!reduced) for (const under of unders()) under.style.transform = `translate3d(0,${10 - 10 * Math.min(1, Math.abs(p))}px,0) scale(${0.94 + 0.06 * Math.min(1, Math.abs(p))})`;
   };
   const schedule = (x: number) => {
     pending.current = x;
@@ -137,7 +155,8 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
         );
       }
     }
-    if (underRef.current) underRef.current.style.transform = '';
+    for (const under of unders()) under.style.transform = '';
+    if (deckRef.current) deckRef.current.dataset.dir = '';
     shown.current = top ? { index, id: top.id } : null;
     busy.current = false;
   }, [top?.id, index, reduced]);
@@ -211,7 +230,7 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     if ((e.target as Element).closest('button')) return;
     stop.current?.();
     const now = performance.now();
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, axis: null, dx: 0, lastX: e.clientX, lastT: now, v: 0 };
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, axis: null, dx: 0, shown: 0, lastX: e.clientX, lastT: now, v: 0 };
     clearHold();
     if (!onNever) return;
     // The hold shows itself: the card presses in and a ring fills (round 2, P9).
@@ -258,7 +277,8 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     d.lastX = e.clientX;
     d.lastT = now;
     d.dx = dx;
-    schedule(dx);
+    d.shown = dx < 0 && !canSwap ? resist(dx) : dx;
+    schedule(d.shown);
   };
 
   const end = (e: ReactPointerEvent<HTMLElement>, cancelled: boolean) => {
@@ -270,13 +290,13 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     cancelAnimationFrame(frame.current);
     frame.current = 0;
     pending.current = null;
-    write(d.dx);
+    write(d.shown);
     const flick = Math.abs(d.v) > (light ? LIGHT_FLICK : FLICK) && Math.sign(d.v) === Math.sign(d.dx) && Math.abs(d.dx) > (light ? LIGHT_TRAVEL : 24);
     const past = Math.abs(d.dx) > width() * DECIDE_SHARE || flick;
-    if (cancelled || !past) return springBack(d.dx, d.v);
+    if (cancelled || !past) return springBack(d.shown, d.v);
     const kind: Decision = d.dx > 0 ? 'keep' : 'swap';
     if (kind === 'swap' && !canSwap) {
-      springBack(d.dx, d.v);
+      springBack(d.shown, 0);
       return onNothingToSwap();
     }
     fly(kind, d.dx);
@@ -285,12 +305,22 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
   if (!top) return null;
   return (
     <div className={styles.deckWrap}>
-      <div className={styles.deck} data-testid="deck" data-tall={light || undefined}>
+      <div ref={deckRef} className={styles.deck} data-testid="deck" data-tall={light || undefined} data-split={split || undefined}>
         {next && (
-          <article ref={underRef} key={`${index + 1}:${next.id}`} className={styles.card} data-under="" aria-hidden="true">
+          <article key={`${index + 1}:${next.id}`} className={styles.card} data-under="" data-for={split ? 'keep' : undefined} data-testid="deck-under-keep" aria-hidden="true">
             {renderCard(next, { position: index + 2, of: items.length, under: true })}
           </article>
         )}
+        {split &&
+          (leftUnder ? (
+            <article key={`swap:${index}:${leftUnder.id}`} className={styles.card} data-under="" data-for="swap" data-testid="deck-under-swap" data-exercise={leftUnder.id} aria-hidden="true">
+              {renderCard(leftUnder, { position: index + 1, of: items.length, under: true })}
+            </article>
+          ) : (
+            <div className={styles.ghost} data-under="" data-for="swap" data-testid="deck-under-none" aria-hidden="true">
+              Nothing else to swap
+            </div>
+          ))}
         <article
           ref={topRef}
           key={`${index}:${top.id}`}

@@ -904,13 +904,14 @@ test('B4: love and never share one optional screen and stay separate answers', a
   await expect(cta(page)).toBeEnabled();
   // 3.5f: the screen opens on the swipe cards; the searchable lists are one tap away.
   await page.getByTestId('ex-mode').getByRole('radio', { name: /Love/ }).tap();
-  const love = page.getByTestId('q-love').getByRole('button').first();
+  // 3.5f round 3 (M12): a gym with no gear lists every move under "Needs other gear" (q-love-other).
+  const love = page.locator('[data-testid="q-love"], [data-testid="q-love-other"]').getByRole('button').first();
   const name = (await love.textContent())!;
   await love.tap();
   await page.getByTestId('ex-mode').getByRole('radio', { name: /Never/ }).tap();
   // What is loved is not offered as never.
-  await expect(page.getByTestId('q-never').getByRole('button', { name, exact: true })).toHaveCount(0);
-  await page.getByTestId('q-never').getByRole('button').first().tap();
+  await expect(page.locator('[data-testid="q-never"], [data-testid="q-never-other"]').getByRole('button', { name, exact: true })).toHaveCount(0);
+  await page.locator('[data-testid="q-never"], [data-testid="q-never-other"]').getByRole('button').first().tap();
   await expect(page.getByTestId('ex-mode')).toContainText('Love (1)');
   await expect(page.getByTestId('ex-mode')).toContainText('Never (1)');
   await shot(page, 'exercises');

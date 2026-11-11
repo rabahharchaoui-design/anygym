@@ -5,16 +5,25 @@
    leaves at the screen's edge. It takes the room the bar, buttons and Start leave (round 2, B1). */
 .deckWrap {
   flex: 1 1 0;
+  /* Round 3 (B2): the deck takes the room it is given, never its photo's natural height. */
+  min-height: 0;
   display: flex;
+  /* 3.5f round 3 (M5): a drag never selects the words on or around the deck. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   margin: 0 calc(-1 * var(--page-pad-r, 24px)) 0 calc(-1 * var(--page-pad-l, 24px));
   padding: 0 var(--page-pad-r, 24px) 0 var(--page-pad-l, 24px);
   overflow-x: clip;
 }
 
-/* The cards stack in one grid cell: the deck is never shorter than a card's words. */
+/* The cards stack in one grid cell. Round 3 (B2): the cell is the room the screen leaves; inside a
+   card the photo gives way first (to 160 pt), then the words (the why line is 2 lines at most). */
 .deck {
   flex: 1;
+  min-height: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   max-height: 600px;
   margin: 0 2px;
 }
@@ -26,6 +35,9 @@
 
 .card {
   grid-area: 1 / 1;
+  min-height: 0;
+  /* Round 3 (M7): the photo's 4:3 cap is a share of the card's width (cqw). */
+  container: deckcard / inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -52,40 +64,60 @@
   pointer-events: none;
 }
 
+/* 3.5f round 3 (B3): under a left drag, the move a left puts in (or "Nothing else to swap"); under
+   a right drag or at rest, the next card. Switched with opacity only, so nothing moves in layout. */
+.deck[data-split] [data-under] {
+  transition: opacity 120ms var(--ease-out);
+}
+
+.deck[data-split] [data-for='swap'],
+.deck[data-split][data-dir='swap'] [data-for='keep'] {
+  opacity: 0;
+}
+
+.deck[data-split][data-dir='swap'] [data-for='swap'] {
+  opacity: 1;
+}
+
+.ghost {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  border: 1px dashed var(--glass-line);
+  border-radius: 28px;
+  color: var(--text-2);
+  font-weight: 700;
+  text-align: center;
+  transform: translate3d(0, 10px, 0) scale(0.94);
+  pointer-events: none;
+}
+
 .card[data-under] .cardWhy,
 .card[data-under] .edge {
   visibility: hidden;
 }
 
-/* The photo gives way first when room is short; the words never do. Never cropped (P12). */
+/* 3.5f round 3 (M7, B2): the photo takes the room the words leave, up to a 4:3 frame (75% of the
+   card's width), never below 160 pt (or half of a very short card): never a postage stamp. */
 .photo {
   position: relative;
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 100 1 0;
+  min-height: min(160px, 50%);
+  max-height: 75cqw;
   overflow: hidden;
   background: var(--surface-2);
 }
 
-.photo img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+.deck[data-tall] .photo {
+  flex: 1 1 0;
+  max-height: none;
 }
 
-.photoMain {
-  object-fit: contain;
-}
-
-/* Drawn once (the card moves as one layer), never re-blurred per frame. */
-.photoFill {
-  object-fit: cover;
-  /* No scale up (3.5t): a scaled image's box reached past the screen edge. The blur's soft edge melts
-     into the dark photo background instead. */
-  filter: blur(18px) brightness(0.55);
-  /* Its own layer: the blur is drawn once and only moved with the card (60 fps on Pro Max). */
-  will-change: transform;
+/* The owner review's words keep their height; its photo takes the rest. */
+.deck[data-tall] .cardBody {
+  flex: none;
+  overflow: visible;
 }
 
 .photoOff {
@@ -159,10 +191,19 @@
 }
 
 .cardBody {
-  flex: none;
+  /* Round 3 (B2): the flexible part. On a short card it gives way: its lines wrap into a second
+     column that is out of view, so the why line (behind the info button too) goes whole, never
+     cut in half, and the name always stays. */
+  flex: 0.01 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  /* wrap-reverse: the out of view column is to the left, never past the screen's right edge. */
+  flex-wrap: wrap-reverse;
+  align-content: flex-start;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* The out of view column starts past the side padding, so not a letter of it shows. */
+  gap: 4px 64px;
   padding: var(--space-3) var(--space-5) var(--space-4);
   background: var(--surface-1);
 }
@@ -206,6 +247,12 @@
   color: var(--text-2);
   font-size: 0.875rem;
   line-height: 1.35;
+  /* Round 3 (B2): two lines at most; the whole fact is behind the info button. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 /* "Never show": a labelled 48 pt pill (round 2, tester, P12). */
@@ -342,4 +389,8 @@
 /* The middle one is still a full thumb target (48 pt) when its word is short ("Fix"). */
 .deckButtons[data-three] .round[data-kind='other'] {
   min-width: 56px;
+}
+
+.cardBody > * {
+  width: 100%;
 }

@@ -220,7 +220,9 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     const showBack = step !== 'goal' || redo;
     const first = step === 'goal';
     // On the last question Skip already goes to the reveal.
-    const skipRestButton = PERSONAL_GROUP.has(step) && step !== 'about' ? (
+    // 3.5f round 3 (M6, B2): not on the love / never cards (the top Skip does it), where every line counts.
+    const deckStep = step === 'exercises';
+    const skipRestButton = PERSONAL_GROUP.has(step) && step !== 'about' && !deckStep ? (
       <button type="button" className={`${styles.skipRest} pressable`} onClick={skipRest} data-testid="skip-rest">
         Skip the rest
       </button>
@@ -268,7 +270,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <p className={styles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
-          <BottomCTA onPress={next} disabled={!ready} disabledReason={step === 'weekdays' && answers.days ? `Pick ${answers.days}, or skip` : WHY[step]} reasonAndNote above={skipRestButton} note={first ? STAYS_HERE_FIRST : STAYS_HERE} testId="intake-cta" className={styles.cta}>
+          <BottomCTA onPress={next} disabled={!ready} {...(deckStep ? {} : { disabledReason: step === 'weekdays' && answers.days ? `Pick ${answers.days}, or skip` : WHY[step] })} reasonAndNote={!deckStep} above={skipRestButton} {...(deckStep ? {} : { note: first ? STAYS_HERE_FIRST : STAYS_HERE })} testId="intake-cta" className={styles.cta}>
             Continue
           </BottomCTA>
         )}

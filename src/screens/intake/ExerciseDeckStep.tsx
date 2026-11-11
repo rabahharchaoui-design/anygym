@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { SlidingToggle } from '../../ui/SlidingToggle';
-import { CheckIcon, NeverIcon, SwapIcon } from '../../ui/icons';
+import { CheckIcon, NeverIcon, PassIcon } from '../../ui/icons';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { SwipeDeck, type Decision } from '../../components/deck/SwipeDeck';
 import { DeckButtons } from '../../components/deck/DeckButtons';
@@ -18,8 +18,8 @@ import { ExercisesStep } from './ExerciseSearch';
 import styles from './ExerciseDeck.module.css';
 
 // "Any favorites, or ones to avoid?" (SPEC 14 item 11; PLAN 3.5f: the shared swipe deck). Cards of
-// well known moves this person's gym has: right (or Love) is a favorite, left (or Skip) is no
-// opinion, a hold (or Never) is one to leave out. The two lists stay one tap away, searchable, to
+// well known moves this person's gym has: right (or Love) is a favorite, left (or Not sure, round 3
+// M6: one "Skip" on the screen, the top one) is no opinion, a hold (or Never) is one to leave out. The two lists stay one tap away, searchable, to
 // add any other move or take one back. All optional.
 
 type Props = { love: readonly string[]; never: readonly string[]; onLove: (v: string[]) => void; onNever: (v: string[]) => void; gym: GymKit };
@@ -52,6 +52,7 @@ export function ExerciseDeckStep({ love, never, onLove, onNever, gym }: Props) {
     <>
       <SlidingToggle
         block
+        glass
         label="Cards or lists"
         testId="ex-mode"
         options={[
@@ -63,9 +64,9 @@ export function ExerciseDeckStep({ love, never, onLove, onNever, gym }: Props) {
         onChange={setMode}
       />
       {mode === 'love' ? (
-        <ExercisesStep key="love" value={love} exclude={never} onChange={onLove} testId="q-love" />
+        <ExercisesStep key="love" value={love} exclude={never} onChange={onLove} testId="q-love" gym={gym} />
       ) : mode === 'never' ? (
-        <ExercisesStep key="never" value={never} exclude={love} onChange={onNever} testId="q-never" />
+        <ExercisesStep key="never" value={never} exclude={love} onChange={onNever} testId="q-never" gym={gym} />
       ) : top ? (
         <div className={styles.deck} data-testid="ex-deck">
           <SwipeDeck
@@ -85,7 +86,7 @@ export function ExerciseDeckStep({ love, never, onLove, onNever, gym }: Props) {
             }}
           />
           <DeckButtons
-            left={{ kind: 'swap', testId: 'ex-skip', onClick: () => setFling((f) => ({ kind: 'swap', n: (f?.n ?? 0) + 1 })), icon: <SwapIcon width={20} height={20} strokeWidth={2.2} aria-hidden="true" />, label: <span>Skip</span> }}
+            left={{ kind: 'swap', testId: 'ex-skip', onClick: () => setFling((f) => ({ kind: 'swap', n: (f?.n ?? 0) + 1 })), icon: <PassIcon width={20} height={20} strokeWidth={2.2} aria-hidden="true" />, label: <span>Not sure</span> }}
             middle={{ kind: 'other', testId: 'ex-never', onClick: () => decide('never'), ariaLabel: 'Never show me this', icon: <NeverIcon width={20} height={20} strokeWidth={2} aria-hidden="true" />, label: <span>Never</span> }}
             right={{ kind: 'keep', testId: 'ex-love', onClick: () => setFling((f) => ({ kind: 'keep', n: (f?.n ?? 0) + 1 })), icon: <CheckIcon width={20} height={20} strokeWidth={2.8} aria-hidden="true" />, label: <span>Love</span> }}
           />

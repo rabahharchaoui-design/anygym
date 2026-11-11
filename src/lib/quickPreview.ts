@@ -47,6 +47,9 @@ export function previewConcept(input: PreviewInput, deps: QuickDeps): Concept | 
     deps,
   );
   if (!items.length) return null;
+  // Round 3 (M8): what Start opens with before the first lift (stretches, a warm up block), said on
+  // the Ready list so the Preview is what you get.
+  const lead = unique.slice(0, Math.max(0, unique.findIndex((e) => lifts.has(e.exerciseId)))).filter((e) => !e.finisher && (e.warmup || e.mobility || isStretchName(e.name)));
   const ids = items.map((it) => it.id);
   return {
     id: 'plan',
@@ -60,5 +63,6 @@ export function previewConcept(input: PreviewInput, deps: QuickDeps): Concept | 
     effort: 2,
     gear: gearOf(ids, deps.data, gym),
     primary: mainMuscles(items, deps),
+    ...(lead.length ? { warmUp: { count: lead.length, stretches: lead.every((e) => isStretchName(e.name)) } } : {}),
   };
 }

@@ -123,7 +123,12 @@ export type Concept = {
   variantLabel?: string;
   /** 3.5b round 4: what it mostly trains, in words ("Chest and back"): a More ideas chip of a style already shown says it. */
   focus?: string;
+  /** 3.5f round 3 (M8): Preview only: the warm up moves the workout opens with before its lifts (not deck cards). */
+  warmUp?: { count: number; stretches: boolean };
 };
+
+/** "Warm up · 3 stretches" (3.5f round 3, M8): what a plan day's Start opens with before the lifts. */
+export const warmUpLine = (w: { count: number; stretches: boolean }): string => `Warm up · ${w.count} ${w.stretches ? (w.count === 1 ? 'stretch' : 'stretches') : w.count === 1 ? 'move' : 'moves'}`;
 
 /** A card's identity on screen (a style can come back in More ideas with another body area). */
 export const cardKey = (c: Pick<Concept, 'id' | 'variant'>): string => (c.variant ? `${c.id}:${c.variant}` : c.id);
