@@ -2,7 +2,7 @@ import { useRef, type CSSProperties, type KeyboardEvent } from 'react';
 import { tick } from './haptics';
 import styles from './SlidingToggle.module.css';
 
-// PLAN 2.2e: two or three options with one lime pill that slides between them on the tap spring.
+// PLAN 2.2e: two or three options with one accent pill that slides between them on the tap spring.
 // A radiogroup (arrow keys move the pick), every option at least 48 pt tall, equal widths so the
 // pill moves by whole steps on the compositor (a transform, never a layout change).
 export interface ToggleOption<T extends string> {

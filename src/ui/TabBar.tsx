@@ -17,7 +17,7 @@ const TABS = [
 ] as const;
 
 /**
- * Floating, blurred tab bar (SPEC 23.1): a lime pill slides to the tab you pick (shared layout
+ * Floating, blurred tab bar (SPEC 23.1): an accent pill slides to the tab you pick (shared layout
  * animation) and its icon gives a small spring bounce. The nav itself reaches the bottom edge and
  * owns the one bottom inset (PLAN 1.10b); the capsule floats inside it. Hidden on pushed screens.
  */

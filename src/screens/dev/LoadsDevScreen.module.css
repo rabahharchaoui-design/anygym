@@ -4,7 +4,7 @@
   height: var(--app-height);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--bg);
+  background: var(--bg-screen);
   padding: calc(var(--safe-top) + var(--space-4)) calc(var(--space-3) + var(--safe-right))
     calc(var(--safe-bottom) + var(--space-6)) calc(var(--space-3) + var(--safe-left));
   display: flex;
@@ -58,9 +58,9 @@
   margin: 0;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
-  background: #050506;
+  background: var(--black);
   border: 1px dashed var(--hairline);
-  color: #b7b7c0;
+  color: var(--text-2);
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-all;

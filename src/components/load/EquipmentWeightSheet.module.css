@@ -112,6 +112,6 @@
   margin: 0;
   min-height: 20px;
   text-align: center;
-  color: var(--red);
+  color: var(--red-text);
   font-size: var(--text-sm);
 }

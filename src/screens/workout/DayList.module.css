@@ -68,13 +68,13 @@
   white-space: nowrap;
   color: var(--text);
   font: inherit;
-  text-decoration: underline dotted rgb(255 255 255 / 0.35);
+  text-decoration: underline dotted color-mix(in srgb, var(--white) 35%, transparent);
   text-underline-offset: 4px;
 }
 
 .minutesButton[data-trimmed] {
   color: var(--accent);
-  text-decoration-color: rgb(212 255 58 / 0.45);
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 /* One quiet line under the title: the time offer, or what the time budget did. */
@@ -144,11 +144,11 @@
 
 .row[data-state='next'] {
   background:
-    radial-gradient(90% 120% at 0% 50%, rgb(212 255 58 / 0.07), transparent 60%),
+    radial-gradient(90% 120% at 0% 50%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%),
     var(--surface-2);
   box-shadow:
-    inset 0 0 0 1px rgb(212 255 58 / 0.5),
-    0 8px 24px rgb(0 0 0 / 0.35);
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 8px 24px color-mix(in srgb, var(--black) 35%, transparent);
 }
 
 .row[data-state='done'] {
@@ -318,9 +318,9 @@
   height: 32px;
   padding: 0 11px 0 9px;
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.07);
+  background: color-mix(in srgb, var(--white) 7%, transparent);
   border: 1px solid var(--glass-line);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   color: var(--text);
@@ -371,13 +371,13 @@
   height: 52px;
   padding: 0 var(--space-5);
   border-radius: var(--radius-pill);
-  background: linear-gradient(to bottom, #e0ff6a, var(--accent) 55%);
+  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 55%);
   color: var(--on-accent);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.55),
-    inset 0 -1px 0 rgb(0 0 0 / 0.08),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 55%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--black) 8%, transparent),
     var(--accent-glow),
-    0 10px 28px rgb(0 0 0 / 0.45);
+    0 10px 28px color-mix(in srgb, var(--black) 45%, transparent);
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;

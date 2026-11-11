@@ -8,7 +8,7 @@ import deck from '../../components/deck/Deck.module.css';
 import styles from './CandidateReview.module.css';
 
 // One candidate's review card (PLAN 3.5e): its own two photo demo (never another move's), its name,
-// its gear and its muscles (mini map and the text line). Right approves (lime ✓), left is wrong (✕).
+// its gear and its muscles (mini map and the text line). Right approves (accent ✓), left is wrong (✕).
 export function CandidateCard({ c, under }: { c: CandidateRecord; under: boolean }) {
   const muscles = candidateMuscles(c);
   return (

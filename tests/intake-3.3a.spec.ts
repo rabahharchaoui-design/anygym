@@ -1,6 +1,7 @@
 // PROGRESS (PLAN 3.3a): all three points built and green on SE and 15 (also 320 floor, Pixel 7,
 // Galaxy compact, Pro Max). Left for the critic: a real iPhone look at the drawings and the badges.
 import { expect, test, type Page } from './fixtures';
+import { tokenColor } from './helpers/tokens';
 import { checkLayout, simulateSafeAreas } from './helpers/layout';
 
 // PLAN 3.3a: G's intake fixes from his iPhone (SPEC 14 step 1, 13.7, 23). Up to two goals tagged
@@ -238,10 +239,11 @@ test('equipment drawings: one for each of the 27, one style (2 stroke, rounded, 
     expect([a.stroke, a.cap, a.join, a.fill, a.overrides], `${a.id} style`).toEqual(['2', 'round', 'round', 'none', 0]);
     expect(a.shapes, `${a.id} is drawn`).toBeGreaterThan(0);
   }
-  const lime = art.find((a) => a.id === 'dumbbells')!.color;
+  // 3.5t: the accent token (ice blue), never a typed colour.
+  const accent = art.find((a) => a.id === 'dumbbells')!.color;
   const grey = art.find((a) => a.id === 'kettlebells')!.color;
-  expect(lime).toBe('rgb(212, 255, 58)');
-  expect(grey).not.toBe(lime);
+  expect(accent).toBe(await tokenColor(page, '--accent'));
+  expect(grey).not.toBe(accent);
   // Round 2 (B3, P11): the picture is centred in a 56 pt box; the check badge top left, the ⓘ top
   // right, neither over the name.
   const tileEl = page.getByTestId('equip-smith_machine');
@@ -262,7 +264,8 @@ test('equipment drawings: one for each of the 27, one style (2 stroke, rounded, 
   await tileEl.locator('xpath=..').getByRole('button', { name: /What is/ }).tap();
   const sheetArt = page.getByTestId('info-art').locator('svg[data-art="smith_machine"]');
   await expect(sheetArt).toBeVisible();
-  expect(await sheetArt.locator('g[data-part]').evaluate((g) => getComputedStyle(g).stroke)).toBe('rgb(212, 255, 58)');
+  // 3.5t: the accent token (ice blue), never a typed colour.
+  expect(await sheetArt.locator('g[data-part]').evaluate((g) => getComputedStyle(g).stroke)).toBe(await tokenColor(page, '--accent'));
   await expect(page.getByTestId('info-weight')).toHaveCount(0);
   await shot(page, 'info-smith');
   await page.getByRole('button', { name: 'Got it' }).tap();

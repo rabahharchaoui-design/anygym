@@ -1,5 +1,5 @@
 // The plan reveal (SPEC 14 step 14, PLAN 3.3, 3.5): the week builds in, one plain line on why it
-// fits, then a lime check draws itself, and Start Day 1 goes straight into the workout. A curated plan
+// fits, then an accent check draws itself, and Start Day 1 goes straight into the workout. A curated plan
 // that truly matches the answers shows as it is; otherwise the generator builds "Your plan" from the
 // answers (PLAN 3.5), saved on the phone when it is started, with the curated plans that fit as other
 // choices. When even the generator cannot build a week here it says why and offers a quick workout.
@@ -35,7 +35,7 @@ type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseli
 export function Reveal({ answers, redo, onBack, baseline }: Props) {
   const go = useNav();
   const pick = useMemo(() => pickPlan(PLANS, SWAP_DATA, answers), [answers]);
-  // A curated plan that truly matches (the lime check) needs nothing built.
+  // A curated plan that truly matches (the accent check) needs nothing built.
   const exact = useMemo(() => {
     if (pick.kind !== 'plan') return false;
     return explainPick(pick.plan, answers, pick.fit.swapped, pick.fit.noFit.length).check;

@@ -60,9 +60,12 @@ function inspectContrast(scopeSel: string | null): ContrastReport {
   const root = (scopeSel ? [...document.querySelectorAll(scopeSel)].pop() : document.body) ?? document.body;
   const report: ContrastReport = { checked: 0, skipped: [], problems: [] };
   // Hit testing sees every layer while we look (decorations often take no taps); put back after.
-  const hit = document.createElement('style');
-  hit.textContent = '* { pointer-events: auto !important; }';
-  document.head.append(hit);
+  // 3.5t: a constructed sheet, not a <style> element: the built app's Content Security Policy
+  // refuses injected <style> elements, so the override never applied there and a pill drawn by a
+  // sibling that takes no taps (the sliding toggle's) was not seen under its label.
+  const hit = new CSSStyleSheet();
+  hit.replaceSync('* { pointer-events: auto !important; }');
+  document.adoptedStyleSheets = [...document.adoptedStyleSheets, hit];
   try {
   const label = (el: Element, text: string) => `${el.tagName.toLowerCase()}${el.getAttribute('data-testid') ? `[${el.getAttribute('data-testid')}]` : ''}.${String(el.className).split(' ')[0]?.slice(0, 28)} "${text.slice(0, 30)}"`;
 
@@ -139,7 +142,7 @@ function inspectContrast(scopeSel: string | null): ContrastReport {
     if (got < need - 0.005) report.problems.push(`${label(el, text)} ${got.toFixed(2)}:1 < ${need}:1 (${s.color} on rgb(${bg.map(Math.round).join(', ')}))`);
   }
   } finally {
-    hit.remove();
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((x) => x !== hit);
   }
   return report;
 }

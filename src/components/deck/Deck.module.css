@@ -27,10 +27,11 @@
   overflow: hidden;
   border: 1px solid var(--glass-line);
   border-radius: 28px;
-  background: var(--surface-1);
+  /* Solid (3.5t): the cards are stacked, so the next one must never read through this one. */
+  background: linear-gradient(160deg, var(--surface-solid-2), var(--surface-solid));
   box-shadow:
-    0 18px 40px rgb(0 0 0 / 0.55),
-    inset 0 1px 0 rgb(255 255 255 / 0.06);
+    0 18px 40px color-mix(in srgb, var(--black) 55%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent);
   /* The page still scrolls up and down; sideways belongs to the card. */
   touch-action: pan-y;
   -webkit-user-select: none;
@@ -107,14 +108,14 @@
   right: 0;
   justify-content: flex-end;
   padding-right: 26px;
-  background: linear-gradient(to left, rgb(212 255 58 / 0.5), rgb(212 255 58 / 0));
+  background: linear-gradient(to left, color-mix(in srgb, var(--accent) 50%, transparent), transparent);
   opacity: var(--keep, 0);
 }
 
 .edge[data-side='swap'] {
   left: 0;
   padding-left: 26px;
-  background: linear-gradient(to right, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0));
+  background: linear-gradient(to right, color-mix(in srgb, var(--white) 50%, transparent), transparent);
   opacity: var(--swap, 0);
 }
 
@@ -140,9 +141,9 @@
 
 .cue[data-side='swap'] {
   right: 24%;
-  background: #fff;
-  color: #000;
-  box-shadow: 0 6px 22px rgb(0 0 0 / 0.45);
+  background: var(--white);
+  color: var(--black);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--black) 45%, transparent);
   opacity: var(--swap-chip, 0);
   transform: translate(50%, -50%) scale(calc(0.75 + 0.25 * var(--swap-chip, 0)));
 }
@@ -173,7 +174,7 @@
 .swappedTag {
   padding: 1px 8px;
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.1);
+  background: color-mix(in srgb, var(--white) 10%, transparent);
   color: var(--text);
   font-size: 0.75rem;
   font-weight: 700;
@@ -212,7 +213,7 @@
   padding: 0 14px 0 12px;
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.06);
+  background: color-mix(in srgb, var(--white) 6%, transparent);
   color: var(--text-2);
   font-size: 0.8125rem;
   font-weight: 700;
@@ -242,12 +243,12 @@
 
 .hold svg {
   transform: rotate(-90deg);
-  filter: drop-shadow(0 2px 8px rgb(0 0 0 / 0.6));
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--black) 60%, transparent));
 }
 
 .holdTrack {
-  fill: rgb(0 0 0 / 0.5);
-  stroke: rgb(255 255 255 / 0.25);
+  fill: color-mix(in srgb, var(--black) 50%, transparent);
+  stroke: color-mix(in srgb, var(--white) 25%, transparent);
   stroke-width: 6;
 }
 
@@ -264,7 +265,7 @@
 .holdWord {
   padding: 2px 10px;
   border-radius: var(--radius-pill);
-  background: rgb(0 0 0 / 0.65);
+  background: color-mix(in srgb, var(--black) 65%, transparent);
   color: var(--text);
   font-size: 0.8125rem;
   font-weight: 700;
@@ -307,7 +308,7 @@
   padding: 6px 12px;
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.07);
+  background: color-mix(in srgb, var(--white) 7%, transparent);
   color: var(--text);
   font-size: 1rem;
   font-weight: 700;
@@ -315,9 +316,9 @@
   text-align: center;
 }
 
-/* Lime is for Keep only (P13); Swap is glass. */
+/* Accent is for Keep only (P13); Swap is glass. */
 .round[data-kind='keep'] {
-  border-color: rgb(212 255 58 / 0.45);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
   color: var(--accent);
 }

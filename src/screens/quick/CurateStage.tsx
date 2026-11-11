@@ -14,7 +14,7 @@ import styles from './Quick.module.css';
 // "Curate it" (PLAN 3.5a, SPEC 20.3; 3.5f): the deck of the chosen workout, or of today's plan day
 // (Preview), one exercise per card. One line above the card (a hint, a notice with Undo, "Show me 6"
 // or the honest end), Swap, Hide and Keep under it, and Start pinned at the bottom: glass while the
-// cards are being decided (Keep is the action then), lime once the deck is done.
+// cards are being decided (Keep is the action then), accent once the deck is done.
 
 type Props = {
   deck: ReturnType<typeof useDeck>;

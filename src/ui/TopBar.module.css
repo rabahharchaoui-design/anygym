@@ -10,7 +10,7 @@
   --bar-show: clamp(0, calc(var(--collapse, 0) * 4), 1);
   /* The fill is on the bar itself as well as its ::before: in WebKit a sticky bar with no
      background of its own let scrolled text paint through its pseudo layer (gate round 2 B3). */
-  background: rgb(14 14 16 / calc(var(--bar-fill) * var(--bar-show)));
+  background: color-mix(in srgb, var(--bar-solid) calc(var(--bar-fill) * var(--bar-show) * 100%), transparent);
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 
@@ -22,8 +22,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(rgb(255 255 255 / 0.035), rgb(255 255 255 / 0)),
-    rgb(14 14 16 / var(--bar-fill));
+    linear-gradient(color-mix(in srgb, var(--white) 3.5%, transparent), transparent),
+    color-mix(in srgb, var(--bar-solid) calc(var(--bar-fill) * 100%), transparent);
   opacity: var(--bar-show);
   pointer-events: none;
 }

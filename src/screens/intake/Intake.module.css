@@ -5,7 +5,7 @@
   inset: 0 0 auto;
   height: var(--app-height);
   overflow: hidden;
-  background: var(--bg);
+  background: var(--bg-screen);
 }
 
 /* The screen that follows the finger on an edge swipe, over the one before it. */
@@ -13,14 +13,14 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: var(--bg);
+  background: var(--bg-screen);
 }
 
 .screen {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--bg-screen);
   /* The font's tabular 1 has a heavy slab (critic P9): proportional numerals here. */
   font-variant-numeric: proportional-nums;
   font-feature-settings: 'pnum' 1;
@@ -61,7 +61,7 @@
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
-  box-shadow: 0 0 10px rgb(212 255 58 / 0.35);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 35%, transparent);
   transition: width var(--dur-base) var(--ease-out);
   view-transition-name: intake-progress;
 }
@@ -128,7 +128,7 @@
   right: 0;
   bottom: 100%;
   height: 24px;
-  background: linear-gradient(rgb(0 0 0 / 0), var(--bg));
+  background: linear-gradient(transparent, var(--bg));
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-out);
@@ -211,7 +211,7 @@
 }
 
 .soFarEmpty {
-  color: rgb(154 154 162 / 0.6);
+  color: color-mix(in srgb, var(--text-2) 60%, transparent);
   font-size: 13px;
   font-weight: 600;
 }
@@ -233,8 +233,8 @@
   flex: none;
   padding: 3px 9px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgb(212 255 58 / 0.4);
-  background: rgb(212 255 58 / 0.08);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--accent);
   font-size: 13px;
   font-weight: 600;
@@ -604,7 +604,7 @@
   letter-spacing: -0.01em;
 }
 
-/* A group's All: a small pill; lime outline and check when every item in it is on. */
+/* A group's All: a small pill; accent outline and check when every item in it is on. */
 .groupAll {
   position: relative;
   display: inline-flex;
@@ -639,7 +639,7 @@
 }
 
 .groupAll[aria-pressed='true'] {
-  border-color: rgb(212 255 58 / 0.55);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--accent);
 }
 
@@ -707,8 +707,8 @@
 }
 
 .tile[aria-pressed='true'] {
-  border-color: rgb(212 255 58 / 0.6);
-  background: linear-gradient(to bottom, rgb(212 255 58 / 0.08), rgb(212 255 58 / 0.02)), var(--surface-1);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 2%, transparent)), var(--surface-1);
 }
 
 .tile:focus-visible {
@@ -734,7 +734,7 @@
   height: 100%;
 }
 
-/* On: a small lime badge in the top left corner. Scales in on the tap spring, never from 0. */
+/* On: a small accent badge in the top left corner. Scales in on the tap spring, never from 0. */
 .tileCheck {
   position: absolute;
   top: 8px;
@@ -1004,7 +1004,7 @@
 
 .ruler[data-touched] .needle {
   background: var(--accent);
-  box-shadow: 0 0 12px rgb(212 255 58 / 0.45);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .rulerTrack {
@@ -1017,8 +1017,8 @@
   touch-action: pan-x;
   outline: none;
   cursor: grab;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
 }
 
 .rulerTrack::-webkit-scrollbar {
@@ -1040,8 +1040,8 @@
   height: 100%;
   background-image:
     linear-gradient(90deg, var(--text) 0 2px, transparent 2px),
-    linear-gradient(90deg, rgb(245 245 247 / 0.55) 0 1.5px, transparent 1.5px),
-    linear-gradient(90deg, rgb(154 154 162 / 0.6) 0 1px, transparent 1px);
+    linear-gradient(90deg, color-mix(in srgb, var(--text) 55%, transparent) 0 1.5px, transparent 1.5px),
+    linear-gradient(90deg, color-mix(in srgb, var(--text-2) 60%, transparent) 0 1px, transparent 1px);
   background-size:
     var(--major) 34px,
     var(--whole) 22px,
@@ -1114,8 +1114,8 @@
   gap: 6px;
   padding: var(--space-3) var(--space-4);
   border-radius: 22px;
-  background: linear-gradient(to bottom, rgb(212 255 58 / 0.07), rgb(212 255 58 / 0) 60%), var(--surface-1);
-  border: 1px solid rgb(212 255 58 / 0.3);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%), var(--surface-1);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .planName {
@@ -1250,7 +1250,7 @@
 
 .error {
   margin: 0 0 var(--space-2);
-  color: var(--red);
+  color: var(--red-text);
   font-size: var(--text-sm);
   text-align: center;
 }

@@ -36,7 +36,7 @@ export function Deck({ onNever, onInfo, ...rest }: Props) {
   );
 }
 
-/** Under the deck, mirroring the swipe: Swap (glass, left), Hide (the hold, as a button), Keep (lime, right). */
+/** Under the deck, mirroring the swipe: Swap (glass, left), Hide (the hold, as a button), Keep (accent, right). */
 export function DeckButtons({ onSwap, onKeep, onNever, swapNote, leaving }: { onSwap: () => void; onKeep: () => void; onNever: () => void; swapNote?: string | null; leaving?: boolean }) {
   return (
     <SharedButtons

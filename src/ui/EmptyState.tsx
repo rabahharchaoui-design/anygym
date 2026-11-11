@@ -45,10 +45,10 @@ function Illustration({ art }: { art: Art }) {
       {art === 'history' && (
         <>
           <rect x="22" y="26" width="76" height="50" rx="12" {...line} opacity="0.35" />
-          <rect x="16" y="16" width="88" height="54" rx="13" {...line} fill="#0e0e10" />
+          <rect x="16" y="16" width="88" height="54" rx="13" {...line} style={{ fill: 'var(--surface-solid)' }} />
           <path d="M30 34h34M30 46h22M30 58h28" {...line} opacity="0.55" />
           <circle cx="86" cy="50" r="11" fill="var(--accent)" />
-          <path d="M81 50.5l3.5 3.5 6.5-7.5" fill="none" stroke="#000" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M81 50.5l3.5 3.5 6.5-7.5" fill="none" stroke="var(--on-accent)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
         </>
       )}
       {art === 'run' && (
@@ -61,7 +61,7 @@ function Illustration({ art }: { art: Art }) {
       )}
       {art === 'list' && (
         <>
-          <rect x="18" y="14" width="84" height="60" rx="13" {...line} fill="#0e0e10" />
+          <rect x="18" y="14" width="84" height="60" rx="13" {...line} style={{ fill: 'var(--surface-solid)' }} />
           <circle cx="36" cy="32" r="5" fill="var(--accent)" />
           <path d="M48 32h36M36 46h48M36 58h30" {...line} opacity="0.55" />
         </>

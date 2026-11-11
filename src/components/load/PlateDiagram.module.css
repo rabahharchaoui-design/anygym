@@ -197,8 +197,8 @@
 
 /* Zoomed in, the bar runs on past the left edge: a soft fade, like a photo's crop (PLAN 2.0d). */
 .svg[data-cropped] {
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
-  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 28px);
+  mask-image: linear-gradient(to right, transparent 0, black 28px);
 }
 
 /* Plates never catch taps: the whole side above them does (remove-left / remove-right). */
@@ -214,7 +214,7 @@
 
 /* Sleeve press feedback: a soft light wash, on at once, fading out quickly (2.0d critic). */
 .flash {
-  fill: #ffffff;
+  fill: var(--white);
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms var(--ease-out);
@@ -261,8 +261,8 @@
   margin: 0;
   padding: 3px 12px;
   border-radius: var(--radius-pill);
-  background: rgb(23 23 26 / 0.92);
-  border: 1px solid rgb(255 176 32 / 0.45);
+  background: var(--glass-bg-strong);
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
   color: var(--amber);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -337,8 +337,8 @@
 }
 
 .root:not([data-compact='true']) .tray[data-scroll='true'] {
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
   padding-right: 20px;
 }
 
@@ -411,11 +411,11 @@
   flex: none;
   /* A plate edge on: lit rim on top, falling into shadow, both faces beveled. */
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.45), transparent 30%, transparent 70%, rgba(0, 0, 0, 0.5)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 40%, rgba(0, 0, 0, 0.4)),
+    linear-gradient(90deg, color-mix(in srgb, var(--black) 45%, transparent), transparent 30%, transparent 70%, color-mix(in srgb, var(--black) 50%, transparent)),
+    linear-gradient(180deg, color-mix(in srgb, var(--white) 32%, transparent), transparent 40%, color-mix(in srgb, var(--black) 40%, transparent)),
     var(--plate);
   /* Dark plates (the grays, kg 2.5 black) get the same light edge as on the bar. */
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 0 0 1px var(--edge, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--white) 12%, transparent), 0 0 0 1px var(--edge, transparent);
 }
 
 .trayWeight {
@@ -446,7 +446,7 @@
   opacity: 0.5;
 }
 
-/* Secondary text action (Clear): gray, so lime means "the main way to change the weight". */
+/* Secondary text action (Clear): gray, so accent means "the main way to change the weight". */
 .quiet {
   color: var(--text-2);
 }

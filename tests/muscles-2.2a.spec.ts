@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { tokenColor } from './helpers/tokens';
 
 // PLAN 2.2a: the premium muscle map on its dev route (SPEC 4.5 PREMIUM MAP, 10, 13).
 const watch = (page: Page) => {
@@ -51,7 +52,8 @@ test('muscle map: one body, incline press on the front, Front/Back and Male/Fema
   await expect(page.getByTestId('muscle-text')).toHaveText('Upper chest · Front delts, triceps');
   const chest = front.locator('[data-region="chest"]').first();
   await expect(chest).toHaveAttribute('data-role', 'primary');
-  await expect.poll(() => chest.evaluate((el) => getComputedStyle(el).fill)).toBe('rgb(212, 255, 58)');
+  // 3.5t: the accent token (ice blue), never a typed colour.
+  await expect.poll(() => chest.evaluate((el) => getComputedStyle(el).fill)).toBe(await tokenColor(page, '--accent'));
   for (const r of ['front-deltoids', 'triceps']) {
     const p = front.locator(`[data-region="${r}"]`).first();
     await expect(p).toHaveAttribute('data-role', 'secondary');
@@ -78,7 +80,8 @@ test('muscle map: one body, incline press on the front, Front/Back and Male/Fema
   // The readout sits between the controls and the body, so it is seen without scrolling.
   const pb = (await pick.boundingBox())!;
   expect(pb.y + pb.height).toBeLessThanOrEqual((await front.boundingBox())!.y + 1);
-  await expect.poll(() => chest.evaluate((el) => getComputedStyle(el).stroke)).toBe('rgb(245, 245, 247)');
+  // 3.5t: the text token (silver white), never a typed colour.
+  await expect.poll(() => chest.evaluate((el) => getComputedStyle(el).stroke)).toBe(await tokenColor(page, '--text'));
   await front.locator('[data-region="quadriceps"]').first().click();
   await expect(pick).toHaveText('Quads · not used here');
   await front.locator('[data-region="quadriceps"]').first().click();

@@ -57,7 +57,7 @@ export function PlateChips({ unit, perSide, label, empty, className, testId = 'p
       {chips.length === 0 && empty && <span className={styles.label}>{empty}</span>}
       {chips.map((c) => (
         <span key={c.weight} className={`${styles.chip} num`} data-chip="" data-weight={c.weight} data-count={c.count} data-color={c.color}>
-          <span className={styles.dot} style={{ ['--dot' as string]: PAINT[c.color].fill, ['--edge' as string]: PAINT[c.color].edge ?? 'rgba(255, 255, 255, 0.26)' }} aria-hidden="true" />
+          <span className={styles.dot} style={{ ['--dot' as string]: PAINT[c.color].fill, ['--edge' as string]: PAINT[c.color].edge ?? 'var(--hairline-strong)' }} aria-hidden="true" />
           {chipText(c, formatAmount)}
         </span>
       ))}

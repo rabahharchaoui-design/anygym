@@ -1,5 +1,5 @@
 // The one small picture above each weight picker (SPEC 13.6): clean line drawings, one object,
-// never a stack of icons. Text colour lines with the lime accent on the part you hold.
+// never a stack of icons. Text colour lines with the accent accent on the part you hold.
 import type { CSSProperties, ReactNode } from 'react';
 
 const ACC: CSSProperties = { stroke: 'var(--accent)' };

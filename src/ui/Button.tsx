@@ -16,7 +16,7 @@ type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className'> & {
 };
 
 /**
- * The app's buttons (SPEC 23.2). Primary: lime pill with a soft top highlight and glow.
+ * The app's buttons (SPEC 23.2). Primary: accent pill with a soft top highlight and glow.
  * Secondary: glass. Tertiary: text only. Destructive: red text. All press to 0.97 in one frame.
  */
 export function Button({ variant = 'primary', size, block, disabledReason, className, children, type = 'button', ...rest }: Props) {

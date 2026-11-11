@@ -17,7 +17,7 @@ type Props = {
 
 /**
  * Tap a set number (SPEC 21.1, in plain words): a small sheet with the four set types, one line
- * each and an ⓘ for more. The current one carries the lime check. One tap picks and closes.
+ * each and an ⓘ for more. The current one carries the accent check. One tap picks and closes.
  */
 export function SetTypeSheet({ open, onClose, title, value, onPick, onRemove }: Props) {
   return (

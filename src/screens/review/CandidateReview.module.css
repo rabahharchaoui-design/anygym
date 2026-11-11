@@ -9,7 +9,7 @@
   height: var(--app-height);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--bg);
+  background: var(--bg-screen);
   padding: calc(var(--safe-top) + var(--space-2)) var(--page-pad-r) calc(var(--safe-bottom) + var(--space-3)) var(--page-pad-l);
   display: flex;
   flex-direction: column;
@@ -100,7 +100,7 @@
   padding: 0 var(--space-3);
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.08);
+  background: color-mix(in srgb, var(--white) 8%, transparent);
   color: var(--accent);
   font-weight: 700;
 }

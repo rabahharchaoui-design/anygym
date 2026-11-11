@@ -4,7 +4,7 @@ import styles from './Plans.module.css';
 
 /**
  * A weekly_table item's six weeks side by side (PLAN 3.1): the JSON's own numbers, only the one
- * that changes, the week being shown in lime. Read only; the week chips above pick the week.
+ * that changes, the week being shown in accent. Read only; the week chips above pick the week.
  */
 function WeekStrip({ it, weekIndex }: { it: PlanItem; weekIndex: number }) {
   const table = weekTable(it);

@@ -73,6 +73,24 @@ function cspPlugin(): Plugin {
   };
 }
 
+/**
+ * PLAN 3.5t: the one Inter file is asked for with the page (not after the CSS is read), so the
+ * first screen is drawn in Inter. Same origin, so font-src 'self' covers it.
+ */
+function fontPreloadPlugin(): Plugin {
+  return {
+    name: 'anygym-font-preload',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        const font = Object.keys(ctx.bundle ?? {}).find((name) => /inter-latin-wght-normal.*\.woff2$/.test(name));
+        if (!font) return html;
+        return html.replace('</head>', `  <link rel="preload" href="${BASE}${font}" as="font" type="font/woff2" crossorigin />\n  </head>`);
+      },
+    },
+  };
+}
+
 export default defineConfig({
   base: BASE,
   // A source map would hand out the source: none ships (the secret scan fails the build on one).
@@ -81,6 +99,7 @@ export default defineConfig({
   plugins: [
     react(),
     cspPlugin(),
+    fontPreloadPlugin(),
     VitePWA({
       // 'prompt': a new version waits until no workout or run is active (src/pwa.ts).
       registerType: 'prompt',
@@ -93,8 +112,8 @@ export default defineConfig({
         lang: 'en',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#000000',
-        background_color: '#000000',
+        theme_color: '#2b2e34',
+        background_color: '#0f1114',
         start_url: BASE,
         scope: BASE,
         icons: [

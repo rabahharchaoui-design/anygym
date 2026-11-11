@@ -8,7 +8,7 @@
   padding: var(--space-3);
   border: 1px solid var(--glass-line);
   border-radius: 18px;
-  background: rgb(255 255 255 / 0.03);
+  background: color-mix(in srgb, var(--white) 3%, transparent);
 }
 
 .effort[data-compact] {
@@ -57,7 +57,7 @@
   padding: 6px 4px;
   border: 1px solid var(--glass-line);
   border-radius: 14px;
-  background: rgb(255 255 255 / 0.04);
+  background: color-mix(in srgb, var(--white) 4%, transparent);
   color: var(--text);
   text-align: center;
   transition:
@@ -67,10 +67,10 @@
     transform 160ms var(--ease-out);
 }
 
-/* What was tapped last time, offered as the default: a dashed lime edge, not a pick. */
+/* What was tapped last time, offered as the default: a dashed accent edge, not a pick. */
 .choice[data-default] {
   border-style: dashed;
-  border-color: rgb(212 255 58 / 0.45);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .choice[aria-pressed='true'] {
@@ -91,7 +91,7 @@
 }
 
 .choice[aria-pressed='true'] .hint {
-  color: rgb(0 0 0 / 0.62);
+  color: color-mix(in srgb, var(--black) 62%, transparent);
 }
 
 .note {

@@ -82,7 +82,7 @@ const FAR_MINUTES = 1.5;
 export type PlanExplain = {
   /** "Your plan" only on a true match; "We don't have a 3 day beginner plan yet" when far off. */
   title: string;
-  /** The lime check: earned only by "Your plan". */
+  /** The accent check: earned only by "Your plan". */
   check: boolean;
   /** Days, minutes and level are far enough off that the plan is only an option (B2). */
   mismatch: boolean;

@@ -2,8 +2,8 @@
 // One style for all 27: a 48 unit box, one 2 unit stroke in currentColor, round caps and joins, no
 // fills, footprints normalised to about 36 to 40 units so no drawing reads as a thin strip or
 // crowds its box. Each drawing has two layers: the frame, and the part that moves or that you hold.
-// On a tile both take the tile's colour (lime when picked); in the ⓘ sheet the moving part turns
-// lime in the same stroke (round 2, B4). Nothing here is traced from an app, a photo or an icon set.
+// On a tile both take the tile's colour (accent when picked); in the ⓘ sheet the moving part turns
+// accent in the same stroke (round 2, B4). Nothing here is traced from an app, a photo or an icon set.
 import type { ReactNode } from 'react';
 import type { EquipmentId } from '../../db/types';
 
@@ -292,7 +292,7 @@ const DRAWINGS: Record<EquipmentId, Drawing> = {
 
 /**
  * The drawing for one equipment item, sized by its box (CSS), in currentColor. `accent`: the moving
- * part in lime, in the same stroke (the ⓘ sheet).
+ * part in accent, in the same stroke (the ⓘ sheet).
  */
 export function EquipmentArt({ id, className, accent }: { id: EquipmentId; className?: string; accent?: boolean }) {
   const d = DRAWINGS[id];

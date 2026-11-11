@@ -1,44 +1,51 @@
 /* Design tokens (SPEC 10). The only place colors, fonts and motion values are defined. */
 
+/* Inter (SIL OFL, src/assets/fonts/OFL-Inter.txt): one variable file, latin subset, self hosted. */
 @font-face {
-  font-family: 'Space Grotesk';
-  src: url('../assets/fonts/space-grotesk-latin-400-normal.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Space Grotesk';
-  src: url('../assets/fonts/space-grotesk-latin-500-normal.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Space Grotesk';
-  src: url('../assets/fonts/space-grotesk-latin-700-normal.woff2') format('woff2');
-  font-weight: 700;
+  font-family: 'Inter';
+  src: url('../assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations'),
+    url('../assets/fonts/inter-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
 
 :root {
-  /* color */
-  --bg: #000000;
-  --surface-1: #0e0e10;
-  --surface-2: #17171a;
-  --hairline: #26262b;
-  --text: #f5f5f7;
-  --text-2: #9a9aa2;
-  --accent: #d4ff3a;
-  --on-accent: #000000;
+  /* color: TITANIUM GLASS (PLAN 3.5t, SPEC 10). Graphite to near black, frosted glass, silver
+     text and ONE accent, ice blue. Every colour in the app comes from here
+     (src/styles/__tests__/colorGuard.test.ts fails on a raw colour anywhere else). */
+  --bg: #0f1114; /* the near black the gradient settles on; fades and bottom bars use it */
+  --bg-top: #2b2e34; /* graphite at the very top */
+  /* Every full screen frame paints this: graphite at the top, near black by 60%. */
+  --bg-screen: linear-gradient(to bottom, var(--bg-top) 0%, var(--bg) 60%);
+  /* Glass fills: translucent white, so a card is always a touch lighter than whatever is under it. */
+  --surface-1: rgb(255 255 255 / 0.06);
+  --surface-2: rgb(255 255 255 / 0.1);
+  /* The main cards: lit from the top left, like the reference. */
+  --card-fill: linear-gradient(160deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04));
+  /* Solid twins, for pieces that must hide what is under them (menus, sticky rows, fades). */
+  --surface-solid: #1d1f23;
+  --surface-solid-2: #25282d;
+  --sheet-bg: #1b1d21; /* a sheet's body */
+  --sheet-top: #23262b; /* its lit top edge */
+  --hairline: rgb(255 255 255 / 0.11);
+  --hairline-strong: rgb(255 255 255 / 0.22);
+  --text: #f2f4f7;
+  --text-2: #a9b2bd;
+  --text-3: #7b8490; /* placeholders and art only, never body text */
+  --accent: #9fd3ff;
+  --accent-hi: #c6e5ff; /* the lit top of an accent fill */
+  --on-accent: #0f1114;
   --amber: #ffb020;
   --red: #ff4d4d;
-  --pair: #7cc4ff; /* the rail that groups a pair (superset) */
+  --red-text: #ff8080; /* the same red, lit for words on glass (AA 4.5:1 on a card at the top of the gradient) */
+  --pair: #c9d0d8; /* the rail that groups a pair (superset): titanium, so the accent stays alone */
+  --white: #ffffff; /* light, for sheens mixed with transparent */
+  --black: #000000; /* shade, for shadows and scrims mixed with transparent */
 
   /* type */
-  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-  --font-body: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   --text-base: 16px; /* never smaller for inputs: iOS zooms below 16px */
   --text-sm: 14px;
   --text-lg: 20px;
@@ -53,7 +60,8 @@
   --space-5: 24px;
   --space-6: 32px;
   --radius-sm: 10px;
-  --radius-md: 16px;
+  --radius-md: 20px;
+  --radius-lg: 24px; /* the main glass cards */
   --radius-pill: 999px;
   --tap: 48px; /* minimum touch target */
 
@@ -71,17 +79,27 @@
      height, never inset bottom 0, so one bottom inset is applied once by the frame's last bar. */
   --app-height: 100vh;
 
-  /* glass (SPEC 23.1): blurred translucent surfaces with a thin hairline */
-  /* dense enough that text never reads through it (ux-critic 1.7e): ~75% #0E0E10 */
-  --glass-bg: rgb(14 14 16 / 0.76);
+  /* glass (SPEC 23.1): blurred translucent graphite with a thin white hairline. Blur is used on
+     bars, sheets and floating pieces only (never a full screen layer), so WebKit stays smooth. */
+  /* dense enough that text never reads through it (ux-critic 1.7e) */
+  --glass-bg: rgb(30 32 36 / 0.86);
   /* At least 90% opaque (gate 3): bars and toasts never let text show through. */
-  --glass-bg-strong: rgb(14 14 16 / 0.93);
-  /* Pushed screen top bars once scrolled (gate B3): near solid. */
+  --glass-bg-strong: rgb(27 29 33 / 0.93);
+  /* Pushed screen top bars once scrolled (gate B3): near solid graphite, the top of the gradient. */
   --bar-fill: 0.95;
-  --glass-line: rgb(255 255 255 / 0.09);
-  --glass-blur: saturate(160%) blur(26px);
-  --accent-glow: 0 6px 22px rgb(212 255 58 / 0.28);
-  --accent-soft: rgb(212 255 58 / 0.13);
+  --bar-solid: #282b30;
+  --glass-line: rgb(255 255 255 / 0.12);
+  --glass-blur: saturate(140%) blur(22px);
+  --card-sheen: inset 0 1px 0 rgb(255 255 255 / 0.07); /* the lit top edge of a glass card */
+  --shadow-float: 0 12px 32px rgb(0 0 0 / 0.42); /* anything that floats over the page */
+  --shadow-push: -14px 0 34px rgb(0 0 0 / 0.5); /* the edge of a screen sliding over another */
+  --scrim: rgb(0 0 0 / 0.5); /* behind a sheet */
+  --accent-glow: 0 6px 22px rgb(159 211 255 / 0.2);
+  --accent-soft: rgb(159 211 255 / 0.14);
+  --accent-line: rgb(159 211 255 / 0.45); /* a selected outline */
+  --amber-soft: rgb(255 176 32 / 0.1);
+  --amber-line: rgb(255 176 32 / 0.45);
+  --red-soft: rgb(255 77 77 / 0.16);
 
   /* motion: mirrors src/ui/motion.ts */
   --press-scale: 0.97;
@@ -119,5 +137,18 @@
     :root {
       --app-height: 100lvh;
     }
+  }
+}
+
+/* Reduce Transparency (iOS Accessibility): no blur and solid fills, same layout. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --surface-1: #2f3237; /* lighter than the top of the gradient, so a card still reads as raised */
+    --surface-2: #3a3d43;
+    --glass-bg: #1e2024;
+    --glass-bg-strong: #1b1d21;
+    --bar-fill: 1;
+    --glass-blur: none;
+    --card-fill: #2f3237;
   }
 }

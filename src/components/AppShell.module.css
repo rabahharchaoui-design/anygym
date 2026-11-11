@@ -4,7 +4,7 @@
   height: var(--app-height);
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--bg-screen);
   overscroll-behavior: none;
 }
 
@@ -25,7 +25,7 @@
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  background: var(--bg);
+  background: var(--bg-screen);
   padding: 0 var(--page-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px) + var(--space-4)) var(--page-pad-l);
 }
 

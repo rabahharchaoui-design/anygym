@@ -1,4 +1,4 @@
-// The workout in progress on Today (PLAN 1.7e): one lime Resume card. PLAN 3.5g: a workout with
+// The workout in progress on Today (PLAN 1.7e): one accent Resume card. PLAN 3.5g: a workout with
 // nothing logged in it gets a quiet Discard beside Resume (with Undo, never a confirm), so an
 // abandoned quick workout never holds Today hostage.
 import { workoutTitle, setCount } from '../history/historyWords';

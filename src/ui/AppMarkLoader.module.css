@@ -1,11 +1,12 @@
-/* PLAN 2.2e: the mark draws in lime, only when a load really takes time (after 400 ms). */
+/* PLAN 2.2e: the mark draws itself, only when a load really takes time (after 400 ms).
+   PLAN 3.5t: like the app icon, a titanium A with the ice blue bar across. */
 .wrap {
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
-  background: var(--bg);
-  color: var(--accent);
+  background: var(--bg-screen);
+  color: var(--pair);
   opacity: 0;
   animation: mark-show 1ms linear 400ms forwards;
 }
@@ -34,6 +35,7 @@
 }
 
 .bar {
+  stroke: var(--accent);
   animation: mark-draw 260ms var(--ease-out) 860ms forwards;
 }
 

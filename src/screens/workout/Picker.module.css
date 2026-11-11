@@ -116,7 +116,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid #3a3a42;
+  border: 2px solid var(--hairline-strong);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -174,7 +174,7 @@
   bottom: 0;
   margin: auto calc(var(--space-4) * -1) 0;
   padding: var(--space-3) var(--space-4) var(--space-1);
-  background: linear-gradient(to bottom, rgba(23, 23, 26, 0), var(--surface-2) 30%);
+  background: linear-gradient(to bottom, transparent, var(--sheet-bg) 30%);
 }
 
 .addButton {

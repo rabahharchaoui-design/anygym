@@ -7,9 +7,9 @@
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: linear-gradient(160deg, #1d1d21, var(--surface-1));
+  background: linear-gradient(160deg, var(--surface-2), var(--surface-1));
   border: 1px solid var(--hairline);
-  color: #6e6e76;
+  color: var(--text-3);
 }
 
 .tile[data-size='hero'] {
