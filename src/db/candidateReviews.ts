@@ -46,3 +46,30 @@ export async function undoCandidateDecision(id: string, previous: CandidateRevie
   await applyApprovals(rows);
   return rows;
 }
+
+/**
+ * PLAN 3.5i: a whole grid screen in one transaction (all of its rows or none). Returns what each id
+ * held before (for Undo) and every row after it.
+ */
+export async function saveCandidateScreen(screen: readonly CandidateReviewRow[], db: AnyGymDB = defaultDb): Promise<{ previous: (CandidateReviewRow | undefined)[]; rows: CandidateReviewRow[] }> {
+  if (!screen.every(isReviewRow) || new Set(screen.map((r) => r.id)).size !== screen.length) throw new Error('Not a review screen');
+  const out = await db.transaction('rw', db.candidateReviews, async () => {
+    const previous = await db.candidateReviews.bulkGet(screen.map((r) => r.id));
+    await db.candidateReviews.bulkPut([...screen]);
+    return { previous, rows: (await db.candidateReviews.toArray()).filter(isReviewRow) };
+  });
+  await applyApprovals(out.rows);
+  return out;
+}
+
+/** Undo a screen: every id goes back to what it was before, in one transaction. */
+export async function undoCandidateScreen(ids: readonly string[], previous: readonly (CandidateReviewRow | undefined)[], db: AnyGymDB = defaultDb): Promise<CandidateReviewRow[]> {
+  const rows = await db.transaction('rw', db.candidateReviews, async () => {
+    const back = previous.filter((p): p is CandidateReviewRow => !!p);
+    await db.candidateReviews.bulkDelete(ids.filter((_, i) => !previous[i]));
+    if (back.length) await db.candidateReviews.bulkPut(back);
+    return (await db.candidateReviews.toArray()).filter(isReviewRow);
+  });
+  await applyApprovals(rows);
+  return rows;
+}
