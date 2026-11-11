@@ -4,7 +4,8 @@ import type { Concept, PlanPart, QuickDeps, QuickItem } from './quick';
 import { type DayTrim, applyTrim } from './timeBudget';
 import { EQUIPMENT_LABEL } from './intake/options';
 import type { GymKit } from './picker';
-import { JOINT_WORD, gearOf, hasGear, mainMuscles, quickAvoids, reasonsFor } from './quickShow';
+import { JOINT_WORD, gearOf, hasGear, mainMuscles, quickAvoids } from './quickShow';
+import { withNotes } from './quickNotes';
 import { type Plan, type PlanBlock, type PlanDay, blockRest, estimateDayMinutes, itemTarget } from './plans';
 import { type Profile, canPair, isCompound, isHeavy } from './order';
 import { SLACK, quickMinutes } from './quickStyles';
@@ -198,10 +199,8 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
   };
   const items = planItems(part, deps, (slot) => currentOf.get(slot) ?? slot, (slot) => swapTo.get(slot), whyReplaced);
   if (!items.length) return null;
-  const reasons = reasonsFor(items.map((it) => it.id), deps, (id) => items.find((it) => it.id === id)!.name);
-  items.forEach((it, i) => {
-    if (it.id === it.slot) it.why = reasons[i]!;
-  });
+  // PLAN 3.5f: every why line is a fact from the curated list.
+  items.splice(0, items.length, ...withNotes(items, deps));
   const minutes = planMinutes(part);
   const ids = items.map((it) => it.id);
   return {
@@ -249,7 +248,8 @@ export function planItems(part: PlanPart, deps: QuickDeps, originOf: (slot: stri
         ...(it.eachSide ? { eachSide: true } : {}),
         restSec: blockRest(b as PlanBlock),
         // 3.5b round 4 (M10): a move put in for the plan's own says why, in plain words.
-        why: swapped || origin !== it.exerciseId ? `Instead of ${it.name}: ${whyReplaced(it.exerciseId)}` : `From your ${part.day.name} day`,
+        why: '',
+        ...(swapped || origin !== it.exerciseId ? { standsIn: { from: it.name, reason: whyReplaced(it.exerciseId) } } : {}),
         ...(pair !== undefined ? { group: pair } : {}),
       });
     }

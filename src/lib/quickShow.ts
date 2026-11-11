@@ -5,39 +5,19 @@ import { EQUIPMENT_LABEL } from './intake/options';
 import type { EquipmentId } from '../db/types';
 import { type GroupedItem, SLACK, structureOf } from './quickStyles';
 import type { GymKit } from './picker';
-import { type Profile, easyOnAvoids, isCompound, liftWord, muscleWord } from './order';
+import { type Profile, easyOnAvoids } from './order';
 import { type SwapData, requiresOf } from './swap';
-import { cap, wordList } from './quickWhy';
+import { cap } from './quickWhy';
+import { withNotes } from './quickNotes';
 
 /** Round 2 (B3): a concept is offered only when its estimate is at or under the minutes picked, 2 more at most. */
 export const FIT_SLACK = SLACK;
 export const fits = (minutes: number, budget: number): boolean => minutes <= budget + FIT_SLACK;
 
-/**
- * Round 2 (P11): one real reason per card, from where it sits in the workout and what it trains
- * (SPEC 22 rules 1 and 4), never the concept's own title again.
- */
-export function reasonsFor(ids: readonly string[], deps: Pick<QuickDeps, 'profileOf'>, names?: (id: string) => string): string[] {
-  const ps = ids.map((id) => deps.profileOf(id, names?.(id)));
-  return ps.map((p, i) => {
-    const words = wordList([...new Set(p.targets.map(muscleWord))]);
-    if (!words) return 'Part of this workout';
-    if (p.role !== 'lift') return `Works your ${words}`;
-    if (isCompound(p)) return i === 0 ? `Big lift first, while you're fresh` : `A big lift for your ${words}`;
-    const before = ps.slice(0, i).find((q) => isCompound(q) && p.targets.some((m) => q.targets.includes(m) || q.helpers.includes(m)));
-    if (before) {
-      const shared = p.targets.find((m) => before.targets.includes(m) || before.helpers.includes(m))!;
-      return `Finishes the ${muscleWord(shared)} your ${liftWord(before)} warmed up`;
-    }
-    if (p.tier >= 3) return `A short finish for your ${words}`;
-    return `Isolates your ${words}`;
-  });
-}
-
 /** A built day as Quick workout items (a group: done back to back). */
-export function itemsOf(deps: QuickDeps, day: readonly GroupedItem[], why?: (it: GroupedItem) => string): QuickItem[] {
-  const reasons = reasonsFor(day.map((it) => it.id), deps);
-  return day.map((it, i) => ({
+export function itemsOf(deps: QuickDeps, day: readonly GroupedItem[]): QuickItem[] {
+  // PLAN 3.5f: every card's why line is a fact from the curated list (quickNotes.ts).
+  const items: QuickItem[] = day.map((it) => ({
     id: it.id,
     slot: it.id,
     origin: it.id,
@@ -48,9 +28,10 @@ export function itemsOf(deps: QuickDeps, day: readonly GroupedItem[], why?: (it:
     ...(it.seconds ? { seconds: it.seconds } : {}),
     ...(it.eachSide ? { eachSide: true } : {}),
     restSec: it.restSec,
-    why: why ? why(it) : reasons[i]!,
+    why: '',
     ...(it.group !== undefined ? { group: it.group } : {}),
   }));
+  return withNotes(items, deps);
 }
 
 

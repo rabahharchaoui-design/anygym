@@ -21,6 +21,8 @@ const handChecked = new Set((JSON.parse(readFileSync('data/catalog-demos.json', 
 function sureDemo(id: string): boolean {
   return handChecked.has(id) || map.some((e) => (e.planId === id || e.catalogId === id) && (e.match === 'exact' || e.match === 'variant') && !!e.catalogId);
 }
+// 3.5f: the close patterns a left swipe may reach once a slot's own pattern is used up (src/lib/generatorRules.ts FALLBACK).
+const CLOSE_35F: Record<string, string[]> = { squat: ['lunge'], hinge: ['glutes', 'hamstrings isolation'], lunge: ['squat'], 'horizontal push': ['vertical push'], 'vertical push': ['horizontal push', 'lateral delt'], 'horizontal pull': ['vertical pull'], 'vertical pull': ['horizontal pull'], 'chest isolation': ['horizontal push'], 'rear delt': ['horizontal pull'], 'quads isolation': ['lunge', 'squat'], 'hamstrings isolation': ['hinge', 'glutes'], glutes: ['hinge'] };
 const doable = (req: string[][] | null, eq: string[]) => req !== null && req.every((g) => g.some((x) => eq.includes(x)));
 
 type Seen = { id: string; name: string; why: string; sets: string };
@@ -229,7 +231,8 @@ test.describe('3.5a verify', () => {
       const now = (await card(page).getAttribute('data-exercise'))!;
       expect.soft(shownIds, `${now} shown twice`).not.toContain(now);
       shownIds.push(now);
-      expect.soft(facts(now).pattern, `${prev} -> ${now}`).toBe(facts(a0).pattern);
+      // 3.5f (many lefts): the same pattern first, then the close patterns (a hinge: glutes, hamstrings), never across the body.
+      expect.soft([facts(a0).pattern, ...(CLOSE_35F[facts(a0).pattern ?? ''] ?? [])], `${prev} -> ${now}`).toContain(facts(now).pattern);
       expect.soft(doable(facts(now).requires, equipment), now).toBe(true);
       expect.soft(sureDemo(now), now).toBe(true);
       prev = now;

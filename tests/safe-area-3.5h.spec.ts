@@ -351,6 +351,8 @@ test.describe('moving previews', () => {
     await page.getByTestId('replace-row').tap();
     const replace = dialog(page, 'Replace Barbell Back Squat');
     await expect(replace).toBeVisible();
+    // 3.5f: Replace opens as a swipe deck; "Show all" lists the options with their tiles.
+    await replace.getByTestId('swap-all').tap();
     const choice = replace.locator('[data-testid="thumb"][data-photo]').first();
     await expect(choice).toBeVisible();
     await expect.poll(async () => (await demoOf(choice)).moving).toBe(true);

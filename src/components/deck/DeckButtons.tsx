@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import styles from './Deck.module.css';
+import own from './Curate.module.css';
 
 // The round buttons under a swipe deck (PLAN 3.5a, shared since 3.5e): they mirror the swipe, left
 // (glass) and right (lime), with an optional middle one. Fixed 56 pt, they never give way to the card.
@@ -15,7 +16,7 @@ export function DeckButtons({ left, middle, right, leaving }: { left: DeckButton
     </button>
   );
   return (
-    <div className={styles.deckButtons} data-leaving={leaving || undefined} data-three={middle ? '' : undefined}>
+    <div className={`${styles.deckButtons} ${middle ? own.three : ''}`} data-leaving={leaving || undefined} data-three={middle ? '' : undefined}>
       {one(left)}
       {middle && one(middle)}
       {one(right)}

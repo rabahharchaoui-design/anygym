@@ -18,7 +18,6 @@ import {
   buildStyleCards,
   canBuild,
   fits,
-  reasonsFor,
   STYLES,
   QUICK_MINUTES,
   chipFor,
@@ -59,7 +58,7 @@ function expectHonest(concepts: Concept[], gym: GymKit) {
     }
     expect(c.minutes).toBe(conceptMinutes(c));
     // PLAN 3.5b: a style card's name is true of what it holds (its own honest test).
-    if (c.id !== 'plan' && c.id !== 'fresh') expect(STYLES[c.id].honest(c.items.map((it) => profileFor(it.id)), c.items)).toBe(true);
+    if (c.id !== 'plan' && c.id !== 'fresh' && c.id !== 'focus') expect(STYLES[c.id].honest(c.items.map((it) => profileFor(it.id)), c.items)).toBe(true);
     expect(new Set(c.items.map((it) => it.id)).size).toBe(c.items.length);
   }
 }
@@ -327,10 +326,10 @@ describe('round 2', () => {
     const cs = buildConcepts({ base: base(FULL), minutes: 60, recent: [] }, QUICK_DEPS);
     for (const c of cs) {
       // PLAN 3.5b: a pump or an arms card starts with a small move; only a big first lift says so.
-      if (profileFor(c.items[0]!.id).tier <= 1) expect(c.items[0]!.why).toBe("Big lift first, while you're fresh");
+      // 3.5f: the line is a curated fact (data/coach-facts.json): a big first lift's own says "first".
+      if (profileFor(c.items[0]!.id).tier <= 1) expect(c.items[0]!.why).toContain(`${c.items[0]!.name} first:`);
       for (const it of c.items) expect(it.why.toLowerCase()).not.toContain(c.title.toLowerCase());
     }
-    expect(reasonsFor(['barbell-incline-bench-press', 'cable-tricep-pushdown'], QUICK_DEPS)).toEqual(["Big lift first, while you're fresh", 'Finishes the triceps your bench warmed up']);
   });
 
   it('P15: a light slot is never swapped into a heavy lift', () => {
@@ -372,6 +371,8 @@ describe('round 3', () => {
     // Nothing else with a sure demo fits a lateral raise: the slot's own exercise is never offered back.
     expect(nextSwap(a, [a], [], { data: SWAP_DATA, gym: FULL, ok, nameOf })).toBeNull();
     const back = swapItem(a, 'leg-press', 'Leg Press', false, 'Leg Press');
-    expect(back.why).toBe(a.why);
+    // 3.5f: the line is a curated fact picked from `from` (quickNotes.ts); back on the slot's own move there is no "from".
+    expect(back.from).toBeUndefined();
+    expect(swapItem(a, 'cable-lateral-raise', 'Cable Lateral Raise', false, a.name).from).toBe(a.name);
   });
 });

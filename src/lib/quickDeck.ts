@@ -5,7 +5,7 @@ import type { Dislikes, QuickItem } from './quick';
 import type { GeneratorInput } from './generator';
 import type { GymKit } from './picker';
 import { type Muscle, type Profile, canPair, isHeavy, liftWord } from './order';
-import { type SwapData, requiresOf, supports, swapCandidates, workoutIdOf } from './swap';
+import { type Pattern, type SwapData, patternOf, requiresOf, supports, workoutIdOf } from './swap';
 
 /** Sure gear: the requirement is known and this gym has it (the deck never shows a maybe). */
 export const sureGear = (data: SwapData, id: string, gym: GymKit): boolean => {
@@ -104,14 +104,16 @@ export type SwapContext = {
 };
 
 /**
- * The exercise a left swipe puts in: same movement pattern, this gym surely has the gear, a sure
- * demo, not already in the workout, the fewest soft dislikes first, and not one this card already
- * showed while an untried one is left. null: nothing else fits (the card stays).
+ * Every exercise of `pattern` a left swipe may put in for `item`, best first: this gym surely has the
+ * gear, a sure demo, not already in the workout, the fewest soft dislikes first, each option once,
+ * and never one this card already showed (PLAN 3.5f: the whole list, not only its first).
  */
-export function nextSwap(item: QuickItem, items: readonly QuickItem[], tried: readonly string[], ctx: SwapContext): string | null {
+export function swapOptions(item: QuickItem, items: readonly QuickItem[], tried: readonly string[], ctx: SwapContext, pattern: Pattern | null = patternOf(ctx.data, item.slot)): string[] {
+  if (!pattern) return [];
   const mode = item.seconds !== undefined && item.reps === undefined ? 'seconds' : 'reps';
   const exclude = items.filter((x) => x !== item).map((x) => x.id);
-  const pool = swapCandidates(ctx.data, item.slot, ctx.gym, { mode, exclude: [...exclude, item.id] }).map(workoutIdOf);
+  const taken = new Set([item.slot, item.id, ...exclude].map(ctx.data.sameAs));
+  const pool = ctx.data.patterns[pattern].candidates.filter((c) => !taken.has(ctx.data.sameAs(workoutIdOf(c))) && (c.timed ? 'seconds' : 'reps') === mode && supports(c.requires, ctx.gym)).map(workoutIdOf);
   // Round 2 (P15, SPEC 7.3): a slot that is not a heavy lift never turns into one, and a conventional
   // deadlift only ever stands in for a deadlift (never a Deadlift at 10 to 12 for an RDL slot).
   const p = ctx.profile;
@@ -119,14 +121,23 @@ export function nextSwap(item: QuickItem, items: readonly QuickItem[], tried: re
   const tooHeavy = (id: string) => !!p && !!slotP && ((!isHeavy(slotP) && isHeavy(p(id))) || (liftWord(p(id)) === 'deadlift' && liftWord(slotP) !== 'deadlift'));
   // Round 3 (B1, B2): each option once per slot. Never the one on the card, one already swiped away
   // or rejected (the slot's own first exercise included), or the same option under another name
-  // (Leg Press and Angled Machine Leg Press are one leg press). Nothing new left: null, and the card
-  // says "No other option here"; a rejected card never comes back.
+  // (Leg Press and Angled Machine Leg Press are one leg press). Nothing new left: none, and the card
+  // says so; a rejected card never comes back.
   const keyOf = (id: string) => (ctx.nameOf ? optionKey(ctx.nameOf(id)) : ctx.data.sameAs(id));
   const seen = new Set([item.id, item.slot, ...tried, ...exclude, ...(ctx.avoid ?? [])].flatMap((id) => [ctx.data.sameAs(id), keyOf(id)]));
   const usable = pool.filter((id) => !seen.has(ctx.data.sameAs(id)) && !seen.has(keyOf(id)) && ctx.ok(id) && sureGear(ctx.data, id, ctx.gym) && !tooHeavy(id));
   // Two names for one option in the same ladder: the first (the ladder's best) stands for both.
   const once = usable.filter((id, i) => usable.findIndex((x) => keyOf(x) === keyOf(id)) === i);
-  return rankSoft(once, ctx.soft)[0] ?? null;
+  return rankSoft(once, ctx.soft);
+}
+
+/**
+ * The exercise a left swipe puts in: same movement pattern, this gym surely has the gear, a sure
+ * demo, not already in the workout, the fewest soft dislikes first, and not one this card already
+ * showed while an untried one is left. null: nothing else fits (the card stays).
+ */
+export function nextSwap(item: QuickItem, items: readonly QuickItem[], tried: readonly string[], ctx: SwapContext): string | null {
+  return swapOptions(item, items, tried, ctx)[0] ?? null;
 }
 
 /**
@@ -141,10 +152,20 @@ export const optionKey = (name: string): string =>
     .trim();
 
 /** The card after a swap: the slot's targets stay (sets, reps, rest), only the exercise changes. */
-export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean, slotName?: string, hangs = false): QuickItem {
+export function swapItem(item: QuickItem, to: string, name: string, eachSide: boolean, slotName?: string, hangs = false, close = false): QuickItem {
   // Never "Same movement as X" on X itself (round 3, B1).
   const from = slotName ?? item.name;
-  const next: QuickItem = { ...item, id: to, name, why: to === item.slot || optionKey(from) === optionKey(name) ? item.why : `Same movement as ${from}`, swapped: true };
+  // PLAN 3.5f: the card's line is a fact from the curated list (quickNotes.ts withNotes reads `from`).
+  const next: QuickItem = { ...item, id: to, name, swapped: true };
+  delete next.standsIn;
+  if (to === item.slot || optionKey(from) === optionKey(name)) {
+    delete next.from;
+    delete next.close;
+  } else {
+    next.from = from;
+    if (close) next.close = true;
+    else delete next.close;
+  }
   if (eachSide) next.eachSide = true;
   else delete next.eachSide;
   // A bodyweight pull up is a reachable 5 to 8 reps, never 8 to 12 (the same as a card built with one).

@@ -67,6 +67,16 @@
   line-height: 1.3;
 }
 
+/* PLAN 3.5f: where the deck is ("2 of 6"), quiet, in the bar: the card face keeps to three things. */
+.deckCount {
+  flex: none;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .deckFrom {
   color: var(--text-2);
 }

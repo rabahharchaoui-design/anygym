@@ -191,7 +191,8 @@ test.describe('Quick workout builds it for you', () => {
     await swipe(page, -260);
     await expect(card(page)).not.toHaveAttribute('data-exercise', second);
     await expect(eyebrow(page)).toContainText('2 of');
-    await expect(card(page)).toContainText('Swapped in');
+    // 3.5f: no badge on the card face: the why line says it (a curated fact).
+    await expect(page.getByTestId('deck-why')).toContainText(/^(Same movement as|The closest move to)/);
     await expect.poll(async () => (await dbAll<{ id: string; dislikes?: { soft?: Record<string, number> } }>(page, 'profile')).find((p) => p.id === 'me')?.dislikes?.soft?.[second]).toBe(1);
     // Long press: never show it again, something of the same movement takes its place; Undo puts it back.
     const third = (await card(page).getAttribute('data-exercise'))!;
@@ -237,7 +238,8 @@ test.describe('Quick workout builds it for you', () => {
     await page.getByTestId('deck-keep').tap();
     await expect(eyebrow(page)).toContainText('2 of');
     await page.getByTestId('deck-swap').tap();
-    await expect(card(page)).toContainText('Swapped in');
+    // 3.5f: no badge on the card face: the why line says it (a curated fact).
+    await expect(page.getByTestId('deck-why')).toContainText(/^(Same movement as|The closest move to)/);
     await page.getByTestId('quick-start').tap();
     await expect(page.getByTestId('check-current')).toBeVisible();
     const s = (await dbAll<{ id: string; endedAt?: number; exerciseIds: string[]; planId?: string }>(page, 'sessions')).find((x) => x.endedAt === undefined)!;

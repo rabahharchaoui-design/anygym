@@ -1,0 +1,31 @@
+/* PLAN 3.5f: the intake's love / never deck. A height of its own, so the card is the same on every phone. */
+.deck {
+  display: flex;
+  flex-direction: column;
+  /* The room an iPhone SE leaves between the toggle and Continue, up to a comfortable card on tall phones:
+     Skip, Never and Love are always in reach without scrolling. */
+  height: clamp(264px, calc(var(--app-height, 100vh) - 400px), 460px);
+  margin-top: var(--space-3);
+}
+
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.doneTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.doneSub {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.4;
+}

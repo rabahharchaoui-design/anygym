@@ -2,13 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
-import { BottomCTA } from '../../ui/BottomCTA';
 import { Button } from '../../ui/Button';
 import { Skeleton } from '../../ui/Skeleton';
 import { useNav } from '../../ui/nav';
 import { DUR } from '../../ui/motion';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
-import { DumbbellIcon, UndoIcon } from '../../ui/icons';
+import { DumbbellIcon } from '../../ui/icons';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { startDb } from '../../db/bootstrap';
 import { getProfile } from '../../db/intake';
@@ -21,8 +20,11 @@ import { QUICK_DEPS } from '../../data/quick';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import type { Muscle } from '../../lib/order';
 import type { Plan } from '../../lib/plans';
-import { buildIdeas, cardKey, moreLabel, canBuild, chipFor, conceptMinutes, metaLine, planConcept, QUICK_MINUTES, whenWords, type Concept, type Dislikes, type QuickMinutes } from '../../lib/quick';
-import { Deck, DeckButtons, itemLine } from './Deck';
+import { buildIdeas, cardKey, focusCards, moreLabel, canBuild, chipFor, planConcept, previewConcept, QUICK_MINUTES, whenWords, type Concept, type Dislikes, type QuickMinutes } from '../../lib/quick';
+import { AS_PLANNED } from '../../lib/timeBudget';
+import { pickFor, trimFor } from '../today/startBudget';
+import { startPreviewedDay } from '../today/startPreview';
+import { CurateStage } from './CurateStage';
 import { ConceptCard } from './ConceptCard';
 import { useDeck } from './useDeck';
 import { baseInput, equipmentPath, kitOf } from './quickInput';
@@ -58,6 +60,9 @@ export function QuickScreen() {
   const [failed, setFailed] = useState(false);
   const [minutes, setMinutes] = useState<QuickMinutes | null>(() => (params.get('min') ? chipFor(Number(params.get('min'))) : null));
   const [error, setError] = useState('');
+  // PLAN 3.5f: opened from Today's Preview: straight into the deck of today's plan day.
+  const preview = params.get('preview') === '1';
+  const [previewDone, setPreviewDone] = useState(false);
   // Learned this visit: never shown again here either (the profile has them for next time).
   const [neverNow, setNeverNow] = useState<string[]>([]);
 
@@ -99,28 +104,38 @@ export function QuickScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, kit, chip]);
 
+  // PLAN 3.5f: the one area days (Chest day, Back day...: the smart structure, lib/quickFocus.ts) join
+  // More ideas, the person's focus areas first. One takes card 4's place (or is added under fewer cards).
+  const all = useMemo(() => {
+    if (!ideas || !base) return null;
+    const focus = focusCards({ base, minutes: chip, recent: loaded?.recent ?? [], ...(loaded ? { lastTrained: loaded.lastTrained, now: loaded.now } : {}) }, QUICK_DEPS);
+    const at = ideas.cards.length < 4 ? ideas.cards.length : ideas.cards.length - 1;
+    return { cards: ideas.cards, more: [...ideas.more, ...focus], moreAt: [...ideas.moreAt, ...focus.map(() => at)] };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ideas]);
+
   // PLAN 3.5b: More ideas puts another style in the place it can take (3.5b round 4: card 4, or the
   // one card it is too close to); per chip, a new chip starts fresh. Its chip row then offers the card
   // it replaced, to go back.
   const [picked, setPicked] = useState<{ chip: QuickMinutes; key: string } | null>(null);
-  const pickedAt = ideas && picked?.chip === chip ? ideas.more.findIndex((c) => cardKey(c) === picked.key) : -1;
+  const pickedAt = all && picked?.chip === chip ? all.more.findIndex((c) => cardKey(c) === picked.key) : -1;
   const concepts = useMemo(() => {
-    if (!ideas) return null;
-    if (pickedAt === -1) return ideas.cards;
-    const out = [...ideas.cards];
-    out.splice(ideas.moreAt[pickedAt]!, 1, ideas.more[pickedAt]!);
+    if (!all) return null;
+    if (pickedAt === -1) return all.cards;
+    const out = [...all.cards];
+    out.splice(all.moreAt[pickedAt]!, 1, all.more[pickedAt]!);
     return out;
-  }, [ideas, pickedAt]);
+  }, [all, pickedAt]);
   const moreIdeas = useMemo(() => {
-    if (!ideas || !concepts) return [];
+    if (!all || !concepts) return [];
     const out: { concept: Concept; back: boolean }[] = [];
     if (pickedAt !== -1) {
-      const replaced = ideas.cards[ideas.moreAt[pickedAt]!];
+      const replaced = all.cards[all.moreAt[pickedAt]!];
       if (replaced) out.push({ concept: replaced, back: true });
     }
-    for (const c of ideas.more) if (!concepts.includes(c)) out.push({ concept: c, back: false });
+    for (const c of all.more) if (!concepts.includes(c)) out.push({ concept: c, back: false });
     return out;
-  }, [ideas, concepts, pickedAt]);
+  }, [all, concepts, pickedAt]);
   const [swappedIn, setSwappedIn] = useState<string | null>(null);
   // 3.5d (4): the card a More ideas tap brought in is scrolled into view and glows once (motion.ts DUR.celebrate).
   const [flash, setFlash] = useState<string | null>(null);
@@ -146,7 +161,22 @@ export function QuickScreen() {
   }, [ideas]);
 
   // ------------------------------------------------------------ the deck
-  const { stage, setStage, notice, swapNote, leaving, fling, setFling, hint, canSwap, decide, flyStart, never, nothingToSwap, curate } = useDeck(base, kit, neverNow, setNeverNow, setError);
+  const deck = useDeck(base, kit, neverNow, setNeverNow, setError);
+  const { stage, setStage, curate } = deck;
+
+  // PLAN 3.5f: Preview: today's plan day as the workout will start it (the time picked on Today
+  // applied), one lift per card. No plan day to look through: the Quick workout screen as usual.
+  useEffect(() => {
+    if (!preview || previewDone || !loaded || !kit || !gym) return;
+    const p = loaded.plan;
+    const day = p?.plan.days[p.dayIndex];
+    const pick = p && day ? pickFor(gym.id, p.plan.id, p.dayIndex) : null;
+    const trim = p && day && pick && pick.minutes < AS_PLANNED ? trimFor(day, pick.minutes, p.weekIndex).trim : null;
+    const concept = p ? previewConcept({ plan: p.plan, dayIndex: p.dayIndex, weekIndex: p.weekIndex, gym: kit, always: p.always, trim }, QUICK_DEPS) : null;
+    if (concept) curate(concept);
+    setPreviewDone(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview, previewDone, loaded, kit, gym]);
 
   // ------------------------------------------------------------ start
 
@@ -154,7 +184,12 @@ export function QuickScreen() {
     if (!stage || !gym || !stage.items.length) return;
     setError('');
     try {
-      const session = await startBuilt(gym.id, { id: stage.concept.id, items: stage.items, ...(stage.plan ? { plan: stage.plan } : {}) }, chip);
+      if (preview && stage.plan) {
+        // The plan day starts exactly as Today's Start starts it; only the deck's swaps and hidden moves are applied.
+        const s = await startPreviewedDay(gym.id, stage.plan, { items: stage.items, removed: stage.removed });
+        return go(`/workout/${s.id}`, { kind: 'push', replace: true });
+      }
+      const session = await startBuilt(gym.id, { id: stage.concept.id, ...(stage.concept.variant ? { variant: stage.concept.variant } : {}), items: stage.items, ...(stage.plan ? { plan: stage.plan } : {}) }, chip);
       const first = session.exerciseIds?.[0];
       // Straight to the first exercise: the first set is one tap away (SPEC 20.3: under 4 taps).
       go(first ? `/workout/${session.id}/${encodeURIComponent(first)}` : `/workout/${session.id}`, { kind: 'push', replace: true });
@@ -177,86 +212,9 @@ export function QuickScreen() {
 
   // ------------------------------------------------------------ screens
 
-  if (stage) {
-    const done = stage.index >= stage.items.length;
-    const total = conceptMinutes({ items: stage.items, ...(stage.plan ? { plan: stage.plan } : {}) });
-    const label = done || stage.changed ? 'Start workout' : 'Start now';
-    const noticeRow = (
-      <div className={styles.notice} data-testid="deck-hint" aria-live="polite">
-        {notice ? (
-          <>
-            <span className={styles.noticeText}>{notice.text}</span>
-            {notice.undo && (
-              <button type="button" className={`${styles.undo} pressable`} onClick={notice.undo}>
-                <UndoIcon width={16} height={16} strokeWidth={2.2} aria-hidden="true" />
-                Undo
-              </button>
-            )}
-          </>
-        ) : hint ? (
-          'Right keeps it, left swaps it.'
-        ) : (
-          'Hold a card: never show it again.'
-        )}
-      </div>
-    );
-    return (
-      <div className={styles.screen} data-stage={done ? 'ready' : 'deck'} data-scroller>
-        {/* One compact bar (round 2, B1, P14): the title never takes the card's room. */}
-        <header className={styles.deckHead}>
-          <BackButton label="Back to the workouts" onPress={() => setStage(null)} />
-          <div className={styles.deckHeadText}>
-            <h1 className={styles.deckTitle}>{done ? 'Ready to go' : stage.concept.title}</h1>
-            <p className={`${styles.deckMeta} num`} data-testid="curate-meta">
-              {metaLine(stage.items, total)}
-            </p>
-          </div>
-        </header>
-        {done && notice ? noticeRow : null}
-        {done ? (
-          <ol className={styles.ready} data-testid="ready-list" data-reduced={reduced || undefined}>
-            {stage.items.map((it, i) => (
-              <li key={it.slot + it.id} className={styles.readyRow} style={{ ['--i' as string]: i }}>
-                <span className={styles.readyName}>{it.name}</span>
-                <span className={`${styles.readySets} num`}>{itemLine(it)}</span>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <>
-            {noticeRow}
-            <Deck
-              items={stage.items}
-              index={stage.index}
-              canSwap={canSwap}
-              reduced={reduced}
-              fling={fling}
-              onDecide={decide}
-              onFlyStart={flyStart}
-              onNever={never}
-              onNothingToSwap={nothingToSwap}
-            />
-            <DeckButtons
-              leaving={leaving}
-              swapNote={swapNote}
-              onSwap={() => setFling((f) => ({ kind: 'swap', n: (f?.n ?? 0) + 1 }))}
-              onKeep={() => setFling((f) => ({ kind: 'keep', n: (f?.n ?? 0) + 1 }))}
-            />
-          </>
-        )}
-        <BottomCTA
-          className={styles.cta}
-          onPress={() => void start()}
-          disabled={!stage.items.length}
-          {...(!stage.items.length ? { disabledReason: 'Nothing left. Go back and pick another.' } : {})}
-          testId="quick-start"
-          above={error ? <p className={styles.error} role="status">{error}</p> : null}
-        >
-          {label}
-        </BottomCTA>
-      </div>
-    );
-  }
+  if (stage) return <CurateStage deck={deck} reduced={reduced} error={error} onBack={preview ? () => go('/', { kind: 'pop' }) : () => setStage(null)} onStart={() => void start()} {...(preview ? { preview: { title: stage.concept.title } } : {})} />;
+  // Preview (PLAN 3.5f): while the plan day is read, never the choose screen for a moment.
+  if (preview && !previewDone) return <div className={styles.screen} data-stage="deck" data-testid="preview-loading" />;
 
   const nothing = buildable === false;
   return (
@@ -313,7 +271,7 @@ export function QuickScreen() {
             ) : (
               <div className={styles.concepts}>
                 {concepts.map((c) => (
-                  <ConceptCard key={cardKey(c)} concept={c} onPick={() => curate(c)} entering={cardKey(c) === swappedIn} flash={cardKey(c) === flash} label={cardKey(c) === swappedIn && c.focus ? `${c.title}: ${c.focus.toLowerCase()}` : c.title} reduced={reduced} />
+                  <ConceptCard key={cardKey(c)} concept={c} onPick={() => curate(c)} entering={cardKey(c) === swappedIn} flash={cardKey(c) === flash} label={cardKey(c) === swappedIn && c.focus && c.id !== 'focus' ? `${c.title}: ${c.focus.toLowerCase()}` : c.title} reduced={reduced} />
                 ))}
               </div>
             )}
@@ -328,7 +286,7 @@ export function QuickScreen() {
                 {moreIdeas.map(({ concept: c, back }) => {
                   const label = moreLabel(c, [...concepts, ...moreIdeas.map((m) => m.concept)]);
                   return (
-                    <button key={cardKey(c)} type="button" className={`${styles.moreChip} pressable`} onClick={() => pickMore(c, back)} data-testid={`more-${c.id}`} data-key={cardKey(c)} aria-label={`${label}: show this idea in the list`}>
+                    <button key={cardKey(c)} type="button" className={`${styles.moreChip} pressable`} onClick={() => pickMore(c, back)} data-testid={`more-${c.id === 'focus' ? `focus-${c.variant}` : c.id}`} data-key={cardKey(c)} aria-label={`${label}: show this idea in the list`}>
                       {label}
                     </button>
                   );

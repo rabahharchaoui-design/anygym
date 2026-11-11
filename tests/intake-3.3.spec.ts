@@ -266,6 +266,8 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await expect(page.getByTestId('q-easyOn-none')).toHaveAttribute('aria-pressed', 'false');
   await t.next();
   await atStep(page, 'exercises');
+  // 3.5f: the screen opens on the swipe cards; the searchable lists are one tap away.
+  await page.getByTestId('ex-mode').getByRole('radio', { name: /Love/ }).tap();
   await page.getByTestId('q-love-search').fill('squat');
   await page.getByTestId('q-love').getByRole('button', { name: /squat/i }).first().tap();
   await t.next();
@@ -900,6 +902,8 @@ test('B4: brand new skips the exercise lists; Skip the rest shows only from the 
 test('B4: love and never share one optional screen and stay separate answers', async ({ page }) => {
   await drafted(page, 'exercises', { goal: 'muscle', units: US, experience: '3y' });
   await expect(cta(page)).toBeEnabled();
+  // 3.5f: the screen opens on the swipe cards; the searchable lists are one tap away.
+  await page.getByTestId('ex-mode').getByRole('radio', { name: /Love/ }).tap();
   const love = page.getByTestId('q-love').getByRole('button').first();
   const name = (await love.textContent())!;
   await love.tap();

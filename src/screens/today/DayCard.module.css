@@ -1,0 +1,6 @@
+/* PLAN 3.5f: Preview and Change day, two quiet text buttons side by side under the week. */
+.links {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+}

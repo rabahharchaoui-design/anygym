@@ -5,7 +5,7 @@
 // workout started from (on its session), and when each muscle last had logged sets (read only).
 import { planById } from '../data/plans';
 import { profileFor } from '../data/order';
-import { learnNever, learnSwap, recentMuscles, RECENT_MS, unlearnNever, type Concept, type ConceptId, type Dislikes } from '../lib/quick';
+import { learnLeft, learnNever, learnSwap, recentMuscles, RECENT_MS, unlearnNever, type Concept, type ConceptId, type Dislikes } from '../lib/quick';
 import type { Muscle } from '../lib/order';
 import { getProfile } from './intake';
 import { newId } from './ids';
@@ -32,6 +32,20 @@ async function updateDislikes(fn: (d: Dislikes) => Dislikes, db: AnyGymDB): Prom
 
 /** A left swipe swapped `id` away: one more soft dislike (ranked lower later, never a ban). */
 export const recordSwapAway = (id: string, db: AnyGymDB = defaultDb) => updateDislikes((d) => learnSwap(d, id), db);
+/**
+ * PLAN 3.5f: a left swipe on `id` in the workout `workout` (a deck visit or a session): it ranks
+ * lower, the workout is remembered for it, and `ask` says whether to ask "Hide it for good?" now
+ * (the third different workout, once only). No profile yet: nothing is learned, nothing is asked.
+ */
+export async function recordLeft(id: string, workout: string, db: AnyGymDB = defaultDb): Promise<{ ask: boolean }> {
+  let ask = false;
+  await updateDislikes((d) => {
+    const r = learnLeft(d, id, workout);
+    ask = r.ask;
+    return r.dislikes;
+  }, db);
+  return { ask };
+}
 /** Long press: never show `id` again. */
 export const recordNever = (id: string, db: AnyGymDB = defaultDb) => updateDislikes((d) => learnNever(d, id), db);
 /** Undo of a long press. */
@@ -137,7 +151,7 @@ export async function recordShown(ids: readonly ConceptId[], db: AnyGymDB = defa
  * with its trim and the deck's swaps; any other concept is a quick workout holding exactly the
  * deck's exercises and targets. A workout already in progress is returned untouched.
  */
-export async function startBuilt(gymId: string, concept: Pick<Concept, 'items' | 'plan'> & { id?: ConceptId }, minutes: number, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Session> {
+export async function startBuilt(gymId: string, concept: Pick<Concept, 'items' | 'plan'> & { id?: ConceptId; variant?: string }, minutes: number, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Session> {
   const part = concept.plan;
   if (part && planById(part.planId)) {
     // One transaction over every table: the session, its trim, each swap and the gym's remembered
@@ -160,7 +174,8 @@ export async function startBuilt(gymId: string, concept: Pick<Concept, 'items' |
     const targets: Record<string, QuickTarget> = {};
     for (const it of concept.items) targets[it.id] ??= targetOf(it, pairs.get(it.id));
     const session: Session = { id: newId(), gymId, startedAt: now, imported: false, exerciseIds: ids, targets, timeBudgetMin: minutes };
-    if (concept.id && concept.id !== 'plan') session.quickStyle = concept.id;
+    // PLAN 3.5f: an area day remembers its area ("focus:chest"), so its day list keeps its name.
+    if (concept.id && concept.id !== 'plan') session.quickStyle = concept.id === 'focus' && concept.variant ? `focus:${concept.variant}` : concept.id;
     await db.sessions.add(session);
     return session;
   });

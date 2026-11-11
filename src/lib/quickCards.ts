@@ -161,7 +161,7 @@ export function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
     };
     const built = buildCard(spec, BUILD(freshDeps), input.minutes);
     if (!built || !fits(built.minutes, input.minutes)) continue;
-    const items = itemsOf(deps, built.items, (it) => `${cap(wordList(targetsOf(deps, it.id).map(muscleWord)))}: not trained in 3 days`);
+    const items = itemsOf(deps, built.items);
     if (out.some((o) => o.items.length === items.length && o.items.every((x) => items.some((y) => y.id === x.id)))) continue;
     const ids = items.map((it) => it.id);
     const rested = restedLine(items, deps, restedOnly, input.now ?? Date.now(), 1);
