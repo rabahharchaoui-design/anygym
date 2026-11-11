@@ -212,9 +212,10 @@ describe('B2: far off on days, minutes and level is the wrong plan for the perso
 });
 
 describe('equipment groups (PLAN 3.3a)', () => {
-  it('every one of the 27 is in exactly one of the five groups, and has a drawing', () => {
+  it('every one of the 29 is in exactly one of the five groups, and has a drawing', () => {
     const all = EQUIPMENT_GROUPS.flatMap((g) => g.items);
-    expect(all).toHaveLength(27);
+    // PLAN 3.5j: 27 from SPEC 3, plus an elliptical and a yoga mat.
+    expect(all).toHaveLength(29);
     expect([...all].sort()).toEqual([...EQUIPMENT_IDS].sort());
     expect(EQUIPMENT_GROUPS.map((g) => g.label)).toEqual(['Free weights', 'Benches and bars', 'Machines', 'Cables', 'Cardio and extras']);
     expect([...ART_IDS].sort()).toEqual([...EQUIPMENT_IDS].sort());
@@ -226,7 +227,7 @@ describe('equipment groups (PLAN 3.3a)', () => {
       ['benches', ['pull_up_bar']],
       ['extras', ['resistance_bands']],
     ]);
-    expect(groupsFor(equipmentChoices('full')).flatMap((g) => g.items)).toHaveLength(27);
+    expect(groupsFor(equipmentChoices('full')).flatMap((g) => g.items)).toHaveLength(29);
   });
 
   it("a group's All turns only its items on, then off; the order stays the SPEC 3 order", () => {

@@ -13,7 +13,7 @@ import { startDb } from '../../db/bootstrap';
 import { getProfile } from '../../db/intake';
 import { getPlanState, weekFor } from '../../db/planState';
 import { useActiveGym } from '../../db/useActiveGym';
-import { alwaysPicks, getDislikes, readDoneStyles, readLastTrained, readRecentAt, readRecentMuscles, readShown, recordShown, startBuilt } from '../../db/quick';
+import { alwaysPicks, getDislikes, readDoneStyles, readLastTrained, readRecentAt, readRecentMuscles, readRotation, recordShown, startBuilt } from '../../db/quick';
 import { getActiveSession, startWorkout } from '../../db/workouts';
 import { planById } from '../../data/plans';
 import { QUICK_DEPS } from '../../data/quick';
@@ -52,6 +52,8 @@ type Loaded = {
   lastTrained: Partial<Record<Muscle, number>>;
   done: string[];
   shown: string[];
+  /** A visit soon after the last one: same memory, nothing recorded again. */
+  keep: boolean;
   now: number;
 };
 
@@ -77,14 +79,14 @@ export function QuickScreen() {
     (async () => {
       await startDb();
       const now = Date.now();
-      const [profile, state, recent, dislikes, recentAt, lastTrained, done, shown] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(now), getDislikes(), readRecentAt(now), readLastTrained(now), readDoneStyles(), readShown()]);
+      const [profile, state, recent, dislikes, recentAt, lastTrained, done, rotation] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(now), getDislikes(), readRecentAt(now), readLastTrained(now), readDoneStyles(), readRotation(now)]);
       const plan = planById(state?.planId);
       let planPart: Loaded['plan'] = null;
       if (plan && state) {
         const dayIndex = Math.max(0, Math.min(state.nextDayIndex, plan.days.length - 1));
         planPart = { plan, dayIndex, weekIndex: weekFor(state, plan.id), always: await alwaysPicks(plan.id) };
       }
-      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, ...(recentAt !== null ? { recentWhen: whenWords(recentAt, now) } : {}), plan: planPart, lastTrained, done, shown, now });
+      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, ...(recentAt !== null ? { recentWhen: whenWords(recentAt, now) } : {}), plan: planPart, lastTrained, done, shown: rotation.lastShown, keep: rotation.keep, now });
     })().catch(() => alive && setFailed(true));
     return () => {
       alive = false;
@@ -166,10 +168,11 @@ export function QuickScreen() {
   // The rotation remembers the first cards shown on each visit (once; a later chip does not count).
   const remembered = useRef(false);
   useEffect(() => {
-    if (!ideas || remembered.current || !ideas.cards.length) return;
+    if (!ideas || !loaded || remembered.current || !ideas.cards.length) return;
     remembered.current = true;
-    void recordShown(ideas.cards.map((c) => c.id)).catch(() => undefined);
-  }, [ideas]);
+    if (loaded.keep) return;
+    void recordShown(ideas.cards.map((c) => c.id), undefined, { prev: loaded.shown, at: loaded.now }).catch(() => undefined);
+  }, [ideas, loaded]);
 
   // ------------------------------------------------------------ the deck
   const deck = useDeck(base, kit, neverNow, setNeverNow, setError);

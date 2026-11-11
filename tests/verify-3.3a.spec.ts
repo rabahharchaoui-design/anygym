@@ -114,15 +114,15 @@ const GROUPS: Record<string, string[]> = {
   'Benches and bars': ['flat_bench', 'adjustable_bench', 'hyperextension_bench', 'pull_up_bar', 'dip_station'],
   Machines: ['smith_machine', 'leg_press', 'leg_extension', 'leg_curl', 'chest_press_machine', 'pec_deck', 'shoulder_press_machine', 'calf_raise_machine', 'hip_adductor_abductor'],
   Cables: ['cable_station', 'lat_pulldown', 'seated_row'],
-  'Cardio and extras': ['resistance_bands', 'jump_rope', 'treadmill', 'bike', 'stair_climber', 'rower'],
+  'Cardio and extras': ['resistance_bands', 'jump_rope', 'yoga_mat', 'treadmill', 'elliptical', 'bike', 'stair_climber', 'rower'],
 };
 
-test('(2) equipment: 27 tiles with a drawing, 3 across, grouped, All is per group, i opens glossary, screens count', async ({ page }) => {
+test('(2) equipment: 29 tiles (3.5j) with a drawing, 3 across, grouped, All is per group, i opens glossary, screens count', async ({ page }) => {
   test.skip(!PHONES.has(test.info().project.name));
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'full', equipmentFor: 'full', equipment: ['dumbbells', 'treadmill'] });
   const tiles = page.locator('[data-testid="equipment"] button[data-testid^="equip-"][aria-pressed]:not([data-testid^="equip-all"])');
-  await expect(tiles).toHaveCount(27);
-  await expect(page.locator('[data-testid="equipment"] svg[data-art]')).toHaveCount(27);
+  await expect(tiles).toHaveCount(29);
+  await expect(page.locator('[data-testid="equipment"] svg[data-art]')).toHaveCount(29);
   // every tile contains its own svg, sizes sane
   const geo = await tiles.evaluateAll((bs) => bs.map((b) => { const r = b.getBoundingClientRect(); const s = b.querySelector('svg[data-art]')!.getBoundingClientRect(); return { id: b.getAttribute('data-testid'), x: Math.round(r.x), y: Math.round(r.y + scrollY), w: Math.round(r.width), h: Math.round(r.height), sw: Math.round(s.width), name: (b.textContent ?? '').trim() }; }));
   expect(geo.every((g) => g.sw >= 28 && g.h >= 48 && g.name.length > 0)).toBe(true);
@@ -316,6 +316,6 @@ test('(6b) breakage: offline, back mid pick, tap All twice fast', async ({ page,
   const eq = (await draftAnswers(page)).equipment as string[];
   expect(new Set(eq).size).toBe(eq.length);
   await page.getByTestId('equip-all').tap();
-  await expect.poll(async () => ((await draftAnswers(page)).equipment as string[]).length).toBe(27);
+  await expect.poll(async () => ((await draftAnswers(page)).equipment as string[]).length).toBe(29);
   await context.setOffline(false);
 });

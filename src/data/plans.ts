@@ -18,6 +18,7 @@ import { planExercise } from './planExercises';
 import { profileFor } from './order';
 import { SWAP_DATA } from './patterns';
 import { CATALOG_NAMES } from './importMatch';
+import { approvedCandidate } from './candidateGate';
 
 const CATALOG_NAME = new Map(CATALOG_NAMES.map((c) => [c.id, c.name]));
 /** Ids a generated plan may hold: every ladder candidate's (its plan id, else its catalog id). */
@@ -29,7 +30,10 @@ export const resolvePlanExercise = (name: string, id?: string) => {
   const known = planExercise(id);
   if (known) return known;
   const catalogName = LADDER_IDS.has(id) ? CATALOG_NAME.get(id) : undefined;
-  return catalogName ? { id, name: catalogName } : undefined;
+  if (catalogName) return { id, name: catalogName };
+  // PLAN 3.5j: a move G approved on this phone (a cardio warm up, a ladder candidate) runs as itself.
+  const approved = approvedCandidate(id);
+  return approved ? { id, name: approved.name } : undefined;
 };
 
 /** The shipped plans, in picker order. */

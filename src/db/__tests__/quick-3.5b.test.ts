@@ -3,7 +3,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
-import { pairsOf, readDoneStyles, readLastTrained, readShown, recordShown, startBuilt } from '../quick';
+import { pairsOf, readDoneStyles, readLastTrained, readRotation, readShown, recordShown, REVISIT_MS, startBuilt } from '../quick';
 import { RECORD_CHECKS } from '../../lib/backup';
 import type { QuickItem } from '../../lib/quick';
 import type { EquipmentId, Session, WorkoutSet } from '../types';
@@ -67,6 +67,21 @@ describe('the rotation memory', () => {
     expect(await readShown(db)).toEqual(['plan', 'fresh', 'circuit', 'easy']);
     // Additive: what else is on the profile stays.
     expect((await db.profile.get('me'))!.dislikes).toEqual({ never: ['x'] });
+  });
+
+  it('3.5j round 2: a visit soon after the last, with no workout started, keeps the memory the last visit used; a started workout or a later visit rotates', async () => {
+    await db.profile.add({ id: 'me', defaultUnit: 'lb', createdAt: 1 });
+    expect(await readRotation(NOW, db)).toEqual({ lastShown: [], keep: false });
+    // First visit: memory [] chosen the cards A; they are recorded with the memory used.
+    await recordShown(['plan', 'pump'], db, { prev: [], at: NOW });
+    expect(await readRotation(NOW + 60_000, db)).toEqual({ lastShown: [], keep: true });
+    expect(await readRotation(NOW + REVISIT_MS - 1, db)).toEqual({ lastShown: [], keep: true });
+    // Later: the rotation moves on to what was shown.
+    expect(await readRotation(NOW + REVISIT_MS, db)).toEqual({ lastShown: ['plan', 'pump'], keep: false });
+    // A workout started since: moves on at once.
+    await db.sessions.add({ id: 's', gymId: 'g', startedAt: NOW + 1000, imported: false });
+    expect(await readRotation(NOW + 60_000, db)).toEqual({ lastShown: ['plan', 'pump'], keep: false });
+    expect(RECORD_CHECKS.profile({ id: 'me', defaultUnit: 'lb', createdAt: 1, quickIdeas: { shown: ['a'], prev: [], at: 5 } })).toBe(true);
   });
 
   it('done styles: the last 2 finished quick workouts with logged working sets, latest first', async () => {

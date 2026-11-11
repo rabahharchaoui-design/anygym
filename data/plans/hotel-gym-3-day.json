@@ -7,7 +7,7 @@
  "level": "intermediate",
  "daysPerWeek": 3,
  "source": "Generated from movement patterns",
- "generator": 1,
+ "generator": 2,
  "progressionMode": "double",
  "days": [
   {
@@ -48,7 +48,7 @@
      ],
      "note": "Stop with 1 to 2 reps left",
      "sets": 3,
-     "restSec": 120
+     "restSec": 90
     },
     {
      "type": "single",
@@ -60,11 +60,11 @@
      ],
      "note": "Stop with 1 to 2 reps left",
      "sets": 3,
-     "restSec": 120
+     "restSec": 90
     },
     {
      "type": "superset",
-     "sets": 2,
+     "sets": 3,
      "restSec": 60,
      "items": [
       {
@@ -115,7 +115,7 @@
      ],
      "note": "Stop with 1 to 2 reps left",
      "sets": 3,
-     "restSec": 120
+     "restSec": 90
     },
     {
      "type": "single",
@@ -127,7 +127,7 @@
      ],
      "note": "Stop with 1 to 2 reps left",
      "sets": 3,
-     "restSec": 120
+     "restSec": 90
     },
     {
      "type": "single",
@@ -140,11 +140,11 @@
      "eachSide": true,
      "note": "Stop with 1 to 2 reps left",
      "sets": 3,
-     "restSec": 120
+     "restSec": 90
     },
     {
      "type": "superset",
-     "sets": 2,
+     "sets": 3,
      "restSec": 60,
      "items": [
       {
@@ -166,6 +166,18 @@
        "note": "Go close to failure, 0 to 1 reps left"
       }
      ]
+    },
+    {
+     "type": "single",
+     "exercise": "Cable Crunch",
+     "id": "Cable_Crunch",
+     "reps": [
+      10,
+      15
+     ],
+     "note": "Go close to failure, 0 to 1 reps left",
+     "sets": 2,
+     "restSec": 60
     }
    ]
   },
@@ -247,6 +259,17 @@
      "eachSide": true,
      "note": "Go close to failure, 0 to 1 reps left",
      "sets": 3,
+     "restSec": 60
+    },
+    {
+     "type": "single",
+     "exercise": "Elbow Plank",
+     "id": "elbow-plank",
+     "seconds": [
+      30,
+      45
+     ],
+     "sets": 2,
      "restSec": 60
     }
    ]

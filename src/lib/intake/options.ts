@@ -166,6 +166,8 @@ export const EQUIPMENT_LABEL: Record<EquipmentId, string> = {
   stair_climber: 'Stair climber',
   rower: 'Rower',
   jump_rope: 'Jump rope',
+  elliptical: 'Elliptical',
+  yoga_mat: 'Yoga mat',
 };
 
 /** The SPEC 13.7 glossary entry (ⓘ) for equipment a normal person might not know. */

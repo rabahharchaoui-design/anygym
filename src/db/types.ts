@@ -34,6 +34,9 @@ export const EQUIPMENT_IDS = [
   'stair_climber',
   'rower',
   'jump_rope',
+  // PLAN 3.5j (G's Guam hotel gym): added last so every saved list keeps its order.
+  'elliptical',
+  'yoga_mat',
 ] as const;
 export type EquipmentId = (typeof EQUIPMENT_IDS)[number];
 
@@ -123,7 +126,8 @@ export type Profile = {
    */
   coach?: { autoLevelUp?: boolean; autoIntroAt?: number };
   /** PLAN 3.5b (additive, not indexed): the Quick workout cards shown last time (plan, fresh or a style id), for the rotation. */
-  quickIdeas?: { shown?: string[] };
+  /** PLAN 3.5j round 2: `prev` is the memory the cards of `shown` were chosen with and `at` when: a visit soon after sees the same cards. */
+  quickIdeas?: { shown?: string[]; prev?: string[]; at?: number };
 };
 
 /** PLAN 3.5a: the targets Quick workout built for one exercise (a range or a number, like a plan's). */

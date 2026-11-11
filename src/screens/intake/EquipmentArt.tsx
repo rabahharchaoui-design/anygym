@@ -1,5 +1,5 @@
 // PLAN 3.3a: an original line drawing for every SPEC 3 equipment item, drawn in house for AnyGym.
-// One style for all 27: a 48 unit box, one 2 unit stroke in currentColor, round caps and joins, no
+// One style for all 29: a 48 unit box, one 2 unit stroke in currentColor, round caps and joins, no
 // fills, footprints normalised to about 36 to 40 units so no drawing reads as a thin strip or
 // crowds its box. Each drawing has two layers: the frame, and the part that moves or that you hold.
 // On a tile both take the tile's colour (accent when picked); in the ⓘ sheet the moving part turns
@@ -285,6 +285,27 @@ const DRAWINGS: Record<EquipmentId, Drawing> = {
       <>
         <rect x="8" y="32" width="11" height="4" rx="2" />
         <path d="M28 27h-7M21 24v6" />
+      </>
+    ),
+  },
+  // PLAN 3.5j. The floor rail, the flywheel at the back, the upright to the console; the pedal rail
+  // that glides under your feet and the handle that swings with it.
+  elliptical: {
+    frame: (
+      <>
+        <path d="M4 42h38M8 42v-2M38 42v-2M37 42 33 11M29 9h9" />
+        <circle cx="10" cy="32" r="6" />
+      </>
+    ),
+    part: <path d="M10 32 31 25M18 26.5h8M34 20 26 6" />,
+  },
+  // PLAN 3.5j. The mat lying flat; its far end rolled up.
+  yoga_mat: {
+    frame: <path d="M36 41H4l10-15h15" />,
+    part: (
+      <>
+        <circle cx="36" cy="32" r="9" />
+        <path d="M32 32a4 4 0 1 1 4 4" />
       </>
     ),
   },

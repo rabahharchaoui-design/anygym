@@ -192,8 +192,9 @@ test('deck: no layout shift while the demo loops, only top and next move, frame 
   }
   expect(rects.size, 'card and demo never change size or place while the loop runs').toBe(1);
   const moving = await page.locator('[data-testid="deck-demo"]').evaluateAll((els) => els.filter((el) => { const e = el.querySelector('[data-frame="1"]'); return !!e && getComputedStyle(e).animationName !== 'none'; }).length);
-  expect(moving, 'at most the top card and the next one animate').toBeLessThanOrEqual(2);
-  expect(await page.getByTestId('deck-demo').count()).toBeLessThanOrEqual(2);
+  // 3.5f round 3: the incoming swap card is rendered under the top card too, so three at most (top, next, incoming swap).
+  expect(moving, 'at most the top card, the next one and the incoming swap animate').toBeLessThanOrEqual(3);
+  expect(await page.getByTestId('deck-demo').count()).toBeLessThanOrEqual(3);
   await page.evaluate(() => {
     const w = window as unknown as { __f: number[]; __s: boolean };
     w.__f = []; w.__s = false;

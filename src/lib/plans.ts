@@ -225,10 +225,17 @@ export const low = (v: PlanReps): number => (typeof v === 'number' ? v : v[0]);
 
 const span = (v: PlanReps): string => (typeof v === 'number' ? `${v}` : `${v[0]} to ${v[1]}`);
 
+/** "45 sec", "60 to 90 sec"; PLAN 3.5j: whole minutes from 2 min up read in minutes ("5 min", a cardio warm up). */
+function secSpan(v: PlanReps): string {
+  const [lo, hi] = typeof v === 'number' ? [v, v] : v;
+  if (lo >= 120 && lo % 60 === 0 && hi % 60 === 0) return `${lo === hi ? lo / 60 : `${lo / 60} to ${hi / 60}`} min`;
+  return `${span(v)} sec`;
+}
+
 /** "8 to 12 reps", "20 reps each side", "45 sec", "60 to 90 sec", or '' when the plan says nothing. */
 export function amountText(t: Pick<ItemTarget, 'reps' | 'seconds'>, eachSide = false): string {
   if (t.reps !== undefined) return `${span(t.reps)} reps${eachSide ? ' each side' : ''}`;
-  if (t.seconds !== undefined) return `${span(t.seconds)} sec`;
+  if (t.seconds !== undefined) return secSpan(t.seconds);
   return '';
 }
 
@@ -238,10 +245,10 @@ export function amountText(t: Pick<ItemTarget, 'reps' | 'seconds'>, eachSide = f
  */
 export function setsText(t: ItemTarget, reps = false): string {
   const loneHold = t.sets === 1 && t.reps === undefined && t.seconds !== undefined && !t.rounds;
-  if (loneHold) return `${span(t.seconds!)} sec`;
+  if (loneHold) return secSpan(t.seconds!);
   const sets = t.rounds ? `${t.sets} ${t.sets === 1 ? 'round' : 'rounds'}` : `${t.sets} ${t.sets === 1 ? 'set' : 'sets'}`;
   if (t.reps !== undefined) return `${sets} × ${span(t.reps)}${reps ? ' reps' : ''}`;
-  if (t.seconds !== undefined) return `${sets} × ${span(t.seconds)} sec`;
+  if (t.seconds !== undefined) return `${sets} × ${secSpan(t.seconds)}`;
   return sets;
 }
 

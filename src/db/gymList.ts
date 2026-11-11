@@ -7,7 +7,11 @@ import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type ExerciseSetti
 import { cleanGymName, presetById, type GymPresetId } from '../lib/gymPresets';
 import { validDumbbellRange } from '../lib/load';
 
-export type NewGym = { preset: GymPresetId; name: string; city?: string; unit: Unit };
+/**
+ * PLAN 3.5j: `equipment` and `dumbbellRange`, what the user tapped in + New gym (missing: the
+ * preset's). Without dumbbells there is no range.
+ */
+export type NewGym = { preset: GymPresetId; name: string; city?: string; unit: Unit; equipment?: readonly EquipmentId[]; dumbbellRange?: DumbbellRange | null };
 
 /** Adds a gym (not active yet: switching is its own step, so it can be previewed). */
 export async function addGym(input: NewGym, db: AnyGymDB = defaultDb, now = Date.now()): Promise<Gym> {
@@ -15,6 +19,15 @@ export async function addGym(input: NewGym, db: AnyGymDB = defaultDb, now = Date
   const name = cleanGymName(input.name) || preset.label;
   const city = input.city ? cleanGymName(input.city) : '';
   const gym = makeGym({ name, type: preset.type, unit: input.unit, ...(city ? { city } : {}) }, now);
+  if (input.equipment) {
+    const on = new Set(input.equipment);
+    gym.equipment = EQUIPMENT_IDS.filter((id) => on.has(id));
+    if (!on.has('dumbbells')) gym.dumbbellRange = null;
+  }
+  if (input.dumbbellRange !== undefined && gym.equipment.includes('dumbbells')) {
+    if (input.dumbbellRange && !validDumbbellRange(input.dumbbellRange)) throw new Error('Invalid dumbbell range');
+    gym.dumbbellRange = input.dumbbellRange ? { ...input.dumbbellRange } : null;
+  }
   await db.transaction('rw', db.gyms, () => db.gyms.add(gym));
   return gym;
 }

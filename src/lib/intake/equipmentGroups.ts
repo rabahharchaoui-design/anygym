@@ -1,4 +1,4 @@
-// The equipment picker's groups (PLAN 3.3a, SPEC 3 list). Every one of the 27 items is in exactly
+// The equipment picker's groups (PLAN 3.3a, SPEC 3 list). Every one of the 29 items is in exactly
 // one group, in this order. Plain data; the screen draws a picture per item (EquipmentArt.tsx).
 import { EQUIPMENT_IDS, type EquipmentId } from '../../db/types';
 
@@ -14,7 +14,7 @@ export const EQUIPMENT_GROUPS: readonly EquipmentGroup[] = [
     items: ['smith_machine', 'leg_press', 'leg_extension', 'leg_curl', 'chest_press_machine', 'pec_deck', 'shoulder_press_machine', 'calf_raise_machine', 'hip_adductor_abductor'],
   },
   { id: 'cables', label: 'Cables', items: ['cable_station', 'lat_pulldown', 'seated_row'] },
-  { id: 'extras', label: 'Cardio and extras', items: ['resistance_bands', 'jump_rope', 'treadmill', 'bike', 'stair_climber', 'rower'] },
+  { id: 'extras', label: 'Cardio and extras', items: ['resistance_bands', 'jump_rope', 'yoga_mat', 'treadmill', 'elliptical', 'bike', 'stair_climber', 'rower'] },
 ];
 
 /** The groups with only what this place asks about; a group with nothing left is left out. */

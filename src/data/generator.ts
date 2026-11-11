@@ -4,11 +4,14 @@ import { generatePlan, type GeneratorDeps, type GeneratorInput, type GeneratorRe
 import { SWAP_DATA } from './patterns';
 import { profileFor } from './order';
 import { exerciseNameOf } from './importMatch';
+import { approvedCardio } from './candidateGate';
 
 export const GENERATOR_DEPS: GeneratorDeps = {
   data: SWAP_DATA,
   profile: (id) => profileFor(id),
   name: (id) => exerciseNameOf(id) ?? id,
+  // PLAN 3.5j: a cardio warm up only from a move approved on this phone.
+  cardio: approvedCardio,
 };
 
 export const generate = (input: GeneratorInput): GeneratorResult => generatePlan(input, GENERATOR_DEPS);

@@ -82,7 +82,8 @@ describe('ensureFirstGym', () => {
 
 describe('presets (SPEC 3)', () => {
   it('full gym has every picker item', () => {
-    expect(EQUIPMENT_IDS).toHaveLength(27);
+    // PLAN 3.5j: the SPEC 3 list plus an elliptical and a yoga mat (G's Guam hotel gym).
+    expect(EQUIPMENT_IDS).toHaveLength(29);
     expect(equipmentPreset('full', 'lb').equipment).toEqual([...EQUIPMENT_IDS]);
   });
 

@@ -137,12 +137,28 @@ export async function readShown(db: AnyGymDB = defaultDb): Promise<string[]> {
   return (await getProfile(db))?.quickIdeas?.shown ?? [];
 }
 
-/** Remembers the cards shown now (no profile yet: nothing is remembered). */
-export async function recordShown(ids: readonly ConceptId[], db: AnyGymDB = defaultDb): Promise<void> {
+/** A visit within this long of the last one sees the same cards (the rotation moves on when a workout starts or later). */
+export const REVISIT_MS = 30 * 60 * 1000;
+
+/**
+ * PLAN 3.5j round 2: the rotation memory the cards are chosen with. The same inputs give the same
+ * cards: a reload or a second visit within REVISIT_MS, with no workout started since, keeps the
+ * memory the last visit used (`keep`: nothing is recorded again); a started workout, or a later
+ * visit, moves the rotation on to what was shown last.
+ */
+export async function readRotation(now = Date.now(), db: AnyGymDB = defaultDb): Promise<{ lastShown: string[]; keep: boolean }> {
+  const q = (await getProfile(db))?.quickIdeas;
+  if (q?.prev && q.at !== undefined && now >= q.at && now - q.at < REVISIT_MS && (await db.sessions.where('startedAt').aboveOrEqual(q.at).count()) === 0) return { lastShown: q.prev, keep: true };
+  return { lastShown: q?.shown ?? [], keep: false };
+}
+
+/** Remembers the cards shown now, the memory they were chosen with and when (no profile yet: nothing is remembered). */
+export async function recordShown(ids: readonly ConceptId[], db: AnyGymDB = defaultDb, memory?: { prev: readonly string[]; at: number }): Promise<void> {
   await db.transaction('rw', db.profile, async () => {
     const p = await getProfile(db);
     if (!p) return;
-    await db.profile.put({ ...p, quickIdeas: { ...p.quickIdeas, shown: [...ids] } });
+    const { prev: _prev, at: _at, ...rest } = p.quickIdeas ?? {};
+    await db.profile.put({ ...p, quickIdeas: { ...rest, shown: [...ids], ...(memory ? { prev: [...memory.prev], at: memory.at } : {}) } });
   });
 }
 

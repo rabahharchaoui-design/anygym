@@ -771,8 +771,10 @@
   font-weight: 600;
   line-height: 1.18;
   letter-spacing: -0.005em;
-  overflow-wrap: break-word;
-  hyphens: manual;
+  /* PLAN 3.5j round 2: never a break inside a word ("Resistanc/e bands"): up to two lines of whole words. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .tileInfo {
@@ -852,6 +854,44 @@
   min-height: 1.3em;
   color: var(--amber);
   font-size: var(--text-sm);
+}
+
+/* PLAN 3.5j: the unit the heaviest is typed in, and the rack's heaviest in both units. */
+.rangeUnitRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.rangeUnitRow > :last-child {
+  flex: 0 1 9em;
+  min-width: 0;
+}
+
+/* The note and the heaviest share one line: only one of them has words at a time. */
+.rangeStatus {
+  margin-top: var(--space-2);
+  min-height: 1.3em;
+  font-size: var(--text-sm);
+}
+
+.rangeStatus .rangeNote {
+  margin: 0;
+  min-height: 0;
+}
+
+.rangeStatus .rangeNote:empty,
+.rangeCap:empty {
+  display: none;
+}
+
+.rangeCap {
+  margin: 0;
+  color: var(--text-2);
 }
 
 /* Exercises */

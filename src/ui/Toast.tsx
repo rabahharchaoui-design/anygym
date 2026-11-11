@@ -20,6 +20,12 @@ export const undoToast = (id: number, text: string, onUndo: () => void, subject?
 
 const UNDO = 'Undo';
 
+/**
+ * SPEC 13.3: a toast that appears under a finger must not act on that same gesture. A tap on its
+ * action in this long after it appears (a double tap on the button that made it) does nothing.
+ */
+export const TOAST_ARM_MS = 600;
+
 type Props = { toast: ToastMessage | null; /** Extra space below, e.g. above a bottom bar. */ bottom?: string };
 
 /**
@@ -47,6 +53,11 @@ export function Toast({ toast, bottom = '0px' }: Props) {
 function ToastCard({ toast, reduce }: { toast: ToastMessage; reduce: boolean }) {
   const present = useIsPresent();
   const ref = useRef<HTMLDivElement>(null);
+  const shownAt = useRef(performance.now());
+  const press = () => {
+    if (performance.now() - shownAt.current < TOAST_ARM_MS) return;
+    toast.action?.onPress();
+  };
   useEffect(() => {
     if (!present) ref.current?.setAttribute('inert', '');
   }, [present]);
@@ -71,7 +82,7 @@ function ToastCard({ toast, reduce }: { toast: ToastMessage; reduce: boolean }) 
         {toast.text && <span className={styles.rest}>{toast.text}</span>}
       </span>
       {toast.action && (
-        <button type="button" className={`${styles.action} pressable`} onClick={toast.action.onPress} data-undo={toast.action.label === UNDO || undefined}>
+        <button type="button" className={`${styles.action} pressable`} onClick={press} data-undo={toast.action.label === UNDO || undefined}>
           {toast.action.label === UNDO && <Undo2 className={styles.actionIcon} width={16} height={16} strokeWidth={2.4} aria-hidden="true" />}
           {toast.action.label}
         </button>

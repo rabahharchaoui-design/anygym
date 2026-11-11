@@ -1,6 +1,5 @@
 // The intake's question bodies (PLAN 3.3). Built from the 2.2e components: ChoiceCard for five or
 // fewer options, Chip when there are more, SlidingToggle for two option units.
-import { useState } from 'react';
 import { ChoiceCard } from '../../ui/ChoiceCard';
 import { Chip } from '../../ui/Chip';
 import { SlidingToggle } from '../../ui/SlidingToggle';
@@ -11,8 +10,8 @@ import { groupsFor, toggleGroup, toggleItem } from '../../lib/intake/equipmentGr
 import { EquipmentArt } from './EquipmentArt';
 import { CARDIO, CARDIO_FAVORITES, EQUIPMENT_INFO, EQUIPMENT_LABEL, GOALS, type GoalId, type Option } from '../../lib/intake/options';
 import { tapGoal, type UnitsAnswer } from '../../lib/intake/funnel';
-import { dumbbellRangeProblems, formatAmount, parseDumbbellRange, type DumbbellRangeProblems } from '../../lib/load';
 import { iconFor } from './icons';
+import { DumbbellRangeFields } from './DumbbellRangeFields';
 import styles from './Intake.module.css';
 
 /** One pick. Cards for five or fewer options, chips for more. `pulse`: the card that was just tapped. */
@@ -258,61 +257,6 @@ export function EquipmentStep({
     </>
   );
 }
-
-const RANGE_WORDS: Record<NonNullable<DumbbellRangeProblems['min' | 'max' | 'step']>, string> = {
-  number: 'type a number.',
-  zero: 'must be above 0.',
-  'under-min': 'must not be under the lightest.',
-  'too-heavy': 'is more than any dumbbell weighs.',
-  'too-small': 'is not a step dumbbells come in.',
-  'misses-max': 'never lands on the heaviest.',
-};
-const RANGE_LABEL = { min: 'Lightest', max: 'Heaviest', step: 'Goes up by' } as const;
-const RANGE_EXAMPLE: Record<Unit, Record<keyof typeof RANGE_LABEL, string>> = {
-  lb: { min: '5', max: '50', step: '5' },
-  kg: { min: '2', max: '24', step: '2' },
-};
-
-/** Lightest, heaviest and the jump between them, typed by the user (SPEC 3). load.ts checks them. */
-function DumbbellRangeFields({ range, unit, onRange }: { range: DumbbellRange | undefined; unit: Unit; onRange: (r: DumbbellRange | undefined) => void }) {
-  const [text, setText] = useState({ min: range ? formatAmount(range.min) : '', max: range ? formatAmount(range.max) : '', step: range ? formatAmount(range.step) : '' });
-  const change = (key: keyof typeof text, v: string) => {
-    const next = { ...text, [key]: v };
-    setText(next);
-    onRange(parseDumbbellRange(next.min, next.max, next.step, unit) ?? undefined);
-  };
-  const problems = dumbbellRangeProblems(text.min, text.max, text.step, unit);
-  const first = (['min', 'max', 'step'] as const).find((k) => problems[k]);
-  const field = (key: keyof typeof text) => (
-    <label className={styles.rangeField}>
-      <span className={styles.fieldLabel}>{RANGE_LABEL[key]}</span>
-      <input
-        className={`${styles.rangeInput} num`}
-        inputMode="decimal"
-        enterKeyHint="next"
-        placeholder={RANGE_EXAMPLE[unit][key]}
-        value={text[key]}
-        aria-invalid={problems[key] ? true : undefined}
-        onChange={(e) => change(key, e.target.value)}
-        data-testid={`range-${key}`}
-      />
-    </label>
-  );
-  return (
-    <fieldset className={styles.range} data-testid="dumbbell-range">
-      <legend className={styles.rangeTitle}>Your dumbbells, in {unit}</legend>
-      <div className={styles.rangeFields}>
-        {field('min')}
-        {field('max')}
-        {field('step')}
-      </div>
-      <p className={styles.rangeNote} role="status" data-testid="range-note">
-        {first ? `${RANGE_LABEL[first]}: ${RANGE_WORDS[problems[first]!]}` : ''}
-      </p>
-    </fieldset>
-  );
-}
-
 
 /** How they feel about cardio, and right there which they like (SPEC 14 step 9). */
 export function CardioStep({ cardio, favorites, onCardio, onFavorites }: { cardio: string | undefined; favorites: readonly string[] | undefined; onCardio: (id: string) => void; onFavorites: (v: string[]) => void }) {
