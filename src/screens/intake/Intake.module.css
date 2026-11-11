@@ -514,7 +514,8 @@
 }
 
 .unitRow > :last-child {
-  flex: 0 0 58%;
+  /* Up to 58%, and shrinks when a long label (130% text) needs the room: no sideways overflow. */
+  flex: 1 1 58%;
   min-width: 0;
 }
 
