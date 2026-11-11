@@ -68,6 +68,8 @@ export function useStripFit(ref: RefObject<HTMLElement | null>): void {
     const el = ref.current;
     const strip = el?.querySelector<HTMLElement>('[data-testid="plan-so-far"]');
     if (!el || !strip) return;
+    // PLAN 3.5w: while a tapped card pulses the screen holds still (IntakeScreen's data-hold); the next screen measures afresh.
+    if (el.dataset.hold !== undefined) return;
     const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
     if (strip.dataset.away !== undefined) {
       if (el.scrollHeight + strip.offsetHeight + gap <= el.clientHeight) delete strip.dataset.away;
@@ -77,10 +79,27 @@ export function useStripFit(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver !== 'function') return;
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    for (const child of Array.from(el.children)) ro.observe(child);
-    return () => ro.disconnect();
+    // PLAN 3.5w: moving the strip resizes its neighbours, so it is never moved inside their own
+    // resize callback (WebKit: "ResizeObserver loop completed with undelivered notifications", and a
+    // second layout in the same frame). The scroller's box does not change with the strip: it is
+    // read at once. The question's parts are read on the next frame, one read per frame.
+    let frame = 0;
+    const later = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
+    };
+    const box = new ResizeObserver(update);
+    box.observe(el);
+    const parts = new ResizeObserver(later);
+    for (const child of Array.from(el.children)) if (!(child as HTMLElement).matches('[data-testid="plan-so-far"]')) parts.observe(child);
+    return () => {
+      cancelAnimationFrame(frame);
+      box.disconnect();
+      parts.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   });
 }

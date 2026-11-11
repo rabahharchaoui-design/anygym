@@ -62,8 +62,19 @@
   border-radius: inherit;
   background: var(--accent);
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 35%, transparent);
-  transition: width var(--dur-base) var(--ease-out);
+  /* PLAN 3.5w: the fill is always full width and scaled from the left, so growing it never lays anything out. */
+  transform-origin: 0 50%;
+  transition: transform var(--dur-base) var(--ease-out);
   view-transition-name: intake-progress;
+}
+
+[dir='rtl'] .progressFill {
+  transform-origin: 100% 50%;
+}
+
+/* While the page slides the view transition grows the fill: one animation, not two. */
+:global(html[data-nav]) .progressFill {
+  transition: none;
 }
 
 .skip {
@@ -383,7 +394,20 @@
   display: flex;
   flex: 1 1 auto;
   max-height: 112px;
-  transition: flex-grow var(--dur-base) var(--ease-out);
+}
+
+/* PLAN 3.5w: a tapped card pulses for a moment before the next screen comes in. Until then the
+   options keep their size (IntakeScreen sets --hold), so a new pill in "Your plan so far" never
+   moves the card under the finger. */
+.body[data-hold] > .cards[data-fill],
+.body[data-hold] > .chips[data-fill] {
+  flex: none;
+  height: var(--hold);
+}
+
+/* What a choice brings in under it fades in (opacity only), it never pushes in. */
+.fadeIn {
+  animation: fade-in var(--dur-base) var(--ease-out) both;
 }
 
 .cards[data-fill='off'] > * {
@@ -1113,15 +1137,15 @@
   stroke-width: 3;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: draw 300ms var(--ease-out) 300ms forwards;
+  animation: draw 300ms var(--ease-out) 160ms forwards;
 }
 
 .checkMark {
   stroke-width: 4.5;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  /* Done by 860 ms (SPEC 23.3: celebrations up to 900 ms). */
-  animation: draw 260ms var(--ease-out) 600ms forwards;
+  /* Done 640 ms after the page lands, 860 ms after the tap (SPEC 23.3: celebrations up to 900 ms). */
+  animation: draw 240ms var(--ease-out) 400ms forwards;
 }
 
 @keyframes draw {
@@ -1222,7 +1246,15 @@
   opacity: 0;
   transform: translateY(8px);
   animation: row-in 200ms var(--ease-out) forwards;
-  animation-delay: calc(var(--i) * 50ms + 60ms);
+  animation-delay: calc(var(--i) * 40ms);
+}
+
+/* PLAN 3.5w: the week and the check wait for the page to land, so the slide and the build in
+   never play on top of each other. */
+:global(html[data-nav]) .weekRow,
+:global(html[data-nav]) .checkRing,
+:global(html[data-nav]) .checkMark {
+  animation-play-state: paused;
 }
 
 @keyframes row-in {

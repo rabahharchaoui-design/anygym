@@ -3,7 +3,7 @@
 // themselves about 250 ms after the tap (the card pulses, the next screen slides in on the shared
 // page transition); multi select and form screens have Continue, greyed until there is an answer.
 // The answers are kept as a draft on every change, saved on the profile at the reveal.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
@@ -148,6 +148,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const ref = useRef(state);
   const timer = useRef<number>(undefined);
   const [pulse, setPulse] = useState<string | null>(null);
+  // PLAN 3.5w: the height the options keep while the tapped card pulses (nothing moves under the finger).
+  const [hold, setHold] = useState<number | null>(null);
   const scroller = useRef<HTMLElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   useStripFit(scroller);
@@ -167,6 +169,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     ref.current = next;
     if (next.step !== before.step) {
       setPulse(null);
+      setHold(null);
       withTransition(kind, () => setState(next));
     } else setState(next);
   }, []);
@@ -201,6 +204,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     apply({ type: 'back' }, kind);
   };
   const pickAndGo = (screen: AnswerId, id: string) => {
+    const options = scroller.current?.querySelector<HTMLElement>(':scope > [role="group"]');
+    if (options) setHold((h) => h ?? options.getBoundingClientRect().height);
     set(screen, NUMERIC.has(screen) ? Number(id) : id);
     setPulse(id);
     window.clearTimeout(timer.current);
@@ -233,7 +238,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
         <header className={styles.top}>
           {showBack ? <BackButton label={step === 'goal' ? 'Back to Settings' : 'Back'} onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
           <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
-            <span className={styles.progressFill} style={{ width: `${Math.max(4, progressOf(step, answers) * 100)}%` }} />
+            <span className={styles.progressFill} style={{ transform: `scaleX(${Math.max(0.04, progressOf(step, answers))})` }} />
           </div>
           {SKIPPABLE.has(step) ? (
             <button type="button" className={`${styles.skip} pressable`} onClick={skip} data-testid="skip">
@@ -243,7 +248,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <span className={styles.topSpacer} aria-hidden="true" />
           )}
         </header>
-        <main ref={scroller} className={styles.body} data-scroller>
+        <main ref={scroller} className={styles.body} data-scroller data-hold={hold !== null ? '' : undefined} style={hold !== null ? ({ '--hold': `${hold}px` } as CSSProperties) : undefined}>
           {first && !redo && (
             <div className={styles.intro} data-testid="intake-intro">
               <span className={styles.wordmark}>AnyGym</span>

@@ -5,6 +5,8 @@ import { Chip } from '../../ui/Chip';
 import { SlidingToggle } from '../../ui/SlidingToggle';
 import { InfoButton } from '../../components/info/InfoButton';
 import { Check } from 'lucide-react';
+import { useRef } from 'react';
+import { useFlip } from '../../ui/useFlip';
 import type { DumbbellRange, EquipmentId, Unit } from '../../db/types';
 import { groupsFor, toggleGroup, toggleItem } from '../../lib/intake/equipmentGroups';
 import { EquipmentArt } from './EquipmentArt';
@@ -33,9 +35,12 @@ export function SingleChoice<T extends string | number>({
   /** PLAN 3.3a: the cards grow to fill the screen (off while something shows under them). */
   fill?: boolean;
 }) {
+  // PLAN 3.5w: when the cards stop filling (something shows under them) they glide to their new places.
+  const cards = useRef<HTMLDivElement>(null);
+  useFlip(cards, fill);
   if (options.length <= 5)
     return (
-      <div className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
+      <div ref={cards} className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
         {options.map((o) => (
           <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
             <ChoiceCard icon={iconFor(o.icon)} label={o.label} hint={o.hint} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
@@ -264,7 +269,7 @@ export function CardioStep({ cardio, favorites, onCardio, onFavorites }: { cardi
     <>
       <SingleChoice options={CARDIO} value={cardio} onPick={onCardio} pulse={null} testId="q-cardio" fill={!cardio || cardio === 'none'} />
       {cardio && cardio !== 'none' && (
-        <section className={styles.aboutGroup}>
+        <section className={`${styles.aboutGroup} ${styles.fadeIn}`} data-testid="cardio-kinds">
           <span className={styles.fieldLabel}>Any you like? Optional.</span>
           <MultiChoice options={CARDIO_FAVORITES} value={favorites} onChange={onFavorites} testId="q-cardioFavorites" fill={false} />
         </section>

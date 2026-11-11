@@ -42,6 +42,8 @@ export function ExerciseFace({ demo, name, sets, why, fact, position, under, onI
               <InfoIcon width={22} height={22} strokeWidth={2} aria-hidden="true" />
             </button>
           )}
+          {/* PLAN 3.5w: the card underneath keeps the button's room, so its name sits on the same lines when it comes up. */}
+          {onInfo && under && <span className={own.info} aria-hidden="true" />}
         </div>
         {sets && (
           <p className={`${styles.cardSets} num`} data-testid={under ? undefined : 'deck-sets'}>

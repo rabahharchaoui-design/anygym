@@ -23,6 +23,9 @@ const INSTANT = { duration: 0 } as const;
 
 const find = (t: TourTarget) => document.querySelector<HTMLElement>(`[data-tour="${t}"]`);
 
+/** Where the tab bar starts (the bottom of the screen when it is not there). */
+const tabsTop = () => find('tabs')?.getBoundingClientRect().top ?? window.innerHeight;
+
 type Lit = Box & { radius: number };
 
 function measure(el: HTMLElement): Lit {
@@ -66,13 +69,6 @@ export function WelcomeTour({ show }: { show: boolean }) {
     if (!target) return;
     const el = find(target);
     if (!el) return actRef.current('next');
-    if (target !== 'tabs') {
-      // Only as far as it takes to clear the tab bar: the page stays where the user knows it.
-      const r = el.getBoundingClientRect();
-      const tabs = find('tabs')?.getBoundingClientRect().top ?? window.innerHeight;
-      const under = r.bottom + PAD + GAP - tabs;
-      if (under > 0) el.closest('[data-scroller]')?.scrollBy({ top: under, behavior: reduce ? 'auto' : 'smooth' });
-    }
     let frame = 0;
     const read = () => {
       if (el.isConnected) setLit((now) => (moved(now, measure(el)) ? measure(el) : now));
@@ -83,8 +79,9 @@ export function WelcomeTour({ show }: { show: boolean }) {
     const used = (e: MouseEvent) => {
       if (e.target instanceof Node && el.contains(e.target)) actRef.current('skip');
     };
+    // PLAN 3.5w: Escape moves on like a tap outside (the last step ends it); Skip is the way to end it early.
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') actRef.current('skip');
+      if (e.key === 'Escape') actRef.current('next');
     };
     document.addEventListener('click', used, true);
     document.addEventListener('keydown', key);
@@ -99,8 +96,22 @@ export function WelcomeTour({ show }: { show: boolean }) {
     if (words.current) setWordsHeight(words.current.offsetHeight);
   }, [state.index, lit, open]);
 
+  // Only as far as it takes: the element clears the tab bar, and (PLAN 3.5w) when the words fit
+  // neither over it nor between it and the tab bar, far enough for them to fit under it.
+  useEffect(() => {
+    if (!target || target === 'tabs') return;
+    const el = find(target);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const tabs = tabsTop();
+    const fitsOver = r.top - PAD - GAP - wordsHeight >= EDGE;
+    const under = r.bottom + PAD + GAP + (wordsHeight && !fitsOver ? wordsHeight + GAP : 0) - tabs;
+    if (under > 0) el.closest('[data-scroller]')?.scrollBy({ top: under, behavior: reduce ? 'auto' : 'smooth' });
+  }, [target, wordsHeight, reduce]);
+
   const count = steps?.length ?? 0;
-  const view = { top: EDGE, bottom: window.innerHeight - EDGE };
+  // PLAN 3.5w: the words never sit on the tab bar while another element is lit.
+  const view = { top: EDGE, bottom: target && target !== 'tabs' ? Math.min(window.innerHeight - EDGE, tabsTop() - GAP) : window.innerHeight - EDGE };
   const top = lit ? wordsTop(lit, wordsHeight, view, GAP) : 0;
   const glide = reduce ? INSTANT : GENTLE;
 
