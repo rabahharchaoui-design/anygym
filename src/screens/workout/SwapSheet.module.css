@@ -111,3 +111,10 @@
   font-size: 0.875rem;
   text-align: center;
 }
+
+/* 3.5f round 3 (M5): a drag on the deck never selects the sheet's words. */
+.body[data-mode='deck'] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

@@ -348,3 +348,14 @@ describe('setNumbers (gate 3)', () => {
     expect(setNumbers([])).toEqual([]);
   });
 });
+
+describe('PLAN 3.5f round 3 (M11)', () => {
+  it('a hold is never prefilled under the hold "Beat last time" names; a longer planned hold still wins', () => {
+    const hold = progress({ exerciseId: 'p', loadKind: 'timed', unit: 'lb', gym: setup, repRange: null, history: [{ date: 1, gymId: 'g', unit: 'lb', sets: [{ kind: 'work', seconds: 60, load: timedLoad('lb') }] }] });
+    expect(hold?.next.seconds).toBe(60);
+    const rows = pendingRows(input({ progression: hold, certain: timedLoad('lb'), planSeconds: 45, defaultReps: undefined, count: 2 }));
+    expect(rows.map((r) => r.seconds)).toEqual([60, 60]);
+    const longer = pendingRows(input({ progression: hold, certain: timedLoad('lb'), planSeconds: 90, defaultReps: undefined, count: 1 }));
+    expect(longer.map((r) => r.seconds)).toEqual([90]);
+  });
+});

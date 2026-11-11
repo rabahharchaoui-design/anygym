@@ -324,18 +324,32 @@ test.describe('round 2', () => {
       await page.getByTestId('deck-keep').tap();
     }
     await expect(page.getByTestId('deck-name')).toHaveText(NAME);
-    await expect(page.getByTestId('quick-start')).toHaveText('Start now');
-    await page.getByTestId('deck-swap').tap();
+    // 3.5f round 3: one label for the action, "Start workout", on every card.
+    await expect(page.getByTestId('quick-start')).toHaveText('Start workout');
+    // 3.5f round 3 (B1): the deck now offers Replace's whole list (moves without a sure demo too), so
+    // the slot runs out after a few lefts: left until it does, then the card stays.
+    let NAME_NOW = NAME;
+    for (let guard = 0; guard < 20; guard++) {
+      await page.getByTestId('deck-swap').tap();
+      const out = await expect(page.getByTestId('swap-label'))
+        .toHaveText('No other option here', { timeout: 1500 })
+        .then(() => true)
+        .catch(() => false);
+      if (out) break;
+      NAME_NOW = (await page.getByTestId('deck-name').textContent())!;
+    }
     await expect(page.getByTestId('swap-label')).toHaveText('No other option here');
-    await expect(page.getByTestId('deck-name')).toHaveText(NAME);
+    await expect(page.getByTestId('deck-name')).toHaveText(NAME_NOW);
     await shotOn(page, '3.5a', 'swap-none');
     await expect(page.getByTestId('swap-label')).toHaveText('Swap', { timeout: 4000 });
     // Never: it leaves, the line above the card says the new time, Undo is right there.
     const before = Number((await page.getByTestId('curate-meta').textContent())!.match(/~(\d+) min/)![1]);
     await page.getByTestId('deck-never').tap();
     const notice = page.getByTestId('deck-hint');
-    await expect(notice).toContainText(new RegExp(`^${NAME} hidden\\. No replacement available\\. Workout now ~\\d+ min\\.`)); // PLAN 3.8a
-    const after = Number((await notice.textContent())!.match(/~(\d+) min/)![1]);
+    // 3.5f round 3 (M10): the line is only "<Name> hidden" beside Undo; the new time is in the header meta.
+    await expect(notice).toContainText(new RegExp(`^${NAME_NOW.replace(/[()]/g, '\\$&')} hidden`));
+    await expect(notice).not.toContainText('min');
+    const after = Number((await page.getByTestId('curate-meta').textContent())!.match(/~(\d+) min/)![1]);
     expect(after).toBeLessThan(before);
     // PLAN 3.8a: the whole named line is visible (wraps, never clipped) and Undo is a 48 pt target beside it.
     const box = await page.evaluate(() => {
@@ -392,7 +406,8 @@ test.describe('round 2', () => {
       await page.getByTestId('deck-keep').tap();
     }
     const names = [(await page.getByTestId('deck-name').textContent())!];
-    for (let i = 0; i < 12; i++) {
+    // 3.5f round 3 (B1): Replace's whole list now (no sure demo asked for), so more than 12 lefts may come.
+    for (let i = 0; i < 30; i++) {
       const was = await card(page).getAttribute('data-exercise');
       await page.getByTestId('deck-swap').tap();
       const stopped = await expect(page.getByTestId('swap-label'))
@@ -411,7 +426,7 @@ test.describe('round 2', () => {
     const last = (await page.getByTestId('deck-name').textContent())!;
     await page.getByTestId('swap-label').waitFor();
     await page.getByTestId('deck-never').tap();
-    await expect(page.getByTestId('deck-hint')).toContainText(`${last} hidden. No replacement available.`); // PLAN 3.8a
+    await expect(page.getByTestId('deck-hint')).toContainText(`${last} hidden`); // PLAN 3.8a; 3.5f round 3 (M10): the time is in the header
     await expect(page.getByTestId('deck-name')).not.toHaveText(last);
     for (const n of names) await expect(page.getByTestId('deck-name')).not.toHaveText(n);
     expect(errors).toEqual([]);

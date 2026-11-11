@@ -107,6 +107,13 @@
   overflow-wrap: anywhere;
 }
 
+/* 3.5f round 3 (B2): on a short screen the love / never cards need the room; the top Skip already says optional. */
+@media (max-height: 720px) {
+  .screen[data-step='exercises'] .sub {
+    display: none;
+  }
+}
+
 .sub {
   margin: calc(-1 * var(--space-2)) 0 0;
   color: var(--text-2);

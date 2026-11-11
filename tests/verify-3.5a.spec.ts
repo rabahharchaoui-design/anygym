@@ -234,7 +234,12 @@ test.describe('3.5a verify', () => {
       // 3.5f (many lefts): the same pattern first, then the close patterns (a hinge: glutes, hamstrings), never across the body.
       expect.soft([facts(a0).pattern, ...(CLOSE_35F[facts(a0).pattern ?? ''] ?? [])], `${prev} -> ${now}`).toContain(facts(now).pattern);
       expect.soft(doable(facts(now).requires, equipment), now).toBe(true);
-      expect.soft(sureDemo(now), now).toBe(true);
+      // 3.5f round 3 (B1): a swap may be a move without a sure demo (as Replace offers it): then the
+      // card says so honestly and shows no photo, never another move's.
+      if (!sureDemo(now)) {
+        await expect.soft(card(page)).toContainText('No demo for this one yet');
+        await expect.soft(card(page).getByTestId('deck-demo')).toHaveCount(0);
+      }
       prev = now;
     }
     await shot(page, 'deck-swapped');

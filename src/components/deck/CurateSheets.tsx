@@ -46,7 +46,7 @@ export function SixSheet({ open, onClose, options, onPick }: { open: boolean; on
       {open && (
         <div className={styles.sheet} data-testid="six-sheet">
           <h2 className={styles.sheetTitle}>Pick one for this spot</h2>
-          <p className={styles.sheetSub}>{n >= 6 ? 'Six that fit your gym. Tap one to use it.' : `The ${n} other moves your gym has for this. Tap one to use it.`}</p>
+          <p className={styles.sheetSub}>{n >= 6 ? 'Six that fit your gym. Tap one to use it.' : n === 1 ? 'The one other move your gym has for this. Tap it to use it.' : `The ${n} other moves your gym has for this. Tap one to use it.`}</p>
           <ul className={styles.six}>
             {options.map((o) => (
               <li key={o.id}>

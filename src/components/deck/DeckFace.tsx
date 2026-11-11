@@ -10,22 +10,22 @@ import own from './DeckPhoto.module.css';
 // 3.5e): the moving demo photo and the keep and swap cues the drag fades in. The words are the face's own.
 
 /**
- * The whole demo photo, never cropped: a head or the dumbbell over it is never cut off (round 2,
- * P12). PLAN 3.5h: the same moving demo as the exercise screen (the start and end photos
- * crossfading, FormDemo's DemoFrames); the soft fill behind stays the start photo, drawn once.
+ * The demo photo in a fixed 4:3 frame, filled edge to edge (3.5f round 3, M7: the source photos are
+ * close to 4:3, so cover trims only a sliver; never a postage stamp, never blurred bands; `whole`:
+ * the owner review sees every edge of the photo it checks). PLAN 3.5h: the same moving demo as the exercise screen (the start and end photos
+ * crossfading, FormDemo's DemoFrames).
  * No demo: the honest words instead, never another exercise's photo.
  */
-export function DeckPhoto({ demo, none = 'Photo when you are back online' }: { demo: DemoImages | null; none?: string }) {
+export function DeckPhoto({ demo, none = 'Photo when you are back online', whole = false }: { demo: DemoImages | null; none?: string; whole?: boolean }) {
   const photos = useDemoPhotos(demo);
   const src = !demo ? null : photos.kind === 'net' ? assetUrl(demo.webp[0]!) : photos.kind === 'cache' ? photos.urls[0] : null;
   return (
     <div className={styles.photo} data-demo={demo ? '' : undefined}>
       {src && demo ? (
         <>
-          {/* Round 3 (P5): the same photo, soft and dim, fills the box: no dark bands, nothing cropped. */}
-          <img className={styles.photoFill} src={src} alt="" decoding="async" draggable={false} aria-hidden="true" />
+          {/* 3.5f round 3 (M7): a fixed 4:3 frame filled edge to edge (cover), no blurred bands. */}
           <span className={own.moving} data-testid="deck-demo">
-            <DemoFrames demo={demo} photos={photos} lazy={false} />
+            <DemoFrames demo={demo} photos={photos} lazy={false} fit={whole ? 'contain' : 'cover'} />
           </span>
         </>
       ) : (

@@ -3,7 +3,7 @@ import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { UndoIcon } from '../../ui/icons';
 import { demoFor } from '../../data/exerciseInfo';
-import { conceptMinutes, metaLine, type QuickItem } from '../../lib/quick';
+import { conceptMinutes, metaLine, warmUpLine, type QuickItem } from '../../lib/quick';
 import { detailRows } from '../../lib/quickNotes';
 import { FactSheet, HideAskSheet, SixSheet, type Fact } from '../../components/deck/CurateSheets';
 import curate from '../../components/deck/Curate.module.css';
@@ -32,7 +32,8 @@ export function CurateStage({ deck, reduced, error, onBack, onStart, preview }: 
   if (!stage) return null;
   const done = stage.index >= stage.items.length;
   const total = conceptMinutes({ items: stage.items, ...(stage.plan ? { plan: stage.plan } : {}) });
-  const label = done || stage.changed || preview ? 'Start workout' : 'Start now';
+  // 3.5f round 3 (polish): one label for the action everywhere.
+  const label = 'Start workout';
   const info = (item: QuickItem) => setFact({ name: item.name, why: item.why, more: item.more ?? '', rows: [itemLine(item), ...detailRows(item, stage.items)] });
   const noticeRow = (
     <div className={styles.notice} data-testid="deck-hint" aria-live="polite">
@@ -80,11 +81,18 @@ export function CurateStage({ deck, reduced, error, onBack, onStart, preview }: 
       </header>
       {done && notice ? noticeRow : null}
       {done ? (
-        <ol className={styles.ready} data-testid="ready-list" data-reduced={reduced || undefined}>
+        <ol aria-label="Ready to go" className={styles.ready} data-testid="ready-list" data-reduced={reduced || undefined}>
+          {/* Round 3 (M8): Start opens with the plan's warm up; the list says so first. */}
+          {stage.concept.warmUp && (
+            <li className={styles.readyRow} data-warmup="" data-testid="ready-warmup">
+              <span className={styles.readyName}>{warmUpLine(stage.concept.warmUp)}</span>
+              <span className={`${styles.readySets} num`}>First</span>
+            </li>
+          )}
           {stage.items.map((it, i) => (
             <li key={it.slot + it.id} className={styles.readyRow} style={{ ['--i' as string]: i }}>
               <span className={styles.readyName}>{it.name}</span>
-              <span className={`${styles.readySets} num`}>{itemLine(it)}</span>
+              <span className={`${styles.readySets} num`} data-testid="ready-sets">{itemLine(it)}</span>
             </li>
           ))}
         </ol>
@@ -95,6 +103,7 @@ export function CurateStage({ deck, reduced, error, onBack, onStart, preview }: 
             items={stage.items}
             index={stage.index}
             canSwap={deck.canSwap}
+            swapIn={deck.incoming}
             reduced={reduced}
             fling={deck.fling}
             onDecide={deck.decide}
@@ -124,7 +133,7 @@ export function CurateStage({ deck, reduced, error, onBack, onStart, preview }: 
         {label}
       </BottomCTA>
       <FactSheet fact={fact} onClose={() => setFact(null)} />
-      <SixSheet open={deck.sixOpen && deck.six.length > 1} onClose={() => deck.setSixOpen(false)} options={deck.six.map((o) => ({ id: o.id, name: o.name, demo: demoFor(o.id) }))} onPick={(id) => deck.pickSix(deck.six.find((o) => o.id === id)!)} />
+      <SixSheet open={deck.sixOpen && deck.six.length > 0} onClose={() => deck.setSixOpen(false)} options={deck.six.map((o) => ({ id: o.id, name: o.name, demo: demoFor(o.id) }))} onPick={(id) => deck.pickSix(deck.six.find((o) => o.id === id)!)} />
       <HideAskSheet name={deck.ask?.name ?? null} onAnswer={deck.answerAsk} />
     </div>
   );

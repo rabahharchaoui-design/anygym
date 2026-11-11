@@ -1,5 +1,9 @@
 /* PLAN 3.5f: the intake's love / never deck. A height of its own, so the card is the same on every phone. */
 .deck {
+  /* 3.5f round 3 (M5): a drag never selects words. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   /* Round 2 (tester): the deck takes exactly the room the toggle and Continue leave, so the card, its
      three buttons and the footer never overlap, at 100% or 130% text. The card's photo gives way
      first (it shrinks, never the buttons); a tall phone stops at a comfortable card. */
@@ -37,4 +41,13 @@
   margin: 0;
   color: var(--text-2);
   line-height: 1.4;
+}
+
+/* 3.5f round 3 (M12): the Love and Never lists put moves this gym surely has first. */
+.gearDivider {
+  margin: var(--space-2) 0 0;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }

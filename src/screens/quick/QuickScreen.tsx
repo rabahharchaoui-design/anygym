@@ -36,7 +36,7 @@ import styles from './Quick.module.css';
 // up to 4 cards that differ by style (PLAN 3.5f: a calm face, the title, a why line, the count and
 // minutes and the mini map; the rest behind ⓘ), a "More ideas" row that swaps card 4 for another style, then
 // "Curate it": a deck of the workout, one exercise per card.
-// Start now on every card (Start workout once anything changed or after the last card).
+// Start workout on every card (3.5f round 3: one label).
 // "Pick exercises myself" keeps the old picker flow.
 
 /** Taps on More ideas this close together are one double tap. */

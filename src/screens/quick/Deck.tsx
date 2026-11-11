@@ -23,6 +23,8 @@ type Props = {
   onNothingToSwap: () => void;
   onInfo: (item: QuickItem) => void;
   fling: { kind: Decision; n: number } | null;
+  /** Round 3 (B3): the card a left puts in (null: nothing to swap), shown under a left drag. */
+  swapIn: QuickItem | null;
 };
 
 export function Deck({ onNever, onInfo, ...rest }: Props) {

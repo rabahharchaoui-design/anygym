@@ -23,22 +23,26 @@ export const localDay = (t: number) => {
 /** Whole local days between a logged workout and now. */
 export const daysSince = (at: number, now: number): number => Math.max(0, Math.round((localDay(now) - localDay(at)) / DAY_MS));
 
-/** The two muscles a workout works most (by sets), in plain words, without repeats. */
+/**
+ * The two muscle words a card is named for, from the exercises it really holds (3.5f round 3, B4: the
+ * subtitle and the mini map both come from the items, and the first card is what the name promises).
+ * The first exercise's main muscle leads; the other is the word with the most sets after it, each
+ * exercise counted once under its main muscle (its first target), ties going to the earlier move.
+ * `muscles`: every target muscle of the cards that falls under the named words.
+ */
 export function mainWords(items: readonly QuickItem[], deps: QuickDeps): { muscles: Muscle[]; words: string[] } {
-  const count = new Map<Muscle, number>();
-  for (const it of items) for (const m of targetsOf(deps, it.id)) count.set(m, (count.get(m) ?? 0) + it.sets);
-  const muscles: Muscle[] = [];
-  const words: string[] = [];
-  for (const [m] of [...count.entries()].sort((a, b) => b[1] - a[1])) {
+  const sets = new Map<string, number>();
+  const order: string[] = [];
+  for (const it of items) {
+    const m = targetsOf(deps, it.id)[0];
+    if (!m) continue;
     const w = muscleWord(m);
-    if (words.includes(w)) {
-      muscles.push(m);
-      continue;
-    }
-    if (words.length >= 2) break;
-    words.push(w);
-    muscles.push(m);
+    if (!order.includes(w)) order.push(w);
+    sets.set(w, (sets.get(w) ?? 0) + it.sets);
   }
+  const [lead, ...rest] = order;
+  const words = lead ? [lead, ...rest.sort((a, b) => sets.get(b)! - sets.get(a)! || order.indexOf(a) - order.indexOf(b)).slice(0, 1)] : [];
+  const muscles = [...new Set(items.flatMap((it) => targetsOf(deps, it.id)))].filter((m) => words.includes(muscleWord(m)));
   return { muscles, words };
 }
 

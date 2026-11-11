@@ -2,7 +2,7 @@
    and the sheets around a deck. 8 pt grid; every control 48 pt. */
 
 .face {
-  gap: var(--space-1);
+  row-gap: var(--space-1);
   padding: var(--space-4) var(--space-5) var(--space-5);
 }
 

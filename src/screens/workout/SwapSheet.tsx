@@ -178,7 +178,8 @@ export function SwapSheet({ open, onClose, name, options, canAlways, onPick, onS
               {!asList && (
                 // Always one tap away; after 3 lefts it steps forward (the same offer as every deck's "Show me 6").
                 <Button variant={lefts >= SHOW_SIX_AFTER ? 'secondary' : 'tertiary'} onClick={() => setList(true)} data-testid="swap-all" data-offered={lefts >= SHOW_SIX_AFTER || undefined}>
-                  Show {choices.length > SHOW_SIX ? `me ${SHOW_SIX}` : `all ${choices.length}`}
+                  {/* 3.5f round 3: one label for this offer everywhere, "Show me N" (N: what is really there, at most 6). */}
+                  Show me {Math.min(SHOW_SIX, choices.length)}
                 </Button>
               )}
               {restore && (

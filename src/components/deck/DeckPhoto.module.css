@@ -10,3 +10,8 @@
   pointer-events: none;
   background: transparent;
 }
+
+/* 3.5f round 3 (M7): when the 4:3 frame gives way, keep the head and the bar in view. */
+.moving picture img {
+  object-position: 50% 30%;
+}

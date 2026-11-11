@@ -57,20 +57,28 @@ for (const scale of [100, 130]) {
       }
       await expect(page.getByTestId('deck-name')).toHaveText(NAME);
       if (scale !== 100) await page.evaluate((s) => { document.documentElement.style.fontSize = s + "%"; }, scale);
-      await page.getByTestId("deck-swap").tap();
-      await expect(page.getByTestId("swap-label")).toHaveText("No other option here");
+      // 3.5f round 3 (B1): the deck offers Replace's whole list now: left until the slot runs out.
+      let now = NAME;
+      for (let guard = 0; guard < 20; guard++) {
+        await page.getByTestId('deck-swap').tap();
+        const out = await expect(page.getByTestId('swap-label')).toHaveText('No other option here', { timeout: 1500 }).then(() => true).catch(() => false);
+        if (out) break;
+        now = (await page.getByTestId('deck-name').textContent())!;
+      }
       await expect(page.getByTestId("swap-label")).toHaveText("Swap", { timeout: 4000 });
+      const before = Number((await page.getByTestId('curate-meta').textContent())!.match(/~(\d+) min/)![1]);
       await page.getByTestId('deck-never').tap();
       const hint = page.getByTestId('deck-hint');
-      await expect(hint).toContainText(new RegExp(`^${NAME} hidden\\. No replacement available\\. Workout now ~\\d+ min\\.`));
-      const n = Number((await hint.textContent())!.match(/~(\d+) min/)![1]);
-      await expect(page.getByTestId('curate-meta')).toContainText(`~${n} min`);
+      // 3.5f round 3 (M10): "<Name> hidden" only; the new time is in the header meta.
+      await expect(hint).toContainText(`${now} hidden`);
+      await expect(hint).not.toContainText('min');
+      await expect.poll(async () => Number((await page.getByTestId('curate-meta').textContent())!.match(/~(\d+) min/)![1])).toBeLessThan(before);
       const m = await measure(page);
       expect(m.clipped).toBe(false); expect(m.undoH).toBeGreaterThanOrEqual(48); expect(m.undoVisible).toBe(true); expect(m.overlap).toBe(false); expect(m.docScroll).toBe(false);
       await page.waitForTimeout(450);
       await page.screenshot({ path: `${dir}/none-${scale}-${test.info().project.name.replace(/ /g, '-')}.png` });
       await page.getByRole('button', { name: 'Undo' }).tap();
-      await expect(page.getByTestId('deck-name')).toHaveText(NAME);
+      await expect(page.getByTestId('deck-name')).toHaveText(now) // 3.5f round 3: Undo brings back the card as it was (after the lefts);
       expect(errors).toEqual([]);
     });
   });
