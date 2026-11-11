@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
 import { FADE, SHEET_SPRING } from './motion';
 import { Undo2 } from 'lucide-react';
@@ -54,8 +54,14 @@ function ToastCard({ toast, reduce }: { toast: ToastMessage; reduce: boolean }) 
   const present = useIsPresent();
   const ref = useRef<HTMLDivElement>(null);
   const shownAt = useRef(performance.now());
+  // Not tappable (disabled, so a test or a screen reader also waits) until it has been up for TOAST_ARM_MS.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setArmed(true), TOAST_ARM_MS);
+    return () => window.clearTimeout(t);
+  }, []);
   const press = () => {
-    if (performance.now() - shownAt.current < TOAST_ARM_MS) return;
+    if (!armed || performance.now() - shownAt.current < TOAST_ARM_MS) return;
     toast.action?.onPress();
   };
   useEffect(() => {
@@ -82,7 +88,7 @@ function ToastCard({ toast, reduce }: { toast: ToastMessage; reduce: boolean }) 
         {toast.text && <span className={styles.rest}>{toast.text}</span>}
       </span>
       {toast.action && (
-        <button type="button" className={`${styles.action} pressable`} onClick={press} data-undo={toast.action.label === UNDO || undefined}>
+        <button type="button" className={`${styles.action} pressable`} onClick={press} disabled={!armed} data-undo={toast.action.label === UNDO || undefined}>
           {toast.action.label === UNDO && <Undo2 className={styles.actionIcon} width={16} height={16} strokeWidth={2.4} aria-hidden="true" />}
           {toast.action.label}
         </button>

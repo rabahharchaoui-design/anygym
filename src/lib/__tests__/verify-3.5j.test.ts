@@ -38,6 +38,15 @@ describe('verify 3.5j plans', () => {
               if (goal === 'strength') expect(d.blocks.every((b) => b.type === 'single')).toBe(true);
               for (const b of d.blocks) if (b.type === 'superset') for (const it of b.items) expect(it.id).not.toBe((d.blocks[0] as { id: string }).id);
               if (!(n >= 5 && n <= 7)) out.push(`  !! ${d.name} has ${n} moves`);
+              // Round 2 density: never over the chip; a muscle day reaches 5 moves; a strength day that
+              // cannot fit keeps its long rest on the heavy lift and says so.
+              expect(r.applied.minutes[i]!, `${d.name} over the chip`).toBeLessThanOrEqual(minutes);
+              expect(r.applied.over).toBe(false);
+              if (goal === 'muscle') expect(n, `${d.name} moves`).toBeGreaterThanOrEqual(5);
+              else {
+                expect((d.blocks[0] as { restSec: number }).restSec, `${d.name} first lift rest`).toBeGreaterThanOrEqual(120);
+                if (n < 5) expect(r.applied.restKept).toBe(true);
+              }
             });
             console.log(`PLAN ${unit} ${minutes}min ${days}d ${goal}\n${out.join('\n')}`);
           });

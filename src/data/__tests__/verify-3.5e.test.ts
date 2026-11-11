@@ -1,6 +1,6 @@
 // Tester (PLAN 3.5e) independent gate check. Dumps every suggestion path to JSON; with
 // V35E_OUT set it writes the dump (run in a HEAD worktree for the "before" and here for "after").
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { describe, expect, it, afterAll } from 'vitest';
 import { PRESET_KITS } from '../../lib/candidates/presets';
 import { PATTERN_FILE, SWAP_DATA } from '../patterns';
@@ -74,6 +74,8 @@ describe('verify 3.5e gate', () => {
   it('approving a subset adds only that subset, rejected/unapproved never', async () => {
     const file = await loadCandidateFile();
     const all = file.candidates.map((c) => c.id);
+    setApproved([]);
+    const baseline = JSON.stringify(dump());
     const mine = new Set(all.filter((_, i) => i % 3 === 0));
     setApproved(mine);
     const d = JSON.stringify(dump());
@@ -85,7 +87,6 @@ describe('verify 3.5e gate', () => {
     }
     expect(seen).toBeGreaterThan(5);
     setApproved([]);
-    setApproved([]);
-    expect(JSON.stringify(dump())).toBe(JSON.stringify(JSON.parse(readFileSync('/tmp/v35e/after.json', 'utf8'))));
+    expect(JSON.stringify(dump())).toBe(baseline);
   });
 });

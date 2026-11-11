@@ -141,6 +141,8 @@ export type Applied = {
   minutes: number[];
   /** Some day is still over the time picked after the trim. */
   over: boolean;
+  /** PLAN 3.5j: a strength plan kept its long rests, so a short time fits fewer than 5 lifts a day. */
+  restKept?: boolean;
 };
 
 export type GeneratorResult =
@@ -826,6 +828,7 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
       ...(warmUp ? { warmUp: deps.name(warmUp) } : {}),
       minutes,
       over: timed && minutes.some((m) => m > input.minutes!),
+      ...(timed && main === 'strength' && days.some((d) => d.units.length < 5) ? { restKept: true } : {}),
     },
   };
 }

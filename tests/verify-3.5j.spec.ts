@@ -20,15 +20,17 @@ for (const [unit, max, step] of [['kg', 22, 2], ['lb', 45, 5]] as const) {
     await seedGym(page, unit, max, step);
     const lines: string[] = [];
     for (const m of [30, 45]) {
-      await page.goto(`./#/quick?min=${m}`);
-      await expect(page.locator('[data-concept]')).toHaveCount(4);
-      await page.waitForTimeout(800);
-      const heads = await page.locator('[data-concept]').evaluateAll((els) => els.map((e) => [e.getAttribute('data-concept')!, (e.textContent ?? '').replace(/\s+/g, ' ')]));
-      for (const [id, head] of heads) {
+      // Starting a workout moves the rotation on (PLAN 3.5j: rotation only then), so each visit takes the
+      // card in its own place: the one the person would tap.
+      for (let i = 0; i < 4; i++) {
         const p2 = await page.context().newPage();
         await p2.goto(`./#/quick?min=${m}`);
         await expect(p2.locator('[data-concept]')).toHaveCount(4);
-        await p2.locator(`[data-concept="${id}"]`).tap();
+        await p2.waitForTimeout(500);
+        const card = p2.locator('[data-concept]').nth(i);
+        const id = await card.getAttribute('data-concept');
+        const head = ((await card.textContent()) ?? '').replace(/\s+/g, ' ');
+        await card.tap();
         await p2.getByTestId('quick-start').tap();
         await expect(p2).toHaveURL(/#\/workout\//);
         const open = (await dbAll<{ exerciseIds: string[]; endedAt?: number }>(p2, 'sessions')).filter((x) => x.endedAt === undefined).at(-1)!;
@@ -68,6 +70,8 @@ for (const [unit, max, step, each] of cases) {
       });
     };
     await mk('v-last', lastWeek(2), 'dumbbell-bench-press', 12, each * 2);
+    // At the rack top the card needs another lift that earned a raise: the top lift shows in its holding list.
+    if (each === max) await mk('v-last2', lastWeek(3), 'Dumbbell_Shoulder_Press', 12, (max - 2 * step) * 2);
     await mk('v-today', Date.now() - 2 * 3_600_000, 'dumbbell-bicep-curl', 9, 2 * step * 2);
     await page.goto('./');
     await page.reload();
@@ -76,6 +80,11 @@ for (const [unit, max, step, each] of cases) {
     const text = (await card.count()) ? (await card.innerText()).replace(/\n+/g, ' | ') : '(no coach card)';
     console.log(`COACH ${unit} rack ${max}, last ${each}: ${text}`);
     await page.screenshot({ path: `reports/shots/3.5j-verify/coach-${unit}-${each}.png` });
+    // at the rack top the Level up card says so by name, never silently drops the lift
+    if (each === max) {
+      await card.getByTestId('coach-holding-toggle').tap();
+      await expect(card.getByTestId('coach-holding')).toContainText(`Heaviest dumbbell here is ${max} ${unit}: add reps`);
+    }
     // never a target above the rack
     for (const m of text.matchAll(/→ (\d+(?:\.\d+)?)/g)) expect(Number(m[1])).toBeLessThanOrEqual(max);
     expect(errors).toEqual([]);

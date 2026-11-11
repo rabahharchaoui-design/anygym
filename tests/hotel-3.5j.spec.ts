@@ -32,6 +32,25 @@ const text130 = (page: Page, scope: string) =>
     }
   }, scope);
 
+/** Equipment tile labels wrap between words only: a word never spans two lines ("Resistanc/e bands"). */
+const brokenWords = (page: Page, scope: string) =>
+  page.evaluate((root) => {
+    const bad: string[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>(`${root} [class*="tileName"]`))) {
+      const node = el.firstChild;
+      if (!node || node.nodeType !== Node.TEXT_NODE) continue;
+      const text = node.textContent ?? '';
+      for (const m of text.matchAll(/\S+/g)) {
+        const r = document.createRange();
+        r.setStart(node, m.index!);
+        r.setEnd(node, m.index! + m[0].length);
+        const tops = new Set(Array.from(r.getClientRects()).map((q) => Math.round(q.top)));
+        if (tops.size > 1) bad.push(`${text}: ${m[0]}`);
+      }
+    }
+    return bad;
+  }, scope);
+
 /** Settings, Gyms, + New gym, Hotel gym, tap your equipment (dumbbells max 22 kg). */
 async function newHotelGym(page: Page) {
   await page.goto('./');
@@ -163,6 +182,7 @@ test('his equipment screen: the max in kg or lb, under his dumbbells; Make activ
       .map((el) => el.getAttribute('data-testid') ?? el.textContent),
   );
   expect(overflow).toEqual([]);
+  expect(await brokenWords(page, 'main')).toEqual([]);
   await picker.getByTestId('equip-elliptical').scrollIntoViewIfNeeded();
   await shotOn(page, SHOTS, 'equipment-130', PHONES);
   await picker.getByTestId('dumbbell-range').scrollIntoViewIfNeeded();
@@ -188,6 +208,7 @@ test('+ New gym sheet at 130% text: the picker, the rack and Add fit; kg gym kee
   await text130(page, '[role="dialog"]');
   await page.waitForTimeout(150);
   await checkLayout(page, { primary: page.getByTestId('add-gym') });
+  expect(await brokenWords(page, '[role="dialog"]')).toEqual([]);
   await kit.getByTestId('dumbbell-range').scrollIntoViewIfNeeded();
   await shotOn(page, SHOTS, 'new-gym-130', PHONES);
   await page.getByTestId('add-gym').tap();
