@@ -87,17 +87,37 @@ test('a single choice: the new pill wraps "Your plan so far" and no option moves
   await slowCpu(page);
   const frames = fromTap(page, 400);
   await frames.arm();
+  // The reads happen in the page, in the same task that shows the new line: the pick moves on by itself after 250 ms, and a
+  // slow or busy machine can be past that by the time a test's own round trips arrive.
+  await page.evaluate(() => {
+    const w = window as unknown as { __pick: unknown };
+    w.__pick = null;
+    const mo = new MutationObserver(() => {
+      const pill = document.querySelector('[data-testid="so-far-place"]');
+      if (!pill || w.__pick) return;
+      const box = (el: Element | null | undefined) => (el ? ((r) => ({ y: r.y, height: r.height }))(el.getBoundingClientRect()) : null);
+      const foot = [...document.querySelectorAll('p, span, div')].find((e) => e.children.length === 0 && e.textContent?.trim() === 'Stays on this phone.');
+      w.__pick = {
+        text: pill.textContent,
+        options: [...document.querySelector('[data-testid="q-place"]')!.children].map((c) => [(c as HTMLElement).offsetTop, (c as HTMLElement).offsetHeight]),
+        strip: box(document.querySelector('[data-testid="plan-so-far"]')),
+        pill: box(pill),
+        foot: box(foot),
+      };
+      mo.disconnect();
+    });
+    mo.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+  });
   await page.getByTestId('q-place-full').tap();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __pick: unknown }).__pick)).not.toBeNull();
+  const picked = (await page.evaluate(() => (window as unknown as { __pick: unknown }).__pick)) as { text: string; options: number[][]; strip: { y: number; height: number }; pill: { y: number; height: number }; foot: { y: number; height: number } };
   // The answer is in the strip at once, on a line of its own; the cards are where they were.
-  await expect(page.getByTestId('so-far-place')).toHaveText('Full gym');
-  expect(await optionBoxes(page, 'q-place')).toEqual(before);
-  const stripNow = (await strip.boundingBox())!;
-  expect(stripNow.y).toBe(stripBefore.y);
-  expect(stripNow.height).toBeGreaterThan(stripBefore.height);
+  expect(picked.text).toBe('Full gym');
+  expect(picked.options).toEqual(before);
+  expect(picked.strip.y).toBe(stripBefore.y);
+  expect(picked.strip.height).toBeGreaterThan(stripBefore.height);
   // Whole (to a hairline): the new line shows in the room under the strip, above the note.
-  const pill = (await page.getByTestId('so-far-place').boundingBox())!;
-  const foot = (await page.getByText('Stays on this phone.').boundingBox())!;
-  expect(pill.y + pill.height).toBeLessThanOrEqual(foot.y + 1);
+  expect(picked.pill.y + picked.pill.height).toBeLessThanOrEqual(picked.foot.y + 1);
   const longest = await frames.longest();
   console.log(`${test.info().project.name}: place pick longest frame ${longest} ms`);
   // It still moves on by itself, and the next screen holds nothing.

@@ -46,15 +46,19 @@ export async function idleFrames(page: Page, ms = 1000): Promise<Idle> {
   return { p50, p90, longest: gaps[gaps.length - 1] ?? 16.7, slow: p90 > SLOW_P90_MS };
 }
 
-/** Frames expected over `spanMs` of an effect: `strict` on a healthy host, else what half the host's own rate allows (never under `least`, 2 unless said). */
-export const framesFloor = (strict: number, spanMs: number, idle: Idle, least = 2) => (idle.slow ? Math.max(least, Math.min(strict, Math.floor((0.5 * spanMs) / idle.p90))) : strict);
+/** Frames expected over `spanMs` of an effect: `strict` on a healthy host (less in step with an idle page that draws under 60 fps), else what half the host's own rate allows (never under `least`, 2 unless said). */
+export const framesFloor = (strict: number, spanMs: number, idle: Idle, least = 2) =>
+  idle.slow ? Math.max(least, Math.min(strict, Math.floor((0.5 * spanMs) / idle.p90))) : Math.floor(strict * Math.min(1, 17 / Math.max(17, idle.p90)));
 
-/** A 90th percentile frame gap budget: the strict one, or 3 times the idle page's own on a slow host (its frame gaps swing by 2x from one second to the next). */
-export const p90Budget = (strict: number, idle: Idle) => (idle.slow ? Math.max(strict, 3 * idle.p90) : strict);
+/**
+ * A 90th percentile frame gap budget: the strict one, never under `margin` (2) ms over what the idle page does itself, and 3 times
+ * the idle page's own on a slow host (its frame gaps swing by 2x from one second to the next).
+ */
+export const p90Budget = (strict: number, idle: Idle, margin = 2) => Math.max(strict, idle.p90 + margin, idle.slow ? 3 * idle.p90 : 0);
 
 /**
  * A longest frame gap budget: the strict one, widened by what the idle page itself stalls for (1.5 times its longest
- * gap, on any engine: a machine busy with other work stalls an empty page too) and, on a slow Chromium host, 4 times
+ * gap, on any engine: a machine busy with other work stalls an empty page too) and, on a slow host, 4 times
  * the idle page's 90th percentile.
  */
 export const longestBudget = (strict: number, idle: Idle) => Math.max(strict, 1.5 * idle.longest, idle.slow ? 4 * idle.p90 : 0);

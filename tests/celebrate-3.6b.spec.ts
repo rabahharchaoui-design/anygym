@@ -221,7 +221,8 @@ test.describe('3.6b celebrations', () => {
     const p90 = gaps[Math.floor(gaps.length * 0.9)]!;
     console.log(`${test.info().project.name}: ${idleNote(idle)}`);
     console.log(`${test.info().project.name}: BIG frames ${gaps.length}, p50 ${gaps[Math.floor(gaps.length / 2)]!.toFixed(1)} ms, p90 ${p90.toFixed(1)} ms, max ${gaps[gaps.length - 1]!.toFixed(1)} ms`);
-    expect(p90).toBeLessThan(p90Budget(20, idle));
+    // One shot (a BIG shows once per workout), so a few ms more than the best of three used elsewhere.
+    expect(p90).toBeLessThan(p90Budget(20, idle, 6));
     expect(errors).toEqual([]);
   });
 
