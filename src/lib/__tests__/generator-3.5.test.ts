@@ -228,7 +228,7 @@ describe('plan curation from the intake (SPEC 15)', () => {
     const back = itemsOf(ok({ ...base, easyOn: ['lower_back'] })).map((i) => i.id);
     for (const id of ['barbell-back-squat', 'deadlift', 'romanian-deadlift', 'barbell-bent-over-row']) expect(back).not.toContain(id);
   });
-  it.each(['chest', 'back', 'shoulders', 'arms', 'core', 'glutes', 'legs'] as const)('focus %s adds 2 to 4 weekly sets for it', (focus) => {
+  it.each(['chest', 'back', 'shoulders', 'arms', 'core', 'glutes', 'legs'] as const)('focus %s retains 2 to 4 priority sets through replacement or growth', (focus) => {
     const r = generate({ ...base, focus: [focus] });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -236,12 +236,19 @@ describe('plan curation from the intake (SPEC 15)', () => {
     expect(f, focus).toBeDefined();
     expect(f!.sets).toBeGreaterThanOrEqual(2);
     expect(f!.sets).toBeLessThanOrEqual(4);
-    const total = (p: RawPlan) => blocksOf(p).reduce((n, b) => n + b.sets * (b.type === 'single' ? 1 : b.items.length), 0);
-    expect(total(r.plan) - total(ok(base))).toBeGreaterThanOrEqual(2);
+    const report = r.applied.focusReport!;
+    expect(report.priorities.find((p) => p.id === focus)!.extra).toBe(f!.sets);
+    expect(report.spent).toBeLessThanOrEqual(report.budget);
   });
-  it('arms: both biceps and triceps get theirs', () => {
+  it('arms shares one bounded budget while retaining both biceps and triceps', () => {
     const r = generate({ ...base, focus: ['arms'] });
-    expect(r.ok && r.applied.focus).toEqual([{ id: 'arms', sets: 4 }]);
+    expect(r.ok && r.applied.focus[0]?.sets).toBeGreaterThanOrEqual(2);
+    expect(r.ok && r.applied.focus[0]?.sets).toBeLessThanOrEqual(4);
+    if (r.ok) {
+      const patterns = itemsOf(r.plan).map((p) => patternOf(SWAP_DATA, p.id));
+      expect(patterns).toContain('biceps');
+      expect(patterns).toContain('triceps');
+    }
   });
   it('whole body balance adds nothing and claims nothing', () => {
     const r = generate({ ...base, focus: ['balance'] });

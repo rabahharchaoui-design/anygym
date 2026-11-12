@@ -54,3 +54,19 @@ export async function touchDrag(page: Page, target: Locator, dx: number) {
 export async function touchHold(page: Page, target: Locator, ms = 750) {
   await gesture(page, target, { ...(await middle(target)), dx: 0, steps: 0, stepMs: 0, holdMs: ms });
 }
+
+/** A vertical touch-pointer drag for a motion drag handle (never a mouse gesture). */
+export async function touchDragVertical(page: Page, target: Locator, dy: number) {
+  await target.scrollIntoViewIfNeeded();
+  const point = await middle(target);
+  await target.evaluate(async (el, p) => {
+    const under = document.elementFromPoint(p.x, p.y);
+    if (!under || !el.contains(under)) throw new Error('The drag handle is covered');
+    const fire = (type: string, y: number) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 37, pointerType: 'touch', isPrimary: true, clientX: p.x, clientY: y, buttons: type === 'pointerup' ? 0 : 1, button: 0 }));
+    fire('pointerdown', p.y);
+    const steps = Math.max(5, Math.round(Math.abs(p.dy) / 8));
+    for (let i = 1; i <= steps; i++) { await new Promise((r) => setTimeout(r, 24)); fire('pointermove', p.y + p.dy * i / steps); }
+    fire('pointerup', p.y + p.dy);
+  }, { ...point, dy });
+  await page.waitForTimeout(400);
+}

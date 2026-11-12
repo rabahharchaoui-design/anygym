@@ -141,6 +141,7 @@ export function PlanViewer() {
         <section key={d.n} className={styles.day} aria-label={dayTitle(d.n, d.name)}>
           <header className={styles.dayHead}>
             <h2 className={styles.dayTitle}>{dayTitle(d.n, d.name)}</h2>
+            {d.focusWhy?.slice(0, 1).map((line) => <p key={line} className={styles.viewerSummary}>{line}</p>)}
             <span className={`${styles.dayTime} num`}>~{estimateDayMinutes(d, weekIndex)} min</span>
           </header>
           {d.addOn && <p className={styles.addOn}>Plus {d.addOn.toLowerCase()}</p>}

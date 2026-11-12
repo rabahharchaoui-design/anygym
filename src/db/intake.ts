@@ -11,6 +11,7 @@ import type { PlaceAnswer } from '../lib/intake/options';
 
 export const INTAKE_DONE_KEY = 'anygym.intakeDone';
 export const INTAKE_DRAFT_KEY = 'anygym.intakeDraft';
+export const INTAKE_REDO_DRAFT_KEY = 'anygym.intakeRedoDraft';
 
 /** This phone already knows the intake is done (or the user existed before it). */
 export function intakeDoneHere(): boolean {
@@ -142,33 +143,36 @@ export function intakeDraftHere(): boolean {
  * The draft is written to localStorage (sync, for the first paint) and always to IndexedDB kv, so it
  * survives where localStorage throws or lost a late write, as the workout drafts do. Never throws.
  */
-export async function writeIntakeDraft(text: string, db: AnyGymDB = defaultDb): Promise<void> {
+export async function writeIntakeDraft(text: string, db: AnyGymDB = defaultDb, redo = false): Promise<void> {
+  const draftKey = redo ? INTAKE_REDO_DRAFT_KEY : INTAKE_DRAFT_KEY;
   try {
-    localStorage.setItem(INTAKE_DRAFT_KEY, text);
+    localStorage.setItem(draftKey, text);
   } catch {
     // Blocked or full: kv keeps it.
   }
-  await db.kv.put({ key: INTAKE_DRAFT_KEY, value: text, at: Date.now() }).catch(() => undefined);
+  await db.kv.put({ key: draftKey, value: text, at: Date.now() }).catch(() => undefined);
 }
 
-export async function readIntakeDraft(db: AnyGymDB = defaultDb): Promise<string | null> {
+export async function readIntakeDraft(db: AnyGymDB = defaultDb, redo = false): Promise<string | null> {
+  const draftKey = redo ? INTAKE_REDO_DRAFT_KEY : INTAKE_DRAFT_KEY;
   try {
-    const v = localStorage.getItem(INTAKE_DRAFT_KEY);
+    const v = localStorage.getItem(draftKey);
     if (v !== null) return v;
   } catch {
     // Blocked: kv has it.
   }
-  const row = await db.kv.get(INTAKE_DRAFT_KEY).catch(() => undefined);
+  const row = await db.kv.get(draftKey).catch(() => undefined);
   return row?.value ?? null;
 }
 
-export async function clearIntakeDraft(db: AnyGymDB = defaultDb): Promise<void> {
+export async function clearIntakeDraft(db: AnyGymDB = defaultDb, redo = false): Promise<void> {
+  const draftKey = redo ? INTAKE_REDO_DRAFT_KEY : INTAKE_DRAFT_KEY;
   try {
-    localStorage.removeItem(INTAKE_DRAFT_KEY);
+    localStorage.removeItem(draftKey);
   } catch {
     // Nothing to clear.
   }
-  await db.kv.delete(INTAKE_DRAFT_KEY).catch(() => undefined);
+  await db.kv.delete(draftKey).catch(() => undefined);
 }
 
 /**

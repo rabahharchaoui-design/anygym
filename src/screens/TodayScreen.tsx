@@ -11,11 +11,13 @@ import { LoadError } from '../components/LoadError';
 import { Toast, undoToast, type ToastMessage } from '../ui/Toast';
 import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
-import { workSetCount } from '../lib/workSets';
+import { useTodayData } from '../hooks/useTodayData';
+import { useSchedule } from '../hooks/useSchedule';
+import { WeekScheduleSheet } from './today/WeekScheduleSheet';
 import { db } from '../db/schema';
 import { startDb } from '../db/bootstrap';
-import { getPlanState, setNextDay } from '../db/planState';
-import { getActiveSession, startPlanDay, startWorkout } from '../db/workouts';
+import { setNextDay } from '../db/planState';
+import { startPlanDay, startWorkout } from '../db/workouts';
 import { discardEmptyWorkout, undoDiscard } from '../db/discard';
 import { clearSessionDrafts } from '../lib/drafts';
 import { useLive } from '../hooks/useLive';
@@ -27,7 +29,7 @@ import { ChangeDaySheet } from './today/ChangeDaySheet';
 import { BackupReminder } from './today/BackupReminder';
 import { useBackup } from './settings/useBackup';
 import { snoozeBackupReminder } from '../db/backup';
-import { onlyOnPhone, reminderReason, shouldRemind, SNOOZE_MS } from '../lib/backup';
+import { reminderReason, shouldRemind, SNOOZE_MS } from '../lib/backup';
 import { TimeBudgetSheet } from './workout/TimeBudgetSheet';
 import { applyNextStart, localDay, pickFor, readNextStart, trimFor, writeNextStart } from './today/startBudget';
 import { useActiveGym } from '../db/useActiveGym';
@@ -62,39 +64,15 @@ export function TodayScreen() {
     if (r.fired) go('/dev/viewport');
   };
   const location = useLocation();
-  // Open the database first, outside the live query: awaiting a non Dexie promise inside it would
-  // stop it from tracking, and Today would never see a later Change day or finish.
-  const [dbOpen, setDbOpen] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    const done = () => alive && setDbOpen(true);
-    startDb().then(done, done);
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const live = useLive(async () => {
-    if (!dbOpen) return null;
-    const active = await getActiveSession();
-    const planState = await getPlanState();
-    const activeRows = active ? await db.sets.where('sessionId').equals(active.id).toArray() : [];
-    const activeSets = workSetCount(activeRows);
-    // The backup reminder (SPEC 9.1): finished workouts and when the last backup was.
-    const profile = await db.profile.toCollection().first();
-    const done = await db.sessions.filter((s) => s.endedAt !== undefined || s.imported).toArray();
-    const last = profile?.lastBackupAt;
-    // Only on this phone: finished workouts the last successful backup did not hold, by id (never
-    // guessed from dates or from being imported).
-    const onlyHere = onlyOnPhone(done.map((s) => s.id), profile?.backedUpSessionIds);
-    return { active: active ?? null, planState: planState ?? null, activeSets, activeEmpty: !!active && activeRows.length === 0, finished: done.length, onlyHere, lastBackupAt: last, snoozeUntil: profile?.backupSnoozeUntil };
-  }, [dbOpen]);
+  const { dbOpen, live } = useTodayData();
+  const schedule = useSchedule(dbOpen);
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
   // PLAN 3.8: the coach reads with Today, so its card never shifts the page in after the rest.
   const coach = useCoach(dbOpen);
   const [seeChanges, setSeeChanges] = useState(false);
-  const data = { ready: dbOpen && live.ready && live.data != null && coach.ready, value: live.data ?? undefined };
-  const failed = dbOpen && live.error !== null && !data.ready;
+  const data = { ready: dbOpen && live.ready && live.data != null && coach.ready && schedule.ready && !!schedule.data && !schedule.error, value: live.data ?? undefined };
+  const failed = dbOpen && (live.error !== null || schedule.error !== null) && !data.ready;
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [updateReady, setUpdateReady] = useState(isUpdateReady);
   const [error, setError] = useState(false);
@@ -160,7 +138,9 @@ export function TodayScreen() {
   const buildable = useMemo(() => (gym ? canBuild(baseInput(intakeAnswers, kitOf(gym), dislikes), QUICK_DEPS) : null), [gym, intakeAnswers, dislikes]);
   const [timeOpen, setTimeOpen] = useState(false);
   const [pickTick, setPickTick] = useState(0);
-  const nextIndex = plan && planState ? Math.max(0, Math.min(planState.nextDayIndex, plan.days.length - 1)) : 0;
+  const resolved = schedule.data?.resolved;
+  const nextIndex = resolved?.dayIndex ?? 0;
+  const blocked = !!plan && resolved?.dayIndex === null;
   const nextDay = plan?.days[nextIndex];
   const nextWeek = plan && planState && plan.progressionMode === 'weekly_table' ? planState.weekIndex : 0;
   void pickTick;
@@ -212,10 +192,10 @@ export function TodayScreen() {
   });
 
   const startDay = useTapGuard(async () => {
-    if (!plan || !planState) return;
+    if (!plan || !planState || blocked) return;
     setError(false);
     try {
-      const session = await startPlanDay((await startDb()).id, plan.id, planState.nextDayIndex);
+      const session = await startPlanDay((await startDb()).id, plan.id, nextIndex);
       // A lighter week (PLAN 3.8): one set fewer on its exercises, this workout only.
       await applyLighterWeek(session).catch(() => 0);
       // The time picked on Today for this day trims the workout now (never anything not picked).
@@ -265,8 +245,8 @@ export function TodayScreen() {
         }
       />
       <div className={styles.stack} data-arrive={arrived || undefined} data-ready={data.ready || failed || undefined}>
-        {live.error && dbOpen ? (
-          <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={live.retry} />
+        {(live.error || schedule.error) && dbOpen ? (
+          <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={() => { live.retry(); schedule.retry(); }} />
         ) : null}
         {failed ? null : !data.ready ? (
           <Skeleton height={248} radius={28} />
@@ -281,10 +261,17 @@ export function TodayScreen() {
           />
         ) : active ? (
           <ResumeCard active={active} sets={data.value?.activeSets ?? 0} empty={!!data.value?.activeEmpty} onResume={() => void quick()} onDiscard={() => void discard()} />
+        ) : blocked ? (
+          <section className={styles.pick} data-testid="rotation-recovery">
+            <h2 className={styles.pickTitle}>Time to recover</h2>
+            <p className={styles.pickSub}>Every remaining day works muscles trained in the last 48 hours. Your rotation is waiting.</p>
+            {resolved?.eligibleAt && <p>Next day ready {new Date(resolved.eligibleAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</p>}
+          </section>
         ) : plan && planState ? (
           <DayCard
             plan={plan}
-            state={planState}
+            state={{ ...planState, nextDayIndex: nextIndex }}
+            flexible={schedule.data?.style !== 'fixed'}
             onStart={() => void startDay()}
             onChangeDay={(i) => setChanging(i ?? true)}
             onTime={gym ? () => setTimeOpen(true) : undefined}
@@ -360,7 +347,7 @@ export function TodayScreen() {
           onPick={(i) => void pickDay(i)}
         />
       )}
-      {plan && nextDay && (
+      {plan && nextDay && !blocked && (
         <TimeBudgetSheet
           open={timeOpen}
           onClose={() => setTimeOpen(false)}
@@ -372,6 +359,7 @@ export function TodayScreen() {
           onApply={applyTime}
         />
       )}
+      <WeekScheduleSheet schedule={schedule} active={!!active} />
       <LeveledUpSheet
         open={seeChanges && coach.today?.card?.kind === 'leveled_up'}
         onClose={() => setSeeChanges(false)}
@@ -379,7 +367,7 @@ export function TodayScreen() {
       />
       <Toast toast={toast} bottom={toastBottom} />
       {/* PLAN 3.5u: once, right after a first intake; never over a toast and its Undo. */}
-      <WelcomeTour show={shouldShowTour(profile.data?.welcomeTour, { ready: data.ready && !failed && buildable !== null && !toast, activeWorkout: active !== null })} />
+      <WelcomeTour show={shouldShowTour(profile.data?.welcomeTour, { ready: data.ready && !schedule.data?.needsWeek && !failed && buildable !== null && !toast, activeWorkout: active !== null })} />
     </>
   );
 }

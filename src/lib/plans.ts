@@ -11,6 +11,9 @@
 // "where is the plan now" state machine (advancePlan).
 
 import { EQUIPMENT_IDS, type EquipmentId } from '../db/types';
+import { readFocusReport } from './plan/focusMetadata';
+import type { FocusReport } from './plan/focus';
+import type { ScheduleStyle } from './intake/options';
 import { plural } from './words';
 
 export type RepRange = [number, number];
@@ -53,9 +56,11 @@ export type PlanBlock = {
  */
 export type Finisher = { name: string; minutes: number | null; requires?: EquipmentId[][] };
 
-export type PlanDay = { n: number; name: string; addOn?: string; blocks: PlanBlock[]; finisher?: Finisher };
+export type PlanDay = { focusWhy?: string[]; n: number; name: string; addOn?: string; blocks: PlanBlock[]; finisher?: Finisher };
 
 export type Plan = {
+  focusReport?: FocusReport;
+  scheduleStyle?: ScheduleStyle;
   id: string;
   name: string;
   summary: string;
@@ -152,6 +157,7 @@ export function normalizePlan(input: unknown, resolve: ResolveExercise): Plan {
       name: str(day.name) ?? `Day ${di + 1}`,
       blocks: rawBlocks.map((b, bi) => block(obj(b), resolve, `${where} block ${bi + 1}`)),
     };
+    if (Array.isArray(day.focusWhy) && day.focusWhy.every((s) => typeof s === 'string' && s.length < 500)) out.focusWhy = [...day.focusWhy];
     const addOn = str(day.addOn);
     if (addOn) out.addOn = addOn;
     const fin = obj(day.finisher);
@@ -177,6 +183,9 @@ export function normalizePlan(input: unknown, resolve: ResolveExercise): Plan {
     days,
   };
   if (weeks !== undefined) plan.weeks = weeks;
+  const focusReport = readFocusReport(raw.focusReport);
+  if (focusReport) plan.focusReport = focusReport;
+  if (raw.scheduleStyle === 'fixed' || raw.scheduleStyle === 'flexible' || raw.scheduleStyle === 'weekly') plan.scheduleStyle = raw.scheduleStyle;
   return plan;
 }
 

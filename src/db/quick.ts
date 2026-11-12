@@ -3,16 +3,17 @@
 // only: dislikes live on the profile, a built workout's targets on its session; history is never touched.
 // PLAN 3.5b adds the rotation memory: the cards shown last time (on the profile), the style a quick
 // workout started from (on its session), and when each muscle last had logged sets (read only).
+import { readTraining } from './training';
+import { trainedWithin } from '../lib/quickWhy';
 import { planById } from '../data/plans';
-import { profileFor } from '../data/order';
-import { learnLeft, learnNever, learnSwap, recentMuscles, RECENT_MS, unlearnNever, type Concept, type ConceptId, type Dislikes } from '../lib/quick';
+import { learnLeft, learnNever, learnSwap, RECENT_MS, unlearnNever, type Concept, type ConceptId, type Dislikes } from '../lib/quick';
 import type { Muscle } from '../lib/order';
 import { getProfile } from './intake';
 import { newId } from './ids';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { setWorkoutTrim } from './timeBudget';
 import { swapExercise } from './swaps';
-import { ANY_GYM, type QuickTarget, type Session } from './types';
+import { type QuickTarget, type Session } from './types';
 import { getActiveSession, startPlanDay } from './workouts';
 
 export async function getDislikes(db: AnyGymDB = defaultDb): Promise<Dislikes> {
@@ -61,25 +62,10 @@ export async function readRecentAt(now = Date.now(), db: AnyGymDB = defaultDb): 
 
 /** Muscles with logged working sets in workouts started in the last 3 days (logged sets only). */
 export async function readRecentMuscles(now = Date.now(), db: AnyGymDB = defaultDb): Promise<Muscle[]> {
-  return db.transaction('r', db.sessions, db.sets, async () => {
-    const sessions = await db.sessions.where('startedAt').aboveOrEqual(now - RECENT_MS).toArray();
-    const ids = sessions.filter((s) => !s.imported).map((s) => s.id);
-    const sets = ids.length ? await db.sets.where('sessionId').anyOf(ids).toArray() : [];
-    // What a lift trains hard and the helpers a compound tires (bench: chest, then triceps and front
-    // delts), so the day after bench never brings triceps as "fresh". Grip is left out.
-    return recentMuscles(sessions, sets, (id) => {
-      const p = profileFor(id);
-      return [...p.targets, ...p.helpers.filter((m) => m !== 'forearms')];
-    }, now);
-  });
+  return trainedWithin(await readTraining(now, db), now, RECENT_MS);
 }
 
-/** The plan's "Always use this" picks, slot → exercise (the same ones startPlanDay applies). */
-export async function alwaysPicks(planId: string, db: AnyGymDB = defaultDb): Promise<Record<string, string>> {
-  const out: Record<string, string> = {};
-  for (const row of await db.exerciseSettings.filter((x) => x.gymId === ANY_GYM && !!x.alwaysUse?.[planId]).toArray()) out[row.exerciseId] = row.alwaysUse![planId]!;
-  return out;
-}
+export { alwaysPicks } from './planAdapt';
 
 const targetOf = (it: Concept['items'][number], pair?: QuickTarget['pair']): QuickTarget => ({
   sets: it.sets,
@@ -100,25 +86,13 @@ export function pairsOf(items: Concept['items']): Map<string, NonNullable<QuickT
 
 // ---------------------------------------------------------------- rotation memory (PLAN 3.5b)
 
-const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * When each muscle last had logged working sets (never warm ups, never imports, never a future
  * date), over the last 30 days. A muscle missing here has no date the app is sure of.
  */
 export async function readLastTrained(now = Date.now(), db: AnyGymDB = defaultDb): Promise<Partial<Record<Muscle, number>>> {
-  return db.transaction('r', db.sessions, db.sets, async () => {
-    const sessions = (await db.sessions.where('startedAt').between(now - LOOKBACK_MS, now, true, true).toArray()).filter((s) => !s.imported);
-    const at = new Map(sessions.map((s) => [s.id, s.startedAt]));
-    const sets = at.size ? await db.sets.where('sessionId').anyOf([...at.keys()]).toArray() : [];
-    const out: Partial<Record<Muscle, number>> = {};
-    for (const st of sets) {
-      if (st.kind === 'warmup') continue;
-      const t = at.get(st.sessionId)!;
-      for (const m of profileFor(st.exerciseId).targets) out[m] = Math.max(out[m] ?? 0, t);
-    }
-    return out;
-  });
+  return readTraining(now, db);
 }
 
 /** The styles of the last 2 quick workouts done (finished, with logged working sets), latest first. */

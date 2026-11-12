@@ -63,6 +63,7 @@ Pure logic, the brain of the app. About 70 loose files, one job each, plus folde
 - `lib/coach/`: the progression coach. Decides the next weight, when to level up, rest times. A folder with an `index.ts`.
 - `lib/generator/`: writes a plan from the intake answers and the gym's equipment. A folder with an `index.ts`.
 - `lib/quickStyles/`: builds the quick workout ideas (circuit, superset, strength and others). A folder with an `index.ts`.
+- `lib/plan/`: the shared focus budget and final set accounting, rotation recovery and deferred days, and validation of saved focus explanations. Pure functions; data bindings live in `data/focus.ts`, phone reads and weekly writes in `db/schedule.ts` and `db/training.ts`, screens use `hooks/useSchedule.ts`.
 - `lib/intake/`: the logic behind the intake questions (options, which plan fits, equipment groups).
 - `lib/candidates/`: the checks used to decide whether a new exercise or demo is good enough to ship.
 - `lib/reporting/`: problem reports and crash notes, with private details masked before sending.

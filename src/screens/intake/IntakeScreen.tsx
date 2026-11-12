@@ -32,7 +32,7 @@ import {
   type ScreenId,
 } from '../../lib/intake/funnel';
 import { phoneLocale, unitsForLocale } from '../../lib/intake/region';
-import { getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
+import { getProfile, INTAKE_DRAFT_KEY, INTAKE_REDO_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
 import { NO_HANDLERS, stepBody, type StepHandlers } from './stepBody';
 import { NoPlanNotice } from './NoPlan';
 import { PlanSoFar, PlanSoFarLine, STRIP_SCREENS, useStripFit } from './PlanSoFar';
@@ -56,11 +56,11 @@ const COPY: Record<ScreenId, Copy> = {
   goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
   units: { title: 'Your units', why: "Set from your phone's region." },
   // PLAN 3.5: a plan built from the answers uses focus, style, cardio, go easy on and the exercise lists.
-  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets here.' },
+  focus: { title: 'What do you want to work on?', why: 'Pick areas, then parts. We fit extra work to your time.' },
   win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.' },
   experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
   days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
-  weekdays: { title: 'Which days work best?', why: 'Used to lay out your week.' },
+  weekdays: { title: 'Which days work best?', why: 'Choose a schedule that fits your life.' },
   minutes: { title: 'How long per workout?', why: 'Checked against how long each plan takes.' },
   place: { title: 'Where do you usually train?', why: 'Sets up your gym and what it has.' },
   equipment: { title: 'What does your gym have?', why: 'Plans use what is on, or swap. Tap ⓘ if unsure.' },
@@ -101,9 +101,9 @@ function subOf(step: ScreenId, _a?: IntakeAnswers): string | undefined {
   return COPY[step].why || undefined;
 }
 
-function readDraft(): FunnelState | null {
+function readDraft(redo = false): FunnelState | null {
   try {
-    return parseDraft(localStorage.getItem(INTAKE_DRAFT_KEY));
+    return parseDraft(localStorage.getItem(redo ? INTAKE_REDO_DRAFT_KEY : INTAKE_DRAFT_KEY));
   } catch {
     // Blocked storage: the draft is read from IndexedDB kv, just after.
     return null;
@@ -115,13 +115,13 @@ export function IntakeScreen() {
   const redo = params.get('redo') === '1';
   // A fresh start resumes its draft at once when localStorage has it; else it looks in IndexedDB
   // first (a blocked localStorage). A redo loads the saved answers first.
-  const [state, setState] = useState<FunnelState | null>(() => (redo ? null : readDraft()));
+  const [state, setState] = useState<FunnelState | null>(() => readDraft(redo));
   const [leave, setLeave] = useState(false);
   useEffect(() => {
     let alive = true;
     if (redo) {
       redoAnswers({ ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) })
-        .then((a) => alive && setState(startState(a)))
+        .then(async (a) => { const draft = parseDraft(await readIntakeDraft(undefined, true)); if (alive) setState(draft ?? startState(a)); })
         .catch(() => alive && setState(startState(withUnits({}))));
     } else if (!readDraft()) {
       readIntakeDraft()
@@ -156,13 +156,14 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   useStripFit(scroller);
   useMoreBelow(scroller);
   // What a gym is compared with when saving: a redo's starting answers, then what was last saved.
-  const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
+  const baseline = useRef<IntakeAnswers | undefined>(undefined);
 
   // Every answer is kept as it is given (a draft; a redo keeps its own copy only in memory).
   // PLAN 3.5w: the save runs in the next task, out of the screen change's own update (the page is
   // captured sooner). Not later than that: a reload right after a step must come back to it.
   useEffect(() => {
-    if (!redo) window.setTimeout(() => void writeIntakeDraft(serializeDraft(state)), 0);
+    const id = window.setTimeout(() => void writeIntakeDraft(serializeDraft(state), undefined, redo), 0);
+    return () => window.clearTimeout(id);
   }, [state, redo]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -220,7 +221,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const previous = prevScreen(step, answers);
 
   let content: ReactNode;
-  if (step === 'reveal') content = <Reveal answers={answers} redo={redo} onBack={() => back()} baseline={baseline} />;
+  if (step === 'reveal') content = <Reveal answers={answers} redo={redo} onBack={() => back()} baseline={baseline} onChange={(a) => { const next = { ...ref.current, answers: a }; ref.current = next; setState(next); }} />;
   else if (step === 'noPlan') content = <NoPlanNotice answers={answers} onBack={() => back()} onKeepGoing={() => apply({ type: 'next' }, 'push')} />;
   else {
     const kind = KIND[step];

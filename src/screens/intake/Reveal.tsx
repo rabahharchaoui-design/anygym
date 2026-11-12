@@ -5,6 +5,10 @@
 // saved on the phone when it is chosen, with the curated plans that fit as other choices. When even
 // the generator cannot build a week here it says why; Today has the quick workout.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
+import { Button } from '../../ui/Button';
+import { MINUTES, type DaysPerWeek } from '../../lib/intake/options';
+import { scheduleStyleOf } from '../../lib/plan/schedule';
+import { focusLabel } from '../../lib/plan/focus';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { ChoiceCard } from '../../ui/ChoiceCard';
@@ -29,9 +33,9 @@ import { ArtScene } from '../../ui/art/lazy';
 import styles from './Intake.module.css';
 import revealStyles from './IntakeReveal.module.css';
 
-type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
+type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined>; onChange: (a: IntakeAnswers) => void };
 
-export function Reveal({ answers, redo, onBack, baseline }: Props) {
+export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
   const go = useNav();
   const pick = useMemo(() => pickPlan(PLANS, SWAP_DATA, answers), [answers]);
   // A curated plan that truly matches (the accent check) needs nothing built.
@@ -43,6 +47,7 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
   const built = useMemo(() => (exact ? null : generate(generatorInputOf(answers))), [exact, answers]);
   const mine = useMemo(() => (built?.ok ? definitionPlan(built.plan) : undefined), [built]);
   const [chosenId, setChosenId] = useState(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null);
+  useEffect(() => { setChosenId(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null); }, [mine?.id]); // A rebuild replaces the generated choice.
   const isMine = !!mine && chosenId === mine.id;
   const plan = isMine ? mine : planById(chosenId ?? undefined);
   const fits = pick.kind === 'plan' ? [pick.plan, ...pick.others] : [];
@@ -56,17 +61,15 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
 
   // The answers are saved as the reveal opens (profile, units, the first gym, the muscle map body).
   const [error, setError] = useState('');
-  const saved = useRef<Promise<unknown> | null>(null);
   const save = () => {
     const p = persistAnswers(answers, baseline);
-    saved.current = p;
     p.catch(() => setError('Could not save your answers. Try again.'));
     return p;
   };
   useEffect(() => {
     void save();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [answers]);
 
   const scroller = useRef<HTMLElement>(null);
   useMoreBelow(scroller);
@@ -77,9 +80,10 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
     busy.current = true;
     setError('');
     try {
-      await (saved.current ?? save()).catch(() => save());
+      await save();
       await startDb();
       if (redo) {
+        await clearIntakeDraft(undefined, true);
         if (!plan) {
           go('/settings', { kind: 'pop', replace: true });
           return;
@@ -185,6 +189,15 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
               {none.quick}
             </p>
           )}
+          {isMine && built?.ok && built.applied.focusReport?.priorities.length ? <div data-testid="reveal-focus">
+            {built.applied.focusReport.priorities.map((p) => <p className={revealStyles.caveat} key={p.id}>
+              {p.id === 'mobility' ? `Mobility: ${p.minutes ?? 0} min of stretches per rotation.` : `${focusLabel(p.id)}: ${p.total} working sets ${scheduleStyleOf(answers) === 'fixed' ? 'a week' : `per ${plan!.days.length}-workout rotation`}${p.extra ? `, ${p.extra} extra` : ''}.`}
+            </p>)}
+            {built.applied.focusReport.priorities.some((p) => p.shortfall) && <>
+              {(answers.days ?? 3) < 6 && <Button variant="secondary" data-testid="focus-add-day" onClick={() => onChange({ ...answers, days: ((answers.days ?? 3) + 1) as DaysPerWeek })}>Add a day</Button>}
+              {(answers.minutes ?? 45) < 75 && <Button variant="tertiary" data-testid="focus-add-minutes" onClick={() => onChange({ ...answers, minutes: MINUTES.find((m) => m > (answers.minutes ?? 45))! })}>Add minutes</Button>}
+            </>}
+          </div> : null}
           {plan && (
             <ol className={revealStyles.week} data-testid="reveal-week">
               {week.map((w, i) => (

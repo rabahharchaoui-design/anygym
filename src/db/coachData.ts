@@ -1,6 +1,9 @@
 // Everything the coach reads for Today (PLAN 3.8, SPEC 15), turned into the engine's input. Only
 // finished, dated workouts count (imported history has no dates); warm ups, drops, uncertain sets
 // and sets without a load never do. Weights are never touched here.
+import { resolveSchedule } from './schedule';
+import { scheduleStyleOf } from '../lib/plan/schedule';
+import { weekKey } from '../lib/coach/time';
 import type { Region } from '../lib/bodyArt';
 import { REGION_NAMES } from '../lib/bodyArt';
 import { liftKey, type ChangeRecord, type Effort, type Lift, type LiftSession, type TrainedSet } from '../lib/coach';
@@ -91,7 +94,9 @@ function planSlot(planState: PlanState | undefined, exerciseId: string): string 
 export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Promise<CoachData> {
   const gym = await getActiveGym(db);
   const profile = await getProfile(db);
-  const planState = await db.planState.get('active');
+  const storedState = await db.planState.get('active');
+  const resolved = storedState ? await resolveSchedule(storedState, profile, now, db) : null;
+  const planState = storedState && resolved?.dayIndex != null ? { ...storedState, nextDayIndex: resolved.dayIndex } : storedState;
   const all = await db.sessions.toArray();
   const active = all.some((s) => s.endedAt === undefined && !s.imported);
   const finished = all.filter(dated).sort((a, b) => b.startedAt - a.startedAt);
@@ -178,7 +183,7 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     closed,
     liftRows: rows.lifts,
     fresh,
-    recovery: recoveryRegions(recent, sets, planState, now),
+    recovery: resolved?.dayIndex === null ? undefined : recoveryRegions(recent, sets, planState, now),
     todayIds: nextDayIds(planState),
     answeredAt: rows.cards.map((c) => c.at),
     unmapped: [...unmapped],
@@ -213,7 +218,9 @@ function recoveryRegions(recent: readonly Session[], sets: readonly WorkoutSet[]
 export const readCoach = coachData;
 
 /** The weekdays the user trains, from the intake (SPEC 14 step 5), when given. */
-export const weekdaysOf = (profile: Profile | undefined): string[] | undefined => {
-  const w = (profile?.intake as { weekdays?: unknown } | undefined)?.weekdays;
+export const weekdaysOf = (profile: Profile | undefined, now = Date.now()): string[] | undefined => {
+  const style = scheduleStyleOf(profile?.intake);
+  if (style === 'flexible') return undefined;
+  const w = style === 'weekly' ? (profile?.weeklySchedule?.weekKey === weekKey(now) ? profile.weeklySchedule.weekdays : undefined) : profile?.intake?.weekdays;
   return Array.isArray(w) && w.every((x) => typeof x === 'string') && w.length ? (w as string[]) : undefined;
 };

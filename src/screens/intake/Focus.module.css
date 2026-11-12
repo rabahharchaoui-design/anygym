@@ -1,0 +1,12 @@
+.stack { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.tile { display: flex; flex-direction: column; min-width: 0; }
+.tile > button { flex: 1; min-height: 88px; }
+.note, .selection { color: var(--text-2); font-size: var(--text-sm); line-height: 1.5; }
+.selection { padding: var(--space-1); margin: 0; overflow-wrap: anywhere; }
+.weekdays { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.ranks { list-style: none; margin: 0; padding: 0; }
+.rank { display: flex; align-items: center; gap: var(--space-1); border-bottom: 1px solid var(--hairline); background: var(--bg); min-width: 0; }
+.rankName { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.handle { touch-action: none; display: grid; place-items: center; color: var(--text-2); width: 48px; min-width: 48px; height: 48px; background: none; border: 0; }
+.rank > button { min-width: 48px; min-height: 48px; padding-inline: var(--space-2); }

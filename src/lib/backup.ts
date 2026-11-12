@@ -234,13 +234,14 @@ function planStateOk(rows: Rec[], plans: Rec[] = []): boolean {
   }));
   return rows.every((r) => {
     const doneDays = r.doneDays as number[];
+    const pending = (r.pendingDayIndices ?? []) as number[];
     const partial = (r.partial ?? {}) as Record<string, number>;
     if (!dayIndex(r.nextDayIndex) || !dayIndex(r.weekIndex) || !doneDays.every(dayIndex)) return false;
     if (!Object.keys(partial).every((k) => dayIndex(Number(k)) && /^\d+$/.test(k))) return false;
     const plan = saved.get(r.planId as string) ?? planById((RENAMED_PLAN_IDS as Record<string, string>)[r.planId as string] ?? (r.planId as string));
-    if (!plan) return true;
+    if (!plan) return pending.length === 0;
     const n = plan.days.length;
-    return (r.nextDayIndex as number) < n && doneDays.every((d) => d < n) && Object.keys(partial).every((k) => Number(k) < n);
+    return (r.nextDayIndex as number) < n && doneDays.every((d) => d < n) && pending.every((d) => d < n) && Object.keys(partial).every((k) => Number(k) < n);
   });
 }
 const isRest = shape({ req: { sessionId: str, endsAt: num, totalSec: num } });

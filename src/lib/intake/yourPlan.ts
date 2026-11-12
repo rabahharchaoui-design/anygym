@@ -1,12 +1,13 @@
 // "Your plan" (PLAN 3.5, SPEC 14 step 14): the intake answers as the generator's input, and the plain
 // words on what it built. Every word comes from what the generator really did (Applied), never from
 // what the answers merely asked for. Pure.
+import { focusLabel } from '../plan/focus';
 import type { Applied, GeneratorInput } from '../generator';
 import type { Pattern } from '../swap';
 import { gymKitOf } from './planFit';
 import { goalsOf, type IntakeAnswers } from './funnel';
 import { EASY_ON, labelOf, type FocusId, type GoalId, type PlaceAnswer } from './options';
-import { FINISHER_MINUTES, FOCUS_RULES } from '../generatorRules';
+import { FINISHER_MINUTES } from '../generatorRules';
 import { cap } from '../words';
 
 /** Every answer the generator uses: goals, level, days, time, equipment, focus, go easy on, loved and never, style, cardio. */
@@ -15,6 +16,8 @@ export function generatorInputOf(a: IntakeAnswers): GeneratorInput {
   if (a.experience) input.experience = a.experience;
   if (a.days !== undefined) input.days = a.days;
   if (a.minutes !== undefined) input.minutes = a.minutes;
+  if (a.focusPicks !== undefined) input.focusPicks = a.focusPicks;
+  input.scheduleStyle = a.scheduleStyle ?? (a.weekdays?.length ? 'fixed' : 'flexible');
   if (a.focus?.length) input.focus = a.focus;
   if (a.easyOn?.length) input.easyOn = a.easyOn;
   if (a.love?.length) input.love = a.love;
@@ -80,7 +83,7 @@ const GAP_WORD: Record<Pattern, string> = {
 
 export const list = (items: readonly string[]): string => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 const average = (ns: readonly number[]): number => (ns.length ? Math.round(ns.reduce((x, y) => x + y, 0) / ns.length) : 0);
-const focusWord = (f: FocusId): string => (f === 'balance' ? 'balance' : FOCUS_RULES[f].word);
+const focusWord = (f: FocusId): string => (f === 'arms' ? 'arm' : focusLabel(f).toLowerCase());
 const short = (items: readonly string[], max = 3): string[] => (items.length > max ? [...items.slice(0, max - 1), 'more'] : [...items]);
 
 export type YourPlanWords = {
@@ -98,7 +101,9 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   const avg = average(applied.minutes);
   const parts: string[] = [`${days} days`, `about ${avg} min`];
   if (a.place) parts.push(PLACE_WORD[a.place]);
-  if (applied.focus.length) parts.push(`extra ${list(applied.focus.map((f) => focusWord(f.id)))} work`);
+  const retained = applied.focusReport?.priorities.filter((p) => p.extra > 0);
+  if (retained?.length) parts.push(`extra ${list(retained.slice(0, 2).map((p) => (p.id === 'arms' ? 'arm' : focusLabel(p.id).toLowerCase())))} work`);
+  else if (applied.focus.length) parts.push(`extra ${list(applied.focus.map((f) => focusWord(f.id)))} work`);
   const easy = applied.easyOn.map((j) => (labelOf(EASY_ON, j as (typeof EASY_ON)[number]['id']) ?? j).toLowerCase());
   if (easy.length) parts.push(`easy on ${list(short(easy, 2))}`);
   if (applied.loved.length) parts.push(applied.loved.length === 1 ? 'with an exercise you love' : `with ${applied.loved.length} exercises you love`);
@@ -114,6 +119,11 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   if (applied.focusMissed.length) misses.push(`extra ${list(applied.focusMissed.map(focusWord))} work`);
   if (applied.lovedMissed.length) misses.push(applied.lovedMissed.length === 1 ? 'the exercise you love' : `${applied.lovedMissed.length} exercises you love`);
   if (misses.length) notes.push(`No room for ${list(misses)} here.`);
+  const shortfalls = applied.focusReport?.priorities.filter((p) => p.shortfall) ?? [];
+  if (shortfalls.length) {
+    const served = applied.focusReport!.priorities.filter((p) => p.extra > 0).slice(0, 2).map((p) => focusLabel(p.id));
+    notes.push(`${applied.focusReport!.priorities.length} focus ${applied.focusReport!.priorities.length === 1 ? 'choice shares' : 'choices share'} your time. ${served.length ? `We prioritized ${list(served)}. ` : ''}Still short: ${list(shortfalls.map((p) => focusLabel(p.id)))}. More days or minutes may help; equipment and experience limits still apply.`);
+  }
   const timed = a.minutes !== undefined && a.minutes < 75;
   // PLAN 3.5g: the real minutes, and what to do about it (the workout offers Make it fit at the start).
   const over = applied.over && timed ? overWords(applied.minutes, a.minutes!) : null;

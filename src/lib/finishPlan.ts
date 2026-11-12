@@ -4,6 +4,7 @@
 // less keeps the same day up next. Only a fully done day earns the tick; 60 to 99% leaves a
 // partial ring on the day it moved on from.
 import { advancePlan, type Plan, type PlanPosition } from './plans';
+import { advanceRotation } from './plan/schedule';
 import type { DayProgress } from './planWorkout';
 
 /** Share of the day's working sets that moves the plan on. */
@@ -15,6 +16,7 @@ export const movesOn = (share: number): boolean => share >= ADVANCE_SHARE;
 export type FinishPosition = PlanPosition & {
   /** Day index → share done, for the partial rings. Empty when the pass started over. */
   partial: Record<number, number>;
+  pendingDayIndices?: number[];
 };
 
 /**
@@ -26,7 +28,7 @@ export type FinishPosition = PlanPosition & {
  * its last week: advancePlan). Partial marks of other days stay.
  */
 export function finishPlanPosition(
-  state: PlanPosition & { partial?: Record<number, number> },
+  state: PlanPosition & { partial?: Record<number, number>; pendingDayIndices?: number[] },
   plan: Pick<Plan, 'days' | 'progressionMode' | 'weeks'>,
   dayIndex: number,
   progress: Pick<DayProgress, 'share' | 'complete'>,
@@ -36,9 +38,15 @@ export function finishPlanPosition(
   const partial = { ...(state.partial ?? {}) };
   if (!progress.complete && !movesOn(share)) {
     partial[day] = Math.max(partial[day] ?? 0, share);
-    return { nextDayIndex: day, weekIndex: state.weekIndex, doneDays: [...state.doneDays], partial };
+    return { nextDayIndex: day, weekIndex: state.weekIndex, doneDays: [...state.doneDays], partial, ...(state.pendingDayIndices ? { pendingDayIndices: [...state.pendingDayIndices] } : {}) };
   }
-  const pos = advancePlan(state, day, plan);
+  const rotation = state.pendingDayIndices ? advanceRotation(state, plan.days.length, day) : null;
+  const pos = rotation ? {
+    nextDayIndex: rotation.nextDayIndex,
+    pendingDayIndices: rotation.pendingDayIndices,
+    weekIndex: rotation.wrapped ? advancePlan(state, plan.days.length - 1, plan).weekIndex : state.weekIndex,
+    doneDays: rotation.wrapped ? [] : [...new Set([...state.doneDays, day])],
+  } : advancePlan(state, day, plan);
   if (pos.doneDays.length === 0) return { ...pos, partial: {} };
   if (progress.complete) {
     delete partial[day];
