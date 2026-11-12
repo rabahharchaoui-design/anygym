@@ -1,7 +1,7 @@
 // The top of the exercise view (SPEC 20.2, PLAN 2.2b): the demo hero whose foot (name, set line, ⋯)
 // stays pinned while the picture scrolls away, or, without a sure demo, a compact header with a tile.
-// PLAN 3.5g: once the first set is logged the hero shrinks (`small`), so the set rows and the rest
-// bar share the screen on an iPhone SE. Moved out of ExerciseView (code organization), otherwise as it was.
+// PLAN 3.5w: the hero never resizes after a check; short phones get the small picture from the start
+// (Workout.module.css), so the set rows and the rest bar share the screen on an iPhone SE.
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MoreIcon } from '../../ui/icons';
 import { FormDemo } from '../../components/exercise/FormDemo';
@@ -25,11 +25,9 @@ type Props = {
   targetText: string;
   entry: Pick<WorkoutEntry, 'kind' | 'pairSize' | 'pairIndex'> | undefined;
   onMenu: () => void;
-  /** PLAN 3.5g: a set is logged: the hero gives the rows its room. */
-  small: boolean;
 };
 
-export function ExerciseHead({ name, kind, info, photosOk, hasDemo, note, targetText, entry, onMenu, small }: Props) {
+export function ExerciseHead({ name, kind, info, photosOk, hasDemo, note, targetText, entry, onMenu }: Props) {
   /** The hero folded into its compact title bar (scrolled past the picture). */
   const [folded, setFolded] = useState(false);
   const [demo, setDemo] = useState(false);
@@ -100,7 +98,7 @@ export function ExerciseHead({ name, kind, info, photosOk, hasDemo, note, target
       {hasDemo && info.demo ? (
         // The demo hero (PLAN 2.2b): the photos loop like a gif; the name and set ride on its foot,
         // which stays pinned (with the ⋯) while the picture scrolls away above it.
-        <div className={styles.hero} ref={heroRef} data-testid="ex-hero" data-folded={folded || undefined} data-small={small || undefined}>
+        <div className={styles.hero} ref={heroRef} data-testid="ex-hero" data-folded={folded || undefined}>
           <span className={styles.heroArt} aria-hidden="true">
             <span className={styles.heroMedia}>{heroArt}</span>
           </span>

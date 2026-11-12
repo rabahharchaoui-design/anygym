@@ -1,5 +1,7 @@
 import { expect, test, type Page } from './fixtures';
 import { simulateSafeAreas } from './helpers/layout';
+import { pastIntake } from './helpers/quick';
+import { bar185, checkCurrent, exerciseView, loggedRows, quickWith, seedFinished } from './workout-helpers';
 
 // PLAN 3.5w: motion polish from G's recordings. Each fixed transition has its proof here: nothing
 // moves under the finger, one animation per element, movement on transforms only inside the shared
@@ -284,4 +286,308 @@ test('the welcome: Escape moves on like a tap outside, and the words never sit o
   // On the last step moving on ends it, as Done does.
   await page.keyboard.press('Escape');
   await expect(tour).toHaveCount(0);
+});
+
+// ---- Round 2 majors in the intake (ux-critic M5, M6, M7).
+
+test('M5 place to equipment: the slide carries the first rows only, the rest of the grid arrives once it has landed @matrix', async ({ page }) => {
+  await drafted(page, 'place', { goal: 'muscle', goals: ['muscle'], units: US, experience: 'break', days: 5, minutes: 45 });
+  await page.evaluate(() => {
+    const w = window as unknown as { __tiles: number[] };
+    w.__tiles = [];
+    const loop = () => {
+      const grid = document.querySelector('[data-testid="equipment"]');
+      if (grid && document.documentElement.dataset.nav) w.__tiles.push(grid.querySelectorAll('[data-testid^="equip-"][aria-pressed]:not([data-testid^="equip-all"])').length);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  });
+  await slowCpu(page);
+  const frames = fromTap(page, 600);
+  await frames.arm();
+  await page.getByTestId('q-place-full').tap();
+  await atStep(page, 'equipment');
+  const longest = await frames.longest();
+  console.log(`${test.info().project.name}: place to equipment longest frame ${longest} ms`);
+  const during = await page.evaluate(() => (window as unknown as { __tiles: number[] }).__tiles);
+  // While the page slides (where there is a view transition) only three rows of three are in it.
+  for (const n of during) expect(n).toBeLessThanOrEqual(9);
+  // Landed: every tile is there, and all can be reached.
+  await expect(page.getByTestId('equipment')).toHaveAttribute('data-whole', 'true');
+  expect(await page.getByTestId('equipment').locator('li button[aria-pressed]').count()).toBeGreaterThan(20);
+  await expect(page.getByTestId('equip-jump_rope')).toHaveCount(1);
+});
+
+test('M6 cardio on a short screen: the kinds that arrive below the fold are scrolled into view, only as far as needed', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 659 });
+  await drafted(page, 'cardio', { ...FULL, cardio: undefined });
+  await page.getByTestId('q-cardio-love').tap();
+  const kinds = page.getByTestId('cardio-kinds');
+  await expect(kinds).toBeVisible();
+  await expect(kinds).toBeInViewport({ ratio: 1 });
+  // Above the button, and not a pixel further than that takes.
+  await expect
+    .poll(async () => {
+      const k = (await kinds.boundingBox())!;
+      const main = (await page.locator('main[data-scroller]').boundingBox())!;
+      return Math.round(main.y + main.height - (k.y + k.height));
+    })
+    .toBeLessThanOrEqual(10);
+  const gap = await page.evaluate(() => {
+    const k = document.querySelector('[data-testid="cardio-kinds"]')!.getBoundingClientRect();
+    const m = document.querySelector('main[data-scroller]')!.getBoundingClientRect();
+    return m.bottom - k.bottom;
+  });
+  expect(gap).toBeGreaterThanOrEqual(0);
+});
+
+test('M7 a short screen: with no room for the strip, one line under the progress bar shows the latest answer and "+N"', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 659 });
+  await drafted(page, 'experience', { goal: 'muscle', goals: ['muscle', 'fat_loss'], units: US });
+  const line = page.getByTestId('plan-so-far-line');
+  const strip = page.getByTestId('plan-so-far');
+  const state = async () => ({ away: await strip.evaluate((el) => (el as HTMLElement).dataset.away !== undefined), line: await line.isVisible() });
+  // Exactly one of the two shows.
+  const first = await state();
+  expect(first.line).toBe(first.away);
+  test.skip(!first.away, 'the strip fits here');
+  await expect(line.getByTestId('so-far-latest')).toHaveText('Muscle + fat loss');
+  await expect(line.getByTestId('so-far-more')).toHaveCount(0);
+  // One line, right under the progress bar, above the title.
+  const bar = (await page.getByRole('progressbar').boundingBox())!;
+  const box = (await line.boundingBox())!;
+  const title = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
+  expect(box.height).toBeLessThanOrEqual(36);
+  expect(box.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  expect(box.y + box.height).toBeLessThanOrEqual(title.y + 1);
+  // The pick moves nothing (the line keeps its one row) and the next screen shows the new answer.
+  const before = await optionBoxes(page, 'q-experience');
+  await page.getByTestId('q-experience-3y').tap();
+  expect(await optionBoxes(page, 'q-experience')).toEqual(before);
+  await atStep(page, 'days');
+  await page.waitForFunction(() => !document.documentElement.dataset.nav);
+  await expect(line).toBeVisible();
+  await expect(line.getByTestId('so-far-latest')).toHaveText('3+ years');
+  await expect(line.getByTestId('so-far-more')).toHaveText('+1');
+  // A screen that adds nothing to the plan has neither.
+  await page.getByTestId('q-days-4').tap();
+  await atStep(page, 'weekdays');
+  await expect(line).toHaveCount(0);
+});
+
+// ---- Round 2 (ux-critic, reports/shots/3.5w-critic/): the three blockers, measured on every frame.
+test.describe('round 2: past the intake', () => {
+  test.use({ intake: 'done' });
+
+  /** Records `read()` on every frame from the next pointerdown for `ms`. Read with frames(). */
+  const everyFrame = async (page: Page, ms: number, read: string) => {
+    await page.evaluate(
+      ([span, body]) => {
+        const w = window as unknown as { __ef: Array<{ t: number; v: unknown }> };
+        w.__ef = [];
+        const fn = new Function(`return (${body})()`);
+        document.addEventListener(
+          'pointerdown',
+          () => {
+            const t0 = performance.now();
+            const loop = () => {
+              const t = performance.now() - t0;
+              w.__ef.push({ t, v: fn() });
+              if (t < (span as number)) requestAnimationFrame(loop);
+            };
+            loop();
+          },
+          { capture: true, once: true },
+        );
+      },
+      [ms, read] as const,
+    );
+    return async <T,>() => {
+      await page.waitForTimeout(ms + 150);
+      return page.evaluate(() => (window as unknown as { __ef: Array<{ t: number; v: unknown }> }).__ef) as Promise<Array<{ t: number; v: T }>>;
+    };
+  };
+
+  test('B1 a tab switch: the bar is pixel stable on every frame, no page snapshot, the pill slides live, only the screen rises @matrix', async ({ page }) => {
+    await page.goto('./');
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await expect(nav).toBeVisible();
+    await page.waitForTimeout(500);
+    type F = { bar: number[]; opacity: number[]; nav: string | null; pill: number; page: [number, number] | null };
+    const frames = await everyFrame(
+      page,
+      600,
+      `() => {
+        const nav = document.querySelector('nav[aria-label="Main"]');
+        const cap = nav.firstElementChild;
+        const r = cap.getBoundingClientRect();
+        const n = nav.getBoundingClientRect();
+        const pill = nav.querySelector('[data-pill]');
+        const main = document.querySelector('[data-shell] main[data-scroller]');
+        const cs = main ? getComputedStyle(main) : null;
+        return {
+          bar: [r.x, r.y, r.width, r.height, n.x, n.y, n.width, n.height],
+          opacity: [Number(getComputedStyle(nav).opacity), Number(getComputedStyle(cap).opacity)],
+          nav: document.documentElement.dataset.nav ?? null,
+          pill: pill ? pill.getBoundingClientRect().x : -1,
+          page: cs ? [Number(cs.opacity), cs.transform === 'none' ? 0 : new DOMMatrixReadOnly(cs.transform).m42] : null,
+        };
+      }`,
+    );
+    const plans = nav.getByRole('link', { name: 'Plans' });
+    await plans.tap();
+    const seen = await frames<F>();
+    expect(seen.length).toBeGreaterThan(10);
+    // The bar: the same box and fully opaque on every single frame, and never inside a view transition.
+    for (const f of seen) {
+      expect(f.v.bar, `bar box at ${Math.round(f.t)} ms`).toEqual(seen[0]!.v.bar);
+      expect(f.v.opacity, `bar opacity at ${Math.round(f.t)} ms`).toEqual([1, 1]);
+      expect(f.v.nav, `no view transition at ${Math.round(f.t)} ms`).toBeNull();
+      expect(f.v.pill, 'the pill is always in the bar').toBeGreaterThanOrEqual(0);
+    }
+    expect(await nav.evaluate((el) => [el, ...el.querySelectorAll<HTMLElement>('*')].filter((e) => /tab-/.test(getComputedStyle(e).viewTransitionName ?? '')).length)).toBe(0);
+    // The pill travels through places between the two tabs (live, not a jump), and ends under Plans.
+    const xs = seen.map((f) => f.v.pill);
+    const from = xs[0]!;
+    const to = (await plans.boundingBox())!.x;
+    if (!(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches))) expect(xs.filter((x) => x > from + 4 && x < to - 4).length).toBeGreaterThanOrEqual(3);
+    await expect.poll(async () => Math.abs((await nav.locator('[data-pill]').boundingBox())!.x - to)).toBeLessThan(1.5);
+    // Only the screen's content moved: it faded in and rose at most 7 px, and is at rest inside 350 ms.
+    const pages = seen.filter((f) => f.v.page).map((f) => ({ t: f.t, o: f.v.page![0], y: f.v.page![1] }));
+    expect(pages.some((p) => p.o < 1)).toBe(true);
+    expect(Math.max(...pages.map((p) => p.y))).toBeLessThanOrEqual(7.01);
+    expect(Math.max(...pages.map((p) => p.y))).toBeGreaterThan(1);
+    for (const p of pages.filter((q) => q.t > 350)) expect([p.o, p.y]).toEqual([1, 0]);
+    await expect(page.getByRole('heading', { name: 'Plans' }).first()).toBeVisible();
+  });
+
+  test('B1 reduced motion: the screen only fades, the bar and pill do not animate', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('./');
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await page.waitForTimeout(400);
+    const frames = await everyFrame(page, 300, `() => { const m = document.querySelector('[data-shell] main[data-scroller]'); return m ? getComputedStyle(m).transform : 'none'; }`);
+    await nav.getByRole('link', { name: 'History' }).tap();
+    for (const f of await frames<string>()) expect(f.v).toBe('none');
+  });
+
+  async function openSquat(page: Page) {
+    await page.goto('./');
+    await seedFinished(page, { 'barbell-back-squat': [{ reps: 5, load: bar185 }, { reps: 5, load: bar185 }, { reps: 5, load: bar185 }] });
+    await quickWith(page, [['back squat', 'Barbell Back Squat']]);
+    const view = exerciseView(page, 'barbell-back-squat');
+    await expect(checkCurrent(view)).toBeVisible();
+    await page.waitForFunction(() => !document.documentElement.dataset.nav);
+    await page.waitForTimeout(500);
+    return view;
+  }
+
+  test('B2 closing a sheet: the app behind comes forward over about 200 ms, never in one frame @matrix', async ({ page }) => {
+    const view = await openSquat(page);
+    await view.getByTestId('weight-cell').first().tap();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    const scale = () => page.evaluate(() => getComputedStyle(document.getElementById('root')!).scale);
+    await expect.poll(scale).toBe('0.94');
+    const frames = await everyFrame(page, 500, `() => { const s = getComputedStyle(document.getElementById('root')).scale; return s === 'none' ? 1 : Number(s); }`);
+    await dialog.getByRole('button', { name: 'Done' }).tap();
+    const seen = (await frames<number>()).map((f) => ({ t: f.t, s: f.v }));
+    // Frames on the way: several sizes strictly between stepped back and full, only ever growing.
+    const between = seen.filter((f) => f.s > 0.941 && f.s < 0.999);
+    expect(between.length, `sizes seen: ${seen.map((f) => f.s.toFixed(3)).join(' ')}`).toBeGreaterThanOrEqual(4);
+    for (let i = 1; i < seen.length; i++) expect(seen[i]!.s).toBeGreaterThanOrEqual(seen[i - 1]!.s - 0.0005);
+    // Full size again inside 300 ms of it starting (about 200 ms, in step with the sheet leaving).
+    const start = between[0]!.t;
+    for (const f of seen.filter((q) => q.t > start + 300)) expect(f.s).toBe(1);
+    await expect.poll(scale).toBe('none');
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test('B3 logging a set: the next check does not move from 100 ms to 1500 ms after the tap, and the hero never resizes @matrix', async ({ page }) => {
+    const view = await openSquat(page);
+    const hero = view.getByTestId('ex-hero');
+    const heroBefore = (await hero.count()) ? (await hero.boundingBox())!.height : null;
+    for (let n = 1; n <= 2; n++) {
+      const frames = await everyFrame(
+        page,
+        1500,
+        `() => { const c = document.querySelector('[data-testid="check-current"]'); const h = document.querySelector('[data-testid="ex-hero"]'); const r = c ? c.getBoundingClientRect() : null; return { c: r ? [r.x, r.y, r.width, r.height] : null, h: h ? h.getBoundingClientRect().height : null }; }`,
+      );
+      await checkCurrent(view).tap();
+      await expect(loggedRows(view)).toHaveCount(n);
+      const seen = (await frames<{ c: number[] | null; h: number | null }>()).filter((f) => f.t >= 100);
+      expect(seen.length).toBeGreaterThan(40);
+      const first = seen[0]!.v;
+      expect(first.c, 'a next row to check').not.toBeNull();
+      for (const f of seen) {
+        expect(f.v.c, `set ${n}: the next check at ${Math.round(f.t)} ms`).not.toBeNull();
+        f.v.c!.forEach((v, i) => expect(Math.abs(v - first.c![i]!), `set ${n}: the next check at ${Math.round(f.t)} ms`).toBeLessThan(0.5));
+        expect(f.v.h).toBe(first.h);
+      }
+      if (heroBefore !== null) expect(first.h).toBe(heroBefore);
+      // Whole, above the rest bar.
+      const check = (await checkCurrent(view).boundingBox())!;
+      const rest = (await page.getByTestId('rest-timer').boundingBox())!;
+      expect(check.y + check.height).toBeLessThanOrEqual(rest.y + 0.5);
+    }
+  });
+
+  test('M4 Quick workout: an idea card answers the press and grows into the deck (nav.ts expand), and Back folds it away @matrix', async ({ page }) => {
+    await pastIntake(page);
+    await page.goto('./#/quick?min=30');
+    const first = page.locator('[data-concept]').first();
+    await expect(first).toBeVisible();
+    await page.waitForFunction(() => !document.documentElement.dataset.nav);
+    await page.waitForTimeout(400);
+    const reduced = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+    type F = { press: number; stage: string | null; fade: number; top: number[] | null; idea: number[] | null };
+    const read = `() => {
+      const box = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; };
+      const card = document.querySelector('[data-concept]');
+      const face = card ? card.querySelector('[data-testid="concept-pick"]') : null;
+      const stage = document.querySelector('[data-stage]');
+      return {
+        press: face ? new DOMMatrixReadOnly(getComputedStyle(face).transform).a : 1,
+        stage: stage ? stage.getAttribute('data-stage') : null,
+        fade: stage ? Number(getComputedStyle(stage).opacity) : 1,
+        top: box(document.querySelector('[data-testid="deck-card"]')),
+        idea: box(card),
+      };
+    }`;
+    const ideaBox = (await first.boundingBox())!;
+    const frames = await everyFrame(page, 600, read);
+    await first.getByTestId('concept-pick').tap();
+    const seen = await frames<F>();
+    await expect(page.getByTestId('deck-card')).toBeVisible();
+    // The press: the card is at the shared press scale on the first frame.
+    if (!reduced) expect(seen[0]!.v.press).toBeCloseTo(0.97, 2);
+    const deck = seen.filter((f) => f.v.stage === 'deck' && f.v.top);
+    const rest = (await page.getByTestId('deck-card').boundingBox())!;
+    // Not a hard cut: the deck fades in over several frames...
+    expect(deck.filter((f) => f.v.fade < 1).length).toBeGreaterThanOrEqual(6);
+    if (!reduced) {
+      // ...while its top card starts where the idea card was and grows into place, only ever growing.
+      const start = deck[0]!.v.top!;
+      expect(Math.abs(start[1]! - ideaBox.y)).toBeLessThan(24);
+      expect(start[3]!).toBeLessThan(rest.height * 0.75);
+      for (let i = 1; i < deck.length; i++) expect(deck[i]!.v.top![3]!).toBeGreaterThanOrEqual(deck[i - 1]!.v.top![3]! - 0.5);
+    }
+    // At rest inside 350 ms of the deck appearing: full size, fully shown, nothing left on the card.
+    for (const f of deck.filter((q) => q.t > deck[0]!.t + 350)) {
+      expect(f.v.fade).toBe(1);
+      expect(Math.abs(f.v.top![3]! - rest.height)).toBeLessThan(0.5);
+    }
+    expect(await page.getByTestId('deck-card').evaluate((el) => el.getAnimations().length)).toBe(0);
+    // No page snapshot was taken: the deck takes a swipe from its first frame.
+    expect(await page.evaluate(() => document.documentElement.dataset.nav)).toBeUndefined();
+    // Back: the same way home; the card it came from grows down out of the deck card's box.
+    const back = await everyFrame(page, 600, read);
+    await page.getByRole('button', { name: 'Back to the workouts' }).tap();
+    const home = (await back<F>()).filter((f) => f.v.stage === 'choose' && f.v.idea);
+    await expect(first).toBeVisible();
+    expect(home.filter((f) => f.v.fade < 1).length).toBeGreaterThanOrEqual(6);
+    if (!reduced) expect(home[0]!.v.idea![3]!).toBeGreaterThan(ideaBox.height * 1.25);
+    for (const f of home.filter((q) => q.t > home[0]!.t + 350)) expect(Math.abs(f.v.idea![3]! - ideaBox.height)).toBeLessThan(0.5);
+    await expect.poll(async () => (await first.boundingBox())!.y).toBe(ideaBox.y);
+  });
 });

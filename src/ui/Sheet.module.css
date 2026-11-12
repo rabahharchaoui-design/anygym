@@ -179,22 +179,28 @@
 }
 
 /* iOS card stack (SPEC 23.1): while a sheet is open the app behind scales to 0.94 with rounded
-   corners and drops a little (the scrim dims it). Reduced motion: only the dim. */
+   corners and drops a little (the scrim dims it). The transition lives on the plain rule, so the
+   app steps back as the sheet comes up and comes forward again as it leaves (PLAN 3.5w: it used to
+   snap back in one frame): out on the drawer curve with the sheet, back in 200 ms, in step with
+   the closing sheet (SHEET_CLOSE in Sheet.tsx). Reduced motion: only the dim. */
 :global(#root) {
   transform-origin: 50% 0;
+  transition:
+    scale var(--dur-sheet-back) var(--ease-out),
+    translate var(--dur-sheet-back) var(--ease-out),
+    border-radius var(--dur-sheet-back) var(--ease-out);
+  /* Always on (it clips nothing while the app is at rest: its screens are fixed to the viewport),
+     so the rounded corners stay rounded on the way back too. */
+  overflow: hidden;
+  overflow: clip;
 }
 
-/* Springs back the moment the sheet starts to close (hidden by the fading scrim), so taps and
-   measurements right after a sheet are never on a scaled app. */
 :global(html[data-sheets]) :global(#root) {
-  transition:
-    scale var(--dur-slow) var(--ease-drawer),
-    translate var(--dur-slow) var(--ease-drawer),
-    border-radius var(--dur-slow) var(--ease-drawer);
+  transition-duration: var(--dur-slow);
+  transition-timing-function: var(--ease-drawer);
   scale: 0.94;
   translate: 0 calc(var(--safe-top) + 10px);
   border-radius: 16px;
-  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -202,6 +208,9 @@
   .root[data-under] .sheet {
     scale: none;
     translate: none;
+  }
+  :global(#root) {
+    transition: none;
   }
   .sheet {
     transition: none;

@@ -1,0 +1,349 @@
+== walk iPhone 15 (393x659)
+## goal: pick muscle @1024ms settle=197 maxGap=19 >25:0 >40:0 n=12 avg=16.6
+## goal: pick tone @1985ms settle=180 maxGap=27 >25:1 >40:0 n=11 avg=16.6
+## goal -> units (Continue) @2952ms settle=277 maxGap=28 >25:1 >40:0 n=16 avg=17.9
+## units -> focus (Continue) @3950ms settle=298 maxGap=35 >25:3 >40:0 n=16 avg=19.4
+## focus: pick balance @4944ms settle=180 maxGap=24 >25:0 >40:0 n=11 avg=16.6
+## focus -> experience (Continue) @5904ms settle=280 maxGap=35 >25:2 >40:0 n=15 avg=18.9
+## experience: pick break @6910ms settle=527 maxGap=33 >25:3 >40:0 n=27 avg=17.4
+## days: pick 5 @8169ms settle=529 maxGap=33 >25:2 >40:0 n=27 avg=17.3
+## weekdays: Skip @9442ms settle=263 maxGap=28 >25:1 >40:0 n=16 avg=16.7
+## minutes: pick 45 @10397ms settle=513 maxGap=32 >25:1 >40:0 n=27 avg=16.8
+## place: pick mix @11746ms settle=531 maxGap=39 >25:2 >40:0 n=27 avg=17.7
+## equipment -> style (Continue) @13044ms settle=265 maxGap=30 >25:1 >40:0 n=16 avg=16.7
+## style: pick any @14018ms settle=514 maxGap=33 >25:1 >40:0 n=27 avg=17.4
+## cardio: pick love @15380ms settle=264 maxGap=18 >25:0 >40:0 n=16 avg=16.6
+## cardio: pick none @16413ms settle=182 maxGap=17 >25:0 >40:0 n=11 avg=16.5
+## cardio: pick little @17348ms settle=265 maxGap=28 >25:1 >40:0 n=16 avg=16.6
+## cardio -> easyOn (Continue) @18297ms settle=280 maxGap=35 >25:2 >40:0 n=16 avg=17.8
+## easyOn: Skip @19272ms settle=281 maxGap=32 >25:1 >40:0 n=16 avg=17.8
+## deck: ex-love @20334ms settle=248 maxGap=20 >25:0 >40:0 n=14 avg=16.7
+## deck: ex-skip @21291ms settle=246 maxGap=21 >25:0 >40:0 n=15 avg=16.8
+## deck: ex-never @22242ms settle=179 maxGap=19 >25:0 >40:0 n=11 avg=16.7
+## deck: ex-love @23222ms settle=248 maxGap=24 >25:0 >40:0 n=14 avg=16.6
+## deck: drag fling right @24178ms settle=265 maxGap=25 >25:0 >40:0 n=14 avg=16.7
+## deck: drag short and release (spring back) @25140ms settle=451 maxGap=24 >25:0 >40:0 n=23 avg=16.8
+## exercises -> about (Continue) @26196ms settle=264 maxGap=26 >25:1 >40:0 n=16 avg=16.9
+## about: Skip -> reveal @27176ms settle=645 maxGap=34 >25:3 >40:0 n=36 avg=18.1
+## reveal: Looks good -> Today + tour @28944ms settle=766 maxGap=19 >25:0 >40:0 n=36 avg=16.3
+## tour: Next 1->2 @31094ms settle=516 maxGap=20 >25:0 >40:0 n=25 avg=16.8
+## tour: Next 2->3 @32240ms settle=465 maxGap=21 >25:0 >40:0 n=23 avg=16.7
+## tour: Done @33395ms settle=182 maxGap=25 >25:0 >40:0 n=11 avg=16.7
+## tab -> Run @34547ms settle=300 maxGap=23 >25:0 >40:0 n=18 avg=16.6
+## tab -> History @35282ms settle=312 maxGap=26 >25:1 >40:0 n=18 avg=17.3
+## tab -> Plans @36064ms settle=320 maxGap=34 >25:1 >40:0 n=18 avg=17.6
+## tab -> Today @36842ms settle=318 maxGap=35 >25:1 >40:0 n=18 avg=17.5
+## Today: Preview open @37593ms settle=303 maxGap=24 >25:0 >40:0 n=18 avg=16.6
+## Preview back @38657ms settle=261 maxGap=21 >25:0 >40:0 n=12 avg=16.8
+## Today: build card -> Quick @39572ms settle=316 maxGap=37 >25:2 >40:0 n=18 avg=17.6
+## Quick: concept -> deck @40625ms settle=15 maxGap=18 >25:0 >40:0 n=1 avg=18
+## curate: keep @41694ms settle=249 maxGap=18 >25:0 >40:0 n=14 avg=16.6
+## curate: swap @42645ms settle=513 maxGap=27 >25:1 >40:0 n=30 avg=16.5
+## curate: Start workout @43615ms settle=308 maxGap=29 >25:1 >40:0 n=18 avg=16.6
+## workout: weight cell -> picker sheet @45085ms settle=311 maxGap=26 >25:1 >40:0 n=19 avg=16.5
+## picker: Done (sheet close) @46168ms settle=783 maxGap=29 >25:1 >40:0 n=24 avg=16.6
+## workout: log set (check) @47128ms settle=693 maxGap=34 >25:1 >40:0 n=30 avg=17.3
+## workout: log set 2 @48491ms settle=48 maxGap=17 >25:0 >40:0 n=3 avg=16.3
+== walk iPhone SE
+## goal: pick muscle @996ms settle=197 nav=-1..-1 maxGap=18 >25:0 >40:0 n=12 avg=16.6
+## goal: pick tone @1962ms settle=165 nav=-1..-1 maxGap=32 >25:1 >40:0 n=11 avg=17.3
+## goal -> units (Continue) @2950ms settle=280 nav=19..280 maxGap=28 >25:2 >40:0 n=16 avg=17.4
+## units -> focus (Continue) @3948ms settle=261 nav=11..261 maxGap=19 >25:0 >40:0 n=16 avg=16.7
+## focus: pick balance @4945ms settle=176 nav=-1..-1 maxGap=29 >25:1 >40:0 n=11 avg=16.7
+## focus -> experience (Continue) @5916ms settle=279 nav=12..279 maxGap=32 >25:1 >40:0 n=16 avg=17.8
+## experience: pick break @6901ms settle=511 nav=261..511 maxGap=26 >25:1 >40:0 n=27 avg=16.7
+## days: pick 5 @8170ms settle=511 nav=261..511 maxGap=20 >25:0 >40:0 n=27 avg=16.7
+## weekdays: Skip @9460ms settle=265 nav=13..265 maxGap=23 >25:0 >40:0 n=16 avg=16.8
+## minutes: pick 45 @10412ms settle=512 nav=262..512 maxGap=26 >25:1 >40:0 n=27 avg=17
+## place: pick mix @11731ms settle=532 nav=265..532 maxGap=34 >25:3 >40:0 n=27 avg=17.4
+## equipment -> style (Continue) @13051ms settle=266 nav=15..266 maxGap=19 >25:0 >40:0 n=16 avg=16.8
+## style: pick any @14031ms settle=511 nav=261..511 maxGap=25 >25:0 >40:0 n=27 avg=17
+## cardio: pick love @15351ms settle=266 nav=-1..-1 maxGap=33 >25:1 >40:0 n=15 avg=17.7
+## cardio: pick none @16363ms settle=191 nav=-1..-1 maxGap=35 >25:1 >40:0 n=11 avg=16.5
+## cardio: pick little @17324ms settle=264 nav=-1..-1 maxGap=19 >25:0 >40:0 n=16 avg=16.7
+## cardio -> easyOn (Continue) @18280ms settle=262 nav=11..262 maxGap=34 >25:1 >40:0 n=15 avg=17.9
+## easyOn: Skip @19271ms settle=280 nav=13..280 maxGap=44 >25:1 >40:1 n=15 avg=18.9
+## deck: ex-love @20312ms settle=249 nav=-1..-1 maxGap=17 >25:0 >40:0 n=14 avg=16.7
+## deck: ex-skip @21254ms settle=246 nav=-1..-1 maxGap=33 >25:1 >40:0 n=14 avg=17.9
+## deck: ex-never @22208ms settle=179 nav=-1..-1 maxGap=17 >25:0 >40:0 n=11 avg=16.5
+## deck: ex-love @23164ms settle=249 nav=-1..-1 maxGap=19 >25:0 >40:0 n=14 avg=16.6
+## deck: drag fling right @24108ms settle=250 nav=-1..-1 maxGap=25 >25:0 >40:0 n=14 avg=16.6
+## deck: drag short and release (spring back) @25080ms settle=466 nav=-1..-1 maxGap=28 >25:1 >40:0 n=23 avg=16.7
+## exercises -> about (Continue) @26151ms settle=279 nav=12..279 maxGap=33 >25:2 >40:0 n=16 avg=18.6
+## about: Skip -> reveal @27141ms settle=663 nav=13..280 maxGap=34 >25:3 >40:0 n=37 avg=17.8
+## reveal: Looks good -> Today + tour @28885ms settle=614 nav=14..282 maxGap=31 >25:1 >40:0 n=28 avg=16.7
+## tour: Next 1->2 @30999ms settle=516 nav=-1..-1 maxGap=26 >25:1 >40:0 n=25 avg=17.1
+## tour: Next 2->3 @32115ms settle=480 nav=-1..-1 maxGap=27 >25:1 >40:0 n=23 avg=16
+## tour: Done @33239ms settle=166 nav=-1..-1 maxGap=18 >25:0 >40:0 n=10 avg=16.7
+## tab -> Run @34354ms settle=292 nav=8..275 maxGap=24 >25:0 >40:0 n=18 avg=16.7
+## tab -> History @35110ms settle=296 nav=14..279 maxGap=28 >25:1 >40:0 n=18 avg=16.6
+## tab -> Plans @35856ms settle=332 nav=15..298 maxGap=34 >25:2 >40:0 n=18 avg=18.4
+## tab -> Today @36612ms settle=321 nav=14..296 maxGap=36 >25:1 >40:0 n=18 avg=17.5
+## Today: Preview open @37385ms settle=300 nav=13..280 maxGap=22 >25:0 >40:0 n=18 avg=16.7
+## Preview back @38419ms settle=264 nav=-1..-1 maxGap=20 >25:0 >40:0 n=12 avg=16.7
+## Today: build card -> Quick @39336ms settle=291 nav=3..267 maxGap=26 >25:1 >40:0 n=18 avg=16.6
+## Quick: concept -> deck @40374ms settle=15 nav=-1..-1 maxGap=17 >25:0 >40:0 n=1 avg=17
+## curate: keep @41406ms settle=249 nav=-1..-1 maxGap=19 >25:0 >40:0 n=14 avg=16.6
+## curate: swap @42371ms settle=496 nav=-1..-1 maxGap=26 >25:1 >40:0 n=29 avg=16.7
+## curate: Start workout @43328ms settle=281 nav=8..259 maxGap=22 >25:0 >40:0 n=17 avg=16.6
+## workout: weight cell -> picker sheet @44722ms settle=316 nav=-1..-1 maxGap=29 >25:2 >40:0 n=19 avg=16.8
+## picker: Done (sheet close) @45739ms settle=782 nav=-1..-1 maxGap=33 >25:1 >40:0 n=23 avg=17.3
+## workout: log set (check) @46688ms settle=695 nav=-1..-1 maxGap=29 >25:2 >40:0 n=30 avg=16.7
+## workout: log set 2 @47995ms settle=52 nav=-1..-1 maxGap=21 >25:0 >40:0 n=3 avg=17.3
+== walk iPhone 15 Home Screen 393x852 (no video)
+## goal: pick muscle @1025ms settle=197 nav=-1..-1 maxGap=18 >25:0 >40:0 n=12 avg=16.6
+## goal: pick tone @1981ms settle=182 nav=-1..-1 maxGap=18 >25:0 >40:0 n=11 avg=16.6
+## goal -> units (Continue) @2948ms settle=280 nav=15..280 maxGap=30 >25:2 >40:0 n=16 avg=18.4
+## units -> focus (Continue) @3945ms settle=263 nav=10..263 maxGap=27 >25:1 >40:0 n=16 avg=17.5
+## focus: pick balance @4944ms settle=178 nav=-1..-1 maxGap=18 >25:0 >40:0 n=11 avg=16.6
+## focus -> experience (Continue) @5914ms settle=280 nav=13..280 maxGap=34 >25:1 >40:0 n=16 avg=18.2
+## experience: pick break @6915ms settle=533 nav=265..533 maxGap=33 >25:1 >40:0 n=27 avg=17.7
+## days: pick 5 @8181ms settle=529 nav=262..529 maxGap=33 >25:1 >40:0 n=27 avg=17.6
+## weekdays: Skip @9449ms settle=281 nav=14..281 maxGap=32 >25:1 >40:0 n=16 avg=18.3
+## minutes: pick 45 @10411ms settle=529 nav=262..529 maxGap=34 >25:1 >40:0 n=27 avg=17.6
+## place: pick mix @11773ms settle=549 nav=265..549 maxGap=60 >25:2 >40:2 n=26 avg=19.5
+## equipment -> style (Continue) @13125ms settle=265 nav=15..265 maxGap=19 >25:0 >40:0 n=16 avg=16.8
+## style: pick any @14095ms settle=529 nav=262..529 maxGap=33 >25:2 >40:0 n=27 avg=17.6
+## cardio: pick love @15462ms settle=266 nav=-1..-1 maxGap=18 >25:0 >40:0 n=16 avg=16.7
+## cardio: pick none @16505ms settle=249 nav=-1..-1 maxGap=19 >25:0 >40:0 n=14 avg=16.9
+## cardio: pick little @17455ms settle=264 nav=-1..-1 maxGap=19 >25:0 >40:0 n=16 avg=16.6
+## cardio -> easyOn (Continue) @18410ms settle=279 nav=12..279 maxGap=33 >25:2 >40:0 n=16 avg=18.7
+## easyOn: Skip @19389ms settle=279 nav=12..279 maxGap=36 >25:1 >40:0 n=16 avg=18.3
+## deck: ex-love @20505ms settle=248 nav=-1..-1 maxGap=18 >25:0 >40:0 n=14 avg=16.8
+## deck: ex-skip @21457ms settle=245 nav=-1..-1 maxGap=20 >25:0 >40:0 n=15 avg=16.7
+## deck: ex-never @22413ms settle=177 nav=-1..-1 maxGap=20 >25:0 >40:0 n=11 avg=16.7
+## deck: ex-love @23392ms settle=248 nav=-1..-1 maxGap=20 >25:0 >40:0 n=14 avg=16.6
+## deck: drag fling right @24343ms settle=262 nav=-1..-1 maxGap=18 >25:0 >40:0 n=14 avg=16.8
+## deck: drag short and release (spring back) @25318ms settle=447 nav=-1..-1 maxGap=19 >25:0 >40:0 n=21 avg=16.9
+## exercises -> about (Continue) @26365ms settle=265 nav=16..265 maxGap=18 >25:0 >40:0 n=16 avg=16.6
+## about: Skip -> reveal @27341ms settle=663 nav=13..280 maxGap=37 >25:2 >40:0 n=38 avg=17.6
+## reveal: Looks good -> Today + tour @29128ms settle=616 nav=17..284 maxGap=30 >25:1 >40:0 n=29 avg=16.4
+## tour: Next 1->2 @31316ms settle=517 nav=-1..-1 maxGap=19 >25:0 >40:0 n=24 avg=16.7
+## tour: Next 2->3 @32492ms settle=518 nav=-1..-1 maxGap=19 >25:0 >40:0 n=22 avg=16.5
+## tour: Done @33659ms settle=182 nav=-1..-1 maxGap=17 >25:0 >40:0 n=10 avg=16.7
+## tab -> Run @34821ms settle=309 nav=16..282 maxGap=27 >25:1 >40:0 n=18 avg=16.6
+## tab -> History @35568ms settle=305 nav=13..279 maxGap=26 >25:1 >40:0 n=18 avg=16.6
+## tab -> Plans @36326ms settle=319 nav=13..280 maxGap=39 >25:1 >40:0 n=18 avg=17.6
+## tab -> Today @37073ms settle=311 nav=11..280 maxGap=31 >25:1 >40:0 n=18 avg=16.8
+## Today: Preview open @37824ms settle=309 nav=9..276 maxGap=33 >25:1 >40:0 n=18 avg=16.8
+## Preview back @38923ms settle=258 nav=-1..-1 maxGap=18 >25:0 >40:0 n=12 avg=16.6
+## Today: build card -> Quick @39837ms settle=317 nav=13..278 maxGap=39 >25:1 >40:0 n=18 avg=17.5
+## Quick: concept -> deck @40910ms settle=16 nav=-1..-1 maxGap=16 >25:0 >40:0 n=1 avg=16
+## curate: keep @42010ms settle=250 nav=-1..-1 maxGap=17 >25:0 >40:0 n=14 avg=16.8
+## curate: swap @42958ms settle=498 nav=-1..-1 maxGap=24 >25:0 >40:0 n=27 avg=16.7
+## curate: Start workout @43910ms settle=303 nav=14..264 maxGap=39 >25:1 >40:0 n=17 avg=17.6
+## workout: weight cell -> picker sheet @45370ms settle=315 nav=-1..-1 maxGap=17 >25:0 >40:0 n=19 avg=16.7
+## picker: Done (sheet close) @46479ms settle=782 nav=-1..-1 maxGap=19 >25:0 >40:0 n=24 avg=16.6
+## workout: log set (check) @47444ms settle=726 nav=-1..-1 maxGap=24 >25:0 >40:0 n=34 avg=16.7
+## workout: log set 2 @48846ms settle=47 nav=-1..-1 maxGap=17 >25:0 >40:0 n=3 avg=15.7
+== rAF traces (iPhone 15): concept->deck, picker open/close, log set
+CONCEPT->DECK
+0 335/156/o1.00/s1 - 0/659/o1.00/s1
+4 335/156/o1.00/s1 - 0/659/o1.00/s1
+21 335/156/o1.00/s1 - 0/659/o1.00/s1
+38 335/156/o1.00/s1 - 0/659/o1.00/s1
+39 335/156/o1.00/s1 - 0/659/o1.00/s1
+40 335/156/o1.00/s1 - 0/659/o1.00/s1
+73 - 167/306/o1.00/s1 0/659/o1.00/s1
+89 - 167/306/o1.00/s1 0/659/o1.00/s1
+100 - 167/306/o1.00/s1 0/659/o1.00/s1
+104 - 167/306/o1.00/s1 0/659/o1.00/s1
+121 - 167/306/o1.00/s1 0/659/o1.00/s1
+138 - 167/306/o1.00/s1 0/659/o1.00/s1
+155 - 167/306/o1.00/s1 0/659/o1.00/s1
+169 - 167/306/o1.00/s1 0/659/o1.00/s1
+186 - 167/306/o1.00/s1 0/659/o1.00/s1
+204 - 167/306/o1.00/s1 0/659/o1.00/s1
+221 - 167/306/o1.00/s1 0/659/o1.00/s1
+238 - 167/306/o1.00/s1 0/659/o1.00/s1
+255 - 167/306/o1.00/s1 0/659/o1.00/s1
+271 - 167/306/o1.00/s1 0/659/o1.00/s1
+286 - 167/306/o1.00/s1 0/659/o1.00/s1
+302 - 167/306/o1.00/s1 0/659/o1.00/s1
+321 - 167/306/o1.00/s1 0/659/o1.00/s1
+338 - 167/306/o1.00/s1 0/659/o1.00/s1
+355 - 167/306/o1.00/s1 0/659/o1.00/s1
+372 - 167/306/o1.00/s1 0/659/o1.00/s1
+389 - 167/306/o1.00/s1 0/659/o1.00/s1
+406 - 167/306/o1.00/s1 0/659/o1.00/s1
+PICKER OPEN
+0 - 0/659/o1.00/s1 -
+13 - 0/659/o1.00/s1 -
+31 - 0/659/o1.00/s1 -
+33 - 0/659/o1.00/s1 -
+72 618/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.23/s1
+89 607/552/o1.00/s1 10/653/o1.00/s1 0/659/o0.39/s1
+97 537/552/o1.00/s1 15/650/o1.00/s1 0/659/o0.46/s1
+112 494/552/o1.00/s1 28/643/o1.00/s1 0/659/o0.59/s1
+130 423/552/o1.00/s1 44/634/o1.00/s1 0/659/o0.73/s1
+147 346/552/o1.00/s1 54/628/o1.00/s1 0/659/o0.83/s1
+163 284/552/o1.00/s1 59/625/o1.00/s1 0/659/o0.91/s1
+180 239/552/o1.00/s1 62/623/o1.00/s1 0/659/o0.98/s1
+195 195/552/o1.00/s1 64/622/o1.00/s1 0/659/o1.00/s1
+214 169/552/o1.00/s1 65/622/o1.00/s1 0/659/o1.00/s1
+230 146/552/o1.00/s1 66/621/o1.00/s1 0/659/o1.00/s1
+247 131/552/o1.00/s1 67/621/o1.00/s1 0/659/o1.00/s1
+264 122/552/o1.00/s1 68/620/o1.00/s1 0/659/o1.00/s1
+281 115/552/o1.00/s1 68/620/o1.00/s1 0/659/o1.00/s1
+298 110/552/o1.00/s1 69/620/o1.00/s1 0/659/o1.00/s1
+314 108/552/o1.00/s1 69/620/o1.00/s1 0/659/o1.00/s1
+331 106/552/o1.00/s1 69/620/o1.00/s1 0/659/o1.00/s1
+346 106/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+362 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+380 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+397 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+414 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+431 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+447 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+464 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+482 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+497 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+514 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+530 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+547 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+563 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+580 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+597 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+614 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+PICKER DONE
+1 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+12 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+25 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+42 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+43 107/552/o1.00/s1 69/619/o1.00/s1 0/659/o1.00/s1
+72 107/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.96/s1
+89 160/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.77/s1
+93 176/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.73/s1
+110 251/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.58/s1
+127 334/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.44/s1
+143 407/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.32/s1
+160 478/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.20/s1
+177 533/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.10/s1
+193 577/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.04/s1
+210 611/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+227 640/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+243 660/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+260 675/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+275 686/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+293 696/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+310 704/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+327 709/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+343 712/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+360 715/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+377 722/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+393 723/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+409 723/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+427 723/552/o1.00/s1 0/659/o1.00/s1 0/659/o0.00/s1
+442 - 0/659/o1.00/s1 -
+460 - 0/659/o1.00/s1 -
+477 - 0/659/o1.00/s1 -
+494 - 0/659/o1.00/s1 -
+510 - 0/659/o1.00/s1 -
+527 - 0/659/o1.00/s1 -
+543 - 0/659/o1.00/s1 -
+560 - 0/659/o1.00/s1 -
+577 - 0/659/o1.00/s1 -
+593 - 0/659/o1.00/s1 -
+610 - 0/659/o1.00/s1 -
+627 - 0/659/o1.00/s1 -
+643 - 0/659/o1.00/s1 -
+660 - 0/659/o1.00/s1 -
+677 - 0/659/o1.00/s1 -
+694 - 0/659/o1.00/s1 -
+710 - 0/659/o1.00/s1 -
+727 - 0/659/o1.00/s1 -
+744 - 0/659/o1.00/s1 -
+761 - 0/659/o1.00/s1 -
+777 - 0/659/o1.00/s1 -
+793 - 0/659/o1.00/s1 -
+810 - 0/659/o1.00/s1 -
+827 - 0/659/o1.00/s1 -
+845 - 0/659/o1.00/s1 -
+860 - 0/659/o1.00/s1 -
+877 - 0/659/o1.00/s1 -
+894 - 0/659/o1.00/s1 -
+911 - 0/659/o1.00/s1 -
+927 - 0/659/o1.00/s1 -
+943 - 0/659/o1.00/s1 -
+960 - 0/659/o1.00/s1 -
+977 - 0/659/o1.00/s1 -
+994 - 0/659/o1.00/s1 -
+1011 - 0/659/o1.00/s1 -
+LOG SET
+0 115/158/o1.00/s1 285/352/o1.00/s1 311/48/o1.00/s1 -
+10 115/158/o1.00/s1 285/352/o1.00/s1 311/48/o1.00/s1 -
+18 115/158/o1.00/s1 285/352/o1.00/s1 311/48/o1.00/s1 -
+36 115/158/o1.00/s1 285/352/o1.00/s1 311/48/o1.00/s1 -
+37 115/158/o1.00/s1 285/352/o1.00/s1 311/48/o1.00/s1 -
+51 115/158/o1.00/s1 285/352/o1.00/s1 312/47/o0.80/s0.97 -
+70 115/158/o1.00/s1 285/352/o1.00/s1 312/47/o0.89/s0.984 -
+87 115/158/o1.00/s1 285/352/o1.00/s1 311/48/o0.95/s0.992 -
+103 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+119 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+137 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+154 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+170 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+187 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+203 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+220 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+237 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+252 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+270 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+287 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+304 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+321 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+336 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+352 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+370 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+385 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+403 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+419 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+437 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+454 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+471 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+488 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+505 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+520 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+535 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+553 115/158/o1.00/s1 285/352/o1.00/s1 367/48/o1.00/s1 -
+570 115/152/o1.00/s1 279/352/o1.00/s1 361/48/o1.00/s1 -
+589 115/147/o1.00/s1 274/352/o1.00/s1 356/48/o1.00/s1 -
+609 115/142/o1.00/s1 269/352/o1.00/s1 351/48/o1.00/s1 -
+618 115/141/o1.00/s1 268/352/o1.00/s1 350/48/o1.00/s1 -
+637 115/139/o1.00/s1 266/352/o1.00/s1 348/48/o1.00/s1 -
+653 115/138/o1.00/s1 265/352/o1.00/s1 347/48/o1.00/s1 -
+670 115/137/o1.00/s1 264/352/o1.00/s1 346/48/o1.00/s1 -
+687 115/137/o1.00/s1 264/352/o1.00/s1 346/48/o1.00/s1 -
+703 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+720 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+737 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+753 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+770 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+787 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+802 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+820 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+837 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+854 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+871 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+888 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+905 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+920 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+937 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+954 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+971 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+986 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+1003 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+1018 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+1037 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+1054 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+1071 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+1087 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+1103 115/136/o1.00/s1 263/352/o1.00/s1 345/48/o1.00/s1 -
+scrollTop []
+  ✓  1 [iPhone 15] › ../../../../private/tmp/critic35w/specs/relook.spec.ts:29:1 › relook (7.4s)
+CONCEPT->DECK
+0 294/156/o1.00/s1 - 0/667/o1.00/s1
+7 294/156/o1.00/s1 - 0/667/o1.00/s1
+22 294/156/o1.00/s1 - 0/667/o1.00/s1
+39 294/156/o1.00/s1 - 0/667/o1.00/s1
+40 294/156/o1.00/s1 - 0/667/o1.00/s1

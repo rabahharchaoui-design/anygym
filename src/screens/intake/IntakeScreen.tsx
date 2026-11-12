@@ -1,6 +1,6 @@
 // The intake funnel (SPEC 14, PLAN 3.3): one question per screen, a big title top left, a round
 // back button, the one action pinned in the thumb zone. Single choice screens move on by
-// themselves about 250 ms after the tap (the card pulses, the next screen slides in on the shared
+// themselves about 170 ms after the tap (the card pulses, the next screen slides in on the shared
 // page transition); multi select and form screens have Continue, greyed until there is an answer.
 // The answers are kept as a draft on every change, saved on the profile at the reveal.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -35,15 +35,15 @@ import { phoneLocale, unitsForLocale } from '../../lib/intake/region';
 import { getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
 import { NO_HANDLERS, stepBody, type StepHandlers } from './stepBody';
 import { NoPlanNotice } from './NoPlan';
-import { PlanSoFar, STRIP_SCREENS, useStripFit } from './PlanSoFar';
+import { PlanSoFar, PlanSoFarLine, STRIP_SCREENS, useStripFit } from './PlanSoFar';
 import { Reveal } from './Reveal';
 import { generate } from '../../data/generator';
 import { generatorInputOf } from '../../lib/intake/yourPlan';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
 
-/** How long a tapped card pulses before the next screen comes in. */
-export const AUTO_ADVANCE_MS = 250;
+/** How long a tapped card pulses before the next screen comes in (PLAN 3.5w: 170 ms, was 250: seen, never waited for). */
+export const AUTO_ADVANCE_MS = 170;
 
 /**
  * PLAN 3.3a: every screen has its title and one short honest line on why it asks: what the answer
@@ -158,8 +158,10 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
 
   // Every answer is kept as it is given (a draft; a redo keeps its own copy only in memory).
+  // PLAN 3.5w: the save runs in the next task, out of the screen change's own update (the page is
+  // captured sooner). Not later than that: a reload right after a step must come back to it.
   useEffect(() => {
-    if (!redo) void writeIntakeDraft(serializeDraft(state));
+    if (!redo) window.setTimeout(() => void writeIntakeDraft(serializeDraft(state)), 0);
   }, [state, redo]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -248,6 +250,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <span className={styles.topSpacer} aria-hidden="true" />
           )}
         </header>
+        {STRIP_SCREENS.has(step) && <PlanSoFarLine answers={answers} />}
         <main ref={scroller} className={styles.body} data-scroller data-hold={hold !== null ? '' : undefined} style={hold !== null ? ({ '--hold': `${hold}px` } as CSSProperties) : undefined}>
           {first && !redo && (
             <div className={styles.intro} data-testid="intake-intro">

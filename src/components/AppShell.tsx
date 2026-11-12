@@ -1,11 +1,11 @@
-import { useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { TabBar } from '../ui/TabBar';
 import { ResumeBar } from '../ui/ResumeBar';
 import { getActiveSession } from '../db/workouts';
 import { useLive } from '../hooks/useLive';
 import { EdgeSwipe } from '../ui/EdgeSwipe';
-import { useNav } from '../ui/nav';
+import { playTabArrival, useNav } from '../ui/nav';
 import { TodayScreen } from '../screens/TodayScreen';
 import { PlansScreen } from '../screens/plans/PlansScreen';
 import { PlacePlans } from '../screens/plans/PlacePlans';
@@ -48,6 +48,8 @@ export function AppShell() {
   const go = useNav();
   const layerRef = useRef<HTMLElement>(null);
   const parent = parentOf(pathname);
+  // PLAN 3.5w: a tab switch moves only the arriving screen (never the tab bar), before its first paint.
+  useLayoutEffect(() => playTabArrival(layerRef.current), [pathname]);
   const pushed = pathname === '/settings' || pathname === '/quick' || pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
   const active = useLive(() => getActiveSession(), []);
   // Today has its own in progress card; the bar is for the other tabs.

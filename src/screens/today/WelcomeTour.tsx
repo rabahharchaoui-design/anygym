@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../../ui/Button';
-import { FADE, GENTLE } from '../../ui/motion';
+import { FADE, GLIDE } from '../../ui/motion';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { finishWelcomeTour } from '../../db/welcomeTour';
 import { nextLabel, spotBox, tourReducer, tourSteps, TOUR_START, wordsTop, type Box, type TourAction, type TourStep, type TourTarget } from '../../lib/welcomeTour';
@@ -14,6 +14,10 @@ import styles from './WelcomeTour.module.css';
 
 /** Today is seen for a moment first, then the welcome comes in. */
 const SETTLE_MS = 400;
+/** PLAN 3.5w: the words come in this long after the dim, whole (never as see through text over the page). */
+const WORDS_AFTER_MS = 150;
+/** How far the words rise as they land. */
+const WORDS_RISE = 8;
 /** The light reaches a little past the element. */
 const PAD = 6;
 const GAP = 12;
@@ -44,6 +48,8 @@ export function WelcomeTour({ show }: { show: boolean }) {
   const [lit, setLit] = useState<Lit | null>(null);
   const [wordsHeight, setWordsHeight] = useState(0);
   const words = useRef<HTMLDivElement>(null);
+  /** The words card has landed (it waits for the dim and its own measured place first). */
+  const [wordsIn, setWordsIn] = useState(false);
 
   // Opens once Today has rested, with the steps for what is really on it.
   useEffect(() => {
@@ -109,23 +115,31 @@ export function WelcomeTour({ show }: { show: boolean }) {
     if (under > 0) el.closest('[data-scroller]')?.scrollBy({ top: under, behavior: reduce ? 'auto' : 'smooth' });
   }, [target, wordsHeight, reduce]);
 
+  useEffect(() => {
+    if (!open) return setWordsIn(false);
+    if (!wordsHeight || wordsIn) return;
+    const t = window.setTimeout(() => setWordsIn(true), WORDS_AFTER_MS);
+    return () => window.clearTimeout(t);
+  }, [open, wordsHeight, wordsIn]);
+
   const count = steps?.length ?? 0;
   // PLAN 3.5w: the words never sit on the tab bar while another element is lit.
   const view = { top: EDGE, bottom: target && target !== 'tabs' ? Math.min(window.innerHeight - EDGE, tabsTop() - GAP) : window.innerHeight - EDGE };
   const top = lit ? wordsTop(lit, wordsHeight, view, GAP) : 0;
-  const glide = reduce ? INSTANT : GENTLE;
+  const glide = reduce ? INSTANT : GLIDE;
 
   return createPortal(
     <AnimatePresence>
       {open && lit && (
-        <motion.div className={styles.tour} data-testid="welcome-tour" data-step={step.target} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={FADE}>
+        // Only the dim fades in (the light's own shadow); the layer itself fades only on the way out.
+        <motion.div className={styles.tour} data-testid="welcome-tour" data-step={step.target} initial={false} exit={{ opacity: 0 }} transition={FADE}>
           {/* The light: it glides from one element to the next, so the eye is led, never jumped. */}
           <motion.div
             className={styles.spot}
             data-testid="tour-spot"
-            initial={false}
-            animate={{ x: lit.x, y: lit.y, width: lit.width, height: lit.height, borderRadius: lit.radius }}
-            transition={glide}
+            initial={{ opacity: 0, x: lit.x, y: lit.y, width: lit.width, height: lit.height, borderRadius: lit.radius }}
+            animate={{ opacity: 1, x: lit.x, y: lit.y, width: lit.width, height: lit.height, borderRadius: lit.radius }}
+            transition={{ ...glide, opacity: FADE }}
           />
           {/* Everything around the light moves on with a tap; the lit element itself stays live. */}
           <div className={styles.around} aria-hidden="true" onClick={() => act('next')} data-testid="tour-outside">
@@ -140,9 +154,11 @@ export function WelcomeTour({ show }: { show: boolean }) {
             role="dialog"
             aria-label={`Welcome, step ${state.index + 1} of ${count}`}
             data-testid="tour-words"
+            data-in={wordsIn || undefined}
             initial={false}
-            animate={{ y: top }}
-            transition={glide}
+            // Out of sight it simply tracks its place; then it shows whole and rises the last few points.
+            animate={{ y: top + (wordsIn || reduce ? 0 : WORDS_RISE), opacity: wordsIn ? 1 : 0 }}
+            transition={wordsIn ? { ...glide, opacity: INSTANT } : INSTANT}
           >
             <motion.p key={step.target} className={styles.line} aria-live="polite" data-testid="tour-line" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={FADE}>
               {step.line}

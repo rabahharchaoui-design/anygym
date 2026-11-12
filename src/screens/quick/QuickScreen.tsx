@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
 import { Button } from '../../ui/Button';
 import { Skeleton } from '../../ui/Skeleton';
-import { useNav } from '../../ui/nav';
+import { playExpand, useNav } from '../../ui/nav';
 import { DUR } from '../../ui/motion';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { DumbbellIcon } from '../../ui/icons';
@@ -178,6 +179,27 @@ export function QuickScreen() {
   const deck = useDeck(base, kit, neverNow, setNeverNow, setError);
   const { stage, setStage, curate } = deck;
 
+  // PLAN 3.5w: a picked card grows into the deck's top card while the deck fades in (nav.ts
+  // playExpand), and Back folds the top card into that card again. Both run on the live screen (no
+  // snapshot), so the deck takes a swipe from its first frame.
+  const ideaCard = (key: string) => Array.from(document.querySelectorAll<HTMLElement>('[data-concept]')).find((e) => e.dataset.key === key) ?? null;
+  const pickedKey = useRef<string | null>(null);
+  const pick = (c: Concept) => {
+    const key = cardKey(c);
+    const from = ideaCard(key)?.getBoundingClientRect() ?? null;
+    pickedKey.current = key;
+    flushSync(() => curate(c));
+    playExpand(document.querySelector<HTMLElement>('[data-stage="deck"]'), document.querySelector<HTMLElement>('[data-stage="deck"] [data-top]'), from);
+  };
+  const backToIdeas = () => {
+    const from = document.querySelector<HTMLElement>('[data-stage="deck"] [data-top]')?.getBoundingClientRect() ?? null;
+    // The kept deck goes with the tap (a reload right after Back is the ideas, never the deck again).
+    clearDeck();
+    flushSync(() => setStage(null));
+    const card = pickedKey.current ? ideaCard(pickedKey.current) : null;
+    playExpand(document.querySelector<HTMLElement>('[data-stage="choose"]'), card, card ? from : null);
+  };
+
   // PLAN 3.5f round 2: the minutes stay in the URL, and an open deck comes back after a reload.
   useKeptDeck({ minutes, setMinutes, chip, preview, ideas: all ? [...all.cards, ...all.more] : null, stage, setStage });
 
@@ -231,7 +253,7 @@ export function QuickScreen() {
 
   // ------------------------------------------------------------ screens
 
-  if (stage) return <CurateStage deck={deck} reduced={reduced} error={error} onBack={preview ? () => go('/', { kind: 'pop' }) : () => setStage(null)} onStart={() => void start()} {...(preview ? { preview: { title: stage.concept.title } } : {})} />;
+  if (stage) return <CurateStage deck={deck} reduced={reduced} error={error} onBack={preview ? () => go('/', { kind: 'pop' }) : backToIdeas} onStart={() => void start()} {...(preview ? { preview: { title: stage.concept.title } } : {})} />;
   // Preview (PLAN 3.5f): while the plan day is read, never the choose screen for a moment.
   if (preview && !previewDone) return <div className={styles.screen} data-stage="deck" data-testid="preview-loading" />;
 
@@ -290,7 +312,7 @@ export function QuickScreen() {
             ) : (
               <div className={styles.concepts}>
                 {concepts.map((c) => (
-                  <ConceptCard key={cardKey(c)} concept={c} onPick={() => curate(c)} entering={cardKey(c) === swappedIn} flash={cardKey(c) === flash} label={cardKey(c) === swappedIn && c.focus && c.id !== 'focus' ? `${c.title}: ${c.focus.toLowerCase()}` : c.title} reduced={reduced} />
+                  <ConceptCard key={cardKey(c)} concept={c} onPick={() => pick(c)} entering={cardKey(c) === swappedIn} flash={cardKey(c) === flash} label={cardKey(c) === swappedIn && c.focus && c.id !== 'focus' ? `${c.title}: ${c.focus.toLowerCase()}` : c.title} reduced={reduced} />
                 ))}
               </div>
             )}

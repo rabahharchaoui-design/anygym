@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { HistoryIcon, ICON_STROKE, PlansIcon, RunIcon, TodayIcon } from './icons';
@@ -6,7 +5,7 @@ import { tick } from './haptics';
 import { SPRING, FADE } from './motion';
 
 const BOUNCE = { duration: 0.34, ease: 'easeOut' } as const;
-import { supportsViewTransitions, useNav } from './nav';
+import { useNav } from './nav';
 import styles from './TabBar.module.css';
 
 const TABS = [
@@ -25,20 +24,16 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
   const { pathname } = useLocation();
   const go = useNav();
   const reduce = useReducedMotion();
-  // PLAN 2.2e round 2 (critic B1): the pill moves with the page. With View Transitions it is its
-  // own named layer (tab-pill) that flies inside the same transition as the tab crossfade, so it
-  // lands with the page and the bar itself never fades. Without them it starts on pointerdown.
+  // PLAN 3.5w: the bar is never inside a page snapshot. A tab switch moves only the screen's
+  // content (nav.ts), and the pill slides live between tabs on the shared spring (layoutId).
   // Reduced motion: it simply jumps.
-  const vt = supportsViewTransitions();
-  const [pressed, setPressed] = useState<string | null>(null);
-  useEffect(() => setPressed(null), [pathname]);
   // Pushed screens hide it like iOS: it slides away, and takes no taps or focus while gone.
   return (
     <nav className={styles.bar} aria-label="Main" data-hidden={hidden || undefined} aria-hidden={hidden || undefined} {...(hidden ? { inert: '' } : {})}>
       <div className={styles.capsule} data-tour="tabs">
         {TABS.map(({ to, label, Icon, also }) => {
           const here = pathname === to || (also as readonly string[]).includes(pathname) || (to !== '/' && pathname.startsWith(`${to}/`));
-          const active = pressed ? pressed === to : here;
+          const active = here;
           return (
             <NavLink
               key={to}
@@ -47,10 +42,6 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
               className={styles.tab}
               data-active={active || undefined}
               aria-current={active ? 'page' : undefined}
-              onPointerDown={() => {
-                if (!vt && !reduce && pathname !== to) setPressed(to);
-              }}
-              onPointerCancel={() => setPressed(null)}
               onClick={(e) => {
                 e.preventDefault();
                 if (pathname === to) return;
@@ -63,13 +54,10 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
                   layoutId="tab-pill"
                   className={styles.pill}
                   data-pill
-                  style={vt ? { viewTransitionName: 'tab-pill' } : undefined}
-                  transition={vt || reduce ? { duration: 0 } : SPRING}
+                  transition={reduce ? { duration: 0 } : SPRING}
                 />
               )}
-              {/* The active tab's icon and label ride inside the moving pill as one layer (critic
-                  B3, round 3): they crossfade from the old tab's to the new one's, never a bare pill. */}
-              <span className={styles.content} style={vt && active ? { viewTransitionName: 'tab-active' } : undefined}>
+              <span className={styles.content}>
                 <motion.span
                   className={styles.iconWrap}
                   initial={false}

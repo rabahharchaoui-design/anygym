@@ -111,7 +111,7 @@ test.describe('3.5g gate fixes', () => {
     expect(errors).toEqual([]);
   });
 
-  test('(3) after each log the current row sits above the rest bar; warm ups fold; the hero shrinks @matrix', async ({ page }) => {
+  test('(3) after each log the current row sits above the rest bar; warm ups fold; the hero is small and still @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('./');
     await seedAt(page, Date.now() - 3 * DAY, three('barbell-back-squat', 10, BAR185));
@@ -119,9 +119,12 @@ test.describe('3.5g gate fixes', () => {
     await quickWith(page, [['back squat', 'Barbell Back Squat']]);
     const view = exerciseView(page, 'barbell-back-squat');
     const hero = view.getByTestId('ex-hero');
+    // Read once the screen has landed (the slide in scales the page a little).
+    await page.waitForFunction(() => !document.documentElement.dataset.nav);
+    await page.waitForTimeout(400);
     const heroBefore = (await hero.count()) ? (await hero.boundingBox())!.height : 0;
     const clear = async (label: string) => {
-      await page.waitForTimeout(1100); // the settle (450 ms), the hero glide and the re-check
+      await page.waitForTimeout(1100); // the settle (450 ms), the warm up fold and the re-check
       const check = await checkCurrent(view).boundingBox();
       const rest = page.getByTestId('rest-timer');
       const top = (await rest.count()) ? (await rest.boundingBox())!.y : page.viewportSize()!.height;
@@ -138,7 +141,12 @@ test.describe('3.5g gate fixes', () => {
     const fold = view.getByTestId('warmups-done');
     await expect(fold).toHaveText(/3 warm ups done/);
     expect((await fold.getByRole('button').boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
-    if (heroBefore) expect((await hero.boundingBox())!.height, 'the hero shrinks after the first set').toBeLessThan(heroBefore - 20);
+    // PLAN 3.5w: nothing resizes under the thumb after a check. A short phone has the small hero from
+    // the start (the rows and the rest bar share the screen, as asserted above); it never changes.
+    if (heroBefore) {
+      expect((await hero.boundingBox())!.height, 'the hero keeps its height after a log').toBe(heroBefore);
+      if (page.viewportSize()!.height <= 740) expect(heroBefore, 'small from the start on a short phone').toBeLessThanOrEqual(140);
+    }
     await checkCurrent(view).tap();
     await expect(loggedRows(view)).toHaveCount(4);
     await expect(page.getByTestId('rest-timer')).toBeVisible();

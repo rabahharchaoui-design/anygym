@@ -3,7 +3,7 @@
 import type { Transition, Variants } from 'motion/react';
 
 /** Durations in ms. UI motion stays between 150 and 300 ms; celebrations up to 900 ms. */
-export const DUR = { press: 80, fast: 160, base: 240, slow: 300, celebrate: 900 } as const;
+export const DUR = { press: 80, fast: 160, base: 240, slow: 300, celebrate: 900, /** the app behind a closing sheet coming forward */ sheetBack: 200 } as const;
 
 /** Easings as cubic bezier points (strong ease out, iOS drawer). */
 export const EASE = {
@@ -27,6 +27,9 @@ export const SNAPPY: Transition = TAP_SPRING;
 
 /** Gentle: larger surfaces settling (cards cascading in). */
 export const GENTLE: Transition = { type: 'spring', stiffness: 260, damping: 28 };
+
+/** A light or a card gliding to a new place on the same screen: no overshoot, at rest inside about 380 ms (PLAN 3.5w). */
+export const GLIDE: Transition = { type: 'spring', visualDuration: 0.3, bounce: 0 };
 
 /** Sheets: settle visually in about 240 ms (inside the 180 to 280 ms band). */
 export const SHEET_SPRING: Transition = { type: 'spring', visualDuration: 0.24, bounce: 0.12 };

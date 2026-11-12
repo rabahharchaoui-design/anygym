@@ -210,6 +210,41 @@
   pointer-events: none;
 }
 
+/* PLAN 3.5w: the one line version, pinned under the progress bar while the strip has no room. */
+.soFarLine {
+  flex: none;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-4) + var(--safe-left));
+}
+
+.soFarLine[data-show] {
+  display: flex;
+}
+
+.soFarLineEnd {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.soFarLineEnd .soFarSlot {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.soFarMore {
+  flex: none;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .soFarLabel {
   flex: none;
   color: var(--text-2);

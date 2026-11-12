@@ -45,7 +45,6 @@
 :global(html[data-nav-fallback='pop']) .page {
   animation: fb-pop var(--dur-nav) var(--ease-nav-spring) both;
 }
-:global(html[data-nav-fallback='tab']) .page,
 :global(html[data-nav-fallback='down']) .page {
   animation: fb-rise var(--dur-base) var(--ease-out) both;
 }
