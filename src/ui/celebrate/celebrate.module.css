@@ -19,7 +19,10 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-radius: 18px;
-  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
+  /* Ice blue wash over dense graphite: the number and the exercise name stay AA whatever is behind. */
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent)),
+    var(--glass-bg-strong);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
