@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node scripts/secret-scan.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/secret-scan.mjs && node scripts/size-guard.mjs",
+    "size": "node scripts/size-guard.mjs",
     "secrets": "node scripts/secret-scan.mjs",
     "perf:bundle": "node scripts/perf-budget.mjs",
     "preview": "vite preview",
