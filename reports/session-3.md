@@ -46,3 +46,4 @@ Branch `s3-plans` from tag `pre-s3` (master af01489, Nov 4 2026, Session 2 merge
 - Checkpoint 3.5v live (Nov 12 04:3x ChST): smoke 45 of 45, Pages green, live check passed.
 - Checkpoint 3.5u live (Nov 12): smoke 48 of 48, Pages green, live check passed.
 - Checkpoint 3.5w live (Nov 12): ux-critic 7 before round 2 (three blockers fixed); iPhone 15 suite 1037 passed after follow ups, smoke 87 of 87 on the master build, Pages green, live check passed.
+- Checkpoint 3.6b live (Nov 12): smoke 61 of 61 on the master build, Pages green, live check passed.
