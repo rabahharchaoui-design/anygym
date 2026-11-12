@@ -28,18 +28,27 @@
 //   4. Reduced motion: pass `reduce`. Same tiers, same words; a calm fade, no particles, no
 //      count up, no travel (stagingFor).
 //
+// EFFECTS (PLAN 3.6h): <Effect variant reduce /> fills its positioned parent with one of
+//   burst (a record), shards (the first workout), ring (a level up), trail (a run record),
+//   ambient (calm drifting glass behind a summary, looping). effectFor(moment.kind) names the one
+//   a moment gets; BigMoment already uses it. All but the burst live in the art pack, a lazy chunk
+//   (src/ui/art/lazy.tsx: call preloadArt() as a celebrating screen opens). Piece counts are capped
+//   (EFFECT_CAP), the clock stops while the page is hidden, and `reduce` shows one still picture.
+//
 // LIMITS, on purpose:
 //   - No sound yet. A web app cannot read the silent switch; whether a sound stays quiet on
 //     silent and leaves the playing music alone depends on the iOS audio session (the 'ambient'
 //     navigator.audioSession type, Safari 16.4+), which only a real iPhone can prove. Not proven,
 //     so not shipped: when it is, it belongs here as one optional, off by default call.
 //   - No vibration. Safari on iPhone has none (PLAN 3.6b): nothing is promised.
-//   - No libraries: one canvas (Particles) and CSS or Motion transforms and opacity. Springs and
+//   - No libraries: canvas (Particles, fx/FxCanvas) and CSS or Motion transforms and opacity. Springs and
 //     durations come from src/ui/motion.ts only.
 export type { Moment, MomentKind, Place, Selection, Staging, Tier } from './types';
 export { KIND_ORDER, rankMoments, selectCelebrations, stagingFor, tierOf } from './select';
 export { BigMoment, BIG_COUNT_MS, BIG_HOLD_MS } from './BigMoment';
 export { MomentCard, type Arrival } from './MomentCard';
 export { Particles } from './Particles';
+export { Effect } from './Effect';
+export { EFFECTS, EFFECT_CAP, cappedCount, effectFor, type EffectVariant } from './effects';
 export { DrawnCheck } from './DrawnCheck';
 export { PRBadge } from '../PRBadge';

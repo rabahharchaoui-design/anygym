@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { ArtScene } from './art/lazy';
+import type { SceneName } from './art/scenes';
 import { Button } from './Button';
 import styles from './EmptyState.module.css';
 
@@ -8,6 +10,8 @@ type Props = {
   title: string;
   next: string;
   art?: Art;
+  /** A small vector scene from the art pack (PLAN 3.6h) instead of the drawing; its room is kept while it loads. */
+  scene?: SceneName;
   /** A faint line icon instead of the drawing (a quiet "nothing here yet", PLAN 3.1). */
   icon?: ReactNode;
   /** The one clear next step (SPEC 13.1: no dead ends). */
@@ -15,10 +19,12 @@ type Props = {
 };
 
 /** Honest empty state (SPEC 13.1, 23.3): a small original drawing, what is here, one next step. No fake data. */
-export function EmptyState({ title, next, art = 'list', icon, action }: Props) {
+export function EmptyState({ title, next, art = 'list', scene, icon, action }: Props) {
   return (
     <section className={styles.empty}>
-      {icon ? (
+      {scene ? (
+        <ArtScene name={scene} width={120} className={styles.scene} />
+      ) : icon ? (
         <span className={styles.icon} aria-hidden="true">
           {icon}
         </span>

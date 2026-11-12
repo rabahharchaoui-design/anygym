@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../../ui/Button';
+import { ArtScene } from '../../ui/art/lazy';
 import { FADE, GLIDE } from '../../ui/motion';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { finishWelcomeTour } from '../../db/welcomeTour';
@@ -169,6 +170,8 @@ export function WelcomeTour({ show }: { show: boolean }) {
                   <span key={s.target} className={styles.dot} data-on={i === state.index || undefined} />
                 ))}
               </span>
+              {/* PLAN 3.6h: the first card carries the welcome scene, in room the row already has (the card keeps its height). */}
+              {state.index === 0 && <ArtScene name="welcome" width={48} className={styles.hero} />}
               <Button variant="tertiary" block={false} onClick={() => act('skip')} data-testid="tour-skip">
                 Skip
               </Button>

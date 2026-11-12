@@ -16,7 +16,8 @@ import { getPlanState, setFinishNextDay } from '../../db/planState';
 import { ChangeDaySheet } from '../today/ChangeDaySheet';
 import { dayTitle } from '../plans/planWords';
 import { FADE, GENTLE, STAGGER } from '../../ui/motion';
-import { BigMoment, MomentCard } from '../../ui/celebrate';
+import { BigMoment, Effect, MomentCard } from '../../ui/celebrate';
+import { preloadArt } from '../../ui/art/lazy';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { Odometer } from '../../ui/Odometer';
 import { Skeleton } from '../../ui/Skeleton';
@@ -66,6 +67,8 @@ export function FinishScreen() {
     return { d, unit, moments: await workoutMoments(sessionId, exerciseNamer(d.session), unit) };
   }, [sessionId]);
   const cele = useFinishCelebration(sessionId, detail.ready && !detail.error ? detail.data?.moments : undefined, sliding);
+  // PLAN 3.6h: the medals and effects are a lazy chunk; ask for it now so it is here when the screen shows.
+  useEffect(preloadArt, []);
   // The plan as Finish left it (read, never written on mount): the next up line shows this, live.
   const planLive = useLive(() => getPlanState(), []);
 
@@ -275,6 +278,8 @@ export function FinishScreen() {
       >
         Done
       </BottomCTA>
+      {/* PLAN 3.6h: calm drifting glass behind the summary, once any full screen moment is over. */}
+      {cele.settled && !cele.big && <Effect variant="ambient" reduce={reduce} />}
       {cele.big && <BigMoment moment={cele.big} reduce={reduce} onSettle={cele.onSettle} onDone={cele.onDone} />}
       {plan && state && nextDay && (
         <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={plan} state={state} onPick={(i) => void pickNext(i)} title="Which day next?" />

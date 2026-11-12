@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { DUR, FADE, GENTLE, GLIDE, STAGGER } from '../motion';
 import { afterLanding } from '../nav';
 import { Odometer } from '../Odometer';
-import { Particles } from './Particles';
+import { Effect } from './Effect';
+import { effectFor } from './effects';
 import { stagingFor } from './select';
 import type { Moment } from './types';
 import styles from './celebrate.module.css';
@@ -99,7 +100,8 @@ export function BigMoment({ moment, reduce, onSettle, onDone }: Props) {
     >
       {phase !== 'wait' && (
         <>
-          {staging.particles && !out && <Particles count={44} origin={{ x: 0.5, y: 0.5 }} reach={190} delay={160} life={BIG_COUNT_MS + BIG_HOLD_MS - 160} className={styles.bigParticles} />}
+          {/* The moment's own effect (PLAN 3.6h): glass shards for the first workout, the burst for a record. */}
+          {staging.particles && !out && <Effect variant={effectFor(moment.kind)} delay={160} life={BIG_COUNT_MS + BIG_HOLD_MS - 160} className={styles.bigParticles} />}
           <div className={styles.bigBody}>
             <motion.p className={styles.bigTitle} {...rise(0)}>
               {moment.title}

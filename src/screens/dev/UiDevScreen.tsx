@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { CalendarDays, Dumbbell, Weight } from 'lucide-react';
 import { SlidingToggle } from '../../ui/SlidingToggle';
 import { ChoiceCard } from '../../ui/ChoiceCard';
@@ -8,6 +8,9 @@ import { PRBadge } from '../../ui/PRBadge';
 import { AppMarkLoader } from '../../ui/AppMarkLoader';
 import { CheckIcon } from '../../ui/icons';
 import styles from './UiDevScreen.module.css';
+
+// PLAN 3.6h: the art sheet is its own chunk, like the art it shows.
+const ArtDev = lazy(() => import('./ArtDev').then((m) => ({ default: m.ArtDev })));
 
 const GOALS = [
   { id: 'strength', label: 'Get stronger', hint: 'Fewer reps, heavier', icon: Weight },
@@ -82,6 +85,9 @@ export function UiDevScreen() {
             Replay
           </button>
         </section>
+        <Suspense fallback={null}>
+          <ArtDev />
+        </Suspense>
       </main>
       <Toast toast={toast} bottom="150px" />
       <BottomCTA onPress={() => setGoal(null)} disabled={!goal} disabledReason="Pick a goal first" note="Stays on this phone." testId="cta">

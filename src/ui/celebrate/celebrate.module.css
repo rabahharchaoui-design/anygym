@@ -31,21 +31,20 @@
 
 .cardIcon {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
+  margin: -3px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
 }
 
 .card[data-size='row'] .cardIcon {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  margin: -2px;
 }
 
-/* The trophy answers its own burst: one small spring, the same one the "New best" chip uses. */
+/* The medal answers its own burst: one small spring, the same one the "New best" chip uses. */
 .cardIcon[data-pop] {
   animation: icon-pop 340ms var(--ease-tap-spring) both;
 }
