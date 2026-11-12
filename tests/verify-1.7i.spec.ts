@@ -94,16 +94,28 @@ test('(b) Undo acceptance write fails: Finish refuses, tombstone kept, retry res
   await loggedRows(view).first().getByRole('button', { name: /Edit$/ }).tap();
   await editSheet(page).getByRole('button', { name: 'Delete set' }).tap();
   await expect(loggedRows(view)).toHaveCount(1);
-  await page.evaluate(() => {
+  // Undo has a 5 s window from the delete. On a busy machine three round trips (the setup, a tap's checks) can use it up, so the failing
+  // write is armed and Undo pressed in one step inside the page, as soon as the toast shows it.
+  await page.evaluate(async () => {
     const w = window as unknown as { __failPut: boolean };
-    w.__failPut = true;
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...a: [unknown, IDBValidKey?]) {
       if (this.name === 'tombstones' && w.__failPut) { w.__failPut = false; throw new DOMException('boom', 'DataError'); }
       return put.apply(this, a);
     } as typeof put;
+    const undo = await new Promise<HTMLButtonElement>((resolve) => {
+      const find = () => Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Undo');
+      const now = find();
+      if (now) return resolve(now);
+      const mo = new MutationObserver(() => {
+        const b = find();
+        if (b) { mo.disconnect(); resolve(b); }
+      });
+      mo.observe(document.body, { subtree: true, childList: true });
+    });
+    w.__failPut = true;
+    undo.click();
   });
-  await page.getByRole('button', { name: 'Undo' }).tap();
   await expect(page.getByText('Could not bring that set back')).toBeVisible();
   await shot(page, 'b-undo-failed');
   expect(await sets(page)).toHaveLength(1);

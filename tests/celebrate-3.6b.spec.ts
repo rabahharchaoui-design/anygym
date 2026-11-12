@@ -244,7 +244,9 @@ test.describe('3.6b celebrations', () => {
     const at = await rect(hero);
     await page.waitForTimeout(600);
     await shot(page, 'reduced-big');
-    await big(page).tap();
+    // It also leaves on its own, and a busy machine can be past that by now (the shot above takes a while): a tap on what is
+    // still there skips it; if it is already gone the words below are what is checked.
+    await big(page).tap({ timeout: 2000 }).catch(() => undefined);
     expect(await rect(hero).catch(() => at)).toEqual(at);
     await expect(big(page)).toHaveCount(0, { timeout: 1500 });
     await expect(page.getByTestId('finish-win')).toContainText('155 lb × 8, heaviest ever');

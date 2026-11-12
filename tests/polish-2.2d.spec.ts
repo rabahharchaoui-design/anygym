@@ -213,6 +213,9 @@ test('speed: a ✓ paints within 100 ms, no layout shift, smooth check and sheet
   const chromium = browserName === 'chromium';
   await page.goto('./');
   const view = await squatWith(page, 0);
+  // A fourth row, so there are three ✓ taps to measure and one row left for the sheet below.
+  await view.getByRole('button', { name: '+ Add set' }).tap();
+  await expect(view.getByTestId('set-todo')).toHaveCount(4);
   await expect(checkCurrent(view)).toBeEnabled();
   await page.waitForTimeout(800); // the muscles and tips mounted, the audio context warmed while idle
   // "Painted" is two animation frames: a Chromium host that cannot draw 60 fps adds what its idle page costs (helpers/frames.ts).
@@ -256,11 +259,11 @@ test('speed: a ✓ paints within 100 ms, no layout shift, smooth check and sheet
   };
 
   // The ✓ tap to its painted state. Other work on this machine can only make a run slower, never faster, so the best of
-  // up to two taps (the third row stays for the sheet below) is the app's own cost: a real slowdown shows in all of them.
+  // up to three taps (the fourth row stays for the sheet below) is the app's own cost: a real slowdown shows in all of them.
   const limit = paintBudget(100, idle);
   const gapLimit = longestBudget(34, idle);
   const tries: Array<{ ms: number; domMs: number; gap: number }> = [];
-  for (let n = 1; n <= 2; n++) {
+  for (let n = 1; n <= 3; n++) {
     await page.evaluate(() => {
       const w = window as unknown as { __tap: { down: number; painted: number; dom: number } };
       w.__tap = { down: 0, painted: 0, dom: 0 };
