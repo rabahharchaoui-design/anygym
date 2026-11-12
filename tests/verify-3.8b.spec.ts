@@ -238,7 +238,9 @@ test.describe('verify 3.8b', () => {
       expect(m.restart.w).toBeGreaterThanOrEqual(47.5);
       // First screen, nothing scrolled (what the Codex finding judged): both buttons fully above the tab bar.
       // 3.8b round 2: at 130% text the page may scroll (the scrolled-to-end check below still holds); the first screen check is for 100%.
-      if (f === 1) {
+      // PLAN 3.6v: on the 320 x 568 floor the day card alone fills the first screen (no room for both
+      // cards); there the scrolled check below is the rule. Every taller phone keeps the first screen check.
+      if (f === 1 && page.viewportSize()!.height > 600) {
       expect.soft(m.resume.b, `first screen: Resume bottom ${m.resume.b} vs tab bar top ${m.capsuleTop}`).toBeLessThanOrEqual(m.capsuleTop);
       expect.soft(m.restart.b, `first screen: Restart bottom ${m.restart.b} vs tab bar top ${m.capsuleTop}`).toBeLessThanOrEqual(m.capsuleTop);
       }
@@ -370,7 +372,11 @@ test.describe('verify 3.8b swipe hint', () => {
     }
     console.log('HINT4', test.info().project.name, JSON.stringify(info));
     await snap(page, 'h4-hint-one-set');
+    // Like logAll: the app drops a second tap on the same spot within 350 ms (a double tap guard), and a
+    // fast Chromium run tapped twice inside it (PLAN 3.6v).
     await tapCircle(page, view);
+    await expect(loggedRows(view)).toHaveCount(2);
+    await page.waitForTimeout(400);
     await tapCircle(page, view);
     await expect(loggedRows(view)).toHaveCount(3);
     // 3.5g: the effort question is asked on the day list row only; with every set done the swipe tip still waits.
@@ -571,6 +577,10 @@ test.describe('verify 3.8b round 2', () => {
         new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => n instanceof Element && mark(n, false)))).observe(document.body, { childList: true, subtree: true });
       }, f);
       await logAll(view);
+      // 3.5g: no prompt on the exercise view; the guide stays in view. Read now: the view returns to
+      // the list about 2.5 s after the last set, and on a fast Chromium run the 1.5 s wait below plus
+      // the screenshot reached past that (PLAN 3.6v).
+      await expect(view.getByTestId('set-next')).toBeInViewport({ ratio: 1 });
       await page.waitForTimeout(1500);
       const info = await page.evaluate(() => {
         const box = (el: Element | null) => { if (!el) return null; const r = el.getBoundingClientRect(); return { t: r.top, b: r.bottom }; };
@@ -580,7 +590,6 @@ test.describe('verify 3.8b round 2', () => {
       await snap(page, 'r4b-effort-130');
       // 3.5g: no prompt on the exercise view; the guide stays in view and the day list row asks.
       expect(info.btns.length).toBe(0);
-      await expect(view.getByTestId('set-next')).toBeInViewport({ ratio: 1 });
       await expect(view).toHaveCount(0, { timeout: 6000 });
       await expect(page.getByTestId('list-effort')).toBeVisible();
       for (const e of ['easy', 'good', 'hard']) expect((await page.getByTestId(`list-effort-${e}`).boundingBox())!.height).toBeGreaterThanOrEqual(47.5);
