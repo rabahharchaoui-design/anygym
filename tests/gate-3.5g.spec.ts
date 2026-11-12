@@ -144,7 +144,8 @@ test.describe('3.5g gate fixes', () => {
     // PLAN 3.5w: nothing resizes under the thumb after a check. A short phone has the small hero from
     // the start (the rows and the rest bar share the screen, as asserted above); it never changes.
     if (heroBefore) {
-      expect((await hero.boundingBox())!.height, 'the hero keeps its height after a log').toBe(heroBefore);
+      // Within half a pixel: a phone's pixel grid reports 251.6863 and 251.6875 for the same box.
+      expect(Math.abs((await hero.boundingBox())!.height - heroBefore), 'the hero keeps its height after a log').toBeLessThanOrEqual(0.5);
       if (page.viewportSize()!.height <= 740) expect(heroBefore, 'small from the start on a short phone').toBeLessThanOrEqual(140);
     }
     await checkCurrent(view).tap();
