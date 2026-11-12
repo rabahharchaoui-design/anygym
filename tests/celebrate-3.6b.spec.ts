@@ -179,7 +179,7 @@ test.describe('3.6b celebrations', () => {
     // The screen change itself (the push slide) is done first: on a slow host it still runs 650 ms in.
     await navIdle(page);
     await page.waitForTimeout(650);
-    const readAll = async () => ({ ...(await read()), done: await rect(page.getByRole('button', { name: 'Done' })) });
+    const readAll = async (): Promise<Record<string, number[]>> => ({ ...(await read()), done: await rect(page.getByRole('button', { name: 'Done' })) });
     // Where the cards rest under the BIG: the card's own arrival (a hair of scale) can still be running on a slow host, so read until two reads agree.
     let before = await readAll();
     for (let i = 0; i < 6; i++) {
