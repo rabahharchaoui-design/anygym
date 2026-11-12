@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './fixtures';
 import { simulateSafeAreas } from './helpers/layout';
 import { pastIntake } from './helpers/quick';
-import { framesFloor, idleFrames, paintBudget } from './helpers/frames';
+import { framesFloor, idleFrames, longestBudget, paintBudget } from './helpers/frames';
 import { bar185, checkCurrent, exerciseView, loggedRows, quickWith, seedFinished } from './workout-helpers';
 
 // PLAN 3.5w: motion polish from G's recordings. Each fixed transition has its proof here: nothing
@@ -64,8 +64,9 @@ const fromTap = (page: Page, ms = 500) => ({
     // WebKit (the iPhones): no dropped streak. Headless WebKit's frame clock is noisy when the whole
     // suite runs beside it, so one late frame is let through, as in the 2.2e push and pop budget.
     if (isWebKit()) {
-      expect(longest).toBeLessThan(67);
-      expect(gaps.filter((g) => g > 40).length).toBeLessThanOrEqual(1);
+      const idle = await idleFrames(page); // a machine busy with other work stalls an empty page too (helpers/frames.ts)
+      expect(longest).toBeLessThan(longestBudget(67, idle));
+      expect(gaps.filter((g) => g > longestBudget(40, idle)).length).toBeLessThanOrEqual(1);
     }
     return longest;
   },

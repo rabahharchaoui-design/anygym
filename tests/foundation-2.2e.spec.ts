@@ -2,7 +2,7 @@
 // lead line) and its speed budget on WebKit; round 2 covers the critic's B1 to B6 and the Codex review.
 import { expect, test, type Locator, type Page } from './fixtures';
 import { tokenColor } from './helpers/tokens';
-import { framesFloor, idleFrames, idleNote, paintBudget } from './helpers/frames';
+import { framesFloor, idleFrames, idleNote, longestBudget, paintBudget } from './helpers/frames';
 import { bar185, checkCurrent, exerciseView, fillReps, loggedRows, navIdle, pickExercises, seedFinished, usePlan, watchErrors } from './workout-helpers';
 
 const SHOTS = 'reports/shots/2.2e';
@@ -505,13 +505,15 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     await page.waitForTimeout(600);
     const pop = await stop();
     const long = (g: number[]) => Math.round(Math.max(0, ...g));
-    // A dropped frame: a gap past two 60 Hz intervals plus the headless clock's few ms of jitter.
-    const missed = (g: number[]) => g.filter((x) => x > 40).length;
+    // A dropped frame: a gap past two 60 Hz intervals plus the headless clock's few ms of jitter (more on a machine busy with other work: helpers/frames.ts).
+    const idle = await idleFrames(page);
+    const stall = longestBudget(40, idle);
+    const missed = (g: number[]) => g.filter((x) => x > stall).length;
     console.log(`${test.info().project.name}: push longest ${long(push.gaps)} ms (${missed(push.gaps)} over 40), pop longest ${long(pop.gaps)} ms (${missed(pop.gaps)} over 40), min scale ${Math.min(1, ...push.scales, ...pop.scales)}`);
     // Headless WebKit's frame clock is noisy (see polish-2.2d): no frame over 50 ms, at most one missed.
     for (const r of [push, pop]) {
       if (!isWebKit()) continue;
-      expect(long(r.gaps)).toBeLessThan(50);
+      expect(long(r.gaps)).toBeLessThan(longestBudget(50, idle));
       expect(missed(r.gaps)).toBeLessThanOrEqual(1);
     }
     // The one page transition ran both ways: a push, then a pop (View Transitions), whose CSS
@@ -562,10 +564,11 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     await expect(weight.getByTestId('plate-total')).toHaveAttribute('data-math', /^35 bar/);
     await page.waitForTimeout(300);
     const bar = await f.stop();
-    console.log(`${test.info().project.name}: PR check longest frame ${check} ms, bar pick longest frame ${bar} ms`);
+    const idle = await idleFrames(page);
+    console.log(`${test.info().project.name}: PR check longest frame ${check} ms, bar pick longest frame ${bar} ms; ${idleNote(idle)}`);
     if (isWebKit()) {
-      expect(check).toBeLessThan(50);
-      expect(bar).toBeLessThan(50);
+      expect(check).toBeLessThan(longestBudget(50, idle));
+      expect(bar).toBeLessThan(longestBudget(50, idle));
     }
     expect(errors).toEqual([]);
   });
@@ -681,8 +684,8 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     await expect(loggedRows(view).first().getByTestId('pr-badge')).toBeVisible();
     console.log(`${test.info().project.name}: from the tap: tab switch longest frame ${tab} ms, PR check longest frame ${check} ms; ${idleNote(idle)}`);
     if (isWebKit()) {
-      expect(tab).toBeLessThan(50);
-      expect(check).toBeLessThan(50);
+      expect(tab).toBeLessThan(longestBudget(50, idle));
+      expect(check).toBeLessThan(longestBudget(50, idle));
     }
     expect(errors).toEqual([]);
   });

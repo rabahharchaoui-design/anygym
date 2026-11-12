@@ -2,10 +2,11 @@
 // not the host's (PLAN 3.6v). Headless Chromium on a laptop with no display draws an empty page at
 // 15 to 30 frames a second (a gap of 33 to 130 ms between requestAnimationFrame callbacks, measured
 // on a page with nothing on it), where WebKit draws 60. A budget written for 60 frames a second
-// can never hold there. So a Chromium run first samples its own idle page: when that page holds
+// can never hold there. So a run first samples its own idle page: when that page holds
 // 60 fps (a healthy host, a real phone) every strict number stays as written; when it cannot, the
-// budget grows by what the host itself adds, and says so. The iPhone projects (WebKit) keep every
-// strict number except the longest single gap, which may grow by what an idle page stalls for.
+// budget grows by what the host itself adds, and says so. The iPhone projects (WebKit) draw 60 fps on
+// a quiet machine and keep every strict number there; on a machine so busy that even an empty
+// WebKit page cannot, the same rule applies to them.
 import type { Page } from '../fixtures';
 
 export type Idle = {
@@ -14,7 +15,7 @@ export type Idle = {
   p90: number;
   /** The longest gap seen on the idle page: a loaded machine stalls an empty page this long too. */
   longest: number;
-  /** True when this host cannot hold 60 fps on an empty page (Chromium only). */
+  /** True when this host cannot hold 60 fps on an empty page just now: headless Chromium here, or any engine on a machine busy with other work. */
   slow: boolean;
 };
 
@@ -23,7 +24,6 @@ const SLOW_P90_MS = 25;
 
 /** Samples requestAnimationFrame on the page as it is now (nothing running) for `ms`. */
 export async function idleFrames(page: Page, ms = 1000): Promise<Idle> {
-  const chromium = page.context().browser()?.browserType().name() === 'chromium';
   const gaps = await page.evaluate(
     (span) =>
       new Promise<number[]>((resolve) => {
@@ -43,7 +43,7 @@ export async function idleFrames(page: Page, ms = 1000): Promise<Idle> {
   gaps.sort((a, b) => a - b);
   const p50 = gaps[Math.floor(gaps.length / 2)] ?? 16.7;
   const p90 = gaps[Math.floor(gaps.length * 0.9)] ?? 16.7;
-  return { p50, p90, longest: gaps[gaps.length - 1] ?? 16.7, slow: chromium && p90 > SLOW_P90_MS };
+  return { p50, p90, longest: gaps[gaps.length - 1] ?? 16.7, slow: p90 > SLOW_P90_MS };
 }
 
 /** Frames expected over `spanMs` of an effect: `strict` on a healthy host, else what half the host's own rate allows (never under `least`, 2 unless said). */
