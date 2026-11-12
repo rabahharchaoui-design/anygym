@@ -1,0 +1,463 @@
+# Dead code report, 2026-11
+
+Made by `npm run deadcode` (knip). It lists things nothing seems to use. It deletes nothing. Check each one before removing: a name can be used in a way the tool cannot see.
+
+Summary: 0 unused files, 0 unused dependencies, 227 unused exports, 58 unused types, 4 duplicate exports.
+
+## Unused files (0)
+
+None.
+
+## Unused dependencies (0)
+
+None.
+
+## Unused exports (227)
+
+- `src/components/AppShell.tsx`
+  - `parentOf` (line 16)
+- `src/components/ArrivalGuard.tsx`
+  - `ARRIVAL_GUARD_MS` (line 6)
+  - `ARRIVAL_GUARD_MIN_MS` (line 8)
+- `src/components/deck/SwipeDeck.tsx`
+  - `LONG_PRESS_MS` (line 24)
+- `src/components/info/illustrations.tsx`
+  - `VHandleArt` (line 187)
+  - `DHandleArt` (line 199)
+  - `SeatedRowArt` (line 291)
+  - `ResistanceBandArt` (line 384)
+  - `CollarsArt` (line 393)
+  - `BumperVsIronArt` (line 407)
+- `src/components/load/BarQuestion.tsx`
+  - `BAR_CHIPS` (line 10)
+- `src/components/load/BarSvg.tsx`
+  - `barLabel` (line 42)
+- `src/components/load/DumbbellWheel.tsx`
+  - `WHEEL_COPY` (line 38)
+- `src/components/load/ExactWeightInput.tsx`
+  - `EXACT_COPY` (line 24)
+- `src/components/load/StackSelector.tsx`
+  - `STACK_COPY` (line 28)
+- `src/db/backup.ts`
+  - `COACH_TABLES` (line 29)
+- `src/db/candidateReviews.ts`
+  - `applyApprovals` (line 15)
+- `src/db/coachData.ts`
+  - `readCoach` (line 213)
+- `src/db/exerciseSettings.ts`
+  - `MIN_REST_SEC` (line 89)
+- `src/db/gymSwitch.ts`
+  - `workoutAtGym` (line 79)
+- `src/db/history.ts`
+  - `exerciseBarOf` (line 71)
+  - `legacyBars` (line 137)
+  - `gymOfSet` (line 159)
+- `src/db/intake.ts`
+  - `INTAKE_DONE_KEY` (line 12)
+  - `markIntakeDoneHere` (line 24)
+- `src/db/mutations.ts`
+  - `mutationKey` (line 47)
+  - `legacyMutationId` (line 50)
+  - `mutationId` (line 53)
+  - `MUTATION_REV_PREFIX` (line 56)
+- `src/db/reports.ts`
+  - `localDay` (line 11)
+  - `dropQueuedCrashes` (line 84)
+- `src/db/schema.ts`
+  - `SCHEMA_V11` (line 126)
+- `src/db/workoutSets.ts`
+  - `validSet` (line 32)
+- `src/hooks/usePhotos.ts`
+  - `demoFrames` (line 25)
+- `src/lib/__tests__/coach/fixtures.ts`
+  - `setupFor` (line 10)
+- `src/lib/__tests__/fixtures/order-scenarios.ts`
+  - `HOME_BANDS` (line 20)
+  - `MACHINES_ONLY` (line 21)
+- `src/lib/backup.ts`
+  - `REMIND_MIN_SESSIONS` (line 21)
+  - `TABLE_SINCE` (line 127)
+- `src/lib/backupChecks.ts`
+  - `unit` (line 27)
+- `src/lib/backupReminder.ts`
+  - `REMIND_MIN_SESSIONS` (line 8)
+- `src/lib/candidates/build.ts`
+  - `candidatePhotos` (line 33)
+- `src/lib/candidates/review.ts`
+  - `DECISIONS` (line 6)
+  - `APPROVALS_FORMAT` (line 64)
+- `src/lib/coach/increment.ts`
+  - `MIN_PCT` (line 14)
+  - `PERSONAL_AFTER` (line 18)
+  - `EASY_BONUS` (line 20)
+- `src/lib/coach/levelUp.ts`
+  - `lighterActive` (line 23)
+  - `levelUpCardId` (line 28)
+- `src/lib/coach/outcome.ts`
+  - `MISS_FACTOR` (line 11)
+  - `EASY_FACTOR` (line 12)
+  - `SCALE_MIN` (line 13)
+  - `SCALE_MAX` (line 14)
+- `src/lib/coach/recovery.ts`
+  - `DELOAD_AFTER_WEEKS` (line 13)
+  - `DELOAD_QUIET_DAYS` (line 15)
+  - `LIGHTER` (line 19)
+  - `lastLighter` (line 40)
+  - `FLAT` (line 113)
+- `src/lib/coach/rest.ts`
+  - `REST_BY_GOAL` (line 6)
+- `src/lib/coach/sets.ts`
+  - `heaviestLoad` (line 17)
+  - `SHARP_DROP` (line 33)
+- `src/lib/coach/shortList.ts`
+  - `SHORT_LIST_MAX` (line 4)
+- `src/lib/coach/strength.ts`
+  - `SMOOTHING` (line 24)
+  - `RATE_WINDOW_WEEKS` (line 41)
+  - `RATE_MIN_SPAN_WEEKS` (line 42)
+  - `RATE_MIN_SESSIONS` (line 43)
+- `src/lib/coach/today.ts`
+  - `leveledCardId` (line 55)
+- `src/lib/coach/warmup.ts`
+  - `WARM_UP_LEVELS` (line 10)
+- `src/lib/coachFacts.ts`
+  - `FACT_WORDS` (line 26)
+  - `noteOf` (line 85)
+- `src/lib/coachTips.ts`
+  - `SESSION_SETS` (line 39)
+  - `CORE_KEEP` (line 41)
+  - `FREQ_SETS` (line 43)
+  - `dayFocus` (line 68)
+- `src/lib/drafts.ts`
+  - `draftsMirrorRow` (line 181)
+- `src/lib/generator/index.ts`
+  - `GENERATOR_VERSION` (line 23)
+- `src/lib/generator/trim.ts`
+  - `blockOf` (line 9)
+- `src/lib/import/anygymImportV1.ts`
+  - `IMPORT_FORMAT` (line 13)
+  - `FILE_LOAD_TYPES` (line 16)
+- `src/lib/import/exerciseMatch.ts`
+  - `NAME_PREFIX` (line 43)
+  - `CATALOG_PICK` (line 48)
+  - `catalogTarget` (line 69)
+  - `nameTarget` (line 75)
+- `src/lib/import/importOrder.ts`
+  - `IMPORT_ORDER_LIMIT` (line 6)
+- `src/lib/intake/exerciseDeck.ts`
+  - `DECK_PATTERNS` (line 9)
+- `src/lib/intake/funnel.ts`
+  - `nextScreen` (line 322)
+- `src/lib/intake/planFit.ts`
+  - `equipmentOf` (line 29)
+- `src/lib/intake/planPick.ts`
+  - `equipmentOf` (line 15)
+- `src/lib/intake/yourPlan.ts`
+  - `GOAL_WORD` (line 28)
+  - `list` (line 80)
+- `src/lib/load/body.ts`
+  - `CM_PER_IN` (line 29)
+- `src/lib/load/coach.ts`
+  - `TEST_SET_CAP` (line 152)
+- `src/lib/load/index.ts`
+  - `CM_PER_IN` (line 19)
+  - `TEST_SET_CAP` (line 20)
+  - `SAME_RESISTANCE_TOLERANCE` (line 22)
+  - `MIN_DUMBBELL_STEP` (line 25)
+  - `MAX_DUMBBELL_STEP` (line 25)
+  - `MAX_STACK_PINS` (line 39)
+- `src/lib/load/stack.ts`
+  - `MAX_STACK_PINS` (line 34)
+- `src/lib/load/steps.ts`
+  - `nearestOf` (line 12)
+- `src/lib/order.ts`
+  - `MUSCLES` (line 20)
+- `src/lib/orderSession.ts`
+  - `hardSetsOf` (line 181)
+- `src/lib/plans.ts`
+  - `DEFAULT_PLAN_REST_SEC` (line 184)
+  - `low` (line 222)
+- `src/lib/planWorkout.ts`
+  - `QUICK_GROUP_BLOCK` (line 279)
+- `src/lib/plateColors.ts`
+  - `luminance` (line 72)
+- `src/lib/plateLayout.ts`
+  - `SMALL_MAX` (line 31)
+  - `REVEAL_MM` (line 37)
+  - `HORN_MIN_H` (line 47)
+  - `HORN_EMPTY_MAX` (line 49)
+  - `stackLength` (line 140)
+  - `toScreen` (line 218)
+  - `hornScale` (line 292)
+  - `hornZoom` (line 308)
+- `src/lib/quick.ts`
+  - `STYLE_ORDER` (line 33)
+  - `FIT_SLACK` (line 35)
+  - `MAIN_MUSCLES` (line 35)
+  - `gearWords` (line 35)
+  - `mainMuscles` (line 35)
+  - `primaryOf` (line 35)
+  - `roundsOf` (line 35)
+  - `restedFirst` (line 36)
+  - `fitPlanDay` (line 40)
+  - `planMinutes` (line 40)
+  - `hasSureLegs` (line 209)
+- `src/lib/quickCardio.ts`
+  - `gymCardio` (line 22)
+- `src/lib/quickCards.ts`
+  - `FRESH_POOL` (line 17)
+  - `LEG_PATTERNS` (line 18)
+  - `BLURB` (line 20)
+  - `BUILD` (line 39)
+  - `restedFirst` (line 46)
+  - `newerOf` (line 140)
+  - `FRESH_REST` (line 152)
+- `src/lib/quickFocus.ts`
+  - `FEWEST_AREA_MOVES` (line 30)
+- `src/lib/quickNotes.ts`
+  - `restWords` (line 23)
+- `src/lib/quickPlan.ts`
+  - `workingBlocks` (line 34)
+  - `fitPlanDay` (line 46)
+- `src/lib/quickShow.ts`
+  - `FIT_SLACK` (line 14)
+  - `GEAR_WORD` (line 51)
+  - `gearWords` (line 61)
+  - `primaryOf` (line 76)
+  - `MAIN_MUSCLES` (line 81)
+  - `roundsOf` (line 135)
+- `src/lib/quickStyles/batch.ts`
+  - `sameIds` (line 47)
+  - `rankStyles` (line 50)
+  - `sameMuscles` (line 186)
+- `src/lib/quickStyles/card.ts`
+  - `optionWord` (line 10)
+- `src/lib/quickStyles/index.ts`
+  - `rankStyles` (line 19)
+  - `lowImpact` (line 23)
+- `src/lib/quickStyles/layout.ts`
+  - `areaOf` (line 11)
+  - `interleave` (line 14)
+- `src/lib/quickStyles/styleHelpers.ts`
+  - `bodyArea` (line 34)
+- `src/lib/quickWhy.ts`
+  - `DAY_MS` (line 18)
+  - `localDay` (line 19)
+- `src/lib/reporting/capture.ts`
+  - `ownScript` (line 16)
+- `src/lib/reporting/diagnostics.ts`
+  - `errorLocation` (line 40)
+- `src/lib/reporting/mask.ts`
+  - `ERROR_CODES` (line 95)
+  - `HIDDEN` (line 112)
+  - `scriptLocation` (line 121)
+- `src/lib/reporting/screenshots.ts`
+  - `MAX_BYTES` (line 5)
+- `src/lib/reporting/transport.ts`
+  - `scrubPayload` (line 37)
+- `src/lib/review.ts`
+  - `REVIEW_FORMAT` (line 18)
+- `src/lib/setTable.ts`
+  - `draftFp` (line 131)
+  - `successorOf` (line 146)
+- `src/lib/setWords.ts`
+  - `weightWords` (line 18)
+- `src/lib/shareFile.ts`
+  - `canShareFile` (line 8)
+  - `downloadFile` (line 17)
+- `src/lib/swap.ts`
+  - `SWAP_SHEET_MAX` (line 207)
+  - `members` (line 345)
+- `src/lib/timeBudget.ts`
+  - `ACCESSORY_SETS` (line 27)
+  - `changesOf` (line 269)
+- `src/lib/warmUpFold.ts`
+  - `FOLD_MIN` (line 7)
+  - `SAME_SPOT_PX` (line 27)
+- `src/screens/dev/viewportInfo.ts`
+  - `readSafeAreaInsets` (line 6)
+- `src/screens/intake/AboutSteps.tsx`
+  - `HeightStep` (line 113)
+- `src/screens/intake/EquipmentArt.tsx`
+  - `ART_STROKE` (line 11)
+- `src/screens/intake/icons.ts`
+  - `INTAKE_ICON_NAMES` (line 89)
+- `src/screens/intake/IntakeScreen.tsx`
+  - `AUTO_ADVANCE_MS` (line 47)
+- `src/screens/plans/planWords.ts`
+  - `gymLabel` (line 7)
+- `src/screens/quick/Deck.tsx`
+  - `LONG_PRESS_MS` (line 11)
+- `src/screens/review/FitChrome.tsx`
+  - `REASON_MS` (line 12)
+- `src/screens/review/UndoChip.tsx`
+  - `UNDO_MS` (line 5)
+- `src/screens/settings/ReportProblemSheet.tsx`
+  - `DISCLOSURE` (line 13)
+  - `SENT_TEXT` (line 16)
+  - `QUEUED_TEXT` (line 17)
+- `src/screens/today/CoachCard.tsx`
+  - `TOAST_AFTER_MS` (line 29)
+- `src/screens/today/FreshMuscles.tsx`
+  - `freshWords` (line 15)
+  - `unmappedLine` (line 25)
+- `src/screens/today/startBudget.ts`
+  - `NEXT_START_KEY` (line 13)
+- `src/screens/workout/coachWarmUps.ts`
+  - `COACH_WARMUPS_KEY` (line 11)
+  - `warmUpsSeeded` (line 37)
+  - `warmUpDrafts` (line 54)
+  - `resetWarmUpsMemory` (line 78)
+- `src/screens/workout/EditSetSheet.tsx`
+  - `SAVE_FAILED` (line 14)
+- `src/screens/workout/exerciseLoad.ts`
+  - `reusable` (line 61)
+  - `kindMismatch` (line 156)
+- `src/screens/workout/rowLog.ts`
+  - `committedMap` (line 67)
+  - `draftedExercises` (line 158)
+- `src/screens/workout/SwipeRow.tsx`
+  - `OPEN_PX` (line 7)
+- `src/screens/workout/TimeBudgetSheet.tsx`
+  - `APPLY_GUARD_MS` (line 32)
+- `src/screens/workout/useTimeBudget.ts`
+  - `TIME_OFFER_KEY` (line 15)
+- `src/ui/art/passport/index.ts`
+  - `medallion` (line 6)
+  - `rosettePath` (line 6)
+  - `wavePath` (line 6)
+- `src/ui/celebrate/BigMoment.tsx`
+  - `BIG_COUNT_MS` (line 23)
+  - `BIG_HOLD_MS` (line 25)
+- `src/ui/celebrate/index.ts`
+  - `KIND_ORDER` (line 47)
+  - `rankMoments` (line 47)
+  - `stagingFor` (line 47)
+  - `tierOf` (line 47)
+  - `BIG_COUNT_MS` (line 48)
+  - `BIG_HOLD_MS` (line 48)
+  - `Particles` (line 50)
+  - `EFFECT_CAP` (line 52)
+  - `cappedCount` (line 52)
+  - `effectFor` (line 52)
+- `src/ui/haptics.ts`
+  - `switchTick` (line 71)
+- `src/ui/icons.ts`
+  - `TrophyIcon` (line 13)
+  - `ImageOffIcon` (line 20)
+  - `SwitchIcon` (line 31)
+  - `ArrowRightIcon` (line 33)
+- `src/ui/motion.ts`
+  - `SNAPPY` (line 26)
+  - `NAV_SPRING` (line 44)
+  - `motionFor` (line 84)
+- `src/ui/Toast.tsx`
+  - `isUndoToast` (line 14)
+  - `TOAST_ARM_MS` (line 27)
+- `src/ui/WheelColumn.tsx`
+  - `WHEEL_ROW` (line 22)
+
+## Unused types (58)
+
+- `src/db/coach.ts`
+  - `EffortRow` (line 164)
+- `src/db/types.ts`
+  - `RunPoint` (line 415)
+- `src/lib/backup.ts`
+  - `ReminderInput` (line 21)
+  - `BackupRest` (line 74)
+  - `BackupExtraSets` (line 75)
+- `src/lib/bodyArt/index.ts`
+  - `BodyShape` (line 36)
+- `src/lib/candidates/types.ts`
+  - `ExtraGroup` (line 12)
+  - `Check` (line 34)
+  - `EquipmentId` (line 90)
+- `src/lib/coach/types.ts`
+  - `TargetSource` (line 32)
+- `src/lib/exerciseInfo.ts`
+  - `Cue` (line 7)
+- `src/lib/generator/index.ts`
+  - `RawFinisher` (line 24)
+  - `RawPair` (line 24)
+  - `RawSingle` (line 24)
+  - `DayResult` (line 30)
+- `src/lib/import/anygymImportV1.ts`
+  - `ImportIssue` (line 73)
+- `src/lib/import/exerciseMatch.ts`
+  - `TargetSource` (line 25)
+- `src/lib/import/importPlan.ts`
+  - `PlannedSession` (line 95)
+  - `WriteSet` (line 117)
+- `src/lib/intake/equipmentGroups.ts`
+  - `EquipmentGroupId` (line 5)
+- `src/lib/intake/funnel.ts`
+  - `Bodyweight` (line 44)
+- `src/lib/load/index.ts`
+  - `LoadableOptions` (line 30)
+  - `CopyRefusal` (line 32)
+  - `SolveResult` (line 38)
+  - `SumInput` (line 42)
+  - `SumResult` (line 42)
+- `src/lib/logQueue.ts`
+  - `Landed` (line 21)
+- `src/lib/muscles.ts`
+  - `Shade` (line 34)
+- `src/lib/order.ts`
+  - `Role` (line 42)
+- `src/lib/orderSession.ts`
+  - `SessionRole` (line 21)
+- `src/lib/plans.ts`
+  - `RepRange` (line 15)
+  - `ProgressionMode` (line 18)
+  - `WeekRow` (line 20)
+- `src/lib/progression.ts`
+  - `NextKind` (line 72)
+- `src/lib/quick.ts`
+  - `PreviewInput` (line 39)
+  - `PlanConceptInput` (line 40)
+- `src/lib/quickStyles/index.ts`
+  - `BatchInput` (line 20)
+  - `Density` (line 22)
+  - `Built` (line 25)
+- `src/lib/records.ts`
+  - `RecordKind` (line 18)
+  - `SetRecordKind` (line 105)
+- `src/lib/swap.ts`
+  - `PlanRow` (line 59)
+  - `CountMode` (line 157)
+- `src/lib/timeBudget.ts`
+  - `Budget` (line 23)
+- `src/screens/dev/viewportInfo.ts`
+  - `Insets` (line 6)
+  - `Rect` (line 8)
+- `src/ui/Button.tsx`
+  - `ButtonVariant` (line 4)
+- `src/ui/celebrate/fx/FxCanvas.tsx`
+  - `CanvasVariant` (line 10)
+- `src/ui/celebrate/index.ts`
+  - `MomentKind` (line 46)
+  - `Place` (line 46)
+  - `Selection` (line 46)
+  - `Staging` (line 46)
+  - `Tier` (line 46)
+  - `EffectVariant` (line 52)
+- `src/ui/celebrate/types.ts`
+  - `Tier` (line 6)
+- `src/ui/Segmented.tsx`
+  - `SegmentedOption` (line 3)
+- `src/ui/SlidingToggle.tsx`
+  - `ToggleOption` (line 8)
+- `src/ui/WheelColumn.tsx`
+  - `WheelItem` (line 6)
+
+## Duplicate exports (4)
+
+- `src/db/coachData.ts`
+  - `coachData and readCoach`
+- `src/lib/progression.ts`
+  - `formatSets and formatSetsShort`
+- `src/ui/motion.ts`
+  - `TAP_SPRING and SNAPPY`
+  - `PAGE_SPRING and NAV_SPRING`
+
