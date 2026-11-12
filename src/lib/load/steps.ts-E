@@ -1,0 +1,108 @@
+// Stepping a picked weight: nearest loadable, one step up, one step down, and a reset.
+import type { Load } from '../../db/types';
+import { add, EPS, fromInt, toInt } from './exact';
+import { heldChoices } from './held';
+import { plateIncrement, roundToLoadable } from './increments';
+import { plateOpts } from './loadAt';
+import type { LoadSetup } from './setup';
+import { solvePlates } from './solver';
+import { validDumbbellRange } from './dumbbells';
+
+/** Nearest of a list (ties lighter), or null for an empty list. */
+function nearestOf(value: number, list: readonly number[]): number | null {
+  let best: number | null = null;
+  for (const w of list) if (best === null || Math.abs(toInt(w) - toInt(value)) < Math.abs(toInt(best) - toInt(value))) best = w;
+  return best;
+}
+
+/**
+ * Nearest picked weight this gym can load (ties lighter), e.g. after a unit conversion. null
+ * when nothing can be loaded or the weight is not ours to round (added bodyweight, timed).
+ */
+export function nearestLoadable(kind: Load['kind'], value: number, s: LoadSetup): number | null {
+  switch (kind) {
+    case 'barbell':
+    case 'plate_machine':
+      return s.base === null ? null : roundToLoadable(value, { kind: 'plates', ...plateOpts(kind, s, s.base) });
+    case 'single':
+      if (s.heldPlates) return nearestOf(value, heldChoices(kind, s)!);
+      // Typed exactly: no list to round to, so a converted or reset weight is never made up.
+      if (s.heldExact) return null;
+      return s.dumbbellRange && validDumbbellRange(s.dumbbellRange) ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
+    case 'dumbbell_each':
+      return s.dumbbellRange && validDumbbellRange(s.dumbbellRange) ? roundToLoadable(value, { kind: 'dumbbell', range: s.dumbbellRange }) : null;
+    case 'stack':
+      return roundToLoadable(value, { kind: 'stack', step: s.stackStep });
+    case 'bodyweight':
+      return toInt(value) === 0 ? 0 : null;
+    case 'timed':
+      return null;
+  }
+}
+
+/**
+ * One step up from a loadable picked weight (SPEC 6 rule 2): barbell and plate machines +5 lb /
+ * +2.5 kg total (or the next loadable total above), the next dumbbell up, the next pin. null when
+ * there is no step up here (top of the rack, full sleeve, bodyweight, timed).
+ */
+export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number | null {
+  switch (kind) {
+    case 'barbell':
+    case 'plate_machine': {
+      const inc = plateIncrement(s.plates, s.unit);
+      if (s.base === null || inc === null) return null;
+      const target = add(value, inc);
+      const r = solvePlates(target, plateOpts(kind, s, s.base));
+      return r.exact ? target : (r.above?.total ?? null);
+    }
+    case 'dumbbell_each':
+    case 'single':
+      // The next dumbbell up, or the next enabled plate up for a held plate. Typed exactly: none known.
+      return heldChoices(kind, s)?.find((w) => w > value + EPS) ?? null;
+    case 'stack':
+      // The real stack size is not known: the next pin up (the user picks "More" if needed).
+      return add(value, s.stackStep);
+    case 'bodyweight':
+    case 'timed':
+      return null;
+  }
+}
+
+/**
+ * About 10% lighter, rounded to a weight this gym can load (SPEC 6 rule 3). A stack with `added`
+ * weight on the pin (PLAN 1.7i): 10% off the TOTAL resistance, the added weight kept, and the pin
+ * that is left rounded to a loadable pin (100 pin + 100 added → 180 total → an 80 pin).
+ */
+export function resetWeight(kind: Load['kind'], value: number, s: LoadSetup, added = 0): number | null {
+  if (kind === 'stack' && added > 0) {
+    const total = fromInt(Math.round(toInt(add(value, added)) * 0.9));
+    return nearestLoadable(kind, add(total, -added), s);
+  }
+  return nearestLoadable(kind, fromInt(Math.round(toInt(value) * 0.9)), s);
+}
+
+/**
+ * One step down from a loadable picked weight: the mirror of stepUp (5 lb / 2.5 kg less on plates,
+ * the next dumbbell down, the next pin down). null when nothing lighter can be loaded here.
+ */
+export function stepDown(kind: Load['kind'], value: number, s: LoadSetup): number | null {
+  switch (kind) {
+    case 'barbell':
+    case 'plate_machine': {
+      const inc = plateIncrement(s.plates, s.unit);
+      if (s.base === null || inc === null) return null;
+      const down = nearestLoadable(kind, add(value, -inc), s);
+      return down !== null && down < value - EPS && down >= s.base - EPS ? down : null;
+    }
+    case 'dumbbell_each':
+    case 'single':
+      return [...(heldChoices(kind, s) ?? [])].reverse().find((w) => w < value - EPS) ?? null;
+    case 'stack': {
+      const down = add(value, -s.stackStep);
+      return down > EPS ? down : null;
+    }
+    case 'bodyweight':
+    case 'timed':
+      return null;
+  }
+}
