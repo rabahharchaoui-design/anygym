@@ -330,9 +330,9 @@
   margin: 0;
 }
 
-/* PLAN 3.6v: on a phone under 660 pt tall (a 360 x 640 Android) the heading says what the card is,
+/* PLAN 3.6v: on a phone under 650 pt tall (a 360 x 640 Android; the iPhone 15 profile is 659) the heading says what the card is,
    so the "Coach" label row goes and both buttons stay on the first screen above the tab bar. */
-@media (max-height: 660px) {
+@media (max-height: 650px) {
   .card[data-kind='missed_days'] .who {
     display: none;
   }
