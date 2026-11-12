@@ -166,7 +166,7 @@
 .chip[data-small] {
   flex: 0 1 auto;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 8px;
   border-radius: var(--radius-pill);
   font-size: 0.8125rem;
   white-space: nowrap;
@@ -175,4 +175,12 @@
 .chip[data-small] .label {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The smallest phones (320 to 340 pt): a step smaller, so the three reason chips are never cut short. */
+@media (max-width: 340px) {
+  .chip[data-small] {
+    padding: 8px 6px;
+    font-size: 0.75rem;
+  }
 }

@@ -76,7 +76,15 @@ async function gesture(page: Page, target: Locator, path: Path) {
 
 async function middle(target: Locator) {
   await expect(target).toBeVisible();
-  const box = (await target.boundingBox())!;
+  // A card still arriving (springing in) is not where the finger would land: wait until it stands still.
+  let box = (await target.boundingBox())!;
+  await expect
+    .poll(async () => {
+      const was = box;
+      box = (await target.boundingBox())!;
+      return box.x === was.x && box.y === was.y && box.width === was.width && box.height === was.height;
+    })
+    .toBe(true);
   return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height * 0.35) };
 }
 

@@ -2,16 +2,17 @@
 // Android Chrome the lift that follows is read as a tap on whatever is under the finger then: the
 // sheet's own scrim, which would close it at once. So the one click that follows the lift is eaten.
 export function eatNextClick() {
+  const off = () => window.removeEventListener('click', eat, true);
   const eat = (e: Event) => {
+    off();
     e.stopPropagation();
     e.preventDefault();
   };
-  const off = () => window.removeEventListener('click', eat, true);
   window.addEventListener('click', eat, true);
   const lifted = () => {
     for (const t of ['pointerup', 'pointercancel', 'touchend', 'touchcancel']) window.removeEventListener(t, lifted, true);
-    // The click comes right after the lift; nothing later is ever eaten.
-    window.setTimeout(off, 400);
+    // The click comes in the same moment as the lift; a later tap is never eaten.
+    window.setTimeout(off, 120);
   };
   for (const t of ['pointerup', 'pointercancel', 'touchend', 'touchcancel']) window.addEventListener(t, lifted, true);
 }
