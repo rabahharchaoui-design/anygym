@@ -7,8 +7,48 @@ import { expect, type Locator, type Page } from '../fixtures';
 type Path = { x: number; y: number; dx: number; steps: number; stepMs: number; holdMs: number };
 const MARK = 'data-touch-target';
 
+// Chromium (the Android phones) takes real input through CDP: the browser itself makes the touch
+// stream, the pointer events, touch-action and pointercancel, as Android Chrome does.
+async function cdpGesture(page: Page, p: Path) {
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number, y: number) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 7 }] });
+  try {
+    if (p.steps > 0 && p.stepMs < 20) {
+      // A flick is quicker than the browser's frame rate (a headless frame can take 50 ms or more, and
+      // each touch waits for the page to answer the one before): all of it is sent at once, so the page
+      // sees it as one quick stroke, as a real finger's is.
+      const all = [send('touchStart', p.x, p.y)];
+      for (let i = 1; i <= p.steps; i++) all.push(send('touchMove', p.x + (p.dx * i) / p.steps, p.y + 1));
+      all.push(send('touchEnd', p.x + p.dx, p.y + 1));
+      await Promise.all(all);
+      return;
+    }
+    await send('touchStart', p.x, p.y);
+    if (p.holdMs) await page.waitForTimeout(p.holdMs);
+    for (let i = 1; i <= p.steps; i++) {
+      await page.waitForTimeout(p.stepMs);
+      await send('touchMove', p.x + (p.dx * i) / p.steps, p.y + 1);
+    }
+    await send('touchEnd', p.x + p.dx, p.y + 1);
+  } finally {
+    await cdp.detach();
+  }
+}
+
 async function gesture(page: Page, target: Locator, path: Path) {
   await target.evaluate((el, mark) => el.setAttribute(mark, ''), MARK);
+  if (page.context().browser()?.browserType().name() === 'chromium') {
+    // The finger lands on whatever is really there: something covering the card fails the test.
+    const hit = await page.evaluate(([x, y, mark]) => {
+      const el = document.elementFromPoint(x as number, y as number);
+      const mine = document.querySelector(`[${mark}]`);
+      mine?.removeAttribute(mark as string);
+      return !!el && !!mine?.contains(el) ? '' : `${el?.tagName} ${el?.className}`;
+    }, [path.x, path.y, MARK] as const);
+    if (hit) throw new Error(`the finger is not on the card: ${hit}`);
+    return cdpGesture(page, path);
+  }
   await page.evaluate(async ([p, mark]) => {
     // The finger lands on whatever is really there: something covering the card fails the test.
     const el = document.elementFromPoint(p.x, p.y);

@@ -116,6 +116,17 @@ test('core review: real touch swipes approve and mark wrong, the reason chips st
   // Left: wrong, saved at once as Wrong demo (the default); the chips show, then go after 3 s.
   const b = await topId(page);
   expect(b).not.toBe(a);
+  // The chips' life is timed inside the page (a headless frame can take 50 ms or more, so a clock out here
+  // would count the time the test spent noticing them).
+  await page.evaluate(() => {
+    const w = window as unknown as { __chips: { on?: number; off?: number } };
+    w.__chips = {};
+    new MutationObserver(() => {
+      const here = !!document.querySelector('[data-testid="review-reasons"]');
+      if (here && w.__chips.on === undefined) w.__chips.on = performance.now();
+      if (!here && w.__chips.on !== undefined && w.__chips.off === undefined) w.__chips.off = performance.now();
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   await touchFlick(page, card(page), -60);
   await expect(pos(page)).toHaveText(`3 of ${TOTAL}`);
   await expect(reasons(page)).toBeVisible();
@@ -126,7 +137,11 @@ test('core review: real touch swipes approve and mark wrong, the reason chips st
   await page.waitForTimeout(Math.max(0, 2300 - (Date.now() - shown)));
   await expect(reasons(page), 'still there before 3 s').toBeVisible();
   await expect(reasons(page)).toHaveCount(0, { timeout: 2500 });
-  expect(Date.now() - shown).toBeGreaterThanOrEqual(2900);
+  const life = await page.evaluate(() => {
+    const c = (window as unknown as { __chips: { on: number; off: number } }).__chips;
+    return c.off - c.on;
+  });
+  expect(life).toBeGreaterThanOrEqual(2900);
   expect((await saved(page))[b]).toMatchObject({ verdict: 'wrong-demo' });
 
   // Left by distance (a slow full drag), then a tapped reason is what is saved.
