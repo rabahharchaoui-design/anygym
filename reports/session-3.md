@@ -49,3 +49,4 @@ Branch `s3-plans` from tag `pre-s3` (master af01489, Nov 4 2026, Session 2 merge
 - Checkpoint 3.6b live (Nov 12): smoke 61 of 61 on the master build, Pages green, live check passed.
 - Checkpoint 3.6h live (Nov 12): smoke 67 of 67, Pages green, live check passed.
 - 3.6y (Nov 12): the test gate is live. Every push to master or the session branch now runs typecheck, all unit tests, the build, the bundle budget and 8 real journeys before Pages may deploy. It already caught two CI problems on its first runs (Node version, slow runner) and is green now.
+- Checkpoint 3.6y live (Nov 12): check, build and deploy all green on master (first deploy through the new gate), golden 8 of 8 on the master build, live check passed. Codex batch 1111-0136 merged (one backup interleaving case deferred as an expected failure).
