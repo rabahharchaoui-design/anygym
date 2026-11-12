@@ -1,0 +1,95 @@
+// The Load record for a picked weight, and the LAST TIME copy (SPEC 6, SPEC 21.1).
+import type { BarId, Load } from '../../db/types';
+import { toInt } from './exact';
+import { heldAvailable } from './held';
+import { barbellLoad, bodyweightLoad, dumbbellLoad, heldWeightOf, plateMachineLoad, singleLoad, stackLoad, timedLoad } from './loads';
+import type { LoadSetup } from './setup';
+import { solvePlates, type SolveOptions } from './solver';
+import { isStackPin } from './stack';
+import { sumLoad } from './sum';
+
+const plateOpts = (kind: Load['kind'], s: LoadSetup, base: number): SolveOptions => ({
+  bar: base,
+  inventory: s.plates,
+  collars: kind === 'barbell' ? s.collars : 'none',
+  unit: s.unit,
+  sleeveLength: s.sleeveLength,
+});
+
+/**
+ * The Load record for a picked weight, only when this gym can make it exactly; otherwise null
+ * (an unknown bar, a missing plate, a dumbbell out of range, a pin off the stack). `added` is
+ * the extra weight on a stack pin.
+ */
+export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 0): Load | null {
+  switch (kind) {
+    case 'barbell':
+    case 'plate_machine': {
+      if (s.base === null) return null;
+      const r = solvePlates(value, plateOpts(kind, s, s.base));
+      if (!r.exact) return null;
+      return kind === 'barbell' ? barbellLoad(s.base, r.perSide, s.collars, s.unit, undefined, s.sleeveLength) : plateMachineLoad(s.base, r.perSide, s.unit, s.sleeveLength);
+    }
+    case 'dumbbell_each':
+    case 'single': {
+      if (!heldAvailable(kind, value, s)) return null;
+      return kind === 'single' ? singleLoad(value, s.unit) : dumbbellLoad(value, s.unit);
+    }
+    case 'stack':
+      return isStackPin(value, s.stackStep) ? stackLoad(value, s.unit, added) : null;
+    case 'bodyweight':
+      return bodyweightLoad(s.unit, value);
+    case 'timed':
+      return timedLoad(s.unit);
+  }
+}
+
+/** Why an earlier load cannot be copied exactly here (copyLoad), in the words the toast uses. */
+export type CopyRefusal = 'unit' | 'kind' | 'base' | 'inexact';
+
+/**
+ * LAST TIME copy (PLAN 1.7j, SPEC 21.1): the earlier set's TOTAL made again on today's equipment
+ * (today's bar or starting weight, collars, plates, dumbbells, stack step), never a silently
+ * different total. The earlier plates are kept when they still make that total; otherwise the
+ * total is solved again (135 lb on a 35 lb bar → 50 per side). `barId` is today's bar. Refused
+ * (with the reason) when the unit or load kind differ, the base weight is unknown, or no exact
+ * loading exists here.
+ */
+export function copyLoad(prev: Load, kind: Load['kind'], s: LoadSetup, barId?: BarId): { load: Load } | { load: null; why: CopyRefusal } {
+  if (prev.kind !== kind) return { load: null, why: 'kind' };
+  if (kind === 'timed') return { load: timedLoad(s.unit) };
+  if (prev.unit !== s.unit) {
+    // Just you is the same in any unit; any number is not (never converted silently).
+    if (kind === 'bodyweight' && !(prev.added ?? 0)) return { load: bodyweightLoad(s.unit) };
+    return { load: null, why: 'unit' };
+  }
+  switch (kind) {
+    case 'barbell':
+    case 'plate_machine': {
+      if (s.base === null) return { load: null, why: 'base' };
+      const collars = kind === 'barbell' ? s.collars : 'none';
+      const own = prev.perSide && prev.perSide.every((w) => s.plates.includes(w)) ? prev.perSide : null;
+      let perSide: number[] | null = null;
+      if (own && toInt(sumLoad({ bar: s.base, perSide: own, collars, unit: s.unit }).total ?? NaN) === toInt(prev.total)) perSide = [...own];
+      else {
+        const r = solvePlates(prev.total, plateOpts(kind, s, s.base));
+        if (r.exact) perSide = r.perSide;
+      }
+      if (!perSide) return { load: null, why: 'inexact' };
+      const load = kind === 'barbell' ? barbellLoad(s.base, perSide, s.collars, s.unit, barId, s.sleeveLength) : plateMachineLoad(s.base, perSide, s.unit, s.sleeveLength);
+      return load && toInt(load.total) === toInt(prev.total) ? { load } : { load: null, why: 'inexact' };
+    }
+    case 'stack': {
+      const pin = prev.stackValue ?? prev.total;
+      const load = loadAt('stack', pin, s, prev.added ?? 0);
+      return load && toInt(load.total) === toInt(prev.total) ? { load } : { load: null, why: 'inexact' };
+    }
+    case 'bodyweight':
+      return { load: bodyweightLoad(s.unit, prev.added ?? 0) };
+    default: {
+      const w = heldWeightOf(prev);
+      const load = w === null ? null : loadAt(kind, w, s);
+      return load ? { load } : { load: null, why: 'inexact' };
+    }
+  }
+}

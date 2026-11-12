@@ -12,7 +12,7 @@ export default defineConfig({
       reporter: [['text', { skipFull: false }]],
       thresholds: {
         // SPEC 5.4: weight math is fully unit tested.
-        'src/lib/load.ts': { lines: 100 },
+        'src/lib/load/**/*.ts': { lines: 100 },
         'src/lib/plates.ts': { lines: 100 },
         'src/lib/plateLayout.ts': { lines: 100, branches: 100 },
         'src/lib/numpad.ts': { lines: 100, branches: 100 },
