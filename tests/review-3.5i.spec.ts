@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from './fixtures';
 import { dbAll, watchErrors } from './workout-helpers';
+import { mouseFlick, stillBox } from './helpers/touch';
 
 // PLAN 3.5i: the fast review. Grid mode is the default (9 moving tiles, all approved unless tapped,
 // one Approve button, the next 9 slide in); the "Check carefully" pile from the pre check file comes
@@ -41,19 +42,16 @@ async function openReview(page: Page, precheck: { checkCarefully: string[]; note
 /** A press on the middle of the top card, moved dx: fast (a flick) or at a finger's slow pace. */
 async function drag(page: Page, dx: number, pace: 'flick' | 'slow') {
   const card = page.getByTestId('deck-card');
-  await expect(card).toBeVisible();
-  await page.waitForTimeout(80);
-  const box = (await card.boundingBox())!;
+  const box = await stillBox(card);
   const x = box.x + box.width / 2;
   const y = box.y + box.height * 0.4;
+  if (pace === 'flick') return mouseFlick(page, x, y, dx, 2, 3);
   await page.mouse.move(x, y);
   await page.mouse.down();
-  if (pace === 'flick') await page.mouse.move(x + dx, y + 2, { steps: 3 });
-  else
-    for (let i = 1; i <= 24; i++) {
-      await page.mouse.move(x + (dx * i) / 24, y + 2);
-      await page.waitForTimeout(20);
-    }
+  for (let i = 1; i <= 24; i++) {
+    await page.mouse.move(x + (dx * i) / 24, y + 2);
+    await page.waitForTimeout(20);
+  }
   await page.mouse.up();
 }
 

@@ -74,17 +74,24 @@ async function gesture(page: Page, target: Locator, path: Path) {
   }, [path, MARK] as const);
 }
 
-async function middle(target: Locator) {
+/** The box of a card that has stopped moving: one still springing in is not where a finger would land. */
+export async function stillBox(target: Locator) {
   await expect(target).toBeVisible();
-  // A card still arriving (springing in) is not where the finger would land: wait until it stands still.
+  // Two looks 100 ms apart that agree: a look straight after another could catch the start of a spring before it moves.
   let box = (await target.boundingBox())!;
   await expect
     .poll(async () => {
+      await target.page().waitForTimeout(100);
       const was = box;
       box = (await target.boundingBox())!;
       return box.x === was.x && box.y === was.y && box.width === was.width && box.height === was.height;
     })
     .toBe(true);
+  return box;
+}
+
+async function middle(target: Locator) {
+  const box = await stillBox(target);
   return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height * 0.35) };
 }
 
@@ -101,4 +108,36 @@ export async function touchDrag(page: Page, target: Locator, dx: number) {
 /** A finger held still on the card. */
 export async function touchHold(page: Page, target: Locator, ms = 750) {
   await gesture(page, target, { ...(await middle(target)), dx: 0, steps: 0, stepMs: 0, holdMs: ms });
+}
+
+/**
+ * A quick mouse stroke from (x, y) by dx, dy in `steps` moves, then released. On Chromium it goes
+ * through CDP in one go: page.mouse waits for the page to answer each move, and a headless frame can
+ * take 50 ms or more, so a "flick" would arrive as a slow drag. WebKit keeps page.mouse.
+ */
+export async function mouseFlick(page: Page, x: number, y: number, dx: number, dy: number, steps: number) {
+  if (page.context().browser()?.browserType().name() !== 'chromium') {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + dx, y + dy, { steps });
+    await page.mouse.up();
+    return;
+  }
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'mouseMoved' | 'mousePressed' | 'mouseReleased', px: number, py: number, down = true) =>
+    cdp.send('Input.dispatchMouseEvent', { type, x: px, y: py, button: down ? 'left' : 'none', buttons: down && type !== 'mouseReleased' ? 1 : 0, clickCount: type === 'mouseMoved' ? 0 : 1 });
+  try {
+    await send('mouseMoved', x, y, false);
+    await send('mousePressed', x, y);
+    // The first move alone, answered: the card takes hold of the pointer (as it does of a finger) and
+    // keeps it outside its own edges. The rest goes in one go (Chromium folds those moves into one).
+    const first = steps > 1 ? Math.sign(dx) * Math.min(Math.abs(dx), 14) : dx;
+    await send('mouseMoved', x + first, y + dy / steps);
+    const rest = [];
+    for (let i = 2; i <= steps; i++) rest.push(send('mouseMoved', x + (dx * i) / steps, y + (dy * i) / steps));
+    await Promise.all(rest);
+    await send('mouseReleased', x + dx, y + dy);
+  } finally {
+    await cdp.detach();
+  }
 }

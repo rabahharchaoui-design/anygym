@@ -164,6 +164,8 @@ test.describe('Quick workout builds it for you', () => {
   });
 
   test('swipe right keeps, left swaps for the same movement and learns a soft dislike, long press never shows it again @matrix', async ({ page }) => {
+    // The last part keeps every card of every style, and headless Chromium paints a frame only every 50 ms or more: 30 s is not enough there.
+    test.setTimeout(90_000);
     const errors = watchErrors(page);
     await pastIntake(page);
     await openQuick(page, 30);
