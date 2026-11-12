@@ -195,7 +195,7 @@ test.describe('3.5f round 3: the Preview is what you get', () => {
     }
     const n = Number((await warm.textContent())!.match(/Warm up · (\d+)/)![1]);
     // M9: one glass card of compact rows, at least 44 pt each.
-    for (const h of await page.getByTestId('ready-list').locator('li').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);
+    for (const h of await page.getByTestId('ready-list').locator('li').evaluateAll((els) => els.map((e) => (e as HTMLElement).offsetHeight))) expect(h).toBeGreaterThanOrEqual(44); // layout height: the list springs in from 0.97, which a bounding box would count
     await shot(page, 'preview-ready-warmup');
     await page.getByTestId('quick-start').tap();
     await expect(page.getByTestId('workout-title')).toBeVisible();
