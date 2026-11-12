@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from './fixtures';
+import { idleFrames, idleNote, p90Budget } from './helpers/frames';
 import { insetsOf, simulateSafeAreas } from './helpers/layout';
 import { bar185, dbAll, exerciseView, navIdle, seedFinished, usePlan, watchErrors } from './workout-helpers';
 
@@ -197,6 +198,8 @@ test('deck: no layout shift while the demo loops, only top and next move, frame 
   // 3.5f round 3: the incoming swap card is rendered under the top card too, so three at most (top, next, incoming swap).
   expect(moving, 'at most the top card, the next one and the incoming swap animate').toBeLessThanOrEqual(3);
   expect(await page.getByTestId('deck-demo').count()).toBeLessThanOrEqual(3);
+  // 60 fps budget; a host whose empty page cannot draw that widens it by its own cost (helpers/frames.ts).
+  const idle = await idleFrames(page);
   await page.evaluate(() => {
     const w = window as unknown as { __f: number[]; __s: boolean };
     w.__f = []; w.__s = false;
@@ -208,7 +211,7 @@ test('deck: no layout shift while the demo loops, only top and next move, frame 
   const f = await page.evaluate(() => { const w = window as unknown as { __f: number[]; __s: boolean }; w.__s = true; return w.__f; });
   const sorted = [...f].sort((a, b) => a - b);
   const p90 = sorted[Math.floor(sorted.length * 0.9)]!;
-  console.log(`DECK p90 ${p90.toFixed(1)} ms over ${f.length} frames (${browserName})`);
-  expect(p90).toBeLessThan(25);
+  console.log(`DECK p90 ${p90.toFixed(1)} ms over ${f.length} frames (${browserName}); ${idleNote(idle)}`);
+  expect(p90).toBeLessThan(p90Budget(25, idle));
   expect(errors).toEqual([]);
 });
