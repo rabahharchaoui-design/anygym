@@ -2,7 +2,6 @@
 // on its own data, so a tap re-renders that row, not the table. Moved out of SetTable as they were
 // (PLAN 3.5g, code organization).
 import { memo, type CSSProperties } from 'react';
-import { Check as CheckGlyph } from 'lucide-react';
 import { Odometer } from '../../ui/Odometer';
 import { Ring } from '../../ui/Ring';
 import { PlayIcon } from '../../ui/icons';
@@ -14,15 +13,13 @@ import { IMPORTED_LABEL } from '../../lib/import/importOrder';
 import { SET_TYPE_CHIP, SET_TYPE_WORDS, keptCell, lastTimeCell, savedCells, typeOfSet, weightCell, type PendingRow, type SetType } from '../../lib/setTable';
 import { RepsStepper } from './RepsStepper';
 import { SwipeRow } from './SwipeRow';
-import { PRBadge } from '../../ui/PRBadge';
+import { DrawnCheck, PRBadge } from '../../ui/celebrate';
 import type { SetRecord } from '../../lib/records';
 import styles from './SetTable.module.css';
 
 /** Words ("Just you", "40 + bar") wrap onto two short lines in the cell; numbers roll (PLAN 2.2b). */
 const isWord = (v: string) => /[a-z]/i.test(v);
 const WeightFace = ({ value }: { value: string }) => (isWord(value) ? <span className={styles.word}>{value}</span> : <Odometer value={value} />);
-
-const Check = () => <CheckGlyph className={styles.checkIcon} aria-hidden="true" />;
 
 /** One hold format everywhere: "45 s" under a minute, "1:05" from a minute on. */
 const holdText = (seconds: number) => (seconds < 60 ? `${Math.max(0, Math.floor(seconds))} s` : formatElapsed(seconds));
@@ -126,7 +123,8 @@ export const LoggedRow = memo(
           {/* After the reps, outside the edit button (critic B3): its own 44 pt tap shows what it beat. */}
           {record && <PRBadge setId={s.id} detail={prDetail(record)} className={styles.prBadge} />}
           <span className={styles.checkDone} aria-hidden="true">
-            <Check />
+            {/* SMALL (PLAN 3.6b): the check draws itself; the "New best" chip before it springs in. */}
+            <DrawnCheck draw={fresh !== undefined} className={styles.checkIcon} />
           </span>
         </SwipeRow>
       </li>
@@ -259,7 +257,7 @@ export const TodoRow = memo(
               data-testid={isCurrent ? 'check-current' : 'check'}
             >
               <span className={styles.checkCircle} data-labelled={p.logLabel ? '' : undefined}>
-                <Check />
+                <DrawnCheck draw={p.sendingAt !== undefined} className={styles.checkIcon} />
                 {/* Words for the first time (PLAN 2.0l): the outlined ✓ is the action. Inside the circle, so nothing moves when it goes. */}
                 {p.logLabel && (
                   <span className={styles.checkLabel} aria-hidden="true" data-testid="check-label">

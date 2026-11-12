@@ -326,21 +326,42 @@ export async function workoutRecords(
   return groups.flatMap((g) => recordsFor(g.exerciseId, g.name, g.today.map(pickSet), g.before));
 }
 
+/** One lift of a workout (an exercise on one kind of load, bar and gym history) with its record sets. */
+export type WinGroup = { exerciseId: string; name: string; records: SetRecord[] };
+
+/** The record sets of each lift of one workout, in workout order: the one rule behind the live chip and the finish screen. */
+async function winGroups(session: Session, sets: readonly WorkoutSet[], nameOf: (exerciseId: string) => string, db: AnyGymDB): Promise<WinGroup[]> {
+  return (await recordGroups(session, sets, nameOf, db)).map((g) => ({ exerciseId: g.exerciseId, name: g.name, records: recordSets(g.today, g.before) }));
+}
+
+/**
+ * A finished workout, its sets and the record sets of each of its lifts in workout order (PLAN
+ * 3.6b: the finish screen's celebrations), by the same rule as the live "New best" chip.
+ */
+export async function finishedWins(
+  sessionId: string,
+  nameOf: (exerciseId: string) => string,
+  db: AnyGymDB = defaultDb,
+): Promise<{ session: Session; sets: WorkoutSet[]; groups: WinGroup[] } | undefined> {
+  const detail = await finishedDetail(sessionId, db);
+  if (!detail) return undefined;
+  return { ...detail, groups: await winGroups(detail.session, detail.sets, nameOf, db) };
+}
+
 /**
  * The record sets of one workout, finished or in progress (PLAN 2.2e: the live PR badge and the
  * finish screen's lead line), in logged order, and its biggest win (null without one).
+ * Plain reads, no transaction of its own: Dexie aborts a transaction opened as the first call of a
+ * liveQuery (PrematureCommitError), and the live query already re-runs when anything it read changes.
  */
 export async function workoutWins(
   sessionId: string,
   nameOf: (exerciseId: string) => string,
   db: AnyGymDB = defaultDb,
 ): Promise<{ records: SetRecord[]; win: Win | null }> {
-  // One read transaction: a coherent snapshot (the workout and its history read together).
-  return db.transaction('r', db.sessions, db.sets, db.gyms, async () => {
-    const session = await db.sessions.get(sessionId);
-    if (!session) return { records: [], win: null };
-    const sets = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
-    const groups = (await recordGroups(session, sets, nameOf, db)).map((g) => ({ exerciseId: g.exerciseId, name: g.name, records: recordSets(g.today, g.before) }));
-    return { records: groups.flatMap((g) => g.records), win: biggestWin(groups) };
-  });
+  const session = await db.sessions.get(sessionId);
+  if (!session) return { records: [], win: null };
+  const sets = await db.sets.where('[sessionId+order]').between([sessionId, -Infinity], [sessionId, Infinity]).toArray();
+  const groups = await winGroups(session, sets, nameOf, db);
+  return { records: groups.flatMap((g) => g.records), win: biggestWin(groups) };
 }

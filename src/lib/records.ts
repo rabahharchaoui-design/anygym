@@ -11,7 +11,7 @@
 // Working sets only (kind 'work', to failure included): warm ups and drop sets never count.
 // Weights are compared through load.ts (comparableWeight, sameResistance); no arithmetic here.
 import type { Load } from '../db/types';
-import { beatsVolume, biggerGain, comparableWeight, formatWeight, gainRatio, heavierThan, heldWeightOf, sameResistance, setScore } from './load';
+import { beatsVolume, biggerGain, comparableWeight, formatTotal, formatWeight, gainRatio, heavierBy, heavierThan, heldWeightOf, sameResistance, setScore } from './load';
 import { formatSet } from './setWords';
 import type { PastSet } from './progression';
 
@@ -23,10 +23,11 @@ type Work = { reps?: number; load: Load };
 
 const working = (sets: readonly PastSet[], kind: Load['kind']): Work[] => sets.filter((s) => s.kind === 'work' && s.load.kind === kind) as Work[];
 
-const weightText = (load: Load): string => {
-  if (load.kind === 'dumbbell_each') return `${formatWeight(heldWeightOf(load)!, load.unit)} each`;
-  if (load.kind === 'bodyweight') return load.added ? `+${formatWeight(load.added, load.unit)}` : 'bodyweight';
-  return formatWeight(load.total, load.unit);
+/** `fmt` is formatWeight ("1005 lb") or, for the numbers the celebration shows big, formatTotal ("1,005 lb"). */
+const weightText = (load: Load, fmt: typeof formatWeight = formatWeight): string => {
+  if (load.kind === 'dumbbell_each') return `${fmt(heldWeightOf(load)!, load.unit)} each`;
+  if (load.kind === 'bodyweight') return load.added ? `+${fmt(load.added, load.unit)}` : 'bodyweight';
+  return fmt(load.total, load.unit);
 };
 
 /**
@@ -116,6 +117,19 @@ export type SetRecord = {
   gainOverHistory: number;
   text: string;
   beat: { text: string; date?: number };
+  /** The set alone: "185 lb × 6". */
+  setText: string;
+  /**
+   * "+10 lb" or "+2 reps" (PLAN 3.6b): what it added over the best before this workout, when one
+   * plain number says it (a heavier weight, or more reps at a weight lifted before). Else absent.
+   */
+  plus?: string;
+  /**
+   * Set when it is also heavier than every earlier set, whatever `kind` names it (a set can win on
+   * volume and weight at once): the weight alone ("185 lb"), the words, the gain over the earlier
+   * workouts and how much heavier ("+10 lb").
+   */
+  heaviest?: { weight: string; text: string; gainOverHistory: number; plus?: string };
 };
 
 /** An earlier set with the date of its workout (records only). */
@@ -173,13 +187,24 @@ export function recordSets(today: readonly RecordSet[], before: readonly DatedSe
       // The biggest gain names it; on a tie the order above (volume, heaviest, most reps).
       const top = wins.reduce<(typeof wins)[number] | null>((a, b) => (!a || biggerGain(b.gain, a.gain) ? b : a), null);
       if (top) {
+        const setText = recordSetText(s);
+        // Over the earlier workouts only (PLAN 3.6b): how much heavier, and how many more reps at this weight.
+        const heavier = wins.some((x) => x.kind === 'heaviest') ? (heavierBy(s.load, history.reduce((a, b) => (w(b.load) > w(a.load) ? b : a)).load) ?? undefined) : undefined;
+        const sameBefore = history.filter((p) => sameResistance(p.load, s.load));
+        const moreReps = sameBefore.length ? reps - Math.max(...sameBefore.map((p) => p.reps ?? 0)) : 0;
+        const plus = top.kind !== 'most_reps' && heavier ? heavier : moreReps > 0 ? `+${moreReps} ${moreReps === 1 ? 'rep' : 'reps'}` : undefined;
         out.push({
           setId: s.id,
           kind: top.kind,
           gain: top.gain,
           gainOverHistory: overHistory(top.kind, s, top.gain),
-          text: `${recordSetText(s)}, ${RECORD_WORDS[top.kind]}`,
+          text: `${setText}, ${RECORD_WORDS[top.kind]}`,
           beat: { text: recordSetText(top.beat), ...(top.beat.date !== undefined ? { date: top.beat.date } : {}) },
+          setText,
+          ...(plus ? { plus } : {}),
+          ...(wins.some((x) => x.kind === 'heaviest')
+            ? { heaviest: { weight: weightText(s.load, formatTotal), text: `${setText}, ${RECORD_WORDS.heaviest}`, gainOverHistory: overHistory('heaviest', s, top.gain), ...(heavier ? { plus: heavier } : {}) } }
+            : {}),
         });
       }
     }

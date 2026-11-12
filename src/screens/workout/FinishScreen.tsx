@@ -2,11 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { db } from '../../db/schema';
-import { finishedDetail, workoutRecords, workoutWins } from '../../db/history';
+import { finishedDetail } from '../../db/history';
+import { workoutMoments } from '../../db/celebrations';
 import { useLive } from '../../hooks/useLive';
 import { formatSession, formatSet, sameSets } from '../../lib/setWords';
 import { workSetCount } from '../../lib/workSets';
-import { formatTotal, totalLifted } from '../../lib/load';
+import { formatTotalCompact, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
 import { dayIndexOf } from '../../lib/plans';
@@ -14,17 +15,18 @@ import { planById } from '../../data/plans';
 import { getPlanState, setFinishNextDay } from '../../db/planState';
 import { ChangeDaySheet } from '../today/ChangeDaySheet';
 import { dayTitle } from '../plans/planWords';
-import { FADE, GENTLE, SPRINGS, STAGGER } from '../../ui/motion';
+import { FADE, GENTLE, STAGGER } from '../../ui/motion';
+import { BigMoment, MomentCard } from '../../ui/celebrate';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { Odometer } from '../../ui/Odometer';
 import { Skeleton } from '../../ui/Skeleton';
-import { TrophyIcon } from '../../ui/icons';
 import { holdTransition, transitionRunning, useNav } from '../../ui/nav';
 import { LoadError } from '../../components/LoadError';
 import { exerciseNamer, setCount, workoutTitle } from '../history/historyWords';
 import { finishRows, slotProgress } from '../../lib/swap';
 import styles from './Finish.module.css';
 import { trimmedPlan } from '../../lib/timeBudget';
+import { useFinishCelebration } from './useFinishCelebration';
 
 /**
  * The finish screen (SPEC 21.1, minimal): how long, how many sets, total lifted (when there is
@@ -33,6 +35,9 @@ import { trimmedPlan } from '../../lib/timeBudget';
  * (working exercises only: no warm ups, stretches or finisher). Finish already moved the plan
  * (60% of the working sets moves on, PLAN 2.0a); one quiet line above Done says what is up next,
  * with Change to pick another day. Done goes back to Today, where "Workout saved" offers Undo.
+ * Celebrations (PLAN 3.6b, src/ui/celebrate): a rare moment (the first workout, the heaviest ever
+ * on a main lift) takes the whole screen once and settles into its card or tile; every other real
+ * record is a card.
  */
 export function FinishScreen() {
   const { sessionId = '' } = useParams();
@@ -53,15 +58,14 @@ export function FinishScreen() {
   const [changeFailed, setChangeFailed] = useState(false);
   const detail = useLive(async () => {
     const d = await finishedDetail(sessionId);
-    if (!d) return { d: null, unit: 'lb' as const, records: [], win: null };
+    if (!d) return { d: null, unit: 'lb' as const, moments: [] };
     const gym = await db.gyms.get(d.session.gymId);
-    const records = await workoutRecords(sessionId, exerciseNamer(d.session));
-    // PLAN 2.2e: the one biggest real win leads (the same rule as the live PR badge), or nothing.
-    const { win } = await workoutWins(sessionId, exerciseNamer(d.session));
-    // New bests lists only what the lead does not already say (critic B4): other exercises' records.
-    const others = win ? records.filter((r) => r.exerciseId !== win.exerciseId) : records;
-    return { d, unit: gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb', records: others, win };
+    const unit = gym?.unit ?? d.sets.find((s) => s.load)?.load?.unit ?? 'lb';
+    // PLAN 3.6b: every real record of the workout (the same rule as the live "New best" chip), one
+    // per lift, and the first workout: the moments the screen celebrates, or none.
+    return { d, unit, moments: await workoutMoments(sessionId, exerciseNamer(d.session), unit) };
   }, [sessionId]);
+  const cele = useFinishCelebration(sessionId, detail.ready && !detail.error ? detail.data?.moments : undefined, sliding);
   // The plan as Finish left it (read, never written on mount): the next up line shows this, live.
   const planLive = useLive(() => getPlanState(), []);
 
@@ -105,7 +109,7 @@ export function FinishScreen() {
     setSaving(true);
     go('/', { kind: 'fade', replace: true, state: d ? { toast: `Workout saved · ${setCount(workSetCount(d.sets))}`, undo: { sessionId } } : null });
   };
-  const loading = !detail.error && (!d || !v);
+  const loading = !detail.error && (!d || !v || !cele.settled);
   // Each exercise of the workout with its best set; "3 of 5 exercises done" when some were skipped.
   const name = d ? exerciseNamer(d.session) : (id: string) => id;
   const ids = d ? [...new Set([...(d.session.exerciseIds ?? []), ...d.sets.map((x) => x.exerciseId)])] : [];
@@ -118,26 +122,23 @@ export function FinishScreen() {
 
   // The lead card first, right after the title (critic P7); then the numbers and lists.
   useEffect(() => {
-    if (detail.ready || detail.error) release.current?.();
-  }, [detail.ready, detail.error]);
+    if ((detail.ready && cele.settled) || detail.error) release.current?.();
+  }, [detail.ready, detail.error, cele.settled]);
   const still = { initial: false } as const;
-  const lead = sliding
-    ? still
-    : reduce
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
-    : { initial: { opacity: 0, y: 12, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...SPRINGS.sheet, delay: 0.04 } };
+  // The first workout has no card: its number is a stat tile, and the full screen moment settles into it.
+  const firstId = v?.moments.find((m) => m.kind === 'first_workout')?.id;
   const item = (i: number) =>
     sliding
       ? still
       : reduce
       ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE }
-      : { initial: { opacity: 0, y: 18, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...GENTLE, delay: (v?.win ? 0.08 : 0) + STAGGER * i } };
+      : { initial: { opacity: 0, y: 18, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1 }, transition: { ...GENTLE, delay: (cele.lead ? 0.08 : 0) + STAGGER * i } };
 
   return (
     <div className={styles.screen}>
       <main className={styles.main} aria-label="Workout done">
         {detail.error ? <LoadError text="Could not load this workout" onRetry={detail.retry} /> : null}
-        {!d || !v ? (
+        {!d || !v || !cele.settled ? (
           !detail.error && <Skeleton height={240} radius={22} />
         ) : (
           <>
@@ -160,17 +161,7 @@ export function FinishScreen() {
                 </p>
               ) : null}
             </motion.div>
-            {v.win && (
-              <motion.p className={`${styles.win} ${sliding && !reduce ? styles.winLand : ''}`} data-testid="finish-win" aria-label={v.win.text} {...lead}>
-                <span className={styles.winIcon} aria-hidden="true">
-                  <TrophyIcon width={18} height={18} strokeWidth={2.2} />
-                </span>
-                <span className={styles.winText}>
-                  <span className={styles.winName}>{v.win.name}</span>
-                  <span className={styles.winDetail}>{v.win.detail}</span>
-                </span>
-              </motion.p>
-            )}
+            {cele.lead && <MomentCard moment={cele.lead} arrival={cele.leadArrival} delay={0.04} reduce={reduce} testId="finish-win" />}
             <div className={styles.stats}>
               <motion.div className={styles.stat} {...item(1)}>
                 <span className={`${styles.value} num`} data-testid="finish-duration">
@@ -178,16 +169,16 @@ export function FinishScreen() {
                 </span>
                 <span className={styles.label}>Time</span>
               </motion.div>
-              <motion.div className={styles.stat} {...item(2)}>
+              <motion.div className={styles.stat} data-celebrate-home={lifted > 0 ? undefined : firstId} {...item(2)}>
                 <span className={`${styles.value} num`} data-testid="finish-sets">
                   <Odometer value={workSetCount(d.sets)} countUp={!reduce} />
                 </span>
                 <span className={styles.label}>{workSetCount(d.sets) === 1 ? 'Set' : 'Sets'}</span>
               </motion.div>
               {lifted > 0 && (
-                <motion.div className={`${styles.stat} ${styles.wide}`} {...item(3)}>
+                <motion.div className={`${styles.stat} ${styles.wide}`} data-celebrate-home={firstId} {...item(3)}>
                   <span className={`${styles.value} num`} data-testid="finish-total">
-                    <Odometer value={formatTotal(lifted, v.unit)} countUp={!reduce} />
+                    <Odometer value={formatTotalCompact(lifted, v.unit)} countUp={!reduce} />
                   </span>
                   <span className={styles.label}>Total lifted</span>
                 </motion.div>
@@ -233,23 +224,12 @@ export function FinishScreen() {
                 </ul>
               </motion.section>
             )}
-            {v.records.length > 0 && (
+            {cele.others.length > 0 && (
               <motion.section className={styles.records} aria-label="New bests" {...item(5)}>
                 <h2 className={styles.recordsTitle}>New bests</h2>
                 <ul className={styles.recordList}>
-                  {v.records.map((r, i) => (
-                    <motion.li
-                      key={`${r.exerciseId}-${r.kind}-${i}`}
-                      className={styles.record}
-                      data-testid="pr-chip"
-                      {...(reduce ? {} : { initial: { opacity: 0, scale: 0.92 }, animate: { opacity: 1, scale: 1 }, transition: { ...GENTLE, delay: 0.5 + STAGGER * i } })}
-                    >
-                      {!reduce && <span className={styles.burst} style={{ animationDelay: `${500 + 60 * i}ms` }} aria-hidden="true" />}
-                      <span className={styles.trophy}>
-                        <TrophyIcon width={20} height={20} strokeWidth={2} aria-hidden="true" />
-                      </span>
-                      <span className={styles.recordText}>{r.text}</span>
-                    </motion.li>
+                  {cele.others.map((m, i) => (
+                    <MomentCard key={m.id} moment={m} arrival={cele.otherArrival} size="row" as="li" delay={0.5 + STAGGER * i} reduce={reduce} testId="pr-chip" />
                   ))}
                 </ul>
               </motion.section>
@@ -295,6 +275,7 @@ export function FinishScreen() {
       >
         Done
       </BottomCTA>
+      {cele.big && <BigMoment moment={cele.big} reduce={reduce} onSettle={cele.onSettle} onDone={cele.onDone} />}
       {plan && state && nextDay && (
         <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={plan} state={state} onPick={(i) => void pickNext(i)} title="Which day next?" />
       )}
