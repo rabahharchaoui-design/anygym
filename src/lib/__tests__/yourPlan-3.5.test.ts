@@ -96,3 +96,14 @@ describe('Your plan words', () => {
     expect(p.kind === 'plan' && explainPick(p.plan, a).check).toBe(true);
   });
 });
+
+it('names detailed priorities and their real shortfalls without claiming a calendar week for flexible training', () => {
+  const answers: IntakeAnswers = { goals: ['muscle'], experience: 'new', days: 2, minutes: 20, place: 'hotel', focusPicks: ['lats', 'side_delts', 'biceps', 'quads', 'grip'], scheduleStyle: 'flexible' };
+  const { r, words } = reveal(answers);
+  expect(r.applied.focusReport!.budget).toBeLessThanOrEqual(12);
+  expect(words.warning).toContain('Still short:');
+  expect(words.warning).toContain('Grip');
+  expect(words.warning).toContain('More days or minutes');
+  expect(words.reason).not.toContain('completed');
+  expect(words.reason).not.toContain('sets a week');
+});

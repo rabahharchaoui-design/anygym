@@ -28,7 +28,7 @@ export type CoachInput = {
   /** A workout in progress: Today shows Resume, the coach waits. */
   activeWorkout: boolean;
   /** The plan in use, for missed days. */
-  plan?: { daysPerWeek: number; weekdays?: readonly string[] };
+  plan?: { scheduleStyle?: 'fixed' | 'flexible' | 'weekly'; daysPerWeek: number; weekdays?: readonly string[] };
   /** Main muscles worked yesterday (logged sets) and in today's plan day, for the recovery note. */
   recovery?: { yesterday: readonly Region[]; next: readonly Region[]; nameOf: (r: Region) => string };
 };
@@ -69,7 +69,7 @@ export function candidates(input: CoachInput): { cards: CoachCard[]; autoApply: 
     const list = welcomeChanges(lifts, dates, now);
     if (open(id) && list.length) cards.push({ kind: 'welcome_back', id, days: off, changes: list });
   }
-  if (input.plan) {
+  if (input.plan && input.plan.scheduleStyle !== 'flexible' && (input.plan.scheduleStyle !== 'weekly' || input.plan.weekdays?.length)) {
     const missed = missedWorkouts({ last, now, weekdays: input.plan.weekdays, daysPerWeek: input.plan.daysPerWeek });
     const id = missedCardId(last);
     if (missed >= MISSED_AT && open(id)) cards.push({ kind: 'missed_days', id, missed, title: missedTitle(missed) });

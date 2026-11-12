@@ -8,6 +8,7 @@ import own from './DayCard.module.css';
 
 type Props = {
   plan: Plan;
+  flexible?: boolean;
   state: PlanState;
   onStart: () => void;
   /** Change day, optionally with the day whose pip was tapped picked. */
@@ -29,10 +30,11 @@ type Props = {
  * pips (done, part done as a ring, up next) and Change day. While the day is in progress it is the
  * one card on Today: "Day 1 · in progress · 2 sets" with Resume.
  */
-export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime, onPreview }: Props) {
+export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime, onPreview, flexible }: Props) {
   const dayIndex = Math.max(0, Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1));
   const day = plan.days[dayIndex]!;
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
+  const title = `${flexible && !active ? 'Next up: ' : ''}${dayTitle(day.n, day.name)}`;
   const done = new Set(state.doneDays);
   return (
     <section className={styles.dayCard} aria-label="Today's plan day" data-tour="day" data-active={active ? 'true' : undefined}>
@@ -42,7 +44,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
           dayTitle(day.n, day.name)
         ) : onTime ? (
           <>
-            {`${dayTitle(day.n, day.name)} · `}
+            {`${title} · `}
             <button
               type="button"
               className={`${styles.dayTime} num pressable`}
@@ -55,9 +57,10 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
             </button>
           </>
         ) : (
-          `${dayTitle(day.n, day.name)} · ~${estimateDayMinutes(day, weekIndex)} min`
+          `${title} · ~${estimateDayMinutes(day, weekIndex)} min`
         )}
       </h2>
+      {day.focusWhy?.[0] && <p className={styles.dayFits} data-testid="day-focus-why">{day.focusWhy[0]}</p>}
       {!active && fitsIn !== undefined && (
         <p className={styles.dayFits} data-testid="day-card-fits">
           Shortened to fit {fitsIn} min
@@ -75,7 +78,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
 
       <div className={styles.strip}>
         <p className={styles.stripLabel} data-testid="week-label">
-          {plan.weeks ? `Week ${weekIndex + 1} of ${plan.weeks}` : 'This week'}
+          {flexible ? 'This rotation' : plan.weeks ? `Week ${weekIndex + 1} of ${plan.weeks}` : 'This week'}
           {/* What a half filled dot means (gate P14): "This week · Day 1 started", from the same part done shares. */}
           {(() => {
             const started = plan.days.filter((_, i) => state.partial?.[i] !== undefined && !done.has(i)).map((d) => d.n);

@@ -1,16 +1,17 @@
+import { FocusStep } from './FocusStep';
+import { ScheduleStep } from './ScheduleStep';
 // The question part of each intake screen (SPEC 14), and the options its choice screens show. Moved
 // out of IntakeScreen.tsx as it was (PLAN 3.5f, code organization).
 import type { ReactNode } from 'react';
 import { PLANS } from '../../data/plans';
 import { estimateDayMinutes } from '../../lib/plans';
 import type { DumbbellRange } from '../../db/types';
-import { ANSWER_KEY, equipmentChoices, goalsOf, KIND, needsDumbbellRange, weekdayCountNote, type AnswerId, type IntakeAnswers, type ScreenId } from '../../lib/intake/funnel';
+import { ANSWER_KEY, equipmentChoices, goalsOf, KIND, needsDumbbellRange, type AnswerId, type IntakeAnswers, type ScreenId } from '../../lib/intake/funnel';
 import { DAYS, EASY_ON, EXPERIENCE, FOCUS, MINUTES, PLACES, STYLES, WEEKDAYS, WHEN, WINS, type Option } from '../../lib/intake/options';
 import { gymKitOf } from '../../lib/intake/planFit';
 import { ExerciseDeckStep } from './ExerciseDeckStep';
 import { AboutStep, BodyweightStep } from './AboutSteps';
 import { CardioStep, EquipmentStep, GoalChoice, MultiChoice, SingleChoice, UnitsStep } from './Steps';
-import styles from './Intake.module.css';
 import noPlanStyles from './IntakeNoPlan.module.css';
 
 // P9: a quiet hint only where it is true of the plans that ship today (from their own data).
@@ -43,6 +44,8 @@ export const NO_HANDLERS: StepHandlers = { set: () => undefined, pickAndGo: () =
 
 /** The question part of a screen: what the user answers. */
 export function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answers: IntakeAnswers, h: StepHandlers, pulse: string | null): ReactNode {
+  if (step === 'focus') return <FocusStep value={answers.focusPicks ?? answers.focus ?? []} onChange={(v) => h.set('focusPicks', v)} />;
+  if (step === 'weekdays') return <ScheduleStep answers={answers} onStyle={(v) => h.set('scheduleStyle', v)} onDays={(v) => h.set('weekdays', v)} />;
   if (step === 'goal') return <GoalChoice value={goalsOf(answers)} onChange={(v) => h.set('goal', v)} />;
   if (KIND[step] === 'single') {
     const screen = step as AnswerId;
@@ -50,7 +53,6 @@ export function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId
   }
   if (MULTI_OPTIONS[step]) {
     const screen = step as AnswerId;
-    const countNote = step === 'weekdays' ? weekdayCountNote(answers) : null;
     return (
       <>
         <MultiChoice
@@ -58,14 +60,9 @@ export function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId
           value={answers[ANSWER_KEY[screen]] as string[] | undefined}
           onChange={(v) => h.set(screen, v)}
           only={step === 'easyOn' ? 'none' : undefined}
-          columns={step === 'weekdays' ? '1' : '2'}
+          columns="2"
           testId={`q-${step}`}
         />
-        {step === 'weekdays' && (
-          <p className={styles.countNote} role="status" data-testid="weekday-count">
-            {countNote ?? ''}
-          </p>
-        )}
         {step === 'easyOn' && (
           <p className={noPlanStyles.safety} data-testid="easy-note">
             A plan built from your answers leaves out lifts that load these. If something hurts, stop and check with a professional.

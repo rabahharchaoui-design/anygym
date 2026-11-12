@@ -1,9 +1,8 @@
 // The plan generator's rules (PLAN 3.5, SPEC 7.3, 15, 22). Plain data and small pure functions: the
 // split per days per week, the slots of each day (movement patterns, most important first), what a
 // goal and a level prescribe, and what a focus area means. The generator (generator.ts) reads them.
-import type { Muscle } from './order';
 import type { Pattern } from './swap';
-import type { ExperienceId, FocusId, GoalId } from './intake/options';
+import type { ExperienceId, GoalId } from './intake/options';
 
 // ---------------------------------------------------------------- goals
 
@@ -171,23 +170,3 @@ export const FALLBACK: Readonly<Record<Pattern, readonly Pattern[]>> = {
 
 /** A day needs at least this many moves the gym can do, or the generator says so (never padding). */
 export const MIN_MOVES = 3;
-
-// ---------------------------------------------------------------- focus (SPEC 15)
-
-/** Each focus area: the patterns that train it (isolation first), and its muscles for SPEC 22 rule 2. */
-export const FOCUS_RULES: Record<Exclude<FocusId, 'balance'>, { groups: Pattern[][]; muscles: Muscle[]; word: string }> = {
-  chest: { groups: [['chest isolation', 'horizontal push']], muscles: ['chest'], word: 'chest' },
-  back: { groups: [['horizontal pull', 'vertical pull', 'rear delt']], muscles: ['back'], word: 'back' },
-  shoulders: { groups: [['lateral delt', 'rear delt', 'vertical push']], muscles: ['front delts', 'side delts', 'rear delts'], word: 'shoulder' },
-  // Arms: biceps and triceps each get theirs.
-  arms: { groups: [['biceps'], ['triceps']], muscles: ['biceps', 'triceps'], word: 'arm' },
-  core: { groups: [['core']], muscles: ['abs'], word: 'core' },
-  glutes: { groups: [['glutes', 'hinge', 'lunge']], muscles: ['glutes'], word: 'glute' },
-  legs: { groups: [['quads isolation', 'hamstrings isolation', 'lunge', 'squat']], muscles: ['quads', 'hamstrings'], word: 'leg' },
-};
-
-/** SPEC 15: a focus adds 2 to 4 weekly sets; the generator aims for 3 per group (2 each for arms). */
-export const FOCUS_TARGET = 3;
-export const FOCUS_TARGET_SPLIT = 2;
-/** No item grows past this many sets for a focus. */
-export const MAX_ITEM_SETS = 5;

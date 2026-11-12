@@ -53,7 +53,7 @@ const walk = (s: FunnelState, ...actions: Parameters<typeof funnelReducer>[1][])
 const units = { weight: 'kg', distance: 'km', measure: 'cm', body: 'female' } as const;
 
 /** One valid answer for every question screen. */
-const ANSWER: Record<AnswerId, unknown> = {
+const ANSWER: Record<Exclude<AnswerId, 'focusPicks' | 'scheduleStyle'>, unknown> & Partial<Record<'focusPicks' | 'scheduleStyle', unknown>> = {
   goal: 'muscle',
   units,
   focus: ['arms', 'glutes'],
@@ -87,7 +87,7 @@ describe('the funnel state machine', () => {
       const screen = s.step;
       // Nothing to continue with before the answer, except equipment (preset by the place) and,
       // since PLAN 3.3a round 2 (B6), the questions not used yet (optional).
-      expect(canContinue(screen, s.answers)).toBe(screen === 'equipment' || NOT_USED_YET.has(screen));
+      expect(canContinue(screen, s.answers)).toBe(['equipment', 'focus', 'weekdays'].includes(screen) || NOT_USED_YET.has(screen));
       for (const f of fields[screen] ?? [screen as AnswerId]) s = funnelReducer(s, { type: 'set', screen: f, value: ANSWER[f] });
       s = funnelReducer(s, { type: 'next' });
     }
@@ -107,11 +107,11 @@ describe('the funnel state machine', () => {
     expect(funnelReducer(s, { type: 'next' })).toBe(s);
     const focus = walk(s, { type: 'goto', screen: 'focus' });
     expect(focus.step).toBe('focus');
-    // PLAN 3.3a round 2 (B6, supersedes): focus is not used yet, so it is optional; blank is skipped.
+    // PLAN 3.3a round 2 (B6, supersedes): focus is used and optional; blank means a balanced plan.
     const blank = walk(focus, { type: 'set', screen: 'focus', value: [] }, { type: 'next' });
     // 3.5u: win is hidden, so experience comes next.
     expect(blank.step).toBe('experience');
-    expect(blank.answers.skipped).toEqual(['focus']);
+    expect(blank.answers.focus).toEqual([]); // Blank focus is a valid balanced plan.
     expect(walk(focus, { type: 'set', screen: 'focus', value: ['back'] }, { type: 'next' }).step).toBe('experience');
     const units = walk(s, { type: 'goto', screen: 'units' });
     expect(canContinue('units', { ...units.answers, units: undefined })).toBe(false);
@@ -128,7 +128,7 @@ describe('the funnel state machine', () => {
 
   it('Skip only on personal screens: clears the answer, remembers the skip, moves on', () => {
     // PLAN 3.3a round 2: style (not used yet, a single choice with no Continue) gets Skip too.
-    expect([...SKIPPABLE].sort()).toEqual(['about', 'bodyweight', 'easyOn', 'exercises', 'style', 'weekdays', 'when'].sort());
+    expect([...SKIPPABLE].sort()).toEqual(['about', 'bodyweight', 'easyOn', 'exercises', 'focus', 'style', 'weekdays', 'when'].sort());
     // 3.5u: bodyweight is hidden, so the same walk runs on easyOn (exercises comes next).
     const s = walk(startState(), { type: 'goto', screen: 'easyOn' }, { type: 'set', screen: 'easyOn', value: ['knees'] }, { type: 'skip' });
     expect(s.step).toBe('exercises');

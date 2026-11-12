@@ -6,6 +6,7 @@ import type { DumbbellRange } from '../db/types';
 import { definitionPlan } from '../data/plans';
 import { isKnownPlate, validDumbbellRange, validStackStep } from './load';
 import { isReviewRow } from './candidates/review';
+import { FOCUS_PICKS } from './intake/options';
 import type { TableName } from './backup';
 
 export type Rec = Record<string, unknown>;
@@ -114,11 +115,21 @@ const dayTrim = shape({
   opt: { mobility: listOf(str), rest: recordOf(num), pairs: listOf(listOf(str)) },
 });
 
+/** The new optional schedule fields are checked without rejecting older intake shapes. */
+const intake: Check = (v) => isObj(v) &&
+  (v.scheduleStyle === undefined || oneOf('fixed', 'flexible', 'weekly')(v.scheduleStyle)) &&
+  (v.focusPicks === undefined || listOf((id) => FOCUS_PICKS.some((p) => p.id === id))(v.focusPicks));
+const localWeekKey: Check = (v) => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const date = new Date(`${v}T12:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === v && date.getUTCDay() === 1;
+};
+
 /** What every stored record must look like, per table. Exported for the tests. */
 export const RECORD_CHECKS: Record<TableName, Check> = {
   profile: shape({
     req: { id: str, defaultUnit: unit, createdAt: num },
-    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake: isObj, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str), lefts: recordOf(listOf(str)), asked: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }), quickIdeas: shape({ req: {}, opt: { shown: listOf(str), prev: listOf(str), at: num } }), welcomeTour: oneOf('pending', 'done') },
+    opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str), lefts: recordOf(listOf(str)), asked: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }), quickIdeas: shape({ req: {}, opt: { shown: listOf(str), prev: listOf(str), at: num } }), weeklySchedule: shape({ req: { weekKey: localWeekKey, weekdays: listOf(oneOf('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')), answeredAt: num } }), welcomeTour: oneOf('pending', 'done') },
   }),
   gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
   // PLAN 3.5: a generated plan's definition must be one this app can run, under the row's own id.
@@ -136,7 +147,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   exerciseSettings: shape({ req: { exerciseId: str, gymId: str }, opt: { loadType: oneOf(...LOAD_KINDS), barId: oneOf(...BAR_IDS), restSec: num, restOff: bool, note: str, alwaysUse: recordOf(str) } }),
   planState: shape({
     req: { id: oneOf('active'), planId: str, startedAt: num, weekIndex: num, nextDayIndex: num, doneDays: listOf(num) },
-    opt: { partial: recordOf(num) },
+    opt: { partial: recordOf(num), pendingDayIndices: (v) => Array.isArray(v) && v.length > 0 && v.every((n) => num(n) && Number.isInteger(n) && n >= 0) && new Set(v).size === v.length },
   }),
   orderCounters: shape({ req: { sessionId: str, next: num } }),
   submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num }, opt: { fp: str } }),

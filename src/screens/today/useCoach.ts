@@ -1,6 +1,7 @@
 // The coach on Today (PLAN 3.8, SPEC 15): one live read of the logged workouts and the coach's
 // rows, the engine's single recommendation, and Auto level up applied once when it is on.
 import { useEffect, useMemo, useRef } from 'react';
+import { scheduleStyleOf } from '../../lib/plan/schedule';
 import { useLive } from '../../hooks/useLive';
 import { coachData, regionWord, weekdaysOf, type CoachData } from '../../db/coachData';
 import { applyChanges, resolveOutcomes } from '../../db/coach';
@@ -50,7 +51,7 @@ export function useCoach(enabled: boolean): CoachView {
       closed: data.closed,
       autoLevelUp: data.profile?.coach?.autoLevelUp === true,
       activeWorkout: data.active,
-      ...(plan ? { plan: { daysPerWeek: plan.daysPerWeek, weekdays: weekdaysOf(data.profile) } } : {}),
+      ...(plan ? { plan: { scheduleStyle: scheduleStyleOf(data.profile?.intake), daysPerWeek: plan.daysPerWeek, weekdays: weekdaysOf(data.profile, data.now) } } : {}),
       ...(data.recovery ? { recovery: { ...data.recovery, nameOf: regionWord } } : {}),
     });
   }, [data]);

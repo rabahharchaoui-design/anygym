@@ -1,56 +1,41 @@
-// Focus areas (SPEC 15): 2 to 4 weekly sets for each.
-import { isCompound } from '../order';
-import { FOCUS_RULES, FOCUS_TARGET, FOCUS_TARGET_SPLIT } from '../generatorRules';
-import { makeItem, pickFrom } from './pick';
-import { focusCap, prescribe } from './prescribe';
+// Adapter only: all allocation policy lives in lib/plan/focus.ts.
+import { curateFocus, focusMuscles, normalizeFocusPicks, type FocusMove, type FocusReport } from '../plan/focus';
+import { isCompound, orderUnits } from '../order';
+import { allowed, makeItem } from './pick';
+import { prescribe, setCap } from './prescribe';
+import { pairUp, splitUnequalPairs, unitOf } from './pairs';
+import { minutesOf } from './trim';
 import type { Ctx, Day, Item } from './types';
 
-/** Adds 2 to 4 weekly sets per focus area: on the moves that train it, else a move of its own. */
-export function applyFocus(ctx: Ctx, days: Day[]): void {
-  for (const f of ctx.input.focus ?? []) {
-    if (f === 'balance') continue;
-    const rule = FOCUS_RULES[f];
-    for (const group of rule.groups) {
-      const target = rule.groups.length > 1 ? FOCUS_TARGET_SPLIT : FOCUS_TARGET;
-      const inGroup = (it: Item) => group.includes(it.pattern);
-      let items = days.flatMap((d) => d.items.filter(inGroup));
-      if (!items.length) {
-        // Nothing trains it yet: one move of its own on the days with the fewest moves (two at most).
-        const order = days.map((d, i) => ({ d, i })).sort((a, b) => a.d.items.length - b.d.items.length || a.i - b.i);
-        let added = 0;
-        for (const { d } of order) {
-          if (added >= target) break;
-          const keys = new Set(d.items.map((x) => x.key));
-          const it = group.map((pattern) => {
-            const c = pickFrom(ctx, pattern, false, keys);
-            return c ? makeItem(ctx, c, pattern) : undefined;
-          }).find((x): x is Item => !!x);
-          if (!it) continue;
-          prescribe(ctx, it, false);
-          if (added > 0 && added + it.sets > 4) it.sets = Math.max(1, 4 - added);
-          it.extra = it.sets;
-          it.focus = f;
-          d.items.push(it);
-          added += it.sets;
-        }
-        continue;
-      }
-      // Small moves take the extra sets first, then the compounds; one at a time around the week.
-      items = [...items.filter((it) => !isCompound(it.profile)), ...items.filter((it) => isCompound(it.profile))];
-      let added = 0;
-      let grew = true;
-      while (added < target && grew) {
-        grew = false;
-        for (const it of items) {
-          if (added >= target) break;
-          if (it.sets >= focusCap(ctx) || it.extra >= 2) continue;
-          it.sets++;
-          it.extra++;
-          it.focus ??= f;
-          added++;
-          grew = true;
-        }
-      }
-    }
-  }
+export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
+  const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
+  if (!picks.some((p) => p !== 'balance')) return { budget: 0, spent: 0, priorities: [], days: days.map(() => []) };
+  const facts = (it: Item): FocusMove => ({ id: it.id, key: it.key, sets: it.sets, hard: it.profile.role === 'lift', compound: isCompound(it.profile), ...(it.seconds ? { seconds: it.seconds[0] } : {}), ...(ctx.deps.focusFacts?.(it.id, it.profile) ?? { muscles: [...it.profile.targets], picks: (ctx.input.focus ?? []).filter((f) => f !== 'balance' && focusMuscles([f]).some((m) => it.profile.targets.includes(m))) }) });
+  const candidates = days.map(() => Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => allowed(ctx, c, pattern === 'core')).map((c) => {
+    const it = makeItem(ctx, c, pattern as Item['pattern']);
+    prescribe(ctx, it, false);
+    return it;
+  })).concat((ctx.deps.focusCandidates ?? []).filter((c) => allowed(ctx, c, true)).map((c) => {
+    const it = makeItem(ctx, c, 'core');
+    it.sets = 1; it.seconds = [60, 60]; it.rest = 0;
+    return it;
+  })));
+  const pools = days.map((d, i) => new Map([...candidates[i]!, ...d.units.flat()].map((it) => [it.id, it])));
+  // Reorder and pair during every estimate too. The accepted result has exactly that same duration.
+  const arranged = (moves: FocusMove[], i: number): Day => {
+    const items = moves.map((m) => ({ ...pools[i]!.get(m.id)!, sets: m.sets }));
+    const byId = new Map(items.map((it) => [it.id, it]));
+    const used = new Set<string>();
+    const old = days[i]!.units.map((u) => u.flatMap((it) => {
+      const next = byId.get(it.id);
+      if (next) used.add(next.id);
+      return next ? [next] : [];
+    })).filter((u) => u.length);
+    const groups = [...splitUnequalPairs(old), ...items.filter((it) => !used.has(it.id)).map((it) => [it])];
+    const order = orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref);
+    return { ...days[i]!, items, units: ctx.family === 'strength' ? order : pairUp(order, items) };
+  };
+  const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes === undefined || ctx.input.minutes >= 75 ? undefined : ctx.input.minutes, minutes: (moves, i) => minutesOf(arranged(moves, i)) });
+  for (const [i, moves] of out.days.entries()) Object.assign(days[i]!, arranged(moves, i));
+  return out.report;
 }

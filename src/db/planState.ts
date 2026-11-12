@@ -2,6 +2,7 @@
 // The plans are static JSON (src/data/plans.ts); only this small pointer is stored.
 import { basePlanOf, planById } from '../data/plans';
 import { clampWeek, dayIndexOf } from '../lib/plans';
+import { rotationOf } from '../lib/plan/schedule';
 import { finishPlanPosition } from '../lib/finishPlan';
 import type { DayProgress } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';
@@ -75,6 +76,7 @@ export async function setNextDay(dayIndex: number, db: AnyGymDB = defaultDb): Pr
     const plan = planById(state?.planId);
     if (!state || !plan) return state;
     const next = { ...state, nextDayIndex: Math.max(0, Math.min(plan.days.length - 1, Math.floor(dayIndex))) };
+    if (next.pendingDayIndices) next.pendingDayIndices = [...new Set([next.nextDayIndex, ...rotationOf(state, plan.days.length)])];
     await db.planState.put(next);
     return next;
   });
@@ -92,6 +94,7 @@ export async function rebuildWeek(db: AnyGymDB = defaultDb): Promise<{ before: P
     if (!before || !planById(before.planId)) return undefined;
     const after: PlanState = { ...before, nextDayIndex: 0, doneDays: [] };
     delete after.partial;
+    delete after.pendingDayIndices;
     await db.planState.put(after);
     return { before, after };
   });
@@ -125,7 +128,7 @@ export async function applyFinishProgress(session: Session, progress: Pick<DayPr
   if (!at) return;
   const { state, plan, done } = at;
   const pos = finishPlanPosition(state, plan, done, progress);
-  await db.planState.put(withPartial({ ...state, nextDayIndex: pos.nextDayIndex, weekIndex: pos.weekIndex, doneDays: pos.doneDays }, pos.partial));
+  await db.planState.put(withPartial({ ...state, nextDayIndex: pos.nextDayIndex, weekIndex: pos.weekIndex, doneDays: pos.doneDays, ...(pos.pendingDayIndices ? { pendingDayIndices: pos.pendingDayIndices } : {}) }, pos.partial));
 }
 
 /** Why the finish screen's "Change" could not set the next day. */
