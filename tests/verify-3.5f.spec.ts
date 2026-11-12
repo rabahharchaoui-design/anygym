@@ -119,6 +119,8 @@ test.describe('replace + logging', () => {
 });
 
 test('break: double tap Keep/Start, reload mid deck, offline, hide button', async ({ page, context }) => {
+  // About 9 s alone; headless Chromium paints a frame only every 50 ms or more and a busy machine doubles it, so 30 s is too tight.
+  test.setTimeout(90_000);
   const errors = watchErrors(page);
   await pastIntake(page);
   await page.getByTestId('build-card').tap();

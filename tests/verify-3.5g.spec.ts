@@ -242,7 +242,8 @@ test('(5) chest and quads trained yesterday: no idea card holds them; why lines 
         const name = await page.getByTestId('deck-name').innerText();
         expect(name, `${min} card ${i}: ${name}`).not.toMatch(BAD);
         await page.getByTestId('deck-keep').tap();
-        await page.waitForTimeout(400);
+        // The next card is on top (or Ready to go): wait for that, not a fixed 400 ms (a slow phone is still flying the card out).
+        await expect.poll(async () => (await page.getByTestId('ready-list').isVisible()) || (await page.getByTestId('deck-name').innerText().catch(() => name)) !== name).toBe(true);
       }
       // 3.5f round 2: a reload comes back to an open deck; Back first, so the reload is a new visit.
       await page.getByRole('button', { name: 'Back to the workouts' }).tap();

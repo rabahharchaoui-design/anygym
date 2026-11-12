@@ -125,6 +125,17 @@
   }
 }
 
+/* PLAN 3.6v: on the shortest phones (568 pt) at big text the question is a step smaller, so the card's photo is more than a stamp. */
+@media (max-height: 600px) {
+  .screen[data-step='exercises'] .title {
+    font-size: 1.5rem;
+  }
+
+  .screen[data-step='exercises'] .body {
+    gap: var(--space-2);
+  }
+}
+
 .sub {
   margin: calc(-1 * var(--space-2)) 0 0;
   color: var(--text-2);

@@ -94,16 +94,29 @@ test('(b) Undo acceptance write fails: Finish refuses, tombstone kept, retry res
   await loggedRows(view).first().getByRole('button', { name: /Edit$/ }).tap();
   await editSheet(page).getByRole('button', { name: 'Delete set' }).tap();
   await expect(loggedRows(view)).toHaveCount(1);
-  await page.evaluate(() => {
+  // Undo has a 5 s window from the delete. On a busy machine three round trips (the setup, a tap's checks) can use it up, so the failing
+  // write is armed and Undo pressed in one step inside the page, as soon as the toast takes taps (it is disabled for its first moments).
+  await page.evaluate(async () => {
     const w = window as unknown as { __failPut: boolean };
-    w.__failPut = true;
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...a: [unknown, IDBValidKey?]) {
       if (this.name === 'tombstones' && w.__failPut) { w.__failPut = false; throw new DOMException('boom', 'DataError'); }
       return put.apply(this, a);
     } as typeof put;
+    const undo = await new Promise<HTMLButtonElement>((resolve) => {
+      const find = () => Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Undo' && !b.disabled);
+      const now = find();
+      if (now) return resolve(now);
+      const mo = new MutationObserver(() => {
+        const b = find();
+        if (b) { mo.disconnect(); resolve(b); }
+      });
+      mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] });
+    });
+    w.__failPut = true;
+    const r = undo.getBoundingClientRect();
+    undo.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
   });
-  await page.getByRole('button', { name: 'Undo' }).tap();
   await expect(page.getByText('Could not bring that set back')).toBeVisible();
   await shot(page, 'b-undo-failed');
   expect(await sets(page)).toHaveLength(1);
@@ -214,6 +227,11 @@ test('(c) pending 135 lb on a barbell and +25 lb on bodyweight survive minimize,
   const add = page.getByRole('dialog', { name: 'Add weight', exact: true });
   await pad(add.getByRole('group', { name: 'Added weight', exact: true }), '25');
   await add.getByRole('button', { name: 'Done', exact: true }).tap();
+  // The Added weight sheet has closed and the weight sheet under it is the live one again, before its own Done is tapped.
+  await expect(add).toHaveCount(0);
+  await expect(weightSheet(page)).toBeVisible();
+  // ...and it already says +25 (the keys update it live): Done is tapped on what the sheet shows, not before it has caught up.
+  await expect(weightSheet(page).getByTestId('bodyweight-added')).toContainText('25');
   await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
   await expect(pull.getByTestId('weight-cell').first()).toHaveText('+25');
 

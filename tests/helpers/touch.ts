@@ -7,8 +7,48 @@ import { expect, type Locator, type Page } from '../fixtures';
 type Path = { x: number; y: number; dx: number; steps: number; stepMs: number; holdMs: number };
 const MARK = 'data-touch-target';
 
+// Chromium (the Android phones) takes real input through CDP: the browser itself makes the touch
+// stream, the pointer events, touch-action and pointercancel, as Android Chrome does.
+async function cdpGesture(page: Page, p: Path) {
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number, y: number) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 7 }] });
+  try {
+    if (p.steps > 0 && p.stepMs < 20) {
+      // A flick is quicker than the browser's frame rate (a headless frame can take 50 ms or more, and
+      // each touch waits for the page to answer the one before): all of it is sent at once, so the page
+      // sees it as one quick stroke, as a real finger's is.
+      const all = [send('touchStart', p.x, p.y)];
+      for (let i = 1; i <= p.steps; i++) all.push(send('touchMove', p.x + (p.dx * i) / p.steps, p.y + 1));
+      all.push(send('touchEnd', p.x + p.dx, p.y + 1));
+      await Promise.all(all);
+      return;
+    }
+    await send('touchStart', p.x, p.y);
+    if (p.holdMs) await page.waitForTimeout(p.holdMs);
+    for (let i = 1; i <= p.steps; i++) {
+      await page.waitForTimeout(p.stepMs);
+      await send('touchMove', p.x + (p.dx * i) / p.steps, p.y + 1);
+    }
+    await send('touchEnd', p.x + p.dx, p.y + 1);
+  } finally {
+    await cdp.detach();
+  }
+}
+
 async function gesture(page: Page, target: Locator, path: Path) {
   await target.evaluate((el, mark) => el.setAttribute(mark, ''), MARK);
+  if (page.context().browser()?.browserType().name() === 'chromium') {
+    // The finger lands on whatever is really there: something covering the card fails the test.
+    const hit = await page.evaluate(([x, y, mark]) => {
+      const el = document.elementFromPoint(x as number, y as number);
+      const mine = document.querySelector(`[${mark}]`);
+      mine?.removeAttribute(mark as string);
+      return !!el && !!mine?.contains(el) ? '' : `${el?.tagName} ${el?.className}`;
+    }, [path.x, path.y, MARK] as const);
+    if (hit) throw new Error(`the finger is not on the card: ${hit}`);
+    return cdpGesture(page, path);
+  }
   await page.evaluate(async ([p, mark]) => {
     // The finger lands on whatever is really there: something covering the card fails the test.
     const el = document.elementFromPoint(p.x, p.y);
@@ -34,9 +74,31 @@ async function gesture(page: Page, target: Locator, path: Path) {
   }, [path, MARK] as const);
 }
 
-async function middle(target: Locator) {
+/** The box of a card that has stopped moving: one still springing in is not where a finger would land. */
+export async function stillBox(target: Locator) {
   await expect(target).toBeVisible();
-  const box = (await target.boundingBox())!;
+  // Three looks 150 ms apart that agree: a spring that has not yet had its first frame (a headless frame can
+  // take 100 ms) looks still for one look, not for three.
+  const look = async () => {
+    await target.page().waitForTimeout(150);
+    return (await target.boundingBox())!;
+  };
+  const same = (a: { x: number; y: number; width: number; height: number }, b: typeof a) => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+  let box = (await target.boundingBox())!;
+  let agreed = 0;
+  await expect
+    .poll(async () => {
+      const next = await look();
+      agreed = same(next, box) ? agreed + 1 : 0;
+      box = next;
+      return agreed;
+    })
+    .toBeGreaterThanOrEqual(2);
+  return box;
+}
+
+async function middle(target: Locator) {
+  const box = await stillBox(target);
   return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height * 0.35) };
 }
 
@@ -53,4 +115,36 @@ export async function touchDrag(page: Page, target: Locator, dx: number) {
 /** A finger held still on the card. */
 export async function touchHold(page: Page, target: Locator, ms = 750) {
   await gesture(page, target, { ...(await middle(target)), dx: 0, steps: 0, stepMs: 0, holdMs: ms });
+}
+
+/**
+ * A quick mouse stroke from (x, y) by dx, dy in `steps` moves, then released. On Chromium it goes
+ * through CDP in one go: page.mouse waits for the page to answer each move, and a headless frame can
+ * take 50 ms or more, so a "flick" would arrive as a slow drag. WebKit keeps page.mouse.
+ */
+export async function mouseFlick(page: Page, x: number, y: number, dx: number, dy: number, steps: number) {
+  if (page.context().browser()?.browserType().name() !== 'chromium') {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + dx, y + dy, { steps });
+    await page.mouse.up();
+    return;
+  }
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'mouseMoved' | 'mousePressed' | 'mouseReleased', px: number, py: number, down = true) =>
+    cdp.send('Input.dispatchMouseEvent', { type, x: px, y: py, button: down ? 'left' : 'none', buttons: down && type !== 'mouseReleased' ? 1 : 0, clickCount: type === 'mouseMoved' ? 0 : 1 });
+  try {
+    await send('mouseMoved', x, y, false);
+    await send('mousePressed', x, y);
+    // The first move alone, answered: the card takes hold of the pointer (as it does of a finger) and
+    // keeps it outside its own edges. The rest goes in one go (Chromium folds those moves into one).
+    const first = steps > 1 ? Math.sign(dx) * Math.min(Math.abs(dx), 14) : dx;
+    await send('mouseMoved', x + first, y + dy / steps);
+    const rest = [];
+    for (let i = 2; i <= steps; i++) rest.push(send('mouseMoved', x + (dx * i) / steps, y + (dy * i) / steps));
+    await Promise.all(rest);
+    await send('mouseReleased', x + dx, y + dy);
+  } finally {
+    await cdp.detach();
+  }
 }

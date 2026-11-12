@@ -11,6 +11,10 @@ import { estimateDayMinutes } from '../plans';
 import { buildIdeas, planConcept, QUICK_MINUTES, type Concept } from '../quick';
 import { dayWorkout, quickEntry, restAfter, upNext, type WorkoutEntry } from '../planWorkout';
 import { applyTrim, trimmedPlan } from '../timeBudget';
+import { vi as viTimeout } from 'vitest';
+// PLAN 3.6u: a heavy test (slowest about 7146 ms on a laptop; the GitHub runner is about six to eight times slower and
+// one timed out at the 5 s default). An explicit limit sized for the runner, never a retry.
+viTimeout.setConfig({ testTimeout: 120_000 });
 
 const FULL: GymKit = { equipment: [...EQUIPMENT_IDS], dumbbellRange: { min: 5, max: 100, step: 5 } };
 const DB: GymKit = { equipment: ['dumbbells', 'adjustable_bench'], dumbbellRange: { min: 5, max: 50, step: 5 } };
@@ -197,7 +201,7 @@ describe('verify 3.5b r2', () => {
     console.log('fresh lines checked', checked);
     expect(checked).toBeGreaterThan(50);
     // 3.5b round 4: many histories × every card build; 60 s so it never times out on a loaded machine or the CI runner.
-  }, 60_000);
+  }, 120_000);
 });
 export type _C = Concept;
 

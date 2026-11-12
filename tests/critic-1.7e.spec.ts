@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { bar185, dbAll, quickWith, seedFinished, usePlan, watchErrors } from './workout-helpers';
+import { quietLineMax } from './helpers/lines';
 
 // PLAN 1.7e, ux-critic round (reports/critic/session-1): the fixes that lift every screen to 8+.
 
@@ -165,7 +166,9 @@ test('Smith first use: the bar question sits on top of the weight sheet; a chip 
   await expect(q.getByRole('button', { name: 'Count plates only' })).toBeVisible();
   await expect(q.getByRole('button', { name: 'Other…' })).toBeVisible();
   await expect(q.getByRole('button', { name: 'What is Smith machine?' })).toBeVisible();
-  // On top: above the number and the bar.
+  // On top: above the number and the bar. Measured once the sheet has settled: mid spring the two
+  // boxes were read a frame apart on a busy machine (PLAN 3.6v).
+  await expect(sheet).toHaveAttribute('data-state', 'open');
   const qBox = (await q.boundingBox())!;
   const totalBox = (await sheet.getByTestId('plate-total').boundingBox())!;
   expect(qBox.y).toBeLessThan(totalBox.y);
@@ -315,7 +318,8 @@ test('first time with weights: "Pick" cells and one first time line under the ro
   const n = (await note.boundingBox())!;
   expect(n.y).toBeGreaterThanOrEqual(add.y + add.height);
   expect(n.y - (add.y + add.height)).toBeLessThan(12);
-  expect(n.height).toBeLessThanOrEqual(20);
+  // One line from 360 wide; wrapped once, never cut, on the 320 floor.
+  expect(n.height).toBeLessThanOrEqual(quietLineMax(page));
   expect(errors).toEqual([]);
 });
 

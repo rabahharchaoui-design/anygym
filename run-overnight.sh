@@ -73,7 +73,7 @@ sync_in(){ git fetch -q origin 2>>"$LOG"
 sync_out(){ local br=$(git branch --show-current); git fetch -q origin 2>>"$LOG"
   if cloud_busy; then say "cloud builder is active, gmini's work stays on gmini until it finishes"; return 0; fi
   catch_up
-  if [ -n "$(git status --porcelain)" ]; then git add -A && git commit -q -m "WIP gmini: work in progress at the end of a build run (the next builder continues it)" 2>>"$LOG"; fi
+  if [ -n "$(git status --porcelain)" ]; then git add -A && git commit -q -m "WIP gmini: work in progress at the end of a build run (the next builder continues it) [skip ci]" 2>>"$LOG"; fi
   if git push -q origin "$br" 2>>"$LOG" && git push -q origin master 2>>"$LOG"; then say "pushed $br for the cloud builder ($(git rev-parse --short HEAD))"; else say "push to GitHub failed, will retry after the next run"; fi; }
 LOOP_V=2
 # Keep the phone watcher in step with .anygym-ntfy.sh (reinstalls it when it changed), so G never has to.
@@ -123,7 +123,8 @@ while [ $n -lt 300 ]; do
   sync_out
   if grep -qE "^[[:space:]]*ALL DONE[.]?[[:space:]]*$" "$RUNLOG"; then say "ALL DONE"; rm -f "$RUNLOG"; break; fi
   if grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your" "$RUNLOG"; then
-    if grep -qiE "weekly|week" "$RUNLOG" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "Press Full reset now: Claude, Settings, Usage, Full reset. The build continues by itself after that." "warning"; say "weekly limit hit, asked G on his phone to press Full reset"; fi
+    if grep -qiE "fable" "$RUNLOG" && grep -qiE "limit" "$RUNLOG" && [ "$(cat .fable-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .fable-ntfy; ntfy "AnyGym: press Fable reset" "The Fable weekly bar is full. Press it now: Claude, Settings, Usage, Fable reset, Reset for free. The build continues by itself." "warning"; say "Fable limit hit, asked G on his phone to press the Fable reset"
+    elif grep -qiE "weekly|week" "$RUNLOG" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "All models is full for the week. Nothing to press (no Full reset left); the build waits for Thursday 8 PM." "warning"; say "weekly all models limit hit, told G"; fi
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"

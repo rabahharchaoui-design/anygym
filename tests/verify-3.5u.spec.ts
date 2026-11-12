@@ -1,6 +1,7 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Page } from "./fixtures";
 import { simulateSafeAreas, insetsOf } from "./helpers/layout";
-import { dbAll, dbPut } from "./workout-helpers";
+import { dbAll, dbPut, navIdle } from "./workout-helpers";
+import { boxOf, dayLit, tourLineMax, type TourTarget } from "./helpers/tour";
 
 // PLAN 3.5u independent verification (tester). Fresh phone through the intake, the welcome tour,
 // hidden questions, older answers, 130% text, reduced motion, breaking attempts.
@@ -82,13 +83,16 @@ async function toReveal(page: Page, answers: Record<string, unknown>) {
   await atStep(page, "about");
   await page.getByTestId("skip").tap();
   await atStep(page, "reveal");
+  // The reveal pushes in over about 280 ms; a tap during a view transition hits the transition
+  // overlay, not the page. iPhones only passed because their screenshot waited first.
+  await navIdle(page);
 }
 
-async function expectSpot(page: Page, target: Locator) {
+async function expectSpot(page: Page, target: TourTarget) {
   await expect
     .poll(async () => {
       const s = await page.getByTestId("tour-spot").boundingBox();
-      const t = await target.boundingBox();
+      const t = await boxOf(target);
       if (!s || !t) return "missing";
       const pads = [
         t.x - s.x,
@@ -177,6 +181,7 @@ test("(1) home with no equipment: noPlan notice, keep going to the reveal, Go to
   const label = (await revealPrimary(page).innerText()).trim();
   console.log(`LABEL noPlan reveal: ${label}`);
   await shot(page, "reveal-noplan");
+  await navIdle(page);
   await expect(page.getByRole("button", { name: /start/i })).toHaveCount(0);
   const b = (await revealPrimary(page).boundingBox())!;
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
@@ -201,6 +206,10 @@ test("probe: which answers reach the noPlan notice", async ({ page }) => {
   };
   for (const [n, a] of Object.entries(cands)) {
     await page.goto("./");
+    // The intake writes its own draft a tick after it shows a step; replace it only after that, or
+    // the app's write lands last and the reload resumes the old step (PLAN 3.6v: flaky under load).
+    await expect(page.getByTestId("intake")).toHaveAttribute("data-step", /.+/);
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 50)));
     await page.evaluate((x) => localStorage.setItem("anygym.intakeDraft", JSON.stringify({ step: "equipment", answers: x })), a);
     await page.reload();
     await atStep(page, "equipment");
@@ -242,11 +251,10 @@ test("(2) tour: spotlights match elements, Next/Skip, outside tap and Escape, St
   await toReveal(page, SETS.fullMuscle!);
   await revealPrimary(page).tap();
   await expect(tour(page)).toHaveAttribute("data-step", "day");
-  const day = page.getByRole("region", { name: "Today's plan day" });
-  await expectSpot(page, day);
+  await expectSpot(page, dayLit(page));
   expect(
     (await page.getByTestId("tour-line").boundingBox())!.height,
-  ).toBeLessThan(30);
+  ).toBeLessThan(tourLineMax(page));
   // Tap targets of Next and Skip.
   for (const id of ["tour-next", "tour-skip"]) {
     const bb = (await page.getByTestId(id).boundingBox())!;

@@ -10,6 +10,10 @@ import { isCompound } from '../order';
 import { estimateDayMinutes, itemTarget, type PlanBlock, type PlanDay } from '../plans';
 import { dayWorkout } from '../planWorkout';
 import { AS_PLANNED, applyTrim, changeWords, fitWords, idsForTrim, trimDay, trimmedPlan, type TrimInput } from '../timeBudget';
+import { vi as viTimeout } from 'vitest';
+// PLAN 3.6u: a heavy test (slowest about 809 ms on a laptop; the GitHub runner is about six to eight times slower and
+// one timed out at the 5 s default). An explicit limit sized for the runner, never a retry.
+viTimeout.setConfig({ testTimeout: 30_000 });
 
 const profileOf: TrimInput['profileOf'] = (id, name) => profileFor(id, name);
 const split = planById('five-day-split')!;

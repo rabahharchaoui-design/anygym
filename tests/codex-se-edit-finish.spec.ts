@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import type { WorkoutSet } from '../src/db/types';
-import { bar185, checkCurrent, dbAll, exerciseView, fitsOneScreen, loggedRows, quickWith, seedFinished, watchErrors } from './workout-helpers';
+import { bar185, checkCurrent, dbAll, exerciseView, fitsOneScreen, loggedRows, navIdle, quickWith, seedFinished, watchErrors } from './workout-helpers';
 
 test.use({ viewport: { width: 375, height: 667 } });
 
@@ -28,9 +28,14 @@ test('SE: five-row workout keeps inline reps controls and current check exposed 
   await seedFinished(page, { 'barbell-back-squat': [{ reps: 10, load: bar185 }] });
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   const view = exerciseView(page, 'barbell-back-squat');
+  // Set up: two more rows. With five rows "+ Add set" is below the fold, so Playwright scrolls the list to tap it (some runs meet
+  // it before the new row has grown, some after: the list ends at 0 or 163). That scroll is the setup's, so the list goes back to
+  // the top here; every check below it is about what the app does on its own.
+  await navIdle(page);
   await view.getByRole('button', { name: '+ Add set' }).tap();
   await view.getByRole('button', { name: '+ Add set' }).tap();
   await expect(view.getByTestId('set-todo')).toHaveCount(5);
+  await page.getByRole('main').evaluate((el) => (el.scrollTop = 0));
   const firstReps = Number(await view.getByTestId('reps-cell').first().textContent());
   await checkCurrent(view).tap();
   await expect(loggedRows(view)).toHaveCount(1);

@@ -87,6 +87,8 @@ test('verify core: decisions from before, byte compat export builder, double tap
   await page.waitForTimeout(500);
   console.log('V offline pos', await page.getByTestId('review-pos').textContent());
   await page.context().setOffline(false);
+  // Going offline on purpose: Chromium logs every request that could not leave (WebKit stays quiet). Only that line is let go.
+  errors.splice(0, errors.length, ...errors.filter((e) => !/Failed to load resource: net::ERR_INTERNET_DISCONNECTED/.test(e)));
   // tiny 10px flick should not decide; huge 600px flick
   const before = await card(page).getAttribute('data-exercise');
   await touchFlick(page, card(page), 10);

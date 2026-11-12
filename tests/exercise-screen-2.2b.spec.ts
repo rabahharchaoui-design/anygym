@@ -1,5 +1,7 @@
 import { expect, test, type Page } from './fixtures';
 import { navIdle, pickExercises, usePlan, watchErrors } from './workout-helpers';
+import { closeFormSheet, demoPicture, isShort, openDemoViewer } from './helpers/demo';
+import { quietLineMax } from './helpers/lines';
 
 // PLAN 2.2b: the exercise screen fills the screen, nothing hidden. Day 1 of the five day split:
 // Barbell Back Squat (variant, demo, 4 sets), Machine Lying Leg Curl (exact, demo, 3 sets) and
@@ -52,22 +54,33 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   const view = await openExercise(page, 'barbell-back-squat');
   const vh = page.viewportSize()!.height;
 
-  // (a) The hero: on top, about 30% of the height (less on short phones), photos loaded.
-  const hero = view.getByTestId('ex-hero');
+  // (a) The hero: on top, about 30% of the height, photos loaded. Under 600 pt tall (the 320 floor)
+  // there is no room for it above the rows: the compact header carries the photos as its tile.
+  const short = isShort(page);
+  const hero = demoPicture(page, view);
   await expect(hero).toBeVisible();
   const hb = (await hero.boundingBox())!;
-  expect(hb.height).toBeGreaterThanOrEqual(110);
-  expect(hb.height).toBeLessThanOrEqual(vh * 0.34);
+  if (short) {
+    await expect(view.getByTestId('ex-hero')).toHaveCount(0);
+    expect(hb.height).toBeGreaterThanOrEqual(44);
+  } else {
+    expect(hb.height).toBeGreaterThanOrEqual(110);
+    expect(hb.height).toBeLessThanOrEqual(vh * 0.34);
+  }
   await expect(hero.locator('img[alt$="start position"]')).toHaveJSProperty('complete', true);
   expect(await hero.locator('img[alt$="start position"]').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   // It crossfades like a gif.
   const anim = await hero.locator('[data-frame="1"]').evaluate((el) => getComputedStyle(el).animationName);
   expect(anim).not.toBe('none');
-  // Name and set line sit on the hero's foot; the ⋯ is reachable there.
+  // Name and set line sit on the hero's foot (beside the tile on a short phone); the ⋯ is reachable there.
   const name = view.getByRole('heading', { name: 'Barbell Back Squat' });
   const nb = (await name.boundingBox())!;
-  expect(nb.y).toBeGreaterThan(hb.y);
-  expect(nb.y + nb.height).toBeLessThanOrEqual(hb.y + hb.height);
+  if (short) {
+    await expect(view.getByTestId('ex-head').getByRole('heading', { name: 'Barbell Back Squat' })).toBeInViewport();
+  } else {
+    expect(nb.y).toBeGreaterThan(hb.y);
+    expect(nb.y + nb.height).toBeLessThanOrEqual(hb.y + hb.height);
+  }
   await expect(view.getByTestId('set-target')).toHaveText(/^Set 1 of 4 · 8 to 12 reps$/);
   await expect(view.getByRole('button', { name: 'More for Barbell Back Squat' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Back to the list' })).toBeVisible();
@@ -82,7 +95,7 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   // First time: one quiet line inside the table area, on one line.
   const guide = view.getByTestId('set-guide').first();
   await expect(guide).toHaveText('First time: pick a weight you could do 2 more reps with');
-  expect((await guide.boundingBox())!.height).toBeLessThanOrEqual(20);
+  expect((await guide.boundingBox())!.height).toBeLessThanOrEqual(quietLineMax(page));
   // The ✓ coach mark (gate s2: back over the column header, its arrow on the first row's ✓) never
   // covers the title or a number of the first row.
   const coach = page.getByTestId('hint');
@@ -138,17 +151,22 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   await noSideScroll(page);
 
   // (7) Scrolled: the hero folds into a compact title bar (name, set, ⋯), the picture faded out.
+  // (A short phone's compact header has no picture above it to fold.)
   await view.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
-  await expect(hero).toHaveAttribute('data-folded', 'true');
-  await page.waitForTimeout(350);
-  const after = (await hero.boundingBox())!;
-  const mainTop = (await view.boundingBox())!.y;
-  const barHeight = after.y + after.height - mainTop;
-  expect(barHeight).toBeGreaterThan(40);
-  expect(barHeight).toBeLessThanOrEqual(80);
-  await expect(view.getByRole('button', { name: 'More for Barbell Back Squat' })).toBeInViewport();
-  await expect(name).toBeInViewport();
-  expect(Number(await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.05);
+  if (!short) {
+    await expect(hero).toHaveAttribute('data-folded', 'true');
+    await page.waitForTimeout(350);
+    const after = (await hero.boundingBox())!;
+    const mainTop = (await view.boundingBox())!.y;
+    const barHeight = after.y + after.height - mainTop;
+    expect(barHeight).toBeGreaterThan(40);
+    expect(barHeight).toBeLessThanOrEqual(80);
+    await expect(view.getByRole('button', { name: 'More for Barbell Back Squat' })).toBeInViewport();
+    await expect(name).toBeInViewport();
+    expect(Number(await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.05);
+  } else {
+    await page.waitForTimeout(350);
+  }
   // (9) The end of the page is in view. PLAN 2.2d (G: no dead black space): with no rest running the
   // page keeps no rest bar room, so the tips end just above the bottom (the rest bar case is in
   // tests/polish-2.2d.spec.ts).
@@ -159,10 +177,9 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   await view.evaluate((el) => el.scrollTo({ top: 0 }));
   await expect(hero).not.toHaveAttribute('data-folded');
 
-  // (3) Tap the hero: a real full screen viewer, photo uncropped at full width, crossfade running.
-  await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).tap();
-  const viewer = page.getByTestId('demo-viewer');
-  await expect(viewer).toBeVisible();
+  // (3) Tap the hero (a short phone: the tile, then the sheet's photo): a real full screen viewer,
+  // photo uncropped at full width, crossfade running.
+  const viewer = await openDemoViewer(page, 'Barbell Back Squat');
   await page.waitForTimeout(350);
   const vb = (await viewer.locator('[data-testid="demo-hero"]').boundingBox())!;
   expect(vb.width).toBeGreaterThanOrEqual(page.viewportSize()!.width - 1);
@@ -172,11 +189,11 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
   await viewer.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(viewer).toHaveCount(0);
   // A tap anywhere closes it too.
-  await hero.getByRole('button', { name: 'How to do Barbell Back Squat' }).tap();
-  await expect(viewer).toBeVisible();
+  await openDemoViewer(page, 'Barbell Back Squat');
   await page.waitForTimeout(350);
   await page.touchscreen.tap(20, page.viewportSize()!.height / 2 + 200);
   await expect(viewer).toHaveCount(0);
+  await closeFormSheet(page);
   // Nothing is hidden behind a details sheet: watch out and good for are on the page.
   await expect(view.getByTestId('watch-out')).toBeVisible();
   await expect(view.getByTestId('good-for')).toBeVisible();
@@ -185,10 +202,8 @@ test('demo exercise: hero on top, the whole table in the first screen, muscles a
 });
 
 test('swipe down closes the full screen demo', async ({ page }) => {
-  const view = await openExercise(page, 'machine-lying-leg-curl');
-  await view.getByRole('button', { name: 'How to do Machine Lying Leg Curl' }).tap();
-  const viewer = page.getByTestId('demo-viewer');
-  await expect(viewer).toBeVisible();
+  await openExercise(page, 'machine-lying-leg-curl');
+  const viewer = await openDemoViewer(page, 'Machine Lying Leg Curl');
   await page.waitForTimeout(350);
   const b = (await viewer.locator('[data-testid="demo-hero"]').boundingBox())!;
   const x = b.x + b.width / 2;
@@ -203,7 +218,7 @@ test('swipe down closes the full screen demo', async ({ page }) => {
 test('three set exact match: the whole table and every ✓ fit too', async ({ page }) => {
   const errors = watchErrors(page);
   const view = await openExercise(page, 'machine-lying-leg-curl');
-  await expect(view.getByTestId('ex-hero')).toBeVisible();
+  await expect(demoPicture(page, view)).toBeVisible();
   await tableInFirstScreen(page);
   await expect(view.getByTestId('muscle-line')).toContainText('Hamstrings');
   await expect(view.getByTestId('form-tips').locator('li')).toHaveCount(3);
@@ -260,7 +275,9 @@ test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce' });
   test('the hero shows the start photo still', async ({ page }) => {
     const view = await openExercise(page, 'machine-lying-leg-curl');
-    const hero = view.getByTestId('ex-hero');
+    // The hero, or under 600 pt tall the compact header's tile: both show the start photo still.
+    const hero = demoPicture(page, view);
+    await expect(hero).toBeVisible();
     const end = hero.locator('[data-frame="1"]');
     expect(await end.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
     expect(await end.evaluate((el) => getComputedStyle(el).opacity)).toBe('0');

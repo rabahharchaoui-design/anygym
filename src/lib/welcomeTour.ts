@@ -58,3 +58,14 @@ export function wordsTop(spot: Box, height: number, view: { top: number; bottom:
   if (over >= view.top) return over;
   return view.bottom - height;
 }
+
+/**
+ * PLAN 3.6v: on a short screen a lit element taller than the room the words leave is lit down to
+ * its key part (the day card down to Start), so the light and the words both fit whole. `extra` is
+ * what the light needs besides the element (its padding, the gap and the words); `coreBottom` is
+ * where the key part ends (null when the element has none).
+ */
+export function fitTarget(r: Box, coreBottom: number | null, room: number, extra: number): Box {
+  if (coreBottom === null || r.height + extra <= room) return r;
+  return { ...r, height: Math.max(0, Math.min(r.height, coreBottom - r.y)) };
+}

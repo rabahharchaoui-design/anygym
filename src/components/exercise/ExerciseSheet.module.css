@@ -19,6 +19,17 @@
   background: var(--surface-1);
 }
 
+/* PLAN 3.6v: under 600 pt tall (the 320 x 568 floor) a little less room around and for the picture,
+   so the first How to step still shows whole above the pinned Close. */
+@media (max-height: 600px) {
+  .body {
+    gap: var(--space-3);
+  }
+  .soon {
+    height: 104px;
+  }
+}
+
 .soonText {
   margin: 0;
   color: var(--text-2);

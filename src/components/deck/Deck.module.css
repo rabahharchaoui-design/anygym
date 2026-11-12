@@ -109,6 +109,9 @@
   background: var(--surface-2);
 }
 
+/* The shortest phones (568 pt): the words need little more than the name, so the photo keeps its share. */
+@media (max-height: 600px) { .photo { min-height: min(160px, 64%); } }
+
 .deck[data-tall] .photo {
   flex: 1 1 0;
   max-height: none;

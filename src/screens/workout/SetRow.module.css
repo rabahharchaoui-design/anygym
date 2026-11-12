@@ -361,6 +361,14 @@
 
 /* The 320 floor (and anything as narrow): the reps column is at its 48 pt minimum, so the chip
    tightens to its text; "12" and the chip both stay whole. */
+/* PLAN 3.6v: under 370 pt wide the reps column is narrow enough that a chip grown by large text
+   reached back over the reps digits; it sits 3 pt further right there (still clear of the ✓). */
+@media (max-width: 369px) {
+  .row .prBadge {
+    right: calc(4px + 52px + 6px - 13px);
+  }
+}
+
 @media (max-width: 359px) {
   .row .prBadge [data-chip] {
     min-width: 22px;

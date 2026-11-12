@@ -154,3 +154,10 @@
     transition: none;
   }
 }
+
+/* The smallest phones at big text: the muscle chip's words (Hamstrings) fit whole in a third of the width. */
+@media (max-width: 340px) {
+  .chip {
+    padding: 2px 4px;
+  }
+}

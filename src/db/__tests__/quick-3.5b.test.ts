@@ -7,6 +7,10 @@ import { pairsOf, readDoneStyles, readLastTrained, readRotation, readShown, reco
 import { RECORD_CHECKS } from '../../lib/backup';
 import type { QuickItem } from '../../lib/quick';
 import type { EquipmentId, Session, WorkoutSet } from '../types';
+import { vi as viTimeout } from 'vitest';
+// PLAN 3.6u: a heavy test (slowest about 3427 ms on a laptop; the GitHub runner is about six to eight times slower and
+// one timed out at the 5 s default). An explicit limit sized for the runner, never a retry.
+viTimeout.setConfig({ testTimeout: 60_000 });
 
 let db: AnyGymDB;
 let name: string;

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './fixtures';
 import { simulateSafeAreas } from './helpers/layout';
 import { pastIntake } from './helpers/quick';
+import { framesFloor, idleFrames, longestBudget, paintBudget } from './helpers/frames';
 import { bar185, checkCurrent, exerciseView, loggedRows, quickWith, seedFinished } from './workout-helpers';
 
 // PLAN 3.5w: motion polish from G's recordings. Each fixed transition has its proof here: nothing
@@ -63,8 +64,12 @@ const fromTap = (page: Page, ms = 500) => ({
     // WebKit (the iPhones): no dropped streak. Headless WebKit's frame clock is noisy when the whole
     // suite runs beside it, so one late frame is let through, as in the 2.2e push and pop budget.
     if (isWebKit()) {
-      expect(longest).toBeLessThan(67);
-      expect(gaps.filter((g) => g > 40).length).toBeLessThanOrEqual(1);
+      const idle = await idleFrames(page); // a machine busy with other work stalls an empty page too (helpers/frames.ts)
+      // One late frame is let through (a stall of the machine, not a streak); the next longest is held to the bound, and no frame passes 250 ms.
+      const sorted = [...gaps].sort((a, b) => b - a);
+      expect(sorted[1] ?? 0).toBeLessThan(longestBudget(67, idle));
+      expect(longest).toBeLessThan(250);
+      expect(gaps.filter((g) => g > longestBudget(40, idle)).length).toBeLessThanOrEqual(1);
     }
     return longest;
   },
@@ -85,17 +90,37 @@ test('a single choice: the new pill wraps "Your plan so far" and no option moves
   await slowCpu(page);
   const frames = fromTap(page, 400);
   await frames.arm();
+  // The reads happen in the page, in the same task that shows the new line: the pick moves on by itself after 250 ms, and a
+  // slow or busy machine can be past that by the time a test's own round trips arrive.
+  await page.evaluate(() => {
+    const w = window as unknown as { __pick: unknown };
+    w.__pick = null;
+    const mo = new MutationObserver(() => {
+      const pill = document.querySelector('[data-testid="so-far-place"]');
+      if (!pill || w.__pick) return;
+      const box = (el: Element | null | undefined) => (el ? ((r) => ({ y: r.y, height: r.height }))(el.getBoundingClientRect()) : null);
+      const foot = [...document.querySelectorAll('p, span, div')].find((e) => e.children.length === 0 && e.textContent?.trim() === 'Stays on this phone.');
+      w.__pick = {
+        text: pill.textContent,
+        options: [...document.querySelector('[data-testid="q-place"]')!.children].map((c) => [(c as HTMLElement).offsetTop, (c as HTMLElement).offsetHeight]),
+        strip: box(document.querySelector('[data-testid="plan-so-far"]')),
+        pill: box(pill),
+        foot: box(foot),
+      };
+      mo.disconnect();
+    });
+    mo.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+  });
   await page.getByTestId('q-place-full').tap();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __pick: unknown }).__pick)).not.toBeNull();
+  const picked = (await page.evaluate(() => (window as unknown as { __pick: unknown }).__pick)) as { text: string; options: number[][]; strip: { y: number; height: number }; pill: { y: number; height: number }; foot: { y: number; height: number } };
   // The answer is in the strip at once, on a line of its own; the cards are where they were.
-  await expect(page.getByTestId('so-far-place')).toHaveText('Full gym');
-  expect(await optionBoxes(page, 'q-place')).toEqual(before);
-  const stripNow = (await strip.boundingBox())!;
-  expect(stripNow.y).toBe(stripBefore.y);
-  expect(stripNow.height).toBeGreaterThan(stripBefore.height);
+  expect(picked.text).toBe('Full gym');
+  expect(picked.options).toEqual(before);
+  expect(picked.strip.y).toBe(stripBefore.y);
+  expect(picked.strip.height).toBeGreaterThan(stripBefore.height);
   // Whole (to a hairline): the new line shows in the room under the strip, above the note.
-  const pill = (await page.getByTestId('so-far-place').boundingBox())!;
-  const foot = (await page.getByText('Stays on this phone.').boundingBox())!;
-  expect(pill.y + pill.height).toBeLessThanOrEqual(foot.y + 1);
+  expect(picked.pill.y + picked.pill.height).toBeLessThanOrEqual(picked.foot.y + 1);
   const longest = await frames.longest();
   console.log(`${test.info().project.name}: place pick longest frame ${longest} ms`);
   // It still moves on by itself, and the next screen holds nothing.
@@ -413,6 +438,7 @@ test.describe('round 2: past the intake', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav).toBeVisible();
     await page.waitForTimeout(500);
+    const idle = await idleFrames(page); // 60 fps counts below are widened on a host that cannot draw that (helpers/frames.ts)
     type F = { bar: number[]; opacity: number[]; nav: string | null; pill: number; page: [number, number] | null };
     const frames = await everyFrame(
       page,
@@ -437,7 +463,7 @@ test.describe('round 2: past the intake', () => {
     const plans = nav.getByRole('link', { name: 'Plans' });
     await plans.tap();
     const seen = await frames<F>();
-    expect(seen.length).toBeGreaterThan(10);
+    expect(seen.length).toBeGreaterThan(framesFloor(10, 600, idle));
     // The bar: the same box and fully opaque on every single frame, and never inside a view transition.
     for (const f of seen) {
       expect(f.v.bar, `bar box at ${Math.round(f.t)} ms`).toEqual(seen[0]!.v.bar);
@@ -450,14 +476,15 @@ test.describe('round 2: past the intake', () => {
     const xs = seen.map((f) => f.v.pill);
     const from = xs[0]!;
     const to = (await plans.boundingBox())!.x;
-    if (!(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches))) expect(xs.filter((x) => x > from + 4 && x < to - 4).length).toBeGreaterThanOrEqual(3);
+    if (!(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches))) expect(xs.filter((x) => x > from + 4 && x < to - 4).length).toBeGreaterThanOrEqual(framesFloor(3, 350, idle));
     await expect.poll(async () => Math.abs((await nav.locator('[data-pill]').boundingBox())!.x - to)).toBeLessThan(1.5);
     // Only the screen's content moved: it faded in and rose at most 7 px, and is at rest inside 350 ms.
     const pages = seen.filter((f) => f.v.page).map((f) => ({ t: f.t, o: f.v.page![0], y: f.v.page![1] }));
     expect(pages.some((p) => p.o < 1)).toBe(true);
     expect(Math.max(...pages.map((p) => p.y))).toBeLessThanOrEqual(7.01);
     expect(Math.max(...pages.map((p) => p.y))).toBeGreaterThan(1);
-    for (const p of pages.filter((q) => q.t > 350)) expect([p.o, p.y]).toEqual([1, 0]);
+    // (a slow host starts the rise a frame or two late, so its rest time grows by those frames: helpers/frames.ts)
+    for (const p of pages.filter((q) => q.t > paintBudget(350, idle))) expect([p.o, p.y]).toEqual([1, 0]);
     await expect(page.getByRole('heading', { name: 'Plans' }).first()).toBeVisible();
   });
 
@@ -489,12 +516,13 @@ test.describe('round 2: past the intake', () => {
     await expect(dialog).toBeVisible();
     const scale = () => page.evaluate(() => getComputedStyle(document.getElementById('root')!).scale);
     await expect.poll(scale).toBe('0.94');
+    const idle = await idleFrames(page);
     const frames = await everyFrame(page, 500, `() => { const s = getComputedStyle(document.getElementById('root')).scale; return s === 'none' ? 1 : Number(s); }`);
     await dialog.getByRole('button', { name: 'Done' }).tap();
     const seen = (await frames<number>()).map((f) => ({ t: f.t, s: f.v }));
     // Frames on the way: several sizes strictly between stepped back and full, only ever growing.
     const between = seen.filter((f) => f.s > 0.941 && f.s < 0.999);
-    expect(between.length, `sizes seen: ${seen.map((f) => f.s.toFixed(3)).join(' ')}`).toBeGreaterThanOrEqual(4);
+    expect(between.length, `sizes seen: ${seen.map((f) => f.s.toFixed(3)).join(' ')}`).toBeGreaterThanOrEqual(framesFloor(4, 200, idle, 1));
     for (let i = 1; i < seen.length; i++) expect(seen[i]!.s).toBeGreaterThanOrEqual(seen[i - 1]!.s - 0.0005);
     // Full size again inside 300 ms of it starting (about 200 ms, in step with the sheet leaving).
     const start = between[0]!.t;
@@ -507,16 +535,19 @@ test.describe('round 2: past the intake', () => {
     const view = await openSquat(page);
     const hero = view.getByTestId('ex-hero');
     const heroBefore = (await hero.count()) ? (await hero.boundingBox())!.height : null;
+    const idle = await idleFrames(page);
     for (let n = 1; n <= 2; n++) {
       const frames = await everyFrame(
         page,
         1500,
-        `() => { const c = document.querySelector('[data-testid="check-current"]'); const h = document.querySelector('[data-testid="ex-hero"]'); const r = c ? c.getBoundingClientRect() : null; return { c: r ? [r.x, r.y, r.width, r.height] : null, h: h ? h.getBoundingClientRect().height : null }; }`,
+        `() => { const c = document.querySelector('[data-testid="check-current"]'); const h = document.querySelector('[data-testid="ex-hero"]'); const r = c ? c.getBoundingClientRect() : null; return { c: r ? [r.x, r.y, r.width, r.height] : null, h: h ? h.getBoundingClientRect().height : null, n: document.querySelectorAll('[data-testid="set-row"]').length }; }`,
       );
       await checkCurrent(view).tap();
       await expect(loggedRows(view)).toHaveCount(n);
-      const seen = (await frames<{ c: number[] | null; h: number | null }>()).filter((f) => f.t >= 100);
-      expect(seen.length).toBeGreaterThan(40);
+      // From 100 ms, and from the frame that shows the new row: the row is written a moment after the tap (the write waits for the
+      // check's own frames), which Chromium on a slow host shows after 100 ms; until then the old check is still the current one.
+      const seen = (await frames<{ c: number[] | null; h: number | null; n: number }>()).filter((f) => f.t >= 100 && f.v.n >= n);
+      expect(seen.length).toBeGreaterThan(framesFloor(40, 1400, idle));
       const first = seen[0]!.v;
       expect(first.c, 'a next row to check').not.toBeNull();
       for (const f of seen) {
@@ -555,16 +586,23 @@ test.describe('round 2: past the intake', () => {
       };
     }`;
     const ideaBox = (await first.boundingBox())!;
-    const frames = await everyFrame(page, 600, read);
-    await first.getByTestId('concept-pick').tap();
+    const idle = await idleFrames(page);
+    const frames = await everyFrame(page, 800, read);
+    // A finger rests on the card a moment: a scripted tap lifts in the same frame, so :active would never be drawn in Chromium.
+    const pick = (await first.getByTestId('concept-pick').boundingBox())!;
+    await page.mouse.move(pick.x + pick.width / 2, pick.y + pick.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(90);
+    await page.mouse.up();
     const seen = await frames<F>();
     await expect(page.getByTestId('deck-card')).toBeVisible();
-    // The press: the card is at the shared press scale on the first frame.
-    if (!reduced) expect(seen[0]!.v.press).toBeCloseTo(0.97, 2);
+    // The press: the card is at the shared press scale on the first frame drawn after the press (the sample taken inside
+    // the pointerdown itself is before the browser applies :active, in Chromium).
+    if (!reduced) expect(seen.find((f) => f.t > 0)!.v.press).toBeCloseTo(0.97, 2);
     const deck = seen.filter((f) => f.v.stage === 'deck' && f.v.top);
     const rest = (await page.getByTestId('deck-card').boundingBox())!;
     // Not a hard cut: the deck fades in over several frames...
-    expect(deck.filter((f) => f.v.fade < 1).length).toBeGreaterThanOrEqual(6);
+    expect(deck.filter((f) => f.v.fade < 1).length).toBeGreaterThanOrEqual(framesFloor(6, 240, idle));
     if (!reduced) {
       // ...while its top card starts where the idea card was and grows into place, only ever growing.
       const start = deck[0]!.v.top!;
@@ -585,7 +623,7 @@ test.describe('round 2: past the intake', () => {
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     const home = (await back<F>()).filter((f) => f.v.stage === 'choose' && f.v.idea);
     await expect(first).toBeVisible();
-    expect(home.filter((f) => f.v.fade < 1).length).toBeGreaterThanOrEqual(6);
+    expect(home.filter((f) => f.v.fade < 1).length).toBeGreaterThanOrEqual(framesFloor(6, 240, idle));
     if (!reduced) expect(home[0]!.v.idea![3]!).toBeGreaterThan(ideaBox.height * 1.25);
     for (const f of home.filter((q) => q.t > home[0]!.t + 350)) expect(Math.abs(f.v.idea![3]! - ideaBox.height)).toBeLessThan(0.5);
     await expect.poll(async () => (await first.boundingBox())!.y).toBe(ideaBox.y);

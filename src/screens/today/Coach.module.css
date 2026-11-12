@@ -330,6 +330,23 @@
   margin: 0;
 }
 
+/* PLAN 3.6v: on a phone under 650 pt tall (a 360 x 640 Android; the iPhone 15 profile is 659) the heading says what the card is,
+   so the "Coach" label row goes and both buttons stay on the first screen above the tab bar. */
+@media (max-height: 650px) {
+  .card[data-kind='missed_days'] .who {
+    display: none;
+  }
+}
+
+/* PLAN 3.6v: under 370 pt wide "Resume Day 3" keeps one line beside "Restart Day 1" (it broke as
+   "Resume Day / 3" on a 360 wide Android); large text still wraps the pair to two rows. */
+@media (max-width: 369px) {
+  .pair > .primary,
+  .pair > .secondary {
+    padding: 0 var(--space-2);
+  }
+}
+
 /* PLAN 3.5g: the quiet label over today's lifts when more lifts wait in the sheet. */
 .listLabel {
   margin: 0 0 -6px;

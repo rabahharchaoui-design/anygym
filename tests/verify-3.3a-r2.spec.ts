@@ -19,10 +19,11 @@ const drafted = async (page: Page, step: string, answers: Record<string, unknown
 
 test('(a) full gym, kettlebells then rower then thigh machine off: reveal still offers a plan (PLAN 3.5: Your plan built from what is on)', async ({ page }) => {
   await drafted(page, 'equipment', { goal: 'muscle', goals: ['muscle'], units: US, days: 4, minutes: 60, place: 'full', equipmentFor: 'full', experience: '3y' });
-  const on = async () => ((await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.equipment)) as string[]);
+  const on = async () => ((await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers.equipment ?? [])) as string[]);
   const reveal = async (n: number) => {
+    // The draft is saved a moment after the tap (a slower phone shows it); wait for it, never read it early.
+    await expect.poll(on).toHaveLength(n);
     const eq = await on();
-    expect(eq).toHaveLength(n);
     await page.evaluate((e) => { const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!); d.step = 'reveal'; d.answers.equipment = e; localStorage.setItem('anygym.intakeDraft', JSON.stringify(d)); }, eq);
     await page.reload();
     await expect(intake(page)).toHaveAttribute('data-step', 'reveal');
@@ -52,7 +53,7 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
     await page.waitForTimeout(400);
   };
   await page.getByTestId('equip-all').tap();
-  expect(await on()).toHaveLength(29);
+  await expect.poll(on).toHaveLength(29);
   await page.getByTestId('equip-kettlebells').tap();
   await reveal(28);
   await page.getByTestId('equip-rower').scrollIntoViewIfNeeded();

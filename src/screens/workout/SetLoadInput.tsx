@@ -5,7 +5,6 @@ import { DumbbellWheel } from '../../components/load/DumbbellWheel';
 import { ExactWeightInput } from '../../components/load/ExactWeightInput';
 import { EquipmentWeightSheet } from '../../components/load/EquipmentWeightSheet';
 import { PlateDiagram } from '../../components/load/PlateDiagram';
-import { PlateMachineInput } from '../../components/load/PlateMachineInput';
 import { StackSelector } from '../../components/load/StackSelector';
 import { TimedInput } from '../../components/load/TimedInput';
 import { InfoButton } from '../../components/info/InfoButton';
@@ -17,6 +16,7 @@ import { barForName } from '../../lib/loadTypeRule';
 import { barbellLoad, enabledPlates, fitsSleeve, formatWeight, sleeveOf } from '../../lib/load';
 import type { Stopwatch } from '../../lib/timer';
 import { BarChoiceSheet } from './BarChoiceSheet';
+import { PlateMachineField } from './PlateMachineField';
 import { BAR_NAMES, BAR_PROMPTS, barIdFor, isExactHeld, isHeldPlate, machineIdFor, wheelWeights } from './exerciseLoad';
 
 type Props = {
@@ -103,6 +103,7 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
           value={value}
           onChange={onChange}
           exerciseName={exerciseName}
+          hints={hints}
           // A held plate picks from the enabled plates, never the dumbbell range (PLAN 1.7j).
           {...(isHeldPlate(loadType, exerciseName) ? { weights: wheelWeights(gym, loadType, exerciseName), plate: true } : {})}
         />
@@ -380,43 +381,5 @@ function BarbellField({
         />
       )}
     </>
-  );
-}
-
-function PlateMachineField({
-  gym,
-  ownStart,
-  machineId,
-  plates,
-  onChange,
-  compact,
-  hints,
-  drawingShare,
-}: {
-  gym: Gym;
-  /** Edit set: the starting resistance the set was logged with (PLAN 1.7c), used for this edit. */
-  ownStart?: number;
-  machineId: string;
-  plates: readonly number[];
-  onChange: (l: Load | null, plates: number[]) => void;
-  compact: boolean;
-  hints: boolean;
-  drawingShare?: number;
-}) {
-  const [perSide, setPerSide] = useState<number[]>([...plates]);
-  return (
-    <PlateMachineInput
-      hints={hints}
-      drawingShare={drawingShare}
-      gym={gym}
-      ownStart={ownStart}
-      machineId={machineId}
-      perSide={perSide}
-      compact={compact}
-      onChange={(next, load) => {
-        setPerSide(next);
-        onChange(load, next);
-      }}
-    />
   );
 }
