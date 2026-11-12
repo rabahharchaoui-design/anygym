@@ -206,6 +206,10 @@ test("probe: which answers reach the noPlan notice", async ({ page }) => {
   };
   for (const [n, a] of Object.entries(cands)) {
     await page.goto("./");
+    // The intake writes its own draft a tick after it shows a step; replace it only after that, or
+    // the app's write lands last and the reload resumes the old step (PLAN 3.6v: flaky under load).
+    await expect(page.getByTestId("intake")).toHaveAttribute("data-step", /.+/);
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 50)));
     await page.evaluate((x) => localStorage.setItem("anygym.intakeDraft", JSON.stringify({ step: "equipment", answers: x })), a);
     await page.reload();
     await atStep(page, "equipment");
