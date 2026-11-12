@@ -11,10 +11,10 @@
     "src/lib/intake/funnel.ts": 502,
     "src/lib/setTable.ts": 514,
     "src/lib/swap.ts": 425,
-    "src/screens/SettingsScreen.tsx": 440,
+    "src/screens/SettingsScreen.tsx": 438,
     "src/screens/TodayScreen.module.css": 462,
-    "src/screens/plans/Plans.module.css": 437,
-    "src/screens/settings/Import.module.css": 545,
+    "src/screens/plans/Plans.module.css": 434,
+    "src/screens/settings/Import.module.css": 542,
     "src/screens/workout/DayList.module.css": 448,
     "src/screens/workout/SetLoadInput.tsx": 422,
     "src/screens/workout/rowLog.ts": 405
