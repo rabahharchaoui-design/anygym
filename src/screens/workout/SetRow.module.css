@@ -1,0 +1,370 @@
+/* One set row (SPEC 20.2): the swipe face, its states, the number cells, the ✓ and the record chip. These rules reach
+   across each other (.row .cellValue, .swipe > .row, .row .checkCircle), so they live in one file. */
+
+.row {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: 6px;
+  align-items: center;
+  min-height: 52px;
+  padding: 2px 4px;
+  border-radius: 14px;
+  background: var(--surface-1);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+/* PLAN 2.2d: a row swipes left to show a red Delete behind it (SwipeRow). The row is the moving
+   face; the action waits behind it, hidden until the row moves. */
+.swipe {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  transition:
+    scale 200ms var(--ease-out),
+    opacity 200ms var(--ease-out);
+}
+
+/* Holding a row for its menu: it gives a little and dims (critic P8). */
+.swipe[data-pressing] {
+  scale: 0.98;
+  opacity: 0.72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe[data-pressing] {
+    scale: none;
+  }
+}
+
+.swipeLabel {
+  display: inline-block;
+  white-space: nowrap;
+  transition: opacity 120ms ease-out;
+}
+
+.swipeDelete {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 16px;
+  border-radius: 14px;
+  background: var(--red);
+  color: var(--white);
+  font-size: 15px;
+  font-weight: 700;
+  visibility: hidden;
+}
+
+.swipe[data-revealed] .swipeDelete {
+  visibility: visible;
+}
+
+.swipe > .row {
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.row[data-state='current'] {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+/* Logged: an accent tint, filled from left to right once when it is checked (SPEC 23.3). */
+.row[data-state='logged'] {
+  /* Opaque, so the red Delete behind it only shows where the row moved away (PLAN 2.2d). */
+  background: var(--surface-solid);
+}
+
+.row[data-state='logged']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  transform-origin: left center;
+}
+
+.row[data-fresh]::before {
+  animation: fill 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  /* Carried on from the ✓ tap (PLAN 2.2d): the row showed checked while its write ran. */
+  animation-delay: calc(var(--since, 0ms) * -1);
+}
+
+/* PLAN 2.2d: checked at the tap, while the write runs: the same accent fill and check as a logged row. */
+.row[data-sending] {
+  background: var(--surface-solid);
+  box-shadow: none;
+}
+
+.row[data-sending]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  transform-origin: left center;
+  animation: fill 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation-delay: calc(var(--since, 0ms) * -1);
+}
+
+.row[data-sending] .checkCircle {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  animation: pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(var(--since, 0ms) * -1);
+}
+
+@keyframes fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.cellValue {
+  min-width: 0;
+  text-align: center;
+  font-size: clamp(18px, 5.4vw, 22px);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row:not([data-state='logged']) .cellValue {
+  background: color-mix(in srgb, var(--white) 4%, transparent);
+}
+
+.cellValue[data-empty] {
+  color: var(--accent);
+  font-size: 15px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  background: transparent;
+}
+
+.cellValue[data-quiet] {
+  color: var(--text-2);
+}
+
+/* Words in a number cell ("Just you", "40 + bar"): smaller, up to two lines, never cut off. */
+.cellValue[data-word] {
+  white-space: normal;
+  text-overflow: clip;
+  font-size: clamp(13px, 3.9vw, 16px);
+  line-height: 1.05;
+  padding: 0 2px;
+}
+
+.word {
+  display: block;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* A tap on a ✓ that cannot log yet: the cell that needs a pick pulses once (SPEC 23.2). */
+.cellValue[data-nudge='0'] {
+  animation: nudge-a 420ms var(--ease-out);
+}
+
+.cellValue[data-nudge='1'] {
+  animation: nudge-b 420ms var(--ease-out);
+}
+
+@keyframes nudge-a {
+  30% {
+    transform: scale(1.06);
+    box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-soft);
+  }
+}
+
+@keyframes nudge-b {
+  30% {
+    transform: scale(1.06);
+    box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cellValue[data-nudge] {
+    animation: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+}
+
+.cellValue[data-unknown] {
+  font-size: 14px;
+  color: var(--amber);
+}
+
+.checkWrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.check,
+.checkDone,
+.checkCircle {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The whole 48 pt square takes the tap; the circle is drawn inside it. */
+.checkDone,
+.checkCircle {
+  border-radius: 50%;
+}
+
+.checkCircle {
+  width: 46px;
+  height: 46px;
+  border: 2px solid var(--hairline-strong);
+  color: var(--text-2);
+  background: transparent;
+}
+
+.row[data-state='current'] .check:not(:disabled) .checkCircle {
+  border-color: var(--accent);
+  color: var(--accent);
+  /* PLAN 2.0l (ui-2.2e #2): a faint accent fill, so the current ✓ reads as the button to press; a
+     logged set's ✓ is solid accent. */
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* The first time, "Log" under the check inside the same circle (no size change, nothing moves). */
+.checkCircle[data-labelled] {
+  flex-direction: column;
+  gap: 1px;
+}
+
+.checkCircle[data-labelled] .checkIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.checkLabel {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+/* PLAN 2.0l (ui-2.2e #1): the current row's reps are tappable: a quiet dotted line under the
+   number until the row's first edit. */
+.cellValue[data-cue] {
+  position: relative;
+}
+
+.cellValue[data-cue]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 1.3em;
+  transform: translateX(-50%);
+  border-bottom: 2px dotted color-mix(in srgb, var(--white) 42%, transparent);
+  pointer-events: none;
+}
+
+.check:disabled {
+  /* Taps go to the wrap under it, which says why it cannot log yet. */
+  pointer-events: none;
+}
+
+.check:disabled .checkCircle {
+  opacity: 0.28;
+}
+
+.checkDone {
+  justify-self: center;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.checkIcon {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.row[data-fresh] .checkDone {
+  animation: pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(var(--since, 0ms) * -1);
+}
+
+/* The check draws itself: src/ui/celebrate (DrawnCheck, PLAN 3.6b), on the same --since clock. */
+
+@keyframes pop {
+  from {
+    transform: scale(0.7);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row[data-fresh]::before,
+  .row[data-fresh] .checkDone,
+  .row[data-sending]::before,
+  .row[data-sending] .checkCircle {
+    animation: fade 160ms ease-out both;
+    animation-delay: calc(var(--since, 0ms) * -1);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* PLAN 2.2e round 2 (critic B3): the PR chip comes right after the reps, at the reps column's right
+   edge (absolute, so nothing in the row moves when it arrives); the reps number moves to the left
+   of its cell to make room. Right: the row's padding, the Done column and one gap. */
+.row .prBadge {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  /* The 48 pt tall button ends 4 pt past the chip, the chip at the reps column's right edge. */
+  right: calc(4px + 52px + 6px - 10px);
+  margin-top: -24px;
+}
+
+.cellValue[data-pr] {
+  text-align: left;
+  padding-left: 0;
+  overflow: visible;
+}
+
+/* The 320 floor (and anything as narrow): the reps column is at its 48 pt minimum, so the chip
+   tightens to its text; "12" and the chip both stay whole. */
+@media (max-width: 359px) {
+  .row .prBadge [data-chip] {
+    min-width: 22px;
+    padding: 0 3px;
+    letter-spacing: 0;
+  }
+}

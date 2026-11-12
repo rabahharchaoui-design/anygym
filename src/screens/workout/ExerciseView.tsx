@@ -1,56 +1,27 @@
-import { idleAfterPaint } from '../../ui/afterPaint';
-import { Suspense, lazy, type ComponentType, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { Load, SetKind, WorkoutSet } from '../../db/types';
-import { saveMutation } from '../../db/mutations';
-import { loadDraft, saveDraft, writeDrafts, type Draft } from '../../lib/drafts';
-import { workSetCount } from '../../lib/workSets';
-import { logKey, logQueue } from '../../lib/logQueue';
-import { newId } from '../../db/ids';
-import { beatLine } from '../../lib/progression';
-import { setLine, targetSecondsOf } from '../../lib/planWorkout';
-import { addExtraSet, removeExtraSet } from '../../lib/extraSets';
-import { blockedReason, dropSlot, insertSlot, isAutoWarmUp, lastTimeNote, loggedLastTime, materializeFrom, markSubmitted, pendingRows, rowDraft, setNumbers, rowKey, slotChanges, storedType, typeOfSet, type PendingRow, type SetType } from '../../lib/setTable';
-import { STOPPED, captureHold, elapsedMs, heldFor, startWatch, stopWatch, wholeSeconds, type Stopwatch } from '../../lib/timer';
-import { bodyweightLoad, timedLoad } from '../../lib/load';
-import { unlockAudio, warmAudio } from '../../lib/tone';
-import { useNow } from '../../hooks/useNow';
-import { useTapGuard } from '../../hooks/useTapGuard';
+import { Suspense, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import type { SetKind, WorkoutSet } from '../../db/types';
+import { addExtraSet } from '../../lib/extraSets';
+import { lastTimeNote, loggedLastTime, typeOfSet, type PendingRow } from '../../lib/setTable';
+import { logQueue } from '../../lib/logQueue';
+import { warmAudio } from '../../lib/tone';
 import { Button } from '../../ui/Button';
-import { tick } from '../../ui/haptics';
 import { SetTable } from './SetTable';
-import { removeRowAnimated, rowReturning } from './SwipeRow';
 import { SetTypeSheet } from './SetTypeSheet';
 import { ExerciseHead } from './ExerciseHead';
-import { demoFor, infoForExercise } from '../../data/exerciseInfo';
-import type { ExerciseInfo } from '../../lib/exerciseInfo';
+import { demoFor } from '../../data/exerciseInfo';
 import { useDemoPhotos } from '../../hooks/usePhotos';
 import { useMedia } from '../../hooks/useMedia';
 import { useAfterPaint } from '../../hooks/useAfterPaint';
 import { WeightSheet, type WeightPick } from './WeightSheet';
-import { confirmablePick, copyLastLoad, currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
-import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow } from './rowLog';
-import { groupNextOf } from './groupNext';
-import { seedWarmUps } from './coachWarmUps';
-import { START_LIGHT } from '../../lib/coach';
-import styles from './Workout.module.css';
-
-// The muscles and form tips: their own chunk (body maps), mounted after the table (PLAN 2.2d).
-// Round 4: the chunk is fetched as soon as this module loads (the app is online then), so opening an
-// exercise later, offline before the service worker took over, never asks the network for it. A
-// failed fetch is tried again once, then waits for the next exercise to open.
-let extrasChunk: Promise<typeof import('./ExerciseExtras')> | null = null;
-const loadExtras = () => (extrasChunk ??= import('./ExerciseExtras').catch((err: unknown) => {
-  extrasChunk = null;
-  throw err;
-}));
-void loadExtras().catch(() => undefined);
-type ExtrasModule = { default: ComponentType<{ info: ExerciseInfo; photosOk: boolean; known: boolean }> };
-const NO_EXTRAS: ExtrasModule = { default: () => null };
-const ExerciseExtras = lazy(
-  (): Promise<ExtrasModule> =>
-    loadExtras().catch(() => new Promise<ExtrasModule>((resolve) => window.setTimeout(() => resolve(loadExtras().catch(() => NO_EXTRAS)), 1500))),
-);
+import { ExerciseExtras } from './ExerciseExtrasLazy';
+import { useExerciseRows } from './useExerciseRows';
+import { useExerciseText } from './useExerciseText';
+import { useLogRow } from './useLogRow';
+import { useRowEditors } from './useRowEditors';
+import { useRowTypes } from './useRowTypes';
+import styles from './ExerciseView.module.css';
+import frame from './Workout.module.css';
 
 type Props = {
   w: Workout;
@@ -71,52 +42,16 @@ type Props = {
   onUndoable: (text: string, undo: () => void) => void;
 };
 
-const DEFAULT_REPS = 10;
 /** Screens too short for the demo hero above the set table (gate s2 round 2). */
 const SHORT_SCREEN = '(max-height: 600px)';
-
-/** A load that is certain without asking anything: just you, or a hold (SPEC 0: no fake numbers). */
-function certainLoad(kind: Load['kind'], unit: Load['unit']): Load | null {
-  if (kind === 'bodyweight') return bodyweightLoad(unit);
-  if (kind === 'timed') return timedLoad(unit);
-  return null;
-}
 
 /**
  * The exercise view (SPEC 20.2, 21.1): the demo tile, name and note, "Last time", and the set
  * table already filled with today's targets. Logging a set is one tap on its ✓.
  */
 export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, onAskLoadType, onMenu, onSwipeNext, onNotice, onRemoveSet, onUndoable }: Props) {
-  const gym = w.gym!;
-  const name = w.nameOf(exerciseId);
-  const entry = w.entryOf(exerciseId);
-  // 3.5b round 4 (M7, M8): in a Quick pair or circuit, once this round's set is done here the next
-  // member is the one thing to do: one button under the table (never a pill over a row), no row lit.
-  const groupNext = groupNextOf(w.entries, w.done, exerciseId);
-  const kind = w.loadTypeOf(exerciseId);
-  const bar = w.barOf(exerciseId);
-  const progression = w.progressionOf(exerciseId);
-  const logged = w.setsOfExercise(exerciseId);
-  const timed = kind === 'timed';
-  const key = logKey(sessionId, exerciseId);
-  const [, setVer] = useState(0);
-  const refresh = () => setVer((v) => v + 1);
-  /**
-   * The weight sheet's row, by its stable draft id (PLAN 1.7k), never by its displayed position: a
-   * row that commits while the sheet is open moves the rows below it, and the change must still land
-   * on the row the sheet was opened for. `row` is that row as it was when the sheet opened.
-   */
-  const [picking, setPicking] = useState<{ id: string; row: PendingRow; why?: string } | null>(null);
-  /**
-   * The open reps (or hold) editor's row, by its stable draft id (PLAN 2.0e), like the weight sheet:
-   * a delayed Log that moves the rows never hands the editor to another row. It closes when its
-   * draft commits or goes.
-   */
-  const [editing, setEditing] = useState<string | null>(null);
-  /** A tap on a ✓ that cannot log yet: the row, its why, and a count that restarts the pulse. */
-  const [nudge, setNudge] = useState<{ index: number; text: string; n: number } | null>(null);
-  const nudgeTimer = useRef(0);
-  useEffect(() => () => window.clearTimeout(nudgeTimer.current), []);
+  const rx = useExerciseRows(w, sessionId, exerciseId);
+  const { gym, name, entry, groupNext, kind, bar, progression, logged, timed, slots, slotOf, rows, current, sending, fresh, running, liveSeconds, blockedOf, testSet, idOf } = rx;
   // Offline and never kept, the photos cannot show: the compact header instead (gate s2), never a
   // broken or empty picture.
   const baseDemo = demoFor(exerciseId);
@@ -131,355 +66,12 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   const hasDemo = photosOk && !short;
   // The rest tone's audio context, made while idle so the first ✓ stays light (PLAN 2.2d).
   useEffect(() => warmAudio(), []);
-  /** The "Set type" sheet: a row still to do, or a logged set. */
-  const [typing, setTyping] = useState<{ n: number; type: SetType; rowId?: string; set?: WorkoutSet } | null>(null);
-  /** Rows checked while this view is open: draft (and set) id → when the ✓ was tapped (performance.now). */
-  const [fresh, setFresh] = useState<ReadonlyMap<string, number>>(new Map());
 
-  useEffect(() => logQueue.subscribe(key, refresh), [key]);
-
-  // Drafts from before 1.7h move to their pending row slot, once (rowLog.ts).
-  const migrated = useRef(false);
-  if (!migrated.current) {
-    migrated.current = true;
-    migrateLegacyRows(sessionId, exerciseId, logged);
-  }
-  // A write that started and never committed (the IndexedDB journal) is a failed row again, even
-  // when localStorage lost it (PLAN 1.7i). Then rows whose write committed are used up before any
-  // pending row is shown (also after a kill between the commit and the cleanup), so a logged row
-  // can never be logged a second time.
-  adoptJournal(sessionId, w.journal, w.committed, {}, exerciseId);
-  reconcileExercise(sessionId, exerciseId, w.committed);
-  // PLAN 3.8 (SPEC 15): the coach's warm ups on the first big lift of the day, added once, before
-  // anything of it was logged or changed (written before the rows are read: no flash, no shift).
-  if (kind && progression && !logQueue.closed(sessionId)) {
-    const setup = w.setupOf(exerciseId);
-    if (setup) seedWarmUps(sessionId, exerciseId, kind, w.warmUpsOf(exerciseId), setup, logged.length === 0 && rowsOf(sessionId, exerciseId).length === 0);
-  }
-  const slots = rowsOf(sessionId, exerciseId);
-  /** Coach warm ups still to do: rows of their own, beyond the planned sets. */
-  const autoPending = slots.filter(isAutoWarmUp).length;
-  /** A pending row's draft as stored right now, by slot (0 = the first row still to do). */
-  const draftAt = (slot: number) => loadDraft(sessionId, rowKey(exerciseId, slot));
-  const slotOf = (row: PendingRow) => row.index - logged.length;
-  const rebuild = (picked: Load | null, plates: readonly number[], pickKind?: Load['kind']) => (kind ? currentLoad(picked, plates, kind, gym, exerciseId, name, bar, undefined, pickKind) : null);
-  // Planned rows left: a warm up logged on a normal lift never uses one up (PLAN 1.7j).
-  const workDone = w.done[exerciseId] ?? 0;
-  const rows: PendingRow[] = kind
-    ? pendingRows({
-        // Every drafted row stays visible (a newer edit kept after a delayed write adds a row).
-        count: logged.length + Math.max((entry?.sets ?? 3) - workDone + autoPending, slots.length),
-        logged,
-        workLogged: workDone,
-        progression,
-        draftOf: (i) => slots[i - logged.length] ?? null,
-        rebuild,
-        carry: (prev) => prefillLoad(prev, kind, gym, exerciseId, name, bar),
-        certain: certainLoad(kind, gym.unit),
-        unit: gym.unit,
-        // A draft picked in the other unit or with a plate now turned off stays as picked (PLAN 1.7i).
-        stale: (d) => pickProblem(d.load, d.plates ?? d.load?.perSide ?? [], d.unit, kind, gym),
-        defaultReps: timed ? undefined : entry?.reps === undefined ? DEFAULT_REPS : typeof entry.reps === 'number' ? entry.reps : entry.reps[0],
-        planSeconds: entry ? targetSecondsOf(entry) : undefined,
-        defaultType: entry?.warmup ? 'warmup' : 'normal',
-        lastSets: w.lastSetsOf(exerciseId),
-      })
-    : [];
-  const current = rows[0];
-  // PLAN 2.2d: a ✓ shows checked the moment it is tapped, while its write runs (the row is claimed
-  // and its submission stored, logQueue); the logged row carries the same animation on when it lands.
-  const writing = logQueue.pending(key);
-  const sending = new Map<number, number>();
-  if (writing) for (const r of rows) {
-    const id = slots[r.index - logged.length]?.id;
-    const at = id ? fresh.get(id) : undefined;
-    if (at !== undefined) sending.set(r.index, at);
-  }
-
-  // Timed: the running hold belongs to the current row's draft, so it survives a reload.
-  const watch: Stopwatch = (current && draftAt(slotOf(current))?.watch) ?? STOPPED;
-  const running = watch.startedAt !== null;
-  const now = useNow(250, timed && running);
-  const liveSeconds = wholeSeconds(elapsedMs(watch, running ? Math.max(now, Date.now()) : now));
-
-  /** Every change is saved at once (SPEC 13.3), with a new version for the log queue. */
-  const writeRow = (row: PendingRow, patch: Partial<Draft>, own?: Draft['own']) => {
-    const before = draftAt(slotOf(row));
-    const draft: Draft = {
-      // A row still showing its target (or "Pick") starts from its values as shown; an empty weight
-      // stays empty (PLAN 2.0e: changing reps or the type never picks the bare bar).
-      ...(before ?? rowDraft(row, newId())),
-      ...patch,
-      // The unit the weight was picked in (PLAN 1.7i): the pick's own unit when it says (PLAN
-      // 2.0c), else today's when this write picks it.
-      ...('load' in patch || 'plates' in patch || !before ? { unit: patch.unit ?? gym.unit } : {}),
-      // And the "Loaded with" it was picked under (PLAN 2.0k): never rebuilt under another one.
-      ...(('load' in patch || 'plates' in patch || !before) && kind ? { pickKind: kind } : {}),
-      rev: (before?.rev ?? 0) + 1,
-    };
-    if (own) draft.own = { ...draft.own, ...own };
-    if (draft.noTarget === undefined) delete draft.noTarget;
-    saveDraft(sessionId, rowKey(exerciseId, slotOf(row)), draft);
-    refresh();
-  };
-
-  // A bar or plate machine whose base weight is not known yet: nothing can be loaded until it is answered.
-  const baseUnknown = (kind === 'barbell' || kind === 'plate_machine') && rebuild(null, []) === null;
-  /** The light test set of a first timer (SPEC 15): the first row, while nothing is logged yet. */
-  const testSet = (row: PendingRow) => progression?.next.reason === START_LIGHT && logged.length === 0 && row.index === 0;
-  const blockedOf = (row: PendingRow) => (kind ? blockedReason(kind, row, row.index === current?.index ? liveSeconds : 0, baseUnknown) : 'Pick a weight');
-
-  // A double tap on one ✓ logs one set; checking the next row right after is fine (SPEC 13.3).
-  // Race proof, never time based (PLAN 1.12): the row is claimed synchronously with its one
-  // submission (logQueue.claim), so a second tap in the same task, during the write, or on a stale
-  // render after the write landed resolves to that same submission.
-  // Claims are released by the identity the view shows as committed, never by row position (1.7j).
-  useLayoutEffect(() => logQueue.release(key, (id) => w.committed.has(id)), [key, w.committed]);
-  const log = (row: PendingRow, cap?: number): Promise<boolean> | undefined => {
-    // Finish started (synchronous), a write of this exercise is running, or one landed that this
-    // render does not show yet (a stale row could be the one just logged).
-    if (!kind || logQueue.pending(key) || logQueue.stale(key) || logQueue.closed(sessionId)) return;
-    const heldId = draftAt(slotOf(row))?.id;
-    if (heldId && logQueue.claimed(key, heldId)) return;
-    unlockAudio();
-    let seconds = row.seconds;
-    if (timed && row.index === current?.index && elapsedMs(watch, Date.now()) > 0) {
-      // A running hold is stopped and read at this very moment, never a stale value (1.10c).
-      const captured = captureHold(watch, Date.now());
-      // An automatic check at the target logs the target, never a tick more.
-      seconds = cap !== undefined ? Math.min(cap, captured.seconds) : captured.seconds;
-      writeRow(row, { watch: captured.watch, seconds });
-    }
-    if (row.load === null || (timed ? !seconds : !row.reps)) return;
-    // Stored before the write (PLAN 1.7h): the row's id, values and version with its submitted
-    // mark, and what the rows above show, so a kill at any point loses and duplicates nothing.
-    const before = rowsOf(sessionId, exerciseId);
-    const marked = markSubmitted(before, rows, slotOf(row), { load: row.load, type: row.type, gymId: gym.id, ...(timed ? { seconds } : { reps: row.reps }) }, newId);
-    writeDrafts(sessionId, slotChanges(exerciseId, before, marked.slots));
-    const at = performance.now();
-    setFresh((f) => new Map(f).set(marked.draft.id, at));
-    tick();
-    return logQueue.claim(key, marked.draft.id, () => submitAndTell(marked.draft));
-  };
-
-  /** Writes a submitted row; it lands even if this view closed meanwhile (rowLog.ts). */
-  const submitAndTell = async (draft: Draft, now = false): Promise<boolean> => {
-    // The row already shows checked (its submitted draft is stored): the IndexedDB write and the
-    // record lookup it triggers start once the check's frame has painted (critic B1, round 3).
-    if (!now) await idleAfterPaint();
-    const ok = await submitRow(sessionId, exerciseId, draft, { onLanded: () => onLogged(exerciseId, storedType(draft.type ?? 'normal').kind) });
-    if (!ok && !logQueue.closed(sessionId)) onNotice('Could not save that set', () => void retry(draft.id));
-    refresh();
-    return ok;
-  };
-  /** Try again on a failed set: the same row (same id), with its values as they are now. */
-  const retry = async (id: string) => {
-    const at = rowsOf(sessionId, exerciseId).findIndex((d) => d?.id === id);
-    const now = at >= 0 ? draftAt(at) : null;
-    if (!now || logQueue.pending(key) || logQueue.closed(sessionId)) return;
-    const again: Draft = { ...now, submitted: now.rev ?? 0 };
-    saveDraft(sessionId, rowKey(exerciseId, at), again);
-    await submitAndTell(again, true);
-  };
-
-  /**
-   * The row's stable identity (PLAN 1.7k): its draft id, given to a row still showing its target
-   * when an editor opens on it (its values as shown, nothing marked as picked by hand).
-   */
-  const idOf = (row: PendingRow): string => {
-    const have = draftAt(slotOf(row));
-    if (have) return have.id;
-    const draft = rowDraft(row, newId());
-    saveDraft(sessionId, rowKey(exerciseId, slotOf(row)), draft);
-    return draft.id;
-  };
-  /** The row with this draft id as it is now, or undefined when it was logged or went meanwhile. */
-  const rowById = (id: string): PendingRow | undefined => {
-    const at = rowsOf(sessionId, exerciseId).findIndex((d) => d?.id === id);
-    return at < 0 ? undefined : rows.find((r) => slotOf(r) === at);
-  };
-  const gone = () => onNotice('That set was already logged. Nothing changed.');
-
-  // The reps editor's row where it is now (PLAN 2.0e): found by its draft id at every render.
-  const editRow = editing ? rowById(editing) : undefined;
-  // Its draft committed (or went): the editor closes, and nothing it sends changes another row.
-  useLayoutEffect(() => {
-    if (editing && !editRow) setEditing(null);
-  }, [editing, editRow]);
-  /**
-   * A reps or hold change from the editor opened on draft `id`: written to that draft as it is
-   * stored right now, wherever its row moved meanwhile. A held + or − keeps the id it started
-   * with, so a repeat can never move to another row. Nothing once Finish started or the draft went.
-   */
-  const changeAmount = (id: string, v: number) => {
-    if (logQueue.closed(sessionId)) return;
-    const at = rowsOf(sessionId, exerciseId).findIndex((d) => d?.id === id);
-    const before = at >= 0 ? draftAt(at) : null;
-    if (!before) return setEditing((e) => (e === id ? null : e));
-    const draft: Draft = {
-      ...before,
-      ...(timed ? { seconds: v, watch: heldFor(v) } : { reps: v }),
-      rev: (before.rev ?? 0) + 1,
-    };
-    if (!timed) {
-      draft.own = { ...before.own, reps: true };
-      draft.repsEdited = true;
-    }
-    saveDraft(sessionId, rowKey(exerciseId, at), draft);
-    refresh();
-  };
-  // Every render's changeAmount, for a stepper whose repeat started in an earlier render.
-  const latest = useRef(changeAmount);
-  latest.current = changeAmount;
-  const toggleEditor = (r: PendingRow) => {
-    if (logQueue.closed(sessionId)) return;
-    const id = idOf(r);
-    setEditing((e) => (e === id ? null : id));
-  };
-
-  const applyWeight = (id: string, pick: WeightPick) => {
-    setPicking(null);
-    const from = rowById(id);
-    if (!from) return gone();
-    // Checked again against the gym as it is now (PLAN 2.0c): a pick from another unit, or one this
-    // gym cannot load any more, changes no row.
-    const ok = kind ? confirmablePick(pick, kind, gym, exerciseId, name, bar) : null;
-    if (!ok) return onNotice(pick.unit !== gym.unit ? `Units changed to ${gym.unit}. Pick the weight again.` : 'That weight cannot be loaded here now. Pick it again.');
-    // A warm up's weight is for that warm up only; a working row's weight goes to it and the
-    // working rows below it, never into a warm up (SPEC 20.2, gate 3).
-    // A first timer's light test set (PLAN 3.8, SPEC 15) is for that set only: the rows below get the
-    // number the coach sets from it.
-    const targets = from.type === 'warmup' || testSet(from) ? [from] : rows.filter((r) => r.index >= from.index && r.type !== 'warmup');
-    for (const r of targets) writeRow(r, { load: ok.load, plates: ok.plates, unit: ok.unit }, { load: true });
-  };
-
-  const copyLast = (row: PendingRow) => {
-    const last = row.lastTime;
-    if (!last || !kind) return;
-    // The stored total on today's bar, collars and plates, or a plain reason (never another total, 1.7j).
-    const copy = copyLastLoad(last.load, kind, gym, exerciseId, name, bar);
-    const load = copy.load;
-    if (!copy.load) onNotice(copy.why);
-    const lastKind = 'kind' in last ? last.kind : 'work';
-    writeRow(row, {
-      ...(lastKind === 'warmup' || lastKind === 'drop' ? { type: lastKind } : {}),
-      ...(load ? { load, plates: load.perSide ?? [] } : {}),
-      ...(last.reps !== undefined ? { reps: last.reps } : {}),
-      // A copied hold replaces the row's stopwatch, so the cell and Log agree (PLAN 1.7h).
-      ...(last.seconds !== undefined ? { seconds: last.seconds, ...(kind === 'timed' ? { watch: heldFor(last.seconds) } : {}) } : {}),
-    }, { ...(load ? { load: true as const } : {}), ...(last.reps !== undefined ? { reps: true as const } : {}) });
-  };
-
-  // Finish started (synchronously closed): no type changes from here, also from a stale view (1.7j).
-  const setRowType = (row: PendingRow, t: SetType) => {
-    if (logQueue.closed(sessionId)) return;
-    // A warm up drops the prefilled working target (only a weight or reps set by hand stay);
-    // any other type shows the target again (SPEC 21.1: warm ups never count toward progress).
-    writeRow(row, { type: t, noTarget: t === 'warmup' ? true : undefined });
-  };
-  const setLoggedType = async (set: WorkoutSet, t: SetType) => {
-    if (t === typeOfSet(set)) return;
-    const s = storedType(t);
-    // Tracked by the queue, so Finish counts the sets only after a change already running lands.
-    // Journaled with its values before the write (PLAN 2.0c), like an Edit set save.
-    const write = logQueue.mutate(sessionId, () => saveMutation(sessionId, set.exerciseId, { kind: 'type', setId: set.id, setKind: s.kind, failure: s.failure }));
-    if (!write) return;
-    try {
-      await write;
-    } catch {
-      if (!logQueue.closed(sessionId)) onNotice('Could not change that set. Try again.');
-    }
-  };
-  const pickType = (t: SetType) => {
-    const target = typing;
-    setTyping(null);
-    if (!target) return;
-    if (target.set) void setLoggedType(target.set, t);
-    else if (target.rowId) {
-      // The row with that identity as it is now (rows may have moved while the sheet was open).
-      const row = rowById(target.rowId);
-      if (row) setRowType(row, t);
-      else gone();
-    }
-  };
-
-  /**
-   * PLAN 2.2d "Remove set" on a row still to do: its draft goes (nothing was logged, no history is
-   * touched) and the exercise has one row fewer, with Undo. A row whose Log set write is running
-   * is never removed.
-   */
-  /**
-   * PLAN 2.0l (Codex 1811 #7): the row with draft id `id` is removed wherever it is now, never the
-   * row that moved into its old place; nothing when it was logged or went meanwhile.
-   */
-  const removeById = (id: string) => {
-    const before = rowsOf(sessionId, exerciseId);
-    const at = before.findIndex((d) => d?.id === id);
-    const row = at < 0 ? undefined : rows.find((r) => slotOf(r) === at);
-    if (!row) {
-      setTyping(null);
-      return;
-    }
-    removeRow(row);
-  };
-  /** A row's identity at the moment its delete starts: its draft id (made now when it has none). */
-  const claimRow = (row: PendingRow): string | null => {
-    if (logQueue.closed(sessionId)) return null;
-    return idOf(row);
-  };
-  const removeRow = (row: PendingRow) => {
-    setTyping(null);
-    if (logQueue.closed(sessionId)) return;
-    if (logQueue.pending(key)) return onNotice('That set is still saving. Try again in a moment.');
-    const at = slotOf(row);
-    const before = rowsOf(sessionId, exerciseId);
-    if (before[at]?.submitted !== undefined) return onNotice('That set is still saving. Try again in a moment.');
-    // The rows below keep what they show (their own targets), then the slot goes (Codex 2.2d #2).
-    const shown = materializeFrom(before, rows, at, slotOf, newId);
-    const draft = shown[at] ?? null;
-    // A coach warm up is a row of its own: skipping it never takes a planned set away (PLAN 3.8).
-    const ownRow = isAutoWarmUp(draft);
-    writeDrafts(sessionId, slotChanges(exerciseId, before, dropSlot(shown, at)));
-    if (!ownRow) removeExtraSet(sessionId, exerciseId);
-    if (draft && (editing === draft.id || picking?.id === draft.id)) {
-      setEditing(null);
-      setPicking(null);
-    }
-    w.bump();
-    refresh();
-    onUndoable('Set removed', () => {
-      if (logQueue.closed(sessionId)) return;
-      const now = rowsOf(sessionId, exerciseId);
-      if (draft) rowReturning(draft.id);
-      writeDrafts(sessionId, slotChanges(exerciseId, now, insertSlot(now, at, draft)));
-      if (!ownRow) addExtraSet(sessionId, exerciseId);
-      w.bump();
-    });
-  };
-  // Every render's removeById, for a removal that started in an earlier render (PLAN 2.0l).
-  const latestRemove = useRef(removeById);
-  latestRemove.current = removeById;
-  const removeLogged = (set: WorkoutSet) => {
-    setTyping(null);
-    if (logQueue.closed(sessionId)) return;
-    onRemoveSet(set);
-  };
-
-  const toggleWatch = useTapGuard(() => {
-    if (!current) return;
-    const t = Date.now();
-    writeRow(current, {
-      watch: running ? stopWatch(watch, t) : startWatch(watch, t),
-    });
-  });
-
-  // The hold reached its target: it checks itself, logging exactly the target (with the tick).
-  const holdTarget = timed ? current?.seconds : undefined;
-  useEffect(() => {
-    if (!timed || !running || !current || !holdTarget || liveSeconds < holdTarget) return;
-    void log(current, holdTarget);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timed, running, liveSeconds, holdTarget, current?.index]);
+  const { log, toggleWatch } = useLogRow({ rx, onLogged, onNotice });
+  const ed = useRowEditors({ rx, onNotice });
+  const { picking, setPicking, editing, setEditing, nudge, editRow, latest, toggleEditor, applyWeight, copyLast, onBlocked } = ed;
+  const { typing, setTyping, pickType, claimRow, removeRow, latestRemove, removeLogged, removeFromSheet } = useRowTypes({ rx, ed, onNotice, onRemoveSet, onUndoable });
+  const { lastTime, showGuide, beat, why, yourNumber, allDone, note, info, status, pickRow, rowName, targetText, statusText, statusShown } = useExerciseText(rx, picking);
 
   // Swipe left: straight to the next exercise (SPEC 20.2). Back from the left edge is the
   // interactive EdgeSwipe the workout screen puts over this view (SPEC 23.1).
@@ -497,64 +89,8 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (dx < -80) onSwipeNext();
   };
 
-  const lastTime = progression?.lastTime;
-  // The first time line stays for as long as this view is open once it showed (PLAN 2.0e): it going
-  // away with the first logged set moved every row up under the thumb, so the second tap of a fast
-  // double tap landed on the next row's ✓ and logged it (the 1.7a and 1.10d double tap flakes).
-  // PLAN 2.2b: it sits under the rows now (it never moves a ✓), so it goes as soon as it is done
-  // with: a weight picked or a set logged.
-  const picked = !!current?.load && kind !== 'bodyweight' && kind !== 'timed';
-  const showGuide = !!kind && !!progression && !lastTime && !!progression.next.reason && logged.length === 0 && !picked;
-  // One target line (the LAST TIME column already shows each set): "Beat last time: 11 reps at
-  // 185 lb", plus why when the weight moved; without a weight to beat, the reason alone.
-  // 3.5f round 3 (M11): a hold's line names the hold the row is prefilled with (setTable.pendingRows).
-  const beat = progression && lastTime ? (kind === 'timed' && current?.seconds && !current.edited ? `Beat last time: ${current.seconds} s` : beatLine(progression)) : null;
-  const why = progression && (progression.next.kind === 'increase' || progression.next.kind === 'reset' || progression.next.kind === 'converted' || progression.next.kind === 'coach' || progression.next.atTop || !progression.next.load) ? progression.next.reason : '';
-  // PLAN 3.8: a first timer's number, set from their light test set (SPEC 15).
-  const yourNumber = progression && !lastTime && progression.next.kind === 'first_time' && progression.next.load && logged.length > 0 && rows.length > 0 ? progression.next.reason : '';
-  const allDone = rows.length === 0 && logged.some((s) => s.kind === 'work');
-  const notes = [entry?.note, w.noteOf(exerciseId)].filter((n): n is string => !!n);
-  const note = notes.join(' · ');
-  // SPEC 4.4: photos, muscles and cues only when the match is sure (SPEC 4.3). One object per
-  // exercise and note (PLAN 2.2d), so the memoized parts below keep it between taps.
-  const notesKey = JSON.stringify(notes);
-  const info = useMemo(() => infoForExercise(exerciseId, JSON.parse(notesKey) as string[]), [exerciseId, notesKey]);
-  const setNumber = Math.min(workDone + 1, Math.max(entry?.sets ?? 1, workDone + 1));
-  const status = current ? blockedOf(current) : null;
-  // The number each row shows: "W" for a warm up, working sets 1 to n (SetTable shows the same).
-  const numbers = setNumbers([...logged.map((s) => typeOfSet(s)), ...rows.map((r) => r.type)]);
-  // The weight sheet's row where it is now (its title follows it), else as it was when opened.
-  const pickRow = picking ? (rowById(picking.id) ?? picking.row) : null;
-  const rowName = (r: PendingRow) => (r.type === 'warmup' ? 'Warm up' : `Set ${numbers[r.index]}`);
-
-  const targetText = !kind
-    ? (entry?.line ?? '')
-    : rows.length === 0 && logged.length > 0
-      ? `All ${workSetCount(logged)} ${workSetCount(logged) === 1 ? 'set' : 'sets'} done`
-      : entry
-        ? setLine(entry, setNumber)
-        : `Set ${setNumber}`;
-  const onBlocked = (r: PendingRow) => {
-    const why = blockedOf(r);
-    if (!why || logQueue.closed(sessionId)) return;
-    tick();
-    // No weight yet (or a pick to redo, or a bar or start weight to set): straight to the picker for
-    // that row, saying why. It never logs without a weight (SPEC 0).
-    if (kind && kind !== 'timed' && (r.load === null || r.kept)) {
-      setPicking({ id: idOf(r), row: r, why: why === 'Pick a weight' ? 'Pick a weight first' : why });
-      return;
-    }
-    window.clearTimeout(nudgeTimer.current);
-    setNudge((n) => ({ index: r.index, text: why, n: (n?.n ?? 0) + 1 }));
-    nudgeTimer.current = window.setTimeout(() => setNudge(null), 1700);
-  };
-  // "Pick a weight" is what the accent Pick button already says (PLAN 2.2b); any other reason (a bar
-  // weight to set first, a pick in the other unit) stays as a quiet line. Screen readers hear all.
-  const statusText = status && current ? `${rowName(current)}: ${status}` : '';
-  const statusShown = !!status && status !== 'Pick a weight';
-
   return (
-    <main className={styles.exMain} data-hero={hasDemo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
+    <main className={frame.exMain} data-hero={hasDemo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
       <ExerciseHead name={name} kind={kind} info={info} photosOk={photosOk} hasDemo={hasDemo} note={note} targetText={targetText} entry={entry} onMenu={onMenu} />
 
       {kind && progression && lastTime && (
@@ -656,7 +192,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
               </>
             }
           />
-          <p className={statusShown ? styles.status : styles.srOnly} data-testid="set-status" role="status">
+          <p className={statusShown ? styles.status : frame.srOnly} data-testid="set-status" role="status">
             {statusText}
           </p>
         </div>
@@ -690,26 +226,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
         title={typing ? `Set ${typing.n}` : ''}
         value={typing?.type ?? 'normal'}
         onPick={pickType}
-        onRemove={() => {
-          const target = typing;
-          if (!target) return;
-          // The sheet closes while the row slides out and closes up, like a swipe (critic B3).
-          if (target.set) {
-            const set = target.set;
-            setTyping(null);
-            return removeRowAnimated(set.id, () => removeLogged(set));
-          }
-          const row = target.rowId ? rowById(target.rowId) : undefined;
-          if (row) {
-            setTyping(null);
-            // By its id when the slide ends, with the view as it is then (PLAN 2.0l).
-            removeRowAnimated(target.rowId!, () => latestRemove.current(target.rowId!));
-          }
-          else {
-            setTyping(null);
-            gone();
-          }
-        }}
+        onRemove={removeFromSheet}
       />
 
     </main>

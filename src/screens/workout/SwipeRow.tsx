@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { tick } from '../../ui/haptics';
 import { prefersReducedMotion } from '../../ui/motion';
-import styles from './SetTable.module.css';
+import styles from './SetRow.module.css';
 
 /** How far the row stays open to show Delete at least (iOS: about 80 pt); a bigger label gets more. */
 export const OPEN_PX = 80;

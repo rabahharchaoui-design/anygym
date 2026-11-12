@@ -1,0 +1,59 @@
+/* ---- below the table: the muscles and the form tips */
+/* They mount a frame after the table (PLAN 2.2d): a short fade, nothing above them moves. */
+.arrive {
+  animation: arrive 200ms var(--ease-out) both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+}
+
+.cardHeading {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.extra {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--space-2);
+}
+
+.warnHeading {
+  color: var(--amber);
+}
+
+.extraLine {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Nothing sure to show: one quiet honest line under the table. */
+.unknown {
+  margin: var(--space-2) 0 0;
+  padding: 0 var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: balance;
+}

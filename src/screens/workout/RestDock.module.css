@@ -1,0 +1,71 @@
+/* ---------------------------------------------------------------- rest bar */
+
+.rest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--rest-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px calc(var(--space-3) + var(--safe-right)) 6px calc(var(--space-4) + var(--safe-left));
+  background: var(--glass-bg-strong);
+  border-top: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  view-transition-name: workout-dock;
+}
+
+.restText {
+  /* never narrower than the clock itself (Codex 1.7e: at 130% text it ran into −15) */
+  flex: 1 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.restLabel {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.restClock {
+  font-size: 26px;
+  font-weight: 700;
+  /* "0:00" in tabular numerals: the clock's own width is reserved, so it cannot shrink or shift */
+  min-width: 4ch;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rest[data-done='true'] .restClock {
+  color: var(--accent);
+}
+
+.restButton {
+  flex: none;
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--white) 7%, transparent);
+  border: 1px solid var(--glass-line);
+  font-weight: 700;
+  font-size: var(--text-base);
+  white-space: nowrap;
+}
+
+/* Narrow phones (SE, large text): tighter gaps and padding; every button keeps its 48pt target. */
+@media (max-width: 400px) {
+  .rest {
+    gap: 6px;
+    padding-left: calc(var(--space-3) + var(--safe-left));
+    padding-right: calc(var(--space-2) + var(--safe-right));
+  }
+  .restButton {
+    padding: 0 var(--space-2);
+  }
+}

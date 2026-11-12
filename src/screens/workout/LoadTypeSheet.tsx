@@ -2,7 +2,8 @@ import { Sheet } from '../../ui/Sheet';
 import type { Load } from '../../db/types';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
 import { ChoiceCard } from '../../ui/ChoiceCard';
-import styles from './Workout.module.css';
+import styles from './Sheets.module.css';
+import frame from './Workout.module.css';
 
 type Props = {
   open: boolean;
@@ -31,7 +32,7 @@ export function LoadTypeSheet({ open, onClose, exerciseName, onPick, without = [
               detail={
                 c.kind === current ? (
                   // The filled ring already shows it (critic P10): the word is for screen readers.
-                  <span className={styles.srOnly} data-testid="load-type-current">
+                  <span className={frame.srOnly} data-testid="load-type-current">
                     Current
                   </span>
                 ) : undefined

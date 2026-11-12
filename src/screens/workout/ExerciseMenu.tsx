@@ -3,7 +3,8 @@ import { Sheet } from '../../ui/Sheet';
 import { MAX_REST_SEC } from '../../db/exerciseSettings';
 import { RepsStepper } from './RepsStepper';
 import { Segmented } from '../../ui/Segmented';
-import styles from './Workout.module.css';
+import styles from './ExerciseMenu.module.css';
+import sheet from './Sheets.module.css';
 
 export type MenuAction = 'swap' | 'up' | 'down' | 'remove' | 'loadType';
 
@@ -48,8 +49,8 @@ export function ExerciseMenu({ open, onClose, name, canUp, canDown, moveNote, re
   return (
     <Sheet open={open} onClose={close} label={page === 'rest' ? 'Rest after each set' : page === 'note' ? 'Add note' : `${name} options`} scroll>
       {open && page === 'menu' && (
-        <div className={styles.sheetBody}>
-          <h2 className={styles.sheetTitle}>{name}</h2>
+        <div className={sheet.sheetBody}>
+          <h2 className={sheet.sheetTitle}>{name}</h2>
           <div className={styles.menu}>
             <MenuItem label="Replace" sub={replaceOff ? 'All its sets are done' : replaceNote} disabled={replaceOff} chevron={!replaceOff} onPress={() => onAction('swap')} testId="replace-row" />
             <MenuItem label={loadedWith ? `Loaded with: ${loadedWith}` : 'How do you load this?'} sub="Change" onPress={() => onAction('loadType')} />
@@ -112,10 +113,10 @@ function RestPage({ rest, off, onSave }: { rest: number; off: boolean; onSave: (
   const [value, setValue] = useState(rest);
   const [isOff, setOff] = useState(off);
   return (
-    <div className={styles.sheetBody}>
-      <h2 className={styles.sheetTitle}>Rest after each set</h2>
+    <div className={sheet.sheetBody}>
+      <h2 className={sheet.sheetTitle}>Rest after each set</h2>
       {/* Says what the choice does now (round 3, P2). */}
-      <p className={styles.sheetSub} data-testid="rest-sub">
+      <p className={sheet.sheetSub} data-testid="rest-sub">
         {isOff ? 'Off: no countdown, for back to back moves' : 'Countdown after each set'}
       </p>
       <div className={styles.restOnOff}>
@@ -133,7 +134,7 @@ function RestPage({ rest, off, onSave }: { rest: number; off: boolean; onSave: (
       <div className={styles.restStepper} data-off={isOff || undefined} aria-hidden={isOff || undefined} {...(isOff ? { inert: '' } : {})}>
         <RepsStepper label="Rest" unit="seconds" value={value} onChange={setValue} min={15} max={MAX_REST_SEC} step={15} />
       </div>
-      <button type="button" className={`${styles.logButton} pressable`} onClick={() => onSave(value, isOff)}>
+      <button type="button" className={`${sheet.logButton} pressable`} onClick={() => onSave(value, isOff)}>
         Save
       </button>
     </div>
@@ -143,10 +144,10 @@ function RestPage({ rest, off, onSave }: { rest: number; off: boolean; onSave: (
 function NotePage({ note, onSave }: { note: string; onSave: (n: string) => void }) {
   const [value, setValue] = useState(note);
   return (
-    <div className={styles.sheetBody}>
-      <h2 className={styles.sheetTitle}>Note</h2>
+    <div className={sheet.sheetBody}>
+      <h2 className={sheet.sheetTitle}>Note</h2>
       <textarea className={styles.noteInput} aria-label="Note" value={value} maxLength={200} rows={3} placeholder="Seat on 4, wide grip…" onChange={(e) => setValue(e.target.value)} />
-      <button type="button" className={`${styles.logButton} pressable`} onClick={() => onSave(value)}>
+      <button type="button" className={`${sheet.logButton} pressable`} onClick={() => onSave(value)}>
         Save note
       </button>
     </div>

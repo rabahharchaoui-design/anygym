@@ -9,7 +9,7 @@ import { Ring } from '../../ui/Ring';
 import { Odometer } from '../../ui/Odometer';
 import { CheckIcon } from '../../ui/icons';
 import { buzz } from '../../ui/haptics';
-import styles from './Workout.module.css';
+import styles from './RestDock.module.css';
 
 type Props = {
   rest: Rest;

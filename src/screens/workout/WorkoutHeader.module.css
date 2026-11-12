@@ -1,0 +1,77 @@
+/* ---------------------------------------------------------------- live header */
+
+.topBar {
+  position: relative;
+  z-index: 4;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: calc(var(--safe-top) + 56px);
+  padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-2) + var(--safe-left));
+  border-bottom: 1px solid var(--glass-line);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  view-transition-name: workout-head;
+}
+
+.stats {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  padding-left: 8px;
+  /* A swipe from the edge never selects the clock (round 2, P6). */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The unseen copy of the stats line that says whether the full line fits (round 2, P5). */
+.statMeasure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.clock {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.statLine {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  /* wraps at large text sizes instead of cutting off (PLAN 1.7g) */
+  overflow-wrap: anywhere;
+}
+
+.finish {
+  flex: none;
+  height: 48px;
+  min-width: 88px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  position: relative;
+}
+
+/* Words only for screen readers inside a line of text: a 1 px box clipped away by clip-path. */
+.srText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  pointer-events: none;
+}
