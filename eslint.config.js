@@ -34,9 +34,11 @@ const screensNoDb = {
       const target = resolve(here, source);
       if (target === dbDir || target.startsWith(`${dbDir}/`)) context.report({ node, messageId: 'db', data: { source } });
     };
+    const allTypes = (specifiers, kind) => specifiers.length > 0 && specifiers.every((x) => x[kind] === 'type');
     return {
-      ImportDeclaration: (n) => n.importKind !== 'type' && check(n, n.source.value),
-      ExportNamedDeclaration: (n) => n.source && n.exportKind !== 'type' && check(n, n.source.value),
+      // Type only either way: `import type { A }` or every name marked, `import { type A }`.
+      ImportDeclaration: (n) => n.importKind !== 'type' && !allTypes(n.specifiers, 'importKind') && check(n, n.source.value),
+      ExportNamedDeclaration: (n) => n.source && n.exportKind !== 'type' && !allTypes(n.specifiers, 'exportKind') && check(n, n.source.value),
       ExportAllDeclaration: (n) => n.exportKind !== 'type' && check(n, n.source.value),
       ImportExpression: (n) => n.source.type === 'Literal' && check(n, n.source.value),
     };
