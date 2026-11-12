@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
+import { UNDO_MS } from '../../lib/undoQueue';
 import styles from './CandidateReview.module.css';
-
-/** How long Undo stays (SPEC 13.1: undo instead of a confirmation, for 5 s). */
-export const UNDO_MS = 5000;
 
 /**
  * The Undo chip (PLAN 3.5i): what was just done and Undo, in the header for 5 seconds, then gone.

@@ -7,6 +7,7 @@ import { gymKitOf } from './planFit';
 import { goalsOf, type IntakeAnswers } from './funnel';
 import { EASY_ON, labelOf, type FocusId, type GoalId, type PlaceAnswer } from './options';
 import { FINISHER_MINUTES, FOCUS_RULES } from '../generatorRules';
+import { cap } from '../words';
 
 /** Every answer the generator uses: goals, level, days, time, equipment, focus, go easy on, loved and never, style, cardio. */
 export function generatorInputOf(a: IntakeAnswers): GeneratorInput {
@@ -78,7 +79,6 @@ const GAP_WORD: Record<Pattern, string> = {
 };
 
 export const list = (items: readonly string[]): string => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
-const capital = (t: string): string => t.charAt(0).toUpperCase() + t.slice(1);
 const average = (ns: readonly number[]): number => (ns.length ? Math.round(ns.reduce((x, y) => x + y, 0) / ns.length) : 0);
 const focusWord = (f: FocusId): string => (f === 'balance' ? 'balance' : FOCUS_RULES[f].word);
 const short = (items: readonly string[], max = 3): string[] => (items.length > max ? [...items.slice(0, max - 1), 'more'] : [...items]);
@@ -119,7 +119,7 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   const over = applied.over && timed ? overWords(applied.minutes, a.minutes!) : null;
   if (over) notes.push(over);
   else if (applied.restKept) notes.push('Strength days keep their long rests, so this time fits fewer lifts.');
-  return { reason, goals, warning: notes.length ? capital(notes.join(' ')) : null, minutes: applied.minutes };
+  return { reason, goals, warning: notes.length ? cap(notes.join(' ')) : null, minutes: applied.minutes };
 }
 
 /**

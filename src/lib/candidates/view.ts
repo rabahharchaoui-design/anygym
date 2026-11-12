@@ -4,6 +4,7 @@
 import type { EquipmentId } from '../../db/types';
 import { resolveMuscles, type MuscleMapData } from '../muscles';
 import type { CandidateGroup, CandidateRecord } from './types';
+import { cap } from '../words';
 
 export function candidateMuscles(c: CandidateRecord): MuscleMapData | null {
   return resolveMuscles(c, { exercises: c.muscleOverride ? { [c.id]: c.muscleOverride } : {} });
@@ -17,7 +18,7 @@ export function gearLine(c: Pick<CandidateRecord, 'requires'>, label: Readonly<R
     return group.map((id) => label[id]).join(' or ');
   });
   const line = parts.join(' + ');
-  return line.charAt(0).toUpperCase() + line.slice(1);
+  return cap(line);
 }
 
 /** What kind of move it is, in plain words (SPEC 13.1), for the review card. */

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { cappedCount, type EffectVariant } from '../effects';
+import { fitCanvas } from '../fitCanvas';
 import { seeded } from '../seeded';
 import { ring } from './ring';
 import { shards } from './shards';
@@ -43,11 +44,7 @@ export function FxCanvas({ variant, reduce, count, life, delay = 0, onDone, clas
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const fx = FX[variant];
-    const box = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(box.width * dpr);
-    canvas.height = Math.round(box.height * dpr);
-    ctx.scale(dpr, dpr);
+    const box = fitCanvas(canvas, ctx);
     const css = getComputedStyle(canvas);
     const ink = (name: string) => css.getPropertyValue(name).trim();
     const inks: Inks = { accent: ink('--accent'), hi: ink('--accent-hi'), text: ink('--text'), pair: ink('--pair'), dim: ink('--text-3') };

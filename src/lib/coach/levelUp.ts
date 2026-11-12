@@ -10,6 +10,7 @@ import { allTop, changeWords, lastPicked, missedCount, sameWeight } from './sets
 import { weeklyRate } from './strength';
 import { lastWeek, weekStartFrom } from './time';
 import type { ChangeRecord, Hold, Lift, LiftSession, PlannedChange } from './types';
+import { plural } from '../words';
 
 export type LevelUpDecision = {
   /** The training week it is about (its Monday). */
@@ -27,7 +28,6 @@ export function lighterActive(lift: Pick<Lift, 'target'>, now: number): boolean 
 
 export const levelUpCardId = (weekKey: string): string => `levelup:${weekKey}`;
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** Both workouts at the top of the range at the same weight. */
 const sameTop = (a: LiftSession, b: LiftSession): boolean => {

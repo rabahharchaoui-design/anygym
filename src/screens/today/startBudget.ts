@@ -8,13 +8,14 @@ import { planById } from '../../data/plans';
 import { setWorkoutTrim } from '../../db/timeBudget';
 import type { Session } from '../../db/types';
 import { dayIndexOf, type PlanDay } from '../../lib/plans';
+import { dayKey } from '../../lib/dayKey';
 import { AS_PLANNED, trimDay, type TrimResult } from '../../lib/timeBudget';
 
 export const NEXT_START_KEY = 'anygym-time-next-start';
 
 export type NextStart = { gymId: string; planId: string; dayIndex: number; minutes: number; date: string };
 
-export const localDay = (now = new Date()) => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+export const localDay = (now = new Date()) => dayKey(now);
 
 export function readNextStart(): NextStart | null {
   try {

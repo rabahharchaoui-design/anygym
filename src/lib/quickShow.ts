@@ -7,7 +7,7 @@ import { type GroupedItem, SLACK, structureOf } from './quickStyles';
 import type { GymKit } from './picker';
 import { type Profile, easyOnAvoids } from './order';
 import { type SwapData, requiresOf } from './swap';
-import { cap } from './quickWhy';
+import { cap } from './words';
 import { withNotes } from './quickNotes';
 
 /** Round 2 (B3): a concept is offered only when its estimate is at or under the minutes picked, 2 more at most. */

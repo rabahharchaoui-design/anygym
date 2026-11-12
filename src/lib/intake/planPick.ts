@@ -11,6 +11,7 @@ import { EASY_ON, labelOf, WEEKDAYS, type GoalId, type PlaceAnswer } from './opt
 import { planFit, swappedLine, type PlanFit } from './planFit';
 import { yourPlanWords } from './yourPlan';
 import type { Applied } from '../generator';
+import { cap } from '../words';
 
 export { equipmentOf } from './planFit';
 
@@ -70,7 +71,6 @@ const GOAL_WORD: Record<GoalId, string> = {
 };
 
 const list = (items: readonly string[]): string => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
-const capital = (t: string): string => t.charAt(0).toUpperCase() + t.slice(1);
 const average = (ns: readonly number[]): number => Math.round(ns.reduce((x, y) => x + y, 0) / ns.length);
 
 /** Sessions this much over the time picked count as well over: offer a quick workout. */
@@ -182,7 +182,7 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
   if (a.never?.length) left.push('exercises to avoid');
   const named = left.length > 3 ? [...left.slice(0, 2), 'more'] : left;
   const plural = named.length > 1 || (/s$/.test(named[0] ?? '') && named[0] !== 'focus') || named[0] === 'exercises to avoid';
-  const notBuilt = named.length ? `${capital(list(named))} ${plural ? "aren't" : "isn't"} built in yet.` : null;
+  const notBuilt = named.length ? `${cap(list(named))} ${plural ? "aren't" : "isn't"} built in yet.` : null;
 
   const quick = mismatch || (timed && longer && a.minutes! <= 30) ? 'primary' : (timed && avg >= a.minutes! * WELL_OVER) || a.experience === 'new' ? 'secondary' : null;
   const match = goalMatch && daysMatch && !mismatch && !unmetCustomization(a);

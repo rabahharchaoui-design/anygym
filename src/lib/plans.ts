@@ -11,6 +11,7 @@
 // "where is the plan now" state machine (advancePlan).
 
 import { EQUIPMENT_IDS, type EquipmentId } from '../db/types';
+import { plural } from './words';
 
 export type RepRange = [number, number];
 export type PlanReps = RepRange | number;
@@ -273,7 +274,6 @@ export type WeekTable = {
 };
 
 const same = (xs: Array<number | undefined>): boolean => xs.every((x) => x === xs[0]);
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * The item's week table, or null when the plan has none for it. Shows only the number that

@@ -14,6 +14,7 @@ import { equipmentSummary } from '../../lib/gymPresets';
 import { MakeActive } from '../../components/gym/MakeActive';
 import styles from '../Settings.module.css';
 import gymStyles from './Gyms.module.css';
+import { useToastTimeout } from '../../ui/useToastTimeout';
 
 let toastSeq = 0;
 
@@ -61,11 +62,7 @@ export function GymDetail() {
   const [saveError, setSaveError] = useState(false);
   const g = gym.data;
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((now) => (now?.id === toast.id ? null : now)), toast.action ? 5000 : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  useToastTimeout(toast, setToast);
 
   if (gym.ready && !gym.error && !g) return <Navigate to="/settings/gyms" replace />;
 

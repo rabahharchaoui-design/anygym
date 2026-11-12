@@ -2,8 +2,8 @@ import { createContext, useContext, useEffect, useLayoutEffect, useState, useRef
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls, useIsPresent, useReducedMotion, type PanInfo } from 'motion/react';
 import { FADE, SHEET_SPRING } from './motion';
-import { focusables, isTopSheet, pushSheet } from './sheetStack';
-import { sheetHistory } from './sheetHistory';
+import { focusables } from './sheetStack';
+import { useSheetLayer } from './useSheetLayer';
 import styles from './Sheet.module.css';
 
 type Props = {
@@ -124,31 +124,8 @@ function SheetFrame({ onClose, onDragClose, label, children, scroll, footer, hea
     return () => window.clearTimeout(t);
   }, []);
 
-  // Register as the top sheet, move focus in, and give it back as soon as it starts closing.
-  useLayoutEffect(() => {
-    if (!present) return;
-    const root = rootRef.current!;
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const unregister = pushSheet(root);
-    // Its own history entry: Back closes this sheet, not the screen (SPEC 13.4).
-    const release = sheetHistory().open(() => closeRef.current());
-    dialogRef.current?.focus({ preventScroll: true });
-    return () => {
-      unregister();
-      release();
-      if (before?.isConnected && !before.closest('[inert]')) before.focus({ preventScroll: true });
-    };
-  }, [present]);
-
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key !== 'Escape' || !rootRef.current || !isTopSheet(rootRef.current)) return;
-      e.stopPropagation();
-      closeRef.current();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  // Register as the top sheet with its own Back entry, move focus to the dialog, give it back on close.
+  useSheetLayer(present, rootRef, closeRef, () => dialogRef.current?.focus({ preventScroll: true }));
 
   // Tab and Shift+Tab cycle inside the sheet. Focus is moved by hand, so it never leaves the
   // sheet, whatever the browser counts as tabbable.

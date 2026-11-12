@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
@@ -12,6 +12,7 @@ import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId } from '../../db/ty
 import { EquipmentStep } from '../intake/Steps';
 import styles from '../Settings.module.css';
 import gymStyles from './Gyms.module.css';
+import { useToastTimeout } from '../../ui/useToastTimeout';
 
 /**
  * A gym's equipment (PLAN 3.9, SPEC 3): the intake's picture picker, grouped, each group with its
@@ -24,11 +25,7 @@ export function GymEquipment() {
   const gym = useLive(() => db.gyms.get(gymId), [gymId]);
   const [error, setError] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((now) => (now?.id === toast.id ? null : now)), toast.action ? 5000 : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  useToastTimeout(toast, setToast);
   // A range typed here comes back if dumbbells are turned off and on again on this screen.
   const lastRange = useRef<DumbbellRange | null>(null);
   const g = gym.data;

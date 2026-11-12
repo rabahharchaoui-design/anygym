@@ -11,7 +11,6 @@ import { useNav } from '../../ui/nav';
 import { useLive } from '../../hooks/useLive';
 import { db } from '../../db/schema';
 import { addGym, undoDeleteGym, type GymDeleteReceipt, type NewGym } from '../../db/gymList';
-import { UNDO_MS } from '../../lib/undoQueue';
 import { gymLine, recentGyms } from '../../lib/gymPresets';
 import { NewGymForm } from '../../components/gym/NewGymForm';
 import { SwitchSheet, useActiveName } from '../../components/gym/MakeActive';
@@ -19,6 +18,7 @@ import { useGymSwitch } from '../../components/gym/useGymSwitch';
 import { TYPE_ICON } from '../../components/gym/gymIcons';
 import styles from '../Settings.module.css';
 import gymStyles from './Gyms.module.css';
+import { useToastTimeout } from '../../ui/useToastTimeout';
 
 let toastSeq = 0;
 
@@ -62,11 +62,7 @@ export function GymsScreen() {
     });
   }, [location.state, navigate]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((now) => (now?.id === toast.id ? null : now)), toast.action ? UNDO_MS : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  useToastTimeout(toast, setToast);
 
   const add = async (input: NewGym) => {
     if (busy) return;

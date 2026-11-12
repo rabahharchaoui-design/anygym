@@ -1,16 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { TopBar } from '../ui/TopBar';
 import { EmptyState } from '../ui/EmptyState';
 import { Toast, type ToastMessage } from '../ui/Toast';
 import { GymPill } from '../components/GymPill';
+import { useToastTimeout } from '../ui/useToastTimeout';
 
 export function RunScreen() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((now) => (now?.id === toast.id ? null : now)), toast.action ? 5000 : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  useToastTimeout(toast, setToast);
   return (
     <>
       {/* SPEC 19: the gym pill is on the Run tab too. */}

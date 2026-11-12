@@ -2,17 +2,14 @@ import { useEffect, useState } from 'react';
 import { DRAFTS_NOT_SAVED, onDraftStorageFail } from '../../lib/drafts';
 import { keepUndoOnly, type ToastMessage } from '../../ui/Toast';
 import { toastOf } from './workoutToast';
+import { useToastTimeout } from '../../ui/useToastTimeout';
 
 /** The workout's one toast: its timeout, the screen change that clears it, and the ways to raise it. */
 export function useWorkoutToast(exerciseId: string | null) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   useEffect(() => onDraftStorageFail(() => setToast(toastOf(DRAFTS_NOT_SAVED))), []);
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), toast.action ? 5000 : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  useToastTimeout(toast, setToast);
 
   // A screen change (list ↔ exercise) clears any toast but an Undo (gate B2): "Rest 90 s" never
   // follows the lifter onto the day list.

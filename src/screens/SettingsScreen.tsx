@@ -33,6 +33,7 @@ import { db } from '../db/schema';
 import { phoneLocale, unitsForLocale } from '../lib/intake/region';
 import { CoachSettings } from './settings/CoachSettings';
 import styles from './Settings.module.css';
+import { useToastTimeout } from '../ui/useToastTimeout';
 
 let toastSeq = 0;
 
@@ -100,11 +101,8 @@ export function SettingsScreen() {
     });
   }, [location.state, navigate]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((now) => (now?.id === toast.id ? null : now)), UNDO_MS);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  // Every toast on Settings stays the full Undo time, with or without an action.
+  useToastTimeout(toast, setToast, () => UNDO_MS);
 
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
