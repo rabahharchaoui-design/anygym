@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED (Nov 12: not merged; 3.5h was already built, checked and live from the main builder before this backup build was read)
 # Codex backup build of PLAN item 3.5h
 Branch: codex-build-3.5h-1111-0230 (based on s3-plans). Review like any builder output, then merge with: git merge --no-ff --no-edit codex-build-3.5h-1111-0230
 Changes:  52 files changed, 2774 insertions(+), 1963 deletions(-)
