@@ -102,6 +102,7 @@
 }
 
 .placeTile {
+  composes: surface from '../../ui/card.module.css';
   position: relative;
   display: flex;
   flex-direction: column;
@@ -110,10 +111,6 @@
   /* PLAN 3.5: the label uses the whole width (a long word like "Bodyweight" never breaks); only the
      count row keeps clear of the icon, which sits in that row. */
   padding: var(--space-4);
-  border: 1px solid var(--glass-line);
-  border-radius: 20px;
-  background: var(--card-fill);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
   color: var(--text);
   text-decoration: none;
 }
