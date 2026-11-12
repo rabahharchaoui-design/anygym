@@ -197,7 +197,7 @@ test('check 4 and 6: names, no note, meta line at 100% and 130%', async ({ page 
     await page.waitForTimeout(300);
     const bad = await page.getByTestId('concept-meta').evaluateAll((els) =>
       els.flatMap((e) => {
-        // every line must not start with a dot; "· ~T min" kept together
+        // every line must not start with a dot; "~T min" kept together
         const out: string[] = [];
         const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
         const rects: { t: string; top: number }[] = [];
@@ -218,7 +218,8 @@ test('check 4 and 6: names, no note, meta line at 100% and 130%', async ({ page 
           if (line.startsWith('·')) out.push(`dot first: ${line}`);
         }
         const full = rects.map((x) => x.t).join('');
-        const m = full.match(/·~\d+min/);
+        // "~28 min" stays on one line; the dot before it may end the line above (a dot never starts one: checked above).
+        const m = full.match(/~\d+min/);
         if (m) {
           const start = full.indexOf(m[0]);
           const ts = new Set(rects.slice(start, start + m[0].length).map((x) => x.top));
