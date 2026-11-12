@@ -48,3 +48,4 @@ Branch `s3-plans` from tag `pre-s3` (master af01489, Nov 4 2026, Session 2 merge
 - Checkpoint 3.5w live (Nov 12): ux-critic 7 before round 2 (three blockers fixed); iPhone 15 suite 1037 passed after follow ups, smoke 87 of 87 on the master build, Pages green, live check passed.
 - Checkpoint 3.6b live (Nov 12): smoke 61 of 61 on the master build, Pages green, live check passed.
 - Checkpoint 3.6h live (Nov 12): smoke 67 of 67, Pages green, live check passed.
+- 3.6y (Nov 12): the test gate is live. Every push to master or the session branch now runs typecheck, all unit tests, the build, the bundle budget and 8 real journeys before Pages may deploy. It already caught two CI problems on its first runs (Node version, slow runner) and is green now.
