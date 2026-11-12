@@ -42,7 +42,8 @@ test('offline SE: dismissing a changed edit preserves the lift; a later saved ed
     await exposed(picker.getByRole('button', { name: 'Done', exact: true }));
     await picker.getByRole('button', { name: 'Done', exact: true }).tap();
     await exposed(checkCurrent(view));
-    expect((await checkCurrent(view).boundingBox())!.height).toBeGreaterThanOrEqual(48);
+    // SPEC 23.1 scales the app behind a sheet; wait for its closing transition to restore the 48pt target.
+    await expect.poll(async () => (await checkCurrent(view).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(48);
     await checkCurrent(view).tap();
     await expect(loggedRows(view)).toHaveCount(1);
     await setTableInFirstScreen(page);
