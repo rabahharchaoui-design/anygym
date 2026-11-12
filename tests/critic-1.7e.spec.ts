@@ -166,7 +166,9 @@ test('Smith first use: the bar question sits on top of the weight sheet; a chip 
   await expect(q.getByRole('button', { name: 'Count plates only' })).toBeVisible();
   await expect(q.getByRole('button', { name: 'Other…' })).toBeVisible();
   await expect(q.getByRole('button', { name: 'What is Smith machine?' })).toBeVisible();
-  // On top: above the number and the bar.
+  // On top: above the number and the bar. Measured once the sheet has settled: mid spring the two
+  // boxes were read a frame apart on a busy machine (PLAN 3.6v).
+  await expect(sheet).toHaveAttribute('data-state', 'open');
   const qBox = (await q.boundingBox())!;
   const totalBox = (await sheet.getByTestId('plate-total').boundingBox())!;
   expect(qBox.y).toBeLessThan(totalBox.y);
