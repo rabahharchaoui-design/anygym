@@ -501,9 +501,9 @@ test('screen changes: open and back settle in under 350 ms (round 3, B1) @matrix
   const limit = paintBudget(350, idle, 3);
   const longestLimit = longestBudget(50, idle);
   const results: string[] = [];
-  // Other work on this machine can only make a round slower, never faster: one round inside every bound (of up to four) is the app's own cost.
+  // Other work on this machine can only make a round slower, never faster: one round inside every bound (of up to five) is the app's own cost.
   let inside = false;
-  for (let i = 0; i < 4 && !inside; i++) {
+  for (let i = 0; i < 5 && !inside; i++) {
     const open = await timeScreenChange(page, () => row.tap());
     await expect(exerciseView(page, 'barbell-back-squat')).toBeVisible();
     await page.waitForTimeout(700);

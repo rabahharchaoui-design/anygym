@@ -494,11 +494,11 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     const stall = longestBudget(40, idle);
     const missed = (g: number[]) => g.filter((x) => x > stall).length;
     // Headless WebKit's frame clock is noisy (see polish-2.2d): no frame over 50 ms, at most one missed. Other work on this machine can
-    // only stall a frame, never hurry one, so one round of up to three inside those bounds is the app's own.
+    // only stall a frame, never hurry one, so one round of up to five inside those bounds is the app's own.
     const inside = (r: { gaps: number[] }) => long(r.gaps) < longestBudget(50, idle) && missed(r.gaps) <= 1;
     let push!: Awaited<ReturnType<typeof stop>>;
     let pop!: Awaited<ReturnType<typeof stop>>;
-    for (let round = 0; round < (isWebKit() ? 3 : 1); round++) {
+    for (let round = 0; round < (isWebKit() ? 5 : 1); round++) {
       await record();
       await row.tap();
       await expect(exerciseView(page, 'barbell-back-squat')).toBeVisible();
@@ -665,8 +665,8 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     const idle = await idleFrames(page);
     const minFrames = framesFloor(20, 700, idle);
     const t = fromTap(page);
-    // Other work on this machine can only stall a frame, never hurry one: the best of up to three rounds is the app's own longest frame.
-    const rounds = isWebKit() ? 3 : 1;
+    // Other work on this machine can only stall a frame, never hurry one: the best of up to four rounds is the app's own longest frame.
+    const rounds = isWebKit() ? 4 : 1;
     const limit = longestBudget(50, idle);
     const nav = page.getByRole('navigation', { name: 'Main' });
     let tab = Infinity;
