@@ -1,8 +1,11 @@
-name: Deploy to GitHub Pages
+name: Check and deploy to GitHub Pages
 
+# Every push to master and to a session branch (s3-plans, s4-run, ...) runs the check job. Only master
+# (or a manual run) goes on to build and deploy, and only when the check passed, so a broken master
+# cannot ship. The build and the deployed artifact are the same as before the gate.
 on:
   push:
-    branches: [master]
+    branches: [master, 's*-*']
   workflow_dispatch:
 
 permissions:
@@ -10,12 +13,64 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    # A newer push to a session branch replaces the check still running for it. Master always finishes.
+    concurrency:
+      group: check-${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+    env:
+      # Only the iPhone 15 profile runs here, so only WebKit is installed.
+      PW_NO_BUILD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # npm ci wipes node_modules, so it only runs when the lock file changed.
+      - id: modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node20-${{ hashFiles('package-lock.json') }}
+      - if: steps.modules.outputs.cache-hit != 'true'
+        run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # Type check, production build, and the secret scan of every tracked file and of dist/.
+      - run: npm run build
+      - run: npm run perf:bundle
+      # The size guard arrives with PLAN 3.6x; it runs as soon as the file exists.
+      - run: |
+          if [ -f scripts/size-guard.mjs ]; then node scripts/size-guard.mjs; else echo "size guard not in this branch yet"; fi
+      - id: browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps webkit
+      # The browser files are cached, the system libraries it needs are not.
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps webkit
+      # The golden journeys: the app as a person uses it, WebKit, iPhone 15, no retries.
+      - run: npm run test:golden
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
   build:
+    needs: check
+    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,8 +85,12 @@ jobs:
           path: dist
 
   deploy:
-    needs: build
+    needs: [check, build]
+    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
