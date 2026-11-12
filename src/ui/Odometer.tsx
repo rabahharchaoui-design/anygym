@@ -5,6 +5,8 @@ type Props = {
   value: string | number;
   /** Roll up from zero when it first appears (finish screen stats). */
   countUp?: boolean;
+  /** Ms between digits starting to roll on a count up (default 70). A hero number uses less, so a long one still lands inside a celebration (PLAN 3.6b). */
+  stagger?: number;
   className?: string;
 };
 
@@ -14,7 +16,7 @@ type Props = {
  * aria-hidden layer with no text of its own: each digit is a 0 to 9 strip drawn by CSS that slides
  * to the digit, so the strips are never read out. Tabular numerals keep widths fixed.
  */
-export function Odometer({ value, countUp = false, className }: Props) {
+export function Odometer({ value, countUp = false, stagger = 70, className }: Props) {
   const [ready, setReady] = useState(!countUp);
   useEffect(() => {
     if (ready) return;
@@ -35,7 +37,7 @@ export function Odometer({ value, countUp = false, className }: Props) {
           }
           const style = {
             '--d': ready ? Number(c) : 0,
-            '--delay': countUp ? `${(n - fromRight) * 70}ms` : '0ms',
+            '--delay': countUp ? `${(n - fromRight) * stagger}ms` : '0ms',
           } as CSSProperties;
           return <span key={`d${fromRight}`} className={styles.digit} style={style} />;
         })}

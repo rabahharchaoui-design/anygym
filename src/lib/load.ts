@@ -1014,6 +1014,21 @@ export function formatTotal(value: number, unit: Unit): string {
   return `${frac ? `${grouped}.${frac}` : grouped} ${unit}`;
 }
 
+/**
+ * A total for a tight place (the Total lifted tile, the first workout's hero): "4,350 lb" up to
+ * 999,999, then a short form that never claims more than was lifted (cut, not rounded): "1.23M lb",
+ * "12.3M lb", "123M lb", "1.23B lb". Three digits are kept, so it stays within about 8 characters.
+ */
+export function formatTotalCompact(value: number, unit: Unit): string {
+  if (!(value >= 1_000_000)) return formatTotal(value, unit);
+  const [div, suffix] = value >= 1_000_000_000 ? [1_000_000_000, 'B'] : [1_000_000, 'M'];
+  const scaled = value / div;
+  const decimals = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+  const cut = Math.floor(scaled * 10 ** decimals + 1e-9) / 10 ** decimals;
+  const text = cut.toFixed(decimals);
+  return `${decimals ? text.replace(/\.?0+$/, '') : text}${suffix} ${unit}`;
+}
+
 /** The weight a set table cell shows, number only (SPEC 21.1): the dumbbell (not the pair), the added weight on bodyweight, else the total. null for holds. */
 export function cellWeight(load: Load): number | null {
   switch (load.kind) {
@@ -1068,6 +1083,18 @@ export function beatsVolume(a: { reps?: number; load: Load }, b: { reps?: number
   if (ra <= 0 || a.load.kind === 'timed') return false;
   if (sameResistance(a.load, b.load)) return ra > (b.reps ?? 0);
   return setScore(a, unit) - setScore(b, unit) > SAME_RESISTANCE_TOLERANCE * ra;
+}
+
+/**
+ * How much heavier `now` is than `before`, in words for a record (PLAN 3.6b): "+10 lb",
+ * "+5 lb each" (one dumbbell), "+2.5 kg", in the unit of `now`. null when it is not heavier
+ * (heavierThan: never unit conversion noise) or the two are not the same kind of load.
+ */
+export function heavierBy(now: Load, before: Load): string | null {
+  if (now.kind !== before.kind || !heavierThan(now, before, now.unit)) return null;
+  // Thousands separated like every other total on screen ("+1,000 lb").
+  const more = formatTotal(weightChange(comparableWeight(before, now.unit), comparableWeight(now, now.unit)), now.unit);
+  return now.kind === 'dumbbell_each' ? `+${more} each` : `+${more}`;
 }
 
 /** How much bigger `now` is than `before` as a ratio (1.05 is 5% more); Infinity over a zero baseline. */

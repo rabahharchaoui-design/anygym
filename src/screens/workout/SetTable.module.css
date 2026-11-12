@@ -184,12 +184,6 @@
   animation-delay: calc(var(--since, 0ms) * -1);
 }
 
-.row[data-sending] .checkIcon path {
-  stroke-dasharray: 24;
-  animation: draw 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
-  animation-delay: calc(60ms - var(--since, 0ms));
-}
-
 @keyframes fill {
   from {
     transform: scaleX(0);
@@ -531,29 +525,12 @@
   stroke-linejoin: round;
 }
 
-.checkDone .checkIcon path {
-  stroke-dasharray: 24;
-  stroke-dashoffset: 0;
-}
-
 .row[data-fresh] .checkDone {
   animation: pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   animation-delay: calc(var(--since, 0ms) * -1);
 }
 
-.row[data-fresh] .checkDone .checkIcon path {
-  animation: draw 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
-  animation-delay: calc(60ms - var(--since, 0ms));
-}
-
-@keyframes draw {
-  from {
-    stroke-dashoffset: 24;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
+/* The check draws itself: src/ui/celebrate (DrawnCheck, PLAN 3.6b), on the same --since clock. */
 
 @keyframes pop {
   from {
@@ -571,10 +548,6 @@
   .row[data-sending] .checkCircle {
     animation: fade 160ms ease-out both;
     animation-delay: calc(var(--since, 0ms) * -1);
-  }
-  .row[data-fresh] .checkDone .checkIcon path,
-  .row[data-sending] .checkIcon path {
-    animation: none;
   }
 }
 

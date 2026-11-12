@@ -31,9 +31,14 @@
 
 /* A hidden "0" sets each digit's box (tabular: every digit is as wide as 0); its face is the strip. */
 .digit {
+  --pad: 0.1em;
   position: relative;
   display: inline-block;
   overflow: hidden;
+  /* A little window above and below the line, taken back with the margin: tall numerals are never
+     shaved at the top or bottom, mid count up included, and the layout does not move. */
+  padding: var(--pad) 0;
+  margin: calc(var(--pad) * -1) 0;
 }
 
 .digit::after {
@@ -46,7 +51,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
+  top: var(--pad);
   white-space: pre;
   text-align: center;
   transform: translateY(calc(var(--d, 0) * -10%));
@@ -54,7 +59,7 @@
 }
 
 .odo[data-count] .digit::before {
-  transition-duration: 760ms;
+  transition-duration: 520ms;
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
