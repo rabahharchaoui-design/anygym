@@ -1,80 +1,44 @@
-import { afterPaint } from '../../ui/afterPaint';
-import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
-import type { Load, SetKind, WorkoutSet } from '../../db/types';
-import { SetHasPendingChangesError, UnresolvedDeletesError, UnsavedWritesError, WorkoutFinishedError, addExercise, addSuggested, finishWorkout, removeExercise, restoreExercise, setExerciseOrder } from '../../db/workouts';
-import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff, saveLoadType } from '../../db/exerciseSettings';
-import { extraSets, markDeleted } from '../../lib/extraSets';
-import { workSetCount } from '../../lib/workSets';
-import { advancesAfterLog, countsToward, moveInOrder, nextCurrent, restAfter, upNext } from '../../lib/planWorkout';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
+import { useReducedMotion } from 'motion/react';
+import { saveExerciseNote, saveExerciseRest, saveExerciseRestOff } from '../../db/exerciseSettings';
+import { stopAlways } from '../../db/swaps';
+import { moveInOrder } from '../../lib/planWorkout';
+import { swapLine } from '../../lib/swap';
 import { useNow } from '../../hooks/useNow';
-import { useTapGuard } from '../../hooks/useTapGuard';
 import { useWakeLock } from '../../hooks/useWakeLock';
-import { Toast, keepUndoOnly, type ToastMessage } from '../../ui/Toast';
-import { FADE, PAGE_SPRING, pageVariants, pageVariantsReduced } from '../../ui/motion';
-import { BackButton } from '../../ui/BackButton';
-import { IconButton } from '../../ui/IconButton';
-import { ChevronDown } from '../../ui/icons';
-import { EdgeSwipe } from '../../ui/EdgeSwipe';
-import { Odometer } from '../../ui/Odometer';
-import { Skeleton } from '../../ui/Skeleton';
-import { Sheet } from '../../ui/Sheet';
-import { LoadError } from '../../components/LoadError';
-import { supportsViewTransitions, useNav } from '../../ui/nav';
-import { UndoUnresolvedError } from '../../lib/deleteUndo';
-import { deletesFor, disposeDeletes, isLeftOver, ownedDeletes, recoverSession, recoveryReady } from './sessionRecovery';
-import { DRAFTS_NOT_SAVED, clearSessionDrafts, onDraftStorageFail } from '../../lib/drafts';
-import { logQueue } from '../../lib/logQueue';
-import { clearExtraSets } from '../../lib/extraSets';
-import { snapshotPending } from '../../lib/finishPending';
-import { changeCount, dropMutations, pendingMutations, retryMutations, saveMutation } from '../../db/mutations';
-import { hints } from '../../lib/hints';
-import { durableRest, loadRest, restUnreadable, saveRest, startRest, type Rest } from '../../lib/rest';
-import { formatElapsed } from '../../lib/timer';
-import { formatTotal, totalLifted } from '../../lib/load';
+import { Toast } from '../../ui/Toast';
+import { useNav } from '../../ui/nav';
+import { deletesFor, recoverSession } from './sessionRecovery';
 import { DayList } from './DayList';
-import { EditSetSheet, type SaveResult } from './EditSetSheet';
-import { ExerciseMenu, type MenuAction } from './ExerciseMenu';
+import { EditSetSheet } from './EditSetSheet';
+import { ExerciseMenu } from './ExerciseMenu';
 import { ExercisePicker } from './ExercisePicker';
-import { TAP_GUARD_MS } from '../../hooks/useTapGuard';
 import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
 import { SwapSheet } from './SwapSheet';
 import { TimeBudgetSheet } from './TimeBudgetSheet';
 import { useTimeBudget } from './useTimeBudget';
-import { SwapPendingError, SwapUndoStaleError, stopAlways, swapExercise, undoSwap } from '../../db/swaps';
-import { swapLine } from '../../lib/swap';
-import { WorkoutDock, type Chip } from './WorkoutDock';
+import { WorkoutDock } from './WorkoutDock';
 import { groupNextOf } from './groupNext';
 import { useWorkout } from './useWorkout';
-import { discardFailed, failedRows, prepareFinish, retryFailed, shownRows, type ShownRow } from './rowLog';
-import { UNDO_MS } from '../../lib/undoQueue';
 import { LOAD_TYPE_CHOICES } from './exerciseLoad';
+import { UndoStuckSheet, UnsavedSheet } from './FinishSheets';
+import { WorkoutHeader } from './WorkoutHeader';
+import { WorkoutStage } from './WorkoutStage';
+import { useAddExercise } from './useAddExercise';
+import { useAfterSet } from './useAfterSet';
+import { useExerciseMenu } from './useExerciseMenu';
+import { useExerciseNav } from './useExerciseNav';
+import { useFinish } from './useFinish';
+import { useLoadTypeAsk } from './useLoadTypeAsk';
+import { useNiceChip } from './useNiceChip';
+import { useRest } from './useRest';
+import { useSetEdits } from './useSetEdits';
+import { useSwap } from './useSwap';
+import { useWorkoutToast } from './useWorkoutToast';
+import { toastOf } from './workoutToast';
 import styles from './Workout.module.css';
-
-/** Which way the last go() moved, as nav.ts records it when it has to fall back. */
-const fallbackDir = (): number => {
-  const k = document.documentElement.dataset.navFallback;
-  return k === 'push' ? 1 : k === 'pop' ? -1 : 0;
-};
-
-/** A view on its way out is hidden from screen readers and takes no taps. */
-function Present({ children }: { children: ReactNode }) {
-  const present = useIsPresent();
-  return (
-    <div className={styles.present} aria-hidden={present ? undefined : true} {...(present ? {} : { inert: '' })}>
-      {children}
-    </div>
-  );
-}
-
-let toastSeq = 0;
-const toastOf = (text: string, action?: ToastMessage['action'], subject?: string, lead?: string): ToastMessage => ({ id: ++toastSeq, text, action, ...(subject ? { subject } : {}), ...(lead ? { lead } : {}) });
-
-/** How long "Nice. Next" stays before the list comes back (SPEC 20.2). */
-const CHIP_MS = 2500;
-
 
 /**
  * The workout (SPEC 20, 21.1): the day list at #/workout/:id and one exercise at
@@ -85,32 +49,13 @@ export function WorkoutScreen() {
   const { sessionId = '', '*': sub = '' } = useParams();
   const exerciseId = sub ? decodeURIComponent(sub.split('/')[0]!) : null;
   const go = useNav();
-  const location = useLocation();
   const reduce = useReducedMotion();
   useWakeLock(true);
 
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const w = useWorkout(sessionId, hidden);
-  const [rest, setRestState] = useState<Rest | null>(() => loadRest(sessionId));
-  // localStorage there but unreadable (PLAN 2.0c): the workout still opens; the rest comes from its
-  // IndexedDB copy, else there is none.
-  useEffect(() => {
-    if (!restUnreadable()) return;
-    let live = true;
-    void durableRest(sessionId).then((r) => {
-      if (live && r) setRestState((cur) => cur ?? r);
-    });
-    return () => {
-      live = false;
-    };
-  }, [sessionId]);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [chip, setChip] = useState<Chip | null>(null);
-  const [editing, setEditing] = useState<WorkoutSet | null>(null);
-  const [asking, setAsking] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [swapFor, setSwapFor] = useState<string | null>(null);
+  const { rest, setRest } = useRest(sessionId);
+  const { toast, setToast, notice, undoable } = useWorkoutToast(exerciseId);
   const finishing = useRef(false);
   const routeRef = useRef(exerciseId);
   routeRef.current = exerciseId;
@@ -122,650 +67,22 @@ export function WorkoutScreen() {
   useEffect(() => {
     recoverSession(sessionId).catch(() => undefined);
   }, [sessionId]);
-  /**
-   * Sets whose Log set write failed (PLAN 1.7h) and edits or set type changes whose write failed
-   * (PLAN 2.0c), when Finish was refused because of them.
-   */
-  const [unsaved, setUnsaved] = useState<{ rows: number; edits: number; editIds: string[]; rowIds: ShownRow[] } | null>(null);
-  /** Deleted sets whose Undo failed, when Finish was refused because of them (PLAN 1.7i). */
-  const [undoStuck, setUndoStuck] = useState<string[] | null>(null);
 
-  useEffect(() => onDraftStorageFail(() => setToast(toastOf(DRAFTS_NOT_SAVED))), []);
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), toast.action ? 5000 : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
-
-  // A screen change (list ↔ exercise) clears any toast but an Undo (gate B2): "Rest 90 s" never
-  // follows the lifter onto the day list.
-  useEffect(() => setToast(keepUndoOnly), [exerciseId]);
-
-  // No first time hints while the rest timer counts (SPEC 13.5).
-  useEffect(() => hints.setBlocked(rest !== null), [rest]);
-  useEffect(() => () => hints.setBlocked(false), []);
-
-  const setRest = useCallback((r: Rest | null) => {
-    setRestState(r);
-    saveRest(r);
-  }, []);
-  const notice = (text: string, retry?: () => void) => setToast(toastOf(text, retry ? { label: 'Try again', onPress: retry } : undefined));
   // PLAN 3.6: "How much time today?" from the day list's estimate (SPEC 7.4).
-  const time = useTimeBudget(w, sessionId, {
-    onNotice: (text) => notice(text),
-    onUndoable: (text, undo) => {
-      const shown = toastOf(text, {
-        label: 'Undo',
-        onPress: () => {
-          setToast((cur) => (cur?.id === shown.id ? null : cur));
-          undo();
-        },
-      });
-      setToast(shown);
-    },
-  });
+  const time = useTimeBudget(w, sessionId, { onNotice: (text) => notice(text), onUndoable: undoable });
 
-  // ---------------------------------------------------------------- navigation
-
-  // Screen changes are iOS push and pop view transitions (src/ui/nav.ts): the header and the rest
-  // bar have their own names so they stay put, and the tapped row's tile grows into the hero.
-  const navState = location.state as {
-    fromList?: boolean;
-    instant?: boolean;
-    expand?: boolean;
-  } | null;
-  const fromList = navState?.fromList === true;
   const order = w.entries.map((e) => e.exerciseId);
-  // The exercise the list was last left from: its tile is the one the hero shrinks back into.
-  const [lastViewed, setLastViewed] = useState<string | null>(exerciseId);
-  useEffect(() => {
-    if (exerciseId) setLastViewed(exerciseId);
-  }, [exerciseId]);
-  // Arriving from Today's Start: the day card expands into this screen (named for that one transition).
-  const [expanding, setExpanding] = useState(navState?.expand === true);
-  useEffect(() => {
-    if (!expanding) return;
-    const t = window.setTimeout(() => setExpanding(false), 600);
-    return () => window.clearTimeout(t);
-  }, [expanding]);
-
-  /** PLAN 3.8c: the exercise just finished, whose Easy/Good/Hard question also sits on the day list. */
-  const [justDone, setJustDone] = useState<string | null>(null);
-  const openExercise = (id: string, instant = false) => {
-    setJustDone((cur) => (cur === id ? cur : null));
-    go(`/workout/${sessionId}/${encodeURIComponent(id)}`, {
-      kind: instant ? 'none' : 'push',
-      state: { fromList: true, ...(instant ? { instant: true } : {}) },
-    });
-  };
-  const switchExercise = (id: string) => {
-    setJustDone((cur) => (cur === id ? cur : null));
-    go(`/workout/${sessionId}/${encodeURIComponent(id)}`, {
-      kind: 'push',
-      replace: true,
-      state: { fromList },
-    });
-  };
-  const goList = (kind: 'pop' | 'none' = 'pop') => {
-    if (fromList) go(-1, { kind });
-    else go(`/workout/${sessionId}`, { kind, replace: true });
-  };
-  const viewRef = useRef<HTMLDivElement | null>(null);
-  // No View Transitions here: the views move with Motion instead (read once; it never changes).
-  const [fallback] = useState(() => !supportsViewTransitions());
-  const dir = fallback ? fallbackDir() : 0;
-
-  const chipTimer = useRef<number | undefined>(undefined);
-  /** "Nice. Next: Romanian deadlift" for a moment, then `then` if the user is still on that exercise. */
-  const chipArm = useRef<((ms: number) => void) | null>(null);
-  const showChip = (text: string, ms: number, from: string, then: () => void, open?: string) => {
-    window.clearTimeout(chipTimer.current);
-    const c: Chip = { id: ++toastSeq, text, ...(open ? { open } : {}) };
-    setChip(c);
-    const arm = (wait: number) => {
-      window.clearTimeout(chipTimer.current);
-      chipTimer.current = window.setTimeout(() => {
-        const fire = () => {
-          setChip((cur) => (cur?.id === c.id ? null : cur));
-          if (routeRef.current === from) then();
-        };
-        fire();
-      }, wait);
-    };
-    chipArm.current = arm;
-    arm(ms);
-  };
-  // A finger on the chip holds the automatic return; lifted without a tap, it carries on.
-  const holdChip = () => window.clearTimeout(chipTimer.current);
-  const releaseChip = () => chipArm.current?.(900);
-  useEffect(() => () => window.clearTimeout(chipTimer.current), []);
-  useEffect(() => {
-    // Leaving the exercise by hand ends its chip.
-    setChip(null);
-    window.clearTimeout(chipTimer.current);
-  }, [exerciseId]);
-
-  // ---------------------------------------------------------------- after a set
-
-  const onLogged = (id: string, kind: SetKind) => {
-    const entries = w.entries;
-    // A warm up on a normal lift uses up no planned set (PLAN 1.7j).
-    const counts = countsToward(entries.find((x) => x.exerciseId === id), kind);
-    const done = counts ? { ...w.done, [id]: (w.done[id] ?? 0) + 1 } : w.done;
-    const r = restAfter(entries, done, id);
-    // 3.5d: a warm up row on a lift (the coach's, or one the person set) starts no rest timer, never the
-    // lift's own 1:30. A plan's own warm up exercises keep theirs.
-    const seconds = kind === 'warmup' && !counts ? 0 : r === null ? w.restOf(id) : r === 0 ? 0 : (w.userRestOf(id) ?? r);
-    // Started now (the countdown is right) and saved now (an app kill right after the set keeps the
-    // rest), shown once the check's frame has painted (critic B6).
-    const started = seconds > 0 ? startRest(sessionId, Date.now(), seconds) : null;
-    saveRest(started);
-    afterPaint(() => setRest(started));
-    const e = entries.find((x) => x.exerciseId === id);
-    if (!e) return;
-    // PLAN 2.0g: the screen stays on this exercise for its next set. Only the set that completes its
-    // last working set moves on (never a warm up, a stretch, or an extra set after going back).
-    if (advancesAfterLog(entries, w.done, id, kind, extraSets(sessionId, id))) {
-      const after = upNext(entries, done, id);
-      setJustDone(id);
-      // The chip is a button straight into the next exercise; untouched, it returns to the list (SPEC 20.2).
-      showChip(after ? `Nice. Next: ${w.nameOf(after)}` : 'Nice. Every set is done', CHIP_MS, id, () => goList(), after ?? undefined);
-      return;
-    }
-    // Still here for another set: a "Nice. Next" chip from the last working set never pulls the
-    // view away mid action (an extra set checked within its 2.5 s).
-    window.clearTimeout(chipTimer.current);
-    setChip(null);
-    const next = nextCurrent(entries, done, id);
-    const partner = entries.find((x) => x.exerciseId === next);
-    // 3.5b round 4 (M7): a Quick group's next member is a button under the set table, not a pill over the rows.
-    if (next !== id && e.kind === 'pair' && partner?.block === e.block && !e.roundRest) {
-      // A pair: its partner is one tap away on the chip, never an automatic jump (PLAN 2.0g).
-      showChip(`${e.pairSize > 2 ? 'Circuit' : 'Pair'}: ${w.nameOf(next)} next`, CHIP_MS, id, () => undefined, next);
-    }
-  };
-
-  const swipeNext = () => {
-    if (!exerciseId) return;
-    const i = order.indexOf(exerciseId);
-    const later = w.entries.slice(i + 1).find((e) => (w.done[e.exerciseId] ?? 0) < e.sets && !e.noFit) ?? w.entries[i + 1];
-    if (later) switchExercise(later.exerciseId);
-  };
-
-  // ---------------------------------------------------------------- quick workout: the picker
-
-  // An empty quick workout opens straight into the picker (SPEC 20.3), in the same frame as the
-  // list, so there is never a moment where "+ Add exercise" shows and then goes inert.
-  const autoPicked = useRef(false);
-  const autoOpen = w.ready && !autoPicked.current && !exerciseId && w.isQuick && w.entries.length === 0;
-  const closePicker = () => {
-    autoPicked.current = true;
-    setPicking(false);
-  };
-
-  // Just added: their view may open before the live session lists them.
-  const justAdded = useRef(new Set<string>());
-  const add = async (ids: string[]) => {
-    closePicker();
-    try {
-      for (const id of ids) {
-        await addExercise(sessionId, id);
-        justAdded.current.add(id);
-      }
-      // One exercise: straight into it, ready to log (SPEC 20.4 tap count).
-      if (ids.length === 1) openExercise(ids[0]!, true);
-    } catch (err) {
-      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not add that. Try again.');
-    }
-  };
-
-  // PLAN 3.4a: Up next adds one exercise with its suggested rest and opens it. One tap, one
-  // navigation: a second tap while it is adding (or right after) does nothing (SPEC 13.3).
-  const suggesting = useRef(false);
-  const addSuggestion = async (id: string, restSec: number) => {
-    if (suggesting.current) return;
-    suggesting.current = true;
-    try {
-      await addSuggested(sessionId, id, restSec);
-      justAdded.current.add(id);
-      openExercise(id, true);
-    } catch (err) {
-      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not add that. Try again.');
-    } finally {
-      window.setTimeout(() => (suggesting.current = false), TAP_GUARD_MS);
-    }
-  };
-
-  // Exercises whose load type is not known yet ask once, when they open (PLAN 1.7), in the same
-  // frame as the exercise view.
-  const asked = useRef(new Set<string>());
-  const needsType = w.ready && !!exerciseId && !w.loadTypeOf(exerciseId) && order.includes(exerciseId);
-  const askingNow = asking ?? (needsType && exerciseId && !asked.current.has(exerciseId) ? exerciseId : null);
-  const closeAsk = () => {
-    if (askingNow) asked.current.add(askingNow);
-    setAsking(null);
-  };
-
-  const answer = async (kind: Load['kind']) => {
-    const id = askingNow;
-    closeAsk();
-    if (!id || !w.gym) return;
-    try {
-      await saveLoadType(id, w.gym.id, kind);
-    } catch {
-      notice('Could not save that. Try again.');
-    }
-  };
-
-  // ---------------------------------------------------------------- edit, delete, undo
-
-  // Finish started: no edit is saved any more, and a save already running is one Finish waits for
-  // (logQueue.mutate), so the finished workout's sets and total never change afterwards (PLAN 1.7k).
-  // A failed save keeps the sheet open with its values and says so inside it (PLAN 2.0e): the toast
-  // behind a sheet is inert, so it could not be heard or tapped there.
-  const onSave = async (set: WorkoutSet, change: { reps?: number; seconds?: number; load: Load }): Promise<SaveResult> => {
-    if (finishing.current || logQueue.closed(sessionId)) {
-      setEditing(null);
-      return 'closed';
-    }
-    // Journaled with its values before the write (PLAN 2.0c): a failure survives a restart and blocks Finish.
-    const write = logQueue.mutate(sessionId, () => saveMutation(sessionId, set.exerciseId, { kind: 'edit', setId: set.id, change }));
-    if (!write) {
-      setEditing(null);
-      return 'closed';
-    }
-    try {
-      await write;
-      setEditing(null);
-      return 'saved';
-    } catch (err) {
-      if (err instanceof WorkoutFinishedError) {
-        setEditing(null);
-        notice('That workout is already finished');
-        return 'closed';
-      }
-      if (logQueue.closed(sessionId)) {
-        setEditing(null);
-        return 'closed';
-      }
-      return 'failed';
-    }
-  };
-  const openEdit = (set: WorkoutSet) => {
-    if (finishing.current || logQueue.closed(sessionId)) return;
-    setEditing(set);
-  };
-
-  const unhide = (id: string) =>
-    setHidden((h) => {
-      const next = new Set(h);
-      next.delete(id);
-      return next;
-    });
-
-  /** Undo, and Try again after a failed Undo: writes back that exact record (same id and order). */
-  const restore = (set: WorkoutSet) => {
-    if (finishing.current) return;
-    setToast(null);
-    deletes.undo(set.id).then(
-      (item) => item && unhide(set.id),
-      (err: unknown) =>
-        setToast(
-          err instanceof WorkoutFinishedError
-            ? toastOf('That workout is already finished')
-            : toastOf('Could not bring that set back', {
-                label: 'Try again',
-                onPress: () => restore(set),
-              }),
-        ),
-    );
-  };
-
-  const onDelete = async (set: WorkoutSet, removeRow = false): Promise<void> => {
-    if (finishing.current) return;
-    setEditing(null);
-    // PLAN 2.2d round 2: whether its row goes with it is stored with this delete (durably), and holds
-    // only while the set is deleted: every Undo path (here, recovery after a restart, Finish's retry)
-    // brings the row back with the set. A warm up on a normal lift never used a planned row (1.7j).
-    markDeleted(sessionId, set.id, removeRow && countsToward(w.entryOf(set.exerciseId), set.kind) ? set.exerciseId : null);
-    setHidden((h) => new Set(h).add(set.id));
-    const shown = toastOf('Set deleted', { label: 'Undo', onPress: () => restore(set) });
-    setToast(shown);
-    await deletes
-      .remove(set)
-      // Another tab had already deleted it (PLAN 2.0i): nothing here to undo, so no Undo is offered.
-      .then(() => {
-        if (!deletes.canUndo(set.id)) setToast((cur) => (cur?.id === shown.id ? null : cur));
-      })
-      .catch((err: unknown) => {
-        if (deletes.canUndo(set.id)) return; // an Undo already put it back
-        unhide(set.id);
-        // Finished meanwhile (another tab, PLAN 2.0e): nothing was deleted, and there is nothing to retry.
-        if (err instanceof WorkoutFinishedError) return notice('That workout is already finished');
-        // A change to this set has not saved yet (PLAN 2.0f): deleting now would lose it on Undo.
-        if (err instanceof SetHasPendingChangesError) return notice('A change to that set is not saved yet. Try again after it saves.');
-        setToast(
-          toastOf('Could not delete that set', {
-            label: 'Try again',
-            onPress: () => void onDelete(set, removeRow),
-          }),
-        );
-      });
-  };
-
-  // ---------------------------------------------------------------- the ⋯ menu
-
-  const menuAction = async (id: string, a: MenuAction) => {
-    setMenuFor(null);
-    if (a === 'loadType') {
-      setAsking(id);
-      return;
-    }
-    if (a === 'swap') {
-      setSwapFor(id);
-      return;
-    }
-    const ids = w.session?.exerciseIds ?? [];
-    try {
-      if (a === 'remove') {
-        const own = w.setsOfExercise(id);
-        if (own.length) return void removeWithSets(id, own);
-        const at = await removeExercise(sessionId, id);
-        justAdded.current.delete(id);
-        if (routeRef.current === id) goList();
-        const name = w.nameOf(id);
-        setToast(
-          // The verb first, so a shortened name still reads: "Removed · Angled Machine Leg Pr…" (gate round 2 P4).
-          toastOf(
-            '',
-            {
-              label: 'Undo',
-              onPress: () => {
-                setToast(null);
-                restoreExercise(sessionId, id, at).catch(() => notice('Could not put it back'));
-              },
-            },
-            name,
-            'Removed ·',
-          ),
-        );
-        return;
-      }
-      const next = moveInOrder(ids, id, a === 'up' ? -1 : 1, w.entryOf);
-      if (next) await setExerciseOrder(sessionId, next);
-    } catch {
-      notice('Could not change that. Try again.');
-    }
-  };
-
-  // ---------------------------------------------------------------- swap (PLAN 3.4)
-
-  /** One tracked write Finish waits for (logQueue.mutate). The view on screen follows the exercise. */
-  const swapBusy = useRef(false);
-  // The screen is on this exercise and on its way off it: a navigation waits for a closing sheet's
-  // step back (sheetHistory.whenSettled), so the list must not take over before it lands.
-  const moving = useRef<string | null>(null);
-  useEffect(() => {
-    if (moving.current !== exerciseId) moving.current = null;
-  }, [exerciseId]);
-  const doSwap = async (from: string, to: string, always = false) => {
-    setSwapFor(null);
-    if (swapBusy.current || finishing.current) return;
-    swapBusy.current = true;
-    if (routeRef.current === from) moving.current = from;
-    justAdded.current.add(to);
-    try {
-      const write = logQueue.mutate(sessionId, () => swapExercise(sessionId, from, to, { always }));
-      if (!write) throw new WorkoutFinishedError();
-      const receipt = await write;
-      if (routeRef.current === from) switchExercise(to);
-      justAdded.current.delete(from);
-      const shown = toastOf(
-        '',
-        {
-          label: 'Undo',
-          onPress: () => {
-            setToast((cur) => (cur?.id === shown.id ? null : cur));
-            if (routeRef.current === to) moving.current = to;
-            justAdded.current.add(from);
-            const back = logQueue.mutate(sessionId, () => undoSwap(sessionId, receipt));
-            if (!back) {
-              moving.current = null;
-              return notice('That workout is already finished');
-            }
-            back.then(
-              () => {
-                if (routeRef.current === to) switchExercise(from);
-                justAdded.current.delete(to);
-              },
-              (err: unknown) => {
-                moving.current = null;
-                notice(err instanceof SwapUndoStaleError ? 'You logged a set on it, so it stays' : err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not put it back');
-              },
-            );
-          },
-        },
-        w.nameOf(to),
-        'Swapped ·',
-      );
-      setToast(shown);
-    } catch (err) {
-      moving.current = null;
-      justAdded.current.delete(to);
-      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : err instanceof SwapPendingError ? 'A set is still saving. Try again in a moment.' : 'Could not swap that. Try again.');
-    } finally {
-      swapBusy.current = false;
-    }
-  };
-
-  /**
-   * PLAN 2.2d P2 (SPEC 13.1: Undo, never a refusal): an exercise with logged sets is removed with
-   * them. Each set goes through the workout's transactional delete (its tombstone and token, so an
-   * Undo survives a kill), then the exercise leaves the list; Undo puts the exercise back at its
-   * place and every set back exactly (same ids and order). Anything failing midway is put back.
-   * PLAN 2.0k: one undoable operation. The sets' Undo windows are held while they are deleted and
-   * start together, a little longer than the toast, only when its Undo shows; Undo is offered only
-   * while every set can still come back, and all of them are accepted before any is written back.
-   */
-  const removeWithSets = async (id: string, own: WorkoutSet[]) => {
-    if (finishing.current) return;
-    const ids = own.map((x) => x.id);
-    const unhideAll = () =>
-      setHidden((h) => {
-        const next = new Set(h);
-        for (const x of ids) next.delete(x);
-        return next;
-      });
-    for (const x of own) markDeleted(sessionId, x.id, null);
-    setHidden((h) => new Set([...h, ...ids]));
-    let gone: WorkoutSet[] = [];
-    try {
-      // One admitted operation (PLAN 3.2b): Finish waits for it, and a failure rolls every set back.
-      let at = -1;
-      gone = await deletes.removeAll(own, async () => {
-        at = await removeExercise(sessionId, id);
-      });
-      justAdded.current.delete(id);
-      if (routeRef.current === id) goList();
-      const n = gone.length;
-      const goneIds = gone.map((x) => x.id);
-      const shown = toastOf(`· ${n} ${n === 1 ? 'set' : 'sets'}`, {
-        label: 'Undo',
-        onPress: () => {
-          setToast((cur) => (cur?.id === shown.id ? null : cur));
-          // Never a partial Undo: only while every set can still come back exactly.
-          if (!deletes.canUndoAll(goneIds)) return notice('Too late to undo');
-          // One tracked operation from this tap (PLAN 2.0l): the exercise coming back, every set's
-          // acceptance and write back. Finish waits for all of it, or refuses with the sets still
-          // recoverable, never in between.
-          deletes
-            .undoAll(goneIds, () => restoreExercise(sessionId, id, at))
-            .then((back) => {
-              if (!back) throw new Error('Not put back');
-              unhideAll();
-            })
-            .catch(() => notice('Could not put it back'));
-        },
-      }, w.nameOf(id), 'Removed ·');
-      setToast(shown);
-      // One shared window from the moment Undo is offered, outlasting the toast (5 s).
-      deletes.release(goneIds, UNDO_MS + 1000);
-    } catch (err) {
-      await deletes.undoAll(gone.map((x) => x.id)).catch(() => undefined);
-      deletes.release(gone.map((x) => x.id));
-      unhideAll();
-      notice(err instanceof WorkoutFinishedError ? 'That workout is already finished' : 'Could not remove that. Try again.');
-    }
-  };
-
-  // ---------------------------------------------------------------- finish
-
-  const finishNow = async () => {
-    if (finishing.current) return;
-    // Nothing is counted while a required read failed or is still loading (PLAN 1.7h).
-    if (!w.ready) {
-      notice(w.error ? 'Could not load this workout. Try again.' : 'Still loading. Try again in a moment.');
-      return;
-    }
-    finishing.current = true;
-    // From this moment no new Log set starts (synchronous), so nothing lands after the count.
-    logQueue.close(sessionId);
-    const reopen = () => {
-      finishing.current = false;
-      logQueue.reopen(sessionId);
-      deletes.reopen();
-    };
-    try {
-      // The workout's recovery has run (PLAN 1.7k): an Undo asked for before a restart is back in
-      // the manager as unresolved, so close() below sees it. A recovery that fails refuses Finish.
-      await recoveryReady(sessionId);
-      // No new delete or Undo from here; every write still running lands before the sets are counted.
-      await deletes.close();
-      // A set whose write failed is never dropped: Finish stops and asks (the drafts and the workout stay).
-      const failed = await prepareFinish(sessionId);
-      // An edit or set type change that failed is never dropped silently either (PLAN 2.0c), also
-      // one whose journal write failed (held in memory, PLAN 2.0e).
-      const changes = await pendingMutations(sessionId);
-      if (failed.length || changes.length) {
-        reopen();
-        setUnsaved({ rows: failed.length, edits: changeCount(changes), editIds: changes.map((c) => c.id), rowIds: shownRows(failed) });
-        return;
-      }
-      // Finish keeps the plan pointer as it was, inside its own transaction, for Undo on Today.
-      // The pending and added rows are kept with it for Undo on Today (PLAN 2.0c).
-      const result = await finishWorkout(sessionId, undefined, undefined, snapshotPending(sessionId), ownedDeletes(sessionId));
-      disposeDeletes(sessionId);
-      setRest(null);
-      clearSessionDrafts(sessionId);
-      clearExtraSets();
-      if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'push', replace: true, flat: true });
-      else
-        go('/', {
-          kind: 'pop',
-          replace: true,
-          state: { toast: 'Nothing logged · Workout discarded' },
-        });
-    } catch (err) {
-      reopen();
-      // An Undo the user asked for never landed: Finish waits until it does or they cancel it.
-      if (err instanceof UndoUnresolvedError) setUndoStuck(err.ids);
-      else if (err instanceof UnresolvedDeletesError) {
-        // A deletion this app run does not know (another tab's): brought in as unresolved, so the
-        // same Restore or Keep deleted choice applies and Finish never discards it (PLAN 2.0f).
-        await recoverSession(sessionId).catch(() => undefined);
-        setUndoStuck(err.ids);
-      } else if (err instanceof UnsavedWritesError) {
-        // Journaled after the checks above (another tab, PLAN 2.0e): Finish refused in its own
-        // transaction, nothing changed. The same choice as above.
-        const rows = await failedRows(sessionId).catch(() => []);
-        const changes = await pendingMutations(sessionId).catch(() => []);
-        setUnsaved({ rows: rows.length, edits: changeCount(changes), editIds: changes.map((c) => c.id), rowIds: shownRows(rows) });
-      } else notice('Could not finish. Try again.');
-    }
-  };
-  const finish = useTapGuard(() => void finishNow());
-
-  /** The Undo sheet: Try again puts the sets back (then finishes), or keep them deleted. */
-  const retryUndos = async () => {
-    const ids = undoStuck ?? [];
-    setUndoStuck(null);
-    const back = await Promise.all(
-      ids.map((id) =>
-        deletes.undo(id).then(
-          (item) => {
-            if (item) unhide(id);
-            return true;
-          },
-          () => false,
-        ),
-      ),
-    );
-    if (back.every(Boolean)) await finishNow();
-    else notice('Could not bring that set back. Try again.');
-  };
-  const keepDeleted = async () => {
-    const ids = undoStuck ?? [];
-    setUndoStuck(null);
-    // Finish only once every cancellation is stored, else it would put those sets back (PLAN 1.7i).
-    const done = await Promise.all(ids.map((id) => deletes.cancel(id).then(() => true, () => false)));
-    if (done.every(Boolean)) await finishNow();
-    else setToast(toastOf('Could not keep that set deleted', { label: 'Try again', onPress: () => void finishNow() }));
-  };
-
-  /** The unsaved sets sheet: Try again writes them (then finishes), or finish without them. */
-  const unsavedBusy = useRef(false);
-  const retryUnsaved = async () => {
-    if (unsavedBusy.current) return;
-    unsavedBusy.current = true;
-    setUnsaved(null);
-    try {
-      const rows = await retryFailed(sessionId);
-      const edits = await retryMutations(sessionId);
-      if (rows && edits) await finishNow();
-      else notice(rows ? 'Could not save that change. Try again.' : 'Could not save that set. Try again.');
-    } finally {
-      unsavedBusy.current = false;
-    }
-  };
-  const finishWithout = async () => {
-    if (unsavedBusy.current) return;
-    unsavedBusy.current = true;
-    // Only the changes the sheet told about (PLAN 2.0e): one made after that still asks.
-    // And only the failed Logs it listed, at the revision listed (PLAN 2.0k): a later one still asks.
-    const shown = unsaved?.editIds ?? [];
-    const rowsShown = unsaved?.rowIds ?? [];
-    setUnsaved(null);
-    try {
-      await discardFailed(sessionId, undefined, rowsShown);
-      await dropMutations(sessionId, undefined, shown);
-      await finishNow();
-    } catch {
-      notice('Could not finish. Try again.');
-    } finally {
-      unsavedBusy.current = false;
-    }
-  };
+  const { lastViewed, expanding, justDone, setJustDone, openExercise, switchExercise, goList, viewRef, fallback, dir } = useExerciseNav(go, sessionId, exerciseId);
+  const { chip, setChip, chipTimer, showChip, holdChip, releaseChip } = useNiceChip(exerciseId, routeRef);
+  const { onLogged, swipeNext } = useAfterSet({ w, sessionId, exerciseId, order, setRest, setJustDone, showChip, chipTimer, setChip, goList, switchExercise });
+  const { picking, setPicking, autoOpen, closePicker, justAdded, add, addSuggestion } = useAddExercise({ w, sessionId, exerciseId, notice, openExercise });
+  const { setAsking, askingNow, closeAsk, answer } = useLoadTypeAsk(w, exerciseId, order, notice);
+  const { editing, setEditing, onSave, openEdit, unhide, onDelete } = useSetEdits({ w, sessionId, finishing, deletes, setHidden, setToast, notice });
+  const { swapFor, setSwapFor, doSwap, moving } = useSwap({ w, sessionId, exerciseId, routeRef, finishing, justAdded, switchExercise, setToast, notice });
+  const { menuFor: menuId, setMenuFor, menuAction } = useExerciseMenu({ w, sessionId, routeRef, finishing, deletes, justAdded, goList, setAsking, setSwapFor, setHidden, setToast, notice });
+  const { finish, unsaved, setUnsaved, undoStuck, setUndoStuck, retryUndos, keepDeleted, retryUnsaved, finishWithout } = useFinish({ w, sessionId, go, finishing, deletes, setRest, setToast, notice, unhide });
 
   const now = useNow(1000);
-
-  // The stats line drops the words "Total lifted" when the full line would wrap (round 2, P5).
-  const statsRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLSpanElement>(null);
-  const [tight, setTight] = useState(false);
-  useLayoutEffect(() => {
-    const box = statsRef.current;
-    const m = measureRef.current;
-    if (!box || !m || typeof ResizeObserver === 'undefined') return;
-    const fit = () => {
-      const room = box.clientWidth - (parseFloat(getComputedStyle(box).paddingLeft) || 0);
-      setTight(m.scrollWidth > room + 0.5);
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(box);
-    ro.observe(m);
-    return () => ro.disconnect();
-  }, [w.ready]);
 
   // Home only when a read that worked says the workout is gone, never after a failed read.
   if (w.sessionMissing && !finishing.current) {
@@ -776,15 +93,8 @@ export function WorkoutScreen() {
     return <Navigate to={`/workout/${sessionId}`} replace />;
   }
 
-  const startedAt = w.session?.startedAt;
-  const unit = w.gym?.unit ?? 'lb';
-  // Warm ups never count toward Total lifted (SPEC 21.1).
-  const lifted = totalLifted(w.sets.filter((s) => s.kind !== 'warmup'), unit);
   const editList = editing ? w.setsOfExercise(editing.exerciseId) : [];
   const editIndex = editing ? editList.findIndex((s) => s.id === editing.id) : 0;
-  const menuId = menuFor;
-  // Deleted sets an earlier app run left without an Undo asked for (PLAN 2.0e): asked plainly.
-  const leftOver = !!undoStuck?.length && undoStuck.every((id) => isLeftOver(sessionId, id));
   const menuEntry = menuId ? w.entryOf(menuId) : undefined;
   const ids = w.session?.exerciseIds ?? [];
 
@@ -802,16 +112,7 @@ export function WorkoutScreen() {
       onOpen={switchExercise}
       onNotice={notice}
       onRemoveSet={(set) => void onDelete(set, true)}
-      onUndoable={(text, undo) => {
-        const shown = toastOf(text, {
-          label: 'Undo',
-          onPress: () => {
-            setToast((cur) => (cur?.id === shown.id ? null : cur));
-            undo();
-          },
-        });
-        setToast(shown);
-      }}
+      onUndoable={undoable}
     />
   ) : (
     <DayList
@@ -835,98 +136,9 @@ export function WorkoutScreen() {
 
   return (
     <div className={styles.screen} data-resting={(rest && !w.error) || undefined} data-pair={pairNext ? true : undefined}>
-      <header className={styles.topBar}>
-        {exerciseId ? (
-          <BackButton onPress={() => goList()} label="Back to the list" />
-        ) : (
-          // Back to the tabs; the workout keeps going (the resume bar brings it back).
-          <IconButton label="Minimize workout" onPress={() => go('/', { kind: 'down' })}>
-            <ChevronDown strokeWidth={2.4} />
-          </IconButton>
-        )}
-        <div className={styles.stats} ref={statsRef}>
-          <span className={`${styles.clock} num`} data-testid="elapsed" role="timer" aria-live="off">
-            {startedAt ? formatElapsed((now - startedAt) / 1000) : w.error ? '' : '0:00'}
-          </span>
-          <span className={`${styles.statLine} num`} data-testid="live-stats">
-            {/* No count the app is not sure of while a read failed (PLAN 1.7h). */}
-            {w.error ? null : (
-              <>
-                <Odometer value={workSetCount(w.sets)} /> {workSetCount(w.sets) === 1 ? 'set' : 'sets'}
-                {lifted > 0 ? (
-                  <>
-                    {' · '}
-                    {/* Large text on a narrow phone: "1 set · 1,080 lb" on screen, one line (round 2, P5);
-                        the words stay for screen readers, hidden by clip-path (round 4: not an
-                        overflow clip, which would read as cut off text). */}
-                    {tight ? <span className={styles.srText}>Total lifted </span> : 'Total lifted '}
-                    {formatTotal(lifted, unit)}
-                  </>
-                ) : (
-                  ''
-                )}
-              </>
-            )}
-          </span>
-          {/* The full line as plain text, unseen: does it fit on one line? */}
-          <span ref={measureRef} className={`${styles.statLine} ${styles.statMeasure} num`} aria-hidden="true">
-            {`${workSetCount(w.sets)} ${workSetCount(w.sets) === 1 ? 'set' : 'sets'}${lifted > 0 ? ` · Total lifted ${formatTotal(lifted, unit)}` : ''}`}
-          </span>
-        </div>
-        <button type="button" className={`${styles.finish} pressable`} onClick={() => finish()}>
-          Finish
-        </button>
-      </header>
+      <WorkoutHeader w={w} now={now} exerciseId={exerciseId} go={go} onBack={() => goList()} onFinish={() => finish()} />
 
-      <div className={styles.stage} data-expand={expanding || undefined}>
-        {w.error ? (
-          <div className={styles.view}>
-            <LoadError text="Could not load this workout" onRetry={w.retry} />
-          </div>
-        ) : !w.ready ? (
-          <Skeleton height={220} className={styles.skeleton} />
-        ) : (
-          <>
-            {fallback ? (
-              <AnimatePresence initial={false} custom={dir}>
-                <motion.div
-                  key={exerciseId ?? 'list'}
-                  ref={(el: HTMLDivElement | null) => {
-                    // Only the arriving view: the leaving one must never take the edge swipe layer away.
-                    if (el) viewRef.current = el;
-                  }}
-                  className={styles.view}
-                  data-motion-view="true"
-                  custom={dir}
-                  variants={reduce ? pageVariantsReduced : pageVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={reduce ? FADE : PAGE_SPRING}
-                >
-                  <Present>{view}</Present>
-                </motion.div>
-              </AnimatePresence>
-            ) : (
-              <div key={exerciseId ?? 'list'} ref={viewRef} className={styles.view}>
-                {view}
-              </div>
-            )}
-            {exerciseId && (
-              <EdgeSwipe
-                key={`swipe-${exerciseId}`}
-                layerRef={viewRef}
-                onBack={() => goList('none')}
-                under={() => (
-                  <div className={styles.view}>
-                    <DayList w={w} heroId={null} onOpen={() => undefined} onAdd={() => undefined} still />
-                  </div>
-                )}
-              />
-            )}
-          </>
-        )}
-      </div>
+      <WorkoutStage w={w} view={view} exerciseId={exerciseId} expanding={expanding} fallback={fallback} dir={dir} reduce={reduce} viewRef={viewRef} onBack={() => goList('none')} />
 
       {/* The bottom of the frame: the rest bar floats over space every screen keeps free, so it
           never covers a heading or a row, and nothing moves when it comes or goes. */}
@@ -975,30 +187,8 @@ export function WorkoutScreen() {
           onDelete={onDelete}
         />
       )}
-      <Sheet open={unsaved !== null} onClose={() => setUnsaved(null)} label={unsaved && unsaved.rows === 0 ? 'Change not saved' : 'Set not saved'}>
-        <div className={styles.sheetBody} data-testid="unsaved-sheet">
-          <h2 className={styles.sheetTitle}>{unsavedTitle(unsaved)}</h2>
-          <p className={styles.sheetSub}>{unsavedSub(unsaved)}</p>
-          <button type="button" className={`${styles.logButton} pressable`} onClick={() => void retryUnsaved()}>
-            Try again
-          </button>
-          <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => void finishWithout()}>
-            {(unsaved?.rows ?? 1) + (unsaved?.edits ?? 0) === 1 ? 'Finish without it' : 'Finish without them'}
-          </button>
-        </div>
-      </Sheet>
-      <Sheet open={undoStuck !== null} onClose={() => setUndoStuck(null)} label={leftOver ? 'Keep it deleted?' : 'Undo did not finish'}>
-        <div className={styles.sheetBody} data-testid="undo-stuck-sheet">
-          <h2 className={styles.sheetTitle}>{undoStuckTitle(undoStuck, leftOver)}</h2>
-          <p className={styles.sheetSub}>{leftOver ? 'The app closed right after it was deleted.' : 'You tapped Undo, but it did not save.'}</p>
-          <button type="button" className={`${styles.logButton} pressable`} onClick={() => void retryUndos()}>
-            {leftOver ? ((undoStuck?.length ?? 1) === 1 ? 'Bring it back' : 'Bring them back') : 'Try again'}
-          </button>
-          <button type="button" className={`${styles.secondaryButton} pressable`} onClick={() => void keepDeleted()}>
-            {(undoStuck?.length ?? 1) === 1 ? 'Keep it deleted' : 'Keep them deleted'}
-          </button>
-        </div>
-      </Sheet>
+      <UnsavedSheet unsaved={unsaved} onClose={() => setUnsaved(null)} onRetry={() => void retryUnsaved()} onFinishWithout={() => void finishWithout()} />
+      <UndoStuckSheet sessionId={sessionId} undoStuck={undoStuck} onClose={() => setUndoStuck(null)} onRetry={() => void retryUndos()} onKeep={() => void keepDeleted()} />
       {time.sheet && <TimeBudgetSheet {...time.sheet} />}
       {w.ready && (
         <SwapSheet
@@ -1037,28 +227,4 @@ export function WorkoutScreen() {
       />
     </div>
   );
-}
-
-function undoStuckTitle(ids: string[] | null, leftOver: boolean): string {
-  const n = ids?.length ?? 1;
-  if (leftOver) return n === 1 ? 'Keep the set you deleted?' : `Keep the ${n} sets you deleted?`;
-  return n === 1 ? 'A deleted set did not come back' : `${n} deleted sets did not come back`;
-}
-
-/** "1 set did not save", "2 changes did not save", "1 set and 1 change did not save" (PLAN 2.0c). */
-function unsavedTitle(u: { rows: number; edits: number } | null): string {
-  const rows = u?.rows ?? 1;
-  const edits = u?.edits ?? 0;
-  const part = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-  if (edits === 0) return `${part(rows, 'set', 'sets')} did not save`;
-  if (rows === 0) return `${part(edits, 'change', 'changes')} did not save`;
-  return `${part(rows, 'set', 'sets')} and ${part(edits, 'change', 'changes')} did not save`;
-}
-
-function unsavedSub(u: { rows: number; edits: number } | null): string {
-  const rows = u?.rows ?? 1;
-  const edits = u?.edits ?? 0;
-  if (edits === 0) return rows === 1 ? 'It is still on its row.' : 'They are still on their rows.';
-  if (rows === 0) return edits === 1 ? 'Your edit is not saved yet.' : 'Your edits are not saved yet.';
-  return 'Nothing is lost yet.';
 }

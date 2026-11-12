@@ -1,0 +1,207 @@
+/* Reveal */
+.revealHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.check {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.checkRing {
+  stroke-width: 3;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 300ms var(--ease-out) 160ms forwards;
+}
+
+.checkMark {
+  stroke-width: 4.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  /* Done 640 ms after the page lands, 860 ms after the tap (SPEC 23.3: celebrations up to 900 ms). */
+  animation: draw 240ms var(--ease-out) 400ms forwards;
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: 22px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%), var(--surface-1);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.planName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.reason {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Round 3: "Why this plan", a quiet disclosure for the fit details. */
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.whySummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  margin: -8px 0;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.whySummary::-webkit-details-marker {
+  display: none;
+}
+
+.whySummary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.why[open] > .whySummary::after {
+  transform: translateY(1px) rotate(225deg);
+}
+
+.caveat {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.week {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The week builds in, one day after another (the one orchestrated moment). */
+.weekRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: clamp(5px, 1.2dvh, 10px) 10px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: row-in 200ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i) * 40ms);
+}
+
+/* PLAN 3.5w: the week and the check wait for the page to land, so the slide and the build in
+   never play on top of each other. */
+:global(html[data-nav]) .weekRow,
+:global(html[data-nav]) .checkRing,
+:global(html[data-nav]) .checkMark {
+  animation-play-state: paused;
+}
+
+.weekDay {
+  flex: none;
+  min-width: 2.7em;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.weekName {
+  flex: 1;
+  min-width: 0;
+  /* "Legs (hamstring focus)" stays on one line on the SE. */
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.weekTime {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.others {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.othersTitle {
+  margin: var(--space-2) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weekRow {
+    transform: none;
+    animation: fade-in 200ms ease-out forwards;
+    animation-delay: 0ms;
+  }
+  .checkRing,
+  .checkMark {
+    stroke-dashoffset: 0;
+    animation: fade-in 200ms ease-out both;
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes row-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

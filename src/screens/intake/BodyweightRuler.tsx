@@ -5,7 +5,7 @@ import { BODYWEIGHT_RANGE } from '../../lib/intake/funnel';
 import { LABEL_EVERY, labels, offsetFor, TICK_PX, valueAt } from '../../lib/intake/ruler';
 import { BODYWEIGHT_STEP, formatAmount } from '../../lib/load';
 import { tick } from '../../ui/haptics';
-import styles from './Intake.module.css';
+import fieldStyles from './IntakeFields.module.css';
 
 type Props = {
   unit: Unit;
@@ -120,11 +120,11 @@ export function BodyweightRuler({ unit, value, touched, onChange }: Props) {
   const labelStart = offsetFor(labels(unit)[0]!, unit);
 
   return (
-    <div className={styles.ruler} data-touched={touched || undefined}>
-      <div className={styles.needle} aria-hidden="true" />
+    <div className={fieldStyles.ruler} data-touched={touched || undefined}>
+      <div className={fieldStyles.needle} aria-hidden="true" />
       <div
         ref={ref}
-        className={styles.rulerTrack}
+        className={fieldStyles.rulerTrack}
         role="slider"
         tabIndex={0}
         aria-label={`Bodyweight in ${unit}`}
@@ -143,18 +143,18 @@ export function BodyweightRuler({ unit, value, touched, onChange }: Props) {
         onClick={confirm}
         data-testid="bodyweight-ruler"
       >
-        <span className={styles.rulerSpacer} aria-hidden="true" />
+        <span className={fieldStyles.rulerSpacer} aria-hidden="true" />
         <div
-          className={styles.ticks}
+          className={fieldStyles.ticks}
           style={{ width: width + 1, '--tick': `${TICK_PX}px`, '--major': `${labelPx}px`, '--major-start': `${labelStart}px`, '--whole': `${TICK_PX * 2}px` } as CSSProperties}
         >
           {labels(unit).map((v) => (
-            <span key={v} className={`${styles.tickLabel} num`} style={{ left: offsetFor(v, unit) }}>
+            <span key={v} className={`${fieldStyles.tickLabel} num`} style={{ left: offsetFor(v, unit) }}>
               {v}
             </span>
           ))}
         </div>
-        <span className={styles.rulerSpacer} aria-hidden="true" />
+        <span className={fieldStyles.rulerSpacer} aria-hidden="true" />
       </div>
     </div>
   );

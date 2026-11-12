@@ -29,15 +29,12 @@
 }
 
 .row {
+  composes: surface from '../../ui/card.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: 72px;
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
-  border: 1px solid var(--glass-line);
-  border-radius: 20px;
-  background: var(--card-fill);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
   color: var(--text);
   text-decoration: none;
 }

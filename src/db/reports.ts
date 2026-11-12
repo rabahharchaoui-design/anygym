@@ -3,14 +3,14 @@
 // signal. Network calls never happen inside these transactions (lib/reporting/transport.ts).
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { CrashPayload, FeedbackPayload, ReportQueueRow } from '../lib/reporting/types';
+import { dayKey } from '../lib/dayKey';
 
 /** How long a claimed report is reserved for one sender (another tab or a reload waits it out). */
 export const LEASE_MS = 30_000;
 
 /** Local calendar day, YYYY-MM-DD: a crash signature is reported at most once per day. */
 export function localDay(t: number): string {
-  const d = new Date(t);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return dayKey(new Date(t));
 }
 
 export async function enqueueFeedback(payload: FeedbackPayload, now = Date.now(), db: AnyGymDB = defaultDb): Promise<void> {

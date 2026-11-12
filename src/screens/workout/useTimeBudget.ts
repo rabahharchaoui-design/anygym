@@ -8,13 +8,14 @@ import { WorkoutFinishedError } from '../../db/workouts';
 import { useLive } from '../../hooks/useLive';
 import { slotOf } from '../../lib/swap';
 import { AS_PLANNED, budgetLabel, fitWords, type TrimResult } from '../../lib/timeBudget';
+import { dayKey } from '../../lib/dayKey';
 import type { TimeLine } from './DayList';
 import type { Workout } from './useWorkout';
 
 /** localStorage: the local day ("2026-11-06") the offer was last answered on. */
 export const TIME_OFFER_KEY = 'anygym-time-offer';
 
-const today = (now = new Date()) => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+const today = (now = new Date()) => dayKey(now);
 
 function answeredToday(): boolean {
   try {

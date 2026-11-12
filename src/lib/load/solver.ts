@@ -1,0 +1,188 @@
+// The plate solver: which plates per side make a target total, with only loadings that fit the sleeve.
+import { defaultPlateInventory } from '../../db/gyms';
+import type { Collars, Unit } from '../../db/types';
+import { PLATE_SPECS, plateSpec, SLEEVE_LENGTH } from '../plates';
+import { add, EPS, times, toInt } from './exact';
+import { collarsWeight, enabledPlates, sumLoad } from './sum';
+
+// ---------------------------------------------------------------- plate solver
+
+export type SolveOptions = {
+  /** Base weight (bar, Smith bar, or machine starting resistance). Must be known to solve. */
+  bar: number;
+  /** Enabled plate sizes in the gym unit. Each size may be used any number of times. */
+  inventory: readonly number[];
+  collars?: Collars;
+  unit: Unit;
+  /** Max plates per side. Defaults to whatever fits on the sleeve. */
+  maxPerSide?: number;
+  /** Loadable sleeve length in in (lb) or mm (kg). Defaults to SPEC 5.3. */
+  sleeveLength?: number;
+};
+
+export type Loading = { total: number; perSide: number[] };
+
+export type SolveResult =
+  | { exact: true; total: number; perSide: number[] }
+  | { exact: false; below?: Loading; above?: Loading; diffBelow?: number; diffAbove?: number };
+
+type Table = {
+  plates: number[];
+  thick: number[];
+  /** Plate weight in units of `step`. */
+  units: number[];
+  /** Weight of one unit. */
+  step: number;
+  maxC: number;
+  maxS: number;
+  sleeve: number;
+  /** cost[i][c * (maxS + 1) + s] = least sleeve used by plates i.. with at most c plates summing to s units. */
+  cost: Float64Array[];
+};
+
+const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+
+const tables = new Map<string, Table>();
+
+/**
+ * Least sleeve length for every reachable per side sum, by plate count, for plates i and lighter.
+ * Lets the solver prove which sums are loadable and rebuild them heaviest first.
+ */
+function buildTable(opts: SolveOptions): Table {
+  const plates = [...new Set(opts.inventory)].sort((a, b) => b - a);
+  const sleeve = opts.sleeveLength ?? SLEEVE_LENGTH[opts.unit];
+  const key = `${opts.unit}|${sleeve}|${opts.maxPerSide ?? ''}|${plates.join(',')}`;
+  const cached = tables.get(key);
+  if (cached) return cached;
+
+  const thick = plates.map((w) => plateSpec(w, opts.unit).thickness);
+  // Plate sizes have at most 3 decimals; milli units keep everything integer.
+  const milli = plates.map((w) => Math.round(w * 1000));
+  const g = milli.reduce((a, b) => gcd(a, b), 0) || 1;
+  const units = milli.map((m) => m / g);
+  const sleeveCap = plates.length ? Math.floor(sleeve / Math.min(...thick) + EPS) : 0;
+  const maxC = Math.max(0, Math.min(opts.maxPerSide ?? Infinity, sleeveCap));
+  const maxS = units.length ? maxC * Math.max(...units) : 0;
+  const width = maxS + 1;
+
+  const cost: Float64Array[] = new Array(plates.length + 1);
+  const last = new Float64Array((maxC + 1) * width).fill(Infinity);
+  for (let c = 0; c <= maxC; c++) last[c * width] = 0;
+  cost[plates.length] = last;
+  for (let i = plates.length - 1; i >= 0; i--) {
+    const next = cost[i + 1]!;
+    const row = new Float64Array((maxC + 1) * width).fill(Infinity);
+    const u = units[i]!;
+    const t = thick[i]!;
+    for (let c = 0; c <= maxC; c++) {
+      for (let s = 0; s <= maxS; s++) {
+        let best = Infinity;
+        for (let k = 0; k <= c && k * u <= s; k++) {
+          const v = k * t + next[(c - k) * width + s - k * u]!;
+          if (v < best) best = v;
+        }
+        row[c * width + s] = best;
+      }
+    }
+    cost[i] = row;
+  }
+
+  const table = { plates, thick, units, step: g / 1000, maxC, maxS, sleeve, cost };
+  tables.set(key, table);
+  return table;
+}
+
+const loadable = (t: Table, s: number): boolean => t.cost[0]![t.maxC * (t.maxS + 1) + s]! <= t.sleeve + EPS;
+
+/** Heaviest first plates for a loadable per side sum: as many of the heaviest plate as still leaves a fit. */
+function rebuild(t: Table, s: number): number[] {
+  const width = t.maxS + 1;
+  const out: number[] = [];
+  let c = t.maxC;
+  let room = t.sleeve + EPS;
+  let rest = s;
+  for (let i = 0; i < t.plates.length; i++) {
+    const u = t.units[i]!;
+    const th = t.thick[i]!;
+    const next = t.cost[i + 1]!;
+    let k = Math.min(c, Math.floor(rest / u));
+    while (k * th + next[(c - k) * width + rest - k * u]! > room) k--;
+    for (let j = 0; j < k; j++) out.push(t.plates[i]!);
+    c -= k;
+    rest -= k * u;
+    room -= k * th;
+  }
+  return out;
+}
+
+/**
+ * Plates per side for a target total (SPEC 5.4). Heaviest plates first, symmetric, and only
+ * loadings that fit on the sleeve count. When the target cannot be loaded exactly, returns the
+ * nearest loadable totals below and above ("Closest: 185 or 190"). A target under the base
+ * weight has no `below`; its `above` is the empty bar.
+ */
+export function solvePlates(target: number, opts: SolveOptions): SolveResult {
+  const t = buildTable(opts);
+  const base = add(opts.bar, collarsWeight(opts.collars ?? 'none', opts.unit));
+  const totalOf = (s: number): number => add(base, times(t.step, 2 * s));
+  const loadingOf = (s: number): Loading => {
+    const perSide = rebuild(t, s);
+    return { total: sumLoad({ bar: opts.bar, perSide, collars: opts.collars, unit: opts.unit }).total!, perSide };
+  };
+
+  let below: number | undefined;
+  let above: number | undefined;
+  for (let s = 0; s <= t.maxS; s++) {
+    if (!loadable(t, s)) continue;
+    const total = totalOf(s);
+    if (Math.abs(total - target) < EPS) {
+      const { perSide } = loadingOf(s);
+      return { exact: true, total, perSide };
+    }
+    if (total < target) below = s;
+    else {
+      above = s;
+      break;
+    }
+  }
+
+  const result: SolveResult = { exact: false };
+  if (below !== undefined) {
+    result.below = loadingOf(below);
+    result.diffBelow = add(target, -result.below.total);
+  }
+  if (above !== undefined) {
+    result.above = loadingOf(above);
+    result.diffAbove = add(result.above.total, -target);
+  }
+  return result;
+}
+
+/** Nearest loading to a target, preferring the lighter one on a tie. */
+export function nearestLoading(target: number, opts: SolveOptions): Loading {
+  const r = solvePlates(target, opts);
+  if (r.exact) return { total: r.total, perSide: r.perSide };
+  if (r.below && (!r.above || r.diffBelow! <= r.diffAbove!)) return r.below;
+  return r.above!;
+}
+
+/**
+ * Real plates for one side that weigh exactly `side` (an imported "per side" number, SPEC 9.3):
+ * the listed plates when they are all real plates and add up, else heaviest first from the usual
+ * plates (SPEC 5.3 defaults), then from every real plate of the unit (sleeve fit respected). null
+ * when no real loading weighs exactly that.
+ */
+export function platesForSide(side: number, unit: Unit, listed?: readonly number[]): number[] | null {
+  const real = PLATE_SPECS[unit].map((p) => p.weight);
+  if (listed && listed.length > 0 && listed.every((w) => real.includes(w)) && toInt(add(...listed)) === toInt(side)) return [...listed];
+  for (const inventory of [enabledPlates(defaultPlateInventory(unit)), real]) {
+    const r = solvePlates(times(side, 2), { bar: 0, inventory, unit });
+    if (r.exact) return r.perSide;
+  }
+  return null;
+}
+
+/** A plate size the app knows for this unit (SPEC 5.3 table). Anything else is never drawn or solved. */
+export function isKnownPlate(weight: number, unit: Unit): boolean {
+  return PLATE_SPECS[unit].some((p) => p.weight === weight);
+}

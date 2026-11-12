@@ -1,0 +1,160 @@
+/* Parts of a set row that stand on their own: the set number and its type chip, LAST TIME, the cell button, the
+   inline stepper and the timed hold cell. */
+
+.setNo {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 12px;
+  color: var(--text-2);
+}
+
+.setNoNum {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* A set type is a word chip under the number (SPEC 21.1 in plain words): never a bare letter. */
+.typeChip {
+  max-width: 48px;
+  padding: 1px 3px;
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* "Until you can't" is the one chip that takes two lines, broken between words only. */
+.setNo[data-type='failure'] .typeChip {
+  white-space: normal;
+  overflow-wrap: normal;
+}
+
+.setNo:has(.typeChip) .setNoNum {
+  font-size: 13px;
+}
+
+.setNo[data-type='warmup'] {
+  color: var(--amber);
+}
+
+.setNo[data-type='drop'] {
+  color: var(--text-2);
+}
+
+.setNo[data-type='failure'] {
+  color: var(--accent);
+}
+
+.last {
+  min-width: 0;
+  padding-left: 6px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.15;
+  /* wraps onto a second line at large text sizes, never "…" (PLAN 1.7g) */
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.cellButton {
+  min-height: 48px;
+  border-radius: 12px;
+}
+
+.cellButton:disabled {
+  cursor: default;
+}
+
+/* Inline reps (or hold) stepper under the row being changed. */
+/* The first time line, right under the row it is about (SPEC 6 rule 5). */
+.rowNote {
+  margin: 2px 0 4px;
+  padding: 0 4px;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.stepperRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.stepperRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.stepperDone {
+  flex: none;
+  min-width: 64px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+/* Timed: the current Hold cell is the timer, a ring beside exactly what the ✓ will log. */
+.holdCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 4px;
+  overflow: hidden;
+  color: var(--accent);
+  text-align: left;
+}
+
+.holdText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.holdPlay {
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+.holdMain {
+  font-size: clamp(14px, 4.2vw, 18px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.holdSub {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.holdCell[data-running] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.holdRing {
+  flex: none;
+}

@@ -11,7 +11,8 @@ import { withNotes } from './quickNotes';
 import { quickMinutes } from './quickStyles';
 import { type Muscle, muscleWord, patternTargets } from './order';
 import { type Pattern, requiresOf, workoutIdOf } from './swap';
-import { TIRED_MS, cap, leavesOut, mainWords, muscleRestLine, restedLine, targetsOf, trainedWithin, wordList } from './quickWhy';
+import { TIRED_MS, leavesOut, mainWords, muscleRestLine, restedLine, targetsOf, trainedWithin, wordList } from './quickWhy';
+import { cap } from './words';
 
 /** The fresh concept's pool, big moves first; only the patterns that train no recent muscle stay. */
 export const FRESH_POOL: Pattern[] = ['squat', 'hinge', 'horizontal push', 'horizontal pull', 'vertical push', 'vertical pull', 'lunge', 'glutes', 'lateral delt', 'chest isolation', 'rear delt', 'biceps', 'triceps', 'quads isolation', 'hamstrings isolation', 'calves', 'core'];

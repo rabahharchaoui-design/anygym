@@ -11,7 +11,7 @@ import type { ExerciseInfo } from '../../lib/exerciseInfo';
 import type { Load } from '../../db/types';
 import type { WorkoutEntry } from '../../lib/planWorkout';
 import { Thumb } from './Thumb';
-import styles from './Workout.module.css';
+import styles from './ExerciseHead.module.css';
 
 type Props = {
   name: string;

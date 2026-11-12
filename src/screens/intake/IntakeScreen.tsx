@@ -41,6 +41,7 @@ import { generate } from '../../data/generator';
 import { generatorInputOf } from '../../lib/intake/yourPlan';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
+import noPlanStyles from './IntakeNoPlan.module.css';
 
 /** How long a tapped card pulses before the next screen comes in (PLAN 3.5w: 170 ms, was 250: seen, never waited for). */
 export const AUTO_ADVANCE_MS = 170;
@@ -254,9 +255,9 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
         {step !== 'goal' && STRIP_SCREENS.has(step) && <PlanSoFarLine answers={answers} />}
         <main ref={scroller} className={styles.body} data-scroller data-hold={hold !== null ? '' : undefined} style={hold !== null ? ({ '--hold': `${hold}px` } as CSSProperties) : undefined}>
           {first && !redo && (
-            <div className={styles.intro} data-testid="intake-intro">
-              <span className={styles.wordmark}>AnyGym</span>
-              <p className={styles.introLine}>Train in any gym. About 2 minutes.</p>
+            <div className={noPlanStyles.intro} data-testid="intake-intro">
+              <span className={noPlanStyles.wordmark}>AnyGym</span>
+              <p className={noPlanStyles.introLine}>Train in any gym. About 2 minutes.</p>
             </div>
           )}
           <h1 className={styles.title}>{copy.title}</h1>
@@ -271,7 +272,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
         {kind === 'single' ? (
           <div className={styles.foot}>
             {skipRestButton}
-            <p className={styles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
+            <p className={noPlanStyles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
           <BottomCTA onPress={next} disabled={!ready} {...(deckStep ? {} : { disabledReason: step === 'weekdays' && answers.days ? `Pick ${answers.days}, or skip` : WHY[step] })} reasonAndNote={!deckStep} above={skipRestButton} {...(deckStep ? {} : { note: first ? STAYS_HERE_FIRST : STAYS_HERE })} testId="intake-cta" className={styles.cta}>

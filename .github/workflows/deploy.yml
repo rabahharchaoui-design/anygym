@@ -41,13 +41,14 @@ jobs:
       - if: steps.modules.outputs.cache-hit != 'true'
         run: npm ci
       - run: npm run typecheck
+      # Structure rules: files over 400 lines may not grow, screens do not import src/db directly.
+      - run: npm run lint
       - run: npm test
       # Type check, production build, and the secret scan of every tracked file and of dist/.
       - run: npm run build
       - run: npm run perf:bundle
-      # The size guard arrives with PLAN 3.6x; it runs as soon as the file exists.
-      - run: |
-          if [ -f scripts/size-guard.mjs ]; then node scripts/size-guard.mjs; else echo "size guard not in this branch yet"; fi
+      # Files over 400 lines may only get smaller; a new one over 400 fails (also part of the build above).
+      - run: npm run size
       - id: browsers
         uses: actions/cache@v4
         with:

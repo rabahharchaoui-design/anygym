@@ -55,5 +55,8 @@ export async function seedWorkingSets(page: Page, count: number): Promise<number
     }
   }
   await dbPut(page, { sets, orderCounters: [{ sessionId: session.id, next: order }] });
+  // dbPut writes behind Dexie's back (a real user cannot), and Dexie 4 serves a live query it
+  // already ran from its cache until Dexie itself sees a write. Reload so the app reads fresh.
+  await page.reload();
   return planned;
 }

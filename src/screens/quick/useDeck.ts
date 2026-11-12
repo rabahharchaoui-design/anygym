@@ -18,6 +18,8 @@ import type { GymKit } from '../../lib/picker';
 import { requiresOf } from '../../lib/swap';
 import { hangsBodyweight } from '../../lib/quickStyles';
 import type { Decision } from './Deck';
+import { UNDO_MS } from '../../lib/undoQueue';
+import { useToastTimeout } from '../../ui/useToastTimeout';
 
 export type Curating = {
   concept: Concept;
@@ -176,11 +178,7 @@ export function useDeck(base: GeneratorInput | null, kit: GymKit | null, neverNo
     });
   };
 
-  useEffect(() => {
-    if (!notice) return;
-    const t = window.setTimeout(() => setNotice((cur) => (cur?.id === notice.id ? null : cur)), 5000);
-    return () => window.clearTimeout(t);
-  }, [notice]);
+  useToastTimeout(notice, setNotice, () => UNDO_MS);
 
   const curate = (c: Concept) => {
     setError('');

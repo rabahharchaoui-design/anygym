@@ -1,0 +1,243 @@
+/* Equipment */
+.equipBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.equipCount {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.textButton {
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  color: var(--accent);
+  font-size: var(--text-base);
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.textButton:active {
+  opacity: 0.6;
+  transition-duration: 0ms;
+}
+
+/* PLAN 3.3a: groups of picture tiles, three across. */
+.equipGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.equipGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 34px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* A group's All: a small pill; accent outline and check when every item in it is on. */
+.groupAll {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+/* 44 pt hit area around the 32 pt pill. */
+.groupAll::after {
+  content: '';
+  position: absolute;
+  inset: -6px -4px;
+}
+
+.groupAll:active {
+  transform: scale(0.95);
+  transition-duration: 0ms;
+}
+
+.groupAll[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+}
+
+.groupAllCheck {
+  opacity: 0.35;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.groupAll[aria-pressed='true'] .groupAllCheck {
+  opacity: 1;
+}
+
+.equipGrid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* The 320 floor (and very large text): two across, so no word breaks inside a tile. */
+@media (max-width: 350px) {
+  .equipGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tileCell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+/* Round 2 (B3, P11): the picture centred in a 56 pt box, the name below; the check badge in the
+   top left corner and the ⓘ in the top right, both clear of the picture. */
+.tile {
+  position: relative;
+  width: 100%;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 10px 8px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.tile:active {
+  transform: scale(0.96);
+  transition-duration: 0ms;
+}
+
+.tile[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 2%, transparent)), var(--surface-1);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tileArt {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  color: var(--text-2);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.tile[aria-pressed='true'] .tileArt {
+  color: var(--accent);
+}
+
+.art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* On: a small accent badge in the top left corner. Scales in on the tap spring, never from 0. */
+.tileCheck {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    transform var(--dur-tap) var(--ease-tap-spring),
+    opacity 120ms var(--ease-out);
+}
+
+.tile[aria-pressed='true'] .tileCheck {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tileName {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.005em;
+  /* PLAN 3.5j round 2: never a break inside a word ("Resistanc/e bands"): up to two lines of whole words. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.tileInfo {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile:active,
+  .groupAll:active {
+    transform: none;
+    opacity: var(--press-dim);
+  }
+  .tileCheck,
+  .tile[aria-pressed='true'] .tileCheck {
+    transform: none;
+  }
+}

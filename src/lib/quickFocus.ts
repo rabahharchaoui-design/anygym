@@ -12,7 +12,8 @@ import { type Concept, type QuickDeps, type QuickInput, quickDepsFor } from './q
 import { rankSoft, sureGear } from './quickDeck';
 import { gearOf, itemsOf, mainMuscles } from './quickShow';
 import { type GroupedItem, quickMinutes } from './quickStyles';
-import { cap, muscleRestLine, wordList } from './quickWhy';
+import { muscleRestLine, wordList } from './quickWhy';
+import { cap } from './words';
 import { muscleWord } from './order';
 import { type Pattern, workoutIdOf } from './swap';
 import { noteById } from './coachFacts';

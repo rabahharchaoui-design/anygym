@@ -32,6 +32,9 @@ async function finish(page: Page) {
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(/\/done$/);
   await expect(page.getByTestId('finish-title')).toBeVisible();
+  // PLAN 3.6b: a first workout opens with the full screen moment (about 1.4 s, any tap skips); wait
+  // for it to settle into the screen like a user would before checking the controls under it.
+  await expect(page.getByTestId('celebrate-big')).toHaveCount(0, { timeout: 4000 });
 }
 
 test('below 60% keeps Day 1: no radios, one Next up line, Today keeps Day 1 @matrix', async ({ page }) => {

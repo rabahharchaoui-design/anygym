@@ -7,6 +7,7 @@ import { parseTyped, pressKey } from '../../lib/numpad';
 import { Sheet } from '../../ui/Sheet';
 import { InfoButton } from '../info/InfoButton';
 import { NumPad } from './NumPad';
+import { TypedReadout } from './TypedReadout';
 import styles from './EquipmentWeightSheet.module.css';
 
 type Props = {
@@ -96,12 +97,7 @@ export function EquipmentWeightSheet({ open, onClose, gymId, unit, machineId, ki
 
         {showPad && (
           <>
-            <div className={styles.display}>
-              <span className={`${styles.typed} num`} data-testid="equipment-typed" aria-live="polite">
-                {text || <span className={styles.placeholder}>0</span>}
-              </span>
-              <span className={styles.unit}>{unit}</span>
-            </div>
+            <TypedReadout text={text} unit={unit} testId="equipment-typed" />
             <NumPad onKey={(k) => setText((t) => pressKey(t, k))} />
             <button
               type="button"

@@ -2,8 +2,8 @@
 // when they were last trained, from logged sets only. Pure. Moved out of quick.ts (code organization).
 import { type Muscle, muscleWord } from './order';
 import type { QuickDeps, QuickInput, QuickItem } from './quick';
+import { cap } from './words';
 
-export const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /** "quads, chest and back": the first `max` words, then "and more". */
 export function wordList(words: readonly string[], max = 3): string {

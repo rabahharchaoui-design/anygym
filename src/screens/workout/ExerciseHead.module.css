@@ -1,0 +1,250 @@
+/* The title and its set line are controls (a tap opens the demo), never selected text, also not by
+   the edge swipe (round 2, P6). */
+.heroCaption,
+.head .heroText {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* ---- the demo hero (PLAN 2.2b): about 30% of the screen, less on short phones */
+.hero {
+  --hero-h: max(clamp(150px, 30svh, 320px), calc(var(--cap, 0px) + 52px));
+  position: sticky;
+  /* Scrolls up until only its foot (name, set, ⋯) is left, then stays pinned over the table. */
+  top: calc(var(--pin, 76px) - var(--hero-h));
+  z-index: 3;
+  height: var(--hero-h);
+  margin: 0 calc(var(--pad-r) * -1) 2px calc(var(--pad-l) * -1);
+  overflow: hidden;
+  background: var(--surface-2);
+  contain: layout paint;
+}
+
+.heroArt {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* The picture's tap target: the hero above its foot (the foot opens the demo on its own). The hero
+   is never shorter than the foot plus 52 px (see --hero-h below), so this is a 48 pt target in both
+   hero states (SPEC 13.3). */
+.heroStage {
+  position: absolute;
+  inset: 0 0 var(--cap, 0px);
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.heroMedia {
+  --seam: 9%;
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 0;
+  transition: opacity var(--dur-press) linear;
+}
+
+/* Instant press feedback (SPEC 13.2): a slight dim, no scale on a full width picture. */
+.hero:has(.heroStage:active) .heroArt {
+  opacity: var(--press-dim);
+}
+
+/* The foot: a dark fade from the photo into the page, with the name and the set line on it. */
+.heroCaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: 28px var(--pad-r) 8px var(--pad-l);
+  /* Above the picture's button, so the name is the top hit target (gate s2); a tap here opens the
+     demo too (ExerciseView), and the press dim follows. */
+  z-index: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero:not([data-folded]):has(.heroCaption:active:not(:has(button:active))) .heroArt {
+  opacity: var(--press-dim);
+}
+
+.hero[data-folded] .heroCaption {
+  cursor: default;
+}
+
+/* Folded: the picture fades out and the foot becomes a clean dark title bar (name, set, ⋯). */
+.heroCaption::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--glass-bg-strong);
+  border-bottom: 1px solid var(--glass-line);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.heroCaption {
+  isolation: isolate;
+}
+
+/* The dark fade under the name: its own layer, so it can wait (round 3, critic B2). */
+.heroCaption::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 72%, transparent) 42%, var(--bg));
+  transition: opacity 120ms var(--ease-out);
+}
+
+/* While a screen change runs the hero slot stays a plain dark surface: no blurred copy and no fade
+   under the flying photo (no double exposure, no blur repainted in a moving frame). Both fade in
+   over 120 ms once the photo has landed (round 3, critic B1 and B2). */
+:global(html[data-nav]) .heroCaption::after,
+:global(html[data-nav]) .hero [data-hero-fill] {
+  opacity: 0;
+  transition: none;
+}
+
+.heroStage {
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.hero[data-folded] .heroStage,
+.hero[data-folded] .heroArt {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero[data-folded] .heroCaption::before {
+  opacity: 1;
+}
+
+.hero[data-folded] .heroCaption .exName {
+  text-shadow: none;
+}
+
+.heroCaption .moreButton {
+  pointer-events: auto;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-line);
+}
+
+.heroCaption .exName {
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--black) 50%, transparent);
+}
+
+/* As the page scrolls the picture drifts and fades behind its pinned foot (compositor only). */
+@supports (animation-timeline: scroll()) {
+  .heroMedia {
+    animation: hero-away linear both;
+    animation-timeline: scroll(nearest block);
+    animation-range: 0 220px;
+  }
+  @keyframes hero-away {
+    to {
+      transform: translateY(42%) scale(0.94);
+      opacity: 0.35;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroMedia {
+    animation: none;
+  }
+}
+
+/* Short phones (iPhone SE, a 659 pt tall Safari window): the picture is small from the start, so
+   the whole set table and the rest bar share the first screen (SPEC 13.5, PLAN 3.5g) and nothing
+   ever resizes after a check (PLAN 3.5w: the hero used to shrink 22 px under the thumb half a
+   second after a log). Taller phones keep the full picture; a long table scrolls it away instead. */
+@media (max-height: 740px) {
+  .hero {
+    --hero-h: max(clamp(112px, 17svh, 130px), calc(var(--cap, 0px) + 52px));
+  }
+}
+
+/* ---- no sure demo: the compact header */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.heroTile {
+  flex: none;
+  border-radius: 14px;
+}
+
+.heroText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.exName {
+  /* Wraps, never clipped (PLAN 1.7g): long names step down a size instead of being cut off. */
+  font-size: clamp(18px, 5.4vw, 23px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.exTarget {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.pairLine {
+  margin: 1px 0 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.exNote {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.moreButton {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--white) 6%, transparent);
+}
+
+.planNote {
+  margin-top: -4px;
+}

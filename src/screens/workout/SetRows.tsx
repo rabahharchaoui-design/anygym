@@ -15,11 +15,13 @@ import { RepsStepper } from './RepsStepper';
 import { SwipeRow } from './SwipeRow';
 import { DrawnCheck, PRBadge } from '../../ui/celebrate';
 import type { SetRecord } from '../../lib/records';
-import styles from './SetTable.module.css';
+import styles from './SetRowParts.module.css';
+import row from './SetRow.module.css';
+import table from './SetTable.module.css';
 
 /** Words ("Just you", "40 + bar") wrap onto two short lines in the cell; numbers roll (PLAN 2.2b). */
 const isWord = (v: string) => /[a-z]/i.test(v);
-const WeightFace = ({ value }: { value: string }) => (isWord(value) ? <span className={styles.word}>{value}</span> : <Odometer value={value} />);
+const WeightFace = ({ value }: { value: string }) => (isWord(value) ? <span className={row.word}>{value}</span> : <Odometer value={value} />);
 
 /** One hold format everywhere: "45 s" under a minute, "1:05" from a minute on. */
 const holdText = (seconds: number) => (seconds < 60 ? `${Math.max(0, Math.floor(seconds))} s` : formatElapsed(seconds));
@@ -101,30 +103,30 @@ export const LoggedRow = memo(
           onDelete={() => api.removeLogged(s)}
           onLongPress={() => api.loggedType(s)}
           enabled={removable}
-          face={{ className: styles.row, 'data-state': 'logged', 'data-fresh': fresh !== undefined || undefined, style: since(fresh) }}
+          face={{ className: row.row, 'data-state': 'logged', 'data-fresh': fresh !== undefined || undefined, style: since(fresh) }}
         >
           <TypeButton t={t} number={number} onPress={() => api.loggedType(s)} />
           <button
             type="button"
-            className={`${styles.loggedBody} pressable`}
+            className={`${table.loggedBody} pressable`}
             onClick={() => api.edit(s)}
             aria-label={`Set ${at + 1}${t === 'normal' ? '' : `, ${SET_TYPE_WORDS[t]}`}: ${formatSet(s)}${record ? ', personal record' : ''}. Edit`}
           >
             <span className={`${styles.last} num`}>{last || '–'}</span>
             {!timed && (
-              <span className={`${styles.cellValue} num`} data-word={(cells.weight && isWord(cells.weight)) || undefined} data-testid="saved-weight">
+              <span className={`${row.cellValue} num`} data-word={(cells.weight && isWord(cells.weight)) || undefined} data-testid="saved-weight">
                 {cells.weight || '–'}
               </span>
             )}
-            <span className={`${styles.cellValue} num`} data-testid="saved-amount" data-pr={record ? '' : undefined}>
+            <span className={`${row.cellValue} num`} data-testid="saved-amount" data-pr={record ? '' : undefined}>
               {cells.amount || '–'}
             </span>
           </button>
           {/* After the reps, outside the edit button (critic B3): its own 44 pt tap shows what it beat. */}
-          {record && <PRBadge setId={s.id} detail={prDetail(record)} className={styles.prBadge} />}
-          <span className={styles.checkDone} aria-hidden="true">
+          {record && <PRBadge setId={s.id} detail={prDetail(record)} className={row.prBadge} />}
+          <span className={row.checkDone} aria-hidden="true">
             {/* SMALL (PLAN 3.6b): the check draws itself; the "New best" chip before it springs in. */}
-            <DrawnCheck draw={fresh !== undefined} className={styles.checkIcon} />
+            <DrawnCheck draw={fresh !== undefined} className={row.checkIcon} />
           </span>
         </SwipeRow>
       </li>
@@ -171,7 +173,7 @@ export const TodoRow = memo(
     const target = r.seconds ?? 0;
     const holdState: 'ready' | 'running' | 'stopped' = p.hold?.running ? 'running' : p.liveSeconds > 0 ? 'stopped' : 'ready';
     return (
-      <li className={styles.rowGroup} data-current-group={p.groupMark || undefined}>
+      <li className={table.rowGroup} data-current-group={p.groupMark || undefined}>
         <SwipeRow
           rowKey={p.rowKey}
           deleteLabel={`Delete set ${number}`}
@@ -179,7 +181,7 @@ export const TodoRow = memo(
           onDelete={(id) => api.removeId(r, id)}
           onLongPress={() => api.type(r)}
           enabled={p.removable}
-          face={{ className: styles.row, 'data-state': isCurrent ? 'current' : 'todo', 'data-testid': 'set-todo', 'data-sending': p.sendingAt !== undefined || undefined, style: since(p.sendingAt) }}
+          face={{ className: row.row, 'data-state': isCurrent ? 'current' : 'todo', 'data-testid': 'set-todo', 'data-sending': p.sendingAt !== undefined || undefined, style: since(p.sendingAt) }}
         >
           <TypeButton t={r.type} number={number} onPress={() => api.type(r)} />
           <button
@@ -194,7 +196,7 @@ export const TodoRow = memo(
           {!timed && (
             <button
               type="button"
-              className={`${styles.cellButton} ${styles.cellValue} num pressable`}
+              className={`${styles.cellButton} ${row.cellValue} num pressable`}
               // Only the current row asks for a pick (accent); rows further down stay quiet.
               data-empty={(!weight && isCurrent) || undefined}
               data-quiet={(!weight && !isCurrent) || undefined}
@@ -235,7 +237,7 @@ export const TodoRow = memo(
           ) : (
             <button
               type="button"
-              className={`${styles.cellButton} ${styles.cellValue} num pressable`}
+              className={`${styles.cellButton} ${row.cellValue} num pressable`}
               data-empty={!amount || undefined}
               data-cue={p.cue && amount ? '' : undefined}
               aria-expanded={p.editingHere}
@@ -247,20 +249,20 @@ export const TodoRow = memo(
             </button>
           )}
           {/* A disabled ✓ takes no taps itself; the wrap under it hears them and the view says why. */}
-          <span className={styles.checkWrap} onClick={blocked !== null ? () => api.blocked(r) : undefined} data-testid={blocked !== null ? 'check-blocked' : undefined}>
+          <span className={row.checkWrap} onClick={blocked !== null ? () => api.blocked(r) : undefined} data-testid={blocked !== null ? 'check-blocked' : undefined}>
             <button
               type="button"
-              className={`${styles.check} pressable`}
+              className={`${row.check} pressable`}
               disabled={blocked !== null}
               onClick={(e) => api.check(r, e)}
               aria-label={blocked ? `Set ${n}: ${blocked}` : `Log set ${n}: ${timed ? `${shownSeconds ?? 0} s` : formatSet({ reps: r.reps, load: r.load ?? undefined })}`}
               data-testid={isCurrent ? 'check-current' : 'check'}
             >
-              <span className={styles.checkCircle} data-labelled={p.logLabel ? '' : undefined}>
-                <DrawnCheck draw={p.sendingAt !== undefined} className={styles.checkIcon} />
+              <span className={row.checkCircle} data-labelled={p.logLabel ? '' : undefined}>
+                <DrawnCheck draw={p.sendingAt !== undefined} className={row.checkIcon} />
                 {/* Words for the first time (PLAN 2.0l): the outlined ✓ is the action. Inside the circle, so nothing moves when it goes. */}
                 {p.logLabel && (
-                  <span className={styles.checkLabel} aria-hidden="true" data-testid="check-label">
+                  <span className={row.checkLabel} aria-hidden="true" data-testid="check-label">
                     Log
                   </span>
                 )}

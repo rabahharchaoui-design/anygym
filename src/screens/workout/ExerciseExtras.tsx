@@ -2,7 +2,7 @@ import { memo } from 'react';
 import type { ExerciseInfo } from '../../lib/exerciseInfo';
 import { MusclePair } from '../../components/muscles/MuscleMap';
 import { FormTips } from '../../components/exercise/FormTips';
-import styles from './Workout.module.css';
+import styles from './ExerciseExtras.module.css';
 
 type Props = {
   info: ExerciseInfo;

@@ -5,7 +5,7 @@ import { collarsSettingOf, otherOf } from '../../lib/load';
 import { countModeOf } from '../../lib/setTable';
 import { RepsStepper } from './RepsStepper';
 import { SetLoadInput } from './SetLoadInput';
-import styles from './Workout.module.css';
+import styles from './Sheets.module.css';
 
 /** How a Save ended (PLAN 2.0e): saved (the sheet closes), failed (it stays, says so), or closed by the screen. */
 export type SaveResult = 'saved' | 'failed' | 'closed';

@@ -13,10 +13,7 @@
 }
 
 .card {
-  border: 1px solid var(--glass-line);
-  border-radius: 20px;
-  background: var(--card-fill);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
+  composes: surface from '../ui/card.module.css';
   overflow: hidden;
 }
 

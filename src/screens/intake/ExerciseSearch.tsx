@@ -9,6 +9,7 @@ import type { GymKit } from '../../lib/picker';
 import { SWAP_DATA } from '../../data/patterns';
 import { requiresOf, supports } from '../../lib/swap';
 import styles from './Intake.module.css';
+import fieldStyles from './IntakeFields.module.css';
 import own from './ExerciseDeck.module.css';
 
 const BY_ID = new Map(PLAN_EXERCISES.map((e) => [e.id, e]));
@@ -41,7 +42,7 @@ export function ExercisesStep({ value, onChange, exclude, testId, gym }: { value
     <>
       <input
         type="search"
-        className={styles.search}
+        className={fieldStyles.search}
         placeholder="Search exercises"
         aria-label="Search exercises"
         value={query}
@@ -52,7 +53,7 @@ export function ExercisesStep({ value, onChange, exclude, testId, gym }: { value
         data-testid={`${testId}-search`}
       />
       {shown.fits.length + shown.other.length === 0 ? (
-        <p className={styles.empty}>No exercise by that name yet.</p>
+        <p className={fieldStyles.empty}>No exercise by that name yet.</p>
       ) : (
         <>
           <div className={styles.chips} role="group" data-testid={testId}>

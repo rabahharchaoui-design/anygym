@@ -4,7 +4,7 @@ import { ChoiceCard } from '../../ui/ChoiceCard';
 import type { BarId, Gym } from '../../db/types';
 import { formatWeight } from '../../lib/load';
 import { BAR_NAMES, BAR_PROMPTS, knownBars } from './exerciseLoad';
-import styles from './Workout.module.css';
+import styles from './Sheets.module.css';
 
 type Props = {
   open: boolean;

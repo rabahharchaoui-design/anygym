@@ -1,0 +1,55 @@
+/* Units: four big two option toggles. */
+.units {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  /* PLAN 3.3a: the rows breathe on taller phones, so the screen is never mostly empty. */
+  gap: clamp(var(--space-2), 2.6dvh, 28px);
+}
+
+/* The label beside its toggle (one line each), so all four fit the SE with the strip. */
+.unitRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.unitRow > :last-child {
+  /* Up to 58%, and shrinks when a long label (130% text) needs the room: no sideways overflow. */
+  flex: 1 1 58%;
+  min-width: 0;
+}
+
+/* At 130% text the label goes above again. */
+@media (max-width: 340px) {
+  .unitRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* The body question is not a unit and not from the region: set apart. */
+.unitApart .unitRow {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.unitApart .unitRow > :last-child {
+  flex: none;
+}
+
+.unitApart {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--hairline);
+}
+
+.unitLabel {
+  color: var(--text-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+}

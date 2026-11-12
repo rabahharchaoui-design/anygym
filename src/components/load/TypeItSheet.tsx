@@ -5,6 +5,7 @@ import { parseTyped, pressKey } from '../../lib/numpad';
 import { Sheet } from '../../ui/Sheet';
 import { NumPad } from './NumPad';
 import { PlateChips } from './PlateChips';
+import { TypedReadout } from './TypedReadout';
 import styles from './TypeItSheet.module.css';
 
 type Props = {
@@ -48,12 +49,7 @@ export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inven
 
   return (
     <Sheet open={open} onClose={onClose} label="Type a weight">
-      <div className={styles.display}>
-        <span className={`${styles.typed} num`} data-testid="typed" aria-live="polite">
-          {text || <span className={styles.placeholder}>0</span>}
-        </span>
-        <span className={styles.unit}>{unit}</span>
-      </div>
+      <TypedReadout text={text} unit={unit} testId="typed" />
 
       <div className={styles.result} data-testid="solve-result" aria-live="polite">
         {result === null && <p className={styles.hint}>Type the total, {baseLabel} included.</p>}

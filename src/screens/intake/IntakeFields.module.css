@@ -1,0 +1,223 @@
+/* Exercises */
+.search {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-2);
+}
+
+/* Name */
+.nameField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldLabel {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.nameInput {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--space-4);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* About you */
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.aboutGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldHint {
+  margin: 0;
+  min-height: 1.3em;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+
+.fieldHint[data-limit] {
+  color: var(--amber);
+}
+
+.measureTight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Bodyweight and height. PLAN 3.3a: it breathes on taller phones, stays compact on the SE. */
+.measure {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(var(--space-2), 2.4dvh, var(--space-6));
+}
+
+.bigNumber {
+  margin: clamp(0px, 1.5dvh, var(--space-5)) 0 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: clamp(56px, 19vw, 84px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text-2);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.bigNumber[data-touched] {
+  color: var(--text);
+}
+
+.bigUnit {
+  font-size: clamp(20px, 6vw, 26px);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-2);
+}
+
+.measureHint {
+  margin: 0;
+  min-height: 1.3em;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.measureHint[data-hidden] {
+  opacity: 0;
+}
+
+.ruler {
+  position: relative;
+  /* Clear of the edge swipe strip (20 pt). */
+  margin-inline: var(--space-1);
+  height: 96px;
+  border-radius: 18px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+
+.needle {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  bottom: 10px;
+  left: 50%;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--text-2);
+  pointer-events: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.ruler[data-touched] .needle {
+  background: var(--accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.rulerTrack {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  outline: none;
+  cursor: grab;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
+}
+
+.rulerTrack::-webkit-scrollbar {
+  display: none;
+}
+
+.rulerTrack:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.rulerSpacer {
+  flex: 0 0 50%;
+}
+
+/* Ticks every 0.5, a taller one each whole number, the tallest on every label. */
+.ticks {
+  position: relative;
+  flex: none;
+  height: 100%;
+  background-image:
+    linear-gradient(90deg, var(--text) 0 2px, transparent 2px),
+    linear-gradient(90deg, color-mix(in srgb, var(--text) 55%, transparent) 0 1.5px, transparent 1.5px),
+    linear-gradient(90deg, color-mix(in srgb, var(--text-2) 60%, transparent) 0 1px, transparent 1px);
+  background-size:
+    var(--major) 34px,
+    var(--whole) 22px,
+    var(--tick) 14px;
+  background-position:
+    left calc(var(--major-start) - 1px) bottom 12px,
+    left -0.75px bottom 12px,
+    left -0.5px bottom 12px;
+  background-repeat: repeat-x;
+}
+
+.tickLabel {
+  position: absolute;
+  top: 12px;
+  transform: translateX(-50%);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.wheels {
+  display: flex;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+}

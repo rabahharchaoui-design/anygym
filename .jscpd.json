@@ -1,0 +1,12 @@
+{
+  "path": ["src"],
+  "format": ["typescript", "tsx", "css"],
+  "ignore": ["**/__tests__/**", "**/*.test.*", "src/data/**", "**/*.json", "**/*.d.ts", "src/lib/bodyArt/**"],
+  "minLines": 6,
+  "minTokens": 50,
+  "threshold": 5,
+  "reporters": ["json"],
+  "output": "./.jscpd-report",
+  "gitignore": true,
+  "silent": true
+}
