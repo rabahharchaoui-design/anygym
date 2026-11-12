@@ -39,6 +39,10 @@
   pointer-events: auto;
 }
 
+.hero {
+  margin-right: auto;
+}
+
 .line {
   margin: 0 0 var(--space-2);
   color: var(--text);

@@ -25,6 +25,7 @@ import { armWelcomeTour } from '../../db/welcomeTour';
 import { choosePlan, choosePlanUndoable } from '../../db/planState';
 import { saveGeneratedPlan } from '../../db/savedPlans';
 import { STAYS_HERE } from './copy';
+import { ArtScene } from '../../ui/art/lazy';
 import styles from './Intake.module.css';
 
 type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
@@ -127,6 +128,8 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
             </svg>
           )}
           <h1 className={styles.title}>{words ? words.title : none.title}</h1>
+          {/* PLAN 3.6h: the plan ready hero, for a plan only (never for "no plan"). */}
+          {plan && <ArtScene name="planReady" width={72} end />}
         </div>
         <section className={styles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
           {plan && <p className={styles.planName}>{plan.name}</p>}

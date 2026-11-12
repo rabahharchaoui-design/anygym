@@ -16,6 +16,10 @@
   color: var(--text-2);
 }
 
+.scene {
+  margin-bottom: var(--space-4);
+}
+
 .icon {
   display: inline-flex;
   margin-bottom: var(--space-4);

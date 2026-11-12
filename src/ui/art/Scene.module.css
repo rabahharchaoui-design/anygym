@@ -1,0 +1,67 @@
+/* The small vector scenes (PLAN 3.6h): glass, titanium lines, one accent. Colours only from tokens.css. */
+
+.scene {
+  display: block;
+  flex: none;
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.glass {
+  fill: color-mix(in srgb, var(--white) 6%, transparent);
+  stroke: var(--hairline-strong);
+  stroke-width: 1.5;
+}
+
+/* A card in front of others: it hides what is behind it. */
+.solid {
+  fill: var(--surface-solid-2);
+  stroke: var(--hairline-strong);
+  stroke-width: 1.5;
+}
+
+.pill {
+  fill: color-mix(in srgb, var(--white) 10%, transparent);
+}
+
+.dim {
+  stroke: var(--text-3);
+}
+
+.ringDim {
+  stroke: var(--text-3);
+  stroke-width: 2;
+}
+
+.accent {
+  fill: var(--accent);
+}
+
+.accentLine {
+  stroke: var(--accent);
+}
+
+.halo {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.clip {
+  fill: var(--surface-solid-2);
+  stroke: var(--pair);
+  stroke-width: 1.8;
+}
+
+.bar {
+  stroke: var(--pair);
+  stroke-width: 6;
+}
+
+.plate {
+  fill: var(--pair);
+}
+
+.plateOuter {
+  fill: var(--text-3);
+}

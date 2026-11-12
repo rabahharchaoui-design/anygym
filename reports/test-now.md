@@ -35,3 +35,4 @@
 3.5u | Reset the app in Settings, do the intake: it ends on Today with a quick three step tour, and no workout starts. The intake is also shorter: the Coming soon questions are gone.
 3.5w | Smoother motion. Switch tabs: the bar stays still and the pill slides. Close any sheet: the app steps back in gently. Log a set: nothing shifts under your thumb. In Quick workout a card grows into its deck.
 3.6b | Celebrations for real records. In a workout, beat your heaviest squat, bench, deadlift, press or row: the row says New best, and on Finish a full screen moment counts up your number (tap to skip). A smaller record shows a card on the finish screen.
+3.6h | New art. Finish a workout with a record: the card wears a titanium medal and glass drifts behind the summary; your very first workout gets falling glass. Empty Today, History and Plans have small drawn scenes. Settings, tap the version 5 times, the UI screen shows every badge.

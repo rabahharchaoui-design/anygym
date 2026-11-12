@@ -1,0 +1,47 @@
+/* The achievement medal (PLAN 3.6h). Colours only from tokens.css; the art itself is in Badge.tsx. */
+
+.badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--accent-hi);
+}
+
+.badge[data-locked] {
+  color: var(--text-3);
+}
+
+.medal {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+.ink {
+  color: inherit;
+}
+
+/* Live text in the app type: it is the real number, never a drawing of one. */
+.number {
+  fill: currentColor;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.name {
+  max-width: 100%;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.badge[data-locked] .name {
+  color: var(--text-2);
+}

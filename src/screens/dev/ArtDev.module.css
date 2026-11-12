@@ -1,0 +1,108 @@
+/* The art sheet of the dev UI screen (PLAN 3.6h). */
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.h2 {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--tap);
+}
+
+.badges,
+.line {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-4) var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5) var(--space-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  background: var(--card-fill);
+}
+
+.line {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cell {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.sizes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  background: var(--card-fill);
+}
+
+.fx {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A stage like the full screen moment: dark, with the effect filling it. */
+.stage {
+  position: relative;
+  z-index: 0;
+  height: 200px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  background: var(--bg);
+}
+
+.stage canvas {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fxName {
+  font-weight: 600;
+}
+
+.link {
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+}
+
+.sceneCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  text-align: center;
+}
+
+.passport {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: var(--space-3);
+  align-items: stretch;
+}

@@ -10,7 +10,6 @@ import { getPlanState } from '../../db/planState';
 import { useLive } from '../../hooks/useLive';
 import { PlanCard } from './PlanCard';
 import { planLink } from './planWords';
-import { PlaceIcon } from './PlaceIcon';
 import styles from './Plans.module.css';
 
 /**
@@ -41,7 +40,7 @@ export function PlacePlans({ placeId: fixed }: { placeId?: string } = {}) {
         <EmptyState
           title="No plans here yet"
           next="Every plan we have is on the Plans tab."
-          icon={place ? <PlaceIcon id={place.id} /> : undefined}
+          scene="plans"
           action={{ label: 'See all plans', onPress: () => go('/plans', { kind: 'pop' }) }}
         />
       )}

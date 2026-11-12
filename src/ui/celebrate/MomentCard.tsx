@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { FADE, GLIDE, SPRINGS } from '../motion';
 import { afterLanding } from '../nav';
-import { TrophyIcon } from '../icons';
+import { ArtBadge } from '../art/lazy';
+import { badgeForMoment } from '../badges/families';
 import { Particles } from './Particles';
 import { stagingFor } from './select';
 import type { Moment } from './types';
@@ -32,7 +33,7 @@ type Props = {
 /**
  * The MEDIUM tier (PLAN 3.6b): a card on a summary screen with the real fact, at most three things
  * on its face: what, the number line, and how much more than before. It bursts in with a few ice
- * blue particles from its trophy. Reduced motion: a fade, the same words, no particles.
+ * blue particles from its medal (the first workout and PR badges of PLAN 3.6h). Reduced motion: a fade, the same words, no particles.
  */
 export function MomentCard({ moment, arrival, size = 'lead', as = 'p', delay = 0, reduce, testId }: Props) {
   const staging = stagingFor(reduce);
@@ -65,7 +66,7 @@ export function MomentCard({ moment, arrival, size = 'lead', as = 'p', delay = 0
       {...enter}
     >
       <span className={styles.cardIcon} data-pop={burst || undefined} aria-hidden="true">
-        <TrophyIcon width={18} height={18} strokeWidth={2.2} />
+        <ArtBadge family={badgeForMoment(moment.kind)} name={moment.title} size={size === 'lead' ? 40 : 32} />
       </span>
       <span className={styles.cardText}>
         <span className={styles.cardName}>{moment.title}</span>

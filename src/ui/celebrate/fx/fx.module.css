@@ -1,0 +1,129 @@
+/* The drawn effects (PLAN 3.6h). Colours only from tokens.css. Only transform and opacity move. */
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- ambient: drifting glass */
+
+.ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  animation: ambient-in 900ms var(--ease-out) both;
+}
+
+@keyframes ambient-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.light,
+.pane {
+  position: absolute;
+  will-change: transform;
+  /* The drift starts once the fade in is over: fading a group whose layers are moving costs frames. */
+  animation: drift 26s var(--ease-in-out) 900ms infinite alternate;
+}
+
+/* The one ice blue light, low and wide. */
+.light {
+  left: -20%;
+  top: 8%;
+  width: 90%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 11%, transparent), transparent);
+  --dx: 34%;
+  --dy: 22%;
+  --turn: 0deg;
+}
+
+/* A pane of glass: lit along its top left edge, nearly clear. */
+.pane {
+  border-radius: 26px;
+  border: 1px solid color-mix(in srgb, var(--white) 7%, transparent);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--white) 5%, transparent), transparent 62%);
+}
+
+.pane[data-n='1'] {
+  left: 58%;
+  top: 6%;
+  width: 46%;
+  height: 26%;
+  rotate: 14deg;
+  --dx: -16%;
+  --dy: 22%;
+  --turn: -8deg;
+  animation-duration: 31s;
+}
+
+.pane[data-n='2'] {
+  left: -12%;
+  top: 38%;
+  width: 40%;
+  height: 22%;
+  rotate: -18deg;
+  --dx: 22%;
+  --dy: -18%;
+  --turn: 10deg;
+  animation-duration: 23s;
+}
+
+.pane[data-n='3'] {
+  left: 48%;
+  top: 62%;
+  width: 56%;
+  height: 30%;
+  rotate: -9deg;
+  --dx: -12%;
+  --dy: -14%;
+  --turn: 7deg;
+  animation-duration: 37s;
+}
+
+.pane[data-n='4'] {
+  left: 14%;
+  top: 84%;
+  width: 34%;
+  height: 20%;
+  rotate: 22deg;
+  --dx: 18%;
+  --dy: -26%;
+  --turn: -12deg;
+  animation-duration: 28s;
+}
+
+@keyframes drift {
+  to {
+    transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--turn));
+  }
+}
+
+.ambient[data-state='paused'] .light,
+.ambient[data-state='paused'] .pane {
+  animation-play-state: paused;
+}
+
+.ambient[data-state='still'],
+.ambient[data-state='still'] .light,
+.ambient[data-state='still'] .pane {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient,
+  .light,
+  .pane {
+    animation: none;
+  }
+}

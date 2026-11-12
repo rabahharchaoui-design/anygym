@@ -59,7 +59,7 @@ export function HistoryScreen() {
         <Skeleton height={76} radius={20} />
       ) : list.error && items.length === 0 ? null : items.length === 0 ? (
         <EmptyState
-          art="history"
+          scene="history"
           title="No workouts yet"
           next="Finish your first workout and it shows up here."
           action={{ label: 'Go to Today', onPress: () => go('/', { kind: 'tab' }) }}
