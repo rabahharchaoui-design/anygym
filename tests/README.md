@@ -39,3 +39,5 @@ everything. Golden and perf specs are part of the full run too.
 `.github/workflows/deploy.yml` runs, on every push to master and to a session branch (`s*-*`):
 typecheck, Vitest, the build with the secret scan, the bundle budget, the size guard when
 `scripts/size-guard.mjs` exists, and `npm run test:golden`. The Pages deploy needs that to pass.
+CI runs on Node 24 (the scripts use `registerHooks` and `node:sqlite`). The runner is about six
+times slower than a laptop, so the golden journeys get 90 s each instead of the usual 30 s.

@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "playwright test",
-    "test:golden": "playwright test tests/golden --project=\"iPhone 15\"",
+    "test:golden": "playwright test tests/golden --project=\"iPhone 15\" --timeout=90000",
     "test:perf": "playwright test tests/perf --project=\"iPhone 15\" --workers=1",
     "test:live": "playwright test -c playwright.live.config.ts",
     "icons": "node scripts/make-icons.mjs",
