@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { TopBar } from '../../ui/TopBar';
 import { BackButton } from '../../ui/BackButton';
@@ -7,7 +7,6 @@ import { useNav } from '../../ui/nav';
 import { basePlanOf, planById } from '../../data/plans';
 import { profileFor } from '../../data/order';
 import { parseTunedId, planTips, tunedId, TIP_IDS, TUNED_MARK, type TipId } from '../../lib/coachTips';
-import { UNDO_MS } from '../../lib/undoQueue';
 import { Toast, undoToast, type ToastMessage } from '../../ui/Toast';
 import { CoachTips } from './CoachTips';
 import { hideTips, tipsHidden } from './coachTipsHidden';
@@ -21,6 +20,7 @@ import { estimateDayMinutes, finisherText } from '../../lib/plans';
 import { PlanDayList } from './PlanDayList';
 import { dayTitle, planMeta } from './planWords';
 import styles from './Plans.module.css';
+import { useToastTimeout } from '../../ui/useToastTimeout';
 
 /** Plan viewer: every day in plain words, a week picker for week table plans, and "Use this plan". */
 export function PlanViewer() {
@@ -39,11 +39,7 @@ export function PlanViewer() {
   const go = useNav();
   const [hidden, setHidden] = useState(() => (base ? tipsHidden(base.id) : false));
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast((now) => (now?.id === toast.id ? null : now)), toast.action ? UNDO_MS : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  useToastTimeout(toast, setToast);
   // Each change replaces the entry, so Back still leaves the plan in one step.
   const showTips = (ids: readonly TipId[]) => {
     const words = TIP_IDS.filter((t) => ids.includes(t)).join('.');

@@ -48,6 +48,7 @@ import { WelcomeTour } from './today/WelcomeTour';
 import { ArtScene } from '../ui/art/lazy';
 import { shouldShowTour } from '../lib/welcomeTour';
 import styles from './TodayScreen.module.css';
+import { useToastTimeout } from '../ui/useToastTimeout';
 
 const NO_LOGGED: Readonly<Record<string, number>> = {};
 
@@ -124,12 +125,7 @@ export function TodayScreen() {
 
   // Back from Finish (a toast in the state): the whole page fades in together, once it has its data.
   const [arrived] = useState(() => !!(location.state as { toast?: string } | null)?.toast);
-  useEffect(() => {
-    if (!toast) return;
-    // An Undo stays for 5 s (SPEC 13.1), a plain message 3 s.
-    const t = window.setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), toast.action ? 5000 : 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  useToastTimeout(toast, setToast);
 
   // A message from the workout screen ("Workout saved · 6 sets"), shown once, with its Undo.
   useArrivalToast(setToast, go);
