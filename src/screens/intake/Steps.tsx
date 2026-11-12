@@ -17,6 +17,10 @@ import { tapGoal, type UnitsAnswer } from '../../lib/intake/funnel';
 import { iconFor } from './icons';
 import { DumbbellRangeFields } from './DumbbellRangeFields';
 import styles from './Intake.module.css';
+import unitStyles from './IntakeUnits.module.css';
+import equipStyles from './IntakeEquipment.module.css';
+import rangeStyles from './IntakeRange.module.css';
+import fieldStyles from './IntakeFields.module.css';
 
 /** One pick. Cards for five or fewer options, chips for more. `pulse`: the card that was just tapped. */
 export function SingleChoice<T extends string | number>({
@@ -135,15 +139,15 @@ export function MultiChoice({
 /** The calm units screen: big two option toggles, the units preselected from the phone's region. */
 export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (v: UnitsAnswer) => void }) {
   const row = (id: string, label: string, toggle: React.ReactNode) => (
-    <div className={styles.unitRow}>
-      <span className={styles.unitLabel} id={id}>
+    <div className={unitStyles.unitRow}>
+      <span className={unitStyles.unitLabel} id={id}>
         {label}
       </span>
       {toggle}
     </div>
   );
   return (
-    <div className={styles.units}>
+    <div className={unitStyles.units}>
       {row(
         'u-weight',
         'Weight',
@@ -159,13 +163,13 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
         'Body measurements',
         <SlidingToggle block labelledBy="u-measure" testId="units-measure" options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'inches' }]} value={value.measure} onChange={(measure) => onChange({ ...value, measure })} />,
       )}
-      <div className={styles.unitApart}>
+      <div className={unitStyles.unitApart}>
         {row(
           'u-body',
           'Which body should the muscle map show?',
           <SlidingToggle block labelledBy="u-body" testId="units-body" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={value.body} onChange={(body) => onChange({ ...value, body })} />,
         )}
-        <p className={styles.fieldHint} data-testid="units-body-hint">
+        <p className={fieldStyles.fieldHint} data-testid="units-body-hint">
           Optional. You can change this in Settings.
         </p>
       </div>
@@ -218,53 +222,53 @@ export function EquipmentStep({
     .filter((g) => g.shown.length > 0);
   return (
     <>
-      <div className={styles.equipBar}>
-        <span className={`${styles.equipCount} num`} aria-live="polite">
+      <div className={equipStyles.equipBar}>
+        <span className={`${equipStyles.equipCount} num`} aria-live="polite">
           {on.size === 0 ? 'Nothing: bodyweight only' : `${on.size} of ${choices.length} on`}
         </span>
-        <button type="button" className={`${styles.textButton} pressable`} onClick={() => onChange(all ? [] : [...choices])} data-testid="equip-all">
+        <button type="button" className={`${equipStyles.textButton} pressable`} onClick={() => onChange(all ? [] : [...choices])} data-testid="equip-all">
           {all ? 'Turn all off' : 'Turn all on'}
         </button>
       </div>
-      <div className={styles.equipGroups} data-testid="equipment" data-whole={whole || undefined}>
+      <div className={equipStyles.equipGroups} data-testid="equipment" data-whole={whole || undefined}>
         {groups.map((g) => {
           const groupOn = g.items.every((id) => on.has(id));
           const titleId = `equip-group-${g.id}`;
           return (
-            <section key={g.id} className={styles.equipGroup} aria-labelledby={titleId} data-testid={`equip-group-${g.id}`}>
-              <div className={styles.groupHead}>
-                <h2 className={styles.groupTitle} id={titleId}>
+            <section key={g.id} className={equipStyles.equipGroup} aria-labelledby={titleId} data-testid={`equip-group-${g.id}`}>
+              <div className={equipStyles.groupHead}>
+                <h2 className={equipStyles.groupTitle} id={titleId}>
                   {g.label}
                 </h2>
                 <button
                   type="button"
-                  className={`${styles.groupAll} pressable`}
+                  className={`${equipStyles.groupAll} pressable`}
                   aria-pressed={groupOn}
                   aria-label={`All ${g.label.toLowerCase()}`}
                   onClick={() => onChange(toggleGroup(value, g.items))}
                   data-testid={`equip-all-${g.id}`}
                 >
-                  <Check className={styles.groupAllCheck} width={14} height={14} strokeWidth={3} aria-hidden="true" />
+                  <Check className={equipStyles.groupAllCheck} width={14} height={14} strokeWidth={3} aria-hidden="true" />
                   All
                 </button>
               </div>
-              <ul className={styles.equipGrid}>
+              <ul className={equipStyles.equipGrid}>
                 {g.shown.flatMap((id) => [
-                  <li key={id} className={styles.tileCell}>
-                    <button type="button" className={`${styles.tile} pressable`} aria-pressed={on.has(id)} onClick={() => onChange(toggleItem(value, id))} data-testid={`equip-${id}`}>
-                      <Check className={styles.tileCheck} width={12} height={12} strokeWidth={3.5} aria-hidden="true" data-check />
-                      <span className={styles.tileArt}>
-                        <EquipmentArt id={id} className={styles.art} />
+                  <li key={id} className={equipStyles.tileCell}>
+                    <button type="button" className={`${equipStyles.tile} pressable`} aria-pressed={on.has(id)} onClick={() => onChange(toggleItem(value, id))} data-testid={`equip-${id}`}>
+                      <Check className={equipStyles.tileCheck} width={12} height={12} strokeWidth={3.5} aria-hidden="true" data-check />
+                      <span className={equipStyles.tileArt}>
+                        <EquipmentArt id={id} className={equipStyles.art} />
                       </span>
-                      <span className={styles.tileName}>{EQUIPMENT_LABEL[id]}</span>
+                      <span className={equipStyles.tileName}>{EQUIPMENT_LABEL[id]}</span>
                     </button>
                     {EQUIPMENT_INFO[id] && (
-                      <InfoButton id={EQUIPMENT_INFO[id]!} className={styles.tileInfo} art={<EquipmentArt id={id} accent />} showWeight={BAR_WEIGHT_INFO.has(id)} />
+                      <InfoButton id={EQUIPMENT_INFO[id]!} className={equipStyles.tileInfo} art={<EquipmentArt id={id} accent />} showWeight={BAR_WEIGHT_INFO.has(id)} />
                     )}
                   </li>,
                   ...(id === 'dumbbells' && askRange
                     ? [
-                        <li key="dumbbell-range" className={styles.rangeCell}>
+                        <li key="dumbbell-range" className={rangeStyles.rangeCell}>
                           <DumbbellRangeFields range={range} unit={unit} onRange={onRange} />
                         </li>,
                       ]
@@ -303,8 +307,8 @@ export function CardioStep({ cardio, favorites, onCardio, onFavorites }: { cardi
     <>
       <SingleChoice options={CARDIO} value={cardio} onPick={onCardio} pulse={null} testId="q-cardio" fill={!cardio || cardio === 'none'} />
       {cardio && cardio !== 'none' && (
-        <section ref={kinds} className={`${styles.aboutGroup} ${styles.fadeIn}`} data-testid="cardio-kinds">
-          <span className={styles.fieldLabel}>Any you like? Optional.</span>
+        <section ref={kinds} className={`${fieldStyles.aboutGroup} ${styles.fadeIn}`} data-testid="cardio-kinds">
+          <span className={fieldStyles.fieldLabel}>Any you like? Optional.</span>
           <MultiChoice options={CARDIO_FAVORITES} value={favorites} onChange={onFavorites} testId="q-cardioFavorites" fill={false} />
         </section>
       )}

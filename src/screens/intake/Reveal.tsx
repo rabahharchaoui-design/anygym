@@ -27,6 +27,7 @@ import { saveGeneratedPlan } from '../../db/savedPlans';
 import { STAYS_HERE } from './copy';
 import { ArtScene } from '../../ui/art/lazy';
 import styles from './Intake.module.css';
+import revealStyles from './IntakeReveal.module.css';
 
 type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
 
@@ -119,24 +120,24 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         <span className={styles.topSpacer} aria-hidden="true" />
       </header>
       <main ref={scroller} className={styles.body} data-scroller>
-        <div className={styles.revealHead}>
+        <div className={revealStyles.revealHead}>
           {/* The check is earned by a true match only, never by a closest plan or no plan. */}
           {words?.check && (
-            <svg className={styles.check} viewBox="0 0 52 52" aria-hidden="true" data-testid="reveal-check">
-              <circle className={styles.checkRing} cx="26" cy="26" r="23" pathLength={1} />
-              <path className={styles.checkMark} d="M15 27 L23 35 L38 18" pathLength={1} />
+            <svg className={revealStyles.check} viewBox="0 0 52 52" aria-hidden="true" data-testid="reveal-check">
+              <circle className={revealStyles.checkRing} cx="26" cy="26" r="23" pathLength={1} />
+              <path className={revealStyles.checkMark} d="M15 27 L23 35 L38 18" pathLength={1} />
             </svg>
           )}
           <h1 className={styles.title}>{words ? words.title : none.title}</h1>
           {/* PLAN 3.6h: the plan ready hero, for a plan only (never for "no plan"). */}
           {plan && <ArtScene name="planReady" width={72} end />}
         </div>
-        <section className={styles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
-          {plan && <p className={styles.planName}>{plan.name}</p>}
+        <section className={revealStyles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
+          {plan && <p className={revealStyles.planName}>{plan.name}</p>}
           {words?.summary ? (
             <>
               {/* Round 3 (B2): one honest line up front; the fit details one tap away, every fact kept. */}
-              <p className={styles.reason} data-testid="reveal-summary">
+              <p className={revealStyles.reason} data-testid="reveal-summary">
                 {words.summary}
                 {words.goals && (
                   <>
@@ -145,13 +146,13 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
                   </>
                 )}
               </p>
-              <details className={styles.why} data-testid="reveal-why">
-                <summary className={`${styles.whySummary} pressable`}>Why this plan</summary>
-                <p className={styles.caveat} data-testid="reveal-reason">
+              <details className={revealStyles.why} data-testid="reveal-why">
+                <summary className={`${revealStyles.whySummary} pressable`}>Why this plan</summary>
+                <p className={revealStyles.caveat} data-testid="reveal-reason">
                   {words.reason}
                 </p>
                 {words.warning && (
-                  <p className={styles.caveat} data-testid="reveal-warning">
+                  <p className={revealStyles.caveat} data-testid="reveal-warning">
                     {words.warning}
                   </p>
                 )}
@@ -159,38 +160,38 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
             </>
           ) : (
             <>
-              <p className={styles.reason} data-testid="reveal-reason">
+              <p className={revealStyles.reason} data-testid="reveal-reason">
                 {words ? words.reason : none.saved}
               </p>
               {words?.goals && (
-                <p className={styles.caveat} data-testid="reveal-goals">
+                <p className={revealStyles.caveat} data-testid="reveal-goals">
                   {words.goals}
                 </p>
               )}
               {words?.warning && (
-                <p className={styles.caveat} data-testid="reveal-warning">
+                <p className={revealStyles.caveat} data-testid="reveal-warning">
                   {words.warning}
                 </p>
               )}
             </>
           )}
           {!plan && failure && (
-            <p className={styles.caveat} data-testid="reveal-failure">
+            <p className={revealStyles.caveat} data-testid="reveal-failure">
               {failure}
             </p>
           )}
           {!plan && (
-            <p className={styles.caveat} data-testid="reveal-quick">
+            <p className={revealStyles.caveat} data-testid="reveal-quick">
               {none.quick}
             </p>
           )}
           {plan && (
-            <ol className={styles.week} data-testid="reveal-week">
+            <ol className={revealStyles.week} data-testid="reveal-week">
               {week.map((w, i) => (
-                <li key={`${w.label}-${i}`} className={styles.weekRow} style={{ '--i': i } as CSSProperties}>
-                  <span className={`${styles.weekDay} num`}>{w.label}</span>
-                  <span className={styles.weekName}>{w.dayName}</span>
-                  <span className={`${styles.weekTime} num`}>~{words!.minutes[w.dayIndex]} min</span>
+                <li key={`${w.label}-${i}`} className={revealStyles.weekRow} style={{ '--i': i } as CSSProperties}>
+                  <span className={`${revealStyles.weekDay} num`}>{w.label}</span>
+                  <span className={revealStyles.weekName}>{w.dayName}</span>
+                  <span className={`${revealStyles.weekTime} num`}>~{words!.minutes[w.dayIndex]} min</span>
                 </li>
               ))}
             </ol>
@@ -198,8 +199,8 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
         </section>
         {/* B2: the plan already shown is not offered again. */}
         {others.length > 0 && (
-          <section className={styles.others} aria-labelledby="reveal-others">
-            <h2 id="reveal-others" className={styles.othersTitle}>
+          <section className={revealStyles.others} aria-labelledby="reveal-others">
+            <h2 id="reveal-others" className={revealStyles.othersTitle}>
               {mine && !isMine ? 'Or go back to your plan' : 'Or pick a curated plan'}
             </h2>
             <div className={styles.cards}>

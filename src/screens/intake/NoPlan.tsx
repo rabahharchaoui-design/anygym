@@ -8,6 +8,8 @@ import { noPlanWords } from '../../lib/intake/planPick';
 import { EquipmentArt } from './EquipmentArt';
 import { STAYS_HERE } from './copy';
 import styles from './Intake.module.css';
+import noPlanStyles from './IntakeNoPlan.module.css';
+import equipStyles from './IntakeEquipment.module.css';
 
 const QUICK_STEPS = ['Add an exercise from the list', 'Log each set: weight and reps', 'Finish, and it goes in your history'] as const;
 
@@ -21,24 +23,24 @@ function NoPlanBody({ answers }: { answers: IntakeAnswers }) {
   const named = equipment.slice(0, 2).map((id) => EQUIPMENT_LABEL[id]);
   const kit = equipment.length === 0 ? 'Nothing picked: bodyweight only' : equipment.length <= 2 ? named.join(' and ') : `${named.join(', ')} and ${equipment.length - 2} more`;
   return (
-    <div className={styles.noPlanBody}>
-      <section className={styles.gymCard} data-testid="noplan-gym">
-        <p className={styles.gymCardTitle}>Your gym: {place?.label ?? 'not set'}</p>
-        <p className={styles.gymCardKit}>{kit}</p>
+    <div className={noPlanStyles.noPlanBody}>
+      <section className={noPlanStyles.gymCard} data-testid="noplan-gym">
+        <p className={noPlanStyles.gymCardTitle}>Your gym: {place?.label ?? 'not set'}</p>
+        <p className={noPlanStyles.gymCardKit}>{kit}</p>
         {equipment.length > 0 && (
-          <ul className={styles.gymArt} aria-hidden="true">
+          <ul className={noPlanStyles.gymArt} aria-hidden="true">
             {equipment.slice(0, 6).map((id) => (
               <li key={id}>
-                <EquipmentArt id={id} className={styles.art} />
+                <EquipmentArt id={id} className={equipStyles.art} />
               </li>
             ))}
           </ul>
         )}
       </section>
-      <ol className={styles.quickSteps} aria-label="How a quick workout goes" data-testid="noplan-steps">
+      <ol className={noPlanStyles.quickSteps} aria-label="How a quick workout goes" data-testid="noplan-steps">
         {QUICK_STEPS.map((t, i) => (
-          <li key={t} className={styles.quickStep}>
-            <span className={`${styles.quickNum} num`}>{i + 1}</span>
+          <li key={t} className={noPlanStyles.quickStep}>
+            <span className={`${noPlanStyles.quickNum} num`}>{i + 1}</span>
             {t}
           </li>
         ))}

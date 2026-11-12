@@ -11,6 +11,7 @@ import { flipBodyweight, RULER_START } from '../../lib/intake/ruler';
 import { cmToFtIn, formatBodyweight, ftInToCm } from '../../lib/load';
 import { BodyweightRuler } from './BodyweightRuler';
 import styles from './Intake.module.css';
+import fieldStyles from './IntakeFields.module.css';
 
 /** The most a name can be (lib/intake/funnel.ts sanitize keeps the same). */
 const NAME_MAX = 40;
@@ -31,12 +32,12 @@ export function AboutStep({
 }) {
   const name = answers.name ?? '';
   return (
-    <div className={styles.about}>
-      <label className={styles.nameField}>
-        <span className={styles.fieldLabel}>Your name</span>
+    <div className={fieldStyles.about}>
+      <label className={fieldStyles.nameField}>
+        <span className={fieldStyles.fieldLabel}>Your name</span>
         <input
           type="text"
-          className={styles.nameInput}
+          className={fieldStyles.nameInput}
           value={name}
           maxLength={NAME_MAX}
           autoComplete="given-name"
@@ -45,16 +46,16 @@ export function AboutStep({
           onChange={(e) => onName(e.target.value || undefined)}
           data-testid="name-input"
         />
-        <span className={styles.fieldHint} data-limit={name.length >= NAME_MAX || undefined} data-testid="name-hint">
+        <span className={fieldStyles.fieldHint} data-limit={name.length >= NAME_MAX || undefined} data-testid="name-hint">
           {name.length >= NAME_MAX ? `That's the limit: ${NAME_MAX} letters.` : 'Shown on your profile. Optional.'}
         </span>
       </label>
-      <div className={styles.aboutGroup}>
-        <span className={styles.fieldLabel}>Height</span>
+      <div className={fieldStyles.aboutGroup}>
+        <span className={fieldStyles.fieldLabel}>Height</span>
         <HeightStep value={answers.height} measure={measure} onChange={onHeight} />
       </div>
-      <div className={styles.aboutGroup}>
-        <span className={styles.fieldLabel} id="age-label">
+      <div className={fieldStyles.aboutGroup}>
+        <span className={fieldStyles.fieldLabel} id="age-label">
           Age
         </span>
         <div className={styles.chips} data-grid="2" role="group" aria-labelledby="age-label" data-testid="q-age">
@@ -88,14 +89,14 @@ export function BodyweightStep({
     else setStart(RULER_START[to]);
   };
   return (
-    <div className={styles.measure}>
+    <div className={fieldStyles.measure}>
       <SlidingToggle block label="Weight unit" testId="bw-unit" options={[{ value: 'kg', label: 'Kilograms' }, { value: 'lb', label: 'Pounds' }]} value={unit} onChange={flip} />
-      <p className={`${styles.bigNumber} num`} data-touched={!!value || undefined} aria-live="polite" data-testid="bw-value">
+      <p className={`${fieldStyles.bigNumber} num`} data-touched={!!value || undefined} aria-live="polite" data-testid="bw-value">
         {formatBodyweight(current)}
-        <span className={styles.bigUnit}>{unit}</span>
+        <span className={fieldStyles.bigUnit}>{unit}</span>
       </p>
       <BodyweightRuler unit={unit} value={current} touched={!!value} onChange={(v) => onChange({ value: v, unit })} />
-      <p className={styles.measureHint} data-hidden={!!value || undefined}>
+      <p className={fieldStyles.measureHint} data-hidden={!!value || undefined}>
         Slide or tap to confirm
       </p>
     </div>
@@ -125,9 +126,9 @@ export function HeightStep({ value, measure, onChange }: { value: Height | undef
     }
   };
   return (
-    <div className={styles.measureTight}>
+    <div className={fieldStyles.measureTight}>
       <SlidingToggle block label="Height unit" testId="height-unit" options={[{ value: 'cm', label: 'Centimeters' }, { value: 'in', label: 'Feet and inches' }]} value={unit} onChange={flip} />
-      <div className={styles.wheels} data-testid="height-wheels">
+      <div className={fieldStyles.wheels} data-testid="height-wheels">
         {unit === 'cm' ? (
           <WheelColumn rows={3} items={CM_ITEMS} value={cm} picked={!!value} label="Height in centimeters" testId="wheel-cm" onChange={(v) => onChange({ unit: 'cm', cm: v })} />
         ) : (
@@ -137,7 +138,7 @@ export function HeightStep({ value, measure, onChange }: { value: Height | undef
           </>
         )}
       </div>
-      <p className={styles.measureHint} data-hidden={!!value || undefined}>
+      <p className={fieldStyles.measureHint} data-hidden={!!value || undefined}>
         Spin or tap to confirm
       </p>
     </div>
