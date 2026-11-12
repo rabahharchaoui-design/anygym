@@ -41,6 +41,8 @@ jobs:
       - if: steps.modules.outputs.cache-hit != 'true'
         run: npm ci
       - run: npm run typecheck
+      # Structure rules: files over 400 lines may not grow, screens do not import src/db directly.
+      - run: npm run lint
       - run: npm test
       # Type check, production build, and the secret scan of every tracked file and of dist/.
       - run: npm run build
