@@ -1,0 +1,106 @@
+/* PLAN 3.3a: "Your plan so far", slim, at the end of the question: on a short screen it sits at
+   the bottom of the space (the space shows progress), on a long one it scrolls in last. */
+.soFar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px var(--space-2);
+  min-height: 40px;
+  margin-top: auto;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--hairline);
+}
+
+/* No room for it whole: out of the flow and out of sight (still measurable). */
+.soFar[data-away] {
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* PLAN 3.5w: the one line version, pinned under the progress bar while the strip has no room. */
+.soFarLine {
+  flex: none;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-4) + var(--safe-left));
+}
+
+.soFarLine[data-show] {
+  display: flex;
+}
+
+.soFarLineEnd {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.soFarLineEnd .soFarSlot {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.soFarMore {
+  flex: none;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.soFarLabel {
+  flex: none;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.soFarEmpty {
+  color: color-mix(in srgb, var(--text-2) 60%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Pills wrap to a second line before a word is ever cut. */
+.soFarSlots {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.soFarSlot {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: slot-in var(--dur-tap) var(--ease-tap-spring);
+}
+
+@keyframes slot-in {
+  from {
+    transform: scale(0.85);
+  }
+  to {
+    transform: none;
+  }
+}

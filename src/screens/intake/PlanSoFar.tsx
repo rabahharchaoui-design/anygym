@@ -7,7 +7,7 @@
 import { useEffect, useLayoutEffect, type RefObject } from 'react';
 import { goalsOf, type IntakeAnswers, type ScreenId } from '../../lib/intake/funnel';
 import type { ExperienceId, GoalId, PlaceAnswer } from '../../lib/intake/options';
-import styles from './Intake.module.css';
+import soFarStyles from './IntakeSoFar.module.css';
 
 /** The screens whose answer becomes a pill: elsewhere the strip has nothing to add. */
 export const STRIP_SCREENS: ReadonlySet<ScreenId> = new Set<ScreenId>(['goal', 'experience', 'days', 'minutes', 'place']);
@@ -44,14 +44,14 @@ export function planSoFarPills(a: IntakeAnswers): Pill[] {
 export function PlanSoFar({ answers }: { answers: IntakeAnswers }) {
   const pills = planSoFarPills(answers);
   return (
-    <section className={styles.soFar} aria-label="Your plan so far" data-testid="plan-so-far">
-      <span className={styles.soFarLabel}>Your plan so far</span>
+    <section className={soFarStyles.soFar} aria-label="Your plan so far" data-testid="plan-so-far">
+      <span className={soFarStyles.soFarLabel}>Your plan so far</span>
       {pills.length === 0 ? (
-        <span className={styles.soFarEmpty}>Builds as you answer</span>
+        <span className={soFarStyles.soFarEmpty}>Builds as you answer</span>
       ) : (
-        <ul className={styles.soFarSlots}>
+        <ul className={soFarStyles.soFarSlots}>
           {pills.map((p) => (
-            <li key={p.id} className={styles.soFarSlot} data-filled="" data-testid={`so-far-${p.id}`}>
+            <li key={p.id} className={soFarStyles.soFarSlot} data-filled="" data-testid={`so-far-${p.id}`}>
               {p.text}
             </li>
           ))}
@@ -69,21 +69,21 @@ export function PlanSoFarLine({ answers }: { answers: IntakeAnswers }) {
   const pills = planSoFarPills(answers);
   const latest = pills[pills.length - 1];
   return (
-    <section className={styles.soFarLine} aria-label="Your plan so far" data-testid="plan-so-far-line">
-      <span className={styles.soFarLabel}>Your plan so far</span>
+    <section className={soFarStyles.soFarLine} aria-label="Your plan so far" data-testid="plan-so-far-line">
+      <span className={soFarStyles.soFarLabel}>Your plan so far</span>
       {latest ? (
-        <span className={styles.soFarLineEnd}>
-          <span key={latest.id} className={styles.soFarSlot} data-testid="so-far-latest">
+        <span className={soFarStyles.soFarLineEnd}>
+          <span key={latest.id} className={soFarStyles.soFarSlot} data-testid="so-far-latest">
             {latest.text}
           </span>
           {pills.length > 1 && (
-            <span className={`${styles.soFarMore} num`} data-testid="so-far-more" aria-label={`and ${pills.length - 1} more`}>
+            <span className={`${soFarStyles.soFarMore} num`} data-testid="so-far-more" aria-label={`and ${pills.length - 1} more`}>
               +{pills.length - 1}
             </span>
           )}
         </span>
       ) : (
-        <span className={styles.soFarEmpty}>Builds as you answer</span>
+        <span className={soFarStyles.soFarEmpty}>Builds as you answer</span>
       )}
     </section>
   );

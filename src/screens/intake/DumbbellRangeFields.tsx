@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { SlidingToggle } from '../../ui/SlidingToggle';
 import type { DumbbellRange, Unit } from '../../db/types';
 import { dumbbellRangeProblems, formatAmount, formatInOther, formatWeight, otherUnit, parseDumbbellRange, type DumbbellRangeProblems } from '../../lib/load';
-import styles from './Intake.module.css';
+import rangeStyles from './IntakeRange.module.css';
+import fieldStyles from './IntakeFields.module.css';
 
 const RANGE_WORDS: Record<NonNullable<DumbbellRangeProblems['min' | 'max' | 'step']>, string> = {
   number: 'type a number.',
@@ -46,10 +47,10 @@ export function DumbbellRangeFields({ range, unit, onRange }: { range: DumbbellR
   const first = (['min', 'max', 'step'] as const).find((k) => problems[k]);
   const label = (key: keyof Text) => (key === 'max' && maxUnit !== unit ? `${RANGE_LABEL.max}, ${maxUnit}` : RANGE_LABEL[key]);
   const field = (key: keyof Text) => (
-    <label className={styles.rangeField}>
-      <span className={styles.fieldLabel}>{label(key)}</span>
+    <label className={rangeStyles.rangeField}>
+      <span className={fieldStyles.fieldLabel}>{label(key)}</span>
       <input
-        className={`${styles.rangeInput} num`}
+        className={`${rangeStyles.rangeInput} num`}
         inputMode="decimal"
         enterKeyHint="next"
         placeholder={RANGE_EXAMPLE[key === 'max' ? maxUnit : unit][key]}
@@ -61,15 +62,15 @@ export function DumbbellRangeFields({ range, unit, onRange }: { range: DumbbellR
     </label>
   );
   return (
-    <fieldset className={styles.range} data-testid="dumbbell-range">
-      <legend className={styles.rangeTitle}>Your dumbbells, in {unit}</legend>
-      <div className={styles.rangeFields}>
+    <fieldset className={rangeStyles.range} data-testid="dumbbell-range">
+      <legend className={rangeStyles.rangeTitle}>Your dumbbells, in {unit}</legend>
+      <div className={rangeStyles.rangeFields}>
         {field('min')}
         {field('max')}
         {field('step')}
       </div>
-      <div className={styles.rangeUnitRow}>
-        <span className={styles.fieldLabel} id="range-max-unit-label">
+      <div className={rangeStyles.rangeUnitRow}>
+        <span className={fieldStyles.fieldLabel} id="range-max-unit-label">
           Heaviest typed in
         </span>
         <SlidingToggle
@@ -84,11 +85,11 @@ export function DumbbellRangeFields({ range, unit, onRange }: { range: DumbbellR
         />
       </div>
       {/* One reserved line: what is wrong, else the rack's heaviest in both units (no layout shift). */}
-      <div className={styles.rangeStatus}>
-        <p className={styles.rangeNote} role="status" data-testid="range-note">
+      <div className={rangeStyles.rangeStatus}>
+        <p className={rangeStyles.rangeNote} role="status" data-testid="range-note">
           {first ? `${RANGE_LABEL[first]}: ${RANGE_WORDS[problems[first]!]}` : ''}
         </p>
-        <p className={styles.rangeCap} data-testid="range-cap">
+        <p className={rangeStyles.rangeCap} data-testid="range-cap">
           {parsed && !first ? `Heaviest here: ${formatWeight(parsed.max, unit)}, ${formatInOther(parsed.max, unit)}` : ''}
         </p>
       </div>

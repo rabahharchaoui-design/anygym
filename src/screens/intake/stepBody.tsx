@@ -11,6 +11,7 @@ import { ExerciseDeckStep } from './ExerciseDeckStep';
 import { AboutStep, BodyweightStep } from './AboutSteps';
 import { CardioStep, EquipmentStep, GoalChoice, MultiChoice, SingleChoice, UnitsStep } from './Steps';
 import styles from './Intake.module.css';
+import noPlanStyles from './IntakeNoPlan.module.css';
 
 // P9: a quiet hint only where it is true of the plans that ship today (from their own data).
 const PLAN_AVG_MIN = PLANS.map((p) => p.days.reduce((t, d) => t + estimateDayMinutes(d), 0) / p.days.length);
@@ -66,7 +67,7 @@ export function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId
           </p>
         )}
         {step === 'easyOn' && (
-          <p className={styles.safety} data-testid="easy-note">
+          <p className={noPlanStyles.safety} data-testid="easy-note">
             A plan built from your answers leaves out lifts that load these. If something hurts, stop and check with a professional.
           </p>
         )}
