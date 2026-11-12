@@ -215,8 +215,17 @@ test('(g) rest over bar clears by itself within ~3 s; double tap on ✓ makes on
   await checkCurrent(view).dblclick().catch(() => {});
   await expect(loggedRows(view)).toHaveCount(1);
   expect(await sets(page)).toHaveLength(1);
+  // The app saves its own 90 s rest a moment after the row shows (behind the check's frames): wait for it, or it lands over the value below.
+  await expect(page.getByTestId('rest-timer')).toBeVisible();
   const sid = page.url().split('#/workout/')[1]!.split('/')[0]!;
-  await page.evaluate((sid) => localStorage.setItem('anygym-rest', JSON.stringify({ sessionId: sid, endsAt: Date.now() + 800, totalSec: 90 })), sid);
+  // A newer write of the rest deadline, the way the app writes it: the value and its write stamp. (The app also keeps the
+  // 90 s it set at the ✓ in IndexedDB; a start finds the newer of the two, so a value with no newer stamp loses to it.)
+  await page.evaluate((sid) => {
+    localStorage.setItem('anygym-rest', JSON.stringify({ sessionId: sid, endsAt: Date.now() + 800, totalSec: 90 }));
+    const stamps = JSON.parse(localStorage.getItem('anygym-durable-at') ?? '{}') as Record<string, number>;
+    stamps['anygym-rest'] = Date.now() + 60_000;
+    localStorage.setItem('anygym-durable-at', JSON.stringify(stamps));
+  }, sid);
   await page.reload();
   const rest = page.getByTestId('rest-timer');
   await expect(rest).toHaveAttribute('aria-label', 'Rest over', { timeout: 4000 });
