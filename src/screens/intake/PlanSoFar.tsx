@@ -1,7 +1,9 @@
 // PLAN 3.3a: the slim "Your plan so far" strip. Round 2 (B7): it leads with the goals, then the level,
 // and grows by one pill per answer the plan really uses (goals, level, days, minutes, place). It
 // shows only on the screens that add to it, wraps instead of cutting a word, and when the question
-// leaves no room for it whole it waits out of sight (useStripFit), never clipped.
+// leaves no room for it whole it waits out of sight (useStripFit), never clipped. PLAN 3.5w: then a
+// one line version takes its place under the progress bar (the latest pill and "+N"), so a short
+// phone still sees the plan build.
 import { useEffect, useLayoutEffect, type RefObject } from 'react';
 import { goalsOf, type IntakeAnswers, type ScreenId } from '../../lib/intake/funnel';
 import type { ExperienceId, GoalId, PlaceAnswer } from '../../lib/intake/options';
@@ -60,6 +62,34 @@ export function PlanSoFar({ answers }: { answers: IntakeAnswers }) {
 }
 
 /**
+ * The one line version, pinned under the progress bar (PLAN 3.5w). In the page on every strip
+ * screen, shown only while the strip itself has no room (useStripFit sets data-show before paint).
+ */
+export function PlanSoFarLine({ answers }: { answers: IntakeAnswers }) {
+  const pills = planSoFarPills(answers);
+  const latest = pills[pills.length - 1];
+  return (
+    <section className={styles.soFarLine} aria-label="Your plan so far" data-testid="plan-so-far-line">
+      <span className={styles.soFarLabel}>Your plan so far</span>
+      {latest ? (
+        <span className={styles.soFarLineEnd}>
+          <span key={latest.id} className={styles.soFarSlot} data-testid="so-far-latest">
+            {latest.text}
+          </span>
+          {pills.length > 1 && (
+            <span className={`${styles.soFarMore} num`} data-testid="so-far-more" aria-label={`and ${pills.length - 1} more`}>
+              +{pills.length - 1}
+            </span>
+          )}
+        </span>
+      ) : (
+        <span className={styles.soFarEmpty}>Builds as you answer</span>
+      )}
+    </section>
+  );
+}
+
+/**
  * Whole or not at all: the strip shows only while the question and the strip both fit the
  * scroller; with no room (a small phone, large text) it waits out of sight until there is.
  */
@@ -68,19 +98,43 @@ export function useStripFit(ref: RefObject<HTMLElement | null>): void {
     const el = ref.current;
     const strip = el?.querySelector<HTMLElement>('[data-testid="plan-so-far"]');
     if (!el || !strip) return;
+    // PLAN 3.5w: while a tapped card pulses the screen holds still (IntakeScreen's data-hold); the next screen measures afresh.
+    if (el.dataset.hold !== undefined) return;
+    // The one line version shows exactly while the strip is away; the room it takes comes back with the strip.
+    const line = el.parentElement?.querySelector<HTMLElement>('[data-testid="plan-so-far-line"]') ?? null;
     const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
     if (strip.dataset.away !== undefined) {
-      if (el.scrollHeight + strip.offsetHeight + gap <= el.clientHeight) delete strip.dataset.away;
+      if (el.scrollHeight + strip.offsetHeight + gap <= el.clientHeight + (line?.offsetHeight ?? 0)) delete strip.dataset.away;
     } else if (el.scrollHeight > el.clientHeight + 1) strip.dataset.away = '';
+    if (!line) return;
+    if (strip.dataset.away !== undefined) line.dataset.show = '';
+    else delete line.dataset.show;
   };
   useLayoutEffect(update);
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver !== 'function') return;
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    for (const child of Array.from(el.children)) ro.observe(child);
-    return () => ro.disconnect();
+    // No strip on this screen (equipment, cardio...): nothing to watch, nothing set up.
+    if (!el.querySelector('[data-testid="plan-so-far"]')) return;
+    // PLAN 3.5w: moving the strip resizes its neighbours, and the one line version that takes its
+    // place resizes the scroller, so neither is ever moved inside a resize callback (WebKit:
+    // "ResizeObserver loop completed with undelivered notifications", and a second layout in the
+    // same frame). Every resize is read on the next frame, one read per frame.
+    let frame = 0;
+    const later = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
+    };
+    const parts = new ResizeObserver(later);
+    parts.observe(el);
+    for (const child of Array.from(el.children)) if (!(child as HTMLElement).matches('[data-testid="plan-so-far"]')) parts.observe(child);
+    return () => {
+      cancelAnimationFrame(frame);
+      parts.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   });
 }

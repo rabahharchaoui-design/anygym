@@ -1,9 +1,9 @@
 // The intake funnel (SPEC 14, PLAN 3.3): one question per screen, a big title top left, a round
 // back button, the one action pinned in the thumb zone. Single choice screens move on by
-// themselves about 250 ms after the tap (the card pulses, the next screen slides in on the shared
+// themselves about 170 ms after the tap (the card pulses, the next screen slides in on the shared
 // page transition); multi select and form screens have Continue, greyed until there is an answer.
 // The answers are kept as a draft on every change, saved on the profile at the reveal.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
@@ -35,15 +35,15 @@ import { phoneLocale, unitsForLocale } from '../../lib/intake/region';
 import { getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
 import { NO_HANDLERS, stepBody, type StepHandlers } from './stepBody';
 import { NoPlanNotice } from './NoPlan';
-import { PlanSoFar, STRIP_SCREENS, useStripFit } from './PlanSoFar';
+import { PlanSoFar, PlanSoFarLine, STRIP_SCREENS, useStripFit } from './PlanSoFar';
 import { Reveal } from './Reveal';
 import { generate } from '../../data/generator';
 import { generatorInputOf } from '../../lib/intake/yourPlan';
 import { STAYS_HERE, STAYS_HERE_FIRST } from './copy';
 import styles from './Intake.module.css';
 
-/** How long a tapped card pulses before the next screen comes in. */
-export const AUTO_ADVANCE_MS = 250;
+/** How long a tapped card pulses before the next screen comes in (PLAN 3.5w: 170 ms, was 250: seen, never waited for). */
+export const AUTO_ADVANCE_MS = 170;
 
 /**
  * PLAN 3.3a: every screen has its title and one short honest line on why it asks: what the answer
@@ -148,6 +148,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const ref = useRef(state);
   const timer = useRef<number>(undefined);
   const [pulse, setPulse] = useState<string | null>(null);
+  // PLAN 3.5w: the height the options keep while the tapped card pulses (nothing moves under the finger).
+  const [hold, setHold] = useState<number | null>(null);
   const scroller = useRef<HTMLElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   useStripFit(scroller);
@@ -156,8 +158,10 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
 
   // Every answer is kept as it is given (a draft; a redo keeps its own copy only in memory).
+  // PLAN 3.5w: the save runs in the next task, out of the screen change's own update (the page is
+  // captured sooner). Not later than that: a reload right after a step must come back to it.
   useEffect(() => {
-    if (!redo) void writeIntakeDraft(serializeDraft(state));
+    if (!redo) window.setTimeout(() => void writeIntakeDraft(serializeDraft(state)), 0);
   }, [state, redo]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -167,6 +171,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     ref.current = next;
     if (next.step !== before.step) {
       setPulse(null);
+      setHold(null);
       withTransition(kind, () => setState(next));
     } else setState(next);
   }, []);
@@ -201,6 +206,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     apply({ type: 'back' }, kind);
   };
   const pickAndGo = (screen: AnswerId, id: string) => {
+    const options = scroller.current?.querySelector<HTMLElement>(':scope > [role="group"]');
+    if (options) setHold((h) => h ?? options.getBoundingClientRect().height);
     set(screen, NUMERIC.has(screen) ? Number(id) : id);
     setPulse(id);
     window.clearTimeout(timer.current);
@@ -233,7 +240,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
         <header className={styles.top}>
           {showBack ? <BackButton label={step === 'goal' ? 'Back to Settings' : 'Back'} onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
           <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
-            <span className={styles.progressFill} style={{ width: `${Math.max(4, progressOf(step, answers) * 100)}%` }} />
+            <span className={styles.progressFill} style={{ transform: `scaleX(${Math.max(0.04, progressOf(step, answers))})` }} />
           </div>
           {SKIPPABLE.has(step) ? (
             <button type="button" className={`${styles.skip} pressable`} onClick={skip} data-testid="skip">
@@ -243,7 +250,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <span className={styles.topSpacer} aria-hidden="true" />
           )}
         </header>
-        <main ref={scroller} className={styles.body} data-scroller>
+        {STRIP_SCREENS.has(step) && <PlanSoFarLine answers={answers} />}
+        <main ref={scroller} className={styles.body} data-scroller data-hold={hold !== null ? '' : undefined} style={hold !== null ? ({ '--hold': `${hold}px` } as CSSProperties) : undefined}>
           {first && !redo && (
             <div className={styles.intro} data-testid="intake-intro">
               <span className={styles.wordmark}>AnyGym</span>

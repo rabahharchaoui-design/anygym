@@ -40,6 +40,8 @@ async function openDeck(page: Page, concept: string, minutes: 15 | 30 | 45 | 60 
   await expect(page.getByTestId(`min-${minutes}`)).toHaveAttribute('aria-pressed', 'true');
   await page.locator(`[data-concept="${concept}"]`).first().tap();
   await expect(card(page)).toBeVisible();
+  // PLAN 3.5w: the card grows in from the idea card for 240 ms; sizes are read once it has landed.
+  await expect.poll(() => card(page).evaluate((el) => el.getAnimations().length)).toBe(0);
 }
 
 const name = (page: Page) => page.getByTestId('deck-name');

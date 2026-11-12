@@ -33,7 +33,6 @@ import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf, submitRow }
 import { groupNextOf } from './groupNext';
 import { seedWarmUps } from './coachWarmUps';
 import { START_LIGHT } from '../../lib/coach';
-import { SETTLE_MS } from '../../lib/warmUpFold';
 import styles from './Workout.module.css';
 
 // The muscles and form tips: their own chunk (body maps), mounted after the table (PLAN 2.2d).
@@ -498,16 +497,6 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
     if (dx < -80) onSwipeNext();
   };
 
-  // PLAN 3.5g (SPEC 13.5): once a set is logged the hero gives its room to the rows, a moment after the
-  // check (lib/warmUpFold SETTLE_MS); opened with sets done: at once.
-  const anyLogged = logged.length > 0;
-  const [small, setSmall] = useState(anyLogged);
-  useEffect(() => {
-    if (!anyLogged) return setSmall(false);
-    const t = window.setTimeout(() => setSmall(true), SETTLE_MS);
-    return () => window.clearTimeout(t);
-  }, [anyLogged]);
-
   const lastTime = progression?.lastTime;
   // The first time line stays for as long as this view is open once it showed (PLAN 2.0e): it going
   // away with the first logged set moved every row up under the thumb, so the second tap of a fast
@@ -566,7 +555,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
 
   return (
     <main className={styles.exMain} data-hero={hasDemo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-      <ExerciseHead name={name} kind={kind} info={info} photosOk={photosOk} hasDemo={hasDemo} note={note} targetText={targetText} entry={entry} onMenu={onMenu} small={small} />
+      <ExerciseHead name={name} kind={kind} info={info} photosOk={photosOk} hasDemo={hasDemo} note={note} targetText={targetText} entry={entry} onMenu={onMenu} />
 
       {kind && progression && lastTime && (
         <div className={styles.guides}>

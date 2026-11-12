@@ -33,3 +33,4 @@
 3.5j | Your Guam hotel gym: Settings, Gyms, + New gym, Hotel gym, tap your equipment (dumbbells max 22 kg), Make active, then Quick workout. Nothing should ask for a dumbbell above 22 kg. Cardio warm ups appear once you approve the treadmill and stairs moves in Review.
 3.5v | The review now fits one screen and really swipes. Settings, tap the version 5 times, Review: swipe right to approve, left for wrong (then tap a reason or let it default), hold a card to fix it.
 3.5u | Reset the app in Settings, do the intake: it ends on Today with a quick three step tour, and no workout starts. The intake is also shorter: the Coming soon questions are gone.
+3.5w | Smoother motion. Switch tabs: the bar stays still and the pill slides. Close any sheet: the app steps back in gently. Log a set: nothing shifts under your thumb. In Quick workout a card grows into its deck.

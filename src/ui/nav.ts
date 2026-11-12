@@ -1,12 +1,15 @@
 // iOS style navigation (SPEC 13.2, 23.1). Every screen change goes through `go`, which picks how
 // it moves: push (new screen in from the right, the old one 30% left and dimmed), pop (the
-// reverse), tab (crossfade with a small rise, never a slide), expand (a card grows into the next
-// screen) or none. The View Transitions API animates snapshots, so the old screen is never kept in
-// the DOM; the CSS for each kind lives in src/styles/transitions.css (crossfades for reduced motion).
+// reverse), tab (the new screen's content fades in with a small rise, never a slide), expand (a card
+// grows into the next screen) or none. The View Transitions API animates snapshots, so the old
+// screen is never kept in the DOM; the CSS for each kind lives in src/styles/transitions.css
+// (crossfades for reduced motion). A tab switch is never a view transition (PLAN 3.5w): a page
+// snapshot would catch the tab bar, so only the arriving screen moves and the bar stays live.
 import { useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate, type NavigateOptions, type To } from 'react-router-dom';
 import { sheetHistory } from './sheetHistory';
+import { DUR, EASE, prefersReducedMotion } from './motion';
 
 export type NavKind = 'push' | 'pop' | 'tab' | 'expand' | 'fade' | 'down' | 'none';
 
@@ -69,10 +72,79 @@ const held = (): Promise<unknown> => (holds.size ? Promise.race([Promise.all([..
 /** True while a view transition runs (an arriving screen draws itself whole, without its own cascade). */
 export const transitionRunning = (): boolean => typeof document !== 'undefined' && !!document.documentElement.dataset.nav;
 
+/** The view transition now running, if any (afterLanding waits for it). */
+let landing: Promise<unknown> | null = null;
+
+/**
+ * PLAN 3.5w: runs `fn` once the screen change now running has landed (at once when none is), so
+ * work the arriving screen does not need for its first frame (rows below the fold, a draft save)
+ * never lands inside the slide. Returns a cancel.
+ */
+export function afterLanding(fn: () => void): () => void {
+  if (!landing) {
+    fn();
+    return () => undefined;
+  }
+  let live = true;
+  void landing.then(() => setTimeout(() => live && fn(), 0));
+  return () => {
+    live = false;
+  };
+}
+
+/** PLAN 3.5w: a tab switch is on its way; the arriving screen plays the rise (AppShell asks once). */
+let tabArriving = false;
+const TAB_RISE_PX = 7;
+
+/**
+ * The arriving tab's content fades in and rises 7 px over 240 ms (SPEC 23.1), on the compositor and
+ * with nothing left on the element afterwards. Reduced motion: a short fade, no movement. Called by
+ * the screen's layer in a layout effect; does nothing unless a tab switch brought it.
+ */
+export function playTabArrival(layer: HTMLElement | null): void {
+  if (!tabArriving) return;
+  tabArriving = false;
+  if (!layer || typeof layer.animate !== 'function') return;
+  const reduce = prefersReducedMotion();
+  layer.animate(reduce ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: `translateY(${TAB_RISE_PX}px)` }, { opacity: 1, transform: 'translateY(0)' }], {
+    duration: reduce ? DUR.fast : DUR.base,
+    easing: `cubic-bezier(${EASE.out.join(',')})`,
+  });
+}
+
+/**
+ * PLAN 3.5w, expand without a snapshot (Quick workout: an idea card into its deck and back): the
+ * arriving screen fades in over 240 ms while `card`, already in its place on it, grows from the
+ * box `from` of the card it came from. Transforms and opacity only, on the live elements, so the
+ * screen takes touches at once and nothing is left on it afterwards. Reduced motion: only the fade.
+ */
+export function playExpand(screen: HTMLElement | null, card: HTMLElement | null, from: DOMRect | null): void {
+  if (!screen || typeof screen.animate !== 'function') return;
+  const reduce = prefersReducedMotion();
+  screen.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? DUR.fast : DUR.base, easing: `cubic-bezier(${EASE.out.join(',')})` });
+  if (reduce || !card || !from) return;
+  const to = card.getBoundingClientRect();
+  if (!to.width || !to.height) return;
+  // translate and scale are their own properties: a drag's transform on the card still applies.
+  card.animate(
+    [
+      { transformOrigin: '0 0', translate: `${from.left - to.left}px ${from.top - to.top}px`, scale: `${from.width / to.width} ${from.height / to.height}` },
+      { transformOrigin: '0 0', translate: '0px 0px', scale: '1 1' },
+    ],
+    { duration: DUR.base, easing: `cubic-bezier(${EASE.drawer.join(',')})` },
+  );
+}
+
 export function withTransition(kind: NavKind, update: () => void, async = false, flat = false): void {
   const doc = document as Document & {
     startViewTransition?: (cb: () => void | Promise<void>) => VT;
   };
+  tabArriving = kind === 'tab';
+  if (tabArriving) {
+    delete document.documentElement.dataset.navFallback;
+    update();
+    return;
+  }
   if (kind === 'none' || !supportsViewTransitions()) {
     if (kind === 'none') delete document.documentElement.dataset.navFallback;
     else document.documentElement.dataset.navFallback = kind;
@@ -91,9 +163,11 @@ export function withTransition(kind: NavKind, update: () => void, async = false,
   // A newer transition (a fast second tap) skips this one: that is fine, never an unhandled error.
   t.ready?.catch(() => undefined);
   t.updateCallbackDone?.catch(() => undefined);
-  t.finished
-    .catch(() => undefined)
+  const done = t.finished.catch(() => undefined);
+  landing = done;
+  done
     .finally(() => {
+      if (landing === done) landing = null;
       if (root.dataset.nav === kind) delete root.dataset.nav;
       if (flat) delete root.dataset.navFlat;
     });

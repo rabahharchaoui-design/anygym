@@ -23,6 +23,19 @@
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 5%, transparent);
 }
 
+/* PLAN 3.5w: the shared press state (base.css .pressable), held a beat after a quick tap. */
+.wrap[data-pressed] > .concept {
+  transform: scale(var(--press-scale));
+  opacity: var(--press-dim);
+  transition-duration: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap[data-pressed] > .concept {
+    transform: none;
+  }
+}
+
 /* 48 pt target in the card's top corner, drawn small and quiet (the deck card's info button). */
 .info {
   position: absolute;

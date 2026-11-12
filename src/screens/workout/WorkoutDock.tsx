@@ -27,7 +27,7 @@ type Props = {
 
 export function WorkoutDock({ chip, reduce, onChipHold, onChipRelease, onChipOpen, pairNext, onPairNext, rest, onRest }: Props) {
   return (
-    <div className={styles.dockWrap}>
+    <div className={styles.dockWrap} data-dock>
       <AnimatePresence>
         {chip && (
           <motion.div

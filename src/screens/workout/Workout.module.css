@@ -327,45 +327,13 @@
   }
 }
 
-/* Short phones (iPhone SE): a smaller picture so the whole set table stays in the first screen. */
+/* Short phones (iPhone SE, a 659 pt tall Safari window): the picture is small from the start, so
+   the whole set table and the rest bar share the first screen (SPEC 13.5, PLAN 3.5g) and nothing
+   ever resizes after a check (PLAN 3.5w: the hero used to shrink 22 px under the thumb half a
+   second after a log). Taller phones keep the full picture; a long table scrolls it away instead. */
 @media (max-height: 740px) {
   .hero {
-    --hero-h: max(clamp(120px, 26svh, 190px), calc(var(--cap, 0px) + 52px));
-  }
-}
-
-/* 360 x 640 class phones: a touch less again, so five rows clear the rest bar. */
-@media (max-height: 660px) {
-  .hero {
-    --hero-h: max(clamp(120px, 24svh, 190px), calc(var(--cap, 0px) + 52px));
-  }
-}
-
-/* PLAN 3.5g (SPEC 13.5): once a set is logged the picture gives its room to the rows and the rest
-   bar. A registered length, so the height glides (and the pinned foot rides with it) instead of jumping. */
-@property --hero-h {
-  syntax: '<length>';
-  inherits: true;
-  initial-value: 150px;
-}
-
-.hero {
-  transition: --hero-h 260ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.hero[data-small] {
-  --hero-h: max(clamp(140px, 20svh, 220px), calc(var(--cap, 0px) + 52px));
-}
-
-@media (max-height: 740px) {
-  .hero[data-small] {
     --hero-h: max(clamp(112px, 17svh, 130px), calc(var(--cap, 0px) + 52px));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero {
-    transition: none;
   }
 }
 

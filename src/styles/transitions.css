@@ -78,13 +78,8 @@ html[data-nav='pop']::view-transition-new(root) {
   animation-name: vt-pop-new;
 }
 
-/* tab: a crossfade with a 7 px rise, never a slide */
-html[data-nav='tab']::view-transition-old(root) {
-  animation: vt-fade-out 140ms var(--ease-out) both;
-}
-html[data-nav='tab']::view-transition-new(root) {
-  animation: vt-rise-in 240ms var(--ease-out) both;
-}
+/* tab: never a view transition (PLAN 3.5w, src/ui/nav.ts): only the arriving screen's content
+   fades in with a 7 px rise, so the tab bar is in no snapshot and its pill slides live. */
 
 /* expand and fade: the page crossfades while named cards morph into place */
 html[data-nav='expand']::view-transition-old(root),
@@ -96,7 +91,7 @@ html[data-nav='fade']::view-transition-new(root) {
   animation: vt-fade-in 240ms var(--ease-out) both;
 }
 
-/* Bars that stay put: no slide, the new state shows at once (the tab pill slides by itself). */
+/* Bars that stay put on a push or pop: no slide, the new state shows at once. */
 ::view-transition-old(tabbar) {
   display: none;
 }
@@ -106,32 +101,6 @@ html[data-nav='fade']::view-transition-new(root) {
 ::view-transition-group(tabbar) {
   animation: none;
   z-index: 3;
-}
-/* The tab pill (critic B1): its own layer above the bar, flying from the old tab to the new one in
-   the same 240 ms as the tab crossfade, so it lands with the page. Only the new pill is drawn. */
-::view-transition-group(tab-pill) {
-  z-index: 4;
-  animation-duration: 240ms;
-  animation-timing-function: var(--ease-out);
-}
-::view-transition-old(tab-pill) {
-  display: none;
-}
-::view-transition-new(tab-pill) {
-  animation: none;
-  height: 100%;
-}
-/* The active tab's icon and label ride on the pill (critic B3, round 3): the old tab's crossfade into
-   the new tab's while the pair flies with it, so the pill is never bare and the old tab keeps its icon. */
-::view-transition-group(tab-active) {
-  z-index: 5;
-  animation-duration: 240ms;
-  animation-timing-function: var(--ease-out);
-}
-::view-transition-old(tab-active),
-::view-transition-new(tab-active) {
-  animation-duration: 240ms;
-  height: 100%;
 }
 ::view-transition-group(workout-dock) {
   z-index: 3;
@@ -217,26 +186,15 @@ html[data-nav='down']::view-transition-group(workout-dock) {
     opacity: 0;
   }
 }
-@keyframes vt-rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(7px);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*) {
     animation-duration: 0s !important;
   }
-  /* The bar and its pill never fade (critic B1): the pill jumps to the new tab at once. */
-  ::view-transition-old(tabbar),
-  ::view-transition-old(tab-pill),
-  ::view-transition-old(tab-active) {
+  /* The bar never fades (critic B1). */
+  ::view-transition-old(tabbar) {
     display: none !important;
   }
-  ::view-transition-new(tabbar),
-  ::view-transition-new(tab-pill),
-  ::view-transition-new(tab-active) {
+  ::view-transition-new(tabbar) {
     animation: none !important;
   }
   /* A clean crossfade (critic P12): the old page out in 80 ms, then the new one in over 120 ms;

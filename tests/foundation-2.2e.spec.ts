@@ -565,34 +565,35 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('round 2 (critic B1): a tab switch: the pill lands with the page, the bar never fades @matrix', async ({ page }) => {
+  test('round 2 (critic B1): a tab switch: the pill slides to the tab, the bar never fades @matrix', async ({ page }) => {
     await page.goto('./');
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav).toBeVisible();
     await page.waitForTimeout(400);
     const plans = nav.getByRole('link', { name: 'Plans' });
     const pill = nav.locator('[data-pill]');
-    const vt = await page.evaluate(() => typeof (document as Document & { startViewTransition?: unknown }).startViewTransition === 'function');
-    if (vt) expect(await pill.evaluate((el) => (el as HTMLElement).style.viewTransitionName)).toBe('tab-pill');
+    // PLAN 3.5w: the bar is in no page snapshot (a tab switch is not a view transition), so the pill
+    // slides live on the shared spring; frame by frame proof is in tests/motion-3.5w.spec.ts (B1).
+    expect(await pill.evaluate((el) => (el as HTMLElement).style.viewTransitionName)).toBe('');
     await plans.tap();
     await page.waitForTimeout(90);
     await shot(page, 'tab-switch-90ms');
-    await navIdle(page);
-    // The moment the transition is over the pill already sits under Plans (no late slide).
-    const p = await box(pill);
+    expect(await page.evaluate(() => document.documentElement.dataset.nav)).toBeUndefined();
+    // It settles under Plans inside the 350 ms ceiling and then stays.
     const t = await box(plans);
-    expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2))).toBeLessThan(2);
+    await expect.poll(async () => Math.abs((await box(pill)).x + (await box(pill)).width / 2 - (t.x + t.width / 2)), { timeout: 1000 }).toBeLessThan(2);
+    const p = await box(pill);
     await page.waitForTimeout(150);
     const later = await box(pill);
     expect(Math.abs(later.x - p.x)).toBeLessThan(1);
-    // The bar is never part of the page crossfade: its own layer, drawn at once.
+    // On a push or a pop the bar is its own layer, drawn at once, never part of the page slide.
     const rules = await page.evaluate(() => {
       const out: string[] = [];
       for (const sh of document.styleSheets) for (const r of sh.cssRules) if (/tabbar|tab-pill/.test(r.cssText)) out.push(r.cssText);
       return out.join('\n');
     });
     expect(rules).toMatch(/::view-transition-old\(tabbar\)\s*\{\s*display: none/);
-    expect(rules).toMatch(/::view-transition-group\(tab-pill\)/);
+    expect(rules).not.toMatch(/tab-pill|tab-active/);
   });
 
   test('round 2 (critic B1): reduced motion: the pill jumps to the tab at once', async ({ page }) => {
@@ -698,18 +699,18 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('round 3 (critic B3): the active icon and label ride the pill as one layer', async ({ page }) => {
+  test('round 3 (critic B3): the active icon and label sit on the pill; nothing in the bar is a view transition layer', async ({ page }) => {
     await page.goto('./');
     const nav = page.getByRole('navigation', { name: 'Main' });
     await page.waitForTimeout(300);
-    const vt = await page.evaluate(() => typeof (document as Document & { startViewTransition?: unknown }).startViewTransition === 'function');
-    test.skip(!vt, 'View Transitions only');
-    const names = await nav.locator('a').evaluateAll((as) => as.map((a) => [...a.querySelectorAll<HTMLElement>('span')].map((el) => el.style.viewTransitionName).filter(Boolean)));
-    expect(names).toEqual([['tab-pill', 'tab-active'], [], [], []]);
+    // PLAN 3.5w: no named layers inside the bar (they made a ghost label slide across it).
+    const named = () => nav.locator('a').evaluateAll((as) => as.flatMap((a) => [...a.querySelectorAll<HTMLElement>('span')].map((el) => el.style.viewTransitionName).filter(Boolean)));
+    expect(await named()).toEqual([]);
     await nav.getByRole('link', { name: 'Plans' }).tap();
     await navIdle(page);
-    const after = await nav.locator('a').evaluateAll((as) => as.map((a) => [...a.querySelectorAll<HTMLElement>('span')].map((el) => el.style.viewTransitionName).filter(Boolean)));
-    expect(after).toEqual([[], [], [], ['tab-pill', 'tab-active']]);
+    expect(await named()).toEqual([]);
+    await expect(nav.getByRole('link', { name: 'Plans' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Plans' }).locator('[data-pill]')).toHaveCount(1);
     // Every tab keeps its icon in the bar.
     for (const name of ['Today', 'Run', 'History', 'Plans']) await expect(nav.getByRole('link', { name }).locator('svg')).toBeVisible();
   });

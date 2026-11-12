@@ -9,8 +9,6 @@ import { hints } from '../../lib/hints';
 import type { SetRecord } from '../../lib/records';
 import { LoggedRow, TodoRow, type Api, type Shared } from './SetRows';
 
-/** The hero's height glide once a set is logged (Workout.module.css, .hero transition). */
-const HERO_GLIDE_MS = 260;
 import styles from './SetTable.module.css';
 
 type Props = {
@@ -98,8 +96,16 @@ type Props = {
  * Keeps the current row (and its open stepper) in view. Since PLAN 2.2b the exercise view scrolls
  * as a whole (the table no longer has its own scroll), so the view is scrolled, only as far as
  * needed: below the hero's pinned foot and the column header, above the rest bar. Nothing moves
- * when the row is already in view (the usual case: the table fits the first screen).
+ * when the row is already in view (the usual case: the table fits the first screen). PLAN 3.5w: the
+ * bars are read where they will rest (their layout box, not where their entrance has them now), so
+ * the one scroll a row needs starts with the check, never half a second later under the thumb.
  */
+function restingTop(el: HTMLElement): number {
+  const parent = el.offsetParent as HTMLElement | null;
+  if (!parent) return el.getBoundingClientRect().top;
+  return parent.getBoundingClientRect().top + parent.clientTop + el.offsetTop;
+}
+
 function keepInView(wrap: HTMLElement | null) {
   if (!wrap) return;
   const target = wrap.querySelector<HTMLElement>('[data-current-group]');
@@ -111,9 +117,8 @@ function keepInView(wrap: HTMLElement | null) {
   const s = scroller.getBoundingClientRect();
   // PLAN 3.5g: above every bar that floats over the page (the rest bar, the Next in the pair bar).
   const covers = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="rest-timer"], [data-testid="group-next"]'))
-    .map((el) => el.getBoundingClientRect())
-    .filter((r) => r.height > 0)
-    .map((r) => r.top);
+    .filter((el) => el.offsetHeight > 0)
+    .map(restingTop);
   const bottom = Math.min(s.bottom, ...covers) - 4;
   const top = s.top + (hero && scroller.scrollTop > 0 ? pin : 0) + head + 4;
   const t = target.getBoundingClientRect();
@@ -143,13 +148,24 @@ export function SetTable(props: Props) {
   const current = props.waiting ? undefined : rows[0]?.index;
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => keepInView(ref.current), [current, editing, logged.length]);
-  // PLAN 3.5g (SPEC 13.5): after a check the rest bar comes up and the hero glides smaller: once that has
-  // settled, once more, so the current row ends up above the rest bar, never under it.
+  // PLAN 3.5g (SPEC 13.5): a check brings the rest bar up; the frame after it is in the page, once
+  // more, so the current row ends up above it (3.5w: at once, and nothing moves when it already is).
   useEffect(() => {
     if (!logged.length) return;
-    const t = window.setTimeout(() => keepInView(ref.current), SETTLE_MS + HERO_GLIDE_MS + 40);
-    return () => window.clearTimeout(t);
+    const f = requestAnimationFrame(() => keepInView(ref.current));
+    return () => cancelAnimationFrame(f);
   }, [logged.length]);
+  // The rest bar and the pair bar mount on their own clock (a tick after the row): when one
+  // arrives over the current row, the row moves clear of it then, not on a timer.
+  useEffect(() => {
+    const dock = document.querySelector('[data-dock]');
+    if (!dock || typeof MutationObserver === 'undefined') return;
+    const mo = new MutationObserver((changes) => {
+      if (changes.some((c) => c.addedNodes.length > 0)) keepInView(ref.current);
+    });
+    mo.observe(dock, { childList: true });
+    return () => mo.disconnect();
+  }, []);
 
   // PLAN 3.5g: the finished warm ups fold into one row (a tap shows them again), a moment after the last.
   const canFold = doneWarmUps(logged.map((s) => typeOfSet(s)), rows.map((r) => r.type));
@@ -161,6 +177,8 @@ export function SetTable(props: Props) {
     return () => window.clearTimeout(t);
   }, [canFold]);
   const fold = showWarm ? 0 : Math.min(folded, canFold);
+  // The fold moves the rows under it: the current one stays in view.
+  useLayoutEffect(() => keepInView(ref.current), [fold]);
   // The last ✓ tap (screen point and time): the second tap of a double tap never logs a row that moved under it.
   const lastTap = useRef<Tap | null>(null);
 

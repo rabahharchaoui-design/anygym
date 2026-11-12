@@ -183,6 +183,8 @@ test('deck: no layout shift while the demo loops, only top and next move, frame 
   await expect(card(page)).toBeVisible();
   const demo = card(page).getByTestId('deck-demo');
   await expect(demo.locator('[data-frame="1"] img')).toHaveCount(1);
+  // PLAN 3.5w: the card grows in from the idea card for 240 ms; this is about the loop once it has landed.
+  await expect.poll(() => card(page).evaluate((el) => el.getAnimations().length)).toBe(0);
   const rects = new Set<string>();
   for (let i = 0; i < 12; i++) {
     const b = (await card(page).boundingBox())!;

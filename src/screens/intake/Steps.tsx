@@ -5,6 +5,10 @@ import { Chip } from '../../ui/Chip';
 import { SlidingToggle } from '../../ui/SlidingToggle';
 import { InfoButton } from '../../components/info/InfoButton';
 import { Check } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { afterLanding } from '../../ui/nav';
+import { prefersReducedMotion } from '../../ui/motion';
+import { useFlip } from '../../ui/useFlip';
 import type { DumbbellRange, EquipmentId, Unit } from '../../db/types';
 import { groupsFor, toggleGroup, toggleItem } from '../../lib/intake/equipmentGroups';
 import { EquipmentArt } from './EquipmentArt';
@@ -33,9 +37,12 @@ export function SingleChoice<T extends string | number>({
   /** PLAN 3.3a: the cards grow to fill the screen (off while something shows under them). */
   fill?: boolean;
 }) {
+  // PLAN 3.5w: when the cards stop filling (something shows under them) they glide to their new places.
+  const cards = useRef<HTMLDivElement>(null);
+  useFlip(cards, fill);
   if (options.length <= 5)
     return (
-      <div className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
+      <div ref={cards} className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
         {options.map((o) => (
           <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
             <ChoiceCard icon={iconFor(o.icon)} label={o.label} hint={o.hint} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
@@ -169,6 +176,9 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
 /** B4: the sheet's weight line only where it applies: a bar whose weight the user needs. */
 const BAR_WEIGHT_INFO: ReadonlySet<EquipmentId> = new Set<EquipmentId>(['barbell_rack', 'ez_curl_bar']);
 
+/** PLAN 3.5w: the tiles drawn for the screen's first frame: three rows of three, what the slide shows. */
+const FIRST_TILES = 9;
+
 /**
  * SPEC 3 equipment picker (PLAN 3.3a): a picture tile for every item, three across, grouped, each
  * group with its own All. ⓘ on anything unusual (SPEC 13.7). Nothing picked is a real answer.
@@ -194,7 +204,18 @@ export function EquipmentStep({
 }) {
   const on = new Set(value);
   const all = choices.every((id) => on.has(id));
-  const groups = groupsFor(choices);
+  // PLAN 3.5w: the slide in carries only the first rows; the rest (below the fold) is added once the
+  // screen has landed, so drawing some thirty tiles never costs the transition its frames.
+  const [whole, setWhole] = useState(false);
+  useEffect(() => afterLanding(() => setWhole(true)), []);
+  let room = whole ? Infinity : FIRST_TILES;
+  const groups = groupsFor(choices)
+    .map((g) => {
+      const items = g.items.slice(0, Math.max(0, room));
+      room -= items.length;
+      return { ...g, shown: items };
+    })
+    .filter((g) => g.shown.length > 0);
   return (
     <>
       <div className={styles.equipBar}>
@@ -205,7 +226,7 @@ export function EquipmentStep({
           {all ? 'Turn all off' : 'Turn all on'}
         </button>
       </div>
-      <div className={styles.equipGroups} data-testid="equipment">
+      <div className={styles.equipGroups} data-testid="equipment" data-whole={whole || undefined}>
         {groups.map((g) => {
           const groupOn = g.items.every((id) => on.has(id));
           const titleId = `equip-group-${g.id}`;
@@ -228,7 +249,7 @@ export function EquipmentStep({
                 </button>
               </div>
               <ul className={styles.equipGrid}>
-                {g.items.flatMap((id) => [
+                {g.shown.flatMap((id) => [
                   <li key={id} className={styles.tileCell}>
                     <button type="button" className={`${styles.tile} pressable`} aria-pressed={on.has(id)} onClick={() => onChange(toggleItem(value, id))} data-testid={`equip-${id}`}>
                       <Check className={styles.tileCheck} width={12} height={12} strokeWidth={3.5} aria-hidden="true" data-check />
@@ -260,11 +281,29 @@ export function EquipmentStep({
 
 /** How they feel about cardio, and right there which they like (SPEC 14 step 9). */
 export function CardioStep({ cardio, favorites, onCardio, onFavorites }: { cardio: string | undefined; favorites: readonly string[] | undefined; onCardio: (id: string) => void; onFavorites: (v: string[]) => void }) {
+  // PLAN 3.5w: on a short screen the kinds arrive below the fold. The page scrolls to show them, only
+  // as far as needed and never past their own heading; not when the screen opens with an answer.
+  const kinds = useRef<HTMLElement>(null);
+  const liked = !!cardio && cardio !== 'none';
+  const opened = useRef(false);
+  useLayoutEffect(() => {
+    if (!opened.current) {
+      opened.current = true;
+      return;
+    }
+    const el = kinds.current;
+    const page = el?.closest('main');
+    if (!el || !page) return;
+    const box = el.getBoundingClientRect();
+    const view = page.getBoundingClientRect();
+    const by = Math.min(box.bottom + 8 - view.bottom, box.top - view.top - 8);
+    if (by > 1) page.scrollTo({ top: page.scrollTop + by, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  }, [liked]);
   return (
     <>
       <SingleChoice options={CARDIO} value={cardio} onPick={onCardio} pulse={null} testId="q-cardio" fill={!cardio || cardio === 'none'} />
       {cardio && cardio !== 'none' && (
-        <section className={styles.aboutGroup}>
+        <section ref={kinds} className={`${styles.aboutGroup} ${styles.fadeIn}`} data-testid="cardio-kinds">
           <span className={styles.fieldLabel}>Any you like? Optional.</span>
           <MultiChoice options={CARDIO_FAVORITES} value={favorites} onChange={onFavorites} testId="q-cardioFavorites" fill={false} />
         </section>
