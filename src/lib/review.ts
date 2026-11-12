@@ -1,6 +1,8 @@
 // Review state (SPEC 9.4): the owner's decision for each catalog exercise and the export file.
 // Pure: the screen stores `ReviewState` as one JSON string in the Dexie kv table (no schema change).
 
+import { cap } from './words';
+
 export type Verdict = 'approved' | 'wrong-demo' | 'wrong-muscles' | 'fix-cues';
 
 export interface Decision {
@@ -88,7 +90,7 @@ export const REASON_WORDS: Record<WrongReason, string> = { 'wrong-demo': 'Wrong 
 
 /** The primary muscle names as chips (PLAN 3.5v): each once, capitalised, at most `max`, and how many more. */
 export function muscleChips(primary: readonly { label: string }[], max = 3): { chips: string[]; more: number } {
-  const all = [...new Set(primary.map((t) => t.label.charAt(0).toUpperCase() + t.label.slice(1)))];
+  const all = [...new Set(primary.map((t) => cap(t.label)))];
   return { chips: all.slice(0, max), more: Math.max(0, all.length - max) };
 }
 

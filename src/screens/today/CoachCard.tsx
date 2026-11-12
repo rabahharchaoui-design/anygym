@@ -14,6 +14,7 @@ import { holdChanges, missedChoice, weekKey, weightWords, type CoachCard as Card
 import { ChangeRow, HoldList, ShortChanges } from './CoachList';
 import { learnedOf } from './useCoach';
 import styles from './Coach.module.css';
+import { plural } from '../../lib/words';
 
 type Props = {
   card: Card | null;
@@ -28,7 +29,6 @@ let seq = 0;
 /** Longer than a double tap: the toast (and its Undo) never takes a tap meant for the card. */
 export const TOAST_AFTER_MS = 400;
 const toastId = () => Date.now() + ++seq;
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const failed = (): ToastMessage => ({ id: toastId(), text: 'Could not save that. Try again.' });
 
 export function CoachCard({ card, data, onToast, onSeeChanges, onStartDay }: Props) {

@@ -3,6 +3,7 @@
 // and the tests share one definition. Only `import type` from bodyArt so Node can run the
 // report script straight from TypeScript.
 import type { Region } from './bodyArt';
+import { cap } from './words';
 
 /** What "shoulders" means for one exercise (data/muscle-overrides.json). */
 export type ShoulderPart = 'front' | 'rear' | 'side' | 'rotator cuff' | 'leave out';
@@ -107,11 +108,10 @@ function target(muscle: string, override: MuscleOverride | undefined): MuscleTar
   return { muscle, label: override?.labels?.[muscle] ?? MUSCLE_LABELS[muscle] ?? muscle, regions: [...regions] };
 }
 
-const sentenceCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** The text line under the drawing. */
 export function muscleText(primary: MuscleTarget[], secondary: MuscleTarget[]): string {
-  const group = (list: MuscleTarget[]) => sentenceCase(list.map((t) => t.label).join(', '));
+  const group = (list: MuscleTarget[]) => cap(list.map((t) => t.label).join(', '));
   return [primary, secondary].filter((l) => l.length > 0).map(group).join(' · ');
 }
 

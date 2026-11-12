@@ -7,6 +7,7 @@ import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { MuscleExercisesLink, MuscleExercisesSheet } from './MuscleExercises';
 import { MusclePicker, selectableRegions } from './MusclePicker';
 import styles from './MuscleMap.module.css';
+import { cap } from '../../lib/words';
 
 // SPEC 4.4 and 4.5 (PREMIUM MAP, PLAN 2.2a): one large body at a time with Front | Back and
 // Male | Female switches, primary muscles in the accent with a soft glow, secondary at 40%, tap a
@@ -34,7 +35,6 @@ export function autoView(data: MuscleMapData, body: BodyKind): View {
   return count('back') > count('front') ? 'back' : 'front';
 }
 
-const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /** "Upper chest · primary" for the tapped region, in the same words as the text line. */
 export function pickLine(region: Region, data: MuscleMapData): string {

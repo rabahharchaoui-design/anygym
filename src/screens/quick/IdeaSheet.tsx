@@ -7,6 +7,7 @@ import { Sheet } from '../../ui/Sheet';
 import { EquipmentArt } from '../intake/EquipmentArt';
 import curate from '../../components/deck/Curate.module.css';
 import styles from './IdeaSheet.module.css';
+import { cap } from '../../lib/words';
 
 const EFFORT_WORD = { 1: 'Easy', 2: 'Medium', 3: 'Hard' } as const;
 
@@ -16,7 +17,7 @@ const GEAR_ART = 4;
 export function IdeaSheet({ concept, title, open, onClose }: { concept: Concept; title: string; open: boolean; onClose: () => void }) {
   const gear = [...new Set(concept.gear)];
   const list = gear.map((g) => EQUIPMENT_LABEL[g].toLowerCase()).join(', ');
-  const words = list.charAt(0).toUpperCase() + list.slice(1);
+  const words = cap(list);
   const short = shortLine(concept);
   return (
     <Sheet open={open} onClose={onClose} label={`More about ${title}`}>

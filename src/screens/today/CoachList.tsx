@@ -6,8 +6,8 @@ import { ChevronDown, ChevronRight } from '../../ui/icons';
 import { formatAmount } from '../../lib/load';
 import { shortList, weightWords, type Hold, type PlannedChange } from '../../lib/coach';
 import styles from './Coach.module.css';
+import { plural } from '../../lib/words';
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 type Change = Pick<PlannedChange, 'exerciseId' | 'name' | 'loadKind' | 'unit' | 'from' | 'to' | 'reason'> & { fromTotal?: number; key?: string; id?: string };
 

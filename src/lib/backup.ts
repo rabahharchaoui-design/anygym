@@ -16,6 +16,7 @@ import { MAX_EXTRA_SETS } from './extraSets';
 import { MAX_ROW_SLOT } from './setTable';
 import type { CandidateReviewRow } from './candidates/review';
 import { RECORD_CHECKS, isDraft, isMutation, isObj, knownPlates, num, oneOf, recordOf, shape, str, type Check, type Rec } from './backupChecks';
+import { plural } from './words';
 
 export { RECORD_CHECKS, isDraft, isLoad } from './backupChecks';
 export { REMIND_AFTER_MS, REMIND_MIN_SESSIONS, SNOOZE_MS, backedUpIds, onlyOnPhone, reminderReason, shouldRemind, type ReminderInput } from './backupReminder';
@@ -346,7 +347,6 @@ export type BackupSummary = { workouts: number; sets: number; gyms: number; expo
 
 export const summarize = (b: Backup): BackupSummary => ({ workouts: b.tables.sessions.length, sets: b.tables.sets.length, gyms: b.tables.gyms.length, exportedAt: b.exportedAt });
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 export const workoutCount = (n: number) => plural(n, 'workout', 'workouts');
 
 export function summaryLine(s: BackupSummary): string {
