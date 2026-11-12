@@ -1,6 +1,10 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { emptyBarWeight, loadAt, warmUpLadder, type LoadSetup } from '../load';
+import { vi as viTimeout } from 'vitest';
+// PLAN 3.6u: a heavy test (slowest about 2988 ms on a laptop; the GitHub runner is about six to eight times slower and
+// one timed out at the 5 s default). An explicit limit sized for the runner, never a retry.
+viTimeout.setConfig({ testTimeout: 60_000 });
 
 // Independent tester check 6 for PLAN 3.8b: the empty bar warm up uses the gym's real bar plus collars.
 const kg15: LoadSetup = { unit: 'kg', base: 15, plates: [25, 20, 15, 10, 5, 2.5, 1.25], collars: 'competition', sleeveLength: 320, dumbbellRange: null, stackStep: 2.5 };

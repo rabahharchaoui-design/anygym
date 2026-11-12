@@ -27,6 +27,10 @@ import {
   zoomFor,
   type BarLayout,
 } from '../plateLayout';
+import { vi as viTimeout } from 'vitest';
+// PLAN 3.6u: a heavy test (slowest about 708 ms on a laptop; the GitHub runner is about six to eight times slower and
+// one timed out at the 5 s default). An explicit limit sized for the runner, never a retry.
+viTimeout.setConfig({ testTimeout: 30_000 });
 
 // Card widths of the SPEC 13.4 phones (viewport minus the sheet's side padding): 320 floor, SE, 15, Pro Max.
 const PHONES = [288, 343, 361, 408];

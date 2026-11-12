@@ -18,6 +18,10 @@ import { generatePlan } from '../../lib/generator';
 import { pickerSections } from '../../lib/picker';
 import { PATTERNS, adaptDay, swapCandidates, workoutIdOf } from '../../lib/swap';
 import { approvedLadder, loadCandidateFile, ownerCandidates, setApproved } from '../candidateGate';
+import { vi as viTimeout } from 'vitest';
+// PLAN 3.6u: a heavy test (slowest about 1654 ms on a laptop; the GitHub runner is about six to eight times slower and
+// one timed out at the 5 s default). An explicit limit sized for the runner, never a retry.
+viTimeout.setConfig({ testTimeout: 30_000 });
 
 const REGIONS = ['chest', 'upper-back', 'lower-back', 'front-deltoids', 'back-deltoids', 'biceps', 'triceps', 'forearm', 'abs', 'obliques', 'quadriceps', 'hamstring', 'gluteal', 'calves', 'adductor', 'trapezius'] as const;
 const QUERIES = ['', 'press', 'squat', 'lunge', 'row', 'curl', 'run', 'plank', 'stretch', 'kettlebell', 'band', 'jump'];

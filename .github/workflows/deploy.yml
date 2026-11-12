@@ -1,7 +1,7 @@
 name: Check and deploy to GitHub Pages
 
 # Every push to master and to a session branch (s3-plans, s4-run, ...) runs the check job. Only master
-# (or a manual run) goes on to build and deploy, and only when the check passed, so a broken master
+# (a push or a manual run on master) goes on to build and deploy, and only when the check passed, so a broken master
 # cannot ship. The build and the deployed artifact are the same as before the gate.
 on:
   push:
@@ -21,7 +21,8 @@ jobs:
       contents: read
     # A newer push to a session branch replaces the check still running for it. Master always finishes.
     concurrency:
-      group: check-${{ github.ref }}
+      # A manual run (workflow_dispatch) gets its own group, so several can run side by side (PLAN 3.6u: ten in a row).
+      group: check-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
     env:
       # Only the iPhone 15 profile runs here, so only WebKit is installed.
@@ -71,7 +72,7 @@ jobs:
 
   build:
     needs: check
-    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,7 +88,7 @@ jobs:
 
   deploy:
     needs: [check, build]
-    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     concurrency:
       group: pages
