@@ -1,4 +1,5 @@
 // Calendar helpers for the coach (local time). A training week runs Monday to Sunday.
+import { dayKey } from '../dayKey';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,9 +27,7 @@ export function weekStartFrom(t: number, n: number): number {
 
 /** A week's id: its Monday as YYYY-MM-DD (local). */
 export function weekKey(t: number): string {
-  const d = new Date(weekStart(t));
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return dayKey(new Date(weekStart(t)));
 }
 
 /** The week before the one `now` is in: [start, end). */

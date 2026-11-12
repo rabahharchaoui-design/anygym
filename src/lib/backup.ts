@@ -17,6 +17,7 @@ import { MAX_ROW_SLOT } from './setTable';
 import type { CandidateReviewRow } from './candidates/review';
 import { RECORD_CHECKS, isDraft, isMutation, isObj, knownPlates, num, oneOf, recordOf, shape, str, type Check, type Rec } from './backupChecks';
 import { plural } from './words';
+import { dayKey } from './dayKey';
 
 export { RECORD_CHECKS, isDraft, isLoad } from './backupChecks';
 export { REMIND_AFTER_MS, REMIND_MIN_SESSIONS, SNOOZE_MS, backedUpIds, onlyOnPhone, reminderReason, shouldRemind, type ReminderInput } from './backupReminder';
@@ -119,9 +120,7 @@ export const serializeBackup = (backup: Backup): string => JSON.stringify(backup
 
 /** anygym-backup-YYYY-MM-DD.json, in the phone's local date. */
 export function backupFileName(ts: number): string {
-  const d = new Date(ts);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `anygym-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+  return `anygym-backup-${dayKey(new Date(ts))}.json`;
 }
 
 /** The schema version each table first appeared in (db/schema.ts). */
