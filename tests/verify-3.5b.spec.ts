@@ -198,6 +198,8 @@ test.describe('verify 3.5b', () => {
   });
 
   test('6 inclusive: beginner and Go easy on; hotel and dumbbell: all four chips', async ({ page }) => {
+    // Opens and closes the info sheet of every idea of every gym and chip: 22 s on WebKit, and headless Chromium paints a frame only every 50 ms or more.
+    test.setTimeout(150_000);
     const errors = watchErrors(page);
     for (const [label, eq, intake] of [
       ['beginner-full', undefined, { experience: 'new' }],
@@ -288,8 +290,7 @@ test.describe('verify 3.5b', () => {
     await page.locator('[data-concept]').first().dblclick();
     await expect(card(page)).toBeVisible();
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Quick workout' })).toBeVisible();
-    // 3.5f: an open deck comes back after a reload; Back is the ideas again.
+    // 3.5f: an open deck comes back after a reload (so there is no ideas heading to wait for); Back is the ideas again.
     await expect(card(page)).toBeVisible();
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await expect(page.locator('[data-concept]').first()).toBeVisible();
@@ -885,6 +886,8 @@ test.describe('verify 3.5b round 4 part 2', () => {
     expect(ss[0]!.exerciseIds).toHaveLength(n);
     for (const delay of [0, 0, 5, 15, 40, 90, 200]) {
       await dbClear(page, ['sessions', 'sets']);
+      // A reload that cut Start short brings the open deck back (3.5f, kept for the tab); each round starts from the ideas.
+      await page.evaluate(() => sessionStorage.removeItem('anygym.quickDeck'));
       await page.goto('./');
       ({ n } = await startPump(page, 30));
       await page.getByTestId('quick-start').tap({ noWaitAfter: true });
