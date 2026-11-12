@@ -55,8 +55,15 @@ async function expectSpotOn(page: Page, target: TourTarget) {
   const t = (await boxOf(target))!;
   expect(t.y).toBeGreaterThanOrEqual(0);
   expect(t.y + t.height).toBeLessThanOrEqual(view.height);
+  // The words glide to their place after the light lands: wait for them to land, never on it.
+  await expect
+    .poll(async () => {
+      const w = (await page.getByTestId('tour-words').boundingBox())!;
+      const now = (await boxOf(target))!;
+      return w.y + w.height <= now.y || w.y >= now.y + now.height ? 'clear' : `words ${w.y.toFixed(0)}-${(w.y + w.height).toFixed(0)} over ${now.y.toFixed(0)}-${(now.y + now.height).toFixed(0)}`;
+    })
+    .toBe('clear');
   const w = (await page.getByTestId('tour-words').boundingBox())!;
-  expect(w.y + w.height <= t.y || w.y >= t.y + t.height).toBe(true);
   expect(w.x).toBeGreaterThanOrEqual(0);
   expect(w.x + w.width).toBeLessThanOrEqual(view.width);
   expect(w.y + w.height).toBeLessThanOrEqual(view.height);

@@ -236,6 +236,10 @@ test.describe('verify 3.8', () => {
     await page.getByTestId('coach-see-changes').tap();
     await page.getByRole('dialog', { name: 'Leveled up this week' }).getByTestId('coach-change').filter({ hasText: 'Overhead Press' }).getByTestId('change-undo').tap();
     await expect.poll(async () => (await dbAll<{ undoneAt?: number }>(page, 'coachChanges')).filter((c) => c.undoneAt).length).toBe(2);
+    // With nothing left to undo the card and its sheet go; the sheet then steps back off its own
+    // history entry. Reload only once that step is done: a reload racing it aborted on Chromium (PLAN 3.6v).
+    await expect(page.getByRole('dialog', { name: 'Leveled up this week' })).toHaveCount(0);
+    await page.waitForFunction(() => !(history.state as Record<string, unknown> | null)?.anygymSheet);
     await page.reload();
     await expect(page.getByRole('button', { name: /Quick workout/ })).toBeVisible();
     await expect(page.getByTestId('coach-card')).toHaveCount(0);
