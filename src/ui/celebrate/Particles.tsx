@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { DUR } from '../motion';
+import { fitCanvas } from './fitCanvas';
 import { seeded } from './seeded';
 import styles from './celebrate.module.css';
 
@@ -39,12 +40,7 @@ export function Particles({ count, origin, reach, delay = 0, life: lifeMs = DUR.
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    const box = canvas.getBoundingClientRect();
-    // Sharp on any phone, never more than 2x: a 3x full screen canvas is 2.25 times the pixels for nothing the eye sees in motion.
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(box.width * dpr);
-    canvas.height = Math.round(box.height * dpr);
-    ctx.scale(dpr, dpr);
+    const box = fitCanvas(canvas, ctx);
     const css = getComputedStyle(canvas);
     const inks = INKS.map((name) => css.getPropertyValue(name).trim());
     const rnd = seeded(count * 7919 + Math.round(reach));
