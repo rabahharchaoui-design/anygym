@@ -1,9 +1,8 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type PanInfo } from 'motion/react';
 import { FADE, SHEET_SPRING } from '../../ui/motion';
-import { isTopSheet, pushSheet } from '../../ui/sheetStack';
-import { sheetHistory } from '../../ui/sheetHistory';
+import { useSheetLayer } from '../../ui/useSheetLayer';
 import { XIcon } from '../../ui/icons';
 import type { DemoImages } from '../../lib/exerciseInfo';
 import { FormDemo } from './FormDemo';
@@ -36,29 +35,7 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
-  useLayoutEffect(() => {
-    if (!present) return;
-    const root = rootRef.current!;
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const unregister = pushSheet(root);
-    const release = sheetHistory().open(() => closeRef.current());
-    root.querySelector<HTMLElement>('[data-close]')?.focus({ preventScroll: true });
-    return () => {
-      unregister();
-      release();
-      if (before?.isConnected && !before.closest('[inert]')) before.focus({ preventScroll: true });
-    };
-  }, [present]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || !rootRef.current || !isTopSheet(rootRef.current)) return;
-      e.stopPropagation();
-      closeRef.current();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  useSheetLayer(present, rootRef, closeRef, (root) => root.querySelector<HTMLElement>('[data-close]')?.focus({ preventScroll: true }));
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.y > SWIPE_CLOSE || info.velocity.y > FLICK) onClose();
