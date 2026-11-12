@@ -179,3 +179,37 @@
   border: 0;
   pointer-events: none;
 }
+
+/* The smallest phones at big text (320 to 360 pt wide): three buttons keep one line each (the icons
+   step aside), so the card keeps its room; and on a short phone the card's words sit a little tighter,
+   so the photo is never a postage stamp (PLAN 3.6v). */
+@media (max-width: 360px) {
+  .three button {
+    white-space: nowrap;
+  }
+
+  .three button svg {
+    display: none;
+  }
+}
+
+@media (max-height: 700px) {
+  .face {
+    padding: var(--space-3) var(--space-4) var(--space-3);
+  }
+}
+
+@media (max-height: 600px) {
+  .face {
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .face h2 {
+    font-size: 1.0625rem;
+  }
+
+  /* 48 pt, the thumb target, not 56. */
+  .three button {
+    min-height: 48px;
+  }
+}

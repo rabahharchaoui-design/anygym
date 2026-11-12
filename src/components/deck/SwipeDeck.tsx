@@ -1,3 +1,4 @@
+import { eatNextClick } from './eatNextClick';
 import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { animate } from 'motion/react';
 import { tick } from '../../ui/haptics';
@@ -223,9 +224,7 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fling]);
 
-  // One gesture, two ways in (PLAN 3.5v): pointer events (mouse, pen) and touch events (a finger on
-  // the phone, where a touch stream is never taken away mid drag). A finger's pointerdown comes
-  // first; its touchstart then takes the gesture over, and the pointer events are ignored.
+  // One gesture, two ways in (PLAN 3.5v): pointer events (mouse, pen) and touch events (a finger; its touchstart takes over from its pointerdown).
   const begin = (src: Drag['src'], id: number, x: number, y: number, target: Element) => {
     if (busy.current || drag.current) return;
     // A new press: whatever the last drag or hold swallowed is over.
@@ -252,6 +251,7 @@ export function SwipeDeck<T extends { id: string }>({ items, index, canSwap, red
       swallow.current = true;
       clearHold();
       tick();
+      eatNextClick();
       onNever?.();
     }, LONG_PRESS_MS);
   };

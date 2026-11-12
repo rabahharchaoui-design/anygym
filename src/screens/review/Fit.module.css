@@ -223,6 +223,12 @@
   animation: reasons-in var(--dur-fast) var(--ease-out);
 }
 
+@media (max-width: 340px) {
+  .reasons {
+    gap: 4px;
+  }
+}
+
 @keyframes reasons-in {
   from {
     opacity: 0;

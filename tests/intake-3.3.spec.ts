@@ -903,9 +903,10 @@ test('B4: love and never share one optional screen and stay separate answers', a
   await expect(page.getByTestId('ex-mode')).toContainText('Love (1)');
   await expect(page.getByTestId('ex-mode')).toContainText('Never (1)');
   await shot(page, 'exercises');
-  const d = await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers);
-  expect(d.love).toHaveLength(1);
-  expect(d.never).toHaveLength(1);
+  // The draft is saved a moment after the tap: wait for it, never read it early.
+  const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft')!).answers);
+  await expect.poll(async () => [(await draft()).love?.length, (await draft()).never?.length]).toEqual([1, 1]);
+  const d = await draft();
   expect(d.love[0]).not.toBe(d.never[0]);
 });
 

@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '../fixtures';
 import { dbAll, dbPut } from '../workout-helpers';
+import { mouseFlick, stillBox } from './touch';
 
 // PLAN 3.5a: shared Quick workout helpers (tests/quick-3.5a.spec.ts and tests/video-3.5a.spec.ts).
 
@@ -37,11 +38,10 @@ export const card = (page: Page) => page.getByTestId('deck-card');
 
 /** A drag on the top card with the mouse (pointer events, as a finger would move it). */
 export async function swipe(page: Page, dx: number, opts: { steps?: number; release?: boolean; slow?: boolean } = {}) {
-  await expect(card(page)).toBeVisible();
-  await page.waitForTimeout(60);
-  const box = (await card(page).boundingBox())!;
+  const box = await stillBox(card(page));
   const x = box.x + box.width / 2;
   const y = box.y + box.height * 0.45;
+  if (!opts.slow && opts.release !== false) return mouseFlick(page, x, y, dx, 6, opts.steps ?? 12);
   await page.mouse.move(x, y);
   await page.mouse.down();
   if (opts.slow) {
@@ -56,7 +56,7 @@ export async function swipe(page: Page, dx: number, opts: { steps?: number; rele
 }
 
 export async function longPress(page: Page) {
-  const box = (await card(page).boundingBox())!;
+  const box = await stillBox(card(page));
   await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.4);
   await page.mouse.down();
   await page.waitForTimeout(800);
