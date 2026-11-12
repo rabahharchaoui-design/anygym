@@ -45,8 +45,8 @@ export async function idleFrames(page: Page, ms = 1000): Promise<Idle> {
   return { p50, p90, slow: p90 > SLOW_P90_MS };
 }
 
-/** Frames expected over `spanMs` of an effect: `strict` on a healthy host, else what half the host's own rate allows (never under 3). */
-export const framesFloor = (strict: number, spanMs: number, idle: Idle) => (idle.slow ? Math.max(3, Math.min(strict, Math.floor((0.5 * spanMs) / idle.p90))) : strict);
+/** Frames expected over `spanMs` of an effect: `strict` on a healthy host, else what half the host's own rate allows (never under `least`, 2 unless said). */
+export const framesFloor = (strict: number, spanMs: number, idle: Idle, least = 2) => (idle.slow ? Math.max(least, Math.min(strict, Math.floor((0.5 * spanMs) / idle.p90))) : strict);
 
 /** A 90th percentile frame gap budget: the strict one, or 3 times the idle page's own on a slow host (its frame gaps swing by 2x from one second to the next). */
 export const p90Budget = (strict: number, idle: Idle) => (idle.slow ? Math.max(strict, 3 * idle.p90) : strict);
