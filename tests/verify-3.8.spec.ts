@@ -236,6 +236,10 @@ test.describe('verify 3.8', () => {
     await page.getByTestId('coach-see-changes').tap();
     await page.getByRole('dialog', { name: 'Leveled up this week' }).getByTestId('coach-change').filter({ hasText: 'Overhead Press' }).getByTestId('change-undo').tap();
     await expect.poll(async () => (await dbAll<{ undoneAt?: number }>(page, 'coachChanges')).filter((c) => c.undoneAt).length).toBe(2);
+    // With nothing left to undo the card and its sheet go; the sheet then steps back off its own
+    // history entry. Reload only once that step is done: a reload racing it aborted on Chromium (PLAN 3.6v).
+    await expect(page.getByRole('dialog', { name: 'Leveled up this week' })).toHaveCount(0);
+    await page.waitForFunction(() => !(history.state as Record<string, unknown> | null)?.anygymSheet);
     await page.reload();
     await expect(page.getByRole('button', { name: /Quick workout/ })).toBeVisible();
     await expect(page.getByTestId('coach-card')).toHaveCount(0);
@@ -368,6 +372,9 @@ test.describe('verify 3.8', () => {
       for (let i = 1; i <= 6; i++) {
         await checkCurrent(view).tap();
         await expect(loggedRows(view)).toHaveCount(i);
+        // The app drops a second tap on the same spot within 350 ms (a double tap guard); on the 320
+        // floor the folded warm ups leave the next ✓ where the last one was (PLAN 3.6v).
+        await page.waitForTimeout(400);
       }
       const rows = await dbAll<{ id: string; kind: string; order: number; load: { total: number } }>(page, 'sets');
       const mine = rows.filter((r) => !r.id.startsWith('vseed-')).sort((a, b) => a.order - b.order);

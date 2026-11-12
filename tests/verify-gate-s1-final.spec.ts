@@ -93,9 +93,13 @@ test('a. warm up pick is for that row only; working rows keep 185; Total lifted 
   expect(expected).toBeGreaterThan(0);
   // Header (the workout top bar), not counting the 145 x 5 warm up.
   const headerText = await page.locator('[data-testid="workout-total"], header').first().innerText().catch(() => '');
-  const body = await page.locator('body').innerText();
-  expect(body).toContain(`Total lifted ${fmt(expected)} lb`);
-  expect(body).not.toContain(`Total lifted ${fmt(expected + 5 * 145)} lb`);
+  // On a narrow phone (the 320 floor) the header shows "3 sets · 4,095 lb" and keeps the words
+  // "Total lifted" for screen readers only (round 2, P5): read what it says, then what it shows.
+  const stats = page.getByTestId('live-stats');
+  const said = ((await stats.textContent()) ?? '').replace(/\s+/g, ' ');
+  expect(said).toContain(`Total lifted ${fmt(expected)} lb`);
+  expect(said).not.toContain(`Total lifted ${fmt(expected + 5 * 145)} lb`);
+  expect(await stats.innerText()).toContain(`${fmt(expected)} lb`);
   void headerText;
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   await page.getByRole('button', { name: 'Finish', exact: true }).tap();

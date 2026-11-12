@@ -170,6 +170,13 @@
   height: clamp(120px, 20svh, 230px);
 }
 
+/* PLAN 3.6v: the same room as the sheet's "coming soon" box on a phone under 600 pt tall. */
+@media (max-height: 600px) {
+  .wrap[data-fit] .stage {
+    height: 104px;
+  }
+}
+
 /* Reduced motion (SPEC 4.4): both photos side by side, still. The tile keeps the start photo. */
 @media (prefers-reduced-motion: reduce) {
   .end {

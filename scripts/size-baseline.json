@@ -16,7 +16,6 @@
     "src/screens/plans/Plans.module.css": 434,
     "src/screens/settings/Import.module.css": 542,
     "src/screens/workout/DayList.module.css": 448,
-    "src/screens/workout/SetLoadInput.tsx": 422,
     "src/screens/workout/rowLog.ts": 405
   }
 }

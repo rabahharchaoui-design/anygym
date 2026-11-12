@@ -37,6 +37,19 @@ async function onScreen(page: Page, el: Locator) {
   return b;
 }
 
+/**
+ * The sheet has finished springing up: its top holds still over a few frames. A fixed 350 ms wait
+ * read it a point or two early on a busy machine (PLAN 3.6v), so the pinned Back looked as if it moved.
+ */
+const settled = (dialog: Locator) =>
+  expect
+    .poll(async () => {
+      const a = (await dialog.boundingBox())?.y;
+      await dialog.page().waitForTimeout(100);
+      return a !== undefined && a === (await dialog.boundingBox())?.y;
+    })
+    .toBe(true);
+
 /** Scrolls the dialog's own scrolling body to its end; returns how far it moved. */
 const scrollToEnd = (dialog: Locator) =>
   dialog.evaluate((d) => {
@@ -54,6 +67,7 @@ test('(5) the muscle list keeps Close pinned, the exercise sheet keeps Back and 
   const list = page.getByRole('dialog', { name: 'Quads exercises' });
   await expect(list).toBeVisible();
   await page.waitForTimeout(350);
+  await settled(list);
   const close = list.getByRole('button', { name: 'Close', exact: true }).first();
   const before = await onScreen(page, close);
   expect(before.height).toBeGreaterThanOrEqual(44);
@@ -67,6 +81,7 @@ test('(5) the muscle list keeps Close pinned, the exercise sheet keeps Back and 
   const sheet = page.getByRole('dialog', { name: 'How to do Leg Extensions' });
   await expect(sheet).toBeVisible();
   await page.waitForTimeout(350);
+  await settled(sheet);
   const back = sheet.getByRole('button', { name: 'Back to Quads exercises' });
   const backTop = await onScreen(page, back);
   // How to: its heading and first cue in the first screen, above the pinned Close, unscrolled.

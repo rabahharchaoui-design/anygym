@@ -27,6 +27,8 @@ type Props = {
   weights?: readonly number[];
   /** The one weight is a plate held in both hands (plate twists, plate raises). */
   plate?: boolean;
+  /** The first time "Spin to pick" hint (off in the import editor: it has no room for it, PLAN 3.6v). */
+  hints?: boolean;
 };
 
 /** Item pitch in px. The wheel pads half the track on each side so every item can sit centered. */
@@ -41,7 +43,7 @@ export const WHEEL_COPY = {
   plate: { title: 'One plate · both hands', helper: 'The plates turned on for this gym' },
 } as const;
 
-export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName, weights, plate }: Props) {
+export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName, weights, plate, hints = true }: Props) {
   if (weights) {
     if (!weights.length) {
       return (
@@ -53,7 +55,7 @@ export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName
         </div>
       );
     }
-    return <Wheel unit={unit} list={weights} mode={mode} value={value} onChange={onChange} exerciseName={exerciseName} plate={plate} />;
+    return <Wheel unit={unit} list={weights} mode={mode} value={value} onChange={onChange} exerciseName={exerciseName} plate={plate} hints={hints} />;
   }
   if (!range) {
     return (
@@ -65,10 +67,10 @@ export function DumbbellWheel({ unit, range, mode, value, onChange, exerciseName
       </div>
     );
   }
-  return <Wheel unit={unit} range={range} mode={mode} value={value} onChange={onChange} exerciseName={exerciseName} />;
+  return <Wheel unit={unit} range={range} mode={mode} value={value} onChange={onChange} exerciseName={exerciseName} hints={hints} />;
 }
 
-function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', plate = false }: Omit<Props, 'range' | 'weights'> & { range?: DumbbellRange; list?: readonly number[] }) {
+function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', plate = false, hints = true }: Omit<Props, 'range' | 'weights'> & { range?: DumbbellRange; list?: readonly number[] }) {
   const reduce = useReducedMotion();
   const listKey = list?.join(',');
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -269,7 +271,7 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
         </div>
         {/* One instruction at a time: before a pick the line under the wheel says it; after, the
             one time bubble sits in that same space below the wheel, pointing up, over no text. */}
-        {mode === 'dumbbell_each' && selectedIndex >= 0 && <Hint id="wheel" className={styles.hint} point="up" />}
+        {hints && mode === 'dumbbell_each' && selectedIndex >= 0 && <Hint id="wheel" className={styles.hint} point="up" />}
         {/* Space kept after the pick, so nothing below moves (no layout shift). */}
         <p className={styles.prompt} data-hidden={selectedIndex >= 0 || undefined} data-testid="wheel-prompt" aria-hidden={selectedIndex >= 0 || undefined}>
           {prompt}

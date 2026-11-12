@@ -144,11 +144,13 @@ test('Type it solves exact and closest', async ({ page }) => {
   await expect(sheet).toBeHidden();
   await expect(math(page)).toHaveAttribute('data-math', '45 bar + 2 × (45 + 2.5) = 140 lb');
 
-  // Delete key, and the scrim closes without changing the bar.
+  // Delete key, and a tap above the sheet closes it without changing the bar.
   sheet = await typeIt(page, '18');
   await sheet.getByRole('button', { name: 'Delete' }).tap();
   await expect(sheet.getByTestId('typed')).toHaveText('1');
-  await page.getByTestId('sheet-scrim').click({ position: { x: 20, y: 20 } });
+  // A tap at the top of the screen: the scrim, or on the 320 x 568 floor (where the sheet reaches the
+  // top) the grabber's hit area, which closes it the same way (PLAN 3.6v).
+  await page.touchscreen.tap(20, 20);
   await expect(sheet).toBeHidden();
   await expect(math(page)).toHaveAttribute('data-math', '45 bar + 2 × (45 + 2.5) = 140 lb');
   expect(errors).toEqual([]);
