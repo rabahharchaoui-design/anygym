@@ -117,6 +117,13 @@
     flex-basis: calc((100% - 8px) / 3);
   }
 
+  /* PLAN 3.6v: in the import editor at 320 x 568 the five weights share one row (about 50 pt each,
+     over the 44 pt floor), so its body never scrolls; 3 + 2 rows there cost a whole row of height. */
+  .box[data-dense] .chips[data-count='5'] > * {
+    flex: 1 1 0;
+    padding-inline: 2px;
+  }
+
   /* One line each ("Count plates only" fits at 15 pt). */
   .option {
     padding: 0 6px;
