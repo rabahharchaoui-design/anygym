@@ -99,13 +99,27 @@ test('pick sheet at 130% text, skip and bring back, keep stores name only', asyn
   await page.waitForTimeout(300);
   await shot(page, 'pick-130');
   const vh = page.viewportSize()!.height;
-  const m = await sheet.evaluate((el) => {
+  // Under 600 pt tall at 130% (the 320 x 568 floor) the title, file line and search take the first
+  // screen; they scroll with the list, so the rule is read with the list scrolled to its first row:
+  // three full rows still fit between the top of the sheet's body and the pinned footer (PLAN 3.6v).
+  const toList = vh <= 600;
+  const m = await sheet.evaluate((el, toList) => {
+    const first = el.querySelector<HTMLElement>('ul li button')!;
+    let top = 0;
+    if (toList) {
+      let sc: HTMLElement | null = first.parentElement;
+      while (sc && !(sc.scrollHeight > sc.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+      if (sc) {
+        sc.scrollTop += first.getBoundingClientRect().top - sc.getBoundingClientRect().top;
+        top = sc.getBoundingClientRect().top;
+      }
+    }
     const rows = Array.from(el.querySelectorAll<HTMLElement>('ul li button')).map((b) => b.getBoundingClientRect());
     const keep = el.querySelector<HTMLElement>('[data-testid="pick-keep-name"]')!.getBoundingClientRect();
     const btns = Array.from(el.querySelectorAll<HTMLElement>('button')).filter((b) => /Keep as|Skip/.test(b.textContent ?? '')).map((b) => { const r = b.getBoundingClientRect(); return { t: b.textContent, top: r.top, bottom: r.bottom, h: r.height, clipped: b.scrollWidth > b.clientWidth + 1 }; });
-    const visibleRows = rows.filter((r) => r.top >= 0 && r.bottom <= keep.top - 4 && r.height >= 47.5).length;
+    const visibleRows = rows.filter((r) => r.top >= top - 0.5 && r.bottom <= keep.top - 4 && r.height >= 47.5).length;
     return { visibleRows, keepBottom: keep.bottom, btns, sw: document.documentElement.scrollWidth, w: document.documentElement.clientWidth };
-  });
+  }, toList);
   console.log('PICK130', vh, JSON.stringify(m));
   expect(m.visibleRows).toBeGreaterThanOrEqual(3);
   for (const b of m.btns) { expect(b.bottom).toBeLessThanOrEqual(vh); expect(b.top).toBeGreaterThanOrEqual(0); expect(b.h).toBeGreaterThanOrEqual(47.5); expect(b.clipped).toBe(false); }

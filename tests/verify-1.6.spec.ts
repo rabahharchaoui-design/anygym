@@ -45,6 +45,9 @@ test('1.6 tap targets and wheel snap', async ({ page }) => {
   const errors = watch(page);
   await open(page);
   const small: string[] = [];
+  // 48 pt; under 600 pt tall (the 320 x 568 floor) the machine question's answers are 44 pt, the
+  // SPEC 13 minimum, so the weight sheet fits there (PLAN 2.0d critic r3, BarQuestion.module.css).
+  const floor = page.viewportSize()!.height <= 600 ? 43.5 : 47.5;
   const check = async (loc: ReturnType<Page['locator']>, label: string) => {
     await page.waitForTimeout(350); // a just tapped button is still in its pressed state (scale 0.97)
     const n = await loc.count();
@@ -52,7 +55,7 @@ test('1.6 tap targets and wheel snap', async ({ page }) => {
       const el = loc.nth(i);
       await el.scrollIntoViewIfNeeded();
       const b = await el.boundingBox();
-      if (b && (b.height < 47.5 || b.width < 47.5)) small.push(`${label}[${i}] ${Math.round(b.width)}x${Math.round(b.height)}`);
+      if (b && (b.height < floor || b.width < floor)) small.push(`${label}[${i}] ${Math.round(b.width)}x${Math.round(b.height)}`);
     }
   };
   await check(sec(page, 'dumbbell').getByRole('option'), 'dumbbell opt');

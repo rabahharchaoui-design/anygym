@@ -368,6 +368,9 @@ test.describe('verify 3.8', () => {
       for (let i = 1; i <= 6; i++) {
         await checkCurrent(view).tap();
         await expect(loggedRows(view)).toHaveCount(i);
+        // The app drops a second tap on the same spot within 350 ms (a double tap guard); on the 320
+        // floor the folded warm ups leave the next ✓ where the last one was (PLAN 3.6v).
+        await page.waitForTimeout(400);
       }
       const rows = await dbAll<{ id: string; kind: string; order: number; load: { total: number } }>(page, 'sets');
       const mine = rows.filter((r) => !r.id.startsWith('vseed-')).sort((a, b) => a.order - b.order);

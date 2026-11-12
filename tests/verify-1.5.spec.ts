@@ -31,7 +31,15 @@ test('1.5 audit: presets DOM counts, tray sizes', async ({ page }) => {
   console.log('AUDIT\n' + report.join('\n'));
   const tb = await page.locator('button[data-weight]').evaluateAll((e) => e.map((x) => { const b = x.getBoundingClientRect(); return [b.width, b.height]; }));
   console.log('TRAY', JSON.stringify(tb));
-  for (const [w = 0, h = 0] of tb) expect(Math.min(w, h)).toBeGreaterThanOrEqual(48);
+  // Every button 48 pt tall. Wide: 48 pt, except seven kg sizes in one row on a phone under 375 pt
+  // wide, where the 2.0d critic rule holds (tests/picture-2.0d.spec.ts, kg tray): 44 pt, 40 on the
+  // 320 floor, each button taking its whole seventh so no tap between them is lost.
+  const vw = page.viewportSize()!.width;
+  const minW = tb.length < 7 || vw >= 375 ? 48 : vw <= 340 ? 40 : 44;
+  for (const [w = 0, h = 0] of tb) {
+    expect(h).toBeGreaterThanOrEqual(48);
+    expect(w).toBeGreaterThanOrEqual(minW);
+  }
   expect(errors).toEqual([]);
 });
 
@@ -49,7 +57,9 @@ test('1.5 break it', async ({ page }) => {
   // open/close type it 10x
   for (let i = 0; i < 10; i++) {
     await page.getByRole('button', { name: 'Type it' }).tap();
-    await page.getByTestId('sheet-scrim').click({ position: { x: 20, y: 20 }, timeout: 2000 }).catch(() => {});
+    // A tap at the top of the screen: the scrim, or on the 320 x 568 floor the grabber's hit area
+    // (the sheet reaches the top there); both close it (PLAN 3.6v).
+    await page.touchscreen.tap(20, 20);
   }
   await page.waitForTimeout(800);
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -61,7 +71,7 @@ test('1.5 break it', async ({ page }) => {
   for (let i = 0; i < 10; i++) await sheet.getByRole('button', { name: 'Delete' }).tap();
   await sheet.getByRole('button', { name: '0', exact: true }).tap();
   console.log('ZERO', await sheet.innerText());
-  await page.getByTestId('sheet-scrim').click({ position: { x: 20, y: 20 } });
+  await page.touchscreen.tap(20, 20);
   // unit rotate with plates
   await page.getByRole('button', { name: 'kg', exact: true }).tap();
   await page.waitForTimeout(800); expect(await count(page, 'right')).toBe(0);
