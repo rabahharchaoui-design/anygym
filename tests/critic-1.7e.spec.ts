@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { bar185, dbAll, quickWith, seedFinished, usePlan, watchErrors } from './workout-helpers';
+import { quietLineMax } from './helpers/lines';
 
 // PLAN 1.7e, ux-critic round (reports/critic/session-1): the fixes that lift every screen to 8+.
 
@@ -315,7 +316,8 @@ test('first time with weights: "Pick" cells and one first time line under the ro
   const n = (await note.boundingBox())!;
   expect(n.y).toBeGreaterThanOrEqual(add.y + add.height);
   expect(n.y - (add.y + add.height)).toBeLessThan(12);
-  expect(n.height).toBeLessThanOrEqual(20);
+  // One line from 360 wide; wrapped once, never cut, on the 320 floor.
+  expect(n.height).toBeLessThanOrEqual(quietLineMax(page));
   expect(errors).toEqual([]);
 });
 

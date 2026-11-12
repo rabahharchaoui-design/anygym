@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { navIdle, usePlan, watchErrors } from './workout-helpers';
+import { closeFormSheet, demoPicture, openDemoViewer } from './helpers/demo';
 
 // PLAN 2.3: what each exercise shows (SPEC 4.4). Since PLAN 2.2b it is all on the exercise page
 // (demo hero, muscles, How to, Watch out, Good for) with a full screen demo viewer; the sheet is
@@ -34,17 +35,14 @@ async function tableOnScreen(page: Page) {
   expect(list.y + list.height).toBeLessThanOrEqual(vh);
 }
 
-const openViewer = async (page: Page, name: string) => {
-  await page.getByRole('button', { name: `How to do ${name}` }).tap();
-  const viewer = page.getByTestId('demo-viewer');
-  await expect(viewer).toBeVisible();
-  return viewer;
-};
+// The full screen viewer: the hero's tap, or under 600 pt tall the tile, then the sheet's photo.
+const openViewer = openDemoViewer;
 
 test('variant: photos, the map caveat as a note, numbered cues, watch out and good for, all on the page', async ({ page }) => {
   const errors = watchErrors(page);
   const view = await openExercise(page, 'barbell-back-squat');
-  const hero = view.getByTestId('demo-hero');
+  // The hero, or under 600 pt tall the compact header's tile: the same two frames either way.
+  const hero = demoPicture(page, view);
   await expect(hero).toBeVisible();
   // Two frames (webp with a jpg fallback) plus the blurred fill behind them, from the app's own files.
   await expect(hero.locator('[data-frame] source[type="image/webp"]')).toHaveCount(2);
@@ -69,6 +67,7 @@ test('variant: photos, the map caveat as a note, numbered cues, watch out and go
   await shot(page, 'sheet-variant');
   await viewer.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(viewer).toHaveCount(0);
+  await closeFormSheet(page);
   expect(errors).toEqual([]);
 });
 
@@ -91,7 +90,7 @@ test('the crossfade timing is 1.35 s, 0.15 s, 1.35 s, 0.15 s', async ({ page }) 
 test('exact: demo, muscles, cues and good for on the page', async ({ page }) => {
   const errors = watchErrors(page);
   const view = await openExercise(page, 'machine-lying-leg-curl');
-  await expect(view.getByTestId('demo-hero')).toBeVisible();
+  await expect(demoPicture(page, view)).toBeVisible();
   await expect(view.getByTestId('form-tips')).toContainText('Lie face down');
   await tableOnScreen(page);
   await expect(view.getByTestId('muscle-line')).toContainText('Hamstrings');
