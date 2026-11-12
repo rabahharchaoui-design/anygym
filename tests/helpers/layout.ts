@@ -293,4 +293,4 @@ export async function checkActiveWorkout(page: Page) {
 }
 
 // SPEC 13.3 controls audit: tests/helpers/controls.ts (split out in PLAN 3.5h, same behaviour).
-export { checkControls, controlProblems } from './controls';
+export { checkControls, controlProblems, rootAtRest } from './controls';

@@ -44,7 +44,9 @@ export function ExerciseHead({ name, kind, info, photosOk, hasDemo, note, target
     let pinPx = 0;
     const pin = () => {
       // The bar keeps 8 px of the fade above the name; the rest of the fade scrolls away.
-      const capPx = cap.getBoundingClientRect().height;
+      // Layout height, not the drawn one: a screen change scales the page while this first runs, and a
+      // short foot there leaves the picture's tap target under the foot (SPEC 13.3).
+      const capPx = cap.offsetHeight;
       pinPx = Math.ceil(capPx - Math.max(0, parseFloat(getComputedStyle(cap).paddingTop) - 8));
       hero.style.setProperty('--pin', `${pinPx}px`);
       hero.style.setProperty('--cap', `${Math.floor(capPx)}px`);

@@ -250,7 +250,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <span className={styles.topSpacer} aria-hidden="true" />
           )}
         </header>
-        {STRIP_SCREENS.has(step) && <PlanSoFarLine answers={answers} />}
+        {/* Not on the first question: nothing is built yet, and the line would push the title down. */}
+        {step !== 'goal' && STRIP_SCREENS.has(step) && <PlanSoFarLine answers={answers} />}
         <main ref={scroller} className={styles.body} data-scroller data-hold={hold !== null ? '' : undefined} style={hold !== null ? ({ '--hold': `${hold}px` } as CSSProperties) : undefined}>
           {first && !redo && (
             <div className={styles.intro} data-testid="intake-intro">

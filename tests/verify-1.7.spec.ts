@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { pickExercises } from './workout-helpers';
+import { rootAtRest } from './helpers/layout';
 
 // PLAN 1.7 verify, adapted to the 1.7c flow (day list → exercise view → set table).
 
@@ -30,6 +31,7 @@ const begin = async (page: Page) => {
   await expect(page).toHaveURL(/#\/workout\//);
 };
 const big = async (loc: Locator, what: string) => {
+  await rootAtRest(loc.page()); // 3.5w: the app is coming forward again after a sheet closes
   const b = (await loc.boundingBox())!;
   expect(b, what).toBeTruthy();
   expect.soft(Math.min(b.width, b.height), `${what} ${JSON.stringify(b)}`).toBeGreaterThanOrEqual(47.5);

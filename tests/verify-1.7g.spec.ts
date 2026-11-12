@@ -44,7 +44,7 @@ async function problems(page: Page): Promise<string[]> {
         // an ancestor that clips this text
         for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
           const ps = getComputedStyle(p);
-          if (/(hidden|clip)/.test(ps.overflowX + ps.overflowY) && !/auto|scroll/.test(ps.overflowY) && !/_stage_/.test(p.className) && p.scrollHeight <= p.clientHeight + 400) {
+          if (/(hidden|clip)/.test(ps.overflowX + ps.overflowY) && !/auto|scroll/.test(ps.overflowY) && p.id !== 'root' /* 3.5w: #root always clips, its screens are fixed to the viewport */ && !/_stage_/.test(p.className) && p.scrollHeight <= p.clientHeight + 400) {
             const pr = p.getBoundingClientRect(); const r = e.getBoundingClientRect();
             if (r.right > pr.right + 1 || r.bottom > pr.bottom + 1 || r.left < pr.left - 1 || r.top < pr.top - 1) { bad.push(`ANCESTOR-CLIP ${e.tagName} "${(e.textContent ?? '').trim().slice(0, 30)}" by ${p.tagName}.${p.className}`); break; }
           }

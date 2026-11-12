@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { rootAtRest } from './helpers/layout';
 import { checkCurrent, exerciseView, fillReps, loggedRows, pickExercises, setTableInFirstScreen, shotOn, watchErrors } from './workout-helpers';
 
 // PLAN 2.0l, UI side: (7) a swipe or menu removal targets the row's identity taken when it started,
@@ -99,6 +100,7 @@ test('(8) the current reps show they can change, the current ✓ says Log the fi
   await expect(label).toHaveText('Log');
   await expect(label).toBeVisible();
   // The ✓ keeps its 48 pt target and its accessible name.
+  await rootAtRest(page); // 3.5w: the app is coming forward again after the weight sheet closes
   const box = (await checkCurrent(view).boundingBox())!;
   expect(box.width).toBeGreaterThanOrEqual(48);
   expect(box.height).toBeGreaterThanOrEqual(48);

@@ -63,6 +63,7 @@ test('a: 4 rows, row 3 first, then highlighted, then the rest', async ({ page })
 });
 
 test('c: 4 set lift, all W: ring not complete, no advance, the 4 rows stay to do', async ({ page }) => {
+  test.setTimeout(60_000); // 3.5w: the app behind a closing sheet takes 200 ms to come forward, and every tap after a sheet waits for it to be still (about 1 s a lap, 12 sheets here)
   const errors = watchErrors(page);
   await usePlan(page);
   await seedSquat4(page);

@@ -255,6 +255,8 @@ test.describe('verify 3.5b', () => {
     const prof = (await dbAll<{ quickIdeas?: { shown: string[] } }>(page, 'profile'))[0]!;
     console.log('FIRST', first.join(','), 'REMEMBERED', JSON.stringify(prof.quickIdeas));
     expect(prof.quickIdeas?.shown).toEqual(first);
+    // 3.5j: a reload within 30 minutes keeps the same cards; a later visit moves the rotation on.
+    await dbPut(page, { profile: [{ ...prof, quickIdeas: { ...prof.quickIdeas, at: Date.now() - 31 * 60_000 } }] });
     await page.reload();
     await expect(page.locator('[data-concept]').first()).toBeVisible();
     const second = (await read(page)).map((c) => c.id);
@@ -287,6 +289,9 @@ test.describe('verify 3.5b', () => {
     await expect(card(page)).toBeVisible();
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Quick workout' })).toBeVisible();
+    // 3.5f: an open deck comes back after a reload; Back is the ideas again.
+    await expect(card(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await expect(page.locator('[data-concept]').first()).toBeVisible();
     const sessionsBefore = (await dbAll(page, 'sessions')).length;
     await context.setOffline(true);
