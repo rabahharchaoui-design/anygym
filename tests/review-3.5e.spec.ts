@@ -2,6 +2,7 @@ import { expect, test, type Page } from './fixtures';
 import { dbAll } from './workout-helpers';
 import { watchErrors } from './workout-helpers';
 import { swipe } from './helpers/quick';
+import { rootAtRest } from './helpers/layout';
 
 // PLAN 3.5e: the owner review queue for candidate moves. The version tapped 5 times opens Review,
 // "Review new exercises" opens the swipe deck: right approves, left is wrong, Fix asks what is wrong,
@@ -122,6 +123,7 @@ test('version × 5 → Review → the deck: approve, wrong, fix, undo, reload re
 
   // Nothing on the page sideways, every button a real thumb target.
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  await rootAtRest(page); // 3.5w: the app is coming forward again after the menu sheet closes
   for (const id of ['candidate-wrong', 'candidate-fix', 'candidate-approve']) expect((await page.getByTestId(id).boundingBox())!.height).toBeGreaterThanOrEqual(48);
   expect(errors).toEqual([]);
 });

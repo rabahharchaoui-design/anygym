@@ -46,7 +46,8 @@ test('push, pop and tab transitions; the tab pill moves to the picked tab', asyn
   await expect(page.getByRole('heading', { level: 1, name: 'Plans' })).toBeVisible();
   await nav.getByRole('link', { name: 'Today' }).tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
-  expect(await kinds(page)).toEqual(['tab', 'push', 'pop', 'tab']);
+  // 3.5w: a tab switch is no view transition any more (only the content fades and rises), so only push and pop record.
+  expect(await kinds(page)).toEqual(['push', 'pop']);
   // One pill, inside the active tab.
   const pills = nav.locator('[data-active] > span').first();
   await expect(pills).toBeVisible();

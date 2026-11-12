@@ -100,8 +100,17 @@ function auditControls([scopeSel]: [string | null]): string[] {
   return problems;
 }
 
+/**
+ * 3.5w: the app behind a sheet comes forward again over 200 ms as the sheet closes, and a box
+ * measured mid way is scaled. Waits until #root has no transition running before measuring.
+ */
+export async function rootAtRest(page: Page): Promise<void> {
+  await page.waitForFunction(() => (document.getElementById('root')?.getAnimations().length ?? 0) === 0, null, { timeout: 5000 });
+}
+
 /** The control problems of the screen as it is now (see auditControls). */
 export async function controlProblems(page: Page, scope?: string): Promise<string[]> {
+  await rootAtRest(page);
   return page.evaluate(auditControls, [scope ?? null] as [string | null]);
 }
 
