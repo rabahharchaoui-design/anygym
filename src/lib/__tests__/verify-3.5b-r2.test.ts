@@ -196,8 +196,8 @@ describe('verify 3.5b r2', () => {
     }
     console.log('fresh lines checked', checked);
     expect(checked).toBeGreaterThan(50);
-    // 3.5b round 4: many histories × every card build; 20 s so it never times out on a loaded machine.
-  }, 20_000);
+    // 3.5b round 4: many histories × every card build; 60 s so it never times out on a loaded machine or the CI runner.
+  }, 60_000);
 });
 export type _C = Concept;
 

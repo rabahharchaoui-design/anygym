@@ -1,0 +1,7 @@
+{
+  "initialJsGzipBytes": 528915,
+  "allowedGrowthPercent": 10,
+  "files": [
+    "assets/index-[hash].js"
+  ]
+}
