@@ -230,6 +230,8 @@ test('(c) pending 135 lb on a barbell and +25 lb on bodyweight survive minimize,
   // The Added weight sheet has closed and the weight sheet under it is the live one again, before its own Done is tapped.
   await expect(add).toHaveCount(0);
   await expect(weightSheet(page)).toBeVisible();
+  // ...and it already says +25 (the keys update it live): Done is tapped on what the sheet shows, not before it has caught up.
+  await expect(weightSheet(page).getByTestId('bodyweight-added')).toContainText('25');
   await weightSheet(page).getByRole('button', { name: 'Done' }).tap();
   await expect(pull.getByTestId('weight-cell').first()).toHaveText('+25');
 
