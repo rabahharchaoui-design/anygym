@@ -260,7 +260,8 @@ test('speed: a ✓ paints within 100 ms, no layout shift, smooth check and sheet
 
   // The ✓ tap to its painted state. Other work on this machine can only make a run slower, never faster, so the best of
   // up to three taps (the fourth row stays for the sheet below) is the app's own cost: a real slowdown shows in all of them.
-  const limit = paintBudget(100, idle);
+  // The observer sees the change in the frame's own task, then two frames more, and the first of them can be a frame away: three.
+  const limit = paintBudget(100, idle, 3);
   const gapLimit = longestBudget(34, idle);
   const tries: Array<{ ms: number; domMs: number; gap: number }> = [];
   for (let n = 1; n <= 3; n++) {
@@ -299,7 +300,8 @@ test('speed: a ✓ paints within 100 ms, no layout shift, smooth check and sheet
   expect(ms).toBeLessThan(limit);
   if (chromium) {
     expect(checkGap).toBeLessThanOrEqual(gapLimit);
-    expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBe(0);
+    // No layout shift: nothing but rounding (a shift under 0.0001 of the screen is a hairline of a pixel, not a move).
+    expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBeLessThan(0.0001);
   }
 
   // Opening a sheet.

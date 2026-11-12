@@ -244,11 +244,10 @@ test.describe('3.6b celebrations', () => {
     const at = await rect(hero);
     await page.waitForTimeout(600);
     await shot(page, 'reduced-big');
-    // It also leaves on its own, and a busy machine can be past that by now (the shot above takes a while): a tap on what is
-    // still there skips it; if it is already gone the words below are what is checked.
-    await big(page).tap({ timeout: 2000 }).catch(() => undefined);
+    // A tap on the number skips it (a plain touch, so no waiting for a screen that fades on its own: the shot above can take a while on a busy machine).
+    await page.touchscreen.tap(at[0]! + at[2]! / 2, at[1]! + at[3]! / 2);
     expect(await rect(hero).catch(() => at)).toEqual(at);
-    await expect(big(page)).toHaveCount(0, { timeout: 1500 });
+    await expect(big(page)).toHaveCount(0, { timeout: 4000 });
     await expect(page.getByTestId('finish-win')).toContainText('155 lb × 8, heaviest ever');
     await expect(page.getByTestId('pr-chip')).toContainText('195 lb × 5, heaviest ever');
     await expect(particles(page)).toHaveCount(0);
