@@ -10,7 +10,7 @@ import { ArtScene } from '../../ui/art/lazy';
 import { FADE, GLIDE } from '../../ui/motion';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { finishWelcomeTour } from '../../db/welcomeTour';
-import { nextLabel, spotBox, tourReducer, tourSteps, TOUR_START, wordsTop, type Box, type TourAction, type TourStep, type TourTarget } from '../../lib/welcomeTour';
+import { fitTarget, nextLabel, spotBox, tourReducer, tourSteps, TOUR_START, wordsTop, type Box, type TourAction, type TourStep, type TourTarget } from '../../lib/welcomeTour';
 import styles from './WelcomeTour.module.css';
 
 /** Today is seen for a moment first, then the welcome comes in. */
@@ -33,9 +33,16 @@ const tabsTop = () => find('tabs')?.getBoundingClientRect().top ?? window.innerH
 
 type Lit = Box & { radius: number };
 
-function measure(el: HTMLElement): Lit {
+/** The part of the element the light is on: all of it, or (PLAN 3.6v, a short screen) down to its [data-tour-core]. */
+function targetBox(el: HTMLElement, wordsHeight: number): Box {
   const r = el.getBoundingClientRect();
-  const box = spotBox({ x: r.left, y: r.top, width: r.width, height: r.height }, PAD);
+  const core = el.querySelector<HTMLElement>('[data-tour-core]');
+  const room = tabsTop() - GAP - EDGE;
+  return fitTarget({ x: r.left, y: r.top, width: r.width, height: r.height }, core ? core.getBoundingClientRect().bottom : null, room, PAD * 2 + GAP + wordsHeight);
+}
+
+function measure(el: HTMLElement, wordsHeight: number): Lit {
+  const box = spotBox(targetBox(el, wordsHeight), PAD);
   const own = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
   return { ...box, radius: Math.min(own + PAD, box.height / 2) };
 }
@@ -49,6 +56,8 @@ export function WelcomeTour({ show }: { show: boolean }) {
   const [lit, setLit] = useState<Lit | null>(null);
   const [wordsHeight, setWordsHeight] = useState(0);
   const words = useRef<HTMLDivElement>(null);
+  const wordsHeightRef = useRef(0);
+  wordsHeightRef.current = wordsHeight;
   /** The words card has landed (it waits for the dim and its own measured place first). */
   const [wordsIn, setWordsIn] = useState(false);
 
@@ -78,7 +87,10 @@ export function WelcomeTour({ show }: { show: boolean }) {
     if (!el) return actRef.current('next');
     let frame = 0;
     const read = () => {
-      if (el.isConnected) setLit((now) => (moved(now, measure(el)) ? measure(el) : now));
+      if (el.isConnected) {
+        const m = measure(el, wordsHeightRef.current);
+        setLit((now) => (moved(now, m) ? m : now));
+      }
       frame = requestAnimationFrame(read);
     };
     read();
@@ -109,7 +121,8 @@ export function WelcomeTour({ show }: { show: boolean }) {
     if (!target || target === 'tabs') return;
     const el = find(target);
     if (!el) return;
-    const r = el.getBoundingClientRect();
+    const b = targetBox(el, wordsHeight);
+    const r = { top: b.y, bottom: b.y + b.height };
     const tabs = tabsTop();
     const fitsOver = r.top - PAD - GAP - wordsHeight >= EDGE;
     const under = r.bottom + PAD + GAP + (wordsHeight && !fitsOver ? wordsHeight + GAP : 0) - tabs;

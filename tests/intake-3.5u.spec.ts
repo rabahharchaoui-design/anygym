@@ -1,6 +1,7 @@
-import { expect, test, type Locator, type Page } from './fixtures';
+import { expect, test, type Page } from './fixtures';
 import { simulateSafeAreas } from './helpers/layout';
-import { dbAll, dbPut } from './workout-helpers';
+import { dbAll, dbPut, navIdle } from './workout-helpers';
+import { boxOf, dayLit, spotFrames, tourLineMax, type TourTarget } from './helpers/tour';
 
 // PLAN 3.5u: the intake ends in the app, not in a workout. After Your plan, "Looks good" lands on
 // Today with nothing started; the first visit shows a short, skippable 3 step welcome (the day card
@@ -34,14 +35,16 @@ async function toReveal(page: Page, answers: Record<string, unknown> = FULL) {
   await atStep(page, 'about');
   await page.getByTestId('skip').tap();
   await atStep(page, 'reveal');
+  // A tap during the 280 ms push lands on the view transition, not the page (PLAN 3.6v).
+  await navIdle(page);
 }
 
 /** The spotlight sits on the element: its box is the element's, grown by the same few points on every side. */
-async function expectSpotOn(page: Page, target: Locator) {
+async function expectSpotOn(page: Page, target: TourTarget) {
   await expect
     .poll(async () => {
       const s = await page.getByTestId('tour-spot').boundingBox();
-      const t = await target.boundingBox();
+      const t = await boxOf(target);
       if (!s || !t) return 'missing';
       const pads = [t.x - s.x, t.y - s.y, s.x + s.width - (t.x + t.width), s.y + s.height - (t.y + t.height)];
       return pads.every((p) => p >= 3 && p <= 9) ? 'on' : `off by ${pads.map((p) => p.toFixed(1)).join(', ')}`;
@@ -49,7 +52,7 @@ async function expectSpotOn(page: Page, target: Locator) {
     .toBe('on');
   // The lit element is whole on the screen, and the words never sit on it.
   const view = page.viewportSize()!;
-  const t = (await target.boundingBox())!;
+  const t = (await boxOf(target))!;
   expect(t.y).toBeGreaterThanOrEqual(0);
   expect(t.y + t.height).toBeLessThanOrEqual(view.height);
   const w = (await page.getByTestId('tour-words').boundingBox())!;
@@ -136,13 +139,18 @@ test('the welcome: three steps, each spotlight on its element; Done persists; a 
   await expect(tour(page)).toHaveAttribute('data-step', 'day');
   await expect(line).toHaveText("Today's workout. Tap Start to begin.");
   const day = page.getByRole('region', { name: "Today's plan day" });
-  await expectSpotOn(page, day);
+  await expectSpotOn(page, dayLit(page));
   await expect(day.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+  // Start is inside the light, whole, even where the card is lit only down to it.
+  const spot = (await page.getByTestId('tour-spot').boundingBox())!;
+  const start = (await day.getByRole('button', { name: 'Start', exact: true }).boundingBox())!;
+  expect(start.y).toBeGreaterThanOrEqual(spot.y);
+  expect(start.y + start.height).toBeLessThanOrEqual(spot.y + spot.height);
   await expect(next).toHaveText('Next');
   await expect(page.getByTestId('tour-skip')).toHaveText('Skip');
-  // One line of words, and focus is not taken from the page.
+  // One line of words (wrapped once at most under 375 points), and focus is not taken from the page.
   const h = (await line.boundingBox())!.height;
-  expect(h).toBeLessThan(30);
+  expect(h).toBeLessThan(tourLineMax(page));
   expect(await page.evaluate(() => document.activeElement?.closest('[data-testid="welcome-tour"]') === null)).toBe(true);
   await shot(page, 'tour-1-day');
 
@@ -214,13 +222,17 @@ test('reduced motion: the same three steps, the light simply there', async ({ pa
   await toReveal(page);
   await revealPrimary(page).tap();
   await expect(tour(page)).toHaveAttribute('data-step', 'day');
-  await expectSpotOn(page, page.getByRole('region', { name: "Today's plan day" }));
-  await page.getByTestId('tour-next').tap();
-  // No travel: one frame later the light is already on the next element.
-  await page.waitForTimeout(60);
+  await expectSpotOn(page, dayLit(page));
+  // No travel: every frame the light is either still on the day card or on the next element (as
+  // the element is then or up to two frames before: the light is read, then drawn, once a frame).
+  const frames = await spotFrames(page, '[data-testid="build-card"]', () => page.getByTestId('tour-next').tap());
   const s = (await page.getByTestId('tour-spot').boundingBox())!;
   const t = (await page.getByTestId('build-card').boundingBox())!;
   expect(Math.abs(s.y - t.y)).toBeLessThan(10);
+  const from = frames[0]![0];
+  const on = (y: number, i: number) => [frames[i]?.[1], frames[i - 1]?.[1], frames[i - 2]?.[1]].some((ty) => ty != null && Math.abs(y + 6 - ty) <= 1);
+  const between = frames.filter(([y], i) => Math.abs(y - from) > 1 && !on(y, i));
+  expect(between, `in between: ${JSON.stringify(frames)}`).toEqual([]);
   await page.getByTestId('tour-next').tap();
   await expectSpotOn(page, page.locator('[data-tour="tabs"]'));
   await page.keyboard.press('Escape');

@@ -59,6 +59,12 @@
   gap: var(--space-2);
 }
 
+/* PLAN 3.6v: Skip and Next never break mid word on the narrowest phones. */
+.row > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .dots {
   display: flex;
   gap: 6px;

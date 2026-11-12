@@ -68,7 +68,8 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
           In progress · {active.sets} {active.sets === 1 ? 'set' : 'sets'}
         </p>
       )}
-      <Button className={styles.dayStart} onClick={onStart}>
+      {/* PLAN 3.6v: on a short screen the welcome lights the card down to here. */}
+      <Button className={styles.dayStart} onClick={onStart} data-tour-core>
         {active ? 'Resume' : 'Start'}
       </Button>
 
