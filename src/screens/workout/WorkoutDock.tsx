@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { FADE, SHEET_SPRING } from '../../ui/motion';
 import { extendRest, shortenRest, type Rest } from '../../lib/rest';
 import { RestDock } from './RestDock';
-import styles from './Workout.module.css';
+import styles from './WorkoutDock.module.css';
 
 /** `open`: the chip is a button that opens this exercise. */
 export type Chip = { id: number; text: string; open?: string };

@@ -7,7 +7,7 @@ import { fileLineText, type PlannedSet, type SetEdit } from '../../lib/import/im
 import { BarPicture } from '../../components/load/BarPicture';
 import { RepsStepper } from '../workout/RepsStepper';
 import { SetLoadInput } from '../workout/SetLoadInput';
-import styles from '../workout/Workout.module.css';
+import styles from '../workout/Sheets.module.css';
 import css from './Import.module.css';
 
 type Props = {

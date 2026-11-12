@@ -3,7 +3,7 @@ import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load, Unit } from '../../db/types';
 import { SetLoadInput } from './SetLoadInput';
 import { BAR_PROMPTS, barIdFor, confirmablePick, currentLoad } from './exerciseLoad';
-import styles from './Workout.module.css';
+import styles from './Sheets.module.css';
 
 /** What a swipe down did: applied the pick, waits for a bar choice to settle, or nothing to keep. */
 type Commit = 'applied' | 'wait' | 'none';

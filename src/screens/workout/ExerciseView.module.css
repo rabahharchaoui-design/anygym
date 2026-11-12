@@ -1,0 +1,93 @@
+.tableArea {
+  display: flex;
+  flex-direction: column;
+  /* The muscle card follows one row gap under the table (PLAN 2.2d), not the page gap. */
+  margin-bottom: calc(var(--row-gap) - var(--page-gap));
+}
+
+/* (.tableArea in front: the global .num reset would otherwise take its margin, and the line would
+   touch "+ Add set" and eat its 48 pt hit area, round 4.) */
+.tableArea .firstTime {
+  margin: 6px 0 0;
+  padding: 0 4px;
+  color: var(--text-2);
+  font-size: clamp(12px, 3.4vw, 13px);
+  line-height: 17px;
+  overflow-wrap: anywhere;
+}
+
+.guides {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guide {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.guideWhen {
+  opacity: 0.8;
+}
+
+.guideNext {
+  color: var(--accent);
+}
+
+.guideNext .guideWhen {
+  color: var(--text-2);
+  opacity: 1;
+}
+
+.tableSkeleton {
+  height: 220px;
+  border-radius: 14px;
+  background: var(--surface-1);
+}
+
+/* PLAN 2.2d (G: "dead space"): a quiet slot shaped like a row, one row gap under the last row. */
+.addSet {
+  width: 100%;
+  min-height: 48px;
+  margin-top: var(--row-gap);
+  border-radius: 14px;
+  border: 1px dashed var(--hairline-strong);
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.status {
+  margin: 6px 0 0;
+  padding: 0 4px;
+  color: var(--amber);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.askBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.demoTile {
+  display: flex;
+  justify-content: center;
+}
+
+.demoNote {
+  margin: 0;
+  text-align: center;
+  color: var(--text);
+}

@@ -20,7 +20,8 @@ import { useExerciseText } from './useExerciseText';
 import { useLogRow } from './useLogRow';
 import { useRowEditors } from './useRowEditors';
 import { useRowTypes } from './useRowTypes';
-import styles from './Workout.module.css';
+import styles from './ExerciseView.module.css';
+import frame from './Workout.module.css';
 
 type Props = {
   w: Workout;
@@ -89,7 +90,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
   };
 
   return (
-    <main className={styles.exMain} data-hero={hasDemo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
+    <main className={frame.exMain} data-hero={hasDemo ? '' : undefined} data-testid={`exercise-${exerciseId}`} aria-label={name} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
       <ExerciseHead name={name} kind={kind} info={info} photosOk={photosOk} hasDemo={hasDemo} note={note} targetText={targetText} entry={entry} onMenu={onMenu} />
 
       {kind && progression && lastTime && (
@@ -191,7 +192,7 @@ export function ExerciseView({ w, sessionId, exerciseId, onLogged, onEditSet, on
               </>
             }
           />
-          <p className={statusShown ? styles.status : styles.srOnly} data-testid="set-status" role="status">
+          <p className={statusShown ? styles.status : frame.srOnly} data-testid="set-status" role="status">
             {statusText}
           </p>
         </div>

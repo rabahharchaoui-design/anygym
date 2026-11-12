@@ -1,7 +1,7 @@
 import { Sheet } from '../../ui/Sheet';
 import { isLeftOver } from './sessionRecovery';
 import type { Unsaved } from './useFinish';
-import styles from './Workout.module.css';
+import styles from './Sheets.module.css';
 
 type UnsavedProps = { unsaved: Unsaved | null; onClose: () => void; onRetry: () => void; onFinishWithout: () => void };
 

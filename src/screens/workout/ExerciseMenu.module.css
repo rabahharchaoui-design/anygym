@@ -1,0 +1,89 @@
+/* ---------------------------------------------------------------- exercise menu */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menuPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.menuItem {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8px var(--space-4);
+  border-radius: 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  text-align: left;
+}
+
+/* A row that opens a page shows a chevron on its right (critic B4). */
+.menuItem[data-chevron] {
+  position: relative;
+  padding-right: calc(var(--space-4) + 20px);
+}
+
+.menuItem[data-chevron]::after {
+  content: '';
+  position: absolute;
+  right: var(--space-4);
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--text-2);
+  border-right: 2px solid var(--text-2);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* Off: the time stays in place, quiet, so the page never changes height. */
+.restOnOff {
+  display: flex;
+  justify-content: center;
+}
+
+.restStepper {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.restStepper[data-off] {
+  opacity: 0.3;
+}
+
+.menuItem:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menuItem[data-danger] .menuLabel {
+  color: var(--red-text);
+}
+
+.menuLabel {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.menuSub {
+  color: var(--text-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.noteInput {
+  width: 100%;
+  min-height: 96px;
+  padding: var(--space-3);
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-1);
+  font-size: 17px;
+  resize: none;
+}

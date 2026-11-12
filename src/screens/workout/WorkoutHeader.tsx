@@ -8,7 +8,7 @@ import { formatElapsed } from '../../lib/timer';
 import { workSetCount } from '../../lib/workSets';
 import type { useNav } from '../../ui/nav';
 import type { Workout } from './useWorkout';
-import styles from './Workout.module.css';
+import styles from './WorkoutHeader.module.css';
 
 type Props = {
   w: Workout;
