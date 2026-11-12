@@ -77,16 +77,23 @@ async function gesture(page: Page, target: Locator, path: Path) {
 /** The box of a card that has stopped moving: one still springing in is not where a finger would land. */
 export async function stillBox(target: Locator) {
   await expect(target).toBeVisible();
-  // Two looks 100 ms apart that agree: a look straight after another could catch the start of a spring before it moves.
+  // Three looks 150 ms apart that agree: a spring that has not yet had its first frame (a headless frame can
+  // take 100 ms) looks still for one look, not for three.
+  const look = async () => {
+    await target.page().waitForTimeout(150);
+    return (await target.boundingBox())!;
+  };
+  const same = (a: { x: number; y: number; width: number; height: number }, b: typeof a) => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
   let box = (await target.boundingBox())!;
+  let agreed = 0;
   await expect
     .poll(async () => {
-      await target.page().waitForTimeout(100);
-      const was = box;
-      box = (await target.boundingBox())!;
-      return box.x === was.x && box.y === was.y && box.width === was.width && box.height === was.height;
+      const next = await look();
+      agreed = same(next, box) ? agreed + 1 : 0;
+      box = next;
+      return agreed;
     })
-    .toBe(true);
+    .toBeGreaterThanOrEqual(2);
   return box;
 }
 

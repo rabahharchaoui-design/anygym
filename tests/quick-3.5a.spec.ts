@@ -119,6 +119,8 @@ test.describe('Quick workout builds it for you', () => {
   });
 
   test('a dumbbell only gym: only concepts whose name is true, every card doable with a sure demo @matrix', async ({ page }) => {
+    // It opens every style card in turn, and headless Chromium paints a frame only every 50 ms or more: 30 s is not enough there.
+    test.setTimeout(90_000);
     const errors = watchErrors(page);
     await pastIntake(page, DUMBBELLS);
     // 3.5b round 4: at 45 a dumbbell and bench gym has one card (6 moves each, two cards would share
