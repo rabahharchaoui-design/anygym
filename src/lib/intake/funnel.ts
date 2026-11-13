@@ -184,8 +184,10 @@ export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
   if (NOT_USED_YET.has(screen)) return true;
   switch (screen) {
     case 'focus':
-    case 'weekdays':
       return true;
+    case 'weekdays':
+      // Flexible and weekly need no days. "Same days each week" with none picked would quietly be flexible: pick one, or skip.
+      return a.scheduleStyle !== 'fixed' || !!a.weekdays?.length;
     case 'units':
       return a.units !== undefined;
     case 'equipment':

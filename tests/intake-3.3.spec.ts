@@ -1,5 +1,6 @@
 import { expect, guardContext, test, type Locator, type Page } from './fixtures';
 import { checkLayout, simulateSafeAreas } from './helpers/layout';
+import { chooseSchedule, pickFocusArea } from './helpers/intakeAnswers';
 import { quickWith } from './workout-helpers';
 
 // PLAN 3.3: the intake funnel (SPEC 14). A brand new phone opens it; anyone with a profile, a
@@ -206,7 +207,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await t.next();
   await atStep(page, 'focus');
   await t.pick('focus', 'glutes');
-  await t.pick('focus', 'legs');
+  await pickFocusArea(page, 'legs');
   // Back keeps the units; forward again keeps the focus.
   await t.tap(backButton(page));
   await atStep(page, 'units');
@@ -218,6 +219,8 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await t.pick('experience', 'months');
   await t.pick('days', '3');
   await atStep(page, 'weekdays');
+  // 3.6f: the weekday chips appear after choosing "Same days each week".
+  await t.tap(page.getByTestId('q-schedule-fixed'));
   await t.pick('weekdays', 'mon');
   await t.pick('weekdays', 'wed');
   await t.pick('weekdays', 'fri');
@@ -276,7 +279,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await atStep(page, 'reveal');
   // PLAN 3.5: the hotel plan is for muscle, not tone up: Your plan is built from the answers instead.
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
-  await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built to tone up: 3 days, about \d+ min, hotel friendly, extra glute and leg work, easy on wrists(, with an exercise you love)?\.$/);
+  await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built to tone up: 3 days, about \d+ min, hotel friendly, extra glutes and legs work, easy on wrists(, with an exercise you love)?\.$/);
   await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(3);
   await shot(page, 'reveal-generated');
 
@@ -292,7 +295,8 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
     intake: {
       goal: 'tone',
       units: { weight: 'kg', distance: 'km', measure: 'cm', body: 'female' },
-      focus: ['glutes', 'legs'],
+      focusPicks: ['glutes', 'legs'],
+      scheduleStyle: 'fixed',
       experience: 'months',
       days: 3,
       weekdays: ['mon', 'wed', 'fri'],
@@ -590,7 +594,9 @@ test('home with Dumbbells asks for the range: Continue waits, only what was type
 test('B3: 4 days then 3 weekdays: the weekdays screen says so, the reveal repeats the 4, every workout shows @matrix', async ({ page }) => {
   await drafted(page, 'weekdays', { goal: 'muscle', days: 4, place: 'full', experience: '3y', units: US });
   // PLAN 3.3a round 3: one prompt: the why says what it is for, the grey button says how many.
-  await expect(page.getByTestId('why')).toHaveText('Used to lay out your week.');
+  await expect(page.getByTestId('why')).toHaveText('Choose a schedule that fits your life.');
+  // 3.6f: the weekday chips appear after choosing "Same days each week".
+  await chooseSchedule(page, 'fixed');
   await expect(page.getByTestId('cta-reason')).toHaveText('Pick 4, or skip');
   await expect(page.getByTestId('weekday-count')).toHaveText('');
   const before = await cta(page).boundingBox();
@@ -648,7 +654,7 @@ test('a redo left alone never touches the gym Settings changed; skipping Name de
   await expect(page.getByTestId('units-weight').getByRole('radio', { name: 'kg' })).toHaveAttribute('aria-checked', 'true');
   await cta(page).tap();
   await atStep(page, 'focus');
-  await page.getByTestId('q-focus-arms').tap();
+  await pickFocusArea(page, 'arms');
   await cta(page).tap();
   // 3.5u: win, when and bodyweight are not asked.
   await page.getByTestId('q-experience-3y').tap();

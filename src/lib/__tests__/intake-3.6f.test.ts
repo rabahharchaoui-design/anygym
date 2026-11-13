@@ -31,6 +31,9 @@ describe('schedule and ranked focus answers', () => {
     expect(NOT_USED_YET.has('focus')).toBe(false);
     expect(canContinue('focus', {})).toBe(true);
     expect(canContinue('weekdays', { scheduleStyle: 'flexible' })).toBe(true);
+    expect(canContinue('weekdays', { scheduleStyle: 'weekly' })).toBe(true);
+    expect(canContinue('weekdays', { scheduleStyle: 'fixed' })).toBe(false);
+    expect(canContinue('weekdays', { scheduleStyle: 'fixed', weekdays: ['mon'] })).toBe(true);
   });
   it('never overwrites schedule when a traveler chooses hotel or a mix later', () => {
     for (const style of ['fixed', 'flexible', 'weekly'] as const) {
