@@ -303,7 +303,9 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
       if (state.step === 'equipment' && action.noFit) return { ...state, step: 'noPlan' };
       // What was left blank on a merged screen is skipped on purpose (a cleared name goes).
       const blank = state.step === 'about' || NOT_USED_YET.has(state.step) ? fieldsOf(state.step).filter((f) => isBlank(state.answers[ANSWER_KEY[f]])) : [];
-      const answers = blank.length ? markSkipped(state.answers, blank) : state.answers;
+      let answers = blank.length ? markSkipped(state.answers, blank) : state.answers;
+      // Focus left untouched is remembered as skipped too ("focus" is its token; picking one clears it).
+      if (state.step === 'focus' && isBlank(answers.focusPicks) && isBlank(answers.focus)) answers = { ...answers, skipped: [...(answers.skipped ?? []).filter((x) => x !== 'focus'), 'focus'] };
       return { step: nextScreen(state.step, answers), answers };
     }
     case 'skip': {

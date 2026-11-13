@@ -30,6 +30,10 @@ describe('schedule and ranked focus answers', () => {
     expect(balanced.answers.focusPicks).toEqual(['balance']);
     expect(NOT_USED_YET.has('focus')).toBe(false);
     expect(canContinue('focus', {})).toBe(true);
+    // Continue with nothing picked is a skip, never a made up answer; picking one clears it.
+    const left = funnelReducer({ step: 'focus', answers: {} }, { type: 'next' });
+    expect(left.answers.skipped).toEqual(['focus']);
+    expect(funnelReducer(left, { type: 'set', screen: 'focusPicks', value: ['back'] }).answers.skipped).toBeUndefined();
     expect(canContinue('weekdays', { scheduleStyle: 'flexible' })).toBe(true);
     expect(canContinue('weekdays', { scheduleStyle: 'weekly' })).toBe(true);
     expect(canContinue('weekdays', { scheduleStyle: 'fixed' })).toBe(false);
