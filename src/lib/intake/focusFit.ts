@@ -31,8 +31,11 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
   // Past the weekly budget a pick gets no share at all: said, never hidden.
   const unfunded = hard.filter((p) => p.requested === 0 && !p.noMove);
   if (!unplaced.length && !unfunded.length && !none.length) return null;
-  const served = report.priorities.filter((p) => p.extra > 0).slice(0, 2).map(name);
-  const first = served.length ? `; we prioritized ${list(served)}` : '';
+  // Only the picks that got their full share are "prioritized"; with none of them (or every pick, which
+  // cannot be a shortfall) the line says plainly that each got what fit.
+  const full = report.priorities.filter((p) => p.extra > 0 && !unplaced.includes(p));
+  const served = full.length < report.priorities.length ? full.slice(0, 2).map(name) : [];
+  const first = served.length ? `; we prioritized ${list(served)}` : unplaced.length && report.priorities.length > 1 ? '; we fit what we could of each' : '';
   const parts: string[] = [];
   const out: FocusFit = { line: '' };
   if (unplaced.length) {

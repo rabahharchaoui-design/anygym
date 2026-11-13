@@ -68,6 +68,15 @@ describe('the honest focus line and its one tap (focusFit)', () => {
     expect(focusFit({ days: 3 }, four, () => all)!.minutes).toBeUndefined();
     expect(focusFit({ days: 2, minutes: 20 }, report(p('glutes', 4, 0)), () => report(p('glutes', 4, 4)))!.line).toBe('1 focus area fits best with 3 days or 30 min.');
   });
+  it('names as prioritized only the picks that got their full share, never a short one', () => {
+    const shortBoth = report(p('lats', 4, 1), p('biceps', 4, 1));
+    const line = focusFit({ days: 4, minutes: 60 }, shortBoth, () => shortBoth)!.line;
+    expect(line).toBe('Not all the extra lats and width and biceps work fits here; we fit what we could of each.');
+    expect(line).not.toMatch(/prioritized/);
+    expect(focusFit({ days: 3, minutes: 45 }, shortBoth, () => report(p('lats', 4, 4), p('biceps', 4, 4)))!.line).toBe('2 focus areas fit best with 4 days or 60 min; we fit what we could of each.');
+    const oneFull = report(p('lats', 4, 4), p('biceps', 4, 1), p('quads', 4, 0));
+    expect(focusFit({ days: 6, minutes: 75 }, oneFull, () => oneFull)!.line).toBe('Not all the extra biceps and quads work fits here; we prioritized Lats and width.');
+  });
   it('stays quiet when every pick got its share, is one set short, or is at the 20 set limit', () => {
     expect(focusFit({ days: 3, minutes: 45 }, all, () => all)).toBeNull();
     expect(focusFit({ days: 3, minutes: 45 }, undefined, () => all)).toBeNull();
