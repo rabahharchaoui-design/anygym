@@ -191,14 +191,24 @@ test.describe('verify 3.8b', () => {
     expect(errors).toEqual([]);
   });
 
-  async function missedSetup(page: Page) {
+  /** 3.6f: a profile with saved weekdays is FIXED (the calendar behaves as before); with none it is flexible. */
+  async function fixSchedule(page: Page) {
+    // Two training days, the two right after the last workout (5 days ago): exactly 2 workouts were missed, whatever today is.
+    const names = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const weekdays = [1, 2].map((k) => names[new Date(Date.now() - 5 * DAY + k * DAY).getDay()]!);
+    const [profile] = await dbAll<{ intake?: Record<string, unknown> }>(page, 'profile');
+    await dbPut(page, { profile: [{ id: 'me', defaultUnit: 'lb', createdAt: 1, ...profile, intake: { ...(profile?.intake ?? {}), days: 2, weekdays, scheduleStyle: 'fixed' } }] });
+  }
+  async function missedSetup(page: Page, fixed = true) {
     await usePlan(page);
+    if (fixed) await fixSchedule(page);
     const before = (await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]!;
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 2, doneDays: [0, 1] }] });
     await seed(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, lb(185, [45, 25])));
     await page.goto('./');
     await page.reload();
-    await expect(page.getByTestId('coach-card')).toHaveAttribute('data-kind', 'missed_days');
+    if (fixed) await expect(page.getByTestId('coach-card')).toHaveAttribute('data-kind', 'missed_days');
+    else await expect(page.getByTestId('day-card-title')).toBeVisible();
   }
   async function missedMetrics(page: Page) {
     return page.evaluate(() => {
@@ -277,6 +287,15 @@ test.describe('verify 3.8b', () => {
     await snap(page, 'm2-restarted');
     await page.getByRole('button', { name: 'Undo' }).tap();
     await expect.poll(ps).toMatchObject({ nextDayIndex: 2, doneDays: [0, 1] });
+    expect(errors).toEqual([]);
+  });
+
+  test('2c a flexible profile (no saved weekdays) never gets the missed days card, however long ago it last trained', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('./');
+    await missedSetup(page, false);
+    await expect(page.getByTestId('day-card-title')).toBeVisible();
+    await expect(page.getByTestId('coach-card')).toHaveCount(0);
     expect(errors).toEqual([]);
   });
 
