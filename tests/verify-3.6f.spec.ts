@@ -1,7 +1,7 @@
 // PLAN 3.6f: real phone intake, saved priorities, weekly choices and recovery. The helper runs these.
 import { test, expect, type Page } from './fixtures';
 import { touchDragVertical } from './helpers/touch';
-import { checkLayout, simulateSafeAreas } from './helpers/layout';
+import { checkLayout, rootAtRest, simulateSafeAreas } from './helpers/layout';
 import { dbAll, dbPut } from './workout-helpers';
 
 test.use({ intake: 'fresh', video: 'on' });
@@ -161,19 +161,50 @@ test('fixed weekdays label the reveal; weekly asks once and keeps the saved days
   await page.getByTestId('week-schedule-open').tap(); await expect(sheet.getByTestId('week-tue')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('flexible recovery defers a trained day, then shows honest recovery when every pending day is blocked', async ({ page }) => {
+/** A flexible profile on the four day upper/lower plan whose last workout trained the upper body: Day 2 (lower) is next. */
+async function afterUpperDay(page: Page) {
   await toFocus(page); await pick(page, 'focus', 'balance'); await rest(page); await accept(page);
-  const state = (await dbAll<{ id: string; planId: string; nextDayIndex: number }>(page, 'planState'))[0]!;
   // The four-day upper/lower plan: a real logged upper-body set makes the lower day next.
   await put(page, 'sessions', { id: 'recovery-upper', gymId: 'other', startedAt: Date.now() - 1000, endedAt: Date.now(), imported: false });
   await put(page, 'sets', { id: 'upper-set', sessionId: 'recovery-upper', exerciseId: 'dumbbell-bench-press', order: 0, kind: 'work', reps: 8, load: { kind: 'dumbbell_each', unit: 'lb', total: 10 }, uncertain: false });
   await page.reload(); await expect(page.getByTestId('day-card-title')).toContainText('Day 2');
+}
+test('flexible recovery defers a trained day, then shows honest recovery when every pending day is blocked; Train anyway starts the workout', async ({ page }) => {
+  await afterUpperDay(page);
+  const state = (await dbAll<{ id: string; planId: string; nextDayIndex: number }>(page, 'planState'))[0]!;
   await put(page, 'sessions', { id: 'recovery-lower', gymId: 'other', startedAt: Date.now() - 1000, endedAt: Date.now(), imported: false });
   await put(page, 'sets', { id: 'lower-set', sessionId: 'recovery-lower', exerciseId: 'barbell-back-squat', order: 0, kind: 'work', reps: 8, load: { kind: 'barbell', unit: 'lb', total: 45, barWeight: 45, perSide: [] }, uncertain: false });
   await page.reload(); await expect(page.getByTestId('rotation-recovery')).toContainText('Time to recover');
   await expect(page.getByRole('region', { name: "Today's plan day" })).toHaveCount(0);
   await expect(page.getByTestId('rotation-train-anyway')).toBeVisible();
   expect((await dbAll<{ nextDayIndex: number }>(page, 'planState'))[0]!.nextDayIndex).toBe(state.nextDayIndex);
+  // "Train anyway" never locks the person out: it picks the next day in order, the day card comes back with Start, and Start opens the workout.
+  const open = (await dbAll<{ endedAt?: number }>(page, 'sessions')).length;
+  await page.getByTestId('rotation-train-anyway').tap();
+  await expect(page.getByTestId('rotation-recovery')).toHaveCount(0);
+  await expect(page.getByTestId('day-card-title')).toContainText(`Day ${state.nextDayIndex + 1}`);
+  await page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  const sessions = await dbAll<{ planId?: string; dayId?: string; endedAt?: number }>(page, 'sessions');
+  expect(sessions).toHaveLength(open + 1);
+  const started = sessions.find((x) => x.endedAt === undefined)!;
+  expect(started.planId).toBe(state.planId); expect(started.dayId).toBe(String(state.nextDayIndex + 1));
+});
+
+test('Change day onto a day that is resting works: Today shows it and Start opens it', async ({ page }) => {
+  await afterUpperDay(page);
+  // The upper body was just trained, so Day 1 (upper) is resting; the person still chooses it.
+  await page.getByRole('button', { name: 'Change day', exact: true }).tap();
+  const sheet = page.getByRole('dialog', { name: 'Change day' }); await expect(sheet).toBeVisible(); await rootAtRest(page);
+  await sheet.getByRole('button', { name: /^Day 1/ }).tap();
+  await expect(sheet).not.toBeVisible(); await rootAtRest(page);
+  await expect(page.getByTestId('day-card-title')).toContainText('Day 1');
+  expect((await dbAll<{ chosenDayIndex?: number }>(page, 'planState'))[0]!.chosenDayIndex).toBe(0);
+  await page.reload(); await expect(page.getByTestId('day-card-title')).toContainText('Day 1');
+  await page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  const started = (await dbAll<{ dayId?: string; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
+  expect(started.dayId).toBe('1');
 });
 
 test('reduced motion keeps all parts, targets and the reachable action', async ({ page }) => {
@@ -183,5 +214,5 @@ test('reduced motion keeps all parts, targets and the reachable action', async (
     const box = await button.boundingBox(); if (box) { expect(box.height).toBeGreaterThanOrEqual(48); expect(box.width).toBeGreaterThanOrEqual(48); }
   }
   await sheet.getByTestId('focus-part-upper_chest').tap(); await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await rest(page);
-  await expect(page.getByTestId('reveal-focus')).toContainText('Upper chest');
+  await expect(page.getByTestId('reveal-focus')).toContainText('upper chest work');
 });
