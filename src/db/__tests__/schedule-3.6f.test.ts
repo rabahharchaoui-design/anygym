@@ -10,7 +10,10 @@ import { startPlanDay } from '../workoutStart';
 import { finishWorkout } from '../workoutFinish';
 import { reopenWorkout } from '../workoutReopen';
 import { logSet } from '../workoutSets';
-import { saveGeneratedPlan } from '../savedPlans';
+import { loadSavedPlans, saveGeneratedPlan } from '../savedPlans';
+import { definitionPlan, planById } from '../../data/plans';
+import { FROZEN_PLANS, frozenPlanText } from '../../data/frozenPlans';
+import { GENERATOR_VERSION } from '../../lib/generator';
 import { exportBackup, restoreReplace } from '../backup';
 import { parseBackup } from '../../lib/backup';
 import { TIRED_MS } from '../../lib/quickWhy';
@@ -162,5 +165,52 @@ describe('additive v11 data and backup compatibility', () => {
     }
     const badWeek = structuredClone(backup); badWeek.tables.profile[0]!.weeklySchedule!.weekdays = ['bad' as 'mon'];
     expect(parseBackup(JSON.stringify(badWeek)).ok).toBe(false);
+  });
+  it('a profile from before 3.6f with saved weekdays stays on its calendar: no rotation queue, no 48 hour move, the old finish', async () => {
+    await db.profile.update('me', { intake: { focus: ['arms'], weekdays: ['mon', 'wed', 'fri'], days: 3 } });
+    for (const [i, id] of exercises.entries()) await trained(`recent-${i}`, id);
+    const read = await readSchedule(now, db);
+    expect(read).toMatchObject({ style: 'fixed', needsWeek: false, resolved: { dayIndex: 0, deferred: [] } });
+    const s = await startPlanDay(gymId, planId, 0, db, now);
+    for (const id of ['a', 'b', 'c']) await logSet({ id, sessionId: s.id, exerciseId: exercises[0]!, reps: 8, load }, db);
+    await finishWorkout(s.id, db, now + 1000);
+    const state = (await db.planState.get('active'))!;
+    expect(state).toMatchObject({ nextDayIndex: 1, doneDays: [0] });
+    expect('pendingDayIndices' in state).toBe(false);
+    expect((await readSchedule(now + 2000, db)).resolved?.dayIndex).toBe(1);
+  });
+  it('a backup from before 3.6f (none of the new fields) still checks out and restores as it was', async () => {
+    await db.profile.update('me', { intake: { focus: ['arms', 'back'], weekdays: ['mon', 'thu'], days: 3, minutes: 45 } });
+    await trained('old', exercises[0]!, { gymId });
+    const backup = await exportBackup(db, now);
+    const text = JSON.stringify(backup);
+    for (const key of ['scheduleStyle', 'focusPicks', 'weeklySchedule', 'pendingDayIndices', 'chosenDayIndex', 'focusReport', 'focusWhy']) expect(text).not.toContain(key);
+    expect(parseBackup(text)).toMatchObject({ ok: true });
+    const other = new AnyGymDB(`restored-old-36f-${Math.random()}`); await other.open();
+    try {
+      await restoreReplace(backup, other);
+      for (const table of ['profile', 'planState', 'plans', 'sessions', 'sets'] as const) expect(await other.table(table).toArray()).toEqual(await db.table(table).toArray());
+      expect((await readSchedule(now, other)).style).toBe('fixed');
+    } finally { await other.delete(); }
+  });
+  it('generator version 3 changed no shipped plan, and a saved version 2 plan still opens with the same days', async () => {
+    expect(GENERATOR_VERSION).toBe(3);
+    for (const p of FROZEN_PLANS) {
+      const v3 = JSON.parse(frozenPlanText(p)) as Record<string, unknown>;
+      // No focus picks: nothing of 3.6f is in the file but the version number.
+      for (const key of ['focusReport', 'scheduleStyle']) expect(key in v3).toBe(false);
+      expect(JSON.stringify(v3)).not.toContain('focusWhy');
+      const v2 = { ...v3, generator: 2 };
+      expect(definitionPlan(v2)).toEqual(definitionPlan(v3));
+    }
+    const built = generate({ goals: ['muscle'], experience: '1_2y', days: 3, minutes: 45, gym: equipmentPreset('full', 'lb') });
+    expect(built.ok).toBe(true); if (!built.ok) return;
+    const old = { ...(built.plan as unknown as Record<string, unknown>), id: 'mine-saved-by-version-2', generator: 2 };
+    await db.plans.add({ id: 'mine-saved-by-version-2', name: 'Old plan', source: 'generated', createdAt: 1, definition: old });
+    expect(await loadSavedPlans(db)).toBeGreaterThanOrEqual(1);
+    expect(planById('mine-saved-by-version-2')!.days).toEqual(definitionPlan(built.plan)!.days);
+    // And with picks the same answers give the same plan every time (a saved plan never changes by itself).
+    const again = generate({ goals: ['muscle'], experience: '1_2y', days: 3, minutes: 45, gym: equipmentPreset('full', 'lb') });
+    expect(again).toEqual(built);
   });
 });

@@ -4,6 +4,9 @@ import { generatorInputOf } from '../intake/yourPlan';
 import { weekOf, unmetCustomization } from '../intake/planPick';
 import { planById } from '../../data/plans';
 import { focusFit } from '../intake/focusFit';
+import { FOCUS, FOCUS_OBJECTIVES, FOCUS_PARTS, SCHEDULE_STYLES } from '../intake/options';
+import { normalizeFocusPicks } from '../plan/focus';
+import { scheduleStyleOf } from '../plan/schedule';
 import type { FocusReport, FocusResult } from '../plan/focus';
 
 describe('schedule and ranked focus answers', () => {
@@ -79,5 +82,30 @@ describe('the honest focus line and its one tap (focusFit)', () => {
     expect(focusFit({ days: 4, minutes: 60 }, grip, () => grip)).toEqual({ line: 'Nothing sure for grip with your equipment yet.' });
     const stretch = report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 0, shortfall: true });
     expect(focusFit({ days: 4, minutes: 20 }, stretch, (a) => (a.minutes === 30 ? report({ ...stretch.priorities[0]!, minutes: 2, shortfall: false }) : stretch))).toEqual({ line: '1 focus area fits best with 30 min.', minutes: 30 });
+  });
+});
+
+describe('the options are the PLAN\'s, word for word', () => {
+  it('three schedule styles, flexible when nothing was chosen', () => {
+    expect(SCHEDULE_STYLES.map((s) => s.label)).toEqual(['Same days each week', 'Flexible, whenever I can', 'Changes week to week']);
+    expect(scheduleStyleOf({})).toBe('flexible');
+    expect(generatorInputOf({}).scheduleStyle).toBe('flexible');
+    expect(generatorInputOf({ weekdays: ['mon'] }).scheduleStyle).toBe('fixed');
+  });
+  it('8 area tiles, their parts, and the three goal tiles', () => {
+    expect(FOCUS.map((f) => f.label)).toEqual(['Chest', 'Back', 'Shoulders', 'Arms', 'Abs and core', 'Glutes', 'Legs', 'Whole body balance']);
+    const parts = Object.fromEntries(Object.entries(FOCUS_PARTS).map(([area, list]) => [area, list.map((x) => x.label)]));
+    expect(parts).toEqual({
+      chest: ['Upper chest', 'Overall chest'], back: ['Lats and width', 'Upper back thickness', 'Lower back'], shoulders: ['Front shoulders', 'Side shoulders for width', 'Rear shoulders'],
+      arms: ['Biceps', 'Triceps', 'Forearms'], core: ['Abs', 'Obliques'], glutes: [], legs: ['Quads', 'Hamstrings', 'Calves'],
+    });
+    expect(FOCUS_OBJECTIVES.map((f) => f.label)).toEqual(['Posture', 'Grip', 'Mobility']);
+  });
+  it('any number of picks in the person\'s order; balance clears the rest; an area swallows its own parts', () => {
+    const many = ['lats', 'side_delts', 'quads', 'biceps', 'abs', 'glutes', 'upper_chest', 'posture', 'grip', 'mobility', 'calves'];
+    expect(normalizeFocusPicks(many)).toEqual(many);
+    expect(normalizeFocusPicks([...many, 'balance'])).toEqual(['balance']);
+    expect(normalizeFocusPicks(['quads', 'legs', 'chest', 'upper_chest'])).toEqual(['legs', 'chest']);
+    expect(sanitizeAnswers({ focusPicks: many }).focusPicks).toEqual(many);
   });
 });
