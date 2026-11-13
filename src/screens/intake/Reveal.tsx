@@ -6,7 +6,6 @@
 // the generator cannot build a week here it says why; Today has the quick workout.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { Button } from '../../ui/Button';
-import { MINUTES, type DaysPerWeek } from '../../lib/intake/options';
 import { scheduleStyleOf } from '../../lib/plan/schedule';
 import { focusLabel } from '../../lib/plan/focus';
 import { BackButton } from '../../ui/BackButton';
@@ -17,6 +16,7 @@ import { useTapGuard } from '../../hooks/useTapGuard';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/planPick';
 import { generatorInputOf } from '../../lib/intake/yourPlan';
+import { focusFit } from '../../lib/intake/focusFit';
 import { persistAnswers } from './persist';
 import { useMoreBelow } from './useMoreBelow';
 import { PLANS, definitionPlan, planById } from '../../data/plans';
@@ -46,6 +46,8 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
   // PLAN 3.5: otherwise "Your plan" from the answers, when the generator can build one here.
   const built = useMemo(() => (exact ? null : generate(generatorInputOf(answers))), [exact, answers]);
   const mine = useMemo(() => (built?.ok ? definitionPlan(built.plan) : undefined), [built]);
+  // PLAN 3.6f: what did not fit, and a day or minutes only when a rebuild with it really fits more.
+  const focusNote = useMemo(() => (built?.ok ? focusFit(answers, built.applied.focusReport, (a) => { const r = generate(generatorInputOf(a)); return r.ok ? r.applied.focusReport : undefined; }) : null), [built, answers]);
   const [chosenId, setChosenId] = useState(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null);
   useEffect(() => { setChosenId(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null); }, [mine?.id]); // A rebuild replaces the generated choice.
   const isMine = !!mine && chosenId === mine.id;
@@ -193,9 +195,10 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
             {built.applied.focusReport.priorities.map((p) => <p className={revealStyles.caveat} key={p.id}>
               {p.id === 'mobility' ? `Mobility: ${p.minutes ?? 0} min of stretches per rotation.` : `${focusLabel(p.id)}: ${p.total} working sets ${scheduleStyleOf(answers) === 'fixed' ? 'a week' : `per ${plan!.days.length}-workout rotation`}${p.extra ? `, ${p.extra} extra` : ''}.`}
             </p>)}
-            {built.applied.focusReport.priorities.some((p) => p.shortfall) && <>
-              {(answers.days ?? 3) < 6 && <Button variant="secondary" data-testid="focus-add-day" onClick={() => onChange({ ...answers, days: ((answers.days ?? 3) + 1) as DaysPerWeek })}>Add a day</Button>}
-              {(answers.minutes ?? 45) < 75 && <Button variant="tertiary" data-testid="focus-add-minutes" onClick={() => onChange({ ...answers, minutes: MINUTES.find((m) => m > (answers.minutes ?? 45))! })}>Add minutes</Button>}
+            {focusNote && <>
+              <p className={revealStyles.caveat} data-testid="focus-fit">{focusNote.line}</p>
+              {focusNote.days && <Button variant="secondary" data-testid="focus-add-day" onClick={() => onChange({ ...answers, days: focusNote.days })}>Add a day</Button>}
+              {focusNote.minutes && <Button variant="tertiary" data-testid="focus-add-minutes" onClick={() => onChange({ ...answers, minutes: focusNote.minutes })}>Add minutes</Button>}
             </>}
           </div> : null}
           {plan && (

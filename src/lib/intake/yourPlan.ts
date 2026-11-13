@@ -116,14 +116,10 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   const notes: string[] = [];
   if (applied.gaps.length) notes.push(`Nothing here for ${list(short(applied.gaps.map((g) => GAP_WORD[g])))}: that takes gear you don't have.`);
   const misses: string[] = [];
+  // Ranked picks (focusPicks) get their own line beside the reveal's taps: lib/intake/focusFit.ts.
   if (applied.focusMissed.length) misses.push(`extra ${list(applied.focusMissed.map(focusWord))} work`);
   if (applied.lovedMissed.length) misses.push(applied.lovedMissed.length === 1 ? 'the exercise you love' : `${applied.lovedMissed.length} exercises you love`);
   if (misses.length) notes.push(`No room for ${list(misses)} here.`);
-  const shortfalls = applied.focusReport?.priorities.filter((p) => p.shortfall) ?? [];
-  if (shortfalls.length) {
-    const served = applied.focusReport!.priorities.filter((p) => p.extra > 0).slice(0, 2).map((p) => focusLabel(p.id));
-    notes.push(`${applied.focusReport!.priorities.length} focus ${applied.focusReport!.priorities.length === 1 ? 'choice shares' : 'choices share'} your time. ${served.length ? `We prioritized ${list(served)}. ` : ''}Still short: ${list(shortfalls.map((p) => focusLabel(p.id)))}. More days or minutes may help; equipment and experience limits still apply.`);
-  }
   const timed = a.minutes !== undefined && a.minutes < 75;
   // PLAN 3.5g: the real minutes, and what to do about it (the workout offers Make it fit at the start).
   const over = applied.over && timed ? overWords(applied.minutes, a.minutes!) : null;

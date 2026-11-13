@@ -8,6 +8,7 @@ import { EQUIPMENT_IDS } from '../../db/types';
 import { explainPick, pickPlan } from '../intake/planPick';
 import type { Applied } from '../generator';
 import { generatorInputOf, yourPlanWords } from '../intake/yourPlan';
+import { focusFit } from '../intake/focusFit';
 import { presetEquipment, type IntakeAnswers } from '../intake/funnel';
 
 const reveal = (a: IntakeAnswers) => {
@@ -101,9 +102,11 @@ it('names detailed priorities and their real shortfalls without claiming a calen
   const answers: IntakeAnswers = { goals: ['muscle'], experience: 'new', days: 2, minutes: 20, place: 'hotel', focusPicks: ['lats', 'side_delts', 'biceps', 'quads', 'grip'], scheduleStyle: 'flexible' };
   const { r, words } = reveal(answers);
   expect(r.applied.focusReport!.budget).toBeLessThanOrEqual(12);
-  expect(words.warning).toContain('Still short:');
-  expect(words.warning).toContain('Grip');
-  expect(words.warning).toContain('More days or minutes');
+  // What did not fit is one line beside the taps (focusFit), never twice in the warning.
+  expect(words.warning ?? '').not.toContain('Grip');
+  const fit = focusFit(answers, r.applied.focusReport, (a) => { const x = generate(generatorInputOf(a)); return x.ok ? x.applied.focusReport : undefined; })!;
+  expect(fit.line).toMatch(/Nothing sure for .*grip with your equipment yet\.$/);
+  expect(fit.line).toContain('focus areas fit best with');
   expect(words.reason).not.toContain('completed');
   expect(words.reason).not.toContain('sets a week');
 });
