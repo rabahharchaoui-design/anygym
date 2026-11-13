@@ -102,6 +102,66 @@
   line-height: 1.35;
 }
 
+/* PLAN 3.6f: what the plan does for each focus pick. What did not fit comes first, with its one tap. */
+.focus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.fit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.fitLine {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+/* Side by side; one under the other when the words need the room (large text, 320 pt). */
+.fitActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fitActions > button {
+  flex: 1 1 8em;
+  width: auto;
+  white-space: nowrap;
+}
+
+.focusList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.focusRow {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.focusWhat {
+  font-weight: 600;
+}
+
+.focusMuch {
+  color: var(--text-2);
+}
+
 .week {
   margin: var(--space-2) 0 0;
   padding: 0;

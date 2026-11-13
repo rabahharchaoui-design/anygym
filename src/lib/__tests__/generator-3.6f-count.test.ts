@@ -114,7 +114,7 @@ function check(count: number, days: number, minutes: number, rep: number) {
     expect(hit, line).toBeDefined();
     expect(line).toContain(`${setsFor(m, SRC[hit!.id]!)} sets`);
     expect(m[i]!.some((x) => x.prim.some(SRC[hit!.id]!)), `${line} on a day that trains it`).toBe(true);
-    expect(line.endsWith(rep ? `per ${days}-workout rotation` : 'a week')).toBe(true);
+    expect(line.endsWith(rep ? `every ${days} workouts` : 'a week')).toBe(true);
   }
 
   const fa = footprint(f.plan), ba = footprint(b.plan);

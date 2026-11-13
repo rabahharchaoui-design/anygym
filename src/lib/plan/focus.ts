@@ -179,6 +179,6 @@ export function curateFocus(input: {
   });
   const why = (p: FocusResult, total: number) => p.id === 'mobility' ? `Mobility: ${p.minutes} min of stretches` : p.id === 'posture'
     ? `${focusLabel(p.id)}: ${total} sets of back and rear shoulder work`
-    : `${p.extra ? 'Extra ' : ''}${focusLabel(p.id).toLowerCase()} work: ${p.total} sets`;
+    : `${p.extra ? `Extra ${focusLabel(p.id).toLowerCase()}` : focusLabel(p.id)} work: ${p.total} sets`;
   return { days, report: { budget: budget.total, spent, priorities, days: days.map((d) => priorities.filter((p) => (p.total > 0 || (p.minutes ?? 0) > 0) && d.some((m) => m.picks.includes(p.id))).map((p) => why(p, p.total))) } };
 }

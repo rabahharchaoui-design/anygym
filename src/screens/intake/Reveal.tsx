@@ -5,9 +5,9 @@
 // saved on the phone when it is chosen, with the curated plans that fit as other choices. When even
 // the generator cannot build a week here it says why; Today has the quick workout.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
-import { Button } from '../../ui/Button';
 import { scheduleStyleOf } from '../../lib/plan/schedule';
-import { focusLabel } from '../../lib/plan/focus';
+import { focusPeriod } from '../../lib/plan/focusWords';
+import { RevealFocus } from './RevealFocus';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { ChoiceCard } from '../../ui/ChoiceCard';
@@ -191,16 +191,15 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
               {none.quick}
             </p>
           )}
-          {isMine && built?.ok && built.applied.focusReport?.priorities.length ? <div data-testid="reveal-focus">
-            {built.applied.focusReport.priorities.map((p) => <p className={revealStyles.caveat} key={p.id}>
-              {p.id === 'mobility' ? `Mobility: ${p.minutes ?? 0} min of stretches per rotation.` : `${focusLabel(p.id)}: ${p.total} working sets ${scheduleStyleOf(answers) === 'fixed' ? 'a week' : `per ${plan!.days.length}-workout rotation`}${p.extra ? `, ${p.extra} extra` : ''}.`}
-            </p>)}
-            {focusNote && <>
-              <p className={revealStyles.caveat} data-testid="focus-fit">{focusNote.line}</p>
-              {focusNote.days && <Button variant="secondary" data-testid="focus-add-day" onClick={() => onChange({ ...answers, days: focusNote.days })}>Add a day</Button>}
-              {focusNote.minutes && <Button variant="tertiary" data-testid="focus-add-minutes" onClick={() => onChange({ ...answers, minutes: focusNote.minutes })}>Add minutes</Button>}
-            </>}
-          </div> : null}
+          {isMine && built?.ok && built.applied.focusReport?.priorities.length ? (
+            <RevealFocus
+              report={built.applied.focusReport}
+              period={focusPeriod(scheduleStyleOf(answers), plan!.days.length)}
+              fit={focusNote}
+              onDays={(days) => onChange({ ...answers, days })}
+              onMinutes={(minutes) => onChange({ ...answers, minutes })}
+            />
+          ) : null}
           {plan && (
             <ol className={revealStyles.week} data-testid="reveal-week">
               {week.map((w, i) => (

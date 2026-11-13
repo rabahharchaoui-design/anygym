@@ -1,6 +1,7 @@
 // Builds the whole plan, or says plainly which day cannot be built here.
 import { heaviestOf, orderUnits, type Muscle } from '../order';
 import { focusMuscles as musclesOf, normalizeFocusPicks } from '../plan/focus';
+import { focusPeriod } from '../plan/focusWords';
 import { workoutIdOf, type Pattern } from '../swap';
 import { FAMILY_OF, MIN_MOVES, movesFor, PRESCRIPTION, splitFor, type Slot } from '../generatorRules';
 import { contextOf } from './context';
@@ -80,7 +81,7 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
 
   const rawDays: RawDay[] = days.map((d, i) => {
     const head: RawSingle[] = d.warmUp ? [{ type: 'single', exercise: deps.name(d.warmUp), id: d.warmUp, seconds: [WARM_UP_SEC, WARM_UP_SEC], sets: 1, restSec: 0, warmup: true }] : [];
-    const out: RawDay = { n: i + 1, name: d.name, blocks: [...head, ...d.units.map((u) => rawBlock(ctx, u))], ...(focusReport.days[i]?.length ? { focusWhy: focusReport.days[i]!.map((line) => `${line}${input.scheduleStyle === 'fixed' ? ' a week' : ` per ${daysPerWeek}-workout rotation`}`) } : {}) };
+    const out: RawDay = { n: i + 1, name: d.name, blocks: [...head, ...d.units.map((u) => rawBlock(ctx, u))], ...(focusReport.days[i]?.length ? { focusWhy: focusReport.days[i]!.map((line) => `${line} ${focusPeriod(input.scheduleStyle, daysPerWeek)}`) } : {}) };
     if (d.finisher) out.finisher = d.finisher;
     return out;
   });
