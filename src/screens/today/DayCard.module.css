@@ -2,7 +2,13 @@
 .links {
   display: flex;
   justify-content: center;
-  gap: var(--space-4);
+  gap: clamp(var(--space-1), 3vw, var(--space-4));
+}
+
+/* PLAN 3.6f: at 130% text on a 320 pt phone the two still share the row, never broken mid word. */
+.links > button {
+  white-space: nowrap;
+  padding-inline: var(--space-2);
 }
 
 /* PLAN 3.6f: "Next up: Day 3 · Push · ~45 min" breaks only between its parts. Each part carries its

@@ -21,7 +21,7 @@
   gap: 10px;
 }
 
-/* The name and its one quiet line never wrap a tile taller: the line ends in an ellipsis instead. */
+/* The name and its one quiet line sit close; a long line wraps (it is never cut short). */
 .tiles > button > span {
   flex: 1;
   line-height: 1.15;
@@ -29,9 +29,6 @@
 
 .tiles > button > span > span {
   margin-top: 1px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   line-height: 1.2;
 }
 

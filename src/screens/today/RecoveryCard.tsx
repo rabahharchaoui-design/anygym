@@ -24,7 +24,7 @@ export function RecoveryCard({ plan, nextIndex, readyAt, onTrain }: Props) {
     <section className={styles.pick} data-testid="rotation-recovery">
       <p className={styles.planName}>{plan.name}</p>
       <h2 className={styles.pickTitle}>Time to recover</h2>
-      <p className={styles.pickSub}>You trained these muscles in the last 48 hours. Rest today is part of the plan, and your next workout keeps its place.</p>
+      <p className={styles.pickSub}>You trained these muscles in the last 48 hours. Rest today, and your next workout keeps its place.</p>
       {readyAt !== undefined && (
         <p className={`${own.ready} num`} data-testid="rotation-ready">
           Ready again {new Date(readyAt).toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' })}.
