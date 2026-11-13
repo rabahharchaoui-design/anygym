@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { fixedDaysAfter } from './helpers/fixedSchedule';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, usePlan, watchErrors } from './workout-helpers';
 
 // Independent tester checks for PLAN 3.8b. Screenshots: reports/shots/3.8b-verify/.
@@ -191,17 +192,9 @@ test.describe('verify 3.8b', () => {
     expect(errors).toEqual([]);
   });
 
-  /** 3.6f: a profile with saved weekdays is FIXED (the calendar behaves as before); with none it is flexible. */
-  async function fixSchedule(page: Page) {
-    // Two training days, the two right after the last workout (5 days ago): exactly 2 workouts were missed, whatever today is.
-    const names = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-    const weekdays = [1, 2].map((k) => names[new Date(Date.now() - 5 * DAY + k * DAY).getDay()]!);
-    const [profile] = await dbAll<{ intake?: Record<string, unknown> }>(page, 'profile');
-    await dbPut(page, { profile: [{ id: 'me', defaultUnit: 'lb', createdAt: 1, ...profile, intake: { ...(profile?.intake ?? {}), days: 2, weekdays, scheduleStyle: 'fixed' } }] });
-  }
   async function missedSetup(page: Page, fixed = true) {
     await usePlan(page);
-    if (fixed) await fixSchedule(page);
+    if (fixed) await fixedDaysAfter(page, 5, 2);
     const before = (await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]!;
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 2, doneDays: [0, 1] }] });
     await seed(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, lb(185, [45, 25])));

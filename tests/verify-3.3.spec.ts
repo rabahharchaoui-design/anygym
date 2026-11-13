@@ -114,11 +114,15 @@ test('all 14 questions and the reveal (PLAN 3.5: no no plan notice at home): tit
   await expect(cta(page)).toBeEnabled();
   await shot(page, 'units');
   await cta(page).tap();
-  await multi('focus', 'q-focus-arms', true);
+  // 3.6f: an area with parts (Arms) opens a sheet; Glutes is a plain tile. Optional either way.
+  await multi('focus', 'q-focus-glutes', true);
   await auto('experience', 'q-experience-months');
   await auto('days', 'q-days-3');
   await chrome(page, 'weekdays', 'cta', { back: true });
   seen.push('weekdays');
+  // 3.6f: Flexible is the default and needs no day; "Same days each week" waits for one.
+  await expect(cta(page), 'weekdays flexible default').toBeEnabled();
+  await t('q-schedule-fixed').tap();
   await disabledWithReason('weekdays');
   await t('q-weekdays-mon').tap();
   await cta(page).tap();

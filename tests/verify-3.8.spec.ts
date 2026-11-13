@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { fixedDaysAfter } from './helpers/fixedSchedule';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, navIdle, quickWith, usePlan, watchErrors } from './workout-helpers';
 import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9 } from '../src/db/schema';
 
@@ -128,6 +129,7 @@ test.describe('verify 3.8', () => {
     await usePlan(page);
     const before = (await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]!;
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 2, doneDays: [0, 1] }] });
+    await fixedDaysAfter(page, 9, 2); // 3.6f: a fixed schedule, so missed days is a card that welcome back really beats
     await seedAt(page, Date.now() - 9 * DAY, [...three('barbell-back-squat', 12, lb(225, [45, 35, 10, 2.5])), ...three('barbell-incline-bench-press', 12, BAR135)]);
     await page.goto('./');
     const card = page.getByTestId('coach-card');
@@ -273,6 +275,7 @@ test.describe('verify 3.8', () => {
     await usePlan(page);
     const before = (await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]!;
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 2, doneDays: [0, 1] }] });
+    await fixedDaysAfter(page, 5, 2); // 3.6f: missed days is a fixed schedule card
     await seedAt(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, lb(185, [45, 25])));
     await page.goto('./');
     const card = page.getByTestId('coach-card');

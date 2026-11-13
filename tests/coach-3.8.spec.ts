@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures';
+import { fixedDaysAfter } from './helpers/fixedSchedule';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, navIdle, quickWith, shotOn, usePlan } from './workout-helpers';
 
 // PLAN 3.8 (SPEC 15): the coach. Settings → Coach → Auto level up and its first time sheet, the
@@ -220,6 +221,7 @@ test.describe('the coach (PLAN 3.8)', () => {
     const before = (await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]!;
     // Day 1 and 2 done, the last one 5 days ago: the 5 day plan missed 2 since.
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 2, doneDays: [0, 1] }] });
+    await fixedDaysAfter(page, 5, 2); // 3.6f: missed days is a fixed schedule card
     await seedAt(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, BAR185));
     await page.goto('./');
     const card = page.getByTestId('coach-card');
