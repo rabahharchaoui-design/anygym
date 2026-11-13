@@ -1,29 +1,75 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOCUS, FOCUS_OBJECTIVES, FOCUS_PARTS, type FocusId, type FocusPickId } from '../../lib/intake/options';
-import { normalizeFocusPicks, focusLabel } from '../../lib/plan/focus';
+import { focusBudget, focusLabel, normalizeFocusPicks } from '../../lib/plan/focus';
+import { focusNotYet } from '../../data/focusServed';
 import { Chip } from '../../ui/Chip';
+import { DUR } from '../../ui/motion';
 import { iconFor } from './icons';
+import { NOT_YET } from './copy';
 import { FocusPartsSheet } from './FocusPartsSheet';
 import { FocusRank } from './FocusRank';
+import { list } from '../../lib/intake/yourPlan';
 import styles from './Focus.module.css';
 
+type Group = Exclude<FocusId, 'balance' | 'glutes'>;
+// The areas, the three goal types, and last the one that clears them all.
+const TILES = [...FOCUS.filter((o) => o.id !== 'balance'), ...FOCUS_OBJECTIVES, ...FOCUS.filter((o) => o.id === 'balance')];
+
+/**
+ * The ranking follows the budget's own rule (lib/plan/focus.ts): it only matters once the shares
+ * differ, which is from five picks that ask for hard sets. Mobility is stretch time and is not ranked.
+ */
+const ranked = (picks: readonly FocusPickId[]): FocusPickId[] => {
+  const hard = focusBudget(picks).targets.filter((t) => t.id !== 'mobility');
+  return new Set(hard.map((t) => t.sets)).size > 1 ? hard.map((t) => t.id) : [];
+};
+
+/**
+ * PLAN 3.6f: what to work on. One calm grid (areas, goal types, balance); an area opens its parts in
+ * a sheet; from five picks "Your priorities" rises as its own sheet, once, and stays one tap away.
+ */
 export function FocusStep({ value, onChange }: { value: readonly string[]; onChange: (picks: FocusPickId[]) => void }) {
   const picks = normalizeFocusPicks(value);
-  const [group, setGroup] = useState<Exclude<FocusId, 'balance' | 'glutes'> | null>(null);
-  const toggle = (id: FocusPickId) => onChange(picks.includes(id) ? picks.filter((p) => p !== id) : id === 'balance' ? ['balance'] : [...picks.filter((p) => p !== 'balance'), id]);
-  return <div className={styles.stack}>
-    <div className={styles.tiles} role="group" aria-label="Focus areas" data-testid="q-focus">
-      {[...FOCUS, ...FOCUS_OBJECTIVES].map((o) => {
-        const parts = o.id in FOCUS_PARTS ? FOCUS_PARTS[o.id as keyof typeof FOCUS_PARTS] : [];
-        const selected = picks.filter((p) => p === o.id || parts.some((part) => part.id === p));
-        return <div key={o.id} className={styles.tile}>
-          <Chip tile block icon={iconFor(o.icon)} label={o.label} picked={selected.length > 0} onPress={() => parts.length ? setGroup(o.id as Exclude<FocusId, 'balance' | 'glutes'>) : toggle(o.id)} testId={`q-focus-${o.id}`} />
-          {selected.length > 0 && o.id !== 'balance' && <p className={styles.selection}>{selected.map(focusLabel).join(', ')}</p>}
-        </div>;
-      })}
+  const notYet = useMemo(() => focusNotYet(), []);
+  const [group, setGroup] = useState<Group | null>(null);
+  const [rankOpen, setRankOpen] = useState(false);
+  const order = ranked(picks);
+  const timer = useRef(0);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  /** The moment the fifth pick lands the priorities come up: after the parts sheet has left, never over it. */
+  const change = (next: FocusPickId[], afterSheet = false) => {
+    const opens = !order.length && ranked(next).length > 0;
+    onChange(next);
+    if (!opens) return;
+    window.clearTimeout(timer.current);
+    if (afterSheet) timer.current = window.setTimeout(() => setRankOpen(true), DUR.slow);
+    else setRankOpen(true);
+  };
+  const toggle = (id: FocusPickId) => change(picks.includes(id) ? picks.filter((p) => p !== id) : id === 'balance' ? ['balance'] : [...picks.filter((p) => p !== 'balance'), id]);
+  return (
+    <div className={styles.step}>
+      <div className={styles.tiles} role="group" aria-label="Focus areas" data-testid="q-focus">
+        {TILES.map((o) => {
+          const parts = o.id in FOCUS_PARTS ? FOCUS_PARTS[o.id as keyof typeof FOCUS_PARTS] : [];
+          const selected = picks.filter((p) => p === o.id || parts.some((part) => part.id === p));
+          // One quiet line: the parts picked ("Lats and width +1"), or that nothing sure trains it yet.
+          const hint = notYet.has(o.id) ? NOT_YET : !parts.length || !selected.length ? undefined : selected.includes(o.id) ? 'All of it' : `${focusLabel(selected[0]!)}${selected.length > 1 ? ` +${selected.length - 1}` : ''}`;
+          return <Chip key={o.id} block icon={iconFor(o.icon)} label={o.label} hint={hint} picked={selected.length > 0} onPress={() => (parts.length ? setGroup(o.id as Group) : toggle(o.id))} testId={`q-focus-${o.id}`} />;
+        })}
+      </div>
+      {order.length ? (
+        <button type="button" className={`${styles.priorities} pressable`} onClick={() => setRankOpen(true)} data-testid="focus-rank-open">
+          <span className={styles.prioritiesText}>
+            <span className={styles.prioritiesLabel}>Your priorities</span>
+            <span className={styles.prioritiesTop} data-testid="focus-rank-top">Most extra work: {list(order.slice(0, 2).map(focusLabel))}</span>
+          </span>
+          <span className={styles.prioritiesAction}>Reorder</span>
+        </button>
+      ) : (
+        <p className={styles.note}>Leave it blank for a balanced plan.</p>
+      )}
+      {group && <FocusPartsSheet key={group} group={group} picks={picks} notYet={notYet} onClose={() => setGroup(null)} onSave={(v) => { setGroup(null); change(normalizeFocusPicks(v), true); }} />}
+      <FocusRank open={rankOpen && order.length > 0} picks={order} onClose={() => setRankOpen(false)} onChange={(next) => onChange([...next, ...picks.filter((p) => !next.includes(p))])} />
     </div>
-    <p className={styles.note}>Any number. Share one focus budget within your time. Leave blank for balance.</p>
-    {picks.length >= 4 && <FocusRank picks={picks} onChange={onChange} />}
-    {group && <FocusPartsSheet key={group} group={group} picks={picks} onClose={() => setGroup(null)} onSave={(v) => { onChange(normalizeFocusPicks(v)); setGroup(null); }} />}
-  </div>;
+  );
 }

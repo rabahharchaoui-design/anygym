@@ -18,6 +18,8 @@ type Props = {
   tile?: boolean;
   /** PLAN 3.5v: a compact chip, for three in one row on the smallest phone. */
   small?: boolean;
+  /** PLAN 3.6f: one quiet line under the label (the parts picked, "No sure exercises yet"). */
+  hint?: string;
 };
 
 /**
@@ -25,12 +27,15 @@ type Props = {
  * ChoiceCard). A toggle button (aria-pressed); picked, the border and icon turn accent and the fill
  * tints, answering the press within a frame. 48 pt tall at least.
  */
-export function Chip({ label, icon: Icon, picked, onPress, testId, block, soft, tag, tile, small }: Props) {
+export function Chip({ label, icon: Icon, picked, onPress, testId, block, soft, tag, tile, small, hint }: Props) {
   return (
     <button type="button" className={`${styles.chip} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} data-block={block || undefined} data-soft={soft || undefined} data-tile={tile || undefined} data-small={small || undefined}>
       {soft && <Check className={styles.check} width={14} height={14} strokeWidth={3} aria-hidden="true" />}
       {Icon && <Icon className={styles.icon} width={18} height={18} strokeWidth={2} aria-hidden="true" />}
-      <span className={styles.label}>{label}</span>
+      <span className={styles.label}>
+        {label}
+        {hint && <span className={styles.hint}>{hint}</span>}
+      </span>
       {tag !== undefined && (
         <span className={styles.tag} data-tag={tag || undefined} data-testid={testId ? `${testId}-tag` : undefined}>
           {tag}

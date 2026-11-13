@@ -75,6 +75,16 @@
   overflow-wrap: break-word;
 }
 
+/* PLAN 3.6f: one quiet line under the label. */
+.hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
 .chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

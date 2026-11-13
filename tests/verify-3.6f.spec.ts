@@ -18,7 +18,8 @@ async function toFocus(page: Page) {
 }
 async function part(page: Page, area: string, id: string) {
   await pick(page, 'focus', area);
-  const sheet = page.getByRole('dialog'); await expect(sheet).toBeVisible();
+  // By name: from the fifth pick "Your priorities" rises as this sheet leaves.
+  const sheet = page.getByRole('dialog', { name: / focus$/ }); await expect(sheet).toBeVisible();
   await sheet.getByTestId(`focus-part-${id}`).tap();
   await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await expect(sheet).not.toBeVisible();
 }
@@ -50,14 +51,26 @@ async function textScale(page: Page, scale: number) {
     new MutationObserver(apply).observe(document, { childList: true }); apply();
   }, scale);
 }
-for (const scale of [1, 1.3]) test(`flexible intake, four ranked parts, saved reveal, Today, Preview and Start at ${scale * 100}%`, async ({ page, context }) => {
+const priorities = (page: Page) => page.getByRole('dialog', { name: 'Your priorities' });
+const rankDone = async (page: Page) => { await priorities(page).getByRole('button', { name: 'Done', exact: true }).tap(); await expect(priorities(page)).not.toBeVisible(); };
+for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved reveal, Today, Preview and Start at ${scale * 100}%`, async ({ page, context }) => {
   await textScale(page, scale); await toFocus(page);
   await part(page, 'back', 'lats'); await part(page, 'shoulders', 'side_delts'); await part(page, 'arms', 'biceps'); await part(page, 'legs', 'quads');
+  // The ranking follows the budget's rule: four picks share evenly, so there is nothing to rank yet.
+  await expect(page.getByTestId('focus-rank-open')).toHaveCount(0); await expect(page.getByTestId('focus-rank')).toHaveCount(0);
+  // The fifth pick brings "Your priorities" up by itself, as its own sheet.
+  await part(page, 'core', 'abs');
   const rank = page.getByTestId('focus-rank'); await expect(rank).toBeVisible();
   await rank.getByRole('button', { name: 'Move Quads up', exact: true }).tap();
   await expect(rank.locator('li').nth(2)).toContainText('Quads');
+  await checkLayout(page, { primary: priorities(page).getByRole('button', { name: 'Done', exact: true }) });
+  for (const button of await rank.getByRole('button').all()) { const box = (await button.boundingBox())!; expect(box.height).toBeGreaterThanOrEqual(48); expect(box.width).toBeGreaterThanOrEqual(48); }
+  await rankDone(page);
+  await expect(page.getByTestId('focus-rank-top')).toContainText('Lats and width and Side shoulders for width');
   await checkLayout(page, { primary: page.getByTestId('intake-cta').getByRole('button', { name: 'Continue', exact: true }) });
-  await page.reload(); await step(page, 'focus'); await expect(page.getByTestId('focus-rank').locator('li').nth(2)).toContainText('Quads');
+  // A reload keeps the order and does not raise the sheet again: it is one tap away.
+  await page.reload(); await step(page, 'focus'); await expect(page.getByTestId('focus-rank')).toHaveCount(0);
+  await page.getByTestId('focus-rank-open').tap(); await expect(page.getByTestId('focus-rank').locator('li').nth(2)).toContainText('Quads'); await rankDone(page);
   await rest(page);
   await expect(page.getByTestId('reveal-focus')).toContainText('Lats and width');
   await expect(page.getByTestId('reveal-focus')).toContainText('rotation');
@@ -73,7 +86,7 @@ for (const scale of [1, 1.3]) test(`flexible intake, four ranked parts, saved re
   await expect(page.getByTestId('day-focus-why')).toBeVisible();
   const profile = (await dbAll<{ intake: { scheduleStyle: string; focusPicks: string[] } }>(page, 'profile'))[0]!;
   expect(profile.intake.scheduleStyle).toBe('flexible');
-  expect(profile.intake.focusPicks).toEqual(['lats', 'side_delts', 'quads', 'biceps']);
+  expect(profile.intake.focusPicks).toEqual(['lats', 'side_delts', 'quads', 'biceps', 'abs']);
   const before = (await dbAll<{ planId: string; nextDayIndex: number }>(page, 'planState'))[0]!;
   await page.getByTestId('day-preview').tap();
   await expect(page.getByTestId('quick-start')).toBeVisible();
@@ -99,7 +112,12 @@ test('five priorities, sheet dismissal, balance clearing, accessible ranking and
   const last = page.getByRole('button', { name: 'Drag Side shoulders for width', exact: true });
   await touchDragVertical(page, last, -70);
   await expect(page.getByTestId('rank-side_delts')).not.toContainText('5.');
-  await pick(page, 'focus', 'balance'); await expect(page.getByTestId('focus-rank')).toHaveCount(0);
+  await rankDone(page);
+  // A choice the app has no sure exercise for says so before it is picked, on the tile and in the sheet.
+  await expect(page.getByTestId('q-focus-grip')).toContainText('No exercises yet');
+  await pick(page, 'focus', 'arms'); await expect(page.getByTestId('focus-part-forearms')).toContainText('No exercises yet'); await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await pick(page, 'focus', 'balance'); await expect(page.getByTestId('focus-rank-open')).toHaveCount(0);
   for (const id of ['back', 'arms', 'legs', 'shoulders', 'core']) await expect(page.getByTestId(`q-focus-${id}`)).toHaveAttribute('aria-pressed', 'false');
   await part(page, 'arms', 'triceps'); await expect(page.getByTestId('q-focus-balance')).toHaveAttribute('aria-pressed', 'false');
   await rest(page); await accept(page);
