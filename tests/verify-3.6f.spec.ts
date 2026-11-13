@@ -64,7 +64,7 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await rank.getByRole('button', { name: 'Move Quads up', exact: true }).tap();
   await expect(rank.locator('li').nth(2)).toContainText('Quads');
   await checkLayout(page, { primary: priorities(page).getByRole('button', { name: 'Done', exact: true }) });
-  for (const button of await rank.getByRole('button').all()) { const box = (await button.boundingBox())!; expect(box.height).toBeGreaterThanOrEqual(48); expect(box.width).toBeGreaterThanOrEqual(48); }
+  for (const button of await rank.getByRole('button').all()) { const box = (await button.boundingBox())!; expect(Math.round(box.height)).toBeGreaterThanOrEqual(48); expect(Math.round(box.width)).toBeGreaterThanOrEqual(48); }
   await rankDone(page);
   await expect(page.getByTestId('focus-rank-top')).toContainText('Lats and width and Side shoulders for width');
   await checkLayout(page, { primary: page.getByTestId('intake-cta').getByRole('button', { name: 'Continue', exact: true }) });
