@@ -14,6 +14,7 @@ import { dayIndexOf } from '../lib/plans';
 import { useTodayData } from '../hooks/useTodayData';
 import { useSchedule } from '../hooks/useSchedule';
 import { WeekScheduleSheet } from './today/WeekScheduleSheet';
+import { RecoveryCard } from './today/RecoveryCard';
 import { db } from '../db/schema';
 import { startDb } from '../db/bootstrap';
 import { setNextDay } from '../db/planState';
@@ -262,13 +263,7 @@ export function TodayScreen() {
         ) : active ? (
           <ResumeCard active={active} sets={data.value?.activeSets ?? 0} empty={!!data.value?.activeEmpty} onResume={() => void quick()} onDiscard={() => void discard()} />
         ) : blocked ? (
-          <section className={styles.pick} data-testid="rotation-recovery">
-            <h2 className={styles.pickTitle}>Time to recover</h2>
-            <p className={styles.pickSub}>Every remaining day works muscles trained in the last 48 hours. Your rotation is waiting.</p>
-            {resolved?.eligibleAt && <p>Next day ready {new Date(resolved.eligibleAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</p>}
-            {/* The rule suggests, the person decides: the next day in order is one tap away. */}
-            {resolved?.pendingDayIndices[0] !== undefined && <Button variant="secondary" data-testid="rotation-train-anyway" onClick={() => void pickDay(resolved.pendingDayIndices[0]!)}>Train anyway</Button>}
-          </section>
+          <RecoveryCard plan={plan!} nextIndex={resolved?.pendingDayIndices[0]} readyAt={resolved?.eligibleAt} onTrain={(i) => void pickDay(i)} />
         ) : plan && planState ? (
           <DayCard
             plan={plan}

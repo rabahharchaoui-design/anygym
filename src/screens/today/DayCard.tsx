@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * SPEC 8.1 day card: "Day 3 · Back and biceps · ~55 min", a big Start, the week as small progress
+ * SPEC 8.1 day card: "Day 3 · Back and biceps · ~55 min" ("Next up: Day 3 · …" on a rotation), a big Start, the week as small progress
  * pips (done, part done as a ring, up next) and Change day. While the day is in progress it is the
  * one card on Today: "Day 1 · in progress · 2 sets" with Resume.
  */
@@ -34,33 +34,50 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
   const dayIndex = Math.max(0, Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1));
   const day = plan.days[dayIndex]!;
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
-  const title = `${flexible && !active ? 'Next up: ' : ''}${dayTitle(day.n, day.name)}`;
+  // "Extra back work: " and "16 sets every 4 workouts": the amount stays together on one line.
+  const line = day.focusWhy?.[0];
+  const cut = line ? line.indexOf(': ') : -1;
+  const why = line ? (cut === -1 ? { head: line, tail: '' } : { head: line.slice(0, cut + 2), tail: line.slice(cut + 2) }) : null;
   const done = new Set(state.doneDays);
   return (
     <section className={styles.dayCard} aria-label="Today's plan day" data-tour="day" data-active={active ? 'true' : undefined}>
       <p className={styles.planName}>{plan.name}</p>
-      <h2 className={styles.dayTitle} data-testid="day-card-title">
-        {active ? (
-          dayTitle(day.n, day.name)
-        ) : onTime ? (
+      {/* PLAN 3.6f: the title breaks only between its parts, and a line never starts or ends on a dot. */}
+      <h2 className={`${styles.dayTitle} ${own.title}`} data-testid="day-card-title">
+        <span className={own.part}>{`${flexible && !active ? 'Next up: ' : ''}Day ${day.n}`}</span>{' '}
+        <span className={own.part}>
+          <span className={own.dot}>· </span>
+          {day.name}
+        </span>
+        {!active && (
           <>
-            {`${title} · `}
-            <button
-              type="button"
-              className={`${styles.dayTime} num pressable`}
-              data-testid="day-card-time"
-              data-trimmed={fitsIn !== undefined || undefined}
-              aria-label={`~${minutes ?? estimateDayMinutes(day, weekIndex)} min, change how long`}
-              onClick={onTime}
-            >
-              ~{minutes ?? estimateDayMinutes(day, weekIndex)} min
-            </button>
+            {' '}
+            <span className={own.part}>
+              <span className={own.dot}>· </span>
+              {onTime ? (
+                <button
+                  type="button"
+                  className={`${styles.dayTime} num pressable`}
+                  data-testid="day-card-time"
+                  data-trimmed={fitsIn !== undefined || undefined}
+                  aria-label={`~${minutes ?? estimateDayMinutes(day, weekIndex)} min, change how long`}
+                  onClick={onTime}
+                >
+                  ~{minutes ?? estimateDayMinutes(day, weekIndex)} min
+                </button>
+              ) : (
+                `~${estimateDayMinutes(day, weekIndex)} min`
+              )}
+            </span>
           </>
-        ) : (
-          `${title} · ~${estimateDayMinutes(day, weekIndex)} min`
         )}
       </h2>
-      {day.focusWhy?.[0] && <p className={styles.dayFits} data-testid="day-focus-why">{day.focusWhy[0]}</p>}
+      {why && (
+        <p className={styles.dayFits} data-testid="day-focus-why">
+          {why.head}
+          {why.tail && <span className={own.keep}>{why.tail}</span>}
+        </p>
+      )}
       {!active && fitsIn !== undefined && (
         <p className={styles.dayFits} data-testid="day-card-fits">
           Shortened to fit {fitsIn} min
@@ -78,7 +95,8 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
 
       <div className={styles.strip}>
         <p className={styles.stripLabel} data-testid="week-label">
-          {flexible ? 'This rotation' : plan.weeks ? `Week ${weekIndex + 1} of ${plan.weeks}` : 'This week'}
+          {/* A plan with a set length says its week on any schedule; a rotation has no calendar week. */}
+          {plan.weeks ? `Week ${weekIndex + 1} of ${plan.weeks}` : flexible ? 'This rotation' : 'This week'}
           {/* What a half filled dot means (gate P14): "This week · Day 1 started", from the same part done shares. */}
           {(() => {
             const started = plan.days.filter((_, i) => state.partial?.[i] !== undefined && !done.has(i)).map((d) => d.n);

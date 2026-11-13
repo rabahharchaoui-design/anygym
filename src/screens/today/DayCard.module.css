@@ -4,3 +4,54 @@
   justify-content: center;
   gap: var(--space-4);
 }
+
+/* PLAN 3.6f: "Next up: Day 3 · Push · ~45 min" breaks only between its parts. Each part carries its
+   dot in a gutter on its left; the title starts one gutter to the left and that strip is clipped, so
+   a part that starts a line shows no dot (never "Day 1 ·" on one line and "Upper" on the next). The
+   clip leaves room above and below for the time button's 48 pt hit area. */
+.title {
+  --gutter: 0.6em;
+  margin-left: calc(-1 * var(--gutter));
+  clip-path: inset(-16px 0 -16px var(--gutter));
+}
+
+.part {
+  display: inline-block;
+  max-width: 100%;
+  padding-left: var(--gutter);
+  vertical-align: baseline;
+}
+
+.dot {
+  display: inline-block;
+  width: var(--gutter);
+  margin-left: calc(-1 * var(--gutter));
+  text-align: center;
+  white-space: pre;
+}
+
+/* The amount in the why line ("16 sets every 4 workouts") stays together. */
+.keep {
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* PLAN 3.6f: every day left needs rest. Kind words, when it is ready, and the way to train anyway. */
+.ready {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.anyway {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.anywayNote {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}

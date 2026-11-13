@@ -73,7 +73,10 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await page.getByTestId('focus-rank-open').tap(); await expect(page.getByTestId('focus-rank').locator('li').nth(2)).toContainText('Quads'); await rankDone(page);
   await rest(page);
   await expect(page.getByTestId('reveal-focus')).toContainText('Lats and width');
-  await expect(page.getByTestId('reveal-focus')).toContainText('rotation');
+  // A rotation never claims a calendar week, and nothing is said in jargon or as a zero.
+  await expect(page.getByTestId('reveal-focus')).toContainText('work: ');
+  await expect(page.getByTestId('reveal-focus')).toContainText('every 4 workouts');
+  await expect(page.getByTestId('reveal-focus')).not.toContainText(/working sets|rotation|budget|\b0 (sets|min)/);
   await expect(page.getByTestId('reveal-week')).not.toContainText('Mon');
   const grow = page.getByTestId('focus-add-minutes');
   if (await grow.isVisible()) { await grow.tap(); await expect(page.getByTestId('reveal-card')).toBeVisible(); }
@@ -83,7 +86,13 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await expect(page.getByTestId('day-card-title')).toContainText('Next up');
   await expect(page.getByTestId('week-label')).toContainText('rotation');
   await expect(page.getByText('Missed workouts', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('day-focus-why')).toBeVisible();
+  await expect(page.getByTestId('day-focus-why')).toContainText('every 4 workouts');
+  // The title breaks only between its parts: no line starts or ends on a dot.
+  expect(await page.getByTestId('day-card-title').evaluate((h) => [...h.children].slice(1).every((part, i) => {
+    const before = h.children[i]!.getBoundingClientRect(), box = part.getBoundingClientRect();
+    // On the same line as the part before it (its dot shows between them), or first on a new line (its dot is in the clipped gutter).
+    return box.top < before.bottom - 8 && box.bottom > before.top + 8 ? box.left >= before.right - 1 : Math.abs(box.left - h.getBoundingClientRect().left) < 2;
+  }))).toBe(true);
   const profile = (await dbAll<{ intake: { scheduleStyle: string; focusPicks: string[] } }>(page, 'profile'))[0]!;
   expect(profile.intake.scheduleStyle).toBe('flexible');
   expect(profile.intake.focusPicks).toEqual(['lats', 'side_delts', 'quads', 'biceps', 'abs']);
@@ -134,6 +143,8 @@ test('fixed weekdays label the reveal; weekly asks once and keeps the saved days
   const profiles = await dbAll<Record<string, unknown> & { intake: Record<string, unknown> }>(page, 'profile');
   await put(page, 'profile', { ...profiles[0], welcomeTour: 'done', intake: { ...profiles[0]!.intake, scheduleStyle: 'weekly' } });
   await page.reload(); const sheet = page.getByRole('dialog', { name: 'Which days this week?' }); await expect(sheet).toBeVisible();
+  // No days is never saved silently: Save waits for a day and says so.
+  await expect(sheet.getByRole('button', { name: 'Save days', exact: true })).toBeDisabled(); await expect(sheet.getByRole('note')).toHaveText('Pick at least one day');
   await sheet.getByTestId('week-tue').tap(); await checkLayout(page, { primary: sheet.getByRole('button', { name: 'Save days', exact: true }) });
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put;
@@ -146,6 +157,7 @@ test('fixed weekdays label the reveal; weekly asks once and keeps the saved days
   await expect(sheet.getByRole('alert')).toHaveText('Could not save your days. Try again.');
   await sheet.getByRole('button', { name: 'Save days', exact: true }).tap(); await expect(sheet).not.toBeVisible();
   await page.reload(); await expect(page.getByTestId('day-card-title')).toBeVisible(); await expect(sheet).not.toBeVisible();
+  await expect(page.getByTestId('week-schedule-days')).toHaveText('Tue');
   await page.getByTestId('week-schedule-open').tap(); await expect(sheet.getByTestId('week-tue')).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -160,6 +172,7 @@ test('flexible recovery defers a trained day, then shows honest recovery when ev
   await put(page, 'sets', { id: 'lower-set', sessionId: 'recovery-lower', exerciseId: 'barbell-back-squat', order: 0, kind: 'work', reps: 8, load: { kind: 'barbell', unit: 'lb', total: 45, barWeight: 45, perSide: [] }, uncertain: false });
   await page.reload(); await expect(page.getByTestId('rotation-recovery')).toContainText('Time to recover');
   await expect(page.getByRole('region', { name: "Today's plan day" })).toHaveCount(0);
+  await expect(page.getByTestId('rotation-train-anyway')).toBeVisible();
   expect((await dbAll<{ nextDayIndex: number }>(page, 'planState'))[0]!.nextDayIndex).toBe(state.nextDayIndex);
 });
 

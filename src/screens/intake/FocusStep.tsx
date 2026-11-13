@@ -3,6 +3,7 @@ import { FOCUS, FOCUS_OBJECTIVES, FOCUS_PARTS, type FocusId, type FocusPickId } 
 import { focusBudget, focusLabel, normalizeFocusPicks } from '../../lib/plan/focus';
 import { focusNotYet } from '../../data/focusServed';
 import { Chip } from '../../ui/Chip';
+import { SummaryRow } from '../../ui/SummaryRow';
 import { DUR } from '../../ui/motion';
 import { iconFor } from './icons';
 import { NOT_YET } from './copy';
@@ -58,13 +59,9 @@ export function FocusStep({ value, onChange }: { value: readonly string[]; onCha
         })}
       </div>
       {order.length ? (
-        <button type="button" className={`${styles.priorities} pressable`} onClick={() => setRankOpen(true)} data-testid="focus-rank-open">
-          <span className={styles.prioritiesText}>
-            <span className={styles.prioritiesLabel}>Your priorities</span>
-            <span className={styles.prioritiesTop} data-testid="focus-rank-top">Most extra work: {list(order.slice(0, 2).map(focusLabel))}</span>
-          </span>
-          <span className={styles.prioritiesAction}>Reorder</span>
-        </button>
+        <div className={styles.priorities}>
+          <SummaryRow label="Your priorities" value={<>Most extra work: {list(order.slice(0, 2).map(focusLabel))}</>} action="Reorder" onPress={() => setRankOpen(true)} testId="focus-rank-open" valueTestId="focus-rank-top" />
+        </div>
       ) : (
         <p className={styles.note}>Leave it blank for a balanced plan.</p>
       )}

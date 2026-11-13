@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sheet, SheetFooter } from '../../ui/Sheet';
 import { Button } from '../../ui/Button';
+import { SummaryRow } from '../../ui/SummaryRow';
 import { WeekdayChips } from '../../components/WeekdayChips';
 import { WEEKDAYS, type WeekdayId } from '../../lib/intake/options';
 import type { useSchedule } from '../../hooks/useSchedule';
@@ -30,13 +31,7 @@ export function WeekScheduleSheet({ schedule, active }: { schedule: ReturnType<t
   // The saved days in week order, whatever order they were tapped in.
   const saved = data.needsWeek ? [] : WEEKDAYS.filter((d) => data.weekly?.weekdays.includes(d.id)).map((d) => d.label);
   return <>
-    <button type="button" className={`${styles.row} pressable`} data-testid="week-schedule-open" onClick={() => { setDays(data.needsWeek ? [] : data.weekly?.weekdays ?? []); setError(''); setOpen(true); }}>
-      <span className={styles.rowText}>
-        <span className={styles.rowLabel}>Your days this week</span>
-        <span className={styles.rowDays} data-testid="week-schedule-days">{saved.length ? saved.join(', ') : 'Not picked yet'}</span>
-      </span>
-      <span className={styles.rowAction}>{saved.length ? 'Change' : 'Pick days'}</span>
-    </button>
+    <SummaryRow label="Your days this week" value={saved.length ? saved.join(', ') : 'Not picked yet'} action={saved.length ? 'Change' : 'Pick days'} onPress={() => { setDays(data.needsWeek ? [] : data.weekly?.weekdays ?? []); setError(''); setOpen(true); }} testId="week-schedule-open" valueTestId="week-schedule-days" />
     <Sheet open={open} onClose={() => { setOpen(false); setDismissed(data?.weekKey ?? null); }} label="Which days this week?" scroll footer clearTop>
       <div className={styles.sheet}>
         <h2 className={styles.title}>Which days this week?</h2>
