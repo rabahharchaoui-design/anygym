@@ -1,0 +1,12 @@
+/* PLAN 3.6f: Mon to Thu, then Fri to Sun. Each chip centers its day and never wraps it. */
+.week {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.week > button {
+  justify-content: center;
+  padding-inline: var(--space-1);
+  white-space: nowrap;
+}

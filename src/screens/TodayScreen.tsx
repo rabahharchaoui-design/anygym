@@ -291,6 +291,8 @@ export function TodayScreen() {
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
           </section>
         )}
+        {/* PLAN 3.6f: a week to week schedule says its days right under the day. */}
+        {data.ready && !failed && <WeekScheduleSheet schedule={schedule} active={!!active} />}
         {/* PLAN 3.8 (SPEC 15): the coach's one card, or its one line, never both. */}
         {data.ready && !failed && (
           <>
@@ -361,7 +363,6 @@ export function TodayScreen() {
           onApply={applyTime}
         />
       )}
-      <WeekScheduleSheet schedule={schedule} active={!!active} />
       <LeveledUpSheet
         open={seeChanges && coach.today?.card?.kind === 'leveled_up'}
         onClose={() => setSeeChanges(false)}
