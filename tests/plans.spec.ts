@@ -74,8 +74,8 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
 
   // Today: the day card, week strip, Change day.
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page.getByTestId('day-card-title')).toHaveText('Day 1 · Legs (hamstring focus) · ~90 min');
-  await expect(page.getByTestId('week-label')).toHaveText('This week');
+  await expect(page.getByTestId('day-card-title')).toHaveText('Next up: Day 1 · Legs (hamstring focus) · ~90 min');
+  await expect(page.getByTestId('week-label')).toHaveText('This rotation');
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'next');
   await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'todo');
   await expect(page.getByRole('button', { name: /Quick workout/ })).toBeVisible();
@@ -84,7 +84,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   // Day 2 via Change day: the pairs on their rail.
   await page.getByRole('button', { name: 'Change day' }).tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 2 · Chest and triceps/ }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText('Day 2 · Chest and triceps · ~77 min');
+  await expect(page.getByTestId('day-card-title')).toHaveText('Next up: Day 2 · Chest and triceps · ~77 min');
   await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'next');
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
@@ -150,7 +150,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 3 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 3 · Back and biceps/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 3 · Back and biceps/);
   expect((await dbAll(page, 'sets')).map((x) => x.kind)).toEqual(['warmup', 'warmup']);
 
   // Warm ups never become Last time: day 2 again still says first time.
@@ -167,7 +167,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   // Back to day 1 and follow it.
   await page.getByRole('button', { name: 'Change day' }).tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 1 · Legs/ }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText('Day 1 · Legs (hamstring focus) · ~90 min');
+  await expect(page.getByTestId('day-card-title')).toHaveText('Next up: Day 1 · Legs (hamstring focus) · ~90 min');
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
   // The rows render a frame after the URL changes (a slow machine read them too early).
@@ -248,7 +248,7 @@ test('Classic 5 Day Split: pick it, see day 2 pairs, follow day 1, log, reload, 
   await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 2 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · Chest and triceps · ~\d+ min$/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 2 · Chest and triceps · ~\d+ min$/);
   await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'next');
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
   expect(errors).toEqual([]);
@@ -268,7 +268,7 @@ test('Six Week Volume Builder: week picker, Week 1 of 6, day 1 at 5 sets × 6', 
 
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.getByTestId('week-label')).toHaveText('Week 1 of 6');
-  await expect(page.getByTestId('day-card-title')).toHaveText('Day 1 · Quads · ~63 min');
+  await expect(page.getByTestId('day-card-title')).toHaveText('Next up: Day 1 · Quads · ~63 min');
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
   await expect(page.getByTestId('row-front-squat')).toContainText('5 sets × 6');
@@ -296,12 +296,12 @@ test('after a reload, Change day still updates Today and Start opens that day @m
   const errors = watchErrors(page);
   await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 ·/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 ·/);
   await page.reload();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 ·/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 ·/);
   await page.getByRole('button', { name: 'Change day' }).tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 4 ·/ }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 4 · Legs \(quad focus\) · ~\d+ min$/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 4 · Legs \(quad focus\) · ~\d+ min$/);
   await expect(page.getByTestId('week-day-4')).toHaveAttribute('data-state', 'next');
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page.getByTestId('workout-title')).toHaveText('Day 4 · Legs (quad focus)');
