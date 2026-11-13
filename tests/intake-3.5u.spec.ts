@@ -199,8 +199,12 @@ test('Skip ends it for good; a tap outside the light moves on', async ({ page })
   await toReveal(page);
   await revealPrimary(page).tap();
   await expect(tour(page)).toHaveAttribute('data-step', 'day');
-  // Outside the light and the words: the top of the page.
-  await page.touchscreen.tap(20, 30);
+  // Outside the light and the words: the strip left of the lit card. (3.6f: Today is taller, so the tour scrolls
+  // the card up under the header and the top of the page is lit; the old tap at 20, 30 landed in the light.)
+  await expect(page.getByTestId('tour-spot')).toBeVisible();
+  const lit = (await page.getByTestId('tour-spot').boundingBox())!;
+  expect(lit.x).toBeGreaterThan(8);
+  await page.touchscreen.tap(lit.x / 2, lit.y + lit.height / 2);
   await expect(tour(page)).toHaveAttribute('data-step', 'quick');
   // The tap went to the welcome, not to what is under it (Settings is up there).
   await expect(page).toHaveURL(/#\/$/);
