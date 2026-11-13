@@ -189,7 +189,7 @@ test.describe('existing phone', () => {
         case 'focus': case 'win': case 'cardio': case 'easyOn': await next(); break;
         case 'experience': await auto('q-experience-1_2y'); break;
         case 'days': await auto('q-days-4'); break;
-        case 'weekdays': await t('q-weekdays-mon').tap(); await next(); break;
+        case 'weekdays': await t('q-schedule-fixed').tap(); await t('q-weekdays-mon').tap(); await next(); break;
         case 'minutes': await auto('q-minutes-45'); break;
         case 'place': await auto('q-place-hotel'); break;
         case 'equipment': await next(); break;
