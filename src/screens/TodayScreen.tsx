@@ -266,6 +266,8 @@ export function TodayScreen() {
             <h2 className={styles.pickTitle}>Time to recover</h2>
             <p className={styles.pickSub}>Every remaining day works muscles trained in the last 48 hours. Your rotation is waiting.</p>
             {resolved?.eligibleAt && <p>Next day ready {new Date(resolved.eligibleAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</p>}
+            {/* The rule suggests, the person decides: the next day in order is one tap away. */}
+            {resolved?.pendingDayIndices[0] !== undefined && <Button variant="secondary" data-testid="rotation-train-anyway" onClick={() => void pickDay(resolved.pendingDayIndices[0]!)}>Train anyway</Button>}
           </section>
         ) : plan && planState ? (
           <DayCard

@@ -9,7 +9,7 @@ export const scheduleStyleOf = (a?: Pick<IntakeAnswers, 'scheduleStyle' | 'weekd
 export const remindersEligible = (a?: IntakeAnswers): boolean => scheduleStyleOf(a) === 'fixed';
 export const needsWeeklySchedule = (a: IntakeAnswers | undefined, saved: WeeklySchedule | undefined, now: number): boolean => scheduleStyleOf(a) === 'weekly' && saved?.weekKey !== weekKey(now);
 
-export type RotationPosition = { nextDayIndex: number; doneDays: number[]; pendingDayIndices?: number[] };
+export type RotationPosition = { nextDayIndex: number; doneDays: number[]; pendingDayIndices?: number[]; chosenDayIndex?: number };
 export function rotationOf(state: RotationPosition, count: number): number[] {
   if (state.pendingDayIndices?.length) return state.pendingDayIndices.filter((d, i, all) => Number.isInteger(d) && d >= 0 && d < count && all.indexOf(d) === i);
   const remaining = Array.from({ length: count }, (_, i) => i).filter((i) => !state.doneDays.includes(i));
@@ -19,12 +19,19 @@ export function rotationOf(state: RotationPosition, count: number): number[] {
 }
 export type ResolvedDay = { dayIndex: number | null; pendingDayIndices: number[]; deferred: number[]; eligibleAt?: number };
 
-/** Blocked days move later in stable order and stay in the same cycle. Exactly 48 h is eligible. */
+/**
+ * Blocked days move later in stable order and stay in the same cycle. Exactly 48 h is eligible.
+ * A day the person chose themselves is never moved: the rule suggests, the person decides.
+ * When every pending day is blocked there is no suggestion (dayIndex null) and `eligibleAt` says
+ * when the first one is rested; `pendingDayIndices[0]` is still the next day in order.
+ */
 export function resolveNextDay(input: {
   state: RotationPosition; days: readonly (readonly string[])[];
   trained: Readonly<Record<string, number | undefined>>; now: number;
 }): ResolvedDay {
   const pending = rotationOf(input.state, input.days.length);
+  const chosen = input.state.chosenDayIndex;
+  if (chosen !== undefined && pending.includes(chosen)) return { dayIndex: chosen, pendingDayIndices: [chosen, ...pending.filter((i) => i !== chosen)], deferred: [] };
   const readyAt = (i: number) => Math.max(input.now, ...input.days[i]!.map((m) => {
     const at = input.trained[m];
     return at !== undefined && at <= input.now ? at + TIRED_MS : input.now;

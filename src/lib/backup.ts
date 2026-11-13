@@ -241,7 +241,7 @@ function planStateOk(rows: Rec[], plans: Rec[] = []): boolean {
     const plan = saved.get(r.planId as string) ?? planById((RENAMED_PLAN_IDS as Record<string, string>)[r.planId as string] ?? (r.planId as string));
     if (!plan) return pending.length === 0;
     const n = plan.days.length;
-    return (r.nextDayIndex as number) < n && doneDays.every((d) => d < n) && pending.every((d) => d < n) && Object.keys(partial).every((k) => Number(k) < n);
+    return (r.nextDayIndex as number) < n && doneDays.every((d) => d < n) && pending.every((d) => d < n) && (r.chosenDayIndex === undefined || (r.chosenDayIndex as number) < n) && Object.keys(partial).every((k) => Number(k) < n);
   });
 }
 const isRest = shape({ req: { sessionId: str, endsAt: num, totalSec: num } });

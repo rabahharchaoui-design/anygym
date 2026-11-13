@@ -39,6 +39,35 @@ describe('stable rotation with elapsed recovery', () => {
     }
     for (let i = 0; i < visited.length; i += 3) expect([...visited.slice(i, i + 3)].sort()).toEqual([0, 1, 2]);
   });
+  it('never moves a day the person chose themselves, even with every day resting; a stale choice is ignored', () => {
+    const all = { chest: now - 1000, back: now - 1000, legs: now - 1000 };
+    expect(resolveNextDay({ state, days, trained: all, now })).toMatchObject({ dayIndex: null, pendingDayIndices: [0, 1, 2] });
+    expect(resolveNextDay({ state: { ...state, chosenDayIndex: 0 }, days, trained: all, now })).toEqual({ dayIndex: 0, pendingDayIndices: [0, 1, 2], deferred: [] });
+    expect(resolveNextDay({ state: { ...state, chosenDayIndex: 2 }, days, trained: { legs: now - 1000 }, now })).toEqual({ dayIndex: 2, pendingDayIndices: [2, 0, 1], deferred: [] });
+    // Day 1 is already done in this pass: the choice no longer applies, the order does.
+    expect(resolveNextDay({ state: { nextDayIndex: 1, doneDays: [], pendingDayIndices: [1, 2], chosenDayIndex: 0 }, days, trained: {}, now })).toEqual({ dayIndex: 1, pendingDayIndices: [1, 2], deferred: [] });
+  });
+  it('a blocked day comes back as soon as it is rested, before the pass ends, and a pass never repeats or drops a day', () => {
+    // Full body days: each one tires everything, so training daily is always "all blocked" and waits.
+    const same = [['legs', 'chest'], ['legs', 'back'], ['legs', 'chest', 'back']];
+    let s: { nextDayIndex: number; doneDays: number[]; pendingDayIndices?: number[] } = { nextDayIndex: 0, doneDays: [] };
+    const trained: Record<string, number> = {};
+    const visited: number[] = [];
+    let t = now;
+    for (let i = 0; i < 9; i++) {
+      let next = resolveNextDay({ state: s, days: same, trained, now: t });
+      if (next.dayIndex === null) { expect(next.eligibleAt).toBe(t - 3_600_000 + TIRED_MS); t = next.eligibleAt!; next = resolveNextDay({ state: s, days: same, trained, now: t }); }
+      // After the wait it is the next day in order, never a later one.
+      expect(next.dayIndex).toBe(next.pendingDayIndices[0]);
+      expect(next.deferred).toEqual([]);
+      for (const m of same[next.dayIndex!]!) trained[m] = t;
+      visited.push(next.dayIndex!);
+      const a = advanceRotation({ ...s, pendingDayIndices: next.pendingDayIndices }, 3, next.dayIndex!);
+      s = { nextDayIndex: a.nextDayIndex, doneDays: [], pendingDayIndices: a.pendingDayIndices };
+      t += 3_600_000;
+    }
+    expect(visited).toEqual([0, 1, 2, 0, 1, 2, 0, 1, 2]);
+  });
   it('keeps the 60% threshold and only wraps after the last pending day, preserving partial rings', () => {
     const s = { ...state, weekIndex: 0, pendingDayIndices: [2, 0, 1] };
     const plan = { days: [0, 1, 2].map((n) => ({ n, name: 'Day', blocks: [] })), progressionMode: 'double' as const };

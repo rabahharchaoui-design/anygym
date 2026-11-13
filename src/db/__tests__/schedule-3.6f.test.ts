@@ -3,7 +3,7 @@ import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnyGymDB, SCHEMA_VERSION, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11 } from '../schema';
 import { ensureFirstGym } from '../bootstrap';
-import { choosePlan } from '../planState';
+import { choosePlan, setNextDay } from '../planState';
 import { readSchedule, saveWeeklySchedule } from '../schedule';
 import { readTraining } from '../training';
 import { startPlanDay } from '../workoutStart';
@@ -81,6 +81,33 @@ describe('saved schedules and starts', () => {
     expect(await readTraining(now, db)).toEqual({});
     expect((await readSchedule(now, db)).resolved?.dayIndex).toBe(0);
   });
+  it('never locks the person out: a day they choose starts even while every day rests, and the choice is used up when the plan moves on', async () => {
+    for (const [i, id] of exercises.entries()) await trained(`recent-${i}`, id);
+    const blocked = (await readSchedule(now, db)).resolved!;
+    expect(blocked).toMatchObject({ dayIndex: null, pendingDayIndices: [0, 1, 2] });
+    await setNextDay(blocked.pendingDayIndices[0]!, db); // "Train anyway": the next day in order.
+    expect((await readSchedule(now, db)).resolved).toMatchObject({ dayIndex: 0, deferred: [] });
+    const s = await startPlanDay(gymId, planId, 0, db, now);
+    expect(s.dayId).toBe('1');
+    for (const id of ['a', 'b', 'c']) await logSet({ id, sessionId: s.id, exerciseId: exercises[0]!, reps: 8, load }, db);
+    await finishWorkout(s.id, db, now + 1000);
+    const after = (await db.planState.get('active'))!;
+    expect(after).toMatchObject({ nextDayIndex: 1, pendingDayIndices: [1, 2] });
+    expect(after.chosenDayIndex).toBeUndefined();
+    // Finish Undo brings the choice back with the rest of the pointer.
+    expect(await reopenWorkout(s.id, undefined, db)).toBe(true);
+    expect((await db.planState.get('active'))!).toMatchObject({ nextDayIndex: 0, chosenDayIndex: 0, pendingDayIndices: [0, 1, 2] });
+  });
+  it('Change day on a flexible plan wins over the 48 hour rule, and a short workout keeps it', async () => {
+    await trained('legs', exercises[2]!);
+    await setNextDay(2, db);
+    expect((await readSchedule(now, db)).resolved).toMatchObject({ dayIndex: 2, deferred: [] });
+    const s = await startPlanDay(gymId, planId, 2, db, now);
+    await logSet({ id: 'one', sessionId: s.id, exerciseId: exercises[2]!, reps: 8, load }, db);
+    await finishWorkout(s.id, db, now + 1000);
+    expect((await db.planState.get('active'))!).toMatchObject({ nextDayIndex: 2, chosenDayIndex: 2, partial: { 2: 1 / 3 } });
+    expect((await readSchedule(now + 2000, db)).resolved?.dayIndex).toBe(2);
+  });
   it('keeps partial Finish, advances at 60%, and Finish Undo restores the entire deferred queue', async () => {
     await trained('chest', exercises[0]!);
     const s = await startPlanDay(gymId, planId, 1, db, now);
@@ -123,6 +150,12 @@ describe('additive v11 data and backup compatibility', () => {
       expect(await other.planState.toArray()).toEqual(await db.planState.toArray());
       expect(await other.plans.toArray()).toEqual(await db.plans.toArray());
     } finally { await other.delete(); }
+    for (const chosen of [99, -1, 0.5, '1']) {
+      const bad = structuredClone(backup); (bad.tables.planState[0] as { chosenDayIndex?: unknown }).chosenDayIndex = chosen;
+      expect(parseBackup(JSON.stringify(bad)).ok, String(chosen)).toBe(false);
+    }
+    const picked = structuredClone(backup); picked.tables.planState[0]!.chosenDayIndex = 2;
+    expect(parseBackup(JSON.stringify(picked)).ok).toBe(true);
     for (const pending of [[99], [1, 1], [-1], [0.5], []]) {
       const bad = structuredClone(backup); bad.tables.planState[0]!.pendingDayIndices = pending;
       expect(parseBackup(JSON.stringify(bad)).ok, String(pending)).toBe(false);

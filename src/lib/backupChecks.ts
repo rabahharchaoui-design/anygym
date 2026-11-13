@@ -147,7 +147,7 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   exerciseSettings: shape({ req: { exerciseId: str, gymId: str }, opt: { loadType: oneOf(...LOAD_KINDS), barId: oneOf(...BAR_IDS), restSec: num, restOff: bool, note: str, alwaysUse: recordOf(str) } }),
   planState: shape({
     req: { id: oneOf('active'), planId: str, startedAt: num, weekIndex: num, nextDayIndex: num, doneDays: listOf(num) },
-    opt: { partial: recordOf(num), pendingDayIndices: (v) => Array.isArray(v) && v.length > 0 && v.every((n) => num(n) && Number.isInteger(n) && n >= 0) && new Set(v).size === v.length },
+    opt: { partial: recordOf(num), pendingDayIndices: (v) => Array.isArray(v) && v.length > 0 && v.every((n) => num(n) && Number.isInteger(n) && n >= 0) && new Set(v).size === v.length, chosenDayIndex: (v) => num(v) && Number.isInteger(v) && (v as number) >= 0 },
   }),
   orderCounters: shape({ req: { sessionId: str, next: num } }),
   submissions: shape({ req: { id: str, sessionId: str, exerciseId: str, rev: num }, opt: { fp: str } }),

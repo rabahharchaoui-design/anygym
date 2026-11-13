@@ -62,6 +62,12 @@ export type PlanState = {
    * 1), drawn as a partial ring on the week strip. Cleared when the pass starts over.
    */
   partial?: Record<number, number>;
+  /** Flexible and week to week plans (PLAN 3.6f): the days still to do in this pass, in the order they come up. */
   pendingDayIndices?: number[];
+  /**
+   * The day the person picked themselves ("Change day", or "Train anyway" while every day rests).
+   * The 48 hour rule never moves it: the person decides. Cleared when the plan moves on.
+   */
+  chosenDayIndex?: number;
 };
 
