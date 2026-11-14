@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from 'react';
 import type { PlanState } from '../../db/types';
 import { estimateDayMinutes, type Plan } from '../../lib/plans';
 import { dayTitle } from '../plans/planWords';
@@ -21,11 +22,23 @@ type Props = {
   fitsIn?: number;
   /** PLAN 3.6: the estimate opens "How much time today?" (SPEC 7.4: before Start). */
   onTime?: () => void;
-  /** PLAN 3.6f: not one of the person's days: "Rest day, next Wed: Day 1". Start stays. */
-  rest?: string | null;
+  /** PLAN 3.6f: not one of the person's days: the headline is "Rest day · Next: Wed, Day 1", and Start steps back to "Train today anyway". */
+  rest?: { title: string; next: string } | null;
   /** PLAN 3.5f: look through the day's lifts as a deck before Start (swap or hide any). */
   onPreview?: () => void;
 };
+
+/** "A · B · C": each part carries its own dot, so a line never starts or ends on one (DayCard.module.css). */
+const parts = (list: readonly ReactNode[]) =>
+  list.map((x, i) => (
+    <Fragment key={i}>
+      {i > 0 && ' '}
+      <span className={own.part}>
+        {i > 0 && <span className={own.dot}>· </span>}
+        {x}
+      </span>
+    </Fragment>
+  ));
 
 /**
  * SPEC 8.1 day card: "Day 3 · Back and biceps · ~55 min" ("Next up: Day 3 · …" on a rotation), a big Start, the week as small progress
@@ -41,39 +54,29 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
   const cut = line ? line.indexOf(': ') : -1;
   const why = line ? (cut === -1 ? { head: line, tail: '' } : { head: line.slice(0, cut + 2), tail: line.slice(cut + 2) }) : null;
   const done = new Set(state.doneDays);
+  const resting = active ? null : rest ?? null;
+  const mins = minutes ?? estimateDayMinutes(day, weekIndex);
+  const time = onTime ? (
+    <button type="button" className={`${styles.dayTime} num pressable`} data-testid="day-card-time" data-trimmed={fitsIn !== undefined || undefined} aria-label={`~${mins} min, change how long`} onClick={onTime}>
+      ~{mins} min
+    </button>
+  ) : (
+    `~${estimateDayMinutes(day, weekIndex)} min`
+  );
+  const dayParts: ReactNode[] = [`${flexible && !active && !resting ? 'Next up: ' : ''}Day ${day.n}`, day.name, ...(active ? [] : [time])];
   return (
     <section className={styles.dayCard} aria-label="Today's plan day" data-tour="day" data-active={active ? 'true' : undefined}>
       <p className={styles.planName}>{plan.name}</p>
-      {/* PLAN 3.6f: the title breaks only between its parts, and a line never starts or ends on a dot. */}
+      {/* PLAN 3.6f: the title breaks only between its parts, and a line never starts or ends on a dot.
+          Round 3 (critic 9): on a rest day the headline is the rest day, and the day waits in the line under it. */}
       <h2 className={`${styles.dayTitle} ${own.title}`} data-testid="day-card-title">
-        <span className={own.part}>{`${flexible && !active ? 'Next up: ' : ''}Day ${day.n}`}</span>{' '}
-        <span className={own.part}>
-          <span className={own.dot}>· </span>
-          {day.name}
-        </span>
-        {!active && (
-          <>
-            {' '}
-            <span className={own.part}>
-              <span className={own.dot}>· </span>
-              {onTime ? (
-                <button
-                  type="button"
-                  className={`${styles.dayTime} num pressable`}
-                  data-testid="day-card-time"
-                  data-trimmed={fitsIn !== undefined || undefined}
-                  aria-label={`~${minutes ?? estimateDayMinutes(day, weekIndex)} min, change how long`}
-                  onClick={onTime}
-                >
-                  ~{minutes ?? estimateDayMinutes(day, weekIndex)} min
-                </button>
-              ) : (
-                `~${estimateDayMinutes(day, weekIndex)} min`
-              )}
-            </span>
-          </>
-        )}
+        {resting ? <span data-testid="day-rest">{parts([resting.title, resting.next])}</span> : parts(dayParts)}
       </h2>
+      {resting && (
+        <p className={`${own.title} ${own.restDay}`} data-testid="day-rest-day">
+          {parts(dayParts)}
+        </p>
+      )}
       {why && (
         <p className={styles.dayFits} data-testid="day-focus-why">
           {/* "Extra today:" in the accent says what kind of line this is; the amounts stay together. */}
@@ -92,8 +95,8 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
         </p>
       )}
       {/* PLAN 3.6v: on a short screen the welcome lights the card down to here. */}
-      <Button className={styles.dayStart} onClick={onStart} data-tour-core>
-        {active ? 'Resume' : 'Start'}
+      <Button className={`${styles.dayStart} ${resting ? own.restStart : ''}`} variant={resting ? 'secondary' : 'primary'} onClick={onStart} data-tour-core>
+        {active ? 'Resume' : resting ? 'Train today anyway' : 'Start'}
       </Button>
 
       <div className={styles.strip} data-room>
@@ -111,14 +114,6 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
               </span>
             );
           })()}
-          {/* PLAN 3.6f: not one of the person's days. Said calmly beside the week, taking no room; Start stays. */}
-          {!active && rest && (
-            <span className={`${styles.stripNote} ${own.rest}`} data-testid="day-rest">
-              {' · '}
-              {/* Today's answer, so it reads a step stronger than the label, and it never breaks inside. */}
-              <span className={own.keep}>{rest}</span>
-            </span>
-          )}
         </p>
         <ol className={styles.days} aria-label="Days">
           {plan.days.map((d, i) => {

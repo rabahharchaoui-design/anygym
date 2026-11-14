@@ -80,9 +80,9 @@ describe('fixed and weekly days mean something (critic MAJOR 6)', () => {
   const startOf = (y: number, m: number, d: number) => new Date(y, m, d).getTime();
   it('a fixed Mon/Wed/Fri plan on a Saturday is a rest day, and the next training day is Monday', () => {
     expect(restDayOf('fixed', ['mon', 'wed', 'fri'], sat)).toEqual({ nextAt: startOf(2026, 10, 16) });
-    expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], sat), 1, sat)).toBe('Rest day, next Mon: Day 1');
+    expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], sat), 1, sat)).toEqual({ title: 'Rest day', next: 'Next: Mon, Day 1' });
     expect(restDayOf('fixed', ['mon', 'wed', 'fri'], mon)).toBeNull();
-    expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], tue), 2, tue)).toBe('Rest day, next tomorrow: Day 2');
+    expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], tue), 2, tue)).toEqual({ title: 'Rest day', next: 'Next: tomorrow, Day 2' });
   });
   it('no days to go by is never a rest day: flexible, a fixed plan with no weekdays, a weekly week not answered', () => {
     expect(restDayOf('flexible', ['mon'], sat)).toBeNull();
@@ -93,7 +93,7 @@ describe('fixed and weekly days mean something (critic MAJOR 6)', () => {
   it('a weekly schedule only knows this week: after its last day the next one is not claimed', () => {
     expect(restDayOf('weekly', ['mon', 'thu'], tue)).toEqual({ nextAt: startOf(2026, 10, 19) });
     expect(restDayOf('weekly', ['mon', 'thu'], sat)).toEqual({});
-    expect(restDayWords({}, 3, sat)).toBe('Rest day, Day 3 is next');
+    expect(restDayWords({}, 3, sat)).toEqual({ title: 'Rest day', next: 'Day 3 is next' });
   });
   it('only today and the days after it can be picked; days already past stay as they were saved', () => {
     expect(weekdaysLeft(sat)).toEqual(['sat', 'sun']);

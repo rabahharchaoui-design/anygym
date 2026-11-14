@@ -218,9 +218,10 @@ test('fixed weekdays label the reveal; weekly asks once and keeps the saved days
   await expect(page.getByTestId('reveal-week')).toContainText('Mon'); await accept(page);
   // Round 2 (MAJOR 6): on a fixed schedule a day that is not one of the person's days says so, and Start stays.
   const today = WEEK[(new Date().getDay() + 6) % 7]!;
+  // Round 3 (critic 9): then the headline is the rest day and Start steps back to "Train today anyway".
   if (['mon', 'tue', 'thu', 'sat'].includes(today)) await expect(page.getByTestId('day-rest')).toHaveCount(0);
-  else await expect(page.getByTestId('day-rest')).toHaveText(/^ · Rest day, next (tomorrow|Mon|Tue|Thu|Sat): Day 1$/);
-  await expect(page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+  else await expect(page.getByTestId('day-rest')).toHaveText(/^Rest day · Next: (tomorrow|Mon|Tue|Thu|Sat), Day 1$/);
+  await expect(page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: ['mon', 'tue', 'thu', 'sat'].includes(today) ? 'Start' : 'Train today anyway', exact: true })).toBeVisible();
   const profiles = await dbAll<Record<string, unknown> & { intake: Record<string, unknown> }>(page, 'profile');
   // Straight after the intake, late in a week (fewer days left than the plan has), the question does not open by itself: the row can.
   const left = WEEK.slice(WEEK.indexOf(today));
@@ -307,6 +308,41 @@ test('one set on Day 1 keeps Day 1: the finish screen and Today say the same nex
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
   await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 · /);
   await expect(page.getByTestId('rotation-recovery')).toHaveCount(0);
+});
+
+/** Parts of a dotted line ("A · B · C") break only between the parts: no line starts or ends on a dot. */
+const cleanBreaks = (h: Element) => [...h.children].slice(1).every((part, i) => {
+  const before = h.children[i]!.getBoundingClientRect(), box = part.getBoundingClientRect();
+  return box.top < before.bottom - 8 && box.bottom > before.top + 8 ? box.left >= before.right - 1 : Math.abs(box.left - h.getBoundingClientRect().left) < 2;
+});
+for (const scale of [1, 1.3]) test(`round 3 (critic 9): a rest day reads as a rest day, at ${scale * 100}% text`, async ({ page }) => {
+  await textScale(page, scale);
+  await toFocus(page); await pick(page, 'focus', 'balance'); await rest(page, 'fixed'); await accept(page);
+  // Four weekdays that are not today, the first of them the day after tomorrow: today is a rest day whatever the date.
+  const profile = (await dbAll<Record<string, unknown> & { intake: Record<string, unknown> }>(page, 'profile'))[0]!;
+  const at = (new Date().getDay() + 6) % 7;
+  const days = [2, 3, 4, 5].map((n) => WEEK[(at + n) % 7]!);
+  await put(page, 'profile', { ...profile, intake: { ...profile.intake, weekdays: WEEK.filter((d) => days.includes(d)) } });
+  await page.reload();
+  const card = page.getByRole('region', { name: "Today's plan day" });
+  const short = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][(at + 2) % 7];
+  // The headline is the rest day; the day that waits is the quieter line under it, with its time still one tap away.
+  await expect(page.getByTestId('day-card-title')).toHaveText(`Rest day · Next: ${short}, Day 1`);
+  await expect(page.getByTestId('day-rest')).toHaveText(`Rest day · Next: ${short}, Day 1`);
+  await expect(page.getByTestId('day-rest-day')).toHaveText(/^Day 1 · .+ · ~\d+ min$/);
+  await expect(page.getByTestId('day-card-time')).toBeVisible();
+  // Start is still there, as the second choice.
+  await expect(card.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
+  const anyway = card.getByRole('button', { name: 'Train today anyway', exact: true });
+  await expect(anyway).toHaveAttribute('data-variant', 'secondary');
+  // No dot dangles at a line end or start, in the headline or under it; nothing is cut.
+  expect(await page.getByTestId('day-rest').evaluate(cleanBreaks)).toBe(true);
+  expect(await page.getByTestId('day-rest-day').evaluate(cleanBreaks)).toBe(true);
+  for (const id of ['day-card-title', 'day-rest-day']) expect(await page.getByTestId(id).evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await expect(page.getByTestId('week-label')).not.toContainText('Rest day');
+  await checkLayout(page, { primary: anyway });
+  await anyway.tap(); await expect(page.getByTestId('workout-title')).toBeVisible();
+  expect((await dbAll<{ dayId?: string; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!.dayId).toBe('1');
 });
 
 /** Round 3 (critic 6): Today is at its top: the day card starts under the header with its plan name in view, and the toast is over no button. */
