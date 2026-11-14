@@ -205,6 +205,11 @@
   max-width: 100%;
 }
 
+/* A short count and its word ("4 of 17 sets") never break apart: plain inline text, so it reads as one sentence. */
+.together {
+  white-space: nowrap;
+}
+
 /* One quiet line above Done (PLAN 2.0a): "Next up: Day 2 · Chest and triceps  Change". It wraps
    at 130% text; Change is small text with a 48 pt hit area. */
 .next {

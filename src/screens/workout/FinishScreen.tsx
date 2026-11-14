@@ -274,7 +274,7 @@ export function FinishScreen() {
                   ) : progress && nextIndex === dayIndex && progress.planned > 0 && (
                     <p className={styles.nextWhy} data-testid="finish-next-why">
                       {/* "4 of 17 sets" stays together: "sets" is never left alone on a line. */}
-                      Day {nextDay.n} again · you did <span className={styles.keep}>{progress.logged} of {progress.planned} sets</span>
+                      Day {nextDay.n} again · you did <span className={styles.together}>{progress.logged} of {progress.planned} sets</span>
                     </p>
                   )}
                 </div>
