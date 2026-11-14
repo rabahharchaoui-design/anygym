@@ -76,7 +76,8 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
       </h2>
       {why && (
         <p className={styles.dayFits} data-testid="day-focus-why">
-          {why.head}
+          {/* "Extra today:" in the accent says what kind of line this is; the amounts stay together. */}
+          <span className={why.tail ? own.whyHead : undefined}>{why.head}</span>
           {why.tail && <span className={own.keep}>{why.tail}</span>}
         </p>
       )}
@@ -112,9 +113,10 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
           })()}
           {/* PLAN 3.6f: not one of the person's days. Said calmly beside the week, taking no room; Start stays. */}
           {!active && rest && (
-            <span className={styles.stripNote} data-testid="day-rest">
+            <span className={`${styles.stripNote} ${own.rest}`} data-testid="day-rest">
               {' · '}
-              {rest}
+              {/* Today's answer, so it reads a step stronger than the label, and it never breaks inside. */}
+              <span className={own.keep}>{rest}</span>
             </span>
           )}
         </p>

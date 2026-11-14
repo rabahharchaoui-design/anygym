@@ -1,3 +1,4 @@
+import { BatteryCharging } from 'lucide-react';
 import type { Plan } from '../../lib/plans';
 import { dayTitle } from '../plans/planWords';
 import { Button } from '../../ui/Button';
@@ -29,6 +30,7 @@ export function RecoveryCard({ plan, nextIndex, words, onTrain }: Props) {
       </p>
       {words && (
         <p className={own.ready} data-testid="rotation-ready">
+          <BatteryCharging aria-hidden="true" width={20} height={20} strokeWidth={2} />
           {words.ready}
         </p>
       )}

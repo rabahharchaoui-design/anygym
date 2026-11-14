@@ -2,7 +2,7 @@
 // line. Words only: every number is data from the focus report ({ total, extra, period }, the state,
 // the parts, what a day adds). One meaning each: "sets" is the total, "extra" is the extra. Pure.
 import type { ScheduleStyle } from '../intake/options';
-import { list, plural } from '../words';
+import { cap, list, plural } from '../words';
 import { focusName, focusStateOf, type FocusDayExtra, type FocusResult } from './focus';
 
 /**
@@ -34,6 +34,38 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   const extra = p.extra <= 0 ? '' : p.extra >= p.total ? ', all of them extra' : `, ${p.extra} of them extra`;
   const tail = state === 'plenty' ? (WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty') : p.extra <= 0 ? ', no room for extra yet' : '';
   return [name, `${amount} ${period}${extra}${tail}`];
+}
+
+/** The caption over the reveal's rows: the period is said once, never on every row. */
+export const focusCaption = (period: string): string => `Sets ${period}`;
+
+export type FocusRow = {
+  name: string;
+  /** "18 sets", "6 min". Null for an area of several muscles (its muscles are in the detail) and for a pick that got nothing. */
+  amount: string | null;
+  /** The quiet state: "+6 extra", "plenty", "no extra yet", "no room yet", "no exercises yet". Null when the amount says it all. */
+  tag: string | null;
+  /** One more quiet line when there is more to say (an area's muscles, what posture work is). */
+  detail: string | null;
+};
+
+/**
+ * The same facts as focusLine, in pieces a row can lay out for a glance: the name, its number, a
+ * quiet state, and one more line only when there is more to say. The period is in focusCaption.
+ */
+export function focusRow(p: FocusResult): FocusRow {
+  const name = focusName(p.id);
+  if (p.id === 'mobility') return (p.minutes ?? 0) > 0 ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: 'no room yet', detail: 'Your sessions are too short for stretches' };
+  const state = focusStateOf(p);
+  if (state === 'no_move') return { name, amount: null, tag: 'no exercises yet', detail: null };
+  if (p.total === 0) return { name, amount: null, tag: 'no room yet', detail: null };
+  const several = !!p.parts && p.parts.length > 1;
+  const tag = p.extra > 0 ? `+${p.extra} extra` : state === 'plenty' ? 'plenty' : 'no extra yet';
+  const more = [
+    p.id === 'posture' ? 'Back and rear shoulder work' : several ? p.parts!.map((x) => `${cap(PART[x.muscle] ?? x.muscle)} ${x.sets}`).join(' · ') : null,
+    state !== 'plenty' ? null : WIDER[p.id] ? `Your ${WIDER[p.id]} already has plenty` : p.extra > 0 ? 'Already plenty' : null,
+  ].filter((x): x is string => !!x);
+  return { name, amount: several ? null : plural(p.total, 'set', 'sets'), tag, detail: more.length ? more.join(' · ') : null };
 }
 
 /**

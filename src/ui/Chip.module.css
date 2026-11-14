@@ -195,8 +195,17 @@
   }
 }
 
-/* PLAN 3.6f: a weekday already past cannot be picked: dimmed, still readable, no press feedback. */
+/* PLAN 3.6f: a weekday already past cannot be picked. It reads as gone, not as a broken control:
+   no fill, a dashed edge, quiet words (still readable), no press feedback. Its picked state keeps the accent edge. */
 .chip:disabled {
-  opacity: 0.4;
+  background: transparent;
+  border-style: dashed;
+  color: var(--text-2);
+  opacity: 0.6;
   pointer-events: none;
+}
+
+.chip:disabled[aria-pressed='true'] {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }

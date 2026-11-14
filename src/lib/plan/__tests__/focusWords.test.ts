@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { focusDayLine, focusLine, focusPeriod } from '../focusWords';
+import { focusCaption, focusDayLine, focusLine, focusPeriod, focusRow } from '../focusWords';
 import type { FocusResult } from '../focus';
 
 const p = (id: FocusResult['id'], over: Partial<FocusResult> = {}): FocusResult => ({ id, requested: 3, extra: 0, total: 0, shortfall: false, state: 'extra', ...over });
@@ -54,5 +54,26 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
     expect(focusDayLine([])).toBeNull();
     expect(focusDayLine(undefined)).toBeNull();
     expect(focusDayLine([{ id: 'back', extra: 0 }])).toBeNull();
+  });
+
+  it('the reveal row says the same facts in pieces: name, number, a quiet state, and more only when there is more (design round 2)', () => {
+    expect(focusCaption('every 4 workouts')).toBe('Sets every 4 workouts');
+    expect(focusCaption('a week')).toBe('Sets a week');
+    expect(focusRow(p('lats', { extra: 6, total: 18 }))).toEqual({ name: 'Lats', amount: '18 sets', tag: '+6 extra', detail: null });
+    expect(focusRow(p('calves', { extra: 1, total: 1 }))).toEqual({ name: 'Calves', amount: '1 set', tag: '+1 extra', detail: null });
+    // No extra: plenty when a muscle is at the limit, else honestly none yet. Never a zero.
+    expect(focusRow(p('quads', { total: 20, state: 'plenty' }))).toEqual({ name: 'Quads', amount: '20 sets', tag: 'plenty', detail: null });
+    expect(focusRow(p('glutes', { total: 20, extra: 2, state: 'plenty' }))).toEqual({ name: 'Glutes', amount: '20 sets', tag: '+2 extra', detail: 'Already plenty' });
+    expect(focusRow(p('upper_chest', { total: 4, state: 'plenty' }))).toEqual({ name: 'Upper chest', amount: '4 sets', tag: 'plenty', detail: 'Your chest already has plenty' });
+    expect(focusRow(p('side_delts', { total: 4, state: 'short' }))).toEqual({ name: 'Side shoulders', amount: '4 sets', tag: 'no extra yet', detail: null });
+    expect(focusRow(p('calves', { requested: 0, state: 'no_share' }))).toEqual({ name: 'Calves', amount: null, tag: 'no room yet', detail: null });
+    expect(focusRow(p('grip', { state: 'no_move' }))).toEqual({ name: 'Grip', amount: null, tag: 'no exercises yet', detail: null });
+    // An area of several muscles: each muscle's own count, never one summed number.
+    const back = p('back', { total: 24, state: 'plenty', parts: [{ muscle: 'back', sets: 20 }, { muscle: 'lower back', sets: 4 }] });
+    expect(focusRow(back)).toEqual({ name: 'Back', amount: null, tag: 'plenty', detail: 'Lats and upper back 20 · Lower back 4' });
+    expect(focusRow(p('legs', { total: 9, extra: 3, parts: [{ muscle: 'quads', sets: 9 }] }))).toEqual({ name: 'Legs', amount: '9 sets', tag: '+3 extra', detail: null });
+    expect(focusRow(p('posture', { extra: 3, total: 9 }))).toEqual({ name: 'Posture', amount: '9 sets', tag: '+3 extra', detail: 'Back and rear shoulder work' });
+    expect(focusRow(p('mobility', { requested: 0, minutes: 3 }))).toEqual({ name: 'Mobility', amount: '3 min', tag: null, detail: 'Stretches' });
+    expect(focusRow(p('mobility', { requested: 0, shortfall: true, state: 'short' }))).toEqual({ name: 'Mobility', amount: null, tag: 'no room yet', detail: 'Your sessions are too short for stretches' });
   });
 });

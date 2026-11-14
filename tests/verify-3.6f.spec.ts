@@ -73,8 +73,9 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await page.getByTestId('focus-rank-open').tap(); await expect(page.getByTestId('focus-rank').locator('li').nth(2)).toContainText('Quads'); await rankDone(page);
   await rest(page);
   await expect(page.getByTestId('reveal-focus')).toContainText('Lats');
-  // Round 2: every line says the total and the extra as what they are; the top pick is never behind a lower one.
-  await expect(page.getByTestId('focus-line-lats')).toHaveText(/^Lats: \d+ sets every 4 workouts, \d+ of them extra$/);
+  // Round 2: every row says the total and the extra as what they are (design round 2: name, number, a quiet state; the period once, over the rows).
+  await expect(page.getByTestId('reveal-focus')).toContainText('Sets every 4 workouts');
+  await expect(page.getByTestId('focus-line-lats')).toHaveText(/^Lats \d+ sets \+\d+ extra$/);
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/nothing extra|with your equipment/);
   // A rotation never claims a calendar week, and nothing is said in jargon or as a zero.
   await expect(page.getByTestId('reveal-focus')).toContainText('every 4 workouts');
@@ -87,7 +88,7 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await expect(page.getByTestId('focus-fit')).toHaveCount(0);
   await expect(page.getByTestId('focus-add-minutes')).toHaveCount(0);
   for (const id of ['lats', 'side_delts', 'quads', 'biceps', 'abs']) await expect(page.getByTestId(`focus-line-${id}`)).toHaveAttribute('data-state', 'extra');
-  const extras = await page.getByTestId('reveal-focus').locator('li').evaluateAll((rows) => rows.map((r) => Number(/(\d+) of them extra/.exec(r.textContent ?? '')?.[1] ?? (/all of them extra/.test(r.textContent ?? '') ? 99 : 0))));
+  const extras = await page.getByTestId('reveal-focus').locator('li').evaluateAll((rows) => rows.map((r) => Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)));
   expect(extras.every((n) => n > 0)).toBe(true);
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });
   await accept(page);
@@ -268,5 +269,5 @@ test('reduced motion keeps all parts, targets and the reachable action', async (
     const box = await button.boundingBox(); if (box) { expect(box.height).toBeGreaterThanOrEqual(48); expect(box.width).toBeGreaterThanOrEqual(48); }
   }
   await sheet.getByTestId('focus-part-upper_chest').tap(); await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await rest(page);
-  await expect(page.getByTestId('focus-line-upper_chest')).toHaveText(/^Upper chest: \d+ sets every 4 workouts, \d+ of them extra$/);
+  await expect(page.getByTestId('focus-line-upper_chest')).toHaveText(/^Upper chest \d+ sets \+\d+ extra$/);
 });
