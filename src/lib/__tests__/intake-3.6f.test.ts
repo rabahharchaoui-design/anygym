@@ -75,20 +75,21 @@ describe('the honest focus line and its one tap (focusFit): round 2, a fix is on
   it('round 3 (critic 8): a step that helps but still leaves a shortfall is offered as exactly what it does, never as the fix', () => {
     const better = report(p('back', 3, 3), p('shoulders', 3, 3), p('arms', 3, 3), p('legs', 3, 0));
     // Every step helps the same: minutes before a day before both.
-    expect(focusFit({ days: 3, minutes: 45 }, four, () => better)).toEqual({ line: 'With 60 min, Arms gets extra.', minutes: 60, partial: true });
+    expect(focusFit({ days: 3, minutes: 45 }, four, () => better)).toEqual({ line: 'With 60 min, Arms gets extra. That is the most that fits.', minutes: 60, partial: true });
     // The step that helps most wins; two picks are named, more are counted.
     const more = report(p('back', 3, 3), p('shoulders', 3, 3), p('arms', 3, 2), p('legs', 3, 1));
-    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 && a.minutes === 45 ? more : a.minutes === 60 && a.days === 3 ? better : four))).toEqual({ line: 'With 4 days, Arms and Legs get extra.', days: 4, partial: true });
-    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 && a.minutes === 60 ? more : four))).toEqual({ line: 'With 4 days and 60 min, Arms and Legs get extra.', days: 4, minutes: 60, both: true, partial: true });
+    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 && a.minutes === 45 ? more : a.minutes === 60 && a.days === 3 ? better : four))).toEqual({ line: 'With 4 days, Arms and Legs get extra. That is the most that fits.', days: 4, partial: true });
+    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 && a.minutes === 60 ? more : four))).toEqual({ line: 'With 4 days and 60 min, Arms and Legs get extra. That is the most that fits.', days: 4, minutes: 60, both: true, partial: true });
     // A pick that already had some gets "more"; stretches are named as stretches.
     const some = report(p('back', 3, 1), p('legs', 3, 0));
-    expect(focusFit({ days: 3, minutes: 45 }, some, () => report(p('back', 3, 2), p('legs', 3, 0)))!.line).toBe('With 60 min, Back gets more.');
+    expect(focusFit({ days: 3, minutes: 45 }, some, () => report(p('back', 3, 2), p('legs', 3, 0)))!.line).toBe('With 60 min, Back gets more. That is the most that fits.');
     const stretch = (minutes: number): FocusResult => ({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes, shortfall: minutes < 2, state: minutes < 2 ? 'short' : 'extra' });
-    expect(focusFit({ days: 3, minutes: 20 }, report(p('back', 4, 1), stretch(0)), () => report(p('back', 4, 1), stretch(2)))!.line).toBe('With 30 min, Mobility gets its stretches.');
+    expect(focusFit({ days: 3, minutes: 20 }, report(p('back', 4, 1), stretch(0)), () => report(p('back', 4, 1), stretch(2)))!.line).toBe('With 30 min, Mobility gets its stretches. That is the most that fits.');
   });
   it('a step that takes extra away from any pick is not offered (critic t-07: Add a day, and Chest lost its extra)', () => {
     const lost = report(p('back', 3, 2), p('shoulders', 3, 3), p('arms', 3, 3), p('legs', 3, 3));
-    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? lost : four))).toEqual({ line: 'Another day or more minutes would not add extra work for Arms or Legs.' });
+    // Truth pass: the step exists but lowers Back, so the line says what it would do, never that it "would not add".
+    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? lost : four))).toEqual({ line: 'Another day or more minutes would only move extra work from one pick to another, so Arms and Legs stay as they are.' });
     // Minutes alone does it: only minutes is named and offered.
     expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? lost : all))).toEqual({ line: '4 focus areas fit best with 60 min; we prioritized Back and Shoulders.', minutes: 60, named: true });
   });

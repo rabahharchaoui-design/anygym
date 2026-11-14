@@ -37,6 +37,7 @@ export function RevealFit({ fit, weekdays, onApply }: Props) {
       onApply({ ...asking, weekdays: days });
     } else setPicked(days);
   };
+  const addDays = fit.addDays ? `Add ${fit.addDays} days` : 'Add a day';
   return (
     <div className={styles.fit}>
       <p className={styles.fitLine} data-testid="focus-fit">
@@ -44,7 +45,7 @@ export function RevealFit({ fit, weekdays, onApply }: Props) {
       </p>
       {asking ? (
         <div className={styles.fitAsk} data-testid="focus-add-which">
-          <p className={styles.fitLine}>Which day do you add?</p>
+          <p className={styles.fitLine}>{fit.addDays ? 'Which days do you add?' : 'Which day do you add?'}</p>
           <WeekdayChips value={picked} onChange={choose} label="Day to add" testIdPrefix="focus-add" open={freeWeekdays(weekdays)} />
           <p className={styles.fitNote} aria-live="polite">
             {fixedPickWords(asking.days!, picked.length)}
@@ -55,12 +56,12 @@ export function RevealFit({ fit, weekdays, onApply }: Props) {
           <div className={styles.fitActions}>
             {fit.both && (
               <Button variant="secondary" data-testid="focus-add-both" onClick={() => add({ days: fit.days!, minutes: fit.minutes! })}>
-                Add a day and minutes
+                {addDays} and minutes
               </Button>
             )}
             {!fit.both && fit.days && (
               <Button variant="secondary" data-testid="focus-add-day" onClick={() => add({ days: fit.days! })}>
-                Add a day
+                {addDays}
               </Button>
             )}
             {!fit.both && fit.minutes && (

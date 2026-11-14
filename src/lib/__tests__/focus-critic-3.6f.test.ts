@@ -128,7 +128,7 @@ describe('round 3: the second critique\'s own cases (Nov 14), through the real g
     expect(report.priorities.reduce((n, p) => n + p.extra, 0)).toBeGreaterThanOrEqual(5);
     // The days are full at 45 min, so the picks that got nothing are told the step that helps, in its own words.
     expect(fit).toMatchObject({ partial: true });
-    expect(fit!.line).toMatch(/^With (60 min|5 days|5 days and 60 min), .+ get (extra|more)\.$/);
+    expect(fit!.line).toMatch(/^With (\d+ min|\d days|\d days and \d+ min), .+ get (extra|more)\. That is the most that fits\.$/);
     expect(fit!.line).not.toContain('yet');
   });
   it('critic 3 and 5: Back, Posture, Side shoulders, Glutes, Abs, Mobility on 6 days, 75 min: the summary names who got the most, and no row says two opposite things', () => {

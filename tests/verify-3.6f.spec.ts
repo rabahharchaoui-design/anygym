@@ -604,7 +604,7 @@ test('round 3 (critic 3, 5, 11, 12): six picks on 6 days, 75 min: the words matc
   await rest(page, 'flexible', { days: '6', minutes: '75' });
   // Back ranked first already has plenty: the summary says so and names who got the most (critic 3).
   await expect(page.getByTestId('focus-line-back')).toHaveAttribute('data-state', 'plenty');
-  await expect(page.getByTestId('focus-summary')).toHaveText(/^Back already gets plenty, so [A-Z][A-Za-z ,]+ gets? the most\.$/);
+  await expect(page.getByTestId('focus-summary')).toHaveText(/^Back( and Posture)? already gets? plenty, so [A-Z][A-Za-z ,]+ gets? the most\.$/);
   // No row says extra and plenty together, and Posture says its back sets are the ones shown under Back (critic 5).
   const rows = await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => ({ id: r.getAttribute('data-testid')!, state: r.getAttribute('data-state')!, text: r.textContent ?? '' })));
   for (const r of rows) expect(/extra/.test(r.text) && /plenty/i.test(r.text), r.text).toBe(false);
@@ -620,9 +620,9 @@ test('round 3 (critic 8, 10): a tight plan offers the step that helps most in it
   await toFocus(page); await part(page, 'back', 'lats'); await part(page, 'chest', 'upper_chest'); await part(page, 'shoulders', 'side_delts'); await part(page, 'legs', 'quads'); await part(page, 'arms', 'biceps');
   await rest(page);
   // 4 days of 45 min are full: nothing places every pick, so the step that helps most is offered as exactly what it does. Never "yet".
-  const fit = page.getByTestId('focus-fit'); await expect(fit).toHaveText(/^With (60 min|5 days|5 days and 60 min), [A-Z][A-Za-z ,]+ get (extra|more)\.$/);
+  const fit = page.getByTestId('focus-fit'); await expect(fit).toHaveText(/^With (\d+ min|\d days|\d days and \d+ min), [A-Z][A-Za-z ,]+ get (extra|more)\. That is the most that fits\.$/);
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/\byet\b/);
-  const named = (await fit.textContent())!.replace(/^With [^,]+, /, '').replace(/ get (extra|more)\.$/, '').split(/, | and /).filter((n) => !/\d more/.test(n));
+  const named = (await fit.textContent())!.replace(/^With [^,]+, /, '').replace(/ get (extra|more)\. That is the most that fits\.$/, '').split(/, | and /);
   const before = Object.fromEntries(await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => [r.textContent!.match(/^[A-Za-z ]+?(?= \d|$| no )/)?.[0]?.trim() ?? '', Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)])));
   // The reveal's day rows carry the same short why as Today's day card (critic 10).
   await expect(page.getByTestId('reveal-day-why').first()).toHaveText(/first today|Extra today: /);
@@ -632,4 +632,30 @@ test('round 3 (critic 8, 10): a tight plan offers the step that helps most in it
   await expect(page.getByTestId('reveal-card')).toBeVisible();
   // What the line said is what happened: the picks it named have more, and nobody has less.
   await expect.poll(async () => (await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => [r.textContent!.match(/^[A-Za-z ]+?(?= \d|$| no )/)?.[0]?.trim() ?? '', Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)] as [string, number]))).filter(([name, n]) => named.includes(name) && n > (before[name] ?? 0)).length).toBe(named.length);
+  // Truth pass (critic r3 2): the step was partial and final, so nothing more is asked after it, and nobody has less.
+  await expect(page.locator('[data-testid="focus-add-minutes"], [data-testid="focus-add-day"], [data-testid="focus-add-both"]')).toHaveCount(0);
+  const after = Object.fromEntries(await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => [r.textContent!.match(/^[A-Za-z ]+?(?= \d|$| no )/)?.[0]?.trim() ?? '', Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)])));
+  for (const [name, n] of Object.entries(before)) expect(after[name], name).toBeGreaterThanOrEqual(n as number);
+});
+
+test('truth pass (critic r3 2): a one tap fix is the last thing asked, and the reveal after it is composed from the rebuilt plan only', async ({ page }) => {
+  await toFocus(page); await part(page, 'chest', 'upper_chest'); await part(page, 'shoulders', 'side_delts'); await part(page, 'arms', 'biceps');
+  await rest(page, 'flexible', { days: '4', minutes: '30' });
+  // The critic saw "With 5 days, Upper chest gets extra", then at 5 days a new box asking for 6 days and 45 min. Now the one step that places everything is offered once.
+  const fit = page.getByTestId('focus-fit'); await expect(fit).toHaveText('3 focus areas fit best with 60 min; we prioritized Biceps.');
+  await expect(page.getByTestId('focus-summary')).toHaveText('Upper chest and Side shoulders have no more room on their days, so Biceps gets the most.');
+  const read = () => page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => Object.fromEntries(all.map((r) => [r.getAttribute('data-testid')!, Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)])));
+  const before = await read();
+  await page.getByTestId('focus-add-minutes').tap();
+  // No box, no button, no sentence from before the tap; every pick has its extra and none has less.
+  await expect(fit).toHaveCount(0);
+  await expect(page.locator('[data-testid="focus-add-minutes"], [data-testid="focus-add-day"], [data-testid="focus-add-both"]')).toHaveCount(0);
+  await expect(page.getByTestId('reveal-focus')).not.toContainText(/no more room|less room|prioritized/);
+  for (const id of ['upper_chest', 'side_delts', 'biceps']) await expect(page.getByTestId(`focus-line-${id}`)).toHaveAttribute('data-state', 'extra');
+  const after = await read();
+  for (const [id, n] of Object.entries(before)) expect(after[id], id).toBeGreaterThanOrEqual(n);
+  // The summary, when there is one, is the rebuilt plan's own.
+  const summary = page.getByTestId('focus-summary');
+  if (await summary.count()) await expect(summary).toHaveText(/^(Most extra work: [A-Z][A-Za-z ,]+\.|Every pick gets the same extra work: \+\d\.)/);
+  await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });
 });
