@@ -1,11 +1,15 @@
 // Adapter only: all allocation policy lives in lib/plan/focus.ts.
 import { curateFocus, focusMuscles, normalizeFocusPicks, type FocusMove, type FocusReport } from '../plan/focus';
+import { RIDERS } from '../plan/focusShare';
 import { isCompound, orderUnits } from '../order';
 import { allowed, makeItem } from './pick';
 import { prescribe, setCap } from './prescribe';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
 import { minutesOf } from './trim';
 import type { Ctx, Day, Item } from './types';
+
+/** The most moves a day holds once focus has added to it: the base day's most (generatorRules movesFor) and up to two more where the time is long. */
+const focusMaxMoves = (minutes: number | undefined): number => (minutes === undefined || minutes >= 75 ? 10 : minutes >= 60 ? 9 : 8);
 
 export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
   const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
@@ -35,7 +39,14 @@ export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
     const order = orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref);
     return { ...days[i]!, items, units: ctx.family === 'strength' ? order : pairUp(order, items) };
   };
-  const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes === undefined || ctx.input.minutes >= 75 ? undefined : ctx.input.minutes, minutes: (moves, i) => minutesOf(arranged(moves, i)) });
+  const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes, maxMoves: focusMaxMoves(ctx.input.minutes), minutes: (moves, i) => minutesOf(arranged(moves, i)) });
   for (const [i, moves] of out.days.entries()) Object.assign(days[i]!, arranged(moves, i));
+  // Focused moves go first while fresh: the pick each day's first lift trains (the highest ranked), for the day's why.
+  const ranked = out.report.priorities.map((p) => p.id).filter((id) => id !== 'mobility' && !RIDERS.has(id));
+  out.report.dayLead = days.map((d) => {
+    const first = d.units.flat().find((it) => it.profile.role === 'lift');
+    const served = first ? facts(first).picks : [];
+    return ranked.find((id) => served.includes(id)) ?? null;
+  });
   return out.report;
 }

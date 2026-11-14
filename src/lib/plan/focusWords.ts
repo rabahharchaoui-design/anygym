@@ -3,7 +3,8 @@
 // the parts, what a day adds). One meaning each: "sets" is the total, "extra" is the extra. Pure.
 import type { ScheduleStyle } from '../intake/options';
 import { cap, list, plural } from '../words';
-import { focusName, focusStateOf, type FocusDayExtra, type FocusResult } from './focus';
+import type { FocusPickId } from '../intake/options';
+import { focusName, focusStateOf, type FocusDayExtra, type FocusReport, type FocusResult } from './focus';
 
 /**
  * How often the sets come round. A calendar plan (same days, or days picked each week) counts "a
@@ -16,6 +17,11 @@ const PART: Record<string, string> = { back: 'lats and upper back', 'front delts
 /** A part of a wider muscle: when that muscle is at the limit, the line says which. */
 const WIDER: Partial<Record<string, string>> = { upper_chest: 'chest', lats: 'back', upper_back: 'back' };
 const minutes = (n: number): string => `${Math.round(n)} min`;
+/** "your back and rear shoulder work": the picks a goal rides on, as the kind of work they are. */
+const WORK: Partial<Record<FocusPickId, string>> = { back: 'back', lats: 'lat', upper_back: 'upper back', lower_back: 'lower back', shoulders: 'shoulder', rear_delts: 'rear shoulder', arms: 'arm', forearms: 'forearm' };
+const workOf = (ids: readonly FocusPickId[]): string => list(ids.map((id) => WORK[id] ?? focusName(id).toLowerCase()));
+/** A goal whose every set is shown under other picks of the list (lib/plan/focusShare.ts). */
+const covered = (p: FocusResult): boolean => !!p.coveredBy?.length && p.shared !== undefined && p.shared >= p.total && p.total > 0;
 
 /**
  * One line for one pick: [what, how much]. "Back: 18 sets a week, 6 of them extra", "…, already
@@ -27,12 +33,15 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   if (p.id === 'mobility') return (p.minutes ?? 0) > 0 ? [name, `${minutes(p.minutes!)} of stretches ${period}`] : [name, 'your sessions are too short for stretches'];
   const state = focusStateOf(p);
   if (state === 'no_move') return [name, 'no exercises for it yet'];
-  if (p.total === 0) return [name, 'no room for it yet'];
+  if (p.total === 0) return [name, 'no room for it'];
   const amount = p.id === 'posture' ? `${plural(p.total, 'set', 'sets')} of back and rear shoulder work`
     : p.parts && p.parts.length > 1 ? `${list(p.parts.map((x) => `${PART[x.muscle] ?? x.muscle} ${x.sets}`))} sets`
     : plural(p.total, 'set', 'sets');
+  // Every one of its sets is already shown under another pick: said in words, never as a second number (focusShare.ts).
+  if (covered(p)) return [name, `covered by your ${workOf(p.coveredBy!)} work, ${plural(p.total, 'set', 'sets')} ${period}`];
   const extra = p.extra <= 0 ? '' : p.extra >= p.total ? ', all of them extra' : `, ${p.extra} of them extra`;
-  const tail = state === 'plenty' ? (WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty') : p.extra <= 0 ? ', no room for extra yet' : '';
+  // "Plenty" and "extra" are never said together: a pick that got some and then reached the limit has "as much as is useful".
+  const tail = state !== 'plenty' ? (p.extra <= 0 ? ', no room for extra' : '') : p.extra > 0 ? ', as much as is useful' : WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty';
   return [name, `${amount} ${period}${extra}${tail}`];
 }
 
@@ -43,7 +52,7 @@ export type FocusRow = {
   name: string;
   /** "18 sets", "6 min". Null for an area of several muscles (its muscles are in the detail) and for a pick that got nothing. */
   amount: string | null;
-  /** The quiet state: "+6 extra", "plenty", "no extra yet", "no room yet", "no exercises yet". Null when the amount says it all. */
+  /** The quiet state: "+6 extra", "plenty", "no extra", "no room", "no exercises yet". Null when the amount says it all. */
   tag: string | null;
   /** One more quiet line when there is more to say (an area's muscles, what posture work is). */
   detail: string | null;
@@ -55,31 +64,74 @@ export type FocusRow = {
  */
 export function focusRow(p: FocusResult): FocusRow {
   const name = focusName(p.id);
-  if (p.id === 'mobility') return (p.minutes ?? 0) > 0 ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: 'no room yet', detail: 'Your sessions are too short for stretches' };
+  if (p.id === 'mobility') return (p.minutes ?? 0) > 0 ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: 'no room', detail: 'Your sessions are too short for stretches' };
   const state = focusStateOf(p);
   if (state === 'no_move') return { name, amount: null, tag: 'no exercises yet', detail: null };
-  if (p.total === 0) return { name, amount: null, tag: 'no room yet', detail: null };
+  if (p.total === 0) return { name, amount: null, tag: 'no room', detail: null };
+  if (covered(p)) return { name, amount: null, tag: null, detail: `Covered by your ${workOf(p.coveredBy!)} work: ${plural(p.total, 'set', 'sets')}` };
   const several = !!p.parts && p.parts.length > 1;
-  const tag = p.extra > 0 ? `+${p.extra} extra` : state === 'plenty' ? 'plenty' : 'no extra yet';
+  const tag = p.extra > 0 ? `+${p.extra} extra` : state === 'plenty' ? 'plenty' : 'no extra';
   const more = [
     p.id === 'posture' ? 'Back and rear shoulder work' : several ? p.parts!.map((x) => `${cap(PART[x.muscle] ?? x.muscle)} ${x.sets}`).join(' · ') : null,
-    state !== 'plenty' ? null : WIDER[p.id] ? `Your ${WIDER[p.id]} already has plenty` : p.extra > 0 ? 'Already plenty' : null,
+    // Some of its sets are shown under another pick too: said, so the same sets are never read as two lots.
+    p.shared && p.coveredBy?.length ? `${p.shared} of them also count for ${list(p.coveredBy.map(focusName))}` : null,
+    // Never "+2 extra" beside "plenty": a pick that got some and then reached the limit has as much as is useful.
+    state !== 'plenty' ? null : p.extra > 0 ? 'As much as is useful now' : WIDER[p.id] ? `Your ${WIDER[p.id]} already has plenty` : null,
   ].filter((x): x is string => !!x);
   return { name, amount: several ? null : plural(p.total, 'set', 'sets'), tag, detail: more.length ? more.join(' · ') : null };
 }
 
+/** The reveal's rows: the picks that got extra first, then the rest, and "no exercises yet" last. Rank order inside each. */
+export function focusRowOrder(priorities: readonly FocusResult[]): FocusResult[] {
+  const group = (p: FocusResult) => (focusStateOf(p) === 'no_move' ? 2 : p.extra > 0 || (p.minutes ?? 0) > 0 ? 0 : 1);
+  return [0, 1, 2].flatMap((g) => priorities.filter((p) => group(p) === g));
+}
+
 /**
- * A day card's why: what this day adds for the person's picks, up to two, in their order. "Extra
- * today: 2 sets for upper chest and 2 for side shoulders". Null when the day adds nothing.
+ * A day card's why, from the report's own data: the pick the day's first lift trains ("Upper chest
+ * first today"), and what the day adds, up to two picks by rank and then "and more" ("Extra today:
+ * 2 sets for lats, 1 for biceps and more"). Null when the day does neither.
  */
-export function focusDayLine(extras: readonly FocusDayExtra[] | undefined): string | null {
-  const two = (extras ?? []).filter((x) => x.extra > 0 || (x.minutes ?? 0) > 0).slice(0, 2);
-  if (!two.length) return null;
+export function focusDayLine(extras: readonly FocusDayExtra[] | undefined, lead?: FocusPickId | null): string | null {
+  const adds = (extras ?? []).filter((x) => x.extra > 0 || (x.minutes ?? 0) > 0);
+  const two = adds.slice(0, 2);
   const firstSets = two.findIndex((x) => x.id !== 'mobility');
   const said = two.map((x, i) => {
     if (x.id === 'mobility') return `${minutes(x.minutes!)} of stretches`;
     const name = focusName(x.id).toLowerCase();
     return i === firstSets ? `${plural(x.extra, 'set', 'sets')} for ${name}` : `${x.extra} for ${name}`;
   });
-  return `Extra today: ${list(said)}`;
+  const first = lead ? `${focusName(lead)} first today` : null;
+  const extra = !two.length ? null : `${first ? 'Extra' : 'Extra today'}: ${adds.length > 2 ? `${said.join(', ')} and more` : list(said)}`;
+  return first && extra ? `${first}. ${extra}` : first ?? extra;
+}
+
+/** Before the plan exists nothing is promised: the rank row and the rank sheet say what the plan will try. */
+export const FOCUS_RANK_INTENT = 'We add extra where it fits, starting from the top.';
+
+/**
+ * The rank row's prompt counts what is ranked. Mobility is stretch time, never hard sets, so it has
+ * no place in the order: when it is picked, the row says so instead of quietly leaving it out.
+ */
+export function focusRankWords(ranked: number, mobility: boolean): { prompt: string; note: string | null } {
+  return { prompt: `Rank your ${ranked} picks`, note: mobility ? 'Mobility is stretch time, so it is not ranked.' : null };
+}
+
+/**
+ * On the reveal, who actually got the most, composed from the result: "Most extra work: Back and
+ * Side shoulders." or, when a pick ranked above them got less, why ("Back already gets plenty, so
+ * Side shoulders gets the most."). Null when no pick got extra sets.
+ */
+export function focusSummary(report: Pick<FocusReport, 'priorities'>): string | null {
+  const hard = report.priorities.filter((p) => p.id !== 'mobility' && !covered(p));
+  const best = Math.max(0, ...hard.map((p) => p.extra));
+  if (best === 0) return null;
+  const winners = hard.filter((p) => p.extra === best);
+  if (winners.length === hard.length) return hard.length === 1 ? null : `Every pick gets the same extra work: +${best}.`;
+  const names = winners.length > 2 ? `${winners.slice(0, 2).map((p) => focusName(p.id)).join(', ')} and ${winners.length - 2} more` : list(winners.map((p) => focusName(p.id)));
+  const passed = hard.slice(0, hard.indexOf(winners[0]!))[0];
+  if (!passed) return `Most extra work: ${names}.`;
+  const state = focusStateOf(passed);
+  const why = state === 'plenty' ? `${focusName(passed.id)} already gets plenty` : state === 'no_move' ? `${focusName(passed.id)} has no exercises yet` : `${focusName(passed.id)} has less room on its days`;
+  return `${why}, so ${names} ${winners.length === 1 ? 'gets' : 'get'} the most.`;
 }

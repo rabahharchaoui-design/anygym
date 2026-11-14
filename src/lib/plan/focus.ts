@@ -79,12 +79,26 @@ export type FocusResult = {
   parts?: Array<{ muscle: string; sets: number }>;
   atLimit?: true;
   noMove?: true;
+  /**
+   * A goal that rides on other muscles' work (posture, grip), when picks for those muscles are in the
+   * list too (lib/plan/focusShare.ts): `shared` of its sets are the very sets shown under `coveredBy`.
+   */
+  coveredBy?: FocusPickId[];
+  shared?: number;
 };
 /** What one day adds for a choice, against the same day with no picks. Mobility: its stretch minutes. */
 export type FocusDayExtra = { id: FocusPickId; extra: number; minutes?: number };
-export type FocusReport = { budget: number; spent: number; priorities: FocusResult[]; days: string[][]; dayExtra?: FocusDayExtra[][] };
+export type FocusReport = {
+  budget: number; spent: number; priorities: FocusResult[]; days: string[][]; dayExtra?: FocusDayExtra[][];
+  /** Per day: the pick its first lift trains (the highest ranked), or null. Focused moves go first while fresh. */
+  dayLead?: Array<FocusPickId | null>;
+};
 /** The most hard sets a week a focused muscle gets (PLAN 3.6f): more is not better. */
 export const FOCUS_MUSCLE_MAX = 20;
+/** A focused muscle is meant to land at about this many hard sets a week or more (PLAN 3.6f: about 12 to 20). */
+export const FOCUS_MUSCLE_MIN = 12;
+/** The most extra sets any one pick is given (PLAN 3.6f: +4 at the most). */
+export const FOCUS_SHARE_MAX = 4;
 export const countHardSets = (days: readonly (readonly FocusMove[])[], muscle: string): number => days.flat().reduce((n, m) => n + (m.hard && m.muscles.includes(muscle) ? m.sets : 0), 0);
 
 /** The state of a result; a report saved before round 2 has none, so it is read from its old marks. */

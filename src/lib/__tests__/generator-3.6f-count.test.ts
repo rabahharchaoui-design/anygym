@@ -47,7 +47,7 @@ const ALL = [...new Set(FOCUS_PICKS.map((p) => p.id))].filter((p) => p !== 'bala
 const childOf = (a: FocusPickId, b: FocusPickId) => a !== b && ((FOCUS_PARTS as Record<string, readonly { id: string }[]>)[a]?.some((x) => x.id === b) ?? false);
 const build = (input: GeneratorInput) => { const r = generate(input); return r.ok ? { r, plan: definitionPlan(r.plan)! } : null; };
 
-export const tally = { n: 0, built: 0, withPicks: 0, needLine: 0, offered: 0, offeredBoth: 0, fixesChecked: 0, maxMuscle: 0, maxShown: 0, order: 0, rankPairs: 0, rankExempt: 0, plenty: 0, whyLines: 0, whyDays: 0, noWhyDays: 0, noMove: new Set<string>(), byMin: {} as Record<number, number>, byDays: {} as Record<number, number>, extra: {} as Record<number, { n: number; min: number; max: number; sum: number; line: number }> };
+export const tally = { covered: 0, leads: 0, partial: 0, n: 0, built: 0, withPicks: 0, needLine: 0, offered: 0, offeredBoth: 0, fixesChecked: 0, maxMuscle: 0, maxShown: 0, order: 0, rankPairs: 0, rankExempt: 0, plenty: 0, whyLines: 0, whyDays: 0, noWhyDays: 0, noMove: new Set<string>(), byMin: {} as Record<number, number>, byDays: {} as Record<number, number>, extra: {} as Record<number, { n: number; min: number; max: number; sum: number; line: number }> };
 
 function check(count: number, days: number, minutes: number, rep: number) {
   const seed = count * 1000 + days * 100 + minutes + rep * 7919;
@@ -88,7 +88,9 @@ function check(count: number, days: number, minutes: number, rep: number) {
     expect(asked.slice(2).every((n, i, all) => i === 0 || n <= all[i - 1]!), 'a lower rank never gets more').toBe(true);
     expect(asked.reduce((x, y) => x + y, 0)).toBe(12);
   }
-  expect(report.budget).toBe(asked.reduce((x, y) => x + y, 0));
+  // The shares first; what is left of 12 may go to picks still under 12 sets a week (round 3), so the budget is the shares or what was spent, never past 12.
+  expect(report.budget).toBeGreaterThanOrEqual(asked.reduce((x, y) => x + y, 0));
+  expect(report.budget).toBeLessThanOrEqual(12);
   expect(report.spent).toBeLessThanOrEqual(report.budget);
 
   // Extra sets, counted on the built plans: all focused work against the same intake without picks.
@@ -130,38 +132,61 @@ function check(count: number, days: number, minutes: number, rep: number) {
       tally.maxShown = Math.max(tally.maxShown, p.total);
     }
     // The same number is never the total in one line and the extra in another.
+    // A goal whose every set is shown under another pick says so in words, with no number or extra of its own (round 3, critic 5).
+    if (much.startsWith('covered by your ')) { expect(p.shared).toBe(p.total); expect(p.coveredBy!.length).toBeGreaterThan(0); for (const o of p.coveredBy!) expect(picks).toContain(o); tally.covered++; continue; }
     if (p.state !== 'no_move' && p.total > 0) {
       if (p.extra > 0 && p.extra < p.total) expect(much).toContain(`, ${p.extra} of them extra`);
       if (p.extra === 0) expect(much).not.toContain('extra,');
-      expect(/already (has )?plenty/.test(much)).toBe(p.state === 'plenty');
+      // Plenty and extra are never said together: with extra it is "as much as is useful".
+      expect(/already (has )?plenty|as much as is useful/.test(much)).toBe(p.state === 'plenty');
+      expect(/extra.*already (has )?plenty/.test(much), much).toBe(false);
     }
     expect(much).not.toContain('nothing extra');
   }
-  // RANKING IS A PROMISE: a pick never gets more extra than a pick ranked above it, counted on the
-  // sets that are its own (not shared with a higher pick). The one exception is a higher pick that
-  // says it has plenty (a muscle at the limit) or that the app has no exercise for.
+  // RANK DECIDES COMPETITION (round 3): shares never rise down the rank, and a pick takes sets past
+  // its own share (never past +4) only while no pick above it has less, unless that one says it has
+  // plenty or the app has no exercise for it. Whether a higher pick could have used the room a lower
+  // one took is proved on the pure module (lib/plan/__tests__/focusRank.test.ts).
   const ranked = report.priorities.filter((p) => p.id !== 'mobility');
+  // A muscle the pick's moves train is at 20 sets (a part like lats is held by its whole muscle, the back).
+  const atLimitOf = (id: FocusPickId) => [...new Set(m.flat().filter((x) => x.prim.some(SRC[id]!)).flatMap((x) => x.prim.map(group)))].some((g) => setsFor(m, (t) => group(t) === g) >= 20);
   for (const [j, low] of ranked.entries()) {
     const higher = ranked.slice(0, j);
-    const own = (ms: Move[][]) => ms.flat().reduce((n, x) => n + (x.prim.some(SRC[low.id]!) && !higher.some((h) => x.prim.some(SRC[h.id]!)) ? x.sets : 0), 0);
-    const ownExtra = Math.max(0, own(m) - own(mb));
+    const own = (ms: Move[][]) => ms.flat().reduce((n, x) => n + (x.prim.some(SRC[low.id]!) && !ranked.some((h) => h.id !== low.id && x.prim.some(SRC[h.id]!)) ? x.sets : 0), 0);
+    // Its own sets, net: when the 20 set limit took sets off moves it shares with another pick, sets of its own make up for them and are not extra.
+    const ownExtra = Math.min(low.extra, Math.max(0, own(m) - own(mb)));
+    expect(ownExtra, `#${j + 1} ${low.id} past +4 ${label}`).toBeLessThanOrEqual(4);
     for (const high of higher) {
-      if (high.state === 'plenty' || high.state === 'no_move') { tally.rankExempt++; continue; }
+      expect(low.requested, `#${j + 1} ${low.id} has a bigger share than ${high.id} ${label}`).toBeLessThanOrEqual(high.requested);
+      // A higher pick at 20 sets cannot take more, whether it got its whole share first ("extra") or not ("plenty").
+      if (high.state === 'plenty' || high.state === 'no_move' || high.total >= 20 || atLimitOf(high.id)) { tally.rankExempt++; continue; }
       tally.rankPairs++;
-      expect(ownExtra, `#${j + 1} ${low.id} got more than ${high.id} ${label}`).toBeLessThanOrEqual(extraOf(high.id));
+      // The last round tops up picks still under 12 sets a week; a higher pick already there is not added to, so it holds nobody back.
+      if (ownExtra > low.requested && totalOf(high.id) < 12) expect(ownExtra, `#${j + 1} ${low.id} took sets past its share above ${high.id} ${label}`).toBeLessThanOrEqual(Math.max(low.requested, extraOf(high.id)));
     }
   }
-  // DAY WHY LINES: each names what that day adds for up to two picks, by rank; a day that adds nothing has none.
+  // DAY WHY LINES: each names what that day adds for up to two picks by rank (then "and more"), and the
+  // pick its first lift trains; a day that does neither has none.
   const dayTotal = (ms: Move[][], i: number, id: FocusPickId) => (ms[i] ?? []).reduce((n, x) => n + (x.prim.some(SRC[id]!) ? x.sets : 0), 0);
   for (const [i, d] of f.plan.days.entries()) {
     const adds = ranked.filter((p) => extraOf(p.id) > 0 && dayTotal(m, i, p.id) > dayTotal(mb, i, p.id));
     const lines = d.focusWhy ?? [];
     expect(lines.length).toBeLessThanOrEqual(1);
-    if (!lines.length) { if (!picks.includes('mobility')) expect(adds, `day ${i + 1} adds but says nothing ${label}`).toEqual([]); tally.noWhyDays++; continue; }
+    const lead = report.dayLead?.[i] ?? null;
+    if (!lines.length) { if (!picks.includes('mobility')) expect(adds, `day ${i + 1} adds but says nothing ${label}`).toEqual([]); expect(lead).toBeNull(); tally.noWhyDays++; continue; }
     tally.whyDays++;
-    const line = lines[0]!;
-    expect(line.startsWith('Extra today: ')).toBe(true);
-    const named = [...line.matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
+    const whole = lines[0]!;
+    // The lead: the day's first lift really trains that pick.
+    if (lead) {
+      expect(whole.startsWith(`${focusName(lead)} first today`), `${whole} ${label}`).toBe(true);
+      expect((m[i] ?? [])[0]!.prim.some(SRC[lead]!), `day ${i + 1} does not open with ${lead} ${label}`).toBe(true);
+      tally.leads++;
+    }
+    const line = lead ? whole.slice(`${focusName(lead)} first today`.length).replace(/^\. Extra: /, 'Extra today: ') : whole;
+    if (!line) { if (!picks.includes('mobility')) expect(adds, `day ${i + 1} adds but only names its lead ${label}`).toEqual([]); continue; }
+    expect(line.startsWith('Extra today: '), whole).toBe(true);
+    expect(line.endsWith(' and more')).toBe(report.dayExtra![i]!.length > 2);
+    const named = [...line.replace(/ and more$/, '').matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
     if (!line.includes('stretches')) expect(named.map((x) => x.name), `${line} ${label}`).toEqual(adds.slice(0, 2).map((p) => focusName(p.id).toLowerCase()));
     for (const x of named) {
       const pick = ranked.find((p) => focusName(p.id).toLowerCase() === x.name)!;
@@ -217,7 +242,10 @@ function check(count: number, days: number, minutes: number, rep: number) {
   if (fit) {
     expect(fit.line.length).toBeGreaterThan(10);
     expect(fit.line).not.toContain('with your equipment');
-    expect(fit.line.includes('fit best with') || fit.line.includes('fits best with')).toBe(!!(fit.days || fit.minutes));
+    expect(fit.line.includes('fit best with') || fit.line.includes('fits best with')).toBe(!!(fit.days || fit.minutes) && !fit.partial);
+    // Never "yet" as if it would change by itself (only "No exercises for … yet", which the app will add).
+    expect(fit.line.replace(/No exercises for [^.]+ yet\./, '')).not.toContain('yet');
+    if (fit.partial) { tally.partial++; expect(fit.line).toMatch(/^With (\d days|\d+ min|\d days and \d+ min), .+ (gets?|get) (extra|more|its stretches)\./); expect(!!(fit.days || fit.minutes)).toBe(true); }
     // FIX OFFERS ARE TRUE: applying the tap leaves no shortfall and no pick with fewer extra sets, counted on the rebuilt plans.
     const taps = fit.both ? [{ days: fit.days!, minutes: fit.minutes! }] : [...(fit.days ? [{ days: fit.days, minutes }] : []), ...(fit.minutes ? [{ days, minutes: fit.minutes }] : [])];
     for (const tap of taps) {
@@ -226,9 +254,12 @@ function check(count: number, days: number, minutes: number, rep: number) {
       const nm = movesOf(nf!.plan), nmb = movesOf(nb!.plan);
       tally.fixesChecked++;
       for (const p of nf!.r.applied.focusReport!.priorities) {
-        if (p.id === 'mobility') { expect(p.state, `stretches after ${JSON.stringify(tap)} ${label}`).toBe('extra'); continue; }
+        if (p.id === 'mobility') { if (!fit.partial) expect(p.state, `stretches after ${JSON.stringify(tap)} ${label}`).toBe('extra'); continue; }
         const after = Math.max(0, setsFor(nm, SRC[p.id]!) - setsFor(nmb, SRC[p.id]!));
-        expect(after, `${p.id} lost extra after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(extraOf(p.id));
+        // Nobody is left with less: sets a pick held past its own share were a bonus from room nobody else could use, so keeping the whole share is not less.
+        expect(after, `${p.id} lost extra after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.min(extraOf(p.id), Math.max(1, p.requested)));
+        // The best partial step (round 3) promises only what its line says: nobody lower, and the picks it names higher.
+        if (fit.partial) { if ((/^With [^,]+, (.+?) (?:gets?|get) (?:extra|more)\./.exec(fit.line)?.[1] ?? '').split(/, | and /).includes(focusName(p.id))) expect(after, `${p.id} named but not helped by ${JSON.stringify(tap)} ${label}`).toBeGreaterThan(extraOf(p.id)); continue; }
         if (p.state === 'plenty' || p.state === 'no_move' || p.requested === 0) continue;
         expect(after, `${p.id} still short after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.max(1, p.requested - 1));
       }

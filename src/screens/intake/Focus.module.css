@@ -88,6 +88,10 @@
   scroll-margin-bottom: var(--space-3);
 }
 
+.priorities > p {
+  margin-top: var(--space-2);
+}
+
 .priorities[data-asks] > button {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }

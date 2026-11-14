@@ -154,6 +154,14 @@
   white-space: nowrap;
 }
 
+/* Round 3: who really got the most, one plain line over the rows. */
+.focusSummary {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 /* The period is said once, over the rows. */
 .focusCaption {
   margin: var(--space-1) 0 0;
@@ -273,6 +281,17 @@
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
   font-weight: 600;
+}
+
+/* Round 3: the day's short why, a quiet second line under its name. */
+.weekWhy {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.3;
 }
 
 .weekTime {

@@ -56,7 +56,7 @@ const COPY: Record<ScreenId, Copy> = {
   goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
   units: { title: 'Your units', why: "Set from your phone's region." },
   // PLAN 3.5: a plan built from the answers uses focus, style, cardio, go easy on and the exercise lists.
-  focus: { title: 'What do you want to work on?', why: 'Pick any number. We fit the extra work in.' },
+  focus: { title: 'What do you want to work on?', why: 'Pick any number. We add extra where it fits.' },
   win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.' },
   experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
   days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },

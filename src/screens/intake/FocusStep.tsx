@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOCUS, FOCUS_OBJECTIVES, FOCUS_PARTS, type FocusId, type FocusPickId } from '../../lib/intake/options';
 import { focusBudget, focusName, normalizeFocusPicks } from '../../lib/plan/focus';
+import { focusRankWords } from '../../lib/plan/focusWords';
 import { focusNotYet } from '../../data/focusServed';
 import { Chip } from '../../ui/Chip';
 import { SummaryRow } from '../../ui/SummaryRow';
@@ -46,6 +47,7 @@ export function FocusStep({ value, onChange }: { value: readonly string[]; onCha
   const [toast, setToast] = useState<(ToastMessage & { bottom: number }) | null>(null);
   useToastTimeout(toast, setToast);
   const order = ranked(picks);
+  const rank = focusRankWords(order.length, picks.includes('mobility'));
   const row = useRef<HTMLDivElement>(null);
   // The row comes in under the grid: on a short screen the page brings it above the button.
   useEffect(() => {
@@ -78,13 +80,15 @@ export function FocusStep({ value, onChange }: { value: readonly string[]; onCha
       </div>
       {order.length ? (
         <div ref={row} className={styles.priorities} data-asks={asks || undefined}>
-          <SummaryRow label={asks ? `Rank your ${order.length} picks` : 'Your priorities'} value={<>Most extra work: {list(order.slice(0, 2).map(focusName))}</>} action={asks ? 'Rank' : 'Reorder'} onPress={openRank} testId="focus-rank-open" valueTestId="focus-rank-top" />
+          {/* Round 3: nothing is promised before the plan exists; the row says the order the plan starts from. */}
+          <SummaryRow label={asks ? rank.prompt : 'Your priorities'} value={<>From the top: {list(order.slice(0, 2).map(focusName))}</>} action={asks ? 'Rank' : 'Reorder'} onPress={openRank} testId="focus-rank-open" valueTestId="focus-rank-top" />
+          {rank.note && <p className={styles.note} data-testid="focus-rank-note">{rank.note}</p>}
         </div>
       ) : !picks.length || picks.includes('balance') ? (
         <p className={styles.note} data-testid="focus-same" data-under={toast ? '' : undefined}>{BALANCE_SAME}</p>
       ) : null}
       {group && <FocusPartsSheet key={group} group={group} picks={picks} notYet={notYet} onClose={() => setGroup(null)} onSave={(v) => { setGroup(null); change(normalizeFocusPicks(v)); }} />}
-      <FocusRank open={rankOpen && order.length > 0} picks={order} onClose={() => setRankOpen(false)} onChange={(next) => onChange([...next, ...picks.filter((p) => !next.includes(p))])} />
+      <FocusRank open={rankOpen && order.length > 0} picks={order} note={rank.note} onClose={() => setRankOpen(false)} onChange={(next) => onChange([...next, ...picks.filter((p) => !next.includes(p))])} />
       <Toast toast={toast} bottom={`calc(${toast?.bottom ?? 0}px - var(--safe-bottom))`} />
     </div>
   );

@@ -69,7 +69,7 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
 
   const focusReport = applyFocus(ctx, days);
   // Each day's why: what that day adds for the picks (words from lib/plan/focusWords.ts, data from the report).
-  focusReport.days = days.map((_, i) => { const line = focusDayLine(focusReport.dayExtra?.[i]); return line ? [line] : []; });
+  focusReport.days = days.map((_, i) => { const line = focusDayLine(focusReport.dayExtra?.[i], focusReport.dayLead?.[i]); return line ? [line] : []; });
   const kept = days.flatMap((d) => d.units.flat());
   // Compatibility for older consumers; detailed reporting always uses the final recount.
   const focus: Applied['focus'] = (input.focus ?? []).filter((id) => id !== 'balance').flatMap((id) => {

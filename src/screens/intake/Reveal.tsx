@@ -213,7 +213,11 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
               {week.map((w, i) => (
                 <li key={`${w.label}-${i}`} className={revealStyles.weekRow} style={{ '--i': i } as CSSProperties}>
                   <span className={`${revealStyles.weekDay} num`}>{w.label}</span>
-                  <span className={revealStyles.weekName}>{w.dayName}</span>
+                  <span className={revealStyles.weekName}>
+                    {w.dayName}
+                    {/* Round 3: the day's short why (what it adds for the picks), the same line Today's day card says. */}
+                    {plan.days[w.dayIndex]?.focusWhy?.[0] && <span className={revealStyles.weekWhy} data-testid="reveal-day-why">{plan.days[w.dayIndex]!.focusWhy![0]}</span>}
+                  </span>
                   <span className={`${revealStyles.weekTime} num`}>~{words!.minutes[w.dayIndex]} min</span>
                 </li>
               ))}

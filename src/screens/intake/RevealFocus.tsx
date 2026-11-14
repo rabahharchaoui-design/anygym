@@ -3,7 +3,7 @@ import type { IntakeAnswers } from '../../lib/intake/funnel';
 import type { WeekdayId } from '../../lib/intake/options';
 import type { FocusFit } from '../../lib/intake/focusFit';
 import { focusStateOf, type FocusReport } from '../../lib/plan/focus';
-import { focusCaption, focusRow } from '../../lib/plan/focusWords';
+import { focusCaption, focusRow, focusRowOrder, focusSummary } from '../../lib/plan/focusWords';
 import styles from './IntakeReveal.module.css';
 
 type Props = {
@@ -19,18 +19,26 @@ type Props = {
 };
 
 /**
- * PLAN 3.6f: what the plan does for each focus pick, in rank order, each row a glance: the name, its
- * number, and a quiet state ("+6 extra" in the accent, "plenty", "no extra yet", "no exercises yet");
+ * PLAN 3.6f: what the plan does for each focus pick, each row a glance: the name, its number, and a
+ * quiet state ("+6 extra" in the accent, "plenty", "no extra", "no exercises yet"). The picks that
+ * got extra come first and those with no exercises last, in rank order inside each;
  * an area's muscles sit on a second quiet line. When something did not fit, that comes first with
  * its one tap (add a day, add minutes), so it is never below the list.
  */
 export function RevealFocus({ report, period, fit, weekdays, onApply }: Props) {
+  // Who really got the most, composed from the result (never the promise made before the plan existed).
+  const summary = focusSummary(report);
   return (
     <div className={styles.focus} data-testid="reveal-focus">
       {fit && <RevealFit fit={fit} onApply={onApply} {...(weekdays ? { weekdays } : {})} />}
+      {summary && (
+        <p className={styles.focusSummary} data-testid="focus-summary">
+          {summary}
+        </p>
+      )}
       <p className={styles.focusCaption}>{focusCaption(period)}</p>
       <ul className={styles.focusList}>
-        {report.priorities.map((p) => {
+        {focusRowOrder(report.priorities).map((p) => {
           const row = focusRow(p);
           return (
             <li key={p.id} className={styles.focusRow} data-testid={`focus-line-${p.id}`} data-state={focusStateOf(p)}>
