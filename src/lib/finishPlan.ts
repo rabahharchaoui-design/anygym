@@ -13,6 +13,15 @@ export const ADVANCE_SHARE = 0.6;
 /** True when this much of the day moves the plan on (the unrounded share, never a shown percent). */
 export const movesOn = (share: number): boolean => share >= ADVANCE_SHARE;
 
+/**
+ * The day kept up next by the 60% rule (the same day again after a part done finish), or undefined:
+ * the next day has a share under 60% and no tick. The one place "kept" is decided.
+ */
+export function keptDayOf(state: Pick<PlanPosition, 'nextDayIndex' | 'doneDays'> & { partial?: Record<number, number> }): number | undefined {
+  const share = state.partial?.[state.nextDayIndex];
+  return share !== undefined && !movesOn(share) && !state.doneDays.includes(state.nextDayIndex) ? state.nextDayIndex : undefined;
+}
+
 export type FinishPosition = PlanPosition & {
   /** Day index → share done, for the partial rings. Empty when the pass started over. */
   partial: Record<number, number>;

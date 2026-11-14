@@ -74,6 +74,8 @@ export type ResolvedDay = {
   anywayIndex?: number;
   /** Every day rests: the muscles holding that day back, and when they were last trained. */
   resting?: { muscles: string[]; trainedAt: number };
+  /** The day shown is the same day again, kept by the 60% rule after a part done finish (lib/finishPlan.ts keptDayOf). */
+  kept?: true;
 };
 
 /**

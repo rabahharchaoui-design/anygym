@@ -109,3 +109,24 @@ describe('local schedule choices', () => {
     expect(today.card?.kind).not.toBe('missed_days');
   });
 });
+
+describe('round 3 (critic 7): the kept day is one story', () => {
+  it('keptDayOf: only the next day, under 60%, with no tick', async () => {
+    const { keptDayOf } = await import('../../finishPlan');
+    expect(keptDayOf({ nextDayIndex: 0, doneDays: [], partial: { 0: 4 / 17 } })).toBe(0);
+    expect(keptDayOf({ nextDayIndex: 0, doneDays: [] })).toBeUndefined();
+    expect(keptDayOf({ nextDayIndex: 1, doneDays: [], partial: { 0: 0.7 } })).toBeUndefined();
+    expect(keptDayOf({ nextDayIndex: 0, doneDays: [], partial: { 0: 0.6 } })).toBeUndefined();
+    expect(keptDayOf({ nextDayIndex: 0, doneDays: [0], partial: { 0: 0.2 } })).toBeUndefined();
+  });
+  it('one sentence, with the counts only when they are known; the recovery warning never shows for a kept day', async () => {
+    const { keptDayWords } = await import('../scheduleWords');
+    const { recoveryLine } = await import('../../coach/today');
+    expect(keptDayWords({ dayN: 1, logged: 4, planned: 17 })).toBe('Day 1 again. You did 4 of 17 sets last time, so it stays up next and starts from the top.');
+    expect(keptDayWords({ dayN: 3 })).toBe('Day 3 again. You stopped it early last time, so it stays up next and starts from the top.');
+    const recovery = { yesterday: ['chest' as const], next: ['chest' as const], nameOf: () => 'chest' };
+    expect(recoveryLine({ activeWorkout: false, recovery })).toContain('today works it again');
+    expect(recoveryLine({ activeWorkout: false, recovery, kept: { dayN: 1, logged: 4, planned: 17 } })).toBe(keptDayWords({ dayN: 1, logged: 4, planned: 17 }));
+    expect(recoveryLine({ activeWorkout: true, recovery, kept: { dayN: 1 } })).toBeNull();
+  });
+});

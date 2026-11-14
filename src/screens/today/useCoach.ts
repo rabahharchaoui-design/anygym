@@ -53,6 +53,7 @@ export function useCoach(enabled: boolean): CoachView {
       activeWorkout: data.active,
       ...(plan ? { plan: { scheduleStyle: scheduleStyleOf(data.profile?.intake), daysPerWeek: plan.daysPerWeek, weekdays: weekdaysOf(data.profile, data.now) } } : {}),
       ...(data.recovery ? { recovery: { ...data.recovery, nameOf: regionWord } } : {}),
+      ...(data.kept ? { kept: data.kept } : {}),
     });
   }, [data]);
   const fresh = useMemo(() => (data ? freshBands(data.fresh, data.now) : NONE), [data]);

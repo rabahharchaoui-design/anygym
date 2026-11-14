@@ -10,7 +10,9 @@ import { liftKey, type ChangeRecord, type Effort, type Lift, type LiftSession, t
 import type { RepRange } from '../lib/progression';
 import { patternOf, slotOf, swapCandidates, workoutIdOf } from '../lib/swap';
 import { QUICK_DEFAULT, dayWorkout, repRangeOf } from '../lib/planWorkout';
-import { dayIndexOf } from '../lib/plans';
+import { dayIdOf, dayIndexOf } from '../lib/plans';
+import { movesOn } from '../lib/finishPlan';
+import { planProgress } from './workoutFinish';
 import { barForName } from '../lib/loadTypeRule';
 import { SWAP_DATA, candidateBarOf } from '../data/patterns';
 import { planById } from '../data/plans';
@@ -49,6 +51,8 @@ export type CoachData = {
   fresh: TrainedSet[];
   /** Main muscles worked yesterday and in the next plan day (the recovery note). */
   recovery: { yesterday: Region[]; next: Region[] } | undefined;
+  /** The day up next is the same day again (under 60% done): its number and the part done workout's own set counts. */
+  kept: { dayN: number; logged?: number; planned?: number } | undefined;
   /** PLAN 3.5g: the exercises of the plan day up next (a coach card lists these lifts first). */
   todayIds: string[];
   /** PLAN 3.5g: when each coach card was answered (no backup reminder on a coach card's day). */
@@ -184,10 +188,21 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     liftRows: rows.lifts,
     fresh,
     recovery: resolved?.dayIndex === null ? undefined : recoveryRegions(recent, sets, planState, now),
+    kept: resolved?.kept && planState ? await keptDay(planState, finished, db) : undefined,
     todayIds: nextDayIds(planState),
     answeredAt: rows.cards.map((c) => c.at),
     unmapped: [...unmapped],
   };
+}
+
+/** The kept day's number, with the set counts of its newest finished workout when that one is the part done one. */
+async function keptDay(planState: PlanState, finished: readonly Session[], db: AnyGymDB): Promise<CoachData['kept']> {
+  const plan = planById(planState.planId);
+  const day = plan?.days[planState.nextDayIndex];
+  if (!plan || !day) return undefined;
+  const last = finished.find((s) => s.planId === plan.id && s.dayId === dayIdOf(day));
+  const p = last ? await planProgress(last, db) : undefined;
+  return p && p.logged > 0 && !p.complete && !movesOn(p.share) ? { dayN: day.n, logged: p.logged, planned: p.planned } : { dayN: day.n };
 }
 
 /** The working exercises of the plan day up next, in order (none without a plan). */

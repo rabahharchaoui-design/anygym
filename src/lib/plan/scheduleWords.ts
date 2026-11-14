@@ -40,6 +40,16 @@ export function restDayWords(rest: RestDay | null | undefined, dayN: number, now
   return `Rest day, next ${days === 1 ? 'tomorrow' : WEEKDAY[new Date(rest.nextAt).getDay()]!.slice(0, 3)}: Day ${dayN}`;
 }
 
+/**
+ * The one sentence for a day kept up next by the 60% rule (Today's coach line). Start opens that day
+ * as a new workout with nothing logged, so it says "from the top", never "where you left off". The
+ * counts are the part done workout's own (the finish screen's numbers); without them, no number.
+ */
+export function keptDayWords(k: { dayN: number; logged?: number; planned?: number }): string {
+  const did = k.logged && k.planned ? `You did ${k.logged} of ${k.planned} sets last time` : 'You stopped it early last time';
+  return `Day ${k.dayN} again. ${did}, so it stays up next and starts from the top.`;
+}
+
 /** Under "Which days this week?": the plan's number of days, and what was picked against it. */
 export function weekPickWords(planDays: number, picked: number): string {
   const plan = `Your plan has ${plural(planDays, 'day', 'days')}.`;

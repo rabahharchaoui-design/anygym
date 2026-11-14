@@ -9,7 +9,7 @@ import { cleanWeekdays, fixedDaysOf, fixedScheduleHolds } from '../lib/plan/week
 import { getProfile } from './intake';
 import { readTrainingLog } from './training';
 import { countedTraining } from '../lib/plan/recovery';
-import { movesOn } from '../lib/finishPlan';
+import { keptDayOf } from '../lib/finishPlan';
 import { dayIdOf } from '../lib/plans';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { PlanState, Profile } from './types';
@@ -19,11 +19,11 @@ export async function resolveSchedule(state: PlanState, profile: Profile | undef
   if (!plan) return null;
   const style = scheduleStyleOf(profile?.intake, plan.scheduleStyle);
   // A pre-intake pointer keeps its legacy finish semantics until the person chooses a schedule.
-  if (style === 'fixed' || (!profile?.intake && !state.pendingDayIndices && !plan.scheduleStyle)) return { dayIndex: state.nextDayIndex, pendingDayIndices: rotationOf(state, plan.days.length), deferred: [] };
+  const keptIndex = keptDayOf(state);
+  if (style === 'fixed' || (!profile?.intake && !state.pendingDayIndices && !plan.scheduleStyle)) return { dayIndex: state.nextDayIndex, pendingDayIndices: rotationOf(state, plan.days.length), deferred: [], ...(keptIndex !== undefined ? { kept: true as const } : {}) };
   const log = await readTrainingLog(now, db);
   // A day kept up next (under 60% done) is never moved away by its own part done workout.
-  const share = state.partial?.[state.nextDayIndex];
-  const keptDay = share !== undefined && !movesOn(share) && !state.doneDays.includes(state.nextDayIndex) ? plan.days[state.nextDayIndex] : undefined;
+  const keptDay = keptIndex !== undefined ? plan.days[keptIndex] : undefined;
   const kept = keptDay ? { dayIndex: state.nextDayIndex, trained: countedTraining(log, now, (e) => e.planId === plan.id && e.dayId === dayIdOf(keptDay)) } : undefined;
   const gym = gymId ? await db.gyms.get(gymId) : await db.gyms.filter((g) => g.isActive).first();
   const always = await alwaysPicks(plan.id, db);
@@ -31,7 +31,8 @@ export async function resolveSchedule(state: PlanState, profile: Profile | undef
     const p = profileFor(id);
     return p.role === 'lift' ? p.targets : [];
   }))]);
-  return resolveNextDay({ state, days, trained: countedTraining(log, now), now, ...(kept ? { kept } : {}) });
+  const next = resolveNextDay({ state, days, trained: countedTraining(log, now), now, ...(kept ? { kept } : {}) });
+  return kept && next.dayIndex === kept.dayIndex ? { ...next, kept: true as const } : next;
 }
 export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
   return db.transaction('r', [db.profile, db.planState, db.sessions, db.sets, db.gyms, db.exerciseSettings], async () => {
