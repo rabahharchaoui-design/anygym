@@ -16,6 +16,10 @@ import { estimateDayMinutes } from '../plans';
 import { patternOf, supports, workoutIdOf, type Candidate, type Pattern } from '../swap';
 import type { GymKit } from '../picker';
 import { DAYS, EXPERIENCE, FOCUS, GOALS, MINUTES, STYLES, type ExperienceId, type FocusId, type GoalId } from '../intake/options';
+import { vi as viTimeout } from 'vitest';
+// PLAN 3.6u: a heavy test file (slowest test about 509 ms on a laptop; the GitHub runner is six to eight times
+// slower). An explicit limit sized for the runner, never a retry.
+viTimeout.setConfig({ testTimeout: 30_000 });
 
 const FULL: GymKit = (() => {
   const p = equipmentPreset('full', 'lb');
