@@ -382,12 +382,14 @@ for (const scale of [1, 1.3]) test(`round 3 (critic 16): the fifth pick never sc
   });
   await pick(page, 'focus', 'legs'); const sheet = page.getByRole('dialog', { name: / focus$/ }); await expect(sheet).toBeVisible();
   // (Reaching a tile under the fold is the person's own scroll; what must not happen is the page moving when the row comes.)
+  // Measured as the sheet opens: while it is up the sheet may move the page under it and puts it back when it closes.
   const before = await measure();
   await sheet.getByTestId('focus-part-quads').tap(); await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await expect(sheet).not.toBeVisible();
   await expect(page.getByTestId('focus-rank-open')).toBeVisible(); await page.waitForTimeout(700);
   // The rank row is in view above Continue without the page having moved: the screen's title stays where it was.
   const at = await measure();
-  expect(at.top).toBe(before.top); expect(at.title).toBe(before.title);
+  // (Within a pixel: a scroll position between two pixels settles on one when the row is laid out.)
+  expect(Math.abs(at.top - before.top)).toBeLessThanOrEqual(1); expect(Math.abs(at.title - before.title)).toBeLessThanOrEqual(1);
   if (before.top === 0) expect(at.title).toBeGreaterThanOrEqual(0);
   expect(at.rowBottom).toBeLessThanOrEqual(at.cta + 1); expect(at.rowTop).toBeGreaterThan(at.titleBottom);
   // Scrolled to the end, the row is in its own place under the grid: it covers no tile.
