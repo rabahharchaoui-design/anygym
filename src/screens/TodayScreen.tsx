@@ -247,6 +247,8 @@ export function TodayScreen() {
             plan={plan}
             state={planState}
             active={{ dayIndex: dayIndexOf(plan, active.dayId), sets: data.value?.activeSets ?? 0 }}
+            flexible={schedule.data?.style !== 'fixed'}
+            weekDays={schedule.data?.weekDays}
             onStart={() => void quick()}
             onChangeDay={() => undefined}
           />
@@ -260,6 +262,7 @@ export function TodayScreen() {
             state={{ ...planState, nextDayIndex: nextIndex }}
             flexible={schedule.data?.style !== 'fixed'}
             rest={restDayWords(schedule.data?.restDay, nextDay?.n ?? nextIndex + 1, Date.now())}
+            weekDays={schedule.data?.weekDays}
             onStart={() => void startDay()}
             onChangeDay={(i) => setChanging(i ?? true)}
             onTime={gym ? () => setTimeOpen(true) : undefined}

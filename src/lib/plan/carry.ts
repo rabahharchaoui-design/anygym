@@ -5,6 +5,7 @@
 // be carried honestly and the rotation starts again from Day 1 (the reveal says so first).
 import type { PlanState } from '../../db/profileTypes';
 import { clampWeek, type Plan } from '../plans';
+import { rotationOf } from './schedule';
 
 export type CarriedPlace = {
   state: PlanState;
@@ -21,6 +22,19 @@ export function hasProgress(prev: Pick<PlanState, 'doneDays' | 'partial' | 'next
 }
 
 const fresh = (planId: string, startedAt: number): PlanState => ({ id: 'active', planId, startedAt, weekIndex: 0, nextDayIndex: 0, doneDays: [] });
+
+/**
+ * The order the plan's days come in from this place: the day up next, the rest of this pass in
+ * order, then the days already done (they come round in the next pass). Every day once. This is the
+ * order Today follows on a fixed schedule, so the reveal can label each day with its real weekday.
+ */
+export function comingOrder(state: Pick<PlanState, 'nextDayIndex' | 'doneDays' | 'pendingDayIndices'> | undefined, count: number): number[] {
+  const all = Array.from({ length: count }, (_, i) => i);
+  if (!state) return all;
+  const next = all.includes(state.nextDayIndex) ? [state.nextDayIndex] : [];
+  const pending = rotationOf(state, count);
+  return [...new Set([...next, ...pending, ...all])];
+}
 
 /**
  * The pointer for `plan`, rebuilt from the plan `prev` pointed at. `related` is false when the two

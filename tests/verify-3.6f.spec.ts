@@ -567,6 +567,58 @@ test('round 3 (critic 1): changing the schedule or the focus in Settings keeps t
   expect(await dbAll(page, 'sessions')).toHaveLength(1); expect(await dbAll(page, 'sets')).toHaveLength(3);
 });
 
+test('truth pass (critic r3 7, 9): the Settings reveal labels the days Today will follow from the kept place, and "This week" starts fresh the next Monday', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Monday the 16th of November 2026.
+  await page.clock.setSystemTime(new Date(2026, 10, 16, 10));
+  await toFocus(page); await part(page, 'arms', 'triceps'); await rest(page); await accept(page);
+  // Day 1 done this Monday morning: Day 2 is next.
+  const state = (await dbAll<Record<string, unknown> & { planId: string }>(page, 'planState'))[0]!;
+  const monday = new Date(2026, 10, 16, 9).getTime();
+  await put(page, 'sessions', { id: 'day-one', gymId: 'other', planId: state.planId, dayId: '1', startedAt: monday, endedAt: monday + 1_800_000, imported: false });
+  for (const n of [0, 1, 2]) await put(page, 'sets', { id: `day-one-${n}`, sessionId: 'day-one', exerciseId: 'dumbbell-bench-press', order: n, kind: 'work', reps: 8, load: { kind: 'dumbbell_each', unit: 'lb', total: 10 }, uncertain: false });
+  await put(page, 'planState', { ...state, doneDays: [0], nextDayIndex: 1, pendingDayIndices: [1, 2, 3] });
+  // Tuesday the 17th.
+  await page.clock.setSystemTime(new Date(2026, 10, 17, 8)); await page.reload();
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 2 · /);
+  const names = await page.getByTestId('day-card-title').evaluate((h) => [...h.children].map((c) => c.textContent!.replace(/^· /, '')));
+  const dayTwo = names[1]!;
+  // Settings: the same days each week, Tue, Thu, Sat, Sun.
+  await page.goto('./#/settings'); await page.getByTestId('redo-schedule').tap(); await step(page, 'weekdays');
+  await pick(page, 'schedule', 'fixed'); for (const d of ['tue', 'thu', 'sat', 'sun']) await pick(page, 'weekdays', d);
+  await next(page); await step(page, 'reveal');
+  // The critic saw "Tue | Upper A" here, then Today on Tuesday was "Day 2 · Lower A". The list now starts at the kept place: Tuesday is Day 2.
+  const rows = page.getByTestId('reveal-week').locator('li');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toContainText('Tue'); await expect(rows.nth(0)).toContainText(dayTwo);
+  for (const [i, d] of ['Tue', 'Thu', 'Sat', 'Sun'].entries()) await expect(rows.nth(i)).toHaveText(new RegExp(`^${d}`));
+  await expect(page.getByTestId('reveal-kept')).toHaveText('You keep your place: Day 2 is next.');
+  await expect(page.getByTestId('reveal-restart')).toHaveCount(0);
+  const dayOne = (await rows.nth(3).textContent())!;
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Use this plan', exact: true }).tap(); await expect(page).toHaveURL(/#\/$/);
+  // Today on Tuesday is the reveal's Tuesday row.
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · /); await expect(page.getByTestId('day-card-title')).toContainText(dayTwo);
+  await expect(page.getByTestId('day-rest')).toHaveCount(0);
+  // This week (Monday's workout was this week): Day 1 is marked done, Day 2 is up next.
+  await expect(page.getByTestId('week-label')).toHaveText('This week');
+  await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'done');
+  await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'next');
+  // Sunday the 22nd is still this week.
+  await page.clock.setSystemTime(new Date(2026, 10, 22, 9)); await page.reload();
+  await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'done');
+  // The first row's day name on Sunday is Day 1's (it comes round on Sunday): the reveal said so.
+  expect(dayOne).toMatch(/^Sun/);
+  // Monday the 23rd: a new week. The critic saw Day 1 still marked done from the week before under "This week".
+  await page.clock.setSystemTime(new Date(2026, 10, 23, 8)); await page.reload();
+  await expect(page.getByTestId('week-label')).toHaveText('This week');
+  await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'todo');
+  await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'next');
+  await expect(page.locator('[data-testid^="week-day-"][data-state="done"]')).toHaveCount(0);
+  // Nothing saved was touched: the pass still holds Day 1 as done and Day 2 as next.
+  const kept = (await dbAll<{ doneDays: number[]; nextDayIndex: number }>(page, 'planState'))[0]!;
+  expect(kept.doneDays).toEqual([0]); expect(kept.nextDayIndex).toBe(1);
+});
+
 test('round 3 (critic 2): a fixed schedule saved with too few weekdays is asked for on Today, never pretended', async ({ page }) => {
   await toFocus(page); await pick(page, 'focus', 'balance'); await rest(page, 'fixed'); await accept(page);
   const profile = (await dbAll<Record<string, unknown> & { intake: Record<string, unknown> }>(page, 'profile'))[0]!;
@@ -604,9 +656,17 @@ test('round 3 (critic 2): Add a day on a fixed schedule asks which weekday, and 
   await rest(page, 'fixed', { days: '2', minutes: '30', weekdays: ['mon', 'thu'] });
   await expect(page.getByTestId('reveal-week').locator('li')).toHaveCount(2); await expect(page.getByTestId('reveal-week')).toContainText('Mon'); await expect(page.getByTestId('reveal-week')).toContainText('Thu');
   await expect(page.getByTestId('focus-fit')).toContainText('3 days');
+  const before = await page.getByTestId('reveal-plan-name').textContent();
   await page.getByTestId('focus-add-day').tap();
   // The plan is not rebuilt until the day has its weekday: the chips open in place, the picked days stay picked and cannot be taken away here.
-  const ask = page.getByTestId('focus-add-which'); await expect(ask).toContainText('Which day do you add?'); await expect(ask).toContainText('Your plan has 3 days. Pick 1 more.');
+  // Truth pass (critic r3 12): the plan is not rebuilt yet, so the hint says what it will have, and the card names the plan as it will be.
+  const ask = page.getByTestId('focus-add-which'); await expect(ask).toContainText('Which day do you add?'); await expect(ask).toContainText('Your plan will have 3 days. Pick 1 more.');
+  expect(before).toMatch(/^2 Day /); await expect(page.getByTestId('reveal-plan-name')).toHaveText(/^3 Day /);
+  // The person's own days read as chosen, not as unavailable: a solid accent edge at full strength, like any picked chip; a free day is a plain chip.
+  const look = (id: string) => page.getByTestId(id).evaluate((el) => { const c = getComputedStyle(el); return { edge: c.borderTopStyle, opacity: c.opacity, color: c.borderTopColor }; });
+  const own = await look('focus-add-mon'), free = await look('focus-add-sat');
+  expect(own.edge).toBe('solid'); expect(own.opacity).toBe('1'); expect(own.color).not.toBe(free.color);
+  expect(await look('focus-add-thu')).toEqual(own);
   await expect(page.getByTestId('reveal-week').locator('li')).toHaveCount(2);
   await expect(page.getByTestId('focus-add-mon')).toBeDisabled(); await expect(page.getByTestId('focus-add-mon')).toHaveAttribute('aria-pressed', 'true');
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });

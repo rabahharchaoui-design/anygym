@@ -5,6 +5,7 @@
 // week either it says so and offers a quick workout, never a made up plan.
 import { normalizeFocusPicks } from '../plan/focus';
 import { scheduleStyleOf } from '../plan/schedule';
+import { comingWeekdays } from '../plan/weekdays';
 import type { Plan } from '../plans';
 import { estimateDayMinutes } from '../plans';
 import type { SwapData } from '../swap';
@@ -51,9 +52,15 @@ export function fitScore(plan: Plan, a: IntakeAnswers): number {
  * The week as the plan will run it: the user's days when there is one for each plan day, else
  * Day 1 to N. Every workout always shows, once (never hidden, never repeated).
  */
-export function weekOf(plan: Plan, a: IntakeAnswers): WeekSlot[] {
+export function weekOf(plan: Plan, a: IntakeAnswers, from?: { order: readonly number[]; now: number }): WeekSlot[] {
   const order = WEEKDAYS.map((d) => d.id);
   const days = [...(scheduleStyleOf(a) === 'fixed' ? a.weekdays ?? [] : [])].sort((x, y) => order.indexOf(x) - order.indexOf(y));
+  // Truth pass (critic r3 7): on fixed weekdays the rows are the days in the order Today will follow from the person's
+  // place (`from.order`), each on the weekday it really falls on from today: never "Tue · Upper A" when Tuesday is Day 2.
+  if (from && days.length === plan.days.length && from.order.length === plan.days.length && new Set(from.order).size === plan.days.length && from.order.every((i) => !!plan.days[i])) {
+    const coming = comingWeekdays(days, from.now);
+    return from.order.map((dayIndex, i) => ({ label: labelOf(WEEKDAYS, coming[i]) ?? coming[i]!, dayName: plan.days[dayIndex]!.name, dayIndex }));
+  }
   return plan.days.map((d, i) => ({
     label: days.length === plan.days.length ? (labelOf(WEEKDAYS, days[i]) ?? days[i]!) : `Day ${i + 1}`,
     dayName: d.name,

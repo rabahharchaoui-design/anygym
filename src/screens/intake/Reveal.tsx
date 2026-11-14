@@ -13,7 +13,7 @@ import { BottomCTA } from '../../ui/BottomCTA';
 import { ChoiceCard } from '../../ui/ChoiceCard';
 import { useNav } from '../../ui/nav';
 import { useTapGuard } from '../../hooks/useTapGuard';
-import { useRestartsFromDayOne } from '../../hooks/usePlanPlace';
+import { usePlanPlace } from '../../hooks/usePlanPlace';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/planPick';
 import { generatorInputOf } from '../../lib/intake/yourPlan';
@@ -49,17 +49,22 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
   const mine = useMemo(() => (built?.ok ? definitionPlan(built.plan) : undefined), [built]);
   // PLAN 3.6f: what did not fit, and a day or minutes only when a rebuild with it really fits more.
   const focusNote = useMemo(() => (built?.ok ? focusFit(answers, built.applied.focusReport, (a) => { const r = generate(generatorInputOf(a)); return r.ok ? r.applied.focusReport : undefined; }) : null), [built, answers]);
+  // Truth pass (critic r3 12): while "Which day do you add?" is open the card names the plan as it will be ("3 Day Full Body").
+  const [asking, setAsking] = useState<Pick<IntakeAnswers, 'days' | 'minutes' | 'weekdays'> | null>(null);
+  useEffect(() => setAsking(null), [answers]);
+  const askedName = useMemo(() => { const r = asking ? generate(generatorInputOf({ ...answers, ...asking })) : null; return r?.ok ? r.plan.name : null; }, [asking, answers]);
   const [chosenId, setChosenId] = useState(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null);
   useEffect(() => { setChosenId(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null); }, [mine?.id]); // A rebuild replaces the generated choice.
   const isMine = !!mine && chosenId === mine.id;
   const plan = isMine ? mine : planById(chosenId ?? undefined);
   const fits = pick.kind === 'plan' ? [pick.plan, ...pick.others] : [];
-  const week = plan ? weekOf(plan, answers) : [];
+  // Round 3 and the truth pass: a rebuild keeps the person's place. The day list follows it (the weekday each day
+  // will really fall on), and when the place cannot be kept the reveal says so before they accept.
+  const place = usePlanPlace(plan);
+  const week = plan ? weekOf(plan, answers, { order: place.order, now: Date.now() }) : [];
   // B1: the moves the day list will swap at this gym are said, never hidden.
   const fit = useMemo(() => (plan && !isMine ? planFit(SWAP_DATA, plan, answers) : null), [plan, isMine, answers]);
   const words = plan ? explainPick(plan, answers, fit?.swapped ?? 0, fit?.noFit.length ?? 0, isMine && built?.ok ? built.applied : undefined) : null;
-  // Round 3: a rebuild keeps the person's place; when it cannot, the reveal says so before they accept.
-  const restarts = useRestartsFromDayOne(plan);
   const none = noPlanWords(answers.place);
   // Why the generator could not build a week here, in its own words (never a padded plan).
   const failure = built && !built.ok ? built.reason : null;
@@ -142,7 +147,7 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
           {plan && <ArtScene name="planReady" width={72} end />}
         </div>
         <section className={revealStyles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
-          {plan && <p className={revealStyles.planName}>{plan.name}</p>}
+          {plan && <p className={revealStyles.planName} data-testid="reveal-plan-name">{(isMine && askedName) || plan.name}</p>}
           {words?.summary ? (
             <>
               {/* Round 3 (B2): one honest line up front; the fit details one tap away, every fact kept. */}
@@ -201,11 +206,17 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
               fit={focusNote}
               {...(scheduleStyleOf(answers) === 'fixed' ? { weekdays: answers.weekdays ?? [] } : {})}
               onApply={(patch) => onChange({ ...answers, ...patch })}
+              onAsking={setAsking}
             />
           ) : null}
-          {restarts && (
+          {place.restarts && (
             <p className={revealStyles.caveat} data-testid="reveal-restart">
               Your rotation starts again from Day 1. Your logged workouts stay.
+            </p>
+          )}
+          {place.keptNext !== null && (
+            <p className={revealStyles.caveat} data-testid="reveal-kept">
+              You keep your place: Day {place.keptNext} is next.
             </p>
           )}
           {plan && (

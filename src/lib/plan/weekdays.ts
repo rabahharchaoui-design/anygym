@@ -34,6 +34,17 @@ export function fixedDaysOf(style: ScheduleStyle, weekdays: readonly string[] | 
   return { weekdays: clean, planDays, missing: Math.max(0, planDays - clean.length), extra: Math.max(0, clean.length - planDays) };
 }
 
+/**
+ * The weekdays the coming training days fall on, in the order they come from `now` on: today first
+ * when it is one of them, then round the week (truth pass, critic r3 7). Each weekday once.
+ */
+export function comingWeekdays(weekdays: readonly string[] | undefined, now: number): WeekdayId[] {
+  const clean = cleanWeekdays(weekdays);
+  const today = (new Date(now).getDay() + 6) % 7;
+  const at = clean.findIndex((d) => ORDER.indexOf(d) >= today);
+  return at <= 0 ? clean : [...clean.slice(at), ...clean.slice(0, at)];
+}
+
 /** One more weekday, Monday first (the reveal's "Add a day" on a fixed schedule). */
 export const addWeekday = (weekdays: readonly string[] | undefined, day: WeekdayId): WeekdayId[] => cleanWeekdays([...(weekdays ?? []), day]);
 
@@ -52,4 +63,9 @@ export function fixedPickWords(planDays: number, picked: number): string {
   if (picked === planDays) return `${plan} You picked ${picked === 1 ? 'it' : `all ${picked}`}.`;
   if (picked < planDays) return `${plan} Pick ${planDays - picked}${picked ? ' more' : ''}.`;
   return `${plan} Take ${picked - planDays} away.`;
+}
+
+/** Under the reveal's "Which day do you add?": the plan is not rebuilt until the day is picked, so it "will have" its days (truth pass, critic r3 12). */
+export function addDayWords(planDays: number, picked: number): string {
+  return `Your plan will have ${plural(planDays, 'day', 'days')}. Pick ${Math.max(1, planDays - picked)} more.`;
 }

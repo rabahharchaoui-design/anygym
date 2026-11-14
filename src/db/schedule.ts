@@ -1,8 +1,9 @@
 // Schedule reads and weekly choices; writes commit together on the phone, offline.
-import { planById } from '../data/plans';
+import { isGeneratedId, planById } from '../data/plans';
 import { profileFor } from '../data/order';
 import { adaptedPlanDay, alwaysPicks } from './planAdapt';
-import { weekKey } from '../lib/coach/time';
+import { weekKey, weekStart } from '../lib/coach/time';
+import { weekDaysOf } from '../lib/plan/weekStrip';
 import { asksWeeklySchedule, needsWeeklySchedule, resolveNextDay, restDayOf, rotationOf, scheduleStyleOf, weekChoice, weekdaysLeft, type WeeklySchedule } from '../lib/plan/schedule';
 import { WEEKDAYS, type WeekdayId } from '../lib/intake/options';
 import { cleanWeekdays, fixedDaysOf, fixedScheduleHolds } from '../lib/plan/weekdays';
@@ -10,7 +11,7 @@ import { getProfile } from './intake';
 import { readTrainingLog } from './training';
 import { countedTraining } from '../lib/plan/recovery';
 import { keptDayOf } from '../lib/finishPlan';
-import { dayIdOf } from '../lib/plans';
+import { dayIdOf, dayIndexOf } from '../lib/plans';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { PlanState, Profile } from './types';
 
@@ -44,8 +45,16 @@ export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
     const weekdays = style === 'weekly' ? (profile?.weeklySchedule?.weekKey === weekKey(now) ? profile.weeklySchedule.weekdays : undefined) : profile?.intake?.weekdays;
     // Round 3: a fixed schedule whose weekdays do not number the plan's days is found here, never papered over.
     const fixedDays = state && resolved ? fixedDaysOf(style, profile?.intake?.weekdays, planDays) : null;
+    // "This week" on a fixed schedule means this calendar week: the plan days with a finished workout since Monday.
+    // A rebuilt "Your plan" keeps its days by position (lib/plan/carry.ts), so its earlier builds count too.
+    const plan = planById(state?.planId);
+    const mine = (id: string | undefined) => id === plan?.id || (!!id && !!plan && isGeneratedId(id) && isGeneratedId(plan.id));
+    const finished = style === 'fixed' && plan ? await db.sessions.where('startedAt').between(weekStart(now), now, true, true).filter((s) => !s.imported && s.endedAt !== undefined && !!s.dayId && mine(s.planId)).toArray() : [];
+    const weekDays = plan ? weekDaysOf(style, finished.map((s) => ({ startedAt: s.startedAt, dayIndex: dayIndexOf(plan, s.dayId) })), now) : null;
     return {
       weekKey: weekKey(now), style, weekly: profile?.weeklySchedule, resolved, planDays, fixedDays,
+      /** Fixed schedule: the plan days trained this calendar week (the strip's "This week"). Null on a rotation. */
+      weekDays,
       needsWeek: needsWeeklySchedule(profile?.intake, profile?.weeklySchedule, now),
       /** The sheet opens by itself (not straight after the intake late in a week). */
       asksWeek: asksWeeklySchedule({ answers: profile?.intake, saved: profile?.weeklySchedule, now, intakeDoneAt: profile?.intakeDoneAt, planDays }),

@@ -4,7 +4,7 @@ import { WeekdayChips } from '../../components/WeekdayChips';
 import type { FocusFit } from '../../lib/intake/focusFit';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import type { WeekdayId } from '../../lib/intake/options';
-import { cleanWeekdays, fixedPickWords, freeWeekdays } from '../../lib/plan/weekdays';
+import { addDayWords, cleanWeekdays, freeWeekdays } from '../../lib/plan/weekdays';
 import styles from './IntakeReveal.module.css';
 
 type Patch = Pick<IntakeAnswers, 'days' | 'minutes' | 'weekdays'>;
@@ -14,6 +14,8 @@ type Props = {
   weekdays?: readonly WeekdayId[];
   /** Rebuilds the plan with these answers changed. */
   onApply: (patch: Patch) => void;
+  /** The weekday question is open for this step (null: closed), so the card can name the plan as it will be. */
+  onAsking?: (patch: Patch | null) => void;
 };
 
 /**
@@ -21,8 +23,9 @@ type Props = {
  * a day more needs its weekday (round 3, critic 2): the chips open in place and one tap adds the
  * day and rebuilds, so the weekdays always number the plan's days.
  */
-export function RevealFit({ fit, weekdays, onApply }: Props) {
-  const [asking, setAsking] = useState<Patch | null>(null);
+export function RevealFit({ fit, weekdays, onApply, onAsking }: Props) {
+  const [asking, setAskingState] = useState<Patch | null>(null);
+  const setAsking = (patch: Patch | null) => { setAskingState(patch); onAsking?.(patch); };
   const [picked, setPicked] = useState<WeekdayId[]>([]);
   const add = (patch: Patch) => {
     // A flexible plan, or minutes only: nothing more to ask.
@@ -48,7 +51,7 @@ export function RevealFit({ fit, weekdays, onApply }: Props) {
           <p className={styles.fitLine}>{fit.addDays ? 'Which days do you add?' : 'Which day do you add?'}</p>
           <WeekdayChips value={picked} onChange={choose} label="Day to add" testIdPrefix="focus-add" open={freeWeekdays(weekdays)} />
           <p className={styles.fitNote} aria-live="polite">
-            {fixedPickWords(asking.days!, picked.length)}
+            {addDayWords(asking.days!, picked.length)}
           </p>
         </div>
       ) : (

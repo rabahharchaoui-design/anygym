@@ -205,7 +205,12 @@
   pointer-events: none;
 }
 
+/* Truth pass (critic r3 12): a day that is already the person's own (their weekdays when adding one, a day of this week
+   already past) reads as chosen, never as unavailable: the full picked look, only without the press. */
 .chip:disabled[aria-pressed='true'] {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  border-style: solid;
+  border-color: var(--accent);
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--accent) 5%, transparent)), var(--surface-1);
+  color: var(--text);
+  opacity: 1;
 }

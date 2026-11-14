@@ -4,6 +4,7 @@ import { estimateDayMinutes, type Plan } from '../../lib/plans';
 import { dayTitle } from '../plans/planWords';
 import { Button } from '../../ui/Button';
 import { Ring } from '../../ui/Ring';
+import { stripMarks } from '../../lib/plan/weekStrip';
 import styles from '../TodayScreen.module.css';
 import own from './DayCard.module.css';
 
@@ -26,6 +27,8 @@ type Props = {
   rest?: { title: string; next: string } | null;
   /** PLAN 3.5f: look through the day's lifts as a deck before Start (swap or hide any). */
   onPreview?: () => void;
+  /** Fixed schedule: the plan days trained this calendar week, so "This week" shows this week only (lib/plan/weekStrip.ts). Null or absent: the whole pass. */
+  weekDays?: readonly number[] | null;
 };
 
 /** "A · B · C": each part carries its own dot, so a line never starts or ends on one (DayCard.module.css). */
@@ -45,7 +48,7 @@ const parts = (list: readonly ReactNode[]) =>
  * pips (done, part done as a ring, up next) and Change day. While the day is in progress it is the
  * one card on Today: "Day 1 · in progress · 2 sets" with Resume.
  */
-export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime, onPreview, flexible, rest }: Props) {
+export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime, onPreview, flexible, rest, weekDays }: Props) {
   const dayIndex = Math.max(0, Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1));
   const day = plan.days[dayIndex]!;
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
@@ -53,7 +56,9 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
   const line = day.focusWhy?.[0];
   const cut = line ? line.indexOf(': ') : -1;
   const why = line ? (cut === -1 ? { head: line, tail: '' } : { head: line.slice(0, cut + 2), tail: line.slice(cut + 2) }) : null;
-  const done = new Set(state.doneDays);
+  // Truth pass (critic r3 9): under "This week" only this week's marks show; a rotation shows its own pass.
+  const marks = stripMarks(state, plan.weeks || flexible ? null : weekDays);
+  const done = new Set(marks.done);
   const resting = active ? null : rest ?? null;
   // A rest day says one thing (truth pass, critic r3 5): no "Extra today" or "… first today" under "Rest day".
   const saysWhy = why && !resting;
@@ -107,7 +112,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
           {plan.weeks ? `Week ${weekIndex + 1} of ${plan.weeks}` : flexible ? 'This rotation' : 'This week'}
           {/* What a half filled dot means (gate P14): "This week · Day 1 started", from the same part done shares. */}
           {(() => {
-            const started = plan.days.filter((_, i) => state.partial?.[i] !== undefined && !done.has(i)).map((d) => d.n);
+            const started = plan.days.filter((_, i) => marks.partial[i] !== undefined && !done.has(i)).map((d) => d.n);
             if (!started.length) return null;
             return (
               <span className={styles.stripNote} data-testid="week-started">
@@ -119,7 +124,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
         </p>
         <ol className={styles.days} aria-label="Days">
           {plan.days.map((d, i) => {
-            const share = state.partial?.[i];
+            const share = marks.partial[i];
             const status = i === dayIndex ? 'next' : done.has(i) ? 'done' : share !== undefined ? 'partial' : 'todo';
             // A day kept up next after a part done finish (PLAN 2.0a) is both: up next, with its ring.
             const ring = share !== undefined && (status === 'partial' || (status === 'next' && !done.has(i)));
