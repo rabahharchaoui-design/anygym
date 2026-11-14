@@ -136,6 +136,8 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
 });
 
 test('five priorities, sheet dismissal, balance clearing, accessible ranking and Settings redo', async ({ page }) => {
+  // A long journey (two intakes, the Undo toast's arming time): Chromium on the Pixel profile needs more than the 30 s default.
+  test.setTimeout(60_000);
   await toFocus(page); await part(page, 'back', 'lats');
   await pick(page, 'focus', 'arms');
   await page.getByRole('dialog').getByTestId('focus-part-biceps').tap();
@@ -154,6 +156,8 @@ test('five priorities, sheet dismissal, balance clearing, accessible ranking and
   await rankDone(page);
   // A choice the app has no sure exercise for says so before it is picked, on the tile and in the sheet.
   await expect(page.getByTestId('q-focus-grip')).toContainText('No exercises yet');
+  // Said whole: the tile's quiet line is never cut short here (it wraps on the 320 floor).
+  expect(await page.getByTestId('q-focus-grip').locator('span span').evaluate((h) => h.scrollWidth <= h.clientWidth)).toBe(true);
   await pick(page, 'focus', 'arms'); await expect(page.getByTestId('focus-part-forearms')).toContainText('No exercises yet'); await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   // Design round 2 (critic MAJOR 8): balance says what it is, clears the picks with an Undo, and Undo brings them back in their order.

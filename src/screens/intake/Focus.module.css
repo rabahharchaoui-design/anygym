@@ -20,8 +20,9 @@
 .tiles > button {
   height: 100%;
   min-height: 0;
-  padding: var(--space-1) var(--space-3);
-  gap: 10px;
+  /* Close to the edge, so "No exercises yet" fits whole in a half width tile on a 375 pt phone. */
+  padding: var(--space-1) 10px;
+  gap: var(--space-2);
 }
 
 /* The area's own sign, big enough to tell apart at a glance (PLAN 3.6i swaps the drawings). */
@@ -65,11 +66,6 @@
 
   .tiles > button > span > span {
     white-space: normal;
-  }
-
-  .tiles > button {
-    padding-inline: 10px;
-    gap: var(--space-2);
   }
 }
 
