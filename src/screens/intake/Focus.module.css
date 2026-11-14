@@ -7,29 +7,41 @@
   min-width: 0;
 }
 
-/* Two calm columns of 56 pt rows (icon, name, one quiet line); the last one, alone, takes the row. */
+/* Two calm columns (one when the text is large, so a name is never cut or broken), every tile the
+   same height whether or not it is picked: the name on one line, one quiet line under it. */
 .tiles {
+  --tile: max(56px, calc(var(--text-base) * 1.2 + var(--text-sm) * 1.25 + 16px));
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: minmax(56px, auto);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--text-base) * 8.4)), 1fr));
+  grid-auto-rows: var(--tile);
   gap: var(--space-2);
 }
 
 .tiles > button {
   height: 100%;
+  min-height: 0;
   padding: var(--space-1) var(--space-3);
   gap: 10px;
 }
 
-/* The name and its one quiet line sit close; a long line wraps (it is never cut short). */
-.tiles > button > span {
-  flex: 1;
-  line-height: 1.15;
+/* The area's own sign, big enough to tell apart at a glance (PLAN 3.6i swaps the drawings). */
+.tiles > button > svg {
+  width: 24px;
+  height: 24px;
 }
 
+.tiles > button > span {
+  flex: 1;
+  line-height: 1.2;
+}
+
+/* The quiet line stays on one line; a long one ends in an ellipsis, it never grows the tile. */
 .tiles > button > span > span {
   margin-top: 1px;
-  line-height: 1.2;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tiles > :last-child:nth-child(odd) {
@@ -39,9 +51,31 @@
 /* Short screens: 48 pt rows a little closer, so the three goal types stay above the button. */
 @media (max-height: 720px) {
   .tiles {
-    grid-auto-rows: minmax(48px, auto);
+    --tile: max(48px, calc(var(--text-base) * 1.2 + var(--text-sm) * 1.25 + 10px));
     gap: 6px;
   }
+}
+
+/* The 320 pt floor: two columns leave a name or its quiet line less than a line's width ("Abs and
+   core", "No exercises yet"). There the words wrap whole, never cut, and that row alone may grow. */
+@media (max-width: 340px) {
+  .tiles {
+    grid-auto-rows: minmax(var(--tile), auto);
+  }
+
+  .tiles > button > span > span {
+    white-space: normal;
+  }
+
+  .tiles > button {
+    padding-inline: 10px;
+    gap: var(--space-2);
+  }
+}
+
+/* While the Undo toast is up it rests over this line: the line waits, its place kept. */
+.note[data-under] {
+  visibility: hidden;
 }
 
 .note {
@@ -51,9 +85,15 @@
   line-height: 1.4;
 }
 
-/* From five picks: who gets the most, and the way back to the ranking. It rises into place. */
+/* From five picks: who gets the most, and the way to the ranking. It rises into place, and while
+   it asks ("Rank your 5 picks") its edge carries the accent. */
 .priorities {
   animation: rise var(--dur-base) var(--ease-out) both;
+  scroll-margin-bottom: var(--space-3);
+}
+
+.priorities[data-asks] > button {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 /* A sheet's content ends clear of the fade over the pinned button: the last row is never dimmed. */

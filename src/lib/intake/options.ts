@@ -17,14 +17,14 @@ export const GOALS = [
 export type GoalId = (typeof GOALS)[number]['id'];
 
 export const FOCUS = [
-  { id: 'chest', label: 'Chest', icon: 'Body:chest' },
-  { id: 'back', label: 'Back', icon: 'Body:back' },
-  { id: 'shoulders', label: 'Shoulders', icon: 'Body:shoulders' },
-  { id: 'arms', label: 'Arms', icon: 'Body:arms' },
-  { id: 'core', label: 'Abs and core', icon: 'Body:core' },
-  { id: 'glutes', label: 'Glutes', icon: 'Body:glutes' },
-  { id: 'legs', label: 'Legs', icon: 'Body:legs' },
-  { id: 'balance', label: 'Whole body balance', icon: 'Body:balance' },
+  { id: 'chest', label: 'Chest', icon: 'Focus:chest' },
+  { id: 'back', label: 'Back', icon: 'Focus:back' },
+  { id: 'shoulders', label: 'Shoulders', icon: 'Focus:shoulders' },
+  { id: 'arms', label: 'Arms', icon: 'Focus:arms' },
+  { id: 'core', label: 'Abs and core', icon: 'Focus:core' },
+  { id: 'glutes', label: 'Glutes', icon: 'Focus:glutes' },
+  { id: 'legs', label: 'Legs', icon: 'Focus:legs' },
+  { id: 'balance', label: 'Whole body balance', icon: 'Focus:balance' },
 ] as const satisfies readonly Option[];
 export type FocusId = (typeof FOCUS)[number]['id'];
 
@@ -204,9 +204,9 @@ export const FOCUS_PARTS = {
   legs: [{ id: 'quads', label: 'Quads' }, { id: 'hamstrings', label: 'Hamstrings' }, { id: 'calves', label: 'Calves' }],
 } as const;
 export const FOCUS_OBJECTIVES = [
-  { id: 'posture', label: 'Posture', icon: 'PersonStanding' },
-  { id: 'grip', label: 'Grip', icon: 'Hand' },
-  { id: 'mobility', label: 'Mobility', icon: 'Wind' },
+  { id: 'posture', label: 'Posture', icon: 'Focus:posture' },
+  { id: 'grip', label: 'Grip', icon: 'Focus:grip' },
+  { id: 'mobility', label: 'Mobility', icon: 'Focus:mobility' },
 ] as const satisfies readonly Option[];
 export const FOCUS_PICKS = [...FOCUS, ...Object.values(FOCUS_PARTS).flat(), ...FOCUS_OBJECTIVES];
 export type FocusPickId = (typeof FOCUS_PICKS)[number]['id'];
