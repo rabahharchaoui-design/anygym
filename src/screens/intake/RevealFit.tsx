@@ -14,8 +14,6 @@ type Props = {
   weekdays?: readonly WeekdayId[];
   /** Rebuilds the plan with these answers changed. */
   onApply: (patch: Patch) => void;
-  /** The weekday question is open for this step (null: closed), so the card can name the plan as it will be. */
-  onAsking?: (patch: Patch | null) => void;
 };
 
 /**
@@ -23,9 +21,8 @@ type Props = {
  * a day more needs its weekday (round 3, critic 2): the chips open in place and one tap adds the
  * day and rebuilds, so the weekdays always number the plan's days.
  */
-export function RevealFit({ fit, weekdays, onApply, onAsking }: Props) {
-  const [asking, setAskingState] = useState<Patch | null>(null);
-  const setAsking = (patch: Patch | null) => { setAskingState(patch); onAsking?.(patch); };
+export function RevealFit({ fit, weekdays, onApply }: Props) {
+  const [asking, setAsking] = useState<Patch | null>(null);
   const [picked, setPicked] = useState<WeekdayId[]>([]);
   const add = (patch: Patch) => {
     // A flexible plan, or minutes only: nothing more to ask.

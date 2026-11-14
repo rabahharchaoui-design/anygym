@@ -175,10 +175,21 @@
   border-top: 1px solid var(--hairline);
 }
 
+/* The name asks for room for about two short words; when that and the numbers do not fit on one line
+   (large text on a small phone), the numbers wrap under it and the name has the whole row. */
 .exerciseName {
-  flex: 1 1 0;
-  min-width: min-content;
+  flex: 1 1 min(100%, 11em);
+  min-width: min(100%, min-content);
   overflow-wrap: break-word;
+}
+
+/* Two lines, then an ellipsis: never a narrow column five lines tall. */
+.exerciseTitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 .exerciseBest {
@@ -256,6 +267,7 @@
 
 .exerciseLeft {
   display: block;
+  white-space: nowrap;
   color: var(--text-2);
   font-size: 13px;
   font-weight: 600;

@@ -210,7 +210,8 @@ export function FinishScreen() {
                     return (
                       <li key={r.id} className={styles.exerciseRow} data-testid="finish-exercise">
                         <span className={styles.exerciseName}>
-                          {name(r.id)}
+                          {/* Truth pass (critic r3 13): the name reads on up to two lines, then an ellipsis; its numbers drop under it when they do not fit beside it. */}
+                          <span className={styles.exerciseTitle} data-testid="finish-exercise-name">{name(r.id)}</span>
                           {planned && count < planned ? (
                             <span className={`${styles.exerciseLeft} num`} data-testid="finish-sets-left">
                               {count} of {planned} sets
@@ -272,7 +273,8 @@ export function FinishScreen() {
                     </p>
                   ) : progress && nextIndex === dayIndex && progress.planned > 0 && (
                     <p className={styles.nextWhy} data-testid="finish-next-why">
-                      Day {nextDay.n} again · you did {progress.logged} of {progress.planned} sets
+                      {/* "4 of 17 sets" stays together: "sets" is never left alone on a line. */}
+                      Day {nextDay.n} again · you did <span className={styles.keep}>{progress.logged} of {progress.planned} sets</span>
                     </p>
                   )}
                 </div>

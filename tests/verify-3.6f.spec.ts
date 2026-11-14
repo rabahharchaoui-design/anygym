@@ -468,6 +468,36 @@ test('round 3 (critic 15): the finish screen at 130% text breaks no exercise nam
   }
 });
 
+test('truth pass (critic r3 13): on an SE at 130% text the finish row keeps the exercise name readable, and "sets" is never alone on a line', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 375, height: 667 });
+  await textScale(page, 1.3);
+  await toFocus(page); await pick(page, 'focus', 'balance'); await rest(page); await accept(page);
+  await page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  // Four sets of the first lift only (the critic's case: "Barbell Bench Press - Medium Grip", 4 sets × 8 at 45 lb), then Finish.
+  const s = (await dbAll<{ id: string; exerciseIds: string[]; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
+  for (let n = 0; n < 4; n++) await put(page, 'sets', { id: `se-${n}`, sessionId: s.id, exerciseId: s.exerciseIds[0], order: n, kind: 'work', reps: 8, load: { kind: 'barbell', unit: 'lb', total: 45, barWeight: 45, perSide: [] }, uncertain: false });
+  await page.reload();
+  await page.getByRole('button', { name: 'Finish', exact: true }).tap();
+  const confirm = page.getByRole('dialog').getByRole('button', { name: /Finish/ });
+  if (await confirm.isVisible().catch(() => false)) await confirm.tap();
+  const row = page.getByTestId('finish-exercise').first(); await expect(row).toBeVisible(); await page.waitForTimeout(900);
+  const name = row.getByTestId('finish-exercise-name');
+  await expect(name).toHaveText(/\w+ \w+/);
+  // The name: at most two lines, and wide (the critic saw a five line column beside the numbers).
+  const shape = await name.evaluate((el) => { const r = el.getBoundingClientRect(); return { lines: Math.round(r.height / parseFloat(getComputedStyle(el).lineHeight)), share: r.width / el.closest('li')!.getBoundingClientRect().width }; });
+  expect(shape.lines).toBeLessThanOrEqual(2);
+  expect(shape.share).toBeGreaterThan(0.55);
+  expect(await row.evaluate(brokenWords), await row.innerText()).toEqual([]);
+  expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  // "you did 4 of N sets": the count and its word stay on one line.
+  const why = page.getByTestId('finish-next-why');
+  await expect(why).toHaveText(/^Day 1 again · you did 4 of \d+ sets$/);
+  expect(await why.locator('span').evaluate((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size)).toBe(1);
+  expect((await why.evaluate(wordsPerLine)).at(-1)).toBeGreaterThan(1);
+});
+
 /** Round 3 (critic 6): Today is at its top: the day card starts under the header with its plan name in view, and the toast is over no button. */
 async function landedAtTop(page: Page, toastText: string) {
   const toast = page.getByRole('status').filter({ hasText: toastText }); await expect(toast).toBeVisible();
@@ -659,9 +689,9 @@ test('round 3 (critic 2): Add a day on a fixed schedule asks which weekday, and 
   const before = await page.getByTestId('reveal-plan-name').textContent();
   await page.getByTestId('focus-add-day').tap();
   // The plan is not rebuilt until the day has its weekday: the chips open in place, the picked days stay picked and cannot be taken away here.
-  // Truth pass (critic r3 12): the plan is not rebuilt yet, so the hint says what it will have, and the card names the plan as it will be.
+  // Truth pass (critic r3 12): the plan is not rebuilt yet, so the card still names and describes the plan as it is (2 days), and the hint says what it will have: nothing on the card says "has 3 days" before it does.
   const ask = page.getByTestId('focus-add-which'); await expect(ask).toContainText('Which day do you add?'); await expect(ask).toContainText('Your plan will have 3 days. Pick 1 more.');
-  expect(before).toMatch(/^2 Day /); await expect(page.getByTestId('reveal-plan-name')).toHaveText(/^3 Day /);
+  expect(before).toMatch(/^2 Day /); await expect(page.getByTestId('reveal-plan-name')).toHaveText(before!); await expect(page.getByTestId('reveal-card')).not.toContainText(/has 3 days|3 Day /);
   // The person's own days read as chosen, not as unavailable: a solid accent edge at full strength, like any picked chip; a free day is a plain chip.
   const look = (id: string) => page.getByTestId(id).evaluate((el) => { const c = getComputedStyle(el); return { edge: c.borderTopStyle, opacity: c.opacity, color: c.borderTopColor }; });
   const own = await look('focus-add-mon'), free = await look('focus-add-sat');
@@ -671,8 +701,8 @@ test('round 3 (critic 2): Add a day on a fixed schedule asks which weekday, and 
   await expect(page.getByTestId('focus-add-mon')).toBeDisabled(); await expect(page.getByTestId('focus-add-mon')).toHaveAttribute('aria-pressed', 'true');
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });
   await page.getByTestId('focus-add-sat').tap();
-  // One tap: three days, each with its weekday.
-  await expect(page.getByTestId('reveal-week').locator('li')).toHaveCount(3);
+  // One tap: three days, each with its weekday, and now the card names the three day plan.
+  await expect(page.getByTestId('reveal-week').locator('li')).toHaveCount(3); await expect(page.getByTestId('reveal-plan-name')).toHaveText(/^3 Day /);
   for (const d of ['Mon', 'Thu', 'Sat']) await expect(page.getByTestId('reveal-week')).toContainText(d);
   await expect(page.getByTestId('reveal-week')).not.toContainText('Day 1');
   await accept(page);

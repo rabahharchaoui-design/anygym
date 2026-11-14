@@ -17,8 +17,6 @@ type Props = {
   weekdays?: readonly WeekdayId[];
   /** Rebuilds the plan with a day, minutes or both more. */
   onApply: (patch: Pick<IntakeAnswers, 'days' | 'minutes' | 'weekdays'>) => void;
-  /** The "which day do you add?" question is open for this step (null: closed). */
-  onAsking?: (patch: Pick<IntakeAnswers, 'days' | 'minutes' | 'weekdays'> | null) => void;
 };
 
 /**
@@ -28,12 +26,12 @@ type Props = {
  * an area's muscles sit on a second quiet line. When something did not fit, that comes first with
  * its one tap (add a day, add minutes), so it is never below the list.
  */
-export function RevealFocus({ report, period, fit, weekdays, onApply, onAsking }: Props) {
+export function RevealFocus({ report, period, fit, weekdays, onApply }: Props) {
   // Who really got the most and why, composed from the result (never the promise made before the plan existed).
   const summary = focusSummary(report, !!fit?.named);
   return (
     <div className={styles.focus} data-testid="reveal-focus">
-      {fit && <RevealFit fit={fit} onApply={onApply} {...(onAsking ? { onAsking } : {})} {...(weekdays ? { weekdays } : {})} />}
+      {fit && <RevealFit fit={fit} onApply={onApply} {...(weekdays ? { weekdays } : {})} />}
       {summary && (
         <p className={styles.focusSummary} data-testid="focus-summary">
           {summary}

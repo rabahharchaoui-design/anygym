@@ -49,10 +49,6 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
   const mine = useMemo(() => (built?.ok ? definitionPlan(built.plan) : undefined), [built]);
   // PLAN 3.6f: what did not fit, and a day or minutes only when a rebuild with it really fits more.
   const focusNote = useMemo(() => (built?.ok ? focusFit(answers, built.applied.focusReport, (a) => { const r = generate(generatorInputOf(a)); return r.ok ? r.applied.focusReport : undefined; }) : null), [built, answers]);
-  // Truth pass (critic r3 12): while "Which day do you add?" is open the card names the plan as it will be ("3 Day Full Body").
-  const [asking, setAsking] = useState<Pick<IntakeAnswers, 'days' | 'minutes' | 'weekdays'> | null>(null);
-  useEffect(() => setAsking(null), [answers]);
-  const askedName = useMemo(() => { const r = asking ? generate(generatorInputOf({ ...answers, ...asking })) : null; return r?.ok ? r.plan.name : null; }, [asking, answers]);
   const [chosenId, setChosenId] = useState(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null);
   useEffect(() => { setChosenId(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null); }, [mine?.id]); // A rebuild replaces the generated choice.
   const isMine = !!mine && chosenId === mine.id;
@@ -147,7 +143,7 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
           {plan && <ArtScene name="planReady" width={72} end />}
         </div>
         <section className={revealStyles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
-          {plan && <p className={revealStyles.planName} data-testid="reveal-plan-name">{(isMine && askedName) || plan.name}</p>}
+          {plan && <p className={revealStyles.planName} data-testid="reveal-plan-name">{plan.name}</p>}
           {words?.summary ? (
             <>
               {/* Round 3 (B2): one honest line up front; the fit details one tap away, every fact kept. */}
@@ -206,7 +202,6 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
               fit={focusNote}
               {...(scheduleStyleOf(answers) === 'fixed' ? { weekdays: answers.weekdays ?? [] } : {})}
               onApply={(patch) => onChange({ ...answers, ...patch })}
-              onAsking={setAsking}
             />
           ) : null}
           {place.restarts && (
