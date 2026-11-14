@@ -1,6 +1,7 @@
 import { BatteryCharging } from 'lucide-react';
 import type { Plan } from '../../lib/plans';
 import { dayTitle } from '../plans/planWords';
+import { RECOVER } from '../../lib/plan/scheduleWords';
 import { Button } from '../../ui/Button';
 import styles from '../TodayScreen.module.css';
 import own from './DayCard.module.css';
@@ -9,8 +10,8 @@ type Props = {
   plan: Plan;
   /** The most rested day left, the one "Train anyway" picks (lib/plan/schedule.ts: anywayIndex). */
   nextIndex?: number;
-  /** "Chest and shoulders trained yesterday." and "Ready tomorrow morning." (lib/plan/scheduleWords.ts). */
-  words: { trained: string; ready: string } | null;
+  /** The title, why and "Ready tomorrow morning." (lib/plan/scheduleWords.ts): "Done for today" after a workout today, never "Rest today" then. */
+  words: { title: string; line: string; ready: string } | null;
   onTrain: (dayIndex: number) => void;
 };
 
@@ -24,9 +25,9 @@ export function RecoveryCard({ plan, nextIndex, words, onTrain }: Props) {
   return (
     <section className={styles.pick} data-testid="rotation-recovery">
       <p className={styles.planName}>{plan.name}</p>
-      <h2 className={styles.pickTitle}>Time to recover</h2>
+      <h2 className={styles.pickTitle} data-testid="rotation-title">{(words ?? RECOVER).title}</h2>
       <p className={styles.pickSub} data-testid="rotation-why">
-        {words ? `${words.trained} ` : ''}Rest today, and your next workout keeps its place.
+        {(words ?? RECOVER).line}
       </p>
       {words && (
         <p className={own.ready} data-testid="rotation-ready">

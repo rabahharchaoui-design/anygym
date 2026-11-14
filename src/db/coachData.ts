@@ -2,7 +2,8 @@
 // finished, dated workouts count (imported history has no dates); warm ups, drops, uncertain sets
 // and sets without a load never do. Weights are never touched here.
 import { resolveSchedule } from './schedule';
-import { scheduleStyleOf } from '../lib/plan/schedule';
+import { restDayOf, scheduleStyleOf } from '../lib/plan/schedule';
+import { fixedDaysOf } from '../lib/plan/weekdays';
 import { weekKey } from '../lib/coach/time';
 import type { Region } from '../lib/bodyArt';
 import { REGION_NAMES } from '../lib/bodyArt';
@@ -187,7 +188,8 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     closed,
     liftRows: rows.lifts,
     fresh,
-    recovery: resolved?.dayIndex === null ? undefined : recoveryRegions(recent, sets, planState, now),
+    // No "today works it again" when today is not a training day: every day left is resting, or the calendar says rest (truth pass, critic r3 5).
+    recovery: resolved?.dayIndex === null || restsToday(profile, planState, now) ? undefined : recoveryRegions(recent, sets, planState, now),
     kept: resolved?.kept && planState ? await keptDay(planState, finished, db) : undefined,
     todayIds: nextDayIds(planState),
     answeredAt: rows.cards.map((c) => c.at),
@@ -227,6 +229,14 @@ function recoveryRegions(recent: readonly Session[], sets: readonly WorkoutSet[]
   const next = new Set<Region>();
   for (const e of dayWorkout(plan, index, planState.weekIndex)) if (!e.warmup && !e.finisher) for (const r of primaryRegions(e.exerciseId)) next.add(r);
   return { yesterday: [...done], next: [...next] };
+}
+
+/** Today is a rest day on the person's calendar: the same reading as Today's day card (db/schedule.ts readSchedule). */
+function restsToday(profile: Profile | undefined, planState: PlanState | undefined, now: number): boolean {
+  const plan = planById(planState?.planId);
+  if (!plan) return false;
+  const style = scheduleStyleOf(profile?.intake);
+  return !fixedDaysOf(style, profile?.intake?.weekdays, plan.days.length) && !!restDayOf(style, weekdaysOf(profile, now), now);
 }
 
 /** Today's live read: the coach's input and the rows behind it (screens/today/useCoach.ts). */

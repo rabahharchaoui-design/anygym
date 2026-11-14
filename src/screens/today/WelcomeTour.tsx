@@ -70,7 +70,7 @@ export function WelcomeTour({ show }: { show: boolean }) {
   // Opens once Today has rested, with the steps for what is really on it.
   useEffect(() => {
     if (!show) return;
-    const t = window.setTimeout(() => setSteps(tourSteps(new Set(TARGETS.filter((x) => find(x))))), SETTLE_MS);
+    const t = window.setTimeout(() => setSteps(tourSteps(new Set(TARGETS.filter((x) => find(x))), !!find('day')?.hasAttribute('data-rest'))), SETTLE_MS);
     return () => window.clearTimeout(t);
   }, [show]);
 

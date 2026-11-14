@@ -280,9 +280,11 @@ test('flexible recovery defers a trained day, then shows honest recovery when ev
   const state = (await dbAll<{ id: string; planId: string; nextDayIndex: number }>(page, 'planState'))[0]!;
   await put(page, 'sessions', { id: 'recovery-lower', gymId: 'other', startedAt: Date.now() - 1000, endedAt: Date.now(), imported: false });
   for (const n of [0, 1, 2]) await put(page, 'sets', { id: `lower-set-${n}`, sessionId: 'recovery-lower', exerciseId: 'barbell-back-squat', order: n, kind: 'work', reps: 8, load: { kind: 'barbell', unit: 'lb', total: 45, barWeight: 45, perSide: [] }, uncertain: false });
-  await page.reload(); await expect(page.getByTestId('rotation-recovery')).toContainText('Time to recover');
+  // Truth pass (critic r3 15): both workouts were today, so the card says the day is done, never "Time to recover… Rest today".
+  await page.reload(); await expect(page.getByTestId('rotation-title')).toHaveText('Done for today');
+  await expect(page.getByTestId('rotation-recovery')).not.toContainText(/Time to recover|Rest today/);
   // The card names the muscles and says when in plain words, never a clock time (round 2).
-  await expect(page.getByTestId('rotation-why')).toHaveText(/^[A-Z][a-z ,]+ trained today\. Rest today, and your next workout keeps its place\.$/);
+  await expect(page.getByTestId('rotation-why')).toHaveText(/^[A-Z][a-z ,]+ trained today\. Your next workout keeps its place\.$/);
   await expect(page.getByTestId('rotation-why')).toContainText(/chest/i);
   await expect(page.getByTestId('rotation-ready')).toHaveText(/^Ready (tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) (morning|afternoon|evening)\.$/);
   await expect(page.getByRole('region', { name: "Today's plan day" })).toHaveCount(0);
@@ -351,6 +353,39 @@ for (const scale of [1, 1.3]) test(`round 3 (critic 9): a rest day reads as a re
   await checkLayout(page, { primary: anyway });
   await anyway.tap(); await expect(page.getByTestId('workout-title')).toBeVisible();
   expect((await dbAll<{ dayId?: string; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!.dayId).toBe('1');
+});
+
+test('truth pass (critic r3 5, 6): a first Today on a rest day says one thing: the tour fits the card, no "Extra today", no coach warning', async ({ page }) => {
+  // Four weekdays that are not today: the first Today after the intake is a rest day whatever the date.
+  const at = (new Date().getDay() + 6) % 7;
+  const days = [2, 3, 4, 5].map((n) => WEEK[(at + n) % 7]!);
+  await toFocus(page); await part(page, 'back', 'lats'); await part(page, 'chest', 'upper_chest');
+  await rest(page, 'fixed', { weekdays: WEEK.filter((d) => days.includes(d)), minutes: '60' });
+  // The plan's first day does add for the picks: on a training day its card would say so.
+  await expect(page.getByTestId('reveal-day-why').first()).toHaveText(/first today|Extra today: /);
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }).tap();
+  await expect(page).toHaveURL(/#\/$/);
+  // The welcome's first step lights the day card, which has no Start today: its words say so and name the button that is there.
+  await expect(page.getByTestId('tour-words')).toHaveAttribute('data-in', 'true');
+  await expect(page.getByTestId('welcome-tour')).toHaveAttribute('data-step', 'day');
+  await expect(page.getByTestId('tour-line')).toHaveText('Today is a rest day. Your next workout waits here, or tap Train today anyway.');
+  const card = page.getByRole('region', { name: "Today's plan day" });
+  await expect(card.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
+  await expect(card.getByRole('button', { name: 'Train today anyway', exact: true })).toBeVisible();
+  await page.getByTestId('tour-skip').tap(); await expect(page.getByTestId('welcome-tour')).toHaveCount(0);
+  // Under "Rest day" there is no "Extra today…" or "… first today", and the coach says nothing about today's work.
+  await expect(page.getByTestId('day-rest')).toHaveText(/^Rest day · Next: [A-Z][a-z]{2}, Day 1$/);
+  await expect(page.getByTestId('day-focus-why')).toHaveCount(0);
+  await expect(card).not.toContainText(/Extra today|first today/);
+  await expect(page.getByTestId('coach-line')).toHaveCount(0);
+  // A workout yesterday that today's day would work again: still no "today works it again" on a rest day.
+  const day1 = (await dbAll<{ planId: string }>(page, 'planState'))[0]!;
+  const yesterday = Date.now() - 24 * 60 * 60 * 1000;
+  await put(page, 'sessions', { id: 'rest-yesterday', gymId: 'other', planId: day1.planId, dayId: '1', startedAt: yesterday, endedAt: yesterday + 1000, imported: false });
+  for (const n of [0, 1, 2]) await put(page, 'sets', { id: `rest-y-${n}`, sessionId: 'rest-yesterday', exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', order: n, kind: 'work', reps: 8, load: { kind: 'barbell', unit: 'lb', total: 45, barWeight: 45, perSide: [] }, uncertain: false });
+  await page.reload(); await expect(page.getByTestId('day-rest')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/works (it|them) again/);
+  await checkLayout(page, { primary: card.getByRole('button', { name: 'Train today anyway', exact: true }) });
 });
 
 /** The words of an element that are broken across two lines ("Deadlif / t"): none, when names wrap only between words. */

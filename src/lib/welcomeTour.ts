@@ -18,9 +18,15 @@ const ALL_STEPS: readonly TourStep[] = [
 ];
 
 /** The steps for what is on Today right now: a step whose element is not there is left out, never pointed at nothing. */
-export function tourSteps(present: ReadonlySet<TourTarget>): TourStep[] {
-  return ALL_STEPS.filter((s) => present.has(s.target) && !(s.target === 'pick' && present.has('day')));
+export function tourSteps(present: ReadonlySet<TourTarget>, restDay = false): TourStep[] {
+  return ALL_STEPS.filter((s) => present.has(s.target) && !(s.target === 'pick' && present.has('day'))).map((s) => (s.target === 'day' && restDay ? { target: s.target, line: REST_DAY_LINE } : s));
 }
+
+/**
+ * The first step when Today opens on a rest day (PLAN 3.6f truth pass, critic r3 6): the day card
+ * has no Start then, so the words fit what is on it: the rest day, and "Train today anyway".
+ */
+export const REST_DAY_LINE = 'Today is a rest day. Your next workout waits here, or tap Train today anyway.';
 
 /** Only right after a first intake, on a settled Today with no workout in progress. */
 export function shouldShowTour(flag: TourFlag | undefined, today: { ready: boolean; activeWorkout: boolean }): boolean {

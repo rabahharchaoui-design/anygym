@@ -61,7 +61,13 @@ describe('recovery words', () => {
   it('names the muscles and says when in plain words, never a clock time', () => {
     const at = new Date(2026, 10, 13, 9).getTime(); // Friday 9 AM
     const r = resolveNextDay({ state: { nextDayIndex: 0, doneDays: [], pendingDayIndices: [0] }, days, trained: { chest: at, 'front delts': at }, now });
-    expect(restingWords(r, now)).toEqual({ trained: 'Chest and shoulders trained yesterday.', ready: 'Ready tomorrow morning.' });
+    expect(restingWords(r, now)).toEqual({ trained: 'Chest and shoulders trained yesterday.', ready: 'Ready tomorrow morning.', title: 'Time to recover', line: 'Chest and shoulders trained yesterday. Rest today, and your next workout keeps its place.' });
+    // Truth pass (critic r3 15): right after today's workout nobody is told "Time to recover… Rest today": the day is done, and the next one says when it is ready.
+    const today = resolveNextDay({ state: { nextDayIndex: 0, doneDays: [], pendingDayIndices: [0] }, days, trained: { chest: at, 'front delts': at, quads: now - HOUR }, now });
+    expect(today.trainedToday).toBe(true);
+    expect(r.trainedToday).toBeUndefined();
+    expect(restingWords(today, now)).toEqual({ trained: 'Chest and shoulders trained yesterday.', ready: 'Ready tomorrow morning.', title: 'Done for today', line: 'Chest and shoulders trained yesterday. Your next workout keeps its place.' });
+    expect(restingWords(today, now)!.line).not.toMatch(/Rest today|recover/i);
     expect(restingWords(resolveNextDay({ state, days, trained: {}, now }), now)).toBeNull();
   });
   it('says later today, tomorrow or the weekday with the part of the day', () => {

@@ -18,14 +18,20 @@ export function readyWords(at: number, now: number): string {
   return `${days === 1 ? 'tomorrow' : WEEKDAY[new Date(at).getDay()]} ${part}`;
 }
 
+/** The recovery card with nothing known about the muscles: rest is part of the plan. */
+export const RECOVER = { title: 'Time to recover', line: 'Rest today, and your next workout keeps its place.' };
+
 /**
- * The recovery card's two lines: "Chest and shoulders trained yesterday." and "Ready tomorrow
- * morning." Null unless every day left is resting.
+ * The recovery card's words: "Chest and shoulders trained yesterday." and "Ready tomorrow morning.",
+ * under "Time to recover" with "Rest today, …". After a workout today (truth pass, critic r3 15)
+ * nobody is told to rest: the card says the day is done and when the next one is ready. Null unless
+ * every day left is resting.
  */
-export function restingWords(r: Pick<ResolvedDay, 'resting' | 'eligibleAt'> | null | undefined, now: number): { trained: string; ready: string } | null {
+export function restingWords(r: Pick<ResolvedDay, 'resting' | 'eligibleAt' | 'trainedToday'> | null | undefined, now: number): { trained: string; ready: string; title: string; line: string } | null {
   if (!r?.resting?.muscles.length || r.eligibleAt === undefined) return null;
   const words = [...new Set(r.resting.muscles.map((m) => muscleWord(m as Muscle) ?? m))];
-  return { trained: `${cap(wordList(words, 3))} trained ${whenWords(r.resting.trainedAt, now)}.`, ready: `Ready ${readyWords(r.eligibleAt, now)}.` };
+  const trained = `${cap(wordList(words, 3))} trained ${whenWords(r.resting.trainedAt, now)}.`;
+  return { trained, ready: `Ready ${readyWords(r.eligibleAt, now)}.`, title: r.trainedToday ? 'Done for today' : RECOVER.title, line: r.trainedToday ? `${trained} Your next workout keeps its place.` : `${trained} ${RECOVER.line}` };
 }
 
 /**

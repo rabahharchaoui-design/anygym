@@ -55,6 +55,8 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
   const why = line ? (cut === -1 ? { head: line, tail: '' } : { head: line.slice(0, cut + 2), tail: line.slice(cut + 2) }) : null;
   const done = new Set(state.doneDays);
   const resting = active ? null : rest ?? null;
+  // A rest day says one thing (truth pass, critic r3 5): no "Extra today" or "… first today" under "Rest day".
+  const saysWhy = why && !resting;
   const mins = minutes ?? estimateDayMinutes(day, weekIndex);
   const time = onTime ? (
     <button type="button" className={`${styles.dayTime} num pressable`} data-testid="day-card-time" data-trimmed={fitsIn !== undefined || undefined} aria-label={`~${mins} min, change how long`} onClick={onTime}>
@@ -65,7 +67,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
   );
   const dayParts: ReactNode[] = [`${flexible && !active && !resting ? 'Next up: ' : ''}Day ${day.n}`, day.name, ...(active ? [] : [time])];
   return (
-    <section className={styles.dayCard} aria-label="Today's plan day" data-tour="day" data-active={active ? 'true' : undefined}>
+    <section className={styles.dayCard} aria-label="Today's plan day" data-tour="day" data-active={active ? 'true' : undefined} data-rest={resting ? 'true' : undefined}>
       <p className={styles.planName}>{plan.name}</p>
       {/* PLAN 3.6f: the title breaks only between its parts, and a line never starts or ends on a dot.
           Round 3 (critic 9): on a rest day the headline is the rest day, and the day waits in the line under it. */}
@@ -77,7 +79,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
           {parts(dayParts)}
         </p>
       )}
-      {why && (
+      {saysWhy && (
         <p className={styles.dayFits} data-testid="day-focus-why">
           {/* "Extra today:" in the accent says what kind of line this is; the amounts stay together. */}
           <span className={why.tail ? own.whyHead : undefined}>{why.head}</span>

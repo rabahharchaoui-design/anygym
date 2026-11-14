@@ -58,8 +58,9 @@ describe.each(['flexible', 'fixed'] as const)('a day kept by the 60% rule, %s sc
     const { data, coach } = await today(SUN);
     expect(data.kept).toEqual({ dayN: 1, logged: 4, planned: 17 });
     // The warning's own condition holds (chest yesterday, chest today): it is the kept day that silences it.
-    expect(data.recovery!.yesterday).toContain('chest');
-    expect(data.recovery!.next).toContain('chest');
+    // Truth pass (critic r3 5): on the fixed schedule Sunday is not one of Mon, Wed, Sat, a rest day, and a rest day carries no "today works it again" at all.
+    if (style === 'fixed') expect(data.recovery).toBeUndefined();
+    else { expect(data.recovery!.yesterday).toContain('chest'); expect(data.recovery!.next).toContain('chest'); }
     expect(coach.card).toBeNull();
     expect(coach.line).toBe('Day 1 again. You did 4 of 17 sets last time, so it stays up next and starts from the top.');
     expect(coach.line).not.toMatch(/again\. Go a little lighter|works (it|them) again/);

@@ -74,6 +74,8 @@ export type ResolvedDay = {
   anywayIndex?: number;
   /** Every day rests: the muscles holding that day back, and when they were last trained. */
   resting?: { muscles: string[]; trainedAt: number };
+  /** Every day rests, and a workout that counted was done today: the day is done, nobody is told to rest (truth pass, critic r3 15). */
+  trainedToday?: true;
   /** The day shown is the same day again, kept by the 60% rule after a part done finish (lib/finishPlan.ts keptDayOf). */
   kept?: true;
 };
@@ -106,7 +108,9 @@ export function resolveNextDay(input: {
     const eligibleAt = Math.min(...pending.map(readyAt));
     const anywayIndex = pending.find((i) => readyAt(i) === eligibleAt)!;
     const muscles = input.days[anywayIndex]!.filter((m) => lastOf(anywayIndex, m) !== undefined);
-    return { dayIndex: null, pendingDayIndices: pending, deferred: pending, eligibleAt, anywayIndex, resting: { muscles, trainedAt: Math.max(...muscles.map((m) => lastOf(anywayIndex, m)!)) } };
+    const midnight = new Date(input.now).setHours(0, 0, 0, 0);
+    const today = Object.values(input.trained).some((t) => t !== undefined && t >= midnight && t <= input.now);
+    return { dayIndex: null, pendingDayIndices: pending, deferred: pending, eligibleAt, anywayIndex, resting: { muscles, trainedAt: Math.max(...muscles.map((m) => lastOf(anywayIndex, m)!)) }, ...(today ? { trainedToday: true as const } : {}) };
   }
   const deferred = pending.slice(0, at);
   return { dayIndex: pending[at]!, pendingDayIndices: [...pending.slice(at), ...deferred], deferred };
