@@ -23,13 +23,13 @@ async function part(page: Page, area: string, id: string) {
   await sheet.getByTestId(`focus-part-${id}`).tap();
   await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await expect(sheet).not.toBeVisible();
 }
-async function rest(page: Page, style = 'flexible') {
+async function rest(page: Page, style = 'flexible', o: { days?: string; minutes?: string; weekdays?: string[] } = {}) {
   await next(page); await step(page, 'experience'); await pick(page, 'experience', '3y');
-  await step(page, 'days'); await pick(page, 'days', '4'); await step(page, 'weekdays');
+  await step(page, 'days'); await pick(page, 'days', o.days ?? '4'); await step(page, 'weekdays');
   await pick(page, 'schedule', style);
-  if (style === 'fixed') for (const d of ['mon', 'tue', 'thu', 'sat']) await pick(page, 'weekdays', d);
+  if (style === 'fixed') for (const d of o.weekdays ?? ['mon', 'tue', 'thu', 'sat']) await pick(page, 'weekdays', d);
   else await expect(page.getByTestId('q-weekdays-mon')).toHaveCount(0);
-  await next(page); await step(page, 'minutes'); await pick(page, 'minutes', '45');
+  await next(page); await step(page, 'minutes'); await pick(page, 'minutes', o.minutes ?? '45');
   await step(page, 'place'); await pick(page, 'place', 'full'); await step(page, 'equipment'); await next(page);
   await step(page, 'style'); await pick(page, 'style', 'mix'); await step(page, 'cardio'); await pick(page, 'cardio', 'little'); await next(page);
   await step(page, 'easyOn'); await skip(page); await step(page, 'exercises'); await skip(page); await step(page, 'about'); await skip(page); await step(page, 'reveal');
@@ -360,4 +360,36 @@ test('round 3 (critic 1): changing the schedule or the focus in Settings keeps t
   const focused = (await dbAll<{ planId: string; doneDays: number[]; nextDayIndex: number }>(page, 'planState'))[0]!;
   expect(focused.planId).not.toBe(fixed.planId); expect(focused.doneDays).toEqual([0]); expect(focused.nextDayIndex).toBe(1);
   expect(await dbAll(page, 'sessions')).toHaveLength(1); expect(await dbAll(page, 'sets')).toHaveLength(3);
+});
+
+test('round 3 (critic 2): a fixed schedule saved with too few weekdays is asked for on Today, never pretended', async ({ page }) => {
+  await toFocus(page); await pick(page, 'focus', 'balance'); await rest(page, 'fixed'); await accept(page);
+  const profile = (await dbAll<Record<string, unknown> & { intake: Record<string, unknown> }>(page, 'profile'))[0]!;
+  await put(page, 'profile', { ...profile, intake: { ...profile.intake, weekdays: ['mon', 'thu'] } });
+  await page.reload();
+  const row = page.getByTestId('fixed-days-open'); await expect(row).toContainText('Pick 2 more days');
+  await expect(page.getByTestId('fixed-days-note')).toHaveText('Your plan has 4 days. Pick 2 more.');
+  // No rest day is claimed while two plan days have no weekday.
+  await expect(page.getByTestId('day-rest')).toHaveCount(0);
+  await checkLayout(page);
+  await row.tap(); const sheet = page.getByRole('dialog', { name: 'Which days each week?' }); await expect(sheet).toBeVisible();
+  await expect(sheet.getByTestId('fixed-mon')).toHaveAttribute('aria-pressed', 'true');
+  await expect(sheet.getByRole('button', { name: 'Save days', exact: true })).toBeDisabled();
+  await sheet.getByTestId('fixed-tue').tap(); await expect(sheet.getByTestId('fixed-plan-days')).toHaveText('Your plan has 4 days. Pick 1 more.');
+  await sheet.getByTestId('fixed-sat').tap(); await expect(sheet.getByTestId('fixed-plan-days')).toHaveText('Your plan has 4 days. You picked all 4.');
+  await checkLayout(page, { primary: sheet.getByRole('button', { name: 'Save days', exact: true }) });
+  await sheet.getByRole('button', { name: 'Save days', exact: true }).tap(); await expect(sheet).not.toBeVisible();
+  await expect(row).toHaveCount(0);
+  expect((await dbAll<{ intake: { weekdays: string[] } }>(page, 'profile'))[0]!.intake.weekdays).toEqual(['mon', 'tue', 'thu', 'sat']);
+});
+
+test('round 3 (critic 2): the intake waits for one weekday for each day on a fixed schedule', async ({ page }) => {
+  await toFocus(page); await pick(page, 'focus', 'balance');
+  await next(page); await step(page, 'experience'); await pick(page, 'experience', '3y');
+  await step(page, 'days'); await pick(page, 'days', '3'); await step(page, 'weekdays');
+  await pick(page, 'schedule', 'fixed'); await pick(page, 'weekdays', 'mon'); await pick(page, 'weekdays', 'thu');
+  const go = page.getByTestId('intake-cta').getByRole('button', { name: 'Continue', exact: true });
+  await expect(page.getByTestId('weekday-count')).toHaveText('That is 2 days. You said 3.'); await expect(go).toBeDisabled();
+  await pick(page, 'weekdays', 'sat'); await expect(go).toBeEnabled();
+  await pick(page, 'weekdays', 'sun'); await expect(go).toBeDisabled();
 });

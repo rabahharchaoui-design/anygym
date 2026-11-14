@@ -5,6 +5,7 @@ import { adaptedPlanDay, alwaysPicks } from './planAdapt';
 import { weekKey } from '../lib/coach/time';
 import { asksWeeklySchedule, needsWeeklySchedule, resolveNextDay, restDayOf, rotationOf, scheduleStyleOf, weekChoice, weekdaysLeft, type WeeklySchedule } from '../lib/plan/schedule';
 import { WEEKDAYS, type WeekdayId } from '../lib/intake/options';
+import { cleanWeekdays, fixedDaysOf, fixedScheduleHolds } from '../lib/plan/weekdays';
 import { getProfile } from './intake';
 import { readTrainingLog } from './training';
 import { countedTraining } from '../lib/plan/recovery';
@@ -40,15 +41,17 @@ export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
     const style = scheduleStyleOf(profile?.intake);
     const planDays = planById(state?.planId)?.days.length ?? profile?.intake?.days ?? 0;
     const weekdays = style === 'weekly' ? (profile?.weeklySchedule?.weekKey === weekKey(now) ? profile.weeklySchedule.weekdays : undefined) : profile?.intake?.weekdays;
+    // Round 3: a fixed schedule whose weekdays do not number the plan's days is found here, never papered over.
+    const fixedDays = state && resolved ? fixedDaysOf(style, profile?.intake?.weekdays, planDays) : null;
     return {
-      weekKey: weekKey(now), style, weekly: profile?.weeklySchedule, resolved, planDays,
+      weekKey: weekKey(now), style, weekly: profile?.weeklySchedule, resolved, planDays, fixedDays,
       needsWeek: needsWeeklySchedule(profile?.intake, profile?.weeklySchedule, now),
       /** The sheet opens by itself (not straight after the intake late in a week). */
       asksWeek: asksWeeklySchedule({ answers: profile?.intake, saved: profile?.weeklySchedule, now, intakeDoneAt: profile?.intakeDoneAt, planDays }),
       /** The days that can still be picked this week: today on. */
       weekdaysLeft: weekdaysLeft(now),
       /** Not one of the person's days (fixed or weekly): Today says so, Start stays. */
-      restDay: state && resolved ? restDayOf(style, weekdays, now) : null,
+      restDay: state && resolved && !fixedDays ? restDayOf(style, weekdays, now) : null,
     };
   });
 }
@@ -62,5 +65,17 @@ export async function saveWeeklySchedule(days: readonly WeekdayId[], now = Date.
     if (!weeklySchedule.weekdays.length) throw new Error('Choose a day from today on');
     await db.profile.put({ ...profile, weeklySchedule });
     return weeklySchedule;
+  });
+}
+
+/** "Same days each week": the weekdays, exactly one for each day of the plan in use (lib/plan/weekdays.ts). */
+export async function saveFixedWeekdays(days: readonly WeekdayId[], db: AnyGymDB = defaultDb): Promise<WeekdayId[]> {
+  return db.transaction('rw', db.profile, db.planState, async () => {
+    const profile = await getProfile(db);
+    const planDays = planById((await db.planState.get('active'))?.planId)?.days.length ?? 0;
+    const weekdays = cleanWeekdays(days);
+    if (!profile?.intake || !planDays || !fixedScheduleHolds('fixed', weekdays, planDays)) throw new Error('Pick one weekday for each plan day');
+    await db.profile.put({ ...profile, intake: { ...profile.intake, scheduleStyle: 'fixed', weekdays } });
+    return weekdays;
   });
 }

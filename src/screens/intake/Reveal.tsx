@@ -199,9 +199,8 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
               report={built.applied.focusReport}
               period={focusPeriod(scheduleStyleOf(answers), plan!.days.length)}
               fit={focusNote}
-              onDays={(days) => onChange({ ...answers, days })}
-              onMinutes={(minutes) => onChange({ ...answers, minutes })}
-              onBoth={(days, minutes) => onChange({ ...answers, days, minutes })}
+              {...(scheduleStyleOf(answers) === 'fixed' ? { weekdays: answers.weekdays ?? [] } : {})}
+              onApply={(patch) => onChange({ ...answers, ...patch })}
             />
           ) : null}
           {restarts && (

@@ -7,7 +7,7 @@ import { ensureFirstGym } from '../bootstrap';
 import { saveIntake } from '../intake';
 import { choosePlan, choosePlanUndoable, undoChoosePlan } from '../planState';
 import { saveGeneratedPlan } from '../savedPlans';
-import { readSchedule, saveWeeklySchedule } from '../schedule';
+import { readSchedule, saveFixedWeekdays, saveWeeklySchedule } from '../schedule';
 import { startPlanDay } from '../workoutStart';
 import { finishWorkout } from '../workoutFinish';
 import { equipmentPreset } from '../gyms';
@@ -96,5 +96,24 @@ describe('rebuilding the plan keeps the place (critic 1)', () => {
     expect(await choosePlan(before.planId, db, tuesday)).toEqual(before.state);
     const curated = await choosePlan('five-day-split', db, tuesday);
     expect(curated).toMatchObject({ doneDays: [], nextDayIndex: 0, startedAt: tuesday });
+  });
+});
+
+describe('a fixed schedule with too few weekdays is found on read and repaired by the person (critic 2)', () => {
+  it('3 plan days, Mon and Thu saved: Today is told what is missing, no rest day is pretended, and saving three days repairs it', async () => {
+    await use({ ...base, days: 3, scheduleStyle: 'fixed', weekdays: ['mon', 'thu'] }, monday);
+    // A Wednesday: with Mon and Thu it would read as a rest day, but Day 3 has no day at all.
+    const wednesday = monday + 2 * 86_400_000;
+    const read = await readSchedule(wednesday, db);
+    expect(read.fixedDays).toEqual({ weekdays: ['mon', 'thu'], planDays: 3, missing: 1, extra: 0 });
+    expect(read.restDay).toBeNull();
+    await expect(saveFixedWeekdays(['mon', 'thu'], db)).rejects.toThrow();
+    await expect(saveFixedWeekdays(['mon', 'tue', 'thu', 'sat'], db)).rejects.toThrow();
+    expect(await saveFixedWeekdays(['sat', 'mon', 'thu'], db)).toEqual(['mon', 'thu', 'sat']);
+    const after = await readSchedule(wednesday, db);
+    expect(after.fixedDays).toBeNull();
+    expect(after.restDay).not.toBeNull();
+    const profile = (await db.profile.toArray())[0]!;
+    expect(profile.intake).toMatchObject({ scheduleStyle: 'fixed', weekdays: ['mon', 'thu', 'sat'], days: 3, focusPicks: ['lats', 'side_delts'] });
   });
 });

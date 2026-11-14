@@ -126,6 +126,21 @@
   line-height: 1.4;
 }
 
+/* Round 3: "Add a day" on a fixed schedule asks for its weekday in place. */
+.fitAsk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fitNote {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
 /* Side by side; one under the other when the words need the room (large text, 320 pt). */
 .fitActions {
   display: flex;

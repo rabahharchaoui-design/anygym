@@ -1,4 +1,6 @@
-import { Button } from '../../ui/Button';
+import { RevealFit } from './RevealFit';
+import type { IntakeAnswers } from '../../lib/intake/funnel';
+import type { WeekdayId } from '../../lib/intake/options';
 import type { FocusFit } from '../../lib/intake/focusFit';
 import { focusStateOf, type FocusReport } from '../../lib/plan/focus';
 import { focusCaption, focusRow } from '../../lib/plan/focusWords';
@@ -10,10 +12,10 @@ type Props = {
   period: string;
   /** What did not fit, and the one tap that really helps (lib/intake/focusFit.ts). Null: all of it fits. */
   fit: FocusFit | null;
-  onDays: (days: NonNullable<FocusFit['days']>) => void;
-  onMinutes: (minutes: NonNullable<FocusFit['minutes']>) => void;
-  /** Neither alone fits everything: the one tap adds both (fit.both). */
-  onBoth: (days: NonNullable<FocusFit['days']>, minutes: NonNullable<FocusFit['minutes']>) => void;
+  /** "Same days each week": the weekdays picked, so a day more asks for its weekday. */
+  weekdays?: readonly WeekdayId[];
+  /** Rebuilds the plan with a day, minutes or both more. */
+  onApply: (patch: Pick<IntakeAnswers, 'days' | 'minutes' | 'weekdays'>) => void;
 };
 
 /**
@@ -22,35 +24,10 @@ type Props = {
  * an area's muscles sit on a second quiet line. When something did not fit, that comes first with
  * its one tap (add a day, add minutes), so it is never below the list.
  */
-export function RevealFocus({ report, period, fit, onDays, onMinutes, onBoth }: Props) {
+export function RevealFocus({ report, period, fit, weekdays, onApply }: Props) {
   return (
     <div className={styles.focus} data-testid="reveal-focus">
-      {fit && (
-        <div className={styles.fit}>
-          <p className={styles.fitLine} data-testid="focus-fit">
-            {fit.line}
-          </p>
-          {(fit.days || fit.minutes) && (
-            <div className={styles.fitActions}>
-              {fit.both && (
-                <Button variant="secondary" data-testid="focus-add-both" onClick={() => onBoth(fit.days!, fit.minutes!)}>
-                  Add a day and minutes
-                </Button>
-              )}
-              {!fit.both && fit.days && (
-                <Button variant="secondary" data-testid="focus-add-day" onClick={() => onDays(fit.days!)}>
-                  Add a day
-                </Button>
-              )}
-              {!fit.both && fit.minutes && (
-                <Button variant="secondary" data-testid="focus-add-minutes" onClick={() => onMinutes(fit.minutes!)}>
-                  Add minutes
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {fit && <RevealFit fit={fit} onApply={onApply} {...(weekdays ? { weekdays } : {})} />}
       <p className={styles.focusCaption}>{focusCaption(period)}</p>
       <ul className={styles.focusList}>
         {report.priorities.map((p) => {

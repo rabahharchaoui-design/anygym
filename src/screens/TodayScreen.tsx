@@ -14,6 +14,7 @@ import { dayIndexOf } from '../lib/plans';
 import { useTodayData } from '../hooks/useTodayData';
 import { useSchedule } from '../hooks/useSchedule';
 import { WeekScheduleSheet } from './today/WeekScheduleSheet';
+import { FixedDaysSheet } from './today/FixedDaysSheet';
 import { RecoveryCard } from './today/RecoveryCard';
 import { restDayWords, restingWords } from '../lib/plan/scheduleWords';
 import { db } from '../db/schema';
@@ -290,6 +291,7 @@ export function TodayScreen() {
         )}
         {/* PLAN 3.6f: a week to week schedule says its days right under the day. */}
         {data.ready && !failed && <WeekScheduleSheet schedule={schedule} active={!!active} />}
+        {data.ready && !failed && <FixedDaysSheet schedule={schedule} />}
         {/* PLAN 3.8 (SPEC 15): the coach's one card, or its one line, never both. */}
         {data.ready && !failed && (
           <>

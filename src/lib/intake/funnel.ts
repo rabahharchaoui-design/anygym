@@ -172,7 +172,7 @@ export function needsDumbbellRange(a: IntakeAnswers): boolean {
   return equipmentPreset(GYM_TYPE_OF[a.place], 'lb').dumbbellRange === null;
 }
 
-/** Before Continue: the weekdays picked differ from the days per week answer. Says so, never blocks. */
+/** Before Continue: the weekdays picked differ from the days per week answer. Says so; Continue waits for the same number (Skip stays flexible). */
 export function weekdayCountNote(a: IntakeAnswers): string | null {
   const n = a.weekdays?.length ?? 0;
   if (!a.days || n === 0 || n === a.days) return null;
@@ -187,7 +187,8 @@ export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
       return true;
     case 'weekdays':
       // Flexible and weekly need no days. "Same days each week" with none picked would quietly be flexible: pick one, or skip.
-      return a.scheduleStyle !== 'fixed' || !!a.weekdays?.length;
+      // Round 3: and one weekday for each day asked for, so no plan day is ever left without a day.
+      return a.scheduleStyle !== 'fixed' || (!!a.weekdays?.length && (!a.days || a.weekdays.length === a.days));
     case 'units':
       return a.units !== undefined;
     case 'equipment':
