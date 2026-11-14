@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { simulateSafeAreas } from './helpers/layout';
+import { dayLit } from './helpers/tour';
 import { pastIntake } from './helpers/quick';
 import { framesFloor, idleFrames, longestBudget, paintBudget } from './helpers/frames';
 import { bar185, checkCurrent, exerciseView, loggedRows, quickWith, seedFinished } from './workout-helpers';
@@ -293,7 +294,8 @@ test('the welcome: Escape moves on like a tap outside, and the words never sit o
       .poll(async () => {
         const w = await page.getByTestId('tour-words').boundingBox();
         const tabs = await page.locator('[data-tour="tabs"]').boundingBox();
-        const lit = await page.locator(`[data-tour="${target}"]`).boundingBox();
+        // PLAN 3.6f: the day card is lit down to Start when the whole card and the words do not fit under the header (helpers/tour.ts).
+        const lit = target === 'day' ? await dayLit(page)() : await page.locator(`[data-tour="${target}"]`).boundingBox();
         if (!w || !tabs || !lit) return 'missing';
         if (w.y + w.height > tabs.y) return `on the tab bar by ${(w.y + w.height - tabs.y).toFixed(1)}`;
         if (!(w.y + w.height <= lit.y || w.y >= lit.y + lit.height)) return 'on the lit element';
