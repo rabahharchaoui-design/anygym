@@ -1,0 +1,59 @@
+/* PLAN 3.6f: the schedule step. The three choices share the height like every other intake
+   question; the place under them is always as tall as the weekday chips, so nothing moves. */
+.step {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.detail {
+  flex: none;
+  /* Two rows of 48 pt chips and their gap. The count line comes last, so it pushes nothing. */
+  min-height: 104px;
+  scroll-margin-bottom: var(--space-3);
+}
+
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.count {
+  margin: 0;
+  color: var(--amber);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.count:empty {
+  display: none;
+}
+
+/* What the choice means: a quiet glass note, never a control. */
+.means {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-1) 60%, transparent);
+}
+
+.meansTitle {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.meansText {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}

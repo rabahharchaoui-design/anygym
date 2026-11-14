@@ -30,7 +30,7 @@ const STYLE_RANK: Partial<Record<StyleId, Record<Kind, number>>> = {
 };
 
 /** Can this gym do it, and may this person get it? */
-function allowed(ctx: Ctx, c: Candidate, timedOk: boolean): boolean {
+export function allowed(ctx: Ctx, c: Candidate, timedOk: boolean): boolean {
   if (!supports(c.requires, ctx.input.gym)) return false;
   if (c.timed && !timedOk) return false;
   const id = workoutIdOf(c);

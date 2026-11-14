@@ -45,7 +45,7 @@ test('(a) full gym, kettlebells then rower then thigh machine off: reveal still 
     expect(heading).toBe('Your plan');
     // 3.5u: the button is Looks good (it lands on Today, no workout starts).
     expect(primary).toBe('Looks good');
-    expect(reason).toMatch(/^ ?Built to build muscle: 4 days, about \d+ min, full gym\./);
+    expect(reason).toMatch(/^ ?Built to add muscle: 4 days, about \d+ min, full gym\./);
     expect(`${reason} ${warn}`).not.toMatch(/aren't built in|plan yet/);
     await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('anygym.intakeDraft')!); d.step = 'equipment'; localStorage.setItem('anygym.intakeDraft', JSON.stringify(d)); });
     await page.reload();

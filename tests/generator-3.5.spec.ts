@@ -105,7 +105,7 @@ const PATHS: Path[] = [
     answers: { goal: 'muscle', goals: ['muscle'], units: US, experience: '1_2y', days: 4, minutes: 45, place: 'hotel', equipmentFor: 'hotel', equipment: HOTEL },
     days: 4,
     first: 'Upper A',
-    reason: /^Built to build muscle: 4 days, about \d+ min, hotel friendly\.$/,
+    reason: /^Built to add muscle: 4 days, about \d+ min, hotel friendly\.$/,
   },
   {
     name: 'home',
@@ -119,7 +119,7 @@ const PATHS: Path[] = [
     answers: { goal: 'muscle', goals: ['muscle'], units: US, experience: 'months', days: 2, minutes: 45, place: 'outdoors', equipmentFor: 'outdoors', equipment: [], focus: ['legs'] },
     days: 2,
     first: 'Full body A',
-    reason: /^Built to build muscle: 2 days, about \d+ min, no equipment needed, extra leg work\.$/,
+    reason: /^Built to add muscle: 2 days, about \d+ min, no equipment needed, extra leg work\.$/,
   },
   {
     name: 'full gym',

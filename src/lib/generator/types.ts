@@ -1,5 +1,5 @@
 // The generator's inputs, its dependencies, the shipped JSON shape, and the working model.
-import type { CardioFavoriteId, CardioId, ExperienceId, FocusId, GoalId, PlaceAnswer, StyleId } from '../intake/options';
+import type { CardioFavoriteId, CardioId, ExperienceId, FocusId, FocusPickId, ScheduleStyle, GoalId, PlaceAnswer, StyleId } from '../intake/options';
 import type { CardioMove } from '../cardio';
 import type { Muscle, Profile } from '../order';
 import type { GymKit } from '../picker';
@@ -7,7 +7,7 @@ import type { Candidate, Pattern, Requires, SwapData } from '../swap';
 import type { GoalFamily, Range } from '../generatorRules';
 
 /** Bump when the rules change what comes out: frozen plans and saved plans name the version that made them. */
-export const GENERATOR_VERSION = 2;
+export const GENERATOR_VERSION = 3;
 
 export type GeneratorInput = {
   /** Main first, Also second (SPEC 14 step 1). None: stay fit. */
@@ -18,6 +18,8 @@ export type GeneratorInput = {
   /** The time picked; 75 means 75+ (no upper end). */
   minutes?: number;
   focus?: readonly FocusId[];
+  focusPicks?: readonly FocusPickId[];
+  scheduleStyle?: ScheduleStyle;
   easyOn?: readonly string[];
   /** Exercise ids (plan or catalog ids). */
   love?: readonly string[];
@@ -42,6 +44,8 @@ export type GeneratorInput = {
 
 export type GeneratorDeps = {
   data: SwapData;
+  focusCandidates?: readonly Candidate[];
+  focusFacts?: (id: string, profile: Profile) => { muscles: string[]; picks: FocusPickId[] };
   /** The ordering profile of an exercise id (data/order.ts profileFor). */
   profile: (id: string) => Profile;
   /** The plain name of an exercise id. */
@@ -61,7 +65,7 @@ export type RawItem = { exercise: string; id: string; reps?: Range; seconds?: Ra
 export type RawSingle = { type: 'single'; sets: number; restSec: number; warmup?: true } & RawItem;
 export type RawPair = { type: 'superset'; sets: number; restSec: number; items: RawItem[] };
 export type RawFinisher = { name: string; minutes: number; requires: Requires };
-export type RawDay = { n: number; name: string; blocks: Array<RawSingle | RawPair>; finisher?: RawFinisher };
+export type RawDay = { focusWhy?: string[]; n: number; name: string; blocks: Array<RawSingle | RawPair>; finisher?: RawFinisher };
 export type RawPlan = {
   id: string;
   name: string;
@@ -72,12 +76,15 @@ export type RawPlan = {
   daysPerWeek: number;
   source: string;
   generator: number;
+  focusReport?: import('../plan/focus').FocusReport;
+  scheduleStyle?: ScheduleStyle;
   progressionMode: 'double';
   days: RawDay[];
 };
 
 /** What the generator did with the answers, so the reveal says only what is true. */
 export type Applied = {
+  focusReport?: import('../plan/focus').FocusReport;
   main: GoalId;
   also: GoalId | null;
   /** The Also goal changed the plan. */

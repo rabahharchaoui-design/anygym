@@ -394,17 +394,27 @@ test('B6 (3.5u): optional questions say what they are for; nothing says Coming s
 
 test('P8 P9 P10: weekdays as a list of days; honest hints on Days and Minutes; icons on Focus and Easy on', async ({ page }) => {
   await drafted(page, 'weekdays', { ...FULL });
-  const days = page.getByTestId('q-weekdays').getByRole('button');
+  // 3.6f: three schedule tiles first; the weekday list only appears after "Same days each week".
+  await expect(page.getByRole('group', { name: 'Schedule style' }).getByRole('button')).toHaveCount(3);
+  await expect(page.getByRole('group', { name: 'Weekdays' })).toHaveCount(0);
+  await page.getByTestId('q-schedule-fixed').tap();
+  const days = page.getByRole('group', { name: 'Weekdays' }).getByRole('button');
   await expect(days).toHaveCount(7);
   for (const box of await days.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ w: r.width, h: r.height })))) expect(box.h).toBeLessThan(box.w);
-  await expect(page.getByTestId('q-weekdays-mon')).toHaveText('Monday');
+  // 3.6f: the chips are four across now, so they say Mon, not Monday.
+  await expect(page.getByTestId('q-weekdays-mon')).toHaveText('Mon');
   await drafted(page, 'days', { ...FULL });
   // The plans that ship run 5 days and (PLAN 3.5) 3 days: only those options say so.
-  await expect(page.getByTestId('q-days-5')).toContainText('Our curated plans run this many');
-  await expect(page.getByTestId('q-days-3')).toContainText('Our curated plans run this many');
-  await expect(page.getByTestId('q-days-4')).not.toContainText('Our curated');
+  // 3.6f round 3 (critic 14): said once under the options, naming them, never repeated on each one.
+  await expect(page.getByTestId('plans-hint')).toHaveText('Our curated plans run 3 or 5 days.');
+  await expect(page.getByText(/Our curated plans/)).toHaveCount(1);
+  for (const d of [3, 4, 5]) await expect(page.getByTestId(`q-days-${d}`)).not.toContainText('Our curated');
+  await drafted(page, 'minutes', { ...FULL });
+  await expect(page.getByTestId('plans-hint')).toHaveText(/^Our curated plans take about \d+(, \d+)*( or (\d+|75\+))? min\.$/);
+  await expect(page.getByText(/Our curated plans/)).toHaveCount(1);
   await drafted(page, 'focus', { ...FULL });
-  await expect(page.getByTestId('q-focus').locator('svg')).toHaveCount(8);
+  // 3.6f: the 8 areas (Whole body balance is one) plus Posture, Grip and Mobility: 11 icons.
+  await expect(page.getByTestId('q-focus').locator('svg')).toHaveCount(11);
   await drafted(page, 'easyOn', { ...FULL });
   await expect(page.getByTestId('q-easyOn').locator('button svg')).toHaveCount(7);
 });

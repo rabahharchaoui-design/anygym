@@ -5,6 +5,8 @@ import { db } from '../../db/schema';
 import { finishedDetail } from '../../db/history';
 import { workoutMoments } from '../../db/celebrations';
 import { useLive } from '../../hooks/useLive';
+import { useSchedule } from '../../hooks/useSchedule';
+import { restingWords } from '../../lib/plan/scheduleWords';
 import { formatSession, formatSet, sameSets } from '../../lib/setWords';
 import { workSetCount } from '../../lib/workSets';
 import { formatTotalCompact, totalLifted } from '../../lib/load';
@@ -71,6 +73,8 @@ export function FinishScreen() {
   useEffect(preloadArt, []);
   // The plan as Finish left it (read, never written on mount): the next up line shows this, live.
   const planLive = useLive(() => getPlanState(), []);
+  // The one next day rule, the same read Today shows (PLAN 3.6f): the two can never disagree.
+  const schedule = useSchedule(true);
 
   if (detail.ready && !detail.error && !detail.data?.d) return <Navigate to="/" replace />;
   const v = detail.data;
@@ -97,7 +101,11 @@ export function FinishScreen() {
   const partialDay = !!progress && !progress.complete;
   // What is up next: only while this workout's plan is still the active one (never another plan).
   const state = planLive.data;
-  const nextDay = plan && state && state.planId === plan.id && dayIndex >= 0 ? plan.days[state.nextDayIndex] : undefined;
+  const resolved = schedule.data?.resolved;
+  // Every day left is resting: the day Today offers under "Train anyway", with when it is ready.
+  const nextIndex = resolved ? resolved.dayIndex ?? resolved.anywayIndex : undefined;
+  const nextDay = plan && state && state.planId === plan.id && dayIndex >= 0 && nextIndex !== undefined ? plan.days[nextIndex] : undefined;
+  const resting = resolved?.dayIndex === null ? restingWords(resolved, Date.now()) : null;
   const pickNext = async (i: number) => {
     setChanging(false);
     try {
@@ -202,7 +210,8 @@ export function FinishScreen() {
                     return (
                       <li key={r.id} className={styles.exerciseRow} data-testid="finish-exercise">
                         <span className={styles.exerciseName}>
-                          {name(r.id)}
+                          {/* Truth pass (critic r3 13): the name reads on up to two lines, then an ellipsis; its numbers drop under it when they do not fit beside it. */}
+                          <span className={styles.exerciseTitle} data-testid="finish-exercise-name">{name(r.id)}</span>
                           {planned && count < planned ? (
                             <span className={`${styles.exerciseLeft} num`} data-testid="finish-sets-left">
                               {count} of {planned} sets
@@ -257,9 +266,15 @@ export function FinishScreen() {
                     Next up: <span className={styles.nextDay}>{dayTitle(nextDay.n, nextDay.name)}</span>
                   </p>
                   {/* Why (gate P3): the same day again because not enough of it was done; real counts. */}
-                  {progress && state && state.nextDayIndex === dayIndex && progress.planned > 0 && (
+                  {resting ? (
+                    <p className={styles.nextWhy} data-testid="finish-next-rest">
+                      {/* Round 3 (critic 15): "ready Wednesday morning" stays together; no dot is left at a line end. */}
+                      After a rest, <span className={styles.keep}>{resting.ready.charAt(0).toLowerCase() + resting.ready.slice(1, -1)}</span>
+                    </p>
+                  ) : progress && nextIndex === dayIndex && progress.planned > 0 && (
                     <p className={styles.nextWhy} data-testid="finish-next-why">
-                      Day {nextDay.n} again · you did {progress.logged} of {progress.planned} sets
+                      {/* "4 of 17 sets" stays together: "sets" is never left alone on a line. */}
+                      Day {nextDay.n} again · you did <span className={styles.together}>{progress.logged} of {progress.planned} sets</span>
                     </p>
                   )}
                 </div>

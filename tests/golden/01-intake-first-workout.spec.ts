@@ -27,7 +27,8 @@ test('golden: fresh intake to Today, then the first workout and its first set', 
   await step('days');
   await pick('days', '5');
   await step('weekdays');
-  await skip();
+  await pick('schedule', 'flexible');
+  await next();
   await step('minutes');
   await pick('minutes', '60');
   await step('place');
@@ -52,6 +53,8 @@ test('golden: fresh intake to Today, then the first workout and its first set', 
   // Today, with the plan's first day waiting and nothing started yet.
   await expect(page).toHaveURL(/#\/$/);
   expect(await dbAll(page, 'sessions')).toEqual([]);
+  await expect(page.getByTestId('day-card-title')).toContainText('Next up');
+  await expect(page.getByTestId('week-label')).toContainText('rotation');
   await tap(page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }));
   await expect(page.getByTestId('workout-title')).toBeVisible();
 

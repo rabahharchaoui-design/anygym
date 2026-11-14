@@ -4,6 +4,7 @@
 // less keeps the same day up next. Only a fully done day earns the tick; 60 to 99% leaves a
 // partial ring on the day it moved on from.
 import { advancePlan, type Plan, type PlanPosition } from './plans';
+import { advanceRotation } from './plan/schedule';
 import type { DayProgress } from './planWorkout';
 
 /** Share of the day's working sets that moves the plan on. */
@@ -12,9 +13,19 @@ export const ADVANCE_SHARE = 0.6;
 /** True when this much of the day moves the plan on (the unrounded share, never a shown percent). */
 export const movesOn = (share: number): boolean => share >= ADVANCE_SHARE;
 
+/**
+ * The day kept up next by the 60% rule (the same day again after a part done finish), or undefined:
+ * the next day has a share under 60% and no tick. The one place "kept" is decided.
+ */
+export function keptDayOf(state: Pick<PlanPosition, 'nextDayIndex' | 'doneDays'> & { partial?: Record<number, number> }): number | undefined {
+  const share = state.partial?.[state.nextDayIndex];
+  return share !== undefined && !movesOn(share) && !state.doneDays.includes(state.nextDayIndex) ? state.nextDayIndex : undefined;
+}
+
 export type FinishPosition = PlanPosition & {
   /** Day index → share done, for the partial rings. Empty when the pass started over. */
   partial: Record<number, number>;
+  pendingDayIndices?: number[];
 };
 
 /**
@@ -26,7 +37,7 @@ export type FinishPosition = PlanPosition & {
  * its last week: advancePlan). Partial marks of other days stay.
  */
 export function finishPlanPosition(
-  state: PlanPosition & { partial?: Record<number, number> },
+  state: PlanPosition & { partial?: Record<number, number>; pendingDayIndices?: number[] },
   plan: Pick<Plan, 'days' | 'progressionMode' | 'weeks'>,
   dayIndex: number,
   progress: Pick<DayProgress, 'share' | 'complete'>,
@@ -36,9 +47,15 @@ export function finishPlanPosition(
   const partial = { ...(state.partial ?? {}) };
   if (!progress.complete && !movesOn(share)) {
     partial[day] = Math.max(partial[day] ?? 0, share);
-    return { nextDayIndex: day, weekIndex: state.weekIndex, doneDays: [...state.doneDays], partial };
+    return { nextDayIndex: day, weekIndex: state.weekIndex, doneDays: [...state.doneDays], partial, ...(state.pendingDayIndices ? { pendingDayIndices: [...state.pendingDayIndices] } : {}) };
   }
-  const pos = advancePlan(state, day, plan);
+  const rotation = state.pendingDayIndices ? advanceRotation(state, plan.days.length, day) : null;
+  const pos = rotation ? {
+    nextDayIndex: rotation.nextDayIndex,
+    pendingDayIndices: rotation.pendingDayIndices,
+    weekIndex: rotation.wrapped ? advancePlan(state, plan.days.length - 1, plan).weekIndex : state.weekIndex,
+    doneDays: rotation.wrapped ? [] : [...new Set([...state.doneDays, day])],
+  } : advancePlan(state, day, plan);
   if (pos.doneDays.length === 0) return { ...pos, partial: {} };
   if (progress.complete) {
     delete partial[day];

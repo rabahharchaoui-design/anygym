@@ -1,8 +1,9 @@
 // Builds the whole plan, or says plainly which day cannot be built here.
 import { heaviestOf, orderUnits, type Muscle } from '../order';
-import type { FocusId } from '../intake/options';
+import { normalizeFocusPicks } from '../plan/focus';
+import { focusDayLine } from '../plan/focusWords';
 import { workoutIdOf, type Pattern } from '../swap';
-import { FAMILY_OF, FOCUS_RULES, MIN_MOVES, movesFor, PRESCRIPTION, splitFor, type Slot } from '../generatorRules';
+import { FAMILY_OF, MIN_MOVES, movesFor, PRESCRIPTION, splitFor, type Slot } from '../generatorRules';
 import { contextOf } from './context';
 import { addMoves, densify, fillUp } from './fit';
 import { WARM_UP_SEC, finisherFor, warmUpFor } from './finisher';
@@ -45,9 +46,11 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
     days.push({ name: t.name, items, units: [] });
   }
 
-  applyFocus(ctx, days);
 
-  const focusMuscles: Muscle[] = (input.focus ?? []).flatMap((f) => (f === 'balance' ? [] : FOCUS_RULES[f].muscles));
+  // The days are first built exactly as with no picks (no focus order): what focus then adds is
+  // counted against them, so "extra" always means above the same answers with no picks. applyFocus
+  // puts the focused moves earlier.
+  const focusMuscles: Muscle[] = [];
   const finisher = finisherFor(ctx);
   const warmUp = warmUpFor(ctx, finisher);
   const strength = FAMILY_OF[main] === 'strength';
@@ -64,15 +67,16 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
     fillUp(ctx, d, input.minutes);
   }
 
+  const focusReport = applyFocus(ctx, days);
+  // Each day's why: what that day adds for the picks (words from lib/plan/focusWords.ts, data from the report).
+  focusReport.days = days.map((_, i) => { const line = focusDayLine(focusReport.dayExtra?.[i], focusReport.dayLead?.[i]); return line ? [line] : []; });
   const kept = days.flatMap((d) => d.units.flat());
-  const focus: Applied['focus'] = [];
-  const focusMissed: FocusId[] = [];
-  for (const f of input.focus ?? []) {
-    if (f === 'balance') continue;
-    const sets = kept.filter((it) => it.focus === f).reduce((n, it) => n + it.extra, 0);
-    if (sets >= 2) focus.push({ id: f, sets });
-    else focusMissed.push(f);
-  }
+  // Compatibility for older consumers; detailed reporting always uses the final recount.
+  const focus: Applied['focus'] = (input.focus ?? []).filter((id) => id !== 'balance').flatMap((id) => {
+    const p = focusReport.priorities.find((p) => p.id === id);
+    return p && p.extra >= 2 ? [{ id, sets: p.extra }] : [];
+  });
+  const focusMissed = (input.focus ?? []).filter((id) => id !== 'balance' && !focus.some((f) => f.id === id));
   const keptKeys = new Set(kept.map((it) => it.key));
   const loved = (input.love ?? []).filter((id) => keptKeys.has(key(id)) && ctx.loveKeys.has(key(id)));
   const lovedMissed = (input.love ?? []).filter((id) => !loved.includes(id));
@@ -82,12 +86,12 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
 
   const rawDays: RawDay[] = days.map((d, i) => {
     const head: RawSingle[] = d.warmUp ? [{ type: 'single', exercise: deps.name(d.warmUp), id: d.warmUp, seconds: [WARM_UP_SEC, WARM_UP_SEC], sets: 1, restSec: 0, warmup: true }] : [];
-    const out: RawDay = { n: i + 1, name: d.name, blocks: [...head, ...d.units.map((u) => rawBlock(ctx, u))] };
+    const out: RawDay = { n: i + 1, name: d.name, blocks: [...head, ...d.units.map((u) => rawBlock(ctx, u))], ...(focusReport.days[i]?.length ? { focusWhy: focusReport.days[i]! } : {}) };
     if (d.finisher) out.finisher = d.finisher;
     return out;
   });
   const gymType = input.meta?.gymType ?? (input.place ? GYM_TYPE[input.place] : 'full');
-  const body = { daysPerWeek, goal: ctx.family, level, gymType, days: rawDays };
+  const body = { generator: GENERATOR_VERSION, picks: normalizeFocusPicks(input.focusPicks ?? input.focus), scheduleStyle: input.scheduleStyle, focusReport, daysPerWeek, goal: ctx.family, level, gymType, days: rawDays };
   const plan: RawPlan = {
     id: input.meta?.id ?? `mine-${hashText(JSON.stringify(body))}`,
     name: input.meta?.name ?? `${daysPerWeek} Day ${split.name}`,
@@ -98,6 +102,8 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
     daysPerWeek,
     source: 'Generated from movement patterns',
     generator: GENERATOR_VERSION,
+    ...(focusReport.priorities.length ? { focusReport } : {}),
+    ...(input.scheduleStyle ? { scheduleStyle: input.scheduleStyle } : {}),
     progressionMode: 'double',
     days: rawDays,
   };
@@ -106,6 +112,7 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
     ok: true,
     plan,
     applied: {
+      focusReport,
       main,
       also,
       alsoUsed: alsoChanges(ctx, finisher),

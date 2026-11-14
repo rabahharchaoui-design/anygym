@@ -1,12 +1,14 @@
 // "Your plan" (PLAN 3.5, SPEC 14 step 14): the intake answers as the generator's input, and the plain
 // words on what it built. Every word comes from what the generator really did (Applied), never from
 // what the answers merely asked for. Pure.
+import { focusName } from '../plan/focus';
+import { focusTop } from '../plan/focusPriority';
 import type { Applied, GeneratorInput } from '../generator';
 import type { Pattern } from '../swap';
 import { gymKitOf } from './planFit';
 import { goalsOf, type IntakeAnswers } from './funnel';
-import { EASY_ON, labelOf, type FocusId, type GoalId, type PlaceAnswer } from './options';
-import { FINISHER_MINUTES, FOCUS_RULES } from '../generatorRules';
+import { EASY_ON, labelOf, type FocusPickId, type GoalId, type PlaceAnswer } from './options';
+import { FINISHER_MINUTES } from '../generatorRules';
 import { cap } from '../words';
 
 /** Every answer the generator uses: goals, level, days, time, equipment, focus, go easy on, loved and never, style, cardio. */
@@ -15,6 +17,8 @@ export function generatorInputOf(a: IntakeAnswers): GeneratorInput {
   if (a.experience) input.experience = a.experience;
   if (a.days !== undefined) input.days = a.days;
   if (a.minutes !== undefined) input.minutes = a.minutes;
+  if (a.focusPicks !== undefined) input.focusPicks = a.focusPicks;
+  input.scheduleStyle = a.scheduleStyle ?? (a.weekdays?.length ? 'fixed' : 'flexible');
   if (a.focus?.length) input.focus = a.focus;
   if (a.easyOn?.length) input.easyOn = a.easyOn;
   if (a.love?.length) input.love = a.love;
@@ -39,7 +43,7 @@ export const GOAL_WORD: Record<GoalId, string> = {
 
 /** The Main goal leads the plan (SPEC 14): the words open with it. */
 const BUILT_FOR: Record<GoalId, string> = {
-  muscle: 'Built to build muscle',
+  muscle: 'Built to add muscle',
   strength: 'Built to get stronger',
   fat_loss: 'Built to lose fat',
   tone: 'Built to tone up',
@@ -78,13 +82,18 @@ const GAP_WORD: Record<Pattern, string> = {
   core: 'core moves',
 };
 
-export const list = (items: readonly string[]): string => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
+import { list } from '../words';
+export { list };
 const average = (ns: readonly number[]): number => (ns.length ? Math.round(ns.reduce((x, y) => x + y, 0) / ns.length) : 0);
-const focusWord = (f: FocusId): string => (f === 'balance' ? 'balance' : FOCUS_RULES[f].word);
+/** "extra arm work", "extra leg work", "extra lats work": a pick as the word before "work". */
+const focusWord = (f: FocusPickId): string => (f === 'arms' ? 'arm' : f === 'legs' ? 'leg' : f === 'glutes' ? 'glute' : focusName(f).toLowerCase());
+/** Minutes close to the ones chosen say the choice ("about 60 min", never "about 59"): rounding noise is not news. */
+const MINUTES_NEAR = 3;
+export const aboutMinutes = (avg: number, chosen: number | undefined): number => (chosen !== undefined && Math.abs(avg - chosen) <= MINUTES_NEAR ? chosen : avg);
 const short = (items: readonly string[], max = 3): string[] => (items.length > max ? [...items.slice(0, max - 1), 'more'] : [...items]);
 
 export type YourPlanWords = {
-  /** "Built to build muscle: 3 days, about 44 min, hotel friendly, extra arm work, easy on knees." */
+  /** "Built to add muscle: 3 days, about 44 min, hotel friendly, extra arm work, easy on knees." */
   reason: string;
   /** "Main muscle · Also fat loss" ("(soon)" when the Also goal changed nothing). */
   goals: string | null;
@@ -96,9 +105,12 @@ export type YourPlanWords = {
 /** The reveal's words for a generated plan: only what the generator did (SPEC 14: two lines on why it fits). */
 export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number): YourPlanWords {
   const avg = average(applied.minutes);
-  const parts: string[] = [`${days} days`, `about ${avg} min`];
+  const parts: string[] = [`${days} days`, `about ${aboutMinutes(avg, a.minutes)} min`];
   if (a.place) parts.push(PLACE_WORD[a.place]);
-  if (applied.focus.length) parts.push(`extra ${list(applied.focus.map((f) => focusWord(f.id)))} work`);
+  // The picks with the most extra, all of them (never the first two by rank, which may have got less).
+  const retained = applied.focusReport ? focusTop(applied.focusReport) : [];
+  if (retained.length) parts.push(retained.length > 3 ? `extra work for ${retained.length} focus areas` : `extra ${list(retained.map((p) => focusWord(p.id)))} work`);
+  else if (applied.focus.length) parts.push(`extra ${list(applied.focus.map((f) => focusWord(f.id)))} work`);
   const easy = applied.easyOn.map((j) => (labelOf(EASY_ON, j as (typeof EASY_ON)[number]['id']) ?? j).toLowerCase());
   if (easy.length) parts.push(`easy on ${list(short(easy, 2))}`);
   if (applied.loved.length) parts.push(applied.loved.length === 1 ? 'with an exercise you love' : `with ${applied.loved.length} exercises you love`);
@@ -111,6 +123,7 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   const notes: string[] = [];
   if (applied.gaps.length) notes.push(`Nothing here for ${list(short(applied.gaps.map((g) => GAP_WORD[g])))}: that takes gear you don't have.`);
   const misses: string[] = [];
+  // Ranked picks (focusPicks) get their own line beside the reveal's taps: lib/intake/focusFit.ts.
   if (applied.focusMissed.length) misses.push(`extra ${list(applied.focusMissed.map(focusWord))} work`);
   if (applied.lovedMissed.length) misses.push(applied.lovedMissed.length === 1 ? 'the exercise you love' : `${applied.lovedMissed.length} exercises you love`);
   if (misses.length) notes.push(`No room for ${list(misses)} here.`);

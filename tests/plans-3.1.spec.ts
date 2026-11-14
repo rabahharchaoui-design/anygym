@@ -179,7 +179,7 @@ test('Use this plan from a place: Plan saved with Undo, then start the day into 
   // Again, and this time start it (SPEC 20): Start opens the day list of Day 1.
   await page.goto('./#/plans/five-day-split');
   await page.getByRole('button', { name: 'Use this plan' }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 · Legs \(hamstring focus\)/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 · Legs \(hamstring focus\)/);
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page).toHaveURL(/#\/workout\/[\w-]+$/);
   await expect(page.getByTestId('workout-title')).toHaveText('Day 1 · Legs (hamstring focus)');

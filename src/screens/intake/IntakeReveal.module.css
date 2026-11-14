@@ -102,6 +102,138 @@
   line-height: 1.35;
 }
 
+/* PLAN 3.6f: what the plan does for each focus pick. What did not fit comes first, with its one tap. */
+.focus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.fit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.fitLine {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+/* Round 3: "Add a day" on a fixed schedule asks for its weekday in place. */
+.fitAsk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fitNote {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+/* Side by side; one under the other when the words need the room (large text, 320 pt). */
+.fitActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fitActions > button {
+  flex: 1 1 8em;
+  width: auto;
+  white-space: nowrap;
+}
+
+/* Round 3: who really got the most, one plain line over the rows. */
+.focusSummary {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* The period is said once, over the rows. */
+.focusCaption {
+  margin: var(--space-1) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.focusList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* One pick, one glance: the name on the left, its number and a quiet state on the right. */
+.focusRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.focusRow + .focusRow {
+  border-top: 1px solid var(--hairline);
+}
+
+/* When the words need the room (large text, 320 pt) the number and its state go under the name, whole. */
+.focusTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+}
+
+.focusWhat {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.focusGot {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.focusMuch {
+  font-weight: 600;
+}
+
+.focusTag {
+  color: var(--text-2);
+}
+
+.focusTag[data-extra] {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.focusDetail {
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
 .week {
   margin: var(--space-2) 0 0;
   padding: 0;
@@ -149,6 +281,17 @@
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
   font-weight: 600;
+}
+
+/* Round 3: the day's short why, a quiet second line under its name. */
+.weekWhy {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.3;
 }
 
 .weekTime {

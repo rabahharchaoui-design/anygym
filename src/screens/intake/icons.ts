@@ -12,6 +12,7 @@ import {
   Flame,
   Footprints,
   Gauge,
+  Hand,
   Heart,
   HeartPulse,
   Hourglass,
@@ -42,6 +43,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { BODY_ICONS } from './BodyIcons';
+import { FOCUS_ICONS } from './FocusIcons';
 
 const ICONS: Record<string, LucideIcon> = {
   Activity,
@@ -56,6 +58,7 @@ const ICONS: Record<string, LucideIcon> = {
   Flame,
   Footprints,
   Gauge,
+  Hand,
   Heart,
   HeartPulse,
   Hourglass,
@@ -85,5 +88,5 @@ const ICONS: Record<string, LucideIcon> = {
   Zap,
 };
 
-export const iconFor = (name: string | undefined): LucideIcon | undefined => (name ? (ICONS[name] ?? BODY_ICONS[name]) : undefined);
+export const iconFor = (name: string | undefined): LucideIcon | undefined => (name ? (ICONS[name] ?? BODY_ICONS[name] ?? FOCUS_ICONS[name]) : undefined);
 export const INTAKE_ICON_NAMES = Object.keys(ICONS);

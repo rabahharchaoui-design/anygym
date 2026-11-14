@@ -1,6 +1,7 @@
 // The coach on Today (PLAN 3.8, SPEC 15): one live read of the logged workouts and the coach's
 // rows, the engine's single recommendation, and Auto level up applied once when it is on.
 import { useEffect, useMemo, useRef } from 'react';
+import { scheduleStyleOf } from '../../lib/plan/schedule';
 import { useLive } from '../../hooks/useLive';
 import { coachData, regionWord, weekdaysOf, type CoachData } from '../../db/coachData';
 import { applyChanges, resolveOutcomes } from '../../db/coach';
@@ -50,8 +51,9 @@ export function useCoach(enabled: boolean): CoachView {
       closed: data.closed,
       autoLevelUp: data.profile?.coach?.autoLevelUp === true,
       activeWorkout: data.active,
-      ...(plan ? { plan: { daysPerWeek: plan.daysPerWeek, weekdays: weekdaysOf(data.profile) } } : {}),
+      ...(plan ? { plan: { scheduleStyle: scheduleStyleOf(data.profile?.intake), daysPerWeek: plan.daysPerWeek, weekdays: weekdaysOf(data.profile, data.now) } } : {}),
       ...(data.recovery ? { recovery: { ...data.recovery, nameOf: regionWord } } : {}),
+      ...(data.kept ? { kept: data.kept } : {}),
     });
   }, [data]);
   const fresh = useMemo(() => (data ? freshBands(data.fresh, data.now) : NONE), [data]);
@@ -76,5 +78,9 @@ export function useCoach(enabled: boolean): CoachView {
   }, [auto, data]);
 
   const busy = !live.error && !!data && coachDay(!!today?.card, data.answeredAt, data.now);
-  return { ready: !enabled || live.ready, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
+  // The read asked for has landed (round 3): while the database opens, the live query still holds the
+  // "nothing yet" of before, and Today must not draw without the coach and let its card come in after
+  // the day card (an entrance that waits on script animation frames, and a shift of the page).
+  const landed = live.ready && (data !== undefined || !!live.error);
+  return { ready: !enabled || landed, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
 }

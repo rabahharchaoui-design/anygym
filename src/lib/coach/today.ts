@@ -15,6 +15,7 @@ import { lastPicked } from './sets';
 import { weeklyRate } from './strength';
 import { startOfDay, weekStart } from './time';
 import type { ChangeRecord, Lift, PlannedChange } from './types';
+import { keptDayWords } from '../plan/scheduleWords';
 
 export type CoachInput = {
   now: number;
@@ -28,9 +29,11 @@ export type CoachInput = {
   /** A workout in progress: Today shows Resume, the coach waits. */
   activeWorkout: boolean;
   /** The plan in use, for missed days. */
-  plan?: { daysPerWeek: number; weekdays?: readonly string[] };
+  plan?: { scheduleStyle?: 'fixed' | 'flexible' | 'weekly'; daysPerWeek: number; weekdays?: readonly string[] };
   /** Main muscles worked yesterday (logged sets) and in today's plan day, for the recovery note. */
   recovery?: { yesterday: readonly Region[]; next: readonly Region[]; nameOf: (r: Region) => string };
+  /** The day up next is the same day again (under 60% done last time): the line says that, never the recovery note. */
+  kept?: { dayN: number; logged?: number; planned?: number };
 };
 
 export type CoachCard =
@@ -69,7 +72,7 @@ export function candidates(input: CoachInput): { cards: CoachCard[]; autoApply: 
     const list = welcomeChanges(lifts, dates, now);
     if (open(id) && list.length) cards.push({ kind: 'welcome_back', id, days: off, changes: list });
   }
-  if (input.plan) {
+  if (input.plan && input.plan.scheduleStyle !== 'flexible' && (input.plan.scheduleStyle !== 'weekly' || input.plan.weekdays?.length)) {
     const missed = missedWorkouts({ last, now, weekdays: input.plan.weekdays, daysPerWeek: input.plan.daysPerWeek });
     const id = missedCardId(last);
     if (missed >= MISSED_AT && open(id)) cards.push({ kind: 'missed_days', id, missed, title: missedTitle(missed) });
@@ -117,10 +120,16 @@ export function coachToday(input: CoachInput): CoachToday {
   return { card, line: card || autoApply ? null : recoveryLine(input), autoApply };
 }
 
-/** "You trained chest yesterday, and today works it again. Go a little lighter on it." or null. */
-export function recoveryLine(input: Pick<CoachInput, 'recovery' | 'activeWorkout'>): string | null {
+/**
+ * The one line: "You trained chest yesterday, and today works it again. …", or null. A day kept up
+ * next (PLAN 3.6f round 3) reads as a continuation instead: the muscles it "works again" are its own
+ * unfinished work, so it never gets the warning.
+ */
+export function recoveryLine(input: Pick<CoachInput, 'recovery' | 'activeWorkout' | 'kept'>): string | null {
   const r = input.recovery;
-  if (!r || input.activeWorkout) return null;
+  if (input.activeWorkout) return null;
+  if (input.kept) return keptDayWords(input.kept);
+  if (!r) return null;
   const both = [...new Set(r.next.filter((x) => r.yesterday.includes(x)))];
   if (!both.length) return null;
   const names = [...new Set(both.map(r.nameOf))].slice(0, 2);

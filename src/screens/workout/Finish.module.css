@@ -159,11 +159,14 @@
   border: 1px solid var(--glass-line);
 }
 
+/* Round 3 (critic 15): a name never breaks inside a word ("Deadlif / t" at 130% text). When the
+   longest word and the sets do not fit side by side, the sets go to their own line under the name. */
 .exerciseRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: 2px var(--space-3);
   padding: 12px 0;
   font-weight: 600;
 }
@@ -172,14 +175,37 @@
   border-top: 1px solid var(--hairline);
 }
 
+/* The name asks for room for about two short words; when that and the numbers do not fit on one line
+   (large text on a small phone), the numbers wrap under it and the name has the whole row. */
 .exerciseName {
-  min-width: 0;
-  overflow-wrap: anywhere;
+  flex: 1 1 min(100%, 11em);
+  min-width: min(100%, min-content);
+  overflow-wrap: break-word;
+}
+
+/* Two lines, then an ellipsis: never a narrow column five lines tall. */
+/* The whole name, always: text is never cut at large sizes (PLAN 1.7g). It wraps between words. */
+.exerciseTitle {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .exerciseBest {
   flex: none;
+  max-width: 100%;
+  margin-left: auto;
   color: var(--text-2);
+}
+
+/* Words that belong together ("ready Wednesday morning") move to the next line as one. */
+.keep {
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* A short count and its word ("4 of 17 sets") never break apart: plain inline text, so it reads as one sentence. */
+.together {
+  white-space: nowrap;
 }
 
 /* One quiet line above Done (PLAN 2.0a): "Next up: Day 2 · Chest and triceps  Change". It wraps
@@ -244,6 +270,7 @@
 
 .exerciseLeft {
   display: block;
+  white-space: nowrap;
   color: var(--text-2);
   font-size: 13px;
   font-weight: 600;

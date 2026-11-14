@@ -195,7 +195,9 @@ test('14 reminder reason: 6 workouts, 40 days', async ({ page }) => {
   const gym = (await dbAll<{ id: string }>(page, 'gyms'))[0]!;
   const now = Date.now();
   const sessions = Array.from({ length: 6 }, (_, i) => ({ id: `r-${i}`, gymId: gym.id, startedAt: now - (30 - i) * DAY, endedAt: now - (30 - i) * DAY + 3_600_000, imported: false, exerciseIds: ['barbell-back-squat'] }));
-  const sets = sessions.map((s, i) => ({ id: `rs-${i}`, sessionId: s.id, exerciseId: 'barbell-back-squat', order: 0, kind: 'work', reps: 8, load: bar185, uncertain: false }));
+  // Sets the coach does not read (not sure of the weight), so it has no card of its own: Today shows one card at a
+  // time, and with the coach's card there from the first moment (3.6f round 3) the reminder would rightly wait.
+  const sets = sessions.map((s, i) => ({ id: `rs-${i}`, sessionId: s.id, exerciseId: 'barbell-back-squat', order: 0, kind: 'work', reps: 8, load: bar185, uncertain: true }));
   await dbPut(page, { sessions, sets, profile: [{ id: 'me', defaultUnit: 'lb', createdAt: now - 90 * DAY, lastBackupAt: now - 40 * DAY }] });
   await page.reload();
   await expect(page.getByTestId('reminder-reason')).toHaveText('6 workouts are only on this phone. Last backup 40 days ago.');

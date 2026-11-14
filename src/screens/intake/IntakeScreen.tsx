@@ -32,7 +32,7 @@ import {
   type ScreenId,
 } from '../../lib/intake/funnel';
 import { phoneLocale, unitsForLocale } from '../../lib/intake/region';
-import { getProfile, INTAKE_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
+import { getProfile, INTAKE_DRAFT_KEY, INTAKE_REDO_DRAFT_KEY, intakeDoneHere, readIntakeDraft, redoAnswers, writeIntakeDraft } from '../../db/intake';
 import { NO_HANDLERS, stepBody, type StepHandlers } from './stepBody';
 import { NoPlanNotice } from './NoPlan';
 import { PlanSoFar, PlanSoFarLine, STRIP_SCREENS, useStripFit } from './PlanSoFar';
@@ -56,11 +56,11 @@ const COPY: Record<ScreenId, Copy> = {
   goal: { title: "What's your main goal?", why: 'Pick up to 2. The first one leads your plan.' },
   units: { title: 'Your units', why: "Set from your phone's region." },
   // PLAN 3.5: a plan built from the answers uses focus, style, cardio, go easy on and the exercise lists.
-  focus: { title: 'What do you want to work on?', why: 'Optional. Adds sets here.' },
+  focus: { title: 'What do you want to work on?', why: 'Pick any number. We add extra where it fits.' },
   win: { title: 'What would make this a win?', why: 'Optional. Shapes your coach tips.' },
   experience: { title: 'How long have you been training?', why: 'Helps pick a plan at your level.' },
   days: { title: 'How many days a week?', why: 'Picks a plan with this many days.' },
-  weekdays: { title: 'Which days work best?', why: 'Used to lay out your week.' },
+  weekdays: { title: 'Which days work best?', why: 'Choose a schedule that fits your life.' },
   minutes: { title: 'How long per workout?', why: 'Checked against how long each plan takes.' },
   place: { title: 'Where do you usually train?', why: 'Sets up your gym and what it has.' },
   equipment: { title: 'What does your gym have?', why: 'Plans use what is on, or swap. Tap ⓘ if unsure.' },
@@ -82,7 +82,7 @@ const WHY: Partial<Record<ScreenId, string>> = {
   equipment: 'Add your dumbbell weights',
   focus: 'Pick at least one',
   win: 'Pick at least one',
-  weekdays: 'Pick your days, or skip',
+  weekdays: 'Pick your days, or Skip to stay flexible',
   cardio: 'Pick one',
   easyOn: 'Pick one, or None',
   exercises: 'Pick one, or skip',
@@ -101,27 +101,33 @@ function subOf(step: ScreenId, _a?: IntakeAnswers): string | undefined {
   return COPY[step].why || undefined;
 }
 
-function readDraft(): FunnelState | null {
+function readDraft(redo = false): FunnelState | null {
   try {
-    return parseDraft(localStorage.getItem(INTAKE_DRAFT_KEY));
+    return parseDraft(localStorage.getItem(redo ? INTAKE_REDO_DRAFT_KEY : INTAKE_DRAFT_KEY));
   } catch {
     // Blocked storage: the draft is read from IndexedDB kv, just after.
     return null;
   }
 }
 
+/** PLAN 3.6f: the questions Settings can open on their own ("Schedule", "Focus areas"): that one step, then the reveal rebuilds the plan. */
+const ONLY: readonly ScreenId[] = ['focus', 'weekdays'];
+/** A kept draft belongs to this visit only when it is on that one step or its reveal. */
+const mine = (draft: FunnelState | null, only: ScreenId | undefined): FunnelState | null => (!only || (draft && (draft.step === only || draft.step === 'reveal')) ? draft : null);
+
 export function IntakeScreen() {
   const [params] = useSearchParams();
   const redo = params.get('redo') === '1';
+  const only = redo ? ONLY.find((s) => s === params.get('only')) : undefined;
   // A fresh start resumes its draft at once when localStorage has it; else it looks in IndexedDB
   // first (a blocked localStorage). A redo loads the saved answers first.
-  const [state, setState] = useState<FunnelState | null>(() => (redo ? null : readDraft()));
+  const [state, setState] = useState<FunnelState | null>(() => mine(readDraft(redo), only));
   const [leave, setLeave] = useState(false);
   useEffect(() => {
     let alive = true;
     if (redo) {
       redoAnswers({ ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) })
-        .then((a) => alive && setState(startState(a)))
+        .then(async (a) => { const draft = mine(parseDraft(await readIntakeDraft(undefined, true)), only); if (alive) setState(draft ?? (only ? { step: only, answers: a } : startState(a))); })
         .catch(() => alive && setState(startState(withUnits({}))));
     } else if (!readDraft()) {
       readIntakeDraft()
@@ -137,13 +143,13 @@ export function IntakeScreen() {
     return () => {
       alive = false;
     };
-  }, [redo]);
+  }, [redo, only]);
   if (leave) return <Navigate to="/" replace />;
   if (!state) return <div className={styles.frame} />;
-  return <Funnel initial={state} redo={redo} />;
+  return <Funnel initial={state} redo={redo} only={only} />;
 }
 
-function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
+function Funnel({ initial, redo, only }: { initial: FunnelState; redo: boolean; only?: ScreenId }) {
   const go = useNav();
   const [state, setState] = useState(initial);
   const ref = useRef(state);
@@ -156,13 +162,14 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   useStripFit(scroller);
   useMoreBelow(scroller);
   // What a gym is compared with when saving: a redo's starting answers, then what was last saved.
-  const baseline = useRef<IntakeAnswers | undefined>(redo ? initial.answers : undefined);
+  const baseline = useRef<IntakeAnswers | undefined>(undefined);
 
   // Every answer is kept as it is given (a draft; a redo keeps its own copy only in memory).
   // PLAN 3.5w: the save runs in the next task, out of the screen change's own update (the page is
   // captured sooner). Not later than that: a reload right after a step must come back to it.
   useEffect(() => {
-    if (!redo) window.setTimeout(() => void writeIntakeDraft(serializeDraft(state)), 0);
+    const id = window.setTimeout(() => void writeIntakeDraft(serializeDraft(state), undefined, redo), 0);
+    return () => window.clearTimeout(id);
   }, [state, redo]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -182,8 +189,17 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     scroller.current?.scrollTo({ top: 0 });
   }, [state.step]);
 
+  /** One step opened from Settings: straight to a screen, with the answers a reducer step leaves. */
+  const jump = (step: ScreenId, kind: NavKind, answers = ref.current.answers) => {
+    const to = { step, answers };
+    ref.current = to;
+    setPulse(null);
+    setHold(null);
+    withTransition(kind, () => setState(to));
+  };
   const set = (screen: AnswerId, value: unknown) => apply({ type: 'set', screen, value }, 'none');
   const next = () => {
+    if (only) return jump('reveal', 'push', funnelReducer(ref.current, { type: 'next' }).answers);
     const a = ref.current.answers;
     // Right after the equipment: when no plan can fit, say so now, not 9 questions later.
     // PLAN 3.5: and only when the generator cannot build a week with this gear either.
@@ -192,6 +208,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   };
   const skip = () => {
     window.clearTimeout(timer.current);
+    if (only) return jump('reveal', 'push', funnelReducer(ref.current, { type: 'skip' }).answers);
     apply({ type: 'skip' }, 'push');
   };
   const skipRest = () => {
@@ -200,6 +217,11 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   };
   const back = (kind: NavKind = 'pop') => {
     window.clearTimeout(timer.current);
+    if (only) {
+      if (ref.current.step === 'reveal') jump(only, kind);
+      else go('/settings', { kind, replace: true });
+      return;
+    }
     if (ref.current.step === 'goal') {
       if (redo) go('/settings', { kind, replace: true });
       return;
@@ -217,15 +239,17 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
 
   const { step, answers } = state;
   const handlers: StepHandlers = { set, pickAndGo, range: (value) => apply({ type: 'range', value }, 'none') };
-  const previous = prevScreen(step, answers);
+  // One step from Settings has no question before it to swipe back to.
+  const previous = only ? null : prevScreen(step, answers);
 
   let content: ReactNode;
-  if (step === 'reveal') content = <Reveal answers={answers} redo={redo} onBack={() => back()} baseline={baseline} />;
+  if (step === 'reveal') content = <Reveal answers={answers} redo={redo} onBack={() => back()} baseline={baseline} onChange={(a) => { const next = { ...ref.current, answers: a }; ref.current = next; setState(next); }} />;
   else if (step === 'noPlan') content = <NoPlanNotice answers={answers} onBack={() => back()} onKeepGoing={() => apply({ type: 'next' }, 'push')} />;
   else {
     const kind = KIND[step];
     const copy = COPY[step];
     const showBack = step !== 'goal' || redo;
+    const toSettings = step === 'goal' || !!only;
     const first = step === 'goal';
     // On the last question Skip already goes to the reveal.
     // 3.5f round 3 (M6, B2): not on the love / never cards (the top Skip does it), where every line counts.
@@ -239,10 +263,15 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     content = (
       <div className={styles.screen} data-testid="intake" data-step={step}>
         <header className={styles.top}>
-          {showBack ? <BackButton label={step === 'goal' ? 'Back to Settings' : 'Back'} onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
-          <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
-            <span className={styles.progressFill} style={{ transform: `scaleX(${Math.max(0.04, progressOf(step, answers))})` }} />
-          </div>
+          {showBack ? <BackButton label={toSettings ? 'Back to Settings' : 'Back'} onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
+          {only ? (
+            // One question on its own has no progress to show: the bar's place is kept.
+            <span className={styles.progress} data-none aria-hidden="true" />
+          ) : (
+            <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
+              <span className={styles.progressFill} style={{ transform: `scaleX(${Math.max(0.04, progressOf(step, answers))})` }} />
+            </div>
+          )}
           {SKIPPABLE.has(step) ? (
             <button type="button" className={`${styles.skip} pressable`} onClick={skip} data-testid="skip">
               Skip
@@ -275,7 +304,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <p className={noPlanStyles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
-          <BottomCTA onPress={next} disabled={!ready} {...(deckStep ? {} : { disabledReason: step === 'weekdays' && answers.days ? `Pick ${answers.days}, or skip` : WHY[step] })} reasonAndNote={!deckStep} above={skipRestButton} {...(deckStep ? {} : { note: first ? STAYS_HERE_FIRST : STAYS_HERE })} testId="intake-cta" className={styles.cta}>
+          <BottomCTA onPress={next} disabled={!ready} {...(deckStep ? {} : { disabledReason: step === 'weekdays' && answers.days ? `Pick ${answers.days}, or Skip to stay flexible` : WHY[step] })} reasonAndNote={!deckStep} above={skipRestButton} {...(deckStep ? {} : { note: first ? STAYS_HERE_FIRST : STAYS_HERE })} testId="intake-cta" className={styles.cta}>
             Continue
           </BottomCTA>
         )}

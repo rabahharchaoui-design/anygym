@@ -29,6 +29,7 @@ import { crashReports } from '../lib/reporting/preferences';
 import { gymFacts } from '../lib/reporting/feedback';
 import { useLive } from '../hooks/useLive';
 import { getProfile, setProfileUnits } from '../db/intake';
+import { PlanAnswerRows } from './settings/PlanAnswerRows';
 import { db } from '../db/schema';
 import { phoneLocale, unitsForLocale } from '../lib/intake/region';
 import { CoachSettings } from './settings/CoachSettings';
@@ -192,13 +193,7 @@ export function SettingsScreen() {
               <span className={styles.value}>{profile.data.name}</span>
             </p>
           )}
-          <button type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => go('/welcome?redo=1', { kind: 'push' })} data-testid="redo-intake">
-            <span className={styles.unitText}>
-              <span className={styles.unitLabel}>Answer the questions again</span>
-              <span className={styles.unitHint}>Goal, days, where you train, equipment and more. Then pick your plan.</span>
-            </span>
-            <ChevronRight className={styles.chevron} aria-hidden="true" />
-          </button>
+          <PlanAnswerRows intake={profile.data?.intake} go={(to) => go(to, { kind: 'push' })} />
           <div className={`${styles.unitRow} ${styles.divided}`}>
             <span className={styles.unitText}>
               <span className={styles.unitLabel} id="distance-label">

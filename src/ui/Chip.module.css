@@ -75,6 +75,16 @@
   overflow-wrap: break-word;
 }
 
+/* PLAN 3.6f: one quiet line under the label. */
+.hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
 .chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -183,4 +193,24 @@
     padding: 8px 6px;
     font-size: 0.75rem;
   }
+}
+
+/* PLAN 3.6f: a weekday already past cannot be picked. It reads as gone, not as a broken control:
+   no fill, a dashed edge, quiet words (still readable), no press feedback. Its picked state keeps the accent edge. */
+.chip:disabled {
+  background: transparent;
+  border-style: dashed;
+  color: var(--text-2);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Truth pass (critic r3 12): a day that is already the person's own (their weekdays when adding one, a day of this week
+   already past) reads as chosen, never as unavailable: the full picked look, only without the press. */
+.chip:disabled[aria-pressed='true'] {
+  border-style: solid;
+  border-color: var(--accent);
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--accent) 5%, transparent)), var(--surface-1);
+  color: var(--text);
+  opacity: 1;
 }

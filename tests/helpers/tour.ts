@@ -13,9 +13,10 @@ const GAP = 12;
 const EDGE = 16;
 
 /**
- * PLAN 3.6v: the day card as the welcome lights it. Whole, when it and the words fit between the
- * top of the screen and the tab bar; on a screen too short for both (the 320 floor), down to Start,
- * so Start is still in the light and nothing lit is cut off.
+ * PLAN 3.6v: the day card as the welcome lights it. Whole, when it and the words fit between where
+ * the card rests (under the header, the page at its top: PLAN 3.6f, the card is never slid under the
+ * header to make room) and the tab bar; otherwise down to Start, so Start is still in the light and
+ * nothing lit is cut off.
  */
 export const dayLit = (page: Page) => async (): Promise<Box | null> => {
   const day = page.getByRole('region', { name: "Today's plan day" });
@@ -24,7 +25,8 @@ export const dayLit = (page: Page) => async (): Promise<Box | null> => {
   const words = await page.getByTestId('tour-words').boundingBox();
   const tabs = await page.locator('[data-tour="tabs"]').boundingBox();
   if (!card || !start || !words || !tabs) return null;
-  const room = tabs.y - GAP - EDGE;
+  const scrolled = await day.evaluate((el) => el.closest('[data-scroller]')?.scrollTop ?? 0);
+  const room = tabs.y - GAP - Math.max(EDGE, card.y + scrolled);
   if (card.height + PAD * 2 + GAP + words.height <= room) return card;
   return { ...card, height: start.y + start.height - card.y };
 };

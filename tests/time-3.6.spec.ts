@@ -217,7 +217,7 @@ test('before Start (SPEC 7.4): the day card estimate opens the sheet, the pick t
   await usePlan(page);
   const time = page.getByTestId('day-card-time');
   const planned = Number(/~(\d+) min/.exec((await time.textContent()) ?? '')?.[1]);
-  await expect(page.getByTestId('day-card-title')).toHaveText(`Day 1 · Legs (hamstring focus) · ~${planned} min`);
+  await expect(page.getByTestId('day-card-title')).toHaveText(`Next up: Day 1 · Legs (hamstring focus) · ~${planned} min`);
   await time.tap();
   const sheet = sheetOf(page);
   await expect(sheet).toBeVisible();
