@@ -350,7 +350,7 @@ test('finish with exercises left: Move on to Day 2, Day 1 keeps a partial pip, n
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 2 · / }).tap();
   await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 2 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 2 · /);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
   await expect(page.getByTestId('week-day-1').getByRole('button')).toHaveAccessibleName(/part done\. Pick this day$/);
   await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'next');
@@ -455,7 +455,7 @@ test('week pips open Change day with that day picked (no workout running)', asyn
   await expect(sheet).toBeVisible();
   await expect(sheet.locator('[data-picked]')).toContainText('Day 3 ·');
   await sheet.locator('[data-picked]').tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 3 · /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 3 · /);
   // Labels share one baseline whatever the mark.
   const tops = await page.locator('[data-testid^="week-day-"] [class*="pipLabel"]').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
   expect(new Set(tops).size).toBe(1);

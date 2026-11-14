@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures';
+import { fixedDaysAfter } from './helpers/fixedSchedule';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, shotOn, usePlan, watchErrors } from './workout-helpers';
 
 // PLAN 3.5g: the Session 3 gate critic's blockers, the way a person meets them. (1) Not now on the
@@ -233,6 +234,8 @@ test.describe('3.5g gate fixes', () => {
     const before = (await dbAll<Record<string, unknown>>(page, 'planState'))[0]!;
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 0, doneDays: [] }] });
     await seedAt(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, BAR185));
+    // 3.6f: missed days exist only on a calendar (saved weekdays); a flexible rotation never has them.
+    await fixedDaysAfter(page, 5, 2);
     await page.goto('./');
     const card = page.getByTestId('coach-card');
     await expect(card).toHaveAttribute('data-kind', 'missed_days');

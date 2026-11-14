@@ -17,27 +17,44 @@ export function rotationOf(state: RotationPosition, count: number): number[] {
   const at = pending.indexOf(state.nextDayIndex);
   return at < 0 ? pending : [...pending.slice(at), ...pending.slice(0, at)];
 }
-export type ResolvedDay = { dayIndex: number | null; pendingDayIndices: number[]; deferred: number[]; eligibleAt?: number };
+export type ResolvedDay = {
+  dayIndex: number | null; pendingDayIndices: number[]; deferred: number[]; eligibleAt?: number;
+  /** Every day rests: the one "Train anyway" offers, the most rested day left (never the day just trained while another waits). */
+  anywayIndex?: number;
+  /** Every day rests: the muscles holding that day back, and when they were last trained. */
+  resting?: { muscles: string[]; trainedAt: number };
+};
 
 /**
- * Blocked days move later in stable order and stay in the same cycle. Exactly 48 h is eligible.
- * A day the person chose themselves is never moved: the rule suggests, the person decides.
- * When every pending day is blocked there is no suggestion (dayIndex null) and `eligibleAt` says
- * when the first one is rested; `pendingDayIndices[0]` is still the next day in order.
+ * The one next day rule (finish screen, Today and Start all read this). `trained` holds only work
+ * that counted (lib/plan/recovery.ts). Blocked days move later in stable order and stay in the same
+ * cycle. Exactly 48 h is eligible. A day the person chose themselves is never moved: the rule
+ * suggests, the person decides. A day kept up next (under 60% done) is judged without its own part
+ * done workout (`kept.trained`), so that workout never moves it away. When every pending day is
+ * blocked there is no suggestion (dayIndex null): `eligibleAt` says when the first one is rested and
+ * `anywayIndex` is that day; `pendingDayIndices[0]` is still the next day in order.
  */
 export function resolveNextDay(input: {
   state: RotationPosition; days: readonly (readonly string[])[];
   trained: Readonly<Record<string, number | undefined>>; now: number;
+  kept?: { dayIndex: number; trained: Readonly<Record<string, number | undefined>> };
 }): ResolvedDay {
   const pending = rotationOf(input.state, input.days.length);
   const chosen = input.state.chosenDayIndex;
   if (chosen !== undefined && pending.includes(chosen)) return { dayIndex: chosen, pendingDayIndices: [chosen, ...pending.filter((i) => i !== chosen)], deferred: [] };
-  const readyAt = (i: number) => Math.max(input.now, ...input.days[i]!.map((m) => {
-    const at = input.trained[m];
-    return at !== undefined && at <= input.now ? at + TIRED_MS : input.now;
-  }));
+  const lastOf = (i: number, m: string) => {
+    const at = (input.kept?.dayIndex === i ? input.kept.trained : input.trained)[m];
+    return at !== undefined && at <= input.now && at + TIRED_MS > input.now ? at : undefined;
+  };
+  const readyAt = (i: number) => Math.max(input.now, ...input.days[i]!.map((m) => (lastOf(i, m) ?? input.now - TIRED_MS) + TIRED_MS));
   const at = pending.findIndex((i) => readyAt(i) <= input.now);
-  if (at === -1) return { dayIndex: null, pendingDayIndices: pending, deferred: pending, ...(pending.length ? { eligibleAt: Math.min(...pending.map(readyAt)) } : {}) };
+  if (at === -1) {
+    if (!pending.length) return { dayIndex: null, pendingDayIndices: pending, deferred: pending };
+    const eligibleAt = Math.min(...pending.map(readyAt));
+    const anywayIndex = pending.find((i) => readyAt(i) === eligibleAt)!;
+    const muscles = input.days[anywayIndex]!.filter((m) => lastOf(anywayIndex, m) !== undefined);
+    return { dayIndex: null, pendingDayIndices: pending, deferred: pending, eligibleAt, anywayIndex, resting: { muscles, trainedAt: Math.max(...muscles.map((m) => lastOf(anywayIndex, m)!)) } };
+  }
   const deferred = pending.slice(0, at);
   return { dayIndex: pending[at]!, pendingDayIndices: [...pending.slice(at), ...deferred], deferred };
 }

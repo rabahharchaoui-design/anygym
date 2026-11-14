@@ -3,9 +3,9 @@ import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnyGymDB, SCHEMA_VERSION, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11 } from '../schema';
 import { ensureFirstGym } from '../bootstrap';
-import { choosePlan, setNextDay } from '../planState';
+import { choosePlan, setFinishNextDay, setNextDay } from '../planState';
 import { readSchedule, saveWeeklySchedule } from '../schedule';
-import { readTraining } from '../training';
+import { readTraining, readTrainingLog } from '../training';
 import { startPlanDay } from '../workoutStart';
 import { finishWorkout } from '../workoutFinish';
 import { reopenWorkout } from '../workoutReopen';
@@ -37,7 +37,8 @@ beforeEach(async () => {
 afterEach(async () => { vi.restoreAllMocks(); await db.delete(); });
 async function trained(id: string, exerciseId: string, opts: Partial<Session> = {}, setOpts: Partial<WorkoutSet> = {}) {
   await db.sessions.add({ id, gymId: 'another-gym', startedAt: now - 60_000, endedAt: now - 30_000, imported: false, ...opts });
-  await db.sets.add({ id: `${id}-set`, sessionId: id, exerciseId, order: 0, kind: 'work', reps: 8, load, uncertain: false, ...setOpts });
+  // Three hard sets: the least that counts for the 48 hour rule (lib/plan/recovery.ts).
+  for (let i = 0; i < 3; i++) await db.sets.add({ id: `${id}-set-${i}`, sessionId: id, exerciseId, order: i, kind: 'work', reps: 8, load, uncertain: false, ...setOpts });
 }
 describe('saved schedules and starts', () => {
   it('saves weekly days offline once, and a failed write remains unanswered for retry', async () => {
@@ -124,6 +125,53 @@ describe('saved schedules and starts', () => {
     expect((await db.planState.get('active'))!).toMatchObject({ nextDayIndex: 2, pendingDayIndices: [2, 0], partial: { 1: 2 / 3 }, doneDays: [] });
     expect(await reopenWorkout(s.id, undefined, db)).toBe(true);
     expect(await db.planState.get('active')).toEqual(before);
+  });
+});
+describe('round 2: one next day rule (critic BLOCKER 3, MAJOR 5)', () => {
+  it('one set on Day 1 keeps Day 1 on the finish screen and on Today: both read the same resolver', async () => {
+    const s = await startPlanDay(gymId, planId, 0, db, now);
+    await logSet({ id: 'one', sessionId: s.id, exerciseId: exercises[0]!, reps: 8, load }, db);
+    await finishWorkout(s.id, db, now + 1000);
+    expect((await db.planState.get('active'))!).toMatchObject({ nextDayIndex: 0, partial: { 0: 1 / 3 } });
+    expect((await readSchedule(now + 2000, db)).resolved).toMatchObject({ dayIndex: 0, deferred: [] });
+    // The next day, one empty bar set of another day's lift in a quick workout: still no rest day, still Day 1.
+    await db.sessions.add({ id: 'q', gymId, startedAt: now + 86_400_000, endedAt: now + 86_400_000 + 1000, imported: false });
+    await db.sets.add({ id: 'q-1', sessionId: 'q', exerciseId: exercises[2]!, order: 0, kind: 'work', reps: 8, load, uncertain: false });
+    expect((await readSchedule(now + 86_400_000 + 2000, db)).resolved).toMatchObject({ dayIndex: 0, deferred: [] });
+  });
+  it('a kept day stays up next even when its part done workout had many hard sets on its muscles', async () => {
+    const s = await startPlanDay(gymId, planId, 0, db, now);
+    await logSet({ id: 'one', sessionId: s.id, exerciseId: exercises[0]!, reps: 8, load }, db);
+    // Four more chest sets on a lift that is not in the day: real work, but the day is still under 60%.
+    for (const id of ['a', 'b', 'c', 'd']) await logSet({ id, sessionId: s.id, exerciseId: 'barbell-incline-bench-press', reps: 8, load: { kind: 'barbell', unit: 'lb', total: 45, barWeight: 45, perSide: [] } }, db);
+    await finishWorkout(s.id, db, now + 1000);
+    expect((await db.planState.get('active'))!.nextDayIndex).toBe(0);
+    expect((await readTrainingLog(now + 2000, db))[0]!.sets.chest).toBe(5);
+    expect((await readSchedule(now + 2000, db)).resolved).toMatchObject({ dayIndex: 0, deferred: [] });
+  });
+  it('two hard sets never count, three do; Train anyway offers the most rested day and the card data names the muscles', async () => {
+    await db.sessions.add({ id: 'two', gymId, startedAt: now - 60_000, endedAt: now - 30_000, imported: false });
+    for (let i = 0; i < 2; i++) await db.sets.add({ id: `two-${i}`, sessionId: 'two', exerciseId: exercises[0]!, order: i, kind: 'work', reps: 8, load, uncertain: false });
+    expect((await readSchedule(now, db)).resolved).toMatchObject({ dayIndex: 0, deferred: [] });
+    await db.sets.add({ id: 'two-2', sessionId: 'two', exerciseId: exercises[0]!, order: 2, kind: 'work', reps: 8, load, uncertain: false });
+    expect((await readSchedule(now, db)).resolved).toMatchObject({ dayIndex: 1, deferred: [0] });
+    // Day 2 trained 20 hours ago and Day 3 just now: every day rests, and the one to train anyway is not the one just trained.
+    await trained('back', exercises[1]!, { startedAt: now - 20 * 3_600_000 });
+    await trained('legs', exercises[2]!, { startedAt: now - 1000 });
+    const r = (await readSchedule(now, db)).resolved!;
+    expect(r).toMatchObject({ dayIndex: null, anywayIndex: 1, eligibleAt: now + 28 * 3_600_000 });
+    expect(r.resting!.muscles).toContain('back');
+    expect(r.resting!.trainedAt).toBe(now - 20 * 3_600_000);
+  });
+  it('Change on the finish screen is the person\'s own pick: the rule never moves it', async () => {
+    await trained('legs', exercises[2]!);
+    const s = await startPlanDay(gymId, planId, 0, db, now);
+    for (const id of ['a', 'b', 'c']) await logSet({ id, sessionId: s.id, exerciseId: exercises[0]!, reps: 8, load }, db);
+    await finishWorkout(s.id, db, now + 1000);
+    expect((await readSchedule(now + 2000, db)).resolved?.dayIndex).toBe(1);
+    await setFinishNextDay(s.id, 2, db);
+    expect((await db.planState.get('active'))!).toMatchObject({ nextDayIndex: 2, chosenDayIndex: 2, pendingDayIndices: [2, 1] });
+    expect((await readSchedule(now + 2000, db)).resolved).toMatchObject({ dayIndex: 2, deferred: [] });
   });
 });
 describe('additive v11 data and backup compatibility', () => {

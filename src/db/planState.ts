@@ -158,7 +158,9 @@ export async function setFinishNextDay(sessionId: string, dayIndex: number, db: 
     if (active) throw new NextDayRefusedError();
     const at = await planDayOf(session, db);
     if (!at || !Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex >= at.plan.days.length) throw new NextDayRefusedError();
-    const next = { ...at.state, nextDayIndex: dayIndex };
+    // The person's own pick, like Change day on Today: the 48 hour rule never moves it.
+    const next: PlanState = { ...at.state, nextDayIndex: dayIndex, chosenDayIndex: dayIndex };
+    if (next.pendingDayIndices) next.pendingDayIndices = [...new Set([dayIndex, ...rotationOf(at.state, at.plan.days.length)])];
     await db.planState.put(next);
     return next;
   });

@@ -6,10 +6,10 @@ import own from './DayCard.module.css';
 
 type Props = {
   plan: Plan;
-  /** The next day in order, the one "Train anyway" picks. */
+  /** The most rested day left, the one "Train anyway" picks (lib/plan/schedule.ts: anywayIndex). */
   nextIndex?: number;
-  /** When the first day left is rested (lib/plan/schedule.ts). */
-  readyAt?: number;
+  /** "Chest and shoulders trained yesterday." and "Ready tomorrow morning." (lib/plan/scheduleWords.ts). */
+  words: { trained: string; ready: string } | null;
   onTrain: (dayIndex: number) => void;
 };
 
@@ -18,16 +18,18 @@ type Props = {
  * Today says so kindly instead of a Start: rest is part of the plan, when the next day is ready,
  * and one clear secondary way to train anyway (the rule suggests, the person decides).
  */
-export function RecoveryCard({ plan, nextIndex, readyAt, onTrain }: Props) {
+export function RecoveryCard({ plan, nextIndex, words, onTrain }: Props) {
   const next = nextIndex === undefined ? undefined : plan.days[nextIndex];
   return (
     <section className={styles.pick} data-testid="rotation-recovery">
       <p className={styles.planName}>{plan.name}</p>
       <h2 className={styles.pickTitle}>Time to recover</h2>
-      <p className={styles.pickSub}>You trained these muscles in the last 48 hours. Rest today, and your next workout keeps its place.</p>
-      {readyAt !== undefined && (
-        <p className={`${own.ready} num`} data-testid="rotation-ready">
-          Ready again {new Date(readyAt).toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' })}.
+      <p className={styles.pickSub} data-testid="rotation-why">
+        {words ? `${words.trained} ` : ''}Rest today, and your next workout keeps its place.
+      </p>
+      {words && (
+        <p className={own.ready} data-testid="rotation-ready">
+          {words.ready}
         </p>
       )}
       {next && nextIndex !== undefined && (

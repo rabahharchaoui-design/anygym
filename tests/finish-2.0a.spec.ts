@@ -53,7 +53,7 @@ test('below 60% keeps Day 1: no radios, one Next up line, Today keeps Day 1 @mat
   await shotOn(page, '2.0a', 'finish-keep');
   expect((await plan(page)).nextDayIndex).toBe(0);
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 · Legs \(hamstring focus\)/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 · Legs \(hamstring focus\)/);
   // Kept up next AND part done: the next highlight with its 22 of 37 (0.59) ring drawn.
   const day1 = page.getByTestId('week-day-1');
   await expect(day1).toHaveAttribute('data-state', 'next');
@@ -84,7 +84,7 @@ test('60% or more moves on to Day 2 with a partial ring on Day 1 @matrix', async
   expect(st).toMatchObject({ nextDayIndex: 1, doneDays: [] });
   expect(st.partial?.[0]).toBeCloseTo(23 / 37);
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · Chest and triceps/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 2 · Chest and triceps/);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
   await expect(page.getByTestId('week-day-2')).toHaveAttribute('data-state', 'next');
   expect(errors).toEqual([]);
@@ -113,7 +113,7 @@ test('Change picks Day 4: saved at once, survives a reload, Today shows Day 4, U
   await page.reload();
   await expect(page.getByTestId('finish-next')).toHaveText('Next up: Day 4 · Legs (quad focus)');
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 4 · Legs \(quad focus\)/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 4 · Legs \(quad focus\)/);
   // Undo on Today reopens the workout and the plan goes back exactly to where it was.
   const toast = page.getByRole('status').filter({ hasText: 'Workout saved' });
   await expect(toast).toBeVisible();

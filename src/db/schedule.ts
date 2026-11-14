@@ -6,7 +6,10 @@ import { weekKey } from '../lib/coach/time';
 import { needsWeeklySchedule, resolveNextDay, rotationOf, scheduleStyleOf, type WeeklySchedule } from '../lib/plan/schedule';
 import { WEEKDAYS, type WeekdayId } from '../lib/intake/options';
 import { getProfile } from './intake';
-import { readTraining } from './training';
+import { readTrainingLog } from './training';
+import { countedTraining } from '../lib/plan/recovery';
+import { movesOn } from '../lib/finishPlan';
+import { dayIdOf } from '../lib/plans';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { PlanState, Profile } from './types';
 
@@ -16,14 +19,18 @@ export async function resolveSchedule(state: PlanState, profile: Profile | undef
   const style = scheduleStyleOf(profile?.intake, plan.scheduleStyle);
   // A pre-intake pointer keeps its legacy finish semantics until the person chooses a schedule.
   if (style === 'fixed' || (!profile?.intake && !state.pendingDayIndices && !plan.scheduleStyle)) return { dayIndex: state.nextDayIndex, pendingDayIndices: rotationOf(state, plan.days.length), deferred: [] };
-  const trained = await readTraining(now, db);
+  const log = await readTrainingLog(now, db);
+  // A day kept up next (under 60% done) is never moved away by its own part done workout.
+  const share = state.partial?.[state.nextDayIndex];
+  const keptDay = share !== undefined && !movesOn(share) && !state.doneDays.includes(state.nextDayIndex) ? plan.days[state.nextDayIndex] : undefined;
+  const kept = keptDay ? { dayIndex: state.nextDayIndex, trained: countedTraining(log, now, (e) => e.planId === plan.id && e.dayId === dayIdOf(keptDay)) } : undefined;
   const gym = gymId ? await db.gyms.get(gymId) : await db.gyms.filter((g) => g.isActive).first();
   const always = await alwaysPicks(plan.id, db);
   const days = plan.days.map((_, i) => [...new Set(adaptedPlanDay(plan, i, state.weekIndex, gym, always).exerciseIds.flatMap((id) => {
     const p = profileFor(id);
     return p.role === 'lift' ? p.targets : [];
   }))]);
-  return resolveNextDay({ state, days, trained, now });
+  return resolveNextDay({ state, days, trained: countedTraining(log, now), now, ...(kept ? { kept } : {}) });
 }
 export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
   return db.transaction('r', [db.profile, db.planState, db.sessions, db.sets, db.gyms, db.exerciseSettings], async () => {

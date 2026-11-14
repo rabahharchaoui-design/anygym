@@ -15,6 +15,7 @@ import { useTodayData } from '../hooks/useTodayData';
 import { useSchedule } from '../hooks/useSchedule';
 import { WeekScheduleSheet } from './today/WeekScheduleSheet';
 import { RecoveryCard } from './today/RecoveryCard';
+import { restingWords } from '../lib/plan/scheduleWords';
 import { db } from '../db/schema';
 import { startDb } from '../db/bootstrap';
 import { setNextDay } from '../db/planState';
@@ -72,7 +73,7 @@ export function TodayScreen() {
   // PLAN 3.8: the coach reads with Today, so its card never shifts the page in after the rest.
   const coach = useCoach(dbOpen);
   const [seeChanges, setSeeChanges] = useState(false);
-  const data = { ready: dbOpen && live.ready && live.data != null && coach.ready && schedule.ready && !!schedule.data && !schedule.error, value: live.data ?? undefined };
+  const data = { ready: dbOpen && live.ready && live.data != null && coach.ready && schedule.ready && !!schedule.data, value: live.data ?? undefined };
   const failed = dbOpen && (live.error !== null || schedule.error !== null) && !data.ready;
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [updateReady, setUpdateReady] = useState(isUpdateReady);
@@ -263,7 +264,7 @@ export function TodayScreen() {
         ) : active ? (
           <ResumeCard active={active} sets={data.value?.activeSets ?? 0} empty={!!data.value?.activeEmpty} onResume={() => void quick()} onDiscard={() => void discard()} />
         ) : blocked ? (
-          <RecoveryCard plan={plan!} nextIndex={resolved?.pendingDayIndices[0]} readyAt={resolved?.eligibleAt} onTrain={(i) => void pickDay(i)} />
+          <RecoveryCard plan={plan!} nextIndex={resolved?.anywayIndex} words={restingWords(resolved, Date.now())} onTrain={(i) => void pickDay(i)} />
         ) : plan && planState ? (
           <DayCard
             plan={plan}

@@ -106,7 +106,7 @@ test('finish 1 of 4: Saved 0 done, 1 of 4 sets; Keep keeps Day 1 with a partial 
   await expect(page.getByTestId('finish-exercise')).toContainText('1 of 4 sets');
   await shot(page, 'finish-partial', 2200);
   await page.getByRole('button', { name: 'Done' }).dblclick();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 · /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 · /);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', /next|partial/);
   const after = (await dbAll<PlanState>(page, 'planState'))[0]!;
   expect(after.nextDayIndex).toBe(before.nextDayIndex);
@@ -140,7 +140,7 @@ test('finish with all 4 squat sets counts the squat as done; Change to Day 2 mov
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /^Day 2 · / }).tap();
   await expect(page.getByTestId('finish-next')).toHaveText(/^Next up: Day 2 · /);
   await page.getByRole('button', { name: 'Done' }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 · /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 2 · /);
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
   await shot(page, 'today-day2-ticks');
   const st = (await dbAll<PlanState>(page, 'planState'))[0]!;
