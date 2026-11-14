@@ -21,7 +21,7 @@ type Props = {
   fitsIn?: number;
   /** PLAN 3.6: the estimate opens "How much time today?" (SPEC 7.4: before Start). */
   onTime?: () => void;
-  /** PLAN 3.6f: not one of the person's days: "Rest day today. Next: Wednesday, Day 1." Start stays. */
+  /** PLAN 3.6f: not one of the person's days: "Rest day, next Wed: Day 1". Start stays. */
   rest?: string | null;
   /** PLAN 3.5f: look through the day's lifts as a deck before Start (swap or hide any). */
   onPreview?: () => void;
@@ -74,11 +74,6 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
           </>
         )}
       </h2>
-      {!active && rest && (
-        <p className={styles.dayFits} data-testid="day-rest">
-          {rest}
-        </p>
-      )}
       {why && (
         <p className={styles.dayFits} data-testid="day-focus-why">
           {why.head}
@@ -115,6 +110,13 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
               </span>
             );
           })()}
+          {/* PLAN 3.6f: not one of the person's days. Said calmly beside the week, taking no room; Start stays. */}
+          {!active && rest && (
+            <span className={styles.stripNote} data-testid="day-rest">
+              {' · '}
+              {rest}
+            </span>
+          )}
         </p>
         <ol className={styles.days} aria-label="Days">
           {plan.days.map((d, i) => {

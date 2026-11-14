@@ -279,7 +279,7 @@ test('every answer is saved; Back keeps them, Skip clears one, a reload resumes 
   await atStep(page, 'reveal');
   // PLAN 3.5: the hotel plan is for muscle, not tone up: Your plan is built from the answers instead.
   await expect(page.getByRole('heading', { name: 'Your plan' })).toBeVisible();
-  await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built to tone up: 3 days, about \d+ min, hotel friendly, extra glutes and legs work, easy on wrists(, with an exercise you love)?\.$/);
+  await expect(page.getByTestId('reveal-reason')).toHaveText(/^Built to tone up: 3 days, about \d+ min, hotel friendly, extra glute and leg work, easy on wrists(, with an exercise you love)?\.$/);
   await expect(page.getByTestId('reveal-week').getByRole('listitem')).toHaveCount(3);
   await shot(page, 'reveal-generated');
 

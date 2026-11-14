@@ -66,27 +66,37 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await checkLayout(page, { primary: priorities(page).getByRole('button', { name: 'Done', exact: true }) });
   for (const button of await rank.getByRole('button').all()) { const box = (await button.boundingBox())!; expect(Math.round(box.height)).toBeGreaterThanOrEqual(48); expect(Math.round(box.width)).toBeGreaterThanOrEqual(48); }
   await rankDone(page);
-  await expect(page.getByTestId('focus-rank-top')).toContainText('Lats and width and Side shoulders for width');
+  await expect(page.getByTestId('focus-rank-top')).toContainText('Lats and Side shoulders');
   await checkLayout(page, { primary: page.getByTestId('intake-cta').getByRole('button', { name: 'Continue', exact: true }) });
   // A reload keeps the order and does not raise the sheet again: it is one tap away.
   await page.reload(); await step(page, 'focus'); await expect(page.getByTestId('focus-rank')).toHaveCount(0);
   await page.getByTestId('focus-rank-open').tap(); await expect(page.getByTestId('focus-rank').locator('li').nth(2)).toContainText('Quads'); await rankDone(page);
   await rest(page);
-  await expect(page.getByTestId('reveal-focus')).toContainText('Lats and width');
+  await expect(page.getByTestId('reveal-focus')).toContainText('Lats');
+  // Round 2: every line says the total and the extra as what they are; the top pick is never behind a lower one.
+  await expect(page.getByTestId('focus-line-lats')).toHaveText(/^Lats: \d+ sets every 4 workouts, \d+ of them extra$/);
+  await expect(page.getByTestId('reveal-focus')).not.toContainText(/nothing extra|with your equipment/);
   // A rotation never claims a calendar week, and nothing is said in jargon or as a zero.
-  await expect(page.getByTestId('reveal-focus')).toContainText('work: ');
   await expect(page.getByTestId('reveal-focus')).toContainText('every 4 workouts');
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/working sets|rotation|budget|\b0 (sets|min)/);
   await expect(page.getByTestId('reveal-week')).not.toContainText('Mon');
+  // Round 2 (BLOCKER 2): the fit line names 60 min, and the one tap really fixes it: the warning is gone and every pick has its extra.
+  await expect(page.getByTestId('focus-fit')).toHaveText('5 focus areas fit best with 60 min; we prioritized Lats.');
   const grow = page.getByTestId('focus-add-minutes');
-  if (await grow.isVisible()) { await grow.tap(); await expect(page.getByTestId('reveal-card')).toBeVisible(); }
+  await grow.tap(); await expect(page.getByTestId('reveal-card')).toBeVisible();
+  await expect(page.getByTestId('focus-fit')).toHaveCount(0);
+  await expect(page.getByTestId('focus-add-minutes')).toHaveCount(0);
+  for (const id of ['lats', 'side_delts', 'quads', 'biceps', 'abs']) await expect(page.getByTestId(`focus-line-${id}`)).toHaveAttribute('data-state', 'extra');
+  const extras = await page.getByTestId('reveal-focus').locator('li').evaluateAll((rows) => rows.map((r) => Number(/(\d+) of them extra/.exec(r.textContent ?? '')?.[1] ?? (/all of them extra/.test(r.textContent ?? '') ? 99 : 0))));
+  expect(extras.every((n) => n > 0)).toBe(true);
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });
   await accept(page);
   expect(await dbAll(page, 'sessions')).toEqual([]);
   await expect(page.getByTestId('day-card-title')).toContainText('Next up');
   await expect(page.getByTestId('week-label')).toContainText('rotation');
   await expect(page.getByText('Missed workouts', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('day-focus-why')).toContainText('every 4 workouts');
+  // Round 2 (MAJOR 7): the day card says what this day adds, never the whole rotation's total.
+  await expect(page.getByTestId('day-focus-why')).toHaveText(/^Extra today: \d+ sets? for [a-z ]+( and \d+ for [a-z ]+)?$/);
   // The title breaks only between its parts: no line starts or ends on a dot.
   expect(await page.getByTestId('day-card-title').evaluate((h) => [...h.children].slice(1).every((part, i) => {
     const before = h.children[i]!.getBoundingClientRect(), box = part.getBoundingClientRect();
@@ -137,15 +147,33 @@ test('five priorities, sheet dismissal, balance clearing, accessible ranking and
   await page.reload(); await step(page, 'focus'); await expect(page.getByTestId('q-focus-arms')).toHaveAttribute('aria-pressed', 'true');
 });
 
+const WEEK = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const LABEL: Record<string, string> = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 test('fixed weekdays label the reveal; weekly asks once and keeps the saved days', async ({ page }) => {
   await toFocus(page); await pick(page, 'focus', 'balance'); await rest(page, 'fixed');
   await expect(page.getByTestId('reveal-week')).toContainText('Mon'); await accept(page);
+  // Round 2 (MAJOR 6): on a fixed schedule a day that is not one of the person's days says so, and Start stays.
+  const today = WEEK[(new Date().getDay() + 6) % 7]!;
+  if (['mon', 'tue', 'thu', 'sat'].includes(today)) await expect(page.getByTestId('day-rest')).toHaveCount(0);
+  else await expect(page.getByTestId('day-rest')).toHaveText(/^ · Rest day, next (tomorrow|Mon|Tue|Thu|Sat): Day 1$/);
+  await expect(page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   const profiles = await dbAll<Record<string, unknown> & { intake: Record<string, unknown> }>(page, 'profile');
+  // Straight after the intake, late in a week (fewer days left than the plan has), the question does not open by itself: the row can.
+  const left = WEEK.slice(WEEK.indexOf(today));
   await put(page, 'profile', { ...profiles[0], welcomeTour: 'done', intake: { ...profiles[0]!.intake, scheduleStyle: 'weekly' } });
-  await page.reload(); const sheet = page.getByRole('dialog', { name: 'Which days this week?' }); await expect(sheet).toBeVisible();
+  await page.reload(); const sheet = page.getByRole('dialog', { name: 'Which days this week?' });
+  await expect(page.getByTestId('week-schedule-days')).toHaveText('Not picked yet');
+  if (left.length < 4) await expect(sheet).toHaveCount(0);
+  // An intake finished weeks ago: the new week asks by itself.
+  await put(page, 'profile', { ...profiles[0], welcomeTour: 'done', intakeDoneAt: Date.now() - 30 * 86_400_000, intake: { ...profiles[0]!.intake, scheduleStyle: 'weekly' } });
+  await page.reload(); await expect(sheet).toBeVisible();
   // No days is never saved silently: Save waits for a day and says so.
   await expect(sheet.getByRole('button', { name: 'Save days', exact: true })).toBeDisabled(); await expect(sheet.getByRole('note')).toHaveText('Pick at least one day');
-  await sheet.getByTestId('week-tue').tap(); await checkLayout(page, { primary: sheet.getByRole('button', { name: 'Save days', exact: true }) });
+  // Only today and the days after it can be picked; it asks for the plan's number of days.
+  for (const d of WEEK) { if (left.includes(d)) await expect(sheet.getByTestId(`week-${d}`)).toBeEnabled(); else await expect(sheet.getByTestId(`week-${d}`)).toBeDisabled(); }
+  await expect(sheet.getByTestId('week-plan-days')).toHaveText('Your plan has 4 days. Pick up to 4.');
+  await sheet.getByTestId(`week-${today}`).tap(); await checkLayout(page, { primary: sheet.getByRole('button', { name: 'Save days', exact: true }) });
+  await expect(sheet.getByTestId('week-plan-days')).toHaveText('Your plan has 4 days. You picked 1: the rest wait for next week.');
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
@@ -157,8 +185,10 @@ test('fixed weekdays label the reveal; weekly asks once and keeps the saved days
   await expect(sheet.getByRole('alert')).toHaveText('Could not save your days. Try again.');
   await sheet.getByRole('button', { name: 'Save days', exact: true }).tap(); await expect(sheet).not.toBeVisible();
   await page.reload(); await expect(page.getByTestId('day-card-title')).toBeVisible(); await expect(sheet).not.toBeVisible();
-  await expect(page.getByTestId('week-schedule-days')).toHaveText('Tue');
-  await page.getByTestId('week-schedule-open').tap(); await expect(sheet.getByTestId('week-tue')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('week-schedule-days')).toHaveText(LABEL[today]!);
+  // Today is one of the picked days: no rest day note.
+  await expect(page.getByTestId('day-rest')).toHaveCount(0);
+  await page.getByTestId('week-schedule-open').tap(); await expect(sheet.getByTestId(`week-${today}`)).toHaveAttribute('aria-pressed', 'true');
 });
 
 /** A flexible profile on the four day upper/lower plan whose last workout trained the upper body: Day 2 (lower) is next. */
@@ -238,5 +268,5 @@ test('reduced motion keeps all parts, targets and the reachable action', async (
     const box = await button.boundingBox(); if (box) { expect(box.height).toBeGreaterThanOrEqual(48); expect(box.width).toBeGreaterThanOrEqual(48); }
   }
   await sheet.getByTestId('focus-part-upper_chest').tap(); await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await rest(page);
-  await expect(page.getByTestId('reveal-focus')).toContainText('upper chest work');
+  await expect(page.getByTestId('focus-line-upper_chest')).toHaveText(/^Upper chest: \d+ sets every 4 workouts, \d+ of them extra$/);
 });

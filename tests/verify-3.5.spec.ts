@@ -46,9 +46,9 @@ const toReveal = async (page: Page, answers: Record<string, unknown>) => {
 };
 
 const PATHS = [
-  { name: 'hotel', place: 'hotel', goal: 'muscle', days: 4, minutes: 45, equipment: HOTEL, word: /hotel friendly/, label: 'build muscle' },
+  { name: 'hotel', place: 'hotel', goal: 'muscle', days: 4, minutes: 45, equipment: HOTEL, word: /hotel friendly/, label: 'add muscle' },
   { name: 'home', place: 'home', goal: 'fat_loss', days: 3, minutes: 30, equipment: [], word: /home friendly/, label: 'lose fat' },
-  { name: 'outdoors', place: 'outdoors', goal: 'muscle', days: 2, minutes: 45, equipment: [], word: /no equipment needed/, label: 'build muscle' },
+  { name: 'outdoors', place: 'outdoors', goal: 'muscle', days: 2, minutes: 45, equipment: [], word: /no equipment needed/, label: 'add muscle' },
   { name: 'full gym', place: 'full', goal: 'strength', days: 5, minutes: 60, equipment: ['barbell_rack', 'flat_bench', 'adjustable_bench', 'dumbbells', 'cable_station', 'leg_press', 'lat_pulldown', 'seated_row', 'pull_up_bar', 'dip_station'], word: /full gym/, label: 'get stronger' },
 ];
 

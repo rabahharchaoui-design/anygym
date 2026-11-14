@@ -85,7 +85,7 @@ import { list } from '../words';
 export { list };
 const average = (ns: readonly number[]): number => (ns.length ? Math.round(ns.reduce((x, y) => x + y, 0) / ns.length) : 0);
 /** "extra arm work", "extra leg work", "extra lats work": a pick as the word before "work". */
-const focusWord = (f: FocusPickId): string => (f === 'arms' ? 'arm' : f === 'legs' ? 'leg' : focusName(f).toLowerCase());
+const focusWord = (f: FocusPickId): string => (f === 'arms' ? 'arm' : f === 'legs' ? 'leg' : f === 'glutes' ? 'glute' : focusName(f).toLowerCase());
 /** Minutes close to the ones chosen say the choice ("about 60 min", never "about 59"): rounding noise is not news. */
 const MINUTES_NEAR = 3;
 export const aboutMinutes = (avg: number, chosen: number | undefined): number => (chosen !== undefined && Math.abs(avg - chosen) <= MINUTES_NEAR ? chosen : avg);

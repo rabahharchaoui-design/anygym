@@ -29,14 +29,15 @@ export function restingWords(r: Pick<ResolvedDay, 'resting' | 'eligibleAt'> | nu
 }
 
 /**
- * A day that is not one of the person's days, said calmly: "Rest day today. Next: Wednesday, Day 1."
- * ("tomorrow" when it is). Start stays on the card: this never blocks training.
+ * A day that is not one of the person's days, said calmly and short (it sits beside "This week"):
+ * "Rest day, next Wed: Day 1" ("next tomorrow" when it is). Start stays on the card: this never
+ * blocks training.
  */
 export function restDayWords(rest: RestDay | null | undefined, dayN: number, now: number): string | null {
   if (!rest) return null;
-  if (rest.nextAt === undefined) return `Rest day today. Day ${dayN} is up next.`;
+  if (rest.nextAt === undefined) return `Rest day, Day ${dayN} is next`;
   const days = Math.round((startOfDay(rest.nextAt) - startOfDay(now)) / DAY_MS);
-  return `Rest day today. Next: ${days === 1 ? 'tomorrow' : WEEKDAY[new Date(rest.nextAt).getDay()]}, Day ${dayN}.`;
+  return `Rest day, next ${days === 1 ? 'tomorrow' : WEEKDAY[new Date(rest.nextAt).getDay()]!.slice(0, 3)}: Day ${dayN}`;
 }
 
 /** Under "Which days this week?": the plan's number of days, and what was picked against it. */

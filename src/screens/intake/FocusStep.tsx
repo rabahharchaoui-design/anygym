@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOCUS, FOCUS_OBJECTIVES, FOCUS_PARTS, type FocusId, type FocusPickId } from '../../lib/intake/options';
-import { focusBudget, focusLabel, normalizeFocusPicks } from '../../lib/plan/focus';
+import { focusBudget, focusLabel, focusName, normalizeFocusPicks } from '../../lib/plan/focus';
 import { focusNotYet } from '../../data/focusServed';
 import { Chip } from '../../ui/Chip';
 import { SummaryRow } from '../../ui/SummaryRow';
@@ -60,7 +60,7 @@ export function FocusStep({ value, onChange }: { value: readonly string[]; onCha
       </div>
       {order.length ? (
         <div className={styles.priorities}>
-          <SummaryRow label="Your priorities" value={<>Most extra work: {list(order.slice(0, 2).map(focusLabel))}</>} action="Reorder" onPress={() => setRankOpen(true)} testId="focus-rank-open" valueTestId="focus-rank-top" />
+          <SummaryRow label="Your priorities" value={<>Most extra work: {list(order.slice(0, 2).map(focusName))}</>} action="Reorder" onPress={() => setRankOpen(true)} testId="focus-rank-open" valueTestId="focus-rank-top" />
         </div>
       ) : (
         <p className={styles.note}>Leave it blank for a balanced plan.</p>
