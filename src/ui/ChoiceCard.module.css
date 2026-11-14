@@ -57,7 +57,8 @@
 }
 
 .label {
-  font-size: 17px;
+  /* A step over the hint at every text size (it was a fixed 17 px, smaller than its hint at 130%). */
+  font-size: calc(var(--text-base) + 1px);
   font-weight: 700;
   line-height: 1.2;
   overflow-wrap: anywhere;

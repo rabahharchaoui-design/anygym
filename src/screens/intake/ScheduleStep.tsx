@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { CalendarClock, CalendarDays, Repeat } from 'lucide-react';
 import { SCHEDULE_STYLES, type ScheduleStyle, type WeekdayId } from '../../lib/intake/options';
 import { type IntakeAnswers, weekdayCountNote } from '../../lib/intake/funnel';
@@ -22,6 +23,15 @@ const MEANS: Record<Exclude<ScheduleStyle, 'fixed'>, [string, string]> = {
 export function ScheduleStep({ answers, onStyle, onDays }: { answers: IntakeAnswers; onStyle: (style: ScheduleStyle) => void; onDays: (days: WeekdayId[]) => void }) {
   const style = scheduleStyleOf(answers);
   const count = weekdayCountNote(answers);
+  // What a choice brings in sits under the three cards: on a short screen or at large text the page
+  // brings it above the button, so the weekday chips are never left waiting under the bar.
+  const detail = useRef<HTMLDivElement>(null);
+  const shown = useRef(style);
+  useEffect(() => {
+    if (shown.current === style) return;
+    shown.current = style;
+    detail.current?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }, [style]);
   return (
     <div className={styles.step} data-testid="q-weekdays">
       <div className={intake.cards} data-fill role="group" aria-label="Schedule style">
@@ -29,7 +39,7 @@ export function ScheduleStep({ answers, onStyle, onDays }: { answers: IntakeAnsw
           <ChoiceCard key={s.id} icon={ICONS[s.id]} label={s.label} hint={s.hint} picked={s.id === style} onPress={() => onStyle(s.id)} testId={`q-schedule-${s.id}`} />
         ))}
       </div>
-      <div className={styles.detail}>
+      <div ref={detail} className={styles.detail}>
         {style === 'fixed' ? (
           <div key="fixed" className={`${styles.days} ${intake.fadeIn}`}>
             <WeekdayChips value={answers.weekdays ?? []} onChange={onDays} label="Weekdays" testIdPrefix="q-weekdays" />

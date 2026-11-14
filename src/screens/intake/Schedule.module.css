@@ -12,6 +12,7 @@
   flex: none;
   /* Two rows of 48 pt chips and their gap. The count line comes last, so it pushes nothing. */
   min-height: 104px;
+  scroll-margin-bottom: var(--space-3);
 }
 
 .days {
