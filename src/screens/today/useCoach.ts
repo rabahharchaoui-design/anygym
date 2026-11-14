@@ -78,5 +78,9 @@ export function useCoach(enabled: boolean): CoachView {
   }, [auto, data]);
 
   const busy = !live.error && !!data && coachDay(!!today?.card, data.answeredAt, data.now);
-  return { ready: !enabled || live.ready, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
+  // The read asked for has landed (round 3): while the database opens, the live query still holds the
+  // "nothing yet" of before, and Today must not draw without the coach and let its card come in after
+  // the day card (an entrance that waits on script animation frames, and a shift of the page).
+  const landed = live.ready && (data !== undefined || !!live.error);
+  return { ready: !enabled || landed, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
 }

@@ -283,6 +283,30 @@ test.describe('verify 3.8b', () => {
     expect(errors).toEqual([]);
   });
 
+  test('2d the coach card is on Today from the first moment the day card is, and visible when script animation frames never run (3.6f round 3)', async ({ page }) => {
+    await page.goto('./');
+    await missedSetup(page);
+    // A clock that does not run for scripts (a faked or frozen one): animation frames are never delivered. And a
+    // note of whether the coach card was there when the day card first was (it must never come in after it).
+    await page.addInitScript(() => {
+      window.requestAnimationFrame = () => 0;
+      const w = window as unknown as { coachWithDay: boolean | null };
+      w.coachWithDay = null;
+      new MutationObserver(() => {
+        if (w.coachWithDay === null && document.querySelector('[data-tour="day"]')) w.coachWithDay = !!document.querySelector('[data-testid="coach-card"]');
+      }).observe(document, { childList: true, subtree: true });
+    });
+    for (let round = 0; round < 3; round++) {
+      await page.reload();
+      const card = page.getByTestId('coach-card');
+      await expect(card).toHaveAttribute('data-kind', 'missed_days');
+      await expect(card).toHaveCSS('opacity', '1');
+      expect((await card.boundingBox())!.height).toBeGreaterThan(100);
+      await expect(card.getByTestId('coach-pick-up')).toBeVisible();
+      expect(await page.evaluate(() => (window as unknown as { coachWithDay: boolean | null }).coachWithDay), `load ${round + 1}`).toBe(true);
+    }
+  });
+
   test('2c a flexible profile (no saved weekdays) never gets the missed days card, however long ago it last trained', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('./');
