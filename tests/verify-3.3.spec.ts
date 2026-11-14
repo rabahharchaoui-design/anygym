@@ -124,7 +124,8 @@ test('all 14 questions and the reveal (PLAN 3.5: no no plan notice at home): tit
   await expect(cta(page), 'weekdays flexible default').toBeEnabled();
   await t('q-schedule-fixed').tap();
   await disabledWithReason('weekdays');
-  await t('q-weekdays-mon').tap();
+  // 3.6f round 3: one weekday for each of the 3 days before Continue.
+  for (const d of ['mon', 'wed', 'fri']) await t(`q-weekdays-${d}`).tap();
   await cta(page).tap();
   await auto('minutes', 'q-minutes-45');
   await auto('place', 'q-place-home');

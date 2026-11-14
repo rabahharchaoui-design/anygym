@@ -235,7 +235,7 @@ test.describe('3.5g gate fixes', () => {
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 0, doneDays: [] }] });
     await seedAt(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, BAR185));
     // 3.6f: missed days exist only on a calendar (saved weekdays); a flexible rotation never has them.
-    await fixedDaysAfter(page, 5, 2);
+    await fixedDaysAfter(page, 5, 2, 5);
     await page.goto('./');
     const card = page.getByTestId('coach-card');
     await expect(card).toHaveAttribute('data-kind', 'missed_days');

@@ -194,7 +194,7 @@ test.describe('verify 3.8b', () => {
 
   async function missedSetup(page: Page, fixed = true) {
     await usePlan(page);
-    if (fixed) await fixedDaysAfter(page, 5, 2);
+    if (fixed) await fixedDaysAfter(page, 5, 2, 5);
     const before = (await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]!;
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 2, doneDays: [0, 1] }] });
     await seed(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, lb(185, [45, 25])));
