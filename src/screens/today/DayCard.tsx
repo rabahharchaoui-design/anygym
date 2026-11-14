@@ -96,7 +96,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
         {active ? 'Resume' : 'Start'}
       </Button>
 
-      <div className={styles.strip}>
+      <div className={styles.strip} data-room>
         <p className={styles.stripLabel} data-testid="week-label">
           {/* A plan with a set length says its week on any schedule; a rotation has no calendar week. */}
           {plan.weeks ? `Week ${weekIndex + 1} of ${plan.weeks}` : flexible ? 'This rotation' : 'This week'}

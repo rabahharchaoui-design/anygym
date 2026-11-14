@@ -309,6 +309,49 @@ test('one set on Day 1 keeps Day 1: the finish screen and Today say the same nex
   await expect(page.getByTestId('rotation-recovery')).toHaveCount(0);
 });
 
+/** Round 3 (critic 6): Today is at its top: the day card starts under the header with its plan name in view, and the toast is over no button. */
+async function landedAtTop(page: Page, toastText: string) {
+  const toast = page.getByRole('status').filter({ hasText: toastText }); await expect(toast).toBeVisible();
+  await page.waitForTimeout(900);
+  const at = await page.evaluate(() => {
+    const card = document.querySelector('[data-tour="day"]')!; const scroller = card.closest('[data-scroller]')!;
+    const head = scroller.querySelector('header')!.getBoundingClientRect().bottom;
+    return { top: scroller.scrollTop, gap: card.getBoundingClientRect().top - head, name: card.querySelector('p')!.getBoundingClientRect().top - head, title: document.querySelector('[data-testid="day-card-title"]')!.getBoundingClientRect().top - head };
+  });
+  expect(at.top).toBe(0); expect(at.gap).toBeGreaterThanOrEqual(0); expect(at.name).toBeGreaterThan(0); expect(at.title).toBeGreaterThan(0);
+  const t = (await toast.boundingBox())!;
+  for (const b of await page.locator('[data-room] button:visible, [data-room] a:visible').all()) {
+    const r = (await b.boundingBox())!;
+    expect(r.x < t.x + t.width && t.x < r.x + r.width && r.y < t.y + t.height && t.y < r.y + r.height, `toast over "${(await b.innerText()).slice(0, 24)}"`).toBe(false);
+  }
+}
+test('round 3 (critic 6, 7): four sets keep Day 1 as one story, and Today lands at its top after Finish then Done and after Use this plan', async ({ page }) => {
+  test.setTimeout(60_000);
+  await toFocus(page); await pick(page, 'focus', 'balance'); await rest(page); await accept(page);
+  await page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  const s = (await dbAll<{ id: string; exerciseIds: string[]; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
+  for (const n of [0, 1, 2, 3]) await put(page, 'sets', { id: `bench-${n}`, sessionId: s.id, exerciseId: s.exerciseIds[0], order: n, kind: 'work', reps: 8, load: { kind: 'dumbbell_each', unit: 'lb', total: 10 }, uncertain: false });
+  await page.reload();
+  await page.getByRole('button', { name: 'Finish', exact: true }).tap();
+  const confirm = page.getByRole('dialog').getByRole('button', { name: /Finish/ });
+  if (await confirm.isVisible().catch(() => false)) await confirm.tap();
+  const why = (await page.getByTestId('finish-next-why').innerText()).match(/^Day 1 again · you did (\d+) of (\d+) sets$/)!;
+  expect(why).not.toBeNull();
+  await page.getByRole('button', { name: 'Done', exact: true }).tap();
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 · /);
+  await landedAtTop(page, 'Workout saved');
+  // One story: the coach line is the continuation, with the finish screen's own numbers, and what Start does.
+  await expect(page.getByTestId('coach-line')).toHaveText(`Coach: Day 1 again. You did ${why[1]} of ${why[2]} sets last time, so it stays up next and starts from the top.`);
+  await expect(page.getByTestId('coach-line')).not.toContainText('again. Go a little lighter');
+  // The other route: Settings, the schedule, Use this plan.
+  await page.goto('./#/settings'); await page.getByTestId('redo-schedule').tap(); await step(page, 'weekdays');
+  await pick(page, 'schedule', 'weekly'); await next(page); await step(page, 'reveal');
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Use this plan', exact: true }).tap(); await expect(page).toHaveURL(/#\/$/);
+  await expect(page.getByTestId('day-card-title')).toBeVisible();
+  await landedAtTop(page, 'Plan saved');
+});
+
 test('Change day onto a day that is resting works: Today shows it and Start opens it', async ({ page }) => {
   await afterUpperDay(page);
   // The upper body was just trained, so Day 1 (upper) is resting; the person still chooses it.

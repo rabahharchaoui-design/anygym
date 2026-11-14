@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { COLLAPSE_PX, TopBar } from '../ui/TopBar';
+import { TopBar } from '../ui/TopBar';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
@@ -49,6 +49,7 @@ import { LeveledUpSheet } from './today/LeveledUpSheet';
 import { applyLighterWeek } from './today/coachStart';
 import { ResumeCard } from './today/ResumeCard';
 import { useArrivalToast } from './today/useArrivalToast';
+import { useToastRoom } from './today/useToastRoom';
 import { WelcomeTour } from './today/WelcomeTour';
 import { ArtScene } from '../ui/art/lazy';
 import { shouldShowTour } from '../lib/welcomeTour';
@@ -87,22 +88,9 @@ export function TodayScreen() {
   // The toast sits just above the tab bar (gate 3), opaque, never over the cards' buttons.
   const quickRef = useRef<HTMLButtonElement>(null);
   const toastBottom = 'calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)';
-  // When the cards reach down to it, the page makes room and scrolls them clear of the toast.
-  useEffect(() => {
-    if (!toast || !data.ready) return;
-    const frame = requestAnimationFrame(() => {
-      const card = quickRef.current;
-      const anchor = document.querySelector<HTMLElement>('[data-toast-anchor]');
-      const scroller = card?.closest<HTMLElement>('[data-scroller]');
-      if (!card || !anchor || !scroller) return;
-      const overlap = card.getBoundingClientRect().bottom + 8 - anchor.getBoundingClientRect().top;
-      // Never to a spot inside the large title's collapse: it would rest half faded (round 4). From
-      // the top, a scroll goes at least the whole collapse, so the compact title takes over cleanly.
-      const by = scroller.scrollTop < COLLAPSE_PX ? Math.max(overlap, COLLAPSE_PX - scroller.scrollTop) : overlap;
-      if (overlap > 0) scroller.scrollBy({ top: by, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [toast, data.ready]);
+  // The toast is over no button, and Today stays at its top (screens/today/useToastRoom.ts).
+  const stackRef = useRef<HTMLDivElement>(null);
+  useToastRoom(toast, data.ready, stackRef, quickRef);
 
   // Back from Finish (a toast in the state): the whole page fades in together, once it has its data.
   const [arrived] = useState(() => !!(location.state as { toast?: string } | null)?.toast);
@@ -247,7 +235,7 @@ export function TodayScreen() {
           </div>
         }
       />
-      <div className={styles.stack} data-arrive={arrived || undefined} data-ready={data.ready || failed || undefined}>
+      <div className={styles.stack} ref={stackRef} data-room data-arrive={arrived || undefined} data-ready={data.ready || failed || undefined}>
         {(live.error || schedule.error) && dbOpen ? (
           <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={() => { live.retry(); schedule.retry(); }} />
         ) : null}
