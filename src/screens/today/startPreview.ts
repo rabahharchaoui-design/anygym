@@ -18,17 +18,19 @@ export type PreviewChanges = {
 
 /** A workout already in progress is returned untouched (nothing of the preview is applied to it). */
 export async function startPreviewedDay(gymId: string, part: Pick<PlanPart, 'planId' | 'dayIndex'>, changes: PreviewChanges): Promise<Session> {
-  const before = await getActiveSession();
-  if (before) return before;
-  const session = await startPlanDay(gymId, part.planId, part.dayIndex);
-  await applyLighterWeek(session).catch(() => 0);
-  await applyNextStart(session, (await db.sets.where('sessionId').equals(session.id).count()) > 0).catch(() => undefined);
-  const now = () => db.sessions.get(session.id);
-  for (const it of changes.items) {
-    if (it.id === it.origin) continue;
-    // Only a move still in the workout (the time picked may have cut it).
-    if ((await now())?.exerciseIds?.includes(it.origin)) await swapExercise(session.id, it.origin, it.id);
-  }
-  for (const id of changes.removed) if ((await now())?.exerciseIds?.includes(id)) await removeExercise(session.id, id);
-  return (await now()) ?? session;
+  return db.transaction('rw', db.tables, async () => {
+    const before = await getActiveSession();
+    if (before) return before;
+    const session = await startPlanDay(gymId, part.planId, part.dayIndex);
+    await applyLighterWeek(session).catch(() => 0);
+    await applyNextStart(session, (await db.sets.where('sessionId').equals(session.id).count()) > 0).catch(() => undefined);
+    const now = () => db.sessions.get(session.id);
+    for (const it of changes.items) {
+      if (it.id === it.origin) continue;
+      // Only a move still in the workout (the time picked may have cut it).
+      if ((await now())?.exerciseIds?.includes(it.origin)) await swapExercise(session.id, it.origin, it.id);
+    }
+    for (const id of changes.removed) if ((await now())?.exerciseIds?.includes(id)) await removeExercise(session.id, id);
+    return (await now()) ?? session;
+  });
 }

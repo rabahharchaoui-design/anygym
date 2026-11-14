@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { COLLAPSE_PX, TopBar } from '../ui/TopBar';
+import { TopBar } from '../ui/TopBar';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
@@ -11,11 +11,16 @@ import { LoadError } from '../components/LoadError';
 import { Toast, undoToast, type ToastMessage } from '../ui/Toast';
 import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
-import { workSetCount } from '../lib/workSets';
+import { useTodayData } from '../hooks/useTodayData';
+import { useSchedule } from '../hooks/useSchedule';
+import { WeekScheduleSheet } from './today/WeekScheduleSheet';
+import { FixedDaysSheet } from './today/FixedDaysSheet';
+import { RecoveryCard } from './today/RecoveryCard';
+import { restDayWords, restingWords } from '../lib/plan/scheduleWords';
 import { db } from '../db/schema';
 import { startDb } from '../db/bootstrap';
-import { getPlanState, setNextDay } from '../db/planState';
-import { getActiveSession, startPlanDay, startWorkout } from '../db/workouts';
+import { setNextDay } from '../db/planState';
+import { startPlanDay, startWorkout } from '../db/workouts';
 import { discardEmptyWorkout, undoDiscard } from '../db/discard';
 import { clearSessionDrafts } from '../lib/drafts';
 import { useLive } from '../hooks/useLive';
@@ -27,7 +32,7 @@ import { ChangeDaySheet } from './today/ChangeDaySheet';
 import { BackupReminder } from './today/BackupReminder';
 import { useBackup } from './settings/useBackup';
 import { snoozeBackupReminder } from '../db/backup';
-import { onlyOnPhone, reminderReason, shouldRemind, SNOOZE_MS } from '../lib/backup';
+import { reminderReason, shouldRemind, SNOOZE_MS } from '../lib/backup';
 import { TimeBudgetSheet } from './workout/TimeBudgetSheet';
 import { applyNextStart, localDay, pickFor, readNextStart, trimFor, writeNextStart } from './today/startBudget';
 import { useActiveGym } from '../db/useActiveGym';
@@ -44,6 +49,7 @@ import { LeveledUpSheet } from './today/LeveledUpSheet';
 import { applyLighterWeek } from './today/coachStart';
 import { ResumeCard } from './today/ResumeCard';
 import { useArrivalToast } from './today/useArrivalToast';
+import { useToastRoom } from './today/useToastRoom';
 import { WelcomeTour } from './today/WelcomeTour';
 import { ArtScene } from '../ui/art/lazy';
 import { shouldShowTour } from '../lib/welcomeTour';
@@ -62,39 +68,15 @@ export function TodayScreen() {
     if (r.fired) go('/dev/viewport');
   };
   const location = useLocation();
-  // Open the database first, outside the live query: awaiting a non Dexie promise inside it would
-  // stop it from tracking, and Today would never see a later Change day or finish.
-  const [dbOpen, setDbOpen] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    const done = () => alive && setDbOpen(true);
-    startDb().then(done, done);
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const live = useLive(async () => {
-    if (!dbOpen) return null;
-    const active = await getActiveSession();
-    const planState = await getPlanState();
-    const activeRows = active ? await db.sets.where('sessionId').equals(active.id).toArray() : [];
-    const activeSets = workSetCount(activeRows);
-    // The backup reminder (SPEC 9.1): finished workouts and when the last backup was.
-    const profile = await db.profile.toCollection().first();
-    const done = await db.sessions.filter((s) => s.endedAt !== undefined || s.imported).toArray();
-    const last = profile?.lastBackupAt;
-    // Only on this phone: finished workouts the last successful backup did not hold, by id (never
-    // guessed from dates or from being imported).
-    const onlyHere = onlyOnPhone(done.map((s) => s.id), profile?.backedUpSessionIds);
-    return { active: active ?? null, planState: planState ?? null, activeSets, activeEmpty: !!active && activeRows.length === 0, finished: done.length, onlyHere, lastBackupAt: last, snoozeUntil: profile?.backupSnoozeUntil };
-  }, [dbOpen]);
+  const { dbOpen, live } = useTodayData();
+  const schedule = useSchedule(dbOpen);
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
   // PLAN 3.8: the coach reads with Today, so its card never shifts the page in after the rest.
   const coach = useCoach(dbOpen);
   const [seeChanges, setSeeChanges] = useState(false);
-  const data = { ready: dbOpen && live.ready && live.data != null && coach.ready, value: live.data ?? undefined };
-  const failed = dbOpen && live.error !== null && !data.ready;
+  const data = { ready: dbOpen && live.ready && live.data != null && coach.ready && schedule.ready && !!schedule.data, value: live.data ?? undefined };
+  const failed = dbOpen && (live.error !== null || schedule.error !== null) && !data.ready;
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [updateReady, setUpdateReady] = useState(isUpdateReady);
   const [error, setError] = useState(false);
@@ -106,22 +88,9 @@ export function TodayScreen() {
   // The toast sits just above the tab bar (gate 3), opaque, never over the cards' buttons.
   const quickRef = useRef<HTMLButtonElement>(null);
   const toastBottom = 'calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)';
-  // When the cards reach down to it, the page makes room and scrolls them clear of the toast.
-  useEffect(() => {
-    if (!toast || !data.ready) return;
-    const frame = requestAnimationFrame(() => {
-      const card = quickRef.current;
-      const anchor = document.querySelector<HTMLElement>('[data-toast-anchor]');
-      const scroller = card?.closest<HTMLElement>('[data-scroller]');
-      if (!card || !anchor || !scroller) return;
-      const overlap = card.getBoundingClientRect().bottom + 8 - anchor.getBoundingClientRect().top;
-      // Never to a spot inside the large title's collapse: it would rest half faded (round 4). From
-      // the top, a scroll goes at least the whole collapse, so the compact title takes over cleanly.
-      const by = scroller.scrollTop < COLLAPSE_PX ? Math.max(overlap, COLLAPSE_PX - scroller.scrollTop) : overlap;
-      if (overlap > 0) scroller.scrollBy({ top: by, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [toast, data.ready]);
+  // The toast is over no button, and Today stays at its top (screens/today/useToastRoom.ts).
+  const stackRef = useRef<HTMLDivElement>(null);
+  useToastRoom(toast, data.ready, stackRef, quickRef);
 
   // Back from Finish (a toast in the state): the whole page fades in together, once it has its data.
   const [arrived] = useState(() => !!(location.state as { toast?: string } | null)?.toast);
@@ -160,7 +129,9 @@ export function TodayScreen() {
   const buildable = useMemo(() => (gym ? canBuild(baseInput(intakeAnswers, kitOf(gym), dislikes), QUICK_DEPS) : null), [gym, intakeAnswers, dislikes]);
   const [timeOpen, setTimeOpen] = useState(false);
   const [pickTick, setPickTick] = useState(0);
-  const nextIndex = plan && planState ? Math.max(0, Math.min(planState.nextDayIndex, plan.days.length - 1)) : 0;
+  const resolved = schedule.data?.resolved;
+  const nextIndex = resolved?.dayIndex ?? 0;
+  const blocked = !!plan && resolved?.dayIndex === null;
   const nextDay = plan?.days[nextIndex];
   const nextWeek = plan && planState && plan.progressionMode === 'weekly_table' ? planState.weekIndex : 0;
   void pickTick;
@@ -212,10 +183,10 @@ export function TodayScreen() {
   });
 
   const startDay = useTapGuard(async () => {
-    if (!plan || !planState) return;
+    if (!plan || !planState || blocked) return;
     setError(false);
     try {
-      const session = await startPlanDay((await startDb()).id, plan.id, planState.nextDayIndex);
+      const session = await startPlanDay((await startDb()).id, plan.id, nextIndex);
       // A lighter week (PLAN 3.8): one set fewer on its exercises, this workout only.
       await applyLighterWeek(session).catch(() => 0);
       // The time picked on Today for this day trims the workout now (never anything not picked).
@@ -264,9 +235,9 @@ export function TodayScreen() {
           </div>
         }
       />
-      <div className={styles.stack} data-arrive={arrived || undefined} data-ready={data.ready || failed || undefined}>
-        {live.error && dbOpen ? (
-          <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={live.retry} />
+      <div className={styles.stack} ref={stackRef} data-room data-arrive={arrived || undefined} data-ready={data.ready || failed || undefined}>
+        {(live.error || schedule.error) && dbOpen ? (
+          <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={() => { live.retry(); schedule.retry(); }} />
         ) : null}
         {failed ? null : !data.ready ? (
           <Skeleton height={248} radius={28} />
@@ -276,15 +247,22 @@ export function TodayScreen() {
             plan={plan}
             state={planState}
             active={{ dayIndex: dayIndexOf(plan, active.dayId), sets: data.value?.activeSets ?? 0 }}
+            flexible={schedule.data?.style !== 'fixed'}
+            weekDays={schedule.data?.weekDays}
             onStart={() => void quick()}
             onChangeDay={() => undefined}
           />
         ) : active ? (
           <ResumeCard active={active} sets={data.value?.activeSets ?? 0} empty={!!data.value?.activeEmpty} onResume={() => void quick()} onDiscard={() => void discard()} />
+        ) : blocked ? (
+          <RecoveryCard plan={plan!} nextIndex={resolved?.anywayIndex} words={restingWords(resolved, Date.now())} onTrain={(i) => void pickDay(i)} />
         ) : plan && planState ? (
           <DayCard
             plan={plan}
-            state={planState}
+            state={{ ...planState, nextDayIndex: nextIndex }}
+            flexible={schedule.data?.style !== 'fixed'}
+            rest={restDayWords(schedule.data?.restDay, nextDay?.n ?? nextIndex + 1, Date.now())}
+            weekDays={schedule.data?.weekDays}
             onStart={() => void startDay()}
             onChangeDay={(i) => setChanging(i ?? true)}
             onTime={gym ? () => setTimeOpen(true) : undefined}
@@ -302,6 +280,9 @@ export function TodayScreen() {
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
           </section>
         )}
+        {/* PLAN 3.6f: a week to week schedule says its days right under the day. */}
+        {data.ready && !failed && <WeekScheduleSheet schedule={schedule} active={!!active} />}
+        {data.ready && !failed && <FixedDaysSheet schedule={schedule} />}
         {/* PLAN 3.8 (SPEC 15): the coach's one card, or its one line, never both. */}
         {data.ready && !failed && (
           <>
@@ -360,7 +341,7 @@ export function TodayScreen() {
           onPick={(i) => void pickDay(i)}
         />
       )}
-      {plan && nextDay && (
+      {plan && nextDay && !blocked && (
         <TimeBudgetSheet
           open={timeOpen}
           onClose={() => setTimeOpen(false)}
@@ -379,7 +360,7 @@ export function TodayScreen() {
       />
       <Toast toast={toast} bottom={toastBottom} />
       {/* PLAN 3.5u: once, right after a first intake; never over a toast and its Undo. */}
-      <WelcomeTour show={shouldShowTour(profile.data?.welcomeTour, { ready: data.ready && !failed && buildable !== null && !toast, activeWorkout: active !== null })} />
+      <WelcomeTour show={shouldShowTour(profile.data?.welcomeTour, { ready: data.ready && !schedule.data?.asksWeek && !failed && buildable !== null && !toast, activeWorkout: active !== null })} />
     </>
   );
 }

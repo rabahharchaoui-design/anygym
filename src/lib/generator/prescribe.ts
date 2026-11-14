@@ -1,7 +1,7 @@
 // Prescriptions (SPEC 7.3, 22): sets, reps or hold, rest and effort words of one item.
 import type { ExperienceId } from '../intake/options';
 import { isCompound, restFor } from '../order';
-import { EFFORT, FAMILY_OF, HOLD, HOLD_NEW, MAX_ITEM_SETS, maxSetsFor, NEWER, PRESCRIPTION, setsFor, type GoalFamily } from '../generatorRules';
+import { EFFORT, FAMILY_OF, HOLD, HOLD_NEW, maxSetsFor, NEWER, PRESCRIPTION, setsFor, type GoalFamily } from '../generatorRules';
 import { kindOf } from './pick';
 import type { Ctx, Item, RawFinisher } from './types';
 
@@ -14,9 +14,6 @@ const ruleGoal = (f: GoalFamily) => (f === 'strength' ? 'strength' : 'muscle');
 
 /** SPEC 7.3's ceiling for this lifter (every rule that adds sets stays under it). */
 export const setCap = (ctx: Ctx): number => maxSetsFor(ctx.input.experience, ctx.main === 'comeback' || ctx.also === 'comeback');
-
-/** SPEC 15 may lift an item past its usual sets (to MAX_ITEM_SETS), but a new lifter or a comeback keeps SPEC 7.3's ceiling. */
-export const focusCap = (ctx: Ctx): number => (ctx.input.experience === 'new' || ctx.main === 'comeback' || ctx.also === 'comeback' ? Math.min(MAX_ITEM_SETS, setCap(ctx)) : MAX_ITEM_SETS);
 
 /** Sets, reps or hold, rest and the effort words of one item. `lead`: the day's heaviest lift. */
 export function prescribe(ctx: Ctx, it: Item, lead: boolean): void {

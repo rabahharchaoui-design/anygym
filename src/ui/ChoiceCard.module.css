@@ -57,10 +57,13 @@
 }
 
 .label {
-  font-size: 17px;
+  /* A step over the hint at every text size (it was a fixed 17 px, smaller than its hint at 130%). */
+  font-size: calc(var(--text-base) + 1px);
   font-weight: 700;
   line-height: 1.2;
   overflow-wrap: anywhere;
+  /* Two lines share the words: never one word alone on the last line ("Flexible, whenever I / can" at 130% text). */
+  text-wrap: balance;
 }
 
 .hint {

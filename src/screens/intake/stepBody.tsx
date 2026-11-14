@@ -1,23 +1,33 @@
+import { FocusStep } from './FocusStep';
+import { ScheduleStep } from './ScheduleStep';
 // The question part of each intake screen (SPEC 14), and the options its choice screens show. Moved
 // out of IntakeScreen.tsx as it was (PLAN 3.5f, code organization).
 import type { ReactNode } from 'react';
 import { PLANS } from '../../data/plans';
 import { estimateDayMinutes } from '../../lib/plans';
 import type { DumbbellRange } from '../../db/types';
-import { ANSWER_KEY, equipmentChoices, goalsOf, KIND, needsDumbbellRange, weekdayCountNote, type AnswerId, type IntakeAnswers, type ScreenId } from '../../lib/intake/funnel';
+import { ANSWER_KEY, equipmentChoices, goalsOf, KIND, needsDumbbellRange, type AnswerId, type IntakeAnswers, type ScreenId } from '../../lib/intake/funnel';
 import { DAYS, EASY_ON, EXPERIENCE, FOCUS, MINUTES, PLACES, STYLES, WEEKDAYS, WHEN, WINS, type Option } from '../../lib/intake/options';
 import { gymKitOf } from '../../lib/intake/planFit';
 import { ExerciseDeckStep } from './ExerciseDeckStep';
 import { AboutStep, BodyweightStep } from './AboutSteps';
 import { CardioStep, EquipmentStep, GoalChoice, MultiChoice, SingleChoice, UnitsStep } from './Steps';
-import styles from './Intake.module.css';
 import noPlanStyles from './IntakeNoPlan.module.css';
+import fieldStyles from './IntakeFields.module.css';
+import { list } from '../../lib/words';
 
 // P9: a quiet hint only where it is true of the plans that ship today (from their own data).
 const PLAN_AVG_MIN = PLANS.map((p) => p.days.reduce((t, d) => t + estimateDayMinutes(d), 0) / p.days.length);
 const fitsMinutes = (m: number) => PLAN_AVG_MIN.some((avg) => (m >= 75 ? avg > 60 : avg <= m));
-const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days`, hint: PLANS.some((p) => p.daysPerWeek === d) ? 'Our curated plans run this many' : undefined }));
-const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min`, hint: fitsMinutes(m) ? 'Our curated plans take about this long' : undefined }));
+const DAY_OPTIONS: Option[] = DAYS.map((d) => ({ id: String(d), label: `${d} days` }));
+const MINUTE_OPTIONS: Option[] = MINUTES.map((m) => ({ id: String(m), label: m === 75 ? '75+ min' : `${m} min` }));
+// Said once under the options (round 3, critic 14), never again on each option it is true of.
+const PLAN_DAYS = DAYS.filter((d) => PLANS.some((p) => p.daysPerWeek === d)).map(String);
+const PLAN_MINUTES = MINUTES.filter(fitsMinutes).map((m) => (m === 75 ? '75+' : String(m)));
+const PLANS_HINT: Partial<Record<ScreenId, string | null>> = {
+  days: PLAN_DAYS.length ? `Our curated plans run ${list(PLAN_DAYS, 'or')} days.` : null,
+  minutes: PLAN_MINUTES.length ? `Our curated plans take about ${list(PLAN_MINUTES, 'or')} min.` : null,
+};
 const DAY_NAMES: Record<string, string> = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
 /** P8: the week as one list of days, never stretched tiles. */
 const WEEKDAY_ROWS: Option[] = WEEKDAYS.map((d) => ({ id: d.id, label: DAY_NAMES[d.id]! }));
@@ -43,14 +53,24 @@ export const NO_HANDLERS: StepHandlers = { set: () => undefined, pickAndGo: () =
 
 /** The question part of a screen: what the user answers. */
 export function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId, answers: IntakeAnswers, h: StepHandlers, pulse: string | null): ReactNode {
+  if (step === 'focus') return <FocusStep value={answers.focusPicks ?? answers.focus ?? []} onChange={(v) => h.set('focusPicks', v)} />;
+  if (step === 'weekdays') return <ScheduleStep answers={answers} onStyle={(v) => h.set('scheduleStyle', v)} onDays={(v) => h.set('weekdays', v)} />;
   if (step === 'goal') return <GoalChoice value={goalsOf(answers)} onChange={(v) => h.set('goal', v)} />;
   if (KIND[step] === 'single') {
     const screen = step as AnswerId;
-    return <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => h.pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} />;
+    return (
+      <>
+        <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => h.pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} />
+        {PLANS_HINT[step] && (
+          <p className={fieldStyles.fieldHint} data-testid="plans-hint">
+            {PLANS_HINT[step]}
+          </p>
+        )}
+      </>
+    );
   }
   if (MULTI_OPTIONS[step]) {
     const screen = step as AnswerId;
-    const countNote = step === 'weekdays' ? weekdayCountNote(answers) : null;
     return (
       <>
         <MultiChoice
@@ -58,14 +78,9 @@ export function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId
           value={answers[ANSWER_KEY[screen]] as string[] | undefined}
           onChange={(v) => h.set(screen, v)}
           only={step === 'easyOn' ? 'none' : undefined}
-          columns={step === 'weekdays' ? '1' : '2'}
+          columns="2"
           testId={`q-${step}`}
         />
-        {step === 'weekdays' && (
-          <p className={styles.countNote} role="status" data-testid="weekday-count">
-            {countNote ?? ''}
-          </p>
-        )}
         {step === 'easyOn' && (
           <p className={noPlanStyles.safety} data-testid="easy-note">
             A plan built from your answers leaves out lifts that load these. If something hurts, stop and check with a professional.

@@ -6,6 +6,7 @@
 // candidates join by themselves). Round 2: with fewer than 3 sure moves for the area the card is the
 // nearest honest day instead (a push day led by the one sure chest press), saying why; an area with
 // no sure big lift at all gets no card.
+import { focusMuscles } from './plan/focus';
 import { FAMILY_OF, NEWER, PRESCRIPTION, setsFor } from './generatorRules';
 import { AREA_RULES, FALLBACK_RULES, SESSION_AREAS, isCompound, structureSession, type AreaRule, type Profile, type SessionArea, type SessionItem } from './order';
 import { type Concept, type QuickDeps, type QuickInput, quickDepsFor } from './quick';
@@ -23,7 +24,7 @@ const FOCUS_AREA: Readonly<Record<string, SessionArea>> = { chest: 'chest', back
 
 /** The areas in the order their cards are offered: the person's own focus areas first. */
 export function focusOrder(focus: readonly string[] | undefined): SessionArea[] {
-  const mine = (focus ?? []).map((f) => FOCUS_AREA[f]).filter((a): a is SessionArea => !!a);
+  const mine = focusMuscles(focus).map((m) => FOCUS_AREA[m] ?? (m.endsWith('delts') ? 'shoulders' : ['quads', 'hamstrings', 'calves'].includes(m) ? 'legs' : undefined)).filter((a): a is SessionArea => !!a);
   return [...new Set([...mine, ...SESSION_AREAS])];
 }
 
@@ -107,7 +108,7 @@ export function focusCard(area: SessionArea, input: QuickInput, deps0: QuickDeps
 /** Every area day that can be built, the person's focus areas first (a nearest day only once: two areas may both lead to a push day). */
 export function focusCards(input: QuickInput, deps: QuickDeps): Concept[] {
   const out: Concept[] = [];
-  for (const a of focusOrder(input.base.focus)) {
+  for (const a of focusOrder(input.base.focusPicks ?? input.base.focus)) {
     const c = focusCard(a, input, deps);
     if (c && !out.some((o) => o.title === c.title)) out.push(c);
   }

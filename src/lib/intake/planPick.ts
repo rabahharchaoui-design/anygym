@@ -3,6 +3,9 @@
 // planFit.ts), and one plain line on why. When none is a true match the reveal offers "Your plan"
 // from the generator (PLAN 3.5, explainPick with its Applied, yourPlan.ts); when that cannot build a
 // week either it says so and offers a quick workout, never a made up plan.
+import { normalizeFocusPicks } from '../plan/focus';
+import { scheduleStyleOf } from '../plan/schedule';
+import { comingWeekdays } from '../plan/weekdays';
 import type { Plan } from '../plans';
 import { estimateDayMinutes } from '../plans';
 import type { SwapData } from '../swap';
@@ -49,9 +52,15 @@ export function fitScore(plan: Plan, a: IntakeAnswers): number {
  * The week as the plan will run it: the user's days when there is one for each plan day, else
  * Day 1 to N. Every workout always shows, once (never hidden, never repeated).
  */
-export function weekOf(plan: Plan, a: IntakeAnswers): WeekSlot[] {
+export function weekOf(plan: Plan, a: IntakeAnswers, from?: { order: readonly number[]; now: number }): WeekSlot[] {
   const order = WEEKDAYS.map((d) => d.id);
-  const days = [...(a.weekdays ?? [])].sort((x, y) => order.indexOf(x) - order.indexOf(y));
+  const days = [...(scheduleStyleOf(a) === 'fixed' ? a.weekdays ?? [] : [])].sort((x, y) => order.indexOf(x) - order.indexOf(y));
+  // Truth pass (critic r3 7): on fixed weekdays the rows are the days in the order Today will follow from the person's
+  // place (`from.order`), each on the weekday it really falls on from today: never "Tue · Upper A" when Tuesday is Day 2.
+  if (from && days.length === plan.days.length && from.order.length === plan.days.length && new Set(from.order).size === plan.days.length && from.order.every((i) => !!plan.days[i])) {
+    const coming = comingWeekdays(days, from.now);
+    return from.order.map((dayIndex, i) => ({ label: labelOf(WEEKDAYS, coming[i]) ?? coming[i]!, dayName: plan.days[dayIndex]!.name, dayIndex }));
+  }
   return plan.days.map((d, i) => ({
     label: days.length === plan.days.length ? (labelOf(WEEKDAYS, days[i]) ?? days[i]!) : `Day ${i + 1}`,
     dayName: d.name,
@@ -110,7 +119,7 @@ export type PlanExplain = {
  */
 /** Never exercises, go easy on and focus: a curated plan is not built around them, so it never counts as a true match (3.6a, SPEC 15). */
 export function unmetCustomization(a: IntakeAnswers): boolean {
-  return !!a.never?.length || (a.easyOn ?? []).some((e) => e !== 'none') || (a.focus ?? []).some((f) => f !== 'balance');
+  return !!a.never?.length || (a.easyOn ?? []).some((e) => e !== 'none') || normalizeFocusPicks(a.focusPicks ?? a.focus).some((f) => f !== 'balance');
 }
 
 export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped = 0, generated?: Applied): PlanExplain {
@@ -178,7 +187,7 @@ export function explainPick(plan: Plan, a: IntakeAnswers, swapped = 0, skipped =
   if (easy.length === 1) left.push((labelOf(EASY_ON, easy[0]) ?? easy[0]!).toLowerCase());
   else if (easy.length > 1) left.push('easy-on areas');
   if (a.style === 'bodyweight' && plan.gymType !== 'bodyweight') left.push('bodyweight only');
-  if ((a.focus ?? []).some((f) => f !== 'balance')) left.push('focus');
+  if (normalizeFocusPicks(a.focusPicks ?? a.focus).some((f) => f !== 'balance')) left.push('focus');
   if (a.never?.length) left.push('exercises to avoid');
   const named = left.length > 3 ? [...left.slice(0, 2), 'more'] : left;
   const plural = named.length > 1 || (/s$/.test(named[0] ?? '') && named[0] !== 'focus') || named[0] === 'exercises to avoid';

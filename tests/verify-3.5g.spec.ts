@@ -235,7 +235,8 @@ test('(5) chest and quads trained yesterday: no idea card holds them; why lines 
     for (let i = 0; i < n; i++) {
       const why = (await cards.nth(i).getByTestId('concept-why').innerText()).trim();
       if (/chest|quads/i.test(why)) expect(why, `why at ${min}/${i}`).toMatch(/^Leaves out .*\(trained yesterday\)$/);
-      if (/rested/.test(why)) expect(why).toMatch(/^(Back|Biceps|Back and biceps) rested 5 days$/);
+      // 3.6f: one recovery rule counts the helpers a lift tires too, so the row (back, biceps) also rests the rear shoulders.
+      if (/rested/.test(why)) expect(why).toMatch(/^(Back|Biceps|Rear shoulders)( and (back|biceps|rear shoulders))? rested 5 days$/);
       await cards.nth(i).tap();
       for (let k = 0; k < 14; k++) {
         if (!(await page.getByTestId('deck-name').count())) break;

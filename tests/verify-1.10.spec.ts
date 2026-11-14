@@ -299,7 +299,7 @@ test('flow: wrap after day 5, six week to week 2, tap targets', async ({ page })
   await logOneSet(page);
   await finishDay(page);
   console.log('sessions', JSON.stringify((await dbAll(page, 'sessions')).map((x) => [x.planId, x.dayId, x.endedAt])), JSON.stringify(await dbAll(page, 'planState')));
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 · Legs \(hamstring focus\)/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 · Legs \(hamstring focus\)/);
   console.log('after d5 states', JSON.stringify(await Promise.all([1, 2, 3, 4, 5].map((n) => page.getByTestId(`week-day-${n}`).getAttribute('data-state')))));
   expect(errors).toEqual([]);
 });
@@ -316,7 +316,7 @@ test('flow: six week all days of week 1 -> Week 2 of 6', async ({ page }) => {
     console.log(`after d${n}:`, await page.getByTestId('week-label').innerText(), await page.getByTestId('day-card-title').innerText());
   }
   await expect(page.getByTestId('week-label')).toHaveText('Week 2 of 6');
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 · Quads/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 · Quads/);
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await page.getByTestId('row-front-squat').tap();
   await answerAny(page);
@@ -506,7 +506,7 @@ test('change day works on a fresh app load (not only right after Use this plan)'
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   await page.getByRole('button', { name: 'Change day' }).tap();
   await page.getByRole('dialog', { name: 'Change day' }).getByRole('button', { name: /Day 4 ·/ }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 4 · Legs \(quad focus\)/);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 4 · Legs \(quad focus\)/);
   await page.getByRole('button', { name: 'Start', exact: true }).tap();
   await expect(page.getByTestId('workout-title')).toHaveText('Day 4 · Legs (quad focus)');
   expect(errors).toEqual([]);

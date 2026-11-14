@@ -158,3 +158,15 @@ describe('intake answers to plan, order, time and load, on every place', () => {
     console.log('chain 3.6y', JSON.stringify({ planned: Object.fromEntries(seen.planned), empty: Object.fromEntries(seen.empty), targets: seen.targets, pairs: seen.pairs }));
   });
 });
+
+it('ranked focus answers reveal exactly the retained definition that is saved and reloaded', () => {
+  const answers: IntakeAnswers = { goals: ['muscle'], experience: '3y', days: 4, minutes: 45, place: 'full', scheduleStyle: 'flexible', focusPicks: ['lats', 'side_delts', 'quads', 'biceps'] };
+  const result = generate(generatorInputOf(answers));
+  expect(result.ok).toBe(true); if (!result.ok) return;
+  const saved = JSON.parse(JSON.stringify(result.plan)) as Record<string, unknown>;
+  const plan = definitionPlan(saved)!;
+  expect(plan.focusReport).toEqual(result.applied.focusReport);
+  expect(plan.days.map((d) => estimateDayMinutes(d))).toEqual(result.applied.minutes);
+  expect(plan.days.map((d) => d.focusWhy ?? [])).toEqual(result.plan.days.map((d) => d.focusWhy ?? []));
+  expect(plan.focusReport!.priorities.map((p) => p.id)).toEqual(answers.focusPicks);
+});

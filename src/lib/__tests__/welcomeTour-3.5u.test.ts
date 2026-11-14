@@ -33,6 +33,14 @@ describe('the welcome tour state', () => {
     expect(tourSteps(set('day', 'tabs')).map((s) => s.target)).toEqual(['day', 'tabs']);
     expect(tourSteps(set('day', 'pick', 'tabs')).map((s) => s.target)).toEqual(['day', 'tabs']);
     expect(tourSteps(set())).toEqual([]);
+    // PLAN 3.6f truth pass (critic r3 6): on a rest day the day card has no Start, so the first step never says "Tap Start".
+    const restDay = tourSteps(set('day', 'quick', 'tabs'), true);
+    expect(restDay.map((s) => s.target)).toEqual(['day', 'quick', 'tabs']);
+    expect(restDay[0]!.line).toBe('Today is a rest day. Your next workout waits here, or tap Train today anyway.');
+    expect(restDay[0]!.line).not.toContain('Start');
+    expect(restDay.slice(1)).toEqual(tourSteps(set('day', 'quick', 'tabs')).slice(1));
+    // With no day card the rest day changes nothing.
+    expect(tourSteps(set('pick', 'tabs'), true)).toEqual(tourSteps(set('pick', 'tabs')));
   });
 
   it('Next walks the steps and ends after the last; Skip ends at once; over stays over', () => {

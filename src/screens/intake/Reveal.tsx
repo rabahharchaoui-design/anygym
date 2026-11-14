@@ -5,14 +5,19 @@
 // saved on the phone when it is chosen, with the curated plans that fit as other choices. When even
 // the generator cannot build a week here it says why; Today has the quick workout.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
+import { scheduleStyleOf } from '../../lib/plan/schedule';
+import { focusPeriod } from '../../lib/plan/focusWords';
+import { RevealFocus } from './RevealFocus';
 import { BackButton } from '../../ui/BackButton';
 import { BottomCTA } from '../../ui/BottomCTA';
 import { ChoiceCard } from '../../ui/ChoiceCard';
 import { useNav } from '../../ui/nav';
 import { useTapGuard } from '../../hooks/useTapGuard';
+import { usePlanPlace } from '../../hooks/usePlanPlace';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/planPick';
 import { generatorInputOf } from '../../lib/intake/yourPlan';
+import { focusFit } from '../../lib/intake/focusFit';
 import { persistAnswers } from './persist';
 import { useMoreBelow } from './useMoreBelow';
 import { PLANS, definitionPlan, planById } from '../../data/plans';
@@ -29,9 +34,9 @@ import { ArtScene } from '../../ui/art/lazy';
 import styles from './Intake.module.css';
 import revealStyles from './IntakeReveal.module.css';
 
-type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined> };
+type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined>; onChange: (a: IntakeAnswers) => void };
 
-export function Reveal({ answers, redo, onBack, baseline }: Props) {
+export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
   const go = useNav();
   const pick = useMemo(() => pickPlan(PLANS, SWAP_DATA, answers), [answers]);
   // A curated plan that truly matches (the accent check) needs nothing built.
@@ -42,11 +47,17 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
   // PLAN 3.5: otherwise "Your plan" from the answers, when the generator can build one here.
   const built = useMemo(() => (exact ? null : generate(generatorInputOf(answers))), [exact, answers]);
   const mine = useMemo(() => (built?.ok ? definitionPlan(built.plan) : undefined), [built]);
+  // PLAN 3.6f: what did not fit, and a day or minutes only when a rebuild with it really fits more.
+  const focusNote = useMemo(() => (built?.ok ? focusFit(answers, built.applied.focusReport, (a) => { const r = generate(generatorInputOf(a)); return r.ok ? r.applied.focusReport : undefined; }) : null), [built, answers]);
   const [chosenId, setChosenId] = useState(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null);
+  useEffect(() => { setChosenId(mine ? mine.id : pick.kind === 'plan' ? pick.plan.id : null); }, [mine?.id]); // A rebuild replaces the generated choice.
   const isMine = !!mine && chosenId === mine.id;
   const plan = isMine ? mine : planById(chosenId ?? undefined);
   const fits = pick.kind === 'plan' ? [pick.plan, ...pick.others] : [];
-  const week = plan ? weekOf(plan, answers) : [];
+  // Round 3 and the truth pass: a rebuild keeps the person's place. The day list follows it (the weekday each day
+  // will really fall on), and when the place cannot be kept the reveal says so before they accept.
+  const place = usePlanPlace(plan);
+  const week = plan ? weekOf(plan, answers, { order: place.order, now: Date.now() }) : [];
   // B1: the moves the day list will swap at this gym are said, never hidden.
   const fit = useMemo(() => (plan && !isMine ? planFit(SWAP_DATA, plan, answers) : null), [plan, isMine, answers]);
   const words = plan ? explainPick(plan, answers, fit?.swapped ?? 0, fit?.noFit.length ?? 0, isMine && built?.ok ? built.applied : undefined) : null;
@@ -56,17 +67,15 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
 
   // The answers are saved as the reveal opens (profile, units, the first gym, the muscle map body).
   const [error, setError] = useState('');
-  const saved = useRef<Promise<unknown> | null>(null);
   const save = () => {
     const p = persistAnswers(answers, baseline);
-    saved.current = p;
     p.catch(() => setError('Could not save your answers. Try again.'));
     return p;
   };
   useEffect(() => {
     void save();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [answers]);
 
   const scroller = useRef<HTMLElement>(null);
   useMoreBelow(scroller);
@@ -77,9 +86,10 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
     busy.current = true;
     setError('');
     try {
-      await (saved.current ?? save()).catch(() => save());
+      await save();
       await startDb();
       if (redo) {
+        await clearIntakeDraft(undefined, true);
         if (!plan) {
           go('/settings', { kind: 'pop', replace: true });
           return;
@@ -133,7 +143,7 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
           {plan && <ArtScene name="planReady" width={72} end />}
         </div>
         <section className={revealStyles.planCard} aria-label={plan ? plan.name : 'No plan yet'} data-testid="reveal-card">
-          {plan && <p className={revealStyles.planName}>{plan.name}</p>}
+          {plan && <p className={revealStyles.planName} data-testid="reveal-plan-name">{plan.name}</p>}
           {words?.summary ? (
             <>
               {/* Round 3 (B2): one honest line up front; the fit details one tap away, every fact kept. */}
@@ -185,12 +195,35 @@ export function Reveal({ answers, redo, onBack, baseline }: Props) {
               {none.quick}
             </p>
           )}
+          {isMine && built?.ok && built.applied.focusReport?.priorities.length ? (
+            <RevealFocus
+              report={built.applied.focusReport}
+              period={focusPeriod(scheduleStyleOf(answers), plan!.days.length)}
+              fit={focusNote}
+              {...(scheduleStyleOf(answers) === 'fixed' ? { weekdays: answers.weekdays ?? [] } : {})}
+              onApply={(patch) => onChange({ ...answers, ...patch })}
+            />
+          ) : null}
+          {place.restarts && (
+            <p className={revealStyles.caveat} data-testid="reveal-restart">
+              Your rotation starts again from Day 1. Your logged workouts stay.
+            </p>
+          )}
+          {place.keptNext !== null && (
+            <p className={revealStyles.caveat} data-testid="reveal-kept">
+              You keep your place: Day {place.keptNext} is next.
+            </p>
+          )}
           {plan && (
             <ol className={revealStyles.week} data-testid="reveal-week">
               {week.map((w, i) => (
                 <li key={`${w.label}-${i}`} className={revealStyles.weekRow} style={{ '--i': i } as CSSProperties}>
                   <span className={`${revealStyles.weekDay} num`}>{w.label}</span>
-                  <span className={revealStyles.weekName}>{w.dayName}</span>
+                  <span className={revealStyles.weekName}>
+                    {w.dayName}
+                    {/* Round 3: the day's short why (what it adds for the picks), the same line Today's day card says. */}
+                    {plan.days[w.dayIndex]?.focusWhy?.[0] && <span className={revealStyles.weekWhy} data-testid="reveal-day-why">{plan.days[w.dayIndex]!.focusWhy![0]}</span>}
+                  </span>
                   <span className={`${revealStyles.weekTime} num`}>~{words!.minutes[w.dayIndex]} min</span>
                 </li>
               ))}

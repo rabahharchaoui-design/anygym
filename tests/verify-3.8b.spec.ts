@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { fixedDaysAfter } from './helpers/fixedSchedule';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, usePlan, watchErrors } from './workout-helpers';
 
 // Independent tester checks for PLAN 3.8b. Screenshots: reports/shots/3.8b-verify/.
@@ -191,14 +192,16 @@ test.describe('verify 3.8b', () => {
     expect(errors).toEqual([]);
   });
 
-  async function missedSetup(page: Page) {
+  async function missedSetup(page: Page, fixed = true) {
     await usePlan(page);
+    if (fixed) await fixedDaysAfter(page, 5, 2, 5);
     const before = (await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]!;
     await dbPut(page, { planState: [{ ...before, nextDayIndex: 2, doneDays: [0, 1] }] });
     await seed(page, Date.now() - 5 * DAY, three('barbell-back-squat', 8, lb(185, [45, 25])));
     await page.goto('./');
     await page.reload();
-    await expect(page.getByTestId('coach-card')).toHaveAttribute('data-kind', 'missed_days');
+    if (fixed) await expect(page.getByTestId('coach-card')).toHaveAttribute('data-kind', 'missed_days');
+    else await expect(page.getByTestId('day-card-title')).toBeVisible();
   }
   async function missedMetrics(page: Page) {
     return page.evaluate(() => {
@@ -277,6 +280,39 @@ test.describe('verify 3.8b', () => {
     await snap(page, 'm2-restarted');
     await page.getByRole('button', { name: 'Undo' }).tap();
     await expect.poll(ps).toMatchObject({ nextDayIndex: 2, doneDays: [0, 1] });
+    expect(errors).toEqual([]);
+  });
+
+  test('2d the coach card is on Today from the first moment the day card is, and visible when script animation frames never run (3.6f round 3)', async ({ page }) => {
+    await page.goto('./');
+    await missedSetup(page);
+    // A clock that does not run for scripts (a faked or frozen one): animation frames are never delivered. And a
+    // note of whether the coach card was there when the day card first was (it must never come in after it).
+    await page.addInitScript(() => {
+      window.requestAnimationFrame = () => 0;
+      const w = window as unknown as { coachWithDay: boolean | null };
+      w.coachWithDay = null;
+      new MutationObserver(() => {
+        if (w.coachWithDay === null && document.querySelector('[data-tour="day"]')) w.coachWithDay = !!document.querySelector('[data-testid="coach-card"]');
+      }).observe(document, { childList: true, subtree: true });
+    });
+    for (let round = 0; round < 3; round++) {
+      await page.reload();
+      const card = page.getByTestId('coach-card');
+      await expect(card).toHaveAttribute('data-kind', 'missed_days');
+      await expect(card).toHaveCSS('opacity', '1');
+      expect((await card.boundingBox())!.height).toBeGreaterThan(100);
+      await expect(card.getByTestId('coach-pick-up')).toBeVisible();
+      expect(await page.evaluate(() => (window as unknown as { coachWithDay: boolean | null }).coachWithDay), `load ${round + 1}`).toBe(true);
+    }
+  });
+
+  test('2c a flexible profile (no saved weekdays) never gets the missed days card, however long ago it last trained', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('./');
+    await missedSetup(page, false);
+    await expect(page.getByTestId('day-card-title')).toBeVisible();
+    await expect(page.getByTestId('coach-card')).toHaveCount(0);
     expect(errors).toEqual([]);
   });
 

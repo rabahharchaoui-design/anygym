@@ -1,7 +1,8 @@
 // One day from a slot template, for a Quick workout (PLAN 3.5a).
 import { heaviestOf, isCompound, orderUnits, type Muscle } from '../order';
 import type { Pattern } from '../swap';
-import { FOCUS_RULES, MIN_MOVES, movesFor, type Range, type Slot } from '../generatorRules';
+import { focusMuscles as musclesOf } from '../plan/focus';
+import { MIN_MOVES, movesFor, type Range, type Slot } from '../generatorRules';
 import { contextOf } from './context';
 import { unitOf } from './pairs';
 import { fill } from './pick';
@@ -35,7 +36,7 @@ export function generateDay(input: GeneratorInput, deps: GeneratorDeps, template
   if (items.length < MIN_MOVES) return { ok: false, name: template.name, moves: items.length };
   const lead = heaviestOf(items.map((it) => it.profile));
   for (const it of items) prescribe(ctx, it, it.profile.id === lead?.id);
-  const focusMuscles: Muscle[] = (input.focus ?? []).flatMap((f) => (f === 'balance' ? [] : FOCUS_RULES[f].muscles));
+  const focusMuscles: Muscle[] = musclesOf(input.focusPicks ?? input.focus);
   const d: Day = { name: template.name, items, units: orderUnits(items.map((it) => unitOf([it])), { focus: focusMuscles }).map((u) => u.ref) };
   trim(d, input.minutes);
   const minutes = minutesOf(d);

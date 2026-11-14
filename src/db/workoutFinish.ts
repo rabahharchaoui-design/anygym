@@ -26,7 +26,7 @@ import {
 } from './workoutKeys';
 
 /** How much of its plan day a session covered, or undefined for a quick workout or unknown day. */
-async function planProgress(s: Session, db: AnyGymDB, adjust: Session['rowAdjust'] = s.rowAdjust): Promise<DayProgress | undefined> {
+export async function planProgress(s: Session, db: AnyGymDB, adjust: Session['rowAdjust'] = s.rowAdjust): Promise<DayProgress | undefined> {
   const plan = planById(s.planId);
   const i = plan ? dayIndexOf(plan, s.dayId) : -1;
   if (!plan || i < 0) return undefined;

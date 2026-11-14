@@ -74,7 +74,7 @@ test('thresholds: 22 keeps, 23 moves with partial, 37 ticks', async ({ page }) =
   await shot(page, 'keep-22');
   expect((await ps(page)).partial?.[0]).toBeCloseTo(22 / 37);
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 1 /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 1 /);
   await shot(page, 'today-keep-22');
   expect((await ps(page)).nextDayIndex).toBe(0);
   // 23/37 on a fresh profile
@@ -86,7 +86,7 @@ test('thresholds: 22 keeps, 23 moves with partial, 37 ticks', async ({ page }) =
   await shot(page, 'move-23');
   await page.getByRole('button', { name: 'Done', exact: true }).tap();
   await expect(page.getByTestId('week-day-1')).toHaveAttribute('data-state', 'partial');
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 2 /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 2 /);
   await shot(page, 'today-move-23');
   expect((await ps(page)).doneDays).toEqual([]);
   expect(errors).toEqual([]);
@@ -112,7 +112,7 @@ test('Day 5 wraps to Day 1 (five day split)', async ({ page }) => {
   const st = await ps(page);
   await dbPut(page, { planState: [{ ...st, nextDayIndex: 4, doneDays: [0, 1, 2, 3] }] });
   await page.reload();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 5 /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 5 /);
   await start(page);
   const planned = await seedWorkingSets(page, 1000);
   expect(planned).toBeGreaterThan(5);
@@ -188,7 +188,7 @@ test('Change, second finish never advances, Undo restores exact state, tap targe
   // Double tap Done: one saved workout, one toast.
   const done = page.getByRole('button', { name: 'Done', exact: true });
   await done.dblclick();
-  await expect(page.getByTestId('day-card-title')).toHaveText(/^Day 4 /);
+  await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 4 /);
   const sessions = (await dbAll<{ id: string; endedAt?: number }>(page, 'sessions')).filter((s) => s.endedAt !== undefined);
   expect(sessions.length).toBe(1);
   // Open the finish screen of the same session again: it must not advance.

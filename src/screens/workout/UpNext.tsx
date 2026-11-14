@@ -1,41 +1,18 @@
 import { useMemo } from 'react';
-import { db } from '../../db/schema';
+import { useTraining } from '../../hooks/useTraining';
+import { focusMuscles } from '../../lib/plan/focus';
 import { getProfile } from '../../db/intake';
 import { useLive } from '../../hooks/useLive';
 import { profileFor, upNextPool } from '../../data/order';
 import { SWAP_DATA } from '../../data/patterns';
 import { demoFor } from '../../data/exerciseInfo';
-import { restFor, upNextIdeas, type Goal, type Idea, type Muscle } from '../../lib/order';
+import { restFor, upNextIdeas, type Goal, type Idea } from '../../lib/order';
 import { quickEntry } from '../../lib/planWorkout';
 import { goalsOf } from '../../lib/intake/funnel';
-import type { FocusId } from '../../lib/intake/options';
 import { PlusIcon } from '../../ui/icons';
 import { Thumb } from './Thumb';
 import type { Workout } from './useWorkout';
 import styles from './UpNext.module.css';
-
-/** Intake focus areas (SPEC 14) as the muscles Up next favors. */
-const FOCUS_MUSCLES: Record<FocusId, Muscle[]> = {
-  chest: ['chest'],
-  back: ['back'],
-  shoulders: ['front delts', 'side delts', 'rear delts'],
-  arms: ['biceps', 'triceps'],
-  core: ['abs'],
-  glutes: ['glutes'],
-  legs: ['quads', 'hamstrings'],
-  balance: [],
-};
-
-const HOURS_48 = 48 * 60 * 60 * 1000;
-
-/** Muscles other workouts trained in the last 48 hours (SPEC 22: not two days in a row). */
-async function recentMuscles(sessionId: string, now: number): Promise<Muscle[]> {
-  const sessions = await db.sessions.where('startedAt').aboveOrEqual(now - HOURS_48).toArray();
-  const ids = sessions.filter((s) => s.id !== sessionId && !s.imported && s.endedAt !== undefined).map((s) => s.id);
-  if (!ids.length) return [];
-  const sets = await db.sets.where('sessionId').anyOf(ids).toArray();
-  return [...new Set(sets.flatMap((s) => profileFor(s.exerciseId).targets))];
-}
 
 /**
  * The Up next ideas once every set of a quick workout is done (SPEC 20.3, 22): what was done, in
@@ -47,7 +24,7 @@ export type UpNextIdea = Idea & { restSec: number };
 export function useUpNext(w: Workout, sessionId: string): UpNextIdea[] | null {
   const show = w.ready && w.isQuick && w.nextId === null && w.sets.length > 0;
   const profile = useLive(() => (show ? getProfile() : Promise.resolve(undefined)), [show]);
-  const recent = useLive(() => (show ? recentMuscles(sessionId, Date.now()) : Promise.resolve([] as Muscle[])), [show, sessionId]);
+  const recent = useTraining(show, sessionId);
   const doneKey = show ? [...new Map(w.sets.map((s, i) => [s.exerciseId, i])).entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id).join('|') : '';
   const inWorkout = (w.session?.exerciseIds ?? []).join('|');
   const gym = w.gym;
@@ -61,7 +38,7 @@ export function useUpNext(w: Workout, sessionId: string): UpNextIdea[] | null {
     return upNextIdeas(done, pool, {
       goal,
       experience: intake?.experience,
-      focus: (intake?.focus ?? []).flatMap((f) => FOCUS_MUSCLES[f] ?? []),
+      focus: focusMuscles(intake?.focusPicks ?? intake?.focus),
       recent: recent.data ?? [],
       easyOn: (intake?.easyOn ?? []).filter((e) => e !== 'none'),
       sameAs: SWAP_DATA.sameAs,

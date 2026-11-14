@@ -1,0 +1,19 @@
+/* PLAN 3.6f: Mon to Thu, then Fri to Sun. Each chip centers its day and never wraps it. */
+.week {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.week > button {
+  justify-content: center;
+  padding-inline: var(--space-1);
+  white-space: nowrap;
+}
+
+/* Truth pass (critic r3 14): a picked weekday is plain at a glance on the sheet, not a faint outline: a fuller
+   accent fill and a second accent line inside the edge (no size change, so nothing moves when it turns on). */
+.week > button[aria-pressed='true'] {
+  background: linear-gradient(color-mix(in srgb, var(--accent) 26%, transparent), color-mix(in srgb, var(--accent) 26%, transparent)), var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}

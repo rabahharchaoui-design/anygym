@@ -1,13 +1,19 @@
 // Everything the coach reads for Today (PLAN 3.8, SPEC 15), turned into the engine's input. Only
 // finished, dated workouts count (imported history has no dates); warm ups, drops, uncertain sets
 // and sets without a load never do. Weights are never touched here.
+import { resolveSchedule } from './schedule';
+import { restDayOf, scheduleStyleOf } from '../lib/plan/schedule';
+import { fixedDaysOf } from '../lib/plan/weekdays';
+import { weekKey } from '../lib/coach/time';
 import type { Region } from '../lib/bodyArt';
 import { REGION_NAMES } from '../lib/bodyArt';
 import { liftKey, type ChangeRecord, type Effort, type Lift, type LiftSession, type TrainedSet } from '../lib/coach';
 import type { RepRange } from '../lib/progression';
 import { patternOf, slotOf, swapCandidates, workoutIdOf } from '../lib/swap';
 import { QUICK_DEFAULT, dayWorkout, repRangeOf } from '../lib/planWorkout';
-import { dayIndexOf } from '../lib/plans';
+import { dayIdOf, dayIndexOf } from '../lib/plans';
+import { movesOn } from '../lib/finishPlan';
+import { planProgress } from './workoutFinish';
 import { barForName } from '../lib/loadTypeRule';
 import { SWAP_DATA, candidateBarOf } from '../data/patterns';
 import { planById } from '../data/plans';
@@ -46,6 +52,8 @@ export type CoachData = {
   fresh: TrainedSet[];
   /** Main muscles worked yesterday and in the next plan day (the recovery note). */
   recovery: { yesterday: Region[]; next: Region[] } | undefined;
+  /** The day up next is the same day again (under 60% done): its number and the part done workout's own set counts. */
+  kept: { dayN: number; logged?: number; planned?: number } | undefined;
   /** PLAN 3.5g: the exercises of the plan day up next (a coach card lists these lifts first). */
   todayIds: string[];
   /** PLAN 3.5g: when each coach card was answered (no backup reminder on a coach card's day). */
@@ -91,7 +99,9 @@ function planSlot(planState: PlanState | undefined, exerciseId: string): string 
 export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Promise<CoachData> {
   const gym = await getActiveGym(db);
   const profile = await getProfile(db);
-  const planState = await db.planState.get('active');
+  const storedState = await db.planState.get('active');
+  const resolved = storedState ? await resolveSchedule(storedState, profile, now, db) : null;
+  const planState = storedState && resolved?.dayIndex != null ? { ...storedState, nextDayIndex: resolved.dayIndex } : storedState;
   const all = await db.sessions.toArray();
   const active = all.some((s) => s.endedAt === undefined && !s.imported);
   const finished = all.filter(dated).sort((a, b) => b.startedAt - a.startedAt);
@@ -178,11 +188,23 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     closed,
     liftRows: rows.lifts,
     fresh,
-    recovery: recoveryRegions(recent, sets, planState, now),
+    // No "today works it again" when today is not a training day: every day left is resting, or the calendar says rest (truth pass, critic r3 5).
+    recovery: resolved?.dayIndex === null || restsToday(profile, planState, now) ? undefined : recoveryRegions(recent, sets, planState, now),
+    kept: resolved?.kept && planState ? await keptDay(planState, finished, db) : undefined,
     todayIds: nextDayIds(planState),
     answeredAt: rows.cards.map((c) => c.at),
     unmapped: [...unmapped],
   };
+}
+
+/** The kept day's number, with the set counts of its newest finished workout when that one is the part done one. */
+async function keptDay(planState: PlanState, finished: readonly Session[], db: AnyGymDB): Promise<CoachData['kept']> {
+  const plan = planById(planState.planId);
+  const day = plan?.days[planState.nextDayIndex];
+  if (!plan || !day) return undefined;
+  const last = finished.find((s) => s.planId === plan.id && s.dayId === dayIdOf(day));
+  const p = last ? await planProgress(last, db) : undefined;
+  return p && p.logged > 0 && !p.complete && !movesOn(p.share) ? { dayN: day.n, logged: p.logged, planned: p.planned } : { dayN: day.n };
 }
 
 /** The working exercises of the plan day up next, in order (none without a plan). */
@@ -209,11 +231,21 @@ function recoveryRegions(recent: readonly Session[], sets: readonly WorkoutSet[]
   return { yesterday: [...done], next: [...next] };
 }
 
+/** Today is a rest day on the person's calendar: the same reading as Today's day card (db/schedule.ts readSchedule). */
+function restsToday(profile: Profile | undefined, planState: PlanState | undefined, now: number): boolean {
+  const plan = planById(planState?.planId);
+  if (!plan) return false;
+  const style = scheduleStyleOf(profile?.intake);
+  return !fixedDaysOf(style, profile?.intake?.weekdays, plan.days.length) && !!restDayOf(style, weekdaysOf(profile, now), now);
+}
+
 /** Today's live read: the coach's input and the rows behind it (screens/today/useCoach.ts). */
 export const readCoach = coachData;
 
 /** The weekdays the user trains, from the intake (SPEC 14 step 5), when given. */
-export const weekdaysOf = (profile: Profile | undefined): string[] | undefined => {
-  const w = (profile?.intake as { weekdays?: unknown } | undefined)?.weekdays;
+export const weekdaysOf = (profile: Profile | undefined, now = Date.now()): string[] | undefined => {
+  const style = scheduleStyleOf(profile?.intake);
+  if (style === 'flexible') return undefined;
+  const w = style === 'weekly' ? (profile?.weeklySchedule?.weekKey === weekKey(now) ? profile.weeklySchedule.weekdays : undefined) : profile?.intake?.weekdays;
   return Array.isArray(w) && w.every((x) => typeof x === 'string') && w.length ? (w as string[]) : undefined;
 };

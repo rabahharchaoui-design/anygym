@@ -1,85 +1,16 @@
 // The intake funnel as a pure state machine (SPEC 14, PLAN 3.3). One question per screen; every
 // answer is kept in the state as it is given (the screen saves the state as a draft), Skip clears
 // the screen's answer and remembers it was skipped, Back goes to the previous screen that shows.
-import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type GymType, type Unit } from '../../db/types';
+import { EQUIPMENT_IDS, type DumbbellRange, type EquipmentId, type GymType } from '../../db/types';
 import { equipmentPreset } from '../../db/gyms';
-import type { BodyKind } from '../bodyArt';
 import { validDumbbellRange } from '../load';
-import {
-  AGE_RANGES,
-  CARDIO,
-  CARDIO_FAVORITES,
-  DAYS,
-  EASY_ON,
-  EXPERIENCE,
-  FOCUS,
-  GOALS,
-  ids,
-  MINUTES,
-  PLACES,
-  STYLES,
-  WEEKDAYS,
-  WHEN,
-  WINS,
-  type AgeRangeId,
-  type CardioFavoriteId,
-  type CardioId,
-  type DaysPerWeek,
-  type EasyOnId,
-  type ExperienceId,
-  type FocusId,
-  type GoalId,
-  type Minutes,
-  type PlaceAnswer,
-  type StyleId,
-  type WeekdayId,
-  type WhenId,
-  type WinId,
-} from './options';
+import { type GoalId, type PlaceAnswer } from './options';
 
-export type DistanceUnit = 'km' | 'mi';
-export type MeasureUnit = 'cm' | 'in';
-/** body: no pick until the user makes one (the muscle map keeps its default). */
-export type UnitsAnswer = { weight: Unit; distance: DistanceUnit; measure: MeasureUnit; body?: BodyKind };
-export type Bodyweight = { value: number; unit: Unit };
-export type Height = { unit: 'cm'; cm: number } | { unit: 'in'; ft: number; in: number };
-
-export type IntakeAnswers = {
-  /** The Main goal (PLAN 3.3a: always goals[0] when goals is set; older answers have only this). */
-  goal?: GoalId;
-  /** PLAN 3.3a (additive): up to 2 goals, the first is Main and leads the plan, the second is Also. */
-  goals?: GoalId[];
-  units?: UnitsAnswer;
-  focus?: FocusId[];
-  win?: WinId[];
-  experience?: ExperienceId;
-  days?: DaysPerWeek;
-  weekdays?: WeekdayId[];
-  minutes?: Minutes;
-  place?: PlaceAnswer;
-  equipment?: EquipmentId[];
-  /** The place the equipment list was preset from (a new place presets it again). */
-  equipmentFor?: PlaceAnswer;
-  /** Typed on the equipment screen, in units.weight, only where no preset exists (needsDumbbellRange). */
-  dumbbellRange?: DumbbellRange;
-  style?: StyleId;
-  cardio?: CardioId;
-  cardioFavorites?: CardioFavoriteId[];
-  easyOn?: EasyOnId[];
-  /** Plan exercise ids. */
-  love?: string[];
-  never?: string[];
-  when?: WhenId;
-  name?: string;
-  bodyweight?: Bodyweight;
-  height?: Height;
-  age?: AgeRangeId;
-  /** Skip the rest was tapped here: Back from the reveal returns here (never saved on the profile). */
-  skipRestFrom?: ScreenId;
-  /** Answers the user skipped (empty on purpose). */
-  skipped?: AnswerId[];
-};
-
+export type { IntakeAnswers, DistanceUnit, MeasureUnit, UnitsAnswer, Bodyweight, Height } from './answers';
+import type { IntakeAnswers, UnitsAnswer } from './answers';
+export { sanitizeAnswers, BODYWEIGHT_RANGE, HEIGHT_CM, HEIGHT_FT } from './sanitize';
+import { sanitizeAnswers } from './sanitize';
+import { normalizeFocusPicks } from '../plan/focus';
 export const SCREENS = [
   'goal',
   'units',
@@ -106,16 +37,18 @@ export type ScreenId = (typeof SCREENS)[number];
 /** One stored answer. Merged screens fill several: exercises (love, never), about (name, height, age). */
 export type AnswerId =
   | Exclude<ScreenId, 'reveal' | 'noPlan' | 'exercises' | 'about'>
+  | 'focusPicks'
+  | 'scheduleStyle'
   | 'cardioFavorites'
   | 'love'
   | 'never'
   | 'name'
   | 'height'
   | 'age';
-const ANSWER_IDS: readonly AnswerId[] = ['goal', 'units', 'focus', 'win', 'experience', 'days', 'weekdays', 'minutes', 'place', 'equipment', 'style', 'cardio', 'cardioFavorites', 'easyOn', 'love', 'never', 'when', 'name', 'bodyweight', 'height', 'age'];
+export const ANSWER_IDS: readonly AnswerId[] = ['focusPicks', 'scheduleStyle', 'goal', 'units', 'focus', 'win', 'experience', 'days', 'weekdays', 'minutes', 'place', 'equipment', 'style', 'cardio', 'cardioFavorites', 'easyOn', 'love', 'never', 'when', 'name', 'bodyweight', 'height', 'age'];
 
 /** The stored answers behind each merged screen. */
-const FIELDS_OF: Partial<Record<ScreenId, readonly AnswerId[]>> = { exercises: ['love', 'never'], about: ['name', 'height', 'age'] };
+const FIELDS_OF: Partial<Record<ScreenId, readonly AnswerId[]>> = { focus: ['focus', 'focusPicks'], weekdays: ['weekdays', 'scheduleStyle'], exercises: ['love', 'never'], about: ['name', 'height', 'age'] };
 const fieldsOf = (s: ScreenId): readonly AnswerId[] => FIELDS_OF[s] ?? (s === 'reveal' || s === 'noPlan' ? [] : [s as AnswerId]);
 
 /** Older drafts stopped on a screen that is now merged. */
@@ -151,19 +84,21 @@ export const KIND: Record<ScreenId, ScreenKind> = {
 };
 
 /** Personal or optional screens get a Skip (SPEC 14). PLAN 3.3a round 2: and every question not used yet. */
-export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['weekdays', 'style', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
+export const SKIPPABLE: ReadonlySet<ScreenId> = new Set<ScreenId>(['focus', 'weekdays', 'style', 'easyOn', 'exercises', 'when', 'bodyweight', 'about']);
 
 /**
  * PLAN 3.3a round 2 (B6): questions the app does not use yet are optional: Continue works with
  * nothing picked, and what is left blank is remembered as skipped (never a made up answer).
  */
-export const NOT_USED_YET: ReadonlySet<ScreenId> = new Set<ScreenId>(['focus', 'win', 'style', 'cardio', 'easyOn', 'exercises', 'when', 'bodyweight']);
+export const NOT_USED_YET: ReadonlySet<ScreenId> = new Set<ScreenId>(['win', 'style', 'cardio', 'easyOn', 'exercises', 'when', 'bodyweight']);
 
 /** Which answer field each answer id fills. */
 export const ANSWER_KEY: Record<AnswerId, keyof IntakeAnswers> = {
   goal: 'goal',
   units: 'units',
   focus: 'focus',
+  focusPicks: 'focusPicks',
+  scheduleStyle: 'scheduleStyle',
   win: 'win',
   experience: 'experience',
   days: 'days',
@@ -237,7 +172,7 @@ export function needsDumbbellRange(a: IntakeAnswers): boolean {
   return equipmentPreset(GYM_TYPE_OF[a.place], 'lb').dumbbellRange === null;
 }
 
-/** Before Continue: the weekdays picked differ from the days per week answer. Says so, never blocks. */
+/** Before Continue: the weekdays picked differ from the days per week answer. Says so; Continue waits for the same number (Skip stays flexible). */
 export function weekdayCountNote(a: IntakeAnswers): string | null {
   const n = a.weekdays?.length ?? 0;
   if (!a.days || n === 0 || n === a.days) return null;
@@ -248,6 +183,12 @@ export function weekdayCountNote(a: IntakeAnswers): string | null {
 export function canContinue(screen: ScreenId, a: IntakeAnswers): boolean {
   if (NOT_USED_YET.has(screen)) return true;
   switch (screen) {
+    case 'focus':
+      return true;
+    case 'weekdays':
+      // Flexible and weekly need no days. "Same days each week" with none picked would quietly be flexible: pick one, or skip.
+      // Round 3: and one weekday for each day asked for, so no plan day is ever left without a day.
+      return a.scheduleStyle !== 'fixed' || (!!a.weekdays?.length && (!a.days || a.weekdays.length === a.days));
     case 'units':
       return a.units !== undefined;
     case 'equipment':
@@ -296,6 +237,8 @@ export function setAnswer(a: IntakeAnswers, screen: AnswerId, value: unknown): I
     next.goal = list[0];
     next.goals = list.length ? list : undefined;
   }
+  if (screen === 'focusPicks') { next.focusPicks = normalizeFocusPicks(value as string[]); next.skipped = next.skipped?.filter((id) => id !== 'focus'); }
+  if (screen === 'focus') delete next.focusPicks;
   const skipped = unskip(next, screen);
   if (skipped) next.skipped = skipped;
   else delete next.skipped;
@@ -361,7 +304,9 @@ export function funnelReducer(state: FunnelState, action: FunnelAction): FunnelS
       if (state.step === 'equipment' && action.noFit) return { ...state, step: 'noPlan' };
       // What was left blank on a merged screen is skipped on purpose (a cleared name goes).
       const blank = state.step === 'about' || NOT_USED_YET.has(state.step) ? fieldsOf(state.step).filter((f) => isBlank(state.answers[ANSWER_KEY[f]])) : [];
-      const answers = blank.length ? markSkipped(state.answers, blank) : state.answers;
+      let answers = blank.length ? markSkipped(state.answers, blank) : state.answers;
+      // Focus left untouched is remembered as skipped too ("focus" is its token; picking one clears it).
+      if (state.step === 'focus' && isBlank(answers.focusPicks) && isBlank(answers.focus)) answers = { ...answers, skipped: [...(answers.skipped ?? []).filter((x) => x !== 'focus'), 'focus'] };
       return { step: nextScreen(state.step, answers), answers };
     }
     case 'skip': {
@@ -394,94 +339,6 @@ export function progressOf(step: ScreenId, a: IntakeAnswers): number {
   return list.length > 1 ? i / (list.length - 1) : 1;
 }
 
-// ---------------------------------------------------------------- draft (de)serialization
-
-const oneOf = <T>(list: readonly T[], v: unknown): T | undefined => (list.includes(v as T) ? (v as T) : undefined);
-const manyOf = <T>(list: readonly T[], v: unknown): T[] | undefined => (Array.isArray(v) ? [...new Set(v.filter((x) => list.includes(x as T)) as T[])] : undefined);
-const strings = (v: unknown): string[] | undefined => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length < 120))] : undefined);
-const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-
-/** Bodyweight and height bounds the pickers can show. */
-export const BODYWEIGHT_RANGE: Record<Unit, { min: number; max: number }> = { kg: { min: 30, max: 250 }, lb: { min: 66, max: 550 } };
-export const HEIGHT_CM = { min: 120, max: 230 } as const;
-export const HEIGHT_FT = { min: 3, max: 7 } as const;
-
-function units(v: unknown): UnitsAnswer | undefined {
-  if (!v || typeof v !== 'object') return undefined;
-  const o = v as Record<string, unknown>;
-  const weight = oneOf<Unit>(['kg', 'lb'], o.weight);
-  const distance = oneOf<DistanceUnit>(['km', 'mi'], o.distance);
-  const measure = oneOf<MeasureUnit>(['cm', 'in'], o.measure);
-  const body = oneOf<BodyKind>(['male', 'female'], o.body);
-  if (!weight || !distance || !measure) return undefined;
-  return body ? { weight, distance, measure, body } : { weight, distance, measure };
-}
-
-function dumbbells(v: unknown): DumbbellRange | undefined {
-  if (!v || typeof v !== 'object') return undefined;
-  const { min, max, step } = v as Record<string, unknown>;
-  if (!finite(min) || !finite(max) || !finite(step)) return undefined;
-  return validDumbbellRange({ min, max, step }) && min > 0 ? { min, max, step } : undefined;
-}
-
-function bodyweight(v: unknown): Bodyweight | undefined {
-  if (!v || typeof v !== 'object') return undefined;
-  const o = v as Record<string, unknown>;
-  const unit = oneOf<Unit>(['kg', 'lb'], o.unit);
-  if (!unit || !finite(o.value)) return undefined;
-  const r = BODYWEIGHT_RANGE[unit];
-  return o.value >= r.min && o.value <= r.max ? { value: o.value, unit } : undefined;
-}
-
-function height(v: unknown): Height | undefined {
-  if (!v || typeof v !== 'object') return undefined;
-  const o = v as Record<string, unknown>;
-  if (o.unit === 'cm' && finite(o.cm) && Number.isInteger(o.cm) && o.cm >= HEIGHT_CM.min && o.cm <= HEIGHT_CM.max) return { unit: 'cm', cm: o.cm };
-  if (o.unit === 'in' && finite(o.ft) && finite(o.in) && Number.isInteger(o.ft) && Number.isInteger(o.in) && o.ft >= HEIGHT_FT.min && o.ft <= HEIGHT_FT.max && o.in >= 0 && o.in <= 11)
-    return { unit: 'in', ft: o.ft, in: o.in };
-  return undefined;
-}
-
-/** Keeps only valid answers (a stored draft or profile from an older or edited copy). */
-export function sanitizeAnswers(v: unknown): IntakeAnswers {
-  if (!v || typeof v !== 'object') return {};
-  const o = v as Record<string, unknown>;
-  const placeIds = ids(PLACES);
-  // PLAN 3.3a: goals (Main first) when stored; an older single goal still loads as the Main.
-  const goals = manyOf(ids(GOALS), o.goals)?.slice(0, MAX_GOALS);
-  const a: IntakeAnswers = {
-    goal: goals?.length ? goals[0] : oneOf(ids(GOALS), o.goal),
-    goals: goals?.length ? goals : undefined,
-    units: units(o.units),
-    focus: manyOf(ids(FOCUS), o.focus),
-    win: manyOf(ids(WINS), o.win),
-    experience: oneOf(ids(EXPERIENCE), o.experience),
-    days: oneOf(DAYS, o.days),
-    weekdays: manyOf(ids(WEEKDAYS), o.weekdays),
-    minutes: oneOf(MINUTES, o.minutes),
-    place: oneOf(placeIds, o.place),
-    equipment: manyOf(EQUIPMENT_IDS, o.equipment),
-    equipmentFor: oneOf(placeIds, o.equipmentFor),
-    dumbbellRange: dumbbells(o.dumbbellRange),
-    style: oneOf(ids(STYLES), o.style),
-    cardio: oneOf(ids(CARDIO), o.cardio),
-    cardioFavorites: manyOf(ids(CARDIO_FAVORITES), o.cardioFavorites),
-    easyOn: manyOf(ids(EASY_ON), o.easyOn),
-    love: strings(o.love),
-    never: strings(o.never),
-    when: oneOf(ids(WHEN), o.when),
-    name: typeof o.name === 'string' && o.name.trim() ? o.name.trim().slice(0, 40) : undefined,
-    bodyweight: bodyweight(o.bodyweight),
-    height: height(o.height),
-    // Older answers: the two youngest ranges are now one.
-    age: oneOf(ids(AGE_RANGES), o.age === 'under_18' || o.age === '18_24' ? 'under_25' : o.age),
-    skipRestFrom: oneOf([...PERSONAL_GROUP].filter((s) => !HIDDEN_SCREENS.has(s)), o.skipRestFrom),
-    skipped: manyOf(ANSWER_IDS, o.skipped),
-  };
-  if (a.skipped && !a.skipped.length) delete a.skipped;
-  return clean(a);
-}
-
 /** A saved draft: the screen and the answers so far. Anything unreadable starts fresh. */
 export function parseDraft(text: string | null): FunnelState | null {
   if (!text) return null;
@@ -489,10 +346,11 @@ export function parseDraft(text: string | null): FunnelState | null {
     const o = JSON.parse(text) as Record<string, unknown>;
     const answers = sanitizeAnswers(o.answers);
     const raw = typeof o.step === 'string' ? (MERGED_STEP[o.step] ?? o.step) : o.step;
-    const step = oneOf(SCREENS, raw) ?? 'goal';
-    if (step === 'noPlan' || visibleScreens(answers).includes(step)) return { step, answers };
+    const step = SCREENS.includes(raw as ScreenId) ? raw as ScreenId : undefined;
+    const resolved = step ?? 'goal';
+    if (resolved === 'noPlan' || visibleScreens(answers).includes(resolved)) return { step: resolved, answers };
     // 3.5u: an older draft left on a question that is hidden now picks up at the next one that shows.
-    const after = HIDDEN_SCREENS.has(step) ? SCREENS.slice(SCREENS.indexOf(step) + 1).find((s) => visibleScreens(answers).includes(s)) : undefined;
+    const after = HIDDEN_SCREENS.has(resolved) ? SCREENS.slice(SCREENS.indexOf(resolved) + 1).find((s) => visibleScreens(answers).includes(s)) : undefined;
     return { step: after ?? 'goal', answers };
   } catch {
     return null;
