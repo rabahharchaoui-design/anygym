@@ -81,7 +81,8 @@ const GAP_WORD: Record<Pattern, string> = {
   core: 'core moves',
 };
 
-export const list = (items: readonly string[]): string => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
+import { list } from '../words';
+export { list };
 const average = (ns: readonly number[]): number => (ns.length ? Math.round(ns.reduce((x, y) => x + y, 0) / ns.length) : 0);
 const focusWord = (f: FocusId): string => (f === 'arms' ? 'arm' : focusLabel(f).toLowerCase());
 const short = (items: readonly string[], max = 3): string[] => (items.length > max ? [...items.slice(0, max - 1), 'more'] : [...items]);

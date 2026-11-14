@@ -27,7 +27,7 @@ describe('one priority budget', () => {
     const out = run(days, ['back'], [[move('row', 'back')]], 3, 12);
     expect(out.days[0]!.map((m) => m.id)).toEqual(['squat', 'row']);
     expect(out.days[0]!.map((m) => m.sets)).toEqual([3, 3]);
-    expect(out.report.priorities[0]).toMatchObject({ extra: 3, total: 3, shortfall: true });
+    expect(out.report.priorities[0]).toMatchObject({ extra: 3, total: 3, state: 'extra', shortfall: false });
     expect(days).toEqual(before);
     expect(run(days, ['back'], [[move('row', 'back')]], 3, 12)).toEqual(out);
   });
@@ -36,8 +36,7 @@ describe('one priority budget', () => {
     const out = run(days, ['back']);
     expect(countHardSets(out.days, 'back')).toBeLessThanOrEqual(20);
     const short = run([[move('curl', 'biceps', 2)]], ['back'], [[]], 3, 4);
-    expect(short.report.priorities[0]).toMatchObject({ total: 0, extra: 0, shortfall: true });
-    expect(short.report.priorities[0]!.reason).toBeTruthy();
+    expect(short.report.priorities[0]).toMatchObject({ total: 0, extra: 0, state: 'no_move', noMove: true });
   });
   it('does not charge helpers, warmups or stretches as hard sets', () => {
     const stretch = { ...move('stretch', 'back', 20), hard: false };
@@ -57,7 +56,7 @@ describe('one priority budget', () => {
   it('gives mobility time, never hard sets, and checks the same duration callback', () => {
     const mobility: FocusMove = { id: 'stretch', key: 'stretch', hard: false, compound: false, muscles: [], picks: ['mobility'], sets: 1, seconds: 60 };
     const result = curateFocus({ picks: ['mobility'], days: [[], []], candidates: [[mobility], [mobility]], cap: 3, budgetMinutes: 1, minutes: (d) => d.reduce((n, m) => n + (m.seconds ?? 0) / 60, 0) });
-    expect(result.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, shortfall: false }]);
+    expect(result.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, shortfall: false, state: 'extra' }]);
     expect(result.report.spent).toBe(0);
   });
   it('shares 12 by rank from five picks up: top two 3, then 2s, then 1s, then nothing; mobility takes no share', () => {
@@ -118,7 +117,7 @@ describe('one priority budget', () => {
     const days = Array.from({ length: 5 }, (_, i) => [move(`back-${i}`, 'back', 4)]);
     const out = run(days, ['back']);
     expect(countHardSets(out.days, 'back')).toBe(20);
-    expect(out.report.priorities[0]).toMatchObject({ extra: 0, atLimit: true, reason: 'Your back work is already at 20 sets, the most that helps.' });
+    expect(out.report.priorities[0]).toMatchObject({ extra: 0, total: 20, atLimit: true, state: 'plenty' });
     expect(focusUnplaced(out.report)).toEqual([]);
     expect(readFocusReport(structuredClone(out.report))).toEqual(out.report);
     expect(readFocusReport({ ...out.report, priorities: [{ ...out.report.priorities[0], atLimit: 'yes' }] })).toBeUndefined();
@@ -130,5 +129,43 @@ describe('one priority budget', () => {
     expect(focusUnplaced(report(0, 1))).toHaveLength(1);
     expect(focusUnplaced(report(0, 0))).toEqual([]);
     expect(focusUnplaced(undefined)).toEqual([]);
+  });
+  it('round 2, ranking is a promise: a pick never gets more extra than one ranked above it', () => {
+    // One 12 minute day: room for the curls, none for more quad work (no spare accessory, no time).
+    const day = [move('squat', 'quads', 3, true), move('fly', 'chest'), move('press', 'chest')];
+    const leg: FocusMove = { ...move('ext', 'quads'), picks: ['quads'] };
+    const curl = move('curl', 'biceps');
+    const squat: FocusMove = { ...day[0]!, picks: ['quads'] };
+    const tight = (picks: string[]) => curateFocus({ picks, days: [[squat, day[1]!, day[2]!]], candidates: [[leg, curl]], cap: 3, budgetMinutes: 18, minutes: (d) => d.reduce((n, m) => n + m.sets * 2, 0) });
+    // Biceps first: it takes an accessory's place. Quads after it: the other accessory.
+    expect(tight(['biceps', 'quads']).report.priorities.map((p) => p.extra)).toEqual([3, 3]);
+    // Quads first, capped by the squat's set ceiling and one swap; biceps then gets no more than quads got.
+    const out = tight(['quads', 'biceps']);
+    const [quads, biceps] = out.report.priorities;
+    expect(biceps!.extra).toBeLessThanOrEqual(quads!.extra);
+  });
+  it('round 2: a higher pick that got nothing for lack of room holds the lower picks back; one at the limit does not, and says plenty', () => {
+    const mins = (d: FocusMove[]) => d.reduce((n, m) => n + m.sets * 2, 0);
+    // Back has no candidate that may join (its only day is full of protected lifts): nothing extra for anyone below it.
+    const locked = [[{ ...move('row', 'back', 3, true) }, { ...move('raise', 'side delts'), keep: true }]];
+    const none = curateFocus({ picks: ['back', 'biceps'], days: locked, candidates: [[move('curl', 'biceps')]], cap: 3, budgetMinutes: 12, minutes: mins });
+    expect(none.report.priorities.map((p) => [p.id, p.extra, p.state])).toEqual([['back', 0, 'short'], ['biceps', 0, 'short']]);
+    // Back at 20 sets already: it says plenty, and biceps still gets its extra.
+    const full = [...Array.from({ length: 5 }, (_, i) => [move(`back-${i}`, 'back', 4)]), [move('fly', 'chest'), move('press', 'chest')]];
+    const out = curateFocus({ picks: ['back', 'biceps'], days: full, candidates: full.map(() => [move('curl', 'biceps')]), cap: 4, budgetMinutes: 60, minutes: mins });
+    expect(out.report.priorities.map((p) => [p.id, p.state])).toEqual([['back', 'plenty'], ['biceps', 'extra']]);
+    expect(out.report.priorities[1]!.extra).toBe(4);
+  });
+  it('round 2: extra is the real difference to the same days with no picks, and each day says what it adds', () => {
+    const days = [[move('row', 'back', 3, true), move('fly', 'chest')], [move('squat', 'quads', 3, true), move('calf', 'calves')]];
+    const out = run(days, ['back'], [[move('pulldown', 'back')], []], 4, 60);
+    const back = out.report.priorities[0]!;
+    expect(back.total - 3).toBe(back.extra);
+    expect(out.report.dayExtra).toEqual([[{ id: 'back', extra: back.extra }], []]);
+    // An area of several muscles carries each muscle's own count.
+    const arms: FocusMove[][] = [[{ ...move('curl', 'biceps'), picks: ['arms'] }, { ...move('pushdown', 'triceps'), picks: ['arms'] }]];
+    const both = run(arms, ['arms'], [[]], 4, 60).report.priorities[0]!;
+    expect(both.parts).toEqual([{ muscle: 'biceps', sets: countHardSets(run(arms, ['arms'], [[]], 4, 60).days, 'biceps') }, { muscle: 'triceps', sets: countHardSets(run(arms, ['arms'], [[]], 4, 60).days, 'triceps') }]);
+    expect(both.total).toBe(both.parts!.reduce((n, x) => n + x.sets, 0));
   });
 });

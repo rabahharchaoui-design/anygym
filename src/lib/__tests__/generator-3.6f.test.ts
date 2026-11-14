@@ -85,10 +85,16 @@ function verify(input: GeneratorInput) {
   }
   for (let n = 0; n < visited.length; n += footprints.length) expect(new Set(visited.slice(n, n + footprints.length)).size).toBe(footprints.length);
   for (const muscle of focused) expect(counts.get(muscle), muscle).toBeLessThanOrEqual(20);
+  // Extra means above the same intake with no picks: recounted here on the two built plans.
+  const basePicks = new Map<string, number>();
+  if (baseline.ok) for (const day of definitionPlan(baseline.plan)!.days) for (const block of day.blocks) if (!block.warmup) for (const item of block.items) {
+    const p = profileFor(item.exerciseId);
+    if (p.role === 'lift') for (const id of focusFacts(item.exerciseId, p).picks) basePicks.set(id, (basePicks.get(id) ?? 0) + block.sets!);
+  }
   for (const p of report.priorities) {
     expect(p.total, p.id).toBe(pickCounts.get(p.id) ?? 0);
-    expect(p.extra).toBeLessThanOrEqual(p.requested);
-    if (p.id !== 'posture' && p.id !== 'mobility' && p.total < 12) expect(p.shortfall).toBe(true);
+    if (p.id !== 'mobility') expect(p.extra, p.id).toBe(Math.max(0, p.total - (basePicks.get(p.id) ?? 0)));
+    expect(p.shortfall).toBe(p.state === 'short');
   }
 }
 

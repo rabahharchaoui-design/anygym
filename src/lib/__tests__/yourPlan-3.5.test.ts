@@ -105,8 +105,8 @@ it('names detailed priorities and their real shortfalls without claiming a calen
   // What did not fit is one line beside the taps (focusFit), never twice in the warning.
   expect(words.warning ?? '').not.toContain('Grip');
   const fit = focusFit(answers, r.applied.focusReport, (a) => { const x = generate(generatorInputOf(a)); return x.ok ? x.applied.focusReport : undefined; })!;
-  expect(fit.line).toMatch(/Nothing sure for .*grip with your equipment yet\.$/);
-  expect(fit.line).toContain('focus areas fit best with');
+  expect(fit.line).toMatch(/No exercises for .*grip yet\.$/);
+  expect(fit.line).not.toContain('with your equipment');
   expect(words.reason).not.toContain('completed');
   expect(words.reason).not.toContain('sets a week');
 });

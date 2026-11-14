@@ -198,6 +198,7 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
               fit={focusNote}
               onDays={(days) => onChange({ ...answers, days })}
               onMinutes={(minutes) => onChange({ ...answers, minutes })}
+              onBoth={(days, minutes) => onChange({ ...answers, days, minutes })}
             />
           ) : null}
           {plan && (

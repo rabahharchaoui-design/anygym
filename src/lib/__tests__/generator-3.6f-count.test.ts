@@ -1,6 +1,7 @@
 // PLAN 3.6f, counted independently: this file reads the PLAN text, not the focus module. It maps
 // each focus option to the reviewed primary muscles itself, counts the sets of the built plan, and
 // compares with the same intake built without focus picks.
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { generate } from '../../data/generator';
 import { definitionPlan } from '../../data/plans';
@@ -9,6 +10,8 @@ import { profileFor } from '../../data/order';
 import { SWAP_DATA } from '../../data/patterns';
 import { equipmentPreset } from '../../db/gyms';
 import { focusFit } from '../intake/focusFit';
+import { focusName } from '../plan/focus';
+import { focusLine, focusPeriod } from '../plan/focusWords';
 import { FOCUS_PARTS, FOCUS_PICKS, type ExperienceId, type FocusPickId, type GoalId } from '../intake/options';
 import type { GeneratorInput } from '../generator';
 import { easyOnAvoids, isCompound, type Muscle } from '../order';
@@ -45,7 +48,7 @@ const ALL = [...new Set(FOCUS_PICKS.map((p) => p.id))].filter((p) => p !== 'bala
 const childOf = (a: FocusPickId, b: FocusPickId) => a !== b && ((FOCUS_PARTS as Record<string, readonly { id: string }[]>)[a]?.some((x) => x.id === b) ?? false);
 const build = (input: GeneratorInput) => { const r = generate(input); return r.ok ? { r, plan: definitionPlan(r.plan)! } : null; };
 
-export const tally = { n: 0, built: 0, withPicks: 0, needLine: 0, offered: 0, maxMuscle: 0, order: 0, noMove: new Set<string>(), byMin: {} as Record<number, number>, byDays: {} as Record<number, number>, extra: {} as Record<number, { n: number; min: number; max: number; sum: number; line: number }> };
+export const tally = { n: 0, built: 0, withPicks: 0, needLine: 0, offered: 0, offeredBoth: 0, fixesChecked: 0, maxMuscle: 0, maxShown: 0, order: 0, rankPairs: 0, rankExempt: 0, plenty: 0, whyLines: 0, whyDays: 0, noWhyDays: 0, noMove: new Set<string>(), byMin: {} as Record<number, number>, byDays: {} as Record<number, number>, extra: {} as Record<number, { n: number; min: number; max: number; sum: number; line: number }> };
 
 function check(count: number, days: number, minutes: number, rep: number) {
   const seed = count * 1000 + days * 100 + minutes + rep * 7919;
@@ -102,19 +105,71 @@ function check(count: number, days: number, minutes: number, rep: number) {
     tally.maxMuscle = Math.max(tally.maxMuscle, sets);
     expect(sets, `${part} ${label}`).toBeLessThanOrEqual(20);
   }
+  // The app's own muscle words: lats and upper back are one back; quads and abs by their short names.
+  const group = (t: T) => (t.label.toLowerCase().endsWith('delts') ? t.label.toLowerCase() : t.muscle === 'lats' || t.muscle === 'middle back' ? 'back' : t.muscle === 'quadriceps' ? 'quads' : t.muscle === 'abdominals' ? 'abs' : t.muscle);
+  // ONE MEANING FOR THE NUMBERS: total is every set that trains the pick, extra is what is above the
+  // same intake with no picks. Both counted here, on the built plans, never taken from the report.
+  const totalOf = (id: FocusPickId, ms: Move[][] = m) => setsFor(ms, SRC[id]!);
+  const extraOf = (id: FocusPickId) => Math.max(0, totalOf(id) - totalOf(id, mb));
+  const period = focusPeriod(input.scheduleStyle, days);
+  expect(period).toBe(rep ? `every ${days} workouts` : 'a week');
   for (const p of report.priorities) {
     if (p.id === 'mobility') continue;
-    // The number the plan shows is the number of sets in the plan.
-    expect(p.total, `${p.id} ${label}`).toBe(setsFor(m, SRC[p.id]!));
-    expect(p.extra).toBeLessThanOrEqual(p.requested);
+    expect(p.total, `${p.id} total ${label}`).toBe(totalOf(p.id));
+    expect(p.extra, `${p.id} extra ${label}`).toBe(extraOf(p.id));
+    // THE 20 LIMIT AS SHOWN: every set count the line shows is at most 20, and is the count of the plan.
+    const [, much] = focusLine(p, period);
+    if (p.parts) {
+      for (const part of p.parts) {
+        expect(part.sets, `${p.id} ${part.muscle} ${label}`).toBe(setsFor(m, (t) => group(t) === part.muscle));
+        expect(part.sets).toBeLessThanOrEqual(20);
+        tally.maxShown = Math.max(tally.maxShown, part.sets);
+      }
+    } else if (p.state !== 'no_move' && p.total > 0) {
+      expect(much, `${p.id} ${label}`).toContain(`${p.total} ${p.total === 1 ? 'set' : 'sets'}`);
+      expect(p.total, `${p.id} shown ${label}`).toBeLessThanOrEqual(20);
+      tally.maxShown = Math.max(tally.maxShown, p.total);
+    }
+    // The same number is never the total in one line and the extra in another.
+    if (p.state !== 'no_move' && p.total > 0) {
+      if (p.extra > 0 && p.extra < p.total) expect(much).toContain(`, ${p.extra} of them extra`);
+      if (p.extra === 0) expect(much).not.toContain('extra,');
+      expect(/already (has )?plenty/.test(much)).toBe(p.state === 'plenty');
+    }
+    expect(much).not.toContain('nothing extra');
   }
-  for (const [i, d] of f.plan.days.entries()) for (const line of d.focusWhy ?? []) {
-    const hit = report.priorities.find((p) => p.id !== 'mobility' && line.toLowerCase().includes(`${FOCUS_PICKS.find((x) => x.id === p.id)!.label.toLowerCase()}${p.id === 'posture' ? ':' : ' work:'}`));
-    if (line.startsWith('Mobility')) continue;
-    expect(hit, line).toBeDefined();
-    expect(line).toContain(`${setsFor(m, SRC[hit!.id]!)} sets`);
-    expect(m[i]!.some((x) => x.prim.some(SRC[hit!.id]!)), `${line} on a day that trains it`).toBe(true);
-    expect(line.endsWith(rep ? `every ${days} workouts` : 'a week')).toBe(true);
+  // RANKING IS A PROMISE: a pick never gets more extra than a pick ranked above it, counted on the
+  // sets that are its own (not shared with a higher pick). The one exception is a higher pick that
+  // says it has plenty (a muscle at the limit) or that the app has no exercise for.
+  const ranked = report.priorities.filter((p) => p.id !== 'mobility');
+  for (const [j, low] of ranked.entries()) {
+    const higher = ranked.slice(0, j);
+    const own = (ms: Move[][]) => ms.flat().reduce((n, x) => n + (x.prim.some(SRC[low.id]!) && !higher.some((h) => x.prim.some(SRC[h.id]!)) ? x.sets : 0), 0);
+    const ownExtra = Math.max(0, own(m) - own(mb));
+    for (const high of higher) {
+      if (high.state === 'plenty' || high.state === 'no_move') { tally.rankExempt++; continue; }
+      tally.rankPairs++;
+      expect(ownExtra, `#${j + 1} ${low.id} got more than ${high.id} ${label}`).toBeLessThanOrEqual(extraOf(high.id));
+    }
+  }
+  // DAY WHY LINES: each names what that day adds for up to two picks, by rank; a day that adds nothing has none.
+  const dayTotal = (ms: Move[][], i: number, id: FocusPickId) => (ms[i] ?? []).reduce((n, x) => n + (x.prim.some(SRC[id]!) ? x.sets : 0), 0);
+  for (const [i, d] of f.plan.days.entries()) {
+    const adds = ranked.filter((p) => extraOf(p.id) > 0 && dayTotal(m, i, p.id) > dayTotal(mb, i, p.id));
+    const lines = d.focusWhy ?? [];
+    expect(lines.length).toBeLessThanOrEqual(1);
+    if (!lines.length) { if (!picks.includes('mobility')) expect(adds, `day ${i + 1} adds but says nothing ${label}`).toEqual([]); tally.noWhyDays++; continue; }
+    tally.whyDays++;
+    const line = lines[0]!;
+    expect(line.startsWith('Extra today: ')).toBe(true);
+    const named = [...line.matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
+    if (!line.includes('stretches')) expect(named.map((x) => x.name), `${line} ${label}`).toEqual(adds.slice(0, 2).map((p) => focusName(p.id).toLowerCase()));
+    for (const x of named) {
+      const pick = ranked.find((p) => focusName(p.id).toLowerCase() === x.name)!;
+      expect(pick, line).toBeDefined();
+      expect(x.n, `${line} day ${i + 1} ${label}`).toBe(dayTotal(m, i, pick.id) - dayTotal(mb, i, pick.id));
+      tally.whyLines++;
+    }
   }
 
   const fa = footprint(f.plan), ba = footprint(b.plan);
@@ -144,21 +199,42 @@ function check(count: number, days: number, minutes: number, rep: number) {
   const ids = (ms: Move[][]) => new Set(ms.flat().map((x) => x.id));
   for (const id of input.love!) if (ids(mb).has(id) && b.r.applied.loved.includes(id)) expect(ids(m).has(id), `${id} ${label}`).toBe(true);
 
-  // Honest shortfall: extra work that did not fit is said, with a tap only when it really helps.
-  const short = report.priorities.filter((p) => p.id !== 'mobility' && p.requested > 0 && p.extra < Math.max(1, p.requested - 1) && !p.atLimit);
-  // "No sure move" is only said when the plan really has none.
-  for (const p of report.priorities) if (p.noMove) { expect(setsFor(m, SRC[p.id]!), `${p.id} ${label}`).toBe(0); tally.noMove.add(p.id); }
-  // "Already at 20" is only said when a muscle that pick's moves train really is at 20 (the app counts lats and upper back as one back).
-  const group = (t: T) => (t.label.toLowerCase().endsWith('delts') ? t.label.toLowerCase() : t.muscle === 'lats' || t.muscle === 'middle back' ? 'back' : t.muscle);
-  for (const p of report.priorities) if (p.atLimit) {
+  // Honest shortfall: extra work that did not fit is said, with a tap only when it really fixes it.
+  const short = report.priorities.filter((p) => p.id !== 'mobility' && p.requested > 0 && extraOf(p.id) < Math.max(1, p.requested - 1) && p.state !== 'plenty' && p.state !== 'no_move');
+  // "No exercises for it" is only said when the plan really has none.
+  for (const p of report.priorities) if (p.state === 'no_move') { expect(totalOf(p.id), `${p.id} ${label}`).toBe(0); tally.noMove.add(p.id); }
+  // "Already plenty" is only said when a muscle of that pick really is at 20 (the app counts lats and upper back as one back).
+  for (const p of report.priorities) if (p.state === 'plenty') {
+    tally.plenty++;
     const groups = new Set(m.flat().filter((x) => x.prim.some(SRC[p.id]!)).flatMap((x) => x.prim.map(group)));
-    expect([...groups].some((g) => setsFor(m, (t) => group(t) === g) >= 20), `${p.id} at the limit ${label}`).toBe(true);
+    // Posture is shown as one count of back and rear shoulder work: that count is its limit.
+    expect([...groups].some((g) => setsFor(m, (t) => group(t) === g) >= 20) || (p.id === 'posture' && totalOf(p.id) >= 20), `${p.id} at the limit ${label}`).toBe(true);
   }
-  const rebuild = (a: { days?: number; minutes?: number }) => build({ ...input, days: a.days!, minutes: a.minutes! })?.r.applied.focusReport;
-  const fit = focusFit({ days: days as 2, minutes: minutes as 20 }, report, rebuild);
+  const rebuilt = (a: { days?: number; minutes?: number }) => build({ ...input, days: a.days!, minutes: a.minutes! });
+  const fit = focusFit({ days: days as 2, minutes: minutes as 20 }, report, (a) => rebuilt(a)?.r.applied.focusReport);
   if (short.length) expect(fit, label).not.toBeNull();
-  if (short.some((p) => !p.noMove)) { tally.needLine++; s.line++; tally.byMin[minutes] = (tally.byMin[minutes] ?? 0) + 1; tally.byDays[days] = (tally.byDays[days] ?? 0) + 1; if (fit!.days || fit!.minutes) tally.offered++; }
-  if (fit) expect(fit.line.length).toBeGreaterThan(10);
+  const stretchShort = report.priorities.some((p) => p.id === 'mobility' && p.state === 'short');
+  if (short.length || stretchShort) { tally.needLine++; s.line++; tally.byMin[minutes] = (tally.byMin[minutes] ?? 0) + 1; tally.byDays[days] = (tally.byDays[days] ?? 0) + 1; if (fit!.days || fit!.minutes) tally.offered++; if (fit!.both) tally.offeredBoth++; }
+  if (fit) {
+    expect(fit.line.length).toBeGreaterThan(10);
+    expect(fit.line).not.toContain('with your equipment');
+    expect(fit.line.includes('fit best with') || fit.line.includes('fits best with')).toBe(!!(fit.days || fit.minutes));
+    // FIX OFFERS ARE TRUE: applying the tap leaves no shortfall and no pick with fewer extra sets, counted on the rebuilt plans.
+    const taps = fit.both ? [{ days: fit.days!, minutes: fit.minutes! }] : [...(fit.days ? [{ days: fit.days, minutes }] : []), ...(fit.minutes ? [{ days, minutes: fit.minutes }] : [])];
+    for (const tap of taps) {
+      const nf = rebuilt(tap), nb = build({ ...input, ...tap, focusPicks: [] });
+      expect(!!nf && !!nb, `${JSON.stringify(tap)} builds ${label}`).toBe(true);
+      const nm = movesOf(nf!.plan), nmb = movesOf(nb!.plan);
+      tally.fixesChecked++;
+      for (const p of nf!.r.applied.focusReport!.priorities) {
+        if (p.id === 'mobility') { expect(p.state, `stretches after ${JSON.stringify(tap)} ${label}`).toBe('extra'); continue; }
+        const after = Math.max(0, setsFor(nm, SRC[p.id]!) - setsFor(nmb, SRC[p.id]!));
+        expect(after, `${p.id} lost extra after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(extraOf(p.id));
+        if (p.state === 'plenty' || p.state === 'no_move' || p.requested === 0) continue;
+        expect(after, `${p.id} still short after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.max(1, p.requested - 1));
+      }
+    }
+  }
 }
 
 describe('900 seeded intakes: every pick count 0 to 11, days 2 to 6, every minutes choice', () => {
@@ -171,6 +247,10 @@ describe('900 seeded intakes: every pick count 0 to 11, days 2 to 6, every minut
     expect(tally.withPicks).toBeGreaterThan(700);
     console.log(JSON.stringify({ ...tally, noMove: [...tally.noMove] }));
     expect(tally.maxMuscle).toBeLessThanOrEqual(20);
+    expect(tally.maxShown).toBeLessThanOrEqual(20);
+    expect(tally.rankPairs).toBeGreaterThan(1000);
+    expect(tally.whyLines).toBeGreaterThan(300);
+    fs.writeFileSync('/tmp/3.6f-count-numbers.json', JSON.stringify({ ...tally, noMove: [...tally.noMove] }, null, 1));
     expect(tally.order).toBe(0);
   });
 });

@@ -1,7 +1,7 @@
 // Builds the whole plan, or says plainly which day cannot be built here.
 import { heaviestOf, orderUnits, type Muscle } from '../order';
-import { focusMuscles as musclesOf, normalizeFocusPicks } from '../plan/focus';
-import { focusPeriod } from '../plan/focusWords';
+import { normalizeFocusPicks } from '../plan/focus';
+import { focusDayLine } from '../plan/focusWords';
 import { workoutIdOf, type Pattern } from '../swap';
 import { FAMILY_OF, MIN_MOVES, movesFor, PRESCRIPTION, splitFor, type Slot } from '../generatorRules';
 import { contextOf } from './context';
@@ -47,7 +47,10 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
   }
 
 
-  const focusMuscles: Muscle[] = musclesOf(input.focusPicks ?? input.focus);
+  // The days are first built exactly as with no picks (no focus order): what focus then adds is
+  // counted against them, so "extra" always means above the same answers with no picks. applyFocus
+  // puts the focused moves earlier.
+  const focusMuscles: Muscle[] = [];
   const finisher = finisherFor(ctx);
   const warmUp = warmUpFor(ctx, finisher);
   const strength = FAMILY_OF[main] === 'strength';
@@ -65,6 +68,8 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
   }
 
   const focusReport = applyFocus(ctx, days);
+  // Each day's why: what that day adds for the picks (words from lib/plan/focusWords.ts, data from the report).
+  focusReport.days = days.map((_, i) => { const line = focusDayLine(focusReport.dayExtra?.[i]); return line ? [line] : []; });
   const kept = days.flatMap((d) => d.units.flat());
   // Compatibility for older consumers; detailed reporting always uses the final recount.
   const focus: Applied['focus'] = (input.focus ?? []).filter((id) => id !== 'balance').flatMap((id) => {
@@ -81,7 +86,7 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
 
   const rawDays: RawDay[] = days.map((d, i) => {
     const head: RawSingle[] = d.warmUp ? [{ type: 'single', exercise: deps.name(d.warmUp), id: d.warmUp, seconds: [WARM_UP_SEC, WARM_UP_SEC], sets: 1, restSec: 0, warmup: true }] : [];
-    const out: RawDay = { n: i + 1, name: d.name, blocks: [...head, ...d.units.map((u) => rawBlock(ctx, u))], ...(focusReport.days[i]?.length ? { focusWhy: focusReport.days[i]!.map((line) => `${line} ${focusPeriod(input.scheduleStyle, daysPerWeek)}`) } : {}) };
+    const out: RawDay = { n: i + 1, name: d.name, blocks: [...head, ...d.units.map((u) => rawBlock(ctx, u))], ...(focusReport.days[i]?.length ? { focusWhy: focusReport.days[i]! } : {}) };
     if (d.finisher) out.finisher = d.finisher;
     return out;
   });
