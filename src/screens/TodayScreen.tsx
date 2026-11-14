@@ -13,6 +13,7 @@ import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
 import { useTodayData } from '../hooks/useTodayData';
 import { useSchedule } from '../hooks/useSchedule';
+import { registryWords, usePlanRegistry } from '../hooks/usePlanRegistry';
 import { WeekScheduleSheet } from './today/WeekScheduleSheet';
 import { FixedDaysSheet } from './today/FixedDaysSheet';
 import { RecoveryCard } from './today/RecoveryCard';
@@ -70,6 +71,7 @@ export function TodayScreen() {
   const location = useLocation();
   const { dbOpen, live } = useTodayData();
   const schedule = useSchedule(dbOpen);
+  const registry = usePlanRegistry();
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
   // PLAN 3.8: the coach reads with Today, so its card never shifts the page in after the rest.
@@ -239,6 +241,7 @@ export function TodayScreen() {
         {(live.error || schedule.error) && dbOpen ? (
           <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={() => { live.retry(); schedule.retry(); }} />
         ) : null}
+        {registry.state === 'failed' ? <LoadError text={registryWords(registry.missing)} onRetry={registry.retry} /> : null}
         {failed ? null : !data.ready ? (
           <Skeleton height={248} radius={28} />
         ) : active && plan && planState && active.planId === plan.id && dayIndexOf(plan, active.dayId) >= 0 ? (

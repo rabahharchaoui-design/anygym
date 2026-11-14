@@ -2,14 +2,13 @@
 // src/lib/backup.ts. Restores are refused while a workout is in progress, and each runs in ONE
 // transaction over every table: if anything throws, nothing changes.
 import { version } from '../../package.json';
-import { loadSavedPlans } from './savedPlans';
+import { loadPlanRegistry } from './planRegistry';
 import { buildBackup, isActiveSession, keyOf, TABLE_NAMES, type Backup, type BackupLive, type BackupTables, type TableName } from '../lib/backup';
 import { EXTRA_SETS_KEY, clearExtraSets, extraSetsValue, restoreExtraSets } from '../lib/extraSets';
 import { REST_KEY, loadRest, saveRest } from '../lib/rest';
 import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob } from '../lib/drafts';
 import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
-import { loadApprovals } from './candidateReviews';
 import { newId } from './ids';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, intentMatches, readUndoIntentList } from './undoIntents';
@@ -179,10 +178,10 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
   // Before anything can Try again or Finish (PLAN 2.0h): the backup's held changes are pending here.
   restoreHeldMutations(backup.pendingChanges ?? [], db, drafts, true);
   resetStartDb();
-  // PLAN 3.5: the restored generated plans are known at once.
-  await loadSavedPlans(db).catch(() => 0);
-  // PLAN 3.5e: the restored candidate approvals reach the gate at once.
-  await loadApprovals(db).catch(() => 0);
+  // PLAN 3.5, 3.5e, 3.6w (1): the restored approvals, then the restored generated plans, are known at
+  // once. The restore itself has committed: a failure here is reported by the registry status (Today
+  // shows Try again), never by undoing or repeating the restore.
+  await loadPlanRegistry(db).catch((e: unknown) => console.warn('AnyGym plans unavailable after restore', e));
   return result;
 }
 
@@ -235,10 +234,8 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
   const held = (backup.pendingChanges ?? []).filter((e) => result.added.has(e.sessionId));
   if (held.length) restoreHeldMutations(held, db, drafts);
   resetStartDb();
-  // PLAN 3.5: the merged generated plans are known at once.
-  await loadSavedPlans(db).catch(() => 0);
-  // PLAN 3.5e: the restored candidate approvals reach the gate at once.
-  await loadApprovals(db).catch(() => 0);
+  // PLAN 3.5, 3.5e, 3.6w (1): approvals first, then the merged generated plans (as after Replace).
+  await loadPlanRegistry(db).catch((e: unknown) => console.warn('AnyGym plans unavailable after restore', e));
   return { workouts: result.workouts, sets: result.sets };
 }
 

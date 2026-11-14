@@ -3,8 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import { startDb } from './db/bootstrap';
-import { loadSavedPlans } from './db/savedPlans';
-import { loadApprovals } from './db/candidateReviews';
+import { loadPlanRegistry } from './db/planRegistry';
 import { restoreMirrors } from './lib/durable';
 import { DRAFTS_KEY, hydrateDrafts } from './lib/drafts';
 import { REST_KEY, hydrateRest } from './lib/rest';
@@ -60,12 +59,12 @@ const showApp = () =>
       </AppErrorBoundary>
     </StrictMode>,
   );
-// PLAN 3.5: plans generated from the user's answers are known before any screen looks one up. A
-// phone whose storage cannot be read has none (the shell still works, like startDb below).
-const savedPlans = () => loadSavedPlans().catch((err: unknown) => console.warn('AnyGym saved plans unavailable', err));
-// PLAN 3.5e: candidate moves G approved on this phone are sure moves before any screen asks.
-const approvals = () => loadApprovals().catch((err: unknown) => console.warn('AnyGym approvals unavailable', err));
-const restore = () => Promise.all([restoreMirrors(undefined, undefined, hydrators), savedPlans(), approvals()]).then(showApp);
+// PLAN 3.5, 3.5e, 3.6w (1): the candidate moves G approved on this phone reach the gate, then the
+// plans generated from the user's answers are registered (a personal plan may hold an approved move),
+// before any screen looks one up. A failed read is not "no plans": the registry status says so and
+// Today shows Try again; the shell still works (like startDb below).
+const planRegistry = () => loadPlanRegistry().catch((err: unknown) => console.warn('AnyGym saved plans unavailable', err));
+const restore = () => Promise.all([restoreMirrors(undefined, undefined, hydrators), planRegistry()]).then(showApp);
 void restore().catch(() => reactRoot.render(<StartupError onRetry={restore} />));
 
 // After first paint: open the database and create the first gym if needed.
