@@ -110,18 +110,24 @@ function readDraft(redo = false): FunnelState | null {
   }
 }
 
+/** PLAN 3.6f: the questions Settings can open on their own ("Schedule", "Focus areas"): that one step, then the reveal rebuilds the plan. */
+const ONLY: readonly ScreenId[] = ['focus', 'weekdays'];
+/** A kept draft belongs to this visit only when it is on that one step or its reveal. */
+const mine = (draft: FunnelState | null, only: ScreenId | undefined): FunnelState | null => (!only || (draft && (draft.step === only || draft.step === 'reveal')) ? draft : null);
+
 export function IntakeScreen() {
   const [params] = useSearchParams();
   const redo = params.get('redo') === '1';
+  const only = redo ? ONLY.find((s) => s === params.get('only')) : undefined;
   // A fresh start resumes its draft at once when localStorage has it; else it looks in IndexedDB
   // first (a blocked localStorage). A redo loads the saved answers first.
-  const [state, setState] = useState<FunnelState | null>(() => readDraft(redo));
+  const [state, setState] = useState<FunnelState | null>(() => mine(readDraft(redo), only));
   const [leave, setLeave] = useState(false);
   useEffect(() => {
     let alive = true;
     if (redo) {
       redoAnswers({ ...unitsForLocale(phoneLocale()), ...(bodyPref.picked() ? { body: bodyPref.get() } : {}) })
-        .then(async (a) => { const draft = parseDraft(await readIntakeDraft(undefined, true)); if (alive) setState(draft ?? startState(a)); })
+        .then(async (a) => { const draft = mine(parseDraft(await readIntakeDraft(undefined, true)), only); if (alive) setState(draft ?? (only ? { step: only, answers: a } : startState(a))); })
         .catch(() => alive && setState(startState(withUnits({}))));
     } else if (!readDraft()) {
       readIntakeDraft()
@@ -137,13 +143,13 @@ export function IntakeScreen() {
     return () => {
       alive = false;
     };
-  }, [redo]);
+  }, [redo, only]);
   if (leave) return <Navigate to="/" replace />;
   if (!state) return <div className={styles.frame} />;
-  return <Funnel initial={state} redo={redo} />;
+  return <Funnel initial={state} redo={redo} only={only} />;
 }
 
-function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
+function Funnel({ initial, redo, only }: { initial: FunnelState; redo: boolean; only?: ScreenId }) {
   const go = useNav();
   const [state, setState] = useState(initial);
   const ref = useRef(state);
@@ -183,8 +189,17 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     scroller.current?.scrollTo({ top: 0 });
   }, [state.step]);
 
+  /** One step opened from Settings: straight to a screen, with the answers a reducer step leaves. */
+  const jump = (step: ScreenId, kind: NavKind, answers = ref.current.answers) => {
+    const to = { step, answers };
+    ref.current = to;
+    setPulse(null);
+    setHold(null);
+    withTransition(kind, () => setState(to));
+  };
   const set = (screen: AnswerId, value: unknown) => apply({ type: 'set', screen, value }, 'none');
   const next = () => {
+    if (only) return jump('reveal', 'push', funnelReducer(ref.current, { type: 'next' }).answers);
     const a = ref.current.answers;
     // Right after the equipment: when no plan can fit, say so now, not 9 questions later.
     // PLAN 3.5: and only when the generator cannot build a week with this gear either.
@@ -193,6 +208,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   };
   const skip = () => {
     window.clearTimeout(timer.current);
+    if (only) return jump('reveal', 'push', funnelReducer(ref.current, { type: 'skip' }).answers);
     apply({ type: 'skip' }, 'push');
   };
   const skipRest = () => {
@@ -201,6 +217,11 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
   };
   const back = (kind: NavKind = 'pop') => {
     window.clearTimeout(timer.current);
+    if (only) {
+      if (ref.current.step === 'reveal') jump(only, kind);
+      else go('/settings', { kind, replace: true });
+      return;
+    }
     if (ref.current.step === 'goal') {
       if (redo) go('/settings', { kind, replace: true });
       return;
@@ -218,7 +239,8 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
 
   const { step, answers } = state;
   const handlers: StepHandlers = { set, pickAndGo, range: (value) => apply({ type: 'range', value }, 'none') };
-  const previous = prevScreen(step, answers);
+  // One step from Settings has no question before it to swipe back to.
+  const previous = only ? null : prevScreen(step, answers);
 
   let content: ReactNode;
   if (step === 'reveal') content = <Reveal answers={answers} redo={redo} onBack={() => back()} baseline={baseline} onChange={(a) => { const next = { ...ref.current, answers: a }; ref.current = next; setState(next); }} />;
@@ -227,6 +249,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     const kind = KIND[step];
     const copy = COPY[step];
     const showBack = step !== 'goal' || redo;
+    const toSettings = step === 'goal' || !!only;
     const first = step === 'goal';
     // On the last question Skip already goes to the reveal.
     // 3.5f round 3 (M6, B2): not on the love / never cards (the top Skip does it), where every line counts.
@@ -240,10 +263,15 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
     content = (
       <div className={styles.screen} data-testid="intake" data-step={step}>
         <header className={styles.top}>
-          {showBack ? <BackButton label={step === 'goal' ? 'Back to Settings' : 'Back'} onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
-          <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
-            <span className={styles.progressFill} style={{ transform: `scaleX(${Math.max(0.04, progressOf(step, answers))})` }} />
-          </div>
+          {showBack ? <BackButton label={toSettings ? 'Back to Settings' : 'Back'} onPress={() => back()} /> : <span className={styles.topSpacer} aria-hidden="true" />}
+          {only ? (
+            // One question on its own has no progress to show: the bar's place is kept.
+            <span className={styles.progress} data-none aria-hidden="true" />
+          ) : (
+            <div className={styles.progress} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressOf(step, answers) * 100)}>
+              <span className={styles.progressFill} style={{ transform: `scaleX(${Math.max(0.04, progressOf(step, answers))})` }} />
+            </div>
+          )}
           {SKIPPABLE.has(step) ? (
             <button type="button" className={`${styles.skip} pressable`} onClick={skip} data-testid="skip">
               Skip

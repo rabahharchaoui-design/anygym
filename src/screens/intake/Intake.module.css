@@ -56,6 +56,10 @@
   overflow: hidden;
 }
 
+.progress[data-none] {
+  background: none;
+}
+
 .progressFill {
   display: block;
   height: 100%;
