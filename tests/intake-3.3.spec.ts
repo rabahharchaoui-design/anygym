@@ -597,7 +597,7 @@ test('B3: 4 days then 3 weekdays: the weekdays screen says so, the reveal repeat
   await expect(page.getByTestId('why')).toHaveText('Choose a schedule that fits your life.');
   // 3.6f: the weekday chips appear after choosing "Same days each week".
   await chooseSchedule(page, 'fixed');
-  await expect(page.getByTestId('cta-reason')).toHaveText('Pick 4, or skip');
+  await expect(page.getByTestId('cta-reason')).toHaveText('Pick 4, or Skip to stay flexible');
   await expect(page.getByTestId('weekday-count')).toHaveText('');
   const before = await cta(page).boundingBox();
   for (const d of ['mon', 'wed', 'fri']) await page.getByTestId(`q-weekdays-${d}`).tap();

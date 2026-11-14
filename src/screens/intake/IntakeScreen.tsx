@@ -82,7 +82,7 @@ const WHY: Partial<Record<ScreenId, string>> = {
   equipment: 'Add your dumbbell weights',
   focus: 'Pick at least one',
   win: 'Pick at least one',
-  weekdays: 'Pick your days, or skip',
+  weekdays: 'Pick your days, or Skip to stay flexible',
   cardio: 'Pick one',
   easyOn: 'Pick one, or None',
   exercises: 'Pick one, or skip',
@@ -276,7 +276,7 @@ function Funnel({ initial, redo }: { initial: FunnelState; redo: boolean }) {
             <p className={noPlanStyles.footNote}>{first ? STAYS_HERE_FIRST : STAYS_HERE}</p>
           </div>
         ) : (
-          <BottomCTA onPress={next} disabled={!ready} {...(deckStep ? {} : { disabledReason: step === 'weekdays' && answers.days ? `Pick ${answers.days}, or skip` : WHY[step] })} reasonAndNote={!deckStep} above={skipRestButton} {...(deckStep ? {} : { note: first ? STAYS_HERE_FIRST : STAYS_HERE })} testId="intake-cta" className={styles.cta}>
+          <BottomCTA onPress={next} disabled={!ready} {...(deckStep ? {} : { disabledReason: step === 'weekdays' && answers.days ? `Pick ${answers.days}, or Skip to stay flexible` : WHY[step] })} reasonAndNote={!deckStep} above={skipRestButton} {...(deckStep ? {} : { note: first ? STAYS_HERE_FIRST : STAYS_HERE })} testId="intake-cta" className={styles.cta}>
             Continue
           </BottomCTA>
         )}
