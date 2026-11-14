@@ -1,8 +1,9 @@
 // Where the user is in their curated plan (PLAN 1.10): one planState row, id 'active'.
 // The plans are static JSON (src/data/plans.ts); only this small pointer is stored.
-import { basePlanOf, planById } from '../data/plans';
-import { clampWeek, dayIndexOf } from '../lib/plans';
+import { basePlanOf, isGeneratedId, planById } from '../data/plans';
+import { clampWeek, dayIndexOf, type Plan } from '../lib/plans';
 import { rotationOf } from '../lib/plan/schedule';
+import { carryPlace, type CarriedPlace } from '../lib/plan/carry';
 import { finishPlanPosition, movesOn } from '../lib/finishPlan';
 import type { DayProgress } from '../lib/planWorkout';
 import { db as defaultDb, type AnyGymDB } from './schema';
@@ -13,17 +14,24 @@ export async function getPlanState(db: AnyGymDB = defaultDb): Promise<PlanState 
 }
 
 /**
- * A new pointer: Day 1, week 1. Switching between a plan and its coach tuned copy (PLAN 3.4a) keeps
- * the place: same days, same weeks, only the order or rests changed.
+ * The pointer for a newly chosen plan. Switching between a plan and its coach tuned copy (PLAN
+ * 3.4a) keeps the place as it is. A rebuild of "Your plan" (PLAN 3.6f: a new schedule, new focus
+ * areas, a day or minutes added) keeps the place by position (lib/plan/carry.ts). Any other plan
+ * starts at Day 1, week 1. This is the one place a pointer is made: progress is never dropped elsewhere.
  */
-function startState(planId: string, previous: PlanState | undefined, now: number): PlanState {
+export function placeFor(planId: string, previous: PlanState | undefined, now: number, plan: Pick<Plan, 'id' | 'days' | 'progressionMode' | 'weeks'> | undefined = planById(planId)): CarriedPlace {
+  if (previous?.planId === planId) return { state: previous, kept: true };
   const same = previous && basePlanOf(previous.planId) && basePlanOf(previous.planId) === basePlanOf(planId);
-  if (same) return { ...previous, planId };
-  return { id: 'active', planId, startedAt: now, weekIndex: 0, nextDayIndex: 0, doneDays: [] };
+  if (same) return { state: { ...previous, planId }, kept: true };
+  if (!plan) throw new Error('Plan not found');
+  const related = !!previous && isGeneratedId(previous.planId) && isGeneratedId(planId) && !!planById(previous.planId);
+  return carryPlace(previous, plan, related, now);
 }
 
+const startState = (planId: string, previous: PlanState | undefined, now: number): PlanState => placeFor(planId, previous, now).state;
+
 /**
- * "Use this plan": starts it at Day 1 (week 1). Throws for a plan that is not shipped. Choosing the
+ * "Use this plan": starts it at Day 1 (week 1), or keeps the place for a rebuild of "Your plan" (placeFor). Throws for a plan that is not shipped. Choosing the
  * plan that is already active changes nothing (PLAN 1.7j): its week, next day and done marks stay,
  * read inside the same write transaction so a stale screen can never reset them.
  */

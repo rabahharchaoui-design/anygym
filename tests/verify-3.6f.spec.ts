@@ -331,3 +331,33 @@ test('reduced motion keeps all parts, targets and the reachable action', async (
   await sheet.getByTestId('focus-part-upper_chest').tap(); await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await rest(page);
   await expect(page.getByTestId('focus-line-upper_chest')).toHaveText(/^Upper chest \d+ sets \+\d+ extra$/);
 });
+
+test('round 3 (critic 1): changing the schedule or the focus in Settings keeps the place, the workouts and the sets', async ({ page }) => {
+  test.setTimeout(60_000);
+  await toFocus(page); await part(page, 'arms', 'triceps'); await rest(page); await accept(page);
+  // Day 1 done three days ago (so no muscle is resting): Day 2 is next.
+  const state = (await dbAll<Record<string, unknown> & { planId: string }>(page, 'planState'))[0]!;
+  const at = Date.now() - 3 * 86_400_000;
+  await put(page, 'sessions', { id: 'day-one', gymId: 'other', planId: state.planId, dayId: '1', startedAt: at - 3_600_000, endedAt: at, imported: false });
+  for (const n of [0, 1, 2]) await put(page, 'sets', { id: `day-one-${n}`, sessionId: 'day-one', exerciseId: 'dumbbell-bench-press', order: n, kind: 'work', reps: 8, load: { kind: 'dumbbell_each', unit: 'lb', total: 10 }, uncertain: false });
+  await put(page, 'planState', { ...state, doneDays: [0], nextDayIndex: 1, pendingDayIndices: [1, 2, 3] });
+  await page.reload(); await expect(page.getByTestId('day-card-title')).toHaveText(/^Next up: Day 2 · /);
+  // Schedule: flexible to the same days each week.
+  await page.goto('./#/settings'); await page.getByTestId('redo-schedule').tap(); await step(page, 'weekdays');
+  await pick(page, 'schedule', 'fixed'); for (const d of ['tue', 'thu', 'sat', 'sun']) await pick(page, 'weekdays', d);
+  await next(page); await step(page, 'reveal');
+  // The place carries over, so the reveal has nothing to warn about.
+  await expect(page.getByTestId('reveal-restart')).toHaveCount(0);
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Use this plan', exact: true }).tap(); await expect(page).toHaveURL(/#\/$/);
+  await expect(page.getByTestId('day-card-title')).toContainText('Day 2');
+  const fixed = (await dbAll<{ planId: string; doneDays: number[]; nextDayIndex: number }>(page, 'planState'))[0]!;
+  expect(fixed.planId).not.toBe(state.planId); expect(fixed.doneDays).toEqual([0]); expect(fixed.nextDayIndex).toBe(1);
+  // Focus: another part added.
+  await page.goto('./#/settings'); await page.getByTestId('redo-focus').tap(); await step(page, 'focus'); await part(page, 'legs', 'quads');
+  await next(page); await step(page, 'reveal'); await expect(page.getByTestId('reveal-restart')).toHaveCount(0);
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Use this plan', exact: true }).tap(); await expect(page).toHaveURL(/#\/$/);
+  await expect(page.getByTestId('day-card-title')).toContainText('Day 2');
+  const focused = (await dbAll<{ planId: string; doneDays: number[]; nextDayIndex: number }>(page, 'planState'))[0]!;
+  expect(focused.planId).not.toBe(fixed.planId); expect(focused.doneDays).toEqual([0]); expect(focused.nextDayIndex).toBe(1);
+  expect(await dbAll(page, 'sessions')).toHaveLength(1); expect(await dbAll(page, 'sets')).toHaveLength(3);
+});

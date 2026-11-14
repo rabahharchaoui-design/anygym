@@ -13,6 +13,7 @@ import { BottomCTA } from '../../ui/BottomCTA';
 import { ChoiceCard } from '../../ui/ChoiceCard';
 import { useNav } from '../../ui/nav';
 import { useTapGuard } from '../../hooks/useTapGuard';
+import { useRestartsFromDayOne } from '../../hooks/usePlanPlace';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import { explainPick, noPlanWords, pickPlan, weekOf } from '../../lib/intake/planPick';
 import { generatorInputOf } from '../../lib/intake/yourPlan';
@@ -57,6 +58,8 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
   // B1: the moves the day list will swap at this gym are said, never hidden.
   const fit = useMemo(() => (plan && !isMine ? planFit(SWAP_DATA, plan, answers) : null), [plan, isMine, answers]);
   const words = plan ? explainPick(plan, answers, fit?.swapped ?? 0, fit?.noFit.length ?? 0, isMine && built?.ok ? built.applied : undefined) : null;
+  // Round 3: a rebuild keeps the person's place; when it cannot, the reveal says so before they accept.
+  const restarts = useRestartsFromDayOne(plan);
   const none = noPlanWords(answers.place);
   // Why the generator could not build a week here, in its own words (never a padded plan).
   const failure = built && !built.ok ? built.reason : null;
@@ -201,6 +204,11 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
               onBoth={(days, minutes) => onChange({ ...answers, days, minutes })}
             />
           ) : null}
+          {restarts && (
+            <p className={revealStyles.caveat} data-testid="reveal-restart">
+              Your rotation starts again from Day 1. Your logged workouts stay.
+            </p>
+          )}
           {plan && (
             <ol className={revealStyles.week} data-testid="reveal-week">
               {week.map((w, i) => (
