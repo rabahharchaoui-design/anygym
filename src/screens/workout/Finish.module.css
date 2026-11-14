@@ -184,12 +184,10 @@
 }
 
 /* Two lines, then an ellipsis: never a narrow column five lines tall. */
+/* The whole name, always: text is never cut at large sizes (PLAN 1.7g). It wraps between words. */
 .exerciseTitle {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .exerciseBest {

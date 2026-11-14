@@ -485,10 +485,11 @@ test('truth pass (critic r3 13): on an SE at 130% text the finish row keeps the 
   const row = page.getByTestId('finish-exercise').first(); await expect(row).toBeVisible(); await page.waitForTimeout(900);
   const name = row.getByTestId('finish-exercise-name');
   await expect(name).toHaveText(/\w+ \w+/);
-  // The name: at most two lines, and wide (the critic saw a five line column beside the numbers).
+  // The name: whole (never cut, PLAN 1.7g), on few lines, and wide (the critic saw a five line column beside the numbers).
   const shape = await name.evaluate((el) => { const r = el.getBoundingClientRect(); return { lines: Math.round(r.height / parseFloat(getComputedStyle(el).lineHeight)), share: r.width / el.closest('li')!.getBoundingClientRect().width }; });
-  expect(shape.lines).toBeLessThanOrEqual(2);
+  expect(shape.lines).toBeLessThanOrEqual(3);
   expect(shape.share).toBeGreaterThan(0.55);
+  expect(await name.evaluate((el) => getComputedStyle(el).webkitLineClamp)).toBe('none');
   expect(await row.evaluate(brokenWords), await row.innerText()).toEqual([]);
   expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   // "you did 4 of N sets": the count and its word stay on one line.
