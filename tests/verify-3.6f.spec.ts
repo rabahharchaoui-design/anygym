@@ -37,8 +37,16 @@ async function rest(page: Page, style = 'flexible') {
 async function accept(page: Page) {
   await page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }).tap();
   await expect(page).toHaveURL(/#\/$/);
-  const skipTour = page.getByRole('button', { name: 'Skip tour', exact: true });
-  if (await skipTour.isVisible()) await skipTour.tap();
+  // Design round 2 (critic MAJOR 9): Today lands at its top. With the welcome up (it used to scroll the page 18 px) the day card still starts under the header.
+  await expect(page.getByTestId('tour-words')).toHaveAttribute('data-in', 'true'); await page.waitForTimeout(500);
+  const landed = await page.evaluate(() => {
+    const card = document.querySelector('[data-tour="day"]')!; const scroller = card.closest('[data-scroller]')!;
+    const start = card.querySelector('[data-tour-core]')!.getBoundingClientRect().bottom + scroller.scrollTop; const words = document.querySelector('[data-testid="tour-words"]')!.getBoundingClientRect().height;
+    // The one exception: a screen too short to hold the card down to Start and the words (the 320 floor at 130% text).
+    return { gap: card.getBoundingClientRect().top - scroller.querySelector('header')!.getBoundingClientRect().bottom, top: scroller.scrollTop, fits: start + 6 + 12 + words <= innerHeight - 16 };
+  });
+  if (landed.fits) { expect(landed.top).toBe(0); expect(landed.gap).toBeGreaterThanOrEqual(0); }
+  await page.getByTestId('tour-skip').tap(); await expect(page.getByTestId('welcome-tour')).toHaveCount(0);
   await expect(page.getByTestId('day-card-title')).toBeVisible();
 }
 async function textScale(page: Page, scale: number) {

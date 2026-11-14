@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../../ui/Button';
+import { COLLAPSE_PX } from '../../ui/TopBar';
 import { ArtScene } from '../../ui/art/lazy';
 import { FADE, GLIDE } from '../../ui/motion';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
@@ -37,7 +38,10 @@ type Lit = Box & { radius: number };
 function targetBox(el: HTMLElement, wordsHeight: number): Box {
   const r = el.getBoundingClientRect();
   const core = el.querySelector<HTMLElement>('[data-tour-core]');
-  const room = tabsTop() - GAP - EDGE;
+  // The room starts where the element rests with the page at its top (under the header), never at the
+  // screen's edge: a card that only fits by scrolling its top under the header is lit down to its key part.
+  const restTop = r.top + (el.closest<HTMLElement>('[data-scroller]')?.scrollTop ?? 0);
+  const room = tabsTop() - GAP - Math.max(EDGE, restTop);
   return fitTarget({ x: r.left, y: r.top, width: r.width, height: r.height }, core ? core.getBoundingClientRect().bottom : null, room, PAD * 2 + GAP + wordsHeight);
 }
 
@@ -60,6 +64,8 @@ export function WelcomeTour({ show }: { show: boolean }) {
   wordsHeightRef.current = wordsHeight;
   /** The words card has landed (it waits for the dim and its own measured place first). */
   const [wordsIn, setWordsIn] = useState(false);
+  /** The words may rest over the dimmed tab bar (only when the other way is a card's top under the header). */
+  const [loose, setLoose] = useState(false);
 
   // Opens once Today has rested, with the steps for what is really on it.
   useEffect(() => {
@@ -117,16 +123,24 @@ export function WelcomeTour({ show }: { show: boolean }) {
 
   // Only as far as it takes: the element clears the tab bar, and (PLAN 3.5w) when the words fit
   // neither over it nor between it and the tab bar, far enough for them to fit under it.
+  // PLAN 3.6f: never by sliding a card's top under the header while the words still fit on the
+  // screen: then the page stays put and the words rest over the dimmed tab bar (`loose`).
   useEffect(() => {
+    setLoose(false);
     if (!target || target === 'tabs') return;
     const el = find(target);
-    if (!el) return;
+    const scroller = el?.closest<HTMLElement>('[data-scroller]');
+    if (!el || !scroller) return;
     const b = targetBox(el, wordsHeight);
-    const r = { top: b.y, bottom: b.y + b.height };
     const tabs = tabsTop();
-    const fitsOver = r.top - PAD - GAP - wordsHeight >= EDGE;
-    const under = r.bottom + PAD + GAP + (wordsHeight && !fitsOver ? wordsHeight + GAP : 0) - tabs;
-    if (under > 0) el.closest('[data-scroller]')?.scrollBy({ top: under, behavior: reduce ? 'auto' : 'smooth' });
+    const fitsOver = b.y - PAD - GAP - wordsHeight >= EDGE;
+    const end = b.y + b.height + PAD + GAP + (wordsHeight && !fitsOver ? wordsHeight + GAP : 0);
+    const under = end - tabs;
+    if (under <= 0) return;
+    const header = scroller.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
+    if (b.y - under < header && end - GAP <= window.innerHeight - EDGE) return setLoose(true);
+    // Never to a rest inside the large title's collapse (the card's top would sit under a half faded bar).
+    scroller.scrollBy({ top: scroller.scrollTop < COLLAPSE_PX ? Math.max(under, COLLAPSE_PX - scroller.scrollTop) : under, behavior: reduce ? 'auto' : 'smooth' });
   }, [target, wordsHeight, reduce]);
 
   useEffect(() => {
@@ -138,7 +152,7 @@ export function WelcomeTour({ show }: { show: boolean }) {
 
   const count = steps?.length ?? 0;
   // PLAN 3.5w: the words never sit on the tab bar while another element is lit.
-  const view = { top: EDGE, bottom: target && target !== 'tabs' ? Math.min(window.innerHeight - EDGE, tabsTop() - GAP) : window.innerHeight - EDGE };
+  const view = { top: EDGE, bottom: target && target !== 'tabs' && !loose ? Math.min(window.innerHeight - EDGE, tabsTop() - GAP) : window.innerHeight - EDGE };
   const top = lit ? wordsTop(lit, wordsHeight, view, GAP) : 0;
   const glide = reduce ? INSTANT : GLIDE;
 
