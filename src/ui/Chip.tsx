@@ -20,6 +20,8 @@ type Props = {
   small?: boolean;
   /** PLAN 3.6f: one quiet line under the label (the parts picked, "No sure exercises yet"). */
   hint?: string;
+  /** PLAN 3.6f: cannot be picked (a weekday already past). Its picked state still shows. */
+  disabled?: boolean;
 };
 
 /**
@@ -27,9 +29,9 @@ type Props = {
  * ChoiceCard). A toggle button (aria-pressed); picked, the border and icon turn accent and the fill
  * tints, answering the press within a frame. 48 pt tall at least.
  */
-export function Chip({ label, icon: Icon, picked, onPress, testId, block, soft, tag, tile, small, hint }: Props) {
+export function Chip({ label, icon: Icon, picked, onPress, testId, block, soft, tag, tile, small, hint, disabled }: Props) {
   return (
-    <button type="button" className={`${styles.chip} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} data-block={block || undefined} data-soft={soft || undefined} data-tile={tile || undefined} data-small={small || undefined}>
+    <button type="button" className={`${styles.chip} pressable`} aria-pressed={picked} onClick={onPress} disabled={disabled} data-testid={testId} data-block={block || undefined} data-soft={soft || undefined} data-tile={tile || undefined} data-small={small || undefined}>
       {soft && <Check className={styles.check} width={14} height={14} strokeWidth={3} aria-hidden="true" />}
       {Icon && <Icon className={styles.icon} width={18} height={18} strokeWidth={2} aria-hidden="true" />}
       <span className={styles.label}>

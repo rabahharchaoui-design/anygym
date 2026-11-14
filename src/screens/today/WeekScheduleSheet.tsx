@@ -5,6 +5,7 @@ import { SummaryRow } from '../../ui/SummaryRow';
 import { WeekdayChips } from '../../components/WeekdayChips';
 import { WEEKDAYS, type WeekdayId } from '../../lib/intake/options';
 import type { useSchedule } from '../../hooks/useSchedule';
+import { weekPickWords } from '../../lib/plan/scheduleWords';
 import styles from './WeekSchedule.module.css';
 
 /**
@@ -19,10 +20,10 @@ export function WeekScheduleSheet({ schedule, active }: { schedule: ReturnType<t
   const [days, setDays] = useState<WeekdayId[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => { if (data?.needsWeek && !active && dismissed !== data.weekKey) setOpen(true); }, [data?.needsWeek, data?.weekKey, active, dismissed]);
+  useEffect(() => { if (data?.asksWeek && !active && dismissed !== data.weekKey) setOpen(true); }, [data?.asksWeek, data?.weekKey, active, dismissed]);
   if (data?.style !== 'weekly') return null;
   const save = async () => {
-    if (busy || !days.length) return;
+    if (busy || !days.some((d) => data.weekdaysLeft.includes(d))) return;
     setBusy(true); setError('');
     try { await schedule.save(days); setOpen(false); setDismissed(data?.weekKey ?? null); }
     catch { setError('Could not save your days. Try again.'); }
@@ -36,10 +37,12 @@ export function WeekScheduleSheet({ schedule, active }: { schedule: ReturnType<t
       <div className={styles.sheet}>
         <h2 className={styles.title}>Which days this week?</h2>
         <p className={styles.note}>Tap the days you can train. Your workouts stay in order.</p>
-        <WeekdayChips value={days} onChange={setDays} label="Days this week" testIdPrefix="week" />
+        <WeekdayChips value={days} onChange={setDays} label="Days this week" testIdPrefix="week" open={data.weekdaysLeft} />
+        {/* The plan's number of days, and what is picked against it (lib/plan/scheduleWords.ts). Fewer or more is fine, and said. */}
+        {data.planDays > 0 && <p className={styles.note} data-testid="week-plan-days" aria-live="polite">{weekPickWords(data.planDays, days.length)}</p>}
         {error && <p className={styles.error} role="alert">{error}</p>}
       </div>
-      <SheetFooter><Button disabled={busy || !days.length} disabledReason={days.length ? undefined : 'Pick at least one day'} onClick={() => void save()}>{busy ? 'Saving…' : 'Save days'}</Button></SheetFooter>
+      <SheetFooter><Button disabled={busy || !days.some((d) => data.weekdaysLeft.includes(d))} disabledReason={days.some((d) => data.weekdaysLeft.includes(d)) ? undefined : 'Pick at least one day'} onClick={() => void save()}>{busy ? 'Saving…' : 'Save days'}</Button></SheetFooter>
     </Sheet>
   </>;
 }

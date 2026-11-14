@@ -9,6 +9,57 @@ export const scheduleStyleOf = (a?: Pick<IntakeAnswers, 'scheduleStyle' | 'weekd
 export const remindersEligible = (a?: IntakeAnswers): boolean => scheduleStyleOf(a) === 'fixed';
 export const needsWeeklySchedule = (a: IntakeAnswers | undefined, saved: WeeklySchedule | undefined, now: number): boolean => scheduleStyleOf(a) === 'weekly' && saved?.weekKey !== weekKey(now);
 
+/** Monday first, as the week is shown and saved. */
+const WEEK: readonly WeekdayId[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const todayAt = (now: number): number => (new Date(now).getDay() + 6) % 7;
+
+/** The days that can still be picked in the week of `now`: today and the days after it. Past days never. */
+export const weekdaysLeft = (now: number): WeekdayId[] => WEEK.slice(todayAt(now));
+
+/**
+ * "Which days this week?" opens by itself once in a new week. Not straight after the intake when the
+ * week is nearly over (fewer days left than the plan has): the row on Today still opens it, and next
+ * Monday it asks.
+ */
+export function asksWeeklySchedule(input: { answers: IntakeAnswers | undefined; saved: WeeklySchedule | undefined; now: number; intakeDoneAt?: number; planDays: number }): boolean {
+  if (!needsWeeklySchedule(input.answers, input.saved, input.now)) return false;
+  const fresh = input.intakeDoneAt !== undefined && weekKey(input.intakeDoneAt) === weekKey(input.now);
+  return !(fresh && weekdaysLeft(input.now).length < input.planDays);
+}
+
+/**
+ * The days to save for this week: what was picked from today on, plus days already past that were
+ * saved before (they happened; they are never added or removed afterwards). Monday first.
+ */
+export function weekChoice(picked: readonly WeekdayId[], saved: WeeklySchedule | undefined, now: number): WeekdayId[] {
+  const left = weekdaysLeft(now);
+  const before = saved?.weekKey === weekKey(now) ? saved.weekdays.filter((d) => !left.includes(d)) : [];
+  return WEEK.filter((d) => before.includes(d) || (left.includes(d) && picked.includes(d)));
+}
+
+/** A calendar day that is not one of the person's days: when the next one is (absent: not known yet). */
+export type RestDay = { nextAt?: number };
+
+/**
+ * On a calendar (same days each week, or days picked for this week): null on a training day or with
+ * no days to go by; else a rest day, with the start of the next training day when it is known (a week
+ * to week schedule only knows this week). Start stays possible: this informs, it never blocks.
+ */
+export function restDayOf(style: ScheduleStyle, weekdays: readonly string[] | undefined, now: number): RestDay | null {
+  if (style === 'flexible' || !weekdays?.length) return null;
+  const at = todayAt(now);
+  if (weekdays.includes(WEEK[at]!)) return null;
+  const last = style === 'weekly' ? 6 - at : 6;
+  for (let n = 1; n <= last; n++) {
+    if (!weekdays.includes(WEEK[(at + n) % 7]!)) continue;
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + n);
+    return { nextAt: d.getTime() };
+  }
+  return {};
+}
+
 export type RotationPosition = { nextDayIndex: number; doneDays: number[]; pendingDayIndices?: number[]; chosenDayIndex?: number };
 export function rotationOf(state: RotationPosition, count: number): number[] {
   if (state.pendingDayIndices?.length) return state.pendingDayIndices.filter((d, i, all) => Number.isInteger(d) && d >= 0 && d < count && all.indexOf(d) === i);

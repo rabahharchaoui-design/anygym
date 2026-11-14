@@ -3,7 +3,7 @@ import { planById } from '../data/plans';
 import { profileFor } from '../data/order';
 import { adaptedPlanDay, alwaysPicks } from './planAdapt';
 import { weekKey } from '../lib/coach/time';
-import { needsWeeklySchedule, resolveNextDay, rotationOf, scheduleStyleOf, type WeeklySchedule } from '../lib/plan/schedule';
+import { asksWeeklySchedule, needsWeeklySchedule, resolveNextDay, restDayOf, rotationOf, scheduleStyleOf, weekChoice, weekdaysLeft, type WeeklySchedule } from '../lib/plan/schedule';
 import { WEEKDAYS, type WeekdayId } from '../lib/intake/options';
 import { getProfile } from './intake';
 import { readTrainingLog } from './training';
@@ -37,7 +37,19 @@ export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
     const profile = await getProfile(db);
     const state = await db.planState.get('active');
     const resolved = state ? await resolveSchedule(state, profile, now, db) : null;
-    return { weekKey: weekKey(now), style: scheduleStyleOf(profile?.intake), needsWeek: needsWeeklySchedule(profile?.intake, profile?.weeklySchedule, now), weekly: profile?.weeklySchedule, resolved };
+    const style = scheduleStyleOf(profile?.intake);
+    const planDays = planById(state?.planId)?.days.length ?? profile?.intake?.days ?? 0;
+    const weekdays = style === 'weekly' ? (profile?.weeklySchedule?.weekKey === weekKey(now) ? profile.weeklySchedule.weekdays : undefined) : profile?.intake?.weekdays;
+    return {
+      weekKey: weekKey(now), style, weekly: profile?.weeklySchedule, resolved, planDays,
+      needsWeek: needsWeeklySchedule(profile?.intake, profile?.weeklySchedule, now),
+      /** The sheet opens by itself (not straight after the intake late in a week). */
+      asksWeek: asksWeeklySchedule({ answers: profile?.intake, saved: profile?.weeklySchedule, now, intakeDoneAt: profile?.intakeDoneAt, planDays }),
+      /** The days that can still be picked this week: today on. */
+      weekdaysLeft: weekdaysLeft(now),
+      /** Not one of the person's days (fixed or weekly): Today says so, Start stays. */
+      restDay: state && resolved ? restDayOf(style, weekdays, now) : null,
+    };
   });
 }
 export async function saveWeeklySchedule(days: readonly WeekdayId[], now = Date.now(), db: AnyGymDB = defaultDb): Promise<WeeklySchedule> {
@@ -45,7 +57,9 @@ export async function saveWeeklySchedule(days: readonly WeekdayId[], now = Date.
   return db.transaction('rw', db.profile, async () => {
     const profile = await getProfile(db);
     if (!profile) throw new Error('Profile not found');
-    const weeklySchedule = { weekKey: weekKey(now), weekdays: [...new Set(days)], answeredAt: now };
+    // Only today and the days after it can be picked; days already past stay as they were saved.
+    const weeklySchedule = { weekKey: weekKey(now), weekdays: weekChoice(days, profile.weeklySchedule, now), answeredAt: now };
+    if (!weeklySchedule.weekdays.length) throw new Error('Choose a day from today on');
     await db.profile.put({ ...profile, weeklySchedule });
     return weeklySchedule;
   });

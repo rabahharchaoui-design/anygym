@@ -126,6 +126,17 @@ export function curateFocus(input: {
       if (!c) continue;
       if (accepts(i, () => day.push({ ...c, sets: n }), () => { day.pop(); })) spent += n;
     }
+    // Last, when a day has no time left: one set moves to a focused move from a move no pick asks for.
+    // An accessory gives first (down to 2 sets), then a big lift with 4 or more (never the day's first, heaviest lift).
+    for (const compound of [false, true]) for (const [i, day] of days.entries()) for (const m of day) {
+      if (!m.hard || m.compound !== compound || !m.picks.includes(id)) continue;
+      const lead = day.find((x) => x.hard && x.compound);
+      const donors = day.filter((x) => x.hard && !x.keep && !wanted(x) && (x.compound ? x !== lead && x.sets >= 4 : x.sets > 2)).sort((a, b) => Number(a.compound) - Number(b.compound));
+      for (const donor of donors) {
+        if (room() <= 0 || m.sets >= input.cap) break;
+        if (accepts(i, () => { donor.sets--; m.sets++; }, () => { donor.sets++; m.sets--; })) spent++;
+      }
+    }
     const exempt = !hasMove(id) || (gained(id) < requested && atLimit(id));
     served.push({ id, exempt });
     if (!exempt) ceiling = Math.min(ceiling, gained(id));

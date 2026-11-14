@@ -25,7 +25,7 @@ export function FocusPartsSheet({ group, picks, notYet, onClose, onSave }: Props
       <div className={styles.sheet}>
         <h2 className={styles.sheetTitle}>{label}</h2>
         <p className={styles.sheetNote}>All of it, or only the parts you care about.</p>
-        <Chip block label={group === 'chest' ? 'Overall chest' : `All ${label.toLowerCase()}`} picked={selected.includes(group)} onPress={() => tap(group)} testId={`focus-part-${group}`} />
+        <Chip block label={`All ${label.toLowerCase()}`} picked={selected.includes(group)} onPress={() => tap(group)} testId={`focus-part-${group}`} />
         {parts.filter((p) => p.id !== group).map((p) => (
           <Chip key={p.id} block label={p.label} hint={notYet.has(p.id) ? NOT_YET : undefined} picked={selected.includes(p.id)} onPress={() => tap(p.id)} testId={`focus-part-${p.id}`} />
         ))}

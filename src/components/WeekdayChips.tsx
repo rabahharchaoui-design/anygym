@@ -9,6 +9,8 @@ type Props = {
   label: string;
   /** Test id prefix: `${prefix}-mon`. */
   testIdPrefix: string;
+  /** The days that can be picked (Today's week: today on). Absent: every day. */
+  open?: readonly WeekdayId[];
 };
 
 /**
@@ -16,11 +18,11 @@ type Props = {
  * 320 pt phone, at 130% text too). One component for the intake's "Same days each week" and Today's
  * "Which days this week?".
  */
-export function WeekdayChips({ value, onChange, label, testIdPrefix }: Props) {
+export function WeekdayChips({ value, onChange, label, testIdPrefix, open }: Props) {
   return (
     <div className={styles.week} role="group" aria-label={label}>
       {WEEKDAYS.map((d) => (
-        <Chip key={d.id} label={d.label} picked={value.includes(d.id)} onPress={() => onChange(value.includes(d.id) ? value.filter((id) => id !== d.id) : [...value, d.id])} testId={`${testIdPrefix}-${d.id}`} />
+        <Chip key={d.id} label={d.label} picked={value.includes(d.id)} onPress={() => onChange(value.includes(d.id) ? value.filter((id) => id !== d.id) : [...value, d.id])} testId={`${testIdPrefix}-${d.id}`} disabled={open ? !open.includes(d.id) : undefined} />
       ))}
     </div>
   );

@@ -2,8 +2,9 @@
 // day, "Train anyway" and the recovery words. Written from the PLAN and the critic's cases.
 import { describe, expect, it } from 'vitest';
 import { countedTraining, RECOVERY_MIN_SETS, type TrainingEntry } from '../recovery';
-import { resolveNextDay } from '../schedule';
-import { readyWords, restingWords } from '../scheduleWords';
+import { asksWeeklySchedule, resolveNextDay, restDayOf, weekChoice, weekdaysLeft } from '../schedule';
+import { weekKey } from '../../coach/time';
+import { readyWords, restDayWords, restingWords, weekPickWords } from '../scheduleWords';
 import { TIRED_MS } from '../../quickWhy';
 
 const HOUR = 3_600_000;
@@ -69,5 +70,55 @@ describe('recovery words', () => {
     expect(readyWords(new Date(2026, 10, 16, 8).getTime(), now)).toBe('Monday morning');
     expect(readyWords(new Date(2026, 10, 14, 11).getTime(), new Date(2026, 10, 14, 7).getTime())).toBe('later this morning');
     expect(/\d/.test(readyWords(now + 30 * HOUR, now))).toBe(false);
+  });
+});
+
+describe('fixed and weekly days mean something (critic MAJOR 6)', () => {
+  const sat = now; // Saturday Nov 14 2026, 6 PM
+  const mon = new Date(2026, 10, 16, 9).getTime();
+  const tue = new Date(2026, 10, 17, 9).getTime();
+  const startOf = (y: number, m: number, d: number) => new Date(y, m, d).getTime();
+  it('a fixed Mon/Wed/Fri plan on a Saturday is a rest day, and the next training day is Monday', () => {
+    expect(restDayOf('fixed', ['mon', 'wed', 'fri'], sat)).toEqual({ nextAt: startOf(2026, 10, 16) });
+    expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], sat), 1, sat)).toBe('Rest day today. Next: Monday, Day 1.');
+    expect(restDayOf('fixed', ['mon', 'wed', 'fri'], mon)).toBeNull();
+    expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], tue), 2, tue)).toBe('Rest day today. Next: tomorrow, Day 2.');
+  });
+  it('no days to go by is never a rest day: flexible, a fixed plan with no weekdays, a weekly week not answered', () => {
+    expect(restDayOf('flexible', ['mon'], sat)).toBeNull();
+    expect(restDayOf('fixed', [], sat)).toBeNull();
+    expect(restDayOf('weekly', undefined, sat)).toBeNull();
+    expect(restDayWords(null, 1, sat)).toBeNull();
+  });
+  it('a weekly schedule only knows this week: after its last day the next one is not claimed', () => {
+    expect(restDayOf('weekly', ['mon', 'thu'], tue)).toEqual({ nextAt: startOf(2026, 10, 19) });
+    expect(restDayOf('weekly', ['mon', 'thu'], sat)).toEqual({});
+    expect(restDayWords({}, 3, sat)).toBe('Rest day today. Day 3 is up next.');
+  });
+  it('only today and the days after it can be picked; days already past stay as they were saved', () => {
+    expect(weekdaysLeft(sat)).toEqual(['sat', 'sun']);
+    expect(weekdaysLeft(mon)).toEqual(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+    expect(weekChoice(['mon', 'sun', 'sat'], undefined, sat)).toEqual(['sat', 'sun']);
+    const saved = { weekKey: weekKey(sat), weekdays: ['mon', 'wed', 'sat'] as const, answeredAt: 1 };
+    expect(weekChoice(['sun'], { ...saved, weekdays: [...saved.weekdays] }, sat)).toEqual(['mon', 'wed', 'sun']);
+    // Last week's days are not this week's.
+    expect(weekChoice(['sun'], { weekKey: '2026-11-02', weekdays: ['mon'], answeredAt: 1 }, sat)).toEqual(['sun']);
+  });
+  it('the weekly question does not open by itself straight after the intake late in the week, and does from Monday', () => {
+    const answers = { scheduleStyle: 'weekly' as const };
+    expect(asksWeeklySchedule({ answers, saved: undefined, now: sat, intakeDoneAt: sat - 60_000, planDays: 4 })).toBe(false);
+    expect(asksWeeklySchedule({ answers, saved: undefined, now: mon, intakeDoneAt: sat - 60_000, planDays: 4 })).toBe(true);
+    // Early in the week there is room for the plan's days: it asks right away.
+    expect(asksWeeklySchedule({ answers, saved: undefined, now: tue, intakeDoneAt: tue - 60_000, planDays: 4 })).toBe(true);
+    // Not a fresh intake: it asks whenever the week is not answered. Answered: never again that week.
+    expect(asksWeeklySchedule({ answers, saved: undefined, now: sat, intakeDoneAt: sat - 30 * 86_400_000, planDays: 4 })).toBe(true);
+    expect(asksWeeklySchedule({ answers, saved: { weekKey: weekKey(sat), weekdays: ['sat'], answeredAt: sat }, now: sat, planDays: 4 })).toBe(false);
+    expect(asksWeeklySchedule({ answers: { scheduleStyle: 'flexible' }, saved: undefined, now: mon, planDays: 4 })).toBe(false);
+  });
+  it('the sheet says the plan\'s number of days and what was picked against it', () => {
+    expect(weekPickWords(4, 0)).toBe('Your plan has 4 days. Pick up to 4.');
+    expect(weekPickWords(4, 4)).toBe('Your plan has 4 days. You picked all 4.');
+    expect(weekPickWords(4, 2)).toBe('Your plan has 4 days. You picked 2: the rest wait for next week.');
+    expect(weekPickWords(4, 5)).toBe('Your plan has 4 days. You picked 5: the plan starts over after Day 4.');
   });
 });

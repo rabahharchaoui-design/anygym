@@ -174,6 +174,35 @@ describe('round 2: one next day rule (critic BLOCKER 3, MAJOR 5)', () => {
     expect((await readSchedule(now + 2000, db)).resolved).toMatchObject({ dayIndex: 2, deferred: [] });
   });
 });
+describe('round 2: fixed and weekly days (critic MAJOR 6)', () => {
+  // `now` is Tuesday Nov 10 2026, noon.
+  it('fixed Mon/Wed/Fri on a Tuesday: Today has a rest day with Wednesday next, and Start still works', async () => {
+    await db.profile.update('me', { intake: { scheduleStyle: 'fixed', weekdays: ['mon', 'wed', 'fri'] } });
+    const read = await readSchedule(now, db);
+    expect(read.restDay).toEqual({ nextAt: new Date(2026, 10, 11).getTime() });
+    expect(read.resolved?.dayIndex).toBe(0);
+    expect((await startPlanDay(gymId, planId, 0, db, now)).dayId).toBe('1');
+    expect((await readSchedule(new Date(2026, 10, 11, 9).getTime(), db)).restDay).toBeNull();
+  });
+  it('weekly: past days cannot be saved, the saved days decide the rest day, and the plan\'s number of days is given', async () => {
+    await db.profile.update('me', { intake: { scheduleStyle: 'weekly' }, intakeDoneAt: now - 30 * 86_400_000 });
+    const first = await readSchedule(now, db);
+    expect(first).toMatchObject({ needsWeek: true, asksWeek: true, planDays: 3, restDay: null, weekdaysLeft: ['tue', 'wed', 'thu', 'fri', 'sat', 'sun'] });
+    await expect(saveWeeklySchedule(['mon'], now, db)).rejects.toThrow('from today on');
+    expect((await saveWeeklySchedule(['mon', 'thu', 'sat'], now, db)).weekdays).toEqual(['thu', 'sat']);
+    expect((await readSchedule(now, db)).restDay).toEqual({ nextAt: new Date(2026, 10, 12).getTime() });
+    expect((await readSchedule(new Date(2026, 10, 12, 9).getTime(), db)).restDay).toBeNull();
+    // On Friday the past Thursday stays saved whatever is tapped now.
+    const fri = new Date(2026, 10, 13, 9).getTime();
+    expect((await saveWeeklySchedule(['sun'], fri, db)).weekdays).toEqual(['thu', 'sun']);
+  });
+  it('weekly straight after the intake on a Saturday: the sheet does not open by itself, the row still can', async () => {
+    const sat = new Date(2026, 10, 14, 18).getTime();
+    await db.profile.update('me', { intake: { scheduleStyle: 'weekly' }, intakeDoneAt: sat - 60_000 });
+    expect(await readSchedule(sat, db)).toMatchObject({ needsWeek: true, asksWeek: false, weekdaysLeft: ['sat', 'sun'] });
+    expect(await readSchedule(new Date(2026, 10, 16, 9).getTime(), db)).toMatchObject({ needsWeek: true, asksWeek: true });
+  });
+});
 describe('additive v11 data and backup compatibility', () => {
   it('opens old v11 rows unchanged', async () => {
     const oldName = `old-36f-${Math.random()}`;

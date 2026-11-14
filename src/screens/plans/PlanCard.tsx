@@ -1,4 +1,5 @@
-import { focusLabel } from '../../lib/plan/focus';
+import { focusName } from '../../lib/plan/focus';
+import { list } from '../../lib/words';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from '../../ui/icons';
 import { useNav } from '../../ui/nav';
@@ -26,7 +27,7 @@ export function PlanCard({ plan, to, active }: { plan: Plan; to: string; active:
         {active && <span className={styles.badge}>Your plan</span>}
       </span>
       <span className={styles.planSummary}>{plan.summary}</span>
-      {plan.focusReport?.priorities.some((p) => p.extra > 0) && <span className={styles.planSummary}>Extra {plan.focusReport.priorities.filter((p) => p.extra > 0).slice(0, 2).map((p) => focusLabel(p.id).toLowerCase()).join(" and ")} work</span>}
+      {plan.focusReport?.priorities.some((p) => p.extra > 0) && <span className={styles.planSummary}>Extra {list(plan.focusReport.priorities.filter((p) => p.extra > 0).slice(0, 2).map((p) => focusName(p.id).toLowerCase()))} work</span>}
       <ChevronRight className={styles.planChevron} aria-hidden="true" />
     </Link>
   );

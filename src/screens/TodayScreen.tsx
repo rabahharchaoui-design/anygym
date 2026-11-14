@@ -15,7 +15,7 @@ import { useTodayData } from '../hooks/useTodayData';
 import { useSchedule } from '../hooks/useSchedule';
 import { WeekScheduleSheet } from './today/WeekScheduleSheet';
 import { RecoveryCard } from './today/RecoveryCard';
-import { restingWords } from '../lib/plan/scheduleWords';
+import { restDayWords, restingWords } from '../lib/plan/scheduleWords';
 import { db } from '../db/schema';
 import { startDb } from '../db/bootstrap';
 import { setNextDay } from '../db/planState';
@@ -270,6 +270,7 @@ export function TodayScreen() {
             plan={plan}
             state={{ ...planState, nextDayIndex: nextIndex }}
             flexible={schedule.data?.style !== 'fixed'}
+            rest={restDayWords(schedule.data?.restDay, nextDay?.n ?? nextIndex + 1, Date.now())}
             onStart={() => void startDay()}
             onChangeDay={(i) => setChanging(i ?? true)}
             onTime={gym ? () => setTimeOpen(true) : undefined}
@@ -366,7 +367,7 @@ export function TodayScreen() {
       />
       <Toast toast={toast} bottom={toastBottom} />
       {/* PLAN 3.5u: once, right after a first intake; never over a toast and its Undo. */}
-      <WelcomeTour show={shouldShowTour(profile.data?.welcomeTour, { ready: data.ready && !schedule.data?.needsWeek && !failed && buildable !== null && !toast, activeWorkout: active !== null })} />
+      <WelcomeTour show={shouldShowTour(profile.data?.welcomeTour, { ready: data.ready && !schedule.data?.asksWeek && !failed && buildable !== null && !toast, activeWorkout: active !== null })} />
     </>
   );
 }

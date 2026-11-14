@@ -194,3 +194,9 @@
     font-size: 0.75rem;
   }
 }
+
+/* PLAN 3.6f: a weekday already past cannot be picked: dimmed, still readable, no press feedback. */
+.chip:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

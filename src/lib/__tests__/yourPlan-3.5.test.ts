@@ -9,6 +9,7 @@ import { explainPick, pickPlan } from '../intake/planPick';
 import type { Applied } from '../generator';
 import { generatorInputOf, yourPlanWords } from '../intake/yourPlan';
 import { focusFit } from '../intake/focusFit';
+import { aboutMinutes } from '../intake/yourPlan';
 import { presetEquipment, type IntakeAnswers } from '../intake/funnel';
 
 const reveal = (a: IntakeAnswers) => {
@@ -52,7 +53,7 @@ describe('Your plan words', () => {
     expect(words.title).toBe('Your plan');
     expect(words.check).toBe(true);
     expect(words.summary).toBeNull();
-    expect(words.reason).toMatch(/^Built to build muscle: 4 days, about \d+ min, hotel friendly, extra arm work, easy on knees\.$/);
+    expect(words.reason).toMatch(/^Built to add muscle: 4 days, about \d+ min, hotel friendly, extra arm work, easy on knees\.$/);
     expect(words.minutes).toHaveLength(plan.days.length);
     expect(words.goals).toBeNull();
   });
@@ -83,7 +84,7 @@ describe('Your plan words', () => {
       { minutes: 45, place: 'full' },
       2,
     );
-    expect(w.reason).toBe('Built to build muscle: 2 days, about 41 min, full gym.');
+    expect(w.reason).toBe('Built to add muscle: 2 days, about 41 min, full gym.');
     expect(w.warning).toBe('No room for extra chest work here.');
   });
   it('a strength plan that kept its long rests says why it has fewer lifts', () => {
@@ -109,4 +110,15 @@ it('names detailed priorities and their real shortfalls without claiming a calen
   expect(fit.line).not.toContain('with your equipment');
   expect(words.reason).not.toContain('completed');
   expect(words.reason).not.toContain('sets a week');
+});
+
+it('round 2 copy: minutes close to the choice say the choice, a real difference says the real minutes; no "Built to build"', () => {
+  expect(aboutMinutes(59, 60)).toBe(60);
+  expect(aboutMinutes(62, 60)).toBe(60);
+  expect(aboutMinutes(63, 75)).toBe(63);
+  expect(aboutMinutes(41, undefined)).toBe(41);
+  const legs: IntakeAnswers = { goals: ['muscle'], experience: 'months', days: 2, minutes: 45, place: 'outdoors', equipment: [], focus: ['legs'] };
+  expect(reveal(legs).words.reason).toMatch(/^Built to add muscle: 2 days, about \d+ min, no equipment needed, extra leg work\.$/);
+  const ranked: IntakeAnswers = { goals: ['muscle'], experience: '3y', days: 4, minutes: 60, place: 'full', equipment: [...EQUIPMENT_IDS], focusPicks: ['lats', 'side_delts'] };
+  expect(reveal(ranked).words.reason).toMatch(/extra lats and side shoulders work/);
 });

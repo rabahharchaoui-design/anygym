@@ -21,6 +21,8 @@ type Props = {
   fitsIn?: number;
   /** PLAN 3.6: the estimate opens "How much time today?" (SPEC 7.4: before Start). */
   onTime?: () => void;
+  /** PLAN 3.6f: not one of the person's days: "Rest day today. Next: Wednesday, Day 1." Start stays. */
+  rest?: string | null;
   /** PLAN 3.5f: look through the day's lifts as a deck before Start (swap or hide any). */
   onPreview?: () => void;
 };
@@ -30,7 +32,7 @@ type Props = {
  * pips (done, part done as a ring, up next) and Change day. While the day is in progress it is the
  * one card on Today: "Day 1 · in progress · 2 sets" with Resume.
  */
-export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime, onPreview, flexible }: Props) {
+export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fitsIn, onTime, onPreview, flexible, rest }: Props) {
   const dayIndex = Math.max(0, Math.min(active?.dayIndex ?? state.nextDayIndex, plan.days.length - 1));
   const day = plan.days[dayIndex]!;
   const weekIndex = plan.progressionMode === 'weekly_table' ? state.weekIndex : 0;
@@ -72,6 +74,11 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
           </>
         )}
       </h2>
+      {!active && rest && (
+        <p className={styles.dayFits} data-testid="day-rest">
+          {rest}
+        </p>
+      )}
       {why && (
         <p className={styles.dayFits} data-testid="day-focus-why">
           {why.head}
