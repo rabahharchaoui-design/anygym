@@ -3,7 +3,8 @@ import type { IntakeAnswers } from '../../lib/intake/funnel';
 import type { WeekdayId } from '../../lib/intake/options';
 import type { FocusFit } from '../../lib/intake/focusFit';
 import { focusStateOf, type FocusReport } from '../../lib/plan/focus';
-import { focusCaption, focusRow, focusRowOrder, focusSummary } from '../../lib/plan/focusWords';
+import { focusCaption, focusRow, focusRowOrder } from '../../lib/plan/focusWords';
+import { focusSummary } from '../../lib/plan/focusPriority';
 import styles from './IntakeReveal.module.css';
 
 type Props = {
@@ -26,8 +27,8 @@ type Props = {
  * its one tap (add a day, add minutes), so it is never below the list.
  */
 export function RevealFocus({ report, period, fit, weekdays, onApply }: Props) {
-  // Who really got the most, composed from the result (never the promise made before the plan existed).
-  const summary = focusSummary(report);
+  // Who really got the most and why, composed from the result (never the promise made before the plan existed).
+  const summary = focusSummary(report, !!fit?.named);
   return (
     <div className={styles.focus} data-testid="reveal-focus">
       {fit && <RevealFit fit={fit} onApply={onApply} {...(weekdays ? { weekdays } : {})} />}

@@ -4,7 +4,8 @@
 import type { ScheduleStyle } from '../intake/options';
 import { cap, list, plural } from '../words';
 import type { FocusPickId } from '../intake/options';
-import { focusName, focusStateOf, type FocusDayExtra, type FocusReport, type FocusResult } from './focus';
+import { focusName, focusStateOf, type FocusDayExtra, type FocusResult } from './focus';
+import { focusCovered } from './focusPriority';
 
 /**
  * How often the sets come round. A calendar plan (same days, or days picked each week) counts "a
@@ -20,8 +21,6 @@ const minutes = (n: number): string => `${Math.round(n)} min`;
 /** "your back and rear shoulder work": the picks a goal rides on, as the kind of work they are. */
 const WORK: Partial<Record<FocusPickId, string>> = { back: 'back', lats: 'lat', upper_back: 'upper back', lower_back: 'lower back', shoulders: 'shoulder', rear_delts: 'rear shoulder', arms: 'arm', forearms: 'forearm' };
 const workOf = (ids: readonly FocusPickId[]): string => list(ids.map((id) => WORK[id] ?? focusName(id).toLowerCase()));
-/** A goal whose every set is shown under other picks of the list (lib/plan/focusShare.ts). */
-const covered = (p: FocusResult): boolean => !!p.coveredBy?.length && p.shared !== undefined && p.shared >= p.total && p.total > 0;
 
 /**
  * One line for one pick: [what, how much]. "Back: 18 sets a week, 6 of them extra", "…, already
@@ -38,7 +37,7 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
     : p.parts && p.parts.length > 1 ? `${list(p.parts.map((x) => `${PART[x.muscle] ?? x.muscle} ${x.sets}`))} sets`
     : plural(p.total, 'set', 'sets');
   // Every one of its sets is already shown under another pick: said in words, never as a second number (focusShare.ts).
-  if (covered(p)) return [name, `covered by your ${workOf(p.coveredBy!)} work, ${plural(p.total, 'set', 'sets')} ${period}`];
+  if (focusCovered(p)) return [name, `covered by your ${workOf(p.coveredBy!)} work, ${plural(p.total, 'set', 'sets')} ${period}`];
   const extra = p.extra <= 0 ? '' : p.extra >= p.total ? ', all of them extra' : `, ${p.extra} of them extra`;
   // "Plenty" and "extra" are never said together: a pick that got some and then reached the limit has "as much as is useful".
   const tail = state !== 'plenty' ? (p.extra <= 0 ? ', no room for extra' : '') : p.extra > 0 ? ', as much as is useful' : WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty';
@@ -68,7 +67,7 @@ export function focusRow(p: FocusResult): FocusRow {
   const state = focusStateOf(p);
   if (state === 'no_move') return { name, amount: null, tag: 'no exercises yet', detail: null };
   if (p.total === 0) return { name, amount: null, tag: 'no room', detail: null };
-  if (covered(p)) return { name, amount: null, tag: null, detail: `Covered by your ${workOf(p.coveredBy!)} work: ${plural(p.total, 'set', 'sets')}` };
+  if (focusCovered(p)) return { name, amount: null, tag: null, detail: `Covered by your ${workOf(p.coveredBy!)} work: ${plural(p.total, 'set', 'sets')}` };
   const several = !!p.parts && p.parts.length > 1;
   const tag = p.extra > 0 ? `+${p.extra} extra` : state === 'plenty' ? 'plenty' : 'no extra';
   const more = [
@@ -115,23 +114,4 @@ export const FOCUS_RANK_INTENT = 'We add extra where it fits, starting from the 
  */
 export function focusRankWords(ranked: number, mobility: boolean): { prompt: string; note: string | null } {
   return { prompt: `Rank your ${ranked} picks`, note: mobility ? 'Mobility is stretch time, so it is not ranked.' : null };
-}
-
-/**
- * On the reveal, who actually got the most, composed from the result: "Most extra work: Back and
- * Side shoulders." or, when a pick ranked above them got less, why ("Back already gets plenty, so
- * Side shoulders gets the most."). Null when no pick got extra sets.
- */
-export function focusSummary(report: Pick<FocusReport, 'priorities'>): string | null {
-  const hard = report.priorities.filter((p) => p.id !== 'mobility' && !covered(p));
-  const best = Math.max(0, ...hard.map((p) => p.extra));
-  if (best === 0) return null;
-  const winners = hard.filter((p) => p.extra === best);
-  if (winners.length === hard.length) return hard.length === 1 ? null : `Every pick gets the same extra work: +${best}.`;
-  const names = winners.length > 2 ? `${winners.slice(0, 2).map((p) => focusName(p.id)).join(', ')} and ${winners.length - 2} more` : list(winners.map((p) => focusName(p.id)));
-  const passed = hard.slice(0, hard.indexOf(winners[0]!))[0];
-  if (!passed) return `Most extra work: ${names}.`;
-  const state = focusStateOf(passed);
-  const why = state === 'plenty' ? `${focusName(passed.id)} already gets plenty` : state === 'no_move' ? `${focusName(passed.id)} has no exercises yet` : `${focusName(passed.id)} has less room on its days`;
-  return `${why}, so ${names} ${winners.length === 1 ? 'gets' : 'get'} the most.`;
 }

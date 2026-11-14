@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FOCUS_RANK_INTENT, focusCaption, focusDayLine, focusLine, focusPeriod, focusRankWords, focusRow, focusRowOrder, focusSummary } from '../focusWords';
+import { FOCUS_RANK_INTENT, focusCaption, focusDayLine, focusLine, focusPeriod, focusRankWords, focusRow, focusRowOrder } from '../focusWords';
+import { focusSummary } from '../focusPriority';
 import type { FocusResult } from '../focus';
 
 const p = (id: FocusResult['id'], over: Partial<FocusResult> = {}): FocusResult => ({ id, requested: 3, extra: 0, total: 0, shortfall: false, state: 'extra', ...over });
@@ -107,10 +108,10 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
     // The critic's case: Back ranked first has plenty, so the pick below it leads.
     expect(of(p('back', { total: 20, state: 'plenty' }), p('side_delts', { extra: 4 }), p('abs', { extra: 2 }))).toBe('Back already gets plenty, so Side shoulders gets the most.');
     expect(of(p('grip', { state: 'no_move' }), p('lats', { extra: 3 }), p('abs', { extra: 3 }), p('quads', { extra: 1 }))).toBe('Grip has no exercises yet, so Lats and Abs get the most.');
-    expect(of(p('lats', { extra: 1, state: 'short' }), p('abs', { extra: 3 }), p('quads', { extra: 2 }))).toBe('Lats has less room on its days, so Abs gets the most.');
+    expect(of(p('lats', { extra: 1, state: 'short' }), p('abs', { extra: 3 }), p('quads', { extra: 2 }))).toBe('Lats has no more room on its days, so Abs gets the most.');
     // Everyone the same: said as that, never "the top two get the most".
     expect(of(p('back', { extra: 2 }), p('posture', { extra: 2 }), p('side_delts', { extra: 2 }))).toBe('Every pick gets the same extra work: +2.');
-    expect(of(p('back', { extra: 3 }), p('abs', { extra: 3 }), p('quads', { extra: 3 }), p('calves', { extra: 3 }), p('glutes', { extra: 1 }))).toBe('Most extra work: Back, Abs and 2 more.');
+    expect(of(p('back', { extra: 3 }), p('abs', { extra: 3 }), p('quads', { extra: 3 }), p('calves', { extra: 3 }), p('glutes', { extra: 1 }))).toBe('Most extra work: Back, Abs, Quads and Calves.');
     // Nothing got extra, or one pick alone: nothing to compare, so no line.
     expect(of(p('back', { state: 'short' }), p('abs', { state: 'short' }))).toBeNull();
     expect(of(p('back', { extra: 4 }))).toBeNull();

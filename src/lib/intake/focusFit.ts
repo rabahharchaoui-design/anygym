@@ -5,6 +5,7 @@
 // offered if it helps anyone without lowering anyone, worded as exactly what it does ("With 45 min,
 // Upper chest and Side shoulders get extra"). When nothing helps, one plain sentence says so. Pure.
 import { FOCUS_BUDGET_MAX, focusName, focusStateOf, focusUnplaced, type FocusReport } from '../plan/focus';
+import { focusPrioritized } from '../plan/focusPriority';
 import { list } from '../words';
 import type { IntakeAnswers } from './answers';
 import { DAYS, MINUTES, type DaysPerWeek, type Minutes } from './options';
@@ -17,6 +18,8 @@ export type FocusFit = {
   minutes?: Minutes;
   /** Neither alone fits everything, both together do: one tap adds the day and the minutes. */
   both?: true;
+  /** The line says who was prioritized (the picks with the most extra), so the summary under it does not say it again. */
+  named?: true;
   /** The step offered does not place everything: it is the one that helps most, and the line says exactly what it does. */
   partial?: true;
 };
@@ -72,11 +75,15 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
     if (moreMinutes && fixesFocus(report, rebuild({ ...a, minutes: moreMinutes }))) out.minutes = moreMinutes;
     // No single step does it: the combined step, once.
     if (!out.days && !out.minutes && moreDays && moreMinutes && fixesFocus(report, rebuild({ ...a, days: moreDays, minutes: moreMinutes }))) Object.assign(out, { days: moreDays, minutes: moreMinutes, both: true as const });
-    const served = report.priorities.filter((p) => p.extra > 0).slice(0, 2).map((p) => focusName(p.id));
+    // Who was put first is read from the numbers (lib/plan/focusPriority.ts), never from the rank alone.
+    const top = focusPrioritized(report);
     const n = report.priorities.length;
+    const subject = n === 1 ? `${focusName(report.priorities[0]!.id)} fits` : `${n} focus areas fit`;
     const more = [out.days ? `${out.days} days` : null, out.minutes ? `${out.minutes} min` : null].filter((x): x is string => !!x);
-    if (more.length) parts.push(`${n} focus ${n === 1 ? 'area fits' : 'areas fit'} best with ${more.join(out.both ? ' and ' : ' or ')}${served.length ? `; we prioritized ${list(served)}` : ''}.`);
-    else {
+    if (more.length) {
+      parts.push(`${subject} best with ${more.join(out.both ? ' and ' : ' or ')}${top ? `; we prioritized ${top}` : ''}.`);
+      if (top) out.named = true;
+    } else {
       // Nothing places it all: the step that helps most (the most extra sets gained, then the most picks; minutes before a day before both), if any helps.
       const steps: Array<Pick<FocusFit, 'days' | 'minutes'>> = [...(moreMinutes ? [{ minutes: moreMinutes }] : []), ...(moreDays ? [{ days: moreDays }] : []), ...(moreDays && moreMinutes ? [{ days: moreDays, minutes: moreMinutes }] : [])];
       let best: { step: Pick<FocusFit, 'days' | 'minutes'>; gains: FocusReport['priorities']; sum: number } | null = null;

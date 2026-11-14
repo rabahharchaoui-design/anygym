@@ -8,7 +8,8 @@ import { fixesFocus, focusFit, helpsFocus } from '../intake/focusFit';
 import type { FocusPickId } from '../intake/options';
 import { focusUnplaced } from '../plan/focus';
 import { estimateDayMinutes as estimate } from '../plans';
-import { focusLine, focusPeriod, focusRow, focusSummary } from '../plan/focusWords';
+import { focusLine, focusPeriod, focusRow } from '../plan/focusWords';
+import { focusSummary } from '../plan/focusPriority';
 
 const gym = equipmentPreset('full', 'lb');
 const build = (days: number, minutes: number, focusPicks: FocusPickId[]) => {
@@ -50,7 +51,8 @@ describe('critic BLOCKER 1 and 4: ranking, the limit as shown, one meaning for t
     expect(lines[1]).toBe('Side shoulders: 10 sets every 5 workouts, 4 of them extra');
     expect(lines[4]).toBe('Glutes: 12 sets every 5 workouts, 4 of them extra');
     expect(report.priorities.reduce((n, p) => n + p.extra, 0)).toBeGreaterThanOrEqual(10);
-    expect(focusSummary(report)).toBe('Back already gets plenty, so Side shoulders and Glutes get the most.');
+    // Truth pass: every pick that got less than one below it is named with its own reason.
+    expect(focusSummary(report)).toBe('Back and Quads already get plenty and Arms already has its share, so Side shoulders and Glutes get the most.');
   });
   it('Lats, Side shoulders, Quads at 3 days, 30 min: #1 >= #2 >= #3, and a line never calls the same number total and extra', () => {
     const { report, lines } = build(3, 30, ['lats', 'side_delts', 'quads']);
@@ -132,7 +134,7 @@ describe('round 3: the second critique\'s own cases (Nov 14), through the real g
   it('critic 3 and 5: Back, Posture, Side shoulders, Glutes, Abs, Mobility on 6 days, 75 min: the summary names who got the most, and no row says two opposite things', () => {
     const { report } = build(6, 75, ['back', 'posture', 'side_delts', 'glutes', 'abs', 'mobility']);
     expect(report.priorities[0]!.state).toBe('plenty');
-    expect(focusSummary(report)).toMatch(/^Back already gets plenty, so .+ gets? the most\.$/);
+    expect(focusSummary(report)).toMatch(/^Back (and Posture )?already gets? plenty, so .+ gets? the most\.$/);
     for (const p of report.priorities) {
       const row = focusRow(p);
       const said = `${row.tag ?? ''} ${row.detail ?? ''}`;

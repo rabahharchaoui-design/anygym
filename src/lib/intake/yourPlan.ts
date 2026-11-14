@@ -2,6 +2,7 @@
 // words on what it built. Every word comes from what the generator really did (Applied), never from
 // what the answers merely asked for. Pure.
 import { focusName } from '../plan/focus';
+import { focusTop } from '../plan/focusPriority';
 import type { Applied, GeneratorInput } from '../generator';
 import type { Pattern } from '../swap';
 import { gymKitOf } from './planFit';
@@ -106,8 +107,9 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   const avg = average(applied.minutes);
   const parts: string[] = [`${days} days`, `about ${aboutMinutes(avg, a.minutes)} min`];
   if (a.place) parts.push(PLACE_WORD[a.place]);
-  const retained = applied.focusReport?.priorities.filter((p) => p.extra > 0);
-  if (retained?.length) parts.push(`extra ${list(retained.slice(0, 2).map((p) => focusWord(p.id)))} work`);
+  // The picks with the most extra, all of them (never the first two by rank, which may have got less).
+  const retained = applied.focusReport ? focusTop(applied.focusReport) : [];
+  if (retained.length) parts.push(retained.length > 3 ? `extra work for ${retained.length} focus areas` : `extra ${list(retained.map((p) => focusWord(p.id)))} work`);
   else if (applied.focus.length) parts.push(`extra ${list(applied.focus.map((f) => focusWord(f.id)))} work`);
   const easy = applied.easyOn.map((j) => (labelOf(EASY_ON, j as (typeof EASY_ON)[number]['id']) ?? j).toLowerCase());
   if (easy.length) parts.push(`easy on ${list(short(easy, 2))}`);

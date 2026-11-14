@@ -64,13 +64,13 @@ describe('the honest focus line and its one tap (focusFit): round 2, a fix is on
   const four = report(p('back', 3, 3), p('shoulders', 3, 3), p('arms', 3, 0), p('legs', 3, 0));
   const all = report(p('back', 3, 3), p('shoulders', 3, 3), p('arms', 3, 3), p('legs', 3, 3));
   it('says the PLAN line and offers a day or minutes only when a rebuild with it places every share', () => {
-    expect(focusFit({ days: 3, minutes: 45 }, four, () => all)).toEqual({ line: '4 focus areas fit best with 4 days or 60 min; we prioritized Back and Shoulders.', days: 4, minutes: 60 });
-    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? all : four))).toEqual({ line: '4 focus areas fit best with 4 days; we prioritized Back and Shoulders.', days: 4 });
-    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.minutes === 60 ? all : undefined))).toEqual({ line: '4 focus areas fit best with 60 min; we prioritized Back and Shoulders.', minutes: 60 });
+    expect(focusFit({ days: 3, minutes: 45 }, four, () => all)).toEqual({ line: '4 focus areas fit best with 4 days or 60 min; we prioritized Back and Shoulders.', days: 4, minutes: 60, named: true });
+    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? all : four))).toEqual({ line: '4 focus areas fit best with 4 days; we prioritized Back and Shoulders.', days: 4, named: true });
+    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.minutes === 60 ? all : undefined))).toEqual({ line: '4 focus areas fit best with 60 min; we prioritized Back and Shoulders.', minutes: 60, named: true });
     // No minutes answer means no limit: more minutes is never offered.
     expect(focusFit({ days: 3 }, four, () => all)).toMatchObject({ days: 4 });
     expect(focusFit({ days: 3 }, four, () => all)!.minutes).toBeUndefined();
-    expect(focusFit({ days: 2, minutes: 20 }, report(p('glutes', 4, 0)), () => report(p('glutes', 4, 4)))!.line).toBe('1 focus area fits best with 3 days or 30 min.');
+    expect(focusFit({ days: 2, minutes: 20 }, report(p('glutes', 4, 0)), () => report(p('glutes', 4, 4)))!.line).toBe('Glutes fits best with 3 days or 30 min.');
   });
   it('round 3 (critic 8): a step that helps but still leaves a shortfall is offered as exactly what it does, never as the fix', () => {
     const better = report(p('back', 3, 3), p('shoulders', 3, 3), p('arms', 3, 3), p('legs', 3, 0));
@@ -90,11 +90,11 @@ describe('the honest focus line and its one tap (focusFit): round 2, a fix is on
     const lost = report(p('back', 3, 2), p('shoulders', 3, 3), p('arms', 3, 3), p('legs', 3, 3));
     expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? lost : four))).toEqual({ line: 'Another day or more minutes would not add extra work for Arms or Legs.' });
     // Minutes alone does it: only minutes is named and offered.
-    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? lost : all))).toEqual({ line: '4 focus areas fit best with 60 min; we prioritized Back and Shoulders.', minutes: 60 });
+    expect(focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 ? lost : all))).toEqual({ line: '4 focus areas fit best with 60 min; we prioritized Back and Shoulders.', minutes: 60, named: true });
   });
   it('tries the combined step once when no single step fixes it, and says "and"', () => {
     const fit = focusFit({ days: 3, minutes: 45 }, four, (a) => (a.days === 4 && a.minutes === 60 ? all : four));
-    expect(fit).toEqual({ line: '4 focus areas fit best with 4 days and 60 min; we prioritized Back and Shoulders.', days: 4, minutes: 60, both: true });
+    expect(fit).toEqual({ line: '4 focus areas fit best with 4 days and 60 min; we prioritized Back and Shoulders.', days: 4, minutes: 60, both: true, named: true });
   });
   it('with nothing that fixes it, the plain truth and no button; nothing more to add at 6 days and 75 min', () => {
     // Round 3 (critic 8): one plain sentence that says why, never "yet" as if it would change by itself.
@@ -122,7 +122,7 @@ describe('the honest focus line and its one tap (focusFit): round 2, a fix is on
   it('mobility: says the session is too short, and offers minutes only when the stretches then fit', () => {
     const stretch = report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 0, shortfall: true, state: 'short' });
     const fits = report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, shortfall: false, state: 'extra' });
-    expect(focusFit({ days: 4, minutes: 20 }, stretch, (a) => (a.minutes === 30 ? fits : stretch))).toEqual({ line: '1 focus area fits best with 30 min.', minutes: 30 });
+    expect(focusFit({ days: 4, minutes: 20 }, stretch, (a) => (a.minutes === 30 ? fits : stretch))).toEqual({ line: 'Mobility fits best with 30 min.', minutes: 30 });
     expect(focusFit({ days: 4, minutes: 20 }, stretch, () => stretch)).toEqual({ line: 'Your sessions are too short for stretches.' });
   });
 });

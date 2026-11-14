@@ -97,9 +97,11 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/working sets|rotation|budget|\b0 (sets|min)/);
   await expect(page.getByTestId('reveal-week')).not.toContainText('Mon');
   // Round 2 (BLOCKER 2): the fit line names 60 min, and the one tap really fixes it: the warning is gone and every pick has its extra.
-  await expect(page.getByTestId('focus-fit')).toHaveText('5 focus areas fit best with 60 min; we prioritized Lats and Quads.');
-  // Round 3 (critic 3): the reveal names who really got the most, composed from the result.
-  await expect(page.getByTestId('focus-summary')).toHaveText(/^(Most extra work: [A-Z][A-Za-z ,]+\.|Every pick gets the same extra work: \+\d\.|[A-Z][a-z ]+ (already gets plenty|has no exercises yet|has less room on its days), so [A-Z][A-Za-z ,]+ gets? the most\.)$/);
+  // Truth pass (critic r3 1): "prioritized" names only the pick with the most extra (Lats +3), never Quads (+2) beside it.
+  await expect(page.getByTestId('focus-fit')).toHaveText('5 focus areas fit best with 60 min; we prioritized Lats.');
+  // Round 3 (critic 3) and the truth pass: who got more than a pick ranked above it, and why, composed from the result.
+  await expect(page.getByTestId('focus-summary')).toHaveText('Side shoulders and Biceps have no more room on their days, so Quads and Abs get extra.');
+  await expect(page.getByTestId('focus-line-side_delts')).toHaveText('Side shoulders 4 sets no extra'); await expect(page.getByTestId('focus-line-quads')).toContainText('+2 extra');
   const grow = page.getByTestId('focus-add-minutes');
   await grow.tap(); await expect(page.getByTestId('reveal-card')).toBeVisible();
   await expect(page.getByTestId('focus-fit')).toHaveCount(0);
