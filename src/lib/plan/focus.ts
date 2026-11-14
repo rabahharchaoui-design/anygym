@@ -72,7 +72,9 @@ export type FocusResult = {
   extra: number;
   /** Every hard set that trains it, each counted once. */
   total: number;
-  shortfall: boolean; reason?: string; minutes?: number;
+  shortfall: boolean; reason?: string;
+  /** Mobility: the stretch minutes in one turn of the plan, and (truth pass) the most in any one session. */
+  minutes?: number; session?: number;
   /** Absent only in reports saved before round 2 (focusStateOf reads those). */
   state?: FocusState;
   /** An area of several muscles: each muscle's own count, the measure the 20 set limit uses. */
@@ -97,14 +99,23 @@ export type FocusReport = {
 export const FOCUS_MUSCLE_MAX = 20;
 /** A focused muscle is meant to land at about this many hard sets a week or more (PLAN 3.6f: about 12 to 20). */
 export const FOCUS_MUSCLE_MIN = 12;
+/**
+ * The least stretch time in one session that counts as a stretch block (truth pass, critic r3 3): a
+ * minute at the end of a workout is not what a Mobility pick asked for, so under this the plan says
+ * plainly that the sessions have no room for one, and the day cards say nothing about it.
+ */
+export const STRETCH_BLOCK_MIN = 5;
+/** True when a Mobility pick really got a stretch block. A report saved before the truth pass has no `session`: its stretches were a minute a day. */
+export const stretchBlock = (p: Pick<FocusResult, 'session'>): boolean => (p.session ?? 0) >= STRETCH_BLOCK_MIN;
 /** The most extra sets any one pick is given (PLAN 3.6f: +4 at the most). */
 export const FOCUS_SHARE_MAX = 4;
 export const countHardSets = (days: readonly (readonly FocusMove[])[], muscle: string): number => days.flat().reduce((n, m) => n + (m.hard && m.muscles.includes(muscle) ? m.sets : 0), 0);
 
 /** The state of a result; a report saved before round 2 has none, so it is read from its old marks. */
 export function focusStateOf(p: FocusResult): FocusState {
+  // Mobility is read from its minutes, whatever was saved: a plan saved with a minute a day is not "delivered".
+  if (p.id === 'mobility') return stretchBlock(p) ? 'extra' : 'short';
   if (p.state) return p.state;
-  if (p.id === 'mobility') return p.shortfall ? 'short' : 'extra';
   if (p.noMove) return 'no_move';
   if (p.requested === 0) return 'no_share';
   if (p.atLimit) return 'plenty';

@@ -1,5 +1,5 @@
 // PLAN 3.6f: gives the extra focus sets, in the person's own order. Pure: no database, catalog or screen.
-import { FOCUS_BUDGET_MAX, FOCUS_MUSCLE_MAX, FOCUS_MUSCLE_MIN, FOCUS_SHARE_MAX, LIMIT_MUSCLES, countHardSets, focusBudget, type FocusDayExtra, type FocusMove, type FocusReport, type FocusResult, type FocusState } from './focus';
+import { FOCUS_BUDGET_MAX, FOCUS_MUSCLE_MAX, FOCUS_MUSCLE_MIN, FOCUS_SHARE_MAX, LIMIT_MUSCLES, STRETCH_BLOCK_MIN, countHardSets, focusBudget, type FocusDayExtra, type FocusMove, type FocusReport, type FocusResult, type FocusState } from './focus';
 import type { FocusPickId } from '../intake/options';
 import { focusShare } from './focusShare';
 
@@ -191,8 +191,10 @@ export function curateFocus(input: {
   round((id, share) => Math.max(share, Math.min(FOCUS_SHARE_MAX, above(id, true), gained(id) + FOCUS_MUSCLE_MIN - countPick(days, id))));
   const priorities = budget.targets.map(({ id, sets: requested }): FocusResult => {
     if (id === 'mobility') {
-      const minutes = days.flat().filter((m) => !m.hard && m.picks.includes(id)).reduce((n, m) => n + (m.seconds ?? 0) * m.sets / 60, 0);
-      return { id, requested: 0, extra: 0, total: 0, minutes, shortfall: minutes < 2, state: minutes < 2 ? 'short' : 'extra' };
+      const perDay = days.map((d) => d.filter((m) => !m.hard && m.picks.includes(id)).reduce((n, m) => n + (m.seconds ?? 0) * m.sets / 60, 0));
+      const minutes = perDay.reduce((n, x) => n + x, 0), session = Math.max(0, ...perDay);
+      // The minutes are the real ones; under STRETCH_BLOCK_MIN in a session they are not presented as a stretch block.
+      return { id, requested: 0, extra: 0, total: 0, minutes, session, shortfall: session < STRETCH_BLOCK_MIN, state: session < STRETCH_BLOCK_MIN ? 'short' : 'extra' };
     }
     const total = countPick(days, id);
     const extra = gained(id);

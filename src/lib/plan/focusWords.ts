@@ -4,7 +4,7 @@
 import type { ScheduleStyle } from '../intake/options';
 import { cap, list, plural } from '../words';
 import type { FocusPickId } from '../intake/options';
-import { focusName, focusStateOf, type FocusDayExtra, type FocusResult } from './focus';
+import { STRETCH_BLOCK_MIN, focusName, focusStateOf, stretchBlock, type FocusDayExtra, type FocusResult } from './focus';
 import { focusCovered } from './focusPriority';
 
 /**
@@ -29,7 +29,7 @@ const workOf = (ids: readonly FocusPickId[]): string => list(ids.map((id) => WOR
  */
 export function focusLine(p: FocusResult, period: string): [string, string] {
   const name = focusName(p.id);
-  if (p.id === 'mobility') return (p.minutes ?? 0) > 0 ? [name, `${minutes(p.minutes!)} of stretches ${period}`] : [name, 'your sessions are too short for stretches'];
+  if (p.id === 'mobility') return stretchBlock(p) ? [name, `${minutes(p.minutes!)} of stretches ${period}`] : [name, STRETCH_NO_ROOM.toLowerCase()];
   const state = focusStateOf(p);
   if (state === 'no_move') return [name, 'no exercises for it yet'];
   if (p.total === 0) return [name, 'no room for it'];
@@ -43,6 +43,12 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   const tail = state !== 'plenty' ? (p.extra <= 0 ? ', no room for extra' : '') : p.extra > 0 ? ', as much as is useful' : WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty';
   return [name, `${amount} ${period}${extra}${tail}`];
 }
+
+/**
+ * Mobility with no stretch block (truth pass, critic r3 3): a minute of stretching at the end of a
+ * day is never presented as the pick delivered. One plain sentence, and the day cards stay quiet.
+ */
+export const STRETCH_NO_ROOM = 'No room for a stretch block in these sessions yet';
 
 /** The caption over the reveal's rows: the period is said once, never on every row. */
 export const focusCaption = (period: string): string => `Sets ${period}`;
@@ -63,7 +69,7 @@ export type FocusRow = {
  */
 export function focusRow(p: FocusResult): FocusRow {
   const name = focusName(p.id);
-  if (p.id === 'mobility') return (p.minutes ?? 0) > 0 ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: 'no room', detail: 'Your sessions are too short for stretches' };
+  if (p.id === 'mobility') return stretchBlock(p) ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: null, detail: STRETCH_NO_ROOM };
   const state = focusStateOf(p);
   if (state === 'no_move') return { name, amount: null, tag: 'no exercises yet', detail: null };
   if (p.total === 0) return { name, amount: null, tag: 'no room', detail: null };
@@ -82,7 +88,7 @@ export function focusRow(p: FocusResult): FocusRow {
 
 /** The reveal's rows: the picks that got extra first, then the rest, and "no exercises yet" last. Rank order inside each. */
 export function focusRowOrder(priorities: readonly FocusResult[]): FocusResult[] {
-  const group = (p: FocusResult) => (focusStateOf(p) === 'no_move' ? 2 : p.extra > 0 || (p.minutes ?? 0) > 0 ? 0 : 1);
+  const group = (p: FocusResult) => (focusStateOf(p) === 'no_move' ? 2 : p.extra > 0 || (p.id === 'mobility' && stretchBlock(p)) ? 0 : 1);
   return [0, 1, 2].flatMap((g) => priorities.filter((p) => group(p) === g));
 }
 
@@ -92,7 +98,8 @@ export function focusRowOrder(priorities: readonly FocusResult[]): FocusResult[]
  * 2 sets for lats, 1 for biceps and more"). Null when the day does neither.
  */
 export function focusDayLine(extras: readonly FocusDayExtra[] | undefined, lead?: FocusPickId | null): string | null {
-  const adds = (extras ?? []).filter((x) => x.extra > 0 || (x.minutes ?? 0) > 0);
+  // Stretches are only named from a real block (STRETCH_BLOCK_MIN in the session): "1 min of stretches" is never an extra.
+  const adds = (extras ?? []).filter((x) => x.extra > 0 || (x.minutes ?? 0) >= STRETCH_BLOCK_MIN);
   const two = adds.slice(0, 2);
   const firstSets = two.findIndex((x) => x.id !== 'mobility');
   const said = two.map((x, i) => {

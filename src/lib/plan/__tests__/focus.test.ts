@@ -56,7 +56,11 @@ describe('one priority budget', () => {
   it('gives mobility time, never hard sets, and checks the same duration callback', () => {
     const mobility: FocusMove = { id: 'stretch', key: 'stretch', hard: false, compound: false, muscles: [], picks: ['mobility'], sets: 1, seconds: 60 };
     const result = curateFocus({ picks: ['mobility'], days: [[], []], candidates: [[mobility], [mobility]], cap: 3, budgetMinutes: 1, minutes: (d) => d.reduce((n, m) => n + (m.seconds ?? 0) / 60, 0) });
-    expect(result.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, shortfall: false, state: 'extra' }]);
+    // Truth pass: the minutes are the real ones (1 a day, 2 in all), and a minute a day is not a stretch block, so the pick is not marked delivered.
+    expect(result.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, session: 1, shortfall: true, state: 'short' }]);
+    // A real block (5 minutes in one session) is.
+    const block = curateFocus({ picks: ['mobility'], days: [[], []], candidates: [[{ ...mobility, seconds: 300 }], []], cap: 3, budgetMinutes: 5, minutes: (d) => d.reduce((n, m) => n + (m.seconds ?? 0) / 60, 0) });
+    expect(block.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 5, session: 5, shortfall: false, state: 'extra' }]);
     expect(result.report.spent).toBe(0);
   });
   it('shares 12 by rank from five picks up: top two 3, then 2s, then 1s, then nothing; mobility takes no share', () => {

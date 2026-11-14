@@ -89,7 +89,7 @@ describe('critic BLOCKER 2 and MAJOR 10: the fit line and its taps are true', ()
     const { fit, lines } = build(2, 30, ['mobility', 'grip', 'forearms', 'obliques', 'back']);
     expect(fit!.line).toContain('No exercises for grip, forearms or obliques yet.');
     expect(fit!.line).not.toContain('equipment');
-    expect(lines[0]).toMatch(/^Mobility: (\d+ min of stretches every 2 workouts|your sessions are too short for stretches)$/);
+    expect(lines[0]).toMatch(/^Mobility: (\d+ min of stretches every 2 workouts|no room for a stretch block in these sessions yet)$/);
     if (fit!.minutes) expect(fit!.line).toContain('fit best with');
   });
 });

@@ -15,7 +15,7 @@ export function readFocusReport(v: unknown): FocusReport | undefined {
   if (!count(o.budget) || o.budget > 12 || !count(o.spent) || o.spent > o.budget || !Array.isArray(o.days)) return undefined;
   const priority = (p: Record<string, unknown>) =>
     isPick(p.id) && count(p.requested) && p.requested <= 4 && count(p.extra) && p.extra <= 12 && count(p.total) && typeof p.shortfall === 'boolean'
-    && (p.minutes === undefined || amount(p.minutes)) && (p.reason === undefined || typeof p.reason === 'string')
+    && (p.minutes === undefined || amount(p.minutes)) && (p.session === undefined || amount(p.session)) && (p.reason === undefined || typeof p.reason === 'string')
     && (p.atLimit === undefined || p.atLimit === true) && (p.noMove === undefined || p.noMove === true)
     && (p.state === undefined || STATES.includes(p.state as string))
     && (p.shared === undefined || count(p.shared)) && (p.coveredBy === undefined || (Array.isArray(p.coveredBy) && p.coveredBy.every(isPick)))

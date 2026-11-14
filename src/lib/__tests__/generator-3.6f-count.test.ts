@@ -10,7 +10,7 @@ import { SWAP_DATA } from '../../data/patterns';
 import { equipmentPreset } from '../../db/gyms';
 import { focusFit } from '../intake/focusFit';
 import { focusName } from '../plan/focus';
-import { focusLine, focusPeriod } from '../plan/focusWords';
+import { focusLine, focusPeriod, focusRow } from '../plan/focusWords';
 import { FOCUS_PARTS, FOCUS_PICKS, type ExperienceId, type FocusPickId, type GoalId } from '../intake/options';
 import type { GeneratorInput } from '../generator';
 import { easyOnAvoids, isCompound, type Muscle } from '../order';
@@ -185,7 +185,10 @@ function check(count: number, days: number, minutes: number, rep: number) {
     const line = lead ? whole.slice(`${focusName(lead)} first today`.length).replace(/^\. Extra: /, 'Extra today: ') : whole;
     if (!line) { if (!picks.includes('mobility')) expect(adds, `day ${i + 1} adds but only names its lead ${label}`).toEqual([]); continue; }
     expect(line.startsWith('Extra today: '), whole).toBe(true);
-    expect(line.endsWith(' and more')).toBe(report.dayExtra![i]!.length > 2);
+    // Truth pass (critic r3 3): a minute of stretches is not said as an extra, so it is not counted among what the day adds.
+    const saidAdds = report.dayExtra![i]!.filter((x) => x.id !== 'mobility' || (x.minutes ?? 0) >= 5);
+    if (saidAdds.every((x) => x.id !== 'mobility')) expect(whole, label).not.toContain('stretch');
+    expect(line.endsWith(' and more')).toBe(saidAdds.length > 2);
     const named = [...line.replace(/ and more$/, '').matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
     if (!line.includes('stretches')) expect(named.map((x) => x.name), `${line} ${label}`).toEqual(adds.slice(0, 2).map((p) => focusName(p.id).toLowerCase()));
     for (const x of named) {
@@ -237,8 +240,9 @@ function check(count: number, days: number, minutes: number, rep: number) {
   const rebuilt = (a: { days?: number; minutes?: number }) => build({ ...input, days: a.days!, minutes: a.minutes! });
   const fit = focusFit({ days: days as 2, minutes: minutes as 20 }, report, (a) => rebuilt(a)?.r.applied.focusReport);
   if (short.length) expect(fit, label).not.toBeNull();
-  const stretchShort = report.priorities.some((p) => p.id === 'mobility' && p.state === 'short');
-  if (short.length || stretchShort) { tally.needLine++; s.line++; tally.byMin[minutes] = (tally.byMin[minutes] ?? 0) + 1; tally.byDays[days] = (tally.byDays[days] ?? 0) + 1; if (fit!.days || fit!.minutes) tally.offered++; if (fit!.both) tally.offeredBoth++; }
+  // Truth pass (critic r3 3): Mobility with no stretch block is said on its own row; it needs no line here unless a step would bring a block.
+  for (const p of report.priorities) if (p.id === 'mobility') { expect(p.state, label).toBe((p.session ?? 0) >= 5 ? 'extra' : 'short'); expect(focusRow(p).amount === null, label).toBe((p.session ?? 0) < 5); }
+  if (short.length) { tally.needLine++; s.line++; tally.byMin[minutes] = (tally.byMin[minutes] ?? 0) + 1; tally.byDays[days] = (tally.byDays[days] ?? 0) + 1; if (fit!.days || fit!.minutes) tally.offered++; if (fit!.both) tally.offeredBoth++; }
   if (fit) {
     expect(fit.line.length).toBeGreaterThan(10);
     expect(fit.line).not.toContain('with your equipment');
@@ -254,7 +258,8 @@ function check(count: number, days: number, minutes: number, rep: number) {
       const nm = movesOf(nf!.plan), nmb = movesOf(nb!.plan);
       tally.fixesChecked++;
       for (const p of nf!.r.applied.focusReport!.priorities) {
-        if (p.id === 'mobility') { if (!fit.partial) expect(p.state, `stretches after ${JSON.stringify(tap)} ${label}`).toBe('extra'); continue; }
+        // Stretches are never fewer after a tap (a tap is only ever offered for them when it brings a real block).
+        if (p.id === 'mobility') { expect(p.minutes ?? 0, `stretches after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(report.priorities.find((x) => x.id === 'mobility')?.minutes ?? 0); continue; }
         const after = Math.max(0, setsFor(nm, SRC[p.id]!) - setsFor(nmb, SRC[p.id]!));
         // Nobody is left with less: sets a pick held past its own share were a bonus from room nobody else could use, so keeping the whole share is not less.
         expect(after, `${p.id} lost extra after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.min(extraOf(p.id), Math.max(1, p.requested)));

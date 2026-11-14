@@ -19,7 +19,10 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
     expect(line(p('lats', { extra: 3, total: 13 }), 'every 4 workouts')).toBe('Lats: 13 sets every 4 workouts, 3 of them extra');
     expect(line(p('calves', { extra: 1, total: 1 }))).toBe('Calves: 1 set a week, all of them extra');
     expect(line(p('posture', { extra: 3, total: 9 }))).toBe('Posture: 9 sets of back and rear shoulder work a week, 3 of them extra');
-    expect(line(p('mobility', { requested: 0, minutes: 3 }), 'every 4 workouts')).toBe('Mobility: 3 min of stretches every 4 workouts');
+    expect(line(p('mobility', { requested: 0, minutes: 12, session: 6 }), 'every 4 workouts')).toBe('Mobility: 12 min of stretches every 4 workouts');
+    // Truth pass (critic r3 3): under 5 minutes in a session it is not presented as delivered, whatever the total.
+    expect(line(p('mobility', { requested: 0, minutes: 3, session: 1 }), 'every 4 workouts')).toBe('Mobility: no room for a stretch block in these sessions yet');
+    expect(line(p('mobility', { requested: 0, minutes: 2, state: 'extra' }), 'every 4 workouts')).toBe('Mobility: no room for a stretch block in these sessions yet');
   });
 
   it('a pick at the limit says it has plenty, never "nothing extra" (critic BLOCKER 1)', () => {
@@ -43,7 +46,7 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
 
   it('never shows a zero: a pick that got nothing says why in words', () => {
     const lines = [p('abs', { state: 'short' }), p('grip', { state: 'no_move' }), p('mobility', { requested: 0, minutes: 0, shortfall: true, state: 'short' }), p('quads', { requested: 0, state: 'no_share' })].map((x) => line(x));
-    expect(lines).toEqual(['Abs: no room for it', 'Grip: no exercises for it yet', 'Mobility: your sessions are too short for stretches', 'Quads: no room for it']);
+    expect(lines).toEqual(['Abs: no room for it', 'Grip: no exercises for it yet', 'Mobility: no room for a stretch block in these sessions yet', 'Quads: no room for it']);
     for (const l of lines) expect(l).not.toMatch(/\d/);
     expect(line(p('biceps', { total: 2, state: 'short' }))).toBe('Biceps: 2 sets a week, no room for extra');
   });
@@ -56,7 +59,11 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
     expect(focusDayLine([], 'upper_chest')).toBe('Upper chest first today');
     expect(focusDayLine(undefined, null)).toBeNull();
     expect(focusDayLine([{ id: 'lats', extra: 1 }])).toBe('Extra today: 1 set for lats');
-    expect(focusDayLine([{ id: 'mobility', extra: 0, minutes: 1 }, { id: 'back', extra: 3 }])).toBe('Extra today: 1 min of stretches and 3 sets for back');
+    expect(focusDayLine([{ id: 'mobility', extra: 0, minutes: 6 }, { id: 'back', extra: 3 }])).toBe('Extra today: 6 min of stretches and 3 sets for back');
+    // Truth pass (critic r3 3): a minute of stretches is never an "extra today"; the day says the rest, or nothing.
+    expect(focusDayLine([{ id: 'mobility', extra: 0, minutes: 1 }, { id: 'back', extra: 3 }])).toBe('Extra today: 3 sets for back');
+    expect(focusDayLine([{ id: 'mobility', extra: 0, minutes: 1 }])).toBeNull();
+    expect(focusDayLine([{ id: 'mobility', extra: 0, minutes: 4.9 }], 'lats')).toBe('Lats first today');
     expect(focusDayLine([])).toBeNull();
     expect(focusDayLine(undefined)).toBeNull();
     expect(focusDayLine([{ id: 'back', extra: 0 }])).toBeNull();
@@ -79,8 +86,9 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
     expect(focusRow(back)).toEqual({ name: 'Back', amount: null, tag: 'plenty', detail: 'Lats and upper back 20 · Lower back 4' });
     expect(focusRow(p('legs', { total: 9, extra: 3, parts: [{ muscle: 'quads', sets: 9 }] }))).toEqual({ name: 'Legs', amount: '9 sets', tag: '+3 extra', detail: null });
     expect(focusRow(p('posture', { extra: 3, total: 9 }))).toEqual({ name: 'Posture', amount: '9 sets', tag: '+3 extra', detail: 'Back and rear shoulder work' });
-    expect(focusRow(p('mobility', { requested: 0, minutes: 3 }))).toEqual({ name: 'Mobility', amount: '3 min', tag: null, detail: 'Stretches' });
-    expect(focusRow(p('mobility', { requested: 0, shortfall: true, state: 'short' }))).toEqual({ name: 'Mobility', amount: null, tag: 'no room', detail: 'Your sessions are too short for stretches' });
+    expect(focusRow(p('mobility', { requested: 0, minutes: 10, session: 5 }))).toEqual({ name: 'Mobility', amount: '10 min', tag: null, detail: 'Stretches' });
+    // Truth pass (critic r3 3): no block, no number: "2 min · Stretches" is never shown, the row says plainly that the sessions are full.
+    for (const none of [p('mobility', { requested: 0, shortfall: true, state: 'short' }), p('mobility', { requested: 0, minutes: 2, session: 1 }), p('mobility', { requested: 0, minutes: 2, state: 'extra' })]) expect(focusRow(none)).toEqual({ name: 'Mobility', amount: null, tag: null, detail: 'No room for a stretch block in these sessions yet' });
   });
 
   it('round 3 (critic 5): a row never says extra and plenty together, and a goal riding on picked muscles is said in words, not counted twice', () => {
@@ -122,8 +130,10 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
   it('round 3 (critic 11, 12): the rank prompt counts what is ranked and says why Mobility is not; the reveal lists what got extra first', () => {
     expect(focusRankWords(5, false)).toEqual({ prompt: 'Rank your 5 picks', note: null });
     expect(focusRankWords(5, true)).toEqual({ prompt: 'Rank your 5 picks', note: 'Mobility is stretch time, so it is not ranked.' });
-    const rows = [p('grip', { state: 'no_move' }), p('abs', { state: 'short' }), p('lats', { extra: 2 }), p('mobility', { requested: 0, minutes: 2 }), p('forearms', { state: 'no_move' }), p('quads', { extra: 1 })];
+    const rows = [p('grip', { state: 'no_move' }), p('abs', { state: 'short' }), p('lats', { extra: 2 }), p('mobility', { requested: 0, minutes: 10, session: 5 }), p('forearms', { state: 'no_move' }), p('quads', { extra: 1 })];
     expect(focusRowOrder(rows).map((x) => x.id)).toEqual(['lats', 'mobility', 'quads', 'abs', 'grip', 'forearms']);
+    // Mobility with no stretch block got nothing: it sits with the picks that got nothing.
+    expect(focusRowOrder(rows.map((r) => (r.id === 'mobility' ? p('mobility', { requested: 0, minutes: 2, session: 1 }) : r))).map((x) => x.id)).toEqual(['lats', 'quads', 'abs', 'mobility', 'grip', 'forearms']);
   });
 });
 

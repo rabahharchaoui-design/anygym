@@ -83,8 +83,10 @@ describe('the honest focus line and its one tap (focusFit): round 2, a fix is on
     // A pick that already had some gets "more"; stretches are named as stretches.
     const some = report(p('back', 3, 1), p('legs', 3, 0));
     expect(focusFit({ days: 3, minutes: 45 }, some, () => report(p('back', 3, 2), p('legs', 3, 0)))!.line).toBe('With 60 min, Back gets more. That is the most that fits.');
-    const stretch = (minutes: number): FocusResult => ({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes, shortfall: minutes < 2, state: minutes < 2 ? 'short' : 'extra' });
-    expect(focusFit({ days: 3, minutes: 20 }, report(p('back', 4, 1), stretch(0)), () => report(p('back', 4, 1), stretch(2)))!.line).toBe('With 30 min, Mobility gets its stretches. That is the most that fits.');
+    const stretch = (minutes: number): FocusResult => ({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes, session: minutes, shortfall: minutes < 5, state: minutes < 5 ? 'short' : 'extra' });
+    expect(focusFit({ days: 3, minutes: 20 }, report(p('back', 4, 1), stretch(0)), () => report(p('back', 4, 1), stretch(5)))!.line).toBe('With 30 min, Mobility gets its stretches. That is the most that fits.');
+    // Truth pass (critic r3 3): two minutes of stretches is not a stretch block, so no step is offered for it.
+    expect(focusFit({ days: 3, minutes: 20 }, report(p('back', 4, 1), stretch(0)), () => report(p('back', 4, 1), stretch(2)))).toEqual({ line: 'Another day or more minutes would not add extra work for Back.' });
   });
   it('a step that takes extra away from any pick is not offered (critic t-07: Add a day, and Chest lost its extra)', () => {
     const lost = report(p('back', 3, 2), p('shoulders', 3, 3), p('arms', 3, 3), p('legs', 3, 3));
@@ -112,7 +114,7 @@ describe('the honest focus line and its one tap (focusFit): round 2, a fix is on
     expect(focusFit({ days: 6, minutes: 75 }, report(p('back', 4, 0, 20, { state: 'plenty' })), () => all)).toBeNull();
     // A report saved before round 2 has no state: its old marks still read.
     expect(focusFit({ days: 6, minutes: 75 }, report(p('back', 4, 0, 20, { atLimit: true })), () => all)).toBeNull();
-    expect(focusFit({ days: 3, minutes: 45 }, report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, shortfall: false }), () => all)).toBeNull();
+    expect(focusFit({ days: 3, minutes: 45 }, report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 10, session: 5, shortfall: false }), () => all)).toBeNull();
   });
   it('names a pick past the 12 set budget, and one the app has no exercises for (never "with your equipment")', () => {
     const many = report(p('lats', 3, 3), p('quads', 3, 3), p('abs', 1, 1), p('calves', 0, 0, 6, { state: 'no_share' }));
@@ -122,9 +124,13 @@ describe('the honest focus line and its one tap (focusFit): round 2, a fix is on
   });
   it('mobility: says the session is too short, and offers minutes only when the stretches then fit', () => {
     const stretch = report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 0, shortfall: true, state: 'short' });
-    const fits = report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, shortfall: false, state: 'extra' });
+    const fits = report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 10, session: 5, shortfall: false, state: 'extra' });
     expect(focusFit({ days: 4, minutes: 20 }, stretch, (a) => (a.minutes === 30 ? fits : stretch))).toEqual({ line: 'Mobility fits best with 30 min.', minutes: 30 });
-    expect(focusFit({ days: 4, minutes: 20 }, stretch, () => stretch)).toEqual({ line: 'Your sessions are too short for stretches.' });
+    // Truth pass (critic r3 3): when no choice of days and minutes has room for a stretch block there is no box at all: the row says it ("No room for a stretch block in these sessions yet"), and a minute or two of stretches is never offered as the fix.
+    expect(focusFit({ days: 4, minutes: 20 }, stretch, () => stretch)).toBeNull();
+    const token = report({ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, session: 1, shortfall: true, state: 'short' });
+    expect(focusFit({ days: 4, minutes: 20 }, stretch, () => token)).toBeNull();
+    expect(focusFit({ days: 4, minutes: 60 }, token, () => token)).toBeNull();
   });
 });
 

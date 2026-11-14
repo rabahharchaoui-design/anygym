@@ -12,6 +12,7 @@
 
 import { EQUIPMENT_IDS, type EquipmentId } from '../db/types';
 import { readFocusReport } from './plan/focusMetadata';
+import { focusDayLine } from './plan/focusWords';
 import type { FocusReport } from './plan/focus';
 import type { ScheduleStyle } from './intake/options';
 import { plural } from './words';
@@ -185,6 +186,8 @@ export function normalizePlan(input: unknown, resolve: ResolveExercise): Plan {
   if (weeks !== undefined) plan.weeks = weeks;
   const focusReport = readFocusReport(raw.focusReport);
   if (focusReport) plan.focusReport = focusReport;
+  // Each day's why is composed from the report's own data when it has it, so a saved plan says today's words (never a stale "1 min of stretches").
+  if (focusReport?.dayExtra) for (const [i, d] of plan.days.entries()) { const line = focusDayLine(focusReport.dayExtra[i], focusReport.dayLead?.[i]); if (line) d.focusWhy = [line]; else delete d.focusWhy; }
   if (raw.scheduleStyle === 'fixed' || raw.scheduleStyle === 'flexible' || raw.scheduleStyle === 'weekly') plan.scheduleStyle = raw.scheduleStyle;
   return plan;
 }

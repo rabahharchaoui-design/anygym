@@ -10,7 +10,7 @@
 // work without lowering anyone is offered as partial and final ("With 5 days, Upper chest gets
 // extra. That is the most that fits."): no larger choice adds more, so nothing is offered after it.
 // When nothing helps, one plain sentence says so. Pure.
-import { FOCUS_BUDGET_MAX, focusName, focusStateOf, focusUnplaced, type FocusReport } from '../plan/focus';
+import { FOCUS_BUDGET_MAX, focusName, focusStateOf, focusUnplaced, stretchBlock, type FocusReport } from '../plan/focus';
 import { focusPrioritized } from '../plan/focusPriority';
 import { list } from '../words';
 import type { IntakeAnswers } from './answers';
@@ -45,16 +45,18 @@ export function helpsFocus(now: FocusReport, next: FocusReport | undefined): Foc
   if (!next || !lowersNone(now, next)) return [];
   return next.priorities.filter((q) => {
     const p = now.priorities.find((x) => x.id === q.id)!;
-    return q.extra > p.extra || (q.minutes ?? 0) > (p.minutes ?? 0);
+    // Stretches count as more only when a real stretch block arrives (a minute more of them is not offered as a gain).
+    return q.extra > p.extra || (q.id === 'mobility' && stretchBlock(q) && !stretchBlock(p));
   });
 }
 
 /**
  * True when `next` (the plan rebuilt with more days or minutes) really fixes `now`: nothing is left
- * unplaced, and no pick has fewer extra sets or stretch minutes than before.
+ * unplaced, and no pick has fewer extra sets or stretch minutes than before. `noStretch`: no choice
+ * of days and minutes has room for a stretch block, so Mobility is not something a step can fix.
  */
-export function fixesFocus(now: FocusReport, next: FocusReport | undefined): boolean {
-  return !!next && !focusUnplaced(next).length && lowersNone(now, next);
+export function fixesFocus(now: FocusReport, next: FocusReport | undefined, noStretch = false): boolean {
+  return !!next && !focusUnplaced(next).some((p) => !(noStretch && p.id === 'mobility')) && lowersNone(now, next);
 }
 
 type Step = { days?: DaysPerWeek; minutes?: Minutes };
@@ -79,20 +81,23 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
   const none = hard.filter((p) => focusStateOf(p) === 'no_move');
   // Past the weekly budget a pick gets no share at all: said, never hidden.
   const unfunded = hard.filter((p) => focusStateOf(p) === 'no_share');
-  const unplaced = focusUnplaced(report);
+  const built = new Map<string, FocusReport | undefined>();
+  const after = (s: Step) => { const k = `${s.days ?? ''}/${s.minutes ?? ''}`; if (!built.has(k)) built.set(k, rebuild({ ...a, ...s })); return built.get(k); };
+  const choices = largerChoices(a);
+  // Mobility with no stretch block is only part of this when some larger choice has room for one; otherwise its row says so and no step is blamed or offered for it.
+  const stretch = report.priorities.find((p) => p.id === 'mobility' && !stretchBlock(p));
+  const noStretch = !stretch || !choices.some((s) => after(s)?.priorities.some((q) => q.id === 'mobility' && stretchBlock(q)));
+  const unplaced = focusUnplaced(report).filter((p) => !(noStretch && p.id === 'mobility'));
   if (!unplaced.length && !unfunded.length && !none.length) return null;
   const parts: string[] = [];
   const out: FocusFit = { line: '' };
   if (unplaced.length) {
-    const built = new Map<string, FocusReport | undefined>();
-    const after = (s: Step) => { const k = `${s.days ?? ''}/${s.minutes ?? ''}`; if (!built.has(k)) built.set(k, rebuild({ ...a, ...s })); return built.get(k); };
-    const choices = largerChoices(a);
     const took = (s: Step) => Object.assign(out, s.days ? { days: s.days } : {}, s.minutes ? { minutes: s.minutes } : {}, s.days && s.minutes ? { both: true as const } : {}, s.days && s.days - (a.days ?? 3) > 1 ? { addDays: s.days - (a.days ?? 3) } : {});
     // One step of days or of minutes that places everything: both are named when either does it.
-    const near = choices.filter((s) => s.cost === 1 && fixesFocus(report, after(s)));
+    const near = choices.filter((s) => s.cost === 1 && fixesFocus(report, after(s), noStretch));
     for (const s of near) Object.assign(out, s.days ? { days: s.days } : { minutes: s.minutes });
     // Otherwise the nearest larger choice that places everything, once.
-    const far = near.length ? undefined : choices.find((s) => s.cost > 1 && fixesFocus(report, after(s)));
+    const far = near.length ? undefined : choices.find((s) => s.cost > 1 && fixesFocus(report, after(s), noStretch));
     if (far) took(far);
     // Who was put first is read from the numbers (lib/plan/focusPriority.ts), never from the rank alone.
     const top = focusPrioritized(report);
@@ -116,8 +121,9 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
         const fresh = best.gains.every((q) => report.priorities.find((p) => p.id === q.id)!.extra === 0 && q.id !== 'mobility');
         const what = best.gains.every((q) => q.id === 'mobility') ? 'gets its stretches' : `${names.length === 1 ? 'gets' : 'get'} ${fresh ? 'extra' : 'more'}`;
         parts.push(`With ${stepWords(best.step)}, ${list(names)} ${what}. That is the most that fits.`);
-      } else if (unplaced.every((p) => p.id === 'mobility')) parts.push('Your sessions are too short for stretches.');
-      else if (!choices.length) parts.push(`This is all the extra work ${a.days ?? 3} days of ${a.minutes} min can hold.`);
+      } else if (unplaced.every((p) => p.id === 'mobility')) {
+        // Only the stretch block is missing and no step brings it without lowering a pick: its row says so.
+      } else if (!choices.length) parts.push(`This is all the extra work ${a.days ?? 3} days of ${a.minutes} min can hold.`);
       else {
         const short = unplaced.filter((p) => p.id !== 'mobility');
         // A larger choice that gives one of them more does it by lowering another pick (else it would be offered): said as that.
@@ -128,6 +134,7 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
   }
   if (unfunded.length) parts.push(`Extra work stops at ${FOCUS_BUDGET_MAX} sets a week, so ${list(unfunded.map((p) => focusName(p.id)))} got none.`);
   if (none.length) parts.push(`No exercises for ${list(none.map((p) => focusName(p.id).toLowerCase()), 'or')} yet.`);
+  if (!parts.length) return null;
   out.line = parts.join(' ');
   return out;
 }
