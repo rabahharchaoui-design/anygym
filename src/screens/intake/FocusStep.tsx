@@ -9,7 +9,7 @@ import { Toast, undoToast, type ToastMessage } from '../../ui/Toast';
 import { useToastTimeout } from '../../ui/useToastTimeout';
 import { plural } from '../../lib/words';
 import { iconFor } from './icons';
-import { BALANCE_HINT, BALANCE_SAME, NOT_YET } from './copy';
+import { BALANCE_HINT, NOT_YET } from './copy';
 import { FocusPartsSheet } from './FocusPartsSheet';
 import { FocusRank } from './FocusRank';
 import { list } from '../../lib/intake/yourPlan';
@@ -34,8 +34,11 @@ const barHeight = () => document.querySelector<HTMLElement>('[data-bottom-cta]')
 /**
  * PLAN 3.6f: what to work on. One calm grid (areas, goal types, balance), every tile one height; an
  * area opens its parts in a sheet. From five picks one quiet row rises under the grid, "Rank your 5
- * picks": the priorities sheet opens from it, never by itself over a sheet that is still leaving.
- * Whole body balance clears the picks, with an Undo.
+ * picks" (pinned above the button on a short screen, so the page and its title never move): the
+ * priorities sheet opens from it, never by itself over a sheet that is still leaving.
+ * Whole body balance is the one control for "nothing extra": it is lit whenever no area is picked
+ * (picking nothing is the same plan), and tapping it clears the picks, with an Undo that rests
+ * under the grid, never over the tile.
  */
 export function FocusStep({ value, onChange }: { value: readonly string[]; onChange: (picks: FocusPickId[]) => void }) {
   const picks = normalizeFocusPicks(value);
@@ -48,11 +51,13 @@ export function FocusStep({ value, onChange }: { value: readonly string[]; onCha
   useToastTimeout(toast, setToast);
   const order = ranked(picks);
   const rank = focusRankWords(order.length, picks.includes('mobility'));
-  const row = useRef<HTMLDivElement>(null);
-  // The row comes in under the grid: on a short screen the page brings it above the button.
+  const room = useRef<HTMLDivElement>(null);
+  const even = !picks.length || picks.includes('balance');
+  // The Undo toast rests over its own room under the grid: the page brings that room into view.
+  const toastId = toast?.id;
   useEffect(() => {
-    if (asks) row.current?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  }, [asks]);
+    if (toastId !== undefined) room.current?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }, [toastId]);
   const change = (next: FocusPickId[]) => {
     if (!order.length && ranked(next).length > 0) setAsks(true);
     setToast(null);
@@ -75,18 +80,17 @@ export function FocusStep({ value, onChange }: { value: readonly string[]; onCha
           const selected = picks.filter((p) => p === o.id || parts.some((part) => part.id === p));
           // One quiet line that never wraps: the part picked, how many, or that nothing sure trains it yet.
           const hint = o.id === 'balance' ? BALANCE_HINT : notYet.has(o.id) ? NOT_YET : !parts.length || !selected.length ? undefined : selected.includes(o.id) ? 'All of it' : selected.length > 1 ? `${selected.length} parts` : focusName(selected[0]!);
-          return <Chip key={o.id} block icon={iconFor(o.icon)} label={o.label} hint={hint} picked={selected.length > 0} onPress={() => (parts.length ? setGroup(o.id as Group) : toggle(o.id))} testId={`q-focus-${o.id}`} />;
+          return <Chip key={o.id} block icon={iconFor(o.icon)} label={o.label} hint={hint} picked={o.id === 'balance' ? even : selected.length > 0} onPress={() => (parts.length ? setGroup(o.id as Group) : toggle(o.id))} testId={`q-focus-${o.id}`} />;
         })}
       </div>
       {order.length ? (
-        <div ref={row} className={styles.priorities} data-asks={asks || undefined}>
+        <div className={styles.priorities} data-asks={asks || undefined}>
           {/* Round 3: nothing is promised before the plan exists; the row says the order the plan starts from. */}
           <SummaryRow label={asks ? rank.prompt : 'Your priorities'} value={<>From the top: {list(order.slice(0, 2).map(focusName))}</>} action={asks ? 'Rank' : 'Reorder'} onPress={openRank} testId="focus-rank-open" valueTestId="focus-rank-top" />
           {rank.note && <p className={styles.note} data-testid="focus-rank-note">{rank.note}</p>}
         </div>
-      ) : !picks.length || picks.includes('balance') ? (
-        <p className={styles.note} data-testid="focus-same" data-under={toast ? '' : undefined}>{BALANCE_SAME}</p>
       ) : null}
+      {toast && <div ref={room} className={styles.toastRoom} aria-hidden="true" />}
       {group && <FocusPartsSheet key={group} group={group} picks={picks} notYet={notYet} onClose={() => setGroup(null)} onSave={(v) => { setGroup(null); change(normalizeFocusPicks(v)); }} />}
       <FocusRank open={rankOpen && order.length > 0} picks={order} note={rank.note} onClose={() => setRankOpen(false)} onChange={(next) => onChange([...next, ...picks.filter((p) => !next.includes(p))])} />
       <Toast toast={toast} bottom={`calc(${toast?.bottom ?? 0}px - var(--safe-bottom))`} />

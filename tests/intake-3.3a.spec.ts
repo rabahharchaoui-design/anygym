@@ -405,9 +405,13 @@ test('P8 P9 P10: weekdays as a list of days; honest hints on Days and Minutes; i
   await expect(page.getByTestId('q-weekdays-mon')).toHaveText('Mon');
   await drafted(page, 'days', { ...FULL });
   // The plans that ship run 5 days and (PLAN 3.5) 3 days: only those options say so.
-  await expect(page.getByTestId('q-days-5')).toContainText('Our curated plans run this many');
-  await expect(page.getByTestId('q-days-3')).toContainText('Our curated plans run this many');
-  await expect(page.getByTestId('q-days-4')).not.toContainText('Our curated');
+  // 3.6f round 3 (critic 14): said once under the options, naming them, never repeated on each one.
+  await expect(page.getByTestId('plans-hint')).toHaveText('Our curated plans run 3 or 5 days.');
+  await expect(page.getByText(/Our curated plans/)).toHaveCount(1);
+  for (const d of [3, 4, 5]) await expect(page.getByTestId(`q-days-${d}`)).not.toContainText('Our curated');
+  await drafted(page, 'minutes', { ...FULL });
+  await expect(page.getByTestId('plans-hint')).toHaveText(/^Our curated plans take about \d+(, \d+)*( or (\d+|75\+))? min\.$/);
+  await expect(page.getByText(/Our curated plans/)).toHaveCount(1);
   await drafted(page, 'focus', { ...FULL });
   // 3.6f: the 8 areas (Whole body balance is one) plus Posture, Grip and Mobility: 11 icons.
   await expect(page.getByTestId('q-focus').locator('svg')).toHaveCount(11);

@@ -174,8 +174,14 @@ test('five priorities, sheet dismissal, balance clearing, accessible ranking and
   await page.getByTestId('focus-rank-open').tap(); await expect(page.getByTestId('rank-side_delts')).not.toContainText('5.'); await rankDone(page);
   await pick(page, 'focus', 'balance'); await expect(page.getByTestId('focus-rank-open')).toHaveCount(0);
   for (const id of ['back', 'arms', 'legs', 'shoulders', 'core']) await expect(page.getByTestId(`q-focus-${id}`)).toHaveAttribute('aria-pressed', 'false');
-  // Balance and picking nothing are the same plan, and the screen says so.
-  await expect(page.getByTestId('focus-same')).toHaveText('Picking nothing gives the same even plan.');
+  // Round 3 (critic 13): balance and picking nothing are the same plan, so they are one control: the tile is lit either way, with no second line saying so.
+  await expect(page.getByTestId('q-focus-balance')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('focus-same')).toHaveCount(0);
+  // The Undo toast rests under the grid: it never covers the tile that was just tapped (or any other).
+  const undo = page.getByRole('status').filter({ hasText: '5 picks cleared' }); await expect(undo).toBeVisible(); await page.waitForTimeout(500);
+  const tb = (await undo.boundingBox())!;
+  for (const tile of await page.getByTestId('q-focus').getByRole('button').all()) { const r = (await tile.boundingBox())!; expect(r.y + r.height <= tb.y || r.y >= tb.y + tb.height, `toast over ${await tile.innerText()}`).toBe(true); }
+  await pick(page, 'focus', 'balance'); await expect(page.getByTestId('q-focus-balance')).toHaveAttribute('aria-pressed', 'true');
   await part(page, 'arms', 'triceps'); await expect(page.getByTestId('q-focus-balance')).toHaveAttribute('aria-pressed', 'false');
   await rest(page); await accept(page);
   await page.goto('./#/settings');
@@ -343,6 +349,84 @@ for (const scale of [1, 1.3]) test(`round 3 (critic 9): a rest day reads as a re
   await checkLayout(page, { primary: anyway });
   await anyway.tap(); await expect(page.getByTestId('workout-title')).toBeVisible();
   expect((await dbAll<{ dayId?: string; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!.dayId).toBe('1');
+});
+
+/** The words of an element that are broken across two lines ("Deadlif / t"): none, when names wrap only between words. */
+const brokenWords = (el: Element) => {
+  const out: string[] = []; const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) for (const m of (n.textContent ?? '').matchAll(/\S+/g)) {
+    const r = document.createRange(); r.setStart(n, m.index!); r.setEnd(n, m.index! + m[0].length);
+    if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) out.push(m[0]);
+  }
+  return out;
+};
+/** How many words each line of an element holds, top to bottom. */
+const wordsPerLine = (el: Element) => {
+  const lines = new Map<number, number>(); const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) for (const m of (n.textContent ?? '').matchAll(/\S+/g)) {
+    const r = document.createRange(); r.setStart(n, m.index!); r.setEnd(n, m.index! + m[0].length);
+    const top = Math.round(r.getBoundingClientRect().top); lines.set(top, (lines.get(top) ?? 0) + 1);
+  }
+  return [...lines.entries()].sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+};
+for (const scale of [1, 1.3]) test(`round 3 (critic 16): the fifth pick never scrolls the title away, and schedule titles never leave one word alone, at ${scale * 100}% text`, async ({ page }) => {
+  await textScale(page, scale);
+  await toFocus(page);
+  for (const [area, id] of [['chest', 'upper_chest'], ['back', 'lats'], ['shoulders', 'side_delts'], ['arms', 'biceps']] as const) await part(page, area, id);
+  // Back at the top, as the person sees the screen; then the fifth pick, from its sheet.
+  await page.evaluate(() => { document.querySelector('main[data-scroller]')!.scrollTop = 0; });
+  const measure = () => page.evaluate(() => {
+    const sc = document.querySelector('main[data-scroller]')!, s = sc.getBoundingClientRect(), h = sc.querySelector('h1')!.getBoundingClientRect();
+    const row = document.querySelector('[data-testid="focus-rank-open"]')?.getBoundingClientRect(), cta = document.querySelector('[data-bottom-cta]')!.getBoundingClientRect();
+    return { top: sc.scrollTop, title: h.top - s.top, rowTop: row?.top ?? 0, rowBottom: row?.bottom ?? 0, cta: cta.top, titleBottom: h.bottom };
+  });
+  await pick(page, 'focus', 'legs'); const sheet = page.getByRole('dialog', { name: / focus$/ }); await expect(sheet).toBeVisible();
+  // (Reaching a tile under the fold is the person's own scroll; what must not happen is the page moving when the row comes.)
+  const before = await measure();
+  await sheet.getByTestId('focus-part-quads').tap(); await sheet.getByRole('button', { name: 'Done', exact: true }).tap(); await expect(sheet).not.toBeVisible();
+  await expect(page.getByTestId('focus-rank-open')).toBeVisible(); await page.waitForTimeout(700);
+  // The rank row is in view above Continue without the page having moved: the screen's title stays where it was.
+  const at = await measure();
+  expect(at.top).toBe(before.top); expect(at.title).toBe(before.title);
+  if (before.top === 0) expect(at.title).toBeGreaterThanOrEqual(0);
+  expect(at.rowBottom).toBeLessThanOrEqual(at.cta + 1); expect(at.rowTop).toBeGreaterThan(at.titleBottom);
+  // Scrolled to the end, the row is in its own place under the grid: it covers no tile.
+  await page.evaluate(() => { const sc = document.querySelector('main[data-scroller]')!; sc.scrollTop = sc.scrollHeight; }); await page.waitForTimeout(300);
+  const end = await page.evaluate(() => ({ grid: document.querySelector('[data-testid="q-focus"]')!.getBoundingClientRect().bottom, row: document.querySelector('[data-testid="focus-rank-open"]')!.getBoundingClientRect().top }));
+  expect(end.row).toBeGreaterThanOrEqual(end.grid);
+  await page.getByTestId('focus-rank-open').tap(); await expect(priorities(page)).toBeVisible(); await rankDone(page);
+  await next(page); await step(page, 'experience'); await pick(page, 'experience', '3y'); await step(page, 'days'); await pick(page, 'days', '4'); await step(page, 'weekdays');
+  // A schedule title on two lines shares its words: never one word alone on the last line ("Flexible, whenever I / can").
+  for (const id of ['fixed', 'flexible', 'weekly']) {
+    const lines = await page.getByTestId(`q-schedule-${id}`).evaluate((b, fn) => (new Function(`return (${fn})`)() as (el: Element) => number[])([...b.querySelectorAll('span')].find((x) => x.children.length === 0 && /week|Flexible/.test(x.textContent ?? ''))!), wordsPerLine.toString());
+    if (lines.length > 1) expect(lines[lines.length - 1], `${id}: ${lines.join(' / ')}`).toBeGreaterThan(1);
+  }
+});
+test('round 3 (critic 15): the finish screen at 130% text breaks no exercise name inside a word and keeps "ready … morning" together', async ({ page }) => {
+  test.setTimeout(60_000);
+  await textScale(page, 1.3);
+  await afterUpperDay(page);
+  await page.getByRole('region', { name: "Today's plan day" }).getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  const s = (await dbAll<{ id: string; exerciseIds: string[]; endedAt?: number }>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
+  let order = 0;
+  for (const id of s.exerciseIds) for (let n = 0; n < 4; n++) await put(page, 'sets', { id: `fin-${order}`, sessionId: s.id, exerciseId: id, order: order++, kind: 'work', reps: 10, load: { kind: 'dumbbell_each', unit: 'lb', total: 30 }, uncertain: false });
+  await page.reload();
+  await page.getByRole('button', { name: 'Finish', exact: true }).tap();
+  const confirm = page.getByRole('dialog').getByRole('button', { name: /Finish/ });
+  if (await confirm.isVisible().catch(() => false)) await confirm.tap();
+  await expect(page.getByTestId('finish-exercise').first()).toBeVisible(); await page.waitForTimeout(900);
+  // Both days were just trained, so the next one waits: "After a rest, ready … morning", the last three words on one line.
+  const rest = page.getByTestId('finish-next-rest');
+  await expect(rest).toHaveText(/^After a rest, ready (later this morning|this (afternoon|evening)|(tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) (morning|afternoon|evening))$/);
+  expect(await rest.locator('span').evaluate((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size)).toBe(1);
+  expect(await rest.evaluate((el) => !/[·,]$/.test((el.textContent ?? '').trim()))).toBe(true);
+  const rows = page.getByTestId('finish-exercise');
+  expect(await rows.count()).toBeGreaterThan(3);
+  for (const row of await rows.all()) {
+    expect(await row.evaluate(brokenWords), await row.innerText()).toEqual([]);
+    expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  }
 });
 
 /** Round 3 (critic 6): Today is at its top: the day card starts under the header with its plan name in view, and the toast is over no button. */

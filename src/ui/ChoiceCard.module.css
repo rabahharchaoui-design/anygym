@@ -62,6 +62,8 @@
   font-weight: 700;
   line-height: 1.2;
   overflow-wrap: anywhere;
+  /* Two lines share the words: never one word alone on the last line ("Flexible, whenever I / can" at 130% text). */
+  text-wrap: balance;
 }
 
 .hint {

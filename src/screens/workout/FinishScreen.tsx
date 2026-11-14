@@ -267,7 +267,8 @@ export function FinishScreen() {
                   {/* Why (gate P3): the same day again because not enough of it was done; real counts. */}
                   {resting ? (
                     <p className={styles.nextWhy} data-testid="finish-next-rest">
-                      After a rest · {resting.ready.charAt(0).toLowerCase() + resting.ready.slice(1, -1)}
+                      {/* Round 3 (critic 15): "ready Wednesday morning" stays together; no dot is left at a line end. */}
+                      After a rest, <span className={styles.keep}>{resting.ready.charAt(0).toLowerCase() + resting.ready.slice(1, -1)}</span>
                     </p>
                   ) : progress && nextIndex === dayIndex && progress.planned > 0 && (
                     <p className={styles.nextWhy} data-testid="finish-next-why">

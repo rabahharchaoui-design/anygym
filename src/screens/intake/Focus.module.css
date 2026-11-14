@@ -69,9 +69,11 @@
   }
 }
 
-/* While the Undo toast is up it rests over this line: the line waits, its place kept. */
-.note[data-under] {
-  visibility: hidden;
+/* While the Undo toast is up it rests over this room under the grid, never over a tile (the toast
+   is 52 pt tall and sits 12 pt above the Continue bar). */
+.toastRoom {
+  flex: none;
+  height: calc(52px + var(--space-3) + var(--space-2));
 }
 
 .note {
@@ -83,9 +85,29 @@
 
 /* From five picks: who gets the most, and the way to the ranking. It rises into place, and while
    it asks ("Rank your 5 picks") its edge carries the accent. */
+/* Round 3 (critic 16): the page never scrolls to show it (that cut the screen's title). On a screen
+   too short for the grid and the row, the row stays pinned just above the Continue bar, on the
+   page's own dark, and the tiles scroll under it; at the end of the page it is in its own place. */
 .priorities {
+  position: sticky;
+  /* Sticky measures from inside the page's bottom padding (space-6, Intake.module.css .body): the
+     row's own dark reaches through that padding down to the bar (under the bar's soft fade), and at
+     the end of the page it lies over the same padding, so nothing is added under it. */
+  bottom: calc(-1 * var(--space-6));
+  z-index: 1;
+  margin: calc(-1 * var(--space-2)) 0 calc(-1 * var(--space-6));
+  padding: var(--space-2) 0 var(--space-6);
+  background: linear-gradient(transparent, var(--bg) var(--space-2));
+  pointer-events: none;
   animation: rise var(--dur-base) var(--ease-out) both;
-  scroll-margin-bottom: var(--space-3);
+}
+
+.priorities > * {
+  pointer-events: auto;
+}
+
+.priorities > button {
+  background: var(--surface-solid);
 }
 
 .priorities > p {
