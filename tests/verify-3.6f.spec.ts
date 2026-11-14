@@ -66,9 +66,16 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await part(page, 'back', 'lats'); await part(page, 'shoulders', 'side_delts'); await part(page, 'arms', 'biceps'); await part(page, 'legs', 'quads');
   // The ranking follows the budget's rule: four picks share evenly, so there is nothing to rank yet.
   await expect(page.getByTestId('focus-rank-open')).toHaveCount(0); await expect(page.getByTestId('focus-rank')).toHaveCount(0);
-  // The fifth pick brings "Your priorities" up by itself, as its own sheet.
+  // Design round 2 (critic POLISH 13): the fifth pick is one calm moment. The parts sheet leaves and a quiet row asks; the priorities open from it, never by themselves.
   await part(page, 'core', 'abs');
-  const rank = page.getByTestId('focus-rank'); await expect(rank).toBeVisible();
+  const rank = page.getByTestId('focus-rank'); await expect(page.getByTestId('focus-rank-open')).toContainText('Rank your 5 picks');
+  await page.waitForTimeout(600); await expect(rank).toHaveCount(0);
+  await expect(page.getByTestId('focus-rank-open')).toBeInViewport({ ratio: 1 });
+  // Every tile keeps one height, picked or not (critic POLISH 12), and each has its own icon.
+  const heights = await page.getByTestId('q-focus').locator('button').evaluateAll((tiles) => tiles.map((t) => Math.round(t.getBoundingClientRect().height)));
+  if (page.viewportSize()!.width > 340) expect(new Set(heights).size).toBe(1);
+  expect(new Set(await page.getByTestId('q-focus').locator('svg').evaluateAll((icons) => icons.map((i) => i.innerHTML))).size).toBe(11);
+  await page.getByTestId('focus-rank-open').tap(); await expect(rank).toBeVisible();
   await rank.getByRole('button', { name: 'Move Quads up', exact: true }).tap();
   await expect(rank.locator('li').nth(2)).toContainText('Quads');
   await checkLayout(page, { primary: priorities(page).getByRole('button', { name: 'Done', exact: true }) });
@@ -134,7 +141,11 @@ test('five priorities, sheet dismissal, balance clearing, accessible ranking and
   await page.getByRole('dialog').getByTestId('focus-part-biceps').tap();
   await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(page.getByTestId('q-focus-arms')).toHaveAttribute('aria-pressed', 'false');
-  await part(page, 'arms', 'biceps'); await part(page, 'legs', 'quads'); await part(page, 'shoulders', 'side_delts'); await part(page, 'core', 'abs');
+  await part(page, 'arms', 'biceps'); await part(page, 'legs', 'quads'); await part(page, 'shoulders', 'side_delts');
+  // The part picked carries a check mark, not only an outline (critic POLISH 14), and the tile says it in one line.
+  await pick(page, 'focus', 'shoulders'); await expect(page.getByTestId('focus-part-side_delts').locator('[data-ring]')).toBeVisible(); await expect(page.getByTestId('focus-part-side_delts')).toHaveAttribute('aria-pressed', 'true'); await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByTestId('q-focus-shoulders')).toContainText('Side shoulders');
+  await part(page, 'core', 'abs'); await page.getByTestId('focus-rank-open').tap();
   await expect(page.getByTestId('focus-rank').locator('li')).toHaveCount(5);
   await page.getByRole('button', { name: 'Move Abs up', exact: true }).tap();
   const last = page.getByRole('button', { name: 'Drag Side shoulders for width', exact: true });
@@ -145,8 +156,19 @@ test('five priorities, sheet dismissal, balance clearing, accessible ranking and
   await expect(page.getByTestId('q-focus-grip')).toContainText('No exercises yet');
   await pick(page, 'focus', 'arms'); await expect(page.getByTestId('focus-part-forearms')).toContainText('No exercises yet'); await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Design round 2 (critic MAJOR 8): balance says what it is, clears the picks with an Undo, and Undo brings them back in their order.
+  await expect(page.getByTestId('q-focus-balance')).toContainText('Even plan, no extra work');
   await pick(page, 'focus', 'balance'); await expect(page.getByTestId('focus-rank-open')).toHaveCount(0);
   for (const id of ['back', 'arms', 'legs', 'shoulders', 'core']) await expect(page.getByTestId(`q-focus-${id}`)).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByText('5 picks cleared', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Undo', exact: true }).tap();
+  for (const id of ['back', 'arms', 'legs', 'shoulders', 'core']) await expect(page.getByTestId(`q-focus-${id}`)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('q-focus-balance')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('focus-rank-open').tap(); await expect(page.getByTestId('rank-side_delts')).not.toContainText('5.'); await rankDone(page);
+  await pick(page, 'focus', 'balance'); await expect(page.getByTestId('focus-rank-open')).toHaveCount(0);
+  for (const id of ['back', 'arms', 'legs', 'shoulders', 'core']) await expect(page.getByTestId(`q-focus-${id}`)).toHaveAttribute('aria-pressed', 'false');
+  // Balance and picking nothing are the same plan, and the screen says so.
+  await expect(page.getByTestId('focus-same')).toHaveText('Picking nothing gives the same even plan.');
   await part(page, 'arms', 'triceps'); await expect(page.getByTestId('q-focus-balance')).toHaveAttribute('aria-pressed', 'false');
   await rest(page); await accept(page);
   await page.goto('./#/settings');
@@ -154,6 +176,32 @@ test('five priorities, sheet dismissal, balance clearing, accessible ranking and
   await page.getByText('Answer the questions again', { exact: true }).tap(); await step(page, 'goal'); await next(page); await step(page, 'units'); await next(page); await step(page, 'focus');
   await expect(page.getByTestId('q-focus-arms')).toHaveAttribute('aria-pressed', 'true');
   await page.reload(); await step(page, 'focus'); await expect(page.getByTestId('q-focus-arms')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('Settings opens only the schedule or only the focus areas, and the reveal rebuilds the plan (critic POLISH 15)', async ({ page }) => {
+  await toFocus(page); await part(page, 'arms', 'triceps'); await rest(page); await accept(page);
+  await page.goto('./#/settings');
+  await expect(page.getByTestId('redo-schedule')).toContainText('Flexible, whenever I can'); await expect(page.getByTestId('redo-focus')).toContainText('Triceps');
+  await checkLayout(page);
+  // Schedule: that one question, no progress bar, Continue goes straight to the reveal.
+  await page.getByTestId('redo-schedule').tap(); await step(page, 'weekdays');
+  await expect(page.getByRole('progressbar')).toHaveCount(0);
+  await pick(page, 'schedule', 'fixed'); for (const d of ['mon', 'wed', 'fri', 'sat']) await pick(page, 'weekdays', d);
+  await next(page); await step(page, 'reveal'); await expect(page.getByTestId('reveal-week')).toContainText('Mon');
+  // Back from the reveal is the question again, not the whole intake.
+  await page.getByRole('button', { name: 'Back', exact: true }).tap(); await step(page, 'weekdays'); await next(page); await step(page, 'reveal');
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Use this plan', exact: true }).tap();
+  await expect(page).toHaveURL(/#\/$/); await expect(page.getByTestId('day-card-title')).toBeVisible();
+  const saved = (await dbAll<{ intake: { scheduleStyle: string; weekdays: string[]; focusPicks: string[]; days: number } }>(page, 'profile'))[0]!.intake;
+  expect(saved.scheduleStyle).toBe('fixed'); expect(saved.weekdays).toEqual(['mon', 'wed', 'fri', 'sat']); expect(saved.focusPicks).toEqual(['triceps']); expect(saved.days).toBe(4);
+  // Focus areas: the same way; the back button on the question returns to Settings.
+  await page.goto('./#/settings'); await expect(page.getByTestId('redo-schedule')).toContainText('Same days each week · Mon, Wed, Fri, Sat');
+  await page.getByTestId('redo-focus').tap(); await step(page, 'focus'); await expect(page.getByTestId('q-focus-arms')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Back to Settings', exact: true }).tap(); await expect(page).toHaveURL(/#\/settings$/);
+  await page.getByTestId('redo-focus').tap(); await step(page, 'focus'); await part(page, 'legs', 'quads');
+  await next(page); await step(page, 'reveal'); await expect(page.getByTestId('focus-line-quads')).toBeVisible(); await expect(page.getByTestId('focus-line-triceps')).toBeVisible();
+  await page.getByTestId('reveal-cta').getByRole('button', { name: 'Use this plan', exact: true }).tap(); await expect(page).toHaveURL(/#\/$/);
+  expect((await dbAll<{ intake: { focusPicks: string[]; scheduleStyle: string } }>(page, 'profile'))[0]!.intake).toMatchObject({ focusPicks: ['triceps', 'quads'], scheduleStyle: 'fixed' });
 });
 
 const WEEK = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
