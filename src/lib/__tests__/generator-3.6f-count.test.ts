@@ -1,7 +1,6 @@
 // PLAN 3.6f, counted independently: this file reads the PLAN text, not the focus module. It maps
 // each focus option to the reviewed primary muscles itself, counts the sets of the built plan, and
 // compares with the same intake built without focus picks.
-import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { generate } from '../../data/generator';
 import { definitionPlan } from '../../data/plans';
@@ -250,7 +249,6 @@ describe('900 seeded intakes: every pick count 0 to 11, days 2 to 6, every minut
     expect(tally.maxShown).toBeLessThanOrEqual(20);
     expect(tally.rankPairs).toBeGreaterThan(1000);
     expect(tally.whyLines).toBeGreaterThan(300);
-    fs.writeFileSync('/tmp/3.6f-count-numbers.json', JSON.stringify({ ...tally, noMove: [...tally.noMove] }, null, 1));
     expect(tally.order).toBe(0);
   });
 });
