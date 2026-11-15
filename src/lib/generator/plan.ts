@@ -8,6 +8,7 @@ import { contextOf } from './context';
 import { addMoves, densify, fillUp } from './fit';
 import { WARM_UP_SEC, finisherFor, warmUpFor } from './finisher';
 import { applyFocus } from './focus';
+import { focusLeast } from './least';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
 import { fill } from './pick';
 import { alsoChanges, prescribe } from './prescribe';
@@ -67,7 +68,8 @@ export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): Genera
     fillUp(ctx, d, input.minutes);
   }
 
-  const focusReport = applyFocus(ctx, days);
+  // PLAN 3.6g2, more buys more: never fewer stretch minutes, or fewer sets for a single pick, than the same answers get with a day or minutes fewer.
+  const focusReport = applyFocus(ctx, days, focusLeast(input, deps, normalizeFocusPicks(input.focusPicks ?? input.focus), (smaller) => generatePlan(smaller, deps)));
   // Each day's why: what that day adds for the picks (words from lib/plan/focusWords.ts, data from the report).
   focusReport.days = days.map((_, i) => { const line = focusDayLine(focusReport.dayExtra?.[i], focusReport.dayLead?.[i]); return line ? [line] : []; });
   const kept = days.flatMap((d) => d.units.flat());

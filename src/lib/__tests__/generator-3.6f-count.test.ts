@@ -9,6 +9,7 @@ import { profileFor } from '../../data/order';
 import { SWAP_DATA } from '../../data/patterns';
 import { equipmentPreset } from '../../db/gyms';
 import { focusFit } from '../intake/focusFit';
+import { checkFit } from './focusFitCheck36g2';
 import { focusName } from '../plan/focus';
 import { focusLine, focusPeriod, focusRow } from '../plan/focusWords';
 import { FOCUS_PARTS, FOCUS_PICKS, type ExperienceId, type FocusPickId, type GoalId } from '../intake/options';
@@ -142,7 +143,10 @@ function check(count: number, days: number, minutes: number, rep: number) {
       if (p.extra > 0 && p.extra < p.total) expect(much).toContain(`, ${p.extra} of them extra`);
       if (p.extra === 0) expect(much).not.toContain('extra,');
       // Plenty and extra are never said together: with extra it is "as much as is useful".
-      expect(/already (has )?plenty|as much as is useful/.test(much)).toBe(p.state === 'plenty');
+      // PLAN 3.6g2: a pick that got its share on the way to the limit says "as much as is useful" too.
+      expect(/already (has )?plenty|as much as is useful/.test(much)).toBe(p.state === 'plenty' || (!!p.atLimit && p.extra > 0));
+      // PLAN 3.6g2: "no extra" never stands alone: the reason from the report follows it.
+      if (p.extra === 0 && p.state !== 'plenty') expect(much, `${p.id} ${label}`).toMatch(/, no extra: (its exercises are at their most sets|extra work stops at 12 sets a week|no more than .+, ranked above it|its days are full)$/);
       expect(/extra.*already (has )?plenty/.test(much), much).toBe(false);
     }
     expect(much).not.toContain('nothing extra');
@@ -159,19 +163,22 @@ function check(count: number, days: number, minutes: number, rep: number) {
     const own = (ms: Move[][]) => ms.flat().reduce((n, x) => n + (x.prim.some(SRC[low.id]!) && !ranked.some((h) => h.id !== low.id && x.prim.some(SRC[h.id]!)) ? x.sets : 0), 0);
     // Its own sets, net: when the 20 set limit took sets off moves it shares with another pick, sets of its own make up for them and are not extra.
     const ownExtra = Math.min(low.extra, Math.max(0, own(m) - own(mb)));
-    // PLAN 3.6g: past +4 only toward 12 sets a week. The single muscle of the pick with the fewest sets is then at 12 at the most (13 when the last step was a 2 set move).
+    // PLAN 3.6g, 3.6g2: past +4 only toward the sets a week the sessions aim for (12; 16 from 60 minutes, 18 for a single pick at 75; one more when the last step was a 2 set move), or together with a pick ranked below it that still needed sets (the strict rank: the higher pick goes up with it).
     const weakest = Math.min(...partsOf(low.id).map((part) => setsFor(m, SRC[part]!)).filter((n) => n > 0));
-    expect(ownExtra <= 4 || weakest <= 13, `#${j + 1} ${low.id} past +4 (${ownExtra}) with ${weakest} sets ${label}`).toBe(true);
+    const aim = minutes < 60 ? 12 : hard.length === 1 && minutes >= 75 ? 18 : 16;
+    const carriedBy = ranked.slice(j + 1).some((l) => l.extra >= ownExtra - 2);
+    // A single pick is also held to what the same answers get with a day or minutes fewer (more buys more), inside the budget of 12.
+    expect(ownExtra <= 4 || weakest <= aim + 1 || carriedBy || hard.length === 1, `#${j + 1} ${low.id} past +4 (${ownExtra}) with ${weakest} sets ${label}`).toBe(true);
     for (const high of higher) {
       expect(low.requested, `#${j + 1} ${low.id} has a bigger share than ${high.id} ${label}`).toBeLessThanOrEqual(high.requested);
-      // A higher pick at 20 sets cannot take more, whether it got its whole share first ("extra") or not ("plenty").
-      if (high.state === 'plenty' || high.state === 'no_move' || high.total >= 20 || atLimitOf(high.id)) { tally.rankExempt++; continue; }
+      // A higher pick at 20 sets cannot take more, whether it got its whole share first ("extra") or not ("plenty"); neither can one whose exercises are all at their most sets (PLAN 3.6g2: said as that).
+      if (high.state === 'plenty' || high.state === 'no_move' || high.total >= 20 || atLimitOf(high.id) || high.held === 'maxed') { tally.rankExempt++; continue; }
       tally.rankPairs++;
-      // The last round tops up picks still under 12 sets a week; a higher pick already there is not added to, so it holds nobody back.
-      if (ownExtra > low.requested && totalOf(high.id) < 12) expect(ownExtra, `#${j + 1} ${low.id} took sets past its share above ${high.id} ${label}`).toBeLessThanOrEqual(Math.max(low.requested, extraOf(high.id)));
+      // PLAN 3.6g2, THE STRICT RANK: a pick's own extra sets are never more than the extra of a pick ranked above it. No exception for room.
+      expect(ownExtra, `#${j + 1} ${low.id} is above ${high.id} ${label}`).toBeLessThanOrEqual(extraOf(high.id));
     }
   }
-  // DAY WHY LINES: each names what that day adds for up to two picks by rank (then "and more"), and the
+  // DAY WHY LINES: each names what that day adds for every pick by rank (PLAN 3.6g2: never "and more"), and the
   // pick its first lift trains; a day that does neither has none.
   const dayTotal = (ms: Move[][], i: number, id: FocusPickId) => (ms[i] ?? []).reduce((n, x) => n + (x.prim.some(SRC[id]!) ? x.sets : 0), 0);
   for (const [i, d] of f.plan.days.entries()) {
@@ -194,9 +201,11 @@ function check(count: number, days: number, minutes: number, rep: number) {
     // Truth pass (critic r3 3): a minute of stretches is not said as an extra, so it is not counted among what the day adds.
     const saidAdds = report.dayExtra![i]!.filter((x) => x.id !== 'mobility' || (x.minutes ?? 0) >= 5);
     if (saidAdds.every((x) => x.id !== 'mobility')) expect(whole, label).not.toContain('stretch');
-    expect(line.endsWith(' and more')).toBe(saidAdds.length > 2);
-    const named = [...line.replace(/ and more$/, '').matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
-    if (!line.includes('stretches')) expect(named.map((x) => x.name), `${line} ${label}`).toEqual(adds.slice(0, 2).map((p) => focusName(p.id).toLowerCase()));
+    // PLAN 3.6g2: every add is named, never "and more".
+    expect(whole, label).not.toContain('and more');
+    expect((line.match(/\d+ (?:sets? for|for|min of stretches)/g) ?? []).length, `${line} ${label}`).toBe(saidAdds.length);
+    const named = [...line.matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
+    if (!line.includes('stretches')) expect(named.map((x) => x.name), `${line} ${label}`).toEqual(adds.map((p) => focusName(p.id).toLowerCase()));
     for (const x of named) {
       const pick = ranked.find((p) => focusName(p.id).toLowerCase() === x.name)!;
       expect(pick, line).toBeDefined();
@@ -223,10 +232,12 @@ function check(count: number, days: number, minutes: number, rep: number) {
       expect(supports(requiresOf(SWAP_DATA, it.exerciseId)!, gym), it.exerciseId).toBe(true);
     }
     // Focused moves go earlier: once the big lifts are done, no small focused move waits behind an unfocused one.
-    const info = blocks.map((x) => { const ps = x.items.map((it) => profileFor(it.exerciseId)).filter((p) => p.role === 'lift'); return { lift: ps.length > 0, big: ps.some(isCompound), tier: Math.min(...ps.map((p) => p.tier)), focused: ps.some((p) => p.targets.some((t) => focusTargets.has(t))) }; });
+    const info = blocks.map((x) => { const ps = x.items.map((it) => profileFor(it.exerciseId)).filter((p) => p.role === 'lift'); return { lift: ps.length > 0, big: ps.some(isCompound), tier: Math.min(...ps.map((p) => p.tier)), focused: ps.some((p) => p.targets.some((t) => focusTargets.has(t))), first: ps[0]?.pattern, last: ps.at(-1)?.pattern }; });
     const small = info.slice(info.findLastIndex((x) => x.big) + 1).filter((x) => x.lift && x.tier <= 3);
-    const firstOther = small.findIndex((x) => !x.focused);
-    if (firstOther >= 0 && small.slice(firstOther).some((x) => x.focused)) { tally.order++; }
+    // PLAN 3.6g2, spread: the one exception is a move that stands between two near identical moves (two curls, two raises) to keep them apart.
+    const rest = small.filter((_, k) => !(k > 0 && k + 1 < small.length && !!small[k + 1]!.first && small[k - 1]!.last === small[k + 1]!.first));
+    const firstOther = rest.findIndex((x) => !x.focused);
+    if (firstOther >= 0 && rest.slice(firstOther).some((x) => x.focused)) { tally.order++; }
   }
   // A loved move the plan had without picks is still there with them.
   const ids = (ms: Move[][]) => new Set(ms.flat().map((x) => x.id));
@@ -252,10 +263,12 @@ function check(count: number, days: number, minutes: number, rep: number) {
   if (fit) {
     expect(fit.line.length).toBeGreaterThan(10);
     expect(fit.line).not.toContain('with your equipment');
-    expect(fit.line.includes('fit best with') || fit.line.includes('fits best with')).toBe(!!(fit.days || fit.minutes) && !fit.partial);
+    // PLAN 3.6g2: a step is named with its value and the rebuilt plan's numbers ("Make it 4 days: Side shoulders 6 to 12"); the whole line is checked against this plan and the rebuilt ones (focusFitCheck36g2.ts).
+    expect(fit.line.startsWith('Make it ')).toBe(!!(fit.days || fit.minutes));
+    checkFit(report, fit, (tap) => rebuilt({ days, minutes, ...tap })?.r.applied.focusReport, label);
     // Never "yet" as if it would change by itself (only "No exercises for … yet", which the app will add).
     expect(fit.line.replace(/No exercises for [^.]+ yet\./, '')).not.toContain('yet');
-    if (fit.partial) { tally.partial++; expect(fit.line).toMatch(/^With (\d days|\d+ min|\d days and \d+ min), .+ (gets?|get) (extra|more|its stretches)\./); expect(!!(fit.days || fit.minutes)).toBe(true); }
+    if (fit.partial) { tally.partial++; expect(fit.line).toMatch(/^Make it (\d days|\d+ min|\d days and \d+ min): .+( \d+ to \d+| gets its stretches)/); expect(!!(fit.days || fit.minutes)).toBe(true); }
     // FIX OFFERS ARE TRUE: applying the tap leaves no shortfall and no pick with fewer extra sets, counted on the rebuilt plans.
     const taps = fit.both ? [{ days: fit.days!, minutes: fit.minutes! }] : [...(fit.days ? [{ days: fit.days, minutes }] : []), ...(fit.minutes ? [{ days, minutes: fit.minutes }] : [])];
     for (const tap of taps) {
@@ -270,7 +283,10 @@ function check(count: number, days: number, minutes: number, rep: number) {
         // Nobody is left with less: sets a pick held past its own share were a bonus from room nobody else could use, so keeping the whole share is not less.
         expect(after, `${p.id} lost extra after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.min(extraOf(p.id), Math.max(1, p.requested)));
         // The best partial step (round 3) promises only what its line says: nobody lower, and the picks it names higher.
-        if (fit.partial) { if ((/^With [^,]+, (.+?) (?:gets?|get) (?:extra|more)\./.exec(fit.line)?.[1] ?? '').split(/, | and /).includes(focusName(p.id))) expect(after, `${p.id} named but not helped by ${JSON.stringify(tap)} ${label}`).toBeGreaterThan(extraOf(p.id)); continue; }
+        // PLAN 3.6g2: a pick the step's sentence names has more sets in the rebuilt plan, counted here on the plans.
+        const sentence = [...fit.line.matchAll(/(?:Or make|Make) it ([^:]+): ([^.]+)\./g)].find((x) => x[1] === [tap.days !== days ? `${tap.days} days` : null, tap.minutes !== minutes ? `${tap.minutes} min` : null].filter(Boolean).join(' and '))?.[2] ?? '';
+        if (new RegExp(`(^|, | and )${focusName(p.id)} \\d+ to \\d+`).test(sentence)) expect(setsFor(nm, SRC[p.id]!), `${p.id} named but not helped by ${JSON.stringify(tap)} ${label}`).toBeGreaterThan(totalOf(p.id));
+        if (fit.partial) continue;
         if (p.state === 'plenty' || p.state === 'no_move' || p.requested === 0) continue;
         expect(after, `${p.id} still short after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.max(1, p.requested - 1));
       }

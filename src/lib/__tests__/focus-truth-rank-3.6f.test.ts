@@ -4,13 +4,12 @@
 import { describe, expect, it } from 'vitest';
 import { generate } from '../../data/generator';
 import { definitionPlan } from '../../data/plans';
-import { profileFor } from '../../data/order';
 import { equipmentPreset } from '../../db/gyms';
 import { focusFit } from '../intake/focusFit';
 import type { IntakeAnswers } from '../intake/funnel';
 import type { ExperienceId, FocusPickId, GoalId } from '../intake/options';
 import { generatorInputOf, yourPlanWords } from '../intake/yourPlan';
-import { focusMuscles, focusName, type FocusReport } from '../plan/focus';
+import { focusName, type FocusReport } from '../plan/focus';
 import { focusCompared, focusPassed, focusPrioritized, focusSummary, focusTop } from '../plan/focusPriority';
 import { vi as viTimeout } from 'vitest';
 // PLAN 3.6u: a heavy test file (slowest test about 1239 ms on a laptop; the GitHub runner is six to eight times
@@ -28,58 +27,42 @@ function reveal(a: IntakeAnswers) {
 }
 const extras = (report: FocusReport) => Object.fromEntries(report.priorities.map((p) => [p.id, p.extra]));
 
-/** The muscles each day's lifts tire: what the 48 hour rule reads. */
-const footprints = (plan: ReturnType<typeof reveal>['plan']) => plan.days.map((d) => new Set(d.blocks.filter((b) => !b.warmup).flatMap((b) => b.items).flatMap((it) => { const p = profileFor(it.exerciseId); return p.role === 'lift' ? p.targets : []; })));
-/**
- * Why `higher` could not use the room `lower` took: on every day where `lower` gained, the muscles
- * of `higher` are not trained that day and are trained on a day next to it (new work there would
- * break the 48 hour rule); and every day that does train them is already at the minutes chosen.
- */
-function couldNotUse(x: ReturnType<typeof reveal>, minutes: number, higher: FocusPickId, lower: FocusPickId) {
-  const prints = footprints(x.plan);
-  const n = prints.length;
-  const muscles = focusMuscles([higher]);
-  const gained = x.report.dayExtra!.map((d) => d.some((e) => e.id === lower && e.extra > 0));
-  expect(gained.some(Boolean), `${lower} gained somewhere`).toBe(true);
-  for (const [i, on] of gained.entries()) {
-    if (!on) continue;
-    for (const m of muscles) {
-      expect(prints[i]!.has(m), `day ${i + 1} trains ${m}`).toBe(false);
-      expect(prints[(i + 1) % n]!.has(m) || prints[(i + n - 1) % n]!.has(m), `a day next to day ${i + 1} trains ${m}`).toBe(true);
-    }
-  }
-  const own = prints.map((p, i) => (muscles.some((m) => p.has(m)) ? i : -1)).filter((i) => i >= 0);
-  expect(own.length).toBeGreaterThan(0);
-  for (const i of own) expect(x.r.applied.minutes[i]!, `day ${i + 1} is full`).toBeGreaterThanOrEqual(minutes - 1);
+/** PLAN 3.6g2, the strict rank: no pick has more extra of its own than a pick ranked above it that can still take sets. */
+function strict(report: FocusReport) {
+  const open = report.priorities.filter((p) => p.id !== 'mobility' && p.state !== 'no_move' && !p.atLimit && p.held !== 'maxed');
+  for (const [i, low] of open.entries()) for (const high of open.slice(0, i)) expect(low.extra - (low.rides?.extra ?? 0), `${low.id} above ${high.id}`).toBeLessThanOrEqual(high.extra);
 }
 
-describe('critic 1: a lower pick only comes out ahead when the higher one could not use that room', () => {
-  // PLAN 3.6g: every pick gets to +2 before any pick goes past it, so on these full 45 min days the room is shared down the rank (Side shoulders is no longer left out), and it still runs out before Biceps and Upper chest.
-  it('Lats, Side shoulders, Biceps, Upper chest, Glutes at 4 days, 45 min: Glutes (#5) is ahead of Biceps (#3) and Upper chest (#4) for the 48 hour rule, and the words say so', () => {
+describe('critic 1, then PLAN 3.6g2: a lower pick never comes out ahead of a higher one that has an exercise, whatever the room', () => {
+  // PLAN 3.6g2 (the fourth critique): "no room on its days" is no longer a reason for a lower pick to get more. On these full 45 min days the #1 pick gets its +3 or more first; the #2 pick then has no room, so the picks below it get no more than it got, and every row says why.
+  it('Lats, Side shoulders, Biceps, Upper chest, Glutes at 4 days, 45 min: Glutes (#5) is no longer ahead of Biceps (#3) and Upper chest (#4), and the words say why each got none', () => {
     const x = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts', 'biceps', 'upper_chest', 'glutes'] });
-    expect(extras(x.report)).toEqual({ lats: 2, side_delts: 2, biceps: 0, upper_chest: 0, glutes: 2 });
-    // The room Glutes took is on a lower body day, between two days that train the arms and chest.
-    for (const higher of ['biceps', 'upper_chest'] as const) couldNotUse(x, 45, higher, 'glutes');
-    // The words: exactly the picks tied for the most are "prioritized", and the reason Glutes is ahead is said.
-    expect(x.fit!.line).toBe('5 focus areas fit best with 5 days or 60 min; we prioritized Lats, Side shoulders and Glutes.');
-    expect(x.summary).toBe('Biceps and Upper chest have no more room on their days, so Glutes gets extra.');
-    expect(x.reason).toContain('extra lats, side shoulders and glute work');
+    expect(extras(x.report)).toEqual({ lats: 4, side_delts: 0, biceps: 0, upper_chest: 0, glutes: 0 });
+    strict(x.report);
+    expect(x.report.priorities.map((p) => [p.held, p.heldBy])).toEqual([['room', undefined], ['room', undefined], ['rank', 'side_delts'], ['rank', 'side_delts'], ['rank', 'side_delts']]);
+    // The words: exactly the pick with the most is "prioritized", and no pick is said to be ahead of one above it.
+    // PLAN 3.6g2: the fit line names the step with its numbers; who leads is the summary's to say.
+    expect(x.fit!.line).toMatch(/^Make it 60 min: Lats 10 to 12, /);
+    expect(x.summary).toBe('Most extra work: Lats.');
+    expect(focusPassed(x.report)).toBeNull();
+    expect(x.reason).toContain('extra lats work');
   });
-  it('Upper chest, Lats, Side shoulders, Quads, Biceps at 4 days, 45 min: Quads (#4) is ahead of Side shoulders (#3) for the same reason, and Lats (#2) is no longer behind it', () => {
+  it('Upper chest, Lats, Side shoulders, Quads, Biceps at 4 days, 45 min: Quads (#4) is no longer ahead of Side shoulders (#3)', () => {
     const x = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['upper_chest', 'lats', 'side_delts', 'quads', 'biceps'] });
-    expect(extras(x.report)).toEqual({ upper_chest: 2, lats: 2, side_delts: 0, quads: 2, biceps: 0 });
-    couldNotUse(x, 45, 'side_delts', 'quads');
-    expect(x.fit!.line).toBe('5 focus areas fit best with 5 days or 60 min; we prioritized Upper chest, Lats and Quads.');
-    expect(x.summary).toBe('Side shoulders has no more room on its days, so Quads gets extra.');
-    expect(x.reason).toContain('extra upper chest, lats and quads work');
+    expect(extras(x.report)).toEqual({ upper_chest: 4, lats: 0, side_delts: 0, quads: 0, biceps: 0 });
+    strict(x.report);
+    expect(x.fit!.line).toMatch(/^Make it /);
+    expect(x.summary).toBe('Most extra work: Upper chest.');
+    expect(focusPassed(x.report)).toBeNull();
+    expect(x.reason).toContain('extra upper chest work');
   });
-  it('served alone on the same days, the higher pick gets no more: the room was never given away out of order', () => {
-    // With Glutes taken out of the list, Biceps and Upper chest still get nothing, and Lats and Side shoulders the same: Glutes took nothing from them.
+  it('with the last pick taken out of the list the picks above it get the same: nothing was given away out of order', () => {
     const without = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts', 'biceps', 'upper_chest'] });
-    expect(extras(without.report)).toEqual({ lats: 2, side_delts: 2, biceps: 0, upper_chest: 0 });
+    expect(extras(without.report)).toEqual({ lats: 4, side_delts: 0, biceps: 0, upper_chest: 0 });
     const noQuads = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['upper_chest', 'lats', 'side_delts', 'biceps'] });
     expect(extras(noQuads.report).lats).toBeLessThanOrEqual(2);
     expect(extras(noQuads.report).side_delts).toBe(0);
+    strict(without.report); strict(noQuads.report);
   });
 });
 
@@ -141,9 +124,22 @@ describe('every sentence about priority follows the final numbers (seeded intake
       const most = /Most extra work: ([^.]+)\./.exec(summary)?.[1] ?? / so (.+) gets? the most\./.exec(summary)?.[1];
       if (most) { seen.most++; namesAreTop(report, most, label); expect(most.split(/, | and /).length, label).toBe(focusTop(report).length); }
       // A pick ahead of one ranked above it always comes with the reason, naming that higher pick.
-      const inverted = hard.filter((h, i) => h.requested > 0 && hard.slice(i + 1).some((l) => l.extra > h.extra));
+      // PLAN 3.6g2: extra that came with a higher pick's work (rides) passes nobody; only a pick that can take no more is ever passed.
+      const inverted = hard.filter((h, i) => h.requested > 0 && hard.slice(i + 1).some((l) => l.extra - (l.rides?.extra ?? 0) > h.extra));
+      for (const h of inverted) expect(h.state === 'no_move' || h.state === 'plenty' || !!h.atLimit || h.held === 'maxed', `${label}: ${h.id} passed while it could take more`).toBe(true);
       const passed = focusPassed(report);
-      if (inverted.length) { seen.passed++; expect(passed, label).not.toBeNull(); expect(summary, label).toContain(passed!); for (const h of inverted) expect(passed!.split(', so ')[0], label).toContain(focusName(h.id)); }
+      // PLAN 3.6g2, said once: a pick this gym has no equipment for is named in the fit line, and the summary gives the other reasons only.
+      const told = focusPassed(report, true);
+      expect(summary, label).not.toMatch(/equipment you do not have here|of (its|their) own here/);
+      if (inverted.length) {
+        seen.passed++; expect(passed, label).not.toBeNull();
+        if (told) expect(summary, label).toContain(told);
+        for (const h of inverted) {
+          expect(passed!.split(', so ')[0], label).toContain(focusName(h.id));
+          if (h.state === 'no_move' && (h.gear || h.helped)) expect(fit?.line ?? '', label).toContain(focusName(h.id));
+          else expect(told!.split(', so ')[0], label).toContain(focusName(h.id));
+        }
+      }
       // The words after "so" name picks that really got more than a pick passed above them.
       const ahead = / so (.+) gets? (?:extra|more|the most)\./.exec(passed ?? '')?.[1];
       for (const name of ahead?.split(/, | and /) ?? []) {
@@ -158,7 +154,8 @@ describe('every sentence about priority follows the final numbers (seeded intake
   });
   it('met every kind of sentence', () => {
     expect(seen.plans).toBeGreaterThan(300);
-    expect(seen.prioritized).toBeGreaterThan(20);
+    // PLAN 3.6g2: the fit line no longer says "we prioritized …" (it names the step with its numbers); who leads is said by the summary, counted under `most`.
+    expect(seen.prioritized).toBe(0);
     expect(seen.most).toBeGreaterThan(50);
     expect(seen.passed).toBeGreaterThan(20);
   });

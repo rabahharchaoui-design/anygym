@@ -51,8 +51,8 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
     expect(line(p('biceps', { total: 2, state: 'short' }))).toBe('Biceps: 2 sets a week, no room for extra');
   });
 
-  it('a day card says what that day adds, up to two picks in rank order and then "and more"; nothing added, no line', () => {
-    expect(focusDayLine([{ id: 'upper_chest', extra: 2 }, { id: 'side_delts', extra: 2 }, { id: 'biceps', extra: 1 }])).toBe('Extra today: 2 sets for upper chest, 2 for side shoulders and more');
+  it('a day card says what that day adds, every pick in rank order (PLAN 3.6g2: never "and more"); nothing added, no line', () => {
+    expect(focusDayLine([{ id: 'upper_chest', extra: 2 }, { id: 'side_delts', extra: 2 }, { id: 'biceps', extra: 1 }])).toBe('Extra today: 2 sets for upper chest, 2 for side shoulders and 1 for biceps');
     expect(focusDayLine([{ id: 'upper_chest', extra: 2 }, { id: 'side_delts', extra: 2 }])).toBe('Extra today: 2 sets for upper chest and 2 for side shoulders');
     // Round 3 (critic 10): a day that opens with a focused move says which, with or without extra sets.
     expect(focusDayLine([{ id: 'lats', extra: 1 }], 'upper_chest')).toBe('Upper chest first today. Extra: 1 set for lats');

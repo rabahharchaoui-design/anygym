@@ -9,7 +9,10 @@ import { focusFit } from '../intake/focusFit';
 import type { IntakeAnswers } from '../intake/funnel';
 import type { FocusPickId } from '../intake/options';
 import { readFocusReport } from '../plan/focusMetadata';
-import { focusPassed } from '../plan/focusPriority';
+import { focusPassed, focusSummary } from '../plan/focusPriority';
+import { focusFacts } from '../../data/focus';
+import { profileFor } from '../../data/order';
+import { definitionPlan } from '../../data/plans';
 import { focusLine, focusRow } from '../plan/focusWords';
 
 const build = (place: 'full' | 'none', picks: FocusPickId[]) => {
@@ -53,4 +56,49 @@ describe('3.6g: a pick with no exercise in this gym', () => {
     expect(focusRow(old).tag).toBe('no exercises yet');
     expect(readFocusReport({ budget: 4, spent: 0, priorities: [{ ...old, gear: 'yes' }], days: [[]] })).toBeUndefined();
   });
+
+describe('3.6g2, the hotel line: said once, and only when nothing in the plan works the muscle', () => {
+  const hotel = (picks: FocusPickId[]) => {
+    const r = generate({ goals: ['muscle'], experience: '3y', days: 3, minutes: 45, focusPicks: picks, scheduleStyle: 'flexible', gym: equipmentPreset('hotel', 'lb') });
+    if (!r.ok) throw new Error(r.reason);
+    return r.applied.focusReport!;
+  };
+  it('the critic\'s case, a hotel gym with Lats and Biceps: the plan has rows, which work the lats, so nothing says Lats needs equipment; one sentence says what is true', () => {
+    const report = hotel(['lats', 'biceps']);
+    const [lats, biceps] = report.priorities;
+    expect(lats).toMatchObject({ id: 'lats', state: 'no_move', helped: true, extra: 0 });
+    expect(lats!.gear).toBeUndefined();
+    expect(biceps!.extra).toBeGreaterThan(0);
+    const fit = focusFit(answers, report, () => undefined)!.line, summary = focusSummary(report);
+    expect(fit).toBe('Lats has no exercise of its own with this equipment; other exercises here still work it.');
+    // Once: the summary under it does not say it again (one pick alone can take sets: nothing to compare).
+    expect(summary).toBeNull();
+    expect(focusRow(lats!)).toEqual({ name: 'Lats', amount: null, tag: 'no exercise of its own', detail: null });
+    expect(focusLine(lats!, 'every 3 workouts')).toEqual(['Lats', 'no exercise of its own here']);
+    expect(readFocusReport(structuredClone(report))).toEqual(report);
+  });
+  it('no equipment at all: nothing works the lats, so the line is said, and said once (the summary does not repeat it)', () => {
+    const report = build('none', ['lats', 'abs', 'glutes']);
+    expect(report.priorities[0]).toMatchObject({ id: 'lats', state: 'no_move', gear: true });
+    const fit = focusFit(answers, report, () => undefined)!.line, summary = focusSummary(report) ?? '';
+    expect(`${fit} ${summary}`.match(/equipment you do not have here/g)).toHaveLength(1);
+    expect(fit).toContain('Lats needs equipment you do not have here.');
+  });
+  it('every place and pick: a pick is told it needs equipment only when no move of the plan works it, and the words are never said twice', () => {
+    let gear = 0, helped = 0;
+    for (const place of ['hotel', 'home', 'none', 'full'] as const) for (const pick of ['lats', 'biceps', 'side_delts', 'upper_chest', 'hamstrings', 'calves', 'triceps'] as const) {
+      const r = generate({ goals: ['muscle'], experience: '1_2y', days: 3, minutes: 45, focusPicks: [pick, 'abs'], scheduleStyle: 'flexible', gym: equipmentPreset(place as 'full', 'lb') });
+      if (!r.ok) continue;
+      const report = r.applied.focusReport!, p = report.priorities[0]!;
+      const works = definitionPlan(r.plan)!.days.flatMap((d) => d.blocks.flatMap((b) => b.items)).some((it) => focusFacts(it.exerciseId, profileFor(it.exerciseId)).also?.includes(pick));
+      if (p.gear) { gear++; expect(works, `${place} ${pick}`).toBe(false); }
+      if (p.helped) { helped++; expect(works, `${place} ${pick}`).toBe(true); expect(p.gear).toBeUndefined(); }
+      const said = `${focusFit(answers, report, () => undefined)?.line ?? ''} ${focusSummary(report) ?? ''}`;
+      expect(said.match(/equipment you do not have here/g)?.length ?? 0, `${place} ${pick}: ${said}`).toBeLessThanOrEqual(1);
+      expect(said.match(/no exercise of (its|their) own/g)?.length ?? 0, `${place} ${pick}: ${said}`).toBeLessThanOrEqual(1);
+    }
+    expect(gear).toBeGreaterThan(0);
+    expect(helped).toBeGreaterThan(0);
+  });
+});
 });

@@ -50,6 +50,9 @@ export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
     const plan = planById(state?.planId);
     const mine = (id: string | undefined) => id === plan?.id || (!!id && !!plan && isGeneratedId(id) && isGeneratedId(plan.id));
     const finished = style === 'fixed' && plan ? await db.sessions.where('startedAt').between(weekStart(now), now, true, true).filter((s) => !s.imported && s.endedAt !== undefined && !!s.dayId && mine(s.planId)).toArray() : [];
+    // PLAN 3.6g2: a plan day finished today on a fixed schedule is done for today (not a day kept up next by the 60% rule: that one still waits).
+    const midnight = new Date(now).setHours(0, 0, 0, 0);
+    const doneToday = !!state && keptDayOf(state) === undefined && finished.some((s) => s.endedAt! >= midnight);
     const weekDays = plan ? weekDaysOf(style, finished.map((s) => ({ startedAt: s.startedAt, dayIndex: dayIndexOf(plan, s.dayId) })), now) : null;
     return {
       weekKey: weekKey(now), style, weekly: profile?.weeklySchedule, resolved, planDays, fixedDays,
@@ -60,8 +63,8 @@ export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
       asksWeek: asksWeeklySchedule({ answers: profile?.intake, saved: profile?.weeklySchedule, now, intakeDoneAt: profile?.intakeDoneAt, planDays }),
       /** The days that can still be picked this week: today on. */
       weekdaysLeft: weekdaysLeft(now),
-      /** Not one of the person's days (fixed or weekly): Today says so, Start stays. */
-      restDay: state && resolved && !fixedDays ? restDayOf(style, weekdays, now) : null,
+      /** Not one of the person's days (fixed or weekly), or a fixed day already done today: Today says so, Start stays. */
+      restDay: state && resolved && !fixedDays ? restDayOf(style, weekdays, now, doneToday) : null,
     };
   });
 }

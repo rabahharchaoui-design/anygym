@@ -12,7 +12,7 @@ import type { RepRange } from '../lib/progression';
 import { patternOf, slotOf, swapCandidates, workoutIdOf } from '../lib/swap';
 import { QUICK_DEFAULT, dayWorkout, repRangeOf } from '../lib/planWorkout';
 import { dayIdOf, dayIndexOf } from '../lib/plans';
-import { movesOn } from '../lib/finishPlan';
+import { keptDayOf, movesOn } from '../lib/finishPlan';
 import { planProgress } from './workoutFinish';
 import { barForName } from '../lib/loadTypeRule';
 import { SWAP_DATA, candidateBarOf } from '../data/patterns';
@@ -194,7 +194,7 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     liftRows: rows.lifts,
     fresh,
     // No "today works it again" when today is not a training day: every day left is resting, or the calendar says rest (truth pass, critic r3 5).
-    recovery: resolved?.dayIndex === null || restsToday(profile, planState, now) ? undefined : recoveryRegions(recent, sets, planState, now),
+    recovery: resolved?.dayIndex === null || restsToday(profile, planState, now, recent) ? undefined : recoveryRegions(recent, sets, planState, now),
     kept: resolved?.kept && planState ? await keptDay(planState, finished, db) : undefined,
     todayIds: nextDayIds(planState),
     answeredAt: rows.cards.map((c) => c.at),
@@ -236,12 +236,14 @@ function recoveryRegions(recent: readonly Session[], sets: readonly WorkoutSet[]
   return { yesterday: [...done], next: [...next] };
 }
 
-/** Today is a rest day on the person's calendar: the same reading as Today's day card (db/schedule.ts readSchedule). */
-function restsToday(profile: Profile | undefined, planState: PlanState | undefined, now: number): boolean {
+/** Today is a rest day on the person's calendar, or a fixed training day already done today: the same reading as Today's day card (db/schedule.ts readSchedule). */
+function restsToday(profile: Profile | undefined, planState: PlanState | undefined, now: number, finished: readonly Session[]): boolean {
   const plan = planById(planState?.planId);
   if (!plan) return false;
   const style = scheduleStyleOf(profile?.intake);
-  return !fixedDaysOf(style, profile?.intake?.weekdays, plan.days.length) && !!restDayOf(style, weekdaysOf(profile, now), now);
+  const midnight = new Date(now).setHours(0, 0, 0, 0);
+  const doneToday = style === 'fixed' && keptDayOf(planState!) === undefined && finished.some((x) => !x.imported && !!x.dayId && x.planId === plan.id && (x.endedAt ?? 0) >= midnight);
+  return !fixedDaysOf(style, profile?.intake?.weekdays, plan.days.length) && !!restDayOf(style, weekdaysOf(profile, now), now, doneToday);
 }
 
 /** Today's live read: the coach's input and the rows behind it (screens/today/useCoach.ts). */

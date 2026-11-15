@@ -24,7 +24,7 @@ type Props = {
   /** PLAN 3.6: the estimate opens "How much time today?" (SPEC 7.4: before Start). */
   onTime?: () => void;
   /** PLAN 3.6f: not one of the person's days: the headline is "Rest day · Next: Wed, Day 1", and Start steps back to "Train today anyway". */
-  rest?: { title: string; next: string } | null;
+  rest?: { title: string; next: string; start?: string } | null;
   /** PLAN 3.5f: look through the day's lifts as a deck before Start (swap or hide any). */
   onPreview?: () => void;
   /** Fixed schedule: the plan days trained this calendar week, so "This week" shows this week only (lib/plan/weekStrip.ts). Null or absent: the whole pass. */
@@ -103,7 +103,7 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
       )}
       {/* PLAN 3.6v: on a short screen the welcome lights the card down to here. */}
       <Button className={`${styles.dayStart} ${resting ? own.restStart : ''}`} variant={resting ? 'secondary' : 'primary'} onClick={onStart} data-tour-core>
-        {active ? 'Resume' : resting ? 'Train today anyway' : 'Start'}
+        {active ? 'Resume' : resting ? resting.start ?? 'Train today anyway' : 'Start'}
       </Button>
 
       <div className={styles.strip} data-room>

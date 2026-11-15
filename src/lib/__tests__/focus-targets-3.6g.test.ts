@@ -102,7 +102,8 @@ describe('3.6g targets: the chosen minutes, the 48 hour rule, the rank, the answ
     let seen = 0;
     for (const s of samples()) {
       const hard = focusCompared(s.report);
-      const passedOver = hard.filter((h, i) => h.requested > 0 && hard.slice(i + 1).some((l) => l.extra > h.extra));
+      // PLAN 3.6g2: extra that came with a higher pick's work (rides) passes nobody.
+      const passedOver = hard.filter((h, i) => h.requested > 0 && hard.slice(i + 1).some((l) => l.extra - (l.rides?.extra ?? 0) > h.extra));
       if (!passedOver.length) continue;
       seen++;
       const said = focusPassed(s.report);

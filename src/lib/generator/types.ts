@@ -47,7 +47,7 @@ export type GeneratorDeps = {
   focusCandidates?: readonly Candidate[];
   /** PLAN 3.6g: sure lifts outside the ladders that a focus pick may be served with (approved on this phone), with the gear each needs. */
   focusLifts?: () => readonly Candidate[];
-  focusFacts?: (id: string, profile: Profile) => { muscles: string[]; picks: FocusPickId[] };
+  focusFacts?: (id: string, profile: Profile) => { muscles: string[]; picks: FocusPickId[]; also?: FocusPickId[] };
   /** The ordering profile of an exercise id (data/order.ts profileFor). */
   profile: (id: string) => Profile;
   /** The plain name of an exercise id. */
