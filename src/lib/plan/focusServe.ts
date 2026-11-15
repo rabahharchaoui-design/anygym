@@ -152,19 +152,26 @@ const FILL_SLACK = 2;
  * still short of the choice is built up with work no pick asks for and that trains no focused
  * muscle (so every focus number stays what it was): a set on its small moves, then on its big
  * lifts, then a small move for muscles the day already trains or that rest on the days around it.
+ * More is not better here either: the fill never takes any muscle past FOCUS_MUSCLE_MAX sets a
+ * week, and a small move the other days do not have yet comes first (never the same one every day).
  */
 export function fill(b: Board): void {
   const { days, input } = b;
-  const free = (m: FocusMove) => m.hard && !b.wanted(m) && !m.muscles.some((x) => b.focusedMuscles.has(x));
+  // Only moves whose muscles are sure: a move with none on record can be counted for no limit.
+  const free = (m: FocusMove) => m.hard && !b.wanted(m) && m.muscles.length > 0 && !m.muscles.some((x) => b.focusedMuscles.has(x));
+  // Counted the wide way: by the sure muscles and by what the 48 hour rule tracks (a plank has no muscle on record, but it is ab work).
+  const trains = (m: FocusMove, x: string) => m.hard && (m.muscles.includes(x) || !!m.recovery?.includes(x));
+  const room = (m: FocusMove, sets: number) => [...m.muscles, ...(m.recovery ?? [])].every((x) => days.flat().reduce((n, o) => n + (trains(o, x) ? o.sets : 0), 0) + sets <= FOCUS_MUSCLE_MAX);
+  const used = (c: FocusMove) => days.filter((d) => d.some((x) => x.key === c.key)).length;
   for (const [i, day] of days.entries()) {
     for (let guard = 0; guard < 40 && b.slack(i) > FILL_SLACK; guard++) {
-      const grown = [...day].reverse().sort((x, y) => Number(x.compound) - Number(y.compound)).find((m) => free(m) && m.sets < input.cap && b.accepts(i, () => m.sets++, () => m.sets--));
+      const grown = [...day].reverse().sort((x, y) => Number(x.compound) - Number(y.compound)).find((m) => free(m) && m.sets < input.cap && room(m, 1) && b.accepts(i, () => m.sets++, () => m.sets--));
       if (grown) continue;
       if (b.lifts(day) >= b.maxMoves) break;
-      const small = (input.candidates[i] ?? []).filter((c) => free(c) && !c.compound && !day.some((x) => x.key === c.key) && b.rested(i, c));
+      const small = (input.candidates[i] ?? []).filter((c) => free(c) && !c.compound && room(c, 2) && !day.some((x) => x.key === c.key) && b.rested(i, c)).sort((x, y) => used(x) - used(y));
       // A muscle no small move of the day trains yet first: the day gets wider before it gets deeper.
       const fresh = small.find((c) => !day.some((x) => x.hard && !x.compound && x.muscles.some((s) => c.muscles.includes(s)))) ?? small[0];
-      if (!fresh || ![Math.min(3, input.cap), 2].some((n) => b.accepts(i, () => day.push({ ...fresh, sets: n }), () => { day.pop(); }))) break;
+      if (!fresh || ![Math.min(3, input.cap), 2].some((n) => room(fresh, n) && b.accepts(i, () => day.push({ ...fresh, sets: n }), () => { day.pop(); }))) break;
     }
   }
 }
