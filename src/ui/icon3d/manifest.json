@@ -1,0 +1,225 @@
+{
+  "goal-muscle": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6094,
+    "avif": 3255
+  },
+  "goal-strength": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 8468,
+    "avif": 4259
+  },
+  "goal-fat_loss": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 7078,
+    "avif": 4269
+  },
+  "goal-tone": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5684,
+    "avif": 3227
+  },
+  "goal-health": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6502,
+    "avif": 3368
+  },
+  "goal-athletic": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5744,
+    "avif": 3245
+  },
+  "goal-race": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6926,
+    "avif": 3483
+  },
+  "goal-comeback": {
+    "group": "goal",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 8722,
+    "avif": 4667
+  },
+  "place-full": {
+    "group": "place",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 11710,
+    "avif": 5418
+  },
+  "place-hotel": {
+    "group": "place",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6370,
+    "avif": 3456
+  },
+  "place-home": {
+    "group": "place",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6624,
+    "avif": 3491
+  },
+  "place-outdoors": {
+    "group": "place",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 11586,
+    "avif": 5858
+  },
+  "place-mix": {
+    "group": "place",
+    "path": "",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 7942,
+    "avif": 4590
+  },
+  "style-circuit": {
+    "group": "style",
+    "path": "",
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 10012,
+    "avif": 5231
+  },
+  "style-pump": {
+    "group": "style",
+    "path": "",
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 9840,
+    "avif": 4995
+  },
+  "style-strength": {
+    "group": "style",
+    "path": "",
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 7370,
+    "avif": 3641
+  },
+  "style-cardioCore": {
+    "group": "style",
+    "path": "",
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 5616,
+    "avif": 2933
+  },
+  "style-mobility": {
+    "group": "style",
+    "path": "",
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 4990,
+    "avif": 3004
+  },
+  "style-armsAbs": {
+    "group": "style",
+    "path": "",
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 5986,
+    "avif": 3131
+  },
+  "style-easy": {
+    "group": "style",
+    "path": "",
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 5706,
+    "avif": 2984
+  },
+  "run-first5k": {
+    "group": "run",
+    "path": "later/",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5416,
+    "avif": 3038
+  },
+  "run-faster5k": {
+    "group": "run",
+    "path": "later/",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5648,
+    "avif": 3026
+  },
+  "run-first10k": {
+    "group": "run",
+    "path": "later/",
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6392,
+    "avif": 3461
+  },
+  "passport-paper": {
+    "group": "passport",
+    "path": "later/",
+    "width": 786,
+    "height": 1053,
+    "webp": 94320,
+    "avif": 62387
+  },
+  "passport-ink": {
+    "group": "passport",
+    "path": "later/",
+    "width": 640,
+    "height": 640,
+    "webp": 109520,
+    "avif": 100415
+  }
+}
