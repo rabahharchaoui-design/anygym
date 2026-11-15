@@ -53,8 +53,8 @@ export const STRETCH_NO_ROOM = 'No room for a stretch block in these sessions ye
 /** PLAN 3.6g: the label over a plan day's stretch block, with its minutes (lib/plans.ts stretchMinutes). */
 export const stretchBlockLabel = (min: number): string => `Stretches · ${minutes(min)}, back to back`;
 
-/** The caption over the reveal's rows: the period is said once, never on every row. */
-export const focusCaption = (period: string): string => `Sets ${period}`;
+/** The caption over the reveal's rows: the period is said once, never on every row. Mobility alone has minutes, never sets. */
+export const focusCaption = (period: string, priorities?: readonly FocusResult[]): string => `${priorities?.length && priorities.every((p) => p.id === 'mobility') ? 'Stretch time' : 'Sets'} ${period}`;
 
 export type FocusRow = {
   name: string;

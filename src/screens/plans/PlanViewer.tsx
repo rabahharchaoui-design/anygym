@@ -141,9 +141,10 @@ export function PlanViewer() {
         <section key={d.n} className={styles.day} aria-label={dayTitle(d.n, d.name)}>
           <header className={styles.dayHead}>
             <h2 className={styles.dayTitle}>{dayTitle(d.n, d.name)}</h2>
-            {d.focusWhy?.slice(0, 1).map((line) => <p key={line} className={styles.viewerSummary}>{line}</p>)}
             <span className={`${styles.dayTime} num`}>~{estimateDayMinutes(d, weekIndex)} min</span>
           </header>
+          {/* The day's why sits under its title on its own line: beside it, the title was squeezed into three lines (PLAN 3.6g). */}
+          {d.focusWhy?.slice(0, 1).map((line) => <p key={line} className={styles.addOn} data-testid={`plan-day-why-${d.n}`}>{line}</p>)}
           {d.addOn && <p className={styles.addOn}>Plus {d.addOn.toLowerCase()}</p>}
           <PlanDayList day={d} weekIndex={weekIndex} />
           {d.finisher && (

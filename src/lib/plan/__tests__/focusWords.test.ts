@@ -72,6 +72,9 @@ describe('focus words (PLAN 3.6f round 2: one meaning for the numbers)', () => {
   it('the reveal row says the same facts in pieces: name, number, a quiet state, and more only when there is more (design round 2)', () => {
     expect(focusCaption('every 4 workouts')).toBe('Sets every 4 workouts');
     expect(focusCaption('a week')).toBe('Sets a week');
+    // PLAN 3.6g: Mobility alone has minutes, never sets; beside a ranked pick the caption stays.
+    expect(focusCaption('every 3 workouts', [p('mobility', { requested: 0, minutes: 22, session: 8 })])).toBe('Stretch time every 3 workouts');
+    expect(focusCaption('a week', [p('lats', { extra: 4, total: 12 }), p('mobility', { requested: 0, minutes: 22, session: 8 })])).toBe('Sets a week');
     expect(focusRow(p('lats', { extra: 6, total: 18 }))).toEqual({ name: 'Lats', amount: '18 sets', tag: '+6 extra', detail: null });
     expect(focusRow(p('calves', { extra: 1, total: 1 }))).toEqual({ name: 'Calves', amount: '1 set', tag: '+1 extra', detail: null });
     // No extra: plenty when a muscle is at the limit, else honestly none yet. Never a zero.

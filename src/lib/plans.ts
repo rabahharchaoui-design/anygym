@@ -243,7 +243,8 @@ const span = (v: PlanReps): string => (typeof v === 'number' ? `${v}` : `${v[0]}
 function secSpan(v: PlanReps): string {
   const [lo, hi] = typeof v === 'number' ? [v, v] : v;
   if (lo >= 120 && lo % 60 === 0 && hi % 60 === 0) return `${lo === hi ? lo / 60 : `${lo / 60} to ${hi / 60}`} min`;
-  return `${span(v)} sec`;
+  // A range with equal ends is one number (a stretch block's hold): "80 sec", never "80 to 80 sec".
+  return `${lo === hi ? lo : span(v)} sec`;
 }
 
 /** "8 to 12 reps", "20 reps each side", "45 sec", "60 to 90 sec", or '' when the plan says nothing. */

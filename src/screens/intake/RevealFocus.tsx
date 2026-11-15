@@ -37,7 +37,7 @@ export function RevealFocus({ report, period, fit, weekdays, onApply }: Props) {
           {summary}
         </p>
       )}
-      <p className={styles.focusCaption}>{focusCaption(period)}</p>
+      <p className={styles.focusCaption}>{focusCaption(period, report.priorities)}</p>
       <ul className={styles.focusList}>
         {focusRowOrder(report.priorities).map((p) => {
           const row = focusRow(p);
