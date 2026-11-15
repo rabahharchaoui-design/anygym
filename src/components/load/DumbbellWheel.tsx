@@ -34,6 +34,8 @@ type Props = {
 /** Item pitch in px. The wheel pads half the track on each side so every item can sit centered. */
 const ITEM = 68;
 const SETTLE_MS = 110;
+/** The longest a glide to a tapped weight is waited for (a very busy phone), then the wheel is the user's again. */
+const GLIDE_MAX_MS = 1500;
 
 /** Dumbbell wheel (SPEC 5.2): a horizontal snapping wheel over the gym's dumbbell range. */
 /** SPEC 13.6 labels: plain words, one helper line. */
@@ -81,6 +83,8 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
   const settleTimer = useRef<number>(undefined);
   /** Set while we scroll on purpose (mount, tap) so the settle handler does not pick for the user. */
   const programmatic = useRef(false);
+  /** Where our own scroll is heading (px), so a slow frame in the middle of a glide is not taken for its end. */
+  const heading = useRef<number | null>(null);
   /** Mouse drag (desktop, tests): touch scrolls natively, a mouse grabs and drags the wheel. */
   const drag = useRef<{ id: number; x: number; left: number; moved: boolean } | null>(null);
   const dragged = useRef(false);
@@ -93,6 +97,7 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
     const left = i * ITEM;
     if (Math.abs(el.scrollLeft - left) < 1) return;
     programmatic.current = true;
+    heading.current = left;
     el.scrollTo({ left, behavior: smooth && !reduce ? 'smooth' : 'auto' });
   };
 
@@ -144,13 +149,23 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
       pick(i, true);
     }
     window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(() => {
+    let waited = 0;
+    const settle = () => {
       if (programmatic.current) {
+        // A busy phone can go quiet for longer than SETTLE_MS in the middle of the glide to the tapped
+        // weight. Only the arrival ends it, or the next scroll event would pick a weight on the way.
+        const el = trackRef.current;
+        if (el && heading.current !== null && Math.abs(el.scrollLeft - heading.current) > 1 && (waited += SETTLE_MS) < GLIDE_MAX_MS) {
+          settleTimer.current = window.setTimeout(settle, SETTLE_MS);
+          return;
+        }
         programmatic.current = false;
+        heading.current = null;
         return;
       }
       pick(i);
-    }, SETTLE_MS);
+    };
+    settleTimer.current = window.setTimeout(settle, SETTLE_MS);
   };
 
   const nearest = () => Math.min(weights.length - 1, Math.max(0, Math.round(trackRef.current!.scrollLeft / ITEM)));
@@ -158,6 +173,7 @@ function Wheel({ unit, range, list, mode, value, onChange, exerciseName = '', pl
   const onPointerDown = (e: PointerEvent) => {
     // A finger or mouse on the wheel: whatever scrolls from now on is the user's, never ours.
     programmatic.current = false;
+    heading.current = null;
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
     drag.current = { id: e.pointerId, x: e.clientX, left: trackRef.current!.scrollLeft, moved: false };
     dragged.current = false;
