@@ -41,7 +41,9 @@ describe('critic 1, then PLAN 3.6g2: a lower pick never comes out ahead of a hig
     strict(x.report);
     expect(x.report.priorities.map((p) => [p.held, p.heldBy])).toEqual([['room', undefined], ['room', undefined], ['rank', 'side_delts'], ['rank', 'side_delts'], ['rank', 'side_delts']]);
     // The words: exactly the pick with the most is "prioritized", and no pick is said to be ahead of one above it.
-    expect(x.fit!.line).toContain('we prioritized Lats.');
+    // PLAN 3.6g2: the fit line names the step with its numbers; who leads is the summary's to say.
+    expect(x.fit!.line).toMatch(/^Make it 60 min: Lats 10 to 12, /);
+    expect(x.summary).toBe('Most extra work: Lats.');
     expect(focusPassed(x.report)).toBeNull();
     expect(x.reason).toContain('extra lats work');
   });
@@ -49,7 +51,8 @@ describe('critic 1, then PLAN 3.6g2: a lower pick never comes out ahead of a hig
     const x = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['upper_chest', 'lats', 'side_delts', 'quads', 'biceps'] });
     expect(extras(x.report)).toEqual({ upper_chest: 4, lats: 0, side_delts: 0, quads: 0, biceps: 0 });
     strict(x.report);
-    expect(x.fit!.line).toContain('we prioritized Upper chest.');
+    expect(x.fit!.line).toMatch(/^Make it /);
+    expect(x.summary).toBe('Most extra work: Upper chest.');
     expect(focusPassed(x.report)).toBeNull();
     expect(x.reason).toContain('extra upper chest work');
   });
@@ -140,7 +143,8 @@ describe('every sentence about priority follows the final numbers (seeded intake
   });
   it('met every kind of sentence', () => {
     expect(seen.plans).toBeGreaterThan(300);
-    expect(seen.prioritized).toBeGreaterThan(20);
+    // PLAN 3.6g2: the fit line no longer says "we prioritized …" (it names the step with its numbers); who leads is said by the summary, counted under `most`.
+    expect(seen.prioritized).toBe(0);
     expect(seen.most).toBeGreaterThan(50);
     expect(seen.passed).toBeGreaterThan(20);
   });

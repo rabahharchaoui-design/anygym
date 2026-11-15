@@ -58,6 +58,29 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
 }
 
 /**
+ * PLAN 3.6g2, under 12 is said: the picks no step is offered for, one sentence for each reason the
+ * report gives. A pick under `floor` sets "stays under 12 sets" ("Upper chest and Glutes stay under
+ * 12 sets: extra work stops at 12 sets a week."); one that has them and is only short of its share
+ * "gets no extra" or "no more". A pick with no reason on record (a report saved before) is left
+ * out. Null when there is nothing to say.
+ */
+export function focusStayWords(picks: readonly FocusResult[], floor: number): string | null {
+  const groups = new Map<string, FocusResult[]>();
+  const kind = (p: FocusResult) => ((p.under ?? 0) > 0 ? 'under' : p.extra > 0 ? 'more' : 'none');
+  for (const p of picks) if (p.held && (p.held !== 'rank' || p.heldBy)) { const k = `${kind(p)}/${p.held}/${p.heldBy ?? ''}`; groups.set(k, [...(groups.get(k) ?? []), p]); }
+  const out = [...groups.values()].map((ps) => {
+    const one = ps.length === 1, p = ps[0]!;
+    const why = p.held === 'maxed' ? `${one ? 'its' : 'their'} exercises are at their most sets`
+      : p.held === 'budget' ? 'extra work stops at 12 sets a week'
+      : p.held === 'rank' ? `${one ? 'it gets' : 'they get'} no more than ${focusName(p.heldBy!)}, ranked above ${one ? 'it' : 'them'}`
+      : `${one ? 'its' : 'their'} days are full`;
+    const what = kind(p) === 'under' ? `${one ? 'stays' : 'stay'} under ${floor} sets` : `${one ? 'gets' : 'get'} ${kind(p) === 'none' ? 'no extra' : 'no more'}`;
+    return `${list(ps.map((x) => focusName(x.id)))} ${what}: ${why}.`;
+  });
+  return out.length ? out.join(' ') : null;
+}
+
+/**
  * Mobility with no stretch block (truth pass, critic r3 3): a minute of stretching at the end of a
  * day is never presented as the pick delivered. One plain sentence, and the day cards stay quiet.
  */

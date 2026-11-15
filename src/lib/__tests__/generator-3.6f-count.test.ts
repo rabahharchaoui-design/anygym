@@ -9,6 +9,7 @@ import { profileFor } from '../../data/order';
 import { SWAP_DATA } from '../../data/patterns';
 import { equipmentPreset } from '../../db/gyms';
 import { focusFit } from '../intake/focusFit';
+import { checkFit } from './focusFitCheck36g2';
 import { focusName } from '../plan/focus';
 import { focusLine, focusPeriod, focusRow } from '../plan/focusWords';
 import { FOCUS_PARTS, FOCUS_PICKS, type ExperienceId, type FocusPickId, type GoalId } from '../intake/options';
@@ -258,10 +259,12 @@ function check(count: number, days: number, minutes: number, rep: number) {
   if (fit) {
     expect(fit.line.length).toBeGreaterThan(10);
     expect(fit.line).not.toContain('with your equipment');
-    expect(fit.line.includes('fit best with') || fit.line.includes('fits best with')).toBe(!!(fit.days || fit.minutes) && !fit.partial);
+    // PLAN 3.6g2: a step is named with its value and the rebuilt plan's numbers ("Make it 4 days: Side shoulders 6 to 12"); the whole line is checked against this plan and the rebuilt ones (focusFitCheck36g2.ts).
+    expect(fit.line.startsWith('Make it ')).toBe(!!(fit.days || fit.minutes));
+    checkFit(report, fit, (tap) => rebuilt({ days, minutes, ...tap })?.r.applied.focusReport, label);
     // Never "yet" as if it would change by itself (only "No exercises for … yet", which the app will add).
     expect(fit.line.replace(/No exercises for [^.]+ yet\./, '')).not.toContain('yet');
-    if (fit.partial) { tally.partial++; expect(fit.line).toMatch(/^With (\d days|\d+ min|\d days and \d+ min), .+ (gets?|get) (extra|more|its stretches)\./); expect(!!(fit.days || fit.minutes)).toBe(true); }
+    if (fit.partial) { tally.partial++; expect(fit.line).toMatch(/^Make it (\d days|\d+ min|\d days and \d+ min): .+( \d+ to \d+| gets its stretches)/); expect(!!(fit.days || fit.minutes)).toBe(true); }
     // FIX OFFERS ARE TRUE: applying the tap leaves no shortfall and no pick with fewer extra sets, counted on the rebuilt plans.
     const taps = fit.both ? [{ days: fit.days!, minutes: fit.minutes! }] : [...(fit.days ? [{ days: fit.days, minutes }] : []), ...(fit.minutes ? [{ days, minutes: fit.minutes }] : [])];
     for (const tap of taps) {
@@ -276,7 +279,10 @@ function check(count: number, days: number, minutes: number, rep: number) {
         // Nobody is left with less: sets a pick held past its own share were a bonus from room nobody else could use, so keeping the whole share is not less.
         expect(after, `${p.id} lost extra after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.min(extraOf(p.id), Math.max(1, p.requested)));
         // The best partial step (round 3) promises only what its line says: nobody lower, and the picks it names higher.
-        if (fit.partial) { if ((/^With [^,]+, (.+?) (?:gets?|get) (?:extra|more)\./.exec(fit.line)?.[1] ?? '').split(/, | and /).includes(focusName(p.id))) expect(after, `${p.id} named but not helped by ${JSON.stringify(tap)} ${label}`).toBeGreaterThan(extraOf(p.id)); continue; }
+        // PLAN 3.6g2: a pick the step's sentence names has more sets in the rebuilt plan, counted here on the plans.
+        const sentence = [...fit.line.matchAll(/(?:Or make|Make) it ([^:]+): ([^.]+)\./g)].find((x) => x[1] === [tap.days !== days ? `${tap.days} days` : null, tap.minutes !== minutes ? `${tap.minutes} min` : null].filter(Boolean).join(' and '))?.[2] ?? '';
+        if (new RegExp(`(^|, | and )${focusName(p.id)} \\d+ to \\d+`).test(sentence)) expect(setsFor(nm, SRC[p.id]!), `${p.id} named but not helped by ${JSON.stringify(tap)} ${label}`).toBeGreaterThan(totalOf(p.id));
+        if (fit.partial) continue;
         if (p.state === 'plenty' || p.state === 'no_move' || p.requested === 0) continue;
         expect(after, `${p.id} still short after ${JSON.stringify(tap)} ${label}`).toBeGreaterThanOrEqual(Math.max(1, p.requested - 1));
       }

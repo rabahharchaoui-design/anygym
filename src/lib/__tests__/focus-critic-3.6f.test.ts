@@ -5,6 +5,7 @@ import { definitionPlan } from '../../data/plans';
 import { equipmentPreset } from '../../db/gyms';
 import type { GeneratorInput } from '../generator';
 import { fixesFocus, focusFit, helpsFocus } from '../intake/focusFit';
+import { checkFit } from './focusFitCheck36g2';
 import type { FocusPickId } from '../intake/options';
 import { focusUnplaced } from '../plan/focus';
 import { estimateDayMinutes as estimate } from '../plans';
@@ -73,7 +74,9 @@ describe('critic BLOCKER 2 and MAJOR 10: the fit line and its taps are true', ()
     ranked(report);
     expect(fit).not.toBeNull();
     const taps = fit!.both ? [{ days: fit!.days!, minutes: fit!.minutes! }] : [...(fit!.days ? [{ days: fit!.days, minutes: 30 }] : []), ...(fit!.minutes ? [{ days: 3, minutes: fit!.minutes }] : [])];
-    expect(fit!.line.includes('fit best with')).toBe(taps.length > 0 && !fit!.partial);
+    // PLAN 3.6g2: the step is named with its numbers ("Make it 45 min: Side shoulders 2 to 5 …"), and the whole line is checked against the rebuilt plans.
+    expect(fit!.line.startsWith('Make it ')).toBe(taps.length > 0);
+    checkFit(report, fit, (tap) => { const x = generate({ ...input, ...tap }); return x.ok ? x.applied.focusReport : undefined; }, 'five picks at 3 days, 30 min');
     for (const tap of taps) {
       const next = generate({ ...input, ...tap });
       // A full fix leaves no shortfall; the best partial step (round 3, critic 8) helps the picks it names and lowers nobody.
@@ -81,8 +84,8 @@ describe('critic BLOCKER 2 and MAJOR 10: the fit line and its taps are true', ()
       if (!fit!.partial) expect(next.ok && fixesFocus(report, next.applied.focusReport)).toBe(true);
       if (fit!.partial) expect(next.ok ? helpsFocus(report, next.applied.focusReport).length : 0).toBeGreaterThan(0);
     }
-    if (fit!.partial) expect(fit!.line).toMatch(/^With (\d days|\d+ min|\d days and \d+ min), .+ (gets?|get) (extra|more)\./);
-    if (!taps.length) expect(fit!.line).toMatch(/^(Another day or more minutes would not add extra work for .+\.|This is all the extra work \d days of \d+ min can hold\.)/);
+    if (fit!.partial) expect(fit!.line).toMatch(/^Make it (\d days|\d+ min|\d days and \d+ min): .+ \d+ to \d+/);
+    if (!taps.length) expect(fit!.line).toMatch(/(stays?|gets?) (under 12 sets|no extra|no more): /);
   });
   it('Chest, Back, Shoulders, Arms at 3 days, 45 min: Add a day is not offered, because with 4 days Chest would lose its extra', () => {
     const three = build(3, 45, ['chest', 'back', 'shoulders', 'arms']);
@@ -96,7 +99,7 @@ describe('critic BLOCKER 2 and MAJOR 10: the fit line and its taps are true', ()
     expect(fit!.line).toContain('No exercises for grip, forearms or obliques yet.');
     expect(fit!.line).not.toContain('equipment');
     expect(lines[0]).toMatch(/^Mobility: (\d+ min of stretches every 2 workouts|no room for a stretch block in these sessions yet)$/);
-    if (fit!.minutes) expect(fit!.line).toContain('fit best with');
+    if (fit!.minutes) expect(fit!.line).toContain(`Make it ${fit!.both ? `${fit!.days} days and ` : ''}${fit!.minutes} min: `);
   });
 });
 
@@ -137,11 +140,13 @@ describe('round 3: the second critique\'s own cases (Nov 14), through the real g
     expect(report.priorities.reduce((n, p) => n + p.extra, 0)).toBeGreaterThanOrEqual(4);
     expect(report.priorities.filter((p) => p.extra >= 2).map((p) => p.id)).toEqual(['lats']);
     expect(report.priorities.slice(1).map((p) => p.held)).toEqual(['room', 'rank', 'rank', 'rank']);
-    expect(fit).toMatchObject({ days: 5, minutes: 60, named: true });
-    expect(fit!.line).toContain('we prioritized Lats.');
+    expect(fit).toMatchObject({ days: 5, minutes: 60, labels: { days: 'Make it 5 days', minutes: 'Make it 60 min' } });
+    expect(fit!.line).toMatch(/^Make it 60 min: Lats 10 to 12, Upper chest 4 to 6, .+ Or make it 5 days: Lats 10 to 15, Upper chest 4 to 6, /);
     for (const step of [build(5, 45, ['lats', 'upper_chest', 'side_delts', 'quads', 'biceps']), build(4, 60, ['lats', 'upper_chest', 'side_delts', 'quads', 'biceps'])]) {
       expect(step.report.priorities.every((p) => p.extra >= 1)).toBe(true);
-      expect(step.fit).toBeNull();
+      // PLAN 3.6g2: picks still under 12 sets after the step are said (the budget of 12 is used), so the line is not empty; it is true of that plan.
+      checkFit(step.report, step.fit, (tap) => { const x = generate({ ...step.input, ...tap }); return x.ok ? x.applied.focusReport : undefined; }, 'after the step');
+      expect(step.fit!.line).toMatch(/under 12 sets: /);
     }
     expect(fit!.line).not.toContain('yet');
   });

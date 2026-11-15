@@ -68,7 +68,9 @@ describe('critic 3: Mobility only, 3 days, every minutes choice', () => {
       expect(focusLine(x.mobility, 'every 3 workouts')).toEqual(['Mobility', 'no room for a stretch block in these sessions yet']);
       for (const d of x.plan.days) expect(d.focusWhy ?? []).toEqual([]);
       // No box blames the minutes ("too short"). The one step offered is the one that really brings the block.
-      expect(x.fit?.line).toMatch(/^Mobility fits best with \d+ min\.$/);
+      // PLAN 3.6g2: named with its value, and on the button ("Make it 45 min").
+      expect(x.fit?.line).toMatch(/^Make it \d+ min: Mobility gets its stretches\.( Or make it \d days: Mobility gets its stretches\.)?$/);
+      expect(x.fit!.labels!.minutes).toBe(`Make it ${x.fit!.minutes} min`);
       const after = reveal({ ...base, days: 3, minutes: x.fit!.minutes!, focusPicks: ['mobility'] });
       expect(stretchBlock(after.mobility)).toBe(true);
       expect(after.fit).toBeNull();
@@ -120,7 +122,8 @@ describe('critic 3: Mobility only, 3 days, every minutes choice', () => {
     if (x.fit) {
       expect(x.fit.line).not.toMatch(/Mobility|stretch/);
       const tap = { ...(x.fit.days ? { days: x.fit.days } : {}), ...(x.fit.minutes && (x.fit.both || !x.fit.days) ? { minutes: x.fit.minutes } : {}) };
-      if (x.fit.days || x.fit.minutes) { const after = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts', 'mobility'], ...tap }); expect(after.fit?.days ?? after.fit?.minutes).toBeUndefined(); }
+      // PLAN 3.6g2: a pick still under 12 after the step is said again, so the plan may offer a further step; never one for Mobility.
+      if (x.fit.days || x.fit.minutes) { const after = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts', 'mobility'], ...tap }); expect(after.fit?.line ?? '').not.toMatch(/Mobility|stretch/); }
     }
   });
 });
