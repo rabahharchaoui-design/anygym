@@ -67,7 +67,7 @@ export function dayWorkout(plan: Plan, dayIndex: number, weekIndex = 0): Workout
         pairSize: b.items.length,
         sets: t.sets,
         restSec: blockRest(b),
-        setsText: setsText(t),
+        setsText: setsText(t, false, b.mobility === true),
         line: itemLine(b, it, weekIndex),
         amount: amountText(t, it.eachSide),
       };
@@ -124,9 +124,10 @@ export function targetSecondsOf(e: Pick<WorkoutEntry, 'seconds'>): number | unde
   return e.seconds === undefined ? undefined : typeof e.seconds === 'number' ? e.seconds : e.seconds[0];
 }
 
-/** "Set 1 of 4 · 8 to 12 reps", "Round 2 of 10 · 30 sec"; past the plan's sets just "Set 5". */
-export function setLine(e: Pick<WorkoutEntry, 'sets' | 'amount' | 'rounds'>, setNumber: number): string {
-  const word = e.rounds ? 'Round' : 'Set';
+/** "Set 1 of 4 · 8 to 12 reps", "Round 2 of 10 · 30 sec", "Side 1 of 2 · 80 sec"; past the plan's sets just "Set 5". */
+export function setLine(e: Pick<WorkoutEntry, 'sets' | 'amount' | 'rounds' | 'mobility'>, setNumber: number): string {
+  // PLAN 3.6g2: the two holds of a stretch in the stretch block are its two sides.
+  const word = e.rounds ? 'Round' : e.mobility && e.sets === 2 && setNumber <= 2 ? 'Side' : 'Set';
   if (setNumber > e.sets) return `${word} ${setNumber}`;
   return e.amount ? `${word} ${setNumber} of ${e.sets} · ${e.amount}` : `${word} ${setNumber} of ${e.sets}`;
 }

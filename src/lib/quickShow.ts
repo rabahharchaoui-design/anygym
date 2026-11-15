@@ -111,10 +111,11 @@ export function mainMuscles(items: readonly Pick<QuickItem, 'id' | 'sets'>[], de
  * and the one estimate). 3.5b round 4 (M9, SPEC 13.1): one vocabulary on every card and the day
  * list: a superset is a "pair", a circuit is counted in "rounds" (never "1 circuit").
  */
-export function metaLine(items: readonly Pick<QuickItem, 'group' | 'sets'>[], minutes: number): string {
+export function metaLine(items: readonly Pick<QuickItem, 'group' | 'sets'>[], minutes: number, stretchBlock = false): string {
   const n = items.length;
   const st = structureOf(items);
-  const parts = [`${n} ${n === 1 ? 'exercise' : 'exercises'}`];
+  // PLAN 3.6g2: a plan day that ends with a stretch block counts it: "6 exercises and a stretch block".
+  const parts = [`${n} ${n === 1 ? 'exercise' : 'exercises'}${stretchBlock ? ' and a stretch block' : ''}`];
   const rounds = roundsOf(items);
   if (rounds) parts.push(`${rounds} ${rounds === 1 ? 'round' : 'rounds'}`);
   if (st.supersets) parts.push(`${st.supersets} ${st.supersets === 1 ? 'pair' : 'pairs'}`);

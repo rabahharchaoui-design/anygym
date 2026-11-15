@@ -10,6 +10,10 @@ import { cap } from '../words';
 import { definitionPlan } from '../../data/plans';
 import { focusDayLine } from '../plan/focusWords';
 import { samples } from './focusMeasure36g';
+import { QUICK_DEPS } from '../../data/quick';
+import { itemLine } from '../plans';
+import { dayWorkout, setLine } from '../planWorkout';
+import { metaLine, previewConcept } from '../quick';
 
 // A heavy test file (the seeded plans are built once, then each rebuilt to read its day lines); an explicit limit sized for the GitHub runner, never a retry.
 viTimeout.setConfig({ testTimeout: 240_000 });
@@ -62,5 +66,45 @@ describe('day cards never say "and more"', () => {
     expect(lines).toBeGreaterThan(1000);
     // About 45 characters fit a line of the day card at 320 pt: the fullest day's line (five adds) is three lines there, most are one or two.
     expect(longest.length, longest).toBeLessThanOrEqual(140);
+  });
+});
+
+describe('the stretch block reads as stretches, and the preview counts it', () => {
+  const gym = equipmentPreset('full', 'lb');
+  const input: GeneratorInput = { goals: ['muscle'], experience: '3y', days: 3, minutes: 45, focusPicks: ['mobility'], scheduleStyle: 'flexible', gym };
+  const r = generate(input);
+  if (!r.ok) throw new Error(r.reason);
+  const plan = definitionPlan(r.plan)!;
+  const at = plan.days.findIndex((d) => d.blocks.some((b) => b.mobility));
+  const day = plan.days[at]!, block = day.blocks.find((b) => b.mobility)!;
+  it('the critic\'s plan (Mobility on 3 days of 45 min, "2 sets × 80 sec"): each stretch says its hold for each side, in the plan and in the workout', () => {
+    expect(block.sets).toBe(2);
+    for (const it of block.items) {
+      expect(itemLine(block, it, 0, false)).toMatch(/^\d+ sec each side$/);
+      expect(itemLine(block, it, 0, false)).not.toMatch(/sets?|×/);
+    }
+    const entries = dayWorkout(plan, at, 0).filter((e) => e.mobility);
+    expect(entries).toHaveLength(block.items.length);
+    for (const e of entries) {
+      expect(e.setsText).toMatch(/^\d+ sec each side$/);
+      expect(e.line).toBe(e.setsText);
+      expect(setLine(e, 1)).toBe(`Side 1 of 2 · ${e.amount}`);
+      expect(setLine(e, 2)).toBe(`Side 2 of 2 · ${e.amount}`);
+    }
+    // The two holds of the three stretches are the block's minutes: nothing about the time changed.
+    expect(entries.reduce((n, e) => n + 2 * Number(/^(\d+) sec/.exec(e.setsText)![1]), 0) / 60).toBeGreaterThanOrEqual(5);
+    // A lift keeps its lifting words, and a lone hold its own.
+    const lift = day.blocks.find((b) => !b.mobility && !b.warmup)!;
+    expect(itemLine(lift, lift.items[0]!, 0)).toMatch(/^\d sets × /);
+  });
+  it('the preview of that day counts the block ("6 exercises and a stretch block") and lists it last; a day with no block says only its exercises', () => {
+    const concept = previewConcept({ plan, dayIndex: at, weekIndex: 0, gym: { equipment: gym.equipment, dumbbellRange: gym.dumbbellRange }, trim: null }, QUICK_DEPS)!;
+    expect(concept.stretchBlock?.minutes).toBeGreaterThanOrEqual(5);
+    expect(metaLine(concept.items, concept.minutes, !!concept.stretchBlock)).toMatch(new RegExp(`^${concept.items.length} exercises and a stretch block · `));
+    const none = generate({ ...input, focusPicks: ['lats'] });
+    if (!none.ok) throw new Error(none.reason);
+    const plain = previewConcept({ plan: definitionPlan(none.plan)!, dayIndex: 0, weekIndex: 0, gym: { equipment: gym.equipment, dumbbellRange: gym.dumbbellRange }, trim: null }, QUICK_DEPS)!;
+    expect(plain.stretchBlock).toBeUndefined();
+    expect(metaLine(plain.items, plain.minutes, !!plain.stretchBlock)).toMatch(/^\d+ exercises · /);
   });
 });

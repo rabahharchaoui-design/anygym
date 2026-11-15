@@ -4,6 +4,7 @@ import { BottomCTA } from '../../ui/BottomCTA';
 import { UndoIcon } from '../../ui/icons';
 import { demoFor } from '../../data/exerciseInfo';
 import { conceptMinutes, metaLine, warmUpLine, type QuickItem } from '../../lib/quick';
+import { stretchBlockLabel } from '../../lib/plan/focusWords';
 import { detailRows } from '../../lib/quickNotes';
 import { FactSheet, HideAskSheet, SixSheet, type Fact } from '../../components/deck/CurateSheets';
 import curate from '../../components/deck/Curate.module.css';
@@ -70,7 +71,7 @@ export function CurateStage({ deck, reduced, error, onBack, onStart, preview }: 
         <div className={styles.deckHeadText}>
           <h1 className={styles.deckTitle}>{done ? 'Ready to go' : (preview?.title ?? stage.concept.title)}</h1>
           <p className={`${styles.deckMeta} num`} data-testid="curate-meta">
-            {metaLine(stage.items, total)}
+            {metaLine(stage.items, total, !!stage.concept.stretchBlock)}
           </p>
         </div>
         {!done && (
@@ -95,6 +96,13 @@ export function CurateStage({ deck, reduced, error, onBack, onStart, preview }: 
               <span className={`${styles.readySets} num`} data-testid="ready-sets">{itemLine(it)}</span>
             </li>
           ))}
+          {/* PLAN 3.6g2: and ends with the stretch block; the list says so last. */}
+          {stage.concept.stretchBlock && (
+            <li className={styles.readyRow} data-warmup="" data-testid="ready-stretches">
+              <span className={styles.readyName}>{stretchBlockLabel(stage.concept.stretchBlock.minutes)}</span>
+              <span className={`${styles.readySets} num`}>Last</span>
+            </li>
+          )}
         </ol>
       ) : (
         <>
