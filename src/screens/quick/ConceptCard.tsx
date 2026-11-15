@@ -5,14 +5,18 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { workoutMuscles } from '../../data/quick';
 import { cardKey, countLine, type Concept } from '../../lib/quick';
 import { MiniMusclePair } from '../../components/muscles/MuscleMap';
+import { Icon3D } from '../../ui/icon3d/Icon3D';
 import { InfoIcon } from '../../ui/icons';
 import { DUR } from '../../ui/motion';
 import { IdeaSheet } from './IdeaSheet';
+import { styleIcon } from './styleIcons';
 import styles from './ConceptCard.module.css';
 
 export function ConceptCard({ concept, onPick, entering, flash, label, reduced }: { concept: Concept; onPick: () => void; entering: boolean; flash: boolean; label: string; reduced: boolean }) {
   const muscles = useMemo(() => workoutMuscles(concept.items.map((it) => it.id)), [concept]);
   const [info, setInfo] = useState(false);
+  // PLAN 3.6i: a style card carries its 3D icon (decoration: the title names the style). Other cards have none.
+  const line = styleIcon(concept.id);
   // PLAN 3.5w: the press shows even on the quickest tap: it holds for a beat after the finger lifts
   // (motion.ts DUR.press), so the card is seen answering before it grows into the deck.
   const [pressed, setPressed] = useState(false);
@@ -46,6 +50,7 @@ export function ConceptCard({ concept, onPick, entering, flash, label, reduced }
         data-testid="concept-pick"
       >
         <span className={styles.conceptText}>
+          {line && <Icon3D name={`style-${concept.id}`} fallback={line} className={styles.conceptArt} />}
           <span className={styles.conceptTitle} data-testid="concept-title">
             {label}
           </span>

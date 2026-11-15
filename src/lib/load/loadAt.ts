@@ -6,7 +6,7 @@ import { barbellLoad, bodyweightLoad, dumbbellLoad, heldWeightOf, plateMachineLo
 import type { LoadSetup } from './setup';
 import { solvePlates, type SolveOptions } from './solver';
 import { isStackPin } from './stack';
-import { sumLoad } from './sum';
+import { sameHorns, sumLoad } from './sum';
 
 export const plateOpts = (kind: Load['kind'], s: LoadSetup, base: number): SolveOptions => ({
   bar: base,
@@ -46,15 +46,15 @@ export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 
 }
 
 /** Why an earlier load cannot be copied exactly here (copyLoad), in the words the toast uses. */
-export type CopyRefusal = 'unit' | 'kind' | 'base' | 'inexact';
+export type CopyRefusal = 'unit' | 'kind' | 'base' | 'inexact' | 'horns';
 
 /**
  * LAST TIME copy (PLAN 1.7j, SPEC 21.1): the earlier set's TOTAL made again on today's equipment
  * (today's bar or starting weight, collars, plates, dumbbells, stack step), never a silently
  * different total. The earlier plates are kept when they still make that total; otherwise the
  * total is solved again (135 lb on a 35 lb bar → 50 per side). `barId` is today's bar. Refused
- * (with the reason) when the unit or load kind differ, the base weight is unknown, or no exact
- * loading exists here.
+ * (with the reason) when the unit or load kind differ, the base weight is unknown, a plate machine
+ * was counted on another number of sides (PLAN 3.6h2), or no exact loading exists here.
  */
 export function copyLoad(prev: Load, kind: Load['kind'], s: LoadSetup, barId?: BarId): { load: Load } | { load: null; why: CopyRefusal } {
   if (prev.kind !== kind) return { load: null, why: 'kind' };
@@ -68,6 +68,8 @@ export function copyLoad(prev: Load, kind: Load['kind'], s: LoadSetup, barId?: B
     case 'barbell':
     case 'plate_machine': {
       if (s.base === null) return { load: null, why: 'base' };
+      // Counted on another number of sides (PLAN 3.6h2): that total is not the same lift here.
+      if (!sameHorns(prev, s)) return { load: null, why: 'horns' };
       const collars = kind === 'barbell' ? s.collars : 'none';
       const own = prev.perSide && prev.perSide.every((w) => s.plates.includes(w)) ? prev.perSide : null;
       let perSide: number[] | null = null;

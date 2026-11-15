@@ -69,9 +69,9 @@ describe('old loads read exactly as saved', () => {
     expect(otherOf(load)).toBe(0);
     expect(collarsOf({ ...load, collars: undefined })).toBe(0);
     expect(copyLoad(load, 'plate_machine', one(lb))).toEqual({ load });
-    // On a two horn machine the same 45 lb total is made again, 22.5 a side (the total never changes).
-    expect(copyLoad(load, 'plate_machine', lb)).toEqual({ load: { kind: 'plate_machine', unit: 'lb', total: 45, barWeight: 0, perSide: [10, 10, 2.5], collars: 0 } });
-    expect(copyLoad(load, 'plate_machine', { ...lb, plates: [45] })).toEqual({ load: null, why: 'inexact' });
+    // PLAN 3.6h2: on a machine counted on both sides the one side total is not the same lift: refused.
+    expect(copyLoad(load, 'plate_machine', lb)).toEqual({ load: null, why: 'horns' });
+    expect(copyLoad(load, 'plate_machine', { ...one(lb), plates: [25] })).toEqual({ load: null, why: 'inexact' });
   });
 });
 

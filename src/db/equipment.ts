@@ -49,6 +49,22 @@ export async function setEquipmentWeight(
   });
 }
 
+/**
+ * The answer to "Does this machine load on one side or both?" for one plate machine at one gym
+ * (PLAN 3.6h2), returned with the updated gym. Only this machine's answer changes; every saved set
+ * keeps its own snapshot (Load.horns), so nothing logged before is ever rewritten.
+ */
+export async function setMachineHorns(gymId: string, machineId: string, horns: 1 | 2, db: AnyGymDB = defaultDb): Promise<Gym> {
+  if (!machineId || (horns !== 1 && horns !== 2)) throw new Error('Invalid machine sides');
+  return db.transaction('rw', db.gyms, async () => {
+    const gym = await db.gyms.get(gymId);
+    if (!gym) throw new Error('Gym not found');
+    const next: Gym = { ...gym, machineHorns: { ...gym.machineHorns, [machineId]: horns } };
+    await db.gyms.put(next);
+    return next;
+  });
+}
+
 /** Colored (IWF) plates or plain black plates in the plate drawings, per gym (Settings). */
 export async function setPlateColors(gymId: string, mode: PlateColors, db: AnyGymDB = defaultDb): Promise<Gym> {
   if (mode !== 'black' && mode !== 'color') throw new Error('Invalid plate colors');

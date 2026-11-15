@@ -60,7 +60,7 @@ export function stepBody(step: Exclude<ScreenId, 'reveal' | 'noPlan'> | ScreenId
     const screen = step as AnswerId;
     return (
       <>
-        <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => h.pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} />
+        <SingleChoice options={SINGLE_OPTIONS[step]!} value={answers[ANSWER_KEY[screen]] as string | number | undefined} onPick={(id) => h.pickAndGo(screen, id)} pulse={pulse} testId={`q-${step}`} art={step === 'place' ? 'place' : undefined} />
         {PLANS_HINT[step] && (
           <p className={fieldStyles.fieldHint} data-testid="plans-hint">
             {PLANS_HINT[step]}

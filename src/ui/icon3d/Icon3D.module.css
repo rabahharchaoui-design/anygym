@@ -1,0 +1,68 @@
+/* PLAN 3.6i: a 3D icon in its slot. The slot is a square the caller sizes (width or height, the
+   other follows); the line icon and the picture share it, one over the other, so the swap moves
+   nothing. The picture sits on the glass with a soft shadow under it and a faint ice light. */
+.slot {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  /* Never wider or taller than the room its parent gives. */
+  min-width: 0;
+  min-height: 0;
+}
+
+.line {
+  grid-area: 1 / 1;
+  color: var(--text-2);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--black) 45%, transparent)) drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 14%, transparent));
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    filter var(--dur-fast) var(--ease-out);
+}
+
+/* The picture has decoded: it takes the line icon's place (a short crossfade, in place). */
+.slot[data-state='shown'] .img {
+  opacity: 1;
+}
+
+.slot[data-state='shown'] .line {
+  opacity: 0;
+}
+
+/* Picked (a pressed toggle round it): the ice light comes up, the same accent as the border. */
+[aria-pressed='true'] .img {
+  filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--black) 45%, transparent)) drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 42%, transparent));
+}
+
+[aria-pressed='true'] .line {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .img,
+  .line {
+    transition: none;
+  }
+}

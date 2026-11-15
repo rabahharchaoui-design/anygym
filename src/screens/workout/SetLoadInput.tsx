@@ -13,7 +13,8 @@ import base from '../../components/load/LoadInput.module.css';
 import type { BarId, Collars, Gym, Load } from '../../db/types';
 import { saveBarChoice } from '../../db/exerciseSettings';
 import { barForName } from '../../lib/loadTypeRule';
-import { barbellLoad, enabledPlates, fitsSleeve, formatWeight, sleeveOf } from '../../lib/load';
+import { barbellLoad, enabledPlates, fitsSleeve, formatWeight, sleeveOf, type Horns } from '../../lib/load';
+import { planExercise } from '../../data/planExercises';
 import type { Stopwatch } from '../../lib/timer';
 import { BarChoiceSheet } from './BarChoiceSheet';
 import { PlateMachineField } from './PlateMachineField';
@@ -49,6 +50,8 @@ type Props = {
   ownCollars?: Collars;
   /** Edit set: an older record's gap (load.ts otherOf), shown until the plates are changed. */
   ownOther?: number;
+  /** Edit set, plate machine: the sides the set was counted on (load.ts hornsOf), PLAN 3.6h2. */
+  ownHorns?: Horns;
   /** Tells the screen something went wrong (a toast), with an optional Try again. */
   onNotice?: (text: string, retry?: () => void) => void;
   /** Added weight pads (bodyweight, stack) open in their own sheet (SPEC 13.5, PLAN 1.10e). Default: compact. */
@@ -69,7 +72,7 @@ type Props = {
 };
 
 /** The SPEC 5.2 load input for an exercise's load type, on this gym's equipment. */
-export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, onNotice, padInSheet = compact, onPending, onTyped, dense, hints = true, drawingShare }: Props) {
+export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, onChange, plates, watch, onWatch, compact = false, targetSeconds, bar, ownBar, ownBarId, ownCollars, ownOther, ownHorns, onNotice, padInSheet = compact, onPending, onTyped, dense, hints = true, drawingShare }: Props) {
   switch (loadType) {
     case 'barbell':
       return (
@@ -115,6 +118,8 @@ export function SetLoadInput({ loadType, gym, exerciseId, exerciseName, value, o
         <PlateMachineField
           gym={gym}
           ownStart={ownBar}
+          ownHorns={ownHorns}
+          sureHorns={planExercise(exerciseId)?.horns}
           machineId={machineIdFor(exerciseId, exerciseName)}
           plates={plates ?? value?.perSide ?? []}
           onChange={onChange}

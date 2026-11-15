@@ -3,10 +3,13 @@
 import { useState } from 'react';
 import { PlateMachineInput } from '../../components/load/PlateMachineInput';
 import type { Gym, Load } from '../../db/types';
+import type { Horns } from '../../lib/load';
 
 export function PlateMachineField({
   gym,
   ownStart,
+  ownHorns,
+  sureHorns,
   machineId,
   plates,
   onChange,
@@ -17,6 +20,9 @@ export function PlateMachineField({
   gym: Gym;
   /** Edit set: the starting resistance the set was logged with (PLAN 1.7c), used for this edit. */
   ownStart?: number;
+  /** Edit set: the sides the set was counted on; the data's sure answer for this machine (PLAN 3.6h2). */
+  ownHorns?: Horns;
+  sureHorns?: Horns;
   machineId: string;
   plates: readonly number[];
   onChange: (l: Load | null, plates: number[]) => void;
@@ -31,6 +37,8 @@ export function PlateMachineField({
       drawingShare={drawingShare}
       gym={gym}
       ownStart={ownStart}
+      ownHorns={ownHorns}
+      sureHorns={sureHorns}
       machineId={machineId}
       perSide={perSide}
       compact={compact}
