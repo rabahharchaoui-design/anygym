@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { dbAll, dbPut, usePlan, watchErrors } from './workout-helpers';
-import { card, pastIntake, PROFILE, swipe } from './helpers/quick';
+import { card, keepCard, pastIntake, PROFILE, swipe } from './helpers/quick';
 
 // PLAN 3.5f round 3. B1: the deck draws from Replace's pool (one left on Dumbbell Bench Press in a
 // hotel gym brings another move; 3 lefts bring "Show me N" while a move is left). B2: the intake's
@@ -184,8 +184,7 @@ test.describe('3.5f round 3: the Preview is what you get', () => {
     await page.getByTestId('day-preview').tap();
     await expect(card(page)).toBeVisible();
     for (let guard = 0; guard < 20 && !(await page.getByTestId('ready-list').isVisible()); guard++) {
-      await page.getByTestId('deck-keep').tap();
-      await settle(page);
+      await keepCard(page);
     }
     await expect(page.getByTestId('ready-list')).toBeVisible();
     const warm = page.getByTestId('ready-warmup');
