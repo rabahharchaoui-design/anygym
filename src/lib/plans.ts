@@ -342,6 +342,9 @@ export function estimateDayMinutes(day: PlanDay, weekIndex = 0): number {
   return Math.round(sec / 60);
 }
 
+/** PLAN 3.6g: the minutes of holds in a stretch block (each stretch, every round). */
+export const stretchMinutes = (b: PlanBlock): number => Math.round(b.items.reduce((n, it) => n + (it.seconds !== undefined ? low(it.seconds) : 0), 0) * (b.sets ?? 1) / 60);
+
 // ---------------------------------------------------------------- where the plan is (planState)
 
 export type PlanPosition = {

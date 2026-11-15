@@ -7,8 +7,8 @@ import { focusFit } from '../intake/focusFit';
 import type { IntakeAnswers } from '../intake/funnel';
 import { generatorInputOf } from '../intake/yourPlan';
 import { focusStateOf, stretchBlock } from '../plan/focus';
-import { estimateDayMinutes } from '../plans';
-import { focusDayLine, focusLine, focusRow } from '../plan/focusWords';
+import { estimateDayMinutes, stretchMinutes } from '../plans';
+import { focusDayLine, focusLine, focusRow, stretchBlockLabel } from '../plan/focusWords';
 
 const base: IntakeAnswers = { goals: ['muscle'], experience: '3y', place: 'full', style: 'mix', cardio: 'little', scheduleStyle: 'flexible' };
 function reveal(a: IntakeAnswers) {
@@ -58,6 +58,8 @@ describe('critic 3: Mobility only, 3 days at 45, 60 and 75 min', () => {
       expect(last.items.map((it) => it.exerciseId)).toEqual(['static-quadricep-stretch', 'static-proximal-hamstring-stretch', 'static-pigeon-stretch']);
       expect([last.sets, last.restSec, ...last.items.map((it) => it.seconds)]).toEqual([2, 0, [80, 80], [80, 80], [80, 80]]);
       expect(d.blocks.filter((b) => b.mobility)).toHaveLength(1);
+      // The plan day's card for it says the minutes (the holds, without the change to it).
+      expect(stretchBlockLabel(stretchMinutes(last))).toBe('Stretches · 8 min, back to back');
       // Counted by the one time estimate, inside the minutes chosen: 8 minutes of holds and the change to the block.
       const minutes = estimateDayMinutes(d);
       expect(minutes).toBe(x.r.applied.minutes[i]);
