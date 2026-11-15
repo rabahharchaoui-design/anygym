@@ -152,21 +152,21 @@ export function focusRowOrder(priorities: readonly FocusResult[]): FocusResult[]
 
 /**
  * A day card's why, from the report's own data: the pick the day's first lift trains ("Upper chest
- * first today"), and what the day adds, up to two picks by rank and then "and more" ("Extra today:
- * 2 sets for lats, 1 for biceps and more"). Null when the day does neither.
+ * first today"), and what the day adds, every pick by rank ("Extra today: 2 sets for lats, 2 for
+ * biceps and 2 for glutes"). PLAN 3.6g2: never "and more" (a pick left out could be read as a pick
+ * left out of the day); a long line takes a second line on the card. Null when the day does neither.
  */
 export function focusDayLine(extras: readonly FocusDayExtra[] | undefined, lead?: FocusPickId | null): string | null {
   // Stretches are only named from a real block (STRETCH_BLOCK_MIN in the session): "1 min of stretches" is never an extra.
   const adds = (extras ?? []).filter((x) => x.extra > 0 || (x.minutes ?? 0) >= STRETCH_BLOCK_MIN);
-  const two = adds.slice(0, 2);
-  const firstSets = two.findIndex((x) => x.id !== 'mobility');
-  const said = two.map((x, i) => {
+  const firstSets = adds.findIndex((x) => x.id !== 'mobility');
+  const said = adds.map((x, i) => {
     if (x.id === 'mobility') return `${minutes(x.minutes!)} of stretches`;
     const name = focusName(x.id).toLowerCase();
     return i === firstSets ? `${plural(x.extra, 'set', 'sets')} for ${name}` : `${x.extra} for ${name}`;
   });
   const first = lead ? `${focusName(lead)} first today` : null;
-  const extra = !two.length ? null : `${first ? 'Extra' : 'Extra today'}: ${adds.length > 2 ? `${said.join(', ')} and more` : list(said)}`;
+  const extra = !said.length ? null : `${first ? 'Extra' : 'Extra today'}: ${list(said)}`;
   return first && extra ? `${first}. ${extra}` : first ?? extra;
 }
 

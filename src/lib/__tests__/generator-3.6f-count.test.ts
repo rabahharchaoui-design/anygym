@@ -178,7 +178,7 @@ function check(count: number, days: number, minutes: number, rep: number) {
       expect(ownExtra, `#${j + 1} ${low.id} is above ${high.id} ${label}`).toBeLessThanOrEqual(extraOf(high.id));
     }
   }
-  // DAY WHY LINES: each names what that day adds for up to two picks by rank (then "and more"), and the
+  // DAY WHY LINES: each names what that day adds for every pick by rank (PLAN 3.6g2: never "and more"), and the
   // pick its first lift trains; a day that does neither has none.
   const dayTotal = (ms: Move[][], i: number, id: FocusPickId) => (ms[i] ?? []).reduce((n, x) => n + (x.prim.some(SRC[id]!) ? x.sets : 0), 0);
   for (const [i, d] of f.plan.days.entries()) {
@@ -201,9 +201,11 @@ function check(count: number, days: number, minutes: number, rep: number) {
     // Truth pass (critic r3 3): a minute of stretches is not said as an extra, so it is not counted among what the day adds.
     const saidAdds = report.dayExtra![i]!.filter((x) => x.id !== 'mobility' || (x.minutes ?? 0) >= 5);
     if (saidAdds.every((x) => x.id !== 'mobility')) expect(whole, label).not.toContain('stretch');
-    expect(line.endsWith(' and more')).toBe(saidAdds.length > 2);
-    const named = [...line.replace(/ and more$/, '').matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
-    if (!line.includes('stretches')) expect(named.map((x) => x.name), `${line} ${label}`).toEqual(adds.slice(0, 2).map((p) => focusName(p.id).toLowerCase()));
+    // PLAN 3.6g2: every add is named, never "and more".
+    expect(whole, label).not.toContain('and more');
+    expect((line.match(/\d+ (?:sets? for|for|min of stretches)/g) ?? []).length, `${line} ${label}`).toBe(saidAdds.length);
+    const named = [...line.matchAll(/(\d+) (?:sets? )?for ([a-z ]+?)(?=,| and \d|$)/g)].map((x) => ({ n: Number(x[1]), name: x[2]! }));
+    if (!line.includes('stretches')) expect(named.map((x) => x.name), `${line} ${label}`).toEqual(adds.map((p) => focusName(p.id).toLowerCase()));
     for (const x of named) {
       const pick = ranked.find((p) => focusName(p.id).toLowerCase() === x.name)!;
       expect(pick, line).toBeDefined();

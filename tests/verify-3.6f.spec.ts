@@ -120,8 +120,8 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await expect(page.getByTestId('week-label')).toContainText('rotation');
   await expect(page.getByText('Missed workouts', { exact: true })).toHaveCount(0);
   // Round 2 (MAJOR 7): the day card says what this day adds, never the whole rotation's total.
-  // Round 3 (critic 10): it names the pick the day opens with, and up to two picks it adds for (then "and more").
-  await expect(page.getByTestId('day-focus-why')).toHaveText(/^([A-Z][a-z ]+ first today(\. Extra: \d+ sets? for [a-z ]+((,| and) \d+ for [a-z ]+)?( and more)?)?|Extra today: \d+ sets? for [a-z ]+((,| and) \d+ for [a-z ]+)?( and more)?)$/);
+  // Round 3 (critic 10): it names the pick the day opens with, and every pick it adds for (PLAN 3.6g2: never "and more").
+  await expect(page.getByTestId('day-focus-why')).toHaveText(/^([A-Z][a-z ]+ first today(\. Extra: \d+ sets? for [a-z ]+((,| and) \d+ for [a-z ]+)*)?|Extra today: \d+ sets? for [a-z ]+((,| and) \d+ for [a-z ]+)*)$/);
   // The title breaks only between its parts: no line starts or ends on a dot.
   expect(await page.getByTestId('day-card-title').evaluate((h) => [...h.children].slice(1).every((part, i) => {
     const before = h.children[i]!.getBoundingClientRect(), box = part.getBoundingClientRect();
