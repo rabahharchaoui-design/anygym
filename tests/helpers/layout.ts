@@ -73,6 +73,18 @@ function inspect([insets, scopeSel]: [Insets, string | null]): { wide: Problem[]
     }
     return { left, top, right, bottom };
   };
+  /** Names the ancestor whose edge cuts the element (for the failure message). */
+  const clipperOf = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const s = getComputedStyle(p);
+      const q = p.getBoundingClientRect();
+      const x = s.overflowX !== 'visible' && (q.left > r.left + 1 || q.right < r.right - 1);
+      const y = s.overflowY !== 'visible' && (q.top > r.top + 1 || q.bottom < r.bottom - 1);
+      if (x || y) return `a parent <${p.tagName.toLowerCase()} class="${String(p.className).slice(0, 40)}"> ${Math.round(q.left)},${Math.round(q.top)}..${Math.round(q.right)},${Math.round(q.bottom)}`;
+    }
+    return 'a parent';
+  };
   const wide: Problem[] = [];
   const unsafe: Problem[] = [];
   for (const el of root.querySelectorAll('*')) {
@@ -121,7 +133,7 @@ function inspect([insets, scopeSel]: [Insets, string | null]): { wide: Problem[]
     const c = clippedRect(el);
     const at = `${label(el)} ${Math.round(r.left)},${Math.round(r.top)}..${Math.round(r.right)},${Math.round(r.bottom)}`;
     if (c.right - c.left <= 0 || c.bottom - c.top <= 0) return `${at} is fully clipped (hidden)`;
-    if (c.left > r.left + 1 || c.top > r.top + 1 || c.right < r.right - 1 || c.bottom < r.bottom - 1) return `${at} is partly cut off by a parent`;
+    if (c.left > r.left + 1 || c.top > r.top + 1 || c.right < r.right - 1 || c.bottom < r.bottom - 1) return `${at} is partly cut off by ${clipperOf(el)}`;
     if (r.top < insets.top - 0.5 || r.bottom > H - insets.bottom + 0.5 || r.left < insets.left - 0.5 || r.right > W - insets.right + 0.5)
       return `${at} reaches under a system bar (safe ${insets.left},${insets.top}..${W - insets.right},${H - insets.bottom})${scrollers.length ? ' even scrolled into view' : ''}`;
     const top = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);

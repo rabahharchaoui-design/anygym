@@ -200,8 +200,9 @@
 }
 
 @media (max-height: 600px) {
+  /* The top is 12 pt, not 8: the info button's 48 pt target reaches 12 pt above the name's line, and the card clips it. */
   .face {
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-4) var(--space-2);
   }
 
   .face h2 {
