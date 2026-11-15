@@ -125,21 +125,47 @@ const STRETCH_MINUTES = [8, 6, 5] as const;
 const STRETCH_ROUNDS = 2;
 const STRETCH_HOLD = [30, 90] as const;
 
+/** The most sets the moves no pick asks for give for the block (two pairs can each give a round, and stay pairs). */
+const STRETCH_DONORS = 4;
+/** Sessions shorter than this never trade lifting for the block (a 5 minute block is too much of a 20 or 30 minute session). */
+const STRETCH_TRADE_MIN = 45;
+/** A day keeps at least this many lifts when one gives its place to the stretch block. */
+const STRETCH_MIN_LIFTS = 4;
+
 /**
  * PLAN 3.6g: Mobility is a block. Each session with the room ends with 5 to 8 minutes of the sure
  * floor stretches (the caller's candidates), each held twice for the same time. A session with less
- * room gets none (never a stray minute), and the plan says so.
+ * room gets none (never a stray minute), and the plan says so. `trade` (after the ranked picks had
+ * their call, sessions of 45 minutes and up): on a full day moves no pick asks for give up to four
+ * sets, or a small move no pick asks for gives its place to the block, or both; never a loved move,
+ * a big lift's place or a pick's work.
  */
-export function stretch(b: Board): void {
+export function stretch(b: Board, trade = false): void {
   for (const [i, day] of b.days.entries()) {
     if (day.some((m) => m.picks.includes('mobility'))) continue;
     const moves = (b.input.candidates[i] ?? []).filter((m) => !m.hard && m.picks.includes('mobility'));
     if (!moves.length) continue;
-    for (const minutes of STRETCH_MINUTES) {
+    const place = (): boolean => STRETCH_MINUTES.some((minutes) => {
       const seconds = minutes * 60 / (STRETCH_ROUNDS * moves.length);
-      if (seconds < STRETCH_HOLD[0] || seconds > STRETCH_HOLD[1] || !Number.isInteger(seconds)) continue;
+      if (seconds < STRETCH_HOLD[0] || seconds > STRETCH_HOLD[1] || !Number.isInteger(seconds)) return false;
       const block = moves.map((m) => ({ ...m, sets: STRETCH_ROUNDS, seconds }));
-      if (b.accepts(i, () => day.push(...block), () => { day.splice(day.length - block.length); })) break;
+      return b.accepts(i, () => day.push(...block), () => { day.splice(day.length - block.length); });
+    });
+    if (place() || !trade || (b.input.budgetMinutes ?? Infinity) < STRETCH_TRADE_MIN) continue;
+    const donors = b.donors(day).slice(0, STRETCH_DONORS);
+    const swap = (): boolean => b.lifts(day) > STRETCH_MIN_LIFTS && b.spares(day).some((at) => {
+      const old = day[at]!;
+      day.splice(at, 1);
+      if (place()) return true;
+      day.splice(at, 0, old);
+      return false;
+    });
+    // Sets first (every move stays), then a small move's place, then both.
+    for (const both of [false, true]) {
+      if (both && swap()) break;
+      const gave: FocusMove[] = [];
+      if (donors.some((donor) => { donor.sets--; gave.push(donor); return place() || (both && swap()); })) break;
+      for (const d of gave) d.sets++;
     }
   }
 }

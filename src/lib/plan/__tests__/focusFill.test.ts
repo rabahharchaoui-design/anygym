@@ -60,3 +60,44 @@ describe('the fill (PLAN 3.6g)', () => {
     expect(ids(out.days[0]!)).toEqual(['benchx3', 'curlx3', 'plankx2']);
   });
 });
+
+describe('the stretch block on a full day (PLAN 3.6g)', () => {
+  const hold: FocusMove[] = ['quad', 'ham', 'pigeon'].map((id) => ({ id, key: id, sets: 1, seconds: 60, hard: false, compound: false, muscles: [], picks: ['mobility'] }));
+  /** Two minutes a set, the stretches by their holds, and `base` minutes of warm up. */
+  const time = (base: number) => (d: FocusMove[]) => base + d.reduce((n, m) => n + (m.hard ? m.sets * 2 : (m.seconds ?? 0) * m.sets / 60), 0);
+  const day = () => [move('bench', 'chest', 4, true), move('row', 'back', 4, true), move('press', 'chest', 3, true), move('fly', 'chest'), move('curl', 'biceps')];
+  const block = (out: ReturnType<typeof curateFocus>) => out.days[0]!.filter((m) => !m.hard).map((m) => `${m.id} ${m.sets}x${m.seconds}`);
+  it('Mobility alone, 45 minutes, no time free: moves no pick asks for give sets (small moves first, the first lift last), and the block is 6 minutes', () => {
+    const out = curateFocus({ picks: ['mobility'], days: [day()], candidates: [hold], cap: 4, budgetMinutes: 45, minutes: time(11) });
+    expect(ids(out.days[0]!.filter((m) => m.hard))).toEqual(['benchx4', 'rowx3', 'pressx3', 'flyx2', 'curlx2']);
+    expect(block(out)).toEqual(['quad 2x60', 'ham 2x60', 'pigeon 2x60']);
+    expect(out.report.priorities[0]).toMatchObject({ id: 'mobility', session: 6, minutes: 6, state: 'extra' });
+    expect(out.report.dayExtra![0]).toEqual([{ id: 'mobility', extra: 0, minutes: 6 }]);
+    expect(time(11)(out.days[0]!)).toBeLessThanOrEqual(45);
+  });
+  it('a ranked pick is served first and its work is never given; a loved move neither', () => {
+    const loved = day(); loved[3]!.keep = true;
+    const out = curateFocus({ picks: ['biceps', 'mobility'], days: [loved], candidates: [hold], cap: 3, budgetMinutes: 45, minutes: time(11) });
+    // The curl (the pick's) and the fly (loved) keep their sets: the row, the press and the bench give.
+    expect(ids(out.days[0]!.filter((m) => m.hard))).toEqual(['benchx3', 'rowx3', 'pressx2', 'flyx3', 'curlx3']);
+    expect(block(out)).toEqual(['quad 2x60', 'ham 2x60', 'pigeon 2x60']);
+  });
+  it('when sets are not enough a small move no pick asks for gives its place; never under 4 lifts', () => {
+    const tight = () => [move('bench', 'chest', 3, true), move('row', 'back', 3, true), move('raise', 'side delts', 2), move('curl', 'biceps', 2), move('calf', 'calves', 3)];
+    const out = curateFocus({ picks: ['mobility'], days: [tight()], candidates: [hold], cap: 3, budgetMinutes: 45, minutes: time(19) });
+    expect(ids(out.days[0]!.filter((m) => m.hard))).toEqual(['benchx3', 'rowx3', 'raisex2', 'curlx2']);
+    expect(block(out)).toEqual(['quad 2x60', 'ham 2x60', 'pigeon 2x60']);
+    // Four lifts: nothing gives its place, and no stray minute is added.
+    const four = tight().slice(0, 4);
+    const none = curateFocus({ picks: ['mobility'], days: [four], candidates: [hold], cap: 3, budgetMinutes: 45, minutes: time(25) });
+    expect(ids(none.days[0]!)).toEqual(['benchx3', 'rowx3', 'raisex2', 'curlx2']);
+    expect(none.report.priorities[0]).toMatchObject({ session: 0, state: 'short' });
+  });
+  it('a 30 minute session never trades lifting for stretches; with free time it still gets its block', () => {
+    const full = curateFocus({ picks: ['mobility'], days: [day()], candidates: [hold], cap: 4, budgetMinutes: 30, minutes: time(-4) });
+    expect(ids(full.days[0]!)).toEqual(['benchx4', 'rowx4', 'pressx3', 'flyx3', 'curlx3']);
+    const free = curateFocus({ picks: ['mobility'], days: [day()], candidates: [hold], cap: 4, budgetMinutes: 30, minutes: time(-10) });
+    expect(block(free)).toEqual(['quad 2x60', 'ham 2x60', 'pigeon 2x60']);
+    expect(ids(free.days[0]!.filter((m) => m.hard))).toEqual(['benchx4', 'rowx4', 'pressx3', 'flyx3', 'curlx3']);
+  });
+});

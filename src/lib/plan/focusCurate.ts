@@ -64,6 +64,8 @@ export function curateFocus(input: CurateInput): { days: FocusMove[][]; report: 
   // pick above a pick ranked higher that could still use it.
   state.pool = FOCUS_BUDGET_MAX;
   for (let level = 1; level <= FOCUS_BUDGET_MAX && b.spent() < state.pool && b.hardIds.some((id) => b.need(id) > 0); level++) round((id, share) => Math.max(shareGoal(id, share), Math.min(b.above(id, true), gained(id) + b.need(id), level)), true);
+  // Mobility again, after the ranked picks had their call: on a day still without its block, work no pick asks for makes the room.
+  if (budget.targets.some((t) => t.id === 'mobility')) stretch(b, true);
   if (input.fill) fill(b);
   const priorities = budget.targets.map(({ id, sets: requested }): FocusResult => {
     if (id === 'mobility') {

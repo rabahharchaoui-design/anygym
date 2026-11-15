@@ -7,6 +7,8 @@ import { focusFit } from '../intake/focusFit';
 import type { IntakeAnswers } from '../intake/funnel';
 import { generatorInputOf } from '../intake/yourPlan';
 import { focusStateOf, stretchBlock } from '../plan/focus';
+import { profileFor } from '../../data/order';
+import { isCompound } from '../order';
 import { estimateDayMinutes, stretchMinutes } from '../plans';
 import { focusDayLine, focusLine, focusRow, stretchBlockLabel } from '../plan/focusWords';
 
@@ -19,28 +21,58 @@ function reveal(a: IntakeAnswers) {
   return { r, report, fit, plan: definitionPlan(r.plan)!, mobility: report.priorities.find((p) => p.id === 'mobility')! };
 }
 
-describe('critic 3: Mobility only, 3 days at 45, 60 and 75 min', () => {
-  // PLAN 3.6g: Mobility is a block or nothing. These sessions are full at 45 and 60 min (the lifts take the minutes chosen), and have the room at 75.
-  for (const minutes of [45, 60] as const) it(`${minutes} min: no room, said plainly: never "2 min · Stretches", never "Extra today: 1 min of stretches", never "too short", never a stray stretch in the plan`, () => {
+describe('critic 3: Mobility only, 3 days, every minutes choice', () => {
+  // PLAN 3.6g: Mobility is a block or nothing. At 45 and 60 min the lifts take the minutes chosen, so
+  // work no pick asks for makes the room (sets first, then a small move's place); at 75 the time is free.
+  for (const minutes of [45, 60] as const) it(`${minutes} min: every session ends with a real stretch block, traded for sets no pick asks for: never "2 min · Stretches", never "no room", never over the minutes`, () => {
     const x = reveal({ ...base, days: 3, minutes, focusPicks: ['mobility'] });
-    // The data is what the plan holds: no stretch at all, and no claim that the pick was delivered.
-    expect(x.mobility.session).toBe(0);
-    expect(x.mobility.minutes).toBe(0);
-    expect(x.report.dayExtra!.flat()).toEqual([]);
-    expect(x.plan.days.flatMap((d) => d.blocks).some((b) => b.mobility || b.items.some((it) => it.exerciseId.includes('stretch')))).toBe(false);
-    expect(stretchBlock(x.mobility)).toBe(false);
-    expect(x.mobility.state).toBe('short');
-    // The row says plainly that the sessions are full, with no number.
-    expect(focusRow(x.mobility)).toEqual({ name: 'Mobility', amount: null, tag: null, detail: 'No room for a stretch block in these sessions yet' });
-    expect(focusLine(x.mobility, 'every 3 workouts')).toEqual(['Mobility', 'no room for a stretch block in these sessions yet']);
-    // The day cards and the reveal's day rows say nothing about it.
-    for (const d of x.plan.days) expect(d.focusWhy ?? []).toEqual([]);
-    for (const d of x.r.plan.days) expect(d.focusWhy ?? []).toEqual([]);
-    // No box blames the minutes ("too short"). The one step offered is the one that really brings the block (PLAN 3.6g).
-    expect(x.fit).toEqual({ line: 'Mobility fits best with 75 min.', minutes: 75 });
-    const after = reveal({ ...base, days: 3, minutes: 75, focusPicks: ['mobility'] });
-    expect(stretchBlock(after.mobility)).toBe(true);
-    expect(after.fit).toBeNull();
+    const none = generate(generatorInputOf({ ...base, days: 3, minutes, focusPicks: [] }));
+    if (!none.ok) throw new Error(none.reason);
+    expect(x.mobility.session).toBeGreaterThanOrEqual(5);
+    expect(x.mobility.session).toBeLessThanOrEqual(8);
+    expect(x.mobility).toMatchObject({ state: 'extra', shortfall: false });
+    expect(stretchBlock(x.mobility)).toBe(true);
+    expect(x.mobility.minutes).toBe(x.report.dayExtra!.flat().reduce((n, e) => n + (e.minutes ?? 0), 0));
+    expect(focusRow(x.mobility)).toEqual({ name: 'Mobility', amount: `${x.mobility.minutes} min`, tag: null, detail: 'Stretches' });
+    for (const [i, d] of x.plan.days.entries()) {
+      const last = d.blocks.at(-1)!;
+      expect(last.mobility).toBe(true);
+      expect(d.blocks.filter((b) => b.mobility)).toHaveLength(1);
+      expect(last.items.map((it) => it.exerciseId)).toEqual(['static-quadricep-stretch', 'static-proximal-hamstring-stretch', 'static-pigeon-stretch']);
+      const held = stretchMinutes(last);
+      expect([5, 6, 8]).toContain(held);
+      expect(d.focusWhy).toEqual([`Extra today: ${held} min of stretches`]);
+      expect(estimateDayMinutes(d)).toBeLessThanOrEqual(minutes);
+      // What made the room: sets from moves of the same day (every big lift is still there, the first two with 3 sets or more, no move under 2), at most one small move gone, never under 4 lifts.
+      const setsOf = (blocks: typeof none.plan.days[number]['blocks']) => new Map(blocks.flatMap((b) => (b.type === 'superset' ? b.items : [b]).map((it) => [it.id, b.sets!] as const)));
+      const was = setsOf(none.plan.days[i]!.blocks), now = setsOf(x.r.plan.days[i]!.blocks.filter((b) => !(b.type === 'superset' && b.items.some((it) => it.id.includes('stretch')))));
+      const gone = [...was.keys()].filter((id) => !now.has(id));
+      expect(gone.length).toBeLessThanOrEqual(1);
+      for (const id of gone) expect(isCompound(profileFor(id)), id).toBe(false);
+      expect(now.size).toBeGreaterThanOrEqual(4);
+      for (const [id, sets] of now) { expect(sets, id).toBeGreaterThanOrEqual(2); expect(sets, id).toBeLessThanOrEqual(was.get(id) ?? 0); }
+      const given = [...now].reduce((n, [id, sets]) => n + was.get(id)! - sets, 0);
+      expect(given).toBeLessThanOrEqual(4);
+      const big = [...now.keys()].filter((id) => isCompound(profileFor(id)));
+      for (const id of big.slice(0, 2)) expect(now.get(id)!, id).toBeGreaterThanOrEqual(3);
+    }
+    // Nothing more is asked for.
+    expect(x.fit).toBeNull();
+  });
+  it('20 and 30 min: a short session never trades lifting for stretches; the row says so and the one step offered really brings the block', () => {
+    for (const minutes of [20, 30] as const) {
+      const x = reveal({ ...base, days: 3, minutes, focusPicks: ['mobility'] });
+      expect(x.mobility.session).toBe(0);
+      expect(x.plan.days.flatMap((d) => d.blocks).some((b) => b.mobility || b.items.some((it) => it.exerciseId.includes('stretch')))).toBe(false);
+      expect(focusRow(x.mobility)).toEqual({ name: 'Mobility', amount: null, tag: null, detail: 'No room for a stretch block in these sessions yet' });
+      expect(focusLine(x.mobility, 'every 3 workouts')).toEqual(['Mobility', 'no room for a stretch block in these sessions yet']);
+      for (const d of x.plan.days) expect(d.focusWhy ?? []).toEqual([]);
+      // No box blames the minutes ("too short"). The one step offered is the one that really brings the block.
+      expect(x.fit?.line).toMatch(/^Mobility fits best with \d+ min\.$/);
+      const after = reveal({ ...base, days: 3, minutes: x.fit!.minutes!, focusPicks: ['mobility'] });
+      expect(stretchBlock(after.mobility)).toBe(true);
+      expect(after.fit).toBeNull();
+    }
   });
   it('75 min: every session ends with a real stretch block, counted in its minutes and said as minutes', () => {
     const x = reveal({ ...base, days: 3, minutes: 75, focusPicks: ['mobility'] });
@@ -74,8 +106,16 @@ describe('critic 3: Mobility only, 3 days at 45, 60 and 75 min', () => {
   });
   it('with other picks the day line keeps the sets and drops the token minute; Mobility never blocks the fix for the others', () => {
     const x = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts', 'mobility'] });
-    for (const d of x.plan.days) expect((d.focusWhy ?? []).join(' ')).not.toContain('stretch');
+    // A day line names stretches only from a real block (5 minutes or more), on the days that end with one.
+    for (const d of x.plan.days) {
+      const said = /(\d+) min of stretches/.exec((d.focusWhy ?? []).join(' '));
+      expect(!!said).toBe(d.blocks.some((b) => b.mobility));
+      if (said) expect(Number(said[1])).toBeGreaterThanOrEqual(5);
+    }
     expect(x.plan.days.some((d) => d.focusWhy?.length)).toBe(true);
+    // The ranked picks had their call first: the block never costs them a set.
+    const alone = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts'] });
+    for (const p of alone.report.priorities) expect(x.report.priorities.find((q) => q.id === p.id)!.extra, p.id).toBe(p.extra);
     // Lats and Side shoulders are still offered their real fix, and after it nothing is asked for Mobility.
     if (x.fit) {
       expect(x.fit.line).not.toMatch(/Mobility|stretch/);
