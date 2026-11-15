@@ -39,6 +39,6 @@ export type { SolveOptions, Loading, SolveResult } from './solver';
 export { stackSplit, stackTotal, nearestStack, DISPLAY_STACK_MAX, isStackPin, MAX_STACK_PINS, validStackStep, morePins, stackValues } from './stack';
 export type { StackPick } from './stack';
 export { nearestLoadable, stepUp, resetWeight, stepDown } from './steps';
-export { collarsWeight, sumLoad, enabledPlates, smithBase, machineBase, hornsOf } from './sum';
+export { collarsWeight, sumLoad, enabledPlates, smithBase, machineBase, hornsOf, sameHorns } from './sum';
 export type { SumInput, SumResult, Horns } from './sum';
 export { KG_PER_LB, lbToKg, kgToLb, convertForGym, otherUnit } from './units';

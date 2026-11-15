@@ -90,6 +90,12 @@ export type Gym = {
   lastUsedAt?: number;
   /** PLAN 3.6 (additive, not indexed): the last "How much time today?" pick at this gym (SPEC 7.4). */
   timeBudgetMin?: number;
+  /**
+   * PLAN 3.6h2 (additive, not indexed): per plate machine (machine id), the person's answer to
+   * "Does this machine load on one side or both?": 1 or 2. Missing machine: not answered (the
+   * machine's data, else both sides, as before). Not a weight, so a unit change keeps it.
+   */
+  machineHorns?: Record<string, 1 | 2>;
 };
 
 export type { Profile, PlanState } from './profileTypes';

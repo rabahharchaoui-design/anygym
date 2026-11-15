@@ -58,6 +58,15 @@ export function equipmentWeightFor(gym: Pick<Gym, 'equipmentWeights'>, machineId
 }
 
 /**
+ * How many sides of a plate machine carry the plates at this gym (PLAN 3.6h2): the person's answer,
+ * else what the machine's data says for sure (`sure`: a leg press sled loads both), else null (not
+ * known: the math counts both sides, as before, and the weight sheet asks once).
+ */
+export function machineHornsFor(gym: Pick<Gym, 'machineHorns'>, machineId: string, sure?: 1 | 2): 1 | 2 | null {
+  return gym.machineHorns?.[machineId] ?? sure ?? null;
+}
+
+/**
  * Starting resistance of a plate loaded machine: 0 for "plates only", the listed value, or
  * null until the user answers (then the UI shows "+ start", never a guess).
  */
