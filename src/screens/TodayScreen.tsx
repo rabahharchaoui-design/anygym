@@ -22,8 +22,7 @@ import { db } from '../db/schema';
 import { startDb } from '../db/bootstrap';
 import { setNextDay } from '../db/planState';
 import { startPlanDay, startWorkout } from '../db/workouts';
-import { discardEmptyWorkout, undoDiscard } from '../db/discard';
-import { clearSessionDrafts } from '../lib/drafts';
+import { discardWorkout } from '../hooks/discardWorkout';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
 import { applyUpdate, isUpdateReady, onUpdateReady } from '../lib/pwaUpdate';
@@ -168,13 +167,12 @@ export function TodayScreen() {
     if (!active) return;
     const failedText = 'Could not discard it. It has sets now.';
     try {
-      const d = await discardEmptyWorkout(active.id);
+      const d = await discardWorkout(active.id);
       if (!d) return setToast({ id: Date.now(), text: failedText });
-      clearSessionDrafts(active.id);
       setToast(
         undoToast(Date.now(), 'Empty workout discarded', () => {
           setToast(null);
-          undoDiscard(d)
+          d.undo()
             .then((ok) => !ok && setToast({ id: Date.now(), text: 'Could not undo. Another workout is in progress.' }))
             .catch(() => setToast({ id: Date.now(), text: 'Could not undo that. Try again.' }));
         }),
