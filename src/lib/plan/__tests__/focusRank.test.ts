@@ -30,15 +30,17 @@ describe('rank decides competition (critic 3b)', () => {
     expect(out.report.priorities.map((p) => [p.id, p.state])).toEqual([['back', 'plenty'], ['grip', 'no_move'], ['biceps', 'extra']]);
     expect(out.report.priorities[2]!.extra).toBeGreaterThanOrEqual(3);
   });
-  it('shares nobody can use are offered again from the top, never past +4 for a pick or 12 in all', () => {
+  it('shares nobody can use are offered again from the top, past +4 only toward 12 sets a week, never past 12 in all', () => {
     const days = [...Array.from({ length: 5 }, (_, i) => [move(`back-${i}`, 'back', 4)]), [move('fly', 'chest'), move('press', 'chest')], [move('dip', 'chest'), move('push', 'chest')]];
     const candidates = days.map(() => [move('curl', 'biceps'), move('ext', 'quads'), move('raise', 'side delts'), move('crunch', 'abs')]);
     const out = curateFocus({ picks: ['back', 'biceps', 'quads', 'side_delts', 'abs'], days, candidates, cap: 4, budgetMinutes: 60, minutes: mins });
     const by = Object.fromEntries(out.report.priorities.map((p) => [p.id, p]));
     expect(by.back!.state).toBe('plenty');
-    // Back's 3 go round again: biceps (second of the top two) up to 4, the rest toward 12 sets a week, never past 4.
-    expect(by.biceps!.extra).toBe(4);
-    for (const p of out.report.priorities) expect(p.extra).toBeLessThanOrEqual(4);
+    // Back's 3 go round again toward 12 sets a week (PLAN 3.6g), one more set for each pick at a time from the top: every pick under 12 ends with the same.
+    expect(out.report.priorities.map((p) => [p.id, p.extra])).toEqual([['back', 0], ['biceps', 3], ['quads', 3], ['side_delts', 3], ['abs', 3]]);
+    expect(out.report.spent).toBe(12);
+    // Past +4 only toward that floor: never to more than 12 sets (13 when the last step is a 2 set move).
+    for (const p of out.report.priorities) expect(p.extra <= 4 || p.total <= 13, p.id).toBe(true);
     expect(out.report.spent).toBeLessThanOrEqual(12);
     expect(out.report.spent).toBeGreaterThan(9);
   });

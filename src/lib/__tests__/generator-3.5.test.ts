@@ -232,23 +232,30 @@ describe('plan curation from the intake (SPEC 15)', () => {
     const back = itemsOf(ok({ ...base, easyOn: ['lower_back'] })).map((i) => i.id);
     for (const id of ['barbell-back-squat', 'deadlift', 'romanian-deadlift', 'barbell-bent-over-row']) expect(back).not.toContain(id);
   });
-  it.each(['chest', 'back', 'shoulders', 'arms', 'core', 'glutes', 'legs'] as const)('focus %s retains 2 to 4 priority sets through replacement or growth', (focus) => {
+  it.each(['chest', 'back', 'shoulders', 'arms', 'core', 'glutes', 'legs'] as const)('focus %s retains its priority sets (2 to 4, more only toward 12 sets a week) through replacement or growth', (focus) => {
     const r = generate({ ...base, focus: [focus] });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const f = r.applied.focus.find((x) => x.id === focus);
     expect(f, focus).toBeDefined();
     expect(f!.sets).toBeGreaterThanOrEqual(2);
-    expect(f!.sets).toBeLessThanOrEqual(4);
     const report = r.applied.focusReport!;
-    expect(report.priorities.find((p) => p.id === focus)!.extra).toBe(f!.sets);
+    const p = report.priorities.find((p) => p.id === focus)!;
+    // PLAN 3.6g: its share is 4; past that only toward 12 sets a week for a muscle of it still under (13 when the last step is a 2 set move), never more than 12 extra in all.
+    const weakest = p.parts?.length ? Math.min(...p.parts.map((x) => x.sets)) : p.total;
+    expect(f!.sets <= 4 || weakest <= 13, `${focus}: +${f!.sets}, weakest ${weakest}`).toBe(true);
+    expect(f!.sets).toBeLessThanOrEqual(12);
+    expect(p.extra).toBe(f!.sets);
     expect(report.spent).toBeLessThanOrEqual(report.budget);
   });
   it('arms shares one bounded budget while retaining both biceps and triceps', () => {
     const r = generate({ ...base, focus: ['arms'] });
     expect(r.ok && r.applied.focus[0]?.sets).toBeGreaterThanOrEqual(2);
-    expect(r.ok && r.applied.focus[0]?.sets).toBeLessThanOrEqual(4);
+    // PLAN 3.6g: past +4 only toward 12 sets a week for the biceps and the triceps, inside the weekly budget of 12.
+    expect(r.ok && r.applied.focus[0]?.sets).toBeLessThanOrEqual(12);
     if (r.ok) {
+      const arms = r.applied.focusReport!.priorities[0]!;
+      if (arms.extra > 4) expect(Math.min(...arms.parts!.map((x) => x.sets))).toBeLessThanOrEqual(13);
       const patterns = itemsOf(r.plan).map((p) => patternOf(SWAP_DATA, p.id));
       expect(patterns).toContain('biceps');
       expect(patterns).toContain('triceps');

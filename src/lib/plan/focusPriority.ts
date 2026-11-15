@@ -32,17 +32,19 @@ export function focusPrioritized(report: Priorities): string | null {
   return top.length && top.length < hard.length ? names(top) : null;
 }
 
-type Why = 'plenty' | 'no_move' | 'share' | 'room';
+type Why = 'plenty' | 'no_move' | 'gear' | 'share' | 'room';
 /** Why a pick got less than one ranked below it. A pick past the weekly budget is said in its own sentence (focusFit), never here. */
 function whyOf(p: FocusResult): Why | null {
   const state = focusStateOf(p);
   if (state === 'no_share') return null;
-  if (state === 'plenty' || state === 'no_move') return state;
+  if (state === 'no_move') return p.gear ? 'gear' : state;
+  if (state === 'plenty') return state;
   return p.requested > 0 && p.extra >= p.requested ? 'share' : 'room';
 }
 const WHY: Record<Why, (many: boolean) => string> = {
   plenty: (many) => (many ? 'already get plenty' : 'already gets plenty'),
   no_move: (many) => (many ? 'have no exercises yet' : 'has no exercises yet'),
+  gear: (many) => (many ? 'need equipment you do not have here' : 'needs equipment you do not have here'),
   share: (many) => (many ? 'already have their share' : 'already has its share'),
   room: (many) => (many ? 'have no more room on their days' : 'has no more room on its days'),
 };
@@ -65,7 +67,7 @@ export function focusPassed(report: Priorities): string | null {
   const most = top.every((t) => passed.some((h) => below(t, h))) && passed.every((h) => top.some((t) => below(t, h)));
   const ahead = most ? top : hard.filter((l) => !passed.includes(l) && passed.some((h) => below(l, h) && l.extra > h.extra));
   if (!ahead.length) return null;
-  const groups = (['plenty', 'no_move', 'share', 'room'] as const).map((why) => ({ why, picks: passed.filter((p) => whyOf(p) === why) })).filter((g) => g.picks.length);
+  const groups = (['plenty', 'no_move', 'gear', 'share', 'room'] as const).map((why) => ({ why, picks: passed.filter((p) => whyOf(p) === why) })).filter((g) => g.picks.length);
   const reasons = list(groups.map((g) => `${names(g.picks)} ${WHY[g.why](g.picks.length > 1)}`));
   const what = most ? 'the most' : passed.every((p) => p.extra === 0) ? 'extra' : 'more';
   return `${reasons}, so ${names(ahead)} ${ahead.length === 1 ? 'gets' : 'get'} ${what}.`;

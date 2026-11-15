@@ -148,7 +148,7 @@ function check(count: number, days: number, minutes: number, rep: number) {
     expect(much).not.toContain('nothing extra');
   }
   // RANK DECIDES COMPETITION (round 3): shares never rise down the rank, and a pick takes sets past
-  // its own share (never past +4) only while no pick above it has less, unless that one says it has
+  // its own share (past +4 only toward 12 sets a week, PLAN 3.6g) only while no pick above it has less, unless that one says it has
   // plenty or the app has no exercise for it. Whether a higher pick could have used the room a lower
   // one took is proved on the pure module (lib/plan/__tests__/focusRank.test.ts).
   const ranked = report.priorities.filter((p) => p.id !== 'mobility');
@@ -159,7 +159,9 @@ function check(count: number, days: number, minutes: number, rep: number) {
     const own = (ms: Move[][]) => ms.flat().reduce((n, x) => n + (x.prim.some(SRC[low.id]!) && !ranked.some((h) => h.id !== low.id && x.prim.some(SRC[h.id]!)) ? x.sets : 0), 0);
     // Its own sets, net: when the 20 set limit took sets off moves it shares with another pick, sets of its own make up for them and are not extra.
     const ownExtra = Math.min(low.extra, Math.max(0, own(m) - own(mb)));
-    expect(ownExtra, `#${j + 1} ${low.id} past +4 ${label}`).toBeLessThanOrEqual(4);
+    // PLAN 3.6g: past +4 only toward 12 sets a week. The single muscle of the pick with the fewest sets is then at 12 at the most (13 when the last step was a 2 set move).
+    const weakest = Math.min(...partsOf(low.id).map((part) => setsFor(m, SRC[part]!)).filter((n) => n > 0));
+    expect(ownExtra <= 4 || weakest <= 13, `#${j + 1} ${low.id} past +4 (${ownExtra}) with ${weakest} sets ${label}`).toBe(true);
     for (const high of higher) {
       expect(low.requested, `#${j + 1} ${low.id} has a bigger share than ${high.id} ${label}`).toBeLessThanOrEqual(high.requested);
       // A higher pick at 20 sets cannot take more, whether it got its whole share first ("extra") or not ("plenty").
