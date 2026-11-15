@@ -91,23 +91,26 @@ for (const scale of [1, 1.3]) test(`flexible intake, five ranked parts, saved re
   await expect(page.getByTestId('reveal-focus')).toContainText('Lats');
   // Round 2: every row says the total and the extra as what they are (design round 2: name, number, a quiet state; the period once, over the rows).
   await expect(page.getByTestId('reveal-focus')).toContainText('Sets every 4 workouts');
-  await expect(page.getByTestId('focus-line-quads')).toHaveText(/^Quads \d+ sets \+\d+ extra$/);
+  // PLAN 3.6g2 (strict rank): at 30 min Lats, ranked first, has no room on its days, so no pick below it gets more than it; each row says that reason.
+  await expect(page.getByTestId('focus-line-quads')).toHaveText('Quads 10 sets no extra No more than Lats, ranked above it');
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/nothing extra|with your equipment/);
   // A rotation never claims a calendar week, and nothing is said in jargon or as a zero.
   await expect(page.getByTestId('reveal-focus')).toContainText('every 4 workouts');
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/working sets|rotation|budget|\b0 (sets|min)/);
   await expect(page.getByTestId('reveal-week')).not.toContainText('Mon');
-  // Round 2 (BLOCKER 2): the fit line names the minutes (PLAN 3.6g: 45, where it was 60), and the one tap really fixes it: the warning is gone and every pick has its extra.
-  // Truth pass (critic r3 1): "prioritized" names only the picks tied for the most extra (Quads, Biceps and Abs, +2 each), never Side shoulders (+1) beside them.
-  await expect(page.getByTestId('focus-fit')).toHaveText('5 focus areas fit best with 45 min; we prioritized Quads, Biceps and Abs.');
-  // Round 3 (critic 3) and the truth pass: who got more than a pick ranked above it, and why, composed from the result.
-  await expect(page.getByTestId('focus-summary')).toHaveText('Lats and Side shoulders have no more room on their days, so Quads, Biceps and Abs get the most.');
-  await expect(page.getByTestId('focus-line-side_delts')).toHaveText('Side shoulders 5 sets +1 extra'); await expect(page.getByTestId('focus-line-quads')).toContainText('+2 extra');
-  await expect(page.getByTestId('focus-line-lats')).toHaveText('Lats 5 sets no extra');
+  // PLAN 3.6g2 (under 12 is said): the fit line names each step with the rebuilt plan's real numbers, and each button says its value (never "Add minutes").
+  await expect(page.getByTestId('focus-fit')).toHaveText('Make it 45 min: Lats 5 to 10, Side shoulders 4 to 6, Quads 10 to 17, Biceps 0 to 6 and Abs 0 to 2. Or make it 5 days: Lats 5 to 9, Quads 10 to 12 and Biceps 0 to 2.');
+  // Nobody got extra, so there is no "most extra" to say.
+  await expect(page.getByTestId('focus-summary')).toHaveCount(0);
+  await expect(page.getByTestId('focus-line-side_delts')).toHaveText('Side shoulders 4 sets no extra No more than Lats, ranked above it');
+  await expect(page.getByTestId('focus-line-lats')).toHaveText('Lats 5 sets no extra Its days are full');
   const grow = page.getByTestId('focus-add-minutes');
+  await expect(grow).toHaveText('Make it 45 min'); await expect(page.getByTestId('focus-add-day')).toHaveText('Make it 5 days');
   await grow.tap(); await expect(page.getByTestId('reveal-card')).toBeVisible();
-  await expect(page.getByTestId('focus-fit')).toHaveCount(0);
-  await expect(page.getByTestId('focus-add-minutes')).toHaveCount(0);
+  // The tap did what the line said (Lats 10, Side shoulders 6, Quads 17, Biceps 6, Abs 2). Three picks are still under 12, so the next step is named with its numbers too.
+  await expect(page.getByTestId('focus-fit')).toHaveText('Make it 60 min: Lats 10 to 12, Side shoulders 6 to 7, Quads 17 to 20, Biceps 6 to 9 and Abs 2 to 10. Or make it 5 days: Lats 10 to 15, Quads 17 to 20 and Biceps 6 to 10.');
+  await expect(page.getByTestId('focus-add-minutes')).toHaveText('Make it 60 min');
+  for (const [id, total] of Object.entries({ lats: 10, side_delts: 6, quads: 17, biceps: 6, abs: 2 })) await expect(page.getByTestId(`focus-line-${id}`)).toContainText(new RegExp(`\\b${total} sets\\b`));
   for (const id of ['lats', 'side_delts', 'quads', 'biceps', 'abs']) await expect(page.getByTestId(`focus-line-${id}`)).toHaveAttribute('data-state', 'extra');
   const extras = await page.getByTestId('reveal-focus').locator('li').evaluateAll((rows) => rows.map((r) => Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)));
   expect(extras.every((n) => n > 0)).toBe(true);
@@ -752,10 +755,12 @@ test('round 3 (critic 8, 10): a tight plan offers the step that helps most in it
   await toFocus(page); await pick(page, 'focus', 'glutes'); await part(page, 'chest', 'upper_chest'); await part(page, 'back', 'upper_back'); await part(page, 'arms', 'triceps');
   await rest(page, 'flexible', { days: '3', minutes: '30' });
   // 3 days of 30 min are full: nothing places every pick, so the step that helps most is offered as exactly what it does. Never "yet".
-  const fit = page.getByTestId('focus-fit'); await expect(fit).toHaveText(/^With (\d+ min|\d days|\d days and \d+ min), [A-Z][A-Za-z ,]+ get (extra|more)\. That is the most that fits\.$/);
-  await expect(fit).toHaveText('With 4 days, Upper chest and Triceps get more. That is the most that fits.');
+  // PLAN 3.6g2 (under 12 is said): the step is named with the rebuilt plan's real numbers, and only a step that lowers nobody is offered (here the nearest such step is 6 days and 75 min; the button says so).
+  const fit = page.getByTestId('focus-fit'); await expect(fit).toHaveText(/^Make it (\d+ min|\d days|\d days and \d+ min): ([A-Z][A-Za-z ]+ \d+ to \d+(, | and )?)+\.$/);
+  await expect(fit).toHaveText('Make it 6 days and 75 min: Glutes 8 to 14, Upper chest 5 to 8, Upper back 6 to 13 and Triceps 2 to 13.');
+  await expect(page.getByTestId('focus-add-both')).toHaveText('Make it 6 days and 75 min');
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/\byet\b/);
-  const named = (await fit.textContent())!.replace(/^With [^,]+, /, '').replace(/ get (extra|more)\. That is the most that fits\.$/, '').split(/, | and /);
+  const named = (await fit.textContent())!.replace(/^Make it [^:]+: /, '').replace(/\.$/, '').split(/, | and (?=[A-Z])/).map((g) => { const m = /^(.+) (\d+) to (\d+)$/.exec(g)!; return { name: m[1]!, to: Number(m[3]) }; });
   const before = Object.fromEntries(await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => [r.textContent!.match(/^[A-Za-z ]+?(?= \d|$| no )/)?.[0]?.trim() ?? '', Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)])));
   // The reveal's day rows carry the same short why as Today's day card (critic 10).
   await expect(page.getByTestId('reveal-day-why').first()).toHaveText(/first today|Extra today: /);
@@ -763,8 +768,8 @@ test('round 3 (critic 8, 10): a tight plan offers the step that helps most in it
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });
   await page.locator('[data-testid="focus-add-minutes"], [data-testid="focus-add-day"], [data-testid="focus-add-both"]').tap();
   await expect(page.getByTestId('reveal-card')).toBeVisible();
-  // What the line said is what happened: the picks it named have more, and nobody has less.
-  await expect.poll(async () => (await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => [r.textContent!.match(/^[A-Za-z ]+?(?= \d|$| no )/)?.[0]?.trim() ?? '', Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)] as [string, number]))).filter(([name, n]) => named.includes(name) && n > (before[name] ?? 0)).length).toBe(named.length);
+  // What the line said is what happened: each pick it named has exactly the sets it said, and nobody has less.
+  await expect.poll(async () => (await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => [r.textContent!.match(/^[A-Za-z ]+?(?= \d|$| no )/)?.[0]?.trim() ?? '', Number(/(\d+) sets/.exec(r.textContent ?? '')?.[1] ?? 0)] as [string, number]))).filter(([name, n]) => named.some((x) => x.name === name && x.to === n)).length).toBe(named.length);
   // Truth pass (critic r3 2): the step was partial and final, so nothing more is asked after it, and nobody has less.
   await expect(page.locator('[data-testid="focus-add-minutes"], [data-testid="focus-add-day"], [data-testid="focus-add-both"]')).toHaveCount(0);
   const after = Object.fromEntries(await page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => all.map((r) => [r.textContent!.match(/^[A-Za-z ]+?(?= \d|$| no )/)?.[0]?.trim() ?? '', Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)])));
@@ -776,13 +781,15 @@ test('truth pass (critic r3 2): a one tap fix is the last thing asked, and the r
   await rest(page, 'flexible', { days: '4', minutes: '30' });
   // The critic saw "With 5 days, Upper chest gets extra", then at 5 days a new box asking for 6 days and 45 min. Now the one step that places everything is offered once.
   // PLAN 3.6g: 45 min places all three (it was 60).
-  const fit = page.getByTestId('focus-fit'); await expect(fit).toHaveText('3 focus areas fit best with 45 min; we prioritized Biceps.');
-  await expect(page.getByTestId('focus-summary')).toHaveText('Upper chest and Side shoulders have no more room on their days, so Biceps gets the most.');
+  // PLAN 3.6g2: the step is named with its real numbers and the button says its value; under the strict rank nobody got extra at 30 min, so there is no summary.
+  const fit = page.getByTestId('focus-fit'); await expect(fit).toHaveText('Make it 5 days and 45 min: Upper chest 3 to 8, Side shoulders 4 to 8 and Biceps 0 to 12.');
+  await expect(page.getByTestId('focus-add-both')).toHaveText('Make it 5 days and 45 min');
+  await expect(page.getByTestId('focus-summary')).toHaveCount(0);
   const read = () => page.getByTestId('reveal-focus').locator('li').evaluateAll((all) => Object.fromEntries(all.map((r) => [r.getAttribute('data-testid')!, Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)])));
   const before = await read();
-  await page.getByTestId('focus-add-minutes').tap();
-  // No box, no button, no sentence from before the tap; every pick has its extra and none has less.
-  await expect(fit).toHaveCount(0);
+  await page.getByTestId('focus-add-both').tap();
+  // No button and no sentence from before the tap; every pick has its extra and none has less. PLAN 3.6g2: two picks are still under 12 sets, and the line says why (never silent), with nothing more to tap.
+  await expect(fit).toHaveText('Upper chest and Side shoulders stay under 12 sets: extra work stops at 12 sets a week.');
   await expect(page.locator('[data-testid="focus-add-minutes"], [data-testid="focus-add-day"], [data-testid="focus-add-both"]')).toHaveCount(0);
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/no more room|less room|prioritized/);
   for (const id of ['upper_chest', 'side_delts', 'biceps']) await expect(page.getByTestId(`focus-line-${id}`)).toHaveAttribute('data-state', 'extra');
@@ -797,14 +804,15 @@ test('truth pass (critic r3 2): a one tap fix is the last thing asked, and the r
 test('PLAN 3.6g: Back, Shoulders and Arms at 45 minutes each get real extra sets, and nothing more is asked', async ({ page }) => {
   await toFocus(page); await part(page, 'back', 'back'); await part(page, 'shoulders', 'shoulders'); await part(page, 'arms', 'arms');
   await rest(page);
-  // Every pick has its extra, said as a number; no box, no button.
-  await expect(page.getByTestId('focus-fit')).toHaveCount(0);
+  // Every pick has its extra, said as a number; no button. PLAN 3.6g2 (under 12 is said): the parts of Shoulders and Arms are under 12 sets and the whole budget of 12 is spent, so one line says that.
+  await expect(page.getByTestId('focus-fit')).toHaveText('Shoulders and Arms stay under 12 sets: extra work stops at 12 sets a week.');
   await expect(page.locator('[data-testid="focus-add-minutes"], [data-testid="focus-add-day"], [data-testid="focus-add-both"]')).toHaveCount(0);
   const extras = await page.getByTestId('reveal-focus').locator('li').evaluateAll((rows) => Object.fromEntries(rows.map((r) => [r.getAttribute('data-testid')!, Number(/\+(\d+) extra/.exec(r.textContent ?? '')?.[1] ?? 0)])));
-  expect(extras).toEqual({ 'focus-line-back': 4, 'focus-line-shoulders': 5, 'focus-line-arms': 3 });
+  // PLAN 3.6g2 (strict rank): no pick gets more than one ranked above it: +4 each (it was 4, 5, 3).
+  expect(extras).toEqual({ 'focus-line-back': 4, 'focus-line-shoulders': 4, 'focus-line-arms': 4 });
   for (const id of ['back', 'shoulders', 'arms']) await expect(page.getByTestId(`focus-line-${id}`)).toHaveAttribute('data-state', 'extra');
-  // Who got the most and why a lower pick is ahead, from the numbers.
-  await expect(page.getByTestId('focus-summary')).toHaveText('Back already has its share, so Shoulders gets the most.');
+  // Nobody is ahead of a pick ranked above it, said from the numbers.
+  await expect(page.getByTestId('focus-summary')).toHaveText('Every pick gets the same extra work: +4.');
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/no extra|no room|\byet\b/);
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });
 });
@@ -831,7 +839,8 @@ for (const scale of [1, 1.3]) test(`PLAN 3.6g: Mobility alone at 45 minutes: eve
   const cards = page.getByTestId('plan-stretches'); await expect(cards).toHaveCount(3);
   await expect(cards.first()).toContainText('Stretches · 8 min, back to back');
   await expect(cards.first().locator('li')).toHaveCount(3);
-  await expect(cards.first()).toContainText('2 sets × 80 sec');
+  // PLAN 3.6g2: a stretch reads as a stretch: its hold for each side, never lifting words.
+  await expect(cards.first()).toContainText('80 sec each side'); await expect(cards.first()).not.toContainText(/\d sets|×/);
   await expect(cards.first()).not.toContainText(/80 to 80|Pair|rest/);
   await expect(page.getByTestId('plan-pair')).toHaveCount(await page.locator('[data-kind="pair"]:not([data-mobility])').count());
   const why = page.getByTestId('plan-day-why-1'); await expect(why).toHaveText('Extra today: 8 min of stretches');
@@ -843,10 +852,13 @@ for (const scale of [1, 1.3]) test(`PLAN 3.6g: Mobility alone at 45 minutes: eve
   await checkLayout(page);
   // The workout: the same block, back to back, at the end of the list.
   await page.goto('./#/'); await page.getByTestId('day-preview').tap();
+  // PLAN 3.6g2: the preview counts the block.
+  await expect(page.getByTestId('curate-meta')).toHaveText(/^\d+ exercises and a stretch block · /);
   await page.getByTestId('quick-start').getByRole('button', { name: 'Start workout', exact: true }).tap();
   await expect(page.getByTestId('workout-title')).toBeVisible();
   const block = page.getByTestId('mobility-group'); await expect(block).toHaveCount(1);
   await expect(block).toContainText('Stretches: back to back'); await expect(block).toContainText('Static Pigeon Stretch'); await expect(block).not.toContainText('80 to 80');
+  await expect(block).toContainText('80 sec each side'); await expect(block).not.toContainText(/\d sets ×/);
 });
 
 test('PLAN 3.6g: a forearm move approved on this phone serves Grip and Forearms: the tile and the part lose "None yet", and the plan gives Grip real sets; Obliques still says so', async ({ page }) => {
@@ -865,4 +877,18 @@ test('PLAN 3.6g: a forearm move approved on this phone serves Grip and Forearms:
   await expect(page.getByTestId('focus-line-grip')).toHaveText(/^Grip \d+ sets \+\d+ extra$/);
   await expect(page.getByTestId('reveal-focus')).not.toContainText(/\byet\b|needs equipment/);
   await checkLayout(page, { primary: page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }) });
+});
+
+test('PLAN 3.6g2: the Plans card and the plan headline tell one story, and a day card names every add', async ({ page }) => {
+  await toFocus(page);
+  await part(page, 'back', 'lats'); await part(page, 'shoulders', 'side_delts'); await part(page, 'arms', 'biceps'); await part(page, 'legs', 'quads'); await part(page, 'core', 'abs');
+  await page.getByTestId('focus-rank-open').tap(); await rankDone(page);
+  await rest(page, 'flexible', { minutes: '60' });
+  const reason = (await page.getByTestId('reveal-reason').textContent())!;
+  const headline = /, (extra [a-z, ]+ work|extra work for \d focus areas)/.exec(reason)![1]!;
+  for (const why of await page.getByTestId('reveal-day-why').all()) await expect(why).not.toContainText('and more');
+  await accept(page);
+  await expect(page.getByTestId('day-focus-why')).not.toContainText('and more');
+  await page.goto('./#/plans');
+  await expect(page.getByTestId('plan-focus')).toHaveText(headline.charAt(0).toUpperCase() + headline.slice(1));
 });
