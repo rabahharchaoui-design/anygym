@@ -3,7 +3,7 @@ import { animate } from 'motion/react';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { tick } from '../../ui/haptics';
 import type { BarId, Collars, PlateColors, Unit } from '../../db/types';
-import { fitsSleeve, formatAmount, formatMathLine, formatWeight, platesOnly, sumLoad } from '../../lib/load';
+import { fitsSleeve, formatAmount, formatMathLine, formatWeight, platesOnly, sumLoad, type Horns } from '../../lib/load';
 import { barSpec, plateSpec } from '../../lib/plates';
 import { barLayout, hornLayout, outermost, withPlates, withoutOutermost } from '../../lib/plateLayout';
 import { Hint } from '../hint/Hint';
@@ -46,6 +46,8 @@ type Props = {
   barId?: BarId;
   /** Share of the screen's height the drawing may take, instead of the picker's own (import editor). */
   drawingShare?: number;
+  /** A machine horn (PLAN 3.6h2): 1 when the machine loads on one side, so the plates count once. */
+  horns?: Horns;
 };
 
 const LONG_PRESS_MS = 400;
@@ -70,7 +72,7 @@ const CROSSFADE_MS = 150;
  * off, the big live total over a picture of the loaded bar and one quiet "Each side" line. The math
  * line is not shown; it stays exact underneath (data-math on the total, for the exactness tests).
  */
-export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner, mathAction, hint = true, tight = false, barId = 'olympic', drawingShare }: Props) {
+export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMode, value, onChange, variant = 'bar', extraLink, compact = false, corner, mathAction, hint = true, tight = false, barId = 'olympic', drawingShare, horns: hornsIn = 2 }: Props) {
   // Read live (2.0d critic): turning reduced motion on mid sheet takes effect at once.
   const reduce = useReducedMotionLive();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -102,6 +104,9 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
 
   const sizes = [...inventory].sort((a, b) => b - a);
   const horn = variant === 'horn';
+  const horns: Horns = horn ? hornsIn : 2;
+  // "Each side" on a bar and a two sided machine; "On the machine" when its plates count once.
+  const sideLabel = horns === 1 ? 'On the machine' : 'Each side';
   const baseLabel = horn ? 'start' : 'bar';
   const makeLayout = horn ? hornLayout : barLayout;
   // True scale (SPEC 5.6): the width sets the scale and the height; the plates only move the camera.
@@ -145,8 +150,8 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
   // A horn is one Olympic sleeve long; a bar uses its own sleeve.
   const sleeve = barSpec(horn ? 'olympic' : barId, unit).sleeve;
   const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
-  const { total } = sumLoad({ bar, perSide: value, collars, unit, other });
-  const math = formatMathLine(bar, value, collars, unit, baseLabel, other);
+  const { total } = sumLoad({ bar, perSide: value, collars, unit, other, horns });
+  const math = formatMathLine(bar, value, collars, unit, baseLabel, other, horns);
   const outer = outermost(value);
   // The exact breakdown stays readable by screen readers (Codex 2.0d): hidden on screen, described by the total.
   const mathId = `math${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -216,13 +221,13 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
               <p
                 className={`${styles.total} num`}
                 aria-live="polite"
-                aria-label={`${formatWeight(platesOnly(value, unit), unit)} of plates plus the machine's start, total not known yet`}
+                aria-label={`${formatWeight(platesOnly(value, unit, horns), unit)} of plates plus the machine's start, total not known yet`}
                 aria-describedby={mathId}
                 data-testid="plate-total"
                 data-math={math}
                 data-fit="total"
               >
-                {formatAmount(platesOnly(value, unit))}
+                {formatAmount(platesOnly(value, unit, horns))}
                 <span className={styles.unit}>{unit}</span>
               </p>
               <p className={styles.note} data-testid="plate-note">
@@ -289,11 +294,11 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
       </div>
       {/* One quiet line, always one line: the plates on each side as coloured chips. */}
       <div className={styles.below}>
-        <PlateChips unit={unit} perSide={value} label="Each side" className={styles.chips} fit />
+        <PlateChips unit={unit} perSide={value} label={sideLabel} className={styles.chips} fit />
       </div>
       {horn && drawingShare === undefined && (
         <p className={styles.perSide} data-testid="picker-title">
-          Machine · plates per side
+          {horns === 1 ? 'Machine · plates on one side' : 'Machine · plates per side'}
         </p>
       )}
 
@@ -303,7 +308,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
       {hint && value.length === 0 && <Hint id={horn ? 'machine' : 'plates'} className={styles.hint} point="down" />}
       <div className={styles.tray} role="group" aria-label="Plates" data-scroll={sizes.length > 7} data-many={sizes.length > 6} {...(sizes.length > 7 ? { 'data-scroller-x': '' } : {})}>
         {sizes.map((w) => (
-          <TrayPlate key={w} weight={w} unit={unit} size={plateSpec(w, unit).diameter / biggest} onAdd={add} />
+          <TrayPlate key={w} weight={w} unit={unit} size={plateSpec(w, unit).diameter / biggest} onAdd={add} once={horns === 1} />
         ))}
       </div>
       </div>
@@ -322,6 +327,8 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
           inventory={sizes}
           collars={collars}
           sleeveLength={sleeve}
+          horns={horns}
+          sideLabel={sideLabel}
           onApply={change}
         />
       )}
@@ -335,10 +342,12 @@ type TrayProps = {
   /** Diameter relative to the biggest plate in the tray (0 to 1), for the little swatch. */
   size: number;
   onAdd: (weight: number, count: number) => void;
+  /** One sided machine (PLAN 3.6h2): the plate goes on the machine, not "to each side". */
+  once?: boolean;
 };
 
 /** Tray plate: tap adds one to each side, long press (400 ms) adds two to each side. */
-function TrayPlate({ weight, unit, size, onAdd }: TrayProps) {
+function TrayPlate({ weight, unit, size, onAdd, once = false }: TrayProps) {
   const timer = useRef<number>(undefined);
   const longPressed = useRef(false);
   // The tray keeps its numbers and wears the plate's colour as a stripe (PLAN 2.0d).
@@ -362,7 +371,7 @@ function TrayPlate({ weight, unit, size, onAdd }: TrayProps) {
     <button
       type="button"
       className={`${styles.trayPlate} pressable`}
-      aria-label={`Add ${label} plate to each side`}
+      aria-label={once ? `Add ${label} plate` : `Add ${label} plate to each side`}
       data-weight={weight}
       data-color={color}
       onPointerDown={down}

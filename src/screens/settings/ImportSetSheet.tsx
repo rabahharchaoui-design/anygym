@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load, Unit } from '../../db/types';
-import { collarsSettingOf, convertForGym, exactHeldProblem, formatAmount, formatWeight, loadAt, MAX_EXACT_HELD, nearestLoadable, otherOf, pickedWeight } from '../../lib/load';
+import { collarsSettingOf, convertForGym, exactHeldProblem, formatAmount, formatWeight, loadAt, MAX_EXACT_HELD, nearestLoadable, otherOf, pickedWeight, hornsOf } from '../../lib/load';
 import { isExactHeld, loadSetupFor } from '../workout/exerciseLoad';
 import { fileLineText, type PlannedSet, type SetEdit } from '../../lib/import/importPlan';
 import { BarPicture } from '../../components/load/BarPicture';
@@ -144,6 +144,7 @@ function Body({ set, index, exerciseId, exerciseName, kind, bar, gym, onSave, on
           ownBarId={sameUnit && set.load?.kind === 'barbell' ? set.load.barId : undefined}
           ownCollars={sameUnit && set.load?.kind === 'barbell' ? collarsSettingOf(set.load) : undefined}
           ownOther={sameUnit && set.load?.kind === 'barbell' ? otherOf(set.load) : undefined}
+          ownHorns={sameUnit && set.load?.kind === 'plate_machine' ? hornsOf(set.load) : undefined}
           padInSheet
         />
       ) : (

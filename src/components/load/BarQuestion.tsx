@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { UnitChangedError, setEquipmentWeight } from '../../db/equipment';
+import { UnitChangedError, setEquipmentWeight, setMachineHorns } from '../../db/equipment';
 import type { EquipmentWeight, Gym, Unit } from '../../db/types';
 import { entryFor, type PromptKind } from '../../lib/equipmentPrompt';
 import { formatWeight } from '../../lib/load';
@@ -24,17 +24,16 @@ type Props = {
   dense?: boolean;
 };
 
-/** Saves one first use answer for this gym, once per tap, and says why when it cannot. */
-function useSaveAnswer(gymId: string, machineId: string, unit: Unit, onSaved: (gym: Gym) => void) {
+/** Runs one save for this gym, once per tap (a double tap saves once), and says why when it cannot. */
+export function useSaveOnce(onSaved: (gym: Gym) => void) {
   const [error, setError] = useState<false | 'save' | 'unit'>(false);
   const saving = useRef(false);
-  const save = async (entry: EquipmentWeight) => {
-    if (saving.current) return; // a double tap saves once
+  const run = async (write: () => Promise<Gym>) => {
+    if (saving.current) return;
     saving.current = true;
     setError(false);
     try {
-      // Typed in this unit: refused when the gym switched units meanwhile (PLAN 2.0c).
-      onSaved(await setEquipmentWeight(gymId, machineId, entry, undefined, unit));
+      onSaved(await write());
     } catch (err) {
       setError(err instanceof UnitChangedError ? 'unit' : 'save');
     } finally {
@@ -42,6 +41,13 @@ function useSaveAnswer(gymId: string, machineId: string, unit: Unit, onSaved: (g
     }
   };
   const message = error === 'unit' ? 'The gym units changed. Answer again.' : error ? 'Could not save that. Try again.' : '';
+  return { run, message };
+}
+
+/** Saves one first use answer for this gym (typed in this unit: refused when the gym switched units meanwhile, PLAN 2.0c). */
+function useSaveAnswer(gymId: string, machineId: string, unit: Unit, onSaved: (gym: Gym) => void) {
+  const { run, message } = useSaveOnce(onSaved);
+  const save = (entry: EquipmentWeight) => run(() => setEquipmentWeight(gymId, machineId, entry, undefined, unit));
   return { save, message };
 }
 
@@ -116,6 +122,52 @@ export function StartQuestion({ gymId, unit, machineId, onSaved, onOther, dense 
         <button type="button" className={`${styles.option} pressable`} onClick={onOther}>
           Set starting weight
         </button>
+      </div>
+      <p className={styles.error} role="status">
+        {message}
+      </p>
+    </section>
+  );
+}
+
+/** The two answers to the sides question, in the words every place uses (PLAN 3.6h2). */
+export const SIDES: ReadonlyArray<{ horns: 1 | 2; label: string }> = [
+  { horns: 1, label: 'One side' },
+  { horns: 2, label: 'Both sides' },
+];
+
+type SidesProps = {
+  gymId: string;
+  machineId: string;
+  onSaved: (gym: Gym, horns: 1 | 2) => void;
+  dense?: boolean;
+};
+
+/**
+ * First use of a plate machine whose sides are not known (PLAN 3.6h2), in the same card and place
+ * as the start question, asked just before it: many seated calf raise machines take plates on one
+ * side only, so the plates must not count twice. One tap, saved for this machine at this gym.
+ */
+export function SidesQuestion({ gymId, machineId, onSaved, dense = false }: SidesProps) {
+  const { run, message } = useSaveOnce(() => undefined);
+  const pick = (horns: 1 | 2) => run(async () => {
+    const gym = await setMachineHorns(gymId, machineId, horns);
+    onSaved(gym, horns);
+    return gym;
+  });
+  return (
+    <section className={styles.box} aria-labelledby="sides-question" data-testid="sides-question" data-dense={dense || undefined}>
+      <div className={styles.titleRow}>
+        <h3 id="sides-question" className={styles.title}>
+          Does this machine load on one side or both?
+        </h3>
+      </div>
+      <div className={styles.row}>
+        {SIDES.map((s) => (
+          <button key={s.horns} type="button" className={`${styles.option} pressable`} onClick={() => void pick(s.horns)}>
+            {s.label}
+          </button>
+        ))}
       </div>
       <p className={styles.error} role="status">
         {message}
