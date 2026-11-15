@@ -36,6 +36,18 @@ export const counter = () => {
 
 export const card = (page: Page) => page.getByTestId('deck-card');
 
+/**
+ * Taps Keep and waits for its real result: the next card is on top, or Ready to go is up. A tap
+ * while the last card is still flying out is dropped by design, and once the last card is kept the
+ * buttons fade away, so a loop never taps again on a fixed delay (a busy phone is still flying).
+ */
+export async function keepCard(page: Page) {
+  const top = () => page.evaluate(() => document.querySelector('[data-testid="deck-card"]')?.getAttribute('data-exercise') ?? null);
+  const before = await top();
+  await page.getByTestId('deck-keep').tap();
+  await expect.poll(async () => (await page.getByTestId('ready-list').isVisible()) || (await top()) !== before).toBe(true);
+}
+
 /** A drag on the top card with the mouse (pointer events, as a finger would move it). */
 export async function swipe(page: Page, dx: number, opts: { steps?: number; release?: boolean; slow?: boolean } = {}) {
   const box = await stillBox(card(page));

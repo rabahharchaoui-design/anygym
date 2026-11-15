@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { dbAll, dbPut, usePlan, watchErrors } from './workout-helpers';
-import { card, pastIntake, PROFILE } from './helpers/quick';
+import { card, keepCard, pastIntake, PROFILE } from './helpers/quick';
 
 // Verifier probe for PLAN 3.5f: calm screens (5), break attempts, no deck while logging (1).
 const proj = () => test.info().project.name.replace(/ /g, '-');
@@ -83,6 +83,8 @@ test.describe('intake', () => {
       // double tap Love: must save exactly one decision per card
       const first = (await card(page).getAttribute('data-exercise'))!;
       await page.getByTestId('ex-love').dblclick();
+      // The first tap's decision has to be saved before the count means anything (a busy phone saves late); then the second tap had its time to count twice.
+      await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft') ?? '{}').answers?.love?.length ?? 0)).toBeGreaterThan(0);
       await settle(page);
       const d = await page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft') ?? '{}'));
       console.log('DOUBLE LOVE', JSON.stringify(d.answers?.love), 'first', first);
@@ -129,6 +131,8 @@ test('break: double tap Keep/Start, reload mid deck, offline, hide button', asyn
   await expect(card(page)).toBeVisible();
   const total = Number((await page.getByTestId('deck-count').textContent())!.split(' of ')[1]);
   await page.getByTestId('deck-keep').dblclick();
+  // The first tap's card has to land before the count can be read (a busy phone is still flying it); then the second tap had its time to count wrongly.
+  await expect(page.getByTestId('deck-count')).toHaveText(`2 of ${total}`);
   await settle(page);
   const at = Number((await page.getByTestId('deck-count').textContent())!.split(' of ')[0]);
   console.log('after dbl keep at', at, 'of', total);
@@ -145,8 +149,7 @@ test('break: double tap Keep/Start, reload mid deck, offline, hide button', asyn
   await settle(page);
   await context.setOffline(false);
   for (let i = 0; i < 12 && !(await page.getByTestId('ready-list').isVisible()); i++) {
-    await page.getByTestId('deck-keep').tap();
-    await settle(page);
+    await keepCard(page);
   }
   await expect(page.getByTestId('ready-list')).toBeVisible();
   await page.getByTestId('quick-start').dblclick();

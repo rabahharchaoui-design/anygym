@@ -46,6 +46,14 @@ async function openDeck(page: Page, concept: string, minutes: 15 | 30 | 45 | 60 
 
 const name = (page: Page) => page.getByTestId('deck-name');
 const settle = (page: Page) => page.waitForTimeout(420);
+/**
+ * The real end of a left (a swipe or Swap): the card has been replaced, or the deck says nothing else fits.
+ * A tap while the last card is still flying is dropped by design, so the next one waits for this, not for a fixed time.
+ */
+const leftDone = (page: Page, before: string) =>
+  expect
+    .poll(async () => (await name(page).textContent()) !== before || (await page.getByTestId('deck-end').isVisible()) || (await page.getByTestId('swap-label').textContent()) === 'No other option here')
+    .toBe(true);
 
 test.describe('3.5f the deck in Quick workout', () => {
   test('a calm card: name, sets x reps, one curated why line; the rest behind the info button', async ({ page }) => {
@@ -106,11 +114,13 @@ test.describe('3.5f the deck in Quick workout', () => {
     const offer = page.getByTestId('show-six');
     let lefts = 0;
     for (let guard = 0; guard < 60 && !(await offer.isVisible()); guard++) {
-      seen.push((await name(page).textContent())!);
+      const before = (await name(page).textContent())!;
+      seen.push(before);
       // Before the third left the offer is never there.
       await expect(offer).toHaveCount(0);
       if (lefts % 2 === 0) await swipe(page, -260);
       else await page.getByTestId('deck-swap').tap();
+      await leftDone(page, before);
       await settle(page);
       lefts++;
       const out = (await page.getByTestId('swap-label').textContent()) === 'No other option here';
@@ -132,7 +142,8 @@ test.describe('3.5f the deck in Quick workout', () => {
     const n = await options.count();
     expect(n).toBeGreaterThan(1);
     expect(n, 'never more than six, never padded').toBeLessThanOrEqual(6);
-    const names = await options.allTextContents();
+    // The tile's name only: its photo spot says "No photo" until the picture is there.
+    const names = await options.getByTestId('six-name').allTextContents();
     expect(new Set(names).size).toBe(names.length);
     // Nothing already swiped away comes back in the grid.
     for (const s of seen) expect(names).not.toContain(s);
@@ -145,7 +156,9 @@ test.describe('3.5f the deck in Quick workout', () => {
     // Left until nothing is left: every move once, then the honest end, and the card stays.
     const shown = new Set([...seen, pick]);
     for (let guard = 0; guard < 30; guard++) {
+      const before = (await name(page).textContent())!;
       await page.getByTestId('deck-swap').tap();
+      await leftDone(page, before);
       await settle(page);
       if (await page.getByTestId('deck-end').isVisible()) break;
       const now = (await name(page).textContent())!;

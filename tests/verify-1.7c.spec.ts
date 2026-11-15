@@ -590,6 +590,8 @@ test('F1. reload on list, mid rest in the exercise view, and the finish screen; 
   await page.getByTestId('row-barbell-back-squat').tap();
   const view = page.getByTestId('exercise-barbell-back-squat');
   await view.getByTestId('check-current').tap();
+  // The second set follows the first row appearing: a tap before the table moved on is the double tap the app drops by design.
+  await expect(view.getByTestId('set-row')).toHaveCount(1);
   await view.getByTestId('check-current').tap();
   await expect(view.getByTestId('set-row')).toHaveCount(2);
   const viewUrl = page.url();

@@ -59,7 +59,10 @@
   height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), 28px));
 }
 
-.sheet[data-capped] {
+.sheet[data-capped],
+.sheet[data-scroll='true'] {
+  /* A scrolling sheet always keeps the grabber's room, so its Close is never hung off the top
+     (a sheet that scrolls but is only just tall enough sat 12 px from the top on a phone with no inset). */
   max-height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), 28px));
 }
 

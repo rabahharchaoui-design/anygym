@@ -1,4 +1,5 @@
 import { allowConsoleErrors, expect, test, type Locator, type Page } from './fixtures';
+import { rootAtRest } from './helpers/layout';
 
 // Other load inputs (PLAN 1.6, SPEC 5.2 / 5.3 / 5.5) on the hidden dev harness #/dev/loads.
 
@@ -232,6 +233,8 @@ test('Smith first use: count plates only saves 0 to the gym', async ({ page }) =
   await expect.poll(async () => (await json(page, 'prompts')).bars.smith).toBe(0);
   expect((await json(page, 'prompts')).equipmentWeights.smith_machine).toEqual({ kind: 'plates_only', value: 0 });
 
+  // The app behind the closing sheet is still coming forward (scaled); a tap aimed at a chip now can land in the gap beside it.
+  await rootAtRest(page);
   await s.getByRole('button', { name: 'EZ curl' }).tap();
   const ez = page.getByRole('dialog', { name: 'EZ curl bar' });
   await expect(ez.getByRole('button', { name: 'Save bar weight' })).toBeDisabled();
