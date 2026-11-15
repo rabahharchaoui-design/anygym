@@ -194,7 +194,8 @@
   flex: none;
   max-width: 100%;
   margin-left: auto;
-  color: var(--text-2);
+  /* Full text colour, not the quiet one: where the ambient glow sits behind the list on a short phone the quiet grey fell to 3.6:1 (AA is 4.5). */
+  color: var(--text);
 }
 
 /* Words that belong together ("ready Wednesday morning") move to the next line as one. */
