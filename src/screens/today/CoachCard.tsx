@@ -10,7 +10,7 @@ import { rebuildWeek, undoRebuildWeek } from '../../db/planState';
 import { setAlwaysUse } from '../../db/swaps';
 import { planById } from '../../data/plans';
 import type { CoachData } from '../../db/coachData';
-import { holdChanges, missedChoice, weekKey, weightWords, type CoachCard as Card, type PlannedChange } from '../../lib/coach';
+import { holdChanges, missedChoice, toWeight, weekKey, weightWords, type CoachCard as Card, type PlannedChange } from '../../lib/coach';
 import { ChangeRow, HoldList, ShortChanges } from './CoachList';
 import { learnedOf } from './useCoach';
 import styles from './Coach.module.css';
@@ -181,7 +181,7 @@ export function CoachCard({ card, data, onToast, onSeeChanges, onStartDay }: Pro
                 <ul className={styles.list}>
                   <ChangeRow c={a.change} />
                 </ul>
-                <Actions onLater={() => void later(card.id)} primary="Go lighter next time" onPrimary={() => void apply(card.id, weekKey(Date.now()), [a.change], `${p.name}: ${weightWords(a.change.loadKind, a.change.to, a.change.unit)} next time`)} busy={busy} />
+                <Actions onLater={() => void later(card.id)} primary="Go lighter next time" onPrimary={() => void apply(card.id, weekKey(Date.now()), [a.change], `${p.name}: ${weightWords(a.change.loadKind, toWeight(a.change), a.change.unit)} next time`)} busy={busy} />
               </>
             ) : (
               <>

@@ -17,6 +17,7 @@ export function targetActive(t: CoachTarget | undefined, lastWorkout: number | u
 /** The target a planned change stores. */
 export function targetOf(c: PlannedChange, at: number): CoachTarget {
   const t: CoachTarget = { value: c.to, unit: c.unit, loadKind: c.loadKind, reason: c.reason, source: c.source, setAt: at };
+  if (c.toAdded) t.added = c.toAdded;
   if (c.until !== undefined) t.until = c.until;
   if (c.fewerSets) t.fewerSets = true;
   if (c.reps) t.reps = c.reps;

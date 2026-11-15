@@ -27,13 +27,17 @@ import type { BarId, Load } from '../db/types';
 
 export type ExerciseLoadType = Load['kind'] | 'unknown';
 
-export type PlanExercise = { id: string; name: string; loadType: ExerciseLoadType; bar?: BarId };
+/**
+ * `horns` (PLAN 3.6w, plate machines only): how many sides carry the plates, set only where the
+ * machine type makes it certain (a leg press sled loads both sides). Absent: not known from data.
+ */
+export type PlanExercise = { id: string; name: string; loadType: ExerciseLoadType; bar?: BarId; horns?: 1 | 2 };
 
 /**
  * A hand written answer for one exercise name (data/plan-exercise-overrides.json, PLAN 1.7c):
  * how an experienced coach would load it when the name rule cannot tell. `why` is for people.
  */
-export type LoadTypeOverride = { name: string; loadType: ExerciseLoadType; bar?: BarId; why: string };
+export type LoadTypeOverride = { name: string; loadType: ExerciseLoadType; bar?: BarId; horns?: 1 | 2; why: string };
 
 const LOAD_TYPES: ExerciseLoadType[] = ['barbell', 'dumbbell_each', 'single', 'stack', 'plate_machine', 'bodyweight', 'timed', 'unknown'];
 const BARS: BarId[] = ['olympic', 'womens', 'ez_curl', 'trap', 'smith'];
@@ -128,13 +132,14 @@ export function buildPlanExercises(plans: unknown[], overrides: readonly LoadTyp
     if (!names.has(id)) throw new Error(`Override for an exercise no plan uses: "${o.name}"`);
     if (!LOAD_TYPES.includes(o.loadType)) throw new Error(`Override with an unknown load type: "${o.name}"`);
     if (o.bar !== undefined && (o.loadType !== 'barbell' || !BARS.includes(o.bar))) throw new Error(`Override with a bad bar: "${o.name}"`);
+    if (o.horns !== undefined && (o.loadType !== 'plate_machine' || (o.horns !== 1 && o.horns !== 2))) throw new Error(`Override with bad horns: "${o.name}"`);
     byId.set(id, o);
   }
   return [...names]
     .map(([id, name]): PlanExercise => {
       const o = byId.get(id);
       if (!o) return { id, name, loadType: loadTypeFromName(name) };
-      return o.bar ? { id, name, loadType: o.loadType, bar: o.bar } : { id, name, loadType: o.loadType };
+      return { id, name, loadType: o.loadType, ...(o.bar ? { bar: o.bar } : {}), ...(o.horns ? { horns: o.horns } : {}) };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }

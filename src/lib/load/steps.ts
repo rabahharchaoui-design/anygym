@@ -5,7 +5,7 @@ import { heldChoices } from './held';
 import { plateIncrement, roundToLoadable } from './increments';
 import { plateOpts } from './loadAt';
 import type { LoadSetup } from './setup';
-import { solvePlates } from './solver';
+import { lighterLoading, solvePlates } from './solver';
 import { validDumbbellRange } from './dumbbells';
 
 /** Nearest of a list (ties lighter), or null for an empty list. */
@@ -49,7 +49,7 @@ export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number 
   switch (kind) {
     case 'barbell':
     case 'plate_machine': {
-      const inc = plateIncrement(s.plates, s.unit);
+      const inc = plateIncrement(s.plates, s.unit, plateOpts(kind, s, 0).horns);
       if (s.base === null || inc === null) return null;
       const target = add(value, inc);
       const r = solvePlates(target, plateOpts(kind, s, s.base));
@@ -89,10 +89,11 @@ export function stepDown(kind: Load['kind'], value: number, s: LoadSetup): numbe
   switch (kind) {
     case 'barbell':
     case 'plate_machine': {
-      const inc = plateIncrement(s.plates, s.unit);
+      const inc = plateIncrement(s.plates, s.unit, plateOpts(kind, s, 0).horns);
       if (s.base === null || inc === null) return null;
-      const down = nearestLoadable(kind, add(value, -inc), s);
-      return down !== null && down < value - EPS && down >= s.base - EPS ? down : null;
+      // The nearest loadable total to one step down that is really lighter (PLAN 3.6w): across a
+      // gap in the plates (a short sleeve, sparse plates) that is the heaviest lighter loading.
+      return lighterLoading(value, inc, plateOpts(kind, s, s.base))?.total ?? null;
     }
     case 'dumbbell_each':
     case 'single':

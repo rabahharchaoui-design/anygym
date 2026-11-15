@@ -9,6 +9,26 @@ export function stackTotal(stackValue: number, added = 0): number {
   return add(stackValue, added);
 }
 
+/** A stack weight as set on the machine: the pin and the weight added on top of it (0: none). */
+export type StackPick = { value: number; added: number };
+
+/**
+ * A whole stack resistance rebuilt as an explicit pin plus the add-on the lifter uses (PLAN 3.6w):
+ * the heaviest pin that, with `added` on top, is not above `total`, so a target never asks for more
+ * than intended (165 lb with 50 added → a 115 pin). When no pin fits under the add-on, the
+ * heaviest pin alone not above `total`. null when not even one pin fits or the step is not valid.
+ */
+export function stackSplit(total: number, added: number, step: number): StackPick | null {
+  if (!validStackStep(step) || !Number.isFinite(total)) return null;
+  const pinUnder = (room: number): number => times(step, Math.floor(toInt(room) / toInt(step) + EPS));
+  if (added > 0) {
+    const pin = pinUnder(add(total, -added));
+    if (pin > 0) return { value: pin, added };
+  }
+  const pin = pinUnder(total);
+  return pin > 0 ? { value: pin, added: 0 } : null;
+}
+
 /** Nearest multiple of `step` (ties go lighter), at least one step and at most `max`. */
 export function nearestStack(target: number, step: number, max?: number): number {
   const n = Math.max(1, nearestCount(target, step));

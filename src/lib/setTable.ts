@@ -210,7 +210,7 @@ export function markSubmitted(
   delete draft.seconds;
   if (values.reps !== undefined) draft.reps = values.reps;
   if (values.seconds !== undefined) draft.seconds = values.seconds;
-  if (values.gymId !== undefined) draft.gymId = values.gymId;
+  if (values.gymId !== undefined && base.submitted === undefined) draft.gymId = values.gymId; // a recheck keeps its gym (3.6w)
   out[slot] = draft;
   return { slots: out, draft };
 }

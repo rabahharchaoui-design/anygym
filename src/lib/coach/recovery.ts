@@ -2,9 +2,9 @@
 // weeks (so the 6th is lighter), or when most lifts missed reps two workouts in a row, felt Hard all
 // week, or lost reps sharply set to set. A "Welcome back" week after 7+ days off. A plateau on one
 // lift changes only that lift. Every lighter weight comes from load.ts (about 90%, loadable here).
-import { comparableWeight, scaledWeight, weightChange } from '../load';
+import { comparableWeight, scaledTarget, weightChange } from '../load';
 import { liftClass, weighted } from './classify';
-import { allTop, changeWords, lastPicked, missedCount, sameWeight, sharpDrop, weightWords } from './sets';
+import { allTop, changeWords, lastPicked, missedCount, sameWeight, sharpDrop, toWeight, weightWords } from './sets';
 import { sessionEstimate, spread } from './strength';
 import { DAY_MS, daysBetween, lastWeek, weekKey, weekStart, weekStartFrom } from './time';
 import type { ChangeRecord, Lift, PlannedChange } from './types';
@@ -99,10 +99,11 @@ function lighter(lifts: readonly Lift[], source: 'deload' | 'welcome_back', unti
     const at = lastPicked(l.sessions[0]);
     if (!at || !l.setup || at.unit !== l.setup.unit) continue;
     const used = comparableWeight(at.load, at.unit);
-    const to = scaledWeight(l.loadKind, at.value, LIGHTER, l.setup, true, at.load.added ?? 0);
-    if (to === null || to >= used) continue;
+    const pick = scaledTarget(l.loadKind, at.value, LIGHTER, l.setup, true, at.load.added ?? 0);
+    const to = pick && toWeight({ to: pick.value, toAdded: pick.added });
+    if (!pick || to === null || to >= used) continue;
     const words = changeWords(l.loadKind, weightChange(used, to), at.unit);
-    out.push({ key: l.key, exerciseId: l.exerciseId, name: l.name, loadKind: l.loadKind, unit: at.unit, from: at.value, fromTotal: used, to, reason: line(words), source, until, reps: 'low', ...(fewerSets ? { fewerSets: true } : {}) });
+    out.push({ key: l.key, exerciseId: l.exerciseId, name: l.name, loadKind: l.loadKind, unit: at.unit, from: at.value, fromTotal: used, to: pick.value, ...(pick.added ? { toAdded: pick.added } : {}), reason: line(words), source, until, reps: 'low', ...(fewerSets ? { fewerSets: true } : {}) });
   }
   return out;
 }
@@ -150,14 +151,15 @@ export function plateauOf(lift: Lift, now: number): Plateau | null {
   const base = { key: lift.key, cardId, name: lift.name, text };
   if (!hardTwice && lift.variation) return { ...base, action: { kind: 'variation', ...lift.variation } };
   const used = comparableWeight(pa.load, pa.unit);
-  const to = scaledWeight(lift.loadKind, pa.value, LIGHTER, setup, true, pa.load.added ?? 0);
-  if (to === null || to >= used) return null;
+  const pick = scaledTarget(lift.loadKind, pa.value, LIGHTER, setup, true, pa.load.added ?? 0);
+  const to = pick && toWeight({ to: pick.value, toAdded: pick.added });
+  if (!pick || to === null || to >= used) return null;
   const words = changeWords(lift.loadKind, weightChange(used, to), pa.unit);
   return {
     ...base,
     action: {
       kind: 'lighter',
-      change: { key: lift.key, exerciseId: lift.exerciseId, name: lift.name, loadKind: lift.loadKind, unit: pa.unit, from: pa.value, fromTotal: used, to, reason: `${words} next time: a step back to build up past it`, source: 'plateau', reps: 'high' },
+      change: { key: lift.key, exerciseId: lift.exerciseId, name: lift.name, loadKind: lift.loadKind, unit: pa.unit, from: pa.value, fromTotal: used, to: pick.value, ...(pick.added ? { toAdded: pick.added } : {}), reason: `${words} next time: a step back to build up past it`, source: 'plateau', reps: 'high' },
     },
   };
 }

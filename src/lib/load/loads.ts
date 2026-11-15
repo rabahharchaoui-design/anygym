@@ -4,7 +4,7 @@ import { fitsSleeve } from '../plates';
 import { dumbbellTotal } from './dumbbells';
 import { add, fromInt, times, toInt } from './exact';
 import { stackTotal } from './stack';
-import { collarsWeight, sumLoad } from './sum';
+import { collarsWeight, hornsOf, sumLoad, type Horns } from './sum';
 
 // ---------------------------------------------------------------- Load records (SPEC 5.5)
 
@@ -43,23 +43,28 @@ export function stackLoad(stackValue: number, unit: Unit, added = 0): Load {
   return load;
 }
 
-/** Plate loaded machine: start + 2 × sum(perSide). null while the starting resistance is unknown (never a guess). */
-export function plateMachineLoad(start: number | null, perSide: readonly number[], unit: Unit, sleeveLength?: number): Load | null {
+/**
+ * Plate loaded machine: start + horns × sum(perSide) (2 by default; 1 on a one horn machine, PLAN
+ * 3.6w, snapshotted on the load). null while the starting resistance is unknown (never a guess).
+ */
+export function plateMachineLoad(start: number | null, perSide: readonly number[], unit: Unit, sleeveLength?: number, horns: Horns = 2): Load | null {
   if (start === null) return null;
   if (sleeveLength !== undefined && !fitsSleeve(perSide, unit, sleeveLength)) return null;
-  const total = sumLoad({ bar: start, perSide, unit }).total!;
-  return { kind: 'plate_machine', unit, total, barWeight: start, perSide: [...perSide], collars: 0 };
+  const total = sumLoad({ bar: start, perSide, unit, horns }).total!;
+  const load: Load = { kind: 'plate_machine', unit, total, barWeight: start, perSide: [...perSide], collars: 0 };
+  if (horns === 1) load.horns = 1;
+  return load;
 }
 
 /**
  * The collar weight a bar or plate machine load was lifted with (PLAN 1.7f), in the load's unit.
- * New loads store it. Older loads recover it as total − barWeight − 2 × sum(perSide) when that is
+ * New loads store it. Older loads recover it as total − barWeight − horns × sum(perSide) when that is
  * a real collar value (none, or the competition pair); anything else counts as 0. 0 for other kinds.
  */
 export function collarsOf(load: Load): number {
   if (load.collars !== undefined) return load.collars;
   if (load.barWeight === undefined || !load.perSide) return 0;
-  const rest = add(load.total, -load.barWeight, -times(add(...load.perSide), 2));
+  const rest = add(load.total, -load.barWeight, -times(add(...load.perSide), hornsOf(load)));
   const pair = collarsWeight('competition', load.unit);
   return Math.abs(rest - pair) < 1e-6 ? pair : 0;
 }
@@ -71,7 +76,7 @@ export function collarsOf(load: Load): number {
  */
 export function otherOf(load: Load): number {
   if (load.barWeight === undefined || !load.perSide) return 0;
-  return add(load.total, -load.barWeight, -times(add(...load.perSide), 2), -collarsOf(load));
+  return add(load.total, -load.barWeight, -times(add(...load.perSide), hornsOf(load)), -collarsOf(load));
 }
 
 /** The collar setting a load was lifted with: editing a set uses this, never today's gym setting. */
