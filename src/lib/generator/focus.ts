@@ -19,6 +19,11 @@ export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
     const it = makeItem(ctx, c, pattern as Item['pattern']);
     prescribe(ctx, it, false);
     return it;
+  })).concat((ctx.deps.focusLifts?.() ?? []).filter((c) => allowed(ctx, c, false)).map((c) => {
+    // A small arm move outside the ladders (a wrist curl): prescribed like any accessory.
+    const it = makeItem(ctx, c, 'biceps');
+    prescribe(ctx, it, false);
+    return it;
   })).concat((ctx.deps.focusCandidates ?? []).filter((c) => allowed(ctx, c, true)).map((c) => {
     const it = makeItem(ctx, c, 'core');
     // PLAN 3.6g: a stretch of the block; lib/plan/focusServe.ts sets the rounds and the hold.

@@ -5,12 +5,14 @@ import { focusFacts, FOCUS_MOBILITY } from './focus';
 import { SWAP_DATA } from './patterns';
 import { profileFor } from './order';
 import { exerciseNameOf } from './importMatch';
-import { approvedCardio } from './candidateGate';
+import { approvedCardio, approvedFocusLifts } from './candidateGate';
 
 export const GENERATOR_DEPS: GeneratorDeps = {
   data: SWAP_DATA,
   focusFacts,
   focusCandidates: FOCUS_MOBILITY,
+  // PLAN 3.6g: Grip and Forearms are served only with a forearm move approved on this phone.
+  focusLifts: approvedFocusLifts,
   profile: (id) => profileFor(id),
   name: (id) => exerciseNameOf(id) ?? id,
   // PLAN 3.5j: a cardio warm up only from a move approved on this phone.

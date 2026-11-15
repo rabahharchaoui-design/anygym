@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOCUS, FOCUS_OBJECTIVES, FOCUS_PARTS, type FocusId, type FocusPickId } from '../../lib/intake/options';
 import { focusBudget, focusName, normalizeFocusPicks } from '../../lib/plan/focus';
 import { focusRankWords } from '../../lib/plan/focusWords';
+import { approvedVersion } from '../../data/candidateGate';
 import { focusNotYet } from '../../data/focusServed';
 import { Chip } from '../../ui/Chip';
 import { SummaryRow } from '../../ui/SummaryRow';
@@ -42,7 +43,9 @@ const barHeight = () => document.querySelector<HTMLElement>('[data-bottom-cta]')
  */
 export function FocusStep({ value, onChange }: { value: readonly string[]; onChange: (picks: FocusPickId[]) => void }) {
   const picks = normalizeFocusPicks(value);
-  const notYet = useMemo(() => focusNotYet(), []);
+  // PLAN 3.6g: a forearm move approved on this phone makes Grip and Forearms served choices.
+  const approvals = approvedVersion();
+  const notYet = useMemo(() => focusNotYet(), [approvals]);
   const [group, setGroup] = useState<Group | null>(null);
   const [rankOpen, setRankOpen] = useState(false);
   // The row asks ("Rank your 5 picks") from the pick that brought it until the ranking has been opened.
