@@ -1,9 +1,9 @@
 // Small readings of a lift's sets, shared by the coach's rules. Weights are compared through
 // load.ts only.
 import type { Load, Unit } from '../../db/types';
-import { comparableWeight, formatWeight, pickedWeight, sameResistance } from '../load';
+import { comparableWeight, formatWeight, pickedWeight, sameResistance, stackTotal } from '../load';
 import type { RepRange } from '../progression';
-import type { CoachSet, LiftSession } from './types';
+import type { CoachSet, LiftSession, PlannedChange } from './types';
 
 /**
  * One lift's identity (SPEC 6 keys): the exercise, where its history counts (ANY_GYM '' for free
@@ -50,6 +50,9 @@ export function changeWords(kind: Load['kind'], delta: number, unit: Unit): stri
   const sign = delta < 0 ? '−' : '+';
   return `${sign}${formatWeight(Math.abs(delta), unit)}${kind === 'dumbbell_each' ? ' each' : ''}`;
 }
+
+/** The weight a change goes to, as shown (PLAN 3.6w): the pin plus a kept add-on, else `to`. */
+export const toWeight = (c: Pick<PlannedChange, 'to' | 'toAdded'>): number => (c.toAdded ? stackTotal(c.to, c.toAdded) : c.to);
 
 /** "185 lb", "30 lb each": a picked weight in plain words. */
 export function weightWords(kind: Load['kind'], value: number, unit: Unit): string {

@@ -12,7 +12,8 @@
  {
   "id": "angled-machine-leg-press",
   "name": "Angled Machine Leg Press",
-  "loadType": "plate_machine"
+  "loadType": "plate_machine",
+  "horns": 2
  },
  {
   "id": "band-internal-shoulder-rotation-0-degrees",
@@ -257,12 +258,14 @@
  {
   "id": "leg-press",
   "name": "Leg Press",
-  "loadType": "plate_machine"
+  "loadType": "plate_machine",
+  "horns": 2
  },
  {
   "id": "leg-press-machine-calf-raise",
   "name": "Leg Press Machine Calf Raise",
-  "loadType": "plate_machine"
+  "loadType": "plate_machine",
+  "horns": 2
  },
  {
   "id": "lying-straight-leg-raise",
@@ -272,7 +275,8 @@
  {
   "id": "machine-leg-press",
   "name": "Machine Leg Press",
-  "loadType": "plate_machine"
+  "loadType": "plate_machine",
+  "horns": 2
  },
  {
   "id": "machine-lying-leg-curl",

@@ -48,4 +48,33 @@ describe('the gym a set was tapped at (PLAN 3.8b)', () => {
     const { draft } = markSubmitted([], [], 0, { load: pin, reps: 8, type: 'normal', gymId: 'g1' }, () => 'id1');
     expect(draft.gymId).toBe('g1');
   });
+
+  // PLAN 3.6w (3), Codex bughunt 1112-1918 #10: Log at A, the journal write fails, the lifter
+  // switches to B, then rechecks the row: the retry is the same submission and keeps A.
+  it('rechecking an already submitted draft keeps the gym it was first submitted at', () => {
+    const first = markSubmitted([], [], 0, { load: pin, reps: 8, type: 'normal', gymId: 'A' }, () => 'id1');
+    expect(first.draft.submitted).toBe(0);
+    const again = markSubmitted(first.slots, [], 0, { load: pin, reps: 8, type: 'normal', gymId: 'B' }, () => 'id2');
+    expect(again.draft.id).toBe('id1');
+    expect(again.draft.gymId).toBe('A');
+  });
+
+  it('a fresh submission (a draft never submitted) captures the gym of the tap', () => {
+    const typed = { id: 'd1', load: pin, plates: [], unit: 'lb' as const, reps: 8, rev: 2 };
+    expect(markSubmitted([typed], [], 0, { load: pin, reps: 8, type: 'normal', gymId: 'B' }, () => 'x').draft.gymId).toBe('B');
+  });
+
+  it('db: a failed first Log at Home, a switch to Away, the row rechecked: the set lands at Home', async () => {
+    const s = await startWorkout(home.id, db, 1000);
+    // Log at Home: the submitted draft is stored; the journal write fails, so nothing is saved.
+    const first = markSubmitted([], [], 0, { load: pin, reps: 8, type: 'normal', gymId: home.id }, () => 'set1');
+    const preview = await previewGymSwitch(away.id, db);
+    await switchGym(away.id, preview.workout!.fp, db, 1200);
+    // The row's check at Away: the same draft is marked again and written.
+    const { draft } = markSubmitted(first.slots, [], 0, { load: pin, reps: 8, type: 'normal', gymId: away.id }, () => 'set2');
+    await logSet({ id: draft.id, sessionId: s.id, exerciseId: 'lat-pulldown', reps: draft.reps!, load: draft.load!, gymId: draft.gymId! }, db);
+    const sets = await setsOf(s.id, db);
+    expect(sets).toHaveLength(1);
+    expect(sets[0]!.gymId).toBe(home.id);
+  });
 });

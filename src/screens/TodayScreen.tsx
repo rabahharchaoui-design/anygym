@@ -13,6 +13,7 @@ import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
 import { useTodayData } from '../hooks/useTodayData';
 import { useSchedule } from '../hooks/useSchedule';
+import { registryWords, usePlanRegistry } from '../hooks/usePlanRegistry';
 import { WeekScheduleSheet } from './today/WeekScheduleSheet';
 import { FixedDaysSheet } from './today/FixedDaysSheet';
 import { RecoveryCard } from './today/RecoveryCard';
@@ -21,8 +22,7 @@ import { db } from '../db/schema';
 import { startDb } from '../db/bootstrap';
 import { setNextDay } from '../db/planState';
 import { startPlanDay, startWorkout } from '../db/workouts';
-import { discardEmptyWorkout, undoDiscard } from '../db/discard';
-import { clearSessionDrafts } from '../lib/drafts';
+import { discardWorkout } from '../hooks/discardWorkout';
 import { useLive } from '../hooks/useLive';
 import { useTapGuard } from '../hooks/useTapGuard';
 import { applyUpdate, isUpdateReady, onUpdateReady } from '../lib/pwaUpdate';
@@ -70,6 +70,7 @@ export function TodayScreen() {
   const location = useLocation();
   const { dbOpen, live } = useTodayData();
   const schedule = useSchedule(dbOpen);
+  const registry = usePlanRegistry();
   // A failed read shows "Could not load workouts · Try again", never a false "Pick a plan"; the last
   // good result stays on screen (PLAN 1.7f).
   // PLAN 3.8: the coach reads with Today, so its card never shifts the page in after the rest.
@@ -166,13 +167,12 @@ export function TodayScreen() {
     if (!active) return;
     const failedText = 'Could not discard it. It has sets now.';
     try {
-      const d = await discardEmptyWorkout(active.id);
+      const d = await discardWorkout(active.id);
       if (!d) return setToast({ id: Date.now(), text: failedText });
-      clearSessionDrafts(active.id);
       setToast(
         undoToast(Date.now(), 'Empty workout discarded', () => {
           setToast(null);
-          undoDiscard(d)
+          d.undo()
             .then((ok) => !ok && setToast({ id: Date.now(), text: 'Could not undo. Another workout is in progress.' }))
             .catch(() => setToast({ id: Date.now(), text: 'Could not undo that. Try again.' }));
         }),
@@ -239,6 +239,7 @@ export function TodayScreen() {
         {(live.error || schedule.error) && dbOpen ? (
           <LoadError text={failed ? "We couldn't read your saved workouts. Try again, or start a quick workout." : 'Could not load workouts'} onRetry={() => { live.retry(); schedule.retry(); }} />
         ) : null}
+        {registry.state === 'failed' ? <LoadError text={registryWords(registry.missing)} onRetry={registry.retry} /> : null}
         {failed ? null : !data.ready ? (
           <Skeleton height={248} radius={28} />
         ) : active && plan && planState && active.planId === plan.id && dayIndexOf(plan, active.dayId) >= 0 ? (
