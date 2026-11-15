@@ -75,7 +75,7 @@ export async function applyChanges(
 /** Puts back what one change replaced, while its target is still the one in place. Marked undone either way. */
 async function undoOne(rec: ChangeRecord, db: AnyGymDB, now: number): Promise<void> {
   const row = await db.coachLifts.get(rec.key);
-  if (row?.target && row.target.setAt === rec.appliedAt && row.target.value === rec.to) {
+  if (row?.target && row.target.setAt === rec.appliedAt && row.target.value === rec.to && (row.target.added ?? 0) === (rec.toAdded ?? 0)) {
     const next: CoachLiftRow = { ...row, updatedAt: now };
     if (rec.prevTarget) next.target = rec.prevTarget;
     else delete next.target;

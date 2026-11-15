@@ -6,6 +6,7 @@
 import { definitionPlan, registerSavedPlan } from '../data/plans';
 import type { Plan as PlanDefinition } from '../lib/plans';
 import { db as defaultDb, type AnyGymDB } from './schema';
+import { loadPlanRegistry } from './planRegistry';
 
 /** Saves a generated plan (once: the same id is the same plan) and makes it known. Throws for a definition the app cannot run. */
 export async function saveGeneratedPlan(raw: Record<string, unknown>, db: AnyGymDB = defaultDb, now = Date.now()): Promise<PlanDefinition> {
@@ -18,10 +19,5 @@ export async function saveGeneratedPlan(raw: Record<string, unknown>, db: AnyGym
   return registerSavedPlan(raw) ?? plan;
 }
 
-/** App start (and after a restore): registers every saved generated plan. Rows it cannot run are left as they are. */
-export async function loadSavedPlans(db: AnyGymDB = defaultDb): Promise<number> {
-  const rows = await db.plans.filter((p) => p.source === 'generated' && !!p.definition).toArray();
-  let n = 0;
-  for (const r of rows) if (registerSavedPlan(r.definition)) n++;
-  return n;
-}
+/** App start (and after a restore): approvals, then every saved generated plan (db/planRegistry.ts). */
+export const loadSavedPlans = (db: AnyGymDB = defaultDb): Promise<number> => loadPlanRegistry(db);

@@ -117,9 +117,9 @@ while [ $n -lt 300 ]; do
   say "run $n (up to $((limit/60)) min, used this week $((usedsec/60)) of $((WEEK_HOURS*60)) min, model $MODEL)"
   RUNLOG=$(mktemp); START=$(date +%s)
   if [ $n -eq 1 ] && ! grep -q "\[x\]" PLAN.md; then
-    claude --model $MODEL --dangerously-skip-permissions ${=PLUG} -p "$(cat PROMPT.md)" > "$RUNLOG" 2>&1 &
+    ( claude --model $MODEL --dangerously-skip-permissions ${=PLUG} --output-format stream-json --verbose -p "$(cat PROMPT.md)" 2>&1 | node .loop-tools/stream-tap.mjs .usage-tap ) > "$RUNLOG" 2>&1 &
   else
-    claude --continue --model $MODEL --dangerously-skip-permissions ${=PLUG} -p "Continue as the orchestrator per PROMPT.md. Re-read PLAN.md and resume at the first unchecked item above the STOP line (if HEAD is a 'Handoff to cloud builder' work in progress commit, check that item's code against SPEC and finish it first). When everything above the STOP line is done, merged, pushed and live, print exactly ALL DONE." > "$RUNLOG" 2>&1 &
+    ( claude --continue --model $MODEL --dangerously-skip-permissions ${=PLUG} --output-format stream-json --verbose -p "Continue as the orchestrator per PROMPT.md. Re-read PLAN.md and resume at the first unchecked item above the STOP line (if HEAD is a 'Handoff to cloud builder' work in progress commit, check that item's code against SPEC and finish it first). When everything above the STOP line is done, merged, pushed and live, print exactly ALL DONE." 2>&1 | node .loop-tools/stream-tap.mjs .usage-tap ) > "$RUNLOG" 2>&1 &
   fi
   pid=$!
   ( sleep $limit; echo "=== budget time is up, stopping this run $(date) ===" >> "$LOG"; pkill -TERM -P $pid 2>/dev/null; kill -TERM $pid 2>/dev/null; sleep 30; pkill -KILL -P $pid 2>/dev/null; kill -KILL $pid 2>/dev/null ) &
@@ -143,7 +143,7 @@ while [ $n -lt 300 ]; do
   fi
   rm -f "$RUNLOG"
   if [ -f .usage-stop ]; then mv .usage-stop .usage-stop.last; say "run $n stopped by the usage guard, checking again in 10 min"; sleep 600; continue; fi
-  if [ $REST -eq 1 ]; then say "no live usage numbers while G is awake: resting 3 h after a 2 h run"; sleep 10800; continue; fi
+  if [ $REST -eq 1 ] && ! tap_fresh; then say "no live usage numbers while G is awake: resting 3 h after a 2 h run"; sleep 10800; continue; fi
   if [ $dur -lt 60 ]; then FAST=$((FAST+1)); else FAST=0; fi
   if [ $FAST -ge 3 ]; then say "3 runs in a row failed in under a minute, stopping. Check the end of $LOG"; break; fi
   say "run $n ended after $((dur/60)) min, next check in 2 min"; sleep 120

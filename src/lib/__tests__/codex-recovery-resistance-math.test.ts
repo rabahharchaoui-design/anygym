@@ -27,8 +27,12 @@ describe('recovery targets use complete resistance', () => {
         const before = structuredClone(l);
         const c = route.change(l);
         expect(c).toBeDefined();
-        const next = loadAt('stack', targetOf(c!, NOW).value, setup);
+        // PLAN 3.6w: the target keeps the add-on, rebuilt as the screen does (pin + target.added).
+        const t = targetOf(c!, NOW);
+        const next = loadAt('stack', t.value, setup, t.added ?? 0);
         expect.soft(next?.total, `${setup.unit}: 90% of complete resistance`).toBe(expected);
+        expect(next?.added).toBe(added);
+        expect(next?.stackValue).toBe(expected - added);
         expect(l).toEqual(before);
       }
     });

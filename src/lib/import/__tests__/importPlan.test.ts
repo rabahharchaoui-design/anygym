@@ -84,6 +84,8 @@ describe('buildLoad: loads only from the file numbers, through load.ts', () => {
     expect(buildLoad(set({ loadType: 'smith_per_side', weight: 20, unit: 'kg' }), undefined, ctx({ smith: 15 })).reason).toBe(SMITH_UNKNOWN);
     expect(buildLoad(set({ loadType: 'plate_machine_per_side', weight: 90, plates: [45, 45] }), undefined, ctx())).toEqual({ reason: START_UNKNOWN, note: '90 lb per side' });
     expect(buildLoad(set({ loadType: 'plate_machine_per_side', weight: 90, plates: [45, 45] }), undefined, ctx({ machineStart: 0 })).load).toMatchObject({ kind: 'plate_machine', total: 180, perSide: [45, 45] });
+    // PLAN 3.6w: a one horn machine counts the file's per side plates once (90, not 180).
+    expect(buildLoad(set({ loadType: 'plate_machine_per_side', weight: 90, plates: [45, 45] }), undefined, ctx({ machineStart: 0, machineHorns: 1 })).load).toEqual({ kind: 'plate_machine', unit: 'lb', total: 90, barWeight: 0, perSide: [45, 45], collars: 0, horns: 1 });
   });
 
   it('no weight: no load and the reason; unknown load type waits for the answer', () => {

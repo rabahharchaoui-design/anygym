@@ -3,7 +3,7 @@
 // give is never made up: the set is kept as reps only and stays uncertain.
 import { defaultBars } from '../../db/gyms';
 import type { BarId, Load, SetKind, Unit } from '../../db/types';
-import { barbellLoad, bodyweightLoad, dumbbellLoad, formatAmount, loadAt, plateMachineLoad, platesForSide, singleLoad, stackLoad, type LoadSetup } from '../load';
+import { barbellLoad, bodyweightLoad, dumbbellLoad, formatAmount, loadAt, plateMachineLoad, platesForSide, singleLoad, stackLoad, type Horns, type LoadSetup } from '../load';
 import type { PlanExercise } from '../loadTypeRule';
 import { autoTarget, pickedTarget, type ImportMapping, type ImportTarget, type MatchData } from './exerciseMatch';
 import { NO_WEIGHT, type FileLoadType, type ImportedExercise, type ImportedSession, type ImportedSet, type ParsedImport } from './anygymImportV1';
@@ -23,6 +23,8 @@ export type LoadContext = {
   smith: number | null;
   /** This exercise's plate loaded machine starting weight (0 = plates only), null until answered. */
   machineStart: number | null;
+  /** PLAN 3.6w: 1 when this machine loads on one horn (a file's "per side" then counts once). Absent: both sides. */
+  machineHorns?: Horns;
   /** Unknown load types answered with a bar or plate machine: what this gym can load. */
   setupFor: (kind: Load['kind']) => LoadSetup;
 };
@@ -223,7 +225,7 @@ export function buildLoad(set: ImportedSet, chosen: Load['kind'] | undefined, ct
       return load ? { load } : { reason: SMITH_UNKNOWN, note: perSideNote };
     }
     case 'plate_machine_per_side': {
-      const load = sameUnit ? plateMachineLoad(ctx.machineStart, side!, unit) : null;
+      const load = sameUnit ? plateMachineLoad(ctx.machineStart, side!, unit, undefined, ctx.machineHorns) : null;
       return load ? { load } : { reason: START_UNKNOWN, note: perSideNote };
     }
     case 'unknown':

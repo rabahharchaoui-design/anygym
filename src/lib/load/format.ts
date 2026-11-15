@@ -1,6 +1,6 @@
 // Display (the only rounding): amounts, weights, totals and the math line.
 import type { Collars, Unit } from '../../db/types';
-import { sumLoad } from './sum';
+import { sumLoad, type Horns } from './sum';
 import { convertForGym, otherUnit } from './units';
 
 // ---------------------------------------------------------------- display (the only rounding)
@@ -40,12 +40,15 @@ export function formatMathLine(
   unit: Unit,
   baseLabel = 'bar',
   other = 0,
+  horns: Horns = 2,
 ): string {
-  const { total, collarsTotal } = sumLoad({ bar, perSide, collars, unit, other });
+  const { total, collarsTotal } = sumLoad({ bar, perSide, collars, unit, other, horns });
   const parts: string[] = [];
   if (bar !== null && bar !== 0) parts.push(`${formatAmount(bar)} ${baseLabel}`);
-  if (perSide.length === 1) parts.push(`2 × ${formatAmount(perSide[0]!)}`);
-  if (perSide.length > 1) parts.push(`2 × (${perSide.map(formatAmount).join(' + ')})`);
+  // One horn (PLAN 3.6w): the plates count once, so no "2 ×".
+  if (horns === 1) parts.push(...perSide.map(formatAmount));
+  else if (perSide.length === 1) parts.push(`2 × ${formatAmount(perSide[0]!)}`);
+  else if (perSide.length > 1) parts.push(`2 × (${perSide.map(formatAmount).join(' + ')})`);
   if (collarsTotal) parts.push(`${formatAmount(collarsTotal)} collars`);
   if (total === null) return [...parts, baseLabel].join(' + ');
   let left = parts.length ? parts.join(' + ') : `0 ${baseLabel}`;
