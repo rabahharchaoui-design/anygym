@@ -34,7 +34,7 @@ export { barbellLoad, dumbbellLoad, singleLoad, heldWeightOf, stackLoad, plateMa
 export { setLifted, totalLifted, setScore, heavierThan, beatsVolume, heavierBy, gainRatio, biggerGain, weightChange } from './records';
 export { sleeveOf } from './setup';
 export type { LoadSetup } from './setup';
-export { solvePlates, platesForSide, isKnownPlate } from './solver';
+export { solvePlates, lighterLoading, platesForSide, isKnownPlate } from './solver';
 export type { SolveOptions, Loading, SolveResult } from './solver';
 export { stackTotal, nearestStack, DISPLAY_STACK_MAX, isStackPin, MAX_STACK_PINS, validStackStep, morePins, stackValues } from './stack';
 export { nearestLoadable, stepUp, resetWeight, stepDown } from './steps';

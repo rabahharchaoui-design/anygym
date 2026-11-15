@@ -167,6 +167,21 @@ export function nearestLoading(target: number, opts: SolveOptions): Loading {
 }
 
 /**
+ * One step lighter (PLAN 3.6w): the loading nearest to `value - step` (ties lighter) among those
+ * strictly lighter than `value`, so a step down never lands back on the weight itself; across a gap
+ * in the plates or a short sleeve that is the heaviest lighter loading. Sleeve fit and collars are
+ * respected like every solve. undefined when nothing lighter loads (the empty bar) or step is not > 0.
+ */
+export function lighterLoading(value: number, step: number, opts: SolveOptions): Loading | undefined {
+  if (!(step > 0)) return undefined;
+  const r = solvePlates(add(value, -step), opts);
+  if (r.exact) return { total: r.total, perSide: r.perSide };
+  const above = r.above && r.above.total < value - EPS ? r.above : undefined;
+  if (r.below && (!above || r.diffBelow! <= r.diffAbove!)) return r.below;
+  return above;
+}
+
+/**
  * Real plates for one side that weigh exactly `side` (an imported "per side" number, SPEC 9.3):
  * the listed plates when they are all real plates and add up, else heaviest first from the usual
  * plates (SPEC 5.3 defaults), then from every real plate of the unit (sleeve fit respected). null
