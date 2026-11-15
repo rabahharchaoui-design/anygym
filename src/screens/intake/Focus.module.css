@@ -20,7 +20,7 @@
 .tiles > button {
   height: 100%;
   min-height: 0;
-  /* Close to the edge, so "No exercises yet" fits whole in a half width tile on a 375 pt phone. */
+  /* Close to the edge, so "None yet" fits whole in a half width tile on a 375 pt phone. */
   padding: var(--space-1) 10px;
   gap: var(--space-2);
 }
@@ -58,7 +58,7 @@
 }
 
 /* The 320 pt floor: two columns leave a name or its quiet line less than a line's width ("Abs and
-   core", "No exercises yet"). There the words wrap whole, never cut, and that row alone may grow. */
+   core", "None yet"). There the words wrap whole, never cut, and that row alone may grow. */
 @media (max-width: 340px) {
   .tiles {
     grid-auto-rows: minmax(var(--tile), auto);
