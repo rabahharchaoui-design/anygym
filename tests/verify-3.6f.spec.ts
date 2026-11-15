@@ -849,15 +849,15 @@ for (const scale of [1, 1.3]) test(`PLAN 3.6g: Mobility alone at 45 minutes: eve
   await expect(block).toContainText('Stretches: back to back'); await expect(block).toContainText('Static Pigeon Stretch'); await expect(block).not.toContainText('80 to 80');
 });
 
-test('PLAN 3.6g: a forearm move approved on this phone serves Grip and Forearms: the tile and the part lose "No exercises yet", and the plan gives Grip real sets; Obliques still says so', async ({ page }) => {
+test('PLAN 3.6g: a forearm move approved on this phone serves Grip and Forearms: the tile and the part lose "None yet", and the plan gives Grip real sets; Obliques still says so', async ({ page }) => {
   await page.goto('./'); await step(page, 'goal');
   await put(page, 'candidateReviews', { id: 'Palms-Up_Dumbbell_Wrist_Curl_Over_A_Bench', decision: 'approve', at: 1000 });
   await page.reload(); await step(page, 'goal'); await pick(page, 'goal', 'muscle'); await next(page);
   await step(page, 'units'); await next(page); await step(page, 'focus');
-  await expect(page.getByTestId('q-focus-grip')).not.toContainText('No exercises yet');
-  await pick(page, 'focus', 'arms'); await expect(page.getByTestId('focus-part-forearms')).not.toContainText('No exercises yet'); await page.keyboard.press('Escape');
+  await expect(page.getByTestId('q-focus-grip')).not.toContainText('None yet');
+  await pick(page, 'focus', 'arms'); await expect(page.getByTestId('focus-part-forearms')).not.toContainText('None yet'); await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await pick(page, 'focus', 'core'); await expect(page.getByTestId('focus-part-obliques')).toContainText('No exercises yet'); await page.keyboard.press('Escape');
+  await pick(page, 'focus', 'core'); await expect(page.getByTestId('focus-part-obliques')).toContainText('None yet'); await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await pick(page, 'focus', 'grip');
   await rest(page);

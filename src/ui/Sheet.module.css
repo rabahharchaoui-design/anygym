@@ -11,6 +11,8 @@
      reach into) a sheet that fits may use all the height. A sheet that fits is never held to this:
      it is only the cap of a taller one. Once it overflows (data-scroll) its body scrolls and the
      cap always keeps the room, inset or not, so Close stays on screen. */
+  /* Exactly what the hit area hangs above the sheet (margin-top -32 less the 8 px padding): no more. */
+  --grabber-room: 24px;
   --sheet-top-gap: clamp(0px, calc(var(--safe-top) * 1000), 28px);
 }
 
@@ -56,14 +58,14 @@
 }
 
 .sheet[data-fill] {
-  height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), 28px));
+  height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), var(--grabber-room)));
 }
 
 .sheet[data-capped],
 .sheet[data-scroll='true'] {
   /* A scrolling sheet always keeps the grabber's room, so its Close is never hung off the top
      (a sheet that scrolls but is only just tall enough sat 12 px from the top on a phone with no inset). */
-  max-height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), 28px));
+  max-height: calc(var(--app-height) - var(--safe-top) - max(var(--sheet-top-gap), var(--grabber-room)));
 }
 
 .root[data-closing] {
@@ -103,8 +105,10 @@
 }
 
 .sheet[data-scroll='true'] .grabberZone {
-  /* the only drag handle on a scrolling sheet: a taller hit area */
-  height: 53px;
+  /* the only drag handle on a scrolling sheet: still 48+ px to grab (it reaches 24 px over the scrim
+     and 25 px down to just above the body), but only 17 px of room in the layout, so a tall
+     body keeps its last pixels on a short phone */
+  height: 49px;
   padding-top: 36px;
   touch-action: none;
 }
