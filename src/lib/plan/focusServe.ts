@@ -173,6 +173,43 @@ export function stretch(b: Board, trade = false): void {
   }
 }
 
+/**
+ * PLAN 3.6g2, more buys more: when the stretch minutes are under `least` (what the same picks get
+ * with a day or minutes fewer), a day's block is made longer, the shortest first: in free time, or
+ * with sets from moves no pick asks for (four a day in all at the most), or the place of one small
+ * move no pick asks for (never a pick's work, so no pick loses a set).
+ */
+export function stretchMore(b: Board, least: number): void {
+  const blockOf = (day: FocusMove[]) => day.filter((m) => !m.hard && m.picks.includes('mobility'));
+  const total = () => b.days.reduce((n, d) => n + blockOf(d).reduce((k, m) => k + (m.seconds ?? 0) * m.sets / 60, 0), 0);
+  for (let guard = 0; guard < 12 && total() < least; guard++) {
+    const order = b.days.map((_, i) => i).filter((i) => blockOf(b.days[i]!).length).sort((x, y) => blockOf(b.days[x]!)[0]!.seconds! - blockOf(b.days[y]!)[0]!.seconds!);
+    const grew = order.some((i) => {
+      const day = b.days[i]!, block = blockOf(day), now = block[0]!.seconds!;
+      const longer = STRETCH_MINUTES.map((minutes) => minutes * 60 / (STRETCH_ROUNDS * block.length)).filter((sec) => sec > now && sec <= STRETCH_HOLD[1] && Number.isInteger(sec)).reverse();
+      const set = (sec: number) => b.accepts(i, () => { for (const m of block) m.seconds = sec; }, () => { for (const m of block) m.seconds = now; });
+      const gave: FocusMove[] = [];
+      // The sets this day's moves already gave (to the block, or to a pick): a day never gives more than STRETCH_DONORS in all.
+      const given = b.baseline[i]!.reduce((n, was) => n + Math.max(0, was.sets - (day.find((m) => m.id === was.id)?.sets ?? was.sets)), 0);
+      for (const donor of [undefined, ...b.donors(day).slice(0, Math.max(0, STRETCH_DONORS - given))]) {
+        if (donor) { donor.sets--; gave.push(donor); }
+        if (longer.some(set)) return true;
+      }
+      for (const d of gave) d.sets++;
+      // Last, like the block's first call: one small move no pick asks for gives its place (never a second one, never under STRETCH_MIN_LIFTS lifts).
+      if (b.baseline[i]!.some((was) => !day.some((m) => m.id === was.id)) || b.lifts(day) <= STRETCH_MIN_LIFTS) return false;
+      return b.spares(day).some((at) => {
+        const old = day[at]!;
+        day.splice(at, 1);
+        if (longer.some(set)) return true;
+        day.splice(at, 0, old);
+        return false;
+      });
+    });
+    if (!grew) break;
+  }
+}
+
 /** PLAN 3.5j's "about": a day within this many minutes of the choice is full. */
 const FILL_SLACK = 2;
 

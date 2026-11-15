@@ -166,7 +166,8 @@ function check(count: number, days: number, minutes: number, rep: number) {
     const weakest = Math.min(...partsOf(low.id).map((part) => setsFor(m, SRC[part]!)).filter((n) => n > 0));
     const aim = minutes < 60 ? 12 : hard.length === 1 && minutes >= 75 ? 18 : 16;
     const carriedBy = ranked.slice(j + 1).some((l) => l.extra >= ownExtra - 2);
-    expect(ownExtra <= 4 || weakest <= aim + 1 || carriedBy, `#${j + 1} ${low.id} past +4 (${ownExtra}) with ${weakest} sets ${label}`).toBe(true);
+    // A single pick is also held to what the same answers get with a day or minutes fewer (more buys more), inside the budget of 12.
+    expect(ownExtra <= 4 || weakest <= aim + 1 || carriedBy || hard.length === 1, `#${j + 1} ${low.id} past +4 (${ownExtra}) with ${weakest} sets ${label}`).toBe(true);
     for (const high of higher) {
       expect(low.requested, `#${j + 1} ${low.id} has a bigger share than ${high.id} ${label}`).toBeLessThanOrEqual(high.requested);
       // A higher pick at 20 sets cannot take more, whether it got its whole share first ("extra") or not ("plenty"); neither can one whose exercises are all at their most sets (PLAN 3.6g2: said as that).

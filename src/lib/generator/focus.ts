@@ -7,6 +7,7 @@ import { allowed, makeItem } from './pick';
 import { prescribe, setCap } from './prescribe';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
 import { minutesOf } from './trim';
+import type { FocusLeast } from './least';
 import type { Ctx, Day, Item } from './types';
 
 /** The most moves a day holds once focus has added to it: the base day's most (generatorRules movesFor) and up to two more where the time is long. */
@@ -23,7 +24,7 @@ function smallRest(ctx: Ctx, d: Day): number {
   return Math.max(60, ...small.map((it) => it.rest));
 }
 
-export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
+export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusReport {
   const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
   if (!picks.some((p) => p !== 'balance')) return { budget: 0, spent: 0, priorities: [], days: days.map(() => []) };
   const facts = (it: Item): FocusMove => ({ id: it.id, key: it.key, sets: it.sets, hard: it.profile.role === 'lift', compound: isCompound(it.profile), recovery: it.profile.role === 'lift' ? it.profile.targets : [], ...(ctx.loveKeys.has(it.key) ? { keep: true } : {}), ...(it.seconds ? { seconds: it.seconds[0] } : {}), ...(ctx.deps.focusFacts?.(it.id, it.profile) ?? { muscles: [...it.profile.targets], picks: (ctx.input.focus ?? []).filter((f) => f !== 'balance' && focusMuscles([f]).some((m) => it.profile.targets.includes(m))) }) });
@@ -60,7 +61,7 @@ export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
     const stretches = items.filter((it) => it.mobility);
     return { ...days[i]!, items, units: [...(ctx.family === 'strength' ? order : pairUp(order, items)), ...(stretches.length ? [stretches] : [])] };
   };
-  const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes, maxMoves: focusMaxMoves(ctx.input.minutes), fill: true, minutes: (moves, i) => minutesOf(arranged(moves, i)) });
+  const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes, maxMoves: focusMaxMoves(ctx.input.minutes), fill: true, ...(least ? { least } : {}), minutes: (moves, i) => minutesOf(arranged(moves, i)) });
   for (const [i, moves] of out.days.entries()) Object.assign(days[i]!, arranged(moves, i));
   // A pick with no exercise here, while the app has one this gym lacks the equipment for: said as that.
   const elsewhere = Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => !c.timed || pattern === 'core').map((c) => makeItem(ctx, c, pattern as Item['pattern']))).concat((ctx.deps.focusLifts?.() ?? []).map((c) => makeItem(ctx, c, 'biceps'))).filter((it) => !supports(it.candidate.requires, ctx.input.gym));

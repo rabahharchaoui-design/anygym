@@ -11,7 +11,13 @@ export type CurateInput = {
   /** The shares to hand out (default: focusBudget of the picks). */
   shares?: ReturnType<typeof focusBudget>;
   /** PLAN 3.6g: the days are built up to the minutes chosen with work no pick asks for, after the picks had their call. */
-  fill?: boolean;
+  fill?: boolean;  /**
+   * PLAN 3.6g2, more buys more: what the same picks get with one day fewer and with the next shorter
+   * session. `stretch`: the stretch minutes; the blocks are made longer until the plan has at least
+   * these. `sets`: with a single pick, its hard sets; it is brought to at least these (several picks
+   * share one budget of 12 under a strict rank, where that cannot be promised).
+   */
+  least?: { stretch?: number; sets?: number };
 };
 
 /** Picks that are a part of a wider muscle: the muscle can be at the limit while the part is not. */

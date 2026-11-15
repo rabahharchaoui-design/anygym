@@ -2,7 +2,7 @@
 import { FOCUS_BUDGET_MAX, FOCUS_MUSCLE_GOOD, FOCUS_MUSCLE_GOOD_LONG, FOCUS_SHARE_MAX } from './focus';
 import type { FocusPickId } from '../intake/options';
 import type { Board } from './focusBoard';
-import { fill, serve, stretch } from './focusServe';
+import { fill, serve, stretch, stretchMore } from './focusServe';
 
 /** From this many minutes a session the picks climb past the floor of 12 toward FOCUS_MUSCLE_GOOD. */
 const CLIMB_MINUTES = 60;
@@ -62,7 +62,9 @@ export function handOut(b: Board, topFirst: boolean): void {
     state.aim = b.hardIds.length === 1 && (input.budgetMinutes ?? 0) >= 75 ? FOCUS_MUSCLE_GOOD_LONG : FOCUS_MUSCLE_GOOD;
     climb();
   }
+  // PLAN 3.6g2, more buys more: a single pick never ends with fewer sets than with a day or minutes fewer.
+  if (b.hardIds.length === 1 && (input.least?.sets ?? 0) > state.aim) { state.aim = input.least!.sets!; climb(); }
   // Mobility again, after the ranked picks had their call: on a day still without its block, work no pick asks for makes the room.
-  if (budget.targets.some((t) => t.id === 'mobility')) stretch(b, true);
+  if (budget.targets.some((t) => t.id === 'mobility')) { stretch(b, true); stretchMore(b, input.least?.stretch ?? 0); }
   if (input.fill) fill(b);
 }
