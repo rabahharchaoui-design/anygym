@@ -11,13 +11,25 @@ import type { Ctx, Day, Item } from './types';
 /** The most moves a day holds once focus has added to it: the base day's most (generatorRules movesFor) and up to two more where the time is long. */
 const focusMaxMoves = (minutes: number | undefined): number => (minutes === undefined || minutes >= 75 ? 10 : minutes >= 60 ? 9 : 8);
 
+/**
+ * The rest a small move takes when it joins a day: on a day the trim shortened (SPEC 22 rule 6: its
+ * small moves rest 60 s), the same 60 s that a small move added to a short day gets (fit.ts
+ * addMoves), never longer than the day's own small moves. A day with its full rests keeps them.
+ */
+function smallRest(ctx: Ctx, d: Day): number {
+  if (ctx.input.minutes === undefined || ctx.input.minutes >= 75) return Infinity;
+  const small = d.units.flat().filter((it) => it.profile.role === 'lift' && !isCompound(it.profile) && !it.candidate.timed);
+  return Math.max(60, ...small.map((it) => it.rest));
+}
+
 export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
   const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
   if (!picks.some((p) => p !== 'balance')) return { budget: 0, spent: 0, priorities: [], days: days.map(() => []) };
   const facts = (it: Item): FocusMove => ({ id: it.id, key: it.key, sets: it.sets, hard: it.profile.role === 'lift', compound: isCompound(it.profile), recovery: it.profile.role === 'lift' ? it.profile.targets : [], ...(ctx.loveKeys.has(it.key) ? { keep: true } : {}), ...(it.seconds ? { seconds: it.seconds[0] } : {}), ...(ctx.deps.focusFacts?.(it.id, it.profile) ?? { muscles: [...it.profile.targets], picks: (ctx.input.focus ?? []).filter((f) => f !== 'balance' && focusMuscles([f]).some((m) => it.profile.targets.includes(m))) }) });
-  const candidates = days.map(() => Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => allowed(ctx, c, pattern === 'core')).map((c) => {
+  const candidates = days.map((d) => Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => allowed(ctx, c, pattern === 'core')).map((c) => {
     const it = makeItem(ctx, c, pattern as Item['pattern']);
     prescribe(ctx, it, false);
+    if (!isCompound(it.profile)) it.rest = Math.min(it.rest, smallRest(ctx, d));
     return it;
   })).concat((ctx.deps.focusLifts?.() ?? []).filter((c) => allowed(ctx, c, false)).map((c) => {
     // A small arm move outside the ladders (a wrist curl): prescribed like any accessory.
