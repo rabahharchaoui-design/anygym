@@ -134,9 +134,11 @@ while [ $n -lt 300 ]; do
   cat "$RUNLOG" >> "$LOG"
   sync_out
   if grep -qE "^[[:space:]]*ALL DONE[.]?[[:space:]]*$" "$RUNLOG"; then say "ALL DONE"; rm -f "$RUNLOG"; break; fi
-  if grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your" "$RUNLOG"; then
-    if grep -qiE "fable" "$RUNLOG" && grep -qiE "limit" "$RUNLOG" && [ "$(cat .fable-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .fable-ntfy; ntfy "AnyGym: press Fable reset" "The Fable weekly bar is full. Press it now: Claude, Settings, Usage, Fable reset, Reset for free. The build continues by itself." "warning"; say "Fable limit hit, asked G on his phone to press the Fable reset"
-    elif grep -qiE "weekly|week" "$RUNLOG" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "All models is full for the week. Nothing to press (no Full reset left); the build waits for Thursday 8 PM." "warning"; say "weekly all models limit hit, told G"; fi
+  # Only a real stop: the run ended early (not by the budget timer) AND the limit message is at the very end of its output.
+  # (Nov 15: a 5 hour limit hit hours earlier, then refilled by G's Fable reset, was still in the log and sent G a false push.)
+  if [ $dur -lt $(( limit - 60 )) ] && tail -n 6 "$RUNLOG" | grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your"; then
+    if tail -n 6 "$RUNLOG" | grep -qiE "fable.*limit|limit.*fable" && [ "$(cat .fable-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .fable-ntfy; ntfy "AnyGym: press Fable reset" "The Fable weekly bar is full. Press it now: Claude, Settings, Usage, Fable reset, Reset for free. The build continues by itself." "warning"; say "Fable limit hit, asked G on his phone to press the Fable reset"
+    elif tail -n 6 "$RUNLOG" | grep -qiE "weekly limit|7-day limit|week.*limit" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "All models is full for the week. Nothing to press (no Full reset left); the build waits for Thursday 8 PM." "warning"; say "weekly all models limit hit, told G"; fi
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"
