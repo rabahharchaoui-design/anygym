@@ -64,7 +64,7 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
   // Read by screen readers and tests as before ("Start 110 lb · Change"); seen as "Change start".
   const linkLabel = start === 0 ? 'Plates only · Change' : start !== null ? `Start ${formatWeight(start, unit)} · Change` : 'Set starting weight';
   const action =
-    ownStart !== undefined || question ? undefined : (
+    ownStart !== undefined || question || askSides ? undefined : (
       <span className={base.mathAction}>
         <button type="button" className={`${base.mathLink} pressable`} onClick={() => setAsking(true)} aria-label={linkLabel}>
           Change start

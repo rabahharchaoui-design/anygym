@@ -156,7 +156,7 @@ export function SidesQuestion({ gymId, machineId, onSaved, dense = false }: Side
     return gym;
   });
   return (
-    <section className={styles.box} aria-labelledby="sides-question" data-testid="sides-question" data-dense={dense || undefined}>
+    <section className={styles.box} aria-labelledby="sides-question" data-testid="sides-question" data-sides="" data-dense={dense || undefined}>
       <div className={styles.titleRow}>
         <h3 id="sides-question" className={styles.title}>
           Does this machine load on one side or both?
