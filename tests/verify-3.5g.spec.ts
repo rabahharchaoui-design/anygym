@@ -295,6 +295,8 @@ test('(1c) double tap Not now stores one hold and Level up card stays gone after
   await seed(page, 'l1', lw, [0, 1, 2].map(() => ({ ex: 'barbell-back-squat', reps: 12, load: { kind: 'barbell', unit: 'lb', total: 200, barWeight: 45, perSide: [45, 25, 10, 2.5] } })));
   await seed(page, 'l2', Date.now() - 2 * 3_600_000, [0, 1, 2].map(() => ({ ex: 'bicep-curl', reps: 9, load: { kind: 'dumbbell_each', unit: 'lb', total: 50 } })));
   await page.goto('./');
+  // 3.6v: on a 568 pt tall phone the card's buttons start under the tab bar; a finger scrolls first.
+  await page.getByTestId('coach-later').scrollIntoViewIfNeeded();
   const b = (await page.getByTestId('coach-later').boundingBox())!;
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
