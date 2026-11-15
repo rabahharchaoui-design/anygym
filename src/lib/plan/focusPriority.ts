@@ -3,6 +3,7 @@
 // of them: a pick is only named as "prioritized" or "most" when no pick left unnamed got more. Pure.
 import { list } from '../words';
 import { focusName, focusStateOf, type FocusReport, type FocusResult } from './focus';
+import type { FocusPickId } from '../intake/options';
 
 type Priorities = Pick<FocusReport, 'priorities'>;
 
@@ -17,6 +18,20 @@ export function focusTop(report: Priorities): FocusResult[] {
   const hard = focusCompared(report);
   const best = Math.max(0, ...hard.map((p) => p.extra));
   return best === 0 ? [] : hard.filter((p) => p.extra === best);
+}
+
+/** "extra arm work", "extra leg work", "extra lats work": a pick as the word before "work". */
+export const focusWorkWord = (f: FocusPickId): string => (f === 'arms' ? 'arm' : f === 'legs' ? 'leg' : f === 'glutes' ? 'glute' : focusName(f).toLowerCase());
+
+/**
+ * PLAN 3.6g2, one story: what the plan adds, for the plan screen's headline and the Plans card
+ * alike: the picks with the most extra, all of them ("extra lats and side shoulders work"), or
+ * their count past three. Null when no pick got extra.
+ */
+export function focusHeadline(report: Priorities): string | null {
+  const top = focusTop(report);
+  if (!top.length) return null;
+  return top.length > 3 ? `extra work for ${top.length} focus areas` : `extra ${list(top.map((p) => focusWorkWord(p.id)))} work`;
 }
 
 /** "Lats", "Lats and Biceps", "Lats, Biceps and Glutes": every name, never "and 2 more" (a name left out could be read as a pick left out). */

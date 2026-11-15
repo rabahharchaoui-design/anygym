@@ -1,5 +1,5 @@
-import { focusName } from '../../lib/plan/focus';
-import { list } from '../../lib/words';
+import { focusHeadline } from '../../lib/plan/focusPriority';
+import { cap } from '../../lib/words';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from '../../ui/icons';
 import { useNav } from '../../ui/nav';
@@ -10,6 +10,7 @@ import styles from './Plans.module.css';
 /** One curated plan in a list: name, the detail line, the summary. Tap to see every day. */
 export function PlanCard({ plan, to, active }: { plan: Plan; to: string; active: boolean }) {
   const go = useNav();
+  const headline = plan.focusReport ? focusHeadline(plan.focusReport) : null;
   return (
     <Link
       to={to}
@@ -27,7 +28,8 @@ export function PlanCard({ plan, to, active }: { plan: Plan; to: string; active:
         {active && <span className={styles.badge}>Your plan</span>}
       </span>
       <span className={styles.planSummary}>{plan.summary}</span>
-      {plan.focusReport?.priorities.some((p) => p.extra > 0) && <span className={styles.planSummary}>Extra {list(plan.focusReport.priorities.filter((p) => p.extra > 0).slice(0, 2).map((p) => focusName(p.id).toLowerCase()))} work</span>}
+      {/* The same words as the plan screen's headline (lib/plan/focusPriority.ts focusHeadline): the picks with the most extra. */}
+      {headline && <span className={styles.planSummary} data-testid="plan-focus">{cap(headline)}</span>}
       <ChevronRight className={styles.planChevron} aria-hidden="true" />
     </Link>
   );
