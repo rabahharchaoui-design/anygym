@@ -142,7 +142,10 @@ function check(count: number, days: number, minutes: number, rep: number) {
       if (p.extra > 0 && p.extra < p.total) expect(much).toContain(`, ${p.extra} of them extra`);
       if (p.extra === 0) expect(much).not.toContain('extra,');
       // Plenty and extra are never said together: with extra it is "as much as is useful".
-      expect(/already (has )?plenty|as much as is useful/.test(much)).toBe(p.state === 'plenty');
+      // PLAN 3.6g2: a pick that got its share on the way to the limit says "as much as is useful" too.
+      expect(/already (has )?plenty|as much as is useful/.test(much)).toBe(p.state === 'plenty' || (!!p.atLimit && p.extra > 0));
+      // PLAN 3.6g2: "no extra" never stands alone: the reason from the report follows it.
+      if (p.extra === 0 && p.state !== 'plenty') expect(much, `${p.id} ${label}`).toMatch(/, no extra: (its exercises are at their most sets|extra work stops at 12 sets a week|no more than .+, ranked above it|its days are full)$/);
       expect(/extra.*already (has )?plenty/.test(much), much).toBe(false);
     }
     expect(much).not.toContain('nothing extra');
@@ -159,16 +162,18 @@ function check(count: number, days: number, minutes: number, rep: number) {
     const own = (ms: Move[][]) => ms.flat().reduce((n, x) => n + (x.prim.some(SRC[low.id]!) && !ranked.some((h) => h.id !== low.id && x.prim.some(SRC[h.id]!)) ? x.sets : 0), 0);
     // Its own sets, net: when the 20 set limit took sets off moves it shares with another pick, sets of its own make up for them and are not extra.
     const ownExtra = Math.min(low.extra, Math.max(0, own(m) - own(mb)));
-    // PLAN 3.6g: past +4 only toward 12 sets a week. The single muscle of the pick with the fewest sets is then at 12 at the most (13 when the last step was a 2 set move).
+    // PLAN 3.6g, 3.6g2: past +4 only toward the sets a week the sessions aim for (12; 16 from 60 minutes, 18 for a single pick at 75; one more when the last step was a 2 set move), or together with a pick ranked below it that still needed sets (the strict rank: the higher pick goes up with it).
     const weakest = Math.min(...partsOf(low.id).map((part) => setsFor(m, SRC[part]!)).filter((n) => n > 0));
-    expect(ownExtra <= 4 || weakest <= 13, `#${j + 1} ${low.id} past +4 (${ownExtra}) with ${weakest} sets ${label}`).toBe(true);
+    const aim = minutes < 60 ? 12 : hard.length === 1 && minutes >= 75 ? 18 : 16;
+    const carriedBy = ranked.slice(j + 1).some((l) => l.extra >= ownExtra - 2);
+    expect(ownExtra <= 4 || weakest <= aim + 1 || carriedBy, `#${j + 1} ${low.id} past +4 (${ownExtra}) with ${weakest} sets ${label}`).toBe(true);
     for (const high of higher) {
       expect(low.requested, `#${j + 1} ${low.id} has a bigger share than ${high.id} ${label}`).toBeLessThanOrEqual(high.requested);
-      // A higher pick at 20 sets cannot take more, whether it got its whole share first ("extra") or not ("plenty").
-      if (high.state === 'plenty' || high.state === 'no_move' || high.total >= 20 || atLimitOf(high.id)) { tally.rankExempt++; continue; }
+      // A higher pick at 20 sets cannot take more, whether it got its whole share first ("extra") or not ("plenty"); neither can one whose exercises are all at their most sets (PLAN 3.6g2: said as that).
+      if (high.state === 'plenty' || high.state === 'no_move' || high.total >= 20 || atLimitOf(high.id) || high.held === 'maxed') { tally.rankExempt++; continue; }
       tally.rankPairs++;
-      // The last round tops up picks still under 12 sets a week; a higher pick already there is not added to, so it holds nobody back.
-      if (ownExtra > low.requested && totalOf(high.id) < 12) expect(ownExtra, `#${j + 1} ${low.id} took sets past its share above ${high.id} ${label}`).toBeLessThanOrEqual(Math.max(low.requested, extraOf(high.id)));
+      // PLAN 3.6g2, THE STRICT RANK: a pick's own extra sets are never more than the extra of a pick ranked above it. No exception for room.
+      expect(ownExtra, `#${j + 1} ${low.id} is above ${high.id} ${label}`).toBeLessThanOrEqual(extraOf(high.id));
     }
   }
   // DAY WHY LINES: each names what that day adds for up to two picks by rank (then "and more"), and the

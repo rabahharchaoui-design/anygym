@@ -124,5 +124,6 @@ it('round 2 copy: minutes close to the choice say the choice, a real difference 
   // PLAN 3.6g: both get their share (+4); Side shoulders, which had fewer sets, is then brought toward 12 a week, so it alone has the most extra and is the one the headline names.
   const built = reveal(ranked);
   expect(built.r.applied.focusReport!.priorities.map((p) => [p.id, p.extra >= 4])).toEqual([['lats', true], ['side_delts', true]]);
-  expect(built.words.reason).toMatch(/extra side shoulders work/);
+  // PLAN 3.6g2, the strict rank: Side shoulders (#2) no longer ends above Lats (#1); Lats goes up with it, so both lead and the headline names both.
+  expect(built.words.reason).toMatch(/extra lats and side shoulders work/);
 });

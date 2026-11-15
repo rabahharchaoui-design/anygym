@@ -28,8 +28,8 @@ export function makeBoard(input: CurateInput) {
   const maxMoves = input.maxMoves ?? 8;
   const wanted = (m: FocusMove) => m.picks.some((p) => budget.targets.some((t) => t.id === p));
   const baseline = days.map((d) => d.map((m) => ({ ...m })));
-  /** `edits`: accepted edits, to see whether a turn changed anything. `pool`: the extra sets that may be handed out in all. */
-  const state = { edits: 0, pool: budget.total };
+  /** `edits`: accepted edits, to see whether a turn changed anything. `pool`: the extra sets that may be handed out in all. `aim`: the sets a week the picks are brought toward now (12, then 16). */
+  const state = { edits: 0, pool: budget.total, aim: FOCUS_MUSCLE_MIN as number };
   const focusedSets = (ds: readonly (readonly FocusMove[])[]) => ds.flat().reduce((n, m) => n + (m.hard && wanted(m) ? m.sets : 0), 0);
   /** The budget spent: the focused hard sets above the same days with no picks, each physical set once. Sets that only make up for ones the 20 set limit took away cost nothing. */
   const spent = () => Math.max(0, focusedSets(days) - focusedSets(baseline));
@@ -52,12 +52,34 @@ export function makeBoard(input: CurateInput) {
     if (!move) break;
     move.sets--;
   }
+  const hardIds = budget.targets.filter((t) => t.id !== 'mobility').map((t) => t.id);
   /** Sets above the same plan with no picks: the one meaning of "extra". */
   const gained = (id: FocusPickId) => Math.max(0, countPick(days, id) - countPick(baseline, id));
-  /** An edit stays only inside the 20 set limit and the minutes chosen (the caller's one time estimate). */
+  /** The hard sets of a pick that are not also a higher ranked pick's (a squat set given to Glutes is not given to Quads a second time). */
+  const countOwn = (ds: readonly (readonly FocusMove[])[], id: FocusPickId): number => {
+    const higher = hardIds.slice(0, hardIds.indexOf(id));
+    return ds.flat().reduce((n, m) => n + (m.hard && m.picks.includes(id) && !m.picks.some((q) => higher.includes(q)) ? m.sets : 0), 0);
+  };
+  /** The extra sets given to the pick itself: `gained` without the sets that came with a higher ranked pick's work. */
+  const own = (id: FocusPickId) => Math.min(gained(id), Math.max(0, countOwn(days, id) - countOwn(baseline, id)));
+  /** How far each pick's own extra stands above a pick ranked higher that can still take sets (PLAN 3.6g2: the strict rank). */
+  const excess = (): number[] => {
+    let bound = Infinity;
+    return hardIds.map((id) => {
+      const over = Math.max(0, own(id) - bound);
+      if (open(id)) bound = Math.min(bound, gained(id));
+      return over;
+    });
+  };
+  /**
+   * An edit stays only inside the 20 set limit and the minutes chosen (the caller's one time estimate),
+   * and (PLAN 3.6g2) never lifts a pick further above a pick ranked higher: whatever path a set takes
+   * (a move two picks share, a partner that grows along), the rank holds after every edit.
+   */
   const accepts = (i: number, change: () => void, undo: () => void): boolean => {
+    const was = excess();
     change();
-    if (overLimit().length || postureOver() || input.minutes(days[i]!, i) > limits[i]!) { undo(); return false; }
+    if (overLimit().length || postureOver() || input.minutes(days[i]!, i) > limits[i]! || excess().some((x, k) => x > was[k]!)) { undo(); return false; }
     state.edits++;
     return true;
   };
@@ -87,39 +109,52 @@ export function makeBoard(input: CurateInput) {
    * (the trim's own floors, lib/generator/trim.ts), and last the day's first, heaviest lift, only its
    * fourth set (PLAN 3.6g: moves with 4 or more sets give; the trim takes that set first too).
    */
-  const donors = (day: FocusMove[]): FocusMove[] => {
+  const donors = (day: FocusMove[], first?: (m: FocusMove) => boolean): FocusMove[] => {
     const big = day.filter((x) => x.hard && x.compound);
     const rank = (x: FocusMove) => (!x.compound ? 0 : x === big[0] ? 2 : 1);
     const gives = (x: FocusMove) => x.hard && !x.keep && !wanted(x) && (x.compound ? x.sets >= (x === big[0] || x === big[1] ? 4 : 3) : x.sets > 2);
-    return day.filter(gives).sort((a, b) => rank(a) - rank(b));
+    return day.filter(gives).sort((a, b) => Number(!!first?.(b)) - Number(!!first?.(a)) || rank(a) - rank(b));
+  };
+  /**
+   * PLAN 3.6g2: a part of a wider muscle (lats in the back, upper chest in the chest) whose muscle is
+   * at the 20 set limit gets its room inside that muscle: these are the muscles that are too full for
+   * a 2 set move of the pick. Work for them that no pick asks for gives its sets, or its place, first.
+   */
+  const tight = (id: FocusPickId): readonly string[] => (NARROW.has(id) ? (LIMIT_MUSCLES[id] ?? []).filter((m) => countHardSets(days, m) + 2 > FOCUS_MUSCLE_MAX) : []);
+  /** The moves of a day that train one of `muscles` and may give their place to a pick's move: no pick asks for them, not loved, never the day's first big lift. Last in the day first. */
+  const rivals = (day: FocusMove[], muscles: readonly string[]): number[] => {
+    const lead = day.find((x) => x.hard && x.compound);
+    return day.map((_, at) => at).filter((at) => { const m = day[at]!; return m.hard && !m.keep && !wanted(m) && m !== lead && m.muscles.some((x) => muscles.includes(x)); }).reverse();
   };
   const hasMove = (id: FocusPickId) => [...days.flat(), ...input.candidates.flat()].some((m) => m.hard && m.picks.includes(id));
   const atLimit = (id: FocusPickId) => (LIMIT_MUSCLES[id] ?? []).some((m) => countHardSets(days, m) >= FOCUS_MUSCLE_MAX) || (id === 'posture' && countPick(days, id) >= FOCUS_MUSCLE_MAX);
-  const hardIds = budget.targets.filter((t) => t.id !== 'mobility').map((t) => t.id);
-  /** It cannot take more: no exercise for it, or a muscle of it is at the limit (what the report calls "plenty"). */
-  const full = (id: FocusPickId) => !hasMove(id) || atLimit(id) || countPick(days, id) >= FOCUS_MUSCLE_MAX;
+  /** It cannot take more: no exercise for it, or a muscle of it is at the limit (what the report calls "plenty"). A part of a wider muscle (lats in the back) only when the part itself is: until then it takes the place of other work inside that muscle. */
+  const full = (id: FocusPickId) => !hasMove(id) || (NARROW.has(id) ? countPick(days, id) >= FOCUS_MUSCLE_MAX : atLimit(id));
   /**
-   * PLAN 3.6g: the sets a pick is short of FOCUS_MUSCLE_MIN a week. One muscle (or a part of one, or
+   * PLAN 3.6g: the sets a pick is short of `aim` a week (FOCUS_MUSCLE_MIN, then FOCUS_MUSCLE_GOOD). One muscle (or a part of one, or
    * posture): the sets shown for it. An area of several muscles: its weakest muscle that has an exercise.
    */
-  const need = (id: FocusPickId): number => {
+  const need = (id: FocusPickId, aim = state.aim): number => {
     if (!hasMove(id)) return 0;
     const ps = parts(id);
-    if (ps.length < 2 || NARROW.has(id)) return Math.max(0, FOCUS_MUSCLE_MIN - countPick(days, id));
+    if (ps.length < 2 || NARROW.has(id)) return Math.max(0, aim - countPick(days, id));
     const served = ps.filter((p) => [...days.flat(), ...input.candidates.flat()].some((m) => m.hard && m.picks.includes(id) && m.muscles.includes(p)));
-    return Math.max(0, ...served.map((p) => FOCUS_MUSCLE_MIN - countHardSets(days, p)));
+    return Math.max(0, ...served.map((p) => aim - countHardSets(days, p)));
   };
-  /** Picks that could not get to +2 when only the picks above them had been served: held back for a reason of their own, they do not hold back the picks below. */
-  const stuck = new Set<FocusPickId>();
-  const shareOf = (id: FocusPickId) => budget.targets.find((t) => t.id === id)?.sets ?? 0;
-  const higher = (id: FocusPickId) => hardIds.slice(0, hardIds.indexOf(id)).filter((h) => !full(h));
   /**
-   * What the picks ranked above have: sets past a pick's own share never lift it above one of them.
-   * A higher pick that cannot take more does not count; in the floor round neither does one that has
-   * its whole share and FOCUS_MUSCLE_MIN sets a week, which that round does not add to.
+   * PLAN 3.6g2: nothing more can be added for it here whatever the time: every move of it in the plan
+   * is at the most sets, and no day can take another exercise for it (none is left that fits the gym,
+   * the answers and the 48 hour rule). Such a pick is said as that and does not hold back the picks below.
    */
-  const above = (id: FocusPickId, floor = false) => Math.min(Infinity, ...higher(id).filter((h) => !(floor && need(h) === 0 && gained(h) >= shareOf(h))).map(gained));
-  /** The same inside the shares, past +2: there a higher pick held back from the start (`stuck`) does not count either. */
-  const aboveShare = (id: FocusPickId) => Math.min(Infinity, ...higher(id).filter((h) => !stuck.has(h)).map(gained));
-  return { input, days, baseline, budget, maxMoves, state, wanted, spent, limits, slack, focusedMuscles, gained, accepts, rested, lifts, weak, fresh, spares, donors, hasMove, atLimit, hardIds, full, need, above, aboveShare, stuck, shareOf };
+  const shareOf = (id: FocusPickId) => budget.targets.find((t) => t.id === id)?.sets ?? 0;
+  const closed = (id: FocusPickId) => hasMove(id) && !days.some((d, i) => d.some((m) => m.hard && m.picks.includes(id) && m.sets < input.cap) || !!fresh(i, id) || !!fresh(i, id, true));
+  /** It can still take sets: it has an exercise, is under the limit and is not `closed`. Only these count for the rank. */
+  const open = (id: FocusPickId) => !full(id) && !closed(id);
+  /**
+   * PLAN 3.6g2, the strict rank: the fewest extra sets of the picks ranked above that can still take
+   * sets. No pick is ever served past it; there is no exception for room (the room is made on the
+   * higher pick's days first, lib/plan/focusServe.ts, or the lower pick gets no more).
+   */
+  const above = (id: FocusPickId) => Math.min(Infinity, ...hardIds.slice(0, hardIds.indexOf(id)).filter(open).map(gained));
+  return { input, days, baseline, budget, maxMoves, state, wanted, spent, limits, slack, focusedMuscles, gained, accepts, rested, lifts, weak, fresh, spares, donors, hasMove, atLimit, hardIds, full, need, above, closed, open, own, tight, rivals, shareOf };
 }

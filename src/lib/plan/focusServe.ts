@@ -1,6 +1,6 @@
 // PLAN 3.6f and 3.6g: one pick's turn, the stretch block and the fill. Each tentative edit goes
 // through the board's one check (the 20 set limit and the minutes chosen). Pure.
-import { FOCUS_MUSCLE_MAX, FOCUS_MUSCLE_MIN, FOCUS_SHARE_MAX, type FocusMove } from './focus';
+import { FOCUS_MUSCLE_MAX, FOCUS_SHARE_MAX, type FocusMove } from './focus';
 import type { FocusPickId } from '../intake/options';
 import { NARROW, countPick, type Board } from './focusBoard';
 
@@ -21,13 +21,13 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   // Work already added for another choice counts here too, without a second charge.
   const room = () => Math.min(requested - b.gained(id), state.pool - b.spent());
   // A new move is 2 sets at least, so a pick one set short may take a 2 set move ("about" its share): never past the round's most, never above a pick ranked higher.
-  const reach = () => (room() === 1 && b.gained(id) + 2 <= Math.min(floor ? Infinity : FOCUS_SHARE_MAX, b.above(id, floor)) && state.pool - b.spent() >= 2 ? 2 : room());
+  const reach = () => (room() === 1 && b.gained(id) + 2 <= Math.min(floor ? Infinity : FOCUS_SHARE_MAX, b.above(id)) && state.pool - b.spent() >= 2 ? 2 : room());
   if (room() <= 0) return;
   const own = (i: number) => days[i]!.some((m) => m.hard && m.picks.includes(id));
   /** Its own days first, the ones with the most time left before the others. */
   const order = () => days.map((_, i) => i).sort((x, y) => Number(own(y)) - Number(own(x)) || b.slack(y) - b.slack(x) || x - y);
   // The round toward 12 sets only adds to the muscles of an area that are still under it (calves, not more squats).
-  const lacking = (m: FocusMove | undefined): m is FocusMove => !!m && (!floor || NARROW.has(id) || b.weak(id, m) < FOCUS_MUSCLE_MIN);
+  const lacking = (m: FocusMove | undefined): m is FocusMove => !!m && (!floor || NARROW.has(id) || b.need(id) === 0 || b.weak(id, m) < state.aim);
   const mine = (day: FocusMove[], compound: boolean) => day.filter((m) => m.hard && m.compound === compound && m.picks.includes(id) && lacking(m)).sort((x, y) => b.weak(id, x) - b.weak(id, y));
   // An option only big lifts train (upper back: rows; front shoulders: presses) takes one of those.
   const candidate = (i: number) => [b.fresh(i, id), b.fresh(i, id, true)].find(lacking);
@@ -36,7 +36,7 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   const rides = (p: FocusMove): boolean => {
     if (!b.wanted(p)) return true;
     const cost = p.picks.includes(id) ? room() >= 2 : state.pool - b.spent() >= 2;
-    return cost && p.picks.every((q) => q === id || share(q) === undefined || b.gained(q) < share(q)! || (floor && b.need(q) > 0 && b.gained(q) < b.above(q, true)));
+    return cost && p.picks.every((q) => q === id || share(q) === undefined || b.gained(q) < share(q)! || (floor && b.need(q) > 0 && b.gained(q) < b.above(q)));
   };
   /** One more set on `m`. When that alone does not fit (its pair would come apart), together with another small move of the day with the same sets, so the two stay a pair. */
   const grow = (i: number, m: FocusMove): boolean => {
@@ -46,6 +46,9 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
     const partners = days[i]!.filter((p) => p !== m && p.hard && !p.compound && p.sets === m.sets && p.sets < input.cap);
     return [...partners.filter((p) => b.wanted(p)), ...partners.filter((p) => !b.wanted(p))].some((p) => rides(p) && b.accepts(i, () => { m.sets++; p.sets++; }, () => { m.sets--; p.sets--; }));
   };
+  /** Inside a muscle at the limit, the work for that muscle no pick asks for gives first (PLAN 3.6g2). */
+  const inside = (m: FocusMove) => m.muscles.some((x) => b.tight(id).includes(x));
+  const donors = (day: FocusMove[]) => b.donors(day, inside);
   const add = (i: number, c: FocusMove, n: number) => b.accepts(i, () => days[i]!.push({ ...c, sets: n }), () => { days[i]!.pop(); });
 
   // 1. One more working set where the time is free, accessories before compounds, respecting experience.
@@ -69,7 +72,7 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
     if (reach() < 2) break;
     const c = candidate(i);
     const day = days[i]!;
-    for (const at of c ? b.spares(day) : []) {
+    for (const at of c ? [...new Set([...b.rivals(day, b.tight(id)), ...b.spares(day)])] : []) {
       const old = day[at]!;
       const sizes = [...new Set([Math.min(old.sets, input.cap, reach()), 2])].filter((n) => n >= 2 && n <= reach());
       const swap = (n: number) => b.accepts(i, () => { day[at] = { ...c!, sets: n }; }, () => { day[at] = old; });
@@ -77,7 +80,7 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
       // A big lift in a small move's place needs more time than it frees: up to two more sets come from moves no pick asks for.
       const gave: FocusMove[] = [];
       let placed = false;
-      for (const donor of b.donors(day).filter((d) => d !== old).slice(0, 2)) {
+      for (const donor of donors(day).filter((d) => d !== old).slice(0, 2)) {
         donor.sets--; gave.push(donor);
         if (swap(2)) { placed = true; break; }
       }
@@ -93,7 +96,7 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
     if (!c) continue;
     const gave: FocusMove[] = [];
     let placed = false;
-    for (const donor of b.donors(day).slice(0, 3)) {
+    for (const donor of donors(day).slice(0, 3)) {
       donor.sets--; gave.push(donor);
       if (add(i, c, 2)) { placed = true; break; }
     }
@@ -101,7 +104,7 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   }
   // 5. Last: one set moves to a focused move from a move no pick asks for.
   for (const compound of [false, true]) for (const i of order()) for (const m of mine(days[i]!, compound)) {
-    for (const donor of b.donors(days[i]!)) {
+    for (const donor of donors(days[i]!)) {
       if (room() <= 0 || m.sets >= input.cap) break;
       donor.sets--;
       if (!grow(i, m)) donor.sets++;

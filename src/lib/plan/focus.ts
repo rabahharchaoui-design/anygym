@@ -66,6 +66,7 @@ export type FocusMove = {
  *   no_share  past the weekly budget, it was given no share.
  */
 export type FocusState = 'extra' | 'plenty' | 'short' | 'no_move' | 'no_share';
+export type FocusHeld = 'maxed' | 'budget' | 'rank' | 'room';
 export type FocusResult = {
   id: FocusPickId; requested: number;
   /** Hard sets above what the same answers get with no picks. Never clamped: the real difference. */
@@ -79,6 +80,7 @@ export type FocusResult = {
   state?: FocusState;
   /** An area of several muscles: each muscle's own count, the measure the 20 set limit uses. */
   parts?: Array<{ muscle: string; sets: number }>;
+  /** At the 20 set limit (from PLAN 3.6g2 also when it got its share on the way there). */
   atLimit?: true;
   noMove?: true;
   /** PLAN 3.6g: with `noMove`, the app has exercises for it and this gym has the equipment for none of them: said as that, never as "no exercises yet". */
@@ -91,6 +93,17 @@ export type FocusResult = {
    */
   coveredBy?: FocusPickId[];
   shared?: number;
+  /** PLAN 3.6g2: of `extra`, the sets that came with the work of picks ranked higher (`on`). They were given to those picks, so the rank compares the rest. */
+  rides?: { extra: number; on: FocusPickId[] };
+  /**
+   * PLAN 3.6g2: why a pick that is not at the limit got no more, read from the finished plan. Never a
+   * guess: `maxed` every exercise for it is at its most sets and no day can take another one, whatever
+   * the time (such a pick does not hold back the picks below); `budget` the 12 extra sets a week are
+   * used; `rank` it has as much as `heldBy`, a pick ranked above it that could not take more;
+   * `room` its days are full, also after the trades. Absent at FOCUS_MUSCLE_GOOD sets or more.
+   */
+  held?: FocusHeld;
+  heldBy?: FocusPickId;
 };
 /** What one day adds for a choice, against the same day with no picks. Mobility: its stretch minutes. */
 export type FocusDayExtra = { id: FocusPickId; extra: number; minutes?: number };
@@ -103,6 +116,10 @@ export type FocusReport = {
 export const FOCUS_MUSCLE_MAX = 20;
 /** A focused muscle is meant to land at about this many hard sets a week or more (PLAN 3.6f: about 12 to 20). */
 export const FOCUS_MUSCLE_MIN = 12;
+/** PLAN 3.6g2: 12 is the floor, not the ceiling. While the weekly budget has sets left, a pick climbs on toward this many; only from here on is it never short of an answer for getting no more. */
+export const FOCUS_MUSCLE_GOOD = 16;
+/** A single pick with 75 minutes climbs a little further. */
+export const FOCUS_MUSCLE_GOOD_LONG = 18;
 /**
  * The least stretch time in one session that counts as a stretch block (truth pass, critic r3 3): a
  * minute at the end of a workout is not what a Mobility pick asked for, so under this the plan says

@@ -16,12 +16,19 @@ describe('rank decides competition (critic 3b)', () => {
     expect(run(['biceps', 'side_delts'])).toEqual([['biceps', 3], ['side_delts', 0]]);
     expect(run(['side_delts', 'biceps'])).toEqual([['side_delts', 3], ['biceps', 0]]);
   });
-  it('a higher pick with no free day (its muscles rest on the days around the only free one) does not cap the pick below it', () => {
-    // Back trains on days 1 and 3; day 2 has the room, but back work there would break the 48 hour rule. Biceps is trained nowhere, so it may join day 2.
+  it('PLAN 3.6g2: a higher pick with no free day (its muscles rest on the days around the only free one) caps the pick below it: no exception for room', () => {
+    // Back trains on days 1 and 3, both full; day 2 has the room, but back work there would break the 48 hour rule. Biceps could join day 2, and gets no more than Back got.
     const days = [[move('row', 'back', 3, true), { ...move('fly', 'chest'), keep: true }], [move('squat', 'quads', 3, true), move('calf', 'calves')], [move('pull', 'back', 3, true), { ...move('press', 'chest'), keep: true }]];
     const candidates = days.map(() => [move('pulldown', 'back'), move('curl', 'biceps')]);
     const out = curateFocus({ picks: ['back', 'biceps'], days, candidates, cap: 3, budgetMinutes: 12, minutes: mins });
-    expect(out.report.priorities.map((p) => [p.id, p.extra, p.state])).toEqual([['back', 0, 'short'], ['biceps', 3, 'extra']]);
+    expect(out.report.priorities.map((p) => [p.id, p.extra, p.state, p.held])).toEqual([['back', 0, 'short', 'room'], ['biceps', 0, 'short', 'rank']]);
+    expect(out.report.priorities[1]!.heldBy).toBe('back');
+    expect(out.days[1]!.map((m) => m.id)).toEqual(['squat', 'calf']);
+  });
+  it('PLAN 3.6g2: a higher pick whose exercises are all at their most sets, with no other exercise for it, says so and does not cap the pick below it', () => {
+    const days = [[move('row', 'back', 3, true), { ...move('fly', 'chest'), keep: true }], [move('squat', 'quads', 3, true), move('calf', 'calves')], [move('pull', 'back', 3, true), { ...move('press', 'chest'), keep: true }]];
+    const out = curateFocus({ picks: ['back', 'biceps'], days, candidates: days.map(() => [move('curl', 'biceps')]), cap: 3, budgetMinutes: 12, minutes: mins });
+    expect(out.report.priorities.map((p) => [p.id, p.extra, p.held])).toEqual([['back', 0, 'maxed'], ['biceps', 3, 'maxed']]);
     expect(out.days[1]!.map((m) => m.id)).toEqual(['squat', 'curl']);
   });
   it('a higher pick with plenty, or with no exercise, does not cap the picks below it', () => {

@@ -33,7 +33,8 @@ function ranked(report: ReturnType<typeof build>['report']) {
     share = p.requested;
     // PLAN 3.6g: past +4 only toward 12 sets a week (13 when the last step is a 2 set move), for the muscle of it with the fewest.
     const weakest = p.parts?.length ? Math.min(...p.parts.map((x) => x.sets)) : p.total;
-    if (!p.coveredBy) expect(p.extra <= 4 || weakest <= 13, `${p.id}: +${p.extra} with ${weakest} sets`).toBe(true);
+    // PLAN 3.6g2: from 60 minutes on toward 16 (17 when the last step is a 2 set move).
+    if (!p.coveredBy) expect(p.extra <= 4 || weakest <= 17, `${p.id}: +${p.extra} with ${weakest} sets`).toBe(true);
   }
 }
 
@@ -52,11 +53,12 @@ describe('critic BLOCKER 1 and 4: ranking, the limit as shown, one meaning for t
     // Round 3 (critic 4): Back and Quads have plenty, so their shares go round again: Side shoulders and Glutes, both under 12 sets, get +4.
     // PLAN 3.6g: its share, then toward 12 sets a week from what Back and Quads could not use.
     expect(lines[1]).toBe('Side shoulders: 12 sets every 5 workouts, 6 of them extra');
-    expect(lines[4]).toBe('Glutes: 12 sets every 5 workouts, 4 of them extra');
+    // PLAN 3.6g2: at 75 minutes the picks climb on past 12 toward 16 while the budget lasts: Glutes +6.
+    expect(lines[4]).toBe('Glutes: 14 sets every 5 workouts, 6 of them extra');
     expect(report.priorities.reduce((n, p) => n + p.extra, 0)).toBeGreaterThanOrEqual(10);
     // Truth pass: every pick that got less than one below it is named with its own reason.
     // PLAN 3.6g: Side shoulders and Arms are brought toward 12 sets a week from what Back and Quads could not use, so they lead.
-    expect(focusSummary(report)).toBe('Most extra work: Side shoulders and Arms. Back and Quads already get plenty, so Side shoulders, Arms and Glutes get extra.');
+    expect(focusSummary(report)).toBe('Back and Quads already get plenty, so Side shoulders, Arms and Glutes get the most.');
   });
   it('Lats, Side shoulders, Quads at 3 days, 30 min: #1 >= #2 >= #3, and a line never calls the same number total and extra', () => {
     const { report, lines } = build(3, 30, ['lats', 'side_delts', 'quads']);
@@ -121,8 +123,9 @@ describe('round 3: the second critique\'s own cases (Nov 14), through the real g
     const by = Object.fromEntries(report.priorities.map((p) => [p.id, p]));
     // Lats (the back is at 20) and Quads (20) have plenty; what they could not use goes to the others toward 12 sets a week (PLAN 3.6g):
     // Biceps and Abs get there with +3, Side shoulders (5 sets before) takes the rest of the 12.
-    expect(by.lats!.state).toBe('plenty'); expect(by.quads!.state).toBe('plenty');
-    expect([by.side_delts!.extra, by.biceps!.extra, by.abs!.extra]).toEqual([6, 3, 3]);
+    // PLAN 3.6g2: Lats (#1, 16 sets with the back at 20) is no longer "plenty" with nothing: it takes the place of other back work up to 20 lat sets (+4), and nobody below gets more than it got.
+    expect(by.lats).toMatchObject({ state: 'extra', extra: 4, total: 20, atLimit: true }); expect(by.quads!.state).toBe('plenty');
+    expect([by.side_delts!.extra, by.biceps!.extra, by.abs!.extra]).toEqual([4, 3, 3]);
     expect(by.biceps!.total).toBeGreaterThanOrEqual(12); expect(by.abs!.total).toBeGreaterThanOrEqual(12);
     // The budget counts each set once, net of the sets the 20 set limit took off the back: never past 12.
     expect(report.spent).toBeLessThanOrEqual(12);
@@ -130,10 +133,12 @@ describe('round 3: the second critique\'s own cases (Nov 14), through the real g
   });
   it('critic 4: five parts on 4 days, 45 min: more than one extra set for five picks, and the way to more is said', () => {
     const { report, fit } = build(4, 45, ['lats', 'upper_chest', 'side_delts', 'quads', 'biceps']);
-    expect(report.priorities.reduce((n, p) => n + p.extra, 0)).toBeGreaterThanOrEqual(5);
-    // PLAN 3.6g: three of the five get +2 on these full 45 min days; the picks that got nothing are told the one step that places everything.
-    expect(report.priorities.filter((p) => p.extra >= 2).map((p) => p.id)).toEqual(['lats', 'upper_chest', 'quads']);
-    expect(fit).toEqual({ line: '5 focus areas fit best with 5 days or 60 min; we prioritized Lats, Upper chest and Quads.', days: 5, minutes: 60, named: true });
+    // PLAN 3.6g2, the strict rank: Lats (#1) gets its +4; Upper chest (#2) has no room on these full 45 min days, so the picks below it get no more than it got (before, Quads at #4 got +2 past it). Every row says why, and the picks that got nothing are told the one step that places everything.
+    expect(report.priorities.reduce((n, p) => n + p.extra, 0)).toBeGreaterThanOrEqual(4);
+    expect(report.priorities.filter((p) => p.extra >= 2).map((p) => p.id)).toEqual(['lats']);
+    expect(report.priorities.slice(1).map((p) => p.held)).toEqual(['room', 'rank', 'rank', 'rank']);
+    expect(fit).toMatchObject({ days: 5, minutes: 60, named: true });
+    expect(fit!.line).toContain('we prioritized Lats.');
     for (const step of [build(5, 45, ['lats', 'upper_chest', 'side_delts', 'quads', 'biceps']), build(4, 60, ['lats', 'upper_chest', 'side_delts', 'quads', 'biceps'])]) {
       expect(step.report.priorities.every((p) => p.extra >= 1)).toBe(true);
       expect(step.fit).toBeNull();

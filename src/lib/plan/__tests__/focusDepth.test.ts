@@ -99,10 +99,20 @@ describe('3. the 12 to 20 floor (PLAN 3.6g)', () => {
   const week = (curl: number) => Array.from({ length: 3 }, (_, i) => [move(`row${i}`, 'chest', 3, true), move(`curl${i}`, 'biceps', curl)]);
   const candidates = week(2).map((_, i) => [move(`hammer${i}`, 'biceps')]);
   it('a focused muscle under 12 sets is brought to 12 from what is left of the weekly budget, never past it', () => {
-    const out = curateFocus({ picks: ['biceps'], days: week(2), candidates, cap: 3, budgetMinutes: 60, minutes: mins });
+    // PLAN 3.6g2: sessions under 60 minutes stop at the floor of 12.
+    const out = curateFocus({ picks: ['biceps'], days: week(2), candidates, cap: 3, budgetMinutes: 45, minutes: mins });
     expect(out.report.priorities[0]).toMatchObject({ extra: 6, total: 12, state: 'extra' });
     expect(out.report.priorities[0]!.under).toBeUndefined();
     expect(out.report.spent).toBe(6);
+  });
+  it('PLAN 3.6g2, plenty means 16: with 60 minutes the pick climbs on to 16, a single pick with 75 to 18, inside the weekly budget of 12', () => {
+    const at = (budgetMinutes: number) => curateFocus({ picks: ['biceps'], days: week(2), candidates, cap: 3, budgetMinutes, minutes: mins }).report;
+    // 16, or 17 when the last step was a 2 set move.
+    expect(at(60).priorities[0]).toMatchObject({ extra: 11, total: 17, state: 'extra' });
+    expect(at(75).priorities[0]).toMatchObject({ extra: 12, total: 18, state: 'extra' });
+    expect(at(75).spent).toBe(12);
+    // Nothing was held back, so no reason is given.
+    expect(at(60).priorities[0]!.held).toBeUndefined();
   });
   it('when the minutes do not allow it, the report says how many sets it is short', () => {
     const out = curateFocus({ picks: ['biceps'], days: week(2), candidates, cap: 3, budgetMinutes: 12, minutes: mins });
@@ -123,19 +133,21 @@ describe('3. the 12 to 20 floor (PLAN 3.6g)', () => {
   it('an area is brought up by its muscle with the fewest sets, not by more of what it has plenty of', () => {
     // Legs: 14 quad sets, 4 calf sets. Past the share, only the calves are added to.
     const days = [[move('squat', 'quads', 4, true), move('ext', 'quads', 3), move('calf', 'calves', 2)], [move('press', 'quads', 4, true), move('ext2', 'quads', 3), move('calf2', 'calves', 2)]];
-    const out = curateFocus({ picks: ['legs'], days, candidates: days.map((_, i) => [move(`raise${i}`, 'calves')]), cap: 4, budgetMinutes: 60, minutes: mins });
+    const out = curateFocus({ picks: ['legs'], days, candidates: days.map((_, i) => [move(`raise${i}`, 'calves')]), cap: 4, budgetMinutes: 45, minutes: mins });
     expect(countHardSets(out.days, 'calves')).toBe(12);
     expect(countHardSets(out.days, 'quads')).toBeLessThanOrEqual(14 + 4);
     expect(out.report.priorities[0]!.under).toBeUndefined();
   });
-  it('the floor never lifts a pick above one ranked higher that is still under 12 and could use it', () => {
-    // Biceps (#1) has no room on its only day; side shoulders (#2) has plenty of free days. Past its share, #2 stops where #1 is.
+  it('PLAN 3.6g2, the strict rank: a pick never gets more than one ranked higher that has an exercise, also when that one has no room on its days', () => {
+    // Biceps (#1) has no room on its only day; side shoulders (#2) has plenty of free days. #2 gets no more than #1 got, and both say why.
     const days = [[move('row', 'chest', 3, true), { ...move('curl', 'biceps', 2), keep: true }], [move('squat', 'chest', 3, true), move('raise', 'side delts', 2)], [move('press', 'chest', 3, true), move('raise2', 'side delts', 2)]];
     const candidates = [[], [move('lateral', 'side delts')], [move('lateral2', 'side delts')]];
     const out = curateFocus({ picks: ['biceps', 'side_delts'], days, candidates, cap: 3, budgetMinutes: 30, minutes: (d, i) => mins(d) + (i === 0 ? 20 : 0) });
     const [biceps, delts] = out.report.priorities;
     expect(biceps!.extra).toBe(0);
-    expect(delts!.extra).toBe(4);
+    expect(biceps!.held).toBe('room');
+    expect(delts!.extra).toBe(0);
+    expect(delts).toMatchObject({ held: 'rank', heldBy: 'biceps' });
     expect(delts!.under).toBeGreaterThan(0);
   });
 });

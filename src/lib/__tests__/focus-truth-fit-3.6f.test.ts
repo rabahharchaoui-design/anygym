@@ -46,13 +46,14 @@ describe('critic 2: Upper chest, Side shoulders, Biceps at 4 days, 30 min', () =
   it('the old second screen (5 days, 30 min) no longer says "prioritized … Side shoulders" over its +1, and its reason is composed from that plan', () => {
     const five = { ...a, days: 5 as const };
     const report = reportOf(five)!;
-    // PLAN 3.6g: every pick gets to +2 before any goes past it, and a pick no longer goes past one above it that could still use the room: Biceps stops at Upper chest's +2.
-    expect(extras(report)).toEqual({ upper_chest: 2, side_delts: 1, biceps: 2 });
+    // PLAN 3.6g2, the strict rank: Biceps (#3) no longer gets more than Side shoulders (#2) got; it stays at none and its row says its days are full.
+    expect(extras(report)).toEqual({ upper_chest: 2, side_delts: 1, biceps: 0 });
     const fit = fitOf(five);
     expect(fit?.line ?? '').not.toContain('Side shoulders');
-    expect(fit).toEqual({ line: '3 focus areas fit best with 6 days or 45 min; we prioritized Upper chest and Biceps.', days: 6, minutes: 45, named: true });
-    // "Upper chest has less room…, so Biceps gets the most" read as stale beside Upper chest +2: both picks passed are named now.
-    expect(focusSummary(report, !!fit?.named)).toBe('Side shoulders has no more room on its days, so Biceps gets more.');
+    expect(fit).toMatchObject({ days: 6, minutes: 45, named: true });
+    expect(fit!.line).toContain('we prioritized Upper chest.');
+    // The numbers follow the rank, so there is no pick passed to explain; the line above already named who leads.
+    expect(focusSummary(report, !!fit?.named)).toBeNull();
   });
 });
 

@@ -23,6 +23,18 @@ const WORK: Partial<Record<FocusPickId, string>> = { back: 'back', lats: 'lat', 
 const workOf = (ids: readonly FocusPickId[]): string => list(ids.map((id) => WORK[id] ?? focusName(id).toLowerCase()));
 
 /**
+ * PLAN 3.6g2: why a pick got no more, from the report's own reason (FocusResult.held). "No extra" is
+ * never said alone: a pick under 16 sets always comes with the true reason. Null for a report saved
+ * before the reason existed.
+ */
+export function focusHeldWords(p: FocusResult): string | null {
+  if (p.held === 'maxed') return 'its exercises are at their most sets';
+  if (p.held === 'budget') return 'extra work stops at 12 sets a week';
+  if (p.held === 'rank') return p.heldBy ? `no more than ${focusName(p.heldBy)}, ranked above it` : null;
+  return p.held === 'room' ? 'its days are full' : null;
+}
+
+/**
  * One line for one pick: [what, how much]. "Back: 18 sets a week, 6 of them extra", "…, already
  * plenty", "no exercises for it yet". An area of several muscles says each muscle's own count (the
  * measure the 20 set limit uses). A pick that got nothing is never a zero: it says what is true.
@@ -40,7 +52,8 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   if (focusCovered(p)) return [name, `covered by your ${workOf(p.coveredBy!)} work, ${plural(p.total, 'set', 'sets')} ${period}`];
   const extra = p.extra <= 0 ? '' : p.extra >= p.total ? ', all of them extra' : `, ${p.extra} of them extra`;
   // "Plenty" and "extra" are never said together: a pick that got some and then reached the limit has "as much as is useful".
-  const tail = state !== 'plenty' ? (p.extra <= 0 ? ', no room for extra' : '') : p.extra > 0 ? ', as much as is useful' : WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty';
+  const none = focusHeldWords(p);
+  const tail = state !== 'plenty' ? (p.extra > 0 ? (p.atLimit ? ', as much as is useful' : '') : none ? `, no extra: ${none}` : ', no room for extra') : p.extra > 0 ? ', as much as is useful' : WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty';
   return [name, `${amount} ${period}${extra}${tail}`];
 }
 
@@ -84,7 +97,11 @@ export function focusRow(p: FocusResult): FocusRow {
     // Some of its sets are shown under another pick too: said, so the same sets are never read as two lots.
     p.shared && p.coveredBy?.length ? `${p.shared} of them also count for ${list(p.coveredBy.map(focusName))}` : null,
     // Never "+2 extra" beside "plenty": a pick that got some and then reached the limit has as much as is useful.
-    state !== 'plenty' ? null : p.extra > 0 ? 'As much as is useful now' : WIDER[p.id] ? `Your ${WIDER[p.id]} already has plenty` : null,
+    state !== 'plenty' && !p.atLimit ? null : p.extra > 0 ? 'As much as is useful now' : WIDER[p.id] ? `Your ${WIDER[p.id]} already has plenty` : null,
+    // "No extra" always comes with why (PLAN 3.6g2), and so does a pick that can take no more whatever the time.
+    (p.extra > 0 && p.held !== 'maxed') || state === 'plenty' ? null : cap(focusHeldWords(p) ?? '') || null,
+    // Extra that came with a higher pick's work is said, so the rank reads true.
+    p.rides && !p.shared ? `${p.rides.extra === p.extra ? 'The extra comes' : `${p.rides.extra} of the extra come`} with your ${workOf(p.rides.on)} work` : null,
   ].filter((x): x is string => !!x);
   return { name, amount: several ? null : plural(p.total, 'set', 'sets'), tag, detail: more.length ? more.join(' · ') : null };
 }

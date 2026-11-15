@@ -2,13 +2,14 @@
 import { FOCUS_PICKS, type FocusPickId } from '../intake/options';
 import type { FocusReport } from './focus';
 
+const HELD = ['maxed', 'budget', 'rank', 'room'];
 const STATES = ['extra', 'plenty', 'short', 'no_move', 'no_share'];
 const count = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 0;
 const amount = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
 const isPick = (id: unknown) => FOCUS_PICKS.some((f) => f.id === id);
 const each = (v: unknown, ok: (o: Record<string, unknown>) => boolean) => Array.isArray(v) && v.every((x) => !!x && typeof x === 'object' && ok(x as Record<string, unknown>));
 
-/** A saved focus report, or undefined when anything in it is not what the app writes (reports from before round 2 have no state, parts or dayExtra, those before round 3 no dayLead or coveredBy, those before PLAN 3.6g no under or gear: all still read). */
+/** A saved focus report, or undefined when anything in it is not what the app writes (reports from before round 2 have no state, parts or dayExtra, those before round 3 no dayLead or coveredBy, those before PLAN 3.6g no under or gear, those before 3.6g2 no rides or held: all still read). */
 export function readFocusReport(v: unknown): FocusReport | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
@@ -19,6 +20,7 @@ export function readFocusReport(v: unknown): FocusReport | undefined {
     && (p.atLimit === undefined || p.atLimit === true) && (p.noMove === undefined || p.noMove === true) && (p.gear === undefined || p.gear === true)
     && (p.state === undefined || STATES.includes(p.state as string))
     && (p.under === undefined || count(p.under)) && (p.shared === undefined || count(p.shared)) && (p.coveredBy === undefined || (Array.isArray(p.coveredBy) && p.coveredBy.every(isPick)))
+    && (p.held === undefined || HELD.includes(p.held as string)) && (p.heldBy === undefined || isPick(p.heldBy)) && (p.rides === undefined || (!!p.rides && typeof p.rides === 'object' && count((p.rides as Record<string, unknown>).extra) && Array.isArray((p.rides as Record<string, unknown>).on) && ((p.rides as Record<string, unknown>).on as unknown[]).every(isPick)))
     && (p.parts === undefined || each(p.parts, (x) => typeof x.muscle === 'string' && x.muscle.length < 40 && count(x.sets)));
   if (!each(o.priorities, priority)) return undefined;
   if (!o.days.every((d) => Array.isArray(d) && d.every((s) => typeof s === 'string' && s.length < 500))) return undefined;

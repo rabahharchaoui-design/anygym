@@ -32,19 +32,21 @@ export function focusPrioritized(report: Priorities): string | null {
   return top.length && top.length < hard.length ? names(top) : null;
 }
 
-type Why = 'plenty' | 'no_move' | 'gear' | 'share' | 'room';
+type Why = 'plenty' | 'no_move' | 'gear' | 'maxed' | 'share' | 'room';
 /** Why a pick got less than one ranked below it. A pick past the weekly budget is said in its own sentence (focusFit), never here. */
 function whyOf(p: FocusResult): Why | null {
   const state = focusStateOf(p);
   if (state === 'no_share') return null;
   if (state === 'no_move') return p.gear ? 'gear' : state;
-  if (state === 'plenty') return state;
+  if (state === 'plenty' || p.atLimit) return 'plenty';
+  if (p.held === 'maxed') return 'maxed';
   return p.requested > 0 && p.extra >= p.requested ? 'share' : 'room';
 }
 const WHY: Record<Why, (many: boolean) => string> = {
   plenty: (many) => (many ? 'already get plenty' : 'already gets plenty'),
   no_move: (many) => (many ? 'have no exercises yet' : 'has no exercises yet'),
   gear: (many) => (many ? 'need equipment you do not have here' : 'needs equipment you do not have here'),
+  maxed: (many) => (many ? 'have their exercises at the most sets' : 'has its exercises at the most sets'),
   share: (many) => (many ? 'already have their share' : 'already has its share'),
   room: (many) => (many ? 'have no more room on their days' : 'has no more room on its days'),
 };
@@ -59,15 +61,17 @@ const WHY: Record<Why, (many: boolean) => string> = {
  */
 export function focusPassed(report: Priorities): string | null {
   const hard = focusCompared(report);
-  const passed = hard.filter((h, i) => whyOf(h) && hard.slice(i + 1).some((l) => l.extra > h.extra));
+  // PLAN 3.6g2: extra that came with a higher pick's work (FocusResult.rides) was given to that pick, so it passes nobody.
+  const own = (p: FocusResult) => p.extra - (p.rides?.extra ?? 0);
+  const passed = hard.filter((h, i) => whyOf(h) && hard.slice(i + 1).some((l) => own(l) > h.extra));
   if (!passed.length) return null;
   const below = (l: FocusResult, h: FocusResult) => hard.indexOf(l) > hard.indexOf(h);
   const top = focusTop(report);
   // The leaders all sit below a pick they passed, and every pick passed has a leader below it: "…, so A and B get the most".
   const most = top.every((t) => passed.some((h) => below(t, h))) && passed.every((h) => top.some((t) => below(t, h)));
-  const ahead = most ? top : hard.filter((l) => !passed.includes(l) && passed.some((h) => below(l, h) && l.extra > h.extra));
+  const ahead = most ? top : hard.filter((l) => !passed.includes(l) && passed.some((h) => below(l, h) && own(l) > h.extra));
   if (!ahead.length) return null;
-  const groups = (['plenty', 'no_move', 'gear', 'share', 'room'] as const).map((why) => ({ why, picks: passed.filter((p) => whyOf(p) === why) })).filter((g) => g.picks.length);
+  const groups = (['plenty', 'no_move', 'gear', 'maxed', 'share', 'room'] as const).map((why) => ({ why, picks: passed.filter((p) => whyOf(p) === why) })).filter((g) => g.picks.length);
   const reasons = list(groups.map((g) => `${names(g.picks)} ${WHY[g.why](g.picks.length > 1)}`));
   const what = most ? 'the most' : passed.every((p) => p.extra === 0) ? 'extra' : 'more';
   return `${reasons}, so ${names(ahead)} ${ahead.length === 1 ? 'gets' : 'get'} ${what}.`;
