@@ -610,6 +610,9 @@ test('B3: 4 days then 3 weekdays: the weekdays screen says so and waits for the 
   await expect(cta(page)).toBeEnabled();
   expect(await cta(page).boundingBox()).toEqual(before);
   await shot(page, 'weekdays-count');
+  // The funnel saves each answer in the next task after the screen shows it; leaving before that save
+  // lands drops the fourth day (a reload or a kill within a few ms is not what this checks). Wait for the saved draft.
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('anygym.intakeDraft') ?? '{}').answers?.weekdays?.length)).toBe(4);
   await page.goto('./#/settings');
   await page.goto('./#/welcome');
   await page.evaluate(() => {
