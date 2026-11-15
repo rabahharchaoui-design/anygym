@@ -136,6 +136,7 @@ function block(raw: Raw, resolve: ResolveExercise, where: string): PlanBlock {
   const items = pair ? (raw.items as unknown[]).map((x, i) => item(obj(x), resolve, `${where} item ${i + 1}`)) : [item(raw, resolve, where)];
   const out: PlanBlock = { kind: pair && items.length > 1 ? 'pair' : 'single', items };
   if (raw.warmup === true) out.warmup = true;
+  if (raw.mobility === true && items.length > 1) out.mobility = true;
   const sets = num(raw.sets);
   // Rest only when the plan states it: restSec, or a note like "10 seconds rest between sets".
   const rest = num(raw.restSec) ?? (items.length === 1 ? restFromNote(items[0]!.note) : undefined);

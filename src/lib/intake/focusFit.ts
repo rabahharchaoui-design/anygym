@@ -88,16 +88,26 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
   const stretch = report.priorities.find((p) => p.id === 'mobility' && !stretchBlock(p));
   const noStretch = !stretch || !choices.some((s) => after(s)?.priorities.some((q) => q.id === 'mobility' && stretchBlock(q)));
   const unplaced = focusUnplaced(report).filter((p) => !(noStretch && p.id === 'mobility'));
-  if (!unplaced.length && !unfunded.length && !none.length) return null;
+  // PLAN 3.6g: a pick can be under 12 sets a week with its whole share. When some larger choice
+  // places everything AND brings every pick to 12, that is the one step named (for the picks that did
+  // not fit, and for the ones under 12 alike): after it nothing is left to ask for. When none does,
+  // the steps are judged as before, and being under 12 is not something a step is offered for.
+  const settles = (s: Step) => { const r = after(s); return fixesFocus(report, r, noStretch) && !r!.priorities.some((q) => (q.under ?? 0) > 0); };
+  // Only with one or two picks: from three on it is the weekly budget of 12 extra sets that keeps picks under 12, which no day or minute changes.
+  const under = hard.length <= 2 ? hard.filter((p) => (p.under ?? 0) > 0) : [];
+  const toFloor = hard.length <= 2 && (unplaced.length > 0 || under.length > 0) && choices.some(settles);
+  const fixes = (s: Step) => (toFloor ? settles(s) : fixesFocus(report, after(s), noStretch));
+  const lifts = !unplaced.length && toFloor;
+  if (!unplaced.length && !unfunded.length && !none.length && !lifts) return null;
   const parts: string[] = [];
   const out: FocusFit = { line: '' };
-  if (unplaced.length) {
+  if (unplaced.length || lifts) {
     const took = (s: Step) => Object.assign(out, s.days ? { days: s.days } : {}, s.minutes ? { minutes: s.minutes } : {}, s.days && s.minutes ? { both: true as const } : {}, s.days && s.days - (a.days ?? 3) > 1 ? { addDays: s.days - (a.days ?? 3) } : {});
     // One step of days or of minutes that places everything: both are named when either does it.
-    const near = choices.filter((s) => s.cost === 1 && fixesFocus(report, after(s), noStretch));
+    const near = choices.filter((s) => s.cost === 1 && fixes(s));
     for (const s of near) Object.assign(out, s.days ? { days: s.days } : { minutes: s.minutes });
     // Otherwise the nearest larger choice that places everything, once.
-    const far = near.length ? undefined : choices.find((s) => s.cost > 1 && fixesFocus(report, after(s), noStretch));
+    const far = near.length ? undefined : choices.find((s) => s.cost > 1 && fixes(s));
     if (far) took(far);
     // Who was put first is read from the numbers (lib/plan/focusPriority.ts), never from the rank alone.
     const top = focusPrioritized(report);
@@ -106,7 +116,7 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
     if (out.days || out.minutes) {
       parts.push(`${subject} best with ${stepWords(out, out.both ? ' and ' : ' or ')}${top ? `; we prioritized ${top}` : ''}.`);
       if (top) out.named = true;
-    } else {
+    } else if (unplaced.length) {
       // Nothing places it all: the choice that adds the most (the most extra sets, a stretch block as one; then the most picks; the nearest of equals), if any adds something and lowers nobody.
       let best: { step: Step; gains: FocusReport['priorities']; sum: number } | null = null;
       for (const step of choices) {

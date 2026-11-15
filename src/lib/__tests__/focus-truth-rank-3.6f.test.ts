@@ -54,30 +54,31 @@ function couldNotUse(x: ReturnType<typeof reveal>, minutes: number, higher: Focu
 }
 
 describe('critic 1: a lower pick only comes out ahead when the higher one could not use that room', () => {
-  it('Lats, Side shoulders, Biceps, Upper chest, Glutes at 4 days, 45 min: Glutes (#5) is ahead of Side shoulders (#2) for the 48 hour rule, and the words say so', () => {
+  // PLAN 3.6g: every pick gets to +2 before any pick goes past it, so on these full 45 min days the room is shared down the rank (Side shoulders is no longer left out), and it still runs out before Biceps and Upper chest.
+  it('Lats, Side shoulders, Biceps, Upper chest, Glutes at 4 days, 45 min: Glutes (#5) is ahead of Biceps (#3) and Upper chest (#4) for the 48 hour rule, and the words say so', () => {
     const x = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts', 'biceps', 'upper_chest', 'glutes'] });
-    expect(extras(x.report)).toEqual({ lats: 3, side_delts: 0, biceps: 0, upper_chest: 0, glutes: 2 });
-    // The room Glutes took is on a lower body day, between two days that train the shoulders, arms and chest.
-    for (const higher of ['side_delts', 'biceps', 'upper_chest'] as const) couldNotUse(x, 45, higher, 'glutes');
-    // The words: only Lats is "prioritized" (never "Lats and Glutes"), and the reason Glutes is ahead is said.
-    expect(x.fit!.line).toBe('5 focus areas fit best with 60 min; we prioritized Lats.');
-    expect(x.summary).toBe('Side shoulders, Biceps and Upper chest have no more room on their days, so Glutes gets extra.');
-    expect(x.reason).toContain('extra lats work');
+    expect(extras(x.report)).toEqual({ lats: 2, side_delts: 2, biceps: 0, upper_chest: 0, glutes: 2 });
+    // The room Glutes took is on a lower body day, between two days that train the arms and chest.
+    for (const higher of ['biceps', 'upper_chest'] as const) couldNotUse(x, 45, higher, 'glutes');
+    // The words: exactly the picks tied for the most are "prioritized", and the reason Glutes is ahead is said.
+    expect(x.fit!.line).toBe('5 focus areas fit best with 5 days or 60 min; we prioritized Lats, Side shoulders and Glutes.');
+    expect(x.summary).toBe('Biceps and Upper chest have no more room on their days, so Glutes gets extra.');
+    expect(x.reason).toContain('extra lats, side shoulders and glute work');
   });
-  it('Upper chest, Lats, Side shoulders, Quads, Biceps at 4 days, 45 min: Quads (#4) is ahead of Lats (#2) for the same reason, never "we prioritized Lats"', () => {
+  it('Upper chest, Lats, Side shoulders, Quads, Biceps at 4 days, 45 min: Quads (#4) is ahead of Side shoulders (#3) for the same reason, and Lats (#2) is no longer behind it', () => {
     const x = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['upper_chest', 'lats', 'side_delts', 'quads', 'biceps'] });
-    expect(extras(x.report)).toEqual({ upper_chest: 2, lats: 1, side_delts: 0, quads: 2, biceps: 0 });
-    for (const higher of ['lats', 'side_delts'] as const) couldNotUse(x, 45, higher, 'quads');
-    expect(x.fit!.line).toBe('5 focus areas fit best with 60 min; we prioritized Upper chest and Quads.');
-    expect(x.summary).toBe('Lats and Side shoulders have no more room on their days, so Quads gets more.');
-    expect(x.reason).toContain('extra upper chest and quads work');
+    expect(extras(x.report)).toEqual({ upper_chest: 2, lats: 2, side_delts: 0, quads: 2, biceps: 0 });
+    couldNotUse(x, 45, 'side_delts', 'quads');
+    expect(x.fit!.line).toBe('5 focus areas fit best with 5 days or 60 min; we prioritized Upper chest, Lats and Quads.');
+    expect(x.summary).toBe('Side shoulders has no more room on its days, so Quads gets extra.');
+    expect(x.reason).toContain('extra upper chest, lats and quads work');
   });
   it('served alone on the same days, the higher pick gets no more: the room was never given away out of order', () => {
-    // With Glutes taken out of the list, Side shoulders, Biceps and Upper chest still get nothing: Glutes took nothing from them.
+    // With Glutes taken out of the list, Biceps and Upper chest still get nothing, and Lats and Side shoulders the same: Glutes took nothing from them.
     const without = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['lats', 'side_delts', 'biceps', 'upper_chest'] });
-    expect(extras(without.report)).toMatchObject({ side_delts: 0, biceps: 0, upper_chest: 0 });
+    expect(extras(without.report)).toEqual({ lats: 2, side_delts: 2, biceps: 0, upper_chest: 0 });
     const noQuads = reveal({ ...base, days: 4, minutes: 45, focusPicks: ['upper_chest', 'lats', 'side_delts', 'biceps'] });
-    expect(extras(noQuads.report).lats).toBeLessThanOrEqual(1);
+    expect(extras(noQuads.report).lats).toBeLessThanOrEqual(2);
     expect(extras(noQuads.report).side_delts).toBe(0);
   });
 });
@@ -93,7 +94,7 @@ describe('critic 10: the small words', () => {
     expect(focusPrioritized({ priorities: [p('lats', 4), p('biceps', 4)] })).toBeNull();
     expect(focusPrioritized({ priorities: [p('lats', 4), p('biceps', 2)] })).toBe('Lats');
     expect(focusPrioritized({ priorities: [p('lats', 4)] })).toBeNull();
-    const three = reveal({ ...base, days: 4, minutes: 75, focusPicks: ['lats', 'side_delts', 'biceps'] });
+    const three = reveal({ ...base, days: 3, minutes: 75, focusPicks: ['lats', 'side_delts', 'biceps'] });
     expect(new Set(Object.values(extras(three.report))).size).toBe(1);
     expect(three.reason).toContain('extra lats, side shoulders and biceps work');
     expect(three.summary).toMatch(/^Every pick gets the same extra work: \+\d\.$/);

@@ -120,5 +120,8 @@ it('round 2 copy: minutes close to the choice say the choice, a real difference 
   const legs: IntakeAnswers = { goals: ['muscle'], experience: 'months', days: 2, minutes: 45, place: 'outdoors', equipment: [], focus: ['legs'] };
   expect(reveal(legs).words.reason).toMatch(/^Built to add muscle: 2 days, about \d+ min, no equipment needed, extra leg work\.$/);
   const ranked: IntakeAnswers = { goals: ['muscle'], experience: '3y', days: 4, minutes: 60, place: 'full', equipment: [...EQUIPMENT_IDS], focusPicks: ['lats', 'side_delts'] };
-  expect(reveal(ranked).words.reason).toMatch(/extra lats and side shoulders work/);
+  // PLAN 3.6g: both get their share (+4); Side shoulders, which had fewer sets, is then brought toward 12 a week, so it alone has the most extra and is the one the headline names.
+  const built = reveal(ranked);
+  expect(built.r.applied.focusReport!.priorities.map((p) => [p.id, p.extra >= 4])).toEqual([['lats', true], ['side_delts', true]]);
+  expect(built.words.reason).toMatch(/extra side shoulders work/);
 });

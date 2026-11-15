@@ -63,7 +63,7 @@ export type GeneratorDeps = {
 
 export type RawItem = { exercise: string; id: string; reps?: Range; seconds?: Range; eachSide?: true; note?: string };
 export type RawSingle = { type: 'single'; sets: number; restSec: number; warmup?: true } & RawItem;
-export type RawPair = { type: 'superset'; sets: number; restSec: number; items: RawItem[] };
+export type RawPair = { type: 'superset'; sets: number; restSec: number; items: RawItem[]; /** PLAN 3.6g: the stretch block a Mobility pick ends a session with. */ mobility?: true };
 export type RawFinisher = { name: string; minutes: number; requires: Requires };
 export type RawDay = { focusWhy?: string[]; n: number; name: string; blocks: Array<RawSingle | RawPair>; finisher?: RawFinisher };
 export type RawPlan = {
@@ -133,6 +133,8 @@ export type Item = {
   seconds?: Range;
   rest: number;
   note?: string;
+  /** PLAN 3.6g: one of the stretches of a Mobility pick's block. */
+  mobility?: true;
 };
 
 export type Day = { name: string; items: Item[]; units: Item[][]; finisher?: RawFinisher; warmUp?: string };

@@ -47,7 +47,7 @@ function verify(input: GeneratorInput) {
     for (const block of day.blocks) {
       if (block.warmup) continue;
       const ps = block.items.map((i) => profileFor(i.exerciseId));
-      if (block.kind === 'pair') expect(canPair(ps[0]!, ps[1]!, new Set(heavy ? [heavy.id] : []))).toBe(true);
+      if (block.kind === 'pair' && !block.mobility) expect(canPair(ps[0]!, ps[1]!, new Set(heavy ? [heavy.id] : []))).toBe(true);
       for (const item of block.items) {
         const p = profileFor(item.exerciseId);
         const req = requiresOf(SWAP_DATA, item.exerciseId);

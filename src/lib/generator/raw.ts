@@ -27,5 +27,5 @@ export function rawBlock(ctx: Ctx, u: Item[]): RawSingle | RawPair {
   const sets = Math.max(...u.map((it) => it.sets));
   const restSec = Math.max(...u.map((it) => it.rest));
   if (u.length === 1) return { type: 'single', ...rawItem(ctx, u[0]!), sets, restSec };
-  return { type: 'superset', sets, restSec, items: u.map((it) => rawItem(ctx, it)) };
+  return { type: 'superset', sets, restSec, items: u.map((it) => rawItem(ctx, it)), ...(u.every((it) => it.mobility) ? { mobility: true as const } : {}) };
 }

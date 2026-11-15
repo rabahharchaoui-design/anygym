@@ -53,15 +53,30 @@ describe('one priority budget', () => {
     expect(countHardSets(out.days, 'biceps')).toBe(4);
     expect(out.report.priorities.map((p) => p.extra)).toEqual([2, 2]);
   });
-  it('gives mobility time, never hard sets, and checks the same duration callback', () => {
-    const mobility: FocusMove = { id: 'stretch', key: 'stretch', hard: false, compound: false, muscles: [], picks: ['mobility'], sets: 1, seconds: 60 };
-    const result = curateFocus({ picks: ['mobility'], days: [[], []], candidates: [[mobility], [mobility]], cap: 3, budgetMinutes: 1, minutes: (d) => d.reduce((n, m) => n + (m.seconds ?? 0) / 60, 0) });
-    // Truth pass: the minutes are the real ones (1 a day, 2 in all), and a minute a day is not a stretch block, so the pick is not marked delivered.
-    expect(result.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 2, session: 1, shortfall: true, state: 'short' }]);
-    // A real block (5 minutes in one session) is.
-    const block = curateFocus({ picks: ['mobility'], days: [[], []], candidates: [[{ ...mobility, seconds: 300 }], []], cap: 3, budgetMinutes: 5, minutes: (d) => d.reduce((n, m) => n + (m.seconds ?? 0) / 60, 0) });
-    expect(block.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 5, session: 5, shortfall: false, state: 'extra' }]);
+  it('gives mobility a real block of time (PLAN 3.6g), never hard sets or a stray minute, and checks the same duration callback', () => {
+    const st = (id: string): FocusMove => ({ id, key: id, hard: false, compound: false, muscles: [], picks: ['mobility'], sets: 1, seconds: 60 });
+    const three = [st('quad'), st('hamstring'), st('pigeon')];
+    const mins = (d: FocusMove[]) => d.reduce((n, m) => n + (m.hard ? m.sets * 2 : (m.seconds ?? 0) * m.sets / 60), 0);
+    // 12 minutes chosen. Day 1 has 8 free, day 2 has 6, day 3 has 4, day 4 is already over the choice.
+    const days = [[move('a', 'chest', 2)], [move('b', 'chest', 3)], [move('c', 'chest', 4)], [move('d', 'chest', 4), move('e', 'chest', 4)]];
+    const result = curateFocus({ picks: ['mobility'], days, candidates: days.map(() => three), cap: 3, budgetMinutes: 12, minutes: mins });
+    // The longest block that fits, each stretch held twice for the same time: 8 minutes, 6 minutes, and nothing under 5.
+    expect(result.days.map((d) => d.filter((m) => !m.hard).map((m) => [m.id, m.sets, m.seconds]))).toEqual([
+      [['quad', 2, 80], ['hamstring', 2, 80], ['pigeon', 2, 80]],
+      [['quad', 2, 60], ['hamstring', 2, 60], ['pigeon', 2, 60]],
+      [], [],
+    ]);
+    for (const [i, d] of result.days.entries()) expect(mins(d)).toBeLessThanOrEqual(Math.max(12, mins(days[i]!)));
+    expect(result.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 14, session: 8, shortfall: false, state: 'extra' }]);
+    expect(result.report.dayExtra).toEqual([[{ id: 'mobility', extra: 0, minutes: 8 }], [{ id: 'mobility', extra: 0, minutes: 6 }], [], []]);
     expect(result.report.spent).toBe(0);
+    // No session with 5 minutes free: no stretch at all, never a stray minute, and the pick is not marked delivered.
+    const none = curateFocus({ picks: ['mobility'], days: [days[2]!, days[3]!], candidates: [three, three], cap: 3, budgetMinutes: 12, minutes: mins });
+    expect(none.days).toEqual([days[2], days[3]]);
+    expect(none.report.priorities).toEqual([{ id: 'mobility', requested: 0, extra: 0, total: 0, minutes: 0, session: 0, shortfall: true, state: 'short' }]);
+    // Exactly 5 free minutes: the shortest block (STRETCH_BLOCK_MIN).
+    const five = curateFocus({ picks: ['mobility'], days: [[move('a', 'chest', 2)]], candidates: [three], cap: 3, budgetMinutes: 9, minutes: mins });
+    expect(five.report.priorities[0]).toMatchObject({ minutes: 5, session: 5, state: 'extra' });
   });
   it('shares 12 by rank from five picks up: top two 3, then 2s, then 1s, then nothing; mobility takes no share', () => {
     const hard = ['lats', 'side_delts', 'quads', 'biceps', 'abs', 'glutes', 'calves', 'triceps', 'hamstrings', 'rear_delts'];
@@ -110,12 +125,17 @@ describe('one priority budget', () => {
     expect(out.days[4]!.map((m) => m.id)).toEqual(['incline', 'pushdown', 'dip']);
     expect(countHardSets(out.days, 'chest')).toBe(20);
   });
-  it('an option only big lifts train takes one in place of an accessory, never as a finisher', () => {
+  it('an option only big lifts train takes one in place of an accessory on a full day, never squeezed in as a finisher', () => {
     const row: FocusMove = { ...move('row-2', 'back', 3, true), picks: ['upper_back'] };
-    const out = run([[move('bench', 'chest', 3, true), move('curl', 'biceps')]], ['upper_back'], [[row]], 4, 60);
+    // The day is at its minutes (12): the row takes the curl's place.
+    const out = run([[move('bench', 'chest', 3, true), move('curl', 'biceps')]], ['upper_back'], [[row]], 4, 12);
     expect(out.days[0]!.map((m) => m.id)).toEqual(['bench', 'row-2']);
-    const none = run([[move('bench', 'chest', 3, true)]], ['upper_back'], [[row]], 4, 60);
+    // Full, and no accessory to give its place: nothing is added.
+    const none = run([[move('bench', 'chest', 3, true)]], ['upper_back'], [[row]], 4, 6);
     expect(none.days[0]!.map((m) => m.id)).toEqual(['bench']);
+    // PLAN 3.6g: with free time the chosen minutes are used first, and nothing is traded away.
+    const free = run([[move('bench', 'chest', 3, true), move('curl', 'biceps')]], ['upper_back'], [[row]], 4, 60);
+    expect(free.days[0]!.map((m) => [m.id, m.sets])).toEqual([['bench', 3], ['curl', 3], ['row-2', 4]]);
   });
   it('at the limit is said, kept in a saved report, and is not a miss; one set short is still a fit', () => {
     const days = Array.from({ length: 5 }, (_, i) => [move(`back-${i}`, 'back', 4)]);
@@ -158,7 +178,9 @@ describe('one priority budget', () => {
     const full = [...Array.from({ length: 5 }, (_, i) => [move(`back-${i}`, 'back', 4)]), [move('fly', 'chest'), move('press', 'chest')]];
     const out = curateFocus({ picks: ['back', 'biceps'], days: full, candidates: full.map(() => [move('curl', 'biceps')]), cap: 4, budgetMinutes: 60, minutes: mins });
     expect(out.report.priorities.map((p) => [p.id, p.state])).toEqual([['back', 'plenty'], ['biceps', 'extra']]);
-    expect(out.report.priorities[1]!.extra).toBe(4);
+    // PLAN 3.6g: its share of 4, then what is left of the weekly budget toward 12 sets a week (it had none): 12, never past it.
+    expect(out.report.priorities[1]).toMatchObject({ extra: 12, total: 12 });
+    expect(out.report.spent).toBe(12);
   });
   it('round 2: extra is the real difference to the same days with no picks, and each day says what it adds', () => {
     const days = [[move('row', 'back', 3, true), move('fly', 'chest')], [move('squat', 'quads', 3, true), move('calf', 'calves')]];

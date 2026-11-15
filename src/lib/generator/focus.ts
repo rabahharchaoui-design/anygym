@@ -21,13 +21,14 @@ export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
     return it;
   })).concat((ctx.deps.focusCandidates ?? []).filter((c) => allowed(ctx, c, true)).map((c) => {
     const it = makeItem(ctx, c, 'core');
-    it.sets = 1; it.seconds = [60, 60]; it.rest = 0;
+    // PLAN 3.6g: a stretch of the block; lib/plan/focusServe.ts sets the rounds and the hold.
+    it.sets = 1; it.seconds = [60, 60]; it.rest = 0; it.mobility = true;
     return it;
   })));
   const pools = days.map((d, i) => new Map([...candidates[i]!, ...d.units.flat()].map((it) => [it.id, it])));
   // Reorder and pair during every estimate too. The accepted result has exactly that same duration.
   const arranged = (moves: FocusMove[], i: number): Day => {
-    const items = moves.map((m) => ({ ...pools[i]!.get(m.id)!, sets: m.sets }));
+    const items = moves.map((m) => { const it = pools[i]!.get(m.id)!; return { ...it, sets: m.sets, ...(it.mobility && m.seconds ? { seconds: [m.seconds, m.seconds] as [number, number] } : {}) }; });
     const byId = new Map(items.map((it) => [it.id, it]));
     const used = new Set<string>();
     const old = days[i]!.units.map((u) => u.flatMap((it) => {
@@ -35,11 +36,13 @@ export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
       if (next) used.add(next.id);
       return next ? [next] : [];
     })).filter((u) => u.length);
-    const groups = [...splitUnequalPairs(old), ...items.filter((it) => !used.has(it.id)).map((it) => [it])];
+    const groups = [...splitUnequalPairs(old), ...items.filter((it) => !used.has(it.id)).map((it) => [it])].map((u) => u.filter((it) => !it.mobility)).filter((u) => u.length);
     const order = orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref);
-    return { ...days[i]!, items, units: ctx.family === 'strength' ? order : pairUp(order, items) };
+    // The stretch block is one unit at the very end of the session.
+    const stretches = items.filter((it) => it.mobility);
+    return { ...days[i]!, items, units: [...(ctx.family === 'strength' ? order : pairUp(order, items)), ...(stretches.length ? [stretches] : [])] };
   };
-  const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes, maxMoves: focusMaxMoves(ctx.input.minutes), minutes: (moves, i) => minutesOf(arranged(moves, i)) });
+  const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes, maxMoves: focusMaxMoves(ctx.input.minutes), fill: true, minutes: (moves, i) => minutesOf(arranged(moves, i)) });
   for (const [i, moves] of out.days.entries()) Object.assign(days[i]!, arranged(moves, i));
   // Focused moves go first while fresh: the pick each day's first lift trains (the highest ranked), for the day's why.
   const ranked = out.report.priorities.map((p) => p.id).filter((id) => id !== 'mobility' && !RIDERS.has(id));
