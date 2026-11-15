@@ -241,6 +241,11 @@ export type Load = {
    */
   legacyBarUnresolved?: true;
   perSide?: number[];
+  /**
+   * PLAN 3.6w (additive, plate machines only): 1 when the machine loads plates on one horn, so the
+   * total counts `perSide` once. Absent: both sides (2 ×), as every load before 3.6w was saved.
+   */
+  horns?: 1;
   collars?: number;
   stackValue?: number;
   added?: number;

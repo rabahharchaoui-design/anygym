@@ -3,7 +3,7 @@ import { defaultPlateInventory } from '../../db/gyms';
 import type { Collars, Unit } from '../../db/types';
 import { PLATE_SPECS, plateSpec, SLEEVE_LENGTH } from '../plates';
 import { add, EPS, times, toInt } from './exact';
-import { collarsWeight, enabledPlates, sumLoad } from './sum';
+import { collarsWeight, enabledPlates, sumLoad, type Horns } from './sum';
 
 // ---------------------------------------------------------------- plate solver
 
@@ -18,6 +18,8 @@ export type SolveOptions = {
   maxPerSide?: number;
   /** Loadable sleeve length in in (lb) or mm (kg). Defaults to SPEC 5.3. */
   sleeveLength?: number;
+  /** Sides that carry the per side plates (PLAN 3.6w): 2 by default, 1 on a one horn machine. */
+  horns?: Horns;
 };
 
 export type Loading = { total: number; perSide: number[] };
@@ -116,7 +118,8 @@ function rebuild(t: Table, s: number): number[] {
 }
 
 /**
- * Plates per side for a target total (SPEC 5.4). Heaviest plates first, symmetric, and only
+ * Plates per side for a target total (SPEC 5.4). Heaviest plates first, symmetric (or on the one
+ * horn of a one horn machine, `horns`), and only
  * loadings that fit on the sleeve count. When the target cannot be loaded exactly, returns the
  * nearest loadable totals below and above ("Closest: 185 or 190"). A target under the base
  * weight has no `below`; its `above` is the empty bar.
@@ -124,10 +127,11 @@ function rebuild(t: Table, s: number): number[] {
 export function solvePlates(target: number, opts: SolveOptions): SolveResult {
   const t = buildTable(opts);
   const base = add(opts.bar, collarsWeight(opts.collars ?? 'none', opts.unit));
-  const totalOf = (s: number): number => add(base, times(t.step, 2 * s));
+  const horns = opts.horns ?? 2;
+  const totalOf = (s: number): number => add(base, times(t.step, horns * s));
   const loadingOf = (s: number): Loading => {
     const perSide = rebuild(t, s);
-    return { total: sumLoad({ bar: opts.bar, perSide, collars: opts.collars, unit: opts.unit }).total!, perSide };
+    return { total: sumLoad({ bar: opts.bar, perSide, collars: opts.collars, unit: opts.unit, horns }).total!, perSide };
   };
 
   let below: number | undefined;

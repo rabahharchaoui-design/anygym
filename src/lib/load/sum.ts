@@ -1,4 +1,4 @@
-// The base weight model: total = base + 2 × sum(perSide) + collars.
+// The base weight model: total = base + horns × sum(perSide) + collars (horns: 2, or 1 on a one horn machine).
 import type { Collars, PlateToggle, Unit } from '../../db/types';
 import { add, times } from './exact';
 import { kgToLb } from './units';
@@ -17,19 +17,24 @@ export type SumInput = {
   unit: Unit;
   /** Edit set, older records only: weight the stored total holds beyond bar, plates and collars (otherOf). */
   other?: number;
+  /** Sides that carry `perSide` (PLAN 3.6w): 2 (a bar, most machines), 1 on a one horn machine. */
+  horns?: Horns;
 };
+
+/** How many sides of a bar or machine carry the per side plates (PLAN 3.6w). */
+export type Horns = 1 | 2;
 
 export type SumResult = {
   /** null when the base weight is unknown. Never a guess. */
   total: number | null;
-  /** 2 × sum(perSide). */
+  /** horns × sum(perSide). */
   platesTotal: number;
   collarsTotal: number;
 };
 
-/** total = bar + 2 × sum(perSide) + collars (+ other, see otherOf). */
-export function sumLoad({ bar, perSide, collars = 'none', unit, other = 0 }: SumInput): SumResult {
-  const platesTotal = times(add(...perSide), 2);
+/** total = bar + horns × sum(perSide) + collars (+ other, see otherOf). */
+export function sumLoad({ bar, perSide, collars = 'none', unit, other = 0, horns = 2 }: SumInput): SumResult {
+  const platesTotal = times(add(...perSide), horns);
   const collarsTotal = collarsWeight(collars, unit);
   return {
     total: bar === null ? null : add(bar, platesTotal, collarsTotal, other),
@@ -37,6 +42,9 @@ export function sumLoad({ bar, perSide, collars = 'none', unit, other = 0 }: Sum
     collarsTotal,
   };
 }
+
+/** The sides a stored load's plates count on (PLAN 3.6w): 1 for a one horn snapshot, else 2. */
+export const hornsOf = (load: { horns?: 1 }): Horns => (load.horns === 1 ? 1 : 2);
 
 /** Enabled plate sizes, heaviest first. */
 export function enabledPlates(inventory: readonly PlateToggle[]): number[] {

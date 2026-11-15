@@ -2,7 +2,7 @@
 import type { Load, Unit } from '../../db/types';
 import { toInt } from './exact';
 import { heldWeightOf } from './loads';
-import { sumLoad } from './sum';
+import { sumLoad, type Horns } from './sum';
 import { convertForGym } from './units';
 
 /** The picked weight of a stored load (see above), or null for a timed hold. */
@@ -69,6 +69,6 @@ export function comparableWeight(load: Load, unit: Unit): number {
 }
 
 /** Plates on a bar or horn while its base weight is unknown: the "40 + bar" cell. */
-export function platesOnly(perSide: readonly number[], unit: Unit): number {
-  return sumLoad({ bar: 0, perSide, unit }).platesTotal;
+export function platesOnly(perSide: readonly number[], unit: Unit, horns: Horns = 2): number {
+  return sumLoad({ bar: 0, perSide, unit, horns }).platesTotal;
 }
