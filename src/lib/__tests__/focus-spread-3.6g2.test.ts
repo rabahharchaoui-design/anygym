@@ -1,8 +1,7 @@
 // PLAN 3.6g2, point 5 (the fourth critique): a pick's extra is spread over the days that train its
-// muscle. Never more than two moves for the same pick added to one day while another day that
-// trains it has none, and two near identical small moves (the same movement pattern, the order
-// rule's own notion: two curls, two lateral raises) are never back to back when another small move
-// of the day can go between. Counted on the built plans, beside the same answers
+// muscle. Never more than two moves for the same pick added to one day, and two near identical small moves (the same movement pattern, the order
+// rule's own notion: two curls, two lateral raises) are never back to back when another move of the
+// day can go between. Counted on the built plans, beside the same answers
 // with no picks.
 import { describe, expect, it, vi as viTimeout } from 'vitest';
 import { focusFacts } from '../../data/focus';
@@ -27,21 +26,25 @@ const smallBlock = (b: Block) => b.items.every((it) => { const p = profileFor(it
 /** Two blocks of small moves where the last move of one and the first of the next have one movement pattern: two curls, two lateral raises, done back to back. */
 const twin = (a: Block, b: Block) => { if (!smallBlock(a) || !smallBlock(b)) return false; const p = profileFor(b.items[0]!.exerciseId).pattern; return !!p && profileFor(a.items.at(-1)!.exerciseId).pattern === p; };
 /**
- * The pairs of near identical small moves back to back that another small move of the day could
- * have gone between: after the day's last big lift, a later small move put between the two, or
- * the small move before the pair changing places with the pair's first, whenever that leaves the
- * day with fewer such pairs. None is ever left (lib/generator/focus.ts apart). What is left when no such move exists is a day whose
- * small moves are all of one pattern there (three curls for a Biceps pick and nothing else small).
+ * The pairs of near identical small moves back to back that another move of the day could have
+ * gone between: a later small move, or the next big lift (it only moves earlier, past small
+ * moves), or the small move before the pair changing places with the pair's first, or a pair done
+ * in turn starting with its other move, whenever that
+ * leaves the day with fewer such pairs. None is ever left (lib/generator/focus.ts apart). What is
+ * left when no such move exists is a day that ends on small moves of one pattern (three curls for a
+ * Biceps pick and nothing else after them).
  */
-const count = (all: Block[], tail: number) => all.filter((b, k) => k > tail && twin(all[k - 1]!, b)).length;
-const twins = (d: Plan['days'][number]) => count(lifts(d), 0);
+const count = (all: Block[]) => all.filter((b, k) => k > 0 && twin(all[k - 1]!, b)).length;
+const twins = (d: Plan['days'][number]) => count(lifts(d));
 function avoidable(d: Plan['days'][number]): string[] {
-  const all = lifts(d), tail = all.findLastIndex((b) => !smallBlock(b)) + 1, now = count(all, tail), out: string[] = [];
-  for (let k = tail + 1; k < all.length; k++) {
+  const all = lifts(d), now = count(all), out: string[] = [];
+  for (let k = 1; k < all.length; k++) {
     if (!twin(all[k - 1]!, all[k]!)) continue;
-    const later = all.some((b, j) => j > k && smallBlock(b) && count(all.toSpliced(j, 1).toSpliced(k, 0, b), tail) < now);
-    const before = k - 2 >= tail && count(all.with(k - 2, all[k - 1]!).with(k - 1, all[k - 2]!), tail) < now;
-    if (later || before) out.push(`${all[k - 1]!.items.at(-1)!.exerciseId} then ${all[k]!.items[0]!.exerciseId}`);
+    const big = all.findIndex((b, j) => j > k && !smallBlock(b));
+    const later = all.some((b, j) => j > k && (big < 0 || j <= big) && count(all.toSpliced(j, 1).toSpliced(k, 0, b)) < now);
+    const before = k >= 2 && smallBlock(all[k - 2]!) && count(all.with(k - 2, all[k - 1]!).with(k - 1, all[k - 2]!)) < now;
+    const turned = [k - 1, k].some((j) => all[j]!.items.length === 2 && count(all.with(j, { ...all[j]!, items: [all[j]!.items[1]!, all[j]!.items[0]!] })) < now);
+    if (later || before || turned) out.push(`${all[k - 1]!.items.at(-1)!.exerciseId} then ${all[k]!.items[0]!.exerciseId}`);
   }
   return out;
 }
@@ -49,17 +52,29 @@ function avoidable(d: Plan['days'][number]): string[] {
 const addedBy = (plan: Plan, base: Plan, id: FocusPickId) => plan.days.map((d, i) => movesFor(d, id).filter((x) => !movesFor(base.days[i]!, id).includes(x)));
 
 describe('5. spread', () => {
-  it('the critic\'s case: Lats and Mobility on 3 days of 45 min (four lat moves on Day 1, none added on Day 2): no day gets a third new lat move while another has none, and no two near identical small moves stay in a row', () => {
+  it('the critic\'s case: Lats and Mobility on 3 days of 45 min (four lat moves on Day 1, none added on Day 2): no day gets a third new lat move or has four lat moves, two days get new ones, and no two near identical small moves stay in a row', () => {
     const input: GeneratorInput = { goals: ['muscle'], experience: '3y', days: 3, minutes: 45, focusPicks: ['lats', 'mobility'], scheduleStyle: 'flexible', gym: equipmentPreset('full', 'lb') };
     const { plan, base } = plansOf(input);
     const added = addedBy(plan, base, 'lats');
     const trained = plan.days.map((d) => movesFor(d, 'lats').length > 0);
-    // The extra is spread: at least two days got new lat moves, and a day holds more than two only when every other day that trains the lats got one too.
+    // The extra is spread: at least two days got new lat moves, no day got more than two, and no day has four lat moves.
     expect(added.filter((x) => x.length > 0).length).toBeGreaterThanOrEqual(2);
-    for (const [i, x] of added.entries()) if (x.length > 2) for (const [j, t] of trained.entries()) if (j !== i && t) expect(added[j]!.length, `day ${i + 1} has ${x.join(', ')} while day ${j + 1} has none`).toBeGreaterThan(0);
+    for (const [i, x] of added.entries()) expect(x.length, `day ${i + 1}: ${x.join(', ')}`).toBeLessThanOrEqual(2);
+    for (const d of plan.days) expect(movesFor(d, 'lats').length, d.name).toBeLessThanOrEqual(3);
+    expect(trained.filter(Boolean).length).toBeGreaterThanOrEqual(2);
     for (const d of plan.days) expect(avoidable(d), d.name).toEqual([]);
   });
-  it('every seeded intake: never a third new move for a pick on one day while another day that trains it has none; never two near identical small moves back to back when another small move of the day could go between', () => {
+  it('the critic\'s case: Lats and Biceps (two near identical curls back to back): on 3 to 5 days of 45 and 60 min no two curls stay in a row where another move can go between, and no day gets more than two new moves for a pick', () => {
+    for (const days of [3, 4, 5]) for (const minutes of [45, 60]) {
+      const { plan, base } = plansOf({ goals: ['muscle'], experience: '3y', days, minutes, focusPicks: ['lats', 'biceps'], scheduleStyle: 'flexible', gym: equipmentPreset('full', 'lb') });
+      for (const d of plan.days) expect(avoidable(d), `${d.name} ${days}d ${minutes}m`).toEqual([]);
+      for (const id of ['lats', 'biceps'] as const) for (const a of addedBy(plan, base, id)) expect(a.length, `${id} ${days}d ${minutes}m: ${a.join(', ')}`).toBeLessThanOrEqual(2);
+    }
+    // The very plan of the critique (3 days, 45 min): the day with three curls has another move between each two.
+    const { plan } = plansOf({ goals: ['muscle'], experience: '3y', days: 3, minutes: 45, focusPicks: ['lats', 'biceps'], scheduleStyle: 'flexible', gym: equipmentPreset('full', 'lb') });
+    expect(plan.days.map(twins)).toEqual([0, 0, 0]);
+  });
+  it('every seeded intake: never a third new move for a pick on one day; never two near identical small moves back to back when another move of the day could go between', () => {
     let days = 0, crowded = 0, moved = 0, left = 0, fresh = 0;
     for (const s of samples()) {
       const { plan, base } = plansOf(s.input);
@@ -68,17 +83,15 @@ describe('5. spread', () => {
         const added = addedBy(plan, base, id);
         if (added.some((a) => a.length)) moved++;
         for (const [i, a] of added.entries()) {
-          if (a.length <= 2) continue;
-          crowded++;
-          // More than two on one day only when every other day that trains it got a new move too.
-          for (const [j, d] of plan.days.entries()) if (j !== i && movesFor(d, id).length) expect(added[j]!.length, `${id} on day ${i + 1} (${a.join(', ')}) while day ${j + 1} has none: ${JSON.stringify(s.input.focusPicks)} ${s.days}d ${s.minutes}m`).toBeGreaterThan(0);
+          if (a.length > 2) crowded++;
+          expect(a.length, `${id} on day ${i + 1} (${a.join(', ')}): ${JSON.stringify(s.input.focusPicks)} ${s.days}d ${s.minutes}m`).toBeLessThanOrEqual(2);
         }
       }
     }
     expect(days).toBeGreaterThan(1500);
     expect(moved).toBeGreaterThan(400);
-    // Days left with such a pair are days whose small moves there are all of one pattern (a pick's own moves, with no other small move to go between).
-    expect(left / days).toBeLessThan(0.2);
-    console.log(`spread: ${days} days, ${moved} picks with new moves, ${crowded} days with more than two new moves for one pick (each beside other days that got one too); ${left} days where two near identical small moves stay back to back with no other small move to go between (${fresh} of them have more such pairs than the same day with no picks)`);
+    // Days left with such a pair end on small moves of one pattern (a pick's own moves, with nothing after them to go between).
+    expect(left / days).toBeLessThan(0.1);
+    console.log(`spread: ${days} days, ${moved} picks with new moves, ${crowded} days with more than two new moves for one pick; ${left} days where two near identical small moves stay back to back with no other move to go between (${fresh} of them have more such pairs than the same day with no picks)`);
   });
 });

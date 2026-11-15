@@ -30,26 +30,28 @@ const small = (u: readonly Item[]) => u.every((it) => it.profile.role === 'lift'
 const twin = (a: readonly Item[], b: readonly Item[]): boolean => small(a) && small(b) && !!b[0]!.profile.pattern && a[a.length - 1]!.profile.pattern === b[0]!.profile.pattern;
 
 /**
- * PLAN 3.6g2, spread: never two near identical small moves back to back when another small move
- * can go between. Putting the focused moves first can bring two of one pattern together (two
- * pushdowns for a triceps pick); the second then waits one block, behind the next small move with
- * another pattern, or the small move before the pair changes places with the pair's first, when
- * that leaves fewer such pairs. Only
- * the small moves after the day's last big lift move, so nothing is pre-tired and the big lifts
- * keep the order rule's order (SPEC 22).
+ * PLAN 3.6g2, spread: never two near identical small moves back to back when another move can go
+ * between. Putting the focused moves first can bring two of one pattern together (two curls for a
+ * biceps pick); then, whichever leaves the day with fewer such pairs: a later small move comes
+ * between them, or the next big lift does (it only moves earlier, past small moves), or the small
+ * move before the pair changes places with the pair's first, or a pair done in turn starts with its
+ * other move. A small move never passes a big lift
+ * and the big lifts keep their order, so nothing is pre-tired (SPEC 22).
  */
 function apart(units: Item[][]): Item[][] {
   let out = [...units];
-  const tail = out.findLastIndex((u) => !small(u)) + 1;
-  const pairs = (us: Item[][]) => us.filter((u, k) => k > tail && twin(us[k - 1]!, u)).length;
+  const pairs = (us: Item[][]) => us.filter((u, k) => k > 0 && twin(us[k - 1]!, u)).length;
   // Again from the start after each move, and only a move that leaves fewer such pairs than before (so it ends).
   for (let moved = true; moved;) {
     moved = false;
-    for (let k = tail + 1; k < out.length && !moved; k++) {
+    for (let k = 1; k < out.length && !moved; k++) {
       if (!twin(out[k - 1]!, out[k]!)) continue;
-      const later = out.flatMap((u, j) => (j > k && small(u) ? [[...out.slice(0, k), u, ...out.slice(k, j), ...out.slice(j + 1)]] : []));
-      const before = k - 2 >= tail ? [[...out.slice(0, k - 2), out[k - 1]!, out[k - 2]!, ...out.slice(k)]] : [];
-      const next = [...later, ...before].find((us) => pairs(us) < pairs(out));
+      const big = out.findIndex((u, j) => j > k && !small(u));
+      const later = out.flatMap((u, j) => (j > k && (big < 0 || j <= big) ? [[...out.slice(0, k), u, ...out.slice(k, j), ...out.slice(j + 1)]] : []));
+      const before = k >= 2 && small(out[k - 2]!) ? [[...out.slice(0, k - 2), out[k - 1]!, out[k - 2]!, ...out.slice(k)]] : [];
+      // A pair of two small moves done in turn can also start with its other move.
+      const turned = [k - 1, k].filter((j) => out[j]!.length === 2).map((j) => out.map((u, at) => (at === j ? [u[1]!, u[0]!] : u)));
+      const next = [...turned, ...later, ...before].find((us) => pairs(us) < pairs(out));
       if (next) { out = next; moved = true; }
     }
   }

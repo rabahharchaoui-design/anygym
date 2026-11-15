@@ -51,7 +51,7 @@ describe('3. more buys more', () => {
             // The reason, read from the two plans: the plan with no picks gives the muscle fewer sets at the bigger choice ("base", from the totals and extras), and what the bigger plan says holds the pick.
             const q = was.priorities.find((x) => x.id === id)!;
             const base = id !== 'mobility' && p.total - p.extra < q.total - q.extra ? `base ${q.total - q.extra} to ${p.total - p.extra}, ` : '';
-            corners.push(`${picks.join(',')} | ${step} | ${id} ${amount(was, id)} to ${amount(now, id)} | ${base}${id === 'mobility' ? 'stretch' : p.atLimit ? 'limit' : p.held ?? (now.spent >= 12 ? 'budget' : p.total >= 16 ? 'at 16 or more' : 'none')}`);
+            corners.push(`${picks.join(',')} | ${step} | ${id} ${amount(was, id)} to ${amount(now, id)} | ${base}${id === 'mobility' ? 'stretch' : p.atLimit ? 'limit' : p.held ?? (now.spent >= 12 ? 'budget' : p.total >= 16 ? 'at 16 or more' : p.total >= 12 && minutes < 60 ? 'at 12, the aim under 60 min' : 'none')}`);
           }
         }
       }

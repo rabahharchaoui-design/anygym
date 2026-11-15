@@ -4,13 +4,16 @@ import { FOCUS_MUSCLE_MAX, FOCUS_SHARE_MAX, type FocusMove } from './focus';
 import type { FocusPickId } from '../intake/options';
 import { NARROW, countPick, type Board } from './focusBoard';
 
+/** PLAN 3.6g2, spread: after its first new move, a day gets no new move for a muscle that three of its moves already train (never four lat moves on a full body day). */
+const SAME_MUSCLE_MOVES = 3;
+
 /**
  * One pick's turn: everything it can take of `requested` extra sets from the room that is left now.
  * Free time first (PLAN 3.6g: the minutes chosen are used before anything is traded): a set on its
  * own moves, then a new move. Then trades on a full day: a low value accessory gives its place,
  * unpicked moves give a set or two for a new move, and last a set moves over one at a time. A
  * pick's extra goes on the days that already train it, spread over them (PLAN 3.6g2: never a third
- * new move on one day while another day that trains it has none); other days only after those, and
+ * new move on one day, never a fourth move for one muscle on a day that got a new one); other days only after those, and
  * only where the 48 hour rule allows (the board's `rested`). `floor`: the round toward 12 sets a week, where
  * the +4 of a share does not hold.
  */
@@ -27,15 +30,17 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   const own = (i: number) => days[i]!.some((m) => m.hard && m.picks.includes(id));
   /** PLAN 3.6g2, spread: the moves for this pick a day has that it did not have with no picks. */
   const added = (i: number) => days[i]!.filter((m) => m.hard && m.picks.includes(id) && !b.baseline[i]!.some((x) => x.key === m.key)).length;
-  /** Never more than two moves for the pick added to one day while another day that trains it has none. */
-  const crowded = (i: number) => added(i) >= 2 && days.some((_, j) => j !== i && own(j) && added(j) === 0);
+  /** Never a fourth move for one muscle on a day that already got a new move for the pick (`old`: the move that gives its place does not count). */
+  const packed = (i: number, c: FocusMove | undefined, old?: FocusMove) => !!c && added(i) >= 1 && days[i]!.filter((m) => m !== old && m.hard && m.muscles.some((x) => c.muscles.includes(x))).length >= SAME_MUSCLE_MOVES;
+  /** Never more than two moves for the pick added to one day: the rest goes to its other days, or waits. */
+  const crowded = (i: number) => added(i) >= 2;
   /** Its own days first; of those the ones with the fewest moves added for it (the extra is spread over the days that train it), then the ones with the most time left. */
   const order = () => days.map((_, i) => i).sort((x, y) => Number(own(y)) - Number(own(x)) || added(x) - added(y) || b.slack(y) - b.slack(x) || x - y);
   // The round toward 12 sets only adds to the muscles of an area that are still under it (calves, not more squats).
   const lacking = (m: FocusMove | undefined): m is FocusMove => !!m && (!floor || NARROW.has(id) || b.need(id) === 0 || b.weak(id, m) < state.aim);
   const mine = (day: FocusMove[], compound: boolean) => day.filter((m) => m.hard && m.compound === compound && m.picks.includes(id) && lacking(m)).sort((x, y) => b.weak(id, x) - b.weak(id, y));
   // An option only big lifts train (upper back: rows; front shoulders: presses) takes one of those.
-  const candidate = (i: number) => [b.fresh(i, id), b.fresh(i, id, true)].find(lacking);
+  const candidate = (i: number, old?: FocusMove) => [b.fresh(i, id), b.fresh(i, id, true)].filter((c) => !packed(i, c, old)).find(lacking);
   const share = (q: FocusPickId) => b.budget.targets.find((t) => t.id === q)?.sets;
   /** May `p` get a set along with this pick's move? A move no pick asks for always (it costs no budget); a focused one only while the budget and its own picks' shares have the room. */
   const rides = (p: FocusMove): boolean => {
@@ -75,10 +80,12 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   // 3. A full day: a low priority accessory gives its place. Never another ranked choice, a loved move or a big lift.
   for (const i of order()) {
     if (reach() < 2) break;
-    const c = crowded(i) ? undefined : candidate(i);
     const day = days[i]!;
+    // The move that gives its place may be one for the same muscle, so the day's count is taken per place below.
+    const c = crowded(i) ? undefined : [b.fresh(i, id), b.fresh(i, id, true)].find(lacking);
     for (const at of c ? [...new Set([...b.rivals(day, b.tight(id)), ...b.spares(day)])] : []) {
       const old = day[at]!;
+      if (packed(i, c, old)) continue;
       const sizes = [...new Set([Math.min(old.sets, input.cap, reach()), 2])].filter((n) => n >= 2 && n <= reach());
       const swap = (n: number) => b.accepts(i, () => { day[at] = { ...c!, sets: n }; }, () => { day[at] = old; });
       if (sizes.some(swap)) break;
