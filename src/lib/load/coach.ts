@@ -96,6 +96,14 @@ export function levelUpWeight(kind: Load['kind'], value: number, rule: LevelUpRu
     base = stackTotal(value, added);
     if (validStackStep(step)) start = fromInt(Math.floor(toInt(base) / toInt(step) + EPS) * toInt(step));
   }
+  return walkUp(kind, start, 0, base, rule, s);
+}
+
+/**
+ * The raise walk: picked weights up from `start` in real loadable steps, each judged as the picked
+ * weight plus `offset` (a kept add-on) against the rule around `base` (the whole resistance now).
+ */
+function walkUp(kind: Load['kind'], start: number, offset: number, base: number, rule: LevelUpRule, s: LoadSetup): number | null {
   const want = add(base, Math.max(scale(base, rule.pct), rule.minAdd));
   const cap = add(base, Math.max(scale(base, rule.capPct), rule.minAdd));
   let best: number | null = null;
@@ -103,12 +111,28 @@ export function levelUpWeight(kind: Load['kind'], value: number, rule: LevelUpRu
   for (let i = 0; i < 400; i++) {
     const up = stepUp(kind, at, s);
     if (up === null || up <= at + EPS) break;
-    if (best !== null && up > cap + EPS) break;
+    const total = add(up, offset);
+    if (best !== null && total > cap + EPS) break;
     best = up;
     at = up;
-    if (up >= want - EPS) break;
+    if (total >= want - EPS) break;
   }
   return best;
+}
+
+/**
+ * levelUpWeight for a coach target that keeps a stack's add-on (PLAN 3.6h2): the raise is judged on
+ * the whole resistance and lands on a heavier pin with the same add-on on top (100 pin + 50 added,
+ * +5 lb at least → 105 pin + 50 = 155), so the lifter only moves the pin. Every other load:
+ * levelUpWeight's weight with nothing added. null when there is no step up here.
+ */
+export function levelUpTarget(kind: Load['kind'], value: number, rule: LevelUpRule, s: LoadSetup, added = 0): StackPick | null {
+  if (kind !== 'stack' || !(added > 0)) {
+    const to = levelUpWeight(kind, value, rule, s);
+    return to === null ? null : { value: to, added: 0 };
+  }
+  const pin = walkUp(kind, value, added, stackTotal(value, added), rule, s);
+  return pin === null ? null : { value: pin, added };
 }
 
 /**

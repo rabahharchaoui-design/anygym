@@ -17,7 +17,7 @@
 
 export { fitsSleeve } from '../plates';
 export { roundToStep, BODYWEIGHT_STEP, convertBodyweight, formatBodyweight, CM_PER_IN, ftInToCm, cmToFtIn } from './body';
-export { MAX_ESTIMATE_REPS, estimatedMax, weightForReps, COACH_MIN_ADD, scaledWeight, levelUpWeight, emptyBarWeight, warmUpLadder, loadableUpTo, TEST_SET_CAP, testSetNumber, scaledTarget, testSetLoad } from './coach';
+export { MAX_ESTIMATE_REPS, estimatedMax, weightForReps, COACH_MIN_ADD, scaledWeight, levelUpWeight, levelUpTarget, emptyBarWeight, warmUpLadder, loadableUpTo, TEST_SET_CAP, testSetNumber, scaledTarget, testSetLoad } from './coach';
 export type { LevelUpRule, WarmUp } from './coach';
 export { pickedWeight, sameLoad, SAME_RESISTANCE_TOLERANCE, sameResistance, cellWeight, comparableWeight, platesOnly } from './compare';
 export { dumbbellRangeProblems, parseDumbbellRange } from './dumbbellInput';

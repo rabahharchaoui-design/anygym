@@ -4,9 +4,9 @@
 // since (its Next already moved on), and every new weight comes from load.ts, loadable here.
 import { comparableWeight, formatWeight, heaviestHeld, weightChange } from '../load';
 import { liftClass, weighted } from './classify';
-import { nextWeight } from './increment';
+import { nextTarget } from './increment';
 import { learnedScale } from './outcome';
-import { allTop, changeWords, lastPicked, missedCount, sameWeight } from './sets';
+import { allTop, changeWords, lastPicked, missedCount, sameWeight, toWeight } from './sets';
 import { weeklyRate } from './strength';
 import { lastWeek, weekStartFrom } from './time';
 import type { ChangeRecord, Hold, Lift, LiftSession, PlannedChange } from './types';
@@ -58,8 +58,9 @@ export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: n
   if (!sameWeight(latest.sets) || !allTop(latest.sets, range)) return hold(`aim for ${range[1]} reps on every set first`);
   if (latest.effort === 'hard') return hold('it felt hard, so one more week at this weight');
   const easy = latest.effort === 'easy';
-  const to = nextWeight(lift.loadKind, at.value, { cls, rate: weeklyRate(lift.sessions, setup.unit, now), sessions: lift.sessions.length, scale: learnedScale(lift, changes), easy }, setup, at.load.added ?? 0);
-  if (to === null) {
+  // PLAN 3.6h2: a stack's add-on stays on top of the raised pin (the card shows the whole total).
+  const pick = nextTarget(lift.loadKind, at.value, { cls, rate: weeklyRate(lift.sessions, setup.unit, now), sessions: lift.sessions.length, scale: learnedScale(lift, changes), easy }, setup, at.load.added ?? 0);
+  if (pick === null) {
     // PLAN 3.5j: at the heaviest dumbbell (or held weight) this gym has, say so by name: the lift is not silently missing.
     const top = lift.loadKind === 'dumbbell_each' || lift.loadKind === 'single' ? heaviestHeld(lift.loadKind, setup) : null;
     if (top !== null) return hold(`${lift.loadKind === 'dumbbell_each' ? 'Heaviest dumbbell' : 'Heaviest weight'} here is ${formatWeight(top, setup.unit)}: add reps`);
@@ -68,9 +69,10 @@ export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: n
   const before = lift.sessions.find((s) => s.date < week.start);
   const twice = !!before && before.date >= week.start - 7 * 24 * 60 * 60 * 1000 && sameTop(latest, before);
   const top = `${latest.sets.length} × ${range[1]}`;
-  const reason = `${changeWords(lift.loadKind, weightChange(comparableWeight(at.load, at.unit), to), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${easy ? ', with reps to spare' : ''}`;
+  const fromTotal = comparableWeight(at.load, at.unit);
+  const reason = `${changeWords(lift.loadKind, weightChange(fromTotal, toWeight({ to: pick.value, toAdded: pick.added })), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${easy ? ', with reps to spare' : ''}`;
   return {
-    raise: { ...base, loadKind: lift.loadKind, unit: setup.unit, from: at.value, fromTotal: comparableWeight(at.load, at.unit), to, reason, source: 'level_up', reps: 'low' },
+    raise: { ...base, loadKind: lift.loadKind, unit: setup.unit, from: at.value, fromTotal, to: pick.value, ...(pick.added ? { toAdded: pick.added } : {}), reason, source: 'level_up', reps: 'low' },
   };
 }
 
@@ -96,10 +98,12 @@ export const HOLD_REASON = 'Same as last time, you chose not to add weight';
  * PLAN 3.5g: Not now on the Level up card is a decision too. Each lift that earned a raise keeps last
  * week's weight for this whole week (to the next Monday), aiming for the top of its range again, so the
  * card is the only place a raise happens. Stored like any change (db/coach.ts), Undo takes it back.
+ * PLAN 3.6h2: a stack's add-on stays too. The raise kept last week's add-on on top of its pin
+ * (levelUpTarget), so its `toAdded` is that add-on, and the hold is last week's pin plus it.
  */
 export function holdChanges(decision: Pick<LevelUpDecision, 'earned'>, now: number): PlannedChange[] {
   const until = weekStartFrom(now, 1);
-  return decision.earned.map((c) => ({ key: c.key, exerciseId: c.exerciseId, name: c.name, loadKind: c.loadKind, unit: c.unit, from: c.from, ...(c.fromTotal !== undefined ? { fromTotal: c.fromTotal } : {}), to: c.from, reason: HOLD_REASON, source: 'hold' as const, until, reps: 'high' as const }));
+  return decision.earned.map((c) => ({ key: c.key, exerciseId: c.exerciseId, name: c.name, loadKind: c.loadKind, unit: c.unit, from: c.from, ...(c.fromTotal !== undefined ? { fromTotal: c.fromTotal } : {}), to: c.from, ...(c.toAdded ? { toAdded: c.toAdded } : {}), reason: HOLD_REASON, source: 'hold' as const, until, reps: 'high' as const }));
 }
 
 /** "You hit all your reps on 5 lifts last week. Add weight?" */

@@ -9,7 +9,7 @@ import { useLive } from '../../hooks/useLive';
 import { getProfile } from '../../db/intake';
 import { setAutoLevelUp } from '../../db/coach';
 import { coachData } from '../../db/coachData';
-import { AUTO_LEVEL_UP_HINT, autoExample, weightWords } from '../../lib/coach';
+import { AUTO_LEVEL_UP_HINT, autoExample, toWeight, weightWords } from '../../lib/coach';
 import { formatAmount } from '../../lib/load';
 import settings from '../Settings.module.css';
 import styles from './AutoLevelUp.module.css';
@@ -81,7 +81,7 @@ function AutoLevelUpSheet({ open, onClose, onTurnOn }: { open: boolean; onClose:
           <div className={styles.example} data-testid="auto-example">
             <span className={styles.exName}>{example.name}</span>
             <span className={`${styles.exNumbers} num`}>
-              {formatAmount(example.from)} → <b>{weightWords(example.loadKind, example.to, example.unit)}</b>
+              {formatAmount(example.fromTotal ?? example.from)} → <b>{weightWords(example.loadKind, toWeight(example), example.unit)}</b>
             </span>
             <span className={styles.exWhen}>next week, once you hit all your reps</span>
           </div>
