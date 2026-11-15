@@ -106,8 +106,9 @@ it('names detailed priorities and their real shortfalls without claiming a calen
   // What did not fit is one line beside the taps (focusFit), never twice in the warning.
   expect(words.warning ?? '').not.toContain('Grip');
   const fit = focusFit(answers, r.applied.focusReport, (a) => { const x = generate(generatorInputOf(a)); return x.ok ? x.applied.focusReport : undefined; })!;
-  // Grip has no sure exercise anywhere: said as that, never blamed on equipment. Lats has exercises, none this hotel gym can do (PLAN 3.6g): said as that.
-  expect(fit.line).toMatch(/No exercises for grip yet\. Lats needs equipment you do not have here\.$/);
+  // Grip has no sure exercise anywhere: said as that, never blamed on equipment. Lats has no exercise of its own this hotel gym can do, and its rows still work the lats (PLAN 3.6g2): said as that, never as missing equipment.
+  expect(fit.line).toMatch(/No exercises for grip yet\. Lats has no exercise of its own with this equipment; other exercises here still work it\.$/);
+  expect(fit.line).not.toContain('equipment you do not have');
   expect(fit.line).not.toContain('with your equipment');
   expect(words.reason).not.toContain('completed');
   expect(words.reason).not.toContain('sets a week');

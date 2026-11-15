@@ -128,7 +128,18 @@ describe('every sentence about priority follows the final numbers (seeded intake
       const inverted = hard.filter((h, i) => h.requested > 0 && hard.slice(i + 1).some((l) => l.extra - (l.rides?.extra ?? 0) > h.extra));
       for (const h of inverted) expect(h.state === 'no_move' || h.state === 'plenty' || !!h.atLimit || h.held === 'maxed', `${label}: ${h.id} passed while it could take more`).toBe(true);
       const passed = focusPassed(report);
-      if (inverted.length) { seen.passed++; expect(passed, label).not.toBeNull(); expect(summary, label).toContain(passed!); for (const h of inverted) expect(passed!.split(', so ')[0], label).toContain(focusName(h.id)); }
+      // PLAN 3.6g2, said once: a pick this gym has no equipment for is named in the fit line, and the summary gives the other reasons only.
+      const told = focusPassed(report, true);
+      expect(summary, label).not.toMatch(/equipment you do not have here|of (its|their) own here/);
+      if (inverted.length) {
+        seen.passed++; expect(passed, label).not.toBeNull();
+        if (told) expect(summary, label).toContain(told);
+        for (const h of inverted) {
+          expect(passed!.split(', so ')[0], label).toContain(focusName(h.id));
+          if (h.state === 'no_move' && (h.gear || h.helped)) expect(fit?.line ?? '', label).toContain(focusName(h.id));
+          else expect(told!.split(', so ')[0], label).toContain(focusName(h.id));
+        }
+      }
       // The words after "so" name picks that really got more than a pick passed above them.
       const ahead = / so (.+) gets? (?:extra|more|the most)\./.exec(passed ?? '')?.[1];
       for (const name of ahead?.split(/, | and /) ?? []) {

@@ -32,12 +32,14 @@ export function focusPrioritized(report: Priorities): string | null {
   return top.length && top.length < hard.length ? names(top) : null;
 }
 
-type Why = 'plenty' | 'no_move' | 'gear' | 'maxed' | 'share' | 'room';
+type Why = 'plenty' | 'no_move' | 'gear' | 'helped' | 'maxed' | 'share' | 'room';
+/** The hotel line: reasons the fit line already says in a sentence of their own (focusWords.focusNoMoveWords), never said a second time. */
+const NO_MOVE: readonly Why[] = ['gear', 'helped'];
 /** Why a pick got less than one ranked below it. A pick past the weekly budget is said in its own sentence (focusFit), never here. */
 function whyOf(p: FocusResult): Why | null {
   const state = focusStateOf(p);
   if (state === 'no_share') return null;
-  if (state === 'no_move') return p.gear ? 'gear' : state;
+  if (state === 'no_move') return p.helped ? 'helped' : p.gear ? 'gear' : state;
   if (state === 'plenty' || p.atLimit) return 'plenty';
   if (p.held === 'maxed') return 'maxed';
   return p.requested > 0 && p.extra >= p.requested ? 'share' : 'room';
@@ -46,6 +48,7 @@ const WHY: Record<Why, (many: boolean) => string> = {
   plenty: (many) => (many ? 'already get plenty' : 'already gets plenty'),
   no_move: (many) => (many ? 'have no exercises yet' : 'has no exercises yet'),
   gear: (many) => (many ? 'need equipment you do not have here' : 'needs equipment you do not have here'),
+  helped: (many) => (many ? 'have no exercise of their own here' : 'has no exercise of its own here'),
   maxed: (many) => (many ? 'have their exercises at the most sets' : 'has its exercises at the most sets'),
   share: (many) => (many ? 'already have their share' : 'already has its share'),
   room: (many) => (many ? 'have no more room on their days' : 'has no more room on its days'),
@@ -57,9 +60,9 @@ const WHY: Record<Why, (many: boolean) => string> = {
  * with why (the limit, no exercise, their whole share, or no room: the curation serves picks in
  * rank order, so a lower pick only ever takes room every pick above it could not use); the picks
  * named after "so" are the ones that got more than every pick passed above them. Null when the
- * numbers follow the rank.
+ * numbers follow the rank. `said`: the fit line already said which picks have no exercise here.
  */
-export function focusPassed(report: Priorities): string | null {
+export function focusPassed(report: Priorities, said = false): string | null {
   const hard = focusCompared(report);
   // PLAN 3.6g2: extra that came with a higher pick's work (FocusResult.rides) was given to that pick, so it passes nobody.
   const own = (p: FocusResult) => p.extra - (p.rides?.extra ?? 0);
@@ -71,7 +74,9 @@ export function focusPassed(report: Priorities): string | null {
   const most = top.every((t) => passed.some((h) => below(t, h))) && passed.every((h) => top.some((t) => below(t, h)));
   const ahead = most ? top : hard.filter((l) => !passed.includes(l) && passed.some((h) => below(l, h) && own(l) > h.extra));
   if (!ahead.length) return null;
-  const groups = (['plenty', 'no_move', 'gear', 'maxed', 'share', 'room'] as const).map((why) => ({ why, picks: passed.filter((p) => whyOf(p) === why) })).filter((g) => g.picks.length);
+  // PLAN 3.6g2, said once: a pick this gym has no equipment for has its own sentence in the fit line above, so it is not named again.
+  const groups = (['plenty', 'no_move', 'gear', 'helped', 'maxed', 'share', 'room'] as const).filter((why) => !said || !NO_MOVE.includes(why)).map((why) => ({ why, picks: passed.filter((p) => whyOf(p) === why) })).filter((g) => g.picks.length);
+  if (!groups.length) return null;
   const reasons = list(groups.map((g) => `${names(g.picks)} ${WHY[g.why](g.picks.length > 1)}`));
   const what = most ? 'the most' : passed.every((p) => p.extra === 0) ? 'extra' : 'more';
   return `${reasons}, so ${names(ahead)} ${ahead.length === 1 ? 'gets' : 'get'} ${what}.`;
@@ -86,9 +91,11 @@ export function focusPassed(report: Priorities): string | null {
 export function focusSummary(report: Priorities, named = false): string | null {
   const hard = focusCompared(report);
   const top = focusTop(report);
-  if (!top.length || hard.length < 2) return null;
+  // One pick alone can take sets (the others have no equipment here, said above): nothing to compare.
+  if (!top.length || hard.filter((p) => !(focusStateOf(p) === 'no_move' && (p.gear || p.helped))).length < 2) return null;
   if (top.length === hard.length) return `Every pick gets the same extra work: +${top[0]!.extra}.`;
-  const passed = focusPassed(report);
+  // The fit line (lib/intake/focusFit.ts) is always there when a pick has no exercise, and says so.
+  const passed = focusPassed(report, true);
   // "…, so Glutes gets the most." has already said who leads.
   const most = named || passed?.endsWith('the most.') ? null : `Most extra work: ${names(top)}.`;
   return [most, passed].filter(Boolean).join(' ') || null;

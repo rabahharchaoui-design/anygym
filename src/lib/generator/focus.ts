@@ -99,7 +99,14 @@ export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusRepo
   for (const [i, moves] of out.days.entries()) Object.assign(days[i]!, arranged(moves, i));
   // A pick with no exercise here, while the app has one this gym lacks the equipment for: said as that.
   const elsewhere = Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => !c.timed || pattern === 'core').map((c) => makeItem(ctx, c, pattern as Item['pattern']))).concat((ctx.deps.focusLifts?.() ?? []).map((c) => makeItem(ctx, c, 'biceps'))).filter((it) => !supports(it.candidate.requires, ctx.input.gym));
-  for (const p of out.report.priorities) if (p.state === 'no_move' && elsewhere.some((it) => it.profile.role === 'lift' && facts(it).picks.includes(p.id))) p.gear = true;
+  // PLAN 3.6g2: unless moves of this very plan work it as a helper muscle (rows for the lats): then that is what is said, never that it needs equipment.
+  const helpers = new Set(days.flatMap((d) => d.units.flat()).flatMap((it) => (it.profile.role === 'lift' ? facts(it).also ?? [] : [])));
+  for (const p of out.report.priorities) {
+    if (p.state !== 'no_move') continue;
+    if (!elsewhere.some((it) => it.profile.role === 'lift' && facts(it).picks.includes(p.id))) continue;
+    if (helpers.has(p.id)) p.helped = true;
+    else p.gear = true;
+  }
   // Focused moves go first while fresh: the pick each day's first lift trains (the highest ranked), for the day's why.
   const ranked = out.report.priorities.map((p) => p.id).filter((id) => id !== 'mobility' && !RIDERS.has(id));
   out.report.dayLead = days.map((d) => {

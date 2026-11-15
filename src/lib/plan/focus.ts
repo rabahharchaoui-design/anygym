@@ -52,6 +52,8 @@ export type FocusMove = {
   seconds?: number;
   id: string; key: string; sets: number; hard: boolean; compound: boolean;
   muscles: readonly string[]; picks: readonly FocusPickId[];
+  /** PLAN 3.6g2: the picks it works as a helper muscle (never counted as sets). */
+  also?: readonly FocusPickId[];
   /** An exercise the person loves: never swapped out for a focus move. */
   keep?: boolean;
   /** The muscles the 48 hour rule tracks for this move (the scheduler's own words). Defaults to `muscles`. */
@@ -85,6 +87,8 @@ export type FocusResult = {
   noMove?: true;
   /** PLAN 3.6g: with `noMove`, the app has exercises for it and this gym has the equipment for none of them: said as that, never as "no exercises yet". */
   gear?: true;
+  /** PLAN 3.6g2: no exercise of its own here, but moves of this plan work it as a helper muscle (rows for the lats): never said to need equipment. */
+  helped?: true;
   /** PLAN 3.6g: the sets it is still short of FOCUS_MUSCLE_MIN a week (for an area: its muscle with the fewest that has an exercise). Absent when it is there, has plenty or has no exercise. */
   under?: number;
   /**

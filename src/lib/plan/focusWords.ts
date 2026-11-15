@@ -43,7 +43,7 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   const name = focusName(p.id);
   if (p.id === 'mobility') return stretchBlock(p) ? [name, `${minutes(p.minutes!)} of stretches ${period}`] : [name, STRETCH_NO_ROOM.toLowerCase()];
   const state = focusStateOf(p);
-  if (state === 'no_move') return [name, p.gear ? 'needs equipment you do not have here' : 'no exercises for it yet'];
+  if (state === 'no_move') return [name, p.helped ? 'no exercise of its own here' : p.gear ? 'needs equipment you do not have here' : 'no exercises for it yet'];
   if (p.total === 0) return [name, 'no room for it'];
   const amount = p.id === 'posture' ? `${plural(p.total, 'set', 'sets')} of back and rear shoulder work`
     : p.parts && p.parts.length > 1 ? `${list(p.parts.map((x) => `${PART[x.muscle] ?? x.muscle} ${x.sets}`))} sets`
@@ -81,6 +81,21 @@ export function focusStayWords(picks: readonly FocusResult[], floor: number): st
 }
 
 /**
+ * PLAN 3.6g2, the hotel line: the picks with no exercise here, each kind said once. "Needs equipment
+ * you do not have here" only when nothing in this plan works the muscle at all; when other moves
+ * work it as a helper (rows for the lats), that is what is said. Null when every pick has a move.
+ */
+export function focusNoMoveWords(none: readonly FocusResult[]): string | null {
+  const names = (ps: readonly FocusResult[]) => list(ps.map((p) => focusName(p.id)));
+  const helped = none.filter((p) => p.helped), gear = none.filter((p) => p.gear && !p.helped), never = none.filter((p) => !p.gear && !p.helped);
+  const parts: string[] = [];
+  if (never.length) parts.push(`No exercises for ${list(never.map((p) => focusName(p.id).toLowerCase()), 'or')} yet.`);
+  if (gear.length) parts.push(`${names(gear)} ${gear.length === 1 ? 'needs' : 'need'} equipment you do not have here.`);
+  if (helped.length) parts.push(`${names(helped)} ${helped.length === 1 ? 'has no exercise of its own' : 'have no exercise of their own'} with this equipment; other exercises here still work ${helped.length === 1 ? 'it' : 'them'}.`);
+  return parts.length ? parts.join(' ') : null;
+}
+
+/**
  * Mobility with no stretch block (truth pass, critic r3 3): a minute of stretching at the end of a
  * day is never presented as the pick delivered. One plain sentence, and the day cards stay quiet.
  */
@@ -96,7 +111,7 @@ export type FocusRow = {
   name: string;
   /** "18 sets", "6 min". Null for an area of several muscles (its muscles are in the detail) and for a pick that got nothing. */
   amount: string | null;
-  /** The quiet state: "+6 extra", "plenty", "no extra", "no room", "no exercises yet", "needs equipment". Null when the amount says it all. */
+  /** The quiet state: "+6 extra", "plenty", "no extra", "no room", "no exercises yet", "needs equipment", "no exercise of its own". Null when the amount says it all. */
   tag: string | null;
   /** One more quiet line when there is more to say (an area's muscles, what posture work is). */
   detail: string | null;
@@ -110,7 +125,7 @@ export function focusRow(p: FocusResult): FocusRow {
   const name = focusName(p.id);
   if (p.id === 'mobility') return stretchBlock(p) ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: null, detail: STRETCH_NO_ROOM };
   const state = focusStateOf(p);
-  if (state === 'no_move') return { name, amount: null, tag: p.gear ? 'needs equipment' : 'no exercises yet', detail: null };
+  if (state === 'no_move') return { name, amount: null, tag: p.helped ? 'no exercise of its own' : p.gear ? 'needs equipment' : 'no exercises yet', detail: null };
   if (p.total === 0) return { name, amount: null, tag: 'no room', detail: null };
   if (focusCovered(p)) return { name, amount: null, tag: null, detail: `Covered by your ${workOf(p.coveredBy!)} work: ${plural(p.total, 'set', 'sets')}` };
   const several = !!p.parts && p.parts.length > 1;

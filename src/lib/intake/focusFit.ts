@@ -10,7 +10,7 @@
 // offered step names gets one plain sentence with the true reason from the report (FocusResult.held).
 // Pure: the rebuild is passed in.
 import { FOCUS_BUDGET_MAX, FOCUS_MUSCLE_MIN, focusName, focusStateOf, focusUnplaced, stretchBlock, type FocusReport, type FocusResult } from '../plan/focus';
-import { focusStayWords } from '../plan/focusWords';
+import { focusNoMoveWords, focusStayWords } from '../plan/focusWords';
 import { list } from '../words';
 import type { IntakeAnswers } from './answers';
 import { DAYS, MINUTES, type DaysPerWeek, type Minutes } from './options';
@@ -139,11 +139,9 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
     else if (!offered.length && unplaced.some((p) => p.id !== 'mobility') && !choices.length) parts.push(`This is all the extra work ${a.days ?? 3} days of ${a.minutes} min can hold.`);
   }
   if (unfunded.length) parts.push(`Extra work stops at ${FOCUS_BUDGET_MAX} sets a week, so ${list(unfunded.map((p) => focusName(p.id)))} got none.`);
-  // The app has exercises for these and this gym has the equipment for none of them: said as that (PLAN 3.6g).
-  const gear = none.filter((p) => p.gear), never = none.filter((p) => !p.gear);
-  const lower = (ps: typeof none) => list(ps.map((p) => focusName(p.id).toLowerCase()), 'or');
-  if (never.length) parts.push(`No exercises for ${lower(never)} yet.`);
-  if (gear.length) parts.push(`${list(gear.map((p) => focusName(p.id)))} ${gear.length === 1 ? 'needs' : 'need'} equipment you do not have here.`);
+  // No exercise here: no exercises yet, equipment this gym lacks, or only helper work (PLAN 3.6g, 3.6g2), each said once.
+  const noMove = focusNoMoveWords(none);
+  if (noMove) parts.push(noMove);
   if (!parts.length) return null;
   out.line = parts.join(' ');
   return out;
