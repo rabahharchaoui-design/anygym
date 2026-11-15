@@ -92,7 +92,7 @@ const gymShape = shape({
     isActive: bool,
     createdAt: num,
   },
-  opt: { city: str, lastUsedAt: num, timeBudgetMin: num },
+  opt: { city: str, lastUsedAt: num, timeBudgetMin: num, machineHorns: recordOf(oneOf(1, 2)) },
 });
 
 /** Every plate in a gym's inventory, enabled or not, is a real plate of the gym's unit (PLAN 1.7k: a 999 kg plate crashed loading). */

@@ -30,7 +30,7 @@ import { applyTrim, trimmedPlan } from '../../lib/timeBudget';
 import { getProfile } from '../../db/intake';
 import { goalsOf } from '../../lib/intake/funnel';
 import { historyKeyFor } from '../../db/history';
-import { cellWeight, loadAt, pickedWeight, sameResistance, testSetLoad, type LoadSetup, type WarmUp } from '../../lib/load';
+import { cellWeight, loadAt, pickedWeight, sameHorns, sameResistance, testSetLoad, type LoadSetup, type WarmUp } from '../../lib/load';
 import {
   KEEP_NUMBER,
   START_LIGHT,
@@ -264,7 +264,8 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     // PLAN 3.8 (SPEC 15): a coach decision for this lift wins over SPEC 6's Next, with its reason.
     const smith = kind === 'barbell' && barIdFor(nameOf(id), barOf(id)) === 'smith';
     const t = targets.get(liftKey(id, kind, historyKeyFor(kind, gym.data.id, smith), smith));
-    if (targetActive(t, past[0]?.date, Date.now(), gym.data.unit, kind)) {
+    // PLAN 3.6h2: a target made from sets counted on another number of machine sides waits.
+    if (targetActive(t, past[0]?.date, Date.now(), gym.data.unit, kind) && (past[0]?.sets ?? []).every((x) => sameHorns(x.load, setup))) {
       const load = loadAt(kind, t.value, setup, t.added ?? 0);
       if (load) return withTarget(p, t, load, range, prescription);
     }

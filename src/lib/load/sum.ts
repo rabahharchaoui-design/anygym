@@ -46,6 +46,13 @@ export function sumLoad({ bar, perSide, collars = 'none', unit, other = 0, horns
 /** The sides a stored load's plates count on (PLAN 3.6w): 1 for a one horn snapshot, else 2. */
 export const hornsOf = (load: { horns?: 1 }): Horns => (load.horns === 1 ? 1 : 2);
 
+/**
+ * A plate machine load counted the way this setup counts it (PLAN 3.6h2): false when the load was
+ * logged on both sides and the machine is now known to load one (or the other way round), so its
+ * total is never taken for the same lift. Every other kind: true.
+ */
+export const sameHorns = (load: { kind: string; horns?: 1 }, s: { horns?: Horns }): boolean => load.kind !== 'plate_machine' || hornsOf(load) === (s.horns ?? 2);
+
 /** Enabled plate sizes, heaviest first. */
 export function enabledPlates(inventory: readonly PlateToggle[]): number[] {
   return inventory.filter((p) => p.enabled).map((p) => p.weight).sort((a, b) => b - a);

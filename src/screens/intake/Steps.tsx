@@ -31,8 +31,11 @@ export function SingleChoice<T extends string | number>({
   testId,
   columns,
   fill = true,
+  art,
 }: {
   options: readonly Option<string>[];
+  /** PLAN 3.6i: the 3D icon group of these options ("place": place-full, place-home...). */
+  art?: string;
   value: T | undefined;
   onPick: (id: string) => void;
   pulse: string | null;
@@ -49,7 +52,7 @@ export function SingleChoice<T extends string | number>({
       <div ref={cards} className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
         {options.map((o) => (
           <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
-            <ChoiceCard icon={iconFor(o.icon)} label={o.label} hint={o.hint} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
+            <ChoiceCard icon={iconFor(o.icon)} art={art ? `${art}-${o.id}` : undefined} label={o.label} hint={o.hint} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
           </div>
         ))}
       </div>
@@ -80,6 +83,7 @@ export function GoalChoice({ value, onChange }: { value: readonly GoalId[]; onCh
             block
             tile
             icon={iconFor(o.icon)}
+            art={`goal-${o.id}`}
             label={o.label}
             picked={at >= 0}
             tag={at === 0 ? 'Main' : at === 1 ? 'Also' : ''}

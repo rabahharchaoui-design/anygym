@@ -7,7 +7,7 @@
 // (outcome.ts: a missed raise halves it, one done with reps to spare grows it a little). The
 // weight itself always comes from load.ts levelUpWeight, rounded to what the gym can load.
 import type { Load, Unit } from '../../db/types';
-import { COACH_MIN_ADD, levelUpWeight, type LevelUpRule, type LoadSetup } from '../load';
+import { COACH_MIN_ADD, levelUpTarget, levelUpWeight, type LevelUpRule, type LoadSetup, type StackPick } from '../load';
 import type { LiftClass } from './types';
 
 export const DEFAULT_PCT: Record<'lower' | 'upper', number> = { lower: 0.05, upper: 0.025 };
@@ -47,4 +47,9 @@ export function raiseRule(input: IncrementInput, unit: Unit): LevelUpRule {
 /** The next weight for one lift (`added`: weight on a stack pin, kept in the raise), or null when there is no step up at this gym. */
 export function nextWeight(kind: Load['kind'], value: number, input: IncrementInput, setup: LoadSetup, added = 0): number | null {
   return levelUpWeight(kind, value, raiseRule(input, setup.unit), setup, added);
+}
+
+/** nextWeight as the target to store (PLAN 3.6h2): a stack's add-on stays on top of the new pin. */
+export function nextTarget(kind: Load['kind'], value: number, input: IncrementInput, setup: LoadSetup, added = 0): StackPick | null {
+  return levelUpTarget(kind, value, raiseRule(input, setup.unit), setup, added);
 }

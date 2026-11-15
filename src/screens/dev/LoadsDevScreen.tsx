@@ -67,6 +67,8 @@ export function LoadsDevScreen() {
             <PlateMachineInput
               gym={gym}
               machineId={PLATE_MACHINE}
+              // A leg press sled: it loads both sides for sure (PLAN 3.6h2), so the harness never asks.
+              sureHorns={2}
               perSide={perSide}
               onChange={(p, l) => {
                 setPerSide(p);

@@ -30,7 +30,7 @@ import {
   type SetEdit,
 } from '../../lib/import/importPlan';
 import { EquipmentWeightSheet } from '../../components/load/EquipmentWeightSheet';
-import { LOAD_TYPE_CHOICES, loadSetupFor, machineIdFor } from '../workout/exerciseLoad';
+import { LOAD_TYPE_CHOICES, loadSetupFor, machineHornsKnown, machineIdFor } from '../workout/exerciseLoad';
 import { LoadTypeSheet } from '../workout/LoadTypeSheet';
 import { setCount } from '../history/historyWords';
 import { ImportSetSheet } from './ImportSetSheet';
@@ -45,6 +45,8 @@ function contextFor(gym: Gym) {
     olympic: gym.bars.olympic,
     smith: gym.bars.smith,
     machineStart: machineStartFor(gym, machineIdFor(exerciseId, name)),
+    // PLAN 3.6h2: a known answer (or the data's sure one) is used; not known stays both sides, as before.
+    ...(machineHornsKnown(gym, exerciseId, name) === 1 ? { machineHorns: 1 as const } : {}),
     setupFor: (kind) => ({ unit: gym.unit, ...loadSetupFor(gym, kind, exerciseId, name) }),
   });
 }

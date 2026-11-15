@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import { Check, type LucideIcon } from 'lucide-react';
+import { Icon3D } from './icon3d/Icon3D';
 import styles from './ChoiceCard.module.css';
 
 type Props = {
   /** A Lucide icon (one family, SPEC 23.2), drawn on the left. */
   icon?: LucideIcon;
+  /** PLAN 3.6i: a 3D icon's name ("place-home"). The picture takes the line icon's place in a fixed slot; the line icon stays when it cannot load. */
+  art?: string;
   label: string;
   /** One quiet line under the label. */
   hint?: ReactNode;
@@ -21,13 +24,17 @@ type Props = {
  * right; picked, the border turns accent and the ring fills on the tap spring (CSS, compositor only).
  * A toggle button (aria-pressed), so a group of them reads as "pressed" for the one picked.
  */
-export function ChoiceCard({ icon: Icon, label, hint, detail, picked, onPress, testId, disabled }: Props) {
+export function ChoiceCard({ icon: Icon, art, label, hint, detail, picked, onPress, testId, disabled }: Props) {
   return (
     <button type="button" className={`${styles.card} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} disabled={disabled}>
-      {Icon && (
+      {art ? (
+        <Icon3D name={art} fallback={Icon} lineSize={22} className={styles.art} />
+      ) : (
+        Icon && (
         <span className={styles.icon} aria-hidden="true">
           <Icon width={22} height={22} strokeWidth={2} />
         </span>
+        )
       )}
       <span className={styles.text}>
         <span className={styles.label}>{label}</span>

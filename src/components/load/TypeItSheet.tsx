@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Collars, Unit } from '../../db/types';
-import { formatAmount, formatWeight, solvePlates, type Loading } from '../../lib/load';
+import { formatAmount, formatWeight, solvePlates, type Horns, type Loading } from '../../lib/load';
 import { parseTyped, pressKey } from '../../lib/numpad';
 import { Sheet } from '../../ui/Sheet';
 import { NumPad } from './NumPad';
@@ -19,6 +19,10 @@ type Props = {
   collars: Collars;
   /** The drawn bar's loadable sleeve, so a solved load always fits it (SPEC 5.3). */
   sleeveLength?: number;
+  /** A one sided machine (PLAN 3.6h2): the plates count once. */
+  horns?: Horns;
+  /** "Each side", or "On the machine" for a one sided machine. */
+  sideLabel?: string;
   onApply: (perSide: number[]) => void;
 };
 
@@ -28,7 +32,7 @@ const PerSide = ({ perSide, unit, baseLabel, label }: { perSide: readonly number
 );
 
 /** "Type it" (SPEC 5.2, 5.4): type a total, the solver picks the plates. */
-export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inventory, collars, sleeveLength, onApply }: Props) {
+export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inventory, collars, sleeveLength, horns = 2, sideLabel = 'Each side', onApply }: Props) {
   const [text, setText] = useState('');
   useEffect(() => {
     if (open) setText('');
@@ -36,8 +40,8 @@ export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inven
 
   const target = parseTyped(text);
   const result = useMemo(
-    () => (target === null ? null : solvePlates(target, { bar, inventory, collars, unit, sleeveLength })),
-    [target, bar, inventory, collars, unit, sleeveLength],
+    () => (target === null ? null : solvePlates(target, { bar, inventory, collars, unit, sleeveLength, ...(horns === 1 ? { horns } : {}) })),
+    [target, bar, inventory, collars, unit, sleeveLength, horns],
   );
 
   const apply = (perSide: number[]) => {
@@ -56,7 +60,7 @@ export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inven
         {result?.exact && (
           <p className={styles.exact}>
             <strong>Exact</strong>
-            <PerSide perSide={result.perSide} unit={unit} baseLabel={baseLabel} label="Each side" />
+            <PerSide perSide={result.perSide} unit={unit} baseLabel={baseLabel} label={sideLabel} />
           </p>
         )}
         {result && !result.exact && (

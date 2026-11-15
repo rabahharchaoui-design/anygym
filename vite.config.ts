@@ -128,7 +128,10 @@ export default defineConfig({
         // Exercise demos (PLAN 2.1, cloud run): the photos are NOT precached, so a first visit only
         // downloads the app shell and is offline ready in seconds. Each photo (WebP or its JPG twin)
         // is cached the first time it shows and then works offline.
-        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}'],
+        // PLAN 3.6i: the 20 small 3D icons on the intake and Quick workout are precached in both formats
+        // (about 230 KB together; the phone asks for one of them), so they show in a gym with no signal.
+        // Art that waits for its screen (icons3d/later/) is never precached.
+        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}', 'icons3d/*.{avif,webp}'],
         // PLAN 3.5e: the candidate move list is only for the owner review and a phone with approvals:
         // never precached for everyone; kept once it loaded (below).
         globIgnores: ['**/ex/**', '**/catalog-candidates-*.js'],

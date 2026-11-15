@@ -10,7 +10,7 @@ function run(setup: typeof LB, pinV: number, added: number) {
   const v = liftVerdict(l, [], NOW);
   if (!v || !('raise' in v)) throw new Error('no raise ' + JSON.stringify(v));
   const t = targetOf(v.raise, NOW);
-  const next = loadAt('stack', t.value, setup)!;
+  const next = loadAt('stack', t.value, setup, t.added ?? 0)!; // PLAN 3.6h2: the screen's path keeps the add-on
   return { old, raise: v.raise, next };
 }
 describe('3.5c verify stack add-on', () => {

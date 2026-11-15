@@ -48,6 +48,7 @@ Bigger shared pieces that know about AnyGym. Loose files here are app wide: the 
 Small generic building blocks with no AnyGym knowledge: `Button`, `Sheet` (the slide up panel), `TopBar`, `TabBar`, `Toast`, `Chip`, `Switch`, `Skeleton` and so on. Also the motion rules (`motion.ts`: every spring and duration), screen navigation (`nav.ts`), haptics and safe area helpers.
 - `ui/art/`: the drawn scenes and pictures for empty states and celebrations. Loaded on demand.
 - `ui/art/passport/`: the passport style artwork (leather, paper, ink) used for milestones.
+- `ui/icon3d/`: the 3D icon set (PLAN 3.6i). `Icon3D` draws one icon in a fixed slot, with the line icon while it loads, when it cannot load and when the phone saves data; `manifest.json` (written by `scripts/make-icons-3d.mjs`) lists every exported file in `public/icons3d/`.
 - `ui/celebrate/`: the big moments (new record, level up). `ui/celebrate/fx/` holds the particle and glow effects.
 - `ui/badges/`: the badge shapes and glyphs.
 

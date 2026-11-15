@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load, WorkoutSet } from '../../db/types';
-import { collarsSettingOf, otherOf } from '../../lib/load';
+import { collarsSettingOf, hornsOf, otherOf } from '../../lib/load';
 import { countModeOf } from '../../lib/setTable';
 import { RepsStepper } from './RepsStepper';
 import { SetLoadInput } from './SetLoadInput';
@@ -109,6 +109,7 @@ function EditBody({
           ownBarId={set.load?.kind === 'barbell' ? set.load.barId : undefined}
           ownCollars={set.load?.kind === 'barbell' ? collarsSettingOf(set.load) : undefined}
           ownOther={set.load?.kind === 'barbell' ? otherOf(set.load) : undefined}
+          ownHorns={set.load?.kind === 'plate_machine' ? hornsOf(set.load) : undefined}
         />
       )}
       {timed ? (
