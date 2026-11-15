@@ -114,13 +114,15 @@
 }
 
 @media (max-height: 600px) {
-  /* A short phone (the 320 x 568 floor): a scrolling sheet's grabber is still a 44 px hit area, the
-     smallest allowed, hanging 24 px over the scrim, but it takes 3 px less layout room (it overlaps
-     the first 3 px of the body, which are only padding), so the body keeps 8 px more than before. */
+  /* A short phone (the 320 x 568 floor): a scrolling sheet's grabber keeps its whole 49 px hit area
+     (48 is the least allowed, PLAN 1.7i), hanging 24 px over the scrim, but takes 8 px less layout
+     room: it reaches over the body's top edge, which is only padding, so a tall body (the Smith
+     question, the import editor) still fits without scrolling (PLAN 2.0d). */
   .sheet[data-scroll='true'] .grabberZone {
-    height: 44px;
-    padding-top: 36px;
-    margin-bottom: -3px;
+    margin-bottom: -8px;
+    /* over the body's first pixels (its title's top padding), so the whole 49 px answers a tap */
+    position: relative;
+    z-index: 1;
   }
 }
 
