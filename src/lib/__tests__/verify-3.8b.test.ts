@@ -25,8 +25,10 @@ describe('verify 3.8b empty bar warm up', () => {
     const ladder = warmUpLadder('barbell', 225, lb45);
     expect(ladder[0]).toEqual({ value: 45, reps: 10 });
     for (const s of ladder) expect(loadAt('barbell', s.value, lb45)).not.toBeNull();
-    // 3.5b round 4: 20 s so it never times out under a full parallel run.
-  }, 20_000);
+    // 3.5b round 4: 20 s so it never times out under a full parallel run. PLAN 3.6h2: under the
+    // coverage run's instrumentation this one test alone took 11.1 s on a laptop (1.6 s without), and
+    // over 20 s with every file running in parallel; 120 s gives it that room, never a retry.
+  }, 120_000);
   it('unknown bar gives no empty bar weight and no ladder', () => {
     expect(emptyBarWeight({ ...lb45, base: null })).toBeNull();
     expect(warmUpLadder('barbell', 225, { ...lb45, base: null })).toEqual([]);

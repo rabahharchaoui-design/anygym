@@ -18,7 +18,7 @@ describe('coach targets preserve the resistance the lifter actually used', () =>
       expect(verdict && 'raise' in verdict).toBe(true);
       if (!verdict || !('raise' in verdict)) throw new Error('Expected an earned increase');
       const target = targetOf(verdict.raise, NOW);
-      const next = loadAt('stack', target.value, setup);
+      const next = loadAt('stack', target.value, setup, target.added ?? 0); // PLAN 3.6h2: the screen's path keeps the add-on (useWorkout)
       expect(next).not.toBeNull();
       expect.soft(next!.total, `${setup.unit}: an increase must exceed pin plus add-on`).toBeGreaterThan(old.total);
       expect(l).toEqual(before);

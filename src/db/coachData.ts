@@ -21,6 +21,7 @@ import { planExercise } from '../data/planExercises';
 import { exerciseNameOf } from '../data/importMatch';
 import { infoForExercise } from '../data/exerciseInfo';
 import { loadSetupFor } from '../screens/workout/exerciseLoad';
+import { sameHorns } from '../lib/load';
 import { pickBar } from './exerciseSettings';
 import { getPastSessions, historyKeyFor } from './history';
 import { getActiveGym } from './bootstrap';
@@ -131,24 +132,28 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     const name = nameOf(x.exerciseId);
     const past = await getPastSessions(x.exerciseId, gym.id, x.load.kind, LIFT_SESSIONS, { smith, defaultBar: planExercise(x.exerciseId)?.bar ?? candidateBarOf(x.exerciseId) ?? barForName(name), db });
     const sessions: LiftSession[] = [];
+    const bar = pickBar(settings, x.exerciseId, gym.id) ?? planExercise(x.exerciseId)?.bar ?? candidateBarOf(x.exerciseId);
+    const setup = { unit: gym.unit, ...loadSetupFor(gym, x.load.kind, x.exerciseId, name, smith ? 'smith' : bar) };
     for (const p of past) {
       const s = byStart.get(p.date);
       if (!s) continue;
       const own = p.sets.filter((y) => y.reps !== undefined && y.load.kind === x.load.kind).map((y) => ({ reps: y.reps!, load: y.load }));
       if (!own.length) continue;
+      // PLAN 3.6h2: a plate machine counted on another number of sides before its answer: that
+      // workout and every older one are not the same lift for the coach (newest first, so stop).
+      if (!own.every((y) => sameHorns(y.load, setup))) break;
       const effort = effortOf.get(`${s.id}|${x.exerciseId}`);
       sessions.push({ sessionId: s.id, date: s.startedAt, sets: own, range: rangeFor(s, x.exerciseId), ...(effort ? { effort } : {}) });
     }
     if (!sessions.length) continue;
     const key = liftKey(x.exerciseId, x.load.kind, historyKeyFor(x.load.kind, gym.id, smith), smith);
-    const bar = pickBar(settings, x.exerciseId, gym.id) ?? planExercise(x.exerciseId)?.bar ?? candidateBarOf(x.exerciseId);
     const lift: Lift = {
       key,
       exerciseId: x.exerciseId,
       name,
       loadKind: x.load.kind,
       pattern: patternOf(SWAP_DATA, x.exerciseId),
-      setup: { unit: gym.unit, ...loadSetupFor(gym, x.load.kind, x.exerciseId, name, smith ? 'smith' : bar) },
+      setup,
       sessions,
     };
     const target = liftRows.get(key)?.target;

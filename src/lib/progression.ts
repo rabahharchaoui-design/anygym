@@ -39,6 +39,7 @@ import {
   nearestLoadable,
   pickedWeight,
   resetWeight,
+  sameHorns,
   sameResistance,
   stepUp,
   timedLoad,
@@ -96,6 +97,8 @@ export const FIRST_TIME = 'First time: pick a weight you could do 2 more reps wi
 export const FIRST_TIME_BODYWEIGHT = 'First time: stop when you could do 2 more reps';
 export const FIRST_TIME_TIMED = 'First time: hold while your form stays good';
 export const RESET = 'Reset and build back up';
+/** PLAN 3.6h2: last time was counted on another number of machine sides than the machine's answer now. */
+export const HORNS_CHANGED = 'Counted another way last time: pick a weight you could do 2 more reps with';
 
 const line = (s: PastSet): SetLine => {
   const out: SetLine = { load: s.load };
@@ -148,6 +151,12 @@ export function progress(input: ProgressionInput): Progression {
   }
 
   const ref = heaviest(last.sets);
+  // PLAN 3.6h2: logged on both sides of a machine now known to load one (or the other way round).
+  // Last time shows what was logged, as logged; the next weight starts over like a first time.
+  if (!sameHorns(ref, setup)) {
+    const fresh = firstTime(loadKind, range, prescription);
+    return { ...fresh, lastTime, next: { ...fresh.next, reason: HORNS_CHANGED } };
+  }
   const converted = ref.unit !== unit;
   const picked = pickedWeight(ref)!;
   // What last time really was: a stack's total resistance (pin + added), else the picked weight.

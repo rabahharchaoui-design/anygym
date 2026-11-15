@@ -1,6 +1,7 @@
 // Which load input and equipment ids an exercise uses at a gym (PLAN 1.7). No weight math here:
 // every Load is built by load.ts.
-import { machineStartFor, stackStepFor } from '../../db/gyms';
+import { machineHornsFor, machineStartFor, stackStepFor } from '../../db/gyms';
+import { planExercise } from '../../data/planExercises';
 import type { BarId, Gym, Load, Unit } from '../../db/types';
 import {
   barbellLoad,
@@ -18,6 +19,7 @@ import {
   stackLoad,
   isStackPin,
   timedLoad,
+  type Horns,
   type LoadSetup,
 } from '../../lib/load';
 import { barForName, heldDumbbellName, heldPlateName } from '../../lib/loadTypeRule';
@@ -57,6 +59,19 @@ export function machineIdFor(exerciseId: string, exerciseName: string): string {
   return /\bcable\b/i.test(exerciseName) ? 'cable_station' : exerciseId;
 }
 
+/**
+ * How many sides of this plate machine carry the plates at this gym (PLAN 3.6h2): the person's
+ * answer, else the machine's data when it is sure, else null (not known yet: asked once).
+ */
+export function machineHornsKnown(gym: Pick<Gym, 'machineHorns'>, exerciseId: string, exerciseName: string): Horns | null {
+  return machineHornsFor(gym, machineIdFor(exerciseId, exerciseName), planExercise(exerciseId)?.horns);
+}
+
+/** The sides the math counts (PLAN 3.6h2): the known answer, else both, as every load before. */
+export function machineHorns(gym: Pick<Gym, 'machineHorns'>, exerciseId: string, exerciseName: string): Horns {
+  return machineHornsKnown(gym, exerciseId, exerciseName) ?? 2;
+}
+
 /** A logged load can prefill the next set only if it is the same kind and unit as now. */
 export function reusable(load: Load | undefined, kind: Load['kind'], gym: Pick<Gym, 'unit'>): Load | null {
   return load && load.kind === kind && load.unit === gym.unit ? load : null;
@@ -88,7 +103,7 @@ export function prefillLoad(
       return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName, bar)], load.perSide, gym.collars, gym.unit, barIdFor(exerciseName, bar), sleeveOf(barIdFor(exerciseName, bar), gym.unit)) : null;
     case 'plate_machine':
       return platesOk(load.perSide)
-        ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit, sleeveOf('horn', gym.unit))
+        ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit, sleeveOf('horn', gym.unit), machineHorns(gym, exerciseId, exerciseName))
         : null;
     case 'dumbbell_each':
     case 'single': {
@@ -139,7 +154,7 @@ export function currentLoad(
     case 'barbell':
       return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar), sleeveOf(barIdFor(exerciseName, bar), gym.unit));
     case 'plate_machine':
-      return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit, sleeveOf('horn', gym.unit));
+      return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit, sleeveOf('horn', gym.unit), machineHorns(gym, exerciseId, exerciseName));
     case 'bodyweight':
       return bodyweightLoad(gym.unit, reusable(picked ?? undefined, kind, gym)?.added ?? 0);
     case 'timed':
@@ -243,6 +258,8 @@ export function loadSetupFor(gym: Gym, kind: Load['kind'], exerciseId: string, e
     sleeveLength: kind === 'barbell' ? sleeveOf(barIdFor(exerciseName, bar), gym.unit) : kind === 'plate_machine' ? sleeveOf('horn', gym.unit) : undefined,
     stackStep: stackStepFor(gym, machine),
     ...heldSetup(gym, kind, exerciseName),
+    // PLAN 3.6h2: a machine answered "one side" counts its plates once in every number made from here.
+    ...(kind === 'plate_machine' && machineHorns(gym, exerciseId, exerciseName) === 1 ? { horns: 1 as const } : {}),
   };
 }
 
@@ -264,6 +281,8 @@ export function copyLastLoad(prev: Load, kind: Load['kind'], gym: Gym, exerciseI
       return { load: null, why: kind === 'barbell' ? 'Set the bar weight first to copy the weight. Reps copied.' : 'Set the starting weight first to copy the weight. Reps copied.' };
     case 'inexact':
       return { load: null, why: `${weight} cannot be made exactly with today's equipment. Reps copied.` };
+    case 'horns':
+      return { load: null, why: 'Last time the plates were counted another way, so the weight was not copied. Reps copied.' };
   }
 }
 

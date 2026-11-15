@@ -91,3 +91,19 @@
   color: var(--red-text);
   font-size: var(--text-sm);
 }
+
+/* One side or both (PLAN 3.6h2): a two choice row above the start, 48 pt tall. */
+.sides {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.chips[data-two] {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.side {
+  min-height: var(--tap);
+  font-size: var(--text-base);
+}

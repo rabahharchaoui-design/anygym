@@ -157,3 +157,14 @@
 .error:empty {
   display: none;
 }
+
+/* PLAN 3.6h2: the sides answers keep the full 48 pt on every screen (they are the whole question). */
+.box[data-sides] .option {
+  min-height: var(--tap);
+}
+
+/* The longer question reads in one or two short lines, so the plates tray stays in view. */
+.box[data-sides] .title {
+  font-size: var(--text-base);
+  text-wrap: balance;
+}

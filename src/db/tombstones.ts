@@ -83,7 +83,7 @@ export type Recovery = { restored: string[]; expired: string[]; failed: string[]
  * A tombstone with no accepted Undo is left as it is, however old (PLAN 2.0e): only the user's
  * Restore or Keep deleted, or Finish, ends it. `_now` and `_keep` are unused (kept for callers).
  */
-export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb, _now = Date.now(), _keep: (id: string) => boolean = () => false): Promise<Recovery> {
+export async function recoverDeletes(sessionId: string, db: AnyGymDB = defaultDb, _now = Date.now(), _keep?: (id: string) => boolean): Promise<Recovery> {
   const out: Recovery = { restored: [], expired: [], failed: [] };
   const list = await db.tombstones.where('sessionId').equals(sessionId).toArray();
   if (!list.length) return out;

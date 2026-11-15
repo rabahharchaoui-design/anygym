@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { machineStartFor } from '../../db/gyms';
+import { machineHornsFor, machineStartFor } from '../../db/gyms';
 import type { Gym, Load } from '../../db/types';
-import { enabledPlates, formatWeight, machineBase, plateMachineLoad } from '../../lib/load';
+import { enabledPlates, formatWeight, machineBase, plateMachineLoad, type Horns } from '../../lib/load';
 import { EquipmentWeightSheet } from './EquipmentWeightSheet';
 import { PlateDiagram } from './PlateDiagram';
-import { StartQuestion } from './BarQuestion';
+import { SidesQuestion, StartQuestion } from './BarQuestion';
 import { InfoButton } from '../info/InfoButton';
 import base from './LoadInput.module.css';
 
@@ -27,6 +27,10 @@ type Props = {
   hints?: boolean;
   /** Share of the screen's height the drawing may take (import editor). */
   drawingShare?: number;
+  /** What the machine's data says for sure about its sides (a leg press sled: 2), else undefined (PLAN 3.6h2). */
+  sureHorns?: Horns;
+  /** Edit set: the sides the set was counted on (its own snapshot), never today's answer (PLAN 3.6h2). */
+  ownHorns?: Horns;
 };
 
 /**
@@ -34,8 +38,10 @@ type Props = {
  * machine's starting weight is asked right on top, like the Smith bar (2.0d critic); after that a
  * small "Change start" link sits under the total, where Change bar sits for a barbell.
  */
-export function PlateMachineInput({ gym, machineId, perSide, onChange, compact = false, ownStart, hints = true, drawingShare }: Props) {
+export function PlateMachineInput({ gym, machineId, perSide, onChange, compact = false, ownStart, hints = true, drawingShare, sureHorns, ownHorns }: Props) {
   const [asking, setAsking] = useState(false);
+  // The sides answered here, ahead of the gym record catching up (PLAN 3.6h2).
+  const [answered, setAnswered] = useState<Horns | null>(null);
   // The plates as they are right now: a start answer saves asynchronously, and plates added or
   // removed meanwhile must not be put back by the stale closure (Codex 2.0d review).
   const plates = useRef(perSide);
@@ -43,13 +49,22 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
   const unit = gym.unit;
   const start = ownStart !== undefined ? ownStart : machineBase(machineStartFor(gym, machineId));
 
-  const change = (next: number[], s: number | null = start) => onChange(next, plateMachineLoad(s, next, unit));
+  // Not known yet: counted on both sides, as every load before (PLAN 3.6h2), while the card asks.
+  const known = ownHorns ?? answered ?? machineHornsFor(gym, machineId, sureHorns);
+  const horns: Horns = known ?? 2;
+  const change = (next: number[], s: number | null = start, h: Horns = horns) => onChange(next, plateMachineLoad(s, next, unit, undefined, h));
+  const sides = (g: Gym, h: Horns) => {
+    setAnswered(h);
+    if (g.unit === unit) change([...plates.current], machineBase(machineStartFor(g, machineId)), h);
+  };
 
   const question = start === null && ownStart === undefined;
+  // One calm flow (PLAN 3.6h2): the start first, then, in the same place, one side or both.
+  const askSides = !question && known === null;
   // Read by screen readers and tests as before ("Start 110 lb · Change"); seen as "Change start".
   const linkLabel = start === 0 ? 'Plates only · Change' : start !== null ? `Start ${formatWeight(start, unit)} · Change` : 'Set starting weight';
   const action =
-    ownStart !== undefined || question ? undefined : (
+    ownStart !== undefined || question || askSides ? undefined : (
       <span className={base.mathAction}>
         <button type="button" className={`${base.mathLink} pressable`} onClick={() => setAsking(true)} aria-label={linkLabel}>
           Change start
@@ -70,6 +85,7 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
           dense={drawingShare !== undefined}
         />
       )}
+      {askSides && <SidesQuestion gymId={gym.id} machineId={machineId} onSaved={sides} dense={drawingShare !== undefined} />}
       <PlateDiagram
         variant="horn"
         compact={compact}
@@ -81,8 +97,9 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
         value={perSide}
         onChange={(next) => change(next)}
         mathAction={action}
-        hint={!question && hints}
-        tight={question}
+        hint={!question && !askSides && hints}
+        tight={question || askSides}
+        horns={horns}
         drawingShare={drawingShare}
       />
       <EquipmentWeightSheet
@@ -93,6 +110,7 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
         machineId={machineId}
         kind="plate_machine"
         onSaved={(g) => change([...plates.current], machineBase(machineStartFor(g, machineId)))}
+        sides={ownStart === undefined ? { horns: known, onSaved: sides } : undefined}
       />
     </>
   );
