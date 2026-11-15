@@ -230,10 +230,12 @@ function check(count: number, days: number, minutes: number, rep: number) {
       expect(supports(requiresOf(SWAP_DATA, it.exerciseId)!, gym), it.exerciseId).toBe(true);
     }
     // Focused moves go earlier: once the big lifts are done, no small focused move waits behind an unfocused one.
-    const info = blocks.map((x) => { const ps = x.items.map((it) => profileFor(it.exerciseId)).filter((p) => p.role === 'lift'); return { lift: ps.length > 0, big: ps.some(isCompound), tier: Math.min(...ps.map((p) => p.tier)), focused: ps.some((p) => p.targets.some((t) => focusTargets.has(t))) }; });
+    const info = blocks.map((x) => { const ps = x.items.map((it) => profileFor(it.exerciseId)).filter((p) => p.role === 'lift'); return { lift: ps.length > 0, big: ps.some(isCompound), tier: Math.min(...ps.map((p) => p.tier)), focused: ps.some((p) => p.targets.some((t) => focusTargets.has(t))), first: ps[0]?.pattern, last: ps.at(-1)?.pattern }; });
     const small = info.slice(info.findLastIndex((x) => x.big) + 1).filter((x) => x.lift && x.tier <= 3);
-    const firstOther = small.findIndex((x) => !x.focused);
-    if (firstOther >= 0 && small.slice(firstOther).some((x) => x.focused)) { tally.order++; }
+    // PLAN 3.6g2, spread: the one exception is a move that stands between two near identical moves (two curls, two raises) to keep them apart.
+    const rest = small.filter((_, k) => !(k > 0 && k + 1 < small.length && !!small[k + 1]!.first && small[k - 1]!.last === small[k + 1]!.first));
+    const firstOther = rest.findIndex((x) => !x.focused);
+    if (firstOther >= 0 && rest.slice(firstOther).some((x) => x.focused)) { tally.order++; }
   }
   // A loved move the plan had without picks is still there with them.
   const ids = (ms: Move[][]) => new Set(ms.flat().map((x) => x.id));

@@ -24,6 +24,38 @@ function smallRest(ctx: Ctx, d: Day): number {
   return Math.max(60, ...small.map((it) => it.rest));
 }
 
+/** A block of small moves only (no big lift). */
+const small = (u: readonly Item[]) => u.every((it) => it.profile.role === 'lift' && !isCompound(it.profile));
+/** Two blocks of small moves where the last move of the first and the first move of the second have one movement pattern (the order rule's own notion of near identical): two curls, two lateral raises, done back to back. */
+const twin = (a: readonly Item[], b: readonly Item[]): boolean => small(a) && small(b) && !!b[0]!.profile.pattern && a[a.length - 1]!.profile.pattern === b[0]!.profile.pattern;
+
+/**
+ * PLAN 3.6g2, spread: never two near identical small moves back to back when another small move
+ * can go between. Putting the focused moves first can bring two of one pattern together (two
+ * pushdowns for a triceps pick); the second then waits one block, behind the next small move with
+ * another pattern, or the small move before the pair changes places with the pair's first, when
+ * that leaves fewer such pairs. Only
+ * the small moves after the day's last big lift move, so nothing is pre-tired and the big lifts
+ * keep the order rule's order (SPEC 22).
+ */
+function apart(units: Item[][]): Item[][] {
+  let out = [...units];
+  const tail = out.findLastIndex((u) => !small(u)) + 1;
+  const pairs = (us: Item[][]) => us.filter((u, k) => k > tail && twin(us[k - 1]!, u)).length;
+  // Again from the start after each move, and only a move that leaves fewer such pairs than before (so it ends).
+  for (let moved = true; moved;) {
+    moved = false;
+    for (let k = tail + 1; k < out.length && !moved; k++) {
+      if (!twin(out[k - 1]!, out[k]!)) continue;
+      const later = out.flatMap((u, j) => (j > k && small(u) ? [[...out.slice(0, k), u, ...out.slice(k, j), ...out.slice(j + 1)]] : []));
+      const before = k - 2 >= tail ? [[...out.slice(0, k - 2), out[k - 1]!, out[k - 2]!, ...out.slice(k)]] : [];
+      const next = [...later, ...before].find((us) => pairs(us) < pairs(out));
+      if (next) { out = next; moved = true; }
+    }
+  }
+  return out;
+}
+
 export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusReport {
   const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
   if (!picks.some((p) => p !== 'balance')) return { budget: 0, spent: 0, priorities: [], days: days.map(() => []) };
@@ -59,7 +91,7 @@ export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusRepo
     const order = orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref);
     // The stretch block is one unit at the very end of the session.
     const stretches = items.filter((it) => it.mobility);
-    return { ...days[i]!, items, units: [...(ctx.family === 'strength' ? order : pairUp(order, items)), ...(stretches.length ? [stretches] : [])] };
+    return { ...days[i]!, items, units: [...apart(ctx.family === 'strength' ? order : pairUp(order, items)), ...(stretches.length ? [stretches] : [])] };
   };
   const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes, maxMoves: focusMaxMoves(ctx.input.minutes), fill: true, ...(least ? { least } : {}), minutes: (moves, i) => minutesOf(arranged(moves, i)) });
   for (const [i, moves] of out.days.entries()) Object.assign(days[i]!, arranged(moves, i));

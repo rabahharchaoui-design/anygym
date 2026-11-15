@@ -9,8 +9,9 @@ import { NARROW, countPick, type Board } from './focusBoard';
  * Free time first (PLAN 3.6g: the minutes chosen are used before anything is traded): a set on its
  * own moves, then a new move. Then trades on a full day: a low value accessory gives its place,
  * unpicked moves give a set or two for a new move, and last a set moves over one at a time. A
- * pick's extra goes on the days that already train it; other days only after those, and only where
- * the 48 hour rule allows (the board's `rested`). `floor`: the round toward 12 sets a week, where
+ * pick's extra goes on the days that already train it, spread over them (PLAN 3.6g2: never a third
+ * new move on one day while another day that trains it has none); other days only after those, and
+ * only where the 48 hour rule allows (the board's `rested`). `floor`: the round toward 12 sets a week, where
  * the +4 of a share does not hold.
  */
 export function serve(b: Board, id: FocusPickId, requested: number, floor = false): void {
@@ -24,8 +25,12 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   const reach = () => (room() === 1 && b.gained(id) + 2 <= Math.min(floor ? Infinity : FOCUS_SHARE_MAX, b.above(id)) && state.pool - b.spent() >= 2 ? 2 : room());
   if (room() <= 0) return;
   const own = (i: number) => days[i]!.some((m) => m.hard && m.picks.includes(id));
-  /** Its own days first, the ones with the most time left before the others. */
-  const order = () => days.map((_, i) => i).sort((x, y) => Number(own(y)) - Number(own(x)) || b.slack(y) - b.slack(x) || x - y);
+  /** PLAN 3.6g2, spread: the moves for this pick a day has that it did not have with no picks. */
+  const added = (i: number) => days[i]!.filter((m) => m.hard && m.picks.includes(id) && !b.baseline[i]!.some((x) => x.key === m.key)).length;
+  /** Never more than two moves for the pick added to one day while another day that trains it has none. */
+  const crowded = (i: number) => added(i) >= 2 && days.some((_, j) => j !== i && own(j) && added(j) === 0);
+  /** Its own days first; of those the ones with the fewest moves added for it (the extra is spread over the days that train it), then the ones with the most time left. */
+  const order = () => days.map((_, i) => i).sort((x, y) => Number(own(y)) - Number(own(x)) || added(x) - added(y) || b.slack(y) - b.slack(x) || x - y);
   // The round toward 12 sets only adds to the muscles of an area that are still under it (calves, not more squats).
   const lacking = (m: FocusMove | undefined): m is FocusMove => !!m && (!floor || NARROW.has(id) || b.need(id) === 0 || b.weak(id, m) < state.aim);
   const mine = (day: FocusMove[], compound: boolean) => day.filter((m) => m.hard && m.compound === compound && m.picks.includes(id) && lacking(m)).sort((x, y) => b.weak(id, x) - b.weak(id, y));
@@ -63,14 +68,14 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   // 2. A new move where the time is free: as many sets as fit, down to 2.
   for (const i of order()) {
     if (reach() < 2) break;
-    const c = b.lifts(days[i]!) < b.maxMoves ? candidate(i) : undefined;
+    const c = b.lifts(days[i]!) < b.maxMoves && !crowded(i) ? candidate(i) : undefined;
     if (!c) continue;
     for (let n = Math.min(reach(), input.cap); n >= 2; n--) if (add(i, c, n)) break;
   }
   // 3. A full day: a low priority accessory gives its place. Never another ranked choice, a loved move or a big lift.
   for (const i of order()) {
     if (reach() < 2) break;
-    const c = candidate(i);
+    const c = crowded(i) ? undefined : candidate(i);
     const day = days[i]!;
     for (const at of c ? [...new Set([...b.rivals(day, b.tight(id)), ...b.spares(day)])] : []) {
       const old = day[at]!;
@@ -92,7 +97,7 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   for (const i of order()) {
     if (reach() < 2) break;
     const day = days[i]!;
-    const c = b.lifts(day) < b.maxMoves ? candidate(i) : undefined;
+    const c = b.lifts(day) < b.maxMoves && !crowded(i) ? candidate(i) : undefined;
     if (!c) continue;
     const gave: FocusMove[] = [];
     let placed = false;
@@ -115,7 +120,7 @@ export function serve(b: Board, id: FocusPickId, requested: number, floor = fals
   for (const i of order()) {
     if (room() !== 1 || reach() !== 1) break;
     const day = days[i]!;
-    const c = b.lifts(day) < b.maxMoves ? candidate(i) : undefined;
+    const c = b.lifts(day) < b.maxMoves && !crowded(i) ? candidate(i) : undefined;
     // The giver is a move of this pick alone (a set taken from one another pick counts too would be taken from that pick), small moves first.
     const giver = c && [...mine(day, false), ...mine(day, true)].find((m) => m.sets > 2 && m.picks.every((q) => q === id || share(q) === undefined));
     if (c && giver) b.accepts(i, () => { giver.sets--; day.push({ ...c, sets: 2 }); }, () => { giver.sets++; day.pop(); });
@@ -148,21 +153,17 @@ export function stretch(b: Board, trade = false): void {
     if (day.some((m) => m.picks.includes('mobility'))) continue;
     const moves = (b.input.candidates[i] ?? []).filter((m) => !m.hard && m.picks.includes('mobility'));
     if (!moves.length) continue;
-    const place = (): boolean => STRETCH_MINUTES.some((minutes) => {
+    /** The block joins the day; `at`: in the same edit the small move there gives its place (one edit, so the board judges the day as it ends up). */
+    const place = (at?: number): boolean => STRETCH_MINUTES.some((minutes) => {
       const seconds = minutes * 60 / (STRETCH_ROUNDS * moves.length);
       if (seconds < STRETCH_HOLD[0] || seconds > STRETCH_HOLD[1] || !Number.isInteger(seconds)) return false;
       const block = moves.map((m) => ({ ...m, sets: STRETCH_ROUNDS, seconds }));
-      return b.accepts(i, () => day.push(...block), () => { day.splice(day.length - block.length); });
+      const old = at === undefined ? undefined : day[at]!;
+      return b.accepts(i, () => { if (old) day.splice(at!, 1); day.push(...block); }, () => { day.splice(day.length - block.length); if (old) day.splice(at!, 0, old); });
     });
     if (place() || !trade || (b.input.budgetMinutes ?? Infinity) < STRETCH_TRADE_MIN) continue;
     const donors = b.donors(day).slice(0, STRETCH_DONORS);
-    const swap = (): boolean => b.lifts(day) > STRETCH_MIN_LIFTS && b.spares(day).some((at) => {
-      const old = day[at]!;
-      day.splice(at, 1);
-      if (place()) return true;
-      day.splice(at, 0, old);
-      return false;
-    });
+    const swap = (): boolean => b.lifts(day) > STRETCH_MIN_LIFTS && b.spares(day).some((at) => place(at));
     // Sets first (every move stays), then a small move's place, then both.
     for (const both of [false, true]) {
       if (both && swap()) break;
@@ -200,10 +201,7 @@ export function stretchMore(b: Board, least: number): void {
       if (b.baseline[i]!.some((was) => !day.some((m) => m.id === was.id)) || b.lifts(day) <= STRETCH_MIN_LIFTS) return false;
       return b.spares(day).some((at) => {
         const old = day[at]!;
-        day.splice(at, 1);
-        if (longer.some(set)) return true;
-        day.splice(at, 0, old);
-        return false;
+        return longer.some((sec) => b.accepts(i, () => { day.splice(at, 1); for (const m of block) m.seconds = sec; }, () => { for (const m of block) m.seconds = now; day.splice(at, 0, old); }));
       });
     });
     if (!grew) break;
