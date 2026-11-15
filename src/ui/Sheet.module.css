@@ -113,6 +113,17 @@
   touch-action: none;
 }
 
+@media (max-height: 600px) {
+  /* A short phone (the 320 x 568 floor): a scrolling sheet's grabber is still a 44 px hit area, the
+     smallest allowed, hanging 24 px over the scrim, but it takes 3 px less layout room (it overlaps
+     the first 3 px of the body, which are only padding), so the body keeps 8 px more than before. */
+  .sheet[data-scroll='true'] .grabberZone {
+    height: 44px;
+    padding-top: 36px;
+    margin-bottom: -3px;
+  }
+}
+
 .grabber {
   display: block;
   width: 36px;
