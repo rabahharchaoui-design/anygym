@@ -52,7 +52,7 @@ export function SixSheet({ open, onClose, options, onPick }: { open: boolean; on
               <li key={o.id}>
                 <button type="button" className={`${styles.tile} pressable`} data-testid="six-option" data-exercise={o.id} onClick={() => onPick(o.id)}>
                   <DemoStill demo={o.demo} />
-                  <span className={styles.tileName}>{o.name}</span>
+                  <span className={styles.tileName} data-testid="six-name">{o.name}</span>
                 </button>
               </li>
             ))}
