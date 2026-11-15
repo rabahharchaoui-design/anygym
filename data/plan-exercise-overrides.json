@@ -7,7 +7,8 @@
  {
   "name": "Angled Machine Leg Press",
   "loadType": "plate_machine",
-  "why": "Angled (45 degree) leg presses are plate loaded sleds"
+  "horns": 2,
+  "why": "Angled (45 degree) leg presses are plate loaded sleds; a sled carries plates on both sides (horns: 2)"
  },
  {
   "name": "Band Internal Shoulder Rotation (0 degrees)",
@@ -132,12 +133,14 @@
  {
   "name": "Leg Press",
   "loadType": "plate_machine",
-  "why": "Most leg presses are plate loaded sleds"
+  "horns": 2,
+  "why": "Most leg presses are plate loaded sleds; a sled carries plates on both sides (horns: 2)"
  },
  {
   "name": "Leg Press Machine Calf Raise",
   "loadType": "plate_machine",
-  "why": "Calf raises on the plate loaded leg press"
+  "horns": 2,
+  "why": "Calf raises on the plate loaded leg press; a sled carries plates on both sides (horns: 2)"
  },
  {
   "name": "Lying Straight Leg Raise",
@@ -147,7 +150,8 @@
  {
   "name": "Machine Leg Press",
   "loadType": "plate_machine",
-  "why": "Most leg presses are plate loaded sleds"
+  "horns": 2,
+  "why": "Most leg presses are plate loaded sleds; a sled carries plates on both sides (horns: 2)"
  },
  {
   "name": "Machine Lying Leg Curl",

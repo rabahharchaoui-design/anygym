@@ -39,8 +39,10 @@ export const knownPlates = (u: unknown): Check => (v) => listOf(num)(v) && (u ==
 export const isLoad: Check = (v) =>
   shape({
     req: { kind: oneOf(...LOAD_KINDS), unit, total: num },
-    opt: { barWeight: num, barId: oneOf(...BAR_IDS), legacyBarUnresolved: oneOf(true), perSide: listOf(num), collars: num, stackValue: num, added: num },
+    opt: { barWeight: num, barId: oneOf(...BAR_IDS), legacyBarUnresolved: oneOf(true), perSide: listOf(num), collars: num, stackValue: num, added: num, horns: oneOf(1) },
   })(v) &&
+  // A one horn snapshot (PLAN 3.6w) is a plate machine's only.
+  ((v as Rec).horns === undefined || (v as Rec).kind === 'plate_machine') &&
   ((v as Rec).perSide === undefined || knownPlates((v as Rec).unit)((v as Rec).perSide)) &&
   // An unresolved legacy bar (PLAN 2.0c) is a barbell set without a barId: never both.
   ((v as Rec).legacyBarUnresolved === undefined || ((v as Rec).kind === 'barbell' && (v as Rec).barId === undefined));

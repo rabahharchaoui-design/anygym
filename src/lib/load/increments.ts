@@ -5,7 +5,7 @@ import { nearestDumbbell } from './dumbbells';
 import { times } from './exact';
 import { nearestLoading, type SolveOptions } from './solver';
 import { nearestStack } from './stack';
-import { enabledPlates } from './sum';
+import { enabledPlates, type Horns } from './sum';
 
 type GymLike = Pick<Gym, 'unit' | 'plateInventory' | 'dumbbellRange' | 'stackStep' | 'equipmentWeights'>;
 
@@ -32,10 +32,13 @@ export function smallestIncrement(kind: Load['kind'], gym: GymLike, machineId?: 
   }
 }
 
-/** 5 lb / 2.5 kg total, or one pair of the smallest plate if that is bigger. null with no plates. */
-export function plateIncrement(plates: readonly number[], unit: Unit): number | null {
+/**
+ * 5 lb / 2.5 kg total, or one pair of the smallest plate if that is bigger (one smallest plate on a
+ * one horn machine, PLAN 3.6w). null with no plates.
+ */
+export function plateIncrement(plates: readonly number[], unit: Unit, horns: Horns = 2): number | null {
   if (!plates.length) return null;
-  return Math.max(unit === 'lb' ? 5 : 2.5, times(Math.min(...plates), 2));
+  return Math.max(unit === 'lb' ? 5 : 2.5, times(Math.min(...plates), horns));
 }
 
 export type LoadableOptions =

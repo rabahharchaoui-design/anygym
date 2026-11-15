@@ -27,9 +27,16 @@ tk(){ TZ=Pacific/Guam date "$@"; }   # G moved to Guam (Nov 5): all windows and 
 weekkey(){ local dow=$(tk +%u) h=$(tk +%H) d; d=$(( (dow - 4 + 7) % 7 )); [ $d -eq 0 ] && [ $((10#$h)) -lt 20 ] && d=7; tk -v-${d}d +%F; }
 used(){ local k=$(weekkey); awk -v k="$k" '$1==k{s+=$NF} END{print s+0}' $STATE 2>/dev/null || echo 0; }
 usedday(){ local k=$(tk +%F); awk -v k="$k" 'NF==3 && $2==k{s+=$3} END{print s+0}' $STATE 2>/dev/null || echo 0; }
-in_window(){ local h=$((10#$(tk +%H))); if [ $START_HOUR -le $END_HOUR ]; then [ $h -ge $START_HOUR ] && [ $h -lt $END_HOUR ]; else [ $h -ge $START_HOUR ] || [ $h -lt $END_HOUR ]; fi; }
+in_window(){ [ "${ALLDAY:-0}" = 1 ] && return 0; local h=$((10#$(tk +%H))); if [ $START_HOUR -le $END_HOUR ]; then [ $h -ge $START_HOUR ] && [ $h -lt $END_HOUR ]; else [ $h -ge $START_HOUR ] || [ $h -lt $END_HOUR ]; fi; }
 window_left(){ local e=$(tk -j -f "%Y-%m-%d %H:%M:%S" "$(tk +%F) $(printf %02d $END_HOUR):00:00" +%s) now=$(date +%s); [ $e -le $now ] && e=$((e+86400)); echo $((e-now)); }
 say(){ echo "=== $* $(date) ===" >> "$LOG"; }
+# G, Nov 15: build any time, but while G is awake (9 AM to 2 AM Guam) leave him 20% of each 5 hour window, and always keep 15% of the week.
+# Numbers come from .usage-tap, written by the status line tap (.claude/usage-tap.sh) with Claude Code's own rate limit data.
+awake(){ local h=$((10#$(tk +%H))); [ $h -ge 9 ] || [ $h -lt 2 ]; }
+tap_fresh(){ [ -f .usage-tap ] || return 1; local ts=$(grep '^ts=' .usage-tap | cut -d= -f2); [ -n "$ts" ] && [ $(( $(date +%s) - ts )) -lt 1200 ]; }
+tapv(){ grep "^$1=" .usage-tap 2>/dev/null | cut -d= -f2; }
+over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge 85 ] && { echo week; return 0; }; awake && [ "${f:-0}" -ge 80 ] && { echo five; return 0; }; return 1; }
+usage_watch(){ while sleep 60; do local why=$(over_limit); if [ -n "$why" ]; then echo "=== usage guard: $why limit reached ($(tapv five)% of 5h, $(tapv week)% of week), stopping this run $(date) ===" >> "$LOG"; echo "$why" > .usage-stop; pkill -TERM -P $1 2>/dev/null; kill -TERM $1 2>/dev/null; return; fi; done; }
 ntfy(){ local t=$(cat "$HOME/.config/anygym/ntfy-topic" 2>/dev/null); [ -n "$t" ] && curl -s -o /dev/null --max-time 10 -H "Title: $1" -H "Tags: $3" -H "Click: https://rabahharchaoui-design.github.io/anygym/" -d "$2" "https://ntfy.sh/$t"; }
 # One ntfy push per cloud builder run, so G sees in the morning that the cloud (free credit) worked.
 cloudcheck(){ git fetch -q origin 2>/dev/null || return
@@ -102,32 +109,41 @@ while [ $n -lt 300 ]; do
   if [ $KICK -eq 0 ] && [ $dayleft -lt 900 ]; then [ "$WAITMSG" != day ] && say "today's loop budget used ($DAY_HOURS h), waiting for tomorrow's window"; WAITMSG=day; daydone; sleep 900; continue; fi
   [ $limit -gt $dayleft ] && limit=$dayleft
   [ $limit -lt 900 ] && { sleep 600; continue; }
+  why=$(over_limit); if [ "$why" = week ]; then [ "$WAITMSG" != uweek ] && say "usage guard: $(tapv week)% of the week used, keeping 15% for G until the weekly reset"; WAITMSG=uweek; sleep 1800; continue; fi
+  if [ "$why" = five ]; then wr=$(tapv five_reset); [ "$WAITMSG" != ufive ] && say "usage guard: $(tapv five)% of the 5 hour window used while G is awake, waiting for its reset at $(TZ=Pacific/Guam date -r ${wr:-0} +%H:%M)"; WAITMSG=ufive; sleep 600; continue; fi
+  REST=0; if awake && ! tap_fresh; then [ $limit -gt 7200 ] && limit=7200; REST=1; fi   # no live usage numbers yet: short runs with rests while G is awake
   sync_in || { sleep 600; continue; }
   WAITMSG=""; n=$((n+1)); RANTODAY=1
   say "run $n (up to $((limit/60)) min, used this week $((usedsec/60)) of $((WEEK_HOURS*60)) min, model $MODEL)"
   RUNLOG=$(mktemp); START=$(date +%s)
   if [ $n -eq 1 ] && ! grep -q "\[x\]" PLAN.md; then
-    claude --model $MODEL --dangerously-skip-permissions ${=PLUG} -p "$(cat PROMPT.md)" > "$RUNLOG" 2>&1 &
+    ( claude --model $MODEL --dangerously-skip-permissions ${=PLUG} --output-format stream-json --verbose -p "$(cat PROMPT.md)" 2>&1 | node .loop-tools/stream-tap.mjs .usage-tap ) > "$RUNLOG" 2>&1 &
   else
-    claude --continue --model $MODEL --dangerously-skip-permissions ${=PLUG} -p "Continue as the orchestrator per PROMPT.md. Re-read PLAN.md and resume at the first unchecked item above the STOP line (if HEAD is a 'Handoff to cloud builder' work in progress commit, check that item's code against SPEC and finish it first). When everything above the STOP line is done, merged, pushed and live, print exactly ALL DONE." > "$RUNLOG" 2>&1 &
+    ( claude --continue --model $MODEL --dangerously-skip-permissions ${=PLUG} --output-format stream-json --verbose -p "Continue as the orchestrator per PROMPT.md. Re-read PLAN.md and resume at the first unchecked item above the STOP line (if HEAD is a 'Handoff to cloud builder' work in progress commit, check that item's code against SPEC and finish it first). When everything above the STOP line is done, merged, pushed and live, print exactly ALL DONE." 2>&1 | node .loop-tools/stream-tap.mjs .usage-tap ) > "$RUNLOG" 2>&1 &
   fi
   pid=$!
   ( sleep $limit; echo "=== budget time is up, stopping this run $(date) ===" >> "$LOG"; pkill -TERM -P $pid 2>/dev/null; kill -TERM $pid 2>/dev/null; sleep 30; pkill -KILL -P $pid 2>/dev/null; kill -KILL $pid 2>/dev/null ) &
   wd=$!
+  rm -f .usage-stop; ( usage_watch $pid ) &
+  uw=$!
   wait $pid 2>/dev/null
-  kill $wd 2>/dev/null; pkill -P $wd 2>/dev/null
+  kill $wd $uw 2>/dev/null; pkill -P $wd 2>/dev/null; pkill -P $uw 2>/dev/null
   dur=$(( $(date +%s) - START ))
   echo "$(weekkey) $(tk +%F) $dur" >> $STATE
   KICK=0
   cat "$RUNLOG" >> "$LOG"
   sync_out
   if grep -qE "^[[:space:]]*ALL DONE[.]?[[:space:]]*$" "$RUNLOG"; then say "ALL DONE"; rm -f "$RUNLOG"; break; fi
-  if grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your" "$RUNLOG"; then
-    if grep -qiE "fable" "$RUNLOG" && grep -qiE "limit" "$RUNLOG" && [ "$(cat .fable-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .fable-ntfy; ntfy "AnyGym: press Fable reset" "The Fable weekly bar is full. Press it now: Claude, Settings, Usage, Fable reset, Reset for free. The build continues by itself." "warning"; say "Fable limit hit, asked G on his phone to press the Fable reset"
-    elif grep -qiE "weekly|week" "$RUNLOG" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "All models is full for the week. Nothing to press (no Full reset left); the build waits for Thursday 8 PM." "warning"; say "weekly all models limit hit, told G"; fi
+  # Only a real stop: the run ended early (not by the budget timer) AND the limit message is at the very end of its output.
+  # (Nov 15: a 5 hour limit hit hours earlier, then refilled by G's Fable reset, was still in the log and sent G a false push.)
+  if [ $dur -lt $(( limit - 60 )) ] && tail -n 6 "$RUNLOG" | grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your"; then
+    if tail -n 6 "$RUNLOG" | grep -qiE "fable.*limit|limit.*fable" && [ "$(cat .fable-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .fable-ntfy; ntfy "AnyGym: press Fable reset" "The Fable weekly bar is full. Press it now: Claude, Settings, Usage, Fable reset, Reset for free. The build continues by itself." "warning"; say "Fable limit hit, asked G on his phone to press the Fable reset"
+    elif tail -n 6 "$RUNLOG" | grep -qiE "weekly limit|7-day limit|week.*limit" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "All models is full for the week. Nothing to press (no Full reset left); the build waits for Thursday 8 PM." "warning"; say "weekly all models limit hit, told G"; fi
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"
+  if [ -f .usage-stop ]; then mv .usage-stop .usage-stop.last; say "run $n stopped by the usage guard, checking again in 10 min"; sleep 600; continue; fi
+  if [ $REST -eq 1 ] && ! tap_fresh; then say "no live usage numbers while G is awake: resting 3 h after a 2 h run"; sleep 10800; continue; fi
   if [ $dur -lt 60 ]; then FAST=$((FAST+1)); else FAST=0; fi
   if [ $FAST -ge 3 ]; then say "3 runs in a row failed in under a minute, stopping. Check the end of $LOG"; break; fi
   say "run $n ended after $((dur/60)) min, next check in 2 min"; sleep 120

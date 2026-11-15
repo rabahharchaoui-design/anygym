@@ -1,6 +1,7 @@
 // What one exercise can load at this gym (LoadSetup) and the loadable sleeve of a bar.
 import type { BarId, Collars, DumbbellRange, Unit } from '../../db/types';
 import { barSpec } from '../plates';
+import type { Horns } from './sum';
 
 // ---------------------------------------------------------------- progression targets (SPEC 6)
 //
@@ -39,4 +40,6 @@ export type LoadSetup = {
   heldExact?: boolean;
   /** Loadable sleeve of the selected bar (load.ts sleeveOf); every plate solve and load respects it (PLAN 2.0f). */
   sleeveLength?: number;
+  /** Plate machines (PLAN 3.6w): 1 when the machine loads on one horn. Absent: both sides, as before. */
+  horns?: Horns;
 };

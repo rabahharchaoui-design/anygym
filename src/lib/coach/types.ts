@@ -39,6 +39,8 @@ export type TargetSource = 'level_up' | 'auto' | 'deload' | 'welcome_back' | 'pl
 export type CoachTarget = {
   /** The picked weight (load.ts pickedWeight): bar total, one dumbbell, the pin, the added weight. */
   value: number;
+  /** A stack's add-on on top of the pin (PLAN 3.6w): the target is the pin plus this. Absent: none. */
+  added?: number;
   unit: Unit;
   loadKind: Load['kind'];
   reason: string;
@@ -82,6 +84,8 @@ export type PlannedChange = {
   /** What the lifter really used (pin + added weight), for showing old → new. Absent: `from`. */
   fromTotal?: number;
   to: number;
+  /** A stack's add-on kept on top of the `to` pin (PLAN 3.6w). Absent: none. */
+  toAdded?: number;
   reason: string;
   source: TargetSource;
   until?: number;

@@ -14,6 +14,7 @@ export const plateOpts = (kind: Load['kind'], s: LoadSetup, base: number): Solve
   collars: kind === 'barbell' ? s.collars : 'none',
   unit: s.unit,
   sleeveLength: s.sleeveLength,
+  ...(kind === 'plate_machine' && s.horns === 1 ? { horns: 1 as const } : {}),
 });
 
 /**
@@ -28,7 +29,7 @@ export function loadAt(kind: Load['kind'], value: number, s: LoadSetup, added = 
       if (s.base === null) return null;
       const r = solvePlates(value, plateOpts(kind, s, s.base));
       if (!r.exact) return null;
-      return kind === 'barbell' ? barbellLoad(s.base, r.perSide, s.collars, s.unit, undefined, s.sleeveLength) : plateMachineLoad(s.base, r.perSide, s.unit, s.sleeveLength);
+      return kind === 'barbell' ? barbellLoad(s.base, r.perSide, s.collars, s.unit, undefined, s.sleeveLength) : plateMachineLoad(s.base, r.perSide, s.unit, s.sleeveLength, plateOpts(kind, s, s.base).horns);
     }
     case 'dumbbell_each':
     case 'single': {
@@ -70,13 +71,14 @@ export function copyLoad(prev: Load, kind: Load['kind'], s: LoadSetup, barId?: B
       const collars = kind === 'barbell' ? s.collars : 'none';
       const own = prev.perSide && prev.perSide.every((w) => s.plates.includes(w)) ? prev.perSide : null;
       let perSide: number[] | null = null;
-      if (own && toInt(sumLoad({ bar: s.base, perSide: own, collars, unit: s.unit }).total ?? NaN) === toInt(prev.total)) perSide = [...own];
+      const horns = plateOpts(kind, s, s.base).horns;
+      if (own && toInt(sumLoad({ bar: s.base, perSide: own, collars, unit: s.unit, horns }).total ?? NaN) === toInt(prev.total)) perSide = [...own];
       else {
         const r = solvePlates(prev.total, plateOpts(kind, s, s.base));
         if (r.exact) perSide = r.perSide;
       }
       if (!perSide) return { load: null, why: 'inexact' };
-      const load = kind === 'barbell' ? barbellLoad(s.base, perSide, s.collars, s.unit, barId, s.sleeveLength) : plateMachineLoad(s.base, perSide, s.unit, s.sleeveLength);
+      const load = kind === 'barbell' ? barbellLoad(s.base, perSide, s.collars, s.unit, barId, s.sleeveLength) : plateMachineLoad(s.base, perSide, s.unit, s.sleeveLength, horns);
       return load && toInt(load.total) === toInt(prev.total) ? { load } : { load: null, why: 'inexact' };
     }
     case 'stack': {
