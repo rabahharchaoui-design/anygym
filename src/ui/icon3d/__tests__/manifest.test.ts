@@ -40,10 +40,11 @@ describe('3D icon manifest (PLAN 3.6i)', () => {
     }
   });
 
-  it.each(wired)('%s is under 40 KB, the stated size, square at 2x its slot, with clear corners', async (n) => {
+  it.each(wired)('%s is under 40 KB, the stated size, square at 3x its slot, with clear corners', async (n) => {
     const entry = ICONS_3D[n]!;
     expect(entry.width).toBe(entry.height);
-    expect(entry.width).toBe({ goal: 128, place: 96, style: 88 }[entry.group]);
+    expect(entry.slot).toBe({ goal: 48, place: 48, style: 44 }[entry.group]);
+    expect(entry.width).toBe(entry.slot! * 3);
     for (const format of ['avif', 'webp'] as const) {
       expect(entry[format]).toBeLessThan(MAX);
       const { data, info } = await sharp(file(n, format)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });

@@ -127,3 +127,32 @@
     transform: none;
   }
 }
+
+/* PLAN 3.6i: a card with a 3D icon. A 48 pt slot (the card's own height, so the card does not grow).
+   The line icon keeps its quiet square behind it; the square fades out under the picture. */
+.art {
+  width: 48px;
+}
+
+.art::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.art[data-state='shown']::before {
+  opacity: 0;
+}
+
+.art > * {
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art::before {
+    transition: none;
+  }
+}

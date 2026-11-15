@@ -2,7 +2,7 @@
 // name's exported size and bytes. Only the groups on a screen today are offered to the app.
 import manifest from './manifest.json';
 
-export type Icon3DEntry = { group: string; path: string; width: number; height: number; webp: number; avif: number };
+export type Icon3DEntry = { group: string; path: string; /** The largest slot it is drawn in, CSS px (textures have none). */ slot?: number; width: number; height: number; webp: number; avif: number };
 export const ICONS_3D: Record<string, Icon3DEntry> = manifest;
 
 /** The groups that are on a screen (and precached for offline): goals, places, Quick workout styles. */

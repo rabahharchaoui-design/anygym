@@ -4,8 +4,9 @@
 //
 //   node scripts/make-icons-3d.mjs <design-ref-folder>      (or ANYGYM_DESIGN_REF=<folder>)
 //
-// Each icon is exported once, at 2x the largest size its slot has on screen (SIZES below, in CSS px),
-// into public/icons3d/. Art that is exported ahead of its screen (run plans, passport textures) goes
+// Each icon is exported once, at SCALE times the largest size its slot has on screen (SIZES below, in
+// CSS px), into public/icons3d/. SCALE is 3: the iPhones this app is for draw 3 device pixels per point
+// (a 2x export is soft there), and at these sizes a 3x file is still a few KB. Art that is exported ahead of its screen (run plans, passport textures) goes
 // to public/icons3d/later/, which the PWA never precaches. The manifest the app and a unit test read
 // is written to src/ui/icon3d/manifest.json. AI art is decoration only (SPEC: no bad data).
 import sharp from 'sharp';
@@ -23,8 +24,10 @@ const out = join(root, 'public', 'icons3d');
 const later = join(out, 'later');
 const manifestPath = join(root, 'src', 'ui', 'icon3d', 'manifest.json');
 
-/** The largest slot each group is drawn in, CSS px (measured on iPhone 15 and 17 Pro Max, PLAN 3.6i). */
-const SIZES = { goal: 64, place: 48, style: 44, run: 64 };
+/** The largest slot each group is drawn in, CSS px (measured on iPhone 15 and 17 Pro Max, PLAN 3.6i:
+ *  goal tile 40 and 48, place card 48 and 48, style card 44 and 44). The run plans wait for Session 4. */
+const SIZES = { goal: 48, place: 48, style: 44, run: 48 };
+const SCALE = 3;
 /** Source number, group, id (the app's own ids: lib/intake/options.ts, lib/quickStyles/types.ts). */
 const ICONS = [
   ['01', 'goal', 'muscle'], ['02', 'goal', 'strength'], ['03', 'goal', 'fat_loss'], ['04', 'goal', 'tone'],
@@ -67,14 +70,14 @@ for (const [num, group, id] of ICONS) {
   const box = { left: -info.trimOffsetLeft, top: -info.trimOffsetTop, right: -info.trimOffsetLeft + info.width, bottom: -info.trimOffsetTop + info.height };
   const margin = Math.min(box.left, box.top, meta.width - box.right, meta.height - box.bottom);
   const crop = Math.max(0, Math.min(margin, 92) - 12);
-  const px = SIZES[group] * 2;
+  const px = SIZES[group] * SCALE;
   const img = input.clone().extract({ left: crop, top: crop, width: meta.width - crop * 2, height: meta.height - crop * 2 }).resize(px, px, { kernel: 'lanczos3' });
   const name = `${group}-${id}`;
   const dir = WIRED.has(group) ? out : later;
   const data = await both(img);
   await writeFile(join(dir, `${name}.webp`), data.webp);
   await writeFile(join(dir, `${name}.avif`), data.avif);
-  manifest[name] = { group, path: WIRED.has(group) ? '' : 'later/', width: px, height: px, webp: data.webp.length, avif: data.avif.length };
+  manifest[name] = { group, path: WIRED.has(group) ? '' : 'later/', slot: SIZES[group], width: px, height: px, webp: data.webp.length, avif: data.avif.length };
   console.log(name.padEnd(18), `${px}px`, 'webp', data.webp.length, 'avif', data.avif.length);
 }
 

@@ -152,3 +152,16 @@
 .conceptMap > span {
   width: clamp(44px, 13vw, 54px);
 }
+
+/* PLAN 3.6i: a style card's 3D icon, top left over the title, in a fixed slot (nothing moves when the
+   picture arrives). The art has clear air round it, so the slot hangs 4 px out to line the metal up
+   with the words. */
+.conceptArt {
+  align-self: flex-start;
+  width: 44px;
+  margin: -6px 0 0 -4px;
+}
+
+.concept:has(.conceptArt) {
+  padding-top: var(--space-3);
+}

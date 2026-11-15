@@ -2,186 +2,209 @@
   "goal-muscle": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 5162,
-    "avif": 2908
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6094,
+    "avif": 3255
   },
   "goal-strength": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 7338,
-    "avif": 3697
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 8468,
+    "avif": 4259
   },
   "goal-fat_loss": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 6066,
-    "avif": 3508
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 7078,
+    "avif": 4269
   },
   "goal-tone": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 4848,
-    "avif": 2943
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5684,
+    "avif": 3227
   },
   "goal-health": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 5486,
-    "avif": 2840
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6502,
+    "avif": 3368
   },
   "goal-athletic": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 4826,
-    "avif": 2811
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5744,
+    "avif": 3245
   },
   "goal-race": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 6064,
-    "avif": 2951
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6926,
+    "avif": 3483
   },
   "goal-comeback": {
     "group": "goal",
     "path": "",
-    "width": 128,
-    "height": 128,
-    "webp": 7438,
-    "avif": 3849
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 8722,
+    "avif": 4667
   },
   "place-full": {
     "group": "place",
     "path": "",
-    "width": 96,
-    "height": 96,
-    "webp": 6702,
-    "avif": 3660
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 11710,
+    "avif": 5418
   },
   "place-hotel": {
     "group": "place",
     "path": "",
-    "width": 96,
-    "height": 96,
-    "webp": 4002,
-    "avif": 2373
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6370,
+    "avif": 3456
   },
   "place-home": {
     "group": "place",
     "path": "",
-    "width": 96,
-    "height": 96,
-    "webp": 4192,
-    "avif": 2442
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6624,
+    "avif": 3491
   },
   "place-outdoors": {
     "group": "place",
     "path": "",
-    "width": 96,
-    "height": 96,
-    "webp": 6692,
-    "avif": 3945
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 11586,
+    "avif": 5858
   },
   "place-mix": {
     "group": "place",
     "path": "",
-    "width": 96,
-    "height": 96,
-    "webp": 4552,
-    "avif": 2799
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 7942,
+    "avif": 4590
   },
   "style-circuit": {
     "group": "style",
     "path": "",
-    "width": 88,
-    "height": 88,
-    "webp": 5832,
-    "avif": 3632
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 10012,
+    "avif": 5231
   },
   "style-pump": {
     "group": "style",
     "path": "",
-    "width": 88,
-    "height": 88,
-    "webp": 5772,
-    "avif": 3475
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 9840,
+    "avif": 4995
   },
   "style-strength": {
     "group": "style",
     "path": "",
-    "width": 88,
-    "height": 88,
-    "webp": 4360,
-    "avif": 2447
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 7370,
+    "avif": 3641
   },
   "style-cardioCore": {
     "group": "style",
     "path": "",
-    "width": 88,
-    "height": 88,
-    "webp": 3414,
-    "avif": 2040
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 5616,
+    "avif": 2933
   },
   "style-mobility": {
     "group": "style",
     "path": "",
-    "width": 88,
-    "height": 88,
-    "webp": 2978,
-    "avif": 2074
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 4990,
+    "avif": 3004
   },
   "style-armsAbs": {
     "group": "style",
     "path": "",
-    "width": 88,
-    "height": 88,
-    "webp": 3892,
-    "avif": 2300
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 5986,
+    "avif": 3131
   },
   "style-easy": {
     "group": "style",
     "path": "",
-    "width": 88,
-    "height": 88,
-    "webp": 3524,
-    "avif": 2122
+    "slot": 44,
+    "width": 132,
+    "height": 132,
+    "webp": 5706,
+    "avif": 2984
   },
   "run-first5k": {
     "group": "run",
     "path": "later/",
-    "width": 128,
-    "height": 128,
-    "webp": 4620,
-    "avif": 2621
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5416,
+    "avif": 3038
   },
   "run-faster5k": {
     "group": "run",
     "path": "later/",
-    "width": 128,
-    "height": 128,
-    "webp": 4886,
-    "avif": 2826
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 5648,
+    "avif": 3026
   },
   "run-first10k": {
     "group": "run",
     "path": "later/",
-    "width": 128,
-    "height": 128,
-    "webp": 5538,
-    "avif": 3087
+    "slot": 48,
+    "width": 144,
+    "height": 144,
+    "webp": 6392,
+    "avif": 3461
   },
   "passport-paper": {
     "group": "passport",
