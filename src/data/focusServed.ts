@@ -2,12 +2,13 @@
 // facts the generator uses, never a list of names: when a sure move is added, the note goes away.
 import { FOCUS_PICKS, type FocusPickId } from '../lib/intake/options';
 import { workoutIdOf } from '../lib/swap';
+import { approvedFocusLifts } from './candidateGate';
 import { focusFacts } from './focus';
 import { profileFor } from './order';
 import { SWAP_DATA } from './patterns';
 
 /**
- * The choices no lift in any ladder trains, whatever the gym: picking one adds nothing to a plan
+ * The choices no lift in any ladder (or approved for focus on this phone) trains, whatever the gym: picking one adds nothing to a plan
  * yet, and the focus step says so before it is picked. Mobility is stretch time and has its own
  * moves; balance asks for nothing.
  */
@@ -23,5 +24,7 @@ export function focusNotYet(): ReadonlySet<FocusPickId> {
       for (const pick of focusFacts(id, profile).picks) served.add(pick);
     }
   }
+  // PLAN 3.6g: and the forearm moves approved on this phone, which the generator serves Grip and Forearms with.
+  for (const c of approvedFocusLifts()) for (const pick of focusFacts(c.id, profileFor(c.id)).picks) served.add(pick);
   return new Set(FOCUS_PICKS.map((p) => p.id).filter((id) => !served.has(id)));
 }

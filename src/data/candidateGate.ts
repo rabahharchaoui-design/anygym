@@ -85,6 +85,21 @@ export function approvedCardio(): CardioMove[] {
   return rankCardio(out);
 }
 
+/**
+ * PLAN 3.6g: the lifts G approved on this phone that sit in no swap ladder and whose primary muscle
+ * is the forearms (wrist curls): the sure moves the Grip and Forearms focus picks are served with,
+ * in id order. None approved: none, and those picks keep saying "no exercises yet".
+ */
+export function approvedFocusLifts(): Candidate[] {
+  const out: Candidate[] = [];
+  for (const id of [...approved].sort()) {
+    const c = ALL.get(id)!;
+    if (c.ladder || c.pattern !== 'accessory' || c.timed || !c.primaryMuscles.includes('forearms')) continue;
+    out.push({ id: c.id, requires: c.requires.map((g) => [...g]), load: c.load, ...(c.bar ? { bar: c.bar } : {}), ...(c.eachSide ? { eachSide: true } : {}) });
+  }
+  return out;
+}
+
 /** Owner Review screen only (SPEC 9.4): every candidate, approved or not, to decide on (after loadCandidateFile). */
 export const ownerCandidates = (): readonly CandidateRecord[] => FILE?.candidates ?? [];
 

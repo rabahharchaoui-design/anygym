@@ -136,6 +136,7 @@ function block(raw: Raw, resolve: ResolveExercise, where: string): PlanBlock {
   const items = pair ? (raw.items as unknown[]).map((x, i) => item(obj(x), resolve, `${where} item ${i + 1}`)) : [item(raw, resolve, where)];
   const out: PlanBlock = { kind: pair && items.length > 1 ? 'pair' : 'single', items };
   if (raw.warmup === true) out.warmup = true;
+  if (raw.mobility === true && items.length > 1) out.mobility = true;
   const sets = num(raw.sets);
   // Rest only when the plan states it: restSec, or a note like "10 seconds rest between sets".
   const rest = num(raw.restSec) ?? (items.length === 1 ? restFromNote(items[0]!.note) : undefined);
@@ -242,7 +243,8 @@ const span = (v: PlanReps): string => (typeof v === 'number' ? `${v}` : `${v[0]}
 function secSpan(v: PlanReps): string {
   const [lo, hi] = typeof v === 'number' ? [v, v] : v;
   if (lo >= 120 && lo % 60 === 0 && hi % 60 === 0) return `${lo === hi ? lo / 60 : `${lo / 60} to ${hi / 60}`} min`;
-  return `${span(v)} sec`;
+  // A range with equal ends is one number (a stretch block's hold): "80 sec", never "80 to 80 sec".
+  return `${lo === hi ? lo : span(v)} sec`;
 }
 
 /** "8 to 12 reps", "20 reps each side", "45 sec", "60 to 90 sec", or '' when the plan says nothing. */
@@ -340,6 +342,9 @@ export function estimateDayMinutes(day: PlanDay, weekIndex = 0): number {
   sec += Math.max(0, exercises - 1) * CHANGE_SEC;
   return Math.round(sec / 60);
 }
+
+/** PLAN 3.6g: the minutes of holds in a stretch block (each stretch, every round). */
+export const stretchMinutes = (b: PlanBlock): number => Math.round(b.items.reduce((n, it) => n + (it.seconds !== undefined ? low(it.seconds) : 0), 0) * (b.sets ?? 1) / 60);
 
 // ---------------------------------------------------------------- where the plan is (planState)
 

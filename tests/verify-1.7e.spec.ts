@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
+import { rootAtRest } from './helpers/layout';
 import { bar185, dbAll, fitsOneScreen, quickWith, seedFinished, usePlan, watchErrors } from './workout-helpers';
 
 // Tester checks for PLAN 1.7e (premium restyle) and 1.7g (130% text). Functional rules must survive.
@@ -126,7 +127,7 @@ test('V3 every control is at least 48pt on every screen', async ({ page }) => {
   await usePlan(page);
   await seedSquat(page);
   await page.reload();
-  const check = async (n: string) => { await page.waitForTimeout(450); found.push(...(await small(page, n))); };
+  const check = async (n: string) => { await rootAtRest(page); await page.waitForTimeout(450); found.push(...(await small(page, n))); };
   await check('today');
   await page.getByRole('link', { name: 'Plans' }).tap();
   await expect(page.getByTestId('plan-five-day-split')).toBeVisible();

@@ -187,6 +187,9 @@ describe('plain words', () => {
   });
   it('setsText and amountText', () => {
     expect(setsText({ sets: 3, seconds: [60, 90] })).toBe('3 sets × 60 to 90 sec');
+    // PLAN 3.6g: a range with equal ends is one number (a stretch block's hold), never "80 to 80 sec".
+    expect(setsText({ sets: 2, seconds: [80, 80] })).toBe('2 sets × 80 sec');
+    expect(setsText({ sets: 1, seconds: [50, 50] })).toBe('50 sec');
     expect(setsText({ sets: 1, reps: 10 })).toBe('1 set × 10');
     expect(setsText({ sets: 10 })).toBe('10 sets');
     expect(setsText({ sets: 1, seconds: 30, rounds: true })).toBe('1 round × 30 sec');

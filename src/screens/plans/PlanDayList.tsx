@@ -1,5 +1,6 @@
 import type { PlanBlock, PlanDay, PlanItem } from '../../lib/plans';
-import { itemLine, planRest, weekTable } from '../../lib/plans';
+import { itemLine, planRest, stretchMinutes, weekTable } from '../../lib/plans';
+import { stretchBlockLabel } from '../../lib/plan/focusWords';
 import styles from './Plans.module.css';
 
 /**
@@ -50,15 +51,17 @@ export function PlanDayList({ day, weekIndex }: { day: PlanDay; weekIndex: numbe
   return (
     <ol className={styles.blocks}>
       {day.blocks.map((b, bi) => {
-        const pair = b.kind === 'pair';
-        const label = [b.warmup ? 'Warm up' : null, pair ? 'Pair: back to back' : null].filter(Boolean).join(' · ');
+        // PLAN 3.6g: a Mobility pick's stretch block is one card too, labeled with its minutes (never "Pair").
+        const stretch = b.mobility === true;
+        const pair = b.kind === 'pair' && !stretch;
+        const label = [b.warmup ? 'Warm up' : null, stretch ? stretchBlockLabel(stretchMinutes(b)) : pair ? 'Pair: back to back' : null].filter(Boolean).join(' · ');
         const rest = pair ? planRest(b) : undefined;
         return (
-          <li key={bi} className={styles.block} data-kind={b.kind} data-warmup={b.warmup || undefined} data-testid={pair ? 'plan-pair' : undefined}>
+          <li key={bi} className={styles.block} data-kind={b.kind} data-warmup={b.warmup || undefined} data-mobility={stretch || undefined} data-testid={stretch ? 'plan-stretches' : pair ? 'plan-pair' : undefined}>
             {label && <p className={styles.blockLabel}>{label}</p>}
             <ul className={styles.items}>
               {b.items.map((it) => (
-                <Item key={it.exerciseId} block={b} it={it} weekIndex={weekIndex} pair={pair} />
+                <Item key={it.exerciseId} block={b} it={it} weekIndex={weekIndex} pair={pair || stretch} />
               ))}
             </ul>
             {rest !== undefined && (

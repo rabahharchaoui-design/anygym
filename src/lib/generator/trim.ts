@@ -11,6 +11,8 @@ export const blockOf = (u: Item[]): PlanBlock => ({
   items: u.map((it) => ({ exerciseId: it.id, name: it.id, ...(it.reps ? { reps: it.reps } : {}), ...(it.seconds ? { seconds: it.seconds } : {}) })),
   sets: Math.max(...u.map((it) => it.sets)),
   restSec: Math.max(...u.map((it) => it.rest)),
+  // PLAN 3.6g: a Mobility pick's stretches flow back to back: one exercise change (lib/plans.ts estimateDayMinutes).
+  ...(u.length > 1 && u.every((it) => it.mobility) ? { mobility: true as const } : {}),
 });
 
 /** The day as the workout header estimates it (SPEC 7.4). */
