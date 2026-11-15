@@ -2,6 +2,7 @@
 import { curateFocus, focusMuscles, normalizeFocusPicks, type FocusMove, type FocusReport } from '../plan/focus';
 import { RIDERS } from '../plan/focusShare';
 import { isCompound, orderUnits } from '../order';
+import { supports } from '../swap';
 import { allowed, makeItem } from './pick';
 import { prescribe, setCap } from './prescribe';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
@@ -61,6 +62,9 @@ export function applyFocus(ctx: Ctx, days: Day[]): FocusReport {
   };
   const out = curateFocus({ picks, days: days.map((d) => d.units.flat().map(facts)), candidates: candidates.map((d) => d.map(facts)), cap: setCap(ctx), budgetMinutes: ctx.input.minutes, maxMoves: focusMaxMoves(ctx.input.minutes), fill: true, minutes: (moves, i) => minutesOf(arranged(moves, i)) });
   for (const [i, moves] of out.days.entries()) Object.assign(days[i]!, arranged(moves, i));
+  // A pick with no exercise here, while the app has one this gym lacks the equipment for: said as that.
+  const elsewhere = Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => !c.timed || pattern === 'core').map((c) => makeItem(ctx, c, pattern as Item['pattern']))).concat((ctx.deps.focusLifts?.() ?? []).map((c) => makeItem(ctx, c, 'biceps'))).filter((it) => !supports(it.candidate.requires, ctx.input.gym));
+  for (const p of out.report.priorities) if (p.state === 'no_move' && elsewhere.some((it) => it.profile.role === 'lift' && facts(it).picks.includes(p.id))) p.gear = true;
   // Focused moves go first while fresh: the pick each day's first lift trains (the highest ranked), for the day's why.
   const ranked = out.report.priorities.map((p) => p.id).filter((id) => id !== 'mobility' && !RIDERS.has(id));
   out.report.dayLead = days.map((d) => {

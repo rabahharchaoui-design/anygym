@@ -81,6 +81,8 @@ export type FocusResult = {
   parts?: Array<{ muscle: string; sets: number }>;
   atLimit?: true;
   noMove?: true;
+  /** PLAN 3.6g: with `noMove`, the app has exercises for it and this gym has the equipment for none of them: said as that, never as "no exercises yet". */
+  gear?: true;
   /** PLAN 3.6g: the sets it is still short of FOCUS_MUSCLE_MIN a week (for an area: its muscle with the fewest that has an exercise). Absent when it is there, has plenty or has no exercise. */
   under?: number;
   /**

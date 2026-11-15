@@ -77,7 +77,7 @@ const stepWords = (s: Step, join = ' and '): string => [s.days ? `${s.days} days
 export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebuild: (a: IntakeAnswers) => FocusReport | undefined): FocusFit | null {
   if (!report?.priorities.length) return null;
   const hard = report.priorities.filter((p) => p.id !== 'mobility');
-  // The app has no exercise it is sure of for these: said on their own, never blamed on equipment.
+  // No exercise for these here: the app has none it is sure of (never blamed on equipment), or this gym has the equipment for none.
   const none = hard.filter((p) => focusStateOf(p) === 'no_move');
   // Past the weekly budget a pick gets no share at all: said, never hidden.
   const unfunded = hard.filter((p) => focusStateOf(p) === 'no_share');
@@ -143,7 +143,11 @@ export function focusFit(a: IntakeAnswers, report: FocusReport | undefined, rebu
     }
   }
   if (unfunded.length) parts.push(`Extra work stops at ${FOCUS_BUDGET_MAX} sets a week, so ${list(unfunded.map((p) => focusName(p.id)))} got none.`);
-  if (none.length) parts.push(`No exercises for ${list(none.map((p) => focusName(p.id).toLowerCase()), 'or')} yet.`);
+  // The app has exercises for these and this gym has the equipment for none of them: said as that (PLAN 3.6g).
+  const gear = none.filter((p) => p.gear), never = none.filter((p) => !p.gear);
+  const lower = (ps: typeof none) => list(ps.map((p) => focusName(p.id).toLowerCase()), 'or');
+  if (never.length) parts.push(`No exercises for ${lower(never)} yet.`);
+  if (gear.length) parts.push(`${list(gear.map((p) => focusName(p.id)))} ${gear.length === 1 ? 'needs' : 'need'} equipment you do not have here.`);
   if (!parts.length) return null;
   out.line = parts.join(' ');
   return out;

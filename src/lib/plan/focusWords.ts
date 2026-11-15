@@ -31,7 +31,7 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   const name = focusName(p.id);
   if (p.id === 'mobility') return stretchBlock(p) ? [name, `${minutes(p.minutes!)} of stretches ${period}`] : [name, STRETCH_NO_ROOM.toLowerCase()];
   const state = focusStateOf(p);
-  if (state === 'no_move') return [name, 'no exercises for it yet'];
+  if (state === 'no_move') return [name, p.gear ? 'needs equipment you do not have here' : 'no exercises for it yet'];
   if (p.total === 0) return [name, 'no room for it'];
   const amount = p.id === 'posture' ? `${plural(p.total, 'set', 'sets')} of back and rear shoulder work`
     : p.parts && p.parts.length > 1 ? `${list(p.parts.map((x) => `${PART[x.muscle] ?? x.muscle} ${x.sets}`))} sets`
@@ -60,7 +60,7 @@ export type FocusRow = {
   name: string;
   /** "18 sets", "6 min". Null for an area of several muscles (its muscles are in the detail) and for a pick that got nothing. */
   amount: string | null;
-  /** The quiet state: "+6 extra", "plenty", "no extra", "no room", "no exercises yet". Null when the amount says it all. */
+  /** The quiet state: "+6 extra", "plenty", "no extra", "no room", "no exercises yet", "needs equipment". Null when the amount says it all. */
   tag: string | null;
   /** One more quiet line when there is more to say (an area's muscles, what posture work is). */
   detail: string | null;
@@ -74,7 +74,7 @@ export function focusRow(p: FocusResult): FocusRow {
   const name = focusName(p.id);
   if (p.id === 'mobility') return stretchBlock(p) ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: null, detail: STRETCH_NO_ROOM };
   const state = focusStateOf(p);
-  if (state === 'no_move') return { name, amount: null, tag: 'no exercises yet', detail: null };
+  if (state === 'no_move') return { name, amount: null, tag: p.gear ? 'needs equipment' : 'no exercises yet', detail: null };
   if (p.total === 0) return { name, amount: null, tag: 'no room', detail: null };
   if (focusCovered(p)) return { name, amount: null, tag: null, detail: `Covered by your ${workOf(p.coveredBy!)} work: ${plural(p.total, 'set', 'sets')}` };
   const several = !!p.parts && p.parts.length > 1;

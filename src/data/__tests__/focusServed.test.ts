@@ -58,10 +58,10 @@ describe('Grip, Forearms and Obliques (PLAN 3.6g)', () => {
       expect(full.report.extra, pick).toBeGreaterThanOrEqual(4);
       expect(full.report.total, pick).toBeLessThanOrEqual(20);
       expect(full.ids).toContain(WRIST);
-      // No dumbbells and no bench: the move is not offered, and the pick says there is no exercise (never a move this gym cannot do).
+      // No dumbbells and no bench: the move is not offered (never a move this gym cannot do), and the pick says it needs equipment.
       const bare = build(pick, 'none');
       expect(bare.ids).not.toContain(WRIST);
-      expect(bare.report).toMatchObject({ state: 'no_move', extra: 0 });
+      expect(bare.report).toMatchObject({ state: 'no_move', extra: 0, gear: true });
     }
     expect(build('obliques', 'full').report.state).toBe('no_move');
   });
