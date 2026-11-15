@@ -1,9 +1,10 @@
 // The coach's weights (SPEC 15, PLAN 3.8): strength estimate, deload, level up, warm up, test set.
 import type { Load, Unit } from '../../db/types';
 import { add, EPS, fromInt, scale, toInt } from './exact';
+import { pickedWeight } from './compare';
 import { loadAt } from './loadAt';
 import type { LoadSetup } from './setup';
-import { stackTotal, validStackStep } from './stack';
+import { stackSplit, stackTotal, validStackStep, type StackPick } from './stack';
 import { nearestLoadable, stepDown, stepUp } from './steps';
 import { collarsWeight } from './sum';
 
@@ -49,6 +50,20 @@ export function scaledWeight(kind: Load['kind'], value: number, factor: number, 
   if (near === null) return null;
   if (lighter && factor < 1 && near >= whole - EPS) return stepDown(kind, whole, s);
   return near;
+}
+
+/**
+ * scaledWeight for a coach target that keeps a stack's add-on (PLAN 3.6w): the factor applies to
+ * the whole resistance and the target is rebuilt as a pin plus the same add-on, not above the
+ * scaled total (100 pin + 50 added at 0.9 → 85 pin + 50 = 135). Every other load: scaledWeight's
+ * picked weight with nothing added. null when nothing fits.
+ */
+export function scaledTarget(kind: Load['kind'], value: number, factor: number, s: LoadSetup, lighter = false, added = 0): StackPick | null {
+  if (kind !== 'stack' || !(added > 0)) {
+    const to = scaledWeight(kind, value, factor, s, lighter);
+    return to === null ? null : { value: to, added: 0 };
+  }
+  return stackSplit(scale(stackTotal(value, added), factor), added, s.stackStep);
 }
 
 export type LevelUpRule = {
@@ -164,4 +179,20 @@ export function testSetNumber(kind: Load['kind'], value: number, reps: number, t
   if (max === null) return null;
   const want = weightForReps(max, targetReps + 2);
   return loadableUpTo(kind, value, Math.min(want, add(value, scale(value, TEST_SET_CAP))), s);
+}
+
+/**
+ * The working load from a first timer's test set (testSetNumber), made at this gym (PLAN 3.6w). A
+ * stack with weight added on the pin: the strength and the 20% cap come from the whole resistance,
+ * and the load is the pin plus the same add-on (100 pin + 50 added × 10 for 8 reps → 115 + 50 =
+ * 165, never a 110 pin). null when there is no number or this gym cannot load it.
+ */
+export function testSetLoad(kind: Load['kind'], test: Load, reps: number, targetReps: number, s: LoadSetup): Load | null {
+  const value = pickedWeight(test);
+  if (value === null || test.kind !== kind || test.unit !== s.unit) return null;
+  const added = kind === 'stack' ? (test.added ?? 0) : 0;
+  const n = testSetNumber(kind, added > 0 ? stackTotal(value, added) : value, reps, targetReps, s);
+  if (n === null) return null;
+  const pick = added > 0 ? stackSplit(n, added, s.stackStep) : { value: n, added: 0 };
+  return pick && loadAt(kind, pick.value, s, pick.added);
 }

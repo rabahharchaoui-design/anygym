@@ -17,7 +17,7 @@
 
 export { fitsSleeve } from '../plates';
 export { roundToStep, BODYWEIGHT_STEP, convertBodyweight, formatBodyweight, CM_PER_IN, ftInToCm, cmToFtIn } from './body';
-export { MAX_ESTIMATE_REPS, estimatedMax, weightForReps, COACH_MIN_ADD, scaledWeight, levelUpWeight, emptyBarWeight, warmUpLadder, loadableUpTo, TEST_SET_CAP, testSetNumber } from './coach';
+export { MAX_ESTIMATE_REPS, estimatedMax, weightForReps, COACH_MIN_ADD, scaledWeight, levelUpWeight, emptyBarWeight, warmUpLadder, loadableUpTo, TEST_SET_CAP, testSetNumber, scaledTarget, testSetLoad } from './coach';
 export type { LevelUpRule, WarmUp } from './coach';
 export { pickedWeight, sameLoad, SAME_RESISTANCE_TOLERANCE, sameResistance, cellWeight, comparableWeight, platesOnly } from './compare';
 export { dumbbellRangeProblems, parseDumbbellRange } from './dumbbellInput';
@@ -36,7 +36,8 @@ export { sleeveOf } from './setup';
 export type { LoadSetup } from './setup';
 export { solvePlates, lighterLoading, platesForSide, isKnownPlate } from './solver';
 export type { SolveOptions, Loading, SolveResult } from './solver';
-export { stackTotal, nearestStack, DISPLAY_STACK_MAX, isStackPin, MAX_STACK_PINS, validStackStep, morePins, stackValues } from './stack';
+export { stackSplit, stackTotal, nearestStack, DISPLAY_STACK_MAX, isStackPin, MAX_STACK_PINS, validStackStep, morePins, stackValues } from './stack';
+export type { StackPick } from './stack';
 export { nearestLoadable, stepUp, resetWeight, stepDown } from './steps';
 export { collarsWeight, sumLoad, enabledPlates, smithBase, machineBase } from './sum';
 export type { SumInput, SumResult } from './sum';

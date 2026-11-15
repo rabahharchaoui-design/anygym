@@ -30,7 +30,7 @@ import { applyTrim, trimmedPlan } from '../../lib/timeBudget';
 import { getProfile } from '../../db/intake';
 import { goalsOf } from '../../lib/intake/funnel';
 import { historyKeyFor } from '../../db/history';
-import { loadAt, pickedWeight, testSetNumber, type LoadSetup, type WarmUp } from '../../lib/load';
+import { cellWeight, loadAt, pickedWeight, sameResistance, testSetLoad, type LoadSetup, type WarmUp } from '../../lib/load';
 import {
   KEEP_NUMBER,
   START_LIGHT,
@@ -265,7 +265,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     const smith = kind === 'barbell' && barIdFor(nameOf(id), barOf(id)) === 'smith';
     const t = targets.get(liftKey(id, kind, historyKeyFor(kind, gym.data.id, smith), smith));
     if (targetActive(t, past[0]?.date, Date.now(), gym.data.unit, kind)) {
-      const load = loadAt(kind, t.value, setup);
+      const load = loadAt(kind, t.value, setup, t.added ?? 0);
       if (load) return withTarget(p, t, load, range, prescription);
     }
     // First timers (SPEC 15): no fake number. A light test set first, then the number from it.
@@ -279,11 +279,10 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     const low = range?.[0] ?? 8;
     const test = sets.find((s): s is WorkoutSet & { load: Load; reps: number } => s.exerciseId === id && s.kind === 'work' && !!s.load && s.load.kind === kind && !!s.reps);
     if (!test) return { ...p, next: { ...p.next, reason: START_LIGHT }, perSet: Array.from({ length: rows }, (_, i) => ({ target: { load: null, reps: i === 0 ? TEST_SET_REPS : low } })) };
-    const value = pickedWeight(test.load);
-    const n = value === null || test.load.unit !== setup.unit ? null : testSetNumber(kind, value, test.reps, low, setup);
-    const load = n === null ? null : loadAt(kind, n, setup);
-    if (!load || n === null) return p;
-    const reason = n === value ? KEEP_NUMBER : yourNumber(weightWords(kind, n, setup.unit));
+    // The whole resistance counts, a stack's add-on included (PLAN 3.6w): the load keeps it.
+    const load = testSetLoad(kind, test.load, test.reps, low, setup);
+    if (!load) return p;
+    const reason = sameResistance(load, test.load) ? KEEP_NUMBER : yourNumber(weightWords(kind, cellWeight(load)!, setup.unit));
     return {
       lastTime: null,
       next: { load, reps: range ?? low, reason, kind: 'first_time' },
