@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_ACCURACY_M } from '../../gps';
 import { FIX_FRESH_MS, GEO_START, LOCATION_REASON, accuracyWords, gpsStatus, gpsWords, platformOf, turnOnSteps, type GeoState, type GpsStatus } from '../gpsStatus';
-import { MUSIC_APPS } from '../music';
+import { MUSIC_APPS } from '../../music';
 
 const NOW = 1_000_000;
 const fix = (accuracy: number, age = 0) => ({ lat: 40, lng: -74, accuracy, t: NOW - age });
@@ -81,7 +81,8 @@ describe('gps words', () => {
 
 describe('music links', () => {
   it('are plain https links to the two music apps, nothing that claims control', () => {
-    expect(MUSIC_APPS.map((m) => m.label)).toEqual(['Spotify', 'Apple Music']);
+    expect(MUSIC_APPS.map((m) => m.name)).toEqual(['Spotify', 'Apple Music']);
+    expect(MUSIC_APPS.map((m) => m.label)).toEqual(['Spotify', 'Music']);
     for (const m of MUSIC_APPS) {
       expect(new URL(m.href).protocol).toBe('https:');
       expect(m.say).toMatch(/^Open /);

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { MAP_ATTRIBUTION, MAP_PALETTE_TOKENS, NEUTRAL_VIEW, TILE_ORIGIN, isTileHostUrl, mix, runMapStyle, type MapPalette } from '../mapStyle';
+import { MAP_ATTRIBUTION, TILE_ORIGIN, isTileHostUrl } from '../mapSource';
+import { MAP_PALETTE_TOKENS, NEUTRAL_VIEW, mix, runMapStyle, type MapPalette } from '../mapStyle';
 
 // The palette comes from the real tokens file, the same values the screen reads at run time.
 const tokens = readFileSync(join(__dirname, '../../../styles/tokens.css'), 'utf8');

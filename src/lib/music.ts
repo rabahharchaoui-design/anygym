@@ -1,5 +1,5 @@
-// The music buttons above Start (SPEC 12.1). Each one only opens the music app; AnyGym never
-// controls what plays.
+// The music buttons (SPEC 11, 12.1): on a workout's day list and above Start on the Run tab. Each
+// one only opens the music app; AnyGym never controls what plays.
 //
 // What works from an iPhone Home Screen web app (standalone):
 //   - A tap on a normal link to https://open.spotify.com/ or https://music.apple.com/ is a
@@ -11,9 +11,9 @@
 //   - The link must be followed by the user's own tap on a real <a>; a scripted window.open is
 //     not treated as a universal link.
 // Android: the same https links open the installed app through its app links, or the website.
-export type MusicApp = { id: 'spotify' | 'apple'; label: string; href: string; say: string };
+export type MusicApp = { id: 'spotify' | 'apple'; /** The short name on a small pill. */ label: string; /** The full name where there is room. */ name: string; href: string; say: string };
 
 export const MUSIC_APPS: readonly MusicApp[] = [
-  { id: 'spotify', label: 'Spotify', href: 'https://open.spotify.com/', say: 'Open Spotify' },
-  { id: 'apple', label: 'Apple Music', href: 'https://music.apple.com/', say: 'Open Apple Music' },
+  { id: 'spotify', label: 'Spotify', name: 'Spotify', href: 'https://open.spotify.com/', say: 'Open Spotify' },
+  { id: 'apple', label: 'Music', name: 'Apple Music', href: 'https://music.apple.com/', say: 'Open Apple Music' },
 ];

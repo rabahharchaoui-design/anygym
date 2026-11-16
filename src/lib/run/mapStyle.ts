@@ -4,9 +4,7 @@
 // recoloured from the tokens passed in. No sprite (no icons on a calm map), one font stack.
 // Pure: colours come in as #rrggbb strings (the screen reads them from src/styles/tokens.css).
 
-/** The only host the map talks to: tile list, tiles and label glyphs. */
-export const TILE_ORIGIN = 'https://tiles.openfreemap.org';
-export const MAP_ATTRIBUTION = '© OpenFreeMap · OpenMapTiles · OpenStreetMap';
+import { TILE_ORIGIN } from './mapSource';
 
 /** The tokens the map is painted from. */
 export type MapPalette = { bg: string; text: string; text2: string; accent: string };
@@ -113,12 +111,3 @@ export function runMapStyle(p: MapPalette, origin: string = TILE_ORIGIN): RunMap
 export const NEUTRAL_VIEW = { center: [0, 25] as [number, number], zoom: 0.6 } as const;
 /** Street level around the runner. */
 export const HERE_ZOOM = 15.5;
-
-/** True for a request the map makes to its tile host (tiles, tile list, glyphs). */
-export const isTileHostUrl = (url: string, origin: string = TILE_ORIGIN): boolean => {
-  try {
-    return new URL(url).origin === new URL(origin).origin;
-  } catch {
-    return false;
-  }
-};
