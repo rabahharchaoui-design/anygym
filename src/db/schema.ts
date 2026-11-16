@@ -108,8 +108,8 @@ export const SCHEMA_V9 = {
  *   and for learning from outcomes.
  * - coachCards: Today's coach cards already answered (dismissed or used), by card id.
  * - efforts: the Easy / Good / Hard tap after the last set of an exercise, per workout.
- * Not backed up (not in lib/backup.ts TABLE_NAMES): suggestions and taps the coach can live without;
- * the workouts themselves are.
+ * Backed up since PLAN 3.6d (lib/backup.ts TABLE_NAMES, LATER_TABLES): an accepted target and an
+ * effort tap are the user's own input. Older backup files leave them out; Replace then keeps them.
  */
 export const SCHEMA_V10 = {
   coachLifts: 'key, exerciseId',

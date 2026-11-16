@@ -25,7 +25,7 @@ import {
 } from '../backup';
 import { SCHEMA_VERSION } from '../../db/schema';
 
-const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [], journal: [], candidateReviews: [] });
+const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [], journal: [], candidateReviews: [], coachLifts: [], coachChanges: [], coachCards: [], efforts: [] });
 
 const gym = { id: 'g', name: 'Home', type: 'home', unit: 'kg', equipment: [], dumbbellRange: null, bars: { olympic: 45, womens: 35, ez_curl: null, trap: null, smith: 0 }, stackStep: 2.5, equipmentWeights: {}, plateInventory: [], collars: 'none', plateColors: 'color', isActive: true, createdAt: 1 };
 const session = { id: 's', gymId: 'g', startedAt: 10, endedAt: 20, imported: false };
@@ -192,6 +192,10 @@ const good: Record<TableName, Record<string, unknown>> = {
   tombstones: { id: 'x', sessionId: 's', set, expiresAt: 5, undo: true },
   journal: { id: 'j', sessionId: 's', exerciseId: 'bench', key: 'bench@0', rev: 2, draft: { id: 'j', load: set.load, plates: [25, 15, 1.25], reps: 5, rev: 2, unit: 'kg' }, at: 9 },
   candidateReviews: { id: 'Incline_Dumbbell_Press', decision: 'fix', reason: 'photo', note: 'grip', at: 3 },
+  coachLifts: { key: 'bench|barbell', exerciseId: 'bench', updatedAt: 4, target: { value: 135, unit: 'lb', loadKind: 'barbell', reason: 'All reps last time', source: 'level_up', setAt: 4, reps: 'low' }, learned: { estimate: null, rate: 0.5, scale: 1, at: 4 } },
+  coachChanges: { id: 'c1', cardId: 'levelup:2026-11-02', weekKey: '2026-11-02', appliedAt: 4, key: 'bench|barbell', exerciseId: 'bench', name: 'Bench press', loadKind: 'barbell', unit: 'lb', from: 130, to: 135, reason: 'All reps last time', source: 'level_up', prevTarget: null },
+  coachCards: { id: 'levelup:2026-11-02', state: 'used', at: 4 },
+  efforts: { sessionId: 's', exerciseId: 'bench', effort: 'hard', at: 5 },
 };
 
 const without = (r: Record<string, unknown>, k: string) => {
@@ -235,6 +239,12 @@ const bad: Array<[TableName, string, Record<string, unknown>]> = [
   ['journal', 'draft of another row', { ...good.journal, draft: { id: 'other', load: null } }],
   ['candidateReviews', 'unknown decision', { ...good.candidateReviews, decision: 'maybe' }],
   ['candidateReviews', 'a reason on an approval', { id: 'x', decision: 'approve', reason: 'photo', at: 1 }],
+  ['coachLifts', 'a text target', { ...good.coachLifts, target: { ...(good.coachLifts.target as object), value: '135' } }],
+  ['coachLifts', 'no key', without(good.coachLifts, 'key')],
+  ['coachChanges', 'an unknown unit', { ...good.coachChanges, unit: 'stone' }],
+  ['coachChanges', 'no to', without(good.coachChanges, 'to')],
+  ['coachCards', 'an unknown state', { ...good.coachCards, state: 'maybe' }],
+  ['efforts', 'an unknown tap', { ...good.efforts, effort: 'brutal' }],
 ];
 
 describe('RECORD_CHECKS', () => {
