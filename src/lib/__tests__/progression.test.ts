@@ -260,7 +260,7 @@ describe('rule 7: another unit → converted, rounded to a loadable weight here'
     const p = run({ loadKind: 'barbell', unit: 'kg', gym: KG, history: [session(day(20), same([12, 12], bar(185)))] });
     // 185 lb = 83.9 kg → 85 kg loadable, +2.5 → 87.5 kg
     expect(p.next.load!.total).toBe(87.5);
-    expect(p.next.reason).toBe('≈ 87.5 kg, last time 185 lb');
+    expect(p.next.reason).toBe('≈ 85 kg, last time 185 lb. All sets hit 12. Time to go up'); // PLAN 3.6e: ≈ quotes last time, not the raised weight
     const d = run({ loadKind: 'dumbbell_each', repRange: null, history: [session(day(20), same([10], dumbbellLoad(12, 'kg')))] });
     expect(d.next.load).toEqual(dumbbellLoad(25, 'lb'));
     expect(d.next.reason).toBe('≈ 25 lb, last time 12 kg');
@@ -368,7 +368,7 @@ describe('load.ts progression helpers', () => {
     expect(nearestLoadable('timed', 7, s)).toBeNull();
     expect(nearestLoadable('bodyweight', 4.5, s)).toBeNull();
     expect(stepUp('barbell', 185, { ...s, plates: [] })).toBeNull();
-    expect(stepUp('barbell', 135, { ...s, plates: [45, 10] })).toBe(155); // +20: one pair of 10s is the smallest step
+    expect(stepUp('barbell', 135, { ...s, plates: [45, 10] })).toBe(145); // PLAN 3.6e: the nearest total above that loads (five 10s a side), not 155
     expect(stepUp('single', 20, { ...s, dumbbellRange: null })).toBeNull();
     expect(stepUp('bodyweight', 0, s)).toBeNull();
     expect(stepUp('timed', 0, s)).toBeNull();

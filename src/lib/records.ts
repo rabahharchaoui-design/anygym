@@ -9,9 +9,11 @@
 //     earlier set at that weight or heavier, in any unit, had as many reps. One per exercise, the
 //     heaviest such weight. Today's sets count in every unit (PLAN 1.7i).
 // Working sets only (kind 'work', to failure included): warm ups and drop sets never count.
+// A plate machine whose "one side or both" answer changed (PLAN 3.6e): only sets counted the same
+// way are compared (load.ts countedAlike); the same plates counted another way are never a record.
 // Weights are compared through load.ts (comparableWeight, sameResistance); no arithmetic here.
 import type { Load } from '../db/types';
-import { beatsVolume, biggerGain, comparableWeight, formatTotal, formatWeight, gainRatio, heavierBy, heavierThan, heldWeightOf, sameResistance, setScore } from './load';
+import { beatsVolume, biggerGain, comparableWeight, countedAlike, formatTotal, formatWeight, gainRatio, heavierBy, heavierThan, heldWeightOf, sameResistance, setScore } from './load';
 import { formatSet } from './setWords';
 import type { PastSet } from './progression';
 
@@ -21,7 +23,8 @@ export type PersonalRecord = { exerciseId: string; kind: RecordKind; text: strin
 
 type Work = { reps?: number; load: Load };
 
-const working = (sets: readonly PastSet[], kind: Load['kind']): Work[] => sets.filter((s) => s.kind === 'work' && s.load.kind === kind) as Work[];
+/** Working sets of this kind of load, counted the way `like` is (see above). */
+const working = (sets: readonly PastSet[], like: Load): Work[] => sets.filter((s) => s.kind === 'work' && s.load.kind === like.kind && countedAlike(s.load, like)) as Work[];
 
 /** `fmt` is formatWeight ("1005 lb") or, for the numbers the celebration shows big, formatTotal ("1,005 lb"). */
 const weightText = (load: Load, fmt: typeof formatWeight = formatWeight): string => {
@@ -40,8 +43,8 @@ export function recordsFor(exerciseId: string, name: string, today: readonly Pas
   const kind = first.load.kind;
   const unit = first.load.unit;
   const w = (load: Load) => comparableWeight(load, unit);
-  const now = working(today, kind);
-  const past = working(before, kind);
+  const now = working(today, first.load);
+  const past = working(before, first.load);
   if (!now.length || !past.length) return [];
   const out: PersonalRecord[] = [];
 
@@ -152,7 +155,7 @@ export function recordSets(today: readonly RecordSet[], before: readonly DatedSe
   const unit = first.load.unit;
   const w = (load: Load) => comparableWeight(load, unit);
   type Pooled = Work & { date?: number };
-  const pool: Pooled[] = working(before, kind) as Pooled[];
+  const pool: Pooled[] = working(before, first.load) as Pooled[];
   if (!pool.length) return [];
   const history = [...pool];
   /** The same gain, measured against the earlier workouts only. */
@@ -164,7 +167,7 @@ export function recordSets(today: readonly RecordSet[], before: readonly DatedSe
   };
   const out: SetRecord[] = [];
   for (const s of today) {
-    if (s.kind !== 'work' || s.load.kind !== kind) continue;
+    if (s.kind !== 'work' || s.load.kind !== kind || !countedAlike(s.load, first.load)) continue;
     const reps = s.reps ?? 0;
     if (reps > 0) {
       const hasWeight = kind !== 'bodyweight' || (s.load.added ?? 0) > 0;

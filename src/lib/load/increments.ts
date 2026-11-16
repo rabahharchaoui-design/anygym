@@ -32,13 +32,17 @@ export function smallestIncrement(kind: Load['kind'], gym: GymLike, machineId?: 
   }
 }
 
+/** The least a bar or plate machine goes up or down by (SPEC 6 rule 2): 5 lb / 2.5 kg total. */
+export const minPlateStep = (unit: Unit): number => (unit === 'lb' ? 5 : 2.5);
+
 /**
  * 5 lb / 2.5 kg total, or one pair of the smallest plate if that is bigger (one smallest plate on a
- * one horn machine, PLAN 3.6w). null with no plates.
+ * one horn machine, PLAN 3.6w). null with no plates. A size only: the next weight up is stepUp's
+ * (steps.ts), which looks for every loadable total in between (PLAN 3.6e).
  */
 export function plateIncrement(plates: readonly number[], unit: Unit, horns: Horns = 2): number | null {
   if (!plates.length) return null;
-  return Math.max(unit === 'lb' ? 5 : 2.5, times(Math.min(...plates), horns));
+  return Math.max(minPlateStep(unit), times(Math.min(...plates), horns));
 }
 
 export type LoadableOptions =
