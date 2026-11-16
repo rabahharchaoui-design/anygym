@@ -29,12 +29,15 @@ import { AppMarkLoader } from './ui/AppMarkLoader';
 import { IntakeGate } from './components/IntakeGate';
 import { IntakeScreen } from './screens/intake/IntakeScreen';
 import { QuickScreen } from './screens/quick/QuickScreen';
+import { useWarmPlanPhotos } from './hooks/useWarmPlanPhotos';
 
 const DEV_TOOLS = devToolsEnabled();
 // Lazy, so the catalog JSON it reads stays out of the main bundle.
 const MusclesDevScreen = lazy(() => import('./screens/dev/MusclesDevScreen').then((m) => ({ default: m.MusclesDevScreen })));
 
 export function App() {
+  // PLAN 3.6k: the current plan's photos are saved for offline in the background.
+  useWarmPlanPhotos();
   return (
     <>
       <ArrivalGuard />

@@ -56,7 +56,7 @@ Small generic building blocks with no AnyGym knowledge: `Button`, `Sheet` (the s
 Saving and loading. Everything here talks to the phone's database (Dexie on top of IndexedDB). `schema.ts` lists the tables, `types.ts` describes every saved record, and the rest is one file per job (workouts, gyms, plans, backup, coach data, undo, and so on). `workouts.ts` is just a front door for the `workout*.ts` files next to it. Screens should reach this folder through the helpers in `src/hooks/`.
 
 ### src/hooks/
-Small React helpers: `useLive` (watch the database and re-draw when it changes), `useNow` (a ticking clock), `useWakeLock` (keep the screen on during a workout), `useMedia`, `useInView` and a few more. This is the bridge between screens and the database.
+Small React helpers: `useLive` (watch the database and re-draw when it changes), `useNow` (a ticking clock), `useWakeLock` (keep the screen on during a workout), `useWarmPlanPhotos` (saves the current plan's exercise photos for offline in the background, with `lib/planPhotos.ts` and `lib/photoWarm.ts`), `useMedia`, `useInView` and a few more. This is the bridge between screens and the database.
 
 ### src/lib/
 Pure logic, the brain of the app. About 70 loose files, one job each, plus folders:
