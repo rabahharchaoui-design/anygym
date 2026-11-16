@@ -104,14 +104,14 @@ test('quick workout: picker, first weight, check, double tap, edit, delete with 
   await page.getByRole('button', { name: 'Take off 15 seconds' }).tap();
   await expect(page.getByTestId('rest-clock')).toHaveText(/^1:[23]\d$/);
 
-  // Edit: reps 8 → 9 on set 2.
+  // Edit: reps 10 → 11 on set 2 (set 1's 10 carried down to it, 3.6z A17).
   await loggedRows(view).nth(1).tap();
   const edit = page.getByRole('dialog', { name: 'Edit set' });
   await expect(edit.getByTestId('plate-total')).toHaveText('185lb');
   await edit.getByRole('button', { name: 'More reps' }).tap();
   await edit.getByRole('button', { name: 'Save' }).tap();
   await expect(edit).toHaveCount(0);
-  await expect(loggedRows(view).nth(1)).toContainText('9');
+  await expect(loggedRows(view).nth(1)).toContainText('11');
 
   // Delete → toast → Undo → back with the same id and order.
   const setsBefore = await dbAll<{ id: string; order: number }>(page, 'sets');
@@ -149,7 +149,7 @@ test('quick workout: picker, first weight, check, double tap, edit, delete with 
   await page.getByRole('button', { name: 'Finish' }).tap();
   await expect(page).toHaveURL(new RegExp(`#/workout/${sessionId}/done$`));
   await expect(page.getByTestId('finish-sets')).toHaveText('2');
-  await expect(page.getByTestId('finish-total')).toHaveText('3,515 lb');
+  await expect(page.getByTestId('finish-total')).toHaveText('3,885 lb'); // 185 × 10 + 185 × 11
   await expect(page.getByTestId('pr-chip')).toHaveCount(0); // no history, no records
   await page.getByRole('button', { name: 'Done' }).tap();
   await expect(page).toHaveURL(/#\/$/);

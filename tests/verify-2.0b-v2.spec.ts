@@ -7,7 +7,7 @@ const DEVICES = ['iPhone SE', 'iPhone 17 Pro Max', '320 floor'];
 test.describe('verify 2.0b v2', () => {
   for (const unit of ['lb', 'kg'] as const) {
     test(`plate audit ${unit} @matrix`, async ({ page }) => {
-      test.skip(!DEVICES.includes(test.info().project.name));
+      test.skip(!DEVICES.includes(test.info().project.name), 'SE, Pro Max and the 320 floor only');
       test.setTimeout(180_000);
       const errs: string[] = [];
       page.on('console', (m) => m.type() === 'error' && errs.push(m.text()));

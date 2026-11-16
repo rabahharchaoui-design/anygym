@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { barbellLoad, bodyweightLoad, dumbbellLoad, stackLoad, timedLoad } from '../load';
-import { cellWords, formatSession, formatSet, formatTarget } from '../setWords';
+import { bestSetLine, cellWords, formatSession, formatSet, formatTarget } from '../setWords';
 
 // Session 2 gate B1: one wording for sets everywhere, weight first.
 const b185 = barbellLoad(45, [45, 25], 'none', 'lb')!;
@@ -30,5 +30,19 @@ describe('setWords', () => {
     expect(formatTarget(b185, null)).toBeNull();
     expect(cellWords({ reps: 12, load: b185 }, 185)).toBe('185 × 12');
     expect(cellWords({ reps: 12, load: b185 }, 185, 'kg')).toBe('185 lb × 12');
+  });
+});
+
+describe('bestSetLine (3.6z A16: the finish line names the best set)', () => {
+  const best = { reps: 12, load: dumbbellLoad(30, 'lb') };
+  it('sets that differ read "3 sets · best 30 lb each × 12", never as three sets of 12', () => {
+    expect(bestSetLine(3, best)).toBe('3 sets · best 30 lb each × 12');
+    expect(bestSetLine(3, best)).not.toMatch(/^3 sets · 30/);
+  });
+  it('the count already said under the name: just "best …"; one set is not called the best', () => {
+    expect(bestSetLine(2, best, false)).toBe('best 30 lb each × 12');
+    expect(bestSetLine(1, best)).toBe('1 set · 30 lb each × 12');
+    expect(bestSetLine(1, best, false)).toBe('30 lb each × 12');
+    expect(bestSetLine(0, best)).toBe('30 lb each × 12');
   });
 });

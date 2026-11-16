@@ -18,7 +18,7 @@ async function measure(page: Page) {
 for (const scale of [100, 130]) {
   test.describe(`text ${scale}%`, () => {
     test(`never show with a replacement names it @matrix`, async ({ page }) => {
-      test.skip(!['iPhone SE', 'iPhone 15'].includes(test.info().project.name));
+      test.skip(!['iPhone SE', 'iPhone 15'].includes(test.info().project.name), 'SE and iPhone 15 only');
       const errors = watchErrors(page);
       await pastIntake(page);
       await page.getByTestId('build-card').tap();
@@ -40,7 +40,7 @@ for (const scale of [100, 130]) {
       expect(errors).toEqual([]);
     });
     test(`never show with no replacement shows header minutes @matrix`, async ({ page }) => {
-      test.skip(!['iPhone SE', 'iPhone 15'].includes(test.info().project.name));
+      test.skip(!['iPhone SE', 'iPhone 15'].includes(test.info().project.name), 'SE and iPhone 15 only');
       const errors = watchErrors(page);
       await pastIntake(page, DUMBBELLS);
       await page.getByTestId('build-card').tap();

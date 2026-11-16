@@ -219,6 +219,12 @@ describe('estimateDayMinutes (SPEC 7.4)', () => {
     // 3 × (40 + 60) + 2 × (40 + 90) + 1 change × 60 = 300 + 260 + 60 = 620 s → 10 min
     expect(estimateDayMinutes(day)).toBe(10);
   });
+  it("3.6z A15: the coach's warm up sets count, 40 s each with no rest after", () => {
+    const day: PlanDay = { n: 1, name: 'A', blocks: [block({ sets: 3, restSec: 60, items: [item('a', { reps: 10 })] }), block({ sets: 2, restSec: 90, items: [item('b', { reps: 10 })] })] };
+    // 620 s as above + 3 × 40 s = 740 s → 12 min
+    expect(estimateDayMinutes(day, 0, 3)).toBe(12);
+    expect(estimateDayMinutes(day, 0, 0)).toBe(estimateDayMinutes(day));
+  });
   it('a hold counts its own time; a pair rests once per round', () => {
     const day: PlanDay = {
       n: 1,

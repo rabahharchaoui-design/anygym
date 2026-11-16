@@ -78,6 +78,15 @@ describe('3.6g2: a fixed day finished today is done for today', () => {
     expect(s.resolved).toMatchObject({ kept: true });
     expect(s.restDay).toBeNull();
   });
+  it('3.6z A13: a Tuesday workout that ends after midnight (Tue, Wed) leaves Wednesday a training day, not "Done for today"', async () => {
+    await fixed(['tue', 'wed']);
+    const lateStart = new Date(2026, 10, 10, 23, 30).getTime();
+    await db.sessions.update('day1', { startedAt: lateStart, endedAt: lateStart + 50 * 60_000 });
+    const morning = new Date(2026, 10, 11, 0, 40).getTime();
+    expect((await readSchedule(morning, db)).restDay).toBeNull();
+    expect((await readSchedule(wed, db)).restDay).toBeNull();
+    expect((await coachData(wed, db)).recovery).toBeDefined();
+  });
   it('a flexible rotation has no calendar: nothing changes there', async () => {
     await db.profile.put({ id: 'me', defaultUnit: 'lb', createdAt: 1, intakeDoneAt: 2, intake: { scheduleStyle: 'flexible', days: 2 } });
     expect((await readSchedule(evening, db)).restDay).toBeNull();

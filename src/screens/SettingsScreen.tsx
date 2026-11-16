@@ -15,8 +15,7 @@ import { haptics } from '../ui/haptics';
 import { Segmented } from '../ui/Segmented';
 import { bodyPref } from '../lib/bodyPref';
 import { useActiveGym } from '../db/useActiveGym';
-import { setGymUnit, setPlateColors } from '../db/equipment';
-import type { Unit } from '../db/types';
+import { GymUnitSettings } from './settings/GymUnitSettings';
 import { registerTap } from '../lib/secretTaps';
 import { version } from '../../package.json';
 import { getActiveSession } from '../db/workouts';
@@ -46,7 +45,6 @@ export function SettingsScreen() {
   const hapticsOn = useSyncExternalStore(haptics.subscribe, haptics.enabled, () => true);
   const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as const);
   const gym = useActiveGym();
-  const [error, setError] = useState(false);
   const go = useNav();
   const navigate = useNavigate();
   const location = useLocation();
@@ -159,26 +157,6 @@ export function SettingsScreen() {
     setToast({ id: ++toastSeq, text });
   };
 
-  const units = async (unit: Unit) => {
-    if (!gym || gym.unit === unit) return;
-    setError(false);
-    try {
-      await setGymUnit(gym.id, unit);
-    } catch {
-      setError(true);
-    }
-  };
-
-  const plates = async (on: boolean) => {
-    if (!gym) return;
-    setError(false);
-    try {
-      await setPlateColors(gym.id, on ? 'color' : 'black');
-    } catch {
-      setError(true);
-    }
-  };
-
   return (
     <>
       <TopBar title="Settings" leading={<BackButton to="/" label="Back to Today" />} />
@@ -279,43 +257,7 @@ export function SettingsScreen() {
           </button>
         </div>
       </section>
-      <section className={styles.group} aria-labelledby="set-plates">
-        <h2 id="set-plates" className={styles.groupTitle}>
-          {gym ? gym.name : 'Gym'}
-        </h2>
-        <div className={styles.card}>
-          {/* SPEC 3: lb or kg is per gym; switching starts its plates and bars from that unit's set. */}
-          <div className={styles.unitRow}>
-            <span className={styles.unitText}>
-              <span className={styles.unitLabel} id="units-label">
-                Units
-              </span>
-              <span className={styles.unitHint}>Plates and bars switch to the standard set for that unit.</span>
-            </span>
-            <Segmented
-              labelledBy="units-label"
-              testId="settings-units"
-              options={[
-                { value: 'lb', label: 'lb' },
-                { value: 'kg', label: 'kg' },
-              ]}
-              value={gym?.unit}
-              disabled={!gym}
-              onChange={(u) => void units(u)}
-            />
-          </div>
-          <Switch
-            label="Colored plates"
-            hint={gym ? `Show plates in competition colors at ${gym.name}. Off: black like most gyms.` : 'Show plates in competition colors.'}
-            checked={gym?.plateColors === 'color'}
-            disabled={!gym}
-            onChange={(on) => void plates(on)}
-          />
-        </div>
-        <p className={styles.error} role="status">
-          {error ? 'Could not save that. Try again.' : ''}
-        </p>
-      </section>
+      <GymUnitSettings gym={gym} toast={(make) => setToast(make(++toastSeq))} />
       <section className={styles.group} aria-labelledby="set-data">
         <h2 id="set-data" className={styles.groupTitle}>
           Your data

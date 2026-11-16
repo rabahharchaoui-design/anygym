@@ -73,6 +73,18 @@ export function formatSession(sets: readonly Loaded[]): string {
 }
 
 /**
+ * The finish screen's line for an exercise whose sets differ (3.6z A16): the count, then the best
+ * set named as the best, "3 sets · best 30 lb each × 12", so it never reads as three sets of 12.
+ * `sayCount` false when the count is already said ("1 of 4 sets" under the name): "best 30 lb each
+ * × 12". One set is not called the best: "1 set · 185 lb × 6".
+ */
+export function bestSetLine(count: number, best: SetLike, sayCount = true): string {
+  if (count <= 0) return formatSet(best);
+  const set = count > 1 ? `best ${formatSet(best)}` : formatSet(best);
+  return sayCount ? `${count} ${count === 1 ? 'set' : 'sets'} · ${set}` : set;
+}
+
+/**
  * A numeric table cell (the LAST TIME column), weight first without the unit: "185 × 12",
  * "30 × 10", "+25 × 8", "12 reps", "45 s"; the unit only when it is not the column's.
  */

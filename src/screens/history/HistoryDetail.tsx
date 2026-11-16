@@ -8,10 +8,8 @@ import type { WorkoutSet } from '../../db/types';
 import { LoadError } from '../../components/LoadError';
 import { useLive } from '../../hooks/useLive';
 import { formatSet } from '../../lib/setWords';
-import { workSetCount } from '../../lib/workSets';
-import { formatTotal, totalLifted } from '../../lib/load';
-import { isImportOrder } from '../../lib/import/importOrder';
-import { exerciseNamer, setCount, workoutDate, workoutTitle } from './historyWords';
+import { exerciseNamer, workoutTitle } from './historyWords';
+import { detailMeta } from './detailMeta';
 import styles from './History.module.css';
 
 /** One finished workout: its sets per exercise, in the order they were logged. Plain rows for now. */
@@ -34,19 +32,7 @@ export function HistoryDetail() {
     else groups.push({ exerciseId: s.exerciseId, sets: [s] });
   }
   const nameOf = value ? exerciseNamer(value.session) : (id: string) => id;
-  // Time and total lifted, only when known: imported workouts have no times (SPEC 9.3).
-  const s = value?.session;
-  const minutes = s && s.endedAt !== undefined && !s.imported && !isImportOrder(s.startedAt) ? Math.round((s.endedAt - s.startedAt) / 60000) : null;
-  const lifted = value?.unit ? totalLifted(value.sets.filter((x) => x.kind !== 'warmup'), value.unit) : 0;
-  const meta = value
-    ? [
-        workoutDate(value.session.startedAt),
-        setCount(workSetCount(value.sets)),
-        ...(minutes !== null ? [minutes < 1 ? '<1 min' : `${minutes} min`] : []),
-        // Dumbbells count both hands: say so, so the number is never a surprise.
-        ...(lifted > 0 && value.unit ? [`${formatTotal(lifted, value.unit)} lifted${value.sets.some((x) => x.kind !== 'warmup' && x.load?.kind === 'dumbbell_each') ? ' (both hands)' : ''}`] : []),
-      ].join(' · ')
-    : '';
+  const meta = value ? detailMeta(value.session, value.sets, value.unit) : '';
 
   return (
     <>
@@ -74,6 +60,7 @@ export function HistoryDetail() {
                     <li key={s.id} className={styles.set} data-testid="history-set">
                       <span className={styles.setIndex}>{i + 1}</span>
                       {s.kind === 'warmup' && <span className={styles.warm}>Warm up</span>}
+                      {s.uncertain && s.kind !== 'warmup' && <span className={styles.unsure} data-testid="history-set-unsure">Not sure</span>}
                       <span className="num">{formatSet(s)}</span>
                     </li>
                   ))}

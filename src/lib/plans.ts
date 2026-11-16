@@ -321,10 +321,12 @@ const CHANGE_SEC = 60;
  * rest after it; a pair rests once per round; 60 s per exercise change. Warm up blocks count like
  * any other block; a combined mobility block (PLAN 3.6) is one exercise change, its stretches flow
  * back to back. A finisher adds its minutes when the plan gives them (plus the change to it).
+ * `warmUps`: the coach's own warm up sets on the first big lift (PLAN 3.8; 3.6z A15, SPEC 7.4
+ * "+ warmups"), 40 s each and no rest after (a warm up starts no countdown, useAfterSet).
  * Rounded to the nearest minute.
  */
-export function estimateDayMinutes(day: PlanDay, weekIndex = 0): number {
-  let sec = 0;
+export function estimateDayMinutes(day: PlanDay, weekIndex = 0, warmUps = 0): number {
+  let sec = Math.max(0, warmUps) * WORK_SEC;
   let exercises = 0;
   for (const b of day.blocks) {
     const rest = blockRest(b);
