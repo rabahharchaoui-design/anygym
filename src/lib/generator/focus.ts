@@ -3,6 +3,7 @@ import { curateFocus, focusMuscles, normalizeFocusPicks, type FocusMove, type Fo
 import { RIDERS } from '../plan/focusShare';
 import { isCompound, orderUnits } from '../order';
 import { supports } from '../swap';
+import { ONE_MOVE } from '../generatorRules';
 import { allowed, beginnerRank, kindOf, makeItem } from './pick';
 import { prescribe, setCap } from './prescribe';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
@@ -61,7 +62,7 @@ function apart(units: Item[][]): Item[][] {
 export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusReport {
   const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
   if (!picks.some((p) => p !== 'balance')) return { budget: 0, spent: 0, priorities: [], days: days.map(() => []) };
-  const facts = (it: Item): FocusMove => ({ id: it.id, key: it.key, sets: it.sets, hard: it.profile.role === 'lift', compound: isCompound(it.profile), recovery: it.profile.role === 'lift' ? it.profile.targets : [], ...(ctx.loveKeys.has(it.key) ? { keep: true } : {}), ...(it.seconds ? { seconds: it.seconds[0] } : {}), ...(ctx.deps.focusFacts?.(it.id, it.profile) ?? { muscles: [...it.profile.targets], picks: (ctx.input.focus ?? []).filter((f) => f !== 'balance' && focusMuscles([f]).some((m) => it.profile.targets.includes(m))) }) });
+  const facts = (it: Item): FocusMove => ({ id: it.id, key: it.key, sets: it.sets, hard: it.profile.role === 'lift', compound: isCompound(it.profile), recovery: it.profile.role === 'lift' ? it.profile.targets : [], ...(ctx.loveKeys.has(it.key) ? { keep: true } : {}), ...(it.profile.role === 'lift' && it.profile.pattern && ONE_MOVE.has(it.profile.pattern) ? { twin: `${it.profile.pattern} ${kindOf(it.candidate.requires)}` } : {}), ...(it.seconds ? { seconds: it.seconds[0] } : {}), ...(ctx.deps.focusFacts?.(it.id, it.profile) ?? { muscles: [...it.profile.targets], picks: (ctx.input.focus ?? []).filter((f) => f !== 'balance' && focusMuscles([f]).some((m) => it.profile.targets.includes(m))) }) });
   const candidates = days.map((d) => Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => allowed(ctx, c, pattern === 'core')).map((c) => {
     const it = makeItem(ctx, c, pattern as Item['pattern']);
     prescribe(ctx, it, false);

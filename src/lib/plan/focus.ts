@@ -54,6 +54,8 @@ export type FocusMove = {
   muscles: readonly string[]; picks: readonly FocusPickId[];
   /** PLAN 3.6g2: the picks it works as a helper muscle (never counted as sets). */
   also?: readonly FocusPickId[];
+  /** PLAN 3.7b: the kind of small move it is (its movement pattern: a curl, a side raise). Focus never puts two of one kind on a day. */
+  twin?: string;
   /** An exercise the person loves: never swapped out for a focus move. */
   keep?: boolean;
   /** The muscles the 48 hour rule tracks for this move (the scheduler's own words). Defaults to `muscles`. */

@@ -125,16 +125,18 @@ export function makeBoard(input: CurateInput) {
   const parts = (id: FocusPickId): readonly string[] => FLOOR[id] ?? LIMIT_MUSCLES[id] ?? [];
   /** How little work the weakest muscle of the pick that this move trains has: extra goes there first (side and rear shoulders before more presses). */
   const weak = (id: FocusPickId, m: FocusMove): number => Math.min(Infinity, ...m.muscles.filter((x) => parts(id).includes(x)).map((x) => countHardSets(days, x)));
+  /** PLAN 3.7b: may it join the day? Not when the day has it, or has a small move of its kind (never two variants of one move on a day: two curls). */
+  const joins = (i: number, m: FocusMove) => !days[i]!.some((x) => x.key === m.key || (m.twin !== undefined && x.twin === m.twin));
   /** A move for the pick this day does not have yet, small (or big), the one for its weakest muscle first. */
   const fresh = (i: number, id: FocusPickId, big = false): FocusMove | undefined => {
-    const ok = offered(i, id, big).filter((m) => !days[i]!.some((x) => x.key === m.key) && rested(i, m));
+    const ok = offered(i, id, big).filter((m) => joins(i, m) && rested(i, m));
     // Nothing changes while the best is looked for: each move's `weak` is counted once.
     let best: FocusMove | undefined, least = 0;
     for (const m of ok) { const w = weak(id, m); if (!best || w < least) { best = m; least = w; } }
     return best;
   };
   /** Whether `fresh` would find a move (the same test, without ranking them). */
-  const hasFresh = (i: number, id: FocusPickId, big: boolean): boolean => offered(i, id, big).some((m) => !days[i]!.some((x) => x.key === m.key) && rested(i, m));
+  const hasFresh = (i: number, id: FocusPickId, big: boolean): boolean => offered(i, id, big).some((m) => joins(i, m) && rested(i, m));
   /** The accessories a day can spare, best first: those whose muscles other moves that day also train, then the rest; last in the day first. Never a loved move, a big lift or work a pick asks for. */
   const spares = (day: FocusMove[]): number[] => {
     const doubled = (m: FocusMove) => m.muscles.every((s) => day.some((x) => x !== m && x.hard && x.muscles.includes(s)));
@@ -194,5 +196,5 @@ export function makeBoard(input: CurateInput) {
    * higher pick's days first, lib/plan/focusServe.ts, or the lower pick gets no more).
    */
   const above = (id: FocusPickId) => Math.min(Infinity, ...hardIds.slice(0, hardIds.indexOf(id)).filter(open).map(gained));
-  return { input, days, baseline, budget, maxMoves, state, wanted, spent, limits, slack, focusedMuscles, gained, accepts, rested, lifts, weak, fresh, spares, donors, hasMove, atLimit, hardIds, full, need, above, closed, open, own, tight, rivals, shareOf };
+  return { input, days, baseline, budget, maxMoves, state, wanted, spent, limits, slack, focusedMuscles, gained, accepts, rested, joins, lifts, weak, fresh, spares, donors, hasMove, atLimit, hardIds, full, need, above, closed, open, own, tight, rivals, shareOf };
 }

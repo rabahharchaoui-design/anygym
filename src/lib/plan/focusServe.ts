@@ -239,7 +239,7 @@ export function fill(b: Board): void {
       const grown = [...day].reverse().sort((x, y) => Number(x.compound) - Number(y.compound)).find((m) => free(m) && m.sets < input.cap && room(m, 1) && b.accepts(i, () => m.sets++, () => m.sets--));
       if (grown) continue;
       if (b.lifts(day) >= b.maxMoves) break;
-      const small = (input.candidates[i] ?? []).filter((c) => free(c) && !c.compound && room(c, 2) && !day.some((x) => x.key === c.key) && b.rested(i, c)).sort((x, y) => used(x) - used(y));
+      const small = (input.candidates[i] ?? []).filter((c) => free(c) && !c.compound && room(c, 2) && b.joins(i, c) && b.rested(i, c)).sort((x, y) => used(x) - used(y));
       // A muscle no small move of the day trains yet first: the day gets wider before it gets deeper.
       const fresh = small.find((c) => !day.some((x) => x.hard && !x.compound && x.muscles.some((s) => c.muscles.includes(s)))) ?? small[0];
       if (!fresh || ![Math.min(3, input.cap), 2].some((n) => room(fresh, n) && b.accepts(i, () => day.push({ ...fresh, sets: n }), () => { day.pop(); }))) break;
