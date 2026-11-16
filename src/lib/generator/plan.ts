@@ -9,6 +9,7 @@ import { addMoves, densify, fillUp } from './fit';
 import { WARM_UP_SEC, finisherFor, warmUpFor } from './finisher';
 import { applyFocus } from './focus';
 import { focusLeast } from './least';
+import { remembered } from './memo';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
 import { fill } from './pick';
 import { alsoChanges, prescribe } from './prescribe';
@@ -16,8 +17,12 @@ import { GYM_TYPE, hashText, rawBlock } from './raw';
 import { minutesOf, trim } from './trim';
 import { GENERATOR_VERSION, type Applied, type Day, type GeneratorDeps, type GeneratorInput, type GeneratorResult, type Item, type RawDay, type RawPlan, type RawSingle } from './types';
 
-/** Builds the plan, or says plainly which day cannot be built here. */
+/** Builds the plan, or says plainly which day cannot be built here. The same answers are built once (memo.ts). */
 export function generatePlan(input: GeneratorInput, deps: GeneratorDeps): GeneratorResult {
+  return remembered(input, deps, () => buildPlan(input, deps));
+}
+
+function buildPlan(input: GeneratorInput, deps: GeneratorDeps): GeneratorResult {
   const daysPerWeek = input.days !== undefined && Number.isInteger(input.days) && input.days >= 2 && input.days <= 6 ? input.days : 3;
   const key = (id: string) => deps.data.sameAs(id);
   const ctx = contextOf(input, deps);

@@ -5,7 +5,7 @@ import { focusFacts, FOCUS_MOBILITY } from './focus';
 import { SWAP_DATA } from './patterns';
 import { profileFor } from './order';
 import { exerciseNameOf } from './importMatch';
-import { approvedCardio, approvedFocusLifts } from './candidateGate';
+import { approvedCardio, approvedFocusLifts, approvedVersion } from './candidateGate';
 
 export const GENERATOR_DEPS: GeneratorDeps = {
   data: SWAP_DATA,
@@ -17,6 +17,8 @@ export const GENERATOR_DEPS: GeneratorDeps = {
   name: (id) => exerciseNameOf(id) ?? id,
   // PLAN 3.5j: a cardio warm up only from a move approved on this phone.
   cardio: approvedCardio,
+  // PLAN 3.6p: everything above that can change on this phone changes with the approved set.
+  stamp: approvedVersion,
 };
 
 export const generate = (input: GeneratorInput): GeneratorResult => generatePlan(input, GENERATOR_DEPS);
