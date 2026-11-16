@@ -51,3 +51,4 @@
 3.6z | Settings, switch lb to kg: a toast says "Units changed to kg · Undo"; tap Undo and your gym's weights are back exactly as they were.
 3.7a | Quick workout with a Seated Calf Raise: open the weight, put on one 45 lb plate: it reads "1 × 45 lb plate" with no total and Done says "Answer one side or both first"; tap One side and it totals at once.
 3.7b | Settings, Answer the questions again: Brand new, full gym, 3 days, pick Arms as a focus: Your plan stays machine first (no Deadlift, Barbell Back Squat or Pull Up) with the arm work added.
+4.1 | Nothing to test on the phone yet: the run engine is logic only; the Run tab arrives with 4.2 and 4.3.
