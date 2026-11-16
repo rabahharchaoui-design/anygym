@@ -69,7 +69,7 @@ describe('verify 1.8', () => {
     const text = serializeBackup(await exportBackup(db, 1));
     const parsed = parseBackup(text);
     if (!parsed.ok) throw new Error(parsed.error);
-    for (const t of TABLE_NAMES) expect(JSON.stringify([...parsed.backup.tables[t]].sort((x: any, y: any) => String(x.id ?? JSON.stringify(x)).localeCompare(String(y.id ?? JSON.stringify(y)))), null, 0)).toBe(before[t]);
+    for (const t of TABLE_NAMES) expect(JSON.stringify([...(parsed.backup.tables[t] ?? [])].sort((x: any, y: any) => String(x.id ?? JSON.stringify(x)).localeCompare(String(y.id ?? JSON.stringify(y)))), null, 0)).toBe(before[t]);
     for (const t of db.tables) await t.clear();
     await restoreReplace(parsed.backup, db);
     expect(await snap()).toEqual(before);

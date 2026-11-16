@@ -15,6 +15,8 @@ import { planStateOk } from './backupPlans';
 import { MAX_EXTRA_SETS } from './extraSets';
 import { MAX_ROW_SLOT } from './setTable';
 import type { CandidateReviewRow } from './candidates/review';
+import type { CoachCardRow, CoachLiftRow, EffortRow } from '../db/coachTypes';
+import type { ChangeRecord } from './coach/types';
 import { RECORD_CHECKS, isDraft, isMutation, isObj, knownPlates, num, oneOf, recordOf, shape, str, type Check, type Rec } from './backupChecks';
 import { plural } from './words';
 import { dayKey } from './dayKey';
@@ -40,12 +42,37 @@ export type BackupTables = {
   journal: JournalEntry[];
   /** PLAN 3.5e: G's decisions on candidate moves (schema 11). */
   candidateReviews: CandidateReviewRow[];
+  /**
+   * PLAN 3.6d (audit A7): the coach's tables (schema 10): accepted Level up targets and what the
+   * coach learned, its changes (for Undo), answered cards and the Easy / Good / Hard taps. Carried
+   * since 3.6d; an older file leaves them out (undefined), and then the phone's own are kept.
+   */
+  coachLifts?: CoachLiftRow[];
+  coachChanges?: ChangeRecord[];
+  coachCards?: CoachCardRow[];
+  efforts?: EffortRow[];
 };
 
 export type TableName = keyof BackupTables;
 
 /** Every table a backup carries, in write order. */
-export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones', 'journal', 'candidateReviews'];
+export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones', 'journal', 'candidateReviews', 'coachLifts', 'coachChanges', 'coachCards', 'efforts'];
+
+/**
+ * Tables a backup started carrying after their schema version (PLAN 3.6d): a file may leave them
+ * out, which means "not in this file" (never "empty"): Replace keeps the phone's, Merge adds none.
+ */
+export const LATER_TABLES: readonly TableName[] = ['coachLifts', 'coachChanges', 'coachCards', 'efforts'];
+
+/**
+ * Tables on the phone that a backup never carries, each on purpose (the coverage test fails when a
+ * new table is in neither list): kv is a mirror of live state and per phone markers, the report
+ * tables belong to this phone (SPEC 24), not the workouts.
+ */
+export const NOT_BACKED_UP: readonly string[] = ['kv', 'reportQueue', 'crashSignatures', 'reportPreferences'];
+
+/** A table this file carries (every table but a later one an older file left out). */
+export const carries = (tables: Partial<Record<TableName, unknown>>, t: TableName): boolean => tables[t] !== undefined;
 
 export type Backup = {
   format: typeof BACKUP_FORMAT;
@@ -111,6 +138,11 @@ export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersi
       journal: active ? tables.journal.filter((j) => activeIds.has(j.sessionId)) : [],
       // PLAN 3.5e: tables read before schema 11 have no decisions.
       candidateReviews: tables.candidateReviews ?? [],
+      // PLAN 3.6d: a backup made now always carries the coach's tables.
+      coachLifts: tables.coachLifts ?? [],
+      coachChanges: tables.coachChanges ?? [],
+      coachCards: tables.coachCards ?? [],
+      efforts: tables.efforts ?? [],
     },
     drafts: Object.fromEntries(Object.entries(drafts).filter(([id, d]) => activeIds.has(id) && Object.keys(d).length > 0)),
   };
@@ -139,12 +171,18 @@ export const TABLE_SINCE: Record<TableName, number> = {
   tombstones: 6,
   journal: 8,
   candidateReviews: 11,
+  coachLifts: 10,
+  coachChanges: 10,
+  coachCards: 10,
+  efforts: 10,
 };
 
 /** The primary key of a record, as a string, so duplicates can be found. */
 export function keyOf(table: TableName, r: Rec): string {
   if (table === 'exerciseSettings') return `${String(r.exerciseId)}\u0000${String(r.gymId)}`;
   if (table === 'orderCounters') return String(r.sessionId);
+  if (table === 'efforts') return `${String(r.sessionId)}\u0000${String(r.exerciseId)}`;
+  if (table === 'coachLifts') return String(r.key);
   return String(r.id);
 }
 
@@ -156,7 +194,8 @@ export function keyOf(table: TableName, r: Rec): string {
  */
 export function upgradeTables(raw: Partial<Record<TableName, Rec[]>>, fromVersion: number): Record<TableName, Rec[]> {
   const out = {} as Record<TableName, Rec[]>;
-  for (const t of TABLE_NAMES) out[t] = raw[t] ?? [];
+  // A later table the file left out stays out (PLAN 3.6d): not carried, never "empty".
+  for (const t of TABLE_NAMES) if (raw[t] !== undefined || !LATER_TABLES.includes(t)) out[t] = raw[t] ?? [];
   if (fromVersion < 5) {
     const rename = (id: unknown) => (typeof id === 'string' && RENAMED_PLAN_IDS[id]) || id;
     out.planState = out.planState.map((s) => (s.planId === undefined ? s : { ...s, planId: rename(s.planId) }));
@@ -283,7 +322,7 @@ export function parseBackup(text: string): ParseResult {
     const rows = given[t];
     // Every table of the backup's own schema must be there: a missing one would wipe that data on Replace.
     if (rows === undefined) {
-      if (TABLE_SINCE[t] <= version) return { ok: false, error: DAMAGED };
+      if (TABLE_SINCE[t] <= version && !LATER_TABLES.includes(t)) return { ok: false, error: DAMAGED };
       continue;
     }
     if (!Array.isArray(rows) || !rows.every(isObj)) return { ok: false, error: DAMAGED };
@@ -293,7 +332,7 @@ export function parseBackup(text: string): ParseResult {
   const upgraded = upgradeTables(tables, version);
   for (const t of TABLE_NAMES) {
     const seen = new Set<string>();
-    for (const r of upgraded[t]) {
+    for (const r of upgraded[t] ?? []) {
       if (!RECORD_CHECKS[t](r)) return { ok: false, error: DAMAGED };
       const k = keyOf(t, r);
       if (seen.has(k)) return { ok: false, error: DAMAGED };
