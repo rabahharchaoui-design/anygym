@@ -9,7 +9,7 @@ import { STOPPED, elapsedMs, wholeSeconds, type Stopwatch } from '../../lib/time
 import { bodyweightLoad, timedLoad } from '../../lib/load';
 import { useNow } from '../../hooks/useNow';
 import { START_LIGHT } from '../../lib/coach';
-import { currentLoad, pickProblem, prefillLoad } from './exerciseLoad';
+import { currentLoad, machineQuestions, pickProblem, prefillLoad } from './exerciseLoad';
 import type { Workout } from './useWorkout';
 import { adoptJournal, migrateLegacyRows, reconcileExercise, rowsOf } from './rowLog';
 import { groupNextOf } from './groupNext';
@@ -134,7 +134,11 @@ export function useExerciseRows(w: Workout, sessionId: string, exerciseId: strin
   const baseUnknown = (kind === 'barbell' || kind === 'plate_machine') && rebuild(null, []) === null;
   /** The light test set of a first timer (SPEC 15): the first row, while nothing is logged yet. */
   const testSet = (row: PendingRow) => progression?.next.reason === START_LIGHT && logged.length === 0 && row.index === 0;
-  const blockedOf = (row: PendingRow) => (kind ? blockedReason(kind, row, row.index === current?.index ? liveSeconds : 0, baseUnknown) : 'Pick a weight');
+  // A plate machine whose start is known but not its sides (PLAN 3.7a): the ✓ says what to answer.
+  const machine = kind ? machineQuestions(kind, gym, exerciseId, name) : null;
+  const sidesFirst = !!machine?.sidesUnknown && !machine.startUnknown;
+  const blockedOf = (row: PendingRow) =>
+    kind ? (sidesFirst && row.load === null && !row.kept ? 'Answer one side or both first' : blockedReason(kind, row, row.index === current?.index ? liveSeconds : 0, baseUnknown)) : 'Pick a weight';
 
   /**
    * The row's stable identity (PLAN 1.7k): its draft id, given to a row still showing its target

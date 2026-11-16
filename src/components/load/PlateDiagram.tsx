@@ -3,7 +3,7 @@ import { animate } from 'motion/react';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { tick } from '../../ui/haptics';
 import type { BarId, Collars, PlateColors, Unit } from '../../db/types';
-import { fitsSleeve, formatAmount, formatMathLine, formatWeight, platesOnly, sumLoad, type Horns } from '../../lib/load';
+import { fitsSleeve, formatAmount, formatMathLine, formatPlatesOn, formatWeight, sumLoad, type Horns } from '../../lib/load';
 import { barSpec, plateSpec } from '../../lib/plates';
 import { barLayout, hornLayout, outermost, withPlates, withoutOutermost } from '../../lib/plateLayout';
 import { Hint } from '../hint/Hint';
@@ -11,6 +11,7 @@ import { hints } from '../../lib/hints';
 import { PAINT, plateColor } from '../../lib/plateColors';
 import { BarSvg } from './BarSvg';
 import { PlateChips } from './PlateChips';
+import { PlateTotal } from './PlateTotal';
 import { TypeItSheet } from './TypeItSheet';
 import { useReadoutFit } from './useReadoutFit';
 import styles from './PlateDiagram.module.css';
@@ -46,8 +47,8 @@ type Props = {
   barId?: BarId;
   /** Share of the screen's height the drawing may take, instead of the picker's own (import editor). */
   drawingShare?: number;
-  /** A machine horn (PLAN 3.6h2): 1 when the machine loads on one side, so the plates count once. */
-  horns?: Horns;
+  /** A machine horn (PLAN 3.6h2): 1 when the machine loads on one side, so the plates count once; null while not answered (PLAN 3.7a: no total). */
+  horns?: Horns | null;
 };
 
 const LONG_PRESS_MS = 400;
@@ -104,9 +105,11 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
 
   const sizes = [...inventory].sort((a, b) => b - a);
   const horn = variant === 'horn';
-  const horns: Horns = horn ? hornsIn : 2;
+  // One side or both not answered yet (PLAN 3.7a): only the plates put on are sure, never a total.
+  const sidesUnknown = horn && hornsIn === null;
+  const horns: Horns = horn && hornsIn !== null ? hornsIn : 2;
   // "Each side" on a bar and a two sided machine; "On the machine" when its plates count once.
-  const sideLabel = horns === 1 ? 'On the machine' : 'Each side';
+  const sideLabel = sidesUnknown ? 'Put on' : horns === 1 ? 'On the machine' : 'Each side';
   const baseLabel = horn ? 'start' : 'bar';
   const makeLayout = horn ? hornLayout : barLayout;
   // True scale (SPEC 5.6): the width sets the scale and the height; the plates only move the camera.
@@ -151,7 +154,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
   const sleeve = barSpec(horn ? 'olympic' : barId, unit).sleeve;
   const biggest = Math.max(...sizes.map((w) => plateSpec(w, unit).diameter));
   const { total } = sumLoad({ bar, perSide: value, collars, unit, other, horns });
-  const math = formatMathLine(bar, value, collars, unit, baseLabel, other, horns);
+  const math = sidesUnknown ? formatPlatesOn(value, unit) : formatMathLine(bar, value, collars, unit, baseLabel, other, horns);
   const outer = outermost(value);
   // The exact breakdown stays readable by screen readers (Codex 2.0d): hidden on screen, described by the total.
   const mathId = `math${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -185,11 +188,9 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
     setHold(layout.zoom);
     onChange(withoutOutermost(value));
   };
-  // Under a known total: "Plates only" (Smith or machine counted as plates only), or a machine's start.
-  const baseNote = total === null ? null : bar === 0 ? 'Plates only' : horn && bar !== null ? `Start ${formatWeight(bar, unit)}` : null;
 
   const typeIt =
-    bar !== null ? (
+    bar !== null && !sidesUnknown ? (
       <button type="button" className={`${styles.link} pressable`} onClick={() => setTyping(true)}>
         Type it
       </button>
@@ -213,65 +214,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
           {math}
         </span>
         <div className={styles.readoutMain}>
-          {total === null && horn ? (
-            // A machine whose start is not known yet: the plates on both horns, honestly "+ start"
-            // under it (2.0d critic r3); answering only takes "+ start" away, the number never jumps.
-            // Never a guessed total.
-            <>
-              <p
-                className={`${styles.total} num`}
-                aria-live="polite"
-                aria-label={`${formatWeight(platesOnly(value, unit, horns), unit)} of plates plus the machine's start, total not known yet`}
-                aria-describedby={mathId}
-                data-testid="plate-total"
-                data-math={math}
-                data-fit="total"
-              >
-                {formatAmount(platesOnly(value, unit, horns))}
-                <span className={styles.unit}>{unit}</span>
-              </p>
-              <p className={styles.note} data-testid="plate-note">
-                + start
-              </p>
-              {mathAction && (
-                <div className={styles.mathAction} data-fit="action">
-                  {mathAction}
-                </div>
-              )}
-            </>
-          ) : total === null ? (
-            // Unknown bar: no number yet, never a guessed total; the plates stay drawn below.
-            <>
-              <p className={`${styles.total} num`} aria-live="polite" aria-label="Total not known yet" aria-describedby={mathId} data-testid="plate-total" data-math={math} data-fit="total">
-                —<span className={styles.unit}>{unit}</span>
-              </p>
-              <p className={styles.note} data-testid="plate-note">
-                Bar weight not set
-              </p>
-              {mathAction && (
-                <div className={styles.mathAction} data-fit="action">
-                  {mathAction}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <p className={`${styles.total} num`} aria-live="polite" aria-describedby={mathId} data-testid="plate-total" data-math={math} data-fit="total">
-                {formatAmount(total)}
-                <span className={styles.unit}>{unit}</span>
-              </p>
-              {baseNote && (
-                <p className={styles.note} data-testid="plate-note">
-                  {baseNote}
-                </p>
-              )}
-              {mathAction && (
-                <div className={styles.mathAction} data-fit="action">
-                  {mathAction}
-                </div>
-              )}
-            </>
-          )}
+          <PlateTotal total={total} horn={horn} sidesUnknown={sidesUnknown} horns={horns} bar={bar} value={value} unit={unit} math={math} mathId={mathId} mathAction={mathAction} />
         </div>
         <div className={styles.readoutSide} data-end="" data-fit="side">
           {clear}
@@ -298,7 +241,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
       </div>
       {horn && drawingShare === undefined && (
         <p className={styles.perSide} data-testid="picker-title">
-          {horns === 1 ? 'Machine · plates on one side' : 'Machine · plates per side'}
+          {sidesUnknown ? 'Machine · plates' : horns === 1 ? 'Machine · plates on one side' : 'Machine · plates per side'}
         </p>
       )}
 
@@ -308,7 +251,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
       {hint && value.length === 0 && <Hint id={horn ? 'machine' : 'plates'} className={styles.hint} point="down" />}
       <div className={styles.tray} role="group" aria-label="Plates" data-scroll={sizes.length > 7} data-many={sizes.length > 6} {...(sizes.length > 7 ? { 'data-scroller-x': '' } : {})}>
         {sizes.map((w) => (
-          <TrayPlate key={w} weight={w} unit={unit} size={plateSpec(w, unit).diameter / biggest} onAdd={add} once={horns === 1} />
+          <TrayPlate key={w} weight={w} unit={unit} size={plateSpec(w, unit).diameter / biggest} onAdd={add} once={horns === 1 || sidesUnknown} />
         ))}
       </div>
       </div>
