@@ -1,5 +1,5 @@
 // Schedule reads and weekly choices; writes commit together on the phone, offline.
-import { isGeneratedId, planById } from '../data/plans';
+import { planById } from '../data/plans';
 import { profileFor } from '../data/order';
 import { adaptedPlanDay, alwaysPicks } from './planAdapt';
 import { weekKey, weekStart } from '../lib/coach/time';
@@ -11,7 +11,7 @@ import { getProfile } from './intake';
 import { readTrainingLog } from './training';
 import { countedTraining } from '../lib/plan/recovery';
 import { keptDayOf } from '../lib/finishPlan';
-import { dayIdOf, dayIndexOf } from '../lib/plans';
+import { familyDayIndex, samePlanFamily } from '../data/planFamily';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { PlanState, Profile } from './types';
 
@@ -25,7 +25,8 @@ export async function resolveSchedule(state: PlanState, profile: Profile | undef
   const log = await readTrainingLog(now, db);
   // A day kept up next (under 60% done) is never moved away by its own part done workout.
   const keptDay = keptIndex !== undefined ? plan.days[keptIndex] : undefined;
-  const kept = keptDay ? { dayIndex: state.nextDayIndex, trained: countedTraining(log, now, (e) => e.planId === plan.id && e.dayId === dayIdOf(keptDay)) } : undefined;
+  // PLAN 3.6j (A5): the kept day's own workout may be from the plan this one was tuned or rebuilt from.
+  const kept = keptDay ? { dayIndex: state.nextDayIndex, trained: countedTraining(log, now, (e) => familyDayIndex(plan, e.planId, e.dayId) === keptIndex) } : undefined;
   const gym = gymId ? await db.gyms.get(gymId) : await db.gyms.filter((g) => g.isActive).first();
   const always = await alwaysPicks(plan.id, db);
   const days = plan.days.map((_, i) => [...new Set(adaptedPlanDay(plan, i, state.weekIndex, gym, always).exerciseIds.flatMap((id) => {
@@ -48,12 +49,12 @@ export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
     // "This week" on a fixed schedule means this calendar week: the plan days with a finished workout since Monday.
     // A rebuilt "Your plan" keeps its days by position (lib/plan/carry.ts), so its earlier builds count too.
     const plan = planById(state?.planId);
-    const mine = (id: string | undefined) => id === plan?.id || (!!id && !!plan && isGeneratedId(id) && isGeneratedId(plan.id));
+    const mine = (id: string | undefined) => !!plan && samePlanFamily(id, plan.id);
     const finished = style === 'fixed' && plan ? await db.sessions.where('startedAt').between(weekStart(now), now, true, true).filter((s) => !s.imported && s.endedAt !== undefined && !!s.dayId && mine(s.planId)).toArray() : [];
     // PLAN 3.6g2: a plan day finished today on a fixed schedule is done for today (not a day kept up next by the 60% rule: that one still waits).
     const midnight = new Date(now).setHours(0, 0, 0, 0);
     const doneToday = !!state && keptDayOf(state) === undefined && finished.some((s) => s.endedAt! >= midnight);
-    const weekDays = plan ? weekDaysOf(style, finished.map((s) => ({ startedAt: s.startedAt, dayIndex: dayIndexOf(plan, s.dayId) })), now) : null;
+    const weekDays = plan ? weekDaysOf(style, finished.map((s) => ({ startedAt: s.startedAt, dayIndex: familyDayIndex(plan, s.planId, s.dayId) })), now) : null;
     return {
       weekKey: weekKey(now), style, weekly: profile?.weeklySchedule, resolved, planDays, fixedDays,
       /** Fixed schedule: the plan days trained this calendar week (the strip's "This week"). Null on a rotation. */

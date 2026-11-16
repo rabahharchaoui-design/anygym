@@ -11,12 +11,13 @@ import { liftKey, type ChangeRecord, type Effort, type Lift, type LiftSession, t
 import type { RepRange } from '../lib/progression';
 import { patternOf, slotOf, swapCandidates, workoutIdOf } from '../lib/swap';
 import { QUICK_DEFAULT, dayWorkout, repRangeOf } from '../lib/planWorkout';
-import { dayIdOf, dayIndexOf } from '../lib/plans';
+import { dayIndexOf } from '../lib/plans';
 import { keptDayOf, movesOn } from '../lib/finishPlan';
 import { planProgress } from './workoutFinish';
 import { barForName } from '../lib/loadTypeRule';
 import { SWAP_DATA, candidateBarOf } from '../data/patterns';
 import { planById } from '../data/plans';
+import { familyDayIndex, samePlanFamily } from '../data/planFamily';
 import { planExercise } from '../data/planExercises';
 import { exerciseNameOf } from '../data/importMatch';
 import { infoForExercise } from '../data/exerciseInfo';
@@ -207,7 +208,7 @@ async function keptDay(planState: PlanState, finished: readonly Session[], db: A
   const plan = planById(planState.planId);
   const day = plan?.days[planState.nextDayIndex];
   if (!plan || !day) return undefined;
-  const last = finished.find((s) => s.planId === plan.id && s.dayId === dayIdOf(day));
+  const last = finished.find((s) => familyDayIndex(plan, s.planId, s.dayId) === planState.nextDayIndex);
   const p = last ? await planProgress(last, db) : undefined;
   return p && p.logged > 0 && !p.complete && !movesOn(p.share) ? { dayN: day.n, logged: p.logged, planned: p.planned } : { dayN: day.n };
 }
@@ -242,7 +243,7 @@ function restsToday(profile: Profile | undefined, planState: PlanState | undefin
   if (!plan) return false;
   const style = scheduleStyleOf(profile?.intake);
   const midnight = new Date(now).setHours(0, 0, 0, 0);
-  const doneToday = style === 'fixed' && keptDayOf(planState!) === undefined && finished.some((x) => !x.imported && !!x.dayId && x.planId === plan.id && (x.endedAt ?? 0) >= midnight);
+  const doneToday = style === 'fixed' && keptDayOf(planState!) === undefined && finished.some((x) => !x.imported && !!x.dayId && samePlanFamily(x.planId, plan.id) && (x.endedAt ?? 0) >= midnight);
   return !fixedDaysOf(style, profile?.intake?.weekdays, plan.days.length) && !!restDayOf(style, weekdaysOf(profile, now), now, doneToday);
 }
 

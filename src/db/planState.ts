@@ -1,7 +1,8 @@
 // Where the user is in their curated plan (PLAN 1.10): one planState row, id 'active'.
 // The plans are static JSON (src/data/plans.ts); only this small pointer is stored.
 import { basePlanOf, isGeneratedId, planById } from '../data/plans';
-import { clampWeek, dayIndexOf, type Plan } from '../lib/plans';
+import { clampWeek, type Plan } from '../lib/plans';
+import { familyDayIndex } from '../data/planFamily';
 import { rotationOf } from '../lib/plan/schedule';
 import { carryPlace, type CarriedPlace } from '../lib/plan/carry';
 import { finishPlanPosition, movesOn } from '../lib/finishPlan';
@@ -174,11 +175,16 @@ export async function setFinishNextDay(sessionId: string, dayIndex: number, db: 
   });
 }
 
+/**
+ * The active plan and the day a workout did in it. PLAN 3.6j (audit A5): a workout of the same plan
+ * family (a coach tuned copy chosen mid workout, a rebuild of "Your plan") moves the plan in use,
+ * its day kept by position (data/planFamily.ts). Another plan's workout: undefined.
+ */
 async function planDayOf(session: Session, db: AnyGymDB) {
   const state = await db.planState.get('active');
-  const plan = planById(session.planId);
-  if (!state || !plan || state.planId !== plan.id) return undefined;
-  const done = dayIndexOf(plan, session.dayId);
+  const plan = planById(state?.planId);
+  if (!state || !plan) return undefined;
+  const done = familyDayIndex(plan, session.planId, session.dayId);
   return done === -1 ? undefined : { state, plan, done };
 }
 

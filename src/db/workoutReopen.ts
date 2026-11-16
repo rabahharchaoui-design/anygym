@@ -1,5 +1,6 @@
 // Undo for Finish: reopening a finished workout with its plan and pending rows (split from workouts.ts, PLAN 3.6x).
 import { durableRow } from '../lib/durable';
+import { samePlanFamily } from '../data/planFamily';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { PlanState } from './types';
 import { FINISH_PENDING_PREFIX, FINISH_PLAN_PREFIX, type FinishPending } from './workoutKeys';
@@ -38,7 +39,7 @@ export async function reopenWorkoutWithPending(sessionId: string, given?: PlanSt
     await db.kv.delete(FINISH_PLAN_PREFIX + sessionId);
     const planBefore = kept?.value ? (JSON.parse(kept.value) as PlanState) : given;
     const now = await db.planState.get('active');
-    if (planBefore && now && now.planId === planBefore.planId && s.planId === planBefore.planId) await db.planState.put(planBefore);
+    if (planBefore && now && now.planId === planBefore.planId && samePlanFamily(s.planId, planBefore.planId)) await db.planState.put(planBefore);
     const row = await db.kv.get(FINISH_PENDING_PREFIX + sessionId);
     await db.kv.delete(FINISH_PENDING_PREFIX + sessionId);
     const pending = parsePending(row?.value ?? null);
