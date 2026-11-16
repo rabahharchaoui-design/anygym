@@ -125,6 +125,8 @@ export type Concept = {
   focus?: string;
   /** 3.5f round 3 (M8): Preview only: the warm up moves the workout opens with before its lifts (not deck cards). */
   warmUp?: { count: number; stretches: boolean };
+  /** PLAN 3.6g2: Preview only: the stretch block the workout ends with (not deck cards), and its minutes. */
+  stretchBlock?: { minutes: number };
 };
 
 /** "Warm up · 3 stretches" (3.5f round 3, M8): what a plan day's Start opens with before the lifts. */

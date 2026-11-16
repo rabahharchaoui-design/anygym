@@ -1,13 +1,12 @@
 // "Your plan" (PLAN 3.5, SPEC 14 step 14): the intake answers as the generator's input, and the plain
 // words on what it built. Every word comes from what the generator really did (Applied), never from
 // what the answers merely asked for. Pure.
-import { focusName } from '../plan/focus';
-import { focusTop } from '../plan/focusPriority';
+import { focusHeadline, focusWorkWord } from '../plan/focusPriority';
 import type { Applied, GeneratorInput } from '../generator';
 import type { Pattern } from '../swap';
 import { gymKitOf } from './planFit';
 import { goalsOf, type IntakeAnswers } from './funnel';
-import { EASY_ON, labelOf, type FocusPickId, type GoalId, type PlaceAnswer } from './options';
+import { EASY_ON, labelOf, type GoalId, type PlaceAnswer } from './options';
 import { FINISHER_MINUTES } from '../generatorRules';
 import { cap } from '../words';
 
@@ -85,8 +84,6 @@ const GAP_WORD: Record<Pattern, string> = {
 import { list } from '../words';
 export { list };
 const average = (ns: readonly number[]): number => (ns.length ? Math.round(ns.reduce((x, y) => x + y, 0) / ns.length) : 0);
-/** "extra arm work", "extra leg work", "extra lats work": a pick as the word before "work". */
-const focusWord = (f: FocusPickId): string => (f === 'arms' ? 'arm' : f === 'legs' ? 'leg' : f === 'glutes' ? 'glute' : focusName(f).toLowerCase());
 /** Minutes close to the ones chosen say the choice ("about 60 min", never "about 59"): rounding noise is not news. */
 const MINUTES_NEAR = 3;
 export const aboutMinutes = (avg: number, chosen: number | undefined): number => (chosen !== undefined && Math.abs(avg - chosen) <= MINUTES_NEAR ? chosen : avg);
@@ -108,9 +105,9 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   const parts: string[] = [`${days} days`, `about ${aboutMinutes(avg, a.minutes)} min`];
   if (a.place) parts.push(PLACE_WORD[a.place]);
   // The picks with the most extra, all of them (never the first two by rank, which may have got less).
-  const retained = applied.focusReport ? focusTop(applied.focusReport) : [];
-  if (retained.length) parts.push(retained.length > 3 ? `extra work for ${retained.length} focus areas` : `extra ${list(retained.map((p) => focusWord(p.id)))} work`);
-  else if (applied.focus.length) parts.push(`extra ${list(applied.focus.map((f) => focusWord(f.id)))} work`);
+  const headline = applied.focusReport ? focusHeadline(applied.focusReport) : null;
+  if (headline) parts.push(headline);
+  else if (applied.focus.length) parts.push(`extra ${list(applied.focus.map((f) => focusWorkWord(f.id)))} work`);
   const easy = applied.easyOn.map((j) => (labelOf(EASY_ON, j as (typeof EASY_ON)[number]['id']) ?? j).toLowerCase());
   if (easy.length) parts.push(`easy on ${list(short(easy, 2))}`);
   if (applied.loved.length) parts.push(applied.loved.length === 1 ? 'with an exercise you love' : `with ${applied.loved.length} exercises you love`);
@@ -124,7 +121,7 @@ export function yourPlanWords(applied: Applied, a: IntakeAnswers, days: number):
   if (applied.gaps.length) notes.push(`Nothing here for ${list(short(applied.gaps.map((g) => GAP_WORD[g])))}: that takes gear you don't have.`);
   const misses: string[] = [];
   // Ranked picks (focusPicks) get their own line beside the reveal's taps: lib/intake/focusFit.ts.
-  if (applied.focusMissed.length) misses.push(`extra ${list(applied.focusMissed.map(focusWord))} work`);
+  if (applied.focusMissed.length) misses.push(`extra ${list(applied.focusMissed.map(focusWorkWord))} work`);
   if (applied.lovedMissed.length) misses.push(applied.lovedMissed.length === 1 ? 'the exercise you love' : `${applied.lovedMissed.length} exercises you love`);
   if (misses.length) notes.push(`No room for ${list(misses)} here.`);
   const timed = a.minutes !== undefined && a.minutes < 75;

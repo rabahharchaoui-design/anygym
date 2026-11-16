@@ -55,3 +55,31 @@ describe('a rest day says one thing', () => {
     expect(d.recovery).toBeUndefined();
   });
 });
+
+describe('3.6g2: a fixed day finished today is done for today', () => {
+  const fixed = (weekdays: string[]) => db.profile.put({ id: 'me', defaultUnit: 'lb', createdAt: 1, intakeDoneAt: 2, intake: { scheduleStyle: 'fixed', weekdays: weekdays as never, days: 2 } });
+  const evening = tue + 5 * 3_600_000;
+  it('Tuesday evening after Day 1 (Tue, Thu): "Done for today · Next: Thu, Day 2" and "Train again today", never Start for Day 2; the coach says nothing about today', async () => {
+    await fixed(['tue', 'thu']);
+    const s = await readSchedule(evening, db);
+    expect(s.restDay).toMatchObject({ done: true });
+    expect(restDayWords(s.restDay, 2, evening)).toEqual({ title: 'Done for today', next: 'Next: Thu, Day 2', start: 'Train again today' });
+    expect((await coachData(evening, db)).recovery).toBeUndefined();
+  });
+  it('the next training day is tomorrow (Tue, Wed): "Next: tomorrow, Day 2"; and on Wednesday morning Day 2 has its Start again', async () => {
+    await fixed(['tue', 'wed']);
+    expect(restDayWords((await readSchedule(evening, db)).restDay, 2, evening)).toEqual({ title: 'Done for today', next: 'Next: tomorrow, Day 2', start: 'Train again today' });
+    expect((await readSchedule(wed, db)).restDay).toBeNull();
+  });
+  it('a day stopped early and kept up next (under 60% done) is not done: it still waits with its Start', async () => {
+    await fixed(['tue', 'thu']);
+    await db.planState.update('active', { nextDayIndex: 0, doneDays: [], partial: { 0: 0.4 } });
+    const s = await readSchedule(evening, db);
+    expect(s.resolved).toMatchObject({ kept: true });
+    expect(s.restDay).toBeNull();
+  });
+  it('a flexible rotation has no calendar: nothing changes there', async () => {
+    await db.profile.put({ id: 'me', defaultUnit: 'lb', createdAt: 1, intakeDoneAt: 2, intake: { scheduleStyle: 'flexible', days: 2 } });
+    expect((await readSchedule(evening, db)).restDay).toBeNull();
+  });
+});

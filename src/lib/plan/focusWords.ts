@@ -23,6 +23,18 @@ const WORK: Partial<Record<FocusPickId, string>> = { back: 'back', lats: 'lat', 
 const workOf = (ids: readonly FocusPickId[]): string => list(ids.map((id) => WORK[id] ?? focusName(id).toLowerCase()));
 
 /**
+ * PLAN 3.6g2: why a pick got no more, from the report's own reason (FocusResult.held). "No extra" is
+ * never said alone: a pick under 16 sets always comes with the true reason. Null for a report saved
+ * before the reason existed.
+ */
+export function focusHeldWords(p: FocusResult): string | null {
+  if (p.held === 'maxed') return 'its exercises are at their most sets';
+  if (p.held === 'budget') return 'extra work stops at 12 sets a week';
+  if (p.held === 'rank') return p.heldBy ? `no more than ${focusName(p.heldBy)}, ranked above it` : null;
+  return p.held === 'room' ? 'its days are full' : null;
+}
+
+/**
  * One line for one pick: [what, how much]. "Back: 18 sets a week, 6 of them extra", "…, already
  * plenty", "no exercises for it yet". An area of several muscles says each muscle's own count (the
  * measure the 20 set limit uses). A pick that got nothing is never a zero: it says what is true.
@@ -31,7 +43,7 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   const name = focusName(p.id);
   if (p.id === 'mobility') return stretchBlock(p) ? [name, `${minutes(p.minutes!)} of stretches ${period}`] : [name, STRETCH_NO_ROOM.toLowerCase()];
   const state = focusStateOf(p);
-  if (state === 'no_move') return [name, p.gear ? 'needs equipment you do not have here' : 'no exercises for it yet'];
+  if (state === 'no_move') return [name, p.helped ? 'no exercise of its own here' : p.gear ? 'needs equipment you do not have here' : 'no exercises for it yet'];
   if (p.total === 0) return [name, 'no room for it'];
   const amount = p.id === 'posture' ? `${plural(p.total, 'set', 'sets')} of back and rear shoulder work`
     : p.parts && p.parts.length > 1 ? `${list(p.parts.map((x) => `${PART[x.muscle] ?? x.muscle} ${x.sets}`))} sets`
@@ -40,8 +52,47 @@ export function focusLine(p: FocusResult, period: string): [string, string] {
   if (focusCovered(p)) return [name, `covered by your ${workOf(p.coveredBy!)} work, ${plural(p.total, 'set', 'sets')} ${period}`];
   const extra = p.extra <= 0 ? '' : p.extra >= p.total ? ', all of them extra' : `, ${p.extra} of them extra`;
   // "Plenty" and "extra" are never said together: a pick that got some and then reached the limit has "as much as is useful".
-  const tail = state !== 'plenty' ? (p.extra <= 0 ? ', no room for extra' : '') : p.extra > 0 ? ', as much as is useful' : WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty';
+  const none = focusHeldWords(p);
+  const tail = state !== 'plenty' ? (p.extra > 0 ? (p.atLimit ? ', as much as is useful' : '') : none ? `, no extra: ${none}` : ', no room for extra') : p.extra > 0 ? ', as much as is useful' : WIDER[p.id] ? `, your ${WIDER[p.id]} already has plenty` : ', already plenty';
   return [name, `${amount} ${period}${extra}${tail}`];
+}
+
+/**
+ * PLAN 3.6g2, under 12 is said: the picks no step is offered for, one sentence for each reason the
+ * report gives. A pick under `floor` sets "stays under 12 sets" ("Upper chest and Glutes stay under
+ * 12 sets: extra work stops at 12 sets a week."); one that has them and is only short of its share
+ * "gets no extra" or "no more". A pick with no reason on record (a report saved before) is left
+ * out. Null when there is nothing to say.
+ */
+export function focusStayWords(picks: readonly FocusResult[], floor: number): string | null {
+  const groups = new Map<string, FocusResult[]>();
+  const kind = (p: FocusResult) => ((p.under ?? 0) > 0 ? 'under' : p.extra > 0 ? 'more' : 'none');
+  for (const p of picks) if (p.held && (p.held !== 'rank' || p.heldBy)) { const k = `${kind(p)}/${p.held}/${p.heldBy ?? ''}`; groups.set(k, [...(groups.get(k) ?? []), p]); }
+  const out = [...groups.values()].map((ps) => {
+    const one = ps.length === 1, p = ps[0]!;
+    const why = p.held === 'maxed' ? `${one ? 'its' : 'their'} exercises are at their most sets`
+      : p.held === 'budget' ? 'extra work stops at 12 sets a week'
+      : p.held === 'rank' ? `${one ? 'it gets' : 'they get'} no more than ${focusName(p.heldBy!)}, ranked above ${one ? 'it' : 'them'}`
+      : `${one ? 'its' : 'their'} days are full`;
+    const what = kind(p) === 'under' ? `${one ? 'stays' : 'stay'} under ${floor} sets` : `${one ? 'gets' : 'get'} ${kind(p) === 'none' ? 'no extra' : 'no more'}`;
+    return `${list(ps.map((x) => focusName(x.id)))} ${what}: ${why}.`;
+  });
+  return out.length ? out.join(' ') : null;
+}
+
+/**
+ * PLAN 3.6g2, the hotel line: the picks with no exercise here, each kind said once. "Needs equipment
+ * you do not have here" only when nothing in this plan works the muscle at all; when other moves
+ * work it as a helper (rows for the lats), that is what is said. Null when every pick has a move.
+ */
+export function focusNoMoveWords(none: readonly FocusResult[]): string | null {
+  const names = (ps: readonly FocusResult[]) => list(ps.map((p) => focusName(p.id)));
+  const helped = none.filter((p) => p.helped), gear = none.filter((p) => p.gear && !p.helped), never = none.filter((p) => !p.gear && !p.helped);
+  const parts: string[] = [];
+  if (never.length) parts.push(`No exercises for ${list(never.map((p) => focusName(p.id).toLowerCase()), 'or')} yet.`);
+  if (gear.length) parts.push(`${names(gear)} ${gear.length === 1 ? 'needs' : 'need'} equipment you do not have here.`);
+  if (helped.length) parts.push(`${names(helped)} ${helped.length === 1 ? 'has no exercise of its own' : 'have no exercise of their own'} with this equipment; other exercises here still work ${helped.length === 1 ? 'it' : 'them'}.`);
+  return parts.length ? parts.join(' ') : null;
 }
 
 /**
@@ -60,7 +111,7 @@ export type FocusRow = {
   name: string;
   /** "18 sets", "6 min". Null for an area of several muscles (its muscles are in the detail) and for a pick that got nothing. */
   amount: string | null;
-  /** The quiet state: "+6 extra", "plenty", "no extra", "no room", "no exercises yet", "needs equipment". Null when the amount says it all. */
+  /** The quiet state: "+6 extra", "plenty", "no extra", "no room", "no exercises yet", "needs equipment", "no exercise of its own". Null when the amount says it all. */
   tag: string | null;
   /** One more quiet line when there is more to say (an area's muscles, what posture work is). */
   detail: string | null;
@@ -74,7 +125,7 @@ export function focusRow(p: FocusResult): FocusRow {
   const name = focusName(p.id);
   if (p.id === 'mobility') return stretchBlock(p) ? { name, amount: minutes(p.minutes!), tag: null, detail: 'Stretches' } : { name, amount: null, tag: null, detail: STRETCH_NO_ROOM };
   const state = focusStateOf(p);
-  if (state === 'no_move') return { name, amount: null, tag: p.gear ? 'needs equipment' : 'no exercises yet', detail: null };
+  if (state === 'no_move') return { name, amount: null, tag: p.helped ? 'no exercise of its own' : p.gear ? 'needs equipment' : 'no exercises yet', detail: null };
   if (p.total === 0) return { name, amount: null, tag: 'no room', detail: null };
   if (focusCovered(p)) return { name, amount: null, tag: null, detail: `Covered by your ${workOf(p.coveredBy!)} work: ${plural(p.total, 'set', 'sets')}` };
   const several = !!p.parts && p.parts.length > 1;
@@ -84,7 +135,11 @@ export function focusRow(p: FocusResult): FocusRow {
     // Some of its sets are shown under another pick too: said, so the same sets are never read as two lots.
     p.shared && p.coveredBy?.length ? `${p.shared} of them also count for ${list(p.coveredBy.map(focusName))}` : null,
     // Never "+2 extra" beside "plenty": a pick that got some and then reached the limit has as much as is useful.
-    state !== 'plenty' ? null : p.extra > 0 ? 'As much as is useful now' : WIDER[p.id] ? `Your ${WIDER[p.id]} already has plenty` : null,
+    state !== 'plenty' && !p.atLimit ? null : p.extra > 0 ? 'As much as is useful now' : WIDER[p.id] ? `Your ${WIDER[p.id]} already has plenty` : null,
+    // "No extra" always comes with why (PLAN 3.6g2), and so does a pick that can take no more whatever the time.
+    (p.extra > 0 && p.held !== 'maxed') || state === 'plenty' ? null : cap(focusHeldWords(p) ?? '') || null,
+    // Extra that came with a higher pick's work is said, so the rank reads true.
+    p.rides && !p.shared ? `${p.rides.extra === p.extra ? 'The extra comes' : `${p.rides.extra} of the extra come`} with your ${workOf(p.rides.on)} work` : null,
   ].filter((x): x is string => !!x);
   return { name, amount: several ? null : plural(p.total, 'set', 'sets'), tag, detail: more.length ? more.join(' · ') : null };
 }
@@ -97,21 +152,21 @@ export function focusRowOrder(priorities: readonly FocusResult[]): FocusResult[]
 
 /**
  * A day card's why, from the report's own data: the pick the day's first lift trains ("Upper chest
- * first today"), and what the day adds, up to two picks by rank and then "and more" ("Extra today:
- * 2 sets for lats, 1 for biceps and more"). Null when the day does neither.
+ * first today"), and what the day adds, every pick by rank ("Extra today: 2 sets for lats, 2 for
+ * biceps and 2 for glutes"). PLAN 3.6g2: never "and more" (a pick left out could be read as a pick
+ * left out of the day); a long line takes a second line on the card. Null when the day does neither.
  */
 export function focusDayLine(extras: readonly FocusDayExtra[] | undefined, lead?: FocusPickId | null): string | null {
   // Stretches are only named from a real block (STRETCH_BLOCK_MIN in the session): "1 min of stretches" is never an extra.
   const adds = (extras ?? []).filter((x) => x.extra > 0 || (x.minutes ?? 0) >= STRETCH_BLOCK_MIN);
-  const two = adds.slice(0, 2);
-  const firstSets = two.findIndex((x) => x.id !== 'mobility');
-  const said = two.map((x, i) => {
+  const firstSets = adds.findIndex((x) => x.id !== 'mobility');
+  const said = adds.map((x, i) => {
     if (x.id === 'mobility') return `${minutes(x.minutes!)} of stretches`;
     const name = focusName(x.id).toLowerCase();
     return i === firstSets ? `${plural(x.extra, 'set', 'sets')} for ${name}` : `${x.extra} for ${name}`;
   });
   const first = lead ? `${focusName(lead)} first today` : null;
-  const extra = !two.length ? null : `${first ? 'Extra' : 'Extra today'}: ${adds.length > 2 ? `${said.join(', ')} and more` : list(said)}`;
+  const extra = !said.length ? null : `${first ? 'Extra' : 'Extra today'}: ${list(said)}`;
   return first && extra ? `${first}. ${extra}` : first ?? extra;
 }
 

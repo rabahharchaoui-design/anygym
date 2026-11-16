@@ -125,6 +125,9 @@ test.describe('fresh phones', () => {
   // 3.5u: offline, Looks good lands on Today with one plan and no workout.
   test('offline Looks good works: Today, one plan, nothing started @matrix', async ({ page, context }) => {
     await toReveal(page, { goal: 'muscle', goals: ['muscle'], units: US, experience: '3y', days: 6, minutes: 75, place: 'full', equipmentFor: 'full', equipment: ['barbell_rack', 'flat_bench', 'dumbbells', 'cable_station', 'pull_up_bar'] });
+    // The app works offline once its first load has finished saving itself (the service worker is
+    // ready). 3.6i made that first save bigger, so wait for it instead of racing it.
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
     await context.setOffline(true);
     await primary(page).tap();
     await expect(page).toHaveURL(/#\/$/);

@@ -36,14 +36,17 @@ export function restingWords(r: Pick<ResolvedDay, 'resting' | 'eligibleAt' | 'tr
 
 /**
  * A day that is not one of the person's days: the day card's headline, in two parts that wrap
- * between them: "Rest day" and "Next: Wed, Day 1" ("Next: tomorrow, Day 1" when it is). Start stays
- * on the card as a second choice: this never blocks training.
+ * between them: "Rest day" and "Next: Wed, Day 1" ("Next: tomorrow, Day 1" when it is). A training
+ * day whose workout is finished (PLAN 3.6g2) reads "Done for today" with the next training day, and
+ * its button says "Train again today". Start stays on the card as a second choice: this never
+ * blocks training.
  */
-export function restDayWords(rest: RestDay | null | undefined, dayN: number, now: number): { title: string; next: string } | null {
+export function restDayWords(rest: RestDay | null | undefined, dayN: number, now: number): { title: string; next: string; start?: string } | null {
   if (!rest) return null;
-  if (rest.nextAt === undefined) return { title: 'Rest day', next: `Day ${dayN} is next` };
+  const said = rest.done ? { title: 'Done for today', start: 'Train again today' } : { title: 'Rest day' };
+  if (rest.nextAt === undefined) return { ...said, next: `Day ${dayN} is next` };
   const days = Math.round((startOfDay(rest.nextAt) - startOfDay(now)) / DAY_MS);
-  return { title: 'Rest day', next: `Next: ${days === 1 ? 'tomorrow' : WEEKDAY[new Date(rest.nextAt).getDay()]!.slice(0, 3)}, Day ${dayN}` };
+  return { ...said, next: `Next: ${days === 1 ? 'tomorrow' : WEEKDAY[new Date(rest.nextAt).getDay()]!.slice(0, 3)}, Day ${dayN}` };
 }
 
 /**

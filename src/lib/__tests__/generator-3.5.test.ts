@@ -243,7 +243,8 @@ describe('plan curation from the intake (SPEC 15)', () => {
     const p = report.priorities.find((p) => p.id === focus)!;
     // PLAN 3.6g: its share is 4; past that only toward 12 sets a week for a muscle of it still under (13 when the last step is a 2 set move), never more than 12 extra in all.
     const weakest = p.parts?.length ? Math.min(...p.parts.map((x) => x.sets)) : p.total;
-    expect(f!.sets <= 4 || weakest <= 13, `${focus}: +${f!.sets}, weakest ${weakest}`).toBe(true);
+    // PLAN 3.6g2: with 60 minutes or more (or no time limit) a single pick climbs on toward 16, at 75 toward 18 (one more when the last step is a 2 set move).
+    expect(f!.sets <= 4 || weakest <= 19, `${focus}: +${f!.sets}, weakest ${weakest}`).toBe(true);
     expect(f!.sets).toBeLessThanOrEqual(12);
     expect(p.extra).toBe(f!.sets);
     expect(report.spent).toBeLessThanOrEqual(report.budget);

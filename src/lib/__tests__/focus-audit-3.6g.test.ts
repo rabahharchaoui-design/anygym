@@ -73,7 +73,8 @@ describe('3.6g, counted on the built plans', () => {
         }
       }
     }
-    expect(seen).toBeGreaterThan(10);
+    // PLAN 3.6g2: under the strict rank a pick left short is only ever passed by extra that came with a higher pick's work, so these are few now (they were over 10).
+    expect(seen).toBeGreaterThan(0);
   });
   it('Mobility picked: most sessions end with a stretch block (60 minutes: over 80%, 75: over 90%, 45: over 25%), each 5 to 8 minutes, and every report reads back as saved', () => {
     for (const [minutes, least] of [[45, 0.25], [60, 0.8], [75, 0.9]] as const) {

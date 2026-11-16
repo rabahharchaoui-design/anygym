@@ -90,6 +90,15 @@ describe('fixed and weekly days mean something (critic MAJOR 6)', () => {
     expect(restDayOf('fixed', ['mon', 'wed', 'fri'], mon)).toBeNull();
     expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], tue), 2, tue)).toEqual({ title: 'Rest day', next: 'Next: tomorrow, Day 2' });
   });
+  it('PLAN 3.6g2: a training day whose workout is finished is done for today, with the next training day (the same weekday next week when it is the only one)', () => {
+    expect(restDayOf('fixed', ['mon', 'wed', 'fri'], mon, true)).toEqual({ nextAt: startOf(2026, 10, 18), done: true });
+    expect(restDayWords(restDayOf('fixed', ['mon', 'wed', 'fri'], mon, true), 2, mon)).toEqual({ title: 'Done for today', next: 'Next: Wed, Day 2', start: 'Train again today' });
+    expect(restDayWords(restDayOf('fixed', ['mon', 'tue'], mon, true), 2, mon)).toEqual({ title: 'Done for today', next: 'Next: tomorrow, Day 2', start: 'Train again today' });
+    expect(restDayOf('fixed', ['mon'], mon, true)).toEqual({ nextAt: startOf(2026, 10, 23), done: true });
+    // A rest day stays a rest day whether or not something was trained.
+    expect(restDayOf('fixed', ['mon', 'wed', 'fri'], sat, true)).toEqual({ nextAt: startOf(2026, 10, 16) });
+    expect(restDayOf('flexible', ['mon'], mon, true)).toBeNull();
+  });
   it('no days to go by is never a rest day: flexible, a fixed plan with no weekdays, a weekly week not answered', () => {
     expect(restDayOf('flexible', ['mon'], sat)).toBeNull();
     expect(restDayOf('fixed', [], sat)).toBeNull();

@@ -37,27 +37,34 @@ export function weekChoice(picked: readonly WeekdayId[], saved: WeeklySchedule |
   return WEEK.filter((d) => before.includes(d) || (left.includes(d) && picked.includes(d)));
 }
 
-/** A calendar day that is not one of the person's days: when the next one is (absent: not known yet). */
-export type RestDay = { nextAt?: number };
+/**
+ * A calendar day with no workout to start: not one of the person's days, or (`done`, PLAN 3.6g2) one
+ * of them whose workout is finished. `nextAt`: the next training day (absent: not known yet).
+ */
+export type RestDay = { nextAt?: number; done?: true };
 
 /**
- * On a calendar (same days each week, or days picked for this week): null on a training day or with
- * no days to go by; else a rest day, with the start of the next training day when it is known (a week
- * to week schedule only knows this week). Start stays possible: this informs, it never blocks.
+ * On a calendar (same days each week, or days picked for this week): null on a training day still
+ * to do, or with no days to go by; else a rest day, with the start of the next training day when it
+ * is known (a week to week schedule only knows this week). `doneToday`: a workout of the plan was
+ * finished today, so a training day is done for today and the next training day is said, never
+ * Start for the next plan day. Start stays possible: this informs, it never blocks.
  */
-export function restDayOf(style: ScheduleStyle, weekdays: readonly string[] | undefined, now: number): RestDay | null {
+export function restDayOf(style: ScheduleStyle, weekdays: readonly string[] | undefined, now: number, doneToday = false): RestDay | null {
   if (style === 'flexible' || !weekdays?.length) return null;
   const at = todayAt(now);
-  if (weekdays.includes(WEEK[at]!)) return null;
-  const last = style === 'weekly' ? 6 - at : 6;
+  const done = weekdays.includes(WEEK[at]!);
+  if (done && !doneToday) return null;
+  // After a finished training day the same weekday next week counts too (a plan of one day a week).
+  const last = style === 'weekly' ? 6 - at : done ? 7 : 6;
   for (let n = 1; n <= last; n++) {
     if (!weekdays.includes(WEEK[(at + n) % 7]!)) continue;
     const d = new Date(now);
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + n);
-    return { nextAt: d.getTime() };
+    return { nextAt: d.getTime(), ...(done ? { done: true as const } : {}) };
   }
-  return {};
+  return done ? { done: true } : {};
 }
 
 export type RotationPosition = { nextDayIndex: number; doneDays: number[]; pendingDayIndices?: number[]; chosenDayIndex?: number };

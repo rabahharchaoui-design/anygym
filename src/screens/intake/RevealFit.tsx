@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../../ui/Button';
 import { WeekdayChips } from '../../components/WeekdayChips';
-import type { FocusFit } from '../../lib/intake/focusFit';
+import { fitLabel, type FocusFit } from '../../lib/intake/focusFit';
 import type { IntakeAnswers } from '../../lib/intake/funnel';
 import type { WeekdayId } from '../../lib/intake/options';
 import { addDayWords, cleanWeekdays, freeWeekdays } from '../../lib/plan/weekdays';
@@ -17,7 +17,8 @@ type Props = {
 };
 
 /**
- * What did not fit and the one tap that really helps (lib/intake/focusFit.ts). On a fixed schedule
+ * What did not fit and the one tap that really helps (lib/intake/focusFit.ts); each button says its
+ * value ("Make it 60 min", PLAN 3.6g2). On a fixed schedule
  * a day more needs its weekday (round 3, critic 2): the chips open in place and one tap adds the
  * day and rebuilds, so the weekdays always number the plan's days.
  */
@@ -37,7 +38,6 @@ export function RevealFit({ fit, weekdays, onApply }: Props) {
       onApply({ ...asking, weekdays: days });
     } else setPicked(days);
   };
-  const addDays = fit.addDays ? `Add ${fit.addDays} days` : 'Add a day';
   return (
     <div className={styles.fit}>
       <p className={styles.fitLine} data-testid="focus-fit">
@@ -56,17 +56,17 @@ export function RevealFit({ fit, weekdays, onApply }: Props) {
           <div className={styles.fitActions}>
             {fit.both && (
               <Button variant="secondary" data-testid="focus-add-both" onClick={() => add({ days: fit.days!, minutes: fit.minutes! })}>
-                {addDays} and minutes
+                {fit.labels?.both ?? fitLabel({ days: fit.days!, minutes: fit.minutes! })}
               </Button>
             )}
             {!fit.both && fit.days && (
               <Button variant="secondary" data-testid="focus-add-day" onClick={() => add({ days: fit.days! })}>
-                {addDays}
+                {fit.labels?.days ?? fitLabel({ days: fit.days })}
               </Button>
             )}
             {!fit.both && fit.minutes && (
               <Button variant="secondary" data-testid="focus-add-minutes" onClick={() => onApply({ minutes: fit.minutes! })}>
-                Add minutes
+                {fit.labels?.minutes ?? fitLabel({ minutes: fit.minutes })}
               </Button>
             )}
           </div>

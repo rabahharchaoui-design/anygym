@@ -4,7 +4,7 @@
 // that Start would keep: a swipe is the only thing that changes the day. Pure.
 import type { Concept, PlanPart, QuickDeps } from './quick';
 import type { GymKit } from './picker';
-import type { Plan } from './plans';
+import { stretchMinutes, type Plan } from './plans';
 import type { DayTrim } from './timeBudget';
 import { EQUIPMENT_LABEL } from './intake/options';
 import { dayWorkout, isStretchName } from './planWorkout';
@@ -50,6 +50,11 @@ export function previewConcept(input: PreviewInput, deps: QuickDeps): Concept | 
   // Round 3 (M8): what Start opens with before the first lift (stretches, a warm up block), said on
   // the Ready list so the Preview is what you get.
   const lead = unique.slice(0, Math.max(0, unique.findIndex((e) => lifts.has(e.exerciseId)))).filter((e) => !e.finisher && (e.warmup || e.mobility || isStretchName(e.name)));
+  // PLAN 3.6g2: and what it ends with after the last lift: the stretch block of a Mobility pick, unless the time picked cut it.
+  const cut = new Set(input.trim?.drop ?? []);
+  const lastLift = unique.findLastIndex((e) => lifts.has(e.exerciseId));
+  const tail = unique.slice(lastLift + 1).filter((e) => e.mobility && !e.warmup && !cut.has(e.exerciseId));
+  const block = tail.length ? day.blocks[tail[0]!.block] : undefined;
   const ids = items.map((it) => it.id);
   return {
     id: 'plan',
@@ -64,5 +69,6 @@ export function previewConcept(input: PreviewInput, deps: QuickDeps): Concept | 
     gear: gearOf(ids, deps.data, gym),
     primary: mainMuscles(items, deps),
     ...(lead.length ? { warmUp: { count: lead.length, stretches: lead.every((e) => isStretchName(e.name)) } } : {}),
+    ...(block ? { stretchBlock: { minutes: stretchMinutes(block) } } : {}),
   };
 }
