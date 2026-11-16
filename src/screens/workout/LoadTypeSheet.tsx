@@ -14,17 +14,22 @@ type Props = {
   without?: ReadonlyArray<Load['kind']>;
   /** How it is loaded now: marked with an accent check and "Current". */
   current?: Load['kind'];
+  /** The kinds its equipment allows, most likely first (PLAN 3.7a, lib/loadKinds.ts); absent: every kind. */
+  only?: ReadonlyArray<Load['kind']>;
 };
 
 /** Asked once for an exercise whose name does not say how it is loaded (PLAN 1.7). */
-export function LoadTypeSheet({ open, onClose, exerciseName, onPick, without = [], current }: Props) {
+export function LoadTypeSheet({ open, onClose, exerciseName, onPick, without = [], current, only }: Props) {
+  // Only the answers that can be true, in the rule's order; the current answer always stays in view.
+  const allowed = only ? [...only, ...(current && !only.includes(current) ? [current] : [])] : LOAD_TYPE_CHOICES.map((c) => c.kind);
+  const choices = allowed.flatMap((k) => LOAD_TYPE_CHOICES.filter((c) => c.kind === k && !without.includes(k)));
   return (
     <Sheet open={open} onClose={onClose} label="How do you load this?" scroll>
       <div className={styles.sheetBody}>
         <h2 className={styles.sheetTitle}>How do you load this?</h2>
         <p className={styles.sheetSub}>{exerciseName}</p>
         <div className={styles.choices}>
-          {LOAD_TYPE_CHOICES.filter((c) => !without.includes(c.kind)).map((c) => (
+          {choices.map((c) => (
             <ChoiceCard
               key={c.kind}
               label={c.label}

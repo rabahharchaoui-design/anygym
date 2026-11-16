@@ -16,6 +16,7 @@ import { ExerciseMenu } from './ExerciseMenu';
 import { ExercisePicker } from './ExercisePicker';
 import { ExerciseView } from './ExerciseView';
 import { LoadTypeSheet } from './LoadTypeSheet';
+import { loadKindsOf } from '../../data/loadKinds';
 import { SwapSheet } from './SwapSheet';
 import { TimeBudgetSheet } from './TimeBudgetSheet';
 import { useTimeBudget } from './useTimeBudget';
@@ -172,6 +173,7 @@ export function WorkoutScreen() {
         onClose={closeAsk}
         exerciseName={askingNow ? w.nameOf(askingNow) : ''}
         current={askingNow ? w.loadTypeOf(askingNow) : undefined}
+        only={askingNow ? loadKindsOf(askingNow) : undefined}
         onPick={(k) => void answer(k)}
       />
       {w.gym && (
