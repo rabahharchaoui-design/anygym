@@ -1,10 +1,13 @@
-import { expect, test } from './fixtures';
+import { expect, test, TILE_ORIGIN } from './fixtures';
+import { tileAsks } from './helpers/tiles';
 
 test('1.1 verify: network, shots, break', async ({ page }) => {
   // The app's own origin is where the first request (the page itself) goes, whatever port serves it.
   let own = '';
   const errors: string[] = [];
   const external: string[] = [];
+  // PLAN 4.2: what each screen tried to ask the map tile host for (the fixtures refuse it in the page).
+  const asks: Record<string, string[]> = {};
   const fonts: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror ' + e.message));
@@ -22,8 +25,13 @@ test('1.1 verify: network, shots, break', async ({ page }) => {
     await page.reload();
     await expect(page.locator('h1')).toBeVisible();
     await page.waitForTimeout(300);
+    asks[n] = await tileAsks(page);
     await page.screenshot({ path: `test-results/verify-1.1/${n}.png` });
   }
+  // The map tile host is the one outside host the app may talk to, and only the Run tab does.
+  for (const [n, urls] of Object.entries(asks)) if (n !== 'run') expect(urls, `${n} asks the tile host for nothing`).toEqual([]);
+  expect(asks.run!.length, 'the Run tab asks for its map').toBeGreaterThan(0);
+  for (const u of asks.run!) expect(new URL(u).origin).toBe(TILE_ORIGIN);
   expect(fonts.length).toBeGreaterThan(0);
   await page.goto('./');
   const boxes: any[] = [];
@@ -40,6 +48,7 @@ test('1.1 verify: network, shots, break', async ({ page }) => {
   await expect(page.locator('h1')).toHaveText('Today');
   await expect(page.locator('h1')).toBeVisible();
   console.log('EXTERNAL', JSON.stringify(external), 'FONTS', fonts.length);
-  expect(external).toEqual([]);
+  // Requests that reached the network layer: none to any host but the tile host, ever.
+  expect(external.filter((u) => new URL(u).origin !== TILE_ORIGIN)).toEqual([]);
   expect(errors).toEqual([]);
 });

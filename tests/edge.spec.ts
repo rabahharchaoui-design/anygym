@@ -82,7 +82,7 @@ test.describe('edge cases @matrix', () => {
     await expect(page.getByText('No workouts yet')).toBeVisible();
     await noSideScroll(page);
     await nav.getByRole('link', { name: 'Run' }).tap();
-    await expect(page.getByText('No runs yet')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
     await nav.getByRole('link', { name: 'Plans' }).tap();
     await expect(page.getByTestId('plan-five-day-split')).toBeVisible();
     await noSideScroll(page);

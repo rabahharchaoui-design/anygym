@@ -29,7 +29,11 @@ test('the built index.html carries the CSP meta tag and dist has no source maps 
   const csp = m![1]!;
   for (const d of ["default-src 'self'", "script-src 'self'", "img-src 'self' data: blob:", "font-src 'self'", "worker-src 'self'", "manifest-src 'self'", "base-uri 'self'", "form-action 'self'"]) expect(csp).toContain(d);
   expect(csp).not.toMatch(/unsafe-eval|script-src[^;]*unsafe-inline|style-src [^;]*unsafe-inline/);
-  expect(csp).toMatch(/connect-src 'self' https:\/\/anygym-api\.[a-z0-9.-]+\.workers\.dev(;|$)/);
+  // PLAN 4.2: the Run map's tile host is the only other host, and only in connect-src (the map
+  // fetches its tile list, tiles and glyphs; no image, script, style, font or worker comes from it).
+  expect(csp).toMatch(/connect-src 'self' https:\/\/anygym-api\.[a-z0-9.-]+\.workers\.dev https:\/\/tiles\.openfreemap\.org(;|$)/);
+  expect(csp.match(/https:\/\/tiles\.openfreemap\.org/g)).toHaveLength(1);
+  expect(csp).not.toMatch(/worker-src[^;]*blob:|https:\/\/\*|\*\.openfreemap/);
   expect(csp).not.toContain('__CSP__');
   // No inline script at all in the page.
   expect([...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>/g)]).toHaveLength(0);
