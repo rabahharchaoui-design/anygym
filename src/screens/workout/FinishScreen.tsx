@@ -14,6 +14,7 @@ import { bestSetOf } from '../../lib/records';
 import { adjustEntries, dayProgress, dayWorkout, doneCounts, startedCount } from '../../lib/planWorkout';
 import { dayIndexOf } from '../../lib/plans';
 import { planById } from '../../data/plans';
+import { samePlanFamily } from '../../data/planFamily';
 import { getPlanState, setFinishNextDay } from '../../db/planState';
 import { ChangeDaySheet } from '../today/ChangeDaySheet';
 import { dayTitle } from '../plans/planWords';
@@ -104,7 +105,9 @@ export function FinishScreen() {
   const resolved = schedule.data?.resolved;
   // Every day left is resting: the day Today offers under "Train anyway", with when it is ready.
   const nextIndex = resolved ? resolved.dayIndex ?? resolved.anywayIndex : undefined;
-  const nextDay = plan && state && state.planId === plan.id && dayIndex >= 0 && nextIndex !== undefined ? plan.days[nextIndex] : undefined;
+  // PLAN 3.6j (A5): or a build of the same plan family chosen mid workout (its tuned copy, a rebuild): the plan in use says what is next.
+  const livePlan = plan && state && samePlanFamily(state.planId, plan.id) ? planById(state.planId) : undefined;
+  const nextDay = livePlan && dayIndex >= 0 && nextIndex !== undefined ? livePlan.days[nextIndex] : undefined;
   const resting = resolved?.dayIndex === null ? restingWords(resolved, Date.now()) : null;
   const pickNext = async (i: number) => {
     setChanging(false);
@@ -296,8 +299,8 @@ export function FinishScreen() {
       {/* PLAN 3.6h: calm drifting glass behind the summary, once any full screen moment is over. */}
       {cele.settled && !cele.big && <Effect variant="ambient" reduce={reduce} />}
       {cele.big && <BigMoment moment={cele.big} reduce={reduce} onSettle={cele.onSettle} onDone={cele.onDone} />}
-      {plan && state && nextDay && (
-        <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={plan} state={state} onPick={(i) => void pickNext(i)} title="Which day next?" />
+      {livePlan && state && nextDay && (
+        <ChangeDaySheet open={changing} onClose={() => setChanging(false)} plan={livePlan} state={state} onPick={(i) => void pickNext(i)} title="Which day next?" />
       )}
     </div>
   );
