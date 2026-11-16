@@ -1,6 +1,8 @@
 import { expect, test } from './fixtures';
 
 test('1.1 verify: network, shots, break', async ({ page }) => {
+  // The app's own origin is where the first request (the page itself) goes, whatever port serves it.
+  let own = '';
   const errors: string[] = [];
   const external: string[] = [];
   const fonts: string[] = [];
@@ -8,7 +10,8 @@ test('1.1 verify: network, shots, break', async ({ page }) => {
   page.on('pageerror', (e) => errors.push('pageerror ' + e.message));
   page.on('request', (r) => {
     const u = new URL(r.url());
-    if (u.origin !== 'http://localhost:4173') external.push(r.url());
+    own ||= u.origin;
+    if (u.origin !== own) external.push(r.url());
     if (u.pathname.endsWith('.woff2')) fonts.push(u.pathname);
   });
   const routes: Array<[string, string]> = [['', 'today'], ['run', 'run'], ['history', 'history'], ['plans', 'plans'], ['settings', 'settings']];
