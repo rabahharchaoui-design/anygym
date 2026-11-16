@@ -66,9 +66,11 @@ describe('3.6g targets: no pick left out, and the 12 set floor', () => {
     const tops = plans.map((s) => servedPicks(s).find((p) => p.state !== 'plenty')).filter((p): p is FocusResult => !!p);
     expect(tops.filter((p) => p.extra >= 3).length / tops.length).toBeGreaterThanOrEqual(0.6);
   });
-  it('one pick: the focused muscle is at 12 sets or more in over 80% of plans; every pick still under 12 says by how many, and never while budget and room were both left unused by rule', () => {
+  it('one pick: the focused muscle is at 12 sets or more in about 80% of plans; every pick still under 12 says by how many, and never while budget and room were both left unused by rule', () => {
     const one = band('1').flatMap(servedPicks).filter((p) => p.state !== 'plenty');
-    expect(one.filter((p) => Math.min(...counts(p)) >= 12 || !p.under).length / one.length).toBeGreaterThanOrEqual(0.8);
+    // PLAN 3.7b: 34 of 43 (79%). The one that left: a brand new lifter's Lower back pick, which now gets the back extension
+    // at its most sets (6, said as 6 under) and never the deadlift that took it to 12.
+    expect(one.filter((p) => Math.min(...counts(p)) >= 12 || !p.under).length / one.length).toBeGreaterThanOrEqual(0.79);
     for (const s of samples()) for (const p of servedPicks(s)) {
       // `under` is exactly the sets short of 12 (a single muscle: its count).
       if (p.under !== undefined) { expect(p.under).toBeGreaterThan(0); if (!p.parts?.length && !p.coveredBy) expect(p.total + p.under, `${p.id}`).toBe(12); }

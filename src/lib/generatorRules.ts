@@ -170,3 +170,13 @@ export const FALLBACK: Readonly<Record<Pattern, readonly Pattern[]>> = {
 
 /** A day needs at least this many moves the gym can do, or the generator says so (never padding). */
 export const MIN_MOVES = 3;
+
+/**
+ * PLAN 3.7b: the patterns where every candidate is the same one move done with other gear (a curl,
+ * a side raise, a reverse fly, a chest fly). Two of these with the same kind of gear on one day are
+ * near identical (a barbell curl and an EZ bar curl): focus never adds the second. Triceps, glutes,
+ * calves and core hold different moves (a pushdown and an overhead extension), and leg curls and
+ * leg extensions come on machines only (the rule would leave a hamstrings pick with nothing to
+ * add), so they are not listed.
+ */
+export const ONE_MOVE: ReadonlySet<Pattern> = new Set<Pattern>(['biceps', 'lateral delt', 'rear delt', 'chest isolation']);
