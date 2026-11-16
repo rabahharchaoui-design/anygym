@@ -219,7 +219,7 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
       const table = db.table(t);
       const have = new Set((await table.toArray()).map((r: Record<string, unknown>) => keyOf(t, r)));
       const perSession = t === 'sets' || t === 'orderCounters' || t === 'submissions' || t === 'tombstones' || t === 'journal' || t === 'efforts';
-      let fresh = rows.filter((r) => !have.has(keyOf(t, r)) && (!perSession || added.has(r.sessionId as string)));
+      let fresh = rows.filter((r) => !have.has(keyOf(t, r)) && (!perSession || added.has(r.sessionId as string)) && (t !== 'sessions' || added.has(r.id as string)));
       // The phone keeps its own active gym: added gyms come in inactive.
       if (t === 'gyms' && (await db.gyms.filter((g) => g.isActive).count()) > 0) fresh = fresh.map((g) => ({ ...g, isActive: false }));
       if (fresh.length) await table.bulkAdd(fresh);
