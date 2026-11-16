@@ -68,7 +68,9 @@ describe("G's split: the six SPEC 22 tips and no false flags", () => {
 
   it('(5) chest, back, hamstrings and shoulders get one session a week; Apply adds 3 sets of each elsewhere, same split', () => {
     const t = tip(split, 'freq')!;
-    expect(t.title).toBe('Chest, back, shoulders and hamstrings get one session a week');
+    // PLAN 3.7b: other days train some of these lightly (under 4 sets), so the true words are "one full session".
+    expect(t.title).toBe('Chest, back, shoulders and hamstrings get one full session a week');
+    expect(t.why).toBe('Muscles grow best with about two full sessions a week (4 sets or more). Adds 3 sets of each on another day, same split.');
     expect(t.detail).toEqual(['Dumbbell Bench Press → Day 5', 'Wide Grip Pull Up → Day 5', 'Dumbbell Arnold Shoulder Press → Day 2', 'Barbell Straight Leg Romanian Deadlift → Day 4']);
     const tuned = applyTips(split, ['freq'], profile);
     expect(tuned.days.map((d) => d.name)).toEqual(split.days.map((d) => d.name));

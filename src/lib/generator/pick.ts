@@ -4,7 +4,7 @@ import type { StyleId } from '../intake/options';
 import { easyOnAvoids } from '../order';
 import { supports, workoutIdOf, type Candidate, type Pattern, type Requires } from '../swap';
 import { FALLBACK, type Slot } from '../generatorRules';
-import type { Ctx, Item } from './types';
+import type { Ctx, GeneratorInput, Item } from './types';
 
 const BENCHES: ReadonlySet<EquipmentId> = new Set<EquipmentId>(['flat_bench', 'adjustable_bench']);
 const FREE: ReadonlySet<EquipmentId> = new Set<EquipmentId>(['barbell_rack', 'ez_curl_bar', 'dumbbells', 'kettlebells']);
@@ -29,6 +29,21 @@ const STYLE_RANK: Partial<Record<StyleId, Record<Kind, number>>> = {
   bodyweight: { body: 0, band: 1, free: 2, machine: 2 },
 };
 
+/**
+ * PLAN 3.7b: a brand new lifter learns on machines first, whatever else was answered (the Beginner
+ * plan's own rule, src/data/frozenPlans.ts): a focus pick or a style never turns the plan into a
+ * barbell plan. Machines first, then the rest in the order of the style picked. Undefined for
+ * everyone else. It only ranks what fits: a gym with no machines still gets its plan.
+ */
+export function beginnerRank(input: GeneratorInput): Record<Kind, number> | undefined {
+  if (input.experience !== 'new') return undefined;
+  const rest = (input.style ? STYLE_RANK[input.style] : undefined) ?? STYLE_RANK.machines!;
+  return { machine: 0, free: 1 + rest.free, body: 1 + rest.body, band: 1 + rest.band };
+}
+
+/** What ranks the candidates that fit: the beginner rule, else the training style picked (none: the ladder's own order). */
+export const rankOf = (input: GeneratorInput): Record<Kind, number> | undefined => beginnerRank(input) ?? (input.style ? STYLE_RANK[input.style] : undefined);
+
 /** Can this gym do it, and may this person get it? */
 export function allowed(ctx: Ctx, c: Candidate, timedOk: boolean): boolean {
   if (!supports(c.requires, ctx.input.gym)) return false;
@@ -48,7 +63,7 @@ export function allowed(ctx: Ctx, c: Candidate, timedOk: boolean): boolean {
 export function pickFrom(ctx: Ctx, pattern: Pattern, variant: boolean, dayKeys: ReadonlySet<string>): Candidate | undefined {
   const ladder = ctx.deps.data.patterns[pattern]?.candidates ?? [];
   const used = ctx.weekUsed.get(pattern) ?? new Set<string>();
-  const style = ctx.input.style ? STYLE_RANK[ctx.input.style] : undefined;
+  const style = rankOf(ctx.input);
   const scored = ladder
     .map((c, i) => ({ c, i, key: ctx.deps.data.sameAs(workoutIdOf(c)) }))
     .filter((x) => !dayKeys.has(x.key) && allowed(ctx, x.c, pattern === 'core'))

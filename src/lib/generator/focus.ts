@@ -1,9 +1,10 @@
 // Adapter only: all allocation policy lives in lib/plan/focus.ts.
 import { curateFocus, focusMuscles, normalizeFocusPicks, type FocusMove, type FocusReport } from '../plan/focus';
 import { RIDERS } from '../plan/focusShare';
-import { isCompound, orderUnits } from '../order';
+import { heaviestOf, isCompound, orderUnits } from '../order';
 import { supports } from '../swap';
-import { allowed, makeItem } from './pick';
+import { ONE_MOVE } from '../generatorRules';
+import { allowed, beginnerRank, kindOf, makeItem } from './pick';
 import { prescribe, setCap } from './prescribe';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
 import { minutesOf } from './trim';
@@ -58,10 +59,25 @@ function apart(units: Item[][]): Item[][] {
   return out;
 }
 
+/**
+ * PLAN 3.7b: the day's heaviest lift is never in a pair (SPEC 22 rule 5). Among lifts as heavy as
+ * each other (a machine day has several) the first in the day is the heaviest, and putting the
+ * focused moves first can bring a paired one to the front. Then a lift just as heavy that stands
+ * alone goes before that pair (it leads the day, as with no picks); with none, the pair comes apart.
+ */
+function unpairHeaviest(units: Item[][]): Item[][] {
+  const heavy = heaviestOf(units.flat().map((it) => it.profile));
+  const at = units.findIndex((u) => u.length > 1 && u.some((it) => it.profile.id === heavy?.id));
+  if (!heavy || at < 0) return units;
+  const lone = units.findIndex((u) => u.length === 1 && isCompound(u[0]!.profile) && !!u[0]!.profile.pattern && u[0]!.profile.load === heavy.load);
+  if (lone < 0) return units.flatMap((u, k) => (k === at ? u.map((it) => [it]) : [u]));
+  return [...units.slice(0, at), units[lone]!, ...units.slice(at).filter((_, k) => k + at !== lone)];
+}
+
 export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusReport {
   const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
   if (!picks.some((p) => p !== 'balance')) return { budget: 0, spent: 0, priorities: [], days: days.map(() => []) };
-  const facts = (it: Item): FocusMove => ({ id: it.id, key: it.key, sets: it.sets, hard: it.profile.role === 'lift', compound: isCompound(it.profile), recovery: it.profile.role === 'lift' ? it.profile.targets : [], ...(ctx.loveKeys.has(it.key) ? { keep: true } : {}), ...(it.seconds ? { seconds: it.seconds[0] } : {}), ...(ctx.deps.focusFacts?.(it.id, it.profile) ?? { muscles: [...it.profile.targets], picks: (ctx.input.focus ?? []).filter((f) => f !== 'balance' && focusMuscles([f]).some((m) => it.profile.targets.includes(m))) }) });
+  const facts = (it: Item): FocusMove => ({ id: it.id, key: it.key, sets: it.sets, hard: it.profile.role === 'lift', compound: isCompound(it.profile), recovery: it.profile.role === 'lift' ? it.profile.targets : [], ...(ctx.loveKeys.has(it.key) ? { keep: true } : {}), ...(it.profile.role === 'lift' && it.profile.pattern && ONE_MOVE.has(it.profile.pattern) ? { twin: `${it.profile.pattern} ${kindOf(it.candidate.requires)}` } : {}), ...(it.seconds ? { seconds: it.seconds[0] } : {}), ...(ctx.deps.focusFacts?.(it.id, it.profile) ?? { muscles: [...it.profile.targets], picks: (ctx.input.focus ?? []).filter((f) => f !== 'balance' && focusMuscles([f]).some((m) => it.profile.targets.includes(m))) }) });
   const candidates = days.map((d) => Object.entries(ctx.deps.data.patterns).flatMap(([pattern, ladder]) => ladder.candidates.filter((c) => allowed(ctx, c, pattern === 'core')).map((c) => {
     const it = makeItem(ctx, c, pattern as Item['pattern']);
     prescribe(ctx, it, false);
@@ -78,6 +94,14 @@ export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusRepo
     it.sets = 1; it.seconds = [60, 60]; it.rest = 0; it.mobility = true;
     return it;
   })));
+  // PLAN 3.7b: what focus adds for a brand new lifter is machines first too (the base plan's own rule, pick.ts).
+  const rank = beginnerRank(ctx.input);
+  if (rank) for (const [i, d] of candidates.entries()) {
+    // And never a free weight move where this gym has a machine for the movement (a lower back pick adds the back
+    // extension, never the deadlift; a biceps pick adds sets to the cable curl, never a barbell curl beside it).
+    const onMachine = new Set(d.filter((it) => kindOf(it.candidate.requires) === 'machine').map((it) => it.pattern));
+    candidates[i] = d.filter((it) => !(kindOf(it.candidate.requires) === 'free' && onMachine.has(it.pattern))).sort((a, b) => rank[kindOf(a.candidate.requires)] - rank[kindOf(b.candidate.requires)]);
+  }
   const pools = days.map((d, i) => new Map([...candidates[i]!, ...d.units.flat()].map((it) => [it.id, it])));
   // Reorder and pair during every estimate too. The accepted result has exactly that same duration.
   const arranged = (moves: FocusMove[], i: number): Day => {
@@ -90,7 +114,7 @@ export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusRepo
       return next ? [next] : [];
     })).filter((u) => u.length);
     const groups = [...splitUnequalPairs(old), ...items.filter((it) => !used.has(it.id)).map((it) => [it])].map((u) => u.filter((it) => !it.mobility)).filter((u) => u.length);
-    const order = orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref);
+    const order = unpairHeaviest(orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref));
     // The stretch block is one unit at the very end of the session.
     const stretches = items.filter((it) => it.mobility);
     return { ...days[i]!, items, units: [...apart(ctx.family === 'strength' ? order : pairUp(order, items)), ...(stretches.length ? [stretches] : [])] };
