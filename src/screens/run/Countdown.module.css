@@ -1,0 +1,54 @@
+/* The 3, 2, 1 that fills the screen, over the tab bar and everything else of the app. */
+.count {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  padding: calc(var(--safe-top) + var(--space-5)) var(--space-5) calc(var(--safe-bottom) + var(--space-5));
+  /* Taps never reach the screen under it. */
+  touch-action: none;
+}
+
+/* The Start button's colour, growing from where the button was (a transform only). */
+.flood {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--accent);
+  will-change: transform;
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.number {
+  display: block;
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(160px, 56vw, 260px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.cancel {
+  position: relative;
+  flex: none;
+  min-height: 48px;
+  min-width: 120px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  border: 1.5px solid color-mix(in srgb, var(--on-accent) 45%, transparent);
+  color: var(--on-accent);
+  font-size: 17px;
+  font-weight: 700;
+}

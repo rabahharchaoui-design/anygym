@@ -23,9 +23,10 @@ This file explains every folder under `src/` in plain words. If you are about to
 ## Folders
 
 ### src/screens/
-One folder per area of the app. The four files at the top (`TodayScreen`, `HistoryScreen`, `SettingsScreen`, `RunScreen`) are the main tabs. The `Today` and `Settings` styles sit beside them.
+One folder per area of the app. The three files at the top (`TodayScreen`, `HistoryScreen`, `SettingsScreen`) are main tabs; the Run tab lives in `screens/run/`. The `Today` and `Settings` styles sit beside them.
 - `screens/today/`: the home screen. The coach card, the next workout, resume a workout, the welcome tour, the backup reminder.
 - `screens/workout/`: the live workout. The list of exercises, the set table where you log weight and reps, the rest timer, the finish screen.
+- `screens/run/`: Run With Me (PLAN 4.2, SPEC 12.1). `RunScreen` is the start screen: the map behind, the GPS chip, the run types, the music buttons and Start. `RunMap` shows a dark placeholder and loads `RunMapGl` (MapLibre, a big file) only when the Run tab opens. `GpsChip` is the chip and its help sheet, `GoalSheet` the distance, time and interval pickers, `Countdown` the 3 2 1, `RunStarted` the plain screen after it until the live run exists (4.3). The Run tab itself is a separate download, fetched just after the app starts.
 - `screens/history/`: looking back at finished workouts.
 - `screens/plans/`: the list of workout plans, a plan's days, and plans by place (gym, hotel, home).
 - `screens/quick/`: "quick workout" ideas. A deck of cards you swipe through and keep.
@@ -35,7 +36,7 @@ One folder per area of the app. The four files at the top (`TodayScreen`, `Histo
 - `screens/dev/`: developer pages that show parts of the app on their own (plates, muscles, loads). Hidden unless a developer switch is on.
 
 ### src/components/
-Bigger shared pieces that know about AnyGym. Loose files here are app wide: the shell with the tab bar, error screens, the gate that sends new people to the intake, the "rotate your phone" guard, the gym pill.
+Bigger shared pieces that know about AnyGym. Loose files here are app wide: the shell with the tab bar, error screens, the gate that sends new people to the intake, the "rotate your phone" guard, the gym pill, the music buttons (`MusicLinks`, on a workout's day list and above Start on the Run tab).
 - `components/load/`: everything for entering a weight (number pad, plate picture, bar picker, dumbbell wheel, stack selector). These show weights but never do the math; they ask `lib/load/`.
 - `components/exercise/`: the exercise sheet with demo, form tips and the video or photo viewer.
 - `components/muscles/`: the body drawing, the muscle picker and the list of exercises for a muscle.
@@ -70,8 +71,9 @@ Pure logic, the brain of the app. About 70 loose files, one job each, plus folde
 - `lib/reporting/`: problem reports and crash notes, with private details masked before sending.
 - `lib/import/`: reading a workout history from another app.
 - `lib/gps/`: everything the run tracker works out from the phone's positions (PLAN 4.1, SPEC 12.3): which positions to trust (`filter.ts`), distance (`geo.ts`), standing still and auto pause (`stillness.ts`), pace (`pace.ts`), splits per mile or km (`splits.ts`), the run state fed one position at a time (`tracker.ts`) or a whole run at once (`batch.ts`), and the line to draw with its dashed breaks and smoothing (`draw.ts`). Every threshold and its reason is in `types.ts`. Pure: no screen, no database, no clock. A folder with an `index.ts`.
+- `lib/run/`: the run start screen's logic (PLAN 4.2): run types, goals and picker values, and what is remembered (`goal.ts`); the GPS chip's status and plain words (`gpsStatus.ts`); where map tiles come from and the map credit (`mapSource.ts`); the dark map style built from the app's colors (`mapStyle.ts`, used only by the map file). Pure. A folder with an `index.ts`. The saved choice is in `db/runSetup.ts`; screens use `hooks/useRunSetup.ts`, and `hooks/useGeo.ts` for the phone's position.
 - `lib/bodyArt/`: the body outline drawings (front and back, male and female) used by the muscle map.
-- Loose files worth knowing: `progression.ts` (last time and next target), `plans.ts` (plan shapes and timing), `planWorkout.ts` (a plan day as a workout), `setTable.ts` (rows of the set table), `backup.ts` (backup file format), `durable.ts` (keeps live workout state alive if the app is killed).
+- Loose files worth knowing: `music.ts` (the Spotify and Apple Music links and what they can and cannot do), `progression.ts` (last time and next target), `plans.ts` (plan shapes and timing), `planWorkout.ts` (a plan day as a workout), `setTable.ts` (rows of the set table), `backup.ts` (backup file format), `durable.ts` (keeps live workout state alive if the app is killed).
 
 ### src/data/
 Small TypeScript files that load the JSON data at the top of the repo (`data/` next to `src/`: exercise catalog, plans, muscle map) and hand it to the app in a safe, checked form. This is where shipped content is bound to code. Data files are exempt from the size limit.

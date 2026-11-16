@@ -6,15 +6,13 @@
     "src/components/load/PlateDiagram.module.css": 542,
     "src/components/muscles/MuscleMap.module.css": 409,
     "src/db/mutations.ts": 455,
-    "src/db/types.ts": 433,
     "src/lib/drafts.ts": 563,
-    "src/lib/intake/funnel.ts": 502,
     "src/lib/setTable.ts": 514,
     "src/lib/swap.ts": 425,
     "src/screens/TodayScreen.module.css": 462,
     "src/screens/plans/Plans.module.css": 434,
     "src/screens/settings/Import.module.css": 542,
-    "src/screens/workout/DayList.module.css": 448,
+    "src/screens/workout/DayList.module.css": 419,
     "src/screens/workout/rowLog.ts": 405
   }
 }

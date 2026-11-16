@@ -1,10 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { ArrivalGuard } from './components/ArrivalGuard';
 import { LandscapeGuard } from './components/LandscapeGuard';
 import { TodayScreen } from './screens/TodayScreen';
-import { RunScreen } from './screens/RunScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HistoryDetail } from './screens/history/HistoryDetail';
 import { PlansScreen } from './screens/plans/PlansScreen';
@@ -33,11 +32,21 @@ import { useWarmPlanPhotos } from './hooks/useWarmPlanPhotos';
 
 const DEV_TOOLS = devToolsEnabled();
 // Lazy, so the catalog JSON it reads stays out of the main bundle.
+// PLAN 4.2: the Run tab's start screen is its own chunk, fetched right after the app starts (below),
+// so it is there before the tab is tapped and stays out of the first download. MapLibre is a
+// further chunk that only the open Run tab asks for.
+const loadRun = () => import('./screens/run/RunScreen').then((m) => ({ default: m.RunScreen }));
+const RunScreen = lazy(loadRun);
 const MusclesDevScreen = lazy(() => import('./screens/dev/MusclesDevScreen').then((m) => ({ default: m.MusclesDevScreen })));
 
 export function App() {
   // PLAN 3.6k: the current plan's photos are saved for offline in the background.
   useWarmPlanPhotos();
+  // The Run tab's chunk, once the first screen has settled. A failed fetch is tried again by the tab itself.
+  useEffect(() => {
+    const t = window.setTimeout(() => void loadRun().catch(() => undefined), 1200);
+    return () => window.clearTimeout(t);
+  }, []);
   return (
     <>
       <ArrivalGuard />
@@ -69,7 +78,14 @@ export function App() {
           }
         >
           <Route index element={<TodayScreen />} />
-          <Route path="run" element={<RunScreen />} />
+          <Route
+            path="run"
+            element={
+              <Suspense fallback={null}>
+                <RunScreen />
+              </Suspense>
+            }
+          />
           <Route path="history" element={<HistoryScreen />} />
           <Route path="history/:sessionId" element={<HistoryDetail />} />
           <Route path="quick" element={<QuickScreen />} />

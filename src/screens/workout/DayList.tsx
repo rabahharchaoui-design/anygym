@@ -8,7 +8,8 @@ import { demoFor } from '../../data/exerciseInfo';
 import { swapLine } from '../../lib/swap';
 import { Ring } from '../../ui/Ring';
 import { Button } from '../../ui/Button';
-import { AudioLinesIcon, CheckIcon, MusicIcon, PlayIcon, XIcon } from '../../ui/icons';
+import { CheckIcon, PlayIcon, XIcon } from '../../ui/icons';
+import { MusicLinks } from '../../components/MusicLinks';
 import type { Workout } from './useWorkout';
 import type { ToastMessage } from '../../ui/Toast';
 import { EffortChip } from './EffortChip';
@@ -242,18 +243,7 @@ export function DayList({ w, heroId, onOpen, onAdd, effortFor = null, still = fa
               ))}
           </p>
           <span className={styles.music}>
-            <a className={`${styles.musicLink} pressable`} href="https://open.spotify.com/" target="_blank" rel="noopener" aria-label="Open Spotify">
-              <span className={styles.musicPill}>
-                <AudioLinesIcon width={15} height={15} strokeWidth={2.2} aria-hidden="true" />
-                Spotify
-              </span>
-            </a>
-            <a className={`${styles.musicLink} pressable`} href="https://music.apple.com/" target="_blank" rel="noopener" aria-label="Open Apple Music">
-              <span className={styles.musicPill}>
-                <MusicIcon width={15} height={15} strokeWidth={2.2} aria-hidden="true" />
-                Music
-              </span>
-            </a>
+            <MusicLinks />
           </span>
         </div>
         {timeLine && !still && (

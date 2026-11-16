@@ -54,7 +54,7 @@ test.describe('safe areas on every screen @matrix', () => {
     await expect(page.getByText('No workouts yet')).toBeVisible();
     await screen(page, 'history-empty');
     await nav.getByRole('link', { name: 'Run' }).tap();
-    await expect(page.getByText('No runs yet')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
     await screen(page, 'run');
     await nav.getByRole('link', { name: 'Plans' }).tap();
     await expect(page.getByTestId('place-home')).toBeVisible();
