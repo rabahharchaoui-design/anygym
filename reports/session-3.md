@@ -79,3 +79,39 @@ Branch `s3-plans` from tag `pre-s3` (master af01489, Nov 4 2026, Session 2 merge
 - 3.7 gate fixes live (Nov 16): the service worker takes a first visit (a first session offline opens screens it has not loaded yet), the Close grabber of scrolling sheets answers fully on Android, and four spec repairs. A second fix is on its way to the live site: while Finish is saving the exercise list opens nothing (a tap landing just then bounced you off the done screen; the gate matrix caught it after the service worker change made the timing more likely).
 - 3.7a (Nov 16, gate critic): a plate machine no longer shows a doubled total before you say whether it loads on one side or both (it shows the plates you put on and waits for the answer); a machine exercise no longer asks "How do you load this?" with choices that cannot be true (and a barbell or cable exercise is not asked at all); the weight sheet fits small Android phones.
 - 3.7b (Nov 16, gate critic): a brand new lifter who picks a focus area keeps a machine first plan (before, any focus pick switched them to barbell squats, deadlifts and pull ups); focus no longer adds a second near identical move to a day; a coach tip counts a muscle's sessions truthfully and its "Adds" line says exactly what Apply does.
+
+## Gate summary (Nov 16 to 17 2026, gmini)
+
+### What shipped in Session 3
+- 3.0 to 3.5: plans and the plan viewer, history import, the welcome questions and "Your plan", swaps and Change day, Quick workout, the coach (Level up, tips), saved plans.
+- 3.6 block: celebration and art pack (3.6b, 3.6h), code organization and the test pipeline gate (3.6x, 3.6y, 3.6u, 3.6v), schedule styles and focus areas (3.6f, 3.6g, 3.6g2), one horn machines (3.6h2), the 3D icons (3.6i), Codex carry over (3.6a, 3.6w).
+- 3.6c whole build audit (reports/audit-fable-2026-11-16.md): 1 BLOCKER, 9 MAJOR, 8 POLISH, all fixed and live as 3.6d (backups restore with a tuned plan, carry coach data, Merge adds nothing twice), 3.6e (four wrong weight numbers), 3.6j (a tuned plan keeps its workouts, Missed N counts the right week), 3.6k (form demos offline), 3.6p (focus builds about ten times faster, plans unchanged), 3.6z (eight small truths).
+- Gate critic (reports/critic-session-3-gate.md): 5 BLOCKERS, all fixed and live as 3.7a (plate machines wait for "one side or both" before any total; machine exercises ask only true load choices; the weight sheet fits small phones) and 3.7b (a brand new lifter with a focus pick keeps a machine first plan; no second near identical move on a day; coach tips count and word truthfully). The 10 POLISH items are not done: they are listed in the critic report.
+- Gate fixes found by the matrix: the service worker takes a first visit (a first session offline opens screens it had not loaded); the Close grabber of scrolling sheets answers fully on Android; the exercise list opens nothing while Finish is saving. That last one was a race my service worker change made more likely, caught by the matrix and fixed the same night.
+
+### Tests at the gate
+- Unit: 4598 passed, 5 expected failures, 1 skipped (322 files, under a minute since 3.6p). Golden journeys 8 of 8.
+- Full matrix, seven phones, run twice. Last pass on the build with every fix: iPhones 3,469 passed and 11 failed; Androids and the 320 floor 4,474 passed and 12 failed. Every one of the 23 was then either fixed (two calendar dependent intake specs, the 320 x 568 sheet fit and horn size after 3.7a) or passed alone twice (load and timing flakes). There was no single run with zero failures: the machine was shared with builders and other runs all night. Known timing sensitive specs: verify-3.6f:416, motion-3.5w:514, review-3.5v:322, exercise-screen-2.2b:52, curate-3.5f.
+- Not judged by the gate critic (its session was cut): the coach cards, "Not sure" marks in History, Restore, and a frame by frame look at the transition videos. Unit and Playwright tests cover them; a human look is still owed.
+
+### Items marked [!] (G judges)
+- 3.5b Quick workout ideas.
+- 3.6f, 3.6g, 3.6g2 schedule and focus curation: the last critic pass scored 5 of 10 (reports/critic-3.6g2.md). Still true after the gate: more minutes or days can give a pick fewer sets, the first pick sometimes gets under +3, some reason lines read untrue, big one tap steps. 3.7b changed 310 of the 900 seeded plans (beginners and the near identical move rule), so the numbers in that report have moved.
+
+### Open notes
+- A beginner without picks on 5 or 6 days can still get a Barbell Bent Over Row from week variety; two curls with different gear can still share a day for non beginners.
+- Today's day card and Quick do not count coach warm ups yet (about 2 minutes under the workout header).
+- The repo grew by many re-rendered screenshots committed by the end of run wrapper during the gate (reports/shots); nothing private, but worth a cleanup rule.
+- Waiting on G: candidate approvals export, notch confirmation, wrangler login.
+
+### iPhone hand test (5 minutes)
+1. Settings, Answer the questions again: Brand new, full gym, 3 days, pick Arms. "Your plan" stays machine first (no Deadlift or Pull Up) with arm work added; the goal and place tiles wear the 3D icons. 40 s.
+2. Use this plan, then Start on Today. Open the second exercise (a machine press): the weight sheet asks only "pin or plates on the machine", or nothing. 30 s.
+3. Quick workout with Seated Calf Raise: put on one 45 lb plate: "1 × 45 lb plate", no total, Done says "Answer one side or both first"; tap One side: the total appears. 30 s.
+4. On a barbell lift in a gym with 45, 25 and 10 lb plates only: the next weight up from 135 is 145. 20 s.
+5. Log two sets, change the reps on a row: the rows below follow. Finish: the done screen stays (tap the list while it saves: nothing opens); the line reads "N sets · best … × …". 40 s.
+6. Plans, Your plan, Coach tips, Apply all, Use this plan: Today still shows the same day with your sets counted. 30 s.
+7. Settings, Back up; then Restore that file: it restores (no "damaged"). 30 s.
+8. Settings, lb to kg: "Units changed to kg · Undo"; Undo puts the weights back. 15 s.
+9. Airplane mode, start today's workout: the exercise photos show. 30 s.
+10. Settings, Focus areas: pick five areas, Continue: "Your plan" appears without a wait. 20 s.
