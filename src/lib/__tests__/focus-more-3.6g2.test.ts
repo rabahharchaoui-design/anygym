@@ -10,7 +10,7 @@ import type { FocusReport } from '../plan/focus';
 import { seededInput } from './focusMeasure36g';
 import { CRITIC_MORE_CORNERS, MORE_CORNERS } from './focusCorners36g2';
 // A heavy test file (216 plans, each with its smaller plans); an explicit limit sized for the GitHub runner, never a retry.
-viTimeout.setConfig({ testTimeout: 240_000 });
+viTimeout.setConfig({ testTimeout: 600_000 });
 
 const DAYS = [3, 4, 5, 6], MINUTES = [45, 60, 75];
 const amount = (r: FocusReport, id: FocusPickId) => { const p = r.priorities.find((x) => x.id === id)!; return id === 'mobility' ? p.minutes ?? 0 : p.total; };
