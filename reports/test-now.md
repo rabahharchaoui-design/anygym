@@ -47,3 +47,4 @@
 3.6e | In a gym set to 45, 25 and 10 lb plates only (Settings, your gym, plates): on a barbell lift at 135 lb tap the next weight up: it reads 145 lb, not 155 or 185.
 3.6d | Plans, Your plan, Coach tips, Apply all, Use this plan. Then Settings, Back up, save the file. On another phone or after Settings, Erase: Restore that file: it restores (before it said "This backup is damaged") and Today shows the same plan.
 3.6j | Start today's workout, log a few sets, leave it. Plans, Your plan, Coach tips, Apply all, Use this plan. Back on Today: it still says the same day again with your sets counted, not the next day.
+3.6p | Settings, Focus areas: pick five or more areas, Continue: Your plan appears without a wait, and tapping a "Make it ..." button answers at once.
