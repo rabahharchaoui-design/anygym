@@ -91,8 +91,9 @@ test.describe('one side or both @matrix', () => {
     await knownStart(page);
     await quickWith(page, [['seated calf', NAME]]);
     const view = exerciseView(page, ID);
-    // Last time shows what was logged, as logged.
-    await page.getByText(NAME, { exact: true }).first().tap();
+    // Last time shows what was logged, as logged. On a small phone the exercise is already open; a tap on its name would open the demo.
+    if (!(await view.isVisible())) await page.getByText(NAME, { exact: true }).first().tap();
+    await expect(view).toBeVisible();
     await expect(view.getByRole('button', { name: /^Last time 140/ }).first()).toBeVisible();
     let s = await openWeight(page);
     // The start is known: only the sides are asked.
