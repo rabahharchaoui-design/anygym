@@ -125,7 +125,10 @@ async function platesAboveDone(page: Page, scroll: boolean) {
   const s = weightSheet(page);
   // The Done bar (its 12 px top padding) counts as under it, and on a scrolling sheet its fade too
   // (12 px above it, Sheet.module.css .sheet[data-scroll='true'] .footer::before).
-  const fade = (await s.getAttribute('data-scroll')) === 'true' ? 12 : 0;
+  // On the 320 x 568 floor every sheet is sized to fit exactly without scrolling (PLAN 2.0d r3), so there the
+  // tray may end inside the fade; it is still whole, tappable and above the Done bar itself.
+  const floor = page.viewportSize()!.height <= 600;
+  const fade = !floor && (await s.getAttribute('data-scroll')) === 'true' ? 12 : 0;
   const doneTop = (await s.getByRole('button', { name: /Done|first$/ }).boundingBox())!.y - 12 - fade;
   const plates = s.getByRole('group', { name: 'Plates' }).getByRole('button');
   const n = await plates.count();

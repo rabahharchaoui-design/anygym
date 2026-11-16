@@ -63,8 +63,10 @@ const HORN_SHARE = 0.22;
 const HORN_SHARE_SHORT = 0.18;
 /** A horn while its start or sides question is open: the whole tray clears Done's fade (PLAN 3.7a, 360 x 640). */
 const HORN_SHARE_TIGHT = 0.13;
+/** A tall phone (700 px and up) has the room: the horn keeps its full tight size (PLAN 2.0d: it fills most of the width). */
+const HORN_SHARE_TIGHT_TALL = 0.15;
 /** Short screens (the 320 x 568 floor) while a question is open: smaller still, so tray and Done fit. */
-const HORN_SHARE_TIGHT_SHORT = 0.1;
+const HORN_SHARE_TIGHT_SHORT = 0.112;
 /** Reduced motion: the old and new drawings overlap and crossfade. */
 const CROSSFADE_MS = 150;
 
@@ -114,7 +116,7 @@ export function PlateDiagram({ unit, bar, inventory, collars, other = 0, colorMo
   const makeLayout = horn ? hornLayout : barLayout;
   // True scale (SPEC 5.6): the width sets the scale and the height; the plates only move the camera.
   const short = screenH < 600;
-  const share = horn ? (tight ? (short ? HORN_SHARE_TIGHT_SHORT : HORN_SHARE_TIGHT) : short ? HORN_SHARE_SHORT : HORN_SHARE) : tight ? (short ? HORN_SHARE_TIGHT_SHORT : HEIGHT_SHARE_TIGHT) : HEIGHT_SHARE;
+  const share = horn ? (tight ? (short ? HORN_SHARE_TIGHT_SHORT : screenH >= 700 ? HORN_SHARE_TIGHT_TALL : HORN_SHARE_TIGHT) : short ? HORN_SHARE_SHORT : HORN_SHARE) : tight ? (short ? HORN_SHARE_TIGHT_SHORT : HEIGHT_SHARE_TIGHT) : HEIGHT_SHARE;
   // In a busy sheet on a short screen a horn takes even less (its plates still fit: it shrinks).
   const maxHeight = Math.round(screenH * (drawingShare === undefined ? share : horn && short ? drawingShare * 0.8 : drawingShare));
   const layout = makeLayout({ unit, perSide: value, width, bar: barId, maxHeight, hold });
