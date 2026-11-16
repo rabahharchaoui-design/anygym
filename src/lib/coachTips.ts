@@ -232,6 +232,9 @@ function frequency(plan: Plan, profile: ProfileOf): Found | null {
   for (const major of MAJOR) {
     const trained = sets.map((s, i) => (setsFor(s, major.muscles) >= SESSION_SETS ? i : -1)).filter((i) => i >= 0);
     if (trained.length !== 1) continue;
+    // PLAN 3.7b: "one session a week" is said only when it is true: no other day trains the group at all
+    // (side, front and rear shoulders are one group: a press day and a side raise day are two sessions).
+    if (sets.filter((s) => setsFor(s, major.muscles) > 0).length !== 1) continue;
     const home = trained[0]!;
     const half = major.upper ? 'upper' : 'lower';
     const options = plan.days
@@ -248,7 +251,7 @@ function frequency(plan: Plan, profile: ProfileOf): Found | null {
       .filter(({ p, item }) => p.role === 'lift' && p.targets.some((m) => major.muscles.includes(m)) && !there.has(item.exerciseId));
     const pick = candidates.find((c) => isCompound(c.p)) ?? candidates[0];
     if (!pick) continue;
-    adds.push({ word: major.word, to: target.d.n, item: pick.item, block: pick.b });
+    adds.push({ word: major.word, to: target.d.n, item: pick.item, block: freqBlock(pick.b, pick.item) });
     added.set(target.i, new Set([...(added.get(target.i) ?? []), pick.item.exerciseId]));
   }
   if (!adds.length) return null;
@@ -258,16 +261,27 @@ function frequency(plan: Plan, profile: ProfileOf): Found | null {
     tip: {
       id: 'freq',
       title: `${listWords(words).replace(/^./, (c) => c.toUpperCase())} ${words.length === 1 && !words[0]!.endsWith('s') ? 'gets' : 'get'} one session a week`,
-      why: `Muscles grow best trained about twice a week. Adds ${FREQ_SETS} sets of each on another day, same split.`,
+      why: `Muscles grow best trained about twice a week. ${freqAdds(adds.map((a) => a.block.sets ?? 0))}`,
       days,
       detail: adds.map((a) => `${a.item.name} → Day ${a.to}`),
     },
     apply: (p) => {
       let out = p;
-      for (const a of adds) out = mapDays(out, [a.to], (day) => insertLift(day, freqBlock(a.block, a.item), profile));
+      for (const a of adds) out = mapDays(out, [a.to], (day) => insertLift(day, a.block, profile));
       return out;
     },
   };
+}
+
+/**
+ * PLAN 3.7b: what Apply adds, said exactly, from the blocks it inserts: one exercise is "it", several
+ * are "each" only when all get the same sets (else each count is on the detail lines alone).
+ */
+export function freqAdds(sets: readonly number[]): string {
+  const n = sets[0]!;
+  const count = `${n} ${n === 1 ? 'set' : 'sets'}`;
+  if (sets.length === 1) return `Adds ${count} of it on another day, same split.`;
+  return sets.every((x) => x === n) ? `Adds ${count} of each on another day, same split.` : `Adds ${sets.length} exercises on other days, same split.`;
 }
 
 /** The copy a frequency tip adds: the exercise alone, FREQ_SETS sets, the plan's reps and rest, no note. */
