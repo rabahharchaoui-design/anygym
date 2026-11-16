@@ -18,3 +18,10 @@ describe('History detail line (3.6z A12)', () => {
     expect(detailMeta(live, [set('c', 500, { uncertain: true })], 'lb', start)).toBe('Tue, Nov 10 · 1 set · 45 min');
   });
 });
+
+describe('History detail time (3.6z A11)', () => {
+  it('a workout left open overnight reads "Over 4 h", never 780 min', () => {
+    const overnight: Session = { ...live, endedAt: start + 780 * 60_000 };
+    expect(detailMeta(overnight, [set('a', 100)], 'lb', start)).toBe('Tue, Nov 10 · 1 set · Over 4 h · 1,000 lb lifted');
+  });
+});

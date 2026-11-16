@@ -8,6 +8,7 @@ import { useLive } from '../../hooks/useLive';
 import { useSchedule } from '../../hooks/useSchedule';
 import { restingWords } from '../../lib/plan/scheduleWords';
 import { bestSetLine, formatSession, sameSets } from '../../lib/setWords';
+import { workoutTime } from '../../lib/workoutTime';
 import { workSetCount } from '../../lib/workSets';
 import { formatTotalCompact, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
@@ -81,7 +82,8 @@ export function FinishScreen() {
   const v = detail.data;
   const d = v?.d;
 
-  const minutes = d ? Math.round(((d.session.endedAt ?? d.session.startedAt) - d.session.startedAt) / 60000) : 0;
+  // 3.6z A11: one left open for hours reads "Over 4 h", never a made up training time.
+  const time = d ? workoutTime(d.session.startedAt, d.session.endedAt ?? d.session.startedAt) : null;
   // Warm ups never count toward Total lifted (SPEC 21.1).
   const lifted = d && v ? totalLifted(d.sets.filter((s) => s.kind !== 'warmup'), v.unit) : 0;
   // The workout is saved whether or not this screen could read it back: Done always works, and
@@ -179,7 +181,7 @@ export function FinishScreen() {
             <div className={styles.stats}>
               <motion.div className={styles.stat} {...item(1)}>
                 <span className={`${styles.value} num`} data-testid="finish-duration">
-                  {minutes < 1 ? '<1 min' : <Odometer value={`${minutes} min`} countUp={!reduce} />}
+                  {!time || time.minutes === null || time.minutes < 1 ? time?.words : <Odometer value={time.words} countUp={!reduce} />}
                 </span>
                 <span className={styles.label}>Time</span>
               </motion.div>
