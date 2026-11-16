@@ -3,7 +3,7 @@ import { curateFocus, focusMuscles, normalizeFocusPicks, type FocusMove, type Fo
 import { RIDERS } from '../plan/focusShare';
 import { isCompound, orderUnits } from '../order';
 import { supports } from '../swap';
-import { allowed, makeItem } from './pick';
+import { allowed, beginnerRank, kindOf, makeItem } from './pick';
 import { prescribe, setCap } from './prescribe';
 import { pairUp, splitUnequalPairs, unitOf } from './pairs';
 import { minutesOf } from './trim';
@@ -78,6 +78,9 @@ export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusRepo
     it.sets = 1; it.seconds = [60, 60]; it.rest = 0; it.mobility = true;
     return it;
   })));
+  // PLAN 3.7b: what focus adds for a brand new lifter is machines first too (the base plan's own rule, pick.ts).
+  const rank = beginnerRank(ctx.input);
+  if (rank) for (const d of candidates) d.sort((a, b) => rank[kindOf(a.candidate.requires)] - rank[kindOf(b.candidate.requires)]);
   const pools = days.map((d, i) => new Map([...candidates[i]!, ...d.units.flat()].map((it) => [it.id, it])));
   // Reorder and pair during every estimate too. The accepted result has exactly that same duration.
   const arranged = (moves: FocusMove[], i: number): Day => {
