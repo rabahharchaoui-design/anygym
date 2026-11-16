@@ -220,9 +220,10 @@ test.describe('2.0d critic round @matrix', () => {
     const frame = await part(page, '[data-bar-part="frame"]');
     const cap = await part(page, '[data-bar-part="cap"]');
     const svgBox = (await page.getByTestId('plate-svg').boundingBox())!;
-    // At least 60% of the width (45% on the 320 x 568 floor, where the drawing shrinks while the question is open).
-    const short = page.viewportSize()!.height < 600;
-    expect((cap.right - frame.left) / svgBox.width, `horn ${frame.left}..${cap.right} of ${svgBox.width}`).toBeGreaterThanOrEqual(short ? 0.45 : 0.6);
+    // At least 60% of the width on a tall phone; while the question is open the drawing shrinks on smaller ones so the
+    // plate tray stays clear of Done (PLAN 3.7a): 50% under 700 px tall, 45% on the 320 x 568 floor.
+    const h = page.viewportSize()!.height;
+    expect((cap.right - frame.left) / svgBox.width, `horn ${frame.left}..${cap.right} of ${svgBox.width}`).toBeGreaterThanOrEqual(h < 600 ? 0.45 : h < 700 ? 0.5 : 0.6);
     expect(frame.left).toBeGreaterThanOrEqual(svgBox.x - 0.5);
     expect(cap.right).toBeLessThanOrEqual(svgBox.x + svgBox.width + 0.5);
     void svg;

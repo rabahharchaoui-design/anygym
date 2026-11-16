@@ -591,7 +591,11 @@ test('home with Dumbbells asks for the range: Continue waits, only what was type
   await expect.poll(async () => (await dbAll(page, 'gyms'))[0]?.dumbbellRange).toEqual({ min: 10, max: 40, step: 10 });
 });
 
+// The reveal lists weekday rows from the next chosen weekday on or after today (src/lib/plan/weekdays.ts comingWeekdays), so tests that expect a weekday order pin the clock to a Monday.
+const onAMonday = (page: Page) => page.clock.setFixedTime(new Date(2026, 10, 16, 10, 0, 0));
+
 test('B3: 4 days then 3 weekdays: the weekdays screen says so and waits for the fourth, the reveal repeats the 4, every workout shows @matrix', async ({ page }) => {
+  await onAMonday(page);
   await drafted(page, 'weekdays', { goal: 'muscle', days: 4, place: 'full', experience: '3y', units: US });
   // PLAN 3.3a round 3: one prompt: the why says what it is for, the grey button says how many.
   await expect(page.getByTestId('why')).toHaveText('Choose a schedule that fits your life.');
@@ -1025,6 +1029,7 @@ test('P13: outdoors asks only about pull up bars and bands; full gym labels neve
 });
 
 test('P14: on the reveal the check finishes by 900 ms beside the title; weekdays show when the count matches @matrix', async ({ page }) => {
+  await onAMonday(page);
   await drafted(page, 'reveal', { goal: 'muscle', days: 5, place: 'full', weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'], units: US });
   const end = await page.getByTestId('reveal-check').evaluate((svg) =>
     Math.max(...[...svg.querySelectorAll('*')].flatMap((el) => el.getAnimations().map((a) => Number(a.effect!.getComputedTiming().endTime)))),

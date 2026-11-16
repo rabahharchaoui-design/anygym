@@ -92,8 +92,11 @@
 
 /* A body over a pinned Done bar (PLAN 3.7a): its last row (the plate tray) ends clear of the bar's
    12 px fade (Sheet.module.css .footer::before), at rest and when scrolled to the end. */
-.clearFade {
-  padding-bottom: calc(var(--space-3) + var(--space-1));
+@media (min-height: 601px) {
+  /* not on the 320 x 568 floor: there every sheet is sized to fit exactly without scrolling (PLAN 2.0d r3) */
+  .clearFade {
+    padding-bottom: calc(var(--space-3) + var(--space-1));
+  }
 }
 
 .sheetActions {
