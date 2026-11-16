@@ -4,7 +4,7 @@ import { AppShell } from './components/AppShell';
 import { ArrivalGuard } from './components/ArrivalGuard';
 import { LandscapeGuard } from './components/LandscapeGuard';
 import { TodayScreen } from './screens/TodayScreen';
-import { RunScreen } from './screens/RunScreen';
+import { RunScreen } from './screens/run/RunScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HistoryDetail } from './screens/history/HistoryDetail';
 import { PlansScreen } from './screens/plans/PlansScreen';

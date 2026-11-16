@@ -19,6 +19,14 @@ function shortSha(): string {
 }
 
 
+/** The one place the run map's tile host lives is src/lib/run/mapSource.ts; the CSP reads it from there. */
+function tileOrigin(): string {
+  const src = readFileSync(new URL('./src/lib/run/mapSource.ts', import.meta.url), 'utf8');
+  const m = /TILE_ORIGIN\s*=\s*'(https:\/\/[^']+)'/.exec(src);
+  if (!m) throw new Error('TILE_ORIGIN not found in src/lib/run/mapSource.ts');
+  return new URL(m[1]!).origin;
+}
+
 /** The one place the Worker host lives is src/lib/reporting/config.ts; the CSP reads it from there. */
 function workerOrigin(): string {
   const src = readFileSync(new URL('./src/lib/reporting/config.ts', import.meta.url), 'utf8');
@@ -49,7 +57,11 @@ function cspPlugin(): Plugin {
         const connect = new Set(["'self'", workerOrigin()]);
         const extra = process.env.VITE_ANYGYM_API;
         if (extra) connect.add(new URL(extra).origin);
-        // Later: add the map tile host to connect-src and img-src (PLAN Run map). Not yet.
+        // PLAN 4.2, the Run map: MapLibre fetches the tile list, the vector tiles and the label glyphs
+        // from one host, all through fetch, so that host is in connect-src and nowhere else (the map
+        // style ships in the app and has no sprite, so img-src stays as it is). MapLibre's worker is a
+        // file of our own origin (setWorkerUrl), so worker-src stays 'self': no blob: worker.
+        connect.add(tileOrigin());
         const csp = [
           "default-src 'self'",
           "script-src 'self'",
@@ -131,6 +143,8 @@ export default defineConfig({
         // PLAN 3.6i: the 20 small 3D icons on the intake and Quick workout are precached in both formats
         // (about 230 KB together; the phone asks for one of them), so they show in a gym with no signal.
         // Art that waits for its screen (icons3d/later/) is never precached.
+        // PLAN 4.2: the MapLibre chunk and its worker are precached like the rest of the app (the Run
+        // tab opens with no signal); map tiles are another host, match no rule here and are never cached.
         globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}', 'icons3d/*.{avif,webp}'],
         // PLAN 3.5e: the candidate move list is only for the owner review and a phone with approvals:
         // never precached for everyone; kept once it loaded (below).

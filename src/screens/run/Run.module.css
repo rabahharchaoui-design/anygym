@@ -1,0 +1,324 @@
+/* Run With Me, the start screen (SPEC 12.1). A fixed full screen frame (PLAN 1.10b: pinned to the
+   top with the app height): the map fills it, everything else floats on the map. */
+.screen {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  --run-pad-l: calc(var(--space-4) + var(--safe-left));
+  --run-pad-r: calc(var(--space-4) + var(--safe-right));
+}
+
+/* Title, gym pill and the GPS chip over a fade of the background, so they read on any map. Only
+   the controls take touches; the map under the fade still drags. */
+.top {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: calc(var(--safe-top) + var(--space-3)) var(--run-pad-r) var(--space-5) var(--run-pad-l);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 88%, transparent) 35%, transparent);
+  pointer-events: none;
+}
+
+.top > *,
+.stage > *,
+.panel > * {
+  pointer-events: auto;
+}
+
+.titleRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 48px;
+}
+
+.title {
+  min-width: 0;
+  font-size: clamp(26px, 8.2vw, 34px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+/* The GPS chip: a 48 pt hit area around a small glass pill with a status light. */
+.gps {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  min-width: 48px;
+  margin: 0 0 -8px -4px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+}
+
+.gpsFace {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 4px 12px 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-line);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.gpsDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.gps[data-tone='ok'] .gpsDot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.gps[data-tone='warn'] .gpsDot {
+  background: var(--amber);
+}
+.gps[data-tone='busy'] .gpsDot {
+  background: var(--accent);
+  animation: seek 1.1s var(--ease-in-out) infinite alternate;
+}
+.gps[data-status='denied'] .gpsDot {
+  background: var(--red);
+}
+/* Not asked yet: the chip is the one next step for the map, so it is outlined in the accent. */
+.gps[data-status='ask'] .gpsFace {
+  border-color: var(--accent-line);
+}
+
+@keyframes seek {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The open map. Its foot carries the map notes (left) and the recentre button (right). */
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 calc(var(--run-pad-r) - 2px) 0 var(--run-pad-l);
+  pointer-events: none;
+}
+
+/* The controls, on a fade into the background that starts above them. */
+.panel {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--run-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px) + var(--space-1)) var(--run-pad-l);
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 92%, transparent) 22%, var(--bg) 60%);
+  pointer-events: none;
+}
+
+/* What this run is: one line, the same height for every run type (no shift when the type changes). */
+.goal {
+  min-height: 48px;
+  min-width: 48px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px var(--space-4);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.goalLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.goalLabel > svg {
+  color: var(--text-2);
+}
+
+.goalDetail {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.music {
+  width: 100%;
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Start: the one accent thing on the screen. A big round button in the thumb zone; it shrinks a
+   little on short phones so the map keeps its room. */
+.start {
+  --start: clamp(88px, calc(var(--app-height) * 0.15), 124px);
+  flex: none;
+  width: var(--start);
+  height: var(--start);
+  margin-top: var(--space-1);
+  border-radius: 50%;
+  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 55%);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-size: clamp(20px, calc(var(--start) * 0.22), 26px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--white) 55%, transparent),
+    0 0 0 6px var(--accent-soft),
+    var(--accent-glow);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 160ms var(--ease-out);
+}
+
+.start:active {
+  transform: scale(var(--press-scale));
+  transition-duration: 0ms;
+}
+
+/* Sheets of this screen: a title, a few plain lines, the choices. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5) calc(var(--space-5) + var(--safe-bottom));
+}
+
+.sheetTitle {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sheetLine {
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: 1.4em;
+  color: var(--text-2);
+  line-height: 1.45;
+  list-style: decimal;
+}
+
+.sheetActions {
+  margin-top: var(--space-2);
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* "Run started": the plain full screen the countdown lands on until the live run exists. */
+.started {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: calc(var(--safe-top) + var(--space-6)) calc(var(--space-5) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-5)) calc(var(--space-5) + var(--safe-left));
+  background: var(--bg);
+}
+
+.startedBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.startedWhat {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.startedTitle {
+  font-size: var(--text-hero);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.startedLine {
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gps[data-tone='busy'] .gpsDot {
+    animation: none;
+  }
+  .start:active {
+    transform: none;
+    opacity: var(--press-dim);
+  }
+}
+
+/* Short phones (568 tall): the title row and the gaps tighten so the map keeps a clear band. */
+@media (max-height: 600px) {
+  .top {
+    padding-top: calc(var(--safe-top) + var(--space-1));
+    padding-bottom: var(--space-3);
+  }
+  .panel {
+    gap: var(--space-1);
+    padding-top: var(--space-2);
+  }
+}
