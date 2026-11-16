@@ -1,7 +1,7 @@
 // The MapLibre map itself (SPEC 12.10). This file and everything it imports is one lazy chunk:
 // it loads only when the Run tab opens (RunMap.tsx), never with the app.
 import { useEffect, useRef } from 'react';
-import { Map as GlMap, Marker, setWorkerUrl } from 'maplibre-gl';
+import { getGlobalDispatcher, Map as GlMap, Marker, setWorkerUrl } from 'maplibre-gl';
 // The worker is a file of our own origin (no blob: worker), so the CSP keeps worker-src 'self'.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -75,13 +75,19 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     map.current = gl;
     gl.touchZoomRotate.disableRotation();
     // Any failed request of the map (tile list, a tile, glyphs) or a lost WebGL context.
-    gl.on('error', (e) => {
+    const onError = (e: { error?: { message?: string } }) => {
       failed = true;
       // What failed, for tests and problem reports; the screen only ever says "Map offline".
       if (box.current) box.current.dataset.mapError = String(e.error?.message ?? 'error').slice(0, 120);
       cb.current.onOffline(true);
       cb.current.onReady();
-    });
+    };
+    gl.on('error', onError);
+    // A worker that could not load (signal lost, or the app left mid load) reports to MapLibre's
+    // dispatchers, which print to the console when nobody listens. Same answer: map offline.
+    type Reports = { on: (type: 'error', fn: typeof onError) => unknown; off: (type: 'error', fn: typeof onError) => unknown };
+    const dispatchers = [getGlobalDispatcher(), gl.style?.dispatcher].filter(Boolean) as unknown as Reports[];
+    for (const d of dispatchers) d.on('error', onError);
     gl.on('load', () => cb.current.onReady());
     gl.on('idle', () => {
       if (!failed && gl.isSourceLoaded(SOURCE)) cb.current.onOffline(false);
@@ -99,6 +105,7 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     window.addEventListener('online', retry);
     return () => {
       window.removeEventListener('online', retry);
+      for (const d of dispatchers) d.off('error', onError);
       dot.current?.remove();
       dot.current = null;
       placed.current = false;

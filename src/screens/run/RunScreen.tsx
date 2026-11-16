@@ -91,7 +91,9 @@ export function RunScreen() {
         <div className={styles.titleRow}>
           <h1 className={styles.title}>Run With Me</h1>
           {/* SPEC 19: the gym pill is on the Run tab too. */}
-          <GymPill onToast={setToast} />
+          <span className={styles.pillSlot}>
+            <GymPill onToast={setToast} />
+          </span>
         </div>
         <div className={styles.chips}>
           <GpsChip status={status} words={words} onPress={() => setGpsOpen(true)} />
