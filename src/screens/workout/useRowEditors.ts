@@ -7,6 +7,7 @@ import { tick } from '../../ui/haptics';
 import type { WeightPick } from './WeightSheet';
 import { confirmablePick, copyLastLoad } from './exerciseLoad';
 import { rowsOf } from './rowLog';
+import { carryRows, repsCarryRows } from '../../lib/carryDown';
 import type { ExerciseRows } from './useExerciseRows';
 
 type Deps = {
@@ -16,7 +17,7 @@ type Deps = {
 
 /** The open editors of a row still to do: the weight sheet, the reps (or hold) editor, and the nudge on a ✓ that cannot log yet. */
 export function useRowEditors({ rx, onNotice }: Deps) {
-  const { sessionId, exerciseId, gym, name, kind, bar, timed, rows, draftAt, writeRow, refresh, idOf, rowById, testSet, blockedOf } = rx;
+  const { sessionId, exerciseId, gym, name, kind, bar, timed, rows, draftAt, slotOf, writeRow, refresh, idOf, rowById, testSet, blockedOf } = rx;
   /**
    * The weight sheet's row, by its stable draft id (PLAN 1.7k), never by its displayed position: a
    * row that commits while the sheet is open moves the rows below it, and the change must still land
@@ -57,11 +58,16 @@ export function useRowEditors({ rx, onNotice }: Deps) {
       ...(timed ? { seconds: v, watch: heldFor(v) } : { reps: v }),
       rev: (before.rev ?? 0) + 1,
     };
+    // 3.6z A17: a reps change carries to the working rows below still at the old number, like the
+    // weight (lib/carryDown.ts); a row whose reps were set by hand keeps them.
+    const from = timed ? undefined : rowById(id);
+    const below = from ? repsCarryRows(rows, from, testSet(from), before.reps ?? from.reps, (r) => !!draftAt(slotOf(r))?.repsEdited) : [];
     if (!timed) {
       draft.own = { ...before.own, reps: true };
       draft.repsEdited = true;
     }
     saveDraft(sessionId, rowKey(exerciseId, at), draft);
+    for (const r of below) writeRow(r, { reps: v }, { reps: true });
     refresh();
   };
   // Every render's changeAmount, for a stepper whose repeat started in an earlier render.
@@ -85,8 +91,7 @@ export function useRowEditors({ rx, onNotice }: Deps) {
     // working rows below it, never into a warm up (SPEC 20.2, gate 3).
     // A first timer's light test set (PLAN 3.8, SPEC 15) is for that set only: the rows below get the
     // number the coach sets from it.
-    const targets = from.type === 'warmup' || testSet(from) ? [from] : rows.filter((r) => r.index >= from.index && r.type !== 'warmup');
-    for (const r of targets) writeRow(r, { load: ok.load, plates: ok.plates, unit: ok.unit }, { load: true });
+    for (const r of carryRows(rows, from, testSet(from))) writeRow(r, { load: ok.load, plates: ok.plates, unit: ok.unit }, { load: true });
   };
 
   const copyLast = (row: PendingRow) => {

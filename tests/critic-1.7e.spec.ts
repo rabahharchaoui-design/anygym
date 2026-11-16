@@ -515,3 +515,23 @@ test('finish rows: an exercise with sets left reads "1 of 4 sets" and does not c
   await expect.poll(async () => { const b = (await change.boundingBox())!; return Math.min(b.width, b.height); }).toBeGreaterThanOrEqual(48);
   expect(errors).toEqual([]);
 });
+
+test('3.6z A17: reps changed on set 1 carry to the rows below, like the weight', async ({ page }) => {
+  const errors = watchErrors(page);
+  await quickWith(page, [['dumbbell bench', 'Dumbbell Bench Press']]);
+  const view = page.getByTestId('exercise-dumbbell-bench-press');
+  await expect(view.getByTestId('reps-cell')).toHaveText(['8', '8', '8']);
+  await view.getByTestId('reps-cell').first().tap();
+  for (let i = 0; i < 4; i++) await view.getByRole('button', { name: 'More reps' }).tap();
+  await view.getByRole('button', { name: 'Done', exact: true }).tap();
+  await expect(view.getByTestId('reps-cell')).toHaveText(['12', '12', '12']);
+  // A row set by hand keeps its number: set 3 to 10, then set 1 back down to 11 leaves set 3 at 10.
+  await view.getByTestId('reps-cell').nth(2).tap();
+  for (let i = 0; i < 2; i++) await view.getByRole('button', { name: 'Fewer reps' }).tap();
+  await view.getByRole('button', { name: 'Done', exact: true }).tap();
+  await view.getByTestId('reps-cell').first().tap();
+  await view.getByRole('button', { name: 'Fewer reps' }).tap();
+  await view.getByRole('button', { name: 'Done', exact: true }).tap();
+  await expect(view.getByTestId('reps-cell')).toHaveText(['11', '11', '10']);
+  expect(errors).toEqual([]);
+});
