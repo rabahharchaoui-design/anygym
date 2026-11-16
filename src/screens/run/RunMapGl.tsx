@@ -75,8 +75,10 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     map.current = gl;
     gl.touchZoomRotate.disableRotation();
     // Any failed request of the map (tile list, a tile, glyphs) or a lost WebGL context.
-    gl.on('error', () => {
+    gl.on('error', (e) => {
       failed = true;
+      // What failed, for tests and problem reports; the screen only ever says "Map offline".
+      if (box.current) box.current.dataset.mapError = String(e.error?.message ?? 'error').slice(0, 120);
       cb.current.onOffline(true);
       cb.current.onReady();
     });
