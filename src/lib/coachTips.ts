@@ -12,47 +12,14 @@
 //   core     an abs add on of 5+ exercises on a lifting day
 // Each check only speaks when the plan's own data shows it; nothing is flagged on a guess.
 
-import type { Plan, PlanBlock, PlanDay, PlanItem } from './plans';
-import { itemTarget } from './plans';
-import { SQUAT_HINGE_PRESS, heaviestOf, isCompound, muscleWord, orderUnits, sameMusclePair, type Muscle, type Profile } from './order';
+import type { Plan, PlanBlock, PlanDay } from './plans';
+import { SQUAT_HINGE_PRESS, heaviestOf, isCompound, muscleWord, sameMusclePair, type Muscle } from './order';
+import { CORE_KEEP, HEAVY_REST_SEC, TIP_IDS, dayWords, isCoreBlock, isMainLift, isStaticStretch, itemsOf, listWords, mapDays, ordinal, reorderLifts, type Found, type ProfileOf, type Tip, type TipId } from './coachTipsRead';
+import { frequency } from './coachTipsFreq';
 
-export const TIP_IDS = ['hinge', 'stretch', 'rest', 'pair', 'freq', 'core'] as const;
-export type TipId = (typeof TIP_IDS)[number];
-
-export type Tip = {
-  id: TipId;
-  /** One plain line: what is off. */
-  title: string;
-  /** One plain line: why, and what Apply does. */
-  why: string;
-  /** The days it touches (day numbers). */
-  days: number[];
-  /** What Apply changes, exactly, when one line is not enough ("Dumbbell Bench Press → Day 5"). */
-  detail?: string[];
-};
-
-export type ProfileOf = (id: string) => Profile;
-
-/** Heavy lifts rest this long once tuned (SPEC 22 rule 6: 2 to 3 min). */
-export const HEAVY_REST_SEC = 150;
-/** A muscle's day counts as a session with at least this many hard sets on it. */
-export const SESSION_SETS = 4;
-/** A tuned core block keeps this many exercises. */
-export const CORE_KEEP = 3;
-/** Sets a frequency tip adds for a muscle on another day (SPEC 22: 3 to 4). */
-export const FREQ_SETS = 3;
-
-const MAJOR: ReadonlyArray<{ word: string; muscles: Muscle[]; upper: boolean }> = [
-  { word: 'chest', muscles: ['chest'], upper: true },
-  { word: 'back', muscles: ['back'], upper: true },
-  { word: 'shoulders', muscles: ['front delts', 'side delts', 'rear delts'], upper: true },
-  { word: 'quads', muscles: ['quads'], upper: false },
-  { word: 'hamstrings', muscles: ['hamstrings'], upper: false },
-  { word: 'glutes', muscles: ['glutes'], upper: false },
-];
-
-const UPPER: ReadonlySet<Muscle> = new Set<Muscle>(['chest', 'back', 'front delts', 'side delts', 'rear delts', 'biceps', 'triceps', 'traps', 'forearms']);
-const LOWER: ReadonlySet<Muscle> = new Set<Muscle>(['quads', 'glutes', 'hamstrings', 'calves', 'adductors', 'abductors', 'lower back']);
+export { CORE_KEEP, FREQ_SETS, HEAVY_REST_SEC, SESSION_SETS, TIP_IDS } from './coachTipsRead';
+export type { ProfileOf, Tip, TipId } from './coachTipsRead';
+export { freqAdds } from './coachTipsFreq';
 
 /** "Legs (hamstring focus)" → hamstrings. Only a day that names its focus has one. */
 const FOCUS_WORDS: Readonly<Record<string, Muscle>> = {
@@ -70,63 +37,7 @@ export function dayFocus(day: Pick<PlanDay, 'name'>): Muscle | null {
   return m ? (FOCUS_WORDS[m[1]!.toLowerCase()] ?? null) : null;
 }
 
-// ---------------------------------------------------------------- reading a day
-
-const itemsOf = (b: PlanBlock, profile: ProfileOf) => b.items.map((it) => profile(it.exerciseId));
-const isLiftBlock = (b: PlanBlock, profile: ProfileOf) => !b.warmup && itemsOf(b, profile).some((p) => p.role === 'lift');
-const isCoreBlock = (b: PlanBlock, profile: ProfileOf) => isLiftBlock(b, profile) && itemsOf(b, profile).every((p) => p.role !== 'lift' || (p.tier === 3 && p.targets.includes('abs')));
-const isStaticStretch = (b: PlanBlock, profile: ProfileOf) => itemsOf(b, profile).every((p) => p.role === 'stretch');
-/** Lifts that are not the abs block (the day's real work). */
-const isMainLift = (b: PlanBlock, profile: ProfileOf) => isLiftBlock(b, profile) && !isCoreBlock(b, profile);
-
-/** Hard sets per muscle on a day (week 1): working sets of lifts, counted on their targets. */
-function hardSets(day: PlanDay, profile: ProfileOf): Map<Muscle, number> {
-  const out = new Map<Muscle, number>();
-  for (const b of day.blocks) {
-    if (b.warmup) continue;
-    for (const it of b.items) {
-      const p = profile(it.exerciseId);
-      if (p.role !== 'lift') continue;
-      const sets = itemTarget(b, it, 0).sets;
-      for (const m of p.targets) out.set(m, (out.get(m) ?? 0) + sets);
-    }
-  }
-  return out;
-}
-
-/** PLAN 3.7b: a group's hard sets on a day, each set once (an overhead press trains front and side shoulders: 3 sets, not 6). */
-function groupSets(day: PlanDay, muscles: readonly Muscle[], profile: ProfileOf): number {
-  let n = 0;
-  for (const b of day.blocks) {
-    if (b.warmup) continue;
-    for (const it of b.items) {
-      const p = profile(it.exerciseId);
-      if (p.role === 'lift' && p.targets.some((m) => muscles.includes(m))) n += itemTarget(b, it, 0).sets;
-    }
-  }
-  return n;
-}
-const totalSets = (sets: Map<Muscle, number>) => [...sets.values()].reduce((a, n) => a + n, 0);
-
-/** Upper, lower or neither, by where most of the day's hard sets go. */
-function halfOf(day: PlanDay, profile: ProfileOf): 'upper' | 'lower' | null {
-  const sets = hardSets(day, profile);
-  let up = 0;
-  let low = 0;
-  for (const [m, n] of sets) {
-    if (UPPER.has(m)) up += n;
-    if (LOWER.has(m)) low += n;
-  }
-  return up > low ? 'upper' : low > up ? 'lower' : null;
-}
-
-const listWords = (words: string[]) => (words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
-const dayWords = (days: number[]) => (days.length === 1 ? `Day ${days[0]}` : `Days ${listWords(days.map(String))}`);
-const ordinal = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'}`;
-
 // ---------------------------------------------------------------- the checks
-
-type Found = { tip: Tip; apply: (plan: Plan) => Plan };
 
 function hingeEarly(plan: Plan, profile: ProfileOf): Found | null {
   const hits: Array<{ day: PlanDay; focus: Muscle; name: string; at: number }> = [];
@@ -231,83 +142,6 @@ function sameMuscle(plan: Plan, profile: ProfileOf): Found | null {
   };
 }
 
-/** Days between two day indexes, around the week. */
-const apart = (a: number, b: number, n: number) => Math.min(Math.abs(a - b), n - Math.abs(a - b));
-
-function frequency(plan: Plan, profile: ProfileOf): Found | null {
-  if (plan.days.length < 3) return null;
-  const sets = plan.days.map((d) => hardSets(d, profile));
-  const halves = plan.days.map((d) => halfOf(d, profile));
-  const adds: Array<{ word: string; light: boolean; to: number; item: PlanItem; block: PlanBlock }> = [];
-  const added = new Map<number, Set<string>>();
-  for (const major of MAJOR) {
-    const group = plan.days.map((d) => groupSets(d, major.muscles, profile));
-    const trained = group.map((n, i) => (n >= SESSION_SETS ? i : -1)).filter((i) => i >= 0);
-    if (trained.length !== 1) continue;
-    // PLAN 3.7b: "one session a week" is said only when no other day trains the group at all (side, front and rear
-    // shoulders are one group). With lighter work on another day (a side raise day next to the press day) it is
-    // "one full session", the truth, and the why says what full means.
-    const light = group.filter((n) => n > 0).length > 1;
-    const home = trained[0]!;
-    const half = major.upper ? 'upper' : 'lower';
-    const options = plan.days
-      .map((d, i) => ({ d, i }))
-      .filter(({ i }) => i !== home && halves[i] === half)
-      .sort((a, b) => Number(apart(a.i, home, plan.days.length) <= 1) - Number(apart(b.i, home, plan.days.length) <= 1) || totalSets(sets[a.i]!) - totalSets(sets[b.i]!) || a.i - b.i);
-    const target = options[0];
-    if (!target) continue;
-    const there = new Set([...target.d.blocks.flatMap((b) => b.items.map((it) => it.exerciseId)), ...(added.get(target.i) ?? [])]);
-    // The plan's own exercise for it, from its home day: the first big lift, else the first one.
-    const candidates = plan.days[home]!.blocks
-      .filter((b) => isMainLift(b, profile))
-      .flatMap((b) => b.items.map((item) => ({ b, item, p: profile(item.exerciseId) })))
-      .filter(({ p, item }) => p.role === 'lift' && p.targets.some((m) => major.muscles.includes(m)) && !there.has(item.exerciseId));
-    const pick = candidates.find((c) => isCompound(c.p)) ?? candidates[0];
-    if (!pick) continue;
-    adds.push({ word: major.word, light, to: target.d.n, item: pick.item, block: freqBlock(pick.b, pick.item) });
-    added.set(target.i, new Set([...(added.get(target.i) ?? []), pick.item.exerciseId]));
-  }
-  if (!adds.length) return null;
-  const words = adds.map((a) => a.word);
-  const full = adds.some((a) => a.light);
-  const days = [...new Set(adds.map((a) => a.to))].sort((a, b) => a - b);
-  return {
-    tip: {
-      id: 'freq',
-      title: `${listWords(words).replace(/^./, (c) => c.toUpperCase())} ${words.length === 1 && !words[0]!.endsWith('s') ? 'gets' : 'get'} one ${full ? 'full session' : 'session'} a week`,
-      why: `${full ? `Muscles grow best with about two full sessions a week (${SESSION_SETS} sets or more).` : 'Muscles grow best trained about twice a week.'} ${freqAdds(adds.map((a) => itemTarget(a.block, a.block.items[0]!, 0).sets))}`,
-      days,
-      detail: adds.map((a) => `${a.item.name} → Day ${a.to}`),
-    },
-    apply: (p) => {
-      let out = p;
-      for (const a of adds) out = mapDays(out, [a.to], (day) => insertLift(day, a.block, profile));
-      return out;
-    },
-  };
-}
-
-/**
- * PLAN 3.7b: what Apply adds, said exactly, from the blocks it inserts: one exercise is "it", several
- * are "each" only when all get the same sets (else each count is on the detail lines alone).
- */
-export function freqAdds(sets: readonly number[]): string {
-  const n = sets[0]!;
-  const count = `${n} ${n === 1 ? 'set' : 'sets'}`;
-  if (sets.length === 1) return `Adds ${count} of it on another day, same split.`;
-  return sets.every((x) => x === n) ? `Adds ${count} of each on another day, same split.` : `Adds ${sets.length} exercises on other days, same split.`;
-}
-
-/** The copy a frequency tip adds: the exercise alone, FREQ_SETS sets, the plan's reps and rest, no note. */
-function freqBlock(b: PlanBlock, it: PlanItem): PlanBlock {
-  const item: PlanItem = { ...it };
-  delete item.note;
-  if (item.weeks) item.weeks = item.weeks.map((w) => ({ ...w, sets: Math.min(w.sets, FREQ_SETS) }));
-  const out: PlanBlock = { kind: 'single', items: [item], sets: FREQ_SETS };
-  if (b.restSec !== undefined) out.restSec = b.restSec;
-  return out;
-}
-
 function coreBlock(plan: Plan, profile: ProfileOf): Found | null {
   const days = plan.days
     .filter((d) => {
@@ -331,36 +165,6 @@ function coreBlock(plan: Plan, profile: ProfileOf): Found | null {
         return { ...day, blocks: day.blocks.filter((b) => !isCoreBlock(b, profile) || kept++ < CORE_KEEP) };
       }),
   };
-}
-
-// ---------------------------------------------------------------- transforms
-
-function mapDays(plan: Plan, days: readonly number[], f: (day: PlanDay) => PlanDay): Plan {
-  return { ...plan, days: plan.days.map((d) => (days.includes(d.n) ? f(d) : d)) };
-}
-
-/** The day's main lifts in SPEC 22 order (order.ts), in the slots they had; everything else stays put. */
-function reorderLifts(day: PlanDay, profile: ProfileOf, focus: Muscle | null): PlanDay {
-  const slots = day.blocks.map((b, i) => (isMainLift(b, profile) ? i : -1)).filter((i) => i >= 0);
-  const ordered = orderUnits(
-    slots.map((i) => ({ items: itemsOf(day.blocks[i]!, profile), ref: day.blocks[i]! })),
-    focus ? { focus: [focus] } : {},
-  );
-  const blocks = [...day.blocks];
-  slots.forEach((slot, k) => (blocks[slot] = ordered[k]!.ref));
-  return { ...day, blocks };
-}
-
-/** A lift goes after the last compound before the day's first isolation (or after its first lift). */
-function insertLift(day: PlanDay, block: PlanBlock, profile: ProfileOf): PlanDay {
-  const blocks = [...day.blocks];
-  const firstIso = blocks.findIndex((b) => isMainLift(b, profile) && !itemsOf(b, profile).some(isCompound));
-  const end = firstIso === -1 ? blocks.length : firstIso;
-  let at = -1;
-  for (let i = 0; i < end; i++) if (isMainLift(blocks[i]!, profile)) at = i;
-  if (at === -1) at = blocks.findIndex((b) => isMainLift(b, profile));
-  blocks.splice(at + 1, 0, block);
-  return { ...day, blocks };
 }
 
 // ---------------------------------------------------------------- the public side
