@@ -37,9 +37,17 @@ export function useWarmPlanPhotos(): void {
     const deps = browserWarmDeps();
     if (!urls || !deps || lessData()) return;
     const stop = new AbortController();
+    // A reload or a closed tab cancels the fetches cleanly (WebKit logs an error for a fetch cut by a page going away).
+    const leave = () => stop.abort();
+    window.addEventListener('pagehide', leave, { once: true });
+    window.addEventListener('beforeunload', leave, { once: true });
     void loaded()
       .then(() => (stop.signal.aborted || !deps.online() ? undefined : warmPhotos(urls.split('\n'), deps, stop.signal)))
       .catch(() => undefined);
-    return () => stop.abort();
+    return () => {
+      window.removeEventListener('pagehide', leave);
+      window.removeEventListener('beforeunload', leave);
+      stop.abort();
+    };
   }, [urls]);
 }

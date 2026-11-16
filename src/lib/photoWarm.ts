@@ -14,7 +14,7 @@ export interface CacheLike {
 
 export interface WarmDeps {
   open: () => Promise<CacheLike>;
-  fetch: (url: string) => Promise<Response>;
+  fetch: (url: string, signal?: AbortSignal) => Promise<Response>;
   /** Resolves when the phone is idle enough for the next batch. */
   idle: () => Promise<void>;
   online: () => boolean;
@@ -37,7 +37,7 @@ export async function warmPhotos(urls: readonly string[], deps: WarmDeps, signal
         result.kept++;
         return;
       }
-      const res = await deps.fetch(url);
+      const res = await deps.fetch(url, signal);
       // Only a whole, same origin picture is kept (never an error page or a partial answer).
       if (!res.ok || res.status !== 200 || res.type === 'opaque') {
         result.failed++;
@@ -64,7 +64,7 @@ export function browserWarmDeps(): WarmDeps | null {
   const ric = (globalThis as IdleWindow).requestIdleCallback;
   return {
     open: () => caches.open(PHOTO_CACHE),
-    fetch: (url) => fetch(url, { credentials: 'same-origin' }),
+    fetch: (url, signal) => fetch(url, { credentials: 'same-origin', signal }),
     idle: () => new Promise<void>((done) => (ric ? ric(() => done(), { timeout: 2000 }) : setTimeout(done, 300))),
     online: () => navigator.onLine !== false,
   };
