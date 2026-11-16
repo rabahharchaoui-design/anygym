@@ -74,10 +74,27 @@ describe('saved generated plans', () => {
     }
   });
 
-  it('a backup with a broken definition is refused', async () => {
+  // PLAN 3.6d (audit A1): an exercise this phone does not know may be a move approved on the phone
+  // that made the file, so it no longer refuses the whole backup. The plan is restored as it was and
+  // the registry says it cannot load here (Today: one line with Try again); the workouts all come back.
+  it('a backup with a plan this phone cannot run restores, and the plan is reported, not dropped', async () => {
     const plan = await saveGeneratedPlan(built(3), db);
     const backup = await exportBackup(db);
-    const text = serializeBackup(backup).replace(`"id":"${plan.id}","name"`, `"id":"${plan.id}","name"`).replace('"blocks":[', '"blocks":[{"type":"single","exercise":"Made up","id":"Made_Up"},');
+    const text = serializeBackup(backup).replace('"blocks":[', '"blocks":[{"type":"single","exercise":"Made up","id":"Made_Up"},');
+    const parsed = parseBackup(text);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const { registryStatus } = await import('../planRegistry');
+    await restoreReplace(parsed.backup, db);
+    expect((await db.plans.get(plan.id))?.definition).toEqual(parsed.backup.tables.plans[0]!.definition);
+    expect(registryStatus()).toEqual({ state: 'failed', missing: 1 });
+  });
+
+  it('a backup whose plan definition has a day with nothing in it is refused', async () => {
+    await saveGeneratedPlan(built(3), db);
+    const backup = await exportBackup(db);
+    (backup.tables.plans[0]!.definition as { days: Array<{ blocks: unknown[] }> }).days[1]!.blocks = [];
+    const text = serializeBackup(backup);
     expect(parseBackup(text).ok).toBe(false);
   });
 });

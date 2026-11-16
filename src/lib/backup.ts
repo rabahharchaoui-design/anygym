@@ -11,7 +11,7 @@
 import type { ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from '../db/types';
 import { RENAMED_PLAN_IDS, SCHEMA_VERSION } from '../db/schema';
 import type { DraftsBlob } from './drafts';
-import { definitionPlan, planById } from '../data/plans';
+import { planStateOk } from './backupPlans';
 import { MAX_EXTRA_SETS } from './extraSets';
 import { MAX_ROW_SLOT } from './setTable';
 import type { CandidateReviewRow } from './candidates/review';
@@ -213,7 +213,6 @@ function draftsOk(drafts: unknown, sessions: Rec[]): boolean {
 
 // Rows added (positive) or removed (negative, PLAN 2.2d), never zero, never past the limit either way.
 const extraCount: Check = (v) => Number.isInteger(v) && (v as number) !== 0 && Math.abs(v as number) <= MAX_EXTRA_SETS;
-const dayIndex: Check = (v) => Number.isInteger(v) && (v as number) >= 0;
 
 /** A pending row's draft key is `exercise@slot` (or the older `exercise#index`) with a sane position. */
 function draftKeyOk(key: string): boolean {
@@ -221,29 +220,6 @@ function draftKeyOk(key: string): boolean {
   return !m || Number(m[2]) <= MAX_ROW_SLOT;
 }
 
-/**
- * The plan pointer (PLAN 2.0f): whole day positions, and for a plan this app knows, inside that
- * plan, so Replace never leaves Today pointing at a day that is not there. A plan it does not
- * know keeps its numbers (a newer app's plan), only whole and not negative.
- */
-function planStateOk(rows: Rec[], plans: Rec[] = []): boolean {
-  // PLAN 3.5: a generated plan in the same file counts as known, by its saved definition.
-  const saved = new Map(plans.flatMap((p) => {
-    const plan = p.definition ? definitionPlan(p.definition) : undefined;
-    return plan ? [[plan.id, plan] as const] : [];
-  }));
-  return rows.every((r) => {
-    const doneDays = r.doneDays as number[];
-    const pending = (r.pendingDayIndices ?? []) as number[];
-    const partial = (r.partial ?? {}) as Record<string, number>;
-    if (!dayIndex(r.nextDayIndex) || !dayIndex(r.weekIndex) || !doneDays.every(dayIndex)) return false;
-    if (!Object.keys(partial).every((k) => dayIndex(Number(k)) && /^\d+$/.test(k))) return false;
-    const plan = saved.get(r.planId as string) ?? planById((RENAMED_PLAN_IDS as Record<string, string>)[r.planId as string] ?? (r.planId as string));
-    if (!plan) return pending.length === 0;
-    const n = plan.days.length;
-    return (r.nextDayIndex as number) < n && doneDays.every((d) => d < n) && pending.every((d) => d < n) && (r.chosenDayIndex === undefined || (r.chosenDayIndex as number) < n) && Object.keys(partial).every((k) => Number(k) < n);
-  });
-}
 const isRest = shape({ req: { sessionId: str, endsAt: num, totalSec: num } });
 const isExtraSets = shape({ req: { sessionId: str, extra: recordOf(extraCount) }, opt: { dropped: recordOf(str) } });
 

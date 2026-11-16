@@ -3,7 +3,7 @@
 // required fields and, when present, its optional ones. A backup with one record that does not match
 // is refused before anything on the phone changes.
 import type { DumbbellRange } from '../db/types';
-import { definitionPlan } from '../data/plans';
+import { definitionShapeOk } from './backupPlans';
 import { isKnownPlate, validDumbbellRange, validStackStep } from './load';
 import { isReviewRow } from './candidates/review';
 import { FOCUS_PICKS } from './intake/options';
@@ -134,8 +134,10 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
     opt: { name: str, goal: str, level: str, daysPerWeek: num, lastBackupAt: num, backedUpSessionIds: listOf(str), backupSnoozeUntil: num, intakeDoneAt: num, intake, distanceUnit: oneOf('km', 'mi'), measureUnit: oneOf('cm', 'in'), dislikes: shape({ req: {}, opt: { soft: recordOf(num), never: listOf(str), lefts: recordOf(listOf(str)), asked: listOf(str) } }), coach: shape({ req: {}, opt: { autoLevelUp: bool, autoIntroAt: num } }), quickIdeas: shape({ req: {}, opt: { shown: listOf(str), prev: listOf(str), at: num } }), weeklySchedule: shape({ req: { weekKey: localWeekKey, weekdays: listOf(oneOf('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')), answeredAt: num } }), welcomeTour: oneOf('pending', 'done') },
   }),
   gyms: (v) => gymShape(v) && inventoryKnown(v as Rec),
-  // PLAN 3.5: a generated plan's definition must be one this app can run, under the row's own id.
-  plans: (v) => shape({ req: { id: str, name: str, source: oneOf('curated', 'generated'), createdAt: num }, opt: { definition: (d) => definitionPlan(d)?.id === (v as Rec).id } })(v),
+  // PLAN 3.5, 3.6d: a generated plan's definition is under the row's own id with days that hold
+  // something. Never judged by this phone's gate (an approved move may be in it): the plan
+  // registry decides after the restore whether it runs here (lib/backupPlans.ts).
+  plans: (v) => shape({ req: { id: str, name: str, source: oneOf('curated', 'generated'), createdAt: num }, opt: { definition: (d) => definitionShapeOk(d, (v as Rec).id) } })(v),
   planDays: shape({ req: { id: str, planId: str, order: num, name: str } }),
   sessions: shape({
     req: { id: str, gymId: str, startedAt: num, imported: bool },
