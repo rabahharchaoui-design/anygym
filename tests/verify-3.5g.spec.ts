@@ -299,7 +299,12 @@ test('(1c) double tap Not now stores one hold and Level up card stays gone after
   await page.goto('./');
   // 3.6v: on a 568 pt tall phone the card's buttons start under the tab bar; a finger scrolls first.
   await page.getByTestId('coach-later').scrollIntoViewIfNeeded();
+  // Still under the tab bar? A finger keeps scrolling: move the page by the difference.
+  const barTop = (await page.getByRole('navigation', { name: 'Main' }).boundingBox())!.y;
+  const under = (await page.getByTestId('coach-later').boundingBox())!.y + (await page.getByTestId('coach-later').boundingBox())!.height - barTop;
+  if (under > 0) await page.evaluate((dy) => { for (const el of [document.scrollingElement, ...document.querySelectorAll('*')]) { if (el && el.scrollHeight > el.clientHeight + 1 && getComputedStyle(el).overflowY !== 'visible' || el === document.scrollingElement) { const before = el!.scrollTop; el!.scrollTop += dy; if (el!.scrollTop !== before) return; } } }, under + 8);
   const b = (await page.getByTestId('coach-later').boundingBox())!;
+  expect(b.y + b.height).toBeLessThanOrEqual(barTop);
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
   await page.waitForTimeout(800);
