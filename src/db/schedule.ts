@@ -52,8 +52,9 @@ export async function readSchedule(now = Date.now(), db: AnyGymDB = defaultDb) {
     const mine = (id: string | undefined) => !!plan && samePlanFamily(id, plan.id);
     const finished = style === 'fixed' && plan ? await db.sessions.where('startedAt').between(weekStart(now), now, true, true).filter((s) => !s.imported && s.endedAt !== undefined && !!s.dayId && mine(s.planId)).toArray() : [];
     // PLAN 3.6g2: a plan day finished today on a fixed schedule is done for today (not a day kept up next by the 60% rule: that one still waits).
+    // 3.6z A13: "today" is the day the workout started, as in History and the week strip; one that runs past midnight belongs to the day before.
     const midnight = new Date(now).setHours(0, 0, 0, 0);
-    const doneToday = !!state && keptDayOf(state) === undefined && finished.some((s) => s.endedAt! >= midnight);
+    const doneToday = !!state && keptDayOf(state) === undefined && finished.some((s) => s.startedAt >= midnight);
     const weekDays = plan ? weekDaysOf(style, finished.map((s) => ({ startedAt: s.startedAt, dayIndex: familyDayIndex(plan, s.planId, s.dayId) })), now) : null;
     return {
       weekKey: weekKey(now), style, weekly: profile?.weeklySchedule, resolved, planDays, fixedDays,

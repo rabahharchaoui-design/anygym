@@ -243,7 +243,7 @@ function restsToday(profile: Profile | undefined, planState: PlanState | undefin
   if (!plan) return false;
   const style = scheduleStyleOf(profile?.intake);
   const midnight = new Date(now).setHours(0, 0, 0, 0);
-  const doneToday = style === 'fixed' && keptDayOf(planState!) === undefined && finished.some((x) => !x.imported && !!x.dayId && samePlanFamily(x.planId, plan.id) && (x.endedAt ?? 0) >= midnight);
+  const doneToday = style === 'fixed' && keptDayOf(planState!) === undefined && finished.some((x) => !x.imported && !!x.dayId && samePlanFamily(x.planId, plan.id) && x.startedAt >= midnight);
   return !fixedDaysOf(style, profile?.intake?.weekdays, plan.days.length) && !!restDayOf(style, weekdaysOf(profile, now), now, doneToday);
 }
 
