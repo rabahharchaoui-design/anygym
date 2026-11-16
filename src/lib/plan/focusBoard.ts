@@ -24,7 +24,11 @@ export type CurateInput = {
 export const NARROW = new Set<FocusPickId>(['upper_chest', 'lats', 'upper_back', 'posture']);
 /** The muscles the 12 set floor looks at, when they are not the limit's (Back: its lats and upper back; the lower back is its own pick). */
 const FLOOR: Partial<Record<FocusPickId, readonly string[]>> = { back: ['back'] };
-export const countPick = (days: readonly (readonly FocusMove[])[], id: FocusPickId): number => days.flat().reduce((n, m) => n + (m.hard && m.picks.includes(id) ? m.sets : 0), 0);
+export function countPick(days: readonly (readonly FocusMove[])[], id: FocusPickId): number {
+  let n = 0;
+  for (const day of days) for (const m of day) if (m.hard && m.picks.includes(id)) n += m.sets;
+  return n;
+}
 
 export type Board = ReturnType<typeof makeBoard>;
 
@@ -32,13 +36,19 @@ export function makeBoard(input: CurateInput) {
   const days = input.days.map((d) => d.map((m) => ({ ...m })));
   const budget = input.shares ?? focusBudget(input.picks);
   const maxMoves = input.maxMoves ?? 8;
-  const wanted = (m: FocusMove) => m.picks.some((p) => budget.targets.some((t) => t.id === p));
+  const targetIds = new Set<string>(budget.targets.map((t) => t.id));
+  const wanted = (m: FocusMove) => m.picks.some((p) => targetIds.has(p));
   const baseline = days.map((d) => d.map((m) => ({ ...m })));
   /** `edits`: accepted edits, to see whether a turn changed anything. `pool`: the extra sets that may be handed out in all. `aim`: the sets a week the picks are brought toward now (12, then 16). */
   const state = { edits: 0, pool: budget.total, aim: FOCUS_MUSCLE_MIN as number };
-  const focusedSets = (ds: readonly (readonly FocusMove[])[]) => ds.flat().reduce((n, m) => n + (m.hard && wanted(m) ? m.sets : 0), 0);
+  const focusedSets = (ds: readonly (readonly FocusMove[])[]) => { let n = 0; for (const d of ds) for (const m of d) if (m.hard && wanted(m)) n += m.sets; return n; };
+  // PLAN 3.6p, speed: the baseline never changes, so its counts are taken once.
+  const once = <K>(count: (id: K) => number) => { const kept = new Map<K, number>(); return (id: K): number => { let n = kept.get(id); if (n === undefined) { n = count(id); kept.set(id, n); } return n; }; };
+  const baseFocused = once<0>(() => focusedSets(baseline));
+  const basePick = once<FocusPickId>((id) => countPick(baseline, id));
+  const baseOwn = once<FocusPickId>((id) => countOwn(baseline, id));
   /** The budget spent: the focused hard sets above the same days with no picks, each physical set once. Sets that only make up for ones the 20 set limit took away cost nothing. */
-  const spent = () => Math.max(0, focusedSets(days) - focusedSets(baseline));
+  const spent = () => Math.max(0, focusedSets(days) - baseFocused(0));
   const limits = days.map((d, i) => Math.max(input.minutes(d, i), input.budgetMinutes ?? Infinity));
   const slack = (i: number) => limits[i]! - input.minutes(days[i]!, i);
   const focusedMuscles = new Set([...days.flat(), ...input.candidates.flat()].filter(wanted).flatMap((m) => m.muscles));
@@ -60,14 +70,16 @@ export function makeBoard(input: CurateInput) {
   }
   const hardIds = budget.targets.filter((t) => t.id !== 'mobility').map((t) => t.id);
   /** Sets above the same plan with no picks: the one meaning of "extra". */
-  const gained = (id: FocusPickId) => Math.max(0, countPick(days, id) - countPick(baseline, id));
+  const gained = (id: FocusPickId) => Math.max(0, countPick(days, id) - basePick(id));
   /** The hard sets of a pick that are not also a higher ranked pick's (a squat set given to Glutes is not given to Quads a second time). */
   const countOwn = (ds: readonly (readonly FocusMove[])[], id: FocusPickId): number => {
     const higher = hardIds.slice(0, hardIds.indexOf(id));
-    return ds.flat().reduce((n, m) => n + (m.hard && m.picks.includes(id) && !m.picks.some((q) => higher.includes(q)) ? m.sets : 0), 0);
+    let n = 0;
+    for (const d of ds) for (const m of d) if (m.hard && m.picks.includes(id) && !m.picks.some((q) => higher.includes(q))) n += m.sets;
+    return n;
   };
   /** The extra sets given to the pick itself: `gained` without the sets that came with a higher ranked pick's work. */
-  const own = (id: FocusPickId) => Math.min(gained(id), Math.max(0, countOwn(days, id) - countOwn(baseline, id)));
+  const own = (id: FocusPickId) => Math.min(gained(id), Math.max(0, countOwn(days, id) - baseOwn(id)));
   /** How far each pick's own extra stands above a pick ranked higher that can still take sets (PLAN 3.6g2: the strict rank). */
   const excess = (): number[] => {
     let bound = Infinity;
@@ -89,6 +101,21 @@ export function makeBoard(input: CurateInput) {
     state.edits++;
     return true;
   };
+  // PLAN 3.6p, speed: the candidates never change during a curation, so what they offer a pick is looked up once.
+  const offers = new Map<string, FocusMove[]>();
+  /** The candidates of a day for the pick, small (or big), in their order. */
+  const offered = (i: number, id: FocusPickId, big: boolean): FocusMove[] => {
+    const k = `${i}|${id}|${big}`;
+    if (!offers.has(k)) offers.set(k, (input.candidates[i] ?? []).filter((m) => m.hard && m.compound === big && m.picks.includes(id)));
+    return offers.get(k)!;
+  };
+  const offeredMuscles = new Map<FocusPickId, Set<string>>();
+  /** The muscles the candidates of any day train for the pick (empty: no candidate for it). */
+  const candidateMuscles = (id: FocusPickId): Set<string> => {
+    if (!offeredMuscles.has(id)) offeredMuscles.set(id, new Set(input.candidates.flat().filter((m) => m.hard && m.picks.includes(id)).flatMap((m) => m.muscles)));
+    return offeredMuscles.get(id)!;
+  };
+  const candidatePicks = new Set(input.candidates.flat().filter((m) => m.hard).flatMap((m) => m.picks));
   const tires = (m: FocusMove) => (m.hard ? m.recovery ?? m.muscles : []);
   const trains = (i: number, muscle: string) => days[i]!.some((m) => tires(m).includes(muscle));
   const neighbours = (i: number) => [...new Set([(i + days.length - 1) % days.length, (i + 1) % days.length])].filter((j) => j !== i);
@@ -100,9 +127,14 @@ export function makeBoard(input: CurateInput) {
   const weak = (id: FocusPickId, m: FocusMove): number => Math.min(Infinity, ...m.muscles.filter((x) => parts(id).includes(x)).map((x) => countHardSets(days, x)));
   /** A move for the pick this day does not have yet, small (or big), the one for its weakest muscle first. */
   const fresh = (i: number, id: FocusPickId, big = false): FocusMove | undefined => {
-    const ok = (input.candidates[i] ?? []).filter((m) => m.hard && m.compound === big && m.picks.includes(id) && !days[i]!.some((x) => x.key === m.key) && rested(i, m));
-    return ok.reduce<FocusMove | undefined>((best, m) => (!best || weak(id, m) < weak(id, best) ? m : best), undefined);
+    const ok = offered(i, id, big).filter((m) => !days[i]!.some((x) => x.key === m.key) && rested(i, m));
+    // Nothing changes while the best is looked for: each move's `weak` is counted once.
+    let best: FocusMove | undefined, least = 0;
+    for (const m of ok) { const w = weak(id, m); if (!best || w < least) { best = m; least = w; } }
+    return best;
   };
+  /** Whether `fresh` would find a move (the same test, without ranking them). */
+  const hasFresh = (i: number, id: FocusPickId, big: boolean): boolean => offered(i, id, big).some((m) => !days[i]!.some((x) => x.key === m.key) && rested(i, m));
   /** The accessories a day can spare, best first: those whose muscles other moves that day also train, then the rest; last in the day first. Never a loved move, a big lift or work a pick asks for. */
   const spares = (day: FocusMove[]): number[] => {
     const doubled = (m: FocusMove) => m.muscles.every((s) => day.some((x) => x !== m && x.hard && x.muscles.includes(s)));
@@ -132,7 +164,7 @@ export function makeBoard(input: CurateInput) {
     const lead = day.find((x) => x.hard && x.compound);
     return day.map((_, at) => at).filter((at) => { const m = day[at]!; return m.hard && !m.keep && !wanted(m) && m !== lead && m.muscles.some((x) => muscles.includes(x)); }).reverse();
   };
-  const hasMove = (id: FocusPickId) => [...days.flat(), ...input.candidates.flat()].some((m) => m.hard && m.picks.includes(id));
+  const hasMove = (id: FocusPickId) => candidatePicks.has(id) || days.some((d) => d.some((m) => m.hard && m.picks.includes(id)));
   const atLimit = (id: FocusPickId) => (LIMIT_MUSCLES[id] ?? []).some((m) => countHardSets(days, m) >= FOCUS_MUSCLE_MAX) || (id === 'posture' && countPick(days, id) >= FOCUS_MUSCLE_MAX);
   /** It cannot take more: no exercise for it, or a muscle of it is at the limit (what the report calls "plenty"). A part of a wider muscle (lats in the back) only when the part itself is: until then it takes the place of other work inside that muscle. */
   const full = (id: FocusPickId) => !hasMove(id) || (NARROW.has(id) ? countPick(days, id) >= FOCUS_MUSCLE_MAX : atLimit(id));
@@ -144,7 +176,7 @@ export function makeBoard(input: CurateInput) {
     if (!hasMove(id)) return 0;
     const ps = parts(id);
     if (ps.length < 2 || NARROW.has(id)) return Math.max(0, aim - countPick(days, id));
-    const served = ps.filter((p) => [...days.flat(), ...input.candidates.flat()].some((m) => m.hard && m.picks.includes(id) && m.muscles.includes(p)));
+    const served = ps.filter((p) => candidateMuscles(id).has(p) || days.some((d) => d.some((m) => m.hard && m.picks.includes(id) && m.muscles.includes(p))));
     return Math.max(0, ...served.map((p) => aim - countHardSets(days, p)));
   };
   /**
@@ -153,7 +185,7 @@ export function makeBoard(input: CurateInput) {
    * the answers and the 48 hour rule). Such a pick is said as that and does not hold back the picks below.
    */
   const shareOf = (id: FocusPickId) => budget.targets.find((t) => t.id === id)?.sets ?? 0;
-  const closed = (id: FocusPickId) => hasMove(id) && !days.some((d, i) => d.some((m) => m.hard && m.picks.includes(id) && m.sets < input.cap) || !!fresh(i, id) || !!fresh(i, id, true));
+  const closed = (id: FocusPickId) => hasMove(id) && !days.some((d, i) => d.some((m) => m.hard && m.picks.includes(id) && m.sets < input.cap) || hasFresh(i, id, false) || hasFresh(i, id, true));
   /** It can still take sets: it has an exercise, is under the limit and is not `closed`. Only these count for the rank. */
   const open = (id: FocusPickId) => !full(id) && !closed(id);
   /**

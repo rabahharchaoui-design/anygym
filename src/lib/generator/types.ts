@@ -59,6 +59,12 @@ export type GeneratorDeps = {
    * needs. A day may open with one as its warm up. Missing or empty: no cardio move, never a guess.
    */
   cardio?: () => readonly CardioMove[];
+  /**
+   * PLAN 3.6p: names the state of everything these deps read that can change on this phone (the
+   * approved moves). With it the same answers are built once and remembered until it changes
+   * (memo.ts). Missing: every build is done anew.
+   */
+  stamp?: () => string | number;
 };
 
 // ---------------------------------------------------------------- the shipped JSON shape

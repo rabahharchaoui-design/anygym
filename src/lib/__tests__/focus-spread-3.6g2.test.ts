@@ -15,7 +15,8 @@ import { isCompound } from '../order';
 import type { Plan } from '../plans';
 import { samples } from './focusMeasure36g';
 // A heavy test file (about 800 plans built once, then each rebuilt to read its moves); an explicit limit sized for the GitHub runner, never a retry.
-viTimeout.setConfig({ testTimeout: 600_000 });
+// PLAN 3.6p: the build is fast again; about four times the slowest test here on a laptop under load, never under 30 s.
+viTimeout.setConfig({ testTimeout: 60_000 });
 
 const plansOf = (input: GeneratorInput) => { const r = generate(input), b = generate({ ...input, focusPicks: [] }); if (!r.ok || !b.ok) throw new Error('no plan'); return { plan: definitionPlan(r.plan)!, base: definitionPlan(b.plan)! }; };
 const lifts = (d: Plan['days'][number]) => d.blocks.filter((b) => !b.warmup && !b.mobility);

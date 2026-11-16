@@ -10,7 +10,8 @@ import { focusLine, focusRow } from '../plan/focusWords';
 import { samples, type Sample } from './focusMeasure36g';
 import { TOP_CORNERS } from './focusCorners36g2';
 // A heavy test file (about 800 plans built once, then read); an explicit limit sized for the GitHub runner, never a retry.
-viTimeout.setConfig({ testTimeout: 450_000 });
+// PLAN 3.6p: the build is fast again; about four times the slowest test here on a laptop under load, never under 30 s.
+viTimeout.setConfig({ testTimeout: 40_000 });
 
 const full = equipmentPreset('full', 'lb');
 const critic = (focusPicks: FocusPickId[], days: number, minutes: number): FocusReport => {
