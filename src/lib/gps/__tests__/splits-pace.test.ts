@@ -83,9 +83,10 @@ describe('splits', () => {
     expect(splitPace(r.partial!)).toBeNull();
   });
 
-  it('has no partial split before anything happened, and refuses a split length of zero', () => {
+  it('has no partial split before anything happened, and refuses a split length under a meter', () => {
     expect(readSplits(startSplits(1000))).toEqual({ full: [], partial: null });
     expect(() => startSplits(0)).toThrow();
+    expect(() => startSplits(0.5)).toThrow();
     expect(() => startSplits(Number.NaN)).toThrow();
   });
 

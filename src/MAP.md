@@ -69,6 +69,7 @@ Pure logic, the brain of the app. About 70 loose files, one job each, plus folde
 - `lib/candidates/`: the checks used to decide whether a new exercise or demo is good enough to ship.
 - `lib/reporting/`: problem reports and crash notes, with private details masked before sending.
 - `lib/import/`: reading a workout history from another app.
+- `lib/gps/`: everything the run tracker works out from the phone's positions (PLAN 4.1, SPEC 12.3): which positions to trust (`filter.ts`), distance (`geo.ts`), standing still and auto pause (`stillness.ts`), pace (`pace.ts`), splits per mile or km (`splits.ts`), the run state fed one position at a time (`tracker.ts`) or a whole run at once (`batch.ts`), and the line to draw with its dashed breaks and smoothing (`draw.ts`). Every threshold and its reason is in `types.ts`. Pure: no screen, no database, no clock. A folder with an `index.ts`.
 - `lib/bodyArt/`: the body outline drawings (front and back, male and female) used by the muscle map.
 - Loose files worth knowing: `progression.ts` (last time and next target), `plans.ts` (plan shapes and timing), `planWorkout.ts` (a plan day as a workout), `setTable.ts` (rows of the set table), `backup.ts` (backup file format), `durable.ts` (keeps live workout state alive if the app is killed).
 

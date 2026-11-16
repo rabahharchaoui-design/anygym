@@ -23,7 +23,8 @@ const EPS_M = 1e-6;
 const NOTHING: Open = { distanceM: 0, ms: 0, timedM: 0, gap: false };
 
 export function startSplits(unitM: number): SplitState {
-  if (!(unitM > 0)) throw new Error('split length must be positive');
+  // A split shorter than a meter is never a mile or a km, and would not sit well above EPS_M.
+  if (!(unitM >= 1)) throw new Error('split length must be at least one meter');
   return { unitM, full: [], open: NOTHING };
 }
 
@@ -40,7 +41,8 @@ export function addSplitStep(state: SplitState, step: SplitStep): { state: Split
   let leftMs = step.ms;
   while (leftM >= state.unitM - open.distanceM - EPS_M) {
     const takeM = Math.min(leftM, state.unitM - open.distanceM);
-    const takeMs = leftM > 0 ? leftMs * (takeM / leftM) : leftMs;
+    // leftM is above 0 here: the open split always has more than EPS_M to go.
+    const takeMs = leftMs * (takeM / leftM);
     completed.push({
       index: state.full.length + completed.length + 1,
       distanceM: state.unitM,
