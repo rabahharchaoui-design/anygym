@@ -24,7 +24,7 @@ export { dumbbellRangeProblems, parseDumbbellRange } from './dumbbellInput';
 export type { DumbbellRangeProblems } from './dumbbellInput';
 export { dumbbellTotal, MAX_DUMBBELLS, MIN_DUMBBELL_STEP, MAX_DUMBBELL_STEP, validDumbbellRange, dumbbellsInRange, nearestDumbbell, nextDumbbell, heaviestDumbbell, dumbbellCapIn } from './dumbbells';
 export { add } from './exact';
-export { formatInOther, formatAmount, formatWeight, formatMathLine, formatTotal, formatTotalCompact } from './format';
+export { formatInOther, formatAmount, formatWeight, formatMathLine, formatTotal, formatTotalCompact, formatPlatesOn } from './format';
 export { heaviestHeld, heldChoices, MAX_EXACT_HELD, exactHeldProblem, heldAvailable, exactHeldLoad } from './held';
 export { smallestIncrement, roundToLoadable } from './increments';
 export type { LoadableOptions } from './increments';

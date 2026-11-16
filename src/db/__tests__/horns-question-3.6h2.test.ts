@@ -63,7 +63,8 @@ describe('the stored answer', () => {
 
   it('the setup and the card count the plates once after "one side": start + plates', async () => {
     const answered = { ...(await setEquipmentWeight(gym.id, CALF, { kind: 'starting_resistance', value: 50 }, db)) };
-    expect(currentLoad(null, [45], 'plate_machine', answered, CALF, CALF_NAME)).toMatchObject({ total: 140 });
+    // Not answered yet: no total at all (PLAN 3.7a), never both sides by default.
+    expect(currentLoad(null, [45], 'plate_machine', answered, CALF, CALF_NAME)).toBeNull();
     expect('horns' in loadSetupFor(answered, 'plate_machine', CALF, CALF_NAME)).toBe(false);
     const one = await setMachineHorns(gym.id, CALF, 1, db);
     expect(currentLoad(null, [45], 'plate_machine', one, CALF, CALF_NAME)).toEqual({ kind: 'plate_machine', unit: 'lb', total: 95, barWeight: 50, perSide: [45], collars: 0, horns: 1 });

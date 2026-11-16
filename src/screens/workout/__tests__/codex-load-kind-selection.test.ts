@@ -30,7 +30,9 @@ describe('selection identity when Loaded with changes', () => {
       const base = unit === 'lb' ? 50 : 25;
       const plate = unit === 'lb' ? 10 : 5;
       const gym: Gym = { ...makeGym({ name: 'Synthetic machine', type: 'full', unit }, 1),
-        collars: 'competition', equipmentWeights: { press: { kind: 'starting_resistance', value: base } } };
+        collars: 'competition', equipmentWeights: { press: { kind: 'starting_resistance', value: base } },
+        // Sides answered (PLAN 3.7a: an unanswered machine has no total at all).
+        machineHorns: { press: 2 } };
       const valid = plateMachineLoad(base, [plate], unit)!;
       expect(confirmablePick({ load: valid, plates: [plate], unit }, 'plate_machine', gym, 'press', 'Press')?.load?.total)
         .toBe(base + 2 * plate); // Starting resistance once, plates twice, no bar collars.

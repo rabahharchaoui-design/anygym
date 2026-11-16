@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { Sheet, SheetFooter } from '../../ui/Sheet';
 import type { BarId, Gym, Load, Unit } from '../../db/types';
 import { SetLoadInput } from './SetLoadInput';
-import { BAR_PROMPTS, barIdFor, confirmablePick, currentLoad } from './exerciseLoad';
+import { BAR_PROMPTS, barIdFor, confirmablePick, currentLoad, machineQuestions } from './exerciseLoad';
 import styles from './Sheets.module.css';
 
 /** What a swipe down did: applied the pick, waits for a bar choice to settle, or nothing to keep. */
@@ -86,6 +86,9 @@ function WeightBody({
   const load = currentLoad(shown.load, shown.plates, loadType, gym, exerciseId, exerciseName, bar, shown.unit);
   // An unknown EZ, trap or Smith bar is answered first: nothing is logged on a guessed bar.
   const barUnknown = loadType === 'barbell' && load === null && !!BAR_PROMPTS[barIdFor(exerciseName, bar)] && gym.bars[barIdFor(exerciseName, bar)] === null;
+  // A plate machine's one time questions (PLAN 3.7a): the sides are answered before anything is kept.
+  const machine = machineQuestions(loadType, gym, exerciseId, exerciseName);
+  const held = barUnknown ? 'Set the bar weight first' : machine.sidesUnknown ? (machine.startUnknown ? 'Set the starting weight first' : 'Answer one side or both first') : null;
   // A bar choice still being saved: Done waits for it, so the plates it ends with are the ones applied.
   const [settling, setSettling] = useState(false);
   // A bar choice that landed but whose new bar has not reached this sheet yet (the exercise's bar
@@ -117,10 +120,10 @@ function WeightBody({
     // Runs once the choice settled, with this render's (latest) plates.
   }, [waiting]);
   return (
-    <div className={styles.sheetBody}>
+    <div className={`${styles.sheetBody} ${styles.clearFade}`}>
       <h2 className={styles.sheetTitle}>{title}</h2>
-      {/* While the bar question is up the sub line steps aside, so the plates stay in view. */}
-      {!barUnknown && (
+      {/* While a question is up the sub line steps aside, so the plates stay in view (3.7a: also a machine's). */}
+      {!barUnknown && !machine.asking && (
         <p className={styles.sheetSub} data-testid="weight-sheet-sub">
           {stale ? `Units changed to ${gym.unit}. Pick the weight again.` : untilPicked && !changed ? untilPicked : sub}
         </p>
@@ -143,7 +146,7 @@ function WeightBody({
       />
       <SheetFooter>
         <button type="button" className={`${styles.logButton} pressable`} disabled={!canDone} onClick={() => void confirm()}>
-          {barUnknown ? 'Set the bar weight first' : 'Done'}
+          {held ?? 'Done'}
         </button>
       </SheetFooter>
     </div>

@@ -67,6 +67,17 @@ export function machineHornsKnown(gym: Pick<Gym, 'machineHorns'>, exerciseId: st
   return machineHornsFor(gym, machineIdFor(exerciseId, exerciseName), planExercise(exerciseId)?.horns);
 }
 
+/**
+ * A plate machine's one time questions still open at this gym (PLAN 3.7a): its starting weight,
+ * its sides. `asking`: a question card sits on top of the weight sheet.
+ */
+export function machineQuestions(kind: Load['kind'], gym: Gym, exerciseId: string, exerciseName: string): { startUnknown: boolean; sidesUnknown: boolean; asking: boolean } {
+  if (kind !== 'plate_machine') return { startUnknown: false, sidesUnknown: false, asking: false };
+  const startUnknown = machineStartFor(gym, machineIdFor(exerciseId, exerciseName)) === null;
+  const sidesUnknown = machineHornsKnown(gym, exerciseId, exerciseName) === null;
+  return { startUnknown, sidesUnknown, asking: startUnknown || sidesUnknown };
+}
+
 /** The sides the math counts (PLAN 3.6h2): the known answer, else both, as every load before. */
 export function machineHorns(gym: Pick<Gym, 'machineHorns'>, exerciseId: string, exerciseName: string): Horns {
   return machineHornsKnown(gym, exerciseId, exerciseName) ?? 2;
@@ -101,10 +112,13 @@ export function prefillLoad(
   switch (kind) {
     case 'barbell':
       return platesOk(load.perSide) ? barbellLoad(gym.bars[barIdFor(exerciseName, bar)], load.perSide, gym.collars, gym.unit, barIdFor(exerciseName, bar), sleeveOf(barIdFor(exerciseName, bar), gym.unit)) : null;
-    case 'plate_machine':
-      return platesOk(load.perSide)
-        ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit, sleeveOf('horn', gym.unit), machineHorns(gym, exerciseId, exerciseName))
+    case 'plate_machine': {
+      // Sides not answered yet (PLAN 3.7a): no total on a guessed count.
+      const sides = machineHornsKnown(gym, exerciseId, exerciseName);
+      return platesOk(load.perSide) && sides !== null
+        ? plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), load.perSide, gym.unit, sleeveOf('horn', gym.unit), sides)
         : null;
+    }
     case 'dumbbell_each':
     case 'single': {
       // Dumbbells from the range; a held plate from the enabled plates (PLAN 1.7j); a kettlebell
@@ -153,8 +167,11 @@ export function currentLoad(
   switch (kind) {
     case 'barbell':
       return barbellLoad(gym.bars[barIdFor(exerciseName, bar)], plates, gym.collars, gym.unit, barIdFor(exerciseName, bar), sleeveOf(barIdFor(exerciseName, bar), gym.unit));
-    case 'plate_machine':
-      return plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit, sleeveOf('horn', gym.unit), machineHorns(gym, exerciseId, exerciseName));
+    case 'plate_machine': {
+      // One side or both not answered yet (PLAN 3.7a): no total until it is, never both by default.
+      const sides = machineHornsKnown(gym, exerciseId, exerciseName);
+      return sides === null ? null : plateMachineLoad(machineStartFor(gym, machineIdFor(exerciseId, exerciseName)), plates, gym.unit, sleeveOf('horn', gym.unit), sides);
+    }
     case 'bodyweight':
       return bodyweightLoad(gym.unit, reusable(picked ?? undefined, kind, gym)?.added ?? 0);
     case 'timed':
@@ -217,6 +234,8 @@ export function confirmablePick(pick: WeightSelection, kind: Load['kind'], gym: 
     return { load: null, plates: [...pick.plates], unit: pick.unit };
   }
   if (kind === 'plate_machine') {
+    // The sides are answered first, in one tap right above (PLAN 3.7a): plates on an unknown count are never kept.
+    if (machineHornsKnown(gym, exerciseId, exerciseName) === null) return null;
     if (machineStartFor(gym, machineIdFor(exerciseId, exerciseName)) !== null) return null;
     return { load: null, plates: [...pick.plates], unit: pick.unit };
   }

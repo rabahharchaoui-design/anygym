@@ -18,6 +18,7 @@ import { dayWorkout, doneCounts, quickEntry, repRangeOf, upNext, type DoneCounts
 import { liveEntries, patternOf, slotOf, swapCandidates, swapOfRow, swapReason, workoutIdOf } from '../../lib/swap';
 import { SWAP_DATA, candidateBarOf, candidateLoadOf, countsEachSide } from '../../data/patterns';
 import { exerciseNameOf } from '../../data/importMatch';
+import { onlyLoadKind } from '../../data/loadKinds';
 import { demoFor } from '../../data/exerciseInfo';
 import type { DemoImages } from '../../lib/exerciseInfo';
 import type { SessionSwap } from '../../db/types';
@@ -184,7 +185,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     const entry = planEntryOf.get(id);
     const fixed = planExercise(id)?.loadType ?? candidateLoadOf(id);
     const kind = entry ? planItemLoadType(entry.name, entry, fixed) : fixed;
-    return kind && kind !== 'unknown' ? kind : undefined;
+    return kind && kind !== 'unknown' ? kind : onlyLoadKind(id); // one true answer: never asked (PLAN 3.7a)
   };
   // The bar picked here, else the exercise list's bar (Smith machine lifts), else the name rule.
   const barOf = (id: string) => (gym.data ? pickBar(list, id, gym.data.id) : undefined) ?? planExercise(id)?.bar ?? candidateBarOf(id);
