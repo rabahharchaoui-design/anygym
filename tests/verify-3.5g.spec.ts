@@ -267,6 +267,8 @@ test('(9b) double tap Discard, reload, offline: one session ended, nothing dupli
   await page.reload();
   const sessions = async () => (await dbAll<{ id: string; endedAt?: number }>(page, 'sessions'));
   expect((await sessions()).length).toBe(1);
+  // The offline reload below needs the first load to have finished saving itself (bigger since 3.6i).
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await context.setOffline(true);
   const d = page.getByTestId('discard-empty');
   const b = (await d.boundingBox())!;
