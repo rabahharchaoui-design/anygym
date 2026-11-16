@@ -81,6 +81,8 @@ export type TrimInput = {
   profileOf: (id: string, name: string) => Pick<Profile, 'role' | 'tier'>;
   /** Sets already logged per plan exercise (its slot): never dropped, never set below this. */
   logged?: Readonly<Record<string, number>>;
+  /** The coach's warm up sets on the first big lift, in every estimate (3.6z A15); never cut. */
+  warmUps?: number;
 };
 
 type Kind = 'compound' | 'accessory' | 'stretch' | 'other';
@@ -186,12 +188,13 @@ const isEmpty = (t: DayTrim): boolean => !t.drop.length && !Object.keys(t.sets).
 export function trimDay(day: PlanDay, input: TrimInput): TrimResult {
   const weekIndex = input.weekIndex ?? 0;
   const logged = input.logged ?? {};
-  const before = estimateDayMinutes(day, weekIndex);
+  const warmUps = input.warmUps ?? 0;
+  const before = estimateDayMinutes(day, weekIndex, warmUps);
   const none: TrimResult = { before, minutes: before, fits: before <= input.budget, trim: null, day, changes: [] };
   if (input.budget >= AS_PLANNED || before <= input.budget) return { ...none, fits: true };
 
   const trim: DayTrim = { drop: [], sets: {} };
-  const est = () => estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex);
+  const est = () => estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex, warmUps);
   const over = () => est() > input.budget;
   const kinds = day.blocks.map((b) => b.items.map((it) => kindOf(input.profileOf(it.exerciseId, it.name), it.name)));
   const all = (bi: number, k: Kind) => !day.blocks[bi]!.warmup && kinds[bi]!.every((x) => x === k);
@@ -261,7 +264,7 @@ export function trimDay(day: PlanDay, input: TrimInput): TrimResult {
 
   if (isEmpty(trim)) return none;
   const trimmed = applyTrim(day, trim, weekIndex);
-  const minutes = estimateDayMinutes(trimmed, weekIndex);
+  const minutes = estimateDayMinutes(trimmed, weekIndex, warmUps);
   return { before, minutes, fits: minutes <= input.budget, trim, day: trimmed, changes: changesOf(day, trim, weekIndex) };
 }
 

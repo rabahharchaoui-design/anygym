@@ -26,6 +26,17 @@ const trim = (d: PlanDay, budget: number, extra: Partial<TrimInput> = {}) => tri
 const single = (id: string, sets: number, restSec = 60, extra: Partial<PlanBlock> = {}): PlanBlock => ({ kind: 'single', items: [{ exerciseId: id, name: profileFor(id).name, reps: [8, 12] }], sets, restSec, ...extra });
 
 describe('SPEC 7.4 trim order', () => {
+  it("3.6z A15: the coach's warm ups are in every estimate of the trim, and a budget that fits without them may not with them", () => {
+    const d = day(3);
+    const plain = trim(d, AS_PLANNED).before;
+    const warm = trim(d, AS_PLANNED, { warmUps: 4 });
+    expect(warm.before).toBe(estimateDayMinutes(d, 0, 4));
+    expect(warm.before).toBeGreaterThan(plain);
+    const fit = trim(d, 60, { warmUps: 4 });
+    expect(fit.minutes).toBe(estimateDayMinutes(fit.day, 0, 4));
+    expect(fit.minutes).toBeLessThanOrEqual(60);
+  });
+
   it('75+ and a day that already fits change nothing', () => {
     const d = day(1);
     for (const b of [AS_PLANNED, 90, estimateDayMinutes(d)]) {
