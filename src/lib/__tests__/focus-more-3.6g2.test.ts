@@ -10,7 +10,8 @@ import type { FocusReport } from '../plan/focus';
 import { seededInput } from './focusMeasure36g';
 import { CRITIC_MORE_CORNERS, MORE_CORNERS } from './focusCorners36g2';
 // A heavy test file (216 plans, each with its smaller plans); an explicit limit sized for the GitHub runner, never a retry.
-viTimeout.setConfig({ testTimeout: 600_000 });
+// PLAN 3.6p: the build is fast again; about four times the slowest test here on a laptop under load, never under 30 s.
+viTimeout.setConfig({ testTimeout: 30_000 });
 
 const DAYS = [3, 4, 5, 6], MINUTES = [45, 60, 75];
 const amount = (r: FocusReport, id: FocusPickId) => { const p = r.priorities.find((x) => x.id === id)!; return id === 'mobility' ? p.minutes ?? 0 : p.total; };

@@ -134,7 +134,11 @@ export const STRETCH_BLOCK_MIN = 5;
 export const stretchBlock = (p: Pick<FocusResult, 'session'>): boolean => (p.session ?? 0) >= STRETCH_BLOCK_MIN;
 /** The most extra sets any one pick is given (PLAN 3.6f: +4 at the most). */
 export const FOCUS_SHARE_MAX = 4;
-export const countHardSets = (days: readonly (readonly FocusMove[])[], muscle: string): number => days.flat().reduce((n, m) => n + (m.hard && m.muscles.includes(muscle) ? m.sets : 0), 0);
+export function countHardSets(days: readonly (readonly FocusMove[])[], muscle: string): number {
+  let n = 0;
+  for (const day of days) for (const m of day) if (m.hard && m.muscles.includes(muscle)) n += m.sets;
+  return n;
+}
 
 /** The state of a result; a report saved before round 2 has none, so it is read from its old marks. */
 export function focusStateOf(p: FocusResult): FocusState {

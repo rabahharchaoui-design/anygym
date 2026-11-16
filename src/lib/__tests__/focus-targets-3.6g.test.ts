@@ -10,7 +10,8 @@ import { focusCompared, focusPassed } from '../plan/focusPriority';
 import { focusName, type FocusResult } from '../plan/focus';
 import { bandOf, samples, seededInput, type Sample } from './focusMeasure36g';
 // A heavy test file (about 800 plans built once, then read); an explicit limit sized for the GitHub runner, never a retry.
-viTimeout.setConfig({ testTimeout: 450_000 });
+// PLAN 3.6p: the build is fast again; about four times the slowest test here on a laptop under load, never under 30 s.
+viTimeout.setConfig({ testTimeout: 40_000 });
 
 const avg = (a: number[]) => (a.length ? a.reduce((n, x) => n + x, 0) / a.length : 0);
 const band = (b: string, minutes?: number) => samples().filter((s) => bandOf(s.served.length) === b && (minutes === undefined || s.minutes === minutes));

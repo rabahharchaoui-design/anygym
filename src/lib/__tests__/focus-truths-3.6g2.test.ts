@@ -16,7 +16,8 @@ import { dayWorkout, setLine } from '../planWorkout';
 import { metaLine, previewConcept } from '../quick';
 
 // A heavy test file (the seeded plans are built once, then each rebuilt to read its day lines); an explicit limit sized for the GitHub runner, never a retry.
-viTimeout.setConfig({ testTimeout: 600_000 });
+// PLAN 3.6p: the build is fast again; about four times the slowest test here on a laptop under load, never under 30 s.
+viTimeout.setConfig({ testTimeout: 60_000 });
 
 const build = (picks: FocusPickId[], days: number, minutes: number) => {
   const input: GeneratorInput = { goals: ['muscle'], experience: '3y', days, minutes, focusPicks: picks, scheduleStyle: 'flexible', gym: equipmentPreset('full', 'lb') };

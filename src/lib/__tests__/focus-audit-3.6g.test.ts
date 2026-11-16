@@ -14,7 +14,8 @@ import { readFocusReport } from '../plan/focusMetadata';
 import { estimateDayMinutes, type Plan } from '../plans';
 import { samples, type Sample } from './focusMeasure36g';
 // A heavy test file (about 800 plans built once, then each rebuilt to read its moves); an explicit limit sized for the GitHub runner, never a retry.
-viTimeout.setConfig({ testTimeout: 600_000 });
+// PLAN 3.6p: the build is fast again; about four times the slowest test here on a laptop under load, never under 30 s.
+viTimeout.setConfig({ testTimeout: 60_000 });
 
 type T = { muscle: string; label: string };
 const named = (l: string) => (t: T) => t.label.toLowerCase() === l;

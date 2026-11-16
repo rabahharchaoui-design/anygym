@@ -17,7 +17,8 @@ import { maxSetsFor } from '../generatorRules';
 import { vi as viTimeout } from 'vitest';
 // PLAN 3.6u: a heavy test file (slowest test about 400 ms on a laptop; the GitHub runner is six to eight times
 // slower). An explicit limit sized for the runner, never a retry.
-viTimeout.setConfig({ testTimeout: 120_000 });
+// PLAN 3.6p: the build is fast again; about four times the slowest test here on a laptop under load, never under 30 s.
+viTimeout.setConfig({ testTimeout: 30_000 });
 
 const atomic: FocusPickId[] = ['upper_chest', 'lats', 'upper_back', 'lower_back', 'front_delts', 'side_delts', 'rear_delts', 'biceps', 'triceps', 'forearms', 'abs', 'obliques', 'glutes', 'quads', 'hamstrings', 'calves', 'posture', 'grip', 'mobility'];
 const exp: ExperienceId[] = ['new', 'months', '1_2y', '3y', 'break'];
