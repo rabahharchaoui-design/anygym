@@ -139,3 +139,10 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/* 3.6z A12: an imported set the import was not sure of; it stays out of the total lifted. */
+.unsure {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+}
