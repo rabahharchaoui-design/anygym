@@ -89,6 +89,21 @@ export function makeBoard(input: CurateInput) {
     state.edits++;
     return true;
   };
+  // PLAN 3.6p, speed: the candidates never change during a curation, so what they offer a pick is looked up once.
+  const offers = new Map<string, FocusMove[]>();
+  /** The candidates of a day for the pick, small (or big), in their order. */
+  const offered = (i: number, id: FocusPickId, big: boolean): FocusMove[] => {
+    const k = `${i}|${id}|${big}`;
+    if (!offers.has(k)) offers.set(k, (input.candidates[i] ?? []).filter((m) => m.hard && m.compound === big && m.picks.includes(id)));
+    return offers.get(k)!;
+  };
+  const offeredMuscles = new Map<FocusPickId, Set<string>>();
+  /** The muscles the candidates of any day train for the pick (empty: no candidate for it). */
+  const candidateMuscles = (id: FocusPickId): Set<string> => {
+    if (!offeredMuscles.has(id)) offeredMuscles.set(id, new Set(input.candidates.flat().filter((m) => m.hard && m.picks.includes(id)).flatMap((m) => m.muscles)));
+    return offeredMuscles.get(id)!;
+  };
+  const candidatePicks = new Set(input.candidates.flat().filter((m) => m.hard).flatMap((m) => m.picks));
   const tires = (m: FocusMove) => (m.hard ? m.recovery ?? m.muscles : []);
   const trains = (i: number, muscle: string) => days[i]!.some((m) => tires(m).includes(muscle));
   const neighbours = (i: number) => [...new Set([(i + days.length - 1) % days.length, (i + 1) % days.length])].filter((j) => j !== i);
@@ -100,7 +115,7 @@ export function makeBoard(input: CurateInput) {
   const weak = (id: FocusPickId, m: FocusMove): number => Math.min(Infinity, ...m.muscles.filter((x) => parts(id).includes(x)).map((x) => countHardSets(days, x)));
   /** A move for the pick this day does not have yet, small (or big), the one for its weakest muscle first. */
   const fresh = (i: number, id: FocusPickId, big = false): FocusMove | undefined => {
-    const ok = (input.candidates[i] ?? []).filter((m) => m.hard && m.compound === big && m.picks.includes(id) && !days[i]!.some((x) => x.key === m.key) && rested(i, m));
+    const ok = offered(i, id, big).filter((m) => !days[i]!.some((x) => x.key === m.key) && rested(i, m));
     return ok.reduce<FocusMove | undefined>((best, m) => (!best || weak(id, m) < weak(id, best) ? m : best), undefined);
   };
   /** The accessories a day can spare, best first: those whose muscles other moves that day also train, then the rest; last in the day first. Never a loved move, a big lift or work a pick asks for. */
@@ -132,7 +147,7 @@ export function makeBoard(input: CurateInput) {
     const lead = day.find((x) => x.hard && x.compound);
     return day.map((_, at) => at).filter((at) => { const m = day[at]!; return m.hard && !m.keep && !wanted(m) && m !== lead && m.muscles.some((x) => muscles.includes(x)); }).reverse();
   };
-  const hasMove = (id: FocusPickId) => [...days.flat(), ...input.candidates.flat()].some((m) => m.hard && m.picks.includes(id));
+  const hasMove = (id: FocusPickId) => candidatePicks.has(id) || days.some((d) => d.some((m) => m.hard && m.picks.includes(id)));
   const atLimit = (id: FocusPickId) => (LIMIT_MUSCLES[id] ?? []).some((m) => countHardSets(days, m) >= FOCUS_MUSCLE_MAX) || (id === 'posture' && countPick(days, id) >= FOCUS_MUSCLE_MAX);
   /** It cannot take more: no exercise for it, or a muscle of it is at the limit (what the report calls "plenty"). A part of a wider muscle (lats in the back) only when the part itself is: until then it takes the place of other work inside that muscle. */
   const full = (id: FocusPickId) => !hasMove(id) || (NARROW.has(id) ? countPick(days, id) >= FOCUS_MUSCLE_MAX : atLimit(id));
@@ -144,7 +159,7 @@ export function makeBoard(input: CurateInput) {
     if (!hasMove(id)) return 0;
     const ps = parts(id);
     if (ps.length < 2 || NARROW.has(id)) return Math.max(0, aim - countPick(days, id));
-    const served = ps.filter((p) => [...days.flat(), ...input.candidates.flat()].some((m) => m.hard && m.picks.includes(id) && m.muscles.includes(p)));
+    const served = ps.filter((p) => candidateMuscles(id).has(p) || days.some((d) => d.some((m) => m.hard && m.picks.includes(id) && m.muscles.includes(p))));
     return Math.max(0, ...served.map((p) => aim - countHardSets(days, p)));
   };
   /**
