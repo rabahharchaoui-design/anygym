@@ -1,7 +1,7 @@
 // Adapter only: all allocation policy lives in lib/plan/focus.ts.
 import { curateFocus, focusMuscles, normalizeFocusPicks, type FocusMove, type FocusReport } from '../plan/focus';
 import { RIDERS } from '../plan/focusShare';
-import { isCompound, orderUnits } from '../order';
+import { heaviestOf, isCompound, orderUnits } from '../order';
 import { supports } from '../swap';
 import { ONE_MOVE } from '../generatorRules';
 import { allowed, beginnerRank, kindOf, makeItem } from './pick';
@@ -59,6 +59,21 @@ function apart(units: Item[][]): Item[][] {
   return out;
 }
 
+/**
+ * PLAN 3.7b: the day's heaviest lift is never in a pair (SPEC 22 rule 5). Among lifts as heavy as
+ * each other (a machine day has several) the first in the day is the heaviest, and putting the
+ * focused moves first can bring a paired one to the front. Then a lift just as heavy that stands
+ * alone goes before that pair (it leads the day, as with no picks); with none, the pair comes apart.
+ */
+function unpairHeaviest(units: Item[][]): Item[][] {
+  const heavy = heaviestOf(units.flat().map((it) => it.profile));
+  const at = units.findIndex((u) => u.length > 1 && u.some((it) => it.profile.id === heavy?.id));
+  if (!heavy || at < 0) return units;
+  const lone = units.findIndex((u) => u.length === 1 && isCompound(u[0]!.profile) && !!u[0]!.profile.pattern && u[0]!.profile.load === heavy.load);
+  if (lone < 0) return units.flatMap((u, k) => (k === at ? u.map((it) => [it]) : [u]));
+  return [...units.slice(0, at), units[lone]!, ...units.slice(at).filter((_, k) => k + at !== lone)];
+}
+
 export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusReport {
   const picks = normalizeFocusPicks(ctx.input.focusPicks ?? ctx.input.focus);
   if (!picks.some((p) => p !== 'balance')) return { budget: 0, spent: 0, priorities: [], days: days.map(() => []) };
@@ -94,7 +109,7 @@ export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusRepo
       return next ? [next] : [];
     })).filter((u) => u.length);
     const groups = [...splitUnequalPairs(old), ...items.filter((it) => !used.has(it.id)).map((it) => [it])].map((u) => u.filter((it) => !it.mobility)).filter((u) => u.length);
-    const order = orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref);
+    const order = unpairHeaviest(orderUnits(groups.map(unitOf), { focus: focusMuscles(picks) }).map((u) => u.ref));
     // The stretch block is one unit at the very end of the session.
     const stretches = items.filter((it) => it.mobility);
     return { ...days[i]!, items, units: [...apart(ctx.family === 'strength' ? order : pairUp(order, items)), ...(stretches.length ? [stretches] : [])] };
