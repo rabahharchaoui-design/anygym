@@ -47,6 +47,32 @@ function mockReportApiInPage(origin: string) {
     return new Response(answer.body, { status: answer.status, headers: { 'Content-Type': 'application/json' } });
   };
 }
+// PLAN 4.2: the Run map's tile host (src/lib/run/mapSource.ts), the one third party host the app
+// may talk to, and only from the Run tab. Tests never reach it:
+//   - context.route (below) aborts it like every other outside host;
+//   - but in WebKit a page controlled by the PWA service worker sends fetches past context.route
+//     (seen for real: tiles were downloaded on a second visit), so an init script also refuses the
+//     map's fetches inside the page. MapLibre asks for the tile list on the page itself; with no
+//     tile list it asks for no tiles, so nothing leaves the machine and the app shows "Map offline".
+//   - every attempt is kept in window.__pwTileAsks, so a spec can prove which screens ask at all.
+// A spec that wants a map that loads uses tests/helpers/tiles.ts (stubbed answers, never the real host).
+export const TILE_ORIGIN = 'https://tiles.openfreemap.org';
+
+// Runs in the page before the app.
+function blockTilesInPage(origin: string) {
+  const w = window as unknown as { __pwTileAsks: string[]; __pwTiles?: 'pass' };
+  w.__pwTileAsks = [];
+  const original = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith(origin)) return original(input, init);
+    w.__pwTileAsks.push(url);
+    // 'pass': the spec answers the host itself with route stubs (tests/helpers/tiles.ts).
+    if (w.__pwTiles === 'pass') return original(input, init);
+    return Promise.reject(new TypeError('Load failed'));
+  };
+}
+
 const LOG = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-results', 'network-guard.log');
 
 export const isLocalUrl = (url: string): boolean => {
@@ -278,6 +304,7 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
     return (reportHandlers.get(context) ?? (() => DEFAULT_REPORT_ANSWER))(call);
   });
   await context.addInitScript(mockReportApiInPage, REPORT_API_ORIGIN);
+  await context.addInitScript(blockTilesInPage, TILE_ORIGIN);
   await context.route('**/*', (route) => {
     const url = route.request().url();
     if (isLocalUrl(url)) return route.continue();
