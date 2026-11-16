@@ -3,13 +3,14 @@
 // transaction over every table: if anything throws, nothing changes.
 import { version } from '../../package.json';
 import { loadPlanRegistry } from './planRegistry';
-import { buildBackup, isActiveSession, keyOf, TABLE_NAMES, type Backup, type BackupLive, type BackupTables, type TableName } from '../lib/backup';
+import { buildBackup, carries, isActiveSession, keyOf, TABLE_NAMES, type Backup, type BackupLive, type BackupTables, type TableName } from '../lib/backup';
 import { EXTRA_SETS_KEY, clearExtraSets, extraSetsValue, restoreExtraSets } from '../lib/extraSets';
 import { REST_KEY, loadRest, saveRest } from '../lib/rest';
 import { DRAFTS_KEY, draftsValue, exportDrafts, replaceDrafts, type DraftsBlob } from '../lib/drafts';
 import { durableRow } from '../lib/durable';
 import { resetStartDb } from './bootstrap';
 import { newId } from './ids';
+import { importedHashes } from './importHistory';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { UNDO_PREFIX, intentMatches, readUndoIntentList } from './undoIntents';
 import { LOG_CANCEL_PREFIX, MUTATION_DONE_PREFIX, MUTATION_HELD_PREFIX, MUTATION_REV_PREFIX, MUTATION_SUP_PREFIX } from './workouts';
@@ -24,9 +25,6 @@ export class ActiveWorkoutError extends Error {
 }
 
 const tablesOf = (db: AnyGymDB) => TABLE_NAMES.map((t) => db.table(t));
-/** PLAN 3.8: the coach tables (schema v10), never backed up, cleared by a replace restore. */
-export const COACH_TABLES = ['coachLifts', 'coachChanges', 'coachCards', 'efforts'] as const;
-const coachTablesOf = (db: AnyGymDB) => COACH_TABLES.map((t) => db.table(t));
 
 /** Where drafts live (undefined: localStorage, through the drafts module's default; tests pass their own). */
 type DraftStorage = Parameters<typeof exportDrafts>[0];
@@ -145,12 +143,11 @@ async function storeDraftsDurably(db: AnyGymDB, blob: DraftsBlob): Promise<void>
  * backup's drafts durably, all in one transaction. localStorage is filled once it committed.
  */
 export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, drafts: DraftStorage = undefined): Promise<RestoreResult> {
-  const result = await db.transaction('rw', [...tablesOf(db), db.kv, ...coachTablesOf(db)], async () => {
+  const result = await db.transaction('rw', [...tablesOf(db), db.kv], async () => {
     await refuseIfActive(db);
-    for (const t of TABLE_NAMES) await db.table(t).clear();
-    // PLAN 3.8 round 2 (Codex #2): the coach's targets, changes, answered cards and effort taps belong
-    // to the history being replaced; the coach rebuilds from the restored workouts.
-    for (const t of coachTablesOf(db)) await t.clear();
+    // PLAN 3.6d (audit A7): only what the file carries is replaced. A file from before 3.6d has no
+    // coach tables: the phone's accepted targets and effort taps then stay as they are.
+    for (const t of TABLE_NAMES) if (carries(backup.tables, t)) await db.table(t).clear();
     // Undo intents of workouts that are gone with the old data (PLAN 1.7k); other kv rows stay.
     await db.kv.where('key').startsWith(UNDO_PREFIX).delete();
     // The change revision counters of the old data (PLAN 2.0e): the restored journal's own revisions count from here.
@@ -162,7 +159,7 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
     await db.kv.where('key').startsWith(LOG_CANCEL_PREFIX).delete();
     for (const t of TABLE_NAMES) {
       const rows = backup.tables[t];
-      if (rows.length) await db.table(t).bulkAdd(rows);
+      if (rows?.length) await db.table(t).bulkAdd(rows);
     }
     await storeDraftsDurably(db, backup.drafts);
     // The held corrections too (PLAN 2.0i), so they survive a restart even when localStorage refuses them.
@@ -186,6 +183,25 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
 }
 
 /**
+ * The backup's workouts Merge adds: those not on the phone by id, and (PLAN 3.6d, audit A8) for an
+ * imported one, not by its content either: an import gives each workout a new id, so the same
+ * history imported on both phones would come in twice. Its import hash is what Import itself checks.
+ */
+async function sessionsToAdd(backup: Backup, db: AnyGymDB): Promise<Set<string>> {
+  const hashes = await importedHashes(db);
+  const added = new Set<string>();
+  for (const s of backup.tables.sessions) {
+    if (await db.sessions.get(s.id)) continue;
+    if (s.imported && s.importHash) {
+      if (hashes.has(s.importHash)) continue;
+      hashes.add(s.importHash);
+    }
+    added.add(s.id);
+  }
+  return added;
+}
+
+/**
  * Merge: adds only what is not on the phone. Workouts, gyms, runs, settings and counters by their
  * key; a workout already here is kept as it is (its sets are never added to or brought back).
  * The plan position and the profile only when the phone has none. Added gyms come in inactive
@@ -194,20 +210,16 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
 export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, drafts: DraftStorage = undefined): Promise<RestoreResult> {
   const result = await db.transaction('rw', [...tablesOf(db), db.kv], async () => {
     await refuseIfActive(db);
-    const added = new Set<string>();
-    for (const s of backup.tables.sessions) {
-      if (await db.sessions.get(s.id)) continue;
-      added.add(s.id);
-    }
+    const added = await sessionsToAdd(backup, db);
     let sets = 0;
     for (const t of TABLE_NAMES) {
-      const rows = backup.tables[t] as unknown as Array<Record<string, unknown>>;
+      const rows = (backup.tables[t] ?? []) as unknown as Array<Record<string, unknown>>;
       if (rows.length === 0) continue;
       if ((t === 'profile' || t === 'planState') && (await db.table(t).count()) > 0) continue;
       const table = db.table(t);
       const have = new Set((await table.toArray()).map((r: Record<string, unknown>) => keyOf(t, r)));
-      const perSession = t === 'sets' || t === 'orderCounters' || t === 'submissions' || t === 'tombstones' || t === 'journal';
-      let fresh = rows.filter((r) => !have.has(keyOf(t, r)) && (!perSession || added.has(r.sessionId as string)));
+      const perSession = t === 'sets' || t === 'orderCounters' || t === 'submissions' || t === 'tombstones' || t === 'journal' || t === 'efforts';
+      let fresh = rows.filter((r) => !have.has(keyOf(t, r)) && (!perSession || added.has(r.sessionId as string)) && (t !== 'sessions' || added.has(r.id as string)));
       // The phone keeps its own active gym: added gyms come in inactive.
       if (t === 'gyms' && (await db.gyms.filter((g) => g.isActive).count()) > 0) fresh = fresh.map((g) => ({ ...g, isActive: false }));
       if (fresh.length) await table.bulkAdd(fresh);

@@ -284,13 +284,20 @@ describe('round 2 (Codex 3.8)', () => {
     await resolveOutcomes([{ id: 'z', key: 'k2', outcome: 'easy' }], db, 40);
     expect((await db.coachLifts.get('k2'))!.learned).toEqual({ estimate: null, rate: null, scale: 1.25, at: 40 });
   });
-  it('#2 a replace restore clears the coach tables (they belong to the replaced history); a merge keeps them', async () => {
+  // PLAN 3.6d (audit A7): the coach's tables travel in the backup. Replace puts back exactly the
+  // file's (here: none yet, so none), and a file from before 3.6d, which has no coach tables, leaves
+  // the phone's alone. Merge keeps the phone's.
+  it('#2 a replace restore puts back the file\'s coach tables; a merge keeps the phone\'s', async () => {
     await workout(nov(5), [['barbell-back-squat', 12, bar(200)]]);
     const backup = await exportBackup(db, 1);
     await applyChanges('levelup:a', 'a', [change()], db, 10);
     await closeCard('missed:1', 'dismissed', db);
     await saveEffort('w0', 'barbell-back-squat', 'hard', db);
     await restoreMerge(backup, db);
+    for (const t of ['coachLifts', 'coachChanges', 'coachCards', 'efforts']) expect(await db.table(t).count(), t).toBeGreaterThan(0);
+    const older = { ...backup, tables: { ...backup.tables } };
+    for (const t of ['coachLifts', 'coachChanges', 'coachCards', 'efforts'] as const) delete older.tables[t];
+    await restoreReplace(older, db);
     for (const t of ['coachLifts', 'coachChanges', 'coachCards', 'efforts']) expect(await db.table(t).count(), t).toBeGreaterThan(0);
     await restoreReplace(backup, db);
     for (const t of ['coachLifts', 'coachChanges', 'coachCards', 'efforts']) expect(await db.table(t).count(), t).toBe(0);
