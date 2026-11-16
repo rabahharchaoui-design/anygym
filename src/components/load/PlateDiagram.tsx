@@ -61,10 +61,10 @@ const HEIGHT_SHARE_TIGHT = 0.15;
 const HORN_SHARE = 0.22;
 /** A horn on a short screen (320 x 568), so the tray and Done fit without scrolling. */
 const HORN_SHARE_SHORT = 0.18;
-/** A horn while its start question is open. */
-const HORN_SHARE_TIGHT = 0.15;
-/** Short screens (the 320 x 568 floor) while the start question is open: smaller still, so tray and Done fit. */
-const HORN_SHARE_TIGHT_SHORT = 0.112;
+/** A horn while its start or sides question is open: the whole tray clears Done's fade (PLAN 3.7a, 360 x 640). */
+const HORN_SHARE_TIGHT = 0.13;
+/** Short screens (the 320 x 568 floor) while a question is open: smaller still, so tray and Done fit. */
+const HORN_SHARE_TIGHT_SHORT = 0.1;
 /** Reduced motion: the old and new drawings overlap and crossfade. */
 const CROSSFADE_MS = 150;
 

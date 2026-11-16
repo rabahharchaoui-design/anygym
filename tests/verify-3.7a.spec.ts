@@ -123,14 +123,20 @@ test.describe('3.7a (1) one side or both, not answered yet @matrix', () => {
 /** Every plate button sits fully in the sheet's visible body, above the Done bar. */
 async function platesAboveDone(page: Page, scroll: boolean) {
   const s = weightSheet(page);
-  // The Done bar (its 12 px top padding) and its fade (12 px above it, Sheet.module.css .footer::before) count as under it.
-  const doneTop = (await s.getByRole('button', { name: /Done|first$/ }).boundingBox())!.y - 24;
+  // The Done bar (its 12 px top padding) counts as under it, and on a scrolling sheet its fade too
+  // (12 px above it, Sheet.module.css .sheet[data-scroll='true'] .footer::before).
+  const fade = (await s.getAttribute('data-scroll')) === 'true' ? 12 : 0;
+  const doneTop = (await s.getByRole('button', { name: /Done|first$/ }).boundingBox())!.y - 12 - fade;
   const plates = s.getByRole('group', { name: 'Plates' }).getByRole('button');
   const n = await plates.count();
   expect(n).toBeGreaterThanOrEqual(6);
   for (let i = 0; i < n; i++) {
     const b = plates.nth(i);
-    if (scroll) await b.scrollIntoViewIfNeeded();
+    // Reachable: the body scrolled to its end (the tray is its last row) shows the whole button clear of the fade.
+    if (scroll)
+      await b.evaluate((el) => {
+        for (let p = el.parentElement; p; p = p.parentElement) if (getComputedStyle(p).overflowY === 'auto') p.scrollTop = p.scrollHeight;
+      });
     expect(await fullyShown(b), `plate ${i} fully shown`).toBe(true);
     const box = (await b.boundingBox())!;
     expect(box.y + box.height, `plate ${i} above Done`).toBeLessThanOrEqual(doneTop + 0.5);

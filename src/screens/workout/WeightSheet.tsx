@@ -120,7 +120,7 @@ function WeightBody({
     // Runs once the choice settled, with this render's (latest) plates.
   }, [waiting]);
   return (
-    <div className={styles.sheetBody}>
+    <div className={`${styles.sheetBody} ${styles.clearFade}`}>
       <h2 className={styles.sheetTitle}>{title}</h2>
       {/* While a question is up the sub line steps aside, so the plates stay in view (3.7a: also a machine's). */}
       {!barUnknown && !machine.asking && (
