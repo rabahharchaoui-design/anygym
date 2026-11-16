@@ -187,7 +187,7 @@ describe('pause by hand', () => {
   const first = straight({ speed: 3, seconds: 60 });
   // While paused the runner walks 100 m north and stands there.
   const walk = Array.from({ length: 50 }, (_, i) => at(180, Math.min(100, 4 * (i + 1)), 61 + i));
-  const second = straight({ speed: 3, seconds: 60, startSec: 111, startEast: 180 }).map((p, i) => at(180 + 3 * i, 100, 111 + i));
+  const second = Array.from({ length: 61 }, (_, i) => at(180 + 3 * i, 100, 111 + i));
   const inputs: TrackInput[] = [...pts(first), { type: 'pause' }, ...pts(walk), { type: 'resume' }, ...pts(second)];
 
   it('records nothing while paused, and auto pause never takes over', () => {
