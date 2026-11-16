@@ -109,6 +109,8 @@ export type Workout = {
    * intermediate lifters and up, from its working weight), else none.
    */
   warmUpsOf: (id: string) => WarmUp[];
+  /** 3.6z A15: how many warm up sets the coach adds today (the first big lift's), counted in `minutes`. */
+  warmUpCount: number;
   /** PLAN 3.8: what this exercise can load at this gym (load.ts LoadSetup), for the coach's warm ups. */
   setupOf: (id: string) => LoadSetup | undefined;
 };
@@ -303,6 +305,9 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     return autoWarmUps(experience, kind, pickedWeight(p.next.load), setup);
   };
 
+  /** 3.6z A15: the coach's warm up sets, in the plan day's time estimate and its time budget. */
+  const warmUpCount = firstBig ? warmUpsOf(firstBig).length : 0;
+
   // Working sets only: a warm up on a normal lift leaves its planned rows to do (PLAN 1.7j).
   const done = doneCounts(entries, sets);
 
@@ -361,7 +366,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     day,
     // PLAN 3.5a: a built Quick workout shows the same estimate its concept card showed (one estimator).
     minutes: day
-      ? estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex)
+      ? estimateDayMinutes(applyTrim(day, trim, weekIndex), weekIndex, warmUpCount)
       : session.data?.targets
         ? estimateDayMinutes(quickDayOf(entries.map((e) => ({ id: e.exerciseId, name: e.name, sets: e.sets, restSec: e.restSec, ...(e.reps !== undefined ? { reps: e.reps } : {}), ...(e.seconds !== undefined ? { seconds: e.seconds } : {}), ...(e.kind === 'pair' ? { group: e.block } : {}) }))))
         : undefined,
@@ -387,6 +392,7 @@ export function useWorkout(sessionId: string, hidden: ReadonlySet<string>): Work
     recordOf: (setId) => recordMap.get(setId),
     bump: () => setExtraTick((t) => t + 1),
     warmUpsOf,
+    warmUpCount,
     setupOf,
   };
 }

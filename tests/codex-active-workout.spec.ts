@@ -101,11 +101,11 @@ test('an offline active workout restores its selected exercise, exact sets, repe
 
     await page.reload();
     await expect(page).toHaveURL(workoutUrl);
-    // The next row is restored exactly as it was (the 30 lb pick applied to the rows below).
+    // The next row is restored exactly as it was (the 30 lb pick and the 9 reps applied to the rows below, 3.6z A17).
     await expect(dumbbell.getByTestId('set-target')).toHaveText('Set 2 of 3 · 8 to 12 reps');
-    await expect(dumbbell.getByTestId('reps-cell').first()).toHaveText('8');
+    await expect(dumbbell.getByTestId('reps-cell').first()).toHaveText('9');
     await expect(dumbbell.getByTestId('weight-cell').first()).toHaveText('30');
-    await expect(logButton(page)).toHaveAccessibleName('Log set 2: 30 lb each × 8');
+    await expect(logButton(page)).toHaveAccessibleName('Log set 2: 30 lb each × 9');
     await expect(page.getByTestId('rest-timer')).toBeVisible();
     await expect(squat).toHaveCount(0);
     expect(await savedSets(page)).toEqual(before);
@@ -115,7 +115,7 @@ test('an offline active workout restores its selected exercise, exact sets, repe
     await expect(dumbbell.getByTestId('set-row')).toHaveCount(2);
     const after = await savedSets(page);
     expect(after.slice(0, 2)).toEqual(before);
-    expect(after[2]).toMatchObject({ sessionId: before[1]!.sessionId, exerciseId: 'dumbbell-bench-press', order: 2, reps: 8, load: before[1]!.load });
+    expect(after[2]).toMatchObject({ sessionId: before[1]!.sessionId, exerciseId: 'dumbbell-bench-press', order: 2, reps: 9, load: before[1]!.load });
     expect(new Set(after.map((s) => s.id)).size).toBe(3);
     await page.getByRole('button', { name: 'Finish', exact: true }).tap();
     await page.getByRole('button', { name: 'Done', exact: true }).tap();

@@ -107,3 +107,20 @@ export async function setGymUnit(gymId: string, unit: Unit, db: AnyGymDB = defau
     return next;
   });
 }
+
+/**
+ * Undo of a unit switch (3.6z A14, SPEC 13.1 undo instead of confirm): puts the gym record from
+ * before the switch back as it was, plates, bars, stack step, dumbbells and answers included. Only
+ * while the gym is still in the other unit; whether it is the active gym is today's. The bar ids the
+ * switch wrote onto older sets stay: they name the same bars on the gym as it was.
+ */
+export async function undoGymUnit(previous: Gym, db: AnyGymDB = defaultDb): Promise<Gym> {
+  return db.transaction('rw', db.gyms, async () => {
+    const gym = await db.gyms.get(previous.id);
+    if (!gym) throw new Error('Gym not found');
+    if (gym.unit === previous.unit) return gym;
+    const back: Gym = { ...previous, isActive: gym.isActive };
+    await db.gyms.put(back);
+    return back;
+  });
+}

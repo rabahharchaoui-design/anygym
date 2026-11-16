@@ -20,6 +20,8 @@ type Props = {
   current: DayTrim | undefined;
   /** Sets logged per plan exercise: those are never cut. */
   logged: Readonly<Record<string, number>>;
+  /** The coach's warm up sets on the first big lift, known once the workout runs (3.6z A15). */
+  warmUps?: number;
   onApply: (minutes: number, result: TrimResult) => void;
 };
 
@@ -59,7 +61,7 @@ const same = (a: DayTrim | null | undefined, b: DayTrim | null | undefined) => J
  * picked, what the time cuts in plain words, and Apply for this workout only. Closing it changes
  * nothing. Every number is the day list's own estimate (plans.estimateDayMinutes).
  */
-export function TimeBudgetSheet({ open, onClose, day, weekIndex, initial, current, logged, onApply }: Props) {
+export function TimeBudgetSheet({ open, onClose, day, weekIndex, initial, current, logged, warmUps = 0, onApply }: Props) {
   const [picked, setPicked] = useState<number | undefined>(initial);
   /** One Apply per open (a double tap applies once). */
   const applied = useRef(false);
@@ -68,8 +70,8 @@ export function TimeBudgetSheet({ open, onClose, day, weekIndex, initial, curren
     if (open) setPicked(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-  const result = useMemo(() => (picked === undefined ? null : trimDay(day, { budget: picked, weekIndex, profileOf, logged })), [picked, day, weekIndex, logged]);
-  const planned = result?.before ?? trimDay(day, { budget: AS_PLANNED, weekIndex, profileOf }).before;
+  const result = useMemo(() => (picked === undefined ? null : trimDay(day, { budget: picked, weekIndex, profileOf, logged, warmUps })), [picked, day, weekIndex, logged, warmUps]);
+  const planned = result?.before ?? trimDay(day, { budget: AS_PLANNED, weekIndex, profileOf, warmUps }).before;
   const words = result ? changeWords(result.changes) : [];
   const unchanged = !!result && same(result.trim, current);
   const reason = picked === undefined ? 'Pick how long you have' : unchanged ? (current ? 'This workout is already set to this' : 'This is the day as planned') : undefined;

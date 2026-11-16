@@ -371,8 +371,8 @@ test.describe('PR badge in the workout and the finish lead line', () => {
     // It leads: above the numbers.
     expect((await box(win)).y).toBeLessThan((await box(page.getByTestId('finish-duration'))).y);
     // One order everywhere (critic B4): weight × reps; New bests never repeats the lead.
-    // The count, then the best set (round 3, critic P6).
-    await expect(page.getByTestId('finish-exercise')).toContainText('3 sets · 185 lb × 7');
+    // The count, then the best set named as the best (round 3, critic P6; 3.6z A16).
+    await expect(page.getByTestId('finish-exercise')).toContainText('3 sets · best 185 lb × 7');
     // One size for the three stat tiles (round 3, critic P4), never under 22 pt.
     const sizes = await page.locator('[data-testid="finish-duration"], [data-testid="finish-sets"], [data-testid="finish-total"]').evaluateAll((els) => els.map((e) => parseFloat(getComputedStyle(e).fontSize)));
     expect(new Set(sizes).size).toBe(1);

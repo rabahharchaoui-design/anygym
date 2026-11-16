@@ -120,7 +120,7 @@ const GROUPS: Record<string, string[]> = {
 };
 
 test('(2) equipment: 29 tiles (3.5j) with a drawing, 3 across, grouped, All is per group, i opens glossary, screens count', async ({ page }) => {
-  test.skip(!PHONES.has(test.info().project.name));
+  test.skip(!PHONES.has(test.info().project.name), 'SE and iPhone 15 only');
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'full', equipmentFor: 'full', equipment: ['dumbbells', 'treadmill'] });
   const tiles = page.locator('[data-testid="equipment"] button[data-testid^="equip-"][aria-pressed]:not([data-testid^="equip-all"])');
   await expect(tiles).toHaveCount(29);
@@ -188,7 +188,7 @@ const SCREENS: Array<[string, Record<string, unknown>]> = [
 ];
 
 test('(3) 16 screens: content share of the space above the button (own measure), why line, strip', async ({ page }) => {
-  test.skip(!PHONES.has(test.info().project.name));
+  test.skip(!PHONES.has(test.info().project.name), 'SE and iPhone 15 only');
   test.setTimeout(180_000);
   const rows: string[] = [];
   const fails: string[] = [];
@@ -262,7 +262,7 @@ test('(3) the strip fills in as days, minutes and place are answered', async ({ 
 });
 
 test('(6) 130% text and reduced motion on the SE: no overflow, nothing clipped', async ({ page }) => {
-  test.skip(test.info().project.name !== 'iPhone SE');
+  test.skip(test.info().project.name !== 'iPhone SE', 'SE only (the smallest iPhone)');
   test.setTimeout(150_000);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const allClipped: string[] = [];
@@ -311,7 +311,7 @@ test('(6) 130% text and reduced motion on the SE: no overflow, nothing clipped',
 });
 
 test('(6b) breakage: offline, back mid pick, tap All twice fast', async ({ page, context }) => {
-  test.skip(!PHONES.has(test.info().project.name));
+  test.skip(!PHONES.has(test.info().project.name), 'SE and iPhone 15 only');
   await drafted(page, 'equipment', { goal: 'muscle', units: US, place: 'full', equipmentFor: 'full', equipment: [] });
   await context.setOffline(true);
   await page.getByTestId('equip-all-cables').tap();

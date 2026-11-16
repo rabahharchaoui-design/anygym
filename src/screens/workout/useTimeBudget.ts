@@ -109,6 +109,7 @@ export function useTimeBudget(w: Workout, sessionId: string, opts: { onUndoable:
           initial,
           current: trim,
           logged,
+          warmUps: w.warmUpCount,
           onApply: (m: number, r: TrimResult) => void apply(m, r),
         }
       : null,
