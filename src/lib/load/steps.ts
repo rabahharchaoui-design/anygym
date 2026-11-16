@@ -69,6 +69,35 @@ export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number 
 }
 
 /**
+ * After a unit change, a rounding of up to this share is still the same weight (a 20 kg dumbbell and
+ * a 45 lb one, 60 lb and 27.5 kg); more than that above is already a step up (13 kg and 30 lb).
+ */
+export const SAME_AFTER_CONVERTING = 0.025;
+
+/**
+ * One step up from what was really lifted, when this gym may not be able to make that weight
+ * (another rack, another unit; PLAN 3.6e): the weight is never rounded up and then stepped again.
+ * The nearest loadable weight, when it is already heavier (by more than `sameWithin`, a share), is
+ * the step; else one stepUp from it. null when there is no step up here.
+ */
+export function stepUpFrom(kind: Load['kind'], value: number, s: LoadSetup, sameWithin = 0): number | null {
+  const near = nearestLoadable(kind, value, s);
+  if (near === null) return null;
+  return toInt(near) > Math.round(toInt(value) * (1 + sameWithin)) ? near : stepUp(kind, near, s);
+}
+
+/**
+ * The heaviest weight this gym can load that is not above `value` (PLAN 3.6e: "same load" on a rack
+ * without that weight is never a heavier one). Nothing lighter here: the lightest there is. null
+ * when nothing can be loaded or the weight is not ours to round.
+ */
+export function loadableAtMost(kind: Load['kind'], value: number, s: LoadSetup): number | null {
+  const near = nearestLoadable(kind, value, s);
+  if (near === null || toInt(near) <= toInt(value)) return near;
+  return stepDown(kind, near, s) ?? near;
+}
+
+/**
  * About 10% lighter, rounded to a weight this gym can load (SPEC 6 rule 3). A stack with `added`
  * weight on the pin (PLAN 1.7i): 10% off the TOTAL resistance, the added weight kept, and the pin
  * that is left rounded to a loadable pin (100 pin + 100 added → 180 total → an 80 pin).

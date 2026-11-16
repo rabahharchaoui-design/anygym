@@ -13,17 +13,20 @@
 //
 // RULES (SPEC 6), working sets of the same load kind only (warmups, drops and sets logged with
 // another kind of weight are ignored):
-//   2 every working set hit the top of the range at the same load → one step up (load.ts stepUp);
+//   2 every working set hit the top of the range at the same load → one step up (load.ts stepUp),
+//     counted from what was really lifted (PLAN 3.6e): 9 kg on a 2.5 kg rack goes to 10, not 12.5;
 //     bodyweight: +1 rep a set, and after 3 sessions in a row at the top, a nudge to add weight.
 //     No step up here (top of the rack, full sleeve) → same load, +1 rep a set.
 //   3 a working set below the bottom of the range in each of the last two sessions → ~10% lighter,
 //     rounded to a loadable weight, "Reset and build back up". Not for bodyweight or timed.
-//   4 else same load, beat the reps: +1 rep on the first set that missed the top.
+//   4 else same load, beat the reps: +1 rep on the first set that missed the top. A rack without
+//     that weight: the next one down, said so ("No 9 kg here: 7.5 kg is the next one down").
 //   5 no history (the caller keys it: machines per gym, free weights shared) → load null,
 //     "First time: pick a weight you could do 2 more reps with".
 //   6 a prescription sets the reps (and the number of rows); the load still follows 2 to 4.
 //   7 history in another unit → converted and rounded to the nearest loadable weight here,
-//     reason "≈ 27.5 kg, last time 60 lb".
+//     reason "≈ 27.5 kg, last time 60 lb". The "≈" number is always last time's weight converted,
+//     never the raised or reset one; the rule's own reason follows it (PLAN 3.6e).
 // No rep range (quick workout, no plan yet): rules 2 and 3 cannot apply, so it is rule 4 with
 // the last session's reps as the target ("Aim for 10, 10 or better"); a range is never invented.
 // Timed holds: no load progression, only "Beat your time". No estimated 1RM, ever.
@@ -32,16 +35,19 @@ import { IMPORTED_LABEL, isImportOrder } from './import/importOrder';
 import { formatSession, formatTarget } from './setWords';
 import {
   comparableWeight,
+  SAME_AFTER_CONVERTING,
   convertForGym,
   formatWeight,
   heldWeightOf,
   loadAt,
+  loadableAtMost,
   nearestLoadable,
   pickedWeight,
   resetWeight,
   sameHorns,
   sameResistance,
   stepUp,
+  stepUpFrom,
   timedLoad,
   type LoadSetup,
   heaviestHeld,
@@ -83,6 +89,8 @@ export type Next = {
   held?: true;
   /** PLAN 3.5j: the weight is the heaviest this gym has, under what last time was or what is due ("Heaviest here is 22 kg: add reps"). */
   atTop?: true;
+  /** PLAN 3.6e: this gym cannot make last time's weight; the load is the next one down (or the lightest here) and the reason says so. No "Beat last time". */
+  closest?: true;
 };
 
 export type SetTarget = { load: Load | null; reps?: number; seconds?: number };
@@ -164,7 +172,11 @@ export function progress(input: ProgressionInput): Progression {
   const quoted = ref.kind === 'stack' ? ref.total : picked;
   const here = converted ? convertForGym(quoted, ref.unit, unit) : picked;
   const added = !converted && ref.kind === 'stack' ? (ref.added ?? 0) : 0;
-  const base = !converted && loadAt(loadKind, here, setup, added) ? here : nearestLoadable(loadKind, here, setup);
+  const onRack = !converted && !!loadAt(loadKind, here, setup, added);
+  const base = onRack ? here : nearestLoadable(loadKind, here, setup);
+  // PLAN 3.6e: the same unit, but this rack cannot make it. "Same load" is then the next one down,
+  // never a heavier weight that was not lifted; a step up or a reset counts from the real weight.
+  const offRack = !converted && !onRack && base !== null;
   // PLAN 3.5j: last time was heavier than anything on this rack (another gym, or the gym's dumbbell
   // max): the target is the heaviest here, and the line says so ("Heaviest here is 22 kg: add reps").
   const top = loadKind === 'dumbbell_each' || loadKind === 'single' ? heaviestHeld(loadKind, setup) : null;
@@ -184,7 +196,9 @@ export function progress(input: ProgressionInput): Progression {
   };
 
   let kind: NextKind;
-  let value: number | null = base;
+  let value: number | null = offRack ? loadableAtMost(loadKind, here, setup) : base;
+  // The converted weight, rounded up, was already a real step up (13 kg → 30 lb): no "≈" for it.
+  let roundedUp = false;
   let repsFor: (i: number) => number;
   let reason: string;
   let nextReps: RepTarget | null = prescription?.reps ?? range;
@@ -198,7 +212,7 @@ export function progress(input: ProgressionInput): Progression {
       reason = streak >= 3 ? '3 sessions at the top: try adding weight' : `All sets hit ${range[1]}. Add 1 rep a set`;
       if (!prescription) nextReps = plusOne(0);
     } else {
-      const up = value === null ? null : stepUp(loadKind, value, setup);
+      const up = value === null ? null : onRack ? stepUp(loadKind, value, setup) : stepUpFrom(loadKind, here, setup, converted ? SAME_AFTER_CONVERTING : 0);
       if (up === null && value !== null) {
         kind = 'beat_reps';
         repsFor = plusOne;
@@ -207,6 +221,7 @@ export function progress(input: ProgressionInput): Progression {
         reason = exactHeld ? `All sets hit ${range[1]}. Go heavier if you have it, or add a rep to each set` : top !== null ? heaviestLine : 'Heaviest weight here. Add a rep to each set';
       } else {
         kind = 'increase';
+        roundedUp = converted && up === base;
         value = up;
         repsFor = () => range[0];
         reason = `All sets hit ${range[1]}. Time to go up`;
@@ -215,7 +230,7 @@ export function progress(input: ProgressionInput): Progression {
   } else if (range && loadKind !== 'bodyweight' && sessions[1] && anyBelow(last.sets, range) && anyBelow(sessions[1].sets, range)) {
     kind = 'reset';
     // A stack resets its total resistance (pin + added); only the pin moves (PLAN 1.7i).
-    value = value === null ? null : resetWeight(loadKind, value, setup, added);
+    value = value === null ? null : resetWeight(loadKind, here, setup, added);
     repsFor = () => range[1];
     reason = RESET;
   } else {
@@ -229,12 +244,22 @@ export function progress(input: ProgressionInput): Progression {
   if (nextReps === null) nextReps = targetReps(0);
 
   const load = value === null ? null : loadAt(loadKind, value, setup, added);
+  const rule = kind;
+  const shown = (l: Load) => formatWeight(l.kind === 'stack' ? l.total : pickedWeight(l)!, unit);
+  const was = formatWeight(quoted, ref.unit);
   if (load && converted && loadKind !== 'bodyweight') {
     kind = 'converted';
-    reason = `≈ ${formatWeight(loadKind === 'stack' ? load.total : pickedWeight(load)!, unit)}, last time ${formatWeight(quoted, ref.unit)}`;
+    // "≈" quotes last time's weight converted and rounded (base), never the weight a rule moved it to.
+    const approx = `≈ ${formatWeight(base!, unit)}, last time ${was}`;
+    if (rule === 'increase') reason = `${roundedUp ? `Last time ${was}` : approx}. ${reason}`;
+    else if (rule === 'reset') reason = `${capped ? `Last time ${was}` : approx}. ${RESET}`;
+    else reason = approx;
   }
-  const atTop = !!load && top !== null && kind !== 'reset' && (capped || reason === heaviestLine);
-  if (load && capped && kind !== 'reset') reason = heaviestLine;
+  // PLAN 3.6e: "same load" on a rack without it. Not said when the heaviest here line says it (capped).
+  const closest = !!load && offRack && rule === 'beat_reps' && !capped && value !== here;
+  if (closest) reason = `No ${was} here: ${shown(load!)} is ${value! < here ? 'the next one down' : 'the lightest'}`;
+  const atTop = !!load && top !== null && rule !== 'reset' && (capped || reason === heaviestLine);
+  if (load && capped && rule !== 'reset') reason = heaviestLine;
   if (!load) reason = noLoadReason(loadKind, setup);
   if (!load && exactHeld) {
     // Typed exactly (PLAN 1.7k): no lighter or converted weight is made up; the user types it.
@@ -253,7 +278,7 @@ export function progress(input: ProgressionInput): Progression {
 
   return {
     lastTime,
-    next: { load, reps: nextReps, reason, kind, ...(atTop ? { atTop: true as const } : {}) },
+    next: { load, reps: nextReps, reason, kind, ...(atTop ? { atTop: true as const } : {}), ...(closest ? { closest: true as const } : {}) },
     perSet: fill((i) => ({ lastTime: lastAt(i), target: { load, reps: targetReps(i) } })),
   };
 }
@@ -296,8 +321,9 @@ export function beatLine(p: Pick<Progression, 'next' | 'perSet'>): string | null
   const reps: RepTarget | null = first ?? p.next.reps;
   if (reps === null) return null;
   const r = `${repsText(reps)} ${reps === 1 ? 'rep' : 'reps'}`;
-  // PLAN 3.5g: a held weight is the same as last time, not a number to beat.
-  const lead = p.next.held ? '' : 'Beat last time: ';
+  // PLAN 3.5g: a held weight is the same as last time, not a number to beat. PLAN 3.6e: nor is
+  // another weight than last time's, picked because this gym does not have it.
+  const lead = p.next.held || p.next.closest ? '' : 'Beat last time: ';
   if (load.kind === 'bodyweight') return `${lead}${load.added ? `${r} + ${formatWeight(load.added, load.unit)}` : r}`;
   if (load.kind === 'dumbbell_each') return `${lead}${r} at ${formatWeight(heldWeightOf(load)!, load.unit)} each`;
   return `${lead}${r} at ${formatWeight(load.total, load.unit)}`;
