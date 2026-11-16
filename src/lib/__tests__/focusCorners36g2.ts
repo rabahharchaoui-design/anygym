@@ -31,7 +31,6 @@ export const TOP_CORNERS: string[] = [
   '5d 45m biceps,calves,glutes,side_delts,upper_chest,abs,front_delts,grip,hamstrings,rear_delts | Biceps +1',
   '6d 45m forearms,posture,obliques,biceps,rear_delts,hamstrings,quads,lats,side_delts,grip | Posture +0',
   '6d 45m grip,quads,triceps,side_delts,front_delts,abs,glutes,forearms,rear_delts,mobility | Triceps +2',
-  '6d 75m obliques,mobility,posture,side_delts,rear_delts,biceps,forearms,upper_back,lower_back,hamstrings | Side shoulders +2',
   '3d 45m upper_back,upper_chest,mobility,glutes,side_delts,lower_back,calves,biceps,posture,hamstrings,triceps | Upper back +0',
   '4d 45m lats,forearms,rear_delts,lower_back,side_delts,quads,biceps,hamstrings,calves,upper_back,triceps | Lats +2',
   '4d 60m obliques,upper_back,glutes,mobility,triceps,forearms,side_delts,biceps,grip,front_delts,abs | Upper back +0',
