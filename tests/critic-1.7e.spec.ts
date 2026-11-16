@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { bar185, dbAll, quickWith, seedFinished, usePlan, watchErrors } from './workout-helpers';
+import { bar185, dbAll, dbPut, quickWith, seedFinished, usePlan, watchErrors } from './workout-helpers';
 import { quietLineMax } from './helpers/lines';
 
 // PLAN 1.7e, ux-critic round (reports/critic/session-1): the fixes that lift every screen to 8+.
@@ -380,6 +380,25 @@ test('Settings: Units switch the gym between lb and kg; the gym name on Today is
   await pill.tap();
   await expect(page.getByRole('dialog', { name: 'Gyms' })).toBeVisible();
   await page.keyboard.press('Escape');
+  expect(errors).toEqual([]);
+});
+
+test('3.6z A14: Settings Units to kg says so with Undo, and Undo puts the gym weights back as they were', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('./#/settings');
+  await expect(page.getByRole('radio', { name: 'lb' })).toBeChecked();
+  const [gym] = await dbAll<{ unit: string; stackStep: number; dumbbellRange: unknown }>(page, 'gyms');
+  const mine = { ...gym!, stackStep: 7.5, dumbbellRange: { min: 10, max: 60, step: 10 } };
+  await dbPut(page, { gyms: [mine] });
+  await page.reload();
+  await page.getByRole('radio', { name: 'kg' }).tap();
+  await expect.poll(async () => (await dbAll<{ unit: string }>(page, 'gyms'))[0]!.unit).toBe('kg');
+  const toast = page.getByRole('status').filter({ hasText: 'Units changed to kg' });
+  await expect(toast).toBeVisible();
+  await toast.getByRole('button', { name: 'Undo' }).tap();
+  await expect.poll(async () => (await dbAll(page, 'gyms'))[0]).toEqual(mine);
+  await expect(page.getByRole('radio', { name: 'lb' })).toBeChecked();
+  await expect(page.getByRole('status').filter({ hasText: 'Back to lb' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
-import { setEquipmentWeight, setGymUnit, setPlateColors } from '../equipment';
+import { setEquipmentWeight, setGymUnit, setPlateColors, undoGymUnit } from '../equipment';
 import { equipmentWeightFor, machineStartFor, makeGym, stackStepFor } from '../gyms';
 import type { Gym } from '../types';
 
@@ -107,5 +107,23 @@ describe('setGymUnit (Settings, SPEC 3: unit per gym)', () => {
     expect((await setGymUnit(bare.id, 'kg', db)).dumbbellRange).toBeNull();
     await expect(setGymUnit(home.id, 'stone' as never, db)).rejects.toThrow();
     await expect(setGymUnit('nope', 'kg', db)).rejects.toThrow('Gym not found');
+  });
+});
+
+describe('undoGymUnit (3.6z A14: the unit switch has an Undo)', () => {
+  it('puts every weight the switch reset back, once; a gym already back in its unit is left alone', async () => {
+    const home = { ...makeGym({ name: 'Home', type: 'home', unit: 'lb', isActive: true }), equipment: ['dumbbells' as const], dumbbellRange: { min: 5, max: 50, step: 5 }, stackStep: 10 };
+    await db.gyms.add(home);
+    await setEquipmentWeight(home.id, 'smith_machine', { kind: 'bar_weight', value: 15 }, db);
+    const before = (await db.gyms.get(home.id))!;
+    const kg = await setGymUnit(home.id, 'kg', db);
+    expect(kg).toMatchObject({ unit: 'kg', dumbbellRange: null, equipmentWeights: {} });
+    expect(await undoGymUnit(before, db)).toEqual(before);
+    expect(await db.gyms.get(home.id)).toEqual(before);
+    // A second Undo, or one after the person switched back by hand, changes nothing.
+    await setEquipmentWeight(home.id, 'trap_bar', { kind: 'bar_weight', value: 55 }, db);
+    const now = (await db.gyms.get(home.id))!;
+    expect(await undoGymUnit(before, db)).toEqual(now);
+    await expect(undoGymUnit({ ...before, id: 'nope' }, db)).rejects.toThrow('Gym not found');
   });
 });
