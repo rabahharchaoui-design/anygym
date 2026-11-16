@@ -19,9 +19,10 @@
   opacity: 1;
 }
 
+/* MapLibre makes its container position: relative, so the size comes from width and height. */
 .gl {
-  position: absolute;
-  inset: 0;
+  width: 100%;
+  height: 100%;
   background: var(--bg);
 }
 
@@ -68,15 +69,7 @@
   }
 }
 
-/* Map notes: the offline chip and the data credit, at the bottom left of the map that shows. */
-.notes {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
+/* Tiles could not be had: a quiet glass chip beside the GPS chip. */
 .offline {
   display: inline-flex;
   align-items: center;
@@ -91,7 +84,10 @@
   font-weight: 600;
 }
 
+/* The map data credit, at the bottom left of the map that shows. */
 .credit {
+  min-width: 0;
+  padding-bottom: var(--space-1);
   color: var(--text-2);
   font-size: 11px;
   line-height: 1.3;

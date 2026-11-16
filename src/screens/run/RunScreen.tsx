@@ -9,14 +9,14 @@ import { DEFAULT_RUN_SETUP, RUN_TYPES, goalLine, gpsStatus, gpsWords, platformOf
 import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown, RecentreIcon } from '../../ui/icons';
-import { Segmented } from '../../ui/Segmented';
+import { Chip } from '../../ui/Chip';
 import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { useToastTimeout } from '../../ui/useToastTimeout';
 import { Countdown, type Origin } from './Countdown';
 import { GoalSheet, type GoalKind } from './GoalSheet';
 import { GpsChip, GpsSheet } from './GpsChip';
-import { MapNotes, RunMap } from './RunMap';
+import { MapCredit, MapOfflineChip, RunMap } from './RunMap';
 import { RunStarted } from './RunStarted';
 import styles from './Run.module.css';
 
@@ -86,16 +86,20 @@ export function RunScreen() {
   return (
     <section className={styles.screen} data-testid="run-screen" data-phase={phase}>
       <RunMap here={here} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} />
+      <div className={styles.float}>
       <div className={styles.top} ref={topRef}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>Run With Me</h1>
           {/* SPEC 19: the gym pill is on the Run tab too. */}
           <GymPill onToast={setToast} />
         </div>
-        <GpsChip status={status} words={words} onPress={() => setGpsOpen(true)} />
+        <div className={styles.chips}>
+          <GpsChip status={status} words={words} onPress={() => setGpsOpen(true)} />
+          {offline && <MapOfflineChip />}
+        </div>
       </div>
       <div className={styles.stage}>
-        <MapNotes offline={offline} />
+        <MapCredit />
         {here && moved && (
           <IconButton label="Back to where I am" onPress={() => setRecentre((n) => n + 1)} testId="run-recentre">
             <RecentreIcon aria-hidden="true" />
@@ -103,7 +107,11 @@ export function RunScreen() {
         )}
       </div>
       <div className={styles.panel} ref={panelRef}>
-        <Segmented options={RUN_TYPES} value={setup.type} onChange={pickType} label="Run type" testId="run-types" block glass />
+        <div className={styles.types} role="group" aria-label="Run type" data-testid="run-types">
+          {RUN_TYPES.map((t) => (
+            <Chip key={t.value} label={t.label} picked={setup.type === t.value} onPress={() => pickType(t.value)} testId={`run-type-${t.value}`} block small />
+          ))}
+        </div>
         {setup.type === 'free' ? (
           <p className={styles.goal} data-testid="run-goal">
             <span className={styles.goalLabel}>{goal.label}</span>
@@ -124,6 +132,7 @@ export function RunScreen() {
         <button type="button" className={styles.start} data-testid="run-start" onClick={start}>
           Start
         </button>
+      </div>
       </div>
       <GoalSheet kind={goalKind} setup={setup} unit={unit} onChange={change} onUnit={setUnit} onClose={() => setGoalKind(null)} />
       <GpsSheet open={gpsOpen} status={status} words={words} onClose={() => setGpsOpen(false)} onAsk={geo.ask} />

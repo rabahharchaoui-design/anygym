@@ -28,19 +28,21 @@ export function RunMap(props: Props) {
   );
 }
 
-/** What must be said about the map: the "Map offline" chip when tiles failed, and the map data credit, always. */
-export function MapNotes({ offline }: { offline: boolean }) {
+/** Tiles could not be had: said plainly, next to the GPS chip. Not an error, nothing to fix. */
+export function MapOfflineChip() {
   return (
-    <div className={styles.notes}>
-      {offline && (
-        <span className={styles.offline} role="status" data-testid="map-offline">
-          <OfflineIcon width={14} height={14} strokeWidth={2.2} aria-hidden="true" />
-          Map offline
-        </span>
-      )}
-      <span className={styles.credit} data-testid="map-credit">
-        {MAP_ATTRIBUTION}
-      </span>
-    </div>
+    <span className={styles.offline} role="status" data-testid="map-offline">
+      <OfflineIcon width={14} height={14} strokeWidth={2.2} aria-hidden="true" />
+      Map offline
+    </span>
+  );
+}
+
+/** The map data credit, always in view (MapLibre's own credit control would vanish with the tile list). */
+export function MapCredit() {
+  return (
+    <span className={styles.credit} data-testid="map-credit">
+      {MAP_ATTRIBUTION}
+    </span>
   );
 }
