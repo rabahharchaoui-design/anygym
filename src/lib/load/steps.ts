@@ -2,7 +2,7 @@
 import type { Load } from '../../db/types';
 import { add, EPS, fromInt, toInt } from './exact';
 import { heldChoices } from './held';
-import { plateIncrement, roundToLoadable } from './increments';
+import { minPlateStep, roundToLoadable } from './increments';
 import { plateOpts } from './loadAt';
 import type { LoadSetup } from './setup';
 import { lighterLoading, solvePlates } from './solver';
@@ -42,16 +42,16 @@ export function nearestLoadable(kind: Load['kind'], value: number, s: LoadSetup)
 
 /**
  * One step up from a loadable picked weight (SPEC 6 rule 2): barbell and plate machines +5 lb /
- * +2.5 kg total (or the next loadable total above), the next dumbbell up, the next pin. null when
- * there is no step up here (top of the rack, full sleeve, bodyweight, timed).
+ * +2.5 kg total, or the nearest loadable total above that when the plates cannot make it (PLAN
+ * 3.6e: with 45s and 25s only, 135 goes to 145, never over it to 185), the next dumbbell up, the
+ * next pin. null when there is no step up here (top of the rack, full sleeve, bodyweight, timed).
  */
 export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number | null {
   switch (kind) {
     case 'barbell':
     case 'plate_machine': {
-      const inc = plateIncrement(s.plates, s.unit, plateOpts(kind, s, 0).horns);
-      if (s.base === null || inc === null) return null;
-      const target = add(value, inc);
+      if (s.base === null || !s.plates.length) return null;
+      const target = add(value, minPlateStep(s.unit));
       const r = solvePlates(target, plateOpts(kind, s, s.base));
       return r.exact ? target : (r.above?.total ?? null);
     }
@@ -66,6 +66,35 @@ export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number 
     case 'timed':
       return null;
   }
+}
+
+/**
+ * After a unit change, a rounding of up to this share is still the same weight (a 20 kg dumbbell and
+ * a 45 lb one, 60 lb and 27.5 kg); more than that above is already a step up (13 kg and 30 lb).
+ */
+export const SAME_AFTER_CONVERTING = 0.025;
+
+/**
+ * One step up from what was really lifted, when this gym may not be able to make that weight
+ * (another rack, another unit; PLAN 3.6e): the weight is never rounded up and then stepped again.
+ * The nearest loadable weight, when it is already heavier (by more than `sameWithin`, a share), is
+ * the step; else one stepUp from it. null when there is no step up here.
+ */
+export function stepUpFrom(kind: Load['kind'], value: number, s: LoadSetup, sameWithin = 0): number | null {
+  const near = nearestLoadable(kind, value, s);
+  if (near === null) return null;
+  return toInt(near) > Math.round(toInt(value) * (1 + sameWithin)) ? near : stepUp(kind, near, s);
+}
+
+/**
+ * The heaviest weight this gym can load that is not above `value` (PLAN 3.6e: "same load" on a rack
+ * without that weight is never a heavier one). Nothing lighter here: the lightest there is. null
+ * when nothing can be loaded or the weight is not ours to round.
+ */
+export function loadableAtMost(kind: Load['kind'], value: number, s: LoadSetup): number | null {
+  const near = nearestLoadable(kind, value, s);
+  if (near === null || toInt(near) <= toInt(value)) return near;
+  return stepDown(kind, near, s) ?? near;
 }
 
 /**
@@ -89,11 +118,10 @@ export function stepDown(kind: Load['kind'], value: number, s: LoadSetup): numbe
   switch (kind) {
     case 'barbell':
     case 'plate_machine': {
-      const inc = plateIncrement(s.plates, s.unit, plateOpts(kind, s, 0).horns);
-      if (s.base === null || inc === null) return null;
+      if (s.base === null || !s.plates.length) return null;
       // The nearest loadable total to one step down that is really lighter (PLAN 3.6w): across a
       // gap in the plates (a short sleeve, sparse plates) that is the heaviest lighter loading.
-      return lighterLoading(value, inc, plateOpts(kind, s, s.base))?.total ?? null;
+      return lighterLoading(value, minPlateStep(s.unit), plateOpts(kind, s, s.base))?.total ?? null;
     }
     case 'dumbbell_each':
     case 'single':

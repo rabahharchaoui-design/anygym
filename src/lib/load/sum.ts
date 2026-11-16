@@ -53,6 +53,12 @@ export const hornsOf = (load: { horns?: 1 }): Horns => (load.horns === 1 ? 1 : 2
  */
 export const sameHorns = (load: { kind: string; horns?: 1 }, s: { horns?: Horns }): boolean => load.kind !== 'plate_machine' || hornsOf(load) === (s.horns ?? 2);
 
+/**
+ * Two stored loads whose totals mean the same thing (PLAN 3.6e, records): false only for two plate
+ * machine loads counted on a different number of sides (the "one side or both" answer changed in
+ * between), whose totals are never compared.
+ */
+export const countedAlike = (a: { kind: string; horns?: 1 }, b: { kind: string; horns?: 1 }): boolean => sameHorns(a, { horns: hornsOf(b) }) && sameHorns(b, { horns: hornsOf(a) });
 /** Enabled plate sizes, heaviest first. */
 export function enabledPlates(inventory: readonly PlateToggle[]): number[] {
   return inventory.filter((p) => p.enabled).map((p) => p.weight).sort((a, b) => b - a);
