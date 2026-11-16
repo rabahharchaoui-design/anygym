@@ -94,7 +94,18 @@ function hardSets(day: PlanDay, profile: ProfileOf): Map<Muscle, number> {
   return out;
 }
 
-const setsFor = (sets: Map<Muscle, number>, muscles: readonly Muscle[]) => muscles.reduce((a, m) => a + (sets.get(m) ?? 0), 0);
+/** PLAN 3.7b: a group's hard sets on a day, each set once (an overhead press trains front and side shoulders: 3 sets, not 6). */
+function groupSets(day: PlanDay, muscles: readonly Muscle[], profile: ProfileOf): number {
+  let n = 0;
+  for (const b of day.blocks) {
+    if (b.warmup) continue;
+    for (const it of b.items) {
+      const p = profile(it.exerciseId);
+      if (p.role === 'lift' && p.targets.some((m) => muscles.includes(m))) n += itemTarget(b, it, 0).sets;
+    }
+  }
+  return n;
+}
 const totalSets = (sets: Map<Muscle, number>) => [...sets.values()].reduce((a, n) => a + n, 0);
 
 /** Upper, lower or neither, by where most of the day's hard sets go. */
@@ -227,14 +238,16 @@ function frequency(plan: Plan, profile: ProfileOf): Found | null {
   if (plan.days.length < 3) return null;
   const sets = plan.days.map((d) => hardSets(d, profile));
   const halves = plan.days.map((d) => halfOf(d, profile));
-  const adds: Array<{ word: string; to: number; item: PlanItem; block: PlanBlock }> = [];
+  const adds: Array<{ word: string; light: boolean; to: number; item: PlanItem; block: PlanBlock }> = [];
   const added = new Map<number, Set<string>>();
   for (const major of MAJOR) {
-    const trained = sets.map((s, i) => (setsFor(s, major.muscles) >= SESSION_SETS ? i : -1)).filter((i) => i >= 0);
+    const group = plan.days.map((d) => groupSets(d, major.muscles, profile));
+    const trained = group.map((n, i) => (n >= SESSION_SETS ? i : -1)).filter((i) => i >= 0);
     if (trained.length !== 1) continue;
-    // PLAN 3.7b: "one session a week" is said only when it is true: no other day trains the group at all
-    // (side, front and rear shoulders are one group: a press day and a side raise day are two sessions).
-    if (sets.filter((s) => setsFor(s, major.muscles) > 0).length !== 1) continue;
+    // PLAN 3.7b: "one session a week" is said only when no other day trains the group at all (side, front and rear
+    // shoulders are one group). With lighter work on another day (a side raise day next to the press day) it is
+    // "one full session", the truth, and the why says what full means.
+    const light = group.filter((n) => n > 0).length > 1;
     const home = trained[0]!;
     const half = major.upper ? 'upper' : 'lower';
     const options = plan.days
@@ -251,17 +264,18 @@ function frequency(plan: Plan, profile: ProfileOf): Found | null {
       .filter(({ p, item }) => p.role === 'lift' && p.targets.some((m) => major.muscles.includes(m)) && !there.has(item.exerciseId));
     const pick = candidates.find((c) => isCompound(c.p)) ?? candidates[0];
     if (!pick) continue;
-    adds.push({ word: major.word, to: target.d.n, item: pick.item, block: freqBlock(pick.b, pick.item) });
+    adds.push({ word: major.word, light, to: target.d.n, item: pick.item, block: freqBlock(pick.b, pick.item) });
     added.set(target.i, new Set([...(added.get(target.i) ?? []), pick.item.exerciseId]));
   }
   if (!adds.length) return null;
   const words = adds.map((a) => a.word);
+  const full = adds.some((a) => a.light);
   const days = [...new Set(adds.map((a) => a.to))].sort((a, b) => a - b);
   return {
     tip: {
       id: 'freq',
-      title: `${listWords(words).replace(/^./, (c) => c.toUpperCase())} ${words.length === 1 && !words[0]!.endsWith('s') ? 'gets' : 'get'} one session a week`,
-      why: `Muscles grow best trained about twice a week. ${freqAdds(adds.map((a) => a.block.sets ?? 0))}`,
+      title: `${listWords(words).replace(/^./, (c) => c.toUpperCase())} ${words.length === 1 && !words[0]!.endsWith('s') ? 'gets' : 'get'} one ${full ? 'full session' : 'session'} a week`,
+      why: `${full ? `Muscles grow best with about two full sessions a week (${SESSION_SETS} sets or more).` : 'Muscles grow best trained about twice a week.'} ${freqAdds(adds.map((a) => itemTarget(a.block, a.block.items[0]!, 0).sets))}`,
       days,
       detail: adds.map((a) => `${a.item.name} → Day ${a.to}`),
     },
