@@ -368,7 +368,7 @@ describe('load.ts progression helpers', () => {
     expect(nearestLoadable('timed', 7, s)).toBeNull();
     expect(nearestLoadable('bodyweight', 4.5, s)).toBeNull();
     expect(stepUp('barbell', 185, { ...s, plates: [] })).toBeNull();
-    expect(stepUp('barbell', 135, { ...s, plates: [45, 10] })).toBe(155); // +20: one pair of 10s is the smallest step
+    expect(stepUp('barbell', 135, { ...s, plates: [45, 10] })).toBe(145); // PLAN 3.6e: the nearest total above that loads (five 10s a side), not 155
     expect(stepUp('single', 20, { ...s, dumbbellRange: null })).toBeNull();
     expect(stepUp('bodyweight', 0, s)).toBeNull();
     expect(stepUp('timed', 0, s)).toBeNull();

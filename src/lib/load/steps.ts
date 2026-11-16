@@ -2,7 +2,7 @@
 import type { Load } from '../../db/types';
 import { add, EPS, fromInt, toInt } from './exact';
 import { heldChoices } from './held';
-import { plateIncrement, roundToLoadable } from './increments';
+import { minPlateStep, roundToLoadable } from './increments';
 import { plateOpts } from './loadAt';
 import type { LoadSetup } from './setup';
 import { lighterLoading, solvePlates } from './solver';
@@ -42,16 +42,16 @@ export function nearestLoadable(kind: Load['kind'], value: number, s: LoadSetup)
 
 /**
  * One step up from a loadable picked weight (SPEC 6 rule 2): barbell and plate machines +5 lb /
- * +2.5 kg total (or the next loadable total above), the next dumbbell up, the next pin. null when
- * there is no step up here (top of the rack, full sleeve, bodyweight, timed).
+ * +2.5 kg total, or the nearest loadable total above that when the plates cannot make it (PLAN
+ * 3.6e: with 45s and 25s only, 135 goes to 145, never over it to 185), the next dumbbell up, the
+ * next pin. null when there is no step up here (top of the rack, full sleeve, bodyweight, timed).
  */
 export function stepUp(kind: Load['kind'], value: number, s: LoadSetup): number | null {
   switch (kind) {
     case 'barbell':
     case 'plate_machine': {
-      const inc = plateIncrement(s.plates, s.unit, plateOpts(kind, s, 0).horns);
-      if (s.base === null || inc === null) return null;
-      const target = add(value, inc);
+      if (s.base === null || !s.plates.length) return null;
+      const target = add(value, minPlateStep(s.unit));
       const r = solvePlates(target, plateOpts(kind, s, s.base));
       return r.exact ? target : (r.above?.total ?? null);
     }
@@ -89,11 +89,10 @@ export function stepDown(kind: Load['kind'], value: number, s: LoadSetup): numbe
   switch (kind) {
     case 'barbell':
     case 'plate_machine': {
-      const inc = plateIncrement(s.plates, s.unit, plateOpts(kind, s, 0).horns);
-      if (s.base === null || inc === null) return null;
+      if (s.base === null || !s.plates.length) return null;
       // The nearest loadable total to one step down that is really lighter (PLAN 3.6w): across a
       // gap in the plates (a short sleeve, sparse plates) that is the heaviest lighter loading.
-      return lighterLoading(value, inc, plateOpts(kind, s, s.base))?.total ?? null;
+      return lighterLoading(value, minPlateStep(s.unit), plateOpts(kind, s, s.base))?.total ?? null;
     }
     case 'dumbbell_each':
     case 'single':
