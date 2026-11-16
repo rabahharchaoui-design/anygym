@@ -49,10 +49,10 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
   const unit = gym.unit;
   const start = ownStart !== undefined ? ownStart : machineBase(machineStartFor(gym, machineId));
 
-  // Not known yet: counted on both sides, as every load before (PLAN 3.6h2), while the card asks.
+  // Not known yet (PLAN 3.7a): no load and no total while the card asks; the plates are kept and
+  // load.ts totals them the moment the answer is in. Never both sides by default.
   const known = ownHorns ?? answered ?? machineHornsFor(gym, machineId, sureHorns);
-  const horns: Horns = known ?? 2;
-  const change = (next: number[], s: number | null = start, h: Horns = horns) => onChange(next, plateMachineLoad(s, next, unit, undefined, h));
+  const change = (next: number[], s: number | null = start, h: Horns | null = known) => onChange(next, h === null ? null : plateMachineLoad(s, next, unit, undefined, h));
   const sides = (g: Gym, h: Horns) => {
     setAnswered(h);
     if (g.unit === unit) change([...plates.current], machineBase(machineStartFor(g, machineId)), h);
@@ -99,7 +99,7 @@ export function PlateMachineInput({ gym, machineId, perSide, onChange, compact =
         mathAction={action}
         hint={!question && !askSides && hints}
         tight={question || askSides}
-        horns={horns}
+        horns={known}
         drawingShare={drawingShare}
       />
       <EquipmentWeightSheet

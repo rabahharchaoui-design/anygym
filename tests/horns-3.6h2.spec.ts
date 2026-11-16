@@ -101,7 +101,8 @@ test.describe('one side or both @matrix', () => {
     await expect(s.getByTestId('sides-question')).toBeVisible();
     await s.getByTestId('sides-question').getByRole('button', { name: 'One side' }).tap();
     await expect(s.getByTestId('sides-question')).toHaveCount(0);
-    await s.getByRole('button', { name: 'Clear' }).tap();
+    // Nothing carried over from the both sides set while the sides were not known (PLAN 3.7a): empty.
+    await expect(s.getByRole('button', { name: 'Clear' })).toBeDisabled();
     await s.getByRole('button', { name: 'Add 45 lb plate', exact: true }).tap();
     await expect(s.getByTestId('plate-total')).toHaveText('95lb');
     await expect(s.getByTestId('plate-total')).toHaveAttribute('data-math', '50 start + 45 = 95 lb');
@@ -159,7 +160,8 @@ test.describe('one side or both @matrix', () => {
     // The plates tray stays in view under the question, above Done.
     const tray = s.getByRole('group', { name: 'Plates' });
     const trayBox = (await tray.boundingBox())!;
-    const doneBox = (await s.getByRole('button', { name: 'Done', exact: true }).boundingBox())!;
+    // Held until the sides are answered (PLAN 3.7a): "Answer one side or both first".
+    const doneBox = (await s.getByRole('button', { name: 'Answer one side or both first', exact: true }).boundingBox())!;
     expect(trayBox.y + trayBox.height, 'tray above Done').toBeLessThanOrEqual(doneBox.y + 0.5);
     for (const scale of [1, 1.3]) {
       if (scale > 1)

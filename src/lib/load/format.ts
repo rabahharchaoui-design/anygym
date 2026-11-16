@@ -86,3 +86,15 @@ export function formatTotalCompact(value: number, unit: Unit): string {
   const text = cut.toFixed(decimals);
   return `${decimals ? text.replace(/\.?0+$/, '') : text}${suffix} ${unit}`;
 }
+
+/**
+ * The plates put on a machine, in words, when its total is not known yet (PLAN 3.7a): "1 × 45 lb
+ * plate", "2 × 20 + 1.25 kg plates", heaviest first. Counts only; no total is made here.
+ */
+export function formatPlatesOn(perSide: readonly number[], unit: Unit): string {
+  if (perSide.length === 0) return 'No plates yet';
+  if (perSide.length === 1) return `1 × ${formatAmount(perSide[0]!)} ${unit} plate`;
+  const counts = new Map<number, number>();
+  for (const w of [...perSide].sort((a, b) => b - a)) counts.set(w, (counts.get(w) ?? 0) + 1);
+  return `${[...counts].map(([w, n]) => (n > 1 ? `${n} × ${formatAmount(w)}` : formatAmount(w))).join(' + ')} ${unit} plates`;
+}
