@@ -13,14 +13,20 @@ export type MissedInput = {
   weekdays?: readonly string[];
   /** The plan's days per week (used when no training days were given). */
   daysPerWeek: number;
+  /**
+   * PLAN 3.6j (audit A9): the start of the days `weekdays` holds for. A week to week schedule knows
+   * only this week's pick, so days before this week are never counted (nothing is said about them).
+   */
+  from?: number;
 };
 
 /**
  * Planned workouts that did not happen between the last workout and today (both left out: today
  * can still happen). With training days: exactly those weekdays. Without: the plan's days per
- * week over the days in between, rounded down (never more than really fit).
+ * week over the days in between, rounded down (never more than really fit). Days before `from` are
+ * not known and never count.
  */
-export function missedWorkouts({ last, now, weekdays, daysPerWeek }: MissedInput): number {
+export function missedWorkouts({ last, now, weekdays, daysPerWeek, from }: MissedInput): number {
   const gap = daysBetween(last, now);
   if (gap < 2) return 0;
   if (weekdays?.length) {
@@ -28,7 +34,7 @@ export function missedWorkouts({ last, now, weekdays, daysPerWeek }: MissedInput
     const d = new Date(startOfDay(last));
     for (let i = 1; i < gap; i++) {
       d.setDate(d.getDate() + 1);
-      if (weekdays.includes(weekdayOf(d.getTime()))) n++;
+      if ((from === undefined || d.getTime() >= startOfDay(from)) && weekdays.includes(weekdayOf(d.getTime()))) n++;
     }
     return n;
   }

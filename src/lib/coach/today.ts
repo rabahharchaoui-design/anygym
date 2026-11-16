@@ -74,7 +74,9 @@ export function candidates(input: CoachInput): { cards: CoachCard[]; autoApply: 
     if (open(id) && list.length) cards.push({ kind: 'welcome_back', id, days: off, changes: list });
   }
   if (input.plan && input.plan.scheduleStyle !== 'flexible' && (input.plan.scheduleStyle !== 'weekly' || input.plan.weekdays?.length)) {
-    const missed = missedWorkouts({ last, now, weekdays: input.plan.weekdays, daysPerWeek: input.plan.daysPerWeek });
+    // A9: a week to week pick holds for this week only; last week's days are not stored, so they never count.
+    const from = input.plan.scheduleStyle === 'weekly' ? weekStart(now) : undefined;
+    const missed = missedWorkouts({ last, now, weekdays: input.plan.weekdays, daysPerWeek: input.plan.daysPerWeek, ...(from !== undefined ? { from } : {}) });
     const id = missedCardId(last);
     if (missed >= MISSED_AT && open(id)) cards.push({ kind: 'missed_days', id, missed, title: missedTitle(missed) });
   }
