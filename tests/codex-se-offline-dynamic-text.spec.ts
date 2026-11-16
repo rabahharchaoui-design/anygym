@@ -29,8 +29,9 @@ async function enlarged(control: Locator) {
 // only the initial DOM. Keep scaling active for the subsequently mounted stepper
 // and rest timer too, and measure the real button rather than its visible child.
 // fixtures supplies the existing console/error/unhandled-rejection trap.
-// CODEX FOUND BUG: Reps editor Done button has height: 0px, violating SPEC 13.3's 48pt minimum tap target on all three iPhone profiles.
-test.skip('offline SE at 130%: newly mounted reps and rest controls fit without scrolling and retain the logged set', async ({ page, context }) => {
+// Was skipped (Codex, Nov 8 and 9) for: Reps editor Done button has height: 0px, violating SPEC 13.3's 48pt minimum tap target on all three iPhone profiles.
+// 3.6z A18: that bug is gone (passes on all three iPhone profiles, run twice), so the test runs again.
+test('offline SE at 130%: newly mounted reps and rest controls fit without scrolling and retain the logged set', async ({ page, context }) => {
   test.setTimeout(60_000);
   await quickWith(page, [['internal shoulder', 'Band Internal Shoulder Rotation (90 degrees)']]);
   const view = exerciseView(page, 'band-internal-shoulder-rotation-90-degrees');

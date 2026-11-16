@@ -197,7 +197,7 @@ test("(1) home with no equipment: noPlan notice, keep going to the reveal, Go to
 });
 
 test("probe: which answers reach the noPlan notice", async ({ page }) => {
-  test.skip(test.info().project.name !== "iPhone 15");
+  test.skip(test.info().project.name !== "iPhone 15", "one phone is enough");
   const cands: Record<string, Record<string, unknown>> = {
     outdoors: { ...SETS.fullMuscle, place: "outdoors", equipmentFor: "outdoors", equipment: [] },
     hotelNone: { ...SETS.fullMuscle, place: "hotel", equipmentFor: "hotel", equipment: [] },
@@ -283,7 +283,7 @@ test("(2) tour: spotlights match elements, Next/Skip, outside tap and Escape, St
 });
 
 test("(2) Escape: what it does", async ({ page, browserName }) => {
-  test.skip(test.info().project.name !== "iPhone 15");
+  test.skip(test.info().project.name !== "iPhone 15", "one phone is enough");
   await toReveal(page, SETS.fullMuscle!);
   await revealPrimary(page).tap();
   await expect(tour(page)).toHaveAttribute("data-step", "day");
@@ -331,7 +331,7 @@ test("(2) offline: the tour and Skip work without network", async ({
 });
 
 test("(2) reduced motion: fades only, spotlight snaps", async ({ page }) => {
-  test.skip(test.info().project.name !== "iPhone 15");
+  test.skip(test.info().project.name !== "iPhone 15", "one phone is enough");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await toReveal(page, SETS.fullMuscle!);
   await revealPrimary(page).tap();
@@ -348,7 +348,7 @@ test("(2) reduced motion: fades only, spotlight snaps", async ({ page }) => {
 test("(2) 130% text on the SE: words card never covers the lit element or Next", async ({
   page,
 }) => {
-  test.skip(test.info().project.name !== "iPhone SE");
+  test.skip(test.info().project.name !== "iPhone SE", "SE only (the smallest iPhone)");
   await toReveal(page, SETS.fullMuscle!);
   await revealPrimary(page).tap();
   await expect(tour(page)).toBeVisible();

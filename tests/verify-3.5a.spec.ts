@@ -343,7 +343,7 @@ test.describe('3.5a verify', () => {
   });
 
   test('5. frame timing p90 over swipe, springs and flings', async ({ page, browserName }, info) => {
-    test.skip(browserName !== 'webkit' || !info.project.name.startsWith('iPhone'));
+    test.skip(browserName !== 'webkit' || !info.project.name.startsWith('iPhone'), 'WebKit iPhone profiles only');
     const errors = watchErrors(page);
     await pastIntake(page);
     await page.goto('./#/quick?min=45');

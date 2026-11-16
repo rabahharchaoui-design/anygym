@@ -8,7 +8,7 @@ const LOADS: Array<[number, 'lb' | 'kg']> = [[45, 'lb'], [135, 'lb'], [225, 'lb'
 
 test.describe('verify 2.0b', () => {
   test('plate count audit @matrix', async ({ page }) => {
-    test.skip(!DEVICES.includes(test.info().project.name));
+    test.skip(!DEVICES.includes(test.info().project.name), 'SE, Pro Max and the 320 floor only');
     test.setTimeout(120_000);
     const errs: string[] = [];
     page.on('console', (m) => m.type() === 'error' && errs.push(m.text()));

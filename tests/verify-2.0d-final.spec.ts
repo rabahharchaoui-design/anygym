@@ -27,7 +27,7 @@ const trayVisible = async (page: Page) => {
 
 test.describe('2.0d final verify @matrix', () => {
   test('1+2+5+6: horn, Smith, barbell sheets fit; horn total + start; chips label; bar link name', async ({ page }) => {
-    test.skip(!['iPhone SE', '320 floor', 'iPhone 15'].includes(test.info().project.name));
+    test.skip(!['iPhone SE', '320 floor', 'iPhone 15'].includes(test.info().project.name), 'SE, the 320 floor and iPhone 15 only');
     const e = errs(page);
     await quickWith(page, [['leg press', 'Leg Press'], ['smith', 'Smith Machine Upright Row'], ['back squat', 'Barbell Back Squat']]);
     const open = async (id: string) => {
@@ -110,7 +110,7 @@ test.describe('2.0d final verify @matrix', () => {
   });
 
   test('4: sleeve full hint hides after ~1.5s, at once on add / remove / Clear', async ({ page }) => {
-    test.skip(!['iPhone SE', '320 floor'].includes(test.info().project.name));
+    test.skip(!['iPhone SE', '320 floor'].includes(test.info().project.name), 'SE and the 320 floor only');
     await page.goto('./?dev#/dev/plates?dev&unit=lb&load=700&nohint');
     await expect(page.getByTestId('plate-total')).toHaveText('700lb');
     const full = page.getByTestId('sleeve-full');
@@ -144,7 +144,7 @@ test.describe('2.0d final verify @matrix', () => {
 
   for (const gym of ['lb', 'kg'] as const) {
     test(`3: import editor shows the file's own words in a ${gym} gym`, async ({ page }) => {
-      test.skip(!['iPhone SE', '320 floor'].includes(test.info().project.name));
+      test.skip(!['iPhone SE', '320 floor'].includes(test.info().project.name), 'SE and the 320 floor only');
       const e = errs(page);
       const file = JSON.stringify({
         format: 'anygym-import-v1',

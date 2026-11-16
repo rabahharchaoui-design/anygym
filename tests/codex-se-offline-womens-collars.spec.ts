@@ -22,8 +22,9 @@ async function exposed(control: Locator) {
 
 // SPEC 5.4/5.5/13/20, completed PLAN 1.7c/1.7f/1.10d/2.0c:
 // existing women's-bar UI coverage uses lb without competition collars.
-// CODEX FOUND BUG: Set check buttons have height: 0px, blocking WebKit taps and violating SPEC 13/23.2 minimum touch targets on all three iPhone profiles.
-test.skip('offline SE: women’s kg bar plus collars keeps exact loading through correction, Undo and Finish', async ({ page, context }) => {
+// Was skipped (Codex, Nov 8 and 9) for: Set check buttons have height: 0px, blocking WebKit taps and violating SPEC 13/23.2 minimum touch targets on all three iPhone profiles.
+// 3.6z A18: that bug is gone (passes on all three iPhone profiles, run twice), so the test runs again.
+test('offline SE: women’s kg bar plus collars keeps exact loading through correction, Undo and Finish', async ({ page, context }) => {
   test.setTimeout(60_000);
   await page.goto('./#/settings');
   await page.getByRole('radio', { name: 'kg', exact: true }).tap();
