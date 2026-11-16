@@ -1,5 +1,4 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { GymPill } from '../../components/GymPill';
 import { MusicLinks } from '../../components/MusicLinks';
 import { useGeo } from '../../hooks/useGeo';
 import { useNow } from '../../hooks/useNow';
@@ -10,9 +9,7 @@ import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown, RecentreIcon } from '../../ui/icons';
 import { Chip } from '../../ui/Chip';
-import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
-import { useToastTimeout } from '../../ui/useToastTimeout';
 import { Countdown, type Origin } from './Countdown';
 import { GoalSheet, type GoalKind } from './GoalSheet';
 import { GpsChip, GpsSheet } from './GpsChip';
@@ -23,13 +20,13 @@ import styles from './Run.module.css';
 type Phase = 'setup' | 'countdown' | 'started';
 
 /**
- * Run With Me, the start screen (SPEC 12.1, PLAN 4.2). The map is the screen; the title, the GPS
- * chip and the controls float on it. One primary action: Start. It works with no setup (a free
- * run) and whatever the GPS says. After the countdown comes a plain placeholder until 4.3.
+ * Run With Me, the start screen (SPEC 12.1, PLAN 4.2). The map is the hero: full bleed from under
+ * the status bar down to the run types, with the title and the status chips floating on it. The
+ * controls sit under it on the app background. One primary action: Start. It works with no setup
+ * (a free run) and whatever the GPS says. After the countdown comes a plain placeholder until 4.3.
+ * No gym pill here: a gym has no meaning for a run.
  */
 export function RunScreen() {
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  useToastTimeout(toast, setToast);
   const { state, change, setUnit } = useRunSetup();
   const setup = state?.setup ?? DEFAULT_RUN_SETUP;
   const unit = state?.unit ?? 'km';
@@ -53,7 +50,7 @@ export function RunScreen() {
   const [inset, setInset] = useState({ top: 0, bottom: 0 });
   useLayoutEffect(() => {
     const measure = () => {
-      const top = Math.round(topRef.current?.getBoundingClientRect().bottom ?? 0);
+      const top = Math.round(topRef.current?.lastElementChild?.getBoundingClientRect().bottom ?? 0);
       const bottom = Math.round(window.innerHeight - (panelRef.current?.getBoundingClientRect().top ?? window.innerHeight));
       setInset((i) => (i.top === top && i.bottom === bottom ? i : { top, bottom }));
     };
@@ -86,15 +83,9 @@ export function RunScreen() {
   return (
     <section className={styles.screen} data-testid="run-screen" data-phase={phase}>
       <RunMap here={here} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} />
-      <div className={styles.float}>
+      <div className={styles.float} data-testid="run-float">
       <div className={styles.top} ref={topRef}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>Run With Me</h1>
-          {/* SPEC 19: the gym pill is on the Run tab too. */}
-          <span className={styles.pillSlot}>
-            <GymPill onToast={setToast} />
-          </span>
-        </div>
+        <h1 className={styles.title}>Run With Me</h1>
         <div className={styles.chips}>
           <GpsChip status={status} words={words} onPress={() => setGpsOpen(true)} />
           {offline && <MapOfflineChip />}
@@ -114,22 +105,24 @@ export function RunScreen() {
             <Chip key={t.value} label={t.label} picked={setup.type === t.value} onPress={() => pickType(t.value)} testId={`run-type-${t.value}`} block small />
           ))}
         </div>
-        {setup.type === 'free' ? (
-          <p className={styles.goal} data-testid="run-goal">
-            <span className={styles.goalLabel}>{goal.label}</span>
-            <span className={styles.goalDetail}>{goal.detail}</span>
-          </p>
-        ) : (
-          <button type="button" className={`${styles.goal} pressable`} data-testid="run-goal" aria-label={`${typeLabel}: ${goal.label}. Change`} onClick={() => setGoalKind(setup.type as GoalKind)}>
-            <span className={styles.goalLabel}>
-              {goal.label}
-              <ChevronDown width={18} height={18} strokeWidth={2.4} aria-hidden="true" />
-            </span>
-            {goal.detail && <span className={styles.goalDetail}>{goal.detail}</span>}
-          </button>
-        )}
-        <div className={styles.music}>
-          <MusicLinks wide />
+        <div className={styles.row}>
+          {setup.type === 'free' ? (
+            <p className={styles.goal} data-testid="run-goal">
+              <span className={styles.goalLabel}>{goal.label}</span>
+              <span className={styles.goalDetail}>{goal.detail}</span>
+            </p>
+          ) : (
+            <button type="button" className={`${styles.goal} pressable`} data-testid="run-goal" aria-label={`${typeLabel}: ${goal.label}. Change`} onClick={() => setGoalKind(setup.type as GoalKind)}>
+              <span className={styles.goalLabel}>
+                {goal.label}
+                <ChevronDown width={18} height={18} strokeWidth={2.4} aria-hidden="true" />
+              </span>
+              {goal.detail && <span className={styles.goalDetail}>{goal.detail}</span>}
+            </button>
+          )}
+          <span className={styles.music}>
+            <MusicLinks />
+          </span>
         </div>
         <button type="button" className={styles.start} data-testid="run-start" onClick={start}>
           Start
@@ -140,7 +133,6 @@ export function RunScreen() {
       <GpsSheet open={gpsOpen} status={status} words={words} onClose={() => setGpsOpen(false)} onAsk={geo.ask} />
       {phase === 'countdown' && origin && <Countdown origin={origin} reduceMotion={reduceMotion} onDone={toStarted} onCancel={toSetup} />}
       {phase === 'started' && <RunStarted what={setup.type === 'free' ? typeLabel : `${typeLabel} · ${goal.label}`} onStop={toSetup} />}
-      <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)" />
     </section>
   );
 }

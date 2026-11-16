@@ -24,16 +24,16 @@
   pointer-events: none;
 }
 
-/* Title, gym pill and the GPS chip over a fade of the background, so they read on any map. Only
-   the controls take touches; the map under the fade still drags. */
+/* The title and the status chips float on the map, over a soft fade of the background so they read
+   on any map. Only the chips take touches; the map under the fade still drags. */
 .top {
   position: relative;
   flex: none;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: calc(var(--safe-top) + var(--space-2)) var(--run-pad-r) var(--space-4) var(--run-pad-l);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 90%, transparent) 30%, transparent);
+  padding: calc(var(--safe-top) + var(--space-2)) var(--run-pad-r) var(--space-6) var(--run-pad-l);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 72%, transparent), color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent);
   pointer-events: none;
 }
 
@@ -43,23 +43,11 @@
   pointer-events: auto;
 }
 
-.titleRow {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  min-height: 48px;
-}
-
-/* The gym pill keeps its width; a long title wraps instead (large text). */
-.pillSlot {
-  flex: none;
-  display: inline-flex;
-}
-
 .title {
   min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
   font-size: clamp(26px, 8.2vw, 34px);
   font-weight: 700;
   line-height: 1.08;
@@ -138,19 +126,21 @@
   }
 }
 
-/* The open map. Its foot carries the map notes (left) and the recentre button (right). */
+/* The open map. Its foot carries the map credit (left) and the recentre button (right), over a
+   soft fade into the controls so the map has no hard edge. */
 .stage {
   position: relative;
   flex: 1 0 64px;
   display: flex;
   align-items: flex-end;
+  background: linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 60%, transparent) 22px, transparent 56px);
   justify-content: space-between;
   gap: var(--space-3);
   padding: 0 calc(var(--run-pad-r) - 2px) 0 var(--run-pad-l);
   pointer-events: none;
 }
 
-/* The controls, on a fade into the background that starts above them. */
+/* The controls, on the app background under the map. */
 .panel {
   position: relative;
   flex: none;
@@ -158,8 +148,8 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-4) var(--run-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px)) var(--run-pad-l);
-  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 90%, transparent) 16%, var(--bg) 50%);
+  padding: var(--space-1) var(--run-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px)) var(--run-pad-l);
+  background: var(--bg);
   pointer-events: none;
 }
 
@@ -173,19 +163,32 @@
   font-size: 0.8125rem;
 }
 
-/* What this run is: one line, the same height for every run type (no shift when the type changes). */
+/* One row: what this run is (left) and the music buttons (right), right above Start. With very
+   large text the music buttons move under the goal instead of squeezing it. */
+.row {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+}
+
+/* The same height for every run type, so nothing shifts when the type changes. */
 .goal {
+  flex: 1 1 auto;
   min-height: 48px;
   min-width: 48px;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 1px;
-  padding: 0 var(--space-4);
+  margin-left: calc(var(--space-2) * -1);
+  padding: 0 var(--space-2);
   border-radius: var(--radius-md);
-  text-align: center;
+  text-align: left;
 }
 
 .goalLabel {
@@ -208,15 +211,15 @@
 }
 
 .music {
-  width: 100%;
+  flex: none;
   display: flex;
-  gap: var(--space-2);
+  margin-right: -3px;
 }
 
 /* Start: the one accent thing on the screen. A big round button in the thumb zone; it shrinks a
    little on short phones so the map keeps its room. */
 .start {
-  --start: clamp(88px, calc(var(--app-height) * 0.15), 124px);
+  --start: clamp(88px, calc(var(--app-height) * 0.14), 116px);
   flex: none;
   width: var(--start);
   height: var(--start);
@@ -350,13 +353,10 @@
   }
 }
 
-/* Short phones (568 tall): the title row and the gaps tighten so the map keeps a clear band. */
+/* Short phones (568 tall): the title block tightens so the map keeps its room. */
 @media (max-height: 600px) {
   .top {
     padding-top: calc(var(--safe-top) + var(--space-1));
-    padding-bottom: var(--space-3);
-  }
-  .panel {
-    gap: var(--space-1);
+    padding-bottom: var(--space-4);
   }
 }

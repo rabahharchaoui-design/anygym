@@ -39,16 +39,18 @@ const grow = (...stops: Array<[number, number]>) => ['interpolate', ['exponentia
 /** The whole style. `origin` is where tiles and glyphs come from (tests point it elsewhere). */
 export function runMapStyle(p: MapPalette, origin: string = TILE_ORIGIN): RunMapStyle {
   const land = p.bg;
-  const water = mix(p.bg, p.accent, 0.17);
-  const green = mix(p.bg, p.text, 0.045);
-  const building = mix(p.bg, p.text, 0.075);
-  const path = mix(p.bg, p.text, 0.26);
-  const minor = mix(p.bg, p.text, 0.13);
-  const major = mix(p.bg, p.text, 0.2);
-  const motorway = mix(p.bg, p.text, 0.27);
-  const rail = mix(p.bg, p.text, 0.11);
+  const water = mix(p.bg, p.accent, 0.26);
+  // Parks and woods: a step lighter than the land and leaning to the accent, so they read as open
+  // ground without a second hue.
+  const green = mix(mix(p.bg, p.text, 0.07), p.accent, 0.08);
+  const building = mix(p.bg, p.text, 0.045);
+  const path = mix(p.bg, p.text, 0.34);
+  const minor = mix(p.bg, p.text, 0.21);
+  const major = mix(p.bg, p.text, 0.29);
+  const motorway = mix(p.bg, p.text, 0.35);
+  const rail = mix(p.bg, p.text, 0.14);
   const border = mix(p.bg, p.text, 0.3);
-  const roadName = mix(p.bg, p.text2, 0.72);
+  const roadName = mix(p.bg, p.text2, 0.85);
   const placeName = p.text2;
   const road = (id: string, filter: unknown[], color: string, width: unknown, minzoom: number): Layer => ({
     id,
@@ -85,7 +87,7 @@ export function runMapStyle(p: MapPalette, origin: string = TILE_ORIGIN): RunMap
       { id: 'building', type: 'fill', source: SRC, 'source-layer': 'building', minzoom: 14, filter: polygon, paint: { 'fill-color': building, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 15.5, 1] } },
       { ...road('rail', [cls('rail', 'transit')], rail, grow([12, 0.5], [18, 2]), 12) },
       { ...road('path', [cls('path', 'track')], path, grow([14, 0.6], [18, 2.2]), 14), paint: { 'line-color': path, 'line-width': grow([14, 0.6], [18, 2.2]), 'line-dasharray': [2, 1.6] } },
-      road('road-minor', [cls('minor', 'service')], minor, grow([12, 0.4], [14, 1.4], [18, 10]), 12),
+      road('road-minor', [cls('minor', 'service')], minor, grow([12, 0.5], [14, 1.8], [18, 11]), 12),
       road('road-major', [cls('primary', 'secondary', 'tertiary', 'trunk')], major, grow([8, 0.5], [13, 2.2], [18, 16]), 8),
       road('road-motorway', [cls('motorway')], motorway, grow([5, 0.6], [13, 3], [18, 20]), 5),
       { id: 'border', type: 'line', source: SRC, 'source-layer': 'boundary', filter: ['all', ['==', ['get', 'admin_level'], 2], ['!', ['has', 'claimed_by']]], paint: { 'line-color': border, 'line-width': 0.8, 'line-dasharray': [3, 2] } },
