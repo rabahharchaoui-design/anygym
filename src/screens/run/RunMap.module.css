@@ -71,17 +71,9 @@
 
 /* Tiles could not be had: a quiet glass chip beside the GPS chip. */
 .offline {
-  display: inline-flex;
-  align-items: center;
+  /* The same glass pill as the GPS chip beside it. */
+  composes: gpsFace from './Run.module.css';
   gap: 6px;
-  min-height: 32px;
-  padding: 4px 12px 4px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--glass-line);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
 }
 
 /* The map data credit, at the bottom left of the map that shows. */
