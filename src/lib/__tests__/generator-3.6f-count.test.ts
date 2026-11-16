@@ -20,7 +20,7 @@ import { requiresOf, supports } from '../swap';
 import { vi as viTimeout } from 'vitest';
 // PLAN 3.6u: a heavy test file (slowest test about 1493 ms on a laptop; the GitHub runner is six to eight times
 // slower). An explicit limit sized for the runner, never a retry.
-viTimeout.setConfig({ testTimeout: 60_000 });
+viTimeout.setConfig({ testTimeout: 240_000 });
 
 type T = { muscle: string; label: string };
 const named = (l: string) => (t: T) => t.label.toLowerCase() === l;

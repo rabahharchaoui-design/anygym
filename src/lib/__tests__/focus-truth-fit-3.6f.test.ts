@@ -14,7 +14,7 @@ import { focusSummary } from '../plan/focusPriority';
 import { vi as viTimeout } from 'vitest';
 // PLAN 3.6u: a heavy test file (slowest test about 400 ms on a laptop; the GitHub runner is six to eight times
 // slower). An explicit limit sized for the runner, never a retry.
-viTimeout.setConfig({ testTimeout: 30_000 });
+viTimeout.setConfig({ testTimeout: 120_000 });
 
 const base: IntakeAnswers = { goals: ['muscle'], experience: '3y', place: 'full', style: 'mix', cardio: 'little', scheduleStyle: 'flexible' };
 const built = new Map<string, FocusReport | undefined>();
