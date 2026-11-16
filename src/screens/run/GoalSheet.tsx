@@ -74,7 +74,9 @@ function DistancePicker({ goal, unit, onUnit, onPick }: { goal: DistanceGoal; un
       </div>
       {custom && (
         <div className={styles.custom} data-testid="distance-wheel">
-          <WheelColumn items={DISTANCE_ITEMS} value={value} picked onChange={setValue} label={`Distance in ${wheelUnit === 'mi' ? 'miles' : 'kilometers'}`} rows={3} testId="distance-wheel-column" />
+          <div className={styles.wheel}>
+            <WheelColumn items={DISTANCE_ITEMS} value={value} picked onChange={setValue} label={`Distance in ${wheelUnit === 'mi' ? 'miles' : 'kilometers'}`} rows={3} testId="distance-wheel-column" />
+          </div>
           <Segmented
             options={UNITS}
             value={wheelUnit}
@@ -109,7 +111,9 @@ function TimePicker({ min, onPick }: { min: number; onPick: (min: number) => voi
       </div>
       {custom && (
         <div className={styles.custom} data-testid="time-wheel">
-          <WheelColumn items={TIME_ITEMS} value={value} picked onChange={setValue} label="Time" rows={3} testId="time-wheel-column" />
+          <div className={styles.wheel}>
+            <WheelColumn items={TIME_ITEMS} value={value} picked onChange={setValue} label="Time" rows={3} testId="time-wheel-column" />
+          </div>
           <Button onClick={() => onPick(value)} data-testid="goal-done">
             {`Set ${timeLabel(value)}`}
           </Button>

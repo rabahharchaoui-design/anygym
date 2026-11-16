@@ -7,6 +7,9 @@
 // route below to the real host.
 import { TILE_ORIGIN, type Page } from '../fixtures';
 
+/** Mapbox vector tile: layer { name: 'x', extent: 4096, version: 2 }, no features. */
+const EMPTY_TILE = Buffer.from([0x1a, 0x08, 0x0a, 0x01, 0x78, 0x28, 0x80, 0x20, 0x78, 0x02]);
+
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 
 export async function stubTiles(page: Page): Promise<{ asked: string[] }> {
@@ -25,8 +28,8 @@ export async function stubTiles(page: Page): Promise<{ asked: string[] }> {
         body: JSON.stringify({ tilejson: '3.0.0', tiles: [`${TILE_ORIGIN}/planet/test/{z}/{x}/{y}.pbf`], minzoom: 0, maxzoom: 14, bounds: [-180, -85.05113, 180, 85.05113], attribution: 'test', vector_layers: [] }),
       });
     }
-    // A tile or a glyph range with nothing in it.
-    return route.fulfill({ status: 200, headers: CORS, contentType: 'application/x-protobuf', body: Buffer.alloc(0) });
+    // A vector tile with one layer and nothing in it (a glyph range gets the same harmless bytes).
+    return route.fulfill({ status: 200, headers: CORS, contentType: 'application/x-protobuf', body: EMPTY_TILE });
   });
   return { asked };
 }

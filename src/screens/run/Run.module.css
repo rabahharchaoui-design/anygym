@@ -283,6 +283,11 @@
   gap: var(--space-3);
 }
 
+/* The wheel sizes itself as a cell of a row. */
+.wheel {
+  display: flex;
+}
+
 .choices {
   display: flex;
   flex-direction: column;

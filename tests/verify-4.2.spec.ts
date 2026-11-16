@@ -173,14 +173,15 @@ test.describe('4.2 run start screen', () => {
     await start.tap({ force: true, timeout: 500 }).catch(() => {});
     const count = page.getByTestId('run-countdown');
     await expect(count).toHaveCount(1);
-    await expect(page.getByTestId('run-count')).toHaveText('3');
+    const timer = page.getByRole('timer');
+    await expect(timer).toHaveAttribute('aria-label', 'Starting in 3');
     const box = await count.boundingBox();
     const vp = page.viewportSize()!;
     expect(box!.width).toBe(vp.width);
     expect(box!.height).toBeGreaterThanOrEqual(vp.height - 1);
     await shot(page, 'countdown');
-    await expect(page.getByTestId('run-count')).toHaveText('2', { timeout: 2000 });
-    await expect(page.getByTestId('run-count')).toHaveText('1', { timeout: 2000 });
+    await expect(timer).toHaveAttribute('aria-label', 'Starting in 2', { timeout: 2000 });
+    await expect(timer).toHaveAttribute('aria-label', 'Starting in 1', { timeout: 2000 });
     const started = page.getByTestId('run-started');
     await expect(started).toBeVisible({ timeout: 2000 });
     await expect(count).toHaveCount(0);
@@ -198,7 +199,7 @@ test.describe('4.2 run start screen', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openRun(page);
     await page.getByTestId('run-start').tap();
-    await expect(page.getByTestId('run-count')).toHaveText('3');
+    await expect(page.getByRole('timer')).toHaveAttribute('aria-label', 'Starting in 3');
     await page.getByTestId('run-count-cancel').tap();
     await expect(page.getByTestId('run-countdown')).toHaveCount(0);
     await page.waitForTimeout(3300);
@@ -334,8 +335,8 @@ test.describe('4.2 run start screen', () => {
       expect(await mapFiles(), `${title} does not load MapLibre`).toBe(0);
     }
     expect(outside).toEqual([]);
+    await page.goto('about:blank');
     await page.goto('./#/run');
-    await page.reload();
     await expect(page.getByTestId('run-map')).toHaveAttribute('data-ready', 'true');
     await expect(page.getByTestId('map-offline')).toBeVisible();
     expect(await mapFiles()).toBeGreaterThan(0);
