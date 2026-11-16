@@ -7,6 +7,8 @@
 // - Standing still (stillness.ts) freezes the distance whether auto pause is on or off, so GPS wander
 //   on the spot never adds meters. Auto pause decides only whether the moving clock stops too.
 // - Moving again: the leg from the standing spot to the new point counts (it was really covered).
+//   With auto pause on nobody knows how long that leg took (the clock was stopped), so it adds
+//   distance but no time and stays out of every pace, the same way a bridged gap does.
 // - A gap (no good point for more than GAP_SEC): its time is never moving time. The straight line
 //   across counts as distance only when filter.ts calls it plausible; either way the line breaks.
 // - A pause by hand always wins: nothing is recorded, auto pause does nothing, and the first point
@@ -41,7 +43,7 @@ export type TrackerState = {
   /** The last point on the track: where the next leg is measured from (the standing spot while still). */
   lastRecorded: GpsPoint | null;
   distanceM: number;
-  /** Distance covered while time counted (everything but bridged gaps). */
+  /** Distance covered while time counted (everything but bridged gaps and the leg that ends an auto pause). */
   timedM: number;
   movingMs: number;
   recent: Recent;
@@ -120,7 +122,8 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     const held = state.autoPause ? state : advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
     return { state: { ...held, lastGood: p }, event: { type: 'held', reason: 'still' } };
   }
-  const next = advance(state, { distanceM: haversineM(from, p), ms, timed: true, gap: false });
+  const untimed = state.still && state.autoPause;
+  const next = advance(state, { distanceM: haversineM(from, p), ms: untimed ? 0 : ms, timed: !untimed, gap: false });
   const recent = state.still ? [p] : pushRecent(state.recent, p);
   return {
     state: { ...next.state, lastGood: p, lastRecorded: p, recent, still: isStill(recent) },

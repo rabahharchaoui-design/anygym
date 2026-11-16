@@ -5,7 +5,7 @@ import { PACE_MIN_M } from './types';
 /**
  * One split. `distanceM` is the split length for a full split and what was covered so far for the
  * last partial one. `sec` is moving time. `timedM` is the part of the distance that has time (all
- * of it unless a gap was bridged); `gap` says a GPS gap fell inside, so the split is not a fair
+ * of it unless a gap was bridged or an auto pause ended inside); `gap` says a GPS gap fell inside, so the split is not a fair
  * candidate for "best split".
  */
 export type Split = { index: number; distanceM: number; sec: number; timedM: number; gap: boolean };

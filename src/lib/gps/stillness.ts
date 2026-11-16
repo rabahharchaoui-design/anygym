@@ -28,10 +28,12 @@ export function isStill(recent: Recent): boolean {
 }
 
 /**
- * How far from the standing spot counts as moving again: outside the standing circle and outside
- * what either fix says about its own accuracy, so GPS wander on the spot never resumes the run.
+ * How far from the standing spot counts as moving again: outside the standing circle, and farther
+ * than the two fixes could be apart by their own stated accuracy (both radii added), so GPS wander
+ * on the spot does not resume the run. With a typical accuracy of 5 m that is 10 m: about three
+ * seconds of running. Nothing is lost by waiting: the leg from the spot counts once it is sure.
  */
-export const resumeRadiusM = (anchor: GpsPoint, p: GpsPoint): number => Math.max(STILL_RADIUS_M, anchor.accuracy, p.accuracy);
+export const resumeRadiusM = (anchor: GpsPoint, p: GpsPoint): number => Math.max(STILL_RADIUS_M, anchor.accuracy + p.accuracy);
 
 /** Moving again: the point left the standing spot (`anchor`) by more than resumeRadiusM. */
 export const leftStill = (anchor: GpsPoint, p: GpsPoint): boolean => haversineM(anchor, p) > resumeRadiusM(anchor, p);
