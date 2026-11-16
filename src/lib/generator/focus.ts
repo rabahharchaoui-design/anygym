@@ -97,9 +97,10 @@ export function applyFocus(ctx: Ctx, days: Day[], least?: FocusLeast): FocusRepo
   // PLAN 3.7b: what focus adds for a brand new lifter is machines first too (the base plan's own rule, pick.ts).
   const rank = beginnerRank(ctx.input);
   if (rank) for (const [i, d] of candidates.entries()) {
-    // And never a free weight big lift where this gym has a machine for the movement (a lower back pick adds the back extension, never the deadlift).
+    // And never a free weight move where this gym has a machine for the movement (a lower back pick adds the back
+    // extension, never the deadlift; a biceps pick adds sets to the cable curl, never a barbell curl beside it).
     const onMachine = new Set(d.filter((it) => kindOf(it.candidate.requires) === 'machine').map((it) => it.pattern));
-    candidates[i] = d.filter((it) => !(isCompound(it.profile) && kindOf(it.candidate.requires) === 'free' && onMachine.has(it.pattern))).sort((a, b) => rank[kindOf(a.candidate.requires)] - rank[kindOf(b.candidate.requires)]);
+    candidates[i] = d.filter((it) => !(kindOf(it.candidate.requires) === 'free' && onMachine.has(it.pattern))).sort((a, b) => rank[kindOf(a.candidate.requires)] - rank[kindOf(b.candidate.requires)]);
   }
   const pools = days.map((d, i) => new Map([...candidates[i]!, ...d.units.flat()].map((it) => [it.id, it])));
   // Reorder and pair during every estimate too. The accepted result has exactly that same duration.

@@ -30,7 +30,7 @@ test('(2) brand new, full gym, 3 days, Lats and Biceps picked: machines first, n
   await next(page); await step(page, 'minutes'); await pick(page, 'minutes', '45');
   await step(page, 'place'); await pick(page, 'place', 'full'); await step(page, 'equipment'); await next(page);
   await step(page, 'style'); await pick(page, 'style', 'mix'); await step(page, 'cardio'); await pick(page, 'cardio', 'little'); await next(page);
-  await step(page, 'easyOn'); await skip(page); await step(page, 'exercises'); await skip(page); await step(page, 'about'); await skip(page); await step(page, 'reveal');
+  await step(page, 'easyOn'); await skip(page); await step(page, 'about'); await skip(page); await step(page, 'reveal');
   await page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }).tap();
   await expect(page).toHaveURL(/#\/$/);
   const planId = await expect.poll(async () => (await dbAll<{ planId: string }>(page, 'planState'))[0]?.planId).toBeTruthy().then(async () => (await dbAll<{ planId: string }>(page, 'planState'))[0]!.planId);
