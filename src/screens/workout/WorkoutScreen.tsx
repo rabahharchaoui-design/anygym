@@ -119,7 +119,8 @@ export function WorkoutScreen() {
       w={w}
       heroId={lastViewed}
       effortFor={justDone}
-      onOpen={openExercise}
+      // While Finish is saving, the list opens nothing: a tap landing then would leave the done screen (3.7 gate).
+      onOpen={(id: string) => { if (!finishing.current) openExercise(id); }}
       onAdd={() => setPicking(true)}
       onAddOne={(id, rest) => void addSuggestion(id, rest)}
       sessionId={sessionId}

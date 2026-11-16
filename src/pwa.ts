@@ -17,18 +17,11 @@ async function activity(): Promise<Activity> {
 
 export function registerAppUpdates(): void {
   if (!('serviceWorker' in navigator)) return;
-  // A first visit has no service worker yet: when it takes this page (clientsClaim) that is not a new
-  // version, and nothing reloads. Only a takeover of a page that already had one is an update.
-  let controlled = !!navigator.serviceWorker.controller;
   const updateSW = registerSW({
     immediate: true,
     // The plugin would reload unconditionally once the new version controls the page: the
     // activity is checked again right there, so a workout started meanwhile is never reloaded.
     onNeedReload() {
-      if (!controlled) {
-        controlled = true;
-        return;
-      }
       void reloadWhenIdle(activity, () => window.location.reload());
     },
     onNeedRefresh() {
