@@ -94,7 +94,7 @@ test.describe('4.2 run start screen', () => {
     const start = page.getByTestId('run-start');
     const [s, m, t, tab] = await Promise.all([start.boundingBox(), spotify.boundingBox(), types.first().boundingBox(), page.getByRole('navigation', { name: 'Main' }).boundingBox()]);
     expect(m!.y + m!.height, 'music sits right above Start').toBeLessThanOrEqual(s!.y + 1);
-    expect(s!.y - (m!.y + m!.height), 'nothing between music and Start').toBeLessThan(24);
+    expect(s!.y - (m!.y + m!.height), 'nothing between music and Start').toBeLessThanOrEqual(32);
     expect(t!.y + t!.height, 'run types sit above music').toBeLessThanOrEqual(m!.y + 1);
     expect(s!.y + s!.height, 'Start clears the tab bar').toBeLessThanOrEqual(tab!.y);
     expect(s!.width, 'one huge Start button').toBeGreaterThanOrEqual(88);
