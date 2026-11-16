@@ -158,6 +158,10 @@ export default defineConfig({
         // HashRouter: every route is index.html, so any navigation falls back to it.
         navigateFallback: `${BASE}index.html`,
         cleanupOutdatedCaches: true,
+        // Gate 3.7: on a first visit the page takes the service worker as soon as it is ready, so a first
+        // session that loses signal still opens screens it has not loaded yet. An update still waits
+        // for its prompt (no skipWaiting here; src/pwa.ts decides when).
+        clientsClaim: true,
       },
     }),
   ],

@@ -40,6 +40,7 @@ async function threeRows(page: Page) {
 }
 
 async function swipeLeft(page: Page, row: Locator) {
+  await row.scrollIntoViewIfNeeded(); // a finger scrolls first on a short phone
   const b = (await row.boundingBox())!;
   const y = b.y + b.height / 2;
   const x0 = b.x + b.width - 24;

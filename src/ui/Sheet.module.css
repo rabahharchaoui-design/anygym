@@ -111,6 +111,10 @@
   height: 49px;
   padding-top: 36px;
   touch-action: none;
+  /* above the header's first pixel on every phone, so the whole 49 px answers a tap (3.7 gate:
+     on Chromium the title took the zone's last row) */
+  position: relative;
+  z-index: 1;
 }
 
 @media (max-height: 600px) {
