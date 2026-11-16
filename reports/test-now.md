@@ -49,3 +49,4 @@
 3.6j | Start today's workout, log a few sets, leave it. Plans, Your plan, Coach tips, Apply all, Use this plan. Back on Today: it still says the same day again with your sets counted, not the next day.
 3.6p | Settings, Focus areas: pick five or more areas, Continue: Your plan appears without a wait, and tapping a "Make it ..." button answers at once.
 3.6z | Settings, switch lb to kg: a toast says "Units changed to kg · Undo"; tap Undo and your gym's weights are back exactly as they were.
+3.7a | Quick workout with a Seated Calf Raise: open the weight, put on one 45 lb plate: it reads "1 × 45 lb plate" with no total and Done says "Answer one side or both first"; tap One side and it totals at once.
