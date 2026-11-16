@@ -7,7 +7,7 @@ import { workoutMoments } from '../../db/celebrations';
 import { useLive } from '../../hooks/useLive';
 import { useSchedule } from '../../hooks/useSchedule';
 import { restingWords } from '../../lib/plan/scheduleWords';
-import { formatSession, formatSet, sameSets } from '../../lib/setWords';
+import { bestSetLine, formatSession, sameSets } from '../../lib/setWords';
 import { workSetCount } from '../../lib/workSets';
 import { formatTotalCompact, totalLifted } from '../../lib/load';
 import { bestSetOf } from '../../lib/records';
@@ -222,15 +222,12 @@ export function FinishScreen() {
                           ) : null}
                         </span>
                         <span className={`${styles.exerciseBest} num`}>
-                          {/* "4 sets × 8 at 45 lb" when every set matched; else "2 sets · 185 lb × 6" (round 3, critic P6): the count, then the best set. A plan
+                          {/* "4 sets × 8 at 45 lb" when every set matched; else "2 sets · best 185 lb × 6" (round 3, critic P6; 3.6z A16): the count, then the best set. A plan
                               exercise with sets left already says "1 of 4 sets" under its name. */}
                           {uniform ? (
                             formatSession(loaded)
                           ) : (
-                            <>
-                              {count === 0 || (planned && count < planned) ? '' : `${setCount(count)} · `}
-                              {formatSet(r.best)}
-                            </>
+                            bestSetLine(count, r.best, !(planned && count < planned))
                           )}
                         </span>
                       </li>
