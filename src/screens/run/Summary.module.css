@@ -204,3 +204,47 @@
   color: var(--text-2);
   font-weight: 500;
 }
+
+/* "Run saved": the check draws itself, then the word. The row is always there, so nothing shifts. */
+.saved {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.savedCheck {
+  width: 20px;
+  height: 20px;
+}
+
+/* The ghost line, and the new bests under the numbers. */
+.ghost {
+  margin-top: var(--space-3);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.wins {
+  margin-top: var(--space-3);
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The best split of the run, marked in words and color (never color alone). */
+.split[data-best] > :last-child {
+  color: var(--accent);
+}
+
+.best {
+  margin-left: var(--space-2);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}

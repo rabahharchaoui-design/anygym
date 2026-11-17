@@ -1,10 +1,13 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FinishedRun } from '../../hooks/runEngine';
-import { RUN_TYPES, SPLIT_GAP, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
+import { RUN_TYPES, SPLIT_GAP, VERDICT_WORDS, bestSplitIndexes, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { Button } from '../../ui/Button';
+import { DrawnCheck } from '../../ui/celebrate';
 import { MapCredit, MapOfflineChip, RunMap } from './RunMap';
+import { RunFacts } from './RunFacts';
+import { RunShare } from './RunShare';
 import styles from './Summary.module.css';
 
 type Props = { finished: FinishedRun; reduceMotion: boolean; onDone: () => void; onDiscard: () => void };
@@ -16,8 +19,8 @@ const noop = () => undefined;
 /**
  * What a run comes to, plainly (PLAN 4.3): distance, moving time, average pace, the splits and the
  * route with its dashed gaps, all read from the stored run. A run with no GPS or next to no
- * distance shows no numbers: it says so and offers Discard or Keep. The full finish screen, the
- * share card and the export come later (4.6).
+ * distance shows no numbers: it says so and offers Discard or Keep. PLAN 4.6 adds the saved check,
+ * the best split, new records, the ghost result, the share card and the GPX export.
  */
 export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props) {
   const { run, unit } = finished;
@@ -41,6 +44,7 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
     ro?.observe(el);
     return () => ro?.disconnect();
   }, [verdict]);
+  const bestSplits = useMemo(() => (summary.splits.filter((x) => x.time !== null).length > 1 ? bestSplitIndexes(run) : []), [run, summary]);
   const type = RUN_TYPES.find((t) => t.value === run.type)?.label ?? 'Run';
 
   return createPortal(
@@ -48,6 +52,10 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
       {verdict === 'ok' ? (
         <>
           <div className={styles.scroll}>
+            <p className={styles.saved} data-testid="summary-saved">
+              <DrawnCheck draw={!reduceMotion} className={styles.savedCheck} />
+              Run saved
+            </p>
             <p className={styles.kind}>
               {type}
               {run.goal ? ` · ${run.goal}` : ''}
@@ -72,6 +80,7 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
                 <dt>Average pace {paceUnit(unit)}</dt>
               </div>
             </dl>
+            <RunFacts run={run} unit={unit} reduce={reduceMotion} />
             <div className={styles.map} data-testid="summary-map" data-solid={route.solid.length} data-dashed={route.dashed.length}>
               <RunMap here={null} recentre={0} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={noop} route={route} still />
               <div className={styles.mapNotes} ref={notes}>
@@ -88,9 +97,10 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
             ) : (
               <ol className={styles.splits} data-testid="summary-splits">
                 {summary.splits.map((s) => (
-                  <li key={s.n} className={styles.split} data-gap={s.time === null || undefined}>
+                  <li key={s.n} className={styles.split} data-gap={s.time === null || undefined} data-best={bestSplits.includes(s.n - 1) || undefined}>
                     <span>
                       {summary.splitUnit === 'mi' ? 'Mile' : 'Km'} {s.n}
+                      {bestSplits.includes(s.n - 1) && <span className={styles.best}>Best</span>}
                     </span>
                     {s.time === null ? <span className={styles.splitGap}>{SPLIT_GAP}</span> : <span className="num">{s.time}</span>}
                   </li>
@@ -102,6 +112,7 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
                 GPS gap: part of that split has no time, so no split time is shown for it.
               </p>
             )}
+            <RunShare run={run} unit={unit} />
           </div>
           <div className={styles.actions}>
             <Button size="lg" onClick={onDone} data-testid="summary-done">
