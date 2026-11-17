@@ -451,13 +451,14 @@ test.describe('4.3 live run', () => {
     await page.clock.runFor(5000);
     await context.setGeolocation({ latitude: PARK.latitude + 105 / M_PER_DEG, longitude: PARK.longitude, accuracy: 5 });
     await expect(page.getByTestId('run-going-readout')).toContainText('0.10 km');
+    // The card's own way back, then out again to another tab.
+    await page.getByTestId('run-going-open').tap();
+    await expect(live(page)).toBeVisible();
+    await page.getByTestId('live-hide').tap();
     await page.getByRole('link', { name: 'History' }).tap();
     await expect(page.getByTestId('run-bar')).toContainText('Run in progress');
     // The bar goes straight back into the live run.
     await page.getByTestId('run-bar').tap();
-    await expect(live(page)).toBeVisible();
-    await page.getByTestId('live-hide').tap();
-    await page.getByTestId('run-going-open').tap();
     await expect(live(page)).toBeVisible();
     await expect(big(page)).toHaveText('0.10');
   });
