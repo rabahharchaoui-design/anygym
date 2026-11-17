@@ -2,7 +2,10 @@
 // imported name kept as it is (PLAN 3.2); nothing is guessed.
 import { exerciseNameOf } from '../../data/importMatch';
 import { planById } from '../../data/plans';
-import type { Session } from '../../db/types';
+import type { Run, Session } from '../../db/types';
+import type { DistanceUnit } from '../../lib/intake/answers';
+import { distanceWithUnit, runLabel, runVerdict } from '../../lib/run';
+import { formatElapsed } from '../../lib/timer';
 import { dayIndexOf } from '../../lib/plans';
 import { dayWorkout } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
@@ -56,4 +59,12 @@ export function importNumbers(sessions: readonly Session[]): Map<string, { n: nu
     ordered.forEach((s, i) => out.set(s.id, { n: i + 1, of: ordered.length }));
   }
   return out;
+}
+
+/** "Intervals", or "Distance · 5 km" when the run had a goal (the words the run summary uses). */
+export const runTitle = (run: Run): string => `${runLabel(run.type)}${run.goal ? ` · ${run.goal}` : ''}`;
+
+/** "5.02 km · 31:08". A run with no usable distance (SPEC 12.3: no GPS) shows words, never numbers. */
+export function runFacts(run: Run, unit: DistanceUnit): string {
+  return runVerdict(run) === 'ok' ? `${distanceWithUnit(run.distanceM, unit)} · ${formatElapsed(run.movingSec)}` : 'No distance recorded';
 }
