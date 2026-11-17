@@ -107,6 +107,9 @@ WEEK BUDGET MODE (G, Nov 17 8:29 PM: "don't leave me with nothing for the week",
 - GROK BACKUP BUILDS: while you are paused, Grok builds the THIRD open item in its own copy (Codex builds the second). Its report is reports/grok/build-<id>-<stamp>.md and the branch grok-build-<id>-<stamp> is already in this repo. Handle it exactly like a Codex backup build: if NEW, merge it with git merge --no-ff --no-edit <branch>, run the tester pass (sonnet), fix what is wrong, then set the report to "STATUS: HANDLED merged" or "STATUS: HANDLED discarded <reason>". If BUILDING, skip that item and come back.
 - Keep your own turns lean: short test output, no re-reading big files.
 
+TEST NOW TIMING (G, Nov 17 8:35 PM: the 4.4 test now push arrived while the deploy was still running, so the feature was not in the app yet)
+- Before ANY "test now" or "shipped" push: run gh run watch <id> --exit-status on the Pages deploy for that exact commit, then curl the live index.html and confirm its script file name changed from before the merge. Only then send the push. No exceptions, even at the end of a run.
+
 STOP RULE
 PLAN.md contains "=== STOP HERE UNLESS TOLD OTHERWISE ===". Never start anything below it. When everything above it is done, merged, pushed and live (or marked [!] and explained), print exactly: ALL DONE and stop.
 
