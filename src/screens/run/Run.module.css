@@ -338,6 +338,9 @@
   margin-left: auto;
   /* The 48 pt hit area reaches the screen's own padding; the face lines up with the gym pill. */
   margin-right: -2px;
+  /* Clear of the gym pill's own hit area just above. */
+  position: relative;
+  top: 3px;
 }
 
 /* A run goes on behind this screen: one card, the way back. */

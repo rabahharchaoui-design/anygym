@@ -34,6 +34,8 @@ export type RunMapGlProps = {
 };
 
 const SOURCE = 'openmaptiles';
+/** Room between a fitted route and the map's edge, in px (the line's width and the start mark fit in it). */
+const FIT_PAD = 28;
 
 /** The map colours, read from the tokens (src/styles/tokens.css) so the map is always the app's palette. */
 function readPalette(): MapPalette {
@@ -167,9 +169,10 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     const gl = map.current;
     if (!gl) return;
     const h = hereRef.current;
+    if (still) return;
     if (h && placed.current && following.current) gl.easeTo({ center: [h.lng, h.lat], padding: paddingRef.current, duration: 0 });
     else gl.setPadding(paddingRef.current);
-  }, [inset.top, inset.bottom]);
+  }, [inset.top, inset.bottom, still]);
 
   // The run's line, redrawn as it grows; a finished run is shown whole.
   useEffect(() => {
@@ -184,9 +187,10 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     }
     if (still && route?.bounds) {
       const [w, s, e, n] = route.bounds;
-      gl.fitBounds([[w, s], [e, n]], { padding: 36, maxZoom: HERE_ZOOM, duration: 0 });
+      // The whole route, with room around it; `inset` keeps it clear of what sits on the map's edges.
+      gl.fitBounds([[w, s], [e, n]], { padding: { top: FIT_PAD + inset.top, bottom: FIT_PAD + inset.bottom, left: FIT_PAD, right: FIT_PAD }, maxZoom: HERE_ZOOM, duration: 0 });
     }
-  }, [route, still]);
+  }, [route, still, inset.top, inset.bottom]);
 
   useEffect(() => {
     const gl = map.current;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FinishedRun } from '../../hooks/runEngine';
 import { RUN_TYPES, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
@@ -11,7 +11,6 @@ type Props = { finished: FinishedRun; reduceMotion: boolean; onDone: () => void;
 // The entrance is plain CSS (Summary.module.css): the page fades in and its content rises from the
 // bottom, where End was held.
 
-const NO_INSET = { top: 0, bottom: 0 };
 const noop = () => undefined;
 
 /**
@@ -26,6 +25,22 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
   const summary = useMemo(() => summaryOf(run, unit), [run, unit]);
   const route = useMemo(() => drawRoute(run.points.map(fromRunPoint), run.gaps), [run]);
   const [offline, setOffline] = useState(false);
+  // The credit line and the "Map offline" chip sit on the map's foot: the route is fitted above them.
+  const notes = useRef<HTMLDivElement>(null);
+  const [inset, setInset] = useState({ top: 0, bottom: 48 });
+  useLayoutEffect(() => {
+    const el = notes.current;
+    const box = el?.parentElement;
+    if (!el || !box) return;
+    const measure = () => {
+      const bottom = Math.ceil(box.getBoundingClientRect().bottom - el.getBoundingClientRect().top);
+      setInset((i) => (i.bottom === bottom ? i : { top: 0, bottom }));
+    };
+    measure();
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [verdict]);
   const type = RUN_TYPES.find((t) => t.value === run.type)?.label ?? 'Run';
 
   return createPortal(
@@ -58,8 +73,8 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
               </div>
             </dl>
             <div className={styles.map} data-testid="summary-map" data-solid={route.solid.length} data-dashed={route.dashed.length}>
-              <RunMap here={null} recentre={0} reduceMotion={reduceMotion} inset={NO_INSET} onOffline={setOffline} onMoved={noop} route={route} still />
-              <div className={styles.mapNotes}>
+              <RunMap here={null} recentre={0} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={noop} route={route} still />
+              <div className={styles.mapNotes} ref={notes}>
                 <MapCredit />
                 {offline && <MapOfflineChip />}
               </div>

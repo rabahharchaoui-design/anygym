@@ -377,6 +377,28 @@ test.describe('4.3 live run', () => {
     expect(Math.abs(pace - 333)).toBeLessThanOrEqual(10);
     await expect(page.getByTestId('summary-map')).toHaveAttribute('data-dashed', '1');
     await expect(page.getByTestId('summary-map')).toHaveAttribute('data-solid', '2');
+    // The route is fitted above the map's credit line and the "Map offline" chip: its start mark
+    // (the lowest point of this route) touches neither, and stays inside the card.
+    await expect(page.getByTestId('run-start-mark')).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const card = document.querySelector('[data-testid="summary-map"]')!;
+          const box = (sel: string) => card.querySelector(sel)?.getBoundingClientRect() ?? null;
+          const mark = box('[data-testid="run-start-mark"]')!;
+          const hits = (r: DOMRect | null) => !!r && !(mark.right <= r.left || mark.left >= r.right || mark.bottom <= r.top || mark.top >= r.bottom);
+          const c = card.getBoundingClientRect();
+          const inside = mark.top >= c.top + 8 && mark.bottom <= c.bottom && mark.left >= c.left && mark.right <= c.right;
+          const chip = box('[data-testid="map-offline"]');
+          return { credit: hits(box('[data-testid="map-credit"]')), chip: hits(chip), chipShown: !!chip, inside };
+        }),
+      )
+      .toEqual({ credit: false, chip: false, chipShown: true, inside: true });
+    // One finished kilometer: its split is listed under the map (below the fold on short phones; the page scrolls).
+    await page.getByTestId('summary-splits').scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('summary-splits')).toContainText('Km 1');
+    await shot(page, 'summary-splits');
+    await page.getByTestId('summary-map').scrollIntoViewIfNeeded();
     await checkLayout(page, { scope: '[data-testid="run-summary"]', primary: page.getByTestId('summary-done') });
     await shot(page, 'summary');
     await page.getByTestId('summary-done').tap();
@@ -446,6 +468,7 @@ test.describe('4.3 live run', () => {
     const going = page.getByTestId('run-going');
     await expect(going).toContainText('Run in progress');
     await expect(page.getByTestId('run-start')).toHaveCount(0);
+    await expect(page.getByTestId('gps-chip')).toHaveCount(0);
     await shot(page, 'run-in-progress');
     // Positions keep counting while it is hidden.
     await page.clock.runFor(5000);
@@ -471,6 +494,7 @@ test.describe('4.3 live run', () => {
     await expect(sheet).toContainText('Your music keeps playing.');
     await expect(sheet).toContainText('Locking the phone pauses GPS.');
     await expect(page.getByTestId('run-countdown')).toHaveCount(0);
+    await page.waitForTimeout(500);
     await shot(page, 'explainer');
     await page.getByTestId('pocket-go').tap();
     await expect(live(page)).toBeVisible({ timeout: 8000 });

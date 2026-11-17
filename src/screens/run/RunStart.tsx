@@ -122,7 +122,8 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
           </span>
         </div>
         <div className={styles.chips}>
-          <GpsChip status={status} words={words} onPress={() => setGpsOpen(true)} />
+          {/* While a run goes on the engine has the GPS; this chip would only describe the idle start screen. */}
+          {!going && <GpsChip status={status} words={words} onPress={() => setGpsOpen(true)} />}
           {offline && <MapOfflineChip />}
           {!going && (
             <span className={styles.settingsSlot}>
