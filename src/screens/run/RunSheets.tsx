@@ -57,11 +57,11 @@ export function RunSettingsSheet({ open, autoPause, onAutoPause, voice, onVoice,
     say(previewEvent(unit), { on: true, splits: 'every' });
   };
   return (
-    <Sheet open={open} onClose={onClose} label="Run settings">
+    <Sheet open={open} onClose={onClose} label="Run settings" scroll>
       <div className={styles.sheet} data-testid="run-settings-sheet">
         <h2 className={styles.sheetTitle}>Run settings</h2>
         <Switch label="Auto pause" hint="The clock stops when you stand still and starts again when you move." checked={autoPause} onChange={onAutoPause} />
-        <Switch label="Voice coach" hint="Says your time and pace over your music." checked={voice.on} onChange={(on) => onVoice({ ...voice, on })} />
+        <Switch label="Voice coach" hint="Says your time and pace over your music. Follows the phone's silent switch." checked={voice.on} onChange={(on) => onVoice({ ...voice, on })} />
         {voice.on && (
           <div className={iv.voice} data-testid="voice-settings">
             <span className={iv.voiceLabel} id="voice-splits-label">{`Say each ${splitWord}`}</span>
@@ -69,7 +69,6 @@ export function RunSettingsSheet({ open, autoPause, onAutoPause, voice, onVoice,
             <Button variant="secondary" onClick={preview} data-testid="voice-preview">
               Play a sample
             </Button>
-            <p className={iv.voiceNote}>Interval cues are always said. On an iPhone the voice is silent while the ring switch is on silent.</p>
           </div>
         )}
         <div className={styles.sheetActions}>

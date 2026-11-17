@@ -85,7 +85,7 @@ export function LiveStats({ reading, unit, big, note, goal, paused, intervals }:
         </span>
       </div>
       )}
-      <div className={blocks ? `${styles.pair} ${iv.trio}` : styles.pair}>
+      <div className={blocks ? iv.trio : styles.pair}>
         {small.map((m) => {
           const f = faceOf(m, reading, unit);
           return (

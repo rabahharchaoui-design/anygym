@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BLOCK_NAMES, blockEffort, blockLabel, blockTime, CUSTOM_BOUNDS as B, planSeconds, type IntervalBlock, type IntervalPlan } from '../../lib/run';
 import { tick } from '../../ui/haptics';
 import { Chip } from '../../ui/Chip';
-import { ChevronDown, PassIcon, PlusIcon, XIcon } from '../../ui/icons';
+import { ChevronDown, PassIcon, PlusIcon } from '../../ui/icons';
 import styles from './Intervals.module.css';
 
 type Props = { plan: IntervalPlan; onChange: (plan: IntervalPlan) => void };
@@ -69,17 +69,17 @@ export function IntervalEditor({ plan, onChange }: Props) {
               canMore={b.sec < B.maxSec}
               testId={`block-${i}-time`}
             />
-            {plan.blocks.length > B.minBlocks && (
-              <button type="button" className={styles.stepBtn} aria-label={`Remove block ${i + 1}`} onClick={() => remove(i)} data-testid={`block-${i}-remove`}>
-                <XIcon width={18} height={18} strokeWidth={2.4} aria-hidden="true" />
-              </button>
-            )}
           </div>
           {naming === i && (
             <div className={styles.names} role="group" aria-label="Block name" data-testid="block-names">
               {BLOCK_NAMES.map((n) => (
                 <Chip key={n.id} label={n.label} picked={b.name === n.id} onPress={() => (setBlock(i, { name: n.id }), setNaming(null))} block small testId={`block-name-${n.id}`} />
               ))}
+              {plan.blocks.length > B.minBlocks && (
+                <button type="button" className={`${styles.link} ${styles.remove}`} onClick={() => remove(i)} data-testid={`block-${i}-remove`}>
+                  Remove this block
+                </button>
+              )}
             </div>
           )}
         </div>

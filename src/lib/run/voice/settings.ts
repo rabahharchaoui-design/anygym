@@ -8,7 +8,7 @@ export type VoiceSettings = { on: boolean; splits: SplitEvery };
 export const DEFAULT_VOICE: VoiceSettings = { on: true, splits: 'every' };
 
 export const SPLIT_CHOICES: ReadonlyArray<{ value: SplitEvery; label: string }> = [
-  { value: 'every', label: 'Every one' },
+  { value: 'every', label: 'Always' },
   { value: 'second', label: 'Every 2nd' },
   { value: 'off', label: 'Never' },
 ];

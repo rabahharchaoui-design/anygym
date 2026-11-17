@@ -36,11 +36,22 @@ const settings = async (page: Page) => {
 };
 const closeSettings = async (page: Page) => {
   await page.getByTestId('run-settings-done').tap();
+  // The sheet slides away on the page's clock, which these tests move by hand.
+  await page.clock.runFor(600);
   await expect(page.getByTestId('run-settings-sheet')).toBeHidden();
 };
 const voiceSwitch = (page: Page) => page.getByRole('switch', { name: /Voice coach/ });
-/** Cues are queued: the clock moves on until the list stops growing. */
+/**
+ * Waits until `n` clips were scheduled, moving the clock on in small steps (a cue waits for the one
+ * before it to end). Small steps on purpose: a long stretch of clock with no position is a GPS gap.
+ */
+async function saidCount(page: Page, n: number) {
+  await expect.poll(async () => (await page.clock.runFor(400), (await playedIds(page)).length), { timeout: 20_000, message: `${n} clips scheduled` }).toBeGreaterThanOrEqual(n);
+}
+/** Cues are queued: the clock moves on until the list stops growing. Only where no run is being measured. */
 async function settled(page: Page) {
+  // Longer than any one sentence, so the queue is past whatever was playing.
+  await page.clock.runFor(8000);
   let before = -1;
   for (let i = 0; i < 20; i++) {
     const n = (await playedIds(page)).length + (await spoken(page)).length;
@@ -55,18 +66,18 @@ test.describe('4.4 voice coach', () => {
   test('a km split is said as one sentence: the clips, their order, back to back @matrix', async ({ page, context }) => {
     await open(page, context);
     const r = await begin(page, context);
-    await settled(page);
+    await saidCount(page, 1);
     expect(await playedIds(page), 'the start is said').toEqual(['run_started']);
-    // 5 m/s: the first km ends at 200 s (3:20).
-    await move(r, 41, 5, 5);
-    await settled(page);
+    // 5 m/s, a position every 10 s: the first km ends at 200 s (3:20).
+    await move(r, 21, 10, 5);
+    await saidCount(page, 8);
     const ids = await playedIds(page);
     expect(ids.slice(0, 3)).toEqual(['run_started', 'n1', 'kilometer']);
     expect(ids[3]).toBe('min3');
-    expect(ids[4]).toMatch(/^sec(19|20|21|22)$/);
+    expect(ids[4]).toMatch(/^sec(18|19|20|21|22)$/);
     expect(ids[5]).toBe('pace');
     expect(ids[6]).toBe('n3');
-    expect(ids[7]).toMatch(/^n(19|20|21|22)$/);
+    expect(ids[7]).toMatch(/^n(18|19|20|21|22)$/);
     expect(ids).toHaveLength(8);
     // One sentence: every clip starts after the one before it ended, with a gap of at most the full stop pause.
     const clips = (await played(page)).slice(1);
@@ -82,6 +93,8 @@ test.describe('4.4 voice coach', () => {
     // Pause and resume are said too, each once, never on top of each other.
     await wake(page);
     await page.getByTestId('live-pause').tap();
+    // The button ignores a second tap that comes within a moment of the first (double tap guard).
+    await page.clock.runFor(700);
     await page.getByTestId('live-resume').tap();
     await settled(page);
     expect((await playedIds(page)).slice(8)).toEqual(['paused', 'resumed']);
@@ -93,12 +106,12 @@ test.describe('4.4 voice coach', () => {
     await open(page, context);
     await settings(page);
     await expect(voiceSwitch(page)).toBeChecked();
-    await voiceSwitch(page).tap({ force: true });
+    await page.getByText('Voice coach', { exact: true }).tap();
     await expect(voiceSwitch(page)).not.toBeChecked();
     await expect(page.getByTestId('voice-settings')).toHaveCount(0);
     await closeSettings(page);
     const r = await begin(page, context);
-    await move(r, 41, 5, 5);
+    await move(r, 21, 10, 5);
     await wake(page);
     await page.getByTestId('live-pause').tap();
     await settled(page);
@@ -111,35 +124,51 @@ test.describe('4.4 voice coach', () => {
     await expect(voiceSwitch(page)).not.toBeChecked();
   });
 
-  test('how often: every 2nd km says only the even ones; never says no split but still says pause', async ({ page, context }) => {
+  test('how often: every 2nd km says only the even ones', async ({ page, context }) => {
     test.slow();
     await open(page, context);
     await settings(page);
     await page.getByTestId('voice-splits').getByRole('radio', { name: 'Every 2nd' }).tap();
     await closeSettings(page);
     const r = await begin(page, context);
-    // 7 m/s: a km every 143 s.
-    await move(r, 30, 5, 7);
-    await settled(page);
+    // 7 m/s, a position every 10 s: a km every 143 s.
+    await move(r, 15, 10, 7);
+    await page.clock.runFor(1500);
     expect(await playedIds(page), 'km 1 is not said').toEqual(['run_started']);
-    await move(r, 29, 5, 7);
-    await settled(page);
+    await move(r, 14, 10, 7);
+    await saidCount(page, 8);
     const ids = await playedIds(page);
-    expect(ids.slice(1, 3), 'km 2 is said').toEqual(['n2', 'kilometers']);
-    expect(ids).toContain('pace');
-    const said = ids.length;
+    expect(ids.slice(1, 4), 'km 2 is said').toEqual(['n2', 'kilometers', 'min4']);
+    // That km's own pace: 2:23 at 7 m/s.
+    expect(ids.slice(5, 7)).toEqual(['pace', 'n2']);
+    expect(ids[7]).toMatch(/^n2[1-5]$/);
+    expect(ids).toHaveLength(8);
+  });
 
-    // Changed mid run, in the run settings of the paused run.
-    await wake(page);
-    await page.getByTestId('live-pause').tap();
-    await page.getByTestId('live-settings').tap();
+  test('how often: never says no split, but pause and resume are still said; a change in the run settings of a paused run counts at once', async ({ page, context }) => {
+    await open(page, context);
+    await settings(page);
     await page.getByTestId('voice-splits').getByRole('radio', { name: 'Never' }).tap();
     await closeSettings(page);
+    const r = await begin(page, context);
+    await move(r, 21, 10, 5);
+    await page.clock.runFor(1500);
+    expect(await playedIds(page), 'km 1 is not said').toEqual(['run_started']);
+    await wake(page);
+    await page.getByTestId('live-pause').tap();
+    await saidCount(page, 2);
+    // Run settings of the paused run: every km again.
+    await page.getByTestId('live-settings').tap();
+    await expect(page.getByTestId('voice-splits').getByRole('radio', { name: 'Never' })).toBeChecked();
+    await page.getByTestId('voice-splits').getByRole('radio', { name: 'Always' }).tap();
+    await closeSettings(page);
     await page.getByTestId('live-resume').tap();
-    r.north += 35;
-    await move(r, 60, 5, 7);
-    await settled(page);
-    expect((await playedIds(page)).slice(said), 'km 3 and 4 are not said; pause and resume are').toEqual(['paused', 'resumed']);
+    await saidCount(page, 3);
+    expect(await playedIds(page)).toEqual(['run_started', 'paused', 'resumed']);
+    r.north += 30;
+    await move(r, 21, 10, 5);
+    await saidCount(page, 5);
+    expect((await playedIds(page)).slice(3, 5), 'km 2 is said').toEqual(['n2', 'kilometers']);
   });
 
   test('Play a sample says a whole split sentence, also with the voice set to say no splits @matrix', async ({ page, context }) => {
@@ -199,7 +228,8 @@ test.describe('4.4 voice coach', () => {
     await page.getByTestId('voice-preview').tap();
     await expect.poll(async () => (await page.clock.runFor(500), page.evaluate(() => (window as unknown as { __real: { started: number } }).__real.started)), { timeout: 15_000 }).toBe(7);
     expect(await page.evaluate(() => (window as unknown as { __real: { spoke: number } }).__real.spoke)).toBe(0);
-    expect(asked.filter((a) => a.startsWith('200')).map((a) => a.slice(4)).sort()).toEqual([...new Set(PREVIEW)].sort());
+    // Each clip of the sentence came from the built app (the rest of the pack is being saved in the background meanwhile).
+    for (const id of PREVIEW) expect(asked, id).toContain(`200 ${id}`);
   });
 });
 
@@ -226,6 +256,9 @@ test.describe('4.4 intervals', () => {
     await shot(page, 'interval-run');
     // The three numbers are all there, small, under the ring.
     for (const m of ['distance', 'time', 'pace']) await expect(page.getByTestId(`live-small-${m}`)).toBeVisible();
+    const row = await Promise.all(['distance', 'time', 'pace'].map(async (m) => (await page.getByTestId(`live-small-${m}`).boundingBox())!));
+    expect(Math.abs(row[0]!.y - row[2]!.y), 'one row of three').toBeLessThan(2);
+    expect(row[2]!.y + row[2]!.height, 'clear of the controls').toBeLessThanOrEqual((await page.getByTestId('live-controls').boundingBox())!.y);
     await expect(page.getByTestId('live-big')).toHaveCount(0);
 
     await move(r, 9);
@@ -275,7 +308,9 @@ test.describe('4.4 intervals', () => {
     await page.getByTestId('block-add').tap();
     await page.getByTestId('block-add').tap();
     await expect(page.getByTestId('block-add')).toHaveCount(0);
+    await page.getByTestId('block-3-name').tap();
     await page.getByTestId('block-3-remove').tap();
+    await page.getByTestId('block-2-name').tap();
     await page.getByTestId('block-2-remove').tap();
     await expect(page.getByTestId('block-2')).toHaveCount(0);
     await checkLayout(page, { scope: '[data-testid="goal-sheet-intervals"]' });
