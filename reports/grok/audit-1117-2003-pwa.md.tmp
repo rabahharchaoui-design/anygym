@@ -1,0 +1,3 @@
+I'll audit the offline and update flow against the spec, starting with the project docs and the newest reports so I don't repeat findings already listed.
+
+The docs and report folders are in place. Next I’ll pull the spec rules and the newest audit notes so this pass only covers gaps they missed.
