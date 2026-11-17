@@ -9,7 +9,8 @@ export type DistanceGoal = { value: number; unit: DistanceUnit };
 export type IntervalPresetId = 'beginner' | 'builder' | 'speed';
 
 /** What the start screen remembers between visits. Every part always has a value, so Start works with no setup. */
-export type RunSetup = { type: RunType; distance: DistanceGoal; timeMin: number; interval: IntervalPresetId };
+/** `autoPause` is the run setting of SPEC 12.3 (on by default): standing still pauses the clock. */
+export type RunSetup = { type: RunType; distance: DistanceGoal; timeMin: number; interval: IntervalPresetId; autoPause: boolean };
 
 export const RUN_TYPES: ReadonlyArray<{ value: RunType; label: string }> = [
   { value: 'free', label: 'Free run' },
@@ -40,7 +41,7 @@ export const INTERVAL_PRESETS: ReadonlyArray<{ id: IntervalPresetId; label: stri
   { id: 'speed', label: 'Speed', detail: '1 min hard, 1 min easy, 10 times' },
 ];
 
-export const DEFAULT_RUN_SETUP: RunSetup = { type: 'free', distance: { value: 5, unit: 'km' }, timeMin: 30, interval: 'beginner' };
+export const DEFAULT_RUN_SETUP: RunSetup = { type: 'free', distance: { value: 5, unit: 'km' }, timeMin: 30, interval: 'beginner', autoPause: true };
 
 const steps = (range: { min: number; max: number; step: number }): number[] => {
   const out: number[] = [];
@@ -71,6 +72,7 @@ export function sanitizeRunSetup(raw: unknown): RunSetup {
     distance: isDistanceGoal(r.distance) ? { value: r.distance.value, unit: r.distance.unit } : DEFAULT_RUN_SETUP.distance,
     timeMin: isTimeGoal(r.timeMin) ? r.timeMin : DEFAULT_RUN_SETUP.timeMin,
     interval: INTERVAL_PRESETS.some((p) => p.id === r.interval) ? (r.interval as IntervalPresetId) : DEFAULT_RUN_SETUP.interval,
+    autoPause: typeof r.autoPause === 'boolean' ? r.autoPause : DEFAULT_RUN_SETUP.autoPause,
   };
 }
 

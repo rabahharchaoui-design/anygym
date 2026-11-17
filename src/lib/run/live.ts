@@ -1,0 +1,109 @@
+// The live run (SPEC 12.2, PLAN 4.3): one state, moved forward by what happens (a reported position,
+// a tap on Pause or Resume, the auto pause switch). Pure: lib/gps does every number; this file only
+// keeps the track, its breaks and what the run was started as. No clock: time comes in with the points.
+import type { DistanceUnit } from '../intake/answers';
+import { addPoint, pauseRun, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
+import { distanceLabel, goalMeters, goalSeconds, timeLabel, type IntervalPresetId, type RunSetup, type RunType } from './goal';
+
+/** What a Distance or Time run aims at, in meters or seconds, with the words it was picked as ("5 km"). */
+export type RunGoal = { kind: 'distance'; meters: number; label: string } | { kind: 'time'; seconds: number; label: string };
+
+export type GpsTrouble = 'denied' | 'unavailable' | null;
+
+export type LiveRun = {
+  id: string;
+  startedAt: number;
+  type: RunType;
+  goal: RunGoal | null;
+  /** Intervals: the chosen preset, stored with the run. The run itself is a free run until 4.4. */
+  intervalPreset: IntervalPresetId | null;
+  /** Miles or km, fixed at the start: splits and every printed number use it. */
+  unit: DistanceUnit;
+  tracker: TrackerState;
+  /** The track: every recorded point, in order. */
+  points: GpsPoint[];
+  /** Where the drawn line breaks (gaps, pauses by hand). */
+  breaks: TrackBreak[];
+  /** The last trusted position, also while paused: where the dot is. */
+  here: GpsPoint | null;
+  /** The run came back after the app was closed: it waits, paused, until Resume. */
+  closed: boolean;
+  gps: GpsTrouble;
+};
+
+export type LiveAction =
+  | { type: 'fix'; point: RawPoint }
+  | { type: 'pause' }
+  | { type: 'resume' }
+  | { type: 'auto-pause'; on: boolean }
+  | { type: 'gps'; trouble: GpsTrouble };
+
+/** The goal of a setup, or null: a free run has none, and intervals run as a free run for now. */
+export function goalOf(setup: RunSetup): RunGoal | null {
+  if (setup.type === 'distance') return { kind: 'distance', meters: goalMeters(setup.distance), label: distanceLabel(setup.distance) };
+  if (setup.type === 'time') return { kind: 'time', seconds: goalSeconds(setup.timeMin), label: timeLabel(setup.timeMin) };
+  return null;
+}
+
+export type StartInput = { id: string; now: number; setup: RunSetup; unit: DistanceUnit; autoPause: boolean };
+
+export function startLive({ id, now, setup, unit, autoPause }: StartInput): LiveRun {
+  return {
+    id,
+    startedAt: now,
+    type: setup.type,
+    goal: goalOf(setup),
+    intervalPreset: setup.type === 'intervals' ? setup.interval : null,
+    unit,
+    tracker: startTracker({ splitM: unitMeters(unit), autoPause }),
+    points: [],
+    breaks: [],
+    here: null,
+    closed: false,
+    gps: null,
+  };
+}
+
+/** One step. An action that changes nothing returns the same object. */
+export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
+  switch (action.type) {
+    case 'fix': {
+      const { state: tracker, event } = addPoint(run.tracker, action.point);
+      if (event.type === 'rejected') return run;
+      const gps = null;
+      if (event.type === 'held') {
+        // A good position that is not recorded (paused, or standing): the dot still follows it.
+        const p = action.point as GpsPoint;
+        return { ...run, tracker, here: { lat: p.lat, lng: p.lng, t: p.t, accuracy: p.accuracy }, gps };
+      }
+      return { ...run, tracker, here: event.point, points: [...run.points, event.point], breaks: event.brk ? [...run.breaks, event.brk] : run.breaks, gps };
+    }
+    case 'pause':
+      return run.tracker.manual ? run : { ...run, tracker: pauseRun(run.tracker) };
+    case 'resume': {
+      const tracker = resumeRun(run.tracker);
+      return tracker === run.tracker && !run.closed ? run : { ...run, tracker, closed: false };
+    }
+    case 'auto-pause':
+      return run.tracker.autoPause === action.on ? run : { ...run, tracker: { ...run.tracker, autoPause: action.on } };
+    case 'gps':
+      return run.gps === action.trouble ? run : { ...run, gps: action.trouble };
+  }
+}
+
+export const readLive = (run: LiveRun): TrackerReading => readTracker(run.tracker);
+
+/** How far the phone's own timestamp may lag behind the clock and still be used. */
+const FIX_LAG_MS = 2000;
+/** ...and how far it may be ahead (two clocks never agree exactly). */
+const FIX_LEAD_MS = 500;
+
+/**
+ * The time of a reported position. The phone's own timestamp is the truth when it is close to the
+ * clock (positions reach the app a little late, sometimes two at once); a timestamp that is missing
+ * or far off (some phones count from boot, and old cached positions exist) gives the arrival time.
+ */
+export function fixTime(timestamp: number | null | undefined, now: number): number {
+  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) return now;
+  return timestamp >= now - FIX_LAG_MS && timestamp <= now + FIX_LEAD_MS ? timestamp : now;
+}

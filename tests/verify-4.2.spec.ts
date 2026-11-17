@@ -1,11 +1,12 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test, TILE_ORIGIN, type Page } from './fixtures';
 import { checkControls, checkLayout, simulateSafeAreas } from './helpers/layout';
+import { endAndDiscard, pocketSeen } from './helpers/run';
 import { stubTiles, tileAsks } from './helpers/tiles';
 
 // PLAN 4.2 (SPEC 12.1, 12.10): the Run tab's start screen. The map, the GPS chip that never blocks
 // Start (competitor gap 5), run types and pickers, music links, the 3 2 1 countdown and the honest
-// "Run started" placeholder. Tiles never come from the real host here (fixtures.ts, helpers/tiles.ts).
+// live run it hands over to (4.3; verify-4.3 covers that screen). Tiles never come from the real host here (fixtures.ts, helpers/tiles.ts).
 
 const SHOTS = process.env.SHOTS_42;
 const shot = async (page: Page, name: string) => {
@@ -18,6 +19,8 @@ const PARK = { latitude: 40.7812, longitude: -73.9665 };
 
 async function openRun(page: Page) {
   await simulateSafeAreas(page);
+  // The one time pocket mode explainer (4.3) is verify-4.3's subject; here Start goes straight to the countdown.
+  await pocketSeen(page);
   await page.goto('./#/run');
   await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
   await expect(page.getByTestId('run-map')).toHaveAttribute('data-ready', 'true');
@@ -36,10 +39,8 @@ async function useLocation(page: Page) {
 async function expectCountdownThenStop(page: Page) {
   await page.getByTestId('run-start').tap();
   await expect(page.getByTestId('run-countdown')).toBeVisible();
-  await expect(page.getByTestId('run-started')).toBeVisible({ timeout: 6000 });
-  await page.getByTestId('run-stop').tap();
-  await expect(page.getByTestId('run-started')).toBeHidden();
-  await expect(page.getByTestId('run-start')).toBeVisible();
+  await expect(page.getByTestId('live-run')).toBeVisible({ timeout: 6000 });
+  await endAndDiscard(page);
 }
 
 /** How far the dot is from the middle of the map a person can see (between the status chips and the run types), in px. */
@@ -195,7 +196,7 @@ test.describe('4.2 run start screen', () => {
     await expect(page.getByTestId('run-unit').getByRole('radio', { name: 'Miles' })).toHaveAttribute('aria-checked', 'true');
   });
 
-  test('Start: 3, 2, 1 fills the screen, lands on "Run started", Stop goes back and stores nothing @matrix', async ({ page }) => {
+  test('Start: 3, 2, 1 fills the screen, lands on the live run; an empty run ended and discarded leaves nothing @matrix', async ({ page }) => {
     await openRun(page);
     await page.getByTestId('run-type-distance').tap();
     await page.getByTestId('distance-5-km').tap();
@@ -214,17 +215,14 @@ test.describe('4.2 run start screen', () => {
     await shot(page, 'countdown');
     await expect(timer).toHaveAttribute('aria-label', 'Starting in 2', { timeout: 2000 });
     await expect(timer).toHaveAttribute('aria-label', 'Starting in 1', { timeout: 2000 });
-    const started = page.getByTestId('run-started');
-    await expect(started).toBeVisible({ timeout: 2000 });
+    const live = page.getByTestId('live-run');
+    await expect(live).toBeVisible({ timeout: 2000 });
     await expect(count).toHaveCount(0);
-    await expect(started).toContainText('Distance · 5 km');
-    await expect(started).toContainText('This run is not being recorded');
-    await checkControls(page);
+    await expect(page.getByTestId('live-goal')).toContainText('Goal 5 km');
+    await expect.poll(() => runRows(page), { message: 'the run exists from its first moment (4.3)' }).toBe(1);
     await shot(page, 'run-started');
-    await page.getByTestId('run-stop').tap();
-    await expect(started).toBeHidden();
-    await expect(start).toBeVisible();
-    expect(await runRows(page), 'no run row is ever written').toBe(0);
+    await endAndDiscard(page);
+    expect(await runRows(page), 'a discarded run leaves no row').toBe(0);
   });
 
   test('Cancel during the countdown goes back; reduced motion still counts down', async ({ page }) => {
@@ -235,7 +233,7 @@ test.describe('4.2 run start screen', () => {
     await page.getByTestId('run-count-cancel').tap();
     await expect(page.getByTestId('run-countdown')).toHaveCount(0);
     await page.waitForTimeout(3300);
-    await expect(page.getByTestId('run-started')).toHaveCount(0);
+    await expect(page.getByTestId('live-run')).toHaveCount(0);
     await expectCountdownThenStop(page);
     expect(await runRows(page)).toBe(0);
   });

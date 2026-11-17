@@ -5,8 +5,10 @@ import { PACE_MIN_M } from './types';
 /**
  * One split. `distanceM` is the split length for a full split and what was covered so far for the
  * last partial one. `sec` is moving time. `timedM` is the part of the distance that has time (all
- * of it unless a gap was bridged or an auto pause ended inside); `gap` says a GPS gap fell inside, so the split is not a fair
- * candidate for "best split".
+ * of it unless a gap was bridged or an auto pause ended inside). `gap` says the split holds distance
+ * that was carried without time (a bridged GPS gap, or the leg that ends an auto pause): its `sec`
+ * is then shorter than the split really took, so its time and pace must not be shown as a normal
+ * split and it is no candidate for "best split".
  */
 export type Split = { index: number; distanceM: number; sec: number; timedM: number; gap: boolean };
 
@@ -39,6 +41,8 @@ export function addSplitStep(state: SplitState, step: SplitStep): { state: Split
   let open = state.open;
   let leftM = step.distanceM;
   let leftMs = step.ms;
+  // Distance with no time of its own: across a gap, or flagged untimed by the tracker.
+  const untimed = step.gap || !step.timed;
   while (leftM >= state.unitM - open.distanceM - EPS_M) {
     const takeM = Math.min(leftM, state.unitM - open.distanceM);
     // leftM is above 0 here: the open split always has more than EPS_M to go.
@@ -48,13 +52,13 @@ export function addSplitStep(state: SplitState, step: SplitStep): { state: Split
       distanceM: state.unitM,
       sec: (open.ms + takeMs) / 1000,
       timedM: open.timedM + (step.timed ? takeM : 0),
-      gap: open.gap || step.gap,
+      gap: open.gap || (untimed && takeM > 0),
     });
     leftM -= takeM;
     leftMs -= takeMs;
     open = NOTHING;
   }
-  open = { distanceM: open.distanceM + leftM, ms: open.ms + leftMs, timedM: open.timedM + (step.timed ? leftM : 0), gap: open.gap || (step.gap && leftM > 0) };
+  open = { distanceM: open.distanceM + leftM, ms: open.ms + leftMs, timedM: open.timedM + (step.timed ? leftM : 0), gap: open.gap || (untimed && leftM > 0) };
   return { state: { unitM: state.unitM, full: completed.length ? [...state.full, ...completed] : state.full, open }, completed };
 }
 

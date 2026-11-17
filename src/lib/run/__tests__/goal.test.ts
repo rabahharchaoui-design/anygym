@@ -74,11 +74,13 @@ describe('run goal: what is remembered', () => {
     expect(sanitizeRunSetup(DEFAULT_RUN_SETUP)).toEqual(DEFAULT_RUN_SETUP);
   });
   it('round trips a saved setup', () => {
-    const s = { type: 'distance', distance: { value: 3, unit: 'mi' }, timeMin: 45, interval: 'builder' } as const;
+    const s = { type: 'distance', distance: { value: 3, unit: 'mi' }, timeMin: 45, interval: 'builder', autoPause: false } as const;
     expect(parseRunSetup(JSON.stringify(s))).toEqual(s);
+    // A setup saved before the auto pause switch existed (4.2) reads back with it on (SPEC 12.3).
+    expect(parseRunSetup(JSON.stringify({ ...s, autoPause: undefined })).autoPause).toBe(true);
   });
   it('falls back part by part, never as a whole', () => {
-    expect(sanitizeRunSetup({ type: 'time', distance: { value: -1, unit: 'km' }, timeMin: 45, interval: 'nope' })).toEqual({ type: 'time', distance: DEFAULT_RUN_SETUP.distance, timeMin: 45, interval: 'beginner' });
+    expect(sanitizeRunSetup({ type: 'time', distance: { value: -1, unit: 'km' }, timeMin: 45, interval: 'nope', autoPause: 'yes' })).toEqual({ type: 'time', distance: DEFAULT_RUN_SETUP.distance, timeMin: 45, interval: 'beginner', autoPause: true });
     expect(sanitizeRunSetup({ type: 'swim', timeMin: 33 })).toEqual(DEFAULT_RUN_SETUP);
   });
   it('bad or missing text gives the default', () => {

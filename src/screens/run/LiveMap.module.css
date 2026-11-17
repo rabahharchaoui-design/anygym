@@ -1,0 +1,38 @@
+/* The map page of the live run (SPEC 12.2): what floats over the map. */
+.mapPage {
+  position: absolute;
+  inset: 0;
+}
+
+.mapTop {
+  position: absolute;
+  left: var(--live-pad-l);
+  right: var(--live-pad-r);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.readout {
+  composes: gpsFace from './Run.module.css';
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mapFoot {
+  position: absolute;
+  left: var(--live-pad-l);
+  right: calc(var(--live-pad-r) - var(--space-2));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 48px;
+  pointer-events: none;
+}
+
+.mapFoot > button {
+  pointer-events: auto;
+}
