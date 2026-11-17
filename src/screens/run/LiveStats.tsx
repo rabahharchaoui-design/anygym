@@ -1,9 +1,11 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { DistanceUnit } from '../../lib/intake/answers';
 import type { TrackerReading } from '../../lib/gps';
-import { formatDistance, formatPace, paceUnit, spokenPace, type GoalProgress } from '../../lib/run';
+import { formatDistance, formatPace, paceUnit, spokenPace, type GoalProgress, type IntervalReading } from '../../lib/run';
 import { formatElapsed } from '../../lib/timer';
+import { IntervalFace, IntervalsDone } from './IntervalFace';
 import styles from './Live.module.css';
+import iv from './Intervals.module.css';
 
 export type Metric = 'distance' | 'time' | 'pace';
 export const METRICS: readonly Metric[] = ['distance', 'time', 'pace'];
@@ -20,6 +22,8 @@ type Props = {
   goal: GoalProgress | null;
   /** Paused by hand: the numbers step back. */
   paused: boolean;
+  /** An interval run (SPEC 12.7): where its blocks are. Null on every other run. */
+  intervals: IntervalReading | null;
 };
 
 type Face = { value: string; label: string; spoken: string };
@@ -42,8 +46,10 @@ function faceOf(metric: Metric, r: TrackerReading, unit: DistanceUnit): Face {
  * (where it was small) and the row settles, so it is plain what changed. Plain CSS, so it runs on
  * the compositor; reduced motion fades only.
  */
-export function LiveStats({ reading, unit, big, note, goal, paused }: Props) {
-  const small = METRICS.filter((m) => m !== big);
+export function LiveStats({ reading, unit, big, note, goal, paused, intervals }: Props) {
+  // While the blocks run, the ring is the big thing and all three numbers sit small under it.
+  const blocks = intervals && !intervals.done ? intervals : null;
+  const small = blocks ? METRICS : METRICS.filter((m) => m !== big);
   const bigFace = faceOf(big, reading, unit);
   // The giant number never spills past the screen: if it would (very large text, a long time), it
   // is scaled down to fit, whole.
@@ -67,6 +73,9 @@ export function LiveStats({ reading, unit, big, note, goal, paused }: Props) {
       <p className={styles.note} data-tone={note?.tone} data-testid="live-note" role="status">
         {note?.text ?? ''}
       </p>
+      {blocks ? (
+        <IntervalFace reading={blocks} paused={paused} />
+      ) : (
       <div key={big} className={styles.bigBox}>
         <span ref={bigRef} className={`${styles.big} num`} data-len={bigFace.value.length > 5 ? 'long' : 'short'} data-testid="live-big" data-metric={big} aria-label={bigFace.spoken}>
           {bigFace.value}
@@ -75,7 +84,8 @@ export function LiveStats({ reading, unit, big, note, goal, paused }: Props) {
           {bigFace.label}
         </span>
       </div>
-      <div className={styles.pair}>
+      )}
+      <div className={blocks ? iv.trio : styles.pair}>
         {small.map((m) => {
           const f = faceOf(m, reading, unit);
           return (
@@ -88,6 +98,7 @@ export function LiveStats({ reading, unit, big, note, goal, paused }: Props) {
           );
         })}
       </div>
+      {intervals?.done && <IntervalsDone />}
       {goal && (
         <div className={styles.goal} data-testid="live-goal" data-reached={goal.reached || undefined}>
           <span className={styles.goalBar} role="progressbar" aria-label={goal.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(goal.fraction * 100)}>

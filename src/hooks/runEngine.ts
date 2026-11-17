@@ -7,11 +7,19 @@ import { readRunSetup } from '../db/runSetup';
 import { newId } from '../db/ids';
 import type { Run } from '../db/types';
 import type { DistanceUnit } from '../lib/intake/answers';
-import { finishRun, fixTime, liveRow, liveStep, parseSnapshot, restoreLive, startLive, toSnapshot, type LiveAction, type LiveRun, type RunSetup } from '../lib/run';
+import { unitMeters } from '../lib/gps';
+import {
+  DEFAULT_VOICE, finishRun, fixTime, liveRow, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
+  type LiveAction, type LiveRun, type RunSetup, type VoiceSettings,
+} from '../lib/run';
 import { createRunWake, type WakeState } from './runWake';
+import { say, unlockVoice } from './voicePlayer';
 
 /** How often a going run is written to the phone. A crash loses at most this much. */
 export const SAVE_EVERY_MS = 5000;
+
+/** How often the interval clock moves (PLAN 4.4). Only an interval run ticks. */
+export const TICK_EVERY_MS = 250;
 
 const WATCH: PositionOptions = { enableHighAccuracy: true, maximumAge: 0 };
 
@@ -32,6 +40,9 @@ let state: EngineState = { ready: false, live: null, finished: null, wake: 'off'
 const listeners = new Set<() => void>();
 let watchId: number | null = null;
 let saveTimer: number | null = null;
+let tickTimer: number | null = null;
+/** The voice coach's settings for the run that is going on (SPEC 12.4). */
+let voice: VoiceSettings = DEFAULT_VOICE;
 let dirty = false;
 let writes: Promise<void> = Promise.resolve();
 let restoring: Promise<void> | null = null;
@@ -45,10 +56,13 @@ const wake = createRunWake((w) => state.wake !== w && set({ wake: w }));
 
 function dispatch(action: LiveAction) {
   if (!state.live) return;
-  const live = liveStep(state.live, action);
-  if (live === state.live) return;
+  const before = state.live;
+  const live = liveStep(before, action);
+  if (live === before) return;
   dirty = true;
   set({ live });
+  // The voice coach (PLAN 4.4): whatever this step brought about is said, in its turn, never held up.
+  for (const event of runCues(before, live)) say(event, voice);
 }
 
 /** Writes are queued one after the other, so an older save never lands on top of a newer one. */
@@ -97,6 +111,9 @@ function attach() {
   startWatch();
   wake.hold();
   saveTimer = window.setInterval(save, SAVE_EVERY_MS);
+  if (state.live?.intervals) tickTimer = window.setInterval(() => dispatch({ type: 'tick', now: Date.now() }), TICK_EVERY_MS);
+  // Any touch during a run keeps the phone willing to play the voice (it may fall asleep in the background).
+  document.addEventListener('pointerdown', unlockVoice, { passive: true });
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('pagehide', save);
 }
@@ -106,6 +123,9 @@ function detach() {
   wake.release();
   if (saveTimer !== null) window.clearInterval(saveTimer);
   saveTimer = null;
+  if (tickTimer !== null) window.clearInterval(tickTimer);
+  tickTimer = null;
+  document.removeEventListener('pointerdown', unlockVoice);
   document.removeEventListener('visibilitychange', onVisibility);
   window.removeEventListener('pagehide', save);
 }
@@ -128,6 +148,7 @@ export const runEngine = {
         if (found && !state.live) {
           const { setup, unit } = await readRunSetup();
           const live = restoreLive(found.row, parseSnapshot(found.snapshot, found.row.id), { unit, autoPause: setup.autoPause });
+          voice = setup.voice;
           dirty = true;
           set({ live, ready: true });
           attach();
@@ -147,7 +168,9 @@ export const runEngine = {
     if (state.live) return;
     const live = startLive({ id: newId(), now: Date.now(), setup, unit, autoPause: setup.autoPause });
     dirty = false;
+    voice = setup.voice;
     set({ live, finished: null, saveFailed: false, ready: true });
+    say({ type: 'start', first: live.intervals?.plan.blocks[0]?.name ?? null }, voice);
     void queue(() => startRunRow(liveRow(live), JSON.stringify(toSnapshot(live)))).catch(() => {
       dirty = true;
     });
@@ -167,6 +190,11 @@ export const runEngine = {
     save();
   },
 
+  /** The voice coach's settings changed (run settings): they count from the next cue. */
+  setVoice(settings: VoiceSettings): void {
+    voice = settings;
+  },
+
   /** Ends the run: stops listening, writes the finished row, hands it to the summary. */
   async end(): Promise<void> {
     const live = state.live;
@@ -178,6 +206,9 @@ export const runEngine = {
     try {
       await queue(() => finishRunRow(run));
       set({ live: null, finished: { run, unit: live.unit }, saveFailed: false });
+      const pace = rowPace(run);
+      // A run with nothing to show gets no numbers, spoken or printed.
+      say({ type: 'finished', summary: runVerdict(run) === 'ok' ? { meters: run.distanceM, unit: live.unit, movingSec: run.movingSec, paceSec: pace === null ? null : pace * unitMeters(live.unit) } : null }, voice);
     } catch {
       // Not saved: the run stays, paused, and can be ended again.
       dirty = true;

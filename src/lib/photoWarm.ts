@@ -58,12 +58,12 @@ export async function warmPhotos(urls: readonly string[], deps: WarmDeps, signal
 }
 
 /** The phone's own deps: Cache Storage, fetch and idle time (Safari has no requestIdleCallback). */
-export function browserWarmDeps(): WarmDeps | null {
+export function browserWarmDeps(cacheName: string = PHOTO_CACHE): WarmDeps | null {
   if (typeof caches === 'undefined' || typeof fetch === 'undefined') return null;
   type IdleWindow = { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
   const ric = (globalThis as IdleWindow).requestIdleCallback;
   return {
-    open: () => caches.open(PHOTO_CACHE),
+    open: () => caches.open(cacheName),
     fetch: (url, signal) => fetch(url, { credentials: 'same-origin', signal }),
     idle: () => new Promise<void>((done) => (ric ? ric(() => done(), { timeout: 2000 }) : setTimeout(done, 300))),
     online: () => navigator.onLine !== false,

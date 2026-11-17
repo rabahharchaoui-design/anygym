@@ -3,7 +3,8 @@
 // keeps the track, its breaks and what the run was started as. No clock: time comes in with the points.
 import type { DistanceUnit } from '../intake/answers';
 import { addPoint, pauseRun, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
-import { distanceLabel, goalMeters, goalSeconds, timeLabel, type IntervalPresetId, type RunSetup, type RunType } from './goal';
+import { distanceLabel, goalMeters, goalSeconds, timeLabel, type RunSetup, type RunType } from './goal';
+import { planFor, startIntervals, tickIntervals, type IntervalChoice, type IntervalState } from './intervals';
 
 /** What a Distance or Time run aims at, in meters or seconds, with the words it was picked as ("5 km"). */
 export type RunGoal = { kind: 'distance'; meters: number; label: string } | { kind: 'time'; seconds: number; label: string };
@@ -15,8 +16,10 @@ export type LiveRun = {
   startedAt: number;
   type: RunType;
   goal: RunGoal | null;
-  /** Intervals: the chosen preset, stored with the run. The run itself is a free run until 4.4. */
-  intervalPreset: IntervalPresetId | null;
+  /** Intervals: the chosen preset (or 'custom'), stored with the run. */
+  intervalPreset: IntervalChoice | null;
+  /** Intervals: the blocks and their clock (lib/run/intervals). Null on every other run. */
+  intervals: IntervalState | null;
   /** Miles or km, fixed at the start: splits and every printed number use it. */
   unit: DistanceUnit;
   tracker: TrackerState;
@@ -36,9 +39,11 @@ export type LiveAction =
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'auto-pause'; on: boolean }
+  /** The clock moved on (intervals count time, not positions). */
+  | { type: 'tick'; now: number }
   | { type: 'gps'; trouble: GpsTrouble };
 
-/** The goal of a setup, or null: a free run has none, and intervals run as a free run for now. */
+/** The goal of a setup, or null: a free run has none, and an interval run has its blocks instead. */
 export function goalOf(setup: RunSetup): RunGoal | null {
   if (setup.type === 'distance') return { kind: 'distance', meters: goalMeters(setup.distance), label: distanceLabel(setup.distance) };
   if (setup.type === 'time') return { kind: 'time', seconds: goalSeconds(setup.timeMin), label: timeLabel(setup.timeMin) };
@@ -54,6 +59,7 @@ export function startLive({ id, now, setup, unit, autoPause }: StartInput): Live
     type: setup.type,
     goal: goalOf(setup),
     intervalPreset: setup.type === 'intervals' ? setup.interval : null,
+    intervals: setup.type === 'intervals' ? startIntervals(planFor(setup.interval, setup.custom)) : null,
     unit,
     tracker: startTracker({ splitM: unitMeters(unit), autoPause }),
     points: [],
@@ -86,6 +92,11 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
     }
     case 'auto-pause':
       return run.tracker.autoPause === action.on ? run : { ...run, tracker: { ...run.tracker, autoPause: action.on } };
+    case 'tick': {
+      if (!run.intervals) return run;
+      const intervals = tickIntervals(run.intervals, action.now, !run.tracker.manual);
+      return intervals === run.intervals ? run : { ...run, intervals };
+    }
     case 'gps':
       return run.gps === action.trouble ? run : { ...run, gps: action.trouble };
   }

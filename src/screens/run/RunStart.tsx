@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { rememberTold, wasTold } from '../../hooks/runFlags';
 import { runEngine } from '../../hooks/useRunEngine';
+import { unlockVoice } from '../../hooks/voicePlayer';
 import { GymPill } from '../../components/GymPill';
 import { MusicLinks } from '../../components/MusicLinks';
 import { useGeo } from '../../hooks/useGeo';
@@ -87,6 +88,8 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
     if (phase !== 'setup') return;
     const b = e.currentTarget.getBoundingClientRect();
     tick();
+    // A phone lets sound start only from a tap: this is the tap the voice coach's first words hang on.
+    unlockVoice();
     setGoalKind(null);
     setGpsOpen(false);
     setOrigin({ x: b.left + b.width / 2, y: b.top + b.height / 2, size: b.width });
@@ -191,7 +194,7 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
       {phase === 'countdown' && origin && <Countdown origin={origin} reduceMotion={reduceMotion} onDone={toStarted} onCancel={toSetup} />}
       <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)" />
       <PocketSheet open={pocket} onGo={afterPocket} onClose={() => setPocket(false)} />
-      <RunSettingsSheet open={settings} autoPause={setup.autoPause} onAutoPause={(on) => change({ autoPause: on })} onClose={() => setSettings(false)} />
+      <RunSettingsSheet open={settings} autoPause={setup.autoPause} onAutoPause={(on) => change({ autoPause: on })} voice={setup.voice} onVoice={(voice) => change({ voice })} unit={unit} onClose={() => setSettings(false)} />
     </section>
   );
 }

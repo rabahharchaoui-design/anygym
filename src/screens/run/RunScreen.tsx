@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { runEngine, useRunEngine } from '../../hooks/useRunEngine';
+import { warmVoicePack } from '../../hooks/voiceWarm';
 import { distanceWithUnit, readLive } from '../../lib/run';
 import { formatElapsed } from '../../lib/timer';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
@@ -20,6 +21,8 @@ export function RunScreen() {
   const [shown, setShown] = useState(true);
   const open = useCallback(() => setShown(true), []);
   const { live, finished } = engine;
+  // The voice coach's clips are saved for offline in the background, the first time this tab opens.
+  useEffect(() => warmVoicePack(), []);
 
   if (finished) return <RunSummary finished={finished} reduceMotion={reduceMotion} onDone={runEngine.closeFinished} onDiscard={() => void runEngine.discardFinished()} />;
   if (live && shown) return <LiveRun live={live} wake={engine.wake} saveFailed={engine.saveFailed} reduceMotion={reduceMotion} onHide={() => setShown(false)} />;

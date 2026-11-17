@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
-import { expect, test, type BrowserContext, type Page } from './fixtures';
-import { checkLayout, simulateSafeAreas } from './helpers/layout';
-import { holdFor, pocketSeen } from './helpers/run';
+import { expect, test, type Page } from './fixtures';
+import { checkLayout } from './helpers/layout';
+import { M_PER_DEG, PARK, firstFix, fix, holdFor, live, move, openRun, startRun, wake, type Runner } from './helpers/run';
 import { stubTiles } from './helpers/tiles';
 
 // PLAN 4.3 (SPEC 12.2): the live run screen. The phone's position is Playwright's (grantPermissions
@@ -19,68 +19,6 @@ const shot = async (page: Page, name: string) => {
   mkdirSync(SHOTS, { recursive: true });
   await page.screenshot({ path: `${SHOTS}/${name}-${test.info().project.name.replace(/ /g, '-')}.png` });
 };
-
-const PARK = { latitude: 40.7812, longitude: -73.9665 };
-/** Meters per degree of latitude (the same earth radius as lib/gps). */
-const M_PER_DEG = (6_371_008.8 * Math.PI) / 180;
-const T0 = new Date('2026-06-01T08:00:00Z');
-const SPEED = 3;
-
-type Runner = { page: Page; context: BrowserContext; north: number };
-const live = (page: Page) => page.getByTestId('live-run');
-
-/** Reports one position `north` meters up the route and waits until the run has taken it. */
-async function fix(r: Runner, accuracy = 5) {
-  const before = await live(r.page).getAttribute('data-fix');
-  await r.context.setGeolocation({ latitude: PARK.latitude + r.north / M_PER_DEG, longitude: PARK.longitude, accuracy });
-  await expect.poll(() => live(r.page).getAttribute('data-fix'), { message: 'the position reached the run' }).not.toBe(before);
-}
-/** `steps` positions, `stepSec` apart on the clock, at 3 m/s (or standing with speed 0). */
-async function move(r: Runner, steps: number, stepSec = 5, speed = SPEED) {
-  for (let i = 0; i < steps; i++) {
-    await r.page.clock.runFor(stepSec * 1000);
-    r.north += speed * stepSec;
-    await fix(r);
-  }
-}
-/** The clock moved the screen into pocket mode: one tap wakes it. */
-async function wake(page: Page) {
-  if ((await live(page).getAttribute('data-dim')) === 'lit') return;
-  await page.getByTestId('live-dim').tap({ force: true });
-  await expect(live(page)).toHaveAttribute('data-dim', 'lit');
-}
-
-async function openRun(page: Page, context: BrowserContext, opts: { pocket?: boolean; wake?: 'stub' | 'none' } = {}) {
-  await simulateSafeAreas(page);
-  if (!opts.pocket) await pocketSeen(page);
-  await page.addInitScript((mode) => {
-    const w = window as unknown as { __wakeAsks: number };
-    w.__wakeAsks = 0;
-    const lock = mode === 'none' ? undefined : { request: () => (w.__wakeAsks++, Promise.resolve({ released: false, release: () => Promise.resolve(), addEventListener: () => undefined })) };
-    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: lock });
-  }, opts.wake ?? 'stub');
-  await context.grantPermissions(['geolocation']);
-  await context.setGeolocation({ ...PARK, accuracy: 5 });
-  await page.clock.install({ time: T0 });
-  await page.goto('./#/run');
-  await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
-}
-
-/** The mocked phone reports only when its position is set: set it (again) so the new watch hears it. */
-async function firstFix(page: Page, context: BrowserContext) {
-  await expect(async () => {
-    await context.setGeolocation({ ...PARK, accuracy: 5 });
-    await expect(live(page)).not.toHaveAttribute('data-fix', '', { timeout: 500 });
-  }).toPass({ timeout: 10_000 });
-}
-
-async function startRun(page: Page, context: BrowserContext, opts: Parameters<typeof openRun>[2] = {}): Promise<Runner> {
-  await openRun(page, context, opts);
-  await page.getByTestId('run-start').tap();
-  await expect(live(page)).toBeVisible({ timeout: 8000 });
-  await firstFix(page, context);
-  return { page, context, north: 0 };
-}
 
 type Row = { id: string; splitGaps?: number[]; splitUnit?: string; timedM?: number; endedAt?: number; distanceM: number; movingSec: number; elapsedSec: number; points: number[][]; gaps: number[][]; splits: number[]; type: string; goal?: string };
 const runRows = (page: Page) =>

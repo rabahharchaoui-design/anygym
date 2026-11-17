@@ -1,0 +1,888 @@
+{
+ "version": "82ffd7cbd3",
+ "voice": "am_michael",
+ "lufs": -17,
+ "bytes": 1102083,
+ "clips": {
+  "n0": {
+   "file": "n0.m4a",
+   "ms": 520
+  },
+  "n1": {
+   "file": "n1.m4a",
+   "ms": 400
+  },
+  "n2": {
+   "file": "n2.m4a",
+   "ms": 420
+  },
+  "n3": {
+   "file": "n3.m4a",
+   "ms": 480
+  },
+  "n4": {
+   "file": "n4.m4a",
+   "ms": 440
+  },
+  "n5": {
+   "file": "n5.m4a",
+   "ms": 420
+  },
+  "n6": {
+   "file": "n6.m4a",
+   "ms": 460
+  },
+  "n7": {
+   "file": "n7.m4a",
+   "ms": 530
+  },
+  "n8": {
+   "file": "n8.m4a",
+   "ms": 350
+  },
+  "n9": {
+   "file": "n9.m4a",
+   "ms": 440
+  },
+  "n10": {
+   "file": "n10.m4a",
+   "ms": 430
+  },
+  "n11": {
+   "file": "n11.m4a",
+   "ms": 510
+  },
+  "n12": {
+   "file": "n12.m4a",
+   "ms": 460
+  },
+  "n13": {
+   "file": "n13.m4a",
+   "ms": 600
+  },
+  "n14": {
+   "file": "n14.m4a",
+   "ms": 630
+  },
+  "n15": {
+   "file": "n15.m4a",
+   "ms": 620
+  },
+  "n16": {
+   "file": "n16.m4a",
+   "ms": 630
+  },
+  "n17": {
+   "file": "n17.m4a",
+   "ms": 740
+  },
+  "n18": {
+   "file": "n18.m4a",
+   "ms": 550
+  },
+  "n19": {
+   "file": "n19.m4a",
+   "ms": 620
+  },
+  "n20": {
+   "file": "n20.m4a",
+   "ms": 570
+  },
+  "n21": {
+   "file": "n21.m4a",
+   "ms": 700
+  },
+  "n22": {
+   "file": "n22.m4a",
+   "ms": 740
+  },
+  "n23": {
+   "file": "n23.m4a",
+   "ms": 740
+  },
+  "n24": {
+   "file": "n24.m4a",
+   "ms": 730
+  },
+  "n25": {
+   "file": "n25.m4a",
+   "ms": 740
+  },
+  "n26": {
+   "file": "n26.m4a",
+   "ms": 700
+  },
+  "n27": {
+   "file": "n27.m4a",
+   "ms": 760
+  },
+  "n28": {
+   "file": "n28.m4a",
+   "ms": 690
+  },
+  "n29": {
+   "file": "n29.m4a",
+   "ms": 680
+  },
+  "n30": {
+   "file": "n30.m4a",
+   "ms": 490
+  },
+  "n31": {
+   "file": "n31.m4a",
+   "ms": 700
+  },
+  "n32": {
+   "file": "n32.m4a",
+   "ms": 700
+  },
+  "n33": {
+   "file": "n33.m4a",
+   "ms": 730
+  },
+  "n34": {
+   "file": "n34.m4a",
+   "ms": 710
+  },
+  "n35": {
+   "file": "n35.m4a",
+   "ms": 740
+  },
+  "n36": {
+   "file": "n36.m4a",
+   "ms": 690
+  },
+  "n37": {
+   "file": "n37.m4a",
+   "ms": 730
+  },
+  "n38": {
+   "file": "n38.m4a",
+   "ms": 680
+  },
+  "n39": {
+   "file": "n39.m4a",
+   "ms": 700
+  },
+  "n40": {
+   "file": "n40.m4a",
+   "ms": 550
+  },
+  "n41": {
+   "file": "n41.m4a",
+   "ms": 710
+  },
+  "n42": {
+   "file": "n42.m4a",
+   "ms": 740
+  },
+  "n43": {
+   "file": "n43.m4a",
+   "ms": 750
+  },
+  "n44": {
+   "file": "n44.m4a",
+   "ms": 720
+  },
+  "n45": {
+   "file": "n45.m4a",
+   "ms": 730
+  },
+  "n46": {
+   "file": "n46.m4a",
+   "ms": 750
+  },
+  "n47": {
+   "file": "n47.m4a",
+   "ms": 810
+  },
+  "n48": {
+   "file": "n48.m4a",
+   "ms": 710
+  },
+  "n49": {
+   "file": "n49.m4a",
+   "ms": 740
+  },
+  "n50": {
+   "file": "n50.m4a",
+   "ms": 570
+  },
+  "n51": {
+   "file": "n51.m4a",
+   "ms": 740
+  },
+  "n52": {
+   "file": "n52.m4a",
+   "ms": 770
+  },
+  "n53": {
+   "file": "n53.m4a",
+   "ms": 760
+  },
+  "n54": {
+   "file": "n54.m4a",
+   "ms": 750
+  },
+  "n55": {
+   "file": "n55.m4a",
+   "ms": 730
+  },
+  "n56": {
+   "file": "n56.m4a",
+   "ms": 730
+  },
+  "n57": {
+   "file": "n57.m4a",
+   "ms": 830
+  },
+  "n58": {
+   "file": "n58.m4a",
+   "ms": 690
+  },
+  "n59": {
+   "file": "n59.m4a",
+   "ms": 740
+  },
+  "n60": {
+   "file": "n60.m4a",
+   "ms": 620
+  },
+  "n70": {
+   "file": "n70.m4a",
+   "ms": 640
+  },
+  "n80": {
+   "file": "n80.m4a",
+   "ms": 440
+  },
+  "n90": {
+   "file": "n90.m4a",
+   "ms": 560
+  },
+  "oh1": {
+   "file": "oh1.m4a",
+   "ms": 590
+  },
+  "oh2": {
+   "file": "oh2.m4a",
+   "ms": 610
+  },
+  "oh3": {
+   "file": "oh3.m4a",
+   "ms": 640
+  },
+  "oh4": {
+   "file": "oh4.m4a",
+   "ms": 640
+  },
+  "oh5": {
+   "file": "oh5.m4a",
+   "ms": 660
+  },
+  "oh6": {
+   "file": "oh6.m4a",
+   "ms": 670
+  },
+  "oh7": {
+   "file": "oh7.m4a",
+   "ms": 690
+  },
+  "oh8": {
+   "file": "oh8.m4a",
+   "ms": 630
+  },
+  "oh9": {
+   "file": "oh9.m4a",
+   "ms": 590
+  },
+  "min1": {
+   "file": "min1.m4a",
+   "ms": 690
+  },
+  "min2": {
+   "file": "min2.m4a",
+   "ms": 690
+  },
+  "min3": {
+   "file": "min3.m4a",
+   "ms": 770
+  },
+  "min4": {
+   "file": "min4.m4a",
+   "ms": 790
+  },
+  "min5": {
+   "file": "min5.m4a",
+   "ms": 840
+  },
+  "min6": {
+   "file": "min6.m4a",
+   "ms": 790
+  },
+  "min7": {
+   "file": "min7.m4a",
+   "ms": 830
+  },
+  "min8": {
+   "file": "min8.m4a",
+   "ms": 740
+  },
+  "min9": {
+   "file": "min9.m4a",
+   "ms": 840
+  },
+  "min10": {
+   "file": "min10.m4a",
+   "ms": 760
+  },
+  "min11": {
+   "file": "min11.m4a",
+   "ms": 910
+  },
+  "min12": {
+   "file": "min12.m4a",
+   "ms": 850
+  },
+  "min13": {
+   "file": "min13.m4a",
+   "ms": 950
+  },
+  "min14": {
+   "file": "min14.m4a",
+   "ms": 980
+  },
+  "min15": {
+   "file": "min15.m4a",
+   "ms": 950
+  },
+  "min16": {
+   "file": "min16.m4a",
+   "ms": 990
+  },
+  "min17": {
+   "file": "min17.m4a",
+   "ms": 1110
+  },
+  "min18": {
+   "file": "min18.m4a",
+   "ms": 920
+  },
+  "min19": {
+   "file": "min19.m4a",
+   "ms": 1030
+  },
+  "min20": {
+   "file": "min20.m4a",
+   "ms": 880
+  },
+  "min21": {
+   "file": "min21.m4a",
+   "ms": 1130
+  },
+  "min22": {
+   "file": "min22.m4a",
+   "ms": 1030
+  },
+  "min23": {
+   "file": "min23.m4a",
+   "ms": 1130
+  },
+  "min24": {
+   "file": "min24.m4a",
+   "ms": 1130
+  },
+  "min25": {
+   "file": "min25.m4a",
+   "ms": 1130
+  },
+  "min26": {
+   "file": "min26.m4a",
+   "ms": 1070
+  },
+  "min27": {
+   "file": "min27.m4a",
+   "ms": 1170
+  },
+  "min28": {
+   "file": "min28.m4a",
+   "ms": 1060
+  },
+  "min29": {
+   "file": "min29.m4a",
+   "ms": 1080
+  },
+  "min30": {
+   "file": "min30.m4a",
+   "ms": 880
+  },
+  "min31": {
+   "file": "min31.m4a",
+   "ms": 1120
+  },
+  "min32": {
+   "file": "min32.m4a",
+   "ms": 1040
+  },
+  "min33": {
+   "file": "min33.m4a",
+   "ms": 1080
+  },
+  "min34": {
+   "file": "min34.m4a",
+   "ms": 1160
+  },
+  "min35": {
+   "file": "min35.m4a",
+   "ms": 1090
+  },
+  "min36": {
+   "file": "min36.m4a",
+   "ms": 1130
+  },
+  "min37": {
+   "file": "min37.m4a",
+   "ms": 1150
+  },
+  "min38": {
+   "file": "min38.m4a",
+   "ms": 1080
+  },
+  "min39": {
+   "file": "min39.m4a",
+   "ms": 1090
+  },
+  "min40": {
+   "file": "min40.m4a",
+   "ms": 900
+  },
+  "min41": {
+   "file": "min41.m4a",
+   "ms": 1080
+  },
+  "min42": {
+   "file": "min42.m4a",
+   "ms": 1050
+  },
+  "min43": {
+   "file": "min43.m4a",
+   "ms": 1100
+  },
+  "min44": {
+   "file": "min44.m4a",
+   "ms": 1090
+  },
+  "min45": {
+   "file": "min45.m4a",
+   "ms": 1110
+  },
+  "min46": {
+   "file": "min46.m4a",
+   "ms": 1080
+  },
+  "min47": {
+   "file": "min47.m4a",
+   "ms": 1190
+  },
+  "min48": {
+   "file": "min48.m4a",
+   "ms": 1060
+  },
+  "min49": {
+   "file": "min49.m4a",
+   "ms": 1100
+  },
+  "min50": {
+   "file": "min50.m4a",
+   "ms": 880
+  },
+  "min51": {
+   "file": "min51.m4a",
+   "ms": 1120
+  },
+  "min52": {
+   "file": "min52.m4a",
+   "ms": 1090
+  },
+  "min53": {
+   "file": "min53.m4a",
+   "ms": 1160
+  },
+  "min54": {
+   "file": "min54.m4a",
+   "ms": 1160
+  },
+  "min55": {
+   "file": "min55.m4a",
+   "ms": 1150
+  },
+  "min56": {
+   "file": "min56.m4a",
+   "ms": 1120
+  },
+  "min57": {
+   "file": "min57.m4a",
+   "ms": 1230
+  },
+  "min58": {
+   "file": "min58.m4a",
+   "ms": 1100
+  },
+  "min59": {
+   "file": "min59.m4a",
+   "ms": 1160
+  },
+  "sec0": {
+   "file": "sec0.m4a",
+   "ms": 970
+  },
+  "sec1": {
+   "file": "sec1.m4a",
+   "ms": 800
+  },
+  "sec2": {
+   "file": "sec2.m4a",
+   "ms": 790
+  },
+  "sec3": {
+   "file": "sec3.m4a",
+   "ms": 850
+  },
+  "sec4": {
+   "file": "sec4.m4a",
+   "ms": 890
+  },
+  "sec5": {
+   "file": "sec5.m4a",
+   "ms": 850
+  },
+  "sec6": {
+   "file": "sec6.m4a",
+   "ms": 870
+  },
+  "sec7": {
+   "file": "sec7.m4a",
+   "ms": 910
+  },
+  "sec8": {
+   "file": "sec8.m4a",
+   "ms": 790
+  },
+  "sec9": {
+   "file": "sec9.m4a",
+   "ms": 900
+  },
+  "sec10": {
+   "file": "sec10.m4a",
+   "ms": 830
+  },
+  "sec11": {
+   "file": "sec11.m4a",
+   "ms": 1020
+  },
+  "sec12": {
+   "file": "sec12.m4a",
+   "ms": 890
+  },
+  "sec13": {
+   "file": "sec13.m4a",
+   "ms": 1020
+  },
+  "sec14": {
+   "file": "sec14.m4a",
+   "ms": 1040
+  },
+  "sec15": {
+   "file": "sec15.m4a",
+   "ms": 1010
+  },
+  "sec16": {
+   "file": "sec16.m4a",
+   "ms": 1000
+  },
+  "sec17": {
+   "file": "sec17.m4a",
+   "ms": 1170
+  },
+  "sec18": {
+   "file": "sec18.m4a",
+   "ms": 980
+  },
+  "sec19": {
+   "file": "sec19.m4a",
+   "ms": 1110
+  },
+  "sec20": {
+   "file": "sec20.m4a",
+   "ms": 910
+  },
+  "sec21": {
+   "file": "sec21.m4a",
+   "ms": 1190
+  },
+  "sec22": {
+   "file": "sec22.m4a",
+   "ms": 1180
+  },
+  "sec23": {
+   "file": "sec23.m4a",
+   "ms": 1190
+  },
+  "sec24": {
+   "file": "sec24.m4a",
+   "ms": 1190
+  },
+  "sec25": {
+   "file": "sec25.m4a",
+   "ms": 1160
+  },
+  "sec26": {
+   "file": "sec26.m4a",
+   "ms": 1110
+  },
+  "sec27": {
+   "file": "sec27.m4a",
+   "ms": 1220
+  },
+  "sec28": {
+   "file": "sec28.m4a",
+   "ms": 1100
+  },
+  "sec29": {
+   "file": "sec29.m4a",
+   "ms": 1160
+  },
+  "sec30": {
+   "file": "sec30.m4a",
+   "ms": 900
+  },
+  "sec31": {
+   "file": "sec31.m4a",
+   "ms": 1170
+  },
+  "sec32": {
+   "file": "sec32.m4a",
+   "ms": 1120
+  },
+  "sec33": {
+   "file": "sec33.m4a",
+   "ms": 1180
+  },
+  "sec34": {
+   "file": "sec34.m4a",
+   "ms": 1210
+  },
+  "sec35": {
+   "file": "sec35.m4a",
+   "ms": 1130
+  },
+  "sec36": {
+   "file": "sec36.m4a",
+   "ms": 1100
+  },
+  "sec37": {
+   "file": "sec37.m4a",
+   "ms": 1240
+  },
+  "sec38": {
+   "file": "sec38.m4a",
+   "ms": 1080
+  },
+  "sec39": {
+   "file": "sec39.m4a",
+   "ms": 1160
+  },
+  "sec40": {
+   "file": "sec40.m4a",
+   "ms": 890
+  },
+  "sec41": {
+   "file": "sec41.m4a",
+   "ms": 1110
+  },
+  "sec42": {
+   "file": "sec42.m4a",
+   "ms": 1110
+  },
+  "sec43": {
+   "file": "sec43.m4a",
+   "ms": 1190
+  },
+  "sec44": {
+   "file": "sec44.m4a",
+   "ms": 1170
+  },
+  "sec45": {
+   "file": "sec45.m4a",
+   "ms": 1180
+  },
+  "sec46": {
+   "file": "sec46.m4a",
+   "ms": 1140
+  },
+  "sec47": {
+   "file": "sec47.m4a",
+   "ms": 1250
+  },
+  "sec48": {
+   "file": "sec48.m4a",
+   "ms": 1110
+  },
+  "sec49": {
+   "file": "sec49.m4a",
+   "ms": 1180
+  },
+  "sec50": {
+   "file": "sec50.m4a",
+   "ms": 940
+  },
+  "sec51": {
+   "file": "sec51.m4a",
+   "ms": 1190
+  },
+  "sec52": {
+   "file": "sec52.m4a",
+   "ms": 1210
+  },
+  "sec53": {
+   "file": "sec53.m4a",
+   "ms": 1230
+  },
+  "sec54": {
+   "file": "sec54.m4a",
+   "ms": 1190
+  },
+  "sec55": {
+   "file": "sec55.m4a",
+   "ms": 1180
+  },
+  "sec56": {
+   "file": "sec56.m4a",
+   "ms": 1140
+  },
+  "sec57": {
+   "file": "sec57.m4a",
+   "ms": 1280
+  },
+  "sec58": {
+   "file": "sec58.m4a",
+   "ms": 1150
+  },
+  "sec59": {
+   "file": "sec59.m4a",
+   "ms": 1190
+  },
+  "pace": {
+   "file": "pace.m4a",
+   "ms": 430
+  },
+  "point": {
+   "file": "point.m4a",
+   "ms": 410
+  },
+  "mile": {
+   "file": "mile.m4a",
+   "ms": 480
+  },
+  "miles": {
+   "file": "miles.m4a",
+   "ms": 580
+  },
+  "kilometer": {
+   "file": "kilometer.m4a",
+   "ms": 630
+  },
+  "kilometers": {
+   "file": "kilometers.m4a",
+   "ms": 760
+  },
+  "hour": {
+   "file": "hour.m4a",
+   "ms": 440
+  },
+  "hours": {
+   "file": "hours.m4a",
+   "ms": 550
+  },
+  "hundred": {
+   "file": "hundred.m4a",
+   "ms": 540
+  },
+  "per_mile": {
+   "file": "per_mile.m4a",
+   "ms": 690
+  },
+  "per_kilometer": {
+   "file": "per_kilometer.m4a",
+   "ms": 940
+  },
+  "run": {
+   "file": "run.m4a",
+   "ms": 500
+  },
+  "walk": {
+   "file": "walk.m4a",
+   "ms": 520
+  },
+  "hard": {
+   "file": "hard.m4a",
+   "ms": 550
+  },
+  "easy": {
+   "file": "easy.m4a",
+   "ms": 550
+  },
+  "jog": {
+   "file": "jog.m4a",
+   "ms": 620
+  },
+  "sprint": {
+   "file": "sprint.m4a",
+   "ms": 640
+  },
+  "rest": {
+   "file": "rest.m4a",
+   "ms": 570
+  },
+  "last_one": {
+   "file": "last_one.m4a",
+   "ms": 760
+  },
+  "intervals_done": {
+   "file": "intervals_done.m4a",
+   "ms": 2810
+  },
+  "run_started": {
+   "file": "run_started.m4a",
+   "ms": 840
+  },
+  "paused": {
+   "file": "paused.m4a",
+   "ms": 890
+  },
+  "resumed": {
+   "file": "resumed.m4a",
+   "ms": 910
+  },
+  "auto_paused": {
+   "file": "auto_paused.m4a",
+   "ms": 920
+  },
+  "run_finished": {
+   "file": "run_finished.m4a",
+   "ms": 890
+  },
+  "halfway": {
+   "file": "halfway.m4a",
+   "ms": 640
+  },
+  "goal_reached": {
+   "file": "goal_reached.m4a",
+   "ms": 840
+  },
+  "turn_around": {
+   "file": "turn_around.m4a",
+   "ms": 840
+  }
+ }
+}
