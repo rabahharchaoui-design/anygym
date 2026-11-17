@@ -155,11 +155,13 @@ test('V2 the pill on Today, the day list and Run opens the sheet in one tap; a s
   expect(await ids()).toBe(base.id);
   expect((await live(page)).gymId).toBe(base.id);
 
-  // Run: no gym pill (PLAN 4.2 review: a gym has no meaning for a run).
+  // Run.
   await page.goto('./#/run');
-  await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
-  await expect(page.getByTestId('gym-pill')).toHaveCount(0);
+  await expect(page.getByTestId('gym-pill')).toBeVisible();
   await checkControls(page);
+  await page.getByTestId('gym-pill').tap();
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByTestId('new-gym-row')).toBeVisible();
   expect(errors).toEqual([]);
 });
 

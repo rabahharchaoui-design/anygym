@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { GymPill } from '../../components/GymPill';
 import { MusicLinks } from '../../components/MusicLinks';
 import { useGeo } from '../../hooks/useGeo';
 import { useNow } from '../../hooks/useNow';
@@ -9,7 +10,9 @@ import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown, RecentreIcon } from '../../ui/icons';
 import { Chip } from '../../ui/Chip';
+import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
+import { useToastTimeout } from '../../ui/useToastTimeout';
 import { Countdown, type Origin } from './Countdown';
 import { GoalSheet, type GoalKind } from './GoalSheet';
 import { GpsChip, GpsSheet } from './GpsChip';
@@ -24,9 +27,10 @@ type Phase = 'setup' | 'countdown' | 'started';
  * the status bar down to the run types, with the title and the status chips floating on it. The
  * controls sit under it on the app background. One primary action: Start. It works with no setup
  * (a free run) and whatever the GPS says. After the countdown comes a plain placeholder until 4.3.
- * No gym pill here: a gym has no meaning for a run.
  */
 export function RunScreen() {
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  useToastTimeout(toast, setToast);
   const { state, change, setUnit } = useRunSetup();
   const setup = state?.setup ?? DEFAULT_RUN_SETUP;
   const unit = state?.unit ?? 'km';
@@ -85,7 +89,13 @@ export function RunScreen() {
       <RunMap here={here} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} />
       <div className={styles.float} data-testid="run-float">
       <div className={styles.top} ref={topRef}>
-        <h1 className={styles.title}>Run With Me</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Run With Me</h1>
+          {/* SPEC 19: the gym pill is on the Run tab too. */}
+          <span className={styles.pillSlot}>
+            <GymPill onToast={setToast} />
+          </span>
+        </div>
         <div className={styles.chips}>
           <GpsChip status={status} words={words} onPress={() => setGpsOpen(true)} />
           {offline && <MapOfflineChip />}
@@ -132,6 +142,7 @@ export function RunScreen() {
       <GoalSheet kind={goalKind} setup={setup} unit={unit} onChange={change} onUnit={setUnit} onClose={() => setGoalKind(null)} />
       <GpsSheet open={gpsOpen} status={status} words={words} onClose={() => setGpsOpen(false)} onAsk={geo.ask} />
       {phase === 'countdown' && origin && <Countdown origin={origin} reduceMotion={reduceMotion} onDone={toStarted} onCancel={toSetup} />}
+      <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)" />
       {phase === 'started' && <RunStarted what={setup.type === 'free' ? typeLabel : `${typeLabel} · ${goal.label}`} onStop={toSetup} />}
     </section>
   );

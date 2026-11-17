@@ -24,7 +24,7 @@
   pointer-events: none;
 }
 
-/* The title and the status chips float on the map, over a soft fade of the background so they read
+/* The title, the gym pill and the status chips float on the map, over a soft fade of the background so they read
    on any map. Only the chips take touches; the map under the fade still drags. */
 .top {
   position: relative;
@@ -43,11 +43,23 @@
   pointer-events: auto;
 }
 
-.title {
-  min-width: 0;
-  min-height: 44px;
+.titleRow {
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 48px;
+}
+
+/* The gym pill keeps its width; a long title wraps instead (large text). */
+.pillSlot {
+  flex: none;
+  display: inline-flex;
+}
+
+.title {
+  min-width: 0;
   font-size: clamp(26px, 8.2vw, 34px);
   font-weight: 700;
   line-height: 1.08;

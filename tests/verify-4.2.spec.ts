@@ -89,8 +89,12 @@ test.describe('4.2 run start screen', () => {
       await expect(l).toHaveAttribute('target', '_blank');
       await expect(l).toHaveAttribute('rel', 'noopener');
     }
-    // No gym pill on Run: a gym has no meaning for a run.
-    await expect(page.getByTestId('gym-pill')).toHaveCount(0);
+    // SPEC 19: the gym pill is on Run too, top right beside the title, never over it.
+    const pill = page.getByTestId('gym-pill');
+    await expect(pill).toBeVisible();
+    const [titleBox, pillBox] = await Promise.all([page.getByRole('heading', { level: 1 }).boundingBox(), pill.boundingBox()]);
+    expect(titleBox!.x + titleBox!.width, 'the pill does not overlap the title').toBeLessThanOrEqual(pillBox!.x + 4);
+    expect(pillBox!.x + pillBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     const start = page.getByTestId('run-start');
     const [s, m, t, tab] = await Promise.all([start.boundingBox(), spotify.boundingBox(), types.first().boundingBox(), page.getByRole('navigation', { name: 'Main' }).boundingBox()]);
     expect(m!.y + m!.height, 'music sits right above Start').toBeLessThanOrEqual(s!.y + 1);
@@ -116,6 +120,9 @@ test.describe('4.2 run start screen', () => {
     await checkLayout(page, { primary: start });
     await checkControls(page);
     await shot(page, 'start');
+    // One tap opens the gym sheet.
+    await pill.tap();
+    await expect(page.getByTestId('new-gym-row')).toBeVisible();
   });
 
   test('Distance and Time open a picker; presets are one tap; custom uses the wheel and the unit @matrix', async ({ page }) => {
@@ -336,6 +343,8 @@ test.describe('4.2 run start screen', () => {
       return out;
     });
     expect(cut).toEqual([]);
+    const [h1, gym] = await Promise.all([page.getByRole('heading', { level: 1 }).boundingBox(), page.getByTestId('gym-pill').boundingBox()]);
+    expect(h1!.x + h1!.width, 'the gym pill never sits over the title').toBeLessThanOrEqual(gym!.x + 4);
     const start = page.getByTestId('run-start');
     await start.scrollIntoViewIfNeeded();
     await shot(page, 'text-130');

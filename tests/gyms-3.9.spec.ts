@@ -89,17 +89,14 @@ test('the pill opens recent gyms; + New gym switches in two taps; the Run tab ha
   await page.getByRole('button', { name: 'Undo' }).tap();
   await expect.poll(async () => (await gyms(page)).find((g) => g.isActive)?.id).not.toBe(other.id);
 
-  // PLAN 4.2 review: no gym pill on the Run tab (a gym has no meaning for a run).
   await page.getByRole('link', { name: 'Run' }).tap();
-  await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
-  await expect(page.getByTestId('gym-pill')).toHaveCount(0);
-  await page.getByRole('link', { name: 'Today' }).tap();
-  await page.getByTestId('gym-pill').first().tap();
+  await expect(page.getByTestId('gym-pill')).toBeVisible();
+  await page.getByTestId('gym-pill').tap();
   await page.getByTestId('new-gym-row').tap();
   await page.getByTestId('preset-outdoors').tap();
   await page.getByTestId('gym-name').fill('The park');
   await page.getByTestId('add-gym').tap();
-  await expect(page.getByTestId('gym-pill').first()).toContainText('The park');
+  await expect(page.getByTestId('gym-pill')).toContainText('The park');
   const park = (await gyms(page)).find((g) => g.name === 'The park')!;
   expect(park.isActive).toBe(true);
   expect(errors).toEqual([]);
