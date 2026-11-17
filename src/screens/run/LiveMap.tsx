@@ -4,7 +4,7 @@ import { drawRoute } from '../../lib/run';
 import { IconButton } from '../../ui/IconButton';
 import { RecentreIcon } from '../../ui/icons';
 import { MapCredit, MapOfflineChip, RunMap } from './RunMap';
-import styles from './Live.module.css';
+import styles from './LiveMap.module.css';
 
 type Props = {
   live: LiveRun;

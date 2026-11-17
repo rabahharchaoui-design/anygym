@@ -2,7 +2,7 @@ import { LockIcon, PauseIcon, PlayIcon, StopIcon } from '../../ui/icons';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { tick } from '../../ui/haptics';
 import { HoldButton } from './HoldButton';
-import styles from './Live.module.css';
+import styles from './LiveControls.module.css';
 
 type Props = {
   /** Paused by hand: the big button resumes. */

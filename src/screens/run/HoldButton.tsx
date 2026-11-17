@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useHold } from '../../hooks/useHold';
 import { tick } from '../../ui/haptics';
-import styles from './Live.module.css';
+import styles from './LiveControls.module.css';
 
 type Props = {
   /** What it does, said whole: "Hold to end the run". */
