@@ -168,6 +168,14 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: { cacheName: 'candidate-photos', expiration: { maxEntries: 700 } },
           },
+          {
+            // PLAN 4.4: the run coach's voice clips (public/voice/, about 1.1 MB in 220 small files).
+            // Not precached: the first save of the app stays as small as it was. The Run tab saves
+            // them in the background (hooks/voiceWarm.ts, the same cache) and each is kept once played.
+            urlPattern: /\/voice\/[^/]+\.m4a(?:\?.*)?$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'run-voice', expiration: { maxEntries: 400 } },
+          },
         ],
         // HashRouter: every route is index.html, so any navigation falls back to it.
         navigateFallback: `${BASE}index.html`,

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { rememberTold, wasTold } from '../../hooks/runFlags';
 import { runEngine, type EngineState } from '../../hooks/useRunEngine';
 import { usePocketDim } from '../../hooks/usePocketDim';
-import { readLive, distanceWithUnit, goalProgress, type LiveRun as Live } from '../../lib/run';
+import { useRunSetup } from '../../hooks/useRunSetup';
+import { blockEffort, DEFAULT_VOICE, readIntervals, readLive, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
 import { formatElapsed } from '../../lib/timer';
 import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
@@ -16,6 +17,7 @@ import { LiveStats, nextMetric, type LiveNote, type Metric } from './LiveStats';
 import { pageAfterSwipe, type Page } from './liveSwipe';
 import { RunSettingsSheet } from './RunSheets';
 import styles from './Live.module.css';
+import iv from './Intervals.module.css';
 
 type Props = { live: Live; wake: EngineState['wake']; saveFailed: boolean; reduceMotion: boolean; onHide: () => void };
 
@@ -45,6 +47,26 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
   const [toast, setToast] = useState<ToastMessage | null>(null);
   useToastTimeout(toast, setToast);
   const dim = usePocketDim(!paused && !settings);
+  // The voice coach's settings live with the run setup; a change counts from the next cue.
+  const runSetup = useRunSetup();
+  const voice = runSetup.state?.setup.voice ?? DEFAULT_VOICE;
+  const setVoice = (v: VoiceSettings) => {
+    runSetup.change({ voice: v });
+    runEngine.setVoice(v);
+  };
+
+  // Intervals (SPEC 12.7): the current block, its colour, and a flash of that colour at each switch
+  // (only a switch seen on this screen: opening the run again does not flash).
+  const blocks = live.intervals ? readIntervals(live.intervals) : null;
+  const effort = blocks?.block ? blockEffort(blocks.block.name) : null;
+  const seenBlock = useRef(blocks?.index ?? -1);
+  const [flash, setFlash] = useState<{ index: number; effort: 'push' | 'ease' } | null>(null);
+  useEffect(() => {
+    const index = blocks?.index ?? -1;
+    if (index === seenBlock.current) return;
+    seenBlock.current = index;
+    if (effort) setFlash({ index, effort });
+  }, [blocks?.index, effort]);
 
   // Said once, ever: this phone cannot keep its own screen on.
   useEffect(() => {
@@ -151,6 +173,7 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
       data-dim={dim.phase}
       data-fix={live.here?.t ?? ''}
       data-wake={wake}
+      data-effort={effort ?? undefined}
       role="dialog"
       aria-modal="true"
       aria-label="Run in progress"
@@ -159,8 +182,9 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
       <div className={styles.pages}>
         <div className={styles.strip} ref={strip}>
           <div className={styles.page} aria-hidden={page !== 0} style={{ paddingTop: inset.top, paddingBottom: inset.bottom }} {...swipe}>
-            <button type="button" className={styles.cycle} disabled={locked || page !== 0} aria-label="Show the next number big" data-testid="live-cycle" onClick={cycle}>
-              <LiveStats reading={reading} unit={live.unit} big={big} note={noteOf(live, reading.status)} goal={goalProgress(live.goal, reading, live.unit)} paused={paused} />
+            {effort && <div className={iv.tint} data-effort={effort} data-testid="interval-tint" aria-hidden="true" />}
+            <button type="button" className={styles.cycle} disabled={locked || page !== 0 || !!effort} aria-label="Show the next number big" data-testid="live-cycle" onClick={cycle}>
+              <LiveStats reading={reading} unit={live.unit} big={big} note={noteOf(live, reading.status)} goal={goalProgress(live.goal, reading, live.unit)} paused={paused} intervals={blocks} />
             </button>
           </div>
           <div className={styles.page} aria-hidden={page !== 1}>
@@ -223,9 +247,10 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
         />
       </div>
       <Toast toast={toast} bottom={`${inset.bottom - 8}px`} />
-      <RunSettingsSheet open={settings} autoPause={live.tracker.autoPause} onAutoPause={runEngine.setAutoPause} onClose={() => setSettings(false)} />
+      <RunSettingsSheet open={settings} autoPause={live.tracker.autoPause} onAutoPause={runEngine.setAutoPause} voice={voice} onVoice={setVoice} unit={live.unit} onClose={() => setSettings(false)} />
       {/* Pocket mode: near black. It takes the waking touch for itself, so nothing under it is pressed. */}
       <div className={styles.dim} data-testid="live-dim" data-phase={dim.phase} onPointerDown={dim.wake} aria-hidden="true" />
+      {flash && !reduceMotion && <div key={flash.index} className={iv.flash} data-effort={flash.effort} data-testid="interval-flash" onAnimationEnd={() => setFlash(null)} aria-hidden="true" />}
     </section>,
     document.body,
   );
