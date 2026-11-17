@@ -10,3 +10,4 @@ export function useRunEngine(): EngineState {
 }
 
 export { runEngine };
+export type { EngineState };

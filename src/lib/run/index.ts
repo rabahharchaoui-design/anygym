@@ -7,6 +7,7 @@
 //   snapshot.ts  a live run written down and read back after the app closed
 //   progress.ts  progress toward a Distance or Time goal
 //   summary.ts   the finished row and the summary read from it
+//   routeGeo.ts  the route as map coordinates: solid pieces, dashed joins
 //   hold.ts      press and hold (End, unlock) and what a locked screen allows
 //   dim.ts       pocket mode dimming
 //   mapStyle.ts   the dark map style in the app palette (imported by the lazy map only, not from here)
@@ -20,3 +21,4 @@ export * from './progress';
 export * from './summary';
 export * from './hold';
 export * from './dim';
+export * from './routeGeo';

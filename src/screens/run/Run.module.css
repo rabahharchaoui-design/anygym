@@ -315,46 +315,6 @@
   gap: var(--space-2);
 }
 
-/* "Run started": the plain full screen the countdown lands on until the live run exists. */
-.started {
-  position: fixed;
-  inset: 0 0 auto;
-  height: var(--app-height);
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: calc(var(--safe-top) + var(--space-6)) calc(var(--space-5) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-5)) calc(var(--space-5) + var(--safe-left));
-  background: var(--bg);
-}
-
-.startedBody {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-3);
-  overflow-y: auto;
-}
-
-.startedWhat {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.startedTitle {
-  font-size: var(--text-hero);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-}
-
-.startedLine {
-  color: var(--text-2);
-  line-height: 1.45;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .gps[data-tone='busy'] .gpsDot {
     animation: none;
@@ -371,4 +331,36 @@
     padding-top: calc(var(--safe-top) + var(--space-1));
     padding-bottom: var(--space-4);
   }
+}
+
+/* Run settings: a quiet round button at the right end of the status chips. */
+.settingsSlot {
+  margin-left: auto;
+  /* The 48 pt hit area reaches the screen's own padding; the face lines up with the gym pill. */
+  margin-right: -2px;
+}
+
+/* A run goes on behind this screen: one card, the way back. */
+.going {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) 0 var(--space-1);
+  pointer-events: auto;
+}
+
+.goingTitle {
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.goingLine {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.15;
 }
