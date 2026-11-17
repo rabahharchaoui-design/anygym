@@ -376,7 +376,17 @@ export type Run = {
   distanceM: number;
   points: RunPoint[];
   gaps: Array<[number, number]>;
+  /** Moving seconds of each finished split, in order. */
   splits: number[];
+  /**
+   * PLAN 4.3, additive: the splits (1 based) that hold distance carried without time (a bridged GPS
+   * gap, the leg that ends an auto pause). Their seconds are too short to be shown as a split time.
+   */
+  splitGaps?: number[];
+  /** PLAN 4.3, additive: the unit the splits were cut in. Rows without it (none shipped) read as the profile's unit. */
+  splitUnit?: 'km' | 'mi';
+  /** PLAN 4.3, additive: the part of distanceM covered while time counted; the only distance an average pace may use. */
+  timedM?: number;
   city?: string;
   country?: string;
   ghostOfRunId?: string;

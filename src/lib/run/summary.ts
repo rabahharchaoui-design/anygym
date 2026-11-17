@@ -31,12 +31,14 @@ export const VERDICT_WORDS: Record<Exclude<RunVerdict, 'ok'>, { title: string; l
 export const routeOf = (run: Pick<Run, 'points' | 'gaps'>): Segment[] => toSegments(run.points.map(fromRunPoint), run.gaps);
 
 /**
- * Average pace in seconds per meter from the row: moving time over the distance of the solid
- * pieces only. Distance bridged across a gap has no time, so it must stay out of the pace.
+ * Average pace in seconds per meter from the row: moving time over the distance that has time
+ * (`timedM`, the tracker's own figure). Distance bridged across a GPS gap and the leg that ends an
+ * auto pause carry no time, so they stay out of the pace, the same rule as lib/gps averagePace.
+ * A row without `timedM` falls back to the length of the solid pieces (no dashed join counted).
  */
-export function rowPace(run: Pick<Run, 'points' | 'gaps' | 'movingSec' | 'distanceM'>): number | null {
-  const solidM = routeOf(run).reduce((sum, s) => sum + pathLengthM(s.points), 0);
-  return averagePace(run.movingSec, Math.min(run.distanceM, solidM));
+export function rowPace(run: Pick<Run, 'points' | 'gaps' | 'movingSec' | 'distanceM' | 'timedM'>): number | null {
+  const timedM = run.timedM ?? Math.min(run.distanceM, routeOf(run).reduce((sum, s) => sum + pathLengthM(s.points), 0));
+  return averagePace(run.movingSec, timedM);
 }
 
 export type RunSummary = {
@@ -44,16 +46,26 @@ export type RunSummary = {
   unit: DistanceUnit;
   time: string;
   pace: string;
-  /** Finished splits only: "1", "5:12". */
-  splits: Array<{ n: number; time: string }>;
+  /** The unit the splits were cut in (the run's own; the given unit for a row that does not say). */
+  splitUnit: DistanceUnit;
+  /** Finished splits only. `time` is null for a split that holds a GPS gap: no time is shown for it. */
+  splits: Array<{ n: number; time: string | null }>;
+  /** At least one split holds a GPS gap. */
+  anyGap: boolean;
 };
 
 export function summaryOf(run: Run, unit: DistanceUnit): RunSummary {
+  const gaps = new Set(run.splitGaps ?? []);
   return {
     distance: formatDistance(run.distanceM, unit),
     unit,
     time: formatElapsed(run.movingSec),
     pace: formatPace(rowPace(run), unit),
-    splits: run.splits.map((sec, i) => ({ n: i + 1, time: formatElapsed(sec) })),
+    splitUnit: run.splitUnit ?? unit,
+    splits: run.splits.map((sec, i) => ({ n: i + 1, time: gaps.has(i + 1) ? null : formatElapsed(sec) })),
+    anyGap: run.splits.some((_, i) => gaps.has(i + 1)),
   };
 }
+
+/** What stands in place of a split's time when the split holds a GPS gap. */
+export const SPLIT_GAP = 'GPS gap';

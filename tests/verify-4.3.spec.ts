@@ -82,7 +82,7 @@ async function startRun(page: Page, context: BrowserContext, opts: Parameters<ty
   return { page, context, north: 0 };
 }
 
-type Row = { id: string; endedAt?: number; distanceM: number; movingSec: number; elapsedSec: number; points: number[][]; gaps: number[][]; splits: number[]; type: string; goal?: string };
+type Row = { id: string; splitGaps?: number[]; splitUnit?: string; timedM?: number; endedAt?: number; distanceM: number; movingSec: number; elapsedSec: number; points: number[][]; gaps: number[][]; splits: number[]; type: string; goal?: string };
 const runRows = (page: Page) =>
   page.evaluate(
     () =>
@@ -372,7 +372,13 @@ test.describe('4.3 live run', () => {
     await expect(page.getByTestId('summary-distance')).toHaveText((Math.floor(row!.distanceM / 10 + 1e-7) / 100).toFixed(2));
     await expect(page.getByTestId('summary-time')).toHaveText(clock(row!.movingSec));
     await expect(page.getByTestId('summary-splits').locator('li')).toHaveCount(1);
-    await expect(page.getByTestId('summary-splits')).toContainText(clock(row!.splits[0]!));
+    // Km 1 holds the bridged GPS gap: its time would read too fast, so it shows "GPS gap" and no time.
+    expect(row!.splitGaps).toEqual([1]);
+    expect(row!.splitUnit).toBe('km');
+    await expect(page.getByTestId('summary-splits').locator('li')).toHaveText('Km 1GPS gap');
+    await expect(page.getByTestId('summary-splits')).not.toContainText(clock(row!.splits[0]!));
+    await expect(page.getByTestId('summary-splits')).not.toContainText(/\d:\d\d/);
+    await expect(page.getByTestId('summary-gap-note')).toContainText('no split time is shown');
     const pace = toSec((await page.getByTestId('summary-pace').textContent())!);
     expect(Math.abs(pace - 333)).toBeLessThanOrEqual(10);
     await expect(page.getByTestId('summary-map')).toHaveAttribute('data-dashed', '1');

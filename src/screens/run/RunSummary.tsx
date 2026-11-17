@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FinishedRun } from '../../hooks/runEngine';
-import { RUN_TYPES, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
+import { RUN_TYPES, SPLIT_GAP, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { Button } from '../../ui/Button';
 import { MapCredit, MapOfflineChip, RunMap } from './RunMap';
@@ -83,19 +83,24 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
             <h3 className={styles.heading}>Splits</h3>
             {summary.splits.length === 0 ? (
               <p className={styles.quiet} data-testid="summary-no-splits">
-                No full {unit === 'mi' ? 'mile' : 'kilometer'} yet. Splits show from the first one.
+                No full {summary.splitUnit === 'mi' ? 'mile' : 'kilometer'} yet. Splits show from the first one.
               </p>
             ) : (
               <ol className={styles.splits} data-testid="summary-splits">
                 {summary.splits.map((s) => (
-                  <li key={s.n} className={styles.split}>
+                  <li key={s.n} className={styles.split} data-gap={s.time === null || undefined}>
                     <span>
-                      {unit === 'mi' ? 'Mile' : 'Km'} {s.n}
+                      {summary.splitUnit === 'mi' ? 'Mile' : 'Km'} {s.n}
                     </span>
-                    <span className="num">{s.time}</span>
+                    {s.time === null ? <span className={styles.splitGap}>{SPLIT_GAP}</span> : <span className="num">{s.time}</span>}
                   </li>
                 ))}
               </ol>
+            )}
+            {summary.anyGap && (
+              <p className={styles.quiet} data-testid="summary-gap-note">
+                GPS gap: part of that split has no time, so no split time is shown for it.
+              </p>
             )}
           </div>
           <div className={styles.actions}>

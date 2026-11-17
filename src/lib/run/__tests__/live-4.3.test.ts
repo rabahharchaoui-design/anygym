@@ -4,7 +4,7 @@ import { METERS_PER_MILE, processTrack, readTracker, type RawPoint, type TrackIn
 import { DEFAULT_RUN_SETUP, type RunSetup } from '../goal';
 import { fixTime, goalOf, liveStep, readLive, startLive, type LiveAction, type LiveRun } from '../live';
 import { liveRow, parseSnapshot, restoreLive, toSnapshot } from '../snapshot';
-import { finishRun, MIN_RUN_M, routeOf, rowPace, runVerdict, summaryOf } from '../summary';
+import { finishRun, MIN_RUN_M, routeOf, rowPace, runVerdict, SPLIT_GAP, summaryOf } from '../summary';
 import { goalProgress, GOAL_REACHED } from '../progress';
 
 const setup = (patch: Partial<RunSetup> = {}): RunSetup => ({ ...DEFAULT_RUN_SETUP, ...patch });
@@ -210,7 +210,8 @@ describe('ending', () => {
     expect(row).toEqual({ ...liveRow(run), endedAt: T0 + 705_000 });
     expect(runVerdict(row)).toBe('ok');
     const s = summaryOf(row, 'km');
-    expect(s).toEqual({ distance: '2.10', unit: 'km', time: '11:40', pace: '5:33', splits: [{ n: 1, time: '5:33' }, { n: 2, time: '5:33' }] });
+    expect(s).toEqual({ distance: '2.10', unit: 'km', time: '11:40', pace: '5:33', splitUnit: 'km', anyGap: false, splits: [{ n: 1, time: '5:33' }, { n: 2, time: '5:33' }] });
+    expect(row).toMatchObject({ splitGaps: [], splitUnit: 'km', timedM: readTracker(run.tracker).distanceM });
     expect(readTracker(run.tracker).averagePace! * 1000).toBeCloseTo(rowPace(row)! * 1000, 3);
   });
   it('distance bridged across a gap stays out of the pace', () => {
@@ -219,6 +220,40 @@ describe('ending', () => {
     expect(row.distanceM).toBeCloseTo(720, 0);
     expect(rowPace(row)! * 1000).toBeCloseTo(1000 / 3, 0);
     expect(routeOf(row).map((p) => p.dashedFromPrev)).toEqual([false, true]);
+  });
+  it('a split that holds a bridged GPS gap shows no time: it is flagged on the row and reads "GPS gap"', () => {
+    // 600 m, a 40 s gap bridged over 120 m, then on to 2.1 km: km 1 holds the gap, km 2 does not.
+    const run = feed(start(), [...east(0, 200), ...east(240, 700, 3, 720)]);
+    const row = finishRun(run, T0 + 700_000);
+    expect(row.splits).toHaveLength(2);
+    expect(row.splitGaps).toEqual([1]);
+    expect(row.timedM).toBeCloseTo(row.distanceM - 120, 0);
+    const s = summaryOf(row, 'km');
+    expect(s.splits).toEqual([{ n: 1, time: null }, { n: 2, time: '5:33' }]);
+    expect(s.anyGap).toBe(true);
+    expect(SPLIT_GAP).toBe('GPS gap');
+    // The average pace leaves the bridged meters out: still the true 3 m/s, not faster.
+    expect(s.pace).toBe('5:33');
+    expect(rowPace(row)).toBe(readTracker(run.tracker).averagePace);
+  });
+  it('the leg that ends an auto pause carries no time either: its split is flagged, and the pace leaves it out', () => {
+    const stand = Array.from({ length: 30 }, (_, i) => fix(at(900, 0, 301 + i)));
+    const run = feed(start(), [...east(0, 300), ...stand, ...east(331, 500, 3, 915)]);
+    const row = finishRun(run, T0 + 500_000);
+    expect(row.splits).toHaveLength(1);
+    expect(row.splitGaps).toEqual([1]);
+    expect(row.timedM!).toBeLessThan(row.distanceM);
+    expect(summaryOf(row, 'km').splits).toEqual([{ n: 1, time: null }]);
+    expect(rowPace(row)).toBe(readTracker(run.tracker).averagePace);
+  });
+  it('rows without the newer fields: splits read in the given unit, none flagged, pace from the solid pieces', () => {
+    const run = feed(start({}, 'mi'), [...east(0, 100), ...east(140, 700, 3, 420)]);
+    const { splitGaps: _g, splitUnit: _u, timedM: _t, ...old } = finishRun(run, T0 + 700_000);
+    expect(summaryOf(finishRun(run, T0 + 700_000), 'km').splitUnit).toBe('mi');
+    const s = summaryOf(old, 'km');
+    expect(s.splitUnit).toBe('km');
+    expect(s.anyGap).toBe(false);
+    expect(rowPace(old)! * 1000).toBeCloseTo(1000 / 3, 0);
   });
   it('no GPS at all, or next to no distance, is said plainly', () => {
     expect(runVerdict(finishRun(start(), T0 + 1))).toBe('no-gps');

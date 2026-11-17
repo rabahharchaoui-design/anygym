@@ -198,3 +198,9 @@
   color: var(--text-2);
   line-height: 1.45;
 }
+
+/* A split with a GPS gap: words in place of a time, quiet, never a number. */
+.split > .splitGap {
+  color: var(--text-2);
+  font-weight: 500;
+}

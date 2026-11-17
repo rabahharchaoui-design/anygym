@@ -35,6 +35,9 @@ export function liveRow(run: LiveRun): Run {
     points: run.points.map(toRunPoint),
     gaps: toRunGaps(run.breaks),
     splits: r.splits.full.map((s) => s.sec),
+    splitGaps: r.splits.full.filter((s) => s.gap).map((s) => s.index),
+    splitUnit: run.unit,
+    timedM: run.tracker.timedM,
     ...(run.intervalPreset ? { intervalPreset: run.intervalPreset } : {}),
   };
 }
