@@ -21,6 +21,9 @@ export const RUN_TYPES: ReadonlyArray<{ value: RunType; label: string }> = [
   { value: 'intervals', label: 'Intervals' },
 ];
 
+/** The run type as the screens say it. Anything else is just "Run" (never a raw stored word). */
+export const runLabel = (type: string): string => RUN_TYPES.find((t) => t.value === type)?.label ?? 'Run';
+
 /** SPEC 12.1: 3 mi, 5 km, 10 km, then custom. */
 export const DISTANCE_PRESETS: readonly DistanceGoal[] = [
   { value: 3, unit: 'mi' },

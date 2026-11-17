@@ -9,6 +9,14 @@
 //   snapshot.ts  a live run written down and read back after the app closed
 //   progress.ts  progress toward a Distance or Time goal
 //   summary.ts   the finished row and the summary read from it
+//   efforts.ts   best efforts along a stored run (PLAN 4.6)
+//   records.ts   the personal records and the moments a run newly set
+//   city.ts      a first run in a stored city
+//   ghost.ts     the result of a ghost race, when one was stored
+//   privacy.ts   the share card's 200 m trim
+//   poster.ts    the share card as a line and words
+//   gpx.ts       a run as a GPX file
+//   heatmap.ts   every run in one city, as one route
 //   routeGeo.ts  the route as map coordinates: solid pieces, dashed joins
 //   hold.ts      press and hold (End, unlock) and what a locked screen allows
 //   dim.ts       pocket mode dimming
@@ -28,6 +36,14 @@ export * from './live';
 export * from './snapshot';
 export * from './progress';
 export * from './summary';
+export * from './efforts';
+export * from './records';
+export * from './city';
+export * from './ghost';
+export * from './privacy';
+export * from './poster';
+export * from './gpx';
+export * from './heatmap';
 export * from './hold';
 export * from './dim';
 export * from './routeGeo';
