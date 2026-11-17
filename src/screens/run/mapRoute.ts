@@ -18,7 +18,7 @@ export function addRouteLayers(gl: GlMap, accent: string, halo: string): void {
   const round = { 'line-cap': 'round', 'line-join': 'round' } as const;
   // A dark edge under the line keeps it readable over light roads.
   gl.addLayer({ id: `${SOLID}-edge`, type: 'line', source: SOLID, layout: round, paint: { 'line-color': halo, 'line-width': 8, 'line-opacity': 0.55 } });
-  gl.addLayer({ id: DASHED, type: 'line', source: DASHED, layout: { 'line-join': 'round' }, paint: { 'line-color': accent, 'line-width': 3, 'line-opacity': 0.7, 'line-dasharray': [0.6, 2.2] } });
+  gl.addLayer({ id: DASHED, type: 'line', source: DASHED, layout: { 'line-join': 'round' }, paint: { 'line-color': accent, 'line-width': 3, 'line-opacity': 0.85, 'line-dasharray': [1.4, 1.6] } });
   gl.addLayer({ id: SOLID, type: 'line', source: SOLID, layout: round, paint: { 'line-color': accent, 'line-width': 5 } });
 }
 

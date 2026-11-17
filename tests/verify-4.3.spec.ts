@@ -138,13 +138,13 @@ test.describe('4.3 live run', () => {
     await page.getByTestId('live-cycle').tap();
     await expect(big(page)).toHaveAttribute('data-metric', 'time');
     await expect(page.getByTestId('live-small-distance')).toBeVisible();
-    await shot(page, 'stats-time');
     await page.waitForTimeout(400);
+    await shot(page, 'stats-time');
     await page.getByTestId('live-cycle').tap();
     await expect(big(page)).toHaveAttribute('data-metric', 'pace');
     await expect(page.getByTestId('live-big-label')).toHaveText('Pace /km');
-    await shot(page, 'stats-pace');
     await page.waitForTimeout(400);
+    await shot(page, 'stats-pace');
     await page.getByTestId('live-cycle').tap();
     await expect(big(page)).toHaveAttribute('data-metric', 'distance');
 
