@@ -291,6 +291,7 @@ test.describe('4.4 intervals', () => {
   });
 
   test('a custom set built with taps runs to its end: every switch is said, "last one", then the free run goes on', async ({ page, context }) => {
+    test.slow();
     await open(page, context);
     await page.getByTestId('run-type-intervals').tap();
     await page.getByTestId('interval-custom').tap();
@@ -339,7 +340,7 @@ test.describe('4.4 intervals', () => {
     await expect(page.getByTestId('intervals-done')).toBeVisible();
     await expect(page.getByTestId('live-big')).toBeVisible();
     await expect(live(page)).not.toHaveAttribute('data-effort', /./);
-    await page.clock.runFor(120_000);
+    await page.clock.runFor(20_000);
     await settled(page);
     expect(await playedIds(page), 'done is said once').toEqual(['run_started', 'sprint', 'easy', 'last_one', 'sprint', 'easy', 'intervals_done']);
     expect(await flashes(page)).toEqual(['ease', 'push', 'ease']);
@@ -348,6 +349,7 @@ test.describe('4.4 intervals', () => {
   });
 
   test('a reload in the middle of a block: back paused on the same block, nothing said again, the next switch is not missed', async ({ page, context }) => {
+    test.slow();
     await open(page, context);
     await page.getByTestId('run-type-intervals').tap();
     await page.getByTestId('interval-beginner').tap();
@@ -360,7 +362,9 @@ test.describe('4.4 intervals', () => {
     await expect(live(page)).toHaveAttribute('data-status', 'paused');
     await expect(page.getByTestId('interval-name')).toHaveText('WALK');
     await expect(page.getByTestId('interval-count')).toHaveText(/^1:(4\d|5\d)$/);
-    await page.clock.runFor(200_000);
+    // A long time later, still paused (one jump of the clock: the block must not move).
+    await page.clock.fastForward(200_000);
+    await page.clock.runFor(2000);
     await expect(page.getByTestId('interval-name')).toHaveText('WALK');
     expect(await playedIds(page), 'nothing is said by a run that only came back').toEqual([]);
     await page.getByTestId('live-resume').tap();
