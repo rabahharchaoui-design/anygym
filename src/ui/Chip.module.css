@@ -182,6 +182,11 @@
   white-space: nowrap;
 }
 
+/* PLAN 4.2: small chips filling a grid cell (run types, goal presets) carry their word in the middle. */
+.chip[data-small][data-block] {
+  justify-content: center;
+}
+
 .chip[data-small] .label {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -43,7 +43,7 @@ test.describe('every screen fits every phone @matrix', () => {
     await checkContrast(page);
     await matrixShot(page, 'history-empty');
     await nav.getByRole('link', { name: 'Run' }).tap();
-    await expect(page.getByText('No runs yet')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
     await checkLayout(page);
     await checkControls(page);
     await nav.getByRole('link', { name: 'Plans' }).tap();

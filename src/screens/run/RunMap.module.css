@@ -1,0 +1,90 @@
+/* The full bleed map layer behind the run start screen. */
+.map {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* The calm placeholder: the app's own dark, a little lit from the top like every screen. */
+  background: var(--bg-screen);
+}
+
+/* The map fades in over the placeholder once it has drawn (no pop, no white flash). */
+.canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+.canvas[data-show='true'] {
+  opacity: 1;
+}
+
+/* MapLibre makes its container position: relative, so the size comes from width and height. */
+.gl {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+
+/* You are here: the accent dot with a slow pulse ring. */
+.dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--white);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--black) 50%, transparent);
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.45;
+  z-index: -1;
+  animation: pulse 2s var(--ease-out) infinite;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  to {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot::after {
+    animation: none;
+    transform: scale(2);
+    opacity: 0.22;
+  }
+  .canvas {
+    transition-duration: 120ms;
+  }
+}
+
+/* Tiles could not be had: a quiet glass chip beside the GPS chip. */
+.offline {
+  /* The same glass pill as the GPS chip beside it. */
+  composes: gpsFace from './Run.module.css';
+  gap: 6px;
+}
+
+/* The map data credit, at the bottom left of the map that shows. */
+.credit {
+  min-width: 0;
+  padding-bottom: var(--space-1);
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.3;
+  /* Readable over any map: a soft halo of the background, no box. */
+  text-shadow:
+    0 0 3px var(--bg),
+    0 0 6px var(--bg);
+}
