@@ -14,10 +14,9 @@ export function warmVoicePack(): void {
   const deps = browserWarmDeps(VOICE_CACHE);
   if (!deps || !deps.online() || wantsLessData(navigator as never, (q) => typeof matchMedia === 'function' && matchMedia(q).matches)) return;
   started = true;
+  // A reload or a closed tab cancels the fetches cleanly.
   const stop = new AbortController();
-  const leave = () => stop.abort();
-  window.addEventListener('pagehide', leave, { once: true });
-  window.addEventListener('beforeunload', leave, { once: true });
+  for (const leaving of ['pagehide', 'beforeunload'] as const) window.addEventListener(leaving, () => stop.abort(), { once: true });
   const go = () => void warmPhotos(allClipUrls(), deps, stop.signal, 4).catch(() => undefined);
   if (document.readyState === 'complete') go();
   else window.addEventListener('load', go, { once: true });
