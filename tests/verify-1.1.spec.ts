@@ -25,6 +25,8 @@ test('1.1 verify: network, shots, break', async ({ page }) => {
     await page.reload();
     await expect(page.locator('h1')).toBeVisible();
     await page.waitForTimeout(300);
+    // The Run tab loads its map code lazily: wait until it has asked for the map, not a fixed moment.
+    if (n === 'run') await expect.poll(async () => (await tileAsks(page)).length, { timeout: 15000 }).toBeGreaterThan(0);
     asks[n] = await tileAsks(page);
     await page.screenshot({ path: `test-results/verify-1.1/${n}.png` });
   }

@@ -8,17 +8,17 @@ import { FADE, SHEET_SPRING } from './motion';
 import { useNav } from './nav';
 import styles from './ResumeBar.module.css';
 
-type Props = { session: Session | null; hidden?: boolean };
+type Props = { session: Session | null; hidden?: boolean; /** PLAN 4.3: a run is going on (shown when no workout is): one tap back to the Run tab. */ run?: boolean };
 
 /**
  * "Day 1 · 12:34 · Resume" (or "Workout · …" for a quick one) floating just above the tab bar while a workout is active (ux-critic,
  * like a music mini player): the workout keeps going on any tab, one tap goes back to its list.
  */
-export function ResumeBar({ session, hidden = false }: Props) {
+export function ResumeBar({ session, hidden = false, run = false }: Props) {
   const reduce = useReducedMotion();
   const go = useNav();
-  const show = !!session && !hidden;
-  const now = useNow(1000, show);
+  const show = (!!session || run) && !hidden;
+  const now = useNow(1000, show && !!session);
   return (
     <AnimatePresence>
       {show && (
@@ -30,13 +30,21 @@ export function ResumeBar({ session, hidden = false }: Props) {
           exit={reduce ? { opacity: 0 } : { opacity: 0, y: 16, transition: { duration: 0.16 } }}
           transition={reduce ? FADE : SHEET_SPRING}
         >
-          <button type="button" className={`${styles.bar} pressable`} data-testid="resume-bar" onClick={() => go(`/workout/${session.id}`, { kind: 'push' })}>
-            <span className={styles.dot} aria-hidden="true" />
-            <span className={styles.text}>
-              {dayLabel(session)} · <span className="num">{formatElapsed(Math.max(0, now - session.startedAt) / 1000)}</span>
-            </span>
-            <span className={styles.resume}>Resume</span>
-          </button>
+          {session ? (
+            <button type="button" className={`${styles.bar} pressable`} data-testid="resume-bar" onClick={() => go(`/workout/${session.id}`, { kind: 'push' })}>
+              <span className={styles.dot} aria-hidden="true" />
+              <span className={styles.text}>
+                {dayLabel(session)} · <span className="num">{formatElapsed(Math.max(0, now - session.startedAt) / 1000)}</span>
+              </span>
+              <span className={styles.resume}>Resume</span>
+            </button>
+          ) : (
+            <button type="button" className={`${styles.bar} pressable`} data-testid="run-bar" onClick={() => go('/run')}>
+              <span className={styles.dot} aria-hidden="true" />
+              <span className={styles.text}>Run in progress</span>
+              <span className={styles.resume}>Open</span>
+            </button>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

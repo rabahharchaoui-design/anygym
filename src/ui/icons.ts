@@ -38,6 +38,9 @@ export {
   Pencil as FixIcon,
   LocateFixed as RecentreIcon,
   CloudOff as OfflineIcon,
+  Lock as LockIcon,
+  Square as StopIcon,
+  SlidersHorizontal as TuneIcon,
 } from 'lucide-react';
 
 /** The one stroke weight for every UI icon. */

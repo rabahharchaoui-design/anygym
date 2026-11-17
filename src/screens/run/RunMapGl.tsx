@@ -6,7 +6,9 @@ import { getGlobalDispatcher, Map as GlMap, Marker, setWorkerUrl } from 'maplibr
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { HERE_ZOOM, MAP_PALETTE_TOKENS, NEUTRAL_VIEW, runMapStyle, type MapPalette } from '../../lib/run/mapStyle';
+import type { RouteGeo } from '../../lib/run/routeGeo';
 import { DUR } from '../../ui/motion';
+import { addRouteLayers, drawRouteOn, startMarker } from './mapRoute';
 import styles from './RunMap.module.css';
 
 setWorkerUrl(workerUrl);
@@ -25,9 +27,15 @@ export type RunMapGlProps = {
   onOffline: (offline: boolean) => void;
   /** The user dragged the map away from the dot (true) or it is centred on it again (false). */
   onMoved: (moved: boolean) => void;
+  /** A run's line (PLAN 4.3): solid pieces, dashed joins and the start mark. */
+  route?: RouteGeo | null;
+  /** A finished run: the map shows the whole route and does not answer touches. */
+  still?: boolean;
 };
 
 const SOURCE = 'openmaptiles';
+/** Room between a fitted route and the map's edge, in px (the line's width and the start mark fit in it). */
+const FIT_PAD = 28;
 
 /** The map colours, read from the tokens (src/styles/tokens.css) so the map is always the app's palette. */
 function readPalette(): MapPalette {
@@ -35,7 +43,7 @@ function readPalette(): MapPalette {
   return Object.fromEntries(Object.entries(MAP_PALETTE_TOKENS).map(([k, token]) => [k, css.getPropertyValue(token).trim()])) as MapPalette;
 }
 
-export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady, onOffline, onMoved }: RunMapGlProps) {
+export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady, onOffline, onMoved, route = null, still = false }: RunMapGlProps) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<GlMap | null>(null);
   const dot = useRef<Marker | null>(null);
@@ -45,6 +53,9 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
   cb.current = { onReady, onOffline, onMoved };
   const hereRef = useRef(here);
   hereRef.current = here;
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const startMark = useRef<Marker | null>(null);
   // The part of the map a person can see: the dot is centred in it, never in the whole canvas.
   const padding = { top: inset.top, bottom: inset.bottom, left: 0, right: 0 };
   const paddingRef = useRef(padding);
@@ -68,6 +79,7 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
         rollEnabled: false,
         maxPitch: 0,
         keyboard: false,
+        interactive: !still,
         fadeDuration: reduceMotion ? 0 : DUR.base,
       });
     } catch {
@@ -93,6 +105,12 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     const dispatchers = [getGlobalDispatcher(), gl.style?.dispatcher].filter(Boolean) as unknown as Reports[];
     for (const d of dispatchers) d.on('error', onError);
     gl.on('load', () => cb.current.onReady());
+    // The run's line belongs to the style: it is put back every time the style (re)loads.
+    gl.on('style.load', () => {
+      const palette = readPalette();
+      addRouteLayers(gl, palette.accent, palette.bg);
+      if (routeRef.current) drawRouteOn(gl, routeRef.current);
+    });
     gl.on('idle', () => {
       if (!failed && gl.isSourceLoaded(SOURCE)) cb.current.onOffline(false);
     });
@@ -112,6 +130,8 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
       for (const d of dispatchers) d.off('error', onError);
       dot.current?.remove();
       dot.current = null;
+      startMark.current?.remove();
+      startMark.current = null;
       placed.current = false;
       map.current = null;
       gl.remove();
@@ -149,9 +169,28 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     const gl = map.current;
     if (!gl) return;
     const h = hereRef.current;
+    if (still) return;
     if (h && placed.current && following.current) gl.easeTo({ center: [h.lng, h.lat], padding: paddingRef.current, duration: 0 });
     else gl.setPadding(paddingRef.current);
-  }, [inset.top, inset.bottom]);
+  }, [inset.top, inset.bottom, still]);
+
+  // The run's line, redrawn as it grows; a finished run is shown whole.
+  useEffect(() => {
+    const gl = map.current;
+    if (!gl) return;
+    if (route) drawRouteOn(gl, route);
+    if (route?.start && !startMark.current) startMark.current = startMarker(gl, route.start);
+    else if (route?.start) startMark.current?.setLngLat(route.start);
+    else {
+      startMark.current?.remove();
+      startMark.current = null;
+    }
+    if (still && route?.bounds) {
+      const [w, s, e, n] = route.bounds;
+      // The whole route, with room around it; `inset` keeps it clear of what sits on the map's edges.
+      gl.fitBounds([[w, s], [e, n]], { padding: { top: FIT_PAD + inset.top, bottom: FIT_PAD + inset.bottom, left: FIT_PAD, right: FIT_PAD }, maxZoom: HERE_ZOOM, duration: 0 });
+    }
+  }, [route, still, inset.top, inset.bottom]);
 
   useEffect(() => {
     const gl = map.current;

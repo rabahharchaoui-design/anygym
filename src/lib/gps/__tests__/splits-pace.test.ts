@@ -172,3 +172,27 @@ describe('standing still', () => {
     expect(leftStill(pt(0, 0, 5), pt(10.1, 1, 5))).toBe(true);
   });
 });
+
+describe('splits: distance carried without time is flagged (PLAN 4.3)', () => {
+  const step = (distanceM: number, sec: number, timed = true, gap = false): SplitStep => ({ distanceM, ms: sec * 1000, timed, gap });
+  const feedAll = (steps: SplitStep[]) => readSplits(steps.reduce((st, x) => addSplitStep(st, x).state, startSplits(1000)));
+  it('a split with a bridged gap is flagged; the splits before and after are not', () => {
+    const r = feedAll([step(1000, 300), step(400, 120), step(200, 0, false, true), step(400, 120), step(1000, 300)]);
+    expect(r.full.map((s) => s.gap)).toEqual([false, true, false]);
+    expect(r.full[1]).toMatchObject({ sec: 240, timedM: 800 });
+  });
+  it('the untimed leg that ends an auto pause flags its split the same way (no gap in the fixes)', () => {
+    const r = feedAll([step(600, 180), step(12, 0, false, false), step(500, 150), step(900, 270)]);
+    expect(r.full.map((s) => s.gap)).toEqual([true, false]);
+    expect(r.partial).toMatchObject({ gap: false });
+  });
+  it('an untimed leg that crosses a boundary flags both sides; one that ends on it flags only the first', () => {
+    expect(feedAll([step(990, 300), step(20, 0, false, false), step(1000, 300)]).full.map((s) => s.gap)).toEqual([true, true]);
+    const exact = feedAll([step(990, 300), step(10, 0, false, false), step(1000, 300)]);
+    expect(exact.full.map((s) => s.gap)).toEqual([true, false]);
+  });
+  it('a gap that adds no distance (not bridged) and time while standing flag nothing', () => {
+    const r = feedAll([step(500, 150), step(0, 0, false, true), step(0, 40), step(500, 150)]);
+    expect(r.full.map((s) => s.gap)).toEqual([false]);
+  });
+});

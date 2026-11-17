@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { TabBar } from '../ui/TabBar';
 import { ResumeBar } from '../ui/ResumeBar';
 import { getActiveSession } from '../db/workouts';
+import { getActiveRun } from '../db/runs';
 import { useLive } from '../hooks/useLive';
 import { EdgeSwipe } from '../ui/EdgeSwipe';
 import { playTabArrival, useNav } from '../ui/nav';
@@ -25,6 +26,9 @@ export function parentOf(pathname: string): string | null {
   if (pathname.startsWith('/history/')) return '/history';
   return null;
 }
+
+/** PLAN 4.3: a run found still going at the app's start is opened once (it comes back paused on the Run tab). */
+let runChecked = false;
 
 const UNDER: Record<string, () => ReactNode> = {
   '/': () => <TodayScreen />,
@@ -54,8 +58,18 @@ export function AppShell() {
   const active = useLive(() => getActiveSession(), []);
   // Today has its own in progress card; the bar is for the other tabs.
   const resuming = !!active.data && !pushed && pathname !== '/';
+  // PLAN 4.3: a run goes on whatever tab shows; the Run tab has its own way back to it.
+  const run = useLive(() => getActiveRun().then((r) => !!r), []);
+  const running = !!run.data && !pushed && pathname !== '/run' && !resuming;
+  useEffect(() => {
+    if (!run.ready || runChecked) return;
+    runChecked = true;
+    if (run.data && pathname !== '/run') go('/run', { kind: 'none' });
+    // Once, with the first answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run.ready]);
   return (
-    <div className={styles.shell} data-shell data-resume={resuming || undefined}>
+    <div className={styles.shell} data-shell data-resume={resuming || running || undefined}>
       <div className={styles.stage}>
         <main key={pathname} ref={layerRef} className={styles.page} data-scroller>
           {/* Always a little taller than the screen, so a large title can hand over to the compact
@@ -76,7 +90,7 @@ export function AppShell() {
         )}
       </div>
       {/* A workout in progress floats above the tab bar on every tab (one tap back to its list). */}
-      <ResumeBar session={active.data ?? null} hidden={!resuming} />
+      <ResumeBar session={resuming ? (active.data ?? null) : null} run={running} hidden={!resuming && !running} />
       {/* Like iOS, pushed screens hide the tab bar (Settings too: it is pushed from Today). */}
       <TabBar hidden={pushed} />
     </div>
