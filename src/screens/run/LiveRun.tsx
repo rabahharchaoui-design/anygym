@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { animate, motion, useMotionValue } from 'motion/react';
 import { rememberTold, wasTold } from '../../hooks/runFlags';
 import { runEngine, type EngineState } from '../../hooks/useRunEngine';
 import { usePocketDim } from '../../hooks/usePocketDim';
@@ -9,7 +8,6 @@ import { formatElapsed } from '../../lib/timer';
 import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
 import { ChevronDown, TuneIcon } from '../../ui/icons';
-import { FADE, PAGE_SPRING } from '../../ui/motion';
 import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useToastTimeout } from '../../ui/useToastTimeout';
 import { LiveControls } from './LiveControls';
@@ -58,24 +56,27 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
     if (saveFailed) setToast({ id: Date.now(), text: 'The run could not be saved. Hold End to try again.' });
   }, [saveFailed]);
 
-  // The pages: one strip, two screens wide. It follows the finger and settles on a page.
+  // The pages: one strip, two screens wide. It follows the finger (no transition) and settles on a
+  // page with the app's page spring (CSS, on the compositor; tokens mirror ui/motion PAGE_SPRING).
   const strip = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
   const width = () => strip.current?.parentElement?.clientWidth ?? window.innerWidth;
-  const goTo = useCallback(
-    (p: Page) => {
-      setPage(p);
-      if (p === 1) setMapSeen(true);
-      void animate(x, -p * width(), reduceMotion ? { duration: 0 } : PAGE_SPRING);
-    },
-    [reduceMotion, x],
-  );
-  // A turn of the phone or a resize keeps the page in place.
+  const place = (px: number, settle: boolean) => {
+    const el = strip.current;
+    if (!el) return;
+    el.dataset.settle = settle ? 'true' : 'false';
+    el.style.transform = `translate3d(${px}px, 0, 0)`;
+  };
+  const goTo = useCallback((p: Page) => {
+    setPage(p);
+    if (p === 1) setMapSeen(true);
+    place(-p * width(), true);
+  }, []);
+  // A resize keeps the page in place.
   useEffect(() => {
-    const fit = () => x.set(-page * width());
+    const fit = () => place(-page * width(), false);
     window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
-  }, [page, x]);
+  }, [page]);
 
   const drag = useRef<{ x: number; y: number; id: number; moved: boolean } | null>(null);
   const down = (e: React.PointerEvent) => {
@@ -90,7 +91,7 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
     if (!d.moved && Math.abs(dx) < 10) return;
     if (!d.moved && Math.abs(dy) > Math.abs(dx)) return void (drag.current = null);
     d.moved = true;
-    if (!reduceMotion) x.set(Math.min(0, Math.max(-width(), -page * width() + dx)));
+    if (!reduceMotion) place(Math.min(0, Math.max(-width(), -page * width() + dx)), false);
   };
   // A swipe that ends on the numbers must not also count as a tap on them.
   const swiped = useRef(false);
@@ -141,34 +142,46 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
     setBig(nextMetric);
   };
   return createPortal(
-    <motion.section
+    <section
       className={styles.live}
       data-testid="live-run"
       data-status={reading.status}
       data-page={page}
       data-locked={locked || undefined}
       data-dim={dim.phase}
+      data-fix={live.here?.t ?? ''}
+      data-wake={wake}
       role="dialog"
       aria-modal="true"
       aria-label="Run in progress"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={FADE}
       onPointerDownCapture={dim.touched}
     >
       <div className={styles.pages}>
-        <motion.div className={styles.strip} ref={strip} style={{ x }}>
+        <div className={styles.strip} ref={strip}>
           <div className={styles.page} aria-hidden={page !== 0} style={{ paddingTop: inset.top, paddingBottom: inset.bottom }} {...swipe}>
             <button type="button" className={styles.cycle} disabled={locked || page !== 0} aria-label="Show the next number big" data-testid="live-cycle" onClick={cycle}>
-              <LiveStats reading={reading} unit={live.unit} big={big} note={noteOf(live, reading.status)} goal={goalProgress(live.goal, reading, live.unit)} reduceMotion={reduceMotion} paused={paused} />
+              <LiveStats reading={reading} unit={live.unit} big={big} note={noteOf(live, reading.status)} goal={goalProgress(live.goal, reading, live.unit)} paused={paused} />
             </button>
           </div>
           <div className={styles.page} aria-hidden={page !== 1}>
             {mapSeen && <LiveMap live={live} readout={readout} reduceMotion={reduceMotion} inset={inset} locked={locked} />}
             {/* The map keeps its own drags: only a swipe that starts on this left edge turns the page. */}
-            <div className={styles.edge} data-testid="live-edge" {...swipe} />
+            <div
+              className={styles.edge}
+              data-testid="live-edge"
+              {...swipe}
+              onPointerDown={(e) => {
+                // The finger soon leaves this narrow strip: it keeps the swipe all the same.
+                try {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                } catch {
+                  // No capture here: the swipe then ends where it leaves the strip.
+                }
+                down(e);
+              }}
+            />
           </div>
-        </motion.div>
+        </div>
       </div>
 
       <div className={styles.bar} ref={barRef}>
@@ -213,7 +226,7 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
       <RunSettingsSheet open={settings} autoPause={live.tracker.autoPause} onAutoPause={runEngine.setAutoPause} onClose={() => setSettings(false)} />
       {/* Pocket mode: near black. It takes the waking touch for itself, so nothing under it is pressed. */}
       <div className={styles.dim} data-testid="live-dim" data-phase={dim.phase} onPointerDown={dim.wake} aria-hidden="true" />
-    </motion.section>,
+    </section>,
     document.body,
   );
 }

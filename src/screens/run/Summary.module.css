@@ -8,6 +8,32 @@
   flex-direction: column;
   background: var(--bg);
   color: var(--text);
+  animation: summaryIn var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes summaryIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes summaryRise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+.scroll,
+.plain {
+  animation: summaryRise var(--dur-slow) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll,
+  .plain {
+    animation-name: summaryIn;
+  }
 }
 
 .scroll {

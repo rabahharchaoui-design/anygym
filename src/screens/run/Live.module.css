@@ -14,6 +14,13 @@
   -webkit-tap-highlight-color: transparent;
   --live-pad-l: calc(var(--space-5) + var(--safe-left));
   --live-pad-r: calc(var(--space-5) + var(--safe-right));
+  animation: liveIn var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes liveIn {
+  from {
+    opacity: 0;
+  }
 }
 
 /* Two pages side by side on one strip; the strip moves, the pages never reflow. */
@@ -28,6 +35,11 @@
   width: 200%;
   height: 100%;
   will-change: transform;
+}
+
+/* Let go: the strip settles on a page with the app's page spring. Under the finger it has no transition. */
+.strip[data-settle='true'] {
+  transition: transform var(--dur-nav) var(--ease-nav-spring);
 }
 
 .page {
@@ -98,6 +110,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* A new big number rises from the row below, where it was small. */
+  animation: bigIn var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes bigIn {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.82);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
 }
 
 /* The giant number: readable at arm's length. LiveStats scales it down if it would ever be wider
@@ -134,6 +161,7 @@
 }
 
 .smallBox {
+  animation: fadeIn var(--dur-base) var(--ease-out) both;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -302,6 +330,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .strip[data-settle='true'] {
+    transition: none;
+  }
+  .bigBox {
+    animation-name: fadeIn;
+  }
   .goalFill,
   .pageDot {
     transition-duration: 0ms;

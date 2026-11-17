@@ -1,10 +1,8 @@
 import { useLayoutEffect, useRef } from 'react';
-import { motion } from 'motion/react';
 import type { DistanceUnit } from '../../lib/intake/answers';
 import type { TrackerReading } from '../../lib/gps';
 import { formatDistance, formatPace, paceUnit, spokenPace, type GoalProgress } from '../../lib/run';
 import { formatElapsed } from '../../lib/timer';
-import { SPRING } from '../../ui/motion';
 import styles from './Live.module.css';
 
 export type Metric = 'distance' | 'time' | 'pace';
@@ -20,7 +18,6 @@ type Props = {
   big: Metric;
   note: LiveNote;
   goal: GoalProgress | null;
-  reduceMotion: boolean;
   /** Paused by hand: the numbers step back. */
   paused: boolean;
 };
@@ -41,13 +38,13 @@ function faceOf(metric: Metric, r: TrackerReading, unit: DistanceUnit): Face {
 
 /**
  * The stats page (SPEC 12.2): pure black, one giant number, two smaller ones under it. A tap
- * anywhere on the numbers cycles which one is big; the number that grows travels up from its own
- * place below, so it is plain what changed.
+ * anywhere on the numbers cycles which one is big; the new big number rises from the row below
+ * (where it was small) and the row settles, so it is plain what changed. Plain CSS, so it runs on
+ * the compositor; reduced motion fades only.
  */
-export function LiveStats({ reading, unit, big, note, goal, reduceMotion, paused }: Props) {
+export function LiveStats({ reading, unit, big, note, goal, paused }: Props) {
   const small = METRICS.filter((m) => m !== big);
   const bigFace = faceOf(big, reading, unit);
-  const move = reduceMotion ? {} : { layout: 'position' as const, transition: SPRING };
   // The giant number never spills past the screen: if it would (very large text, a long time), it
   // is scaled down to fit, whole.
   const bigRef = useRef<HTMLSpanElement>(null);
@@ -70,29 +67,29 @@ export function LiveStats({ reading, unit, big, note, goal, reduceMotion, paused
       <p className={styles.note} data-tone={note?.tone} data-testid="live-note" role="status">
         {note?.text ?? ''}
       </p>
-      <motion.div key={big} className={styles.bigBox} {...(reduceMotion ? {} : { layoutId: `metric-${big}`, transition: SPRING })}>
+      <div key={big} className={styles.bigBox}>
         <span ref={bigRef} className={`${styles.big} num`} data-len={bigFace.value.length > 5 ? 'long' : 'short'} data-testid="live-big" data-metric={big} aria-label={bigFace.spoken}>
           {bigFace.value}
         </span>
         <span className={styles.bigLabel} data-testid="live-big-label">
           {bigFace.label}
         </span>
-      </motion.div>
+      </div>
       <div className={styles.pair}>
         {small.map((m) => {
           const f = faceOf(m, reading, unit);
           return (
-            <motion.div key={m} className={styles.smallBox} {...(reduceMotion ? {} : { layoutId: `metric-${m}`, transition: SPRING })} data-testid={`live-small-${m}`}>
+            <div key={m} className={styles.smallBox} data-testid={`live-small-${m}`}>
               <span className={`${styles.small} num`} aria-label={f.spoken}>
                 {f.value}
               </span>
               <span className={styles.smallLabel}>{f.label}</span>
-            </motion.div>
+            </div>
           );
         })}
       </div>
       {goal && (
-        <motion.div className={styles.goal} data-testid="live-goal" data-reached={goal.reached || undefined} {...move}>
+        <div className={styles.goal} data-testid="live-goal" data-reached={goal.reached || undefined}>
           <span className={styles.goalBar} role="progressbar" aria-label={goal.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(goal.fraction * 100)}>
             <span className={styles.goalFill} style={{ transform: `scaleX(${goal.fraction})` }} />
           </span>
@@ -100,7 +97,7 @@ export function LiveStats({ reading, unit, big, note, goal, reduceMotion, paused
             <span data-testid="live-goal-line">{goal.line}</span>
             <span className={styles.goalLabel}>{goal.label}</span>
           </span>
-        </motion.div>
+        </div>
       )}
     </div>
   );

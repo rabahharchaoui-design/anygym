@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'motion/react';
 import type { FinishedRun } from '../../hooks/runEngine';
 import { RUN_TYPES, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { Button } from '../../ui/Button';
-import { FADE, GENTLE } from '../../ui/motion';
 import { MapCredit, MapOfflineChip, RunMap } from './RunMap';
 import styles from './Summary.module.css';
 
 type Props = { finished: FinishedRun; reduceMotion: boolean; onDone: () => void; onDiscard: () => void };
+// The entrance is plain CSS (Summary.module.css): the page fades in and its content rises from the
+// bottom, where End was held.
 
 const NO_INSET = { top: 0, bottom: 0 };
 const noop = () => undefined;
@@ -27,13 +27,12 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
   const route = useMemo(() => drawRoute(run.points.map(fromRunPoint), run.gaps), [run]);
   const [offline, setOffline] = useState(false);
   const type = RUN_TYPES.find((t) => t.value === run.type)?.label ?? 'Run';
-  const enter = reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: FADE } : { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: GENTLE };
 
   return createPortal(
-    <motion.section className={styles.summary} data-testid="run-summary" data-verdict={verdict} role="dialog" aria-modal="true" aria-label="Run summary" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={FADE}>
+    <section className={styles.summary} data-testid="run-summary" data-verdict={verdict} role="dialog" aria-modal="true" aria-label="Run summary">
       {verdict === 'ok' ? (
         <>
-          <motion.div className={styles.scroll} {...enter}>
+          <div className={styles.scroll}>
             <p className={styles.kind}>
               {type}
               {run.goal ? ` · ${run.goal}` : ''}
@@ -83,7 +82,7 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
                 ))}
               </ol>
             )}
-          </motion.div>
+          </div>
           <div className={styles.actions}>
             <Button size="lg" onClick={onDone} data-testid="summary-done">
               Done
@@ -92,12 +91,12 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
         </>
       ) : (
         <>
-          <motion.div className={styles.plain} {...enter}>
+          <div className={styles.plain}>
             <h2 className={styles.plainTitle} data-testid="summary-plain">
               {VERDICT_WORDS[verdict].title}
             </h2>
             <p className={styles.plainLine}>{VERDICT_WORDS[verdict].line}</p>
-          </motion.div>
+          </div>
           <div className={styles.actions}>
             <Button size="lg" onClick={onDiscard} data-testid="summary-discard">
               Discard
@@ -108,7 +107,7 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
           </div>
         </>
       )}
-    </motion.section>,
+    </section>,
     document.body,
   );
 }
