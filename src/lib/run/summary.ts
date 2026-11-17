@@ -69,3 +69,22 @@ export function summaryOf(run: Run, unit: DistanceUnit): RunSummary {
 
 /** What stands in place of a split's time when the split holds a GPS gap. */
 export const SPLIT_GAP = 'GPS gap';
+
+/**
+ * 0-based indexes of the fastest splits that have a real time (PLAN 4.6). A split that holds a GPS
+ * gap is never the best: its seconds are too short. Ties share the mark.
+ */
+export function bestSplitIndexes(run: Pick<Run, 'splits' | 'splitGaps'>): number[] {
+  const gaps = new Set(run.splitGaps ?? []);
+  let best = Infinity;
+  const idx: number[] = [];
+  run.splits.forEach((sec, i) => {
+    if (gaps.has(i + 1) || !(sec > 0) || !Number.isFinite(sec)) return;
+    if (sec < best - 1e-9) {
+      best = sec;
+      idx.length = 0;
+      idx.push(i);
+    } else if (Math.abs(sec - best) <= 1e-9) idx.push(i);
+  });
+  return idx;
+}
