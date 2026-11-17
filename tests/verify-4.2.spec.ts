@@ -42,6 +42,20 @@ async function expectCountdownThenStop(page: Page) {
   await expect(page.getByTestId('run-start')).toBeVisible();
 }
 
+/** How far the dot is from the middle of the map a person can see (between the status chips and the run types), in px. */
+const dotOffCentre = (page: Page) =>
+  page.evaluate(() => {
+    const box = (id: string) => document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect();
+    const dot = box('run-dot');
+    const top = box('gps-chip').bottom;
+    const bottom = box('run-types').top;
+    return { dx: Math.round(dot.left + dot.width / 2 - innerWidth / 2), dy: Math.round(dot.top + dot.height / 2 - (top + bottom) / 2) };
+  });
+const expectDotCentred = async (page: Page) => {
+  await expect.poll(async () => Math.abs((await dotOffCentre(page)).dx), { message: 'dot in the middle, left to right' }).toBeLessThanOrEqual(2);
+  await expect.poll(async () => Math.abs((await dotOffCentre(page)).dy), { message: 'dot in the middle of the visible map, top to bottom' }).toBeLessThanOrEqual(8);
+};
+
 const runRows = (page: Page) =>
   page.evaluate(
     () =>
@@ -75,22 +89,40 @@ test.describe('4.2 run start screen', () => {
       await expect(l).toHaveAttribute('target', '_blank');
       await expect(l).toHaveAttribute('rel', 'noopener');
     }
+    // SPEC 19: the gym pill is on Run too, top right beside the title, never over it.
+    const pill = page.getByTestId('gym-pill');
+    await expect(pill).toBeVisible();
+    const [titleBox, pillBox] = await Promise.all([page.getByRole('heading', { level: 1 }).boundingBox(), pill.boundingBox()]);
+    expect(titleBox!.x + titleBox!.width, 'the pill does not overlap the title').toBeLessThanOrEqual(pillBox!.x + 4);
+    expect(pillBox!.x + pillBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     const start = page.getByTestId('run-start');
     const [s, m, t, tab] = await Promise.all([start.boundingBox(), spotify.boundingBox(), types.first().boundingBox(), page.getByRole('navigation', { name: 'Main' }).boundingBox()]);
-    expect(m!.y + m!.height, 'music sits above Start').toBeLessThanOrEqual(s!.y + 1);
+    expect(m!.y + m!.height, 'music sits right above Start').toBeLessThanOrEqual(s!.y + 1);
+    expect(s!.y - (m!.y + m!.height), 'nothing between music and Start').toBeLessThanOrEqual(32);
     expect(t!.y + t!.height, 'run types sit above music').toBeLessThanOrEqual(m!.y + 1);
     expect(s!.y + s!.height, 'Start clears the tab bar').toBeLessThanOrEqual(tab!.y);
     expect(s!.width, 'one huge Start button').toBeGreaterThanOrEqual(88);
     expect(Math.abs(s!.width - s!.height)).toBeLessThan(1);
     const vh = page.viewportSize()!.height;
     expect(s!.y + s!.height / 2, 'Start is in the thumb zone').toBeGreaterThan(vh / 2);
-    // The map keeps a clear band between the title block and the controls.
+    // The map is the hero (SPEC 12.1 "big map"): full bleed from the very top of the screen down to
+    // the run types, and nothing scrolls.
+    const mapBox = (await page.getByTestId('run-map').boundingBox())!;
+    expect(mapBox.y).toBe(0);
+    expect(mapBox.width).toBe(page.viewportSize()!.width);
+    const share = t!.y / vh;
+    console.log(`MAP SHARE ${test.info().project.name}: ${Math.round(share * 100)}% (${Math.round(t!.y)} of ${vh} px)`);
+    expect(share, 'the map takes at least a quarter of the screen, more on taller phones').toBeGreaterThanOrEqual(vh < 600 ? 0.25 : 0.36);
     const chip = await page.getByTestId('gps-chip').boundingBox();
-    expect(t!.y - (chip!.y + chip!.height), 'open map between the chips and the controls').toBeGreaterThanOrEqual(56);
+    expect(t!.y - (chip!.y + chip!.height), 'open map between the chips and the controls').toBeGreaterThanOrEqual(vh < 600 ? 64 : 110);
+    expect(await page.evaluate(() => { const f = document.querySelector('[data-testid="run-float"]')!; return f.scrollHeight - f.clientHeight; }), 'the start screen does not scroll').toBeLessThanOrEqual(0);
 
     await checkLayout(page, { primary: start });
     await checkControls(page);
     await shot(page, 'start');
+    // One tap opens the gym sheet.
+    await pill.tap();
+    await expect(page.getByTestId('new-gym-row')).toBeVisible();
   });
 
   test('Distance and Time open a picker; presets are one tap; custom uses the wheel and the unit @matrix', async ({ page }) => {
@@ -217,6 +249,7 @@ test.describe('4.2 run start screen', () => {
     await expect(chip).toHaveAttribute('data-status', 'good');
     await expect(chip).toContainText('GPS ready');
     await expect(page.getByTestId('run-dot')).toBeVisible();
+    await expectDotCentred(page);
     await shot(page, 'gps-ready');
     await expectCountdownThenStop(page);
 
@@ -310,6 +343,8 @@ test.describe('4.2 run start screen', () => {
       return out;
     });
     expect(cut).toEqual([]);
+    const [h1, gym] = await Promise.all([page.getByRole('heading', { level: 1 }).boundingBox(), page.getByTestId('gym-pill').boundingBox()]);
+    expect(h1!.x + h1!.width, 'the gym pill never sits over the title').toBeLessThanOrEqual(gym!.x + 4);
     const start = page.getByTestId('run-start');
     await start.scrollIntoViewIfNeeded();
     await shot(page, 'text-130');
@@ -366,6 +401,7 @@ test.describe('4.2 run map with tiles answered', () => {
     await openRun(page);
     await useLocation(page);
     await expect(page.getByTestId('run-dot')).toBeVisible();
+    await expectDotCentred(page);
     await expect.poll(() => tiles.asked.some((u) => u.endsWith('.pbf')), { message: 'tiles were asked for' }).toBe(true);
     await expect(page.getByTestId('map-offline')).toHaveCount(0);
     await expect(page.getByTestId('map-credit')).toBeVisible();
@@ -385,8 +421,10 @@ test.describe('4.2 run map with tiles answered', () => {
     const recentre = page.getByTestId('run-recentre');
     await expect(recentre).toBeVisible();
     await checkControls(page);
+    expect(Math.abs((await dotOffCentre(page)).dx), 'the drag moved the dot off centre').toBeGreaterThan(30);
     await recentre.tap();
     await expect(recentre).toHaveCount(0);
+    await expectDotCentred(page);
     await shot(page, 'map-stub');
   });
 });

@@ -23,9 +23,10 @@ import styles from './Run.module.css';
 type Phase = 'setup' | 'countdown' | 'started';
 
 /**
- * Run With Me, the start screen (SPEC 12.1, PLAN 4.2). The map is the screen; the title, the GPS
- * chip and the controls float on it. One primary action: Start. It works with no setup (a free
- * run) and whatever the GPS says. After the countdown comes a plain placeholder until 4.3.
+ * Run With Me, the start screen (SPEC 12.1, PLAN 4.2). The map is the hero: full bleed from under
+ * the status bar down to the run types, with the title and the status chips floating on it. The
+ * controls sit under it on the app background. One primary action: Start. It works with no setup
+ * (a free run) and whatever the GPS says. After the countdown comes a plain placeholder until 4.3.
  */
 export function RunScreen() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -53,7 +54,7 @@ export function RunScreen() {
   const [inset, setInset] = useState({ top: 0, bottom: 0 });
   useLayoutEffect(() => {
     const measure = () => {
-      const top = Math.round(topRef.current?.getBoundingClientRect().bottom ?? 0);
+      const top = Math.round(topRef.current?.lastElementChild?.getBoundingClientRect().bottom ?? 0);
       const bottom = Math.round(window.innerHeight - (panelRef.current?.getBoundingClientRect().top ?? window.innerHeight));
       setInset((i) => (i.top === top && i.bottom === bottom ? i : { top, bottom }));
     };
@@ -86,7 +87,7 @@ export function RunScreen() {
   return (
     <section className={styles.screen} data-testid="run-screen" data-phase={phase}>
       <RunMap here={here} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} />
-      <div className={styles.float}>
+      <div className={styles.float} data-testid="run-float">
       <div className={styles.top} ref={topRef}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>Run With Me</h1>
@@ -114,22 +115,24 @@ export function RunScreen() {
             <Chip key={t.value} label={t.label} picked={setup.type === t.value} onPress={() => pickType(t.value)} testId={`run-type-${t.value}`} block small />
           ))}
         </div>
-        {setup.type === 'free' ? (
-          <p className={styles.goal} data-testid="run-goal">
-            <span className={styles.goalLabel}>{goal.label}</span>
-            <span className={styles.goalDetail}>{goal.detail}</span>
-          </p>
-        ) : (
-          <button type="button" className={`${styles.goal} pressable`} data-testid="run-goal" aria-label={`${typeLabel}: ${goal.label}. Change`} onClick={() => setGoalKind(setup.type as GoalKind)}>
-            <span className={styles.goalLabel}>
-              {goal.label}
-              <ChevronDown width={18} height={18} strokeWidth={2.4} aria-hidden="true" />
-            </span>
-            {goal.detail && <span className={styles.goalDetail}>{goal.detail}</span>}
-          </button>
-        )}
-        <div className={styles.music}>
-          <MusicLinks wide />
+        <div className={styles.row}>
+          {setup.type === 'free' ? (
+            <p className={styles.goal} data-testid="run-goal">
+              <span className={styles.goalLabel}>{goal.label}</span>
+              <span className={styles.goalDetail}>{goal.detail}</span>
+            </p>
+          ) : (
+            <button type="button" className={`${styles.goal} pressable`} data-testid="run-goal" aria-label={`${typeLabel}: ${goal.label}. Change`} onClick={() => setGoalKind(setup.type as GoalKind)}>
+              <span className={styles.goalLabel}>
+                {goal.label}
+                <ChevronDown width={18} height={18} strokeWidth={2.4} aria-hidden="true" />
+              </span>
+              {goal.detail && <span className={styles.goalDetail}>{goal.detail}</span>}
+            </button>
+          )}
+          <span className={styles.music}>
+            <MusicLinks />
+          </span>
         </div>
         <button type="button" className={styles.start} data-testid="run-start" onClick={start}>
           Start
@@ -139,8 +142,8 @@ export function RunScreen() {
       <GoalSheet kind={goalKind} setup={setup} unit={unit} onChange={change} onUnit={setUnit} onClose={() => setGoalKind(null)} />
       <GpsSheet open={gpsOpen} status={status} words={words} onClose={() => setGpsOpen(false)} onAsk={geo.ask} />
       {phase === 'countdown' && origin && <Countdown origin={origin} reduceMotion={reduceMotion} onDone={toStarted} onCancel={toSetup} />}
-      {phase === 'started' && <RunStarted what={setup.type === 'free' ? typeLabel : `${typeLabel} · ${goal.label}`} onStop={toSetup} />}
       <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)" />
+      {phase === 'started' && <RunStarted what={setup.type === 'free' ? typeLabel : `${typeLabel} · ${goal.label}`} onStop={toSetup} />}
     </section>
   );
 }

@@ -45,6 +45,10 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
   cb.current = { onReady, onOffline, onMoved };
   const hereRef = useRef(here);
   hereRef.current = here;
+  // The part of the map a person can see: the dot is centred in it, never in the whole canvas.
+  const padding = { top: inset.top, bottom: inset.bottom, left: 0, right: 0 };
+  const paddingRef = useRef(padding);
+  paddingRef.current = padding;
 
   useEffect(() => {
     if (!box.current) return;
@@ -136,8 +140,8 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     } else dot.current.setLngLat(at);
     if (!placed.current) {
       placed.current = true;
-      gl.jumpTo({ center: at, zoom: HERE_ZOOM });
-    } else if (following.current) gl.easeTo({ center: at, duration: reduceMotion ? 0 : DUR.slow });
+      gl.jumpTo({ center: at, zoom: HERE_ZOOM, padding: paddingRef.current });
+    } else if (following.current) gl.easeTo({ center: at, padding: paddingRef.current, duration: reduceMotion ? 0 : DUR.slow });
   }, [here, reduceMotion]);
 
   // The dot stays in the middle of the part of the map that shows.
@@ -145,9 +149,8 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     const gl = map.current;
     if (!gl) return;
     const h = hereRef.current;
-    const padding = { top: inset.top, bottom: inset.bottom, left: 0, right: 0 };
-    if (h && placed.current && following.current) gl.easeTo({ center: [h.lng, h.lat], padding, duration: 0 });
-    else gl.setPadding(padding);
+    if (h && placed.current && following.current) gl.easeTo({ center: [h.lng, h.lat], padding: paddingRef.current, duration: 0 });
+    else gl.setPadding(paddingRef.current);
   }, [inset.top, inset.bottom]);
 
   useEffect(() => {
@@ -156,7 +159,7 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     if (!gl || !h || recentre === 0) return;
     following.current = true;
     cb.current.onMoved(false);
-    gl.easeTo({ center: [h.lng, h.lat], zoom: Math.max(gl.getZoom(), HERE_ZOOM), duration: reduceMotion ? 0 : DUR.slow });
+    gl.easeTo({ center: [h.lng, h.lat], zoom: Math.max(gl.getZoom(), HERE_ZOOM), padding: paddingRef.current, duration: reduceMotion ? 0 : DUR.slow });
   }, [recentre, reduceMotion]);
 
   return <div ref={box} className={styles.gl} data-testid="run-map-gl" />;

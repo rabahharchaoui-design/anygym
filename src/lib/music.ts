@@ -11,7 +11,7 @@
 //   - The link must be followed by the user's own tap on a real <a>; a scripted window.open is
 //     not treated as a universal link.
 // Android: the same https links open the installed app through its app links, or the website.
-export type MusicApp = { id: 'spotify' | 'apple'; /** The short name on a small pill. */ label: string; /** The full name where there is room. */ name: string; href: string; say: string };
+export type MusicApp = { id: 'spotify' | 'apple'; /** The short name on its pill. */ label: string; /** The app's full name. */ name: string; href: string; say: string };
 
 export const MUSIC_APPS: readonly MusicApp[] = [
   { id: 'spotify', label: 'Spotify', name: 'Spotify', href: 'https://open.spotify.com/', say: 'Open Spotify' },
