@@ -132,7 +132,7 @@ test.describe('4.4 voice coach', () => {
     test.slow();
     await open(page, context);
     await settings(page);
-    await page.getByTestId('voice-splits').getByRole('radio', { name: 'Every 2nd' }).tap();
+    await page.getByTestId('voice-splits').getByRole('radio', { name: 'Each 2nd' }).tap();
     await closeSettings(page);
     const r = await begin(page, context);
     // 7 m/s, a position every 10 s: a km every 143 s.

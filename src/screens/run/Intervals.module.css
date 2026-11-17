@@ -305,3 +305,10 @@
     margin-top: var(--space-3);
   }
 }
+
+/* The 320 wide floor: the stepper's number takes a little less room, so a block's name keeps its arrow clear. */
+@media (max-width: 340px) {
+  .stepValue {
+    min-width: 3.9em;
+  }
+}
