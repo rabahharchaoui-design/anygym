@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { claimBig } from '../../db/celebrations';
-import { selectCelebrations, type Arrival, type Moment } from '../../ui/celebrate';
+import { claimBig } from '../db/celebrations';
+import { selectCelebrations, type Arrival, type Moment } from '../ui/celebrate';
 
 /**
  * The finish screen's celebration (PLAN 3.6b): which moment gets the whole screen (once per
