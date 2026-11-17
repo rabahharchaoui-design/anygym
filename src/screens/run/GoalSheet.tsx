@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IntervalEditor } from './IntervalEditor';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
 import { ChoiceCard } from '../../ui/ChoiceCard';
@@ -8,7 +9,7 @@ import { WheelColumn } from '../../ui/WheelColumn';
 import type { DistanceUnit } from '../../lib/intake/answers';
 import {
   DISTANCE_PRESETS, INTERVAL_PRESETS, TIME_PRESETS_MIN, customDistanceValues, customTimeValues, distanceLabel, isDistancePreset, isTimePreset,
-  sameDistance, timeLabel, type DistanceGoal, type RunSetup,
+  planWords, sameDistance, timeLabel, type DistanceGoal, type RunSetup,
 } from '../../lib/run';
 import styles from './Run.module.css';
 
@@ -34,15 +35,15 @@ const TIME_ITEMS = customTimeValues().map((v) => ({ value: v, label: timeLabel(v
 
 /**
  * The goal pickers of the run start screen (SPEC 12.1, 12.7). A preset is one tap: it is chosen
- * and the sheet closes. Custom opens a wheel, kept with Done. Intervals is the preset list only;
- * the interval run itself is PLAN 4.4.
+ * and the sheet closes. Custom opens a wheel, kept with Done. Intervals: the three presets, or a
+ * custom set of blocks built with taps (IntervalEditor).
  */
 export function GoalSheet({ kind, setup, unit, onChange, onUnit, onClose }: Props) {
   // The last kind stays drawn while the sheet slides away.
   const [shown, setShown] = useState<GoalKind>('distance');
   if (kind && kind !== shown) setShown(kind);
   return (
-    <Sheet open={kind !== null} onClose={onClose} label={TITLES[shown]}>
+    <Sheet open={kind !== null} onClose={onClose} label={TITLES[shown]} scroll={shown === 'intervals'}>
       <div className={styles.sheet} data-testid={`goal-sheet-${shown}`}>
         <h2 className={styles.sheetTitle}>{TITLES[shown]}</h2>
         {shown === 'distance' && <DistancePicker goal={setup.distance} unit={unit} onUnit={onUnit} onPick={(distance) => (onChange({ distance }), onClose())} />}
@@ -52,6 +53,15 @@ export function GoalSheet({ kind, setup, unit, onChange, onUnit, onClose }: Prop
             {INTERVAL_PRESETS.map((p) => (
               <ChoiceCard key={p.id} label={p.label} hint={p.detail} picked={setup.interval === p.id} onPress={() => (onChange({ interval: p.id }), onClose())} testId={`interval-${p.id}`} />
             ))}
+            <ChoiceCard label="Custom" hint={planWords(setup.custom)} picked={setup.interval === 'custom'} onPress={() => onChange({ interval: 'custom' })} testId="interval-custom" />
+            {setup.interval === 'custom' && (
+              <>
+                <IntervalEditor plan={setup.custom} onChange={(custom) => onChange({ custom })} />
+                <Button onClick={onClose} data-testid="goal-done">
+                  Done
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>

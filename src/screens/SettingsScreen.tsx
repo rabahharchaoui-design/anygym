@@ -364,6 +364,7 @@ export function SettingsScreen() {
           </p>
           <p className={styles.note}>Everything you log stays on this phone and works offline. Only reports you send and crash reports leave it.</p>
           <p className={styles.note}>Exercise photos and instructions: free-exercise-db (public domain). Muscle map drawing: react-native-body-highlighter by ELABBASSI Hicham (MIT).</p>
+          <p className={styles.note} data-testid="about-voice">Run coach voice: recorded with Kokoro, an open text to speech model (Apache 2.0). Only the recordings are in the app.</p>
         </div>
       </section>
       <ReportProblemSheet open={reporting} onClose={() => setReporting(false)} facts={gymFacts(gym)} />
