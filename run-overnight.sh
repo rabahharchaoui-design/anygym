@@ -100,6 +100,8 @@ while [ $n -lt 300 ]; do
   cloudcheck
   # The script file changed since this loop started: reload it between runs (never during one).
   if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
+  # Grok helper (G, Nov 17): live tests through Grok Bot, reviews and audits through the Grok Build CLI. Keep it running.
+  if [ -f .grok-helper.sh ] && command -v tmux >/dev/null 2>&1 && { command -v grok >/dev/null 2>&1 || [ -x "$HOME/.grok/bin/grok" ]; } && ! tmux has-session -t grok-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s grok-helper "bash $PWD/.grok-helper.sh" && say "started the Grok helper (tmux session grok-helper)"; fi
   if ! command -v claude >/dev/null 2>&1; then [ "$WAITMSG" != noclaude ] && { say "claude command not found on PATH ($PATH), waiting"; ntfy "AnyGym: needs Claude" "The build loop cannot find the claude command. Tell Claude in chat." "warning"; }; WAITMSG=noclaude; sleep 600; continue; fi
   if [ -f .loop-pause ]; then pu=$(grep -o 'until=[0-9]*' .loop-pause | head -1 | cut -d= -f2); if [ -n "$pu" ] && [ $(date +%s) -ge $pu ]; then mv .loop-pause .loop-pause.expired; say "pause expired, resuming"; fi; fi   # a pause can carry until=<epoch>
   if [ -f .loop-pause ] && [ "${IGNORE_GOV:-0}" = 1 ] && grep -q "usage governor" .loop-pause; then mv .loop-pause .loop-pause.gov-ignored; say "governor pause ignored: weekly reset is close (IGNORE_GOV)"; fi
