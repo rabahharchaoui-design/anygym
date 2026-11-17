@@ -3,6 +3,8 @@
 //   gpsStatus.ts  the GPS chip: status and plain words
 //   mapSource.ts  the tile host and the map data credit
 //   format.ts    distance and pace as printed (the one place)
+//   intervals.ts  interval presets, a custom set and the interval clock (PLAN 4.4)
+//   voice/        the voice coach: the clip list, the sentences, the settings (PLAN 4.4)
 //   live.ts      the live run: one state, one step at a time (PLAN 4.3)
 //   snapshot.ts  a live run written down and read back after the app closed
 //   progress.ts  progress toward a Distance or Time goal
@@ -12,6 +14,13 @@
 //   dim.ts       pocket mode dimming
 //   mapStyle.ts   the dark map style in the app palette (imported by the lazy map only, not from here)
 export * from './goal';
+export * from './intervals';
+export * from './voice/clips';
+export * from './voice/compose';
+export * from './voice/settings';
+export * from './voice/events';
+export * from './voice/schedule';
+export * from './voice/speech';
 export * from './gpsStatus';
 export * from './mapSource';
 export * from './format';

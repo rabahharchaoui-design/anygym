@@ -5,7 +5,8 @@
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../intake/answers';
 import { fromRunPoint, pauseRun, processTrack, readTracker, toRunGaps, toRunPoint, unitMeters, type TrackBreak, type TrackInput, type TrackerState } from '../gps';
-import { INTERVAL_PRESETS, RUN_TYPES, type IntervalPresetId, type RunType } from './goal';
+import { INTERVAL_PRESETS, RUN_TYPES, type RunType } from './goal';
+import { PRESET_PLANS, sanitizePlan, startIntervals, type IntervalChoice, type IntervalState } from './intervals';
 import type { LiveRun, RunGoal } from './live';
 
 export const SNAPSHOT_VERSION = 1;
@@ -15,7 +16,9 @@ export type RunSnapshot = {
   id: string;
   type: RunType;
   goal: RunGoal | null;
-  intervalPreset: IntervalPresetId | null;
+  intervalPreset: IntervalChoice | null;
+  /** Interval runs only (PLAN 4.4): the blocks and how far their clock got. */
+  intervals?: { plan: IntervalState['plan']; activeMs: number } | null;
   unit: DistanceUnit;
   tracker: TrackerState;
   breaks: TrackBreak[];
@@ -42,11 +45,29 @@ export function liveRow(run: LiveRun): Run {
   };
 }
 
-export const toSnapshot = (run: LiveRun): RunSnapshot => ({ v: SNAPSHOT_VERSION, id: run.id, type: run.type, goal: run.goal, intervalPreset: run.intervalPreset, unit: run.unit, tracker: run.tracker, breaks: run.breaks });
+export const toSnapshot = (run: LiveRun): RunSnapshot => ({
+  v: SNAPSHOT_VERSION,
+  id: run.id,
+  type: run.type,
+  goal: run.goal,
+  intervalPreset: run.intervalPreset,
+  ...(run.intervals ? { intervals: { plan: run.intervals.plan, activeMs: run.intervals.activeMs } } : {}),
+  unit: run.unit,
+  tracker: run.tracker,
+  breaks: run.breaks,
+});
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isType = (v: unknown): v is RunType => RUN_TYPES.some((t) => t.value === v);
-const isPreset = (v: unknown): v is IntervalPresetId => INTERVAL_PRESETS.some((p) => p.id === v);
+const isPreset = (v: unknown): v is IntervalChoice => v === 'custom' || INTERVAL_PRESETS.some((p) => p.id === v);
+
+/** The interval clock read back. It stands until the run is resumed (the time away is not counted). */
+function intervalsFrom(v: unknown): IntervalState | null {
+  const i = v as Partial<{ plan: unknown; activeMs: unknown }> | null;
+  if (!i || typeof i !== 'object') return null;
+  const plan = sanitizePlan(i.plan);
+  return plan && num(i.activeMs) && i.activeMs >= 0 ? { plan, activeMs: i.activeMs, at: null } : null;
+}
 
 function goalFrom(v: unknown): RunGoal | null {
   const g = v as Partial<{ kind: string; meters: number; seconds: number; label: string }> | null;
@@ -71,7 +92,7 @@ export function parseSnapshot(text: string | null | undefined, runId: string): R
     if (!s || s.v !== SNAPSHOT_VERSION || s.id !== runId || !isType(s.type) || (s.unit !== 'km' && s.unit !== 'mi')) return null;
     const tracker = trackerFrom(s.tracker);
     if (!tracker || !Array.isArray(s.breaks)) return null;
-    return { v: SNAPSHOT_VERSION, id: runId, type: s.type, goal: goalFrom(s.goal), intervalPreset: isPreset(s.intervalPreset) ? s.intervalPreset : null, unit: s.unit, tracker, breaks: s.breaks };
+    return { v: SNAPSHOT_VERSION, id: runId, type: s.type, goal: goalFrom(s.goal), intervalPreset: isPreset(s.intervalPreset) ? s.intervalPreset : null, intervals: intervalsFrom(s.intervals), unit: s.unit, tracker, breaks: s.breaks };
   } catch {
     return null;
   }
@@ -104,12 +125,17 @@ export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { 
   const fits = snapshot && (snapshot.tracker.lastRecorded?.t ?? null) === (last?.t ?? null);
   const unit = snapshot?.unit ?? fallback.unit;
   const { tracker, breaks } = fits ? snapshot : replay(row, unit, fallback.autoPause);
+  const intervalPreset = snapshot?.intervalPreset ?? (isPreset(row.intervalPreset) ? row.intervalPreset : null);
+  // The interval clock comes from the snapshot alone (the track cannot tell it). With no snapshot a
+  // preset starts its blocks again; a custom set that was not written down runs on as a free run.
+  const intervals = snapshot?.intervals ? { ...snapshot.intervals, at: null } : !snapshot && intervalPreset && intervalPreset !== 'custom' ? startIntervals(PRESET_PLANS[intervalPreset]) : null;
   return {
     id: row.id,
     startedAt: row.startedAt,
     type: snapshot?.type ?? (isType(row.type) ? row.type : 'free'),
     goal: snapshot?.goal ?? null,
-    intervalPreset: snapshot?.intervalPreset ?? (isPreset(row.intervalPreset) ? row.intervalPreset : null),
+    intervalPreset,
+    intervals,
     unit,
     tracker: pauseRun(tracker),
     points,

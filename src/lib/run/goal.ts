@@ -3,14 +3,16 @@
 // stays 3 mi); meters are worked out only when asked, through lib/gps unitMeters.
 import type { DistanceUnit } from '../intake/answers';
 import { unitMeters } from '../gps';
+import { DEFAULT_CUSTOM, planWords, sanitizePlan, type IntervalChoice, type IntervalPlan, type IntervalPresetId } from './intervals';
+import { DEFAULT_VOICE, sanitizeVoice, type VoiceSettings } from './voice/settings';
 
 export type RunType = 'free' | 'distance' | 'time' | 'intervals';
 export type DistanceGoal = { value: number; unit: DistanceUnit };
-export type IntervalPresetId = 'beginner' | 'builder' | 'speed';
 
 /** What the start screen remembers between visits. Every part always has a value, so Start works with no setup. */
 /** `autoPause` is the run setting of SPEC 12.3 (on by default): standing still pauses the clock. */
-export type RunSetup = { type: RunType; distance: DistanceGoal; timeMin: number; interval: IntervalPresetId; autoPause: boolean };
+/** `interval` is a preset or 'custom' (then `custom` is the set, SPEC 12.7); `voice` is the voice coach's settings (SPEC 12.4). */
+export type RunSetup = { type: RunType; distance: DistanceGoal; timeMin: number; interval: IntervalChoice; custom: IntervalPlan; autoPause: boolean; voice: VoiceSettings };
 
 export const RUN_TYPES: ReadonlyArray<{ value: RunType; label: string }> = [
   { value: 'free', label: 'Free run' },
@@ -34,14 +36,14 @@ export const CUSTOM_DISTANCE = { min: 0.5, max: 50, step: 0.5 } as const;
 /** Custom time: 5 minute steps from 5 minutes to 3 hours. */
 export const CUSTOM_TIME_MIN = { min: 5, max: 180, step: 5 } as const;
 
-/** SPEC 12.7 presets, as words only: 4.4 builds the interval run itself. */
+/** SPEC 12.7 presets as words; the blocks themselves are lib/run/intervals PRESET_PLANS. */
 export const INTERVAL_PRESETS: ReadonlyArray<{ id: IntervalPresetId; label: string; detail: string }> = [
   { id: 'beginner', label: 'Beginner', detail: 'Run 1 min, walk 2 min, 8 times' },
   { id: 'builder', label: 'Builder', detail: 'Run 3 min, walk 1 min, 6 times' },
   { id: 'speed', label: 'Speed', detail: '1 min hard, 1 min easy, 10 times' },
 ];
 
-export const DEFAULT_RUN_SETUP: RunSetup = { type: 'free', distance: { value: 5, unit: 'km' }, timeMin: 30, interval: 'beginner', autoPause: true };
+export const DEFAULT_RUN_SETUP: RunSetup = { type: 'free', distance: { value: 5, unit: 'km' }, timeMin: 30, interval: 'beginner', custom: DEFAULT_CUSTOM, autoPause: true, voice: DEFAULT_VOICE };
 
 const steps = (range: { min: number; max: number; step: number }): number[] => {
   const out: number[] = [];
@@ -71,8 +73,10 @@ export function sanitizeRunSetup(raw: unknown): RunSetup {
     type: RUN_TYPES.some((t) => t.value === r.type) ? (r.type as RunType) : DEFAULT_RUN_SETUP.type,
     distance: isDistanceGoal(r.distance) ? { value: r.distance.value, unit: r.distance.unit } : DEFAULT_RUN_SETUP.distance,
     timeMin: isTimeGoal(r.timeMin) ? r.timeMin : DEFAULT_RUN_SETUP.timeMin,
-    interval: INTERVAL_PRESETS.some((p) => p.id === r.interval) ? (r.interval as IntervalPresetId) : DEFAULT_RUN_SETUP.interval,
+    interval: r.interval === 'custom' || INTERVAL_PRESETS.some((p) => p.id === r.interval) ? (r.interval as IntervalChoice) : DEFAULT_RUN_SETUP.interval,
+    custom: sanitizePlan(r.custom) ?? DEFAULT_RUN_SETUP.custom,
     autoPause: typeof r.autoPause === 'boolean' ? r.autoPause : DEFAULT_RUN_SETUP.autoPause,
+    voice: sanitizeVoice(r.voice),
   };
 }
 
@@ -122,6 +126,7 @@ export function goalLine(setup: RunSetup): { label: string; detail: string | nul
     case 'time':
       return { label: timeLabel(setup.timeMin), detail: null };
     case 'intervals': {
+      if (setup.interval === 'custom') return { label: 'Custom', detail: planWords(setup.custom) };
       const p = INTERVAL_PRESETS.find((i) => i.id === setup.interval) ?? INTERVAL_PRESETS[0]!;
       return { label: p.label, detail: p.detail };
     }

@@ -21,7 +21,7 @@ describe('run setup storage', () => {
     expect((await readRunSetup(db)).setup).toEqual(DEFAULT_RUN_SETUP);
   });
   it('remembers the type and goals', async () => {
-    const setup = { type: 'distance', distance: { value: 3, unit: 'mi' }, timeMin: 45, interval: 'speed', autoPause: false } as const;
+    const setup = { ...DEFAULT_RUN_SETUP, type: 'distance', distance: { value: 3, unit: 'mi' }, timeMin: 45, interval: 'speed', autoPause: false, voice: { on: false, splits: 'second' } } as const;
     await saveRunSetup(setup, db);
     expect((await readRunSetup(db)).setup).toEqual(setup);
   });
