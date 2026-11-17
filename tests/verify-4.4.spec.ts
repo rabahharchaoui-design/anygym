@@ -34,11 +34,15 @@ const settings = async (page: Page) => {
   await page.getByTestId('run-settings').tap();
   await expect(page.getByTestId('run-settings-sheet')).toBeVisible();
 };
+/**
+ * Done on the run settings sheet. Once this spec has jumped the page's clock (runFor), the sheet's
+ * slide away never reports its end in the test browser, so the sheet's node stays although it is
+ * closed: no longer a dialog, taking no taps (checked by hand: with real waiting instead of a clock
+ * jump it goes within half a second). So "closed" here means: the dialog is gone.
+ */
 const closeSettings = async (page: Page) => {
   await page.getByTestId('run-settings-done').tap();
-  // The sheet slides away on the page's clock, which these tests move by hand.
-  await page.clock.runFor(600);
-  await expect(page.getByTestId('run-settings-sheet')).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Run settings' })).toHaveCount(0);
 };
 const voiceSwitch = (page: Page) => page.getByRole('switch', { name: /Voice coach/ });
 /**
