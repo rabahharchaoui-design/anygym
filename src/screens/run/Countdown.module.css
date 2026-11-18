@@ -1,4 +1,6 @@
-/* The 3, 2, 1 that fills the screen, over the tab bar and everything else of the app. */
+/* The 3, 2, 1, GO that fills the screen, over the tab bar and everything else of the app (PLAN 4.4a).
+   Titanium Glass: graphite, one giant ice number, GO in graphite on ice. Every animation here is
+   transform and opacity only, so it runs on the compositor and never shifts a layout. */
 .count {
   position: fixed;
   inset: 0 0 auto;
@@ -9,46 +11,234 @@
   align-items: center;
   overflow: hidden;
   padding: calc(var(--safe-top) + var(--space-5)) var(--space-5) calc(var(--safe-bottom) + var(--space-5));
+  background: var(--bg-screen);
+  color: var(--text);
   /* Taps never reach the screen under it. */
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: layerIn var(--dur-base) var(--ease-out) both;
 }
 
-/* The Start button's colour, growing from where the button was (a transform only). */
-.flood {
+/* A soft ice light behind the number, so the glass has depth. */
+.glow {
   position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 150vmin;
+  height: 150vmin;
+  margin: -75vmin 0 0 -75vmin;
   border-radius: 50%;
-  background: var(--accent);
-  will-change: transform;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%);
+  pointer-events: none;
 }
 
+/* GO: the whole layer lights ice. */
+.ice {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.count[data-beat='go'] .ice {
+  animation: fadeIn 140ms var(--ease-out) both;
+}
+
+/* The last moment of GO: the screen goes to the live run's black, so the hand over is seamless. */
+.black {
+  position: absolute;
+  inset: 0;
+  background: var(--black);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms var(--ease-out);
+}
+
+.count[data-dark] .black {
+  opacity: 1;
+}
+
+.kicker {
+  position: relative;
+  flex: none;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.count[data-beat='go'] .kicker {
+  color: var(--on-accent);
+}
+
+/* The number's room: everything the kicker and the foot leave. The number is sized from it, so at
+   any text size and on any phone it shrinks before it would ever be cut. */
 .stage {
   position: relative;
   flex: 1;
   min-height: 0;
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
+  container-type: size;
 }
 
 .number {
   display: block;
-  color: var(--on-accent);
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(160px, 56vw, 260px);
+  font-weight: 900;
+  /* About 60% of the screen height, never more than the room it has. */
+  font-size: min(calc(var(--app-height) * 0.6), 100cqh, 128cqw);
   line-height: 1;
+  letter-spacing: -0.05em;
+  /* Ice, lit from the top. */
+  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 62%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  /* Arrives a touch big and settles, eases back over its second, and leaves just before the next. */
+  animation: beat 1000ms linear both;
+}
+
+.number[data-go] {
+  font-size: min(calc(var(--app-height) * 0.42), 100cqh, 60cqw);
   letter-spacing: -0.04em;
+  background: none;
+  color: var(--on-accent);
+  animation: goIn var(--dur-tap) var(--ease-tap-spring) both;
+}
+
+.foot {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.pips {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.22;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.pip[data-on] {
+  opacity: 1;
 }
 
 .cancel {
-  position: relative;
-  flex: none;
   min-height: 48px;
-  min-width: 120px;
+  min-width: 132px;
   padding: 0 var(--space-5);
   border-radius: var(--radius-pill);
-  border: 1.5px solid color-mix(in srgb, var(--on-accent) 45%, transparent);
-  color: var(--on-accent);
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface-1);
+  color: var(--text);
   font-size: 17px;
   font-weight: 700;
+}
+
+.count[data-beat='go'] .foot {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+@keyframes layerIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes beat {
+  0% {
+    opacity: 0;
+    transform: scale(1.14);
+    animation-timing-function: var(--ease-out);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(1);
+    animation-timing-function: linear;
+  }
+  84% {
+    opacity: 1;
+    transform: scale(0.95);
+    animation-timing-function: ease-in;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes goIn {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion: each beat fades in and out, nothing grows or shrinks. */
+@keyframes beatFade {
+  0% {
+    opacity: 0;
+  }
+  18%,
+  84% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.count[data-reduce] .number {
+  transform: none;
+  animation-name: beatFade;
+}
+
+.count[data-reduce] .number[data-go] {
+  animation: fadeIn var(--dur-fast) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .number {
+    transform: none;
+    animation-name: beatFade;
+  }
+  .number[data-go] {
+    animation: fadeIn var(--dur-fast) var(--ease-out) both;
+  }
 }

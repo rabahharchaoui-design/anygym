@@ -46,6 +46,8 @@ let voice: VoiceSettings = DEFAULT_VOICE;
 let dirty = false;
 let writes: Promise<void> = Promise.resolve();
 let restoring: Promise<void> | null = null;
+/** What the watch said before the run existed (it starts at the countdown): told to the run at GO. */
+let earlyTrouble: 'denied' | 'unavailable' | null = null;
 
 const set = (patch: Partial<EngineState>) => {
   state = { ...state, ...patch };
@@ -91,10 +93,15 @@ function startWatch() {
   if (!navigator.geolocation) return dispatch({ type: 'gps', trouble: 'unavailable' });
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
+      earlyTrouble = null;
       const { latitude, longitude, accuracy } = pos.coords;
+      // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
       dispatch({ type: 'fix', point: { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, Date.now()) } });
     },
-    (err) => dispatch({ type: 'gps', trouble: err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable' }),
+    (err) => {
+      earlyTrouble = err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable';
+      dispatch({ type: 'gps', trouble: earlyTrouble });
+    },
     WATCH,
   );
 }
@@ -108,7 +115,8 @@ const onVisibility = () => {
 };
 
 function attach() {
-  startWatch();
+  // Started at the countdown already (warmGps): kept, so the first position is not delayed.
+  if (watchId === null) startWatch();
   wake.hold();
   saveTimer = window.setInterval(save, SAVE_EVERY_MS);
   if (state.live?.intervals) tickTimer = window.setInterval(() => dispatch({ type: 'tick', now: Date.now() }), TICK_EVERY_MS);
@@ -163,6 +171,20 @@ export const runEngine = {
     return restoring;
   },
 
+  /**
+   * The countdown started (PLAN 4.4a): the phone starts looking for its position now, so the first
+   * one is there at GO. Positions before the run exists are not part of it.
+   */
+  warmGps(): void {
+    if (state.live || watchId !== null) return;
+    earlyTrouble = null;
+    startWatch();
+  },
+  /** The countdown was cancelled: stop looking. */
+  coolGps(): void {
+    if (!state.live) stopWatch();
+  },
+
   /** Starts a run now (after the countdown). The row exists from the first moment. */
   start(setup: RunSetup, unit: DistanceUnit): void {
     if (state.live) return;
@@ -175,6 +197,7 @@ export const runEngine = {
       dirty = true;
     });
     attach();
+    if (earlyTrouble) dispatch({ type: 'gps', trouble: earlyTrouble });
   },
 
   pause(): void {
