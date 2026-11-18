@@ -19,7 +19,7 @@
 
 /* The card keeps its 4:5 shape before the picture is drawn, so nothing moves when it appears. */
 .preview {
-  width: min(100%, 52vh * 0.8);
+  width: min(100%, 44vh * 0.8);
   aspect-ratio: 4 / 5;
   align-self: center;
   border-radius: var(--radius-md);

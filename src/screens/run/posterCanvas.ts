@@ -35,15 +35,17 @@ export function drawPoster(canvas: HTMLCanvasElement, poster: Poster): void {
   }
 
   // The line sits in a square under the city, centred.
-  const box = POSTER_W - pad * 2;
-  const top = 190;
+  // A square that ends above the big distance, so the line never runs into the numbers.
+  const box = 760;
+  const left = (POSTER_W - box) / 2;
+  const top = 170;
   ctx.strokeStyle = c.accent;
   ctx.lineWidth = 16;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const piece of poster.lines) {
     ctx.beginPath();
-    piece.forEach((p, i) => (i === 0 ? ctx.moveTo(pad + p.x * box, top + p.y * box) : ctx.lineTo(pad + p.x * box, top + p.y * box)));
+    piece.forEach((p, i) => (i === 0 ? ctx.moveTo(left + p.x * box, top + p.y * box) : ctx.lineTo(left + p.x * box, top + p.y * box)));
     ctx.stroke();
   }
   if (poster.lines.length === 0 && poster.note) {
