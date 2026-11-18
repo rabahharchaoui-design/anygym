@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { rememberTold, wasTold } from '../../hooks/runFlags';
 import { runEngine, type EngineState } from '../../hooks/useRunEngine';
 import { usePocketDim } from '../../hooks/usePocketDim';
+import { useLiveReading } from '../../hooks/useLiveReading';
 import { useRunSetup } from '../../hooks/useRunSetup';
-import { blockEffort, DEFAULT_VOICE, readIntervals, readLive, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
+import { blockEffort, DEFAULT_VOICE, readIntervals, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
+import type { RunStatus } from '../../lib/gps';
 import { formatElapsed } from '../../lib/timer';
 import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
@@ -21,7 +23,7 @@ import iv from './Intervals.module.css';
 
 type Props = { live: Live; wake: EngineState['wake']; saveFailed: boolean; reduceMotion: boolean; onHide: () => void };
 
-function noteOf(live: Live, status: ReturnType<typeof readLive>['status']): LiveNote {
+function noteOf(live: Live, status: RunStatus): LiveNote {
   if (status === 'paused') return { tone: 'paused', text: live.closed ? 'Paused while the app was closed' : 'Paused' };
   if (live.gps === 'denied') return { tone: 'wait', text: 'Location is off for AnyGym' };
   if (status === 'waiting') return { tone: 'wait', text: 'Looking for GPS' };
@@ -37,7 +39,8 @@ function noteOf(live: Live, status: ReturnType<typeof readLive>['status']): Live
  * to near black; the first tap only wakes it.
  */
 export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props) {
-  const reading = readLive(live);
+  // The time counts second by second between positions, from one tick (PLAN 4.4a).
+  const reading = useLiveReading(live);
   const paused = reading.status === 'paused';
   const [big, setBig] = useState<Metric>('distance');
   const [page, setPage] = useState<Page>(0);
@@ -172,6 +175,7 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
       data-locked={locked || undefined}
       data-dim={dim.phase}
       data-fix={live.here?.t ?? ''}
+      data-moving-sec={reading.movingSec}
       data-wake={wake}
       data-effort={effort ?? undefined}
       role="dialog"
