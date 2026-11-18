@@ -193,7 +193,8 @@ describe('run engine', () => {
     expect(wakeReleases).toBe(1);
     const row = (await db.runs.toArray())[0]!;
     expect(row).toEqual(finished!.run);
-    expect(row).toMatchObject({ endedAt: T0 + 405_000, movingSec: 400, splits: [expect.closeTo(333.3, 0)] });
+    // PLAN 4.4a: the 5 s since the last position (still running, under GAP_SEC) count, as the face showed them.
+    expect(row).toMatchObject({ endedAt: T0 + 405_000, movingSec: 405, splits: [expect.closeTo(333.3, 0)] });
     expect(row.distanceM).toBeCloseTo(1200, 0);
     expect(row.points).toHaveLength(401);
     expect(await db.kv.get('anygym-run-live')).toBeUndefined();
@@ -262,5 +263,38 @@ describe('run engine', () => {
     app.engine.start(DEFAULT_RUN_SETUP, 'km');
     await settle();
     expect(app.engine.get().wake).toBe('refused');
+  });
+});
+
+describe('run engine: GPS from the countdown (PLAN 4.4a)', () => {
+  it('warmGps starts one watch before the run; the run keeps it; positions before GO are not part of the run', async () => {
+    const { engine } = await freshApp();
+    engine.warmGps();
+    engine.warmGps();
+    expect(watches.size).toBe(1);
+    const [id] = [...watches.keys()];
+    report(at(0, 0, 0));
+    expect(engine.get().live).toBeNull();
+    vi.setSystemTime(T0 + 3_000);
+    engine.start(DEFAULT_RUN_SETUP, 'km');
+    expect([...watches.keys()]).toEqual([id]);
+    expect(engine.get().live!.points).toHaveLength(0);
+    report(at(0, 0, 4));
+    expect(engine.get().live!.points).toHaveLength(1);
+    await engine.end();
+  });
+
+  it('coolGps stops the early watch; a refusal during the countdown reaches the run at GO', async () => {
+    const { engine } = await freshApp();
+    engine.warmGps();
+    engine.coolGps();
+    expect(watches.size).toBe(0);
+    engine.warmGps();
+    for (const w of watches.values()) w.fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+    engine.start(DEFAULT_RUN_SETUP, 'km');
+    expect(engine.get().live!.gps).toBe('denied');
+    engine.coolGps();
+    expect(watches.size).toBe(1);
+    await engine.end();
   });
 });

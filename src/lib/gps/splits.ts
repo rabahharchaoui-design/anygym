@@ -52,13 +52,13 @@ export function addSplitStep(state: SplitState, step: SplitStep): { state: Split
       distanceM: state.unitM,
       sec: (open.ms + takeMs) / 1000,
       timedM: open.timedM + (step.timed ? takeM : 0),
-      gap: open.gap || (untimed && takeM > 0),
+      gap: open.gap || (untimed && takeM > 0) || (step.gap && takeMs > 0),
     });
     leftM -= takeM;
     leftMs -= takeMs;
     open = NOTHING;
   }
-  open = { distanceM: open.distanceM + leftM, ms: open.ms + leftMs, timedM: open.timedM + (step.timed ? leftM : 0), gap: open.gap || (untimed && leftM > 0) };
+  open = { distanceM: open.distanceM + leftM, ms: open.ms + leftMs, timedM: open.timedM + (step.timed ? leftM : 0), gap: open.gap || (untimed && leftM > 0) || (step.gap && leftMs > 0) };
   return { state: { unitM: state.unitM, full: completed.length ? [...state.full, ...completed] : state.full, open }, completed };
 }
 

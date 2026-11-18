@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { rememberTold, wasTold } from '../../hooks/runFlags';
 import { runEngine } from '../../hooks/useRunEngine';
 import { unlockVoice } from '../../hooks/voicePlayer';
@@ -16,7 +16,7 @@ import { ChevronDown, RecentreIcon, TuneIcon } from '../../ui/icons';
 import { Chip } from '../../ui/Chip';
 import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useToastTimeout } from '../../ui/useToastTimeout';
-import { Countdown, type Origin } from './Countdown';
+import { Countdown } from './Countdown';
 import { GoalSheet, type GoalKind } from './GoalSheet';
 import { GpsChip, GpsSheet } from './GpsChip';
 import { MapCredit, MapOfflineChip, RunMap } from './RunMap';
@@ -59,7 +59,6 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
   const [moved, setMoved] = useState(false);
   const [recentre, setRecentre] = useState(0);
   const [phase, setPhase] = useState<Phase>('setup');
-  const [origin, setOrigin] = useState<Origin | null>(null);
   const [pocket, setPocket] = useState(false);
   const [settings, setSettings] = useState(false);
 
@@ -84,25 +83,33 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
     change({ type });
     if (type !== 'free') setGoalKind(type);
   };
-  const start = useTapGuard((e: React.MouseEvent<HTMLButtonElement>) => {
+  // The countdown is up: GPS starts now, so the first position is there at GO (PLAN 4.4a).
+  const toCountdown = () => {
+    runEngine.warmGps();
+    setPhase('countdown');
+  };
+  const start = useTapGuard(() => {
     if (phase !== 'setup') return;
-    const b = e.currentTarget.getBoundingClientRect();
     tick();
     // A phone lets sound start only from a tap: this is the tap the voice coach's first words hang on.
     unlockVoice();
     setGoalKind(null);
     setGpsOpen(false);
-    setOrigin({ x: b.left + b.width / 2, y: b.top + b.height / 2, size: b.width });
     // SPEC 12.2: said once, before the first run. "Got it" goes on to the countdown.
     if (!wasTold('pocket')) setPocket(true);
-    else setPhase('countdown');
+    else toCountdown();
   });
   const afterPocket = () => {
     rememberTold('pocket');
     setPocket(false);
-    setPhase('countdown');
+    toCountdown();
   };
-  const toSetup = useCallback(() => setPhase('setup'), []);
+  // Leaving the tab mid countdown: the early GPS stops too (after GO the run owns it).
+  useEffect(() => () => runEngine.coolGps(), []);
+  const toSetup = useCallback(() => {
+    runEngine.coolGps();
+    setPhase('setup');
+  }, []);
   // The countdown is over: the run exists from this moment (hooks/runEngine), and the live screen opens.
   const toStarted = useCallback(() => {
     runEngine.start(setup, unit);
@@ -112,9 +119,12 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
   const goal = goalLine(setup);
   const typeLabel = RUN_TYPES.find((t) => t.value === setup.type)!.label;
   const here = geo.fix && status !== 'denied' ? geo.fix : null;
+  // While the countdown covers it the map sleeps: hidden, and the dot does not move (no WebGL drawing under the count).
+  const mapHere = useRef(here);
+  if (phase === 'setup') mapHere.current = here;
   return (
     <section className={styles.screen} data-testid="run-screen" data-phase={phase} data-going={going ? true : undefined}>
-      <RunMap here={here} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} />
+      <RunMap asleep={phase === 'countdown'} here={mapHere.current} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} />
       <div className={styles.float} data-testid="run-float">
       <div className={styles.top} ref={topRef}>
         <div className={styles.titleRow}>
@@ -191,7 +201,7 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
       </div>
       <GoalSheet kind={goalKind} setup={setup} unit={unit} onChange={change} onUnit={setUnit} onClose={() => setGoalKind(null)} />
       <GpsSheet open={gpsOpen} status={status} words={words} onClose={() => setGpsOpen(false)} onAsk={geo.ask} />
-      {phase === 'countdown' && origin && <Countdown origin={origin} reduceMotion={reduceMotion} onDone={toStarted} onCancel={toSetup} />}
+      {phase === 'countdown' && <Countdown reduceMotion={reduceMotion} onDone={toStarted} onCancel={toSetup} />}
       <Toast toast={toast} bottom="calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)" />
       <PocketSheet open={pocket} onGo={afterPocket} onClose={() => setPocket(false)} />
       <RunSettingsSheet open={settings} autoPause={setup.autoPause} onAutoPause={(on) => change({ autoPause: on })} voice={setup.voice} onVoice={(voice) => change({ voice })} unit={unit} onClose={() => setSettings(false)} />

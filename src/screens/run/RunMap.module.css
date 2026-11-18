@@ -7,6 +7,15 @@
   background: var(--bg-screen);
 }
 
+/* Under the countdown: not drawn at all (its pulse and its tiles would cost frames). */
+.map[data-asleep] {
+  visibility: hidden;
+}
+
+.map[data-asleep] * {
+  animation-play-state: paused;
+}
+
 /* The map fades in over the placeholder once it has drawn (no pop, no white flash). */
 .canvas {
   position: absolute;

@@ -85,12 +85,12 @@ describe('liveStep', () => {
     expect(readLive(on).status).toBe('auto-paused');
     expect(liveStep(on, { type: 'auto-pause', on: true })).toBe(on);
   });
-  it('a gap in the fixes breaks the line; its time is not moving time', () => {
+  it('a gap in the fixes breaks the line; its time is not moving time beyond the first GAP_SEC (PLAN 4.4a)', () => {
     let run = feed(start(), east(0, 30));
     run = feed(run, east(130, 140, 3, 200));
     expect(run.breaks).toHaveLength(1);
     expect(run.breaks[0]).toMatchObject({ kind: 'gap', fromT: T0 + 30_000, toT: T0 + 130_000 });
-    expect(readLive(run).movingSec).toBeCloseTo(40, 5);
+    expect(readLive(run).movingSec).toBeCloseTo(40 + 15, 5);
   });
   it('GPS trouble is kept until the next good position', () => {
     let run = liveStep(start(), { type: 'gps', trouble: 'denied' });
