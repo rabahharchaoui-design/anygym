@@ -4,7 +4,7 @@
 import { durableRow } from '../lib/durable';
 import { phoneLocale, unitsForLocale } from '../lib/intake/region';
 import type { DistanceUnit } from '../lib/intake/answers';
-import { parseRunSetup, sanitizeRunSetup, type RunSetup } from '../lib/run';
+import { parseRunSetup, sanitizeRunSetup, type RunSetup } from '../lib/run/goal';
 import { getProfile, setProfileUnits } from './intake';
 import { db as defaultDb, type AnyGymDB } from './schema';
 

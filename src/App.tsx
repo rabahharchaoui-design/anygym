@@ -6,8 +6,6 @@ import { LandscapeGuard } from './components/LandscapeGuard';
 import { TodayScreen } from './screens/TodayScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HistoryDetail } from './screens/history/HistoryDetail';
-import { RunDetail } from './screens/history/RunDetail';
-import { RunRecords } from './screens/history/RunRecords';
 import { PlansScreen } from './screens/plans/PlansScreen';
 import { PlanViewer } from './screens/plans/PlanViewer';
 import { PlacePlans } from './screens/plans/PlacePlans';
@@ -39,6 +37,9 @@ const DEV_TOOLS = devToolsEnabled();
 // further chunk that only the open Run tab asks for.
 const loadRun = () => import('./screens/run/RunScreen').then((m) => ({ default: m.RunScreen }));
 const RunScreen = lazy(loadRun);
+// A run's detail and the records load when opened: they bring the map and the share card.
+const RunDetail = lazy(() => import('./screens/history/RunDetail').then((m) => ({ default: m.RunDetail })));
+const RunRecords = lazy(() => import('./screens/history/RunRecords').then((m) => ({ default: m.RunRecords })));
 const MusclesDevScreen = lazy(() => import('./screens/dev/MusclesDevScreen').then((m) => ({ default: m.MusclesDevScreen })));
 
 export function App() {
@@ -89,8 +90,8 @@ export function App() {
             }
           />
           <Route path="history" element={<HistoryScreen />} />
-          <Route path="history/runs" element={<RunRecords />} />
-          <Route path="history/run/:runId" element={<RunDetail />} />
+          <Route path="history/runs" element={<Suspense fallback={null}><RunRecords /></Suspense>} />
+          <Route path="history/run/:runId" element={<Suspense fallback={null}><RunDetail /></Suspense>} />
           <Route path="history/:sessionId" element={<HistoryDetail />} />
           <Route path="quick" element={<QuickScreen />} />
           <Route path="plans" element={<PlansScreen />} />
