@@ -95,7 +95,12 @@
   /* About 60% of the screen height, never more than the room it has. */
   font-size: min(calc(var(--app-height) * 0.6), 100cqh, 128cqw);
   line-height: 1;
-  letter-spacing: -0.05em;
+  /* The plain figures (the tabular 1 has a foot), and no tightening: the ice fill is painted only
+     inside the box, so a glyph that overhangs it would lose its edge. */
+  font-variant-numeric: proportional-nums;
+  font-feature-settings: 'tnum' 0;
+  letter-spacing: 0;
+  padding: 0 0.06em;
   /* Ice, lit from the top. */
   background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 62%);
   -webkit-background-clip: text;

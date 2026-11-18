@@ -306,7 +306,10 @@ test.describe('4.3 live run', () => {
     expect(row!.gaps).toHaveLength(1);
     expect(row!.splits).toHaveLength(1);
     expect(row!.points.length).toBe(76);
-    expect(row!.elapsedSec).toBeGreaterThan(row!.movingSec + 39);
+    // The 40 s gap is not moving time. PLAN 4.4a: the seconds from the last position to End are (the
+    // face counted them), so the comparison is with the whole span from the first position to End.
+    expect((row!.endedAt! - row!.points[0]![2]!) / 1000).toBeGreaterThan(row!.movingSec + 39);
+    expect(row!.movingSec).toBeGreaterThanOrEqual(row!.elapsedSec - 45);
     await expect(page.getByTestId('summary-distance')).toHaveText((Math.floor(row!.distanceM / 10 + 1e-7) / 100).toFixed(2));
     await expect(page.getByTestId('summary-time')).toHaveText(clock(row!.movingSec));
     await expect(page.getByTestId('summary-splits').locator('li')).toHaveCount(1);
