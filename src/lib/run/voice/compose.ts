@@ -49,9 +49,13 @@ export function numberClips(n: number): CueClip[] {
   return out;
 }
 
-/** A length of time: "Nine minutes," "twelve seconds." Hours only when there are any; no "zero" parts. */
+/**
+ * A length of time: "Nine minutes," "twelve seconds." Hours only when there are any; no "zero" parts.
+ * Cut to the whole second like the clock on the screen (lib/timer formatElapsed), never rounded up
+ * (PLAN 4.4b 9): the voice says what the clock shows.
+ */
 export function timeClips(sec: number): CueClip[] {
-  const total = Math.max(0, Math.round(sec));
+  const total = Math.max(0, Math.floor(sec));
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
