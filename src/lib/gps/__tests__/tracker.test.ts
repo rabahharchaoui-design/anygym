@@ -1,6 +1,6 @@
 // SPEC 12.2 and 12.3: the tracker over synthetic tracks. Every tolerance is stated where it is used.
 import { describe, expect, it } from 'vitest';
-import { addPoint, pathLengthM, pauseRun, processPoints, processTrack, readTracker, resumeRun, startTracker, METERS_PER_MILE, type RawPoint, type TrackInput } from '..';
+import { addPoint, GAP_SEC, pathLengthM, pauseRun, processPoints, processTrack, readTracker, resumeRun, startTracker, METERS_PER_MILE, type RawPoint, type TrackInput } from '..';
 import { at, loop, LOOP_LENGTH_M, standing, straight, T0 } from './fixtures';
 
 const KM = { splitM: 1000 };
@@ -51,17 +51,18 @@ describe('a track with a gap', () => {
   const before = straight({ speed: 3, seconds: 60 });
   const after = straight({ speed: 3, seconds: 80, startSec: 120, startEast: 360 });
 
-  it('breaks the line, counts the straight line across when the speed is plausible, and no time', () => {
+  it('breaks the line, counts the straight line across when the speed is plausible, and only the first GAP_SEC of its time', () => {
     const r = processPoints([...before, ...after], KM);
     expect(r.breaks).toHaveLength(1);
     expect(r.breaks[0]).toMatchObject({ fromT: T0 + 60_000, toT: T0 + 120_000, kind: 'gap', bridged: true });
     expect(r.breaks[0]!.distanceM).toBeCloseTo(180, 2);
     expect(r.unbridgedGaps).toBe(0);
     expect(r.reading.distanceM).toBeCloseTo(600, 2);
-    // SPEC 12.2: the time in the gap is not moving time.
-    expect(r.reading.movingSec).toBe(140);
+    // SPEC 12.2: the time in the gap is not moving time, but for its first GAP_SEC, which the clock
+    // on the screen had already counted while it waited (PLAN 4.4a: the clock never goes back).
+    expect(r.reading.movingSec).toBe(140 + GAP_SEC);
     expect(r.reading.elapsedSec).toBe(200);
-    // Pace is over the 420 m that have time: 140 s / 420 m, not 140 s / 600 m.
+    // Pace is over the 420 m that have time and leaves those held seconds out: 140 s / 420 m, not 140 s / 600 m.
     expect(r.reading.averagePace).toBeCloseTo(1 / 3, 4);
     expect(r.reading.splits.partial).toMatchObject({ gap: true });
     expect(r.reading.splits.partial!.timedM).toBeCloseTo(420, 2);
@@ -80,8 +81,9 @@ describe('a track with a gap', () => {
     expect(r.breaks).toEqual([{ fromT: T0 + 60_000, toT: T0 + 120_000, kind: 'gap', bridged: false, distanceM: 0 }]);
     expect(r.unbridgedGaps).toBe(1);
     expect(r.reading.distanceM).toBeCloseTo(180 + 240, 2);
-    expect(r.reading.movingSec).toBe(140);
-    expect(r.reading.splits.partial).toMatchObject({ gap: false });
+    expect(r.reading.movingSec).toBe(140 + GAP_SEC);
+    // The split holds the gap's held seconds: no split time is claimed for it.
+    expect(r.reading.splits.partial).toMatchObject({ gap: true });
     expect(r.points).toHaveLength(before.length + far.length);
   });
 

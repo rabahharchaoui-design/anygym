@@ -41,6 +41,7 @@ export function liveRow(run: LiveRun): Run {
     splitGaps: r.splits.full.filter((s) => s.gap).map((s) => s.index),
     splitUnit: run.unit,
     timedM: run.tracker.timedM,
+    ...(run.tracker.heldMs ? { heldSec: run.tracker.heldMs / 1000 } : {}),
     ...(run.intervalPreset ? { intervalPreset: run.intervalPreset } : {}),
   };
 }
@@ -81,7 +82,8 @@ function trackerFrom(v: unknown): TrackerState | null {
   const t = v as Partial<TrackerState> | null;
   if (!t || typeof t !== 'object') return null;
   const ok = num(t.splitM) && t.splitM >= 1 && num(t.distanceM) && num(t.timedM) && num(t.movingMs) && typeof t.autoPause === 'boolean' && Array.isArray(t.recent) && Array.isArray(t.pace) && !!t.splits && Array.isArray(t.splits.full) && !!t.splits.open;
-  return ok ? (t as TrackerState) : null;
+  // Snapshots from before PLAN 4.4a have no held time.
+  return ok ? ({ ...t, heldMs: num(t.heldMs) ? t.heldMs : 0 } as TrackerState) : null;
 }
 
 /** Reads a stored snapshot (JSON text). Null when it is missing, broken or belongs to another run. */
