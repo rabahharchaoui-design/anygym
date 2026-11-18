@@ -6,7 +6,6 @@ import { unitMeters } from '../gps';
 import { DEFAULT_CUSTOM, planWords, sanitizePlan, type IntervalChoice, type IntervalPlan, type IntervalPresetId } from './intervals';
 import { DEFAULT_VOICE, sanitizeVoice, type VoiceSettings } from './voice/settings';
 
-export type RunType = 'free' | 'distance' | 'time' | 'intervals';
 export type DistanceGoal = { value: number; unit: DistanceUnit };
 
 /** What the start screen remembers between visits. Every part always has a value, so Start works with no setup. */
@@ -14,15 +13,8 @@ export type DistanceGoal = { value: number; unit: DistanceUnit };
 /** `interval` is a preset or 'custom' (then `custom` is the set, SPEC 12.7); `voice` is the voice coach's settings (SPEC 12.4). */
 export type RunSetup = { type: RunType; distance: DistanceGoal; timeMin: number; interval: IntervalChoice; custom: IntervalPlan; autoPause: boolean; voice: VoiceSettings };
 
-export const RUN_TYPES: ReadonlyArray<{ value: RunType; label: string }> = [
-  { value: 'free', label: 'Free run' },
-  { value: 'distance', label: 'Distance' },
-  { value: 'time', label: 'Time' },
-  { value: 'intervals', label: 'Intervals' },
-];
-
-/** The run type as the screens say it. Anything else is just "Run" (never a raw stored word). */
-export const runLabel = (type: string): string => RUN_TYPES.find((t) => t.value === type)?.label ?? 'Run';
+export { RUN_TYPES, runLabel, type RunType } from './runTypes';
+import { RUN_TYPES, type RunType } from './runTypes';
 
 /** SPEC 12.1: 3 mi, 5 km, 10 km, then custom. */
 export const DISTANCE_PRESETS: readonly DistanceGoal[] = [

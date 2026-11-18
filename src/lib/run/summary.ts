@@ -2,7 +2,7 @@
 // number on the summary comes from the stored row, so the screen and the phone's data always agree.
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../intake/answers';
-import { AVG_PACE_MIN_M, averagePace, fromRunPoint, pathLengthM, toSegments, type Segment } from '../gps';
+import { averagePace, fromRunPoint, pathLengthM, toSegments, type Segment } from '../gps';
 import { formatElapsed } from '../timer';
 import { formatDistance, formatPace } from './format';
 import type { LiveRun } from './live';
@@ -11,16 +11,8 @@ import { liveRow } from './snapshot';
 /** The run row with its end (SPEC 12.11). */
 export const finishRun = (run: LiveRun, endedAt: number): Run => ({ ...liveRow(run), endedAt });
 
-/**
- * Under this a run is not worth the name: the same floor as an average pace (lib/gps
- * AVG_PACE_MIN_M), below which the numbers would be mostly GPS noise.
- */
-export const MIN_RUN_M = AVG_PACE_MIN_M;
-
-export type RunVerdict = 'ok' | 'no-gps' | 'too-short';
-
-/** Is there a run to show? No good position at all, or next to no distance: say so, show no numbers. */
-export const runVerdict = (run: Pick<Run, 'points' | 'distanceM'>): RunVerdict => (run.points.length === 0 ? 'no-gps' : run.distanceM < MIN_RUN_M ? 'too-short' : 'ok');
+export { MIN_RUN_M, runVerdict, type RunVerdict } from './verdict';
+import type { RunVerdict } from './verdict';
 
 export const VERDICT_WORDS: Record<Exclude<RunVerdict, 'ok'>, { title: string; line: string }> = {
   'no-gps': { title: 'No GPS on this run', line: 'The phone never found a position it could trust, so there is no distance or route to show.' },
