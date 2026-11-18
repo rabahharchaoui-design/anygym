@@ -1,0 +1,5 @@
+I'll review PLAN item 4.4a from the spec and the commit range only, without changing the repo.
+
+The queue marks 4.4a done. Next I’ll read the spec sections it touches and the exact commit range.
+
+The range mixes 4.4a code with later notes. I’ll read the run-clock and countdown changes against the spec.
