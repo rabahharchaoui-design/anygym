@@ -6,6 +6,7 @@ import { fixTime, goalOf, liveStep, readLive, startLive, type LiveAction, type L
 import { liveRow, parseSnapshot, restoreLive, toSnapshot } from '../snapshot';
 import { finishRun, MIN_RUN_M, routeOf, rowPace, runVerdict, SPLIT_GAP, summaryOf } from '../summary';
 import { goalProgress, GOAL_REACHED } from '../progress';
+import { formatElapsed } from '../../timer';
 
 const setup = (patch: Partial<RunSetup> = {}): RunSetup => ({ ...DEFAULT_RUN_SETUP, ...patch });
 const start = (patch: Partial<RunSetup> = {}, unit: 'km' | 'mi' = 'km', autoPause = true) => startLive({ id: 'r1', now: T0, setup: setup(patch), unit, autoPause });
@@ -236,14 +237,16 @@ describe('ending', () => {
     expect(s.pace).toBe('5:33');
     expect(rowPace(row)).toBe(readTracker(run.tracker).averagePace);
   });
-  it('the leg that ends an auto pause carries no time either: its split is flagged, and the pace leaves it out', () => {
+  it('PLAN 4.4b (14): the leg that ends an auto pause is no GPS gap: its split shows its time, and the pace leaves the leg out', () => {
     const stand = Array.from({ length: 30 }, (_, i) => fix(at(900, 0, 301 + i)));
     const run = feed(start(), [...east(0, 300), ...stand, ...east(331, 500, 3, 915)]);
     const row = finishRun(run, T0 + 500_000);
     expect(row.splits).toHaveLength(1);
-    expect(row.splitGaps).toEqual([1]);
+    expect(row.splitGaps).toEqual([]);
     expect(row.timedM!).toBeLessThan(row.distanceM);
-    expect(summaryOf(row, 'km').splits).toEqual([{ n: 1, time: null }]);
+    const time = summaryOf(row, 'km').splits[0]!.time;
+    expect(time).toBe(formatElapsed(row.splits[0]!));
+    expect(summaryOf(row, 'km').anyGap).toBe(false);
     expect(rowPace(row)).toBe(readTracker(run.tracker).averagePace);
   });
   it('rows without the newer fields: splits read in the given unit, none flagged, pace from the solid pieces', () => {

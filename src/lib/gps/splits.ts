@@ -5,10 +5,12 @@ import { PACE_MIN_M } from './types';
 /**
  * One split. `distanceM` is the split length for a full split and what was covered so far for the
  * last partial one. `sec` is moving time. `timedM` is the part of the distance that has time (all
- * of it unless a gap was bridged or an auto pause ended inside). `gap` says the split holds distance
- * that was carried without time (a bridged GPS gap, or the leg that ends an auto pause): its `sec`
- * is then shorter than the split really took, so its time and pace must not be shown as a normal
- * split and it is no candidate for "best split".
+ * of it unless a gap was bridged or an auto pause ended inside). `gap` says the split holds a real
+ * GPS gap (a bridged one, or the held first seconds of one): its `sec` is then not what the split
+ * really took, so its time and pace must not be shown as a normal split and it is no candidate for
+ * "best split". PLAN 4.4b (14): the leg that ends an auto pause is untimed too (out of `timedM`,
+ * so out of every pace) but it is no gap: the runner stood, the signal never dropped, and the
+ * split's time is its moving time, all from the timed part.
  */
 export type Split = { index: number; distanceM: number; sec: number; timedM: number; gap: boolean };
 
@@ -41,8 +43,8 @@ export function addSplitStep(state: SplitState, step: SplitStep): { state: Split
   let open = state.open;
   let leftM = step.distanceM;
   let leftMs = step.ms;
-  // Distance with no time of its own: across a gap, or flagged untimed by the tracker.
-  const untimed = step.gap || !step.timed;
+  // Only a real GPS gap flags a split; any distance or time it brings counts.
+  const gapIn = (m: number, ms: number) => step.gap && (m > 0 || ms > 0);
   while (leftM >= state.unitM - open.distanceM - EPS_M) {
     const takeM = Math.min(leftM, state.unitM - open.distanceM);
     // leftM is above 0 here: the open split always has more than EPS_M to go.
@@ -52,13 +54,13 @@ export function addSplitStep(state: SplitState, step: SplitStep): { state: Split
       distanceM: state.unitM,
       sec: (open.ms + takeMs) / 1000,
       timedM: open.timedM + (step.timed ? takeM : 0),
-      gap: open.gap || (untimed && takeM > 0) || (step.gap && takeMs > 0),
+      gap: open.gap || gapIn(takeM, takeMs),
     });
     leftM -= takeM;
     leftMs -= takeMs;
     open = NOTHING;
   }
-  open = { distanceM: open.distanceM + leftM, ms: open.ms + leftMs, timedM: open.timedM + (step.timed ? leftM : 0), gap: open.gap || (untimed && leftM > 0) || (step.gap && leftMs > 0) };
+  open = { distanceM: open.distanceM + leftM, ms: open.ms + leftMs, timedM: open.timedM + (step.timed ? leftM : 0), gap: open.gap || gapIn(leftM, leftMs) };
   return { state: { unitM: state.unitM, full: completed.length ? [...state.full, ...completed] : state.full, open }, completed };
 }
 
