@@ -9,7 +9,7 @@ import type { Run } from '../db/types';
 import type { DistanceUnit } from '../lib/intake/answers';
 import { unitMeters } from '../lib/gps';
 import {
-  DEFAULT_VOICE, finishRun, fixTime, liveRow, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
+  DEFAULT_VOICE, finishRun, fixTime, liveRow, rewatchDue, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
   type LiveAction, type LiveRun, type RunSetup, type VoiceSettings,
 } from '../lib/run';
 import { createRunWake, type WakeState } from './runWake';
@@ -39,6 +39,8 @@ export type EngineState = {
 let state: EngineState = { ready: false, live: null, finished: null, wake: 'off', saveFailed: false };
 const listeners = new Set<() => void>();
 let watchId: number | null = null;
+/** When the watch last started: a lost signal is asked for again from here (PLAN 4.4b 6). */
+let watchedAt = 0;
 let saveTimer: number | null = null;
 let tickTimer: number | null = null;
 /** The voice coach's settings for the run that is going on (SPEC 12.4). */
@@ -90,6 +92,7 @@ function stopWatch() {
 
 function startWatch() {
   stopWatch();
+  watchedAt = Date.now();
   if (!navigator.geolocation) return dispatch({ type: 'gps', trouble: 'unavailable' });
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
@@ -106,6 +109,12 @@ function startWatch() {
   );
 }
 
+/** The 5 s beat: save, and start the watch again while GPS is lost (PLAN 4.4b 6). */
+function every5s() {
+  save();
+  if (state.live && navigator.geolocation && document.visibilityState === 'visible' && rewatchDue(state.live, Date.now(), watchedAt)) startWatch();
+}
+
 const onVisibility = () => {
   if (document.visibilityState === 'hidden') return save();
   // Back in front: the screen lock is asked for again, and the watch starts fresh (phones stop
@@ -118,7 +127,7 @@ function attach() {
   // Started at the countdown already (warmGps): kept, so the first position is not delayed.
   if (watchId === null) startWatch();
   wake.hold();
-  saveTimer = window.setInterval(save, SAVE_EVERY_MS);
+  saveTimer = window.setInterval(every5s, SAVE_EVERY_MS);
   if (state.live?.intervals) tickTimer = window.setInterval(() => dispatch({ type: 'tick', now: Date.now() }), TICK_EVERY_MS);
   // Any touch during a run keeps the phone willing to play the voice (it may fall asleep in the background).
   document.addEventListener('pointerdown', unlockVoice, { passive: true });

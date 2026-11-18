@@ -25,9 +25,30 @@ export const liveMovingSec = (tracker: TrackerState, nowMs: number): number => l
 
 /** The live reading with the moving time of the face. Distance and pace still move per position. */
 export function readLiveAt(run: LiveRun, nowMs: number): TrackerReading {
-  const reading = readLive(run);
+  const reading = gapPace(readLive(run), run.tracker, nowMs);
   const movingSec = liveMovingSec(run.tracker, nowMs);
   return movingSec === reading.movingSec ? reading : { ...reading, movingSec };
+}
+
+/**
+ * PLAN 4.4b (6): in a GPS gap the current pace is no reading of now any more: none is shown ("--")
+ * until positions come back. The average pace is the run's own and stays.
+ */
+export function gapPace(reading: TrackerReading, tracker: TrackerState, nowMs: number): TrackerReading {
+  return reading.currentPace !== null && inGap(tracker, nowMs) ? { ...reading, currentPace: null } : reading;
+}
+
+/**
+ * PLAN 4.4b (6): time to start the position watch again. Phones do not always pick up by themselves
+ * after losing the signal: once no position came for GAP_SEC (a gap, or none yet, or the phone said
+ * unavailable), and the watch has run that long, it is started fresh; again every GAP_SEC while it
+ * lasts. Never while paused by hand, and never when location is off (asking again changes nothing).
+ */
+export function rewatchDue(run: LiveRun, nowMs: number, watchStartedMs: number): boolean {
+  const t = run.tracker;
+  if (t.manual || run.gps === 'denied' || nowMs - watchStartedMs < GAP_SEC * 1000) return false;
+  const since = nowMs - (t.lastGood?.t ?? watchStartedMs);
+  return since > GAP_SEC * 1000 || run.gps === 'unavailable';
 }
 
 /** No position for longer than GAP_SEC while the clock was counting: the face holds and says GPS is lost. */

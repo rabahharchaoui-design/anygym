@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TrackerReading } from '../lib/gps';
-import { faceSec, liveMovingMs, readLive, type LiveRun } from '../lib/run';
+import { faceSec, gapPace, liveMovingMs, readLive, type LiveRun } from '../lib/run';
 import { createFaceTick, type FaceTick } from './faceTick';
 
 /**
@@ -29,8 +29,10 @@ export function useLiveReading(live: LiveRun): TrackerReading {
   useEffect(() => tick.current?.poke(), [live.tracker]);
 
   const shown = useRef<number | null>(null);
-  const sec = faceSec(shown.current, liveMovingMs(live.tracker, Date.now()));
+  const now = Date.now();
+  const sec = faceSec(shown.current, liveMovingMs(live.tracker, now));
   shown.current = sec;
-  const reading = readLive(live);
+  // In a GPS gap the old pace is not shown (PLAN 4.4b 6).
+  const reading = gapPace(readLive(live), live.tracker, now);
   return sec === reading.movingSec ? reading : { ...reading, movingSec: sec };
 }
