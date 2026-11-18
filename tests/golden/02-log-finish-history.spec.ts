@@ -1,5 +1,5 @@
 // GOLDEN 2: log sets, finish, and the result shows in History.
-import { expect, test } from '../fixtures';
+import { expect, test, type Page } from '../fixtures';
 import { bar185, checkCurrent, dbAll, exerciseView, loggedRows, quickWith, seedFinished } from '../workout-helpers';
 
 test.describe.configure({ retries: 0 });
@@ -27,7 +27,7 @@ test('golden: log three sets, Finish, and the workout is in History', async ({ p
   }
 });
 
-async function journey(page: import('@playwright/test').Page) {
+async function journey(page: Page) {
   await page.goto('./');
   await seedFinished(page, { 'barbell-incline-bench-press': [{ reps: 10, load: bar185 }] });
   await quickWith(page, [['incline bench', 'Barbell Incline Bench Press']]);

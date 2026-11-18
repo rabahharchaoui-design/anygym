@@ -1,0 +1,15 @@
+STATUS: HANDLED
+Grok Build review of PLAN item 4.4, range 2cfba459a3914e49ee00fc8a1491be771490bc8c..684c26ef94b1526249440d716d1df7285bc8ab75, written Nov 17 21:22. A second opinion, not orders: SPEC.md wins.
+
+I'll review PLAN item 4.4 from the spec and the commit range only, without changing the repo.
+
+The spec and plan are loaded. Next I’ll inspect only the 4.4 commit range.
+
+# Grok review of PLAN item 4.4
+
+- MAJOR `src/hooks/voiceWarm.ts:19` Opening Run starts the background save of the 220 clips, then any `pagehide` (switching to Spotify, locking the phone, leaving the app) aborts that save and `started` stays true, so coming back never resumes it. A clip is kept only if it was already played. The next offline run cannot say a new split ("nine forty" was never fetched) and falls through to the phone voice. Clear `started` unless the save finished with nothing failed, and call it again on `pageshow` and the next time the Run tab opens.
+- MAJOR `src/screens/run/LiveRun.tsx:186` For the whole interval workout the ring, the time left, and the three numbers sit inside `<button disabled={… || !!effort}>` named "Show the next number big". VoiceOver does not read "Run, 0:45 left, round 1 of 8" or the distance. On iPhone a disabled button does not get the touch, and this button covers the numbers page, so swiping to the map does nothing until the blocks end. When a block is on screen, render a plain div (keep the timer's `aria-label`); leave the cycle button for when the big number is back.
+- MAJOR `src/lib/run/voice/compose.ts:54` Spoken times use `Math.round`, while every clock on screen uses `formatElapsed`, which floors. A finish at 1684.6 s shows 28:04 and the coach says "Twenty eight minutes, five seconds." The same one-second-high announcement happens on any split whose fractional second is at least 0.5. Floor the seconds in `timeClips` the same way `formatElapsed` does.
+- MINOR `src/lib/run/voice/events.ts:32` One GPS step can finish two splits (a bridged gap: at 0.9 km, three minutes at 7 m/s lands past 2 km). Only the newest is spoken, so the runner never hears "One kilometer." Push one split cue per new full split, not only the last.
+- MINOR `src/lib/run/voice/events.ts:34` The time in that cue is the sum of every split, and the pace is only the last split. After a 5:00 km and a 6:00 km the coach says "Two kilometers. Eleven minutes. Pace six minutes." Eleven minutes for two kilometers is 5:30, not 6:00. Speak that split's own `sec` so the time and the pace are the same stretch, matching "Nine minutes, twelve seconds. Pace nine twelve."
+- MINOR `src/hooks/voiceSpeech.ts:23` The fallback calls `getVoices()` once. On iPhone that list is empty until `voiceschanged`, so `pickVoice` returns null and the utterance uses the default compact voice even when a Premium voice is installed. That path is also the one that can pause Spotify. Wait for `voiceschanged` (short timeout) before choosing, and do not speak on a compact voice when any other English voice is in the list.
