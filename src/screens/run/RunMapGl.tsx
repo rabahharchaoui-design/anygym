@@ -31,6 +31,8 @@ export type RunMapGlProps = {
   route?: RouteGeo | null;
   /** A finished run: the map shows the whole route and does not answer touches. */
   still?: boolean;
+  /** The live run is locked (PLAN 4.4b 5): the map does not pan or zoom until it is unlocked. */
+  locked?: boolean;
 };
 
 const SOURCE = 'openmaptiles';
@@ -43,7 +45,7 @@ function readPalette(): MapPalette {
   return Object.fromEntries(Object.entries(MAP_PALETTE_TOKENS).map(([k, token]) => [k, css.getPropertyValue(token).trim()])) as MapPalette;
 }
 
-export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady, onOffline, onMoved, route = null, still = false }: RunMapGlProps) {
+export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady, onOffline, onMoved, route = null, still = false, locked = false }: RunMapGlProps) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<GlMap | null>(null);
   const dot = useRef<Marker | null>(null);
@@ -200,6 +202,17 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     cb.current.onMoved(false);
     gl.easeTo({ center: [h.lng, h.lat], zoom: Math.max(gl.getZoom(), HERE_ZOOM), padding: paddingRef.current, duration: reduceMotion ? 0 : DUR.slow });
   }, [recentre, reduceMotion]);
+
+  // Locked: no drag, pinch, double tap or scroll moves the map.
+  useEffect(() => {
+    const gl = map.current;
+    if (!gl || still) return;
+    for (const h of [gl.dragPan, gl.touchZoomRotate, gl.doubleClickZoom, gl.scrollZoom, gl.boxZoom]) {
+      if (locked) h.disable();
+      else h.enable();
+    }
+    if (!locked) gl.touchZoomRotate.disableRotation();
+  }, [locked, still]);
 
   return <div ref={box} className={styles.gl} data-testid="run-map-gl" />;
 }

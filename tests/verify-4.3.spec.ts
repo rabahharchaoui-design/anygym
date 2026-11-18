@@ -136,6 +136,18 @@ test.describe('4.3 live run', () => {
     await expect(page.getByTestId('live-recentre')).toBeVisible();
     await page.getByTestId('live-recentre').tap();
     await expect(page.getByTestId('live-recentre')).toHaveCount(0);
+    await expect(map).not.toHaveAttribute('data-moved', 'true');
+
+    // PLAN 4.4b (5): locked, a drag does not move the map; unlocked, it does again.
+    await page.getByTestId('live-lock').tap();
+    await swipe(page, [vp.width * 0.6, midY], [vp.width * 0.3, midY + 60]);
+    await page.waitForTimeout(300);
+    await expect(map).not.toHaveAttribute('data-moved', 'true');
+    await holdFor(page, page.getByTestId('live-unlock'), 1250);
+    await expect(page.getByTestId('live-lock')).toBeVisible();
+    await swipe(page, [vp.width * 0.6, midY], [vp.width * 0.3, midY + 60]);
+    await expect(map).toHaveAttribute('data-moved', 'true');
+    await page.getByTestId('live-recentre').tap();
 
     // Back: a swipe from the left edge, or the dots.
     await swipe(page, [6, midY], [vp.width * 0.6, midY]);
