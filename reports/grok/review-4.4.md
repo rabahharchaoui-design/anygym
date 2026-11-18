@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED
 Grok Build review of PLAN item 4.4, range 2cfba459a3914e49ee00fc8a1491be771490bc8c..684c26ef94b1526249440d716d1df7285bc8ab75, written Nov 17 21:22. A second opinion, not orders: SPEC.md wins.
 
 I'll review PLAN item 4.4 from the spec and the commit range only, without changing the repo.
