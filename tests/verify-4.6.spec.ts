@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from './fixtures';
 import { checkLayout } from './helpers/layout';
-import { holdFor, live, move, startRun } from './helpers/run';
+import { holdFor, move, startRun } from './helpers/run';
 import { stubTiles } from './helpers/tiles';
 
 // PLAN 4.6 (SPEC 12.9, 12.12): the finish screen, the run in History, its detail, the records list
