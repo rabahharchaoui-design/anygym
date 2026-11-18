@@ -21,7 +21,10 @@ import { RunSettingsSheet } from './RunSheets';
 import styles from './Live.module.css';
 import iv from './Intervals.module.css';
 
-type Props = { live: Live; wake: EngineState['wake']; saveFailed: boolean; reduceMotion: boolean; onHide: () => void };
+type Props = { live: Live; wake: EngineState['wake']; saveFailed: boolean; autosaveFailed: boolean; reduceMotion: boolean; onHide: () => void };
+
+/** The run whose failed save was already said (once per run, also across hiding the screen). */
+let toldSaveFor: string | null = null;
 
 function noteOf(live: Live, status: RunStatus): LiveNote {
   if (status === 'paused') return { tone: 'paused', text: live.closed ? 'Paused while the app was closed' : 'Paused' };
@@ -40,7 +43,7 @@ function noteOf(live: Live, status: RunStatus): LiveNote {
  * dots at the top. The bottom controls never move. After 10 seconds with no touch the screen dims
  * to near black; the first tap only wakes it.
  */
-export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props) {
+export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, onHide }: Props) {
   // The time counts second by second between positions, from one tick (PLAN 4.4a).
   const reading = useLiveReading(live);
   const paused = reading.status === 'paused';
@@ -82,6 +85,12 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
   useEffect(() => {
     if (saveFailed) setToast({ id: Date.now(), text: 'The run could not be saved. Hold End to try again.' });
   }, [saveFailed]);
+  // PLAN 4.4b (3): a save during the run failed. Said once per run; the engine keeps trying.
+  useEffect(() => {
+    if (!autosaveFailed || toldSaveFor === live.id) return;
+    toldSaveFor = live.id;
+    setToast({ id: Date.now(), text: 'The run could not be saved just now. AnyGym keeps trying.' });
+  }, [autosaveFailed, live.id]);
 
   // The pages: one strip, two screens wide. It follows the finger (no transition) and settles on a
   // page with the app's page spring (CSS, on the compositor; tokens mirror ui/motion PAGE_SPRING).

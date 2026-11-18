@@ -34,9 +34,11 @@ export type EngineState = {
   wake: WakeState;
   /** The end could not be saved: the run is still there, paused, to try again. */
   saveFailed: boolean;
+  /** PLAN 4.4b (3): the last save during the run failed; it is tried again every 5 s until one lands. */
+  autosaveFailed: boolean;
 };
 
-let state: EngineState = { ready: false, live: null, finished: null, wake: 'off', saveFailed: false };
+let state: EngineState = { ready: false, live: null, finished: null, wake: 'off', saveFailed: false, autosaveFailed: false };
 const listeners = new Set<() => void>();
 let watchId: number | null = null;
 /** When the watch last started: a lost signal is asked for again from here (PLAN 4.4b 6). */
@@ -80,9 +82,15 @@ function save() {
   const live = state.live;
   if (!live || !dirty) return;
   dirty = false;
-  void queue(() => saveLiveRun(liveRow(live), JSON.stringify(toSnapshot(live)))).catch(() => {
-    dirty = true;
-  });
+  void queue(() => saveLiveRun(liveRow(live), JSON.stringify(toSnapshot(live)))).then(
+    () => {
+      if (state.autosaveFailed) set({ autosaveFailed: false });
+    },
+    () => {
+      dirty = true;
+      if (!state.autosaveFailed && state.live) set({ autosaveFailed: true });
+    },
+  );
 }
 
 function stopWatch() {
@@ -200,7 +208,7 @@ export const runEngine = {
     const live = startLive({ id: newId(), now: Date.now(), setup, unit, autoPause: setup.autoPause });
     dirty = false;
     voice = setup.voice;
-    set({ live, finished: null, saveFailed: false, ready: true });
+    set({ live, finished: null, saveFailed: false, autosaveFailed: false, ready: true });
     say({ type: 'start', first: live.intervals?.plan.blocks[0]?.name ?? null }, voice);
     void queue(() => startRunRow(liveRow(live), JSON.stringify(toSnapshot(live)))).catch(() => {
       dirty = true;
@@ -239,7 +247,7 @@ export const runEngine = {
     dirty = false;
     try {
       await queue(() => finishRunRow(run));
-      set({ live: null, finished: { run, unit: live.unit }, saveFailed: false });
+      set({ live: null, finished: { run, unit: live.unit }, saveFailed: false, autosaveFailed: false });
       const pace = rowPace(run);
       // A run with nothing to show gets no numbers, spoken or printed.
       say({ type: 'finished', summary: runVerdict(run) === 'ok' ? { meters: run.distanceM, unit: live.unit, movingSec: run.movingSec, paceSec: pace === null ? null : pace * unitMeters(live.unit) } : null }, voice);

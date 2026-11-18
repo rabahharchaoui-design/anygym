@@ -37,3 +37,32 @@ describe('run engine: GPS lost (PLAN 4.4b 6)', () => {
     await engine.end();
   });
 });
+
+describe('run engine: a failed save during the run (PLAN 4.4b 3)', () => {
+  it('is said at once, the engine keeps trying every 5 s, and it clears when a save lands', async () => {
+    const { engine, db } = await freshApp();
+    engine.start(DEFAULT_RUN_SETUP, 'km');
+    await settle();
+    let broken = true;
+    const fail = () => {
+      if (broken) throw new Error('disk full');
+    };
+    db.runs.hook('updating', fail);
+    run(0, 10);
+    vi.advanceTimersByTime(5000);
+    await settle();
+    expect(engine.get().autosaveFailed).toBe(true);
+    expect(engine.get().saveFailed).toBe(false);
+    run(11, 20, 33);
+    vi.advanceTimersByTime(5000);
+    await settle();
+    expect(engine.get().autosaveFailed).toBe(true);
+    broken = false;
+    vi.advanceTimersByTime(5000);
+    await settle();
+    expect(engine.get().autosaveFailed).toBe(false);
+    expect((await db.runs.toArray())[0]!.distanceM).toBeGreaterThan(50);
+    db.runs.hook('updating').unsubscribe(fail);
+    await engine.end();
+  });
+});
