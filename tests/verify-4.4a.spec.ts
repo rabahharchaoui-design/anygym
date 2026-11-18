@@ -52,6 +52,25 @@ test.describe('4.4a the live clock', () => {
       expect(await faceSec(page)).toBe(t);
     }
 
+    // A GPS gap: the face counts on up to GAP_SEC (15 s) past the last position, then holds there,
+    // never going back; the screen says so. The next position counts those seconds; it goes on.
+    const last = t;
+    let seen = t;
+    for (let s = 0; s < 22; s++) {
+      await page.clock.runFor(1000);
+      const now = await faceSec(page);
+      expect(now, 'the time never decreases').toBeGreaterThanOrEqual(seen);
+      seen = now;
+    }
+    expect(seen, 'held at 15 s past the last position').toBe(last + 15);
+    await expect(page.getByTestId('live-note')).toHaveText('GPS lost · time on hold');
+    r.north += 60;
+    await fix(r);
+    t = await faceSec(page);
+    expect(t, 'the position after the gap keeps the time').toBe(last + 15);
+    await expect(page.getByTestId('live-note')).toBeEmpty();
+    for (let s = 0; s < 2; s++) await second(page, ++t);
+
     // Pause by hand: the face stops where it was, however long the pause.
     await wakeHeld(page);
     await page.getByTestId('live-pause').tap();
