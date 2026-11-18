@@ -2,7 +2,8 @@
 // place these are formatted. Clocks come from lib/timer.ts (formatElapsed). A pace the tracker does
 // not know prints as NO_PACE, never as a guess.
 import type { DistanceUnit } from '../intake/answers';
-import { pacePerUnit, unitMeters } from '../gps';
+import { pacePerUnit } from '../gps/pace';
+import { unitMeters } from '../gps/units';
 
 /** What stands where a pace is not known (yet). */
 export const NO_PACE = '--';

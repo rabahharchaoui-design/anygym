@@ -49,7 +49,6 @@
     "src/screens/workout/useExerciseMenu.ts",
     "src/screens/workout/useExerciseRows.ts",
     "src/screens/workout/useFinish.ts",
-    "src/screens/workout/useFinishCelebration.ts",
     "src/screens/workout/useLoadTypeAsk.ts",
     "src/screens/workout/useLogRow.ts",
     "src/screens/workout/useRowTypes.ts",
