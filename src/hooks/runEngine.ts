@@ -43,6 +43,11 @@ const listeners = new Set<() => void>();
 let watchId: number | null = null;
 /** When the watch last started: a lost signal is asked for again from here (PLAN 4.4b 6). */
 let watchedAt = 0;
+/**
+ * A watch started again in a gap may first hand back the last position it had, as if new: that
+ * exact spot (where the dot is) is not taken as a position again until a different one comes.
+ */
+let replayOf: { lat: number; lng: number } | null = null;
 let saveTimer: number | null = null;
 let tickTimer: number | null = null;
 /** The voice coach's settings for the run that is going on (SPEC 12.4). */
@@ -106,6 +111,8 @@ function startWatch() {
     (pos) => {
       earlyTrouble = null;
       const { latitude, longitude, accuracy } = pos.coords;
+      if (replayOf && replayOf.lat === latitude && replayOf.lng === longitude) return;
+      replayOf = null;
       // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
       dispatch({ type: 'fix', point: { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, Date.now()) } });
     },
@@ -120,7 +127,10 @@ function startWatch() {
 /** The 5 s beat: save, and start the watch again while GPS is lost (PLAN 4.4b 6). */
 function every5s() {
   save();
-  if (state.live && navigator.geolocation && document.visibilityState === 'visible' && rewatchDue(state.live, Date.now(), watchedAt)) startWatch();
+  if (state.live && navigator.geolocation && document.visibilityState === 'visible' && rewatchDue(state.live, Date.now(), watchedAt)) {
+    startWatch();
+    replayOf = state.live.here && { lat: state.live.here.lat, lng: state.live.here.lng };
+  }
 }
 
 const onVisibility = () => {

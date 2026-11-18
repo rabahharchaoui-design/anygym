@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { T0 } from '../../lib/gps/__tests__/fixtures';
 import { DEFAULT_RUN_SETUP } from '../../lib/run';
-import { freshApp, phone, run, settle, systemReleasesWake } from './enginePhone';
+import { freshApp, phone, report, run, settle, systemReleasesWake } from './enginePhone';
 
 // PLAN 4.4b: the run engine when things go wrong during a run (GPS lost, a save fails, the screen lock is let go).
 
@@ -34,6 +34,20 @@ describe('run engine: GPS lost (PLAN 4.4b 6)', () => {
     vi.advanceTimersByTime(20_000);
     expect([...phone.watches.keys()]).not.toEqual(second);
     expect(phone.watches.size).toBe(1);
+    await engine.end();
+  });
+
+  it('a watch started again that hands back the last spot as new is not taken until a different position comes', async () => {
+    const { engine } = await freshApp();
+    engine.start(DEFAULT_RUN_SETUP, 'km');
+    await settle();
+    run(0, 20);
+    const here = engine.get().live!.here!;
+    vi.advanceTimersByTime(20_000);
+    report({ lat: here.lat, lng: here.lng, accuracy: 5, t: T0 + 40_000 });
+    expect(engine.get().live!.here!.t).toBe(here.t);
+    run(41, 45, 60 + 40 * 3);
+    expect(engine.get().live!.here!.t).toBe(T0 + 45_000);
     await engine.end();
   });
 });
