@@ -1,14 +1,14 @@
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from './fixtures';
 import { checkLayout } from './helpers/layout';
-import { holdFor, move, startRun } from './helpers/run';
+import { holdFor, move, startRun, wake } from './helpers/run';
 import { stubTiles } from './helpers/tiles';
 
 // PLAN 4.6 (SPEC 12.9, 12.12): the finish screen, the run in History, its detail, the records list
 // and heatmap, the share card and the GPX export. One synthetic run (a fast second kilometer, so
 // there is a best split), stepped like verify-4.3.
 
-test.use({ serviceWorkers: 'block', locale: 'en-GB', acceptDownloads: true });
+test.use({ serviceWorkers: 'block', locale: 'en-GB' });
 
 const SHOTS = process.env.SHOTS_46 ?? '/tmp/w46-shots';
 const shot = async (page: Page, name: string) => {
@@ -16,12 +16,30 @@ const shot = async (page: Page, name: string) => {
   await page.screenshot({ path: `${SHOTS}/${name}-${test.info().project.name.replace(/ /g, '-')}.png` });
 };
 
+const sharedFile = async (page: Page, i: number) => {
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __shared: unknown[] }).__shared.length)).toBeGreaterThan(i);
+  return page.evaluate((n) => (window as unknown as { __shared: Array<{ name: string; type: string; bytes: number[] }> }).__shared[n]!, i);
+};
+
 /** A 2.1 km run: the first km at 3 m/s, the rest at 4 m/s. Ends on the summary, the big moment skipped. */
 async function runIt(page: Page, context: Parameters<typeof startRun>[1]) {
   await stubTiles(page);
+  // The share sheet is a stub that keeps what it was handed (name, type and bytes), like iOS would take it.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __shared: Array<{ name: string; type: string; bytes: number[] }> };
+    w.__shared = [];
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (d: { files: File[] }) => {
+        for (const f of d.files) w.__shared.push({ name: f.name, type: f.type, bytes: [...new Uint8Array(await f.arrayBuffer())] });
+      },
+    });
+  });
   const r = await startRun(page, context);
   await move(r, 67);
   await move(r, 55, 5, 4);
+  await wake(page);
   await holdFor(page, page.getByTestId('live-end'), 1250);
   await expect(page.getByTestId('run-summary')).toHaveAttribute('data-verdict', 'ok');
   const big = page.getByTestId('celebrate-big');
@@ -51,11 +69,10 @@ test.describe('4.6 finish, history, share, GPX', () => {
     await checkLayout(page, { scope: '[data-testid="run-summary"]' });
 
     // GPX: a real file, well formed, one track.
-    const gpxDownload = page.waitForEvent('download');
     await page.getByTestId('run-export-gpx').tap();
-    const gpx = await gpxDownload;
-    expect(gpx.suggestedFilename()).toMatch(/^AnyGym-run-\d{4}-\d{2}-\d{2}\.gpx$/);
-    const text = readFileSync((await gpx.path())!, 'utf8');
+    const gpx = await sharedFile(page, 0);
+    expect(gpx.name).toMatch(/^AnyGym-run-\d{4}-\d{2}-\d{2}\.gpx$/);
+    const text = Buffer.from(gpx.bytes).toString('utf8');
     expect(text.startsWith('<?xml')).toBe(true);
     expect(text).toContain('<gpx version="1.1"');
     expect((text.match(/<trkpt /g) ?? []).length).toBeGreaterThan(100);
@@ -67,9 +84,8 @@ test.describe('4.6 finish, history, share, GPX', () => {
     await expect(page.getByRole('switch', { name: /Hide start and end/ })).toBeChecked();
     await expect(page.getByTestId('run-share-go')).toBeEnabled();
     await shot(page, 'share');
-    const pngDownload = page.waitForEvent('download');
     await page.getByTestId('run-share-go').tap();
-    const png = readFileSync((await (await pngDownload).path())!);
+    const png = Buffer.from((await sharedFile(page, 1)).bytes);
     expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
     expect(png.length).toBeGreaterThan(5_000);
 
