@@ -46,7 +46,7 @@ export function RunRecords() {
             ]}
           />
           {view === 'records' ? (
-            <ul className={styles.list} aria-label="Personal records" data-testid="run-records">
+            <ul className={`${styles.list} ${styles.afterSwitch}`} aria-label="Personal records" data-testid="run-records">
               {board.map((s) => (
                 <li key={s.id} className={styles.record} data-testid="run-record" data-held={s.hit ? true : undefined}>
                   <span className={styles.rowTitle}>{s.title}</span>
@@ -56,7 +56,7 @@ export function RunRecords() {
               ))}
             </ul>
           ) : geo.bounds ? (
-            <section aria-label="Heatmap" data-testid="run-heatmap">
+            <section className={styles.afterSwitch} aria-label="Heatmap" data-testid="run-heatmap">
               <p className={styles.meta}>{city ? `${city}: ${shown.length} ${shown.length === 1 ? 'run' : 'runs'}` : `All runs: ${shown.length}`}</p>
               <RouteMap route={geo} reduceMotion={reduce} many resize={shown.length} />
             </section>

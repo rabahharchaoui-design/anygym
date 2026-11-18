@@ -171,3 +171,8 @@
 .runsLink {
   margin-bottom: var(--space-2);
 }
+
+/* Records and the heatmap sit a step under the view switch. */
+.afterSwitch {
+  margin-top: var(--space-3);
+}
