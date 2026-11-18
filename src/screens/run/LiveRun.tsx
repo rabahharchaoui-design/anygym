@@ -5,7 +5,7 @@ import { runEngine, type EngineState } from '../../hooks/useRunEngine';
 import { usePocketDim } from '../../hooks/usePocketDim';
 import { useLiveReading } from '../../hooks/useLiveReading';
 import { useRunSetup } from '../../hooks/useRunSetup';
-import { blockEffort, DEFAULT_VOICE, readIntervals, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
+import { blockEffort, DEFAULT_VOICE, inGap, readIntervals, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
 import type { RunStatus } from '../../lib/gps';
 import { formatElapsed } from '../../lib/timer';
 import { tick } from '../../ui/haptics';
@@ -28,6 +28,8 @@ function noteOf(live: Live, status: RunStatus): LiveNote {
   if (live.gps === 'denied') return { tone: 'wait', text: 'Location is off for AnyGym' };
   if (status === 'waiting') return { tone: 'wait', text: 'Looking for GPS' };
   if (status === 'auto-paused') return { tone: 'auto', text: 'Auto paused · move to go on' };
+  // PLAN 4.4a: no position for a while: the time holds (it never goes back) until GPS returns.
+  if (inGap(live.tracker, Date.now())) return { tone: 'wait', text: 'GPS lost · time on hold' };
   return null;
 }
 

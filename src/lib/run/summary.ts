@@ -36,9 +36,10 @@ export const routeOf = (run: Pick<Run, 'points' | 'gaps'>): Segment[] => toSegme
  * auto pause carry no time, so they stay out of the pace, the same rule as lib/gps averagePace.
  * A row without `timedM` falls back to the length of the solid pieces (no dashed join counted).
  */
-export function rowPace(run: Pick<Run, 'points' | 'gaps' | 'movingSec' | 'distanceM' | 'timedM'>): number | null {
+export function rowPace(run: Pick<Run, 'points' | 'gaps' | 'movingSec' | 'distanceM' | 'timedM' | 'heldSec'>): number | null {
   const timedM = run.timedM ?? Math.min(run.distanceM, routeOf(run).reduce((sum, s) => sum + pathLengthM(s.points), 0));
-  return averagePace(run.movingSec, timedM);
+  // The first seconds of a GPS gap are moving time with no distance: no pace is made of them (PLAN 4.4a).
+  return averagePace(run.movingSec - (run.heldSec ?? 0), timedM);
 }
 
 export type RunSummary = {

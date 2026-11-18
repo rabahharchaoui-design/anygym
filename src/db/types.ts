@@ -387,6 +387,11 @@ export type Run = {
   splitUnit?: 'km' | 'mi';
   /** PLAN 4.3, additive: the part of distanceM covered while time counted; the only distance an average pace may use. */
   timedM?: number;
+  /**
+   * PLAN 4.4a, additive: moving seconds counted with no distance of their own (the first seconds of
+   * a GPS gap, which the clock on the screen had already shown). An average pace leaves them out.
+   */
+  heldSec?: number;
   city?: string;
   country?: string;
   ghostOfRunId?: string;

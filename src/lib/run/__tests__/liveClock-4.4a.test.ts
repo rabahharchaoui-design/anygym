@@ -2,7 +2,7 @@
 // through a pause or a gap, and never more than a second ahead of what is saved.
 import { describe, expect, it } from 'vitest';
 import { addPoint, GAP_SEC, pauseRun, pendingMs, readTracker, resumeRun, startTracker, type TrackerState } from '../../gps';
-import { faceSec, liveMovingMs, liveMovingSec, liveStep, msToNextFace, readLiveAt, startLive } from '..';
+import { faceSec, inGap, liveMovingMs, liveMovingSec, liveStep, msToNextFace, readLiveAt, startLive } from '..';
 import { DEFAULT_RUN_SETUP as DEFAULT_SETUP } from '../goal';
 
 const T0 = 1_700_000_000_000;
@@ -89,18 +89,22 @@ describe('liveMovingMs', () => {
     expect(liveMovingMs(off, T0 + 51_500)).toBe(51_500);
   });
 
-  it('does not count through a gap: past GAP_SEC it goes back to the counted time and stands', () => {
+  it('a gap: the face holds at GAP_SEC past the last position, the next position counts exactly that, then it goes on', () => {
     const s = running(30);
     expect(liveMovingMs(s, T0 + 30_000 + GAP_SEC * 1000)).toBe(30_000 + GAP_SEC * 1000);
-    expect(liveMovingMs(s, T0 + 30_000 + GAP_SEC * 1000 + 1)).toBe(30_000);
-    expect(liveMovingMs(s, T0 + 300_000)).toBe(30_000);
-    // The position that ends the gap adds no time, so the face was already right; then it counts on.
+    expect(liveMovingMs(s, T0 + 30_000 + GAP_SEC * 1000 + 1)).toBe(30_000 + GAP_SEC * 1000);
+    expect(liveMovingMs(s, T0 + 300_000)).toBe(30_000 + GAP_SEC * 1000);
+    expect(inGap(s, T0 + 30_000 + GAP_SEC * 1000)).toBe(false);
+    expect(inGap(s, T0 + 30_000 + GAP_SEC * 1000 + 1)).toBe(true);
+    // The position that ends the gap counts the held seconds (and nothing after them): no step back.
     const back = feed(s, 50, 150);
-    expect(back.movingMs).toBe(30_000);
-    expect(liveMovingMs(back, T0 + 50_000)).toBe(30_000);
-    expect(liveMovingMs(back, T0 + 52_000)).toBe(32_000);
-    // A pause in the gap saves nothing extra either.
-    expect(pauseRun(s, T0 + 60_000).movingMs).toBe(30_000);
+    expect(back.movingMs).toBe(30_000 + GAP_SEC * 1000);
+    expect(back.heldMs).toBe(GAP_SEC * 1000);
+    expect(liveMovingMs(back, T0 + 52_000)).toBe(30_000 + GAP_SEC * 1000 + 2000);
+    // A pause, or End, in the gap saves what the face shows; the held seconds stay out of the pace.
+    const paused = pauseRun(s, T0 + 60_000);
+    expect(paused.movingMs).toBe(30_000 + GAP_SEC * 1000);
+    expect(readTracker(paused).averagePace).toBeCloseTo(1 / 3, 3);
   });
 
   it('ignores a clock that is behind the last position', () => {
@@ -181,5 +185,47 @@ describe('faceSec', () => {
     expect(faceSec(31, 30_900)).toBe(31);
     expect(faceSec(31, 31_000)).toBe(31);
     expect(faceSec(45, 30_000)).toBe(30);
+  });
+});
+
+describe('the face over random timelines (property)', () => {
+  /** A small seeded random, so a failure can be replayed. */
+  const rng = (seed: number) => () => ((seed = (seed * 1_103_515_245 + 12_345) % 2 ** 31) / 2 ** 31);
+
+  it('never steps back, and is never more than a second beyond what End would save', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const r = rng(seed);
+      let s = fresh(r() < 0.7);
+      let now = T0;
+      let m = 0;
+      let prev: number | null = null;
+      let t = 0;
+      const check = () => {
+        const shown = faceSec(prev, liveMovingMs(s, now));
+        if (prev !== null) expect(shown, `seed ${seed} at ${now - T0} ms`).toBeGreaterThanOrEqual(prev);
+        prev = shown;
+        const saved = pauseRun(s, now).movingMs;
+        expect(shown * 1000 - saved, `seed ${seed}: face ahead of End`).toBeLessThanOrEqual(1000);
+        expect(saved - liveMovingMs(s, now), `seed ${seed}: End beyond the face`).toBeLessThanOrEqual(0);
+      };
+      for (let step = 0; step < 120; step++) {
+        const pick = r();
+        if (pick < 0.08) {
+          s = s.manual ? resumeRun(s) : pauseRun(s, now);
+        } else if (pick < 0.14) {
+          // A gap: no position for 16 to 60 s, the face read on the way.
+          const until = now + 16_000 + Math.floor(r() * 44_000);
+          for (; now < until; now += 700) check();
+        } else {
+          const wait = 300 + Math.floor(r() * 6000);
+          for (const end = now + wait; now < end; now += 400) check();
+          t = now - T0;
+          // Standing still now and then (auto pause), else running at 3 m/s; stamped up to 1 s early.
+          if (r() < 0.75) m += (3 * wait) / 1000;
+          s = addPoint(s, at(Math.max(0, t - Math.floor(r() * 1000)) / 1000, m)).state;
+        }
+        check();
+      }
+    }
   });
 });

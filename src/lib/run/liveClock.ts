@@ -8,9 +8,11 @@
 // - Paused by hand or auto paused: the counted time, standing still. A pause by hand counts the
 //   time since the last position first (gps pauseRun), so the face does not drop at the tap.
 // - Right after Resume: it stands until the first position (no time is counted across a pause).
-// - No position for longer than GAP_SEC (15 s): that wait has become a GPS gap, and a gap is never
-//   moving time. The face stops running ahead and goes back to the counted time, where it stands
-//   until positions come back. It never keeps counting time that will not be saved.
+// - No position for longer than GAP_SEC (15 s): that wait has become a GPS gap. The face stops at
+//   the counted time plus GAP_SEC and holds there (the screen says GPS is lost); it never goes back.
+//   Those GAP_SEC count as moving time (the next position, a pause or End credits them, gps
+//   addPoint and pauseRun), the rest of the gap never does. When positions return it goes on from
+//   there.
 // - Saved time is always the engine's. The face is at most one second ahead of what will be saved.
 import { GAP_SEC, pendingMs, type TrackerReading, type TrackerState } from '../gps';
 import { readLive, type LiveRun } from './live';
@@ -28,10 +30,16 @@ export function readLiveAt(run: LiveRun, nowMs: number): TrackerReading {
   return movingSec === reading.movingSec ? reading : { ...reading, movingSec };
 }
 
+/** No position for longer than GAP_SEC while the clock was counting: the face holds and says GPS is lost. */
+export function inGap(tracker: TrackerState, nowMs: number): boolean {
+  return pendingMs(tracker, nowMs) > 0 && nowMs - tracker.lastGood!.t > GAP_SEC * 1000;
+}
+
 /**
  * How long until the face changes by itself: the next whole second of the shown time, or the
- * moment the wait turns into a gap, whichever comes first. Null while it stands still (paused, auto
- * paused, waiting for GPS, in a gap): then only the engine can change it, and no timer runs.
+ * moment the wait turns into a gap (one more wake, so the screen can say so), whichever comes
+ * first. Null while it stands still (paused, auto paused, waiting for GPS, in a gap): then only the
+ * engine can change it, and no timer runs.
  */
 export function msToNextFace(tracker: TrackerState, nowMs: number): number | null {
   const pending = pendingMs(tracker, nowMs);
@@ -40,8 +48,10 @@ export function msToNextFace(tracker: TrackerState, nowMs: number): number | nul
     const ahead = tracker.lastGood && !tracker.manual && !tracker.afterPause && !(tracker.still && tracker.autoPause) ? tracker.lastGood.t - nowMs : -1;
     return ahead >= 0 ? ahead + 1 : null;
   }
+  const since = nowMs - tracker.lastGood!.t;
+  if (since > GAP_SEC * 1000) return null;
   const toSecond = 1000 - ((tracker.movingMs + pending) % 1000);
-  const toGap = GAP_SEC * 1000 - pending + 1;
+  const toGap = GAP_SEC * 1000 - since + 1;
   return Math.max(1, Math.min(toSecond, toGap));
 }
 
