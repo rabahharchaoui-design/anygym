@@ -215,6 +215,8 @@ test.describe('4.2 run start screen', () => {
     await shot(page, 'countdown');
     await expect(timer).toHaveAttribute('aria-label', 'Starting in 2', { timeout: 2000 });
     await expect(timer).toHaveAttribute('aria-label', 'Starting in 1', { timeout: 2000 });
+    // PLAN 4.4a: a clear GO beat before the live screen.
+    await expect(timer).toHaveAttribute('aria-label', 'Go', { timeout: 2000 });
     const live = page.getByTestId('live-run');
     await expect(live).toBeVisible({ timeout: 2000 });
     await expect(count).toHaveCount(0);
