@@ -42,7 +42,7 @@ week_allowed(){ # G, Nov 17: never leave G with nothing; spread what is left eve
   if [ "$wr0" != "$wr" ]; then echo "$wr $now ${w:-0}" > .week-pace; line="$wr $now ${w:-0}"; fi
   t0=$(echo "$line" | cut -d' ' -f2); p0=$(echo "$line" | cut -d' ' -f3)
   span=$(( wr - 14400 - t0 )); [ $span -lt 3600 ] && { echo $stop; return; }
-  local lead=${WEEK_LEAD:-10}; local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span ))   # lead: may run this far ahead of the even pace (Nov 19: 2 made runs stop after 4 min); [ $a -gt $stop ] && a=$stop; echo $a
+  local lead=${WEEK_LEAD:-10}; local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span )); [ $a -gt $stop ] && a=$stop; echo $a   # lead: may run this far ahead of the even pace (Nov 19: a lead of 2 made runs stop after 4 min)
 }
 over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; [ "${f:-0}" -ge ${FIVE_STOP:-74} ] && { echo five; return 0; }; return 1; }
 tap_age(){ local ts=$(tapv ts); [ -n "$ts" ] && echo $(( $(date +%s) - ts )) || echo 99999; }
