@@ -42,14 +42,14 @@ week_allowed(){ # G, Nov 17: never leave G with nothing; spread what is left eve
   if [ "$wr0" != "$wr" ]; then echo "$wr $now ${w:-0}" > .week-pace; line="$wr $now ${w:-0}"; fi
   t0=$(echo "$line" | cut -d' ' -f2); p0=$(echo "$line" | cut -d' ' -f3)
   span=$(( wr - 14400 - t0 )); [ $span -lt 3600 ] && { echo $stop; return; }
-  local a=$(( p0 + 2 + (stop - p0 - 2) * (now - t0) / span )); [ $a -gt $stop ] && a=$stop; echo $a
+  local lead=${WEEK_LEAD:-10}; local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span ))   # lead: may run this far ahead of the even pace (Nov 19: 2 made runs stop after 4 min); [ $a -gt $stop ] && a=$stop; echo $a
 }
 over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; [ "${f:-0}" -ge ${FIVE_STOP:-74} ] && { echo five; return 0; }; return 1; }
 tap_age(){ local ts=$(tapv ts); [ -n "$ts" ] && echo $(( $(date +%s) - ts )) || echo 99999; }
 probe(){ local root="$PWD" d="$HOME/.cache/anygym-probe"; mkdir -p "$d"; date +%s > .usage-probe-at; ( cd "$d" && perl -e 'alarm shift; exec @ARGV' 90 claude --model haiku --output-format stream-json --verbose -p "Reply with OK only." 2>/dev/null | node "$root/.loop-tools/stream-tap.mjs" "$root/.usage-tap" >/dev/null 2>&1 ); }
 probe_due(){ [ $(tap_age) -gt ${PROBE_EVERY:-300} ] || return 1; local pa=$(cat .usage-probe-at 2>/dev/null); [ $(( $(date +%s) - ${pa:-0} )) -gt ${PROBE_EVERY:-300} ]; }
 hold_set(){ local r=$(tapv five_reset); [ -n "$r" ] && [ "$r" -gt $(date +%s) ] 2>/dev/null || r=$(( $(date +%s) + 3600 )); echo "$r" > .usage-hold; }   # never restart before the 5h window resets
-usage_watch(){ while sleep 30; do probe_due && probe; local why=$(over_limit); if [ -n "$why" ]; then hold_set; echo "=== usage guard: $why limit reached ($(tapv five)% of 5h, $(tapv week)% of week), stopping this run $(date) ===" >> "$LOG"; echo "$why" > .usage-stop; pkill -TERM -P $1 2>/dev/null; kill -TERM $1 2>/dev/null; return; fi; done; }
+usage_watch(){ while sleep 30; do probe_due && probe; local why=$(over_limit); if [ -n "$why" ]; then [ "$why" = five ] && hold_set; echo "=== usage guard: $why limit reached ($(tapv five)% of 5h, $(tapv week)% of week), stopping this run $(date) ===" >> "$LOG"; echo "$why" > .usage-stop; pkill -TERM -P $1 2>/dev/null; kill -TERM $1 2>/dev/null; return; fi; done; }
 ntfy(){ local t=$(cat "$HOME/.config/anygym/ntfy-topic" 2>/dev/null); [ -n "$t" ] && curl -s -o /dev/null --max-time 10 -H "Title: $1" -H "Tags: $3" -H "Click: https://rabahharchaoui-design.github.io/anygym/" -d "$2" "https://ntfy.sh/$t"; }
 # One ntfy push per cloud builder run, so G sees in the morning that the cloud (free credit) worked.
 cloudcheck(){ git fetch -q origin 2>/dev/null || return
