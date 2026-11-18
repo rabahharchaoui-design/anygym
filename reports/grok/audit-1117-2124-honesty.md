@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED
 Grok Build honesty audit, written Nov 17 21:38 at ed18080b. A second opinion, not orders: SPEC.md wins.
 
 I'll audit only what's already built, starting with the spec, the plan, and the newest reports so I don't repeat known findings.

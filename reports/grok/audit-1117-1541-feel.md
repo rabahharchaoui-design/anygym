@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED
 Grok Build feel audit, written Nov 17 16:02 at 7c28c839. A second opinion, not orders: SPEC.md wins.
 
 I'll audit iPhone feel against the spec and the newest reports, starting with the project docs and the mobile-native rules.
