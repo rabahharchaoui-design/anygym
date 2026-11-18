@@ -73,7 +73,7 @@ export function HistoryScreen() {
       ) : (
         <>
           {runs.length > 0 && (
-            <Link to="/history/runs" className={`${styles.row} pressable`} data-testid="history-runs-link" onClick={(e) => { e.preventDefault(); go('/history/runs'); }}>
+            <Link to="/history/runs" className={`${styles.row} ${styles.runsLink} pressable`} data-testid="history-runs-link" onClick={(e) => { e.preventDefault(); go('/history/runs'); }}>
               <RunIcon className={styles.rowIcon} aria-hidden="true" width={22} height={22} />
               <span className={styles.rowMain}>
                 <span className={styles.rowTitle}>Run records and heatmap</span>

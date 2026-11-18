@@ -166,3 +166,8 @@
 .record > .rowSub {
   grid-column: 1 / -1;
 }
+
+/* The link to run records sits above the list with the list's own gap. */
+.runsLink {
+  margin-bottom: var(--space-2);
+}
