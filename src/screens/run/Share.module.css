@@ -1,0 +1,28 @@
+/* Share card and GPX buttons (PLAN 4.6). */
+.row {
+  margin-top: var(--space-5);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.note {
+  margin-top: var(--space-2);
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.sheet {
+  composes: sheet from './Run.module.css';
+}
+
+/* The card keeps its 4:5 shape before the picture is drawn, so nothing moves when it appears. */
+.preview {
+  width: min(100%, 44vh * 0.8);
+  aspect-ratio: 4 / 5;
+  align-self: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--hairline);
+  background: var(--bg);
+}
