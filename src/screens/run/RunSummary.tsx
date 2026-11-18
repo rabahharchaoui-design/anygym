@@ -1,11 +1,12 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { FinishedRun } from '../../hooks/runEngine';
-import { RUN_TYPES, SPLIT_GAP, VERDICT_WORDS, bestSplitIndexes, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
+import { RUN_TYPES, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { Button } from '../../ui/Button';
 import { DrawnCheck } from '../../ui/celebrate';
-import { MapCredit, MapOfflineChip, RunMap } from './RunMap';
+import { RouteMap } from './RouteMap';
+import { RunSplits } from './RunSplits';
 import { RunFacts } from './RunFacts';
 import { RunShare } from './RunShare';
 import styles from './Summary.module.css';
@@ -13,8 +14,6 @@ import styles from './Summary.module.css';
 type Props = { finished: FinishedRun; reduceMotion: boolean; onDone: () => void; onDiscard: () => void };
 // The entrance is plain CSS (Summary.module.css): the page fades in and its content rises from the
 // bottom, where End was held.
-
-const noop = () => undefined;
 
 /**
  * What a run comes to, plainly (PLAN 4.3): distance, moving time, average pace, the splits and the
@@ -27,24 +26,6 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
   const verdict = runVerdict(run);
   const summary = useMemo(() => summaryOf(run, unit), [run, unit]);
   const route = useMemo(() => drawRoute(run.points.map(fromRunPoint), run.gaps), [run]);
-  const [offline, setOffline] = useState(false);
-  // The credit line and the "Map offline" chip sit on the map's foot: the route is fitted above them.
-  const notes = useRef<HTMLDivElement>(null);
-  const [inset, setInset] = useState({ top: 0, bottom: 48 });
-  useLayoutEffect(() => {
-    const el = notes.current;
-    const box = el?.parentElement;
-    if (!el || !box) return;
-    const measure = () => {
-      const bottom = Math.ceil(box.getBoundingClientRect().bottom - el.getBoundingClientRect().top);
-      setInset((i) => (i.bottom === bottom ? i : { top: 0, bottom }));
-    };
-    measure();
-    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
-    ro?.observe(el);
-    return () => ro?.disconnect();
-  }, [verdict]);
-  const bestSplits = useMemo(() => (summary.splits.filter((x) => x.time !== null).length > 1 ? bestSplitIndexes(run) : []), [run, summary]);
   const type = RUN_TYPES.find((t) => t.value === run.type)?.label ?? 'Run';
 
   return createPortal(
@@ -81,37 +62,9 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
               </div>
             </dl>
             <RunFacts run={run} unit={unit} reduce={reduceMotion} />
-            <div className={styles.map} data-testid="summary-map" data-solid={route.solid.length} data-dashed={route.dashed.length}>
-              <RunMap here={null} recentre={0} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={noop} route={route} still />
-              <div className={styles.mapNotes} ref={notes}>
-                <MapCredit />
-                {offline && <MapOfflineChip />}
-              </div>
-            </div>
+            <RouteMap route={route} reduceMotion={reduceMotion} resize={verdict} />
             {route.dashed.length > 0 && <p className={styles.quiet}>Dashed: GPS was lost or the run was paused there. That stretch is not counted as moving time.</p>}
-            <h3 className={styles.heading}>Splits</h3>
-            {summary.splits.length === 0 ? (
-              <p className={styles.quiet} data-testid="summary-no-splits">
-                No full {summary.splitUnit === 'mi' ? 'mile' : 'kilometer'} yet. Splits show from the first one.
-              </p>
-            ) : (
-              <ol className={styles.splits} data-testid="summary-splits">
-                {summary.splits.map((s) => (
-                  <li key={s.n} className={styles.split} data-gap={s.time === null || undefined} data-best={bestSplits.includes(s.n - 1) || undefined}>
-                    <span>
-                      {summary.splitUnit === 'mi' ? 'Mile' : 'Km'} {s.n}
-                      {bestSplits.includes(s.n - 1) && <span className={styles.best}>Best</span>}
-                    </span>
-                    {s.time === null ? <span className={styles.splitGap}>{SPLIT_GAP}</span> : <span className="num">{s.time}</span>}
-                  </li>
-                ))}
-              </ol>
-            )}
-            {summary.anyGap && (
-              <p className={styles.quiet} data-testid="summary-gap-note">
-                GPS gap: part of that split has no time, so no split time is shown for it.
-              </p>
-            )}
+            <RunSplits run={run} unit={unit} />
             <RunShare run={run} unit={unit} />
           </div>
           <div className={styles.actions}>
