@@ -63,7 +63,7 @@ async function seed() {
     { sessionId: 's1', next: 5 },
     { sessionId: 's2', next: 2 },
   ]);
-  await db.runs.add({ id: 'r1', startedAt: 300_000, type: 'easy', movingSec: 61, elapsedSec: 70, distanceM: 201.5, points: [[45.1, -122.3, 1, 5]], gaps: [], splits: [] });
+  await db.runs.add({ id: 'r1', startedAt: 300_000, endedAt: 370_000, type: 'easy', movingSec: 61, elapsedSec: 70, distanceM: 201.5, points: [[45.1, -122.3, 1, 5]], gaps: [], splits: [] });
   return { home, club };
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
-import { ActiveWorkoutError, restoreMerge, restoreReplace, type RestoreResult } from '../../db/backup';
+import { ActiveRunError, ActiveWorkoutError, restoreMerge, restoreReplace, type RestoreResult } from '../../db/backup';
 import { summarize, summaryLine, type Backup } from '../../lib/backup';
 import styles from './Restore.module.css';
 
@@ -48,7 +48,7 @@ export function RestoreSheet({ backup, onClose, onDone }: Props) {
       const result = mode === 'merge' ? await restoreMerge(backup) : await restoreReplace(backup);
       onDone(result, mode);
     } catch (e) {
-      setError(e instanceof ActiveWorkoutError ? 'Finish your workout first.' : 'Could not restore. Nothing was changed. Try again.');
+      setError(e instanceof ActiveRunError ? 'Finish your run first.' : e instanceof ActiveWorkoutError ? 'Finish your workout first.' : 'Could not restore. Nothing was changed. Try again.');
       setArmed(false);
     } finally {
       setBusy(false);
