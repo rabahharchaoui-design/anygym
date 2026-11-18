@@ -178,7 +178,7 @@ export const runEngine = {
   },
 
   pause(): void {
-    dispatch({ type: 'pause' });
+    dispatch({ type: 'pause', now: Date.now() });
     save();
   },
   resume(): void {
@@ -199,8 +199,10 @@ export const runEngine = {
   async end(): Promise<void> {
     const live = state.live;
     if (!live) return;
-    const paused = liveStep(live, { type: 'pause' });
-    const run = finishRun(paused, Date.now()) as Run & { endedAt: number };
+    const now = Date.now();
+    // The time since the last position counts, as the screen showed it (PLAN 4.4a).
+    const paused = liveStep(live, { type: 'pause', now });
+    const run = finishRun(paused, now) as Run & { endedAt: number };
     detach();
     dirty = false;
     try {

@@ -19,7 +19,7 @@ import { haversineM } from './geo';
 import { averagePace, currentPace, pushPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
 import { isStill, leftStill, pushRecent, type Recent } from './stillness';
-import type { GpsPoint, HeldReason, RawPoint, RejectReason, TrackBreak } from './types';
+import { GAP_SEC, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
   /** Split length in meters (units.ts unitMeters). */
@@ -131,8 +131,31 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   };
 }
 
-/** Pause by hand. Until resumeRun nothing is recorded and auto pause does nothing. */
-export const pauseRun = (state: TrackerState): TrackerState => (state.manual ? state : { ...state, manual: true });
+/**
+ * The moving time since the last good point that the next good point would add, as far as `now`
+ * can tell (PLAN 4.4a: the clock on the screen counts between two positions). Zero whenever the
+ * next point would add none: paused by hand, standing with auto pause on, before the first point,
+ * right after a resume by hand (the first point after it starts a new piece with no time), and once
+ * the wait is longer than GAP_SEC (it has become a gap, and a gap is never moving time).
+ */
+export function pendingMs(state: TrackerState, now: number): number {
+  if (state.manual || state.afterPause || !state.lastGood || (state.still && state.autoPause)) return 0;
+  const since = now - state.lastGood.t;
+  return since > 0 && since <= GAP_SEC * 1000 ? since : 0;
+}
+
+/**
+ * Pause by hand. Until resumeRun nothing is recorded and auto pause does nothing. With `now` (the
+ * live run gives it) the moving time since the last good point is counted first (pendingMs): the
+ * runner was moving until the tap, and the clock on the screen had already shown that time. It
+ * adds time only, never distance.
+ */
+export function pauseRun(state: TrackerState, now?: number): TrackerState {
+  if (state.manual) return state;
+  const ms = now === undefined ? 0 : pendingMs(state, now);
+  const counted = ms > 0 ? advance(state, { distanceM: 0, ms, timed: true, gap: false }).state : state;
+  return { ...counted, manual: true };
+}
 
 /**
  * Resume by hand. After a pause by hand the next good point starts a new piece of line. Tapped

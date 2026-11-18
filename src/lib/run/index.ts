@@ -6,6 +6,7 @@
 //   intervals.ts  interval presets, a custom set and the interval clock (PLAN 4.4)
 //   voice/        the voice coach: the clip list, the sentences, the settings (PLAN 4.4)
 //   live.ts      the live run: one state, one step at a time (PLAN 4.3)
+//   liveClock.ts the time on the screen between two positions, and when it next changes (PLAN 4.4a)
 //   snapshot.ts  a live run written down and read back after the app closed
 //   progress.ts  progress toward a Distance or Time goal
 //   summary.ts   the finished row and the summary read from it
@@ -25,6 +26,7 @@ export * from './gpsStatus';
 export * from './mapSource';
 export * from './format';
 export * from './live';
+export * from './liveClock';
 export * from './snapshot';
 export * from './progress';
 export * from './summary';
