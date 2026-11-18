@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { T0 } from '../../lib/gps/__tests__/fixtures';
 import { DEFAULT_RUN_SETUP } from '../../lib/run';
-import { freshApp, phone, run, settle } from './enginePhone';
+import { freshApp, phone, run, settle, systemReleasesWake } from './enginePhone';
 
 // PLAN 4.4b: the run engine when things go wrong during a run (GPS lost, a save fails, the screen lock is let go).
 
@@ -63,6 +63,36 @@ describe('run engine: a failed save during the run (PLAN 4.4b 3)', () => {
     expect(engine.get().autosaveFailed).toBe(false);
     expect((await db.runs.toArray())[0]!.distanceM).toBeGreaterThan(50);
     db.runs.hook('updating').unsubscribe(fail);
+    await engine.end();
+  });
+});
+
+describe('run engine: the phone lets go of the screen lock (PLAN 4.4b 4)', () => {
+  it('is noticed: asked again at once while in front, or when the app is back; refused, it says so', async () => {
+    const { engine } = await freshApp();
+    engine.start(DEFAULT_RUN_SETUP, 'km');
+    await settle();
+    expect(phone.wakeAsks).toBe(1);
+    systemReleasesWake();
+    await settle();
+    expect(phone.wakeAsks).toBe(2);
+    expect(engine.get().wake).toBe('on');
+    // In the background: nothing to ask for until the app is back.
+    phone.visibility = 'hidden';
+    systemReleasesWake();
+    await settle();
+    expect(phone.wakeAsks).toBe(2);
+    expect(engine.get().wake).toBe('off');
+    phone.visibility = 'visible';
+    phone.docEvents.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(phone.wakeAsks).toBe(3);
+    expect(engine.get().wake).toBe('on');
+    // Let go again and refused: the run says it cannot keep the screen on.
+    phone.wakeMode = 'refuse';
+    systemReleasesWake();
+    await settle();
+    expect(engine.get().wake).toBe('refused');
     await engine.end();
   });
 });

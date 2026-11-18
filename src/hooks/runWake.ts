@@ -27,6 +27,14 @@ export function createRunWake(onChange: (state: WakeState) => void) {
         asking = false;
         if (!wanted) return void s.release().catch(() => {});
         sentinel = s;
+        // PLAN 4.4b (4): the phone may let go by itself (low power, the app hidden). Noticed: asked
+        // again at once while in front, else when the app is back (hold on visibilitychange).
+        s.addEventListener?.('release', () => {
+          if (sentinel !== s || !wanted) return;
+          sentinel = null;
+          onChange('off');
+          request();
+        });
         onChange('on');
       },
       () => {
