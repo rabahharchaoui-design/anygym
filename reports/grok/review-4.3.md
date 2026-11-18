@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED
 Grok Build review of PLAN item 4.3, range 08a009e794704b31fb6923d24afab3e33f140cd3..2cfba459a3914e49ee00fc8a1491be771490bc8c, written Nov 17 16:21. A second opinion, not orders: SPEC.md wins.
 
 I'll review PLAN item 4.3 against the spec and only the commits in that range. First I'm reading the project rules and the diff.
