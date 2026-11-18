@@ -151,3 +151,18 @@
   flex: none;
   color: var(--accent);
 }
+
+/* A personal record: what, the best, and when. One row, the same glass as a history row. */
+.record {
+  composes: surface from '../../ui/card.module.css';
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+}
+
+.record > .rowSub {
+  grid-column: 1 / -1;
+}

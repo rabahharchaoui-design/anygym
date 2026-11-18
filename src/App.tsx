@@ -6,6 +6,8 @@ import { LandscapeGuard } from './components/LandscapeGuard';
 import { TodayScreen } from './screens/TodayScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HistoryDetail } from './screens/history/HistoryDetail';
+import { RunDetail } from './screens/history/RunDetail';
+import { RunRecords } from './screens/history/RunRecords';
 import { PlansScreen } from './screens/plans/PlansScreen';
 import { PlanViewer } from './screens/plans/PlanViewer';
 import { PlacePlans } from './screens/plans/PlacePlans';
@@ -87,6 +89,8 @@ export function App() {
             }
           />
           <Route path="history" element={<HistoryScreen />} />
+          <Route path="history/runs" element={<RunRecords />} />
+          <Route path="history/run/:runId" element={<RunDetail />} />
           <Route path="history/:sessionId" element={<HistoryDetail />} />
           <Route path="quick" element={<QuickScreen />} />
           <Route path="plans" element={<PlansScreen />} />
