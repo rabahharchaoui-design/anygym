@@ -17,7 +17,8 @@ export type Cue = CueClip[];
 export type VoiceEvent =
   | { type: 'start'; first: BlockName | null }
   /** A split is done: how many so far, the moving time at that point, that split's pace (seconds per unit) or null. */
-  | { type: 'split'; count: number; unit: DistanceUnit; movingSec: number; paceSec: number | null }
+  /** `movingSec` null: the split holds a GPS gap, its time is not known and is not said (PLAN 4.4b 10). */
+  | { type: 'split'; count: number; unit: DistanceUnit; movingSec: number | null; paceSec: number | null }
   | { type: 'interval'; name: BlockName; last: boolean }
   | { type: 'intervals-done' }
   | { type: 'paused' }
@@ -104,7 +105,7 @@ export function composeCue(e: VoiceEvent): Cue {
       return e.first ? [stop('run_started'), stop(e.first)] : [stop('run_started')];
     case 'split': {
       const pace = paceClips(e.paceSec);
-      return [...splitClips(e.count, e.unit), ...timeClips(e.movingSec), ...(pace.length ? [w('pace'), ...pace] : [])];
+      return [...splitClips(e.count, e.unit), ...(e.movingSec === null ? [] : timeClips(e.movingSec)), ...(pace.length ? [w('pace'), ...pace] : [])];
     }
     case 'interval':
       return e.last ? [stop('last_one'), stop(e.name)] : [stop(e.name)];
