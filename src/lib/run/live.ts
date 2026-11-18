@@ -36,7 +36,8 @@ export type LiveRun = {
 
 export type LiveAction =
   | { type: 'fix'; point: RawPoint }
-  | { type: 'pause' }
+  /** `now`: the clock at the tap, so the time since the last position still counts (gps pendingMs). */
+  | { type: 'pause'; now?: number }
   | { type: 'resume' }
   | { type: 'auto-pause'; on: boolean }
   /** The clock moved on (intervals count time, not positions). */
@@ -85,7 +86,7 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
       return { ...run, tracker, here: event.point, points: [...run.points, event.point], breaks: event.brk ? [...run.breaks, event.brk] : run.breaks, gps };
     }
     case 'pause':
-      return run.tracker.manual ? run : { ...run, tracker: pauseRun(run.tracker) };
+      return run.tracker.manual ? run : { ...run, tracker: pauseRun(run.tracker, action.now) };
     case 'resume': {
       const tracker = resumeRun(run.tracker);
       return tracker === run.tracker && !run.closed ? run : { ...run, tracker, closed: false };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { runEngine, useRunEngine } from '../../hooks/useRunEngine';
 import { warmVoicePack } from '../../hooks/voiceWarm';
-import { distanceWithUnit, readLive } from '../../lib/run';
+import { distanceWithUnit, readLiveAt } from '../../lib/run';
 import { formatElapsed } from '../../lib/timer';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { LiveRun } from './LiveRun';
@@ -26,7 +26,8 @@ export function RunScreen() {
 
   if (finished) return <RunSummary finished={finished} reduceMotion={reduceMotion} onDone={runEngine.closeFinished} onDiscard={() => void runEngine.discardFinished()} />;
   if (live && shown) return <LiveRun live={live} wake={engine.wake} saveFailed={engine.saveFailed} reduceMotion={reduceMotion} onHide={() => setShown(false)} />;
-  const reading = live ? readLive(live) : null;
+  // The time as the live screen showed it when it was hidden (PLAN 4.4a).
+  const reading = live ? readLiveAt(live, Date.now()) : null;
   const going = live && reading ? { readout: `${distanceWithUnit(reading.distanceM, live.unit)} · ${formatElapsed(reading.movingSec)}`, paused: reading.status === 'paused' } : null;
   return <RunStart going={going} onOpen={open} reduceMotion={reduceMotion} />;
 }

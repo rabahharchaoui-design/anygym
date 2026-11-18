@@ -9,8 +9,10 @@
 // - Moving again: the leg from the standing spot to the new point counts (it was really covered).
 //   With auto pause on nobody knows how long that leg took (the clock was stopped), so it adds
 //   distance but no time and stays out of every pace, the same way a bridged gap does.
-// - A gap (no good point for more than GAP_SEC): its time is never moving time. The straight line
-//   across counts as distance only when filter.ts calls it plausible; either way the line breaks.
+// - A gap (no good point for more than GAP_SEC): only its first GAP_SEC count as moving time (the
+//   clock on the screen had already counted them while it waited, PLAN 4.4a, and a clock never goes
+//   back); nothing after them. The straight line across counts as distance only when filter.ts
+//   calls it plausible; either way the line breaks.
 // - A pause by hand always wins: nothing is recorded, auto pause does nothing, and the first point
 //   after resume starts a new piece of line with no distance and no time across the pause.
 // - Moving time only moves forward with good points, so it never has to be taken back.
@@ -19,7 +21,7 @@ import { haversineM } from './geo';
 import { averagePace, currentPace, pushPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
 import { isStill, leftStill, pushRecent, type Recent } from './stillness';
-import type { GpsPoint, HeldReason, RawPoint, RejectReason, TrackBreak } from './types';
+import { GAP_SEC, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
   /** Split length in meters (units.ts unitMeters). */
@@ -46,6 +48,8 @@ export type TrackerState = {
   /** Distance covered while time counted (everything but bridged gaps and the leg that ends an auto pause). */
   timedM: number;
   movingMs: number;
+  /** Moving time counted with no distance of its own (the first GAP_SEC of a gap): pace leaves it out. */
+  heldMs: number;
   recent: Recent;
   pace: readonly PaceSample[];
   splits: SplitState;
@@ -70,6 +74,7 @@ export function startTracker(options: TrackerOptions): TrackerState {
     distanceM: 0,
     timedM: 0,
     movingMs: 0,
+    heldMs: 0,
     recent: [],
     pace: [],
     splits: startSplits(options.splitM),
@@ -111,7 +116,9 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   }
   if (v.link === 'gap') {
     const distanceM = v.bridged ? haversineM(from, p) : 0;
-    const next = advance(state, { distanceM, ms: 0, timed: false, gap: true });
+    // The wait up to GAP_SEC was counted on the screen (pendingMs): it stays counted (holdGap).
+    const credit = state.still && state.autoPause ? 0 : GAP_SEC * 1000;
+    const next = advance(holdGap(state, credit), { distanceM, ms: 0, timed: false, gap: true });
     const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'gap', bridged: v.bridged, distanceM };
     return { state: restart(next.state, p), event: { type: 'recorded', point: p, brk, splits: next.completed } };
   }
@@ -131,8 +138,43 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   };
 }
 
-/** Pause by hand. Until resumeRun nothing is recorded and auto pause does nothing. */
-export const pauseRun = (state: TrackerState): TrackerState => (state.manual ? state : { ...state, manual: true });
+/**
+ * Moving time with no distance of its own (the first GAP_SEC of a gap): counted, kept out of every
+ * pace, and its split is flagged as holding a gap (no split time is shown for it).
+ */
+function holdGap(state: TrackerState, ms: number): TrackerState {
+  if (ms <= 0) return state;
+  const held = advance(state, { distanceM: 0, ms, timed: false, gap: true }).state;
+  return { ...held, heldMs: (state.heldMs ?? 0) + ms };
+}
+
+/**
+ * The moving time since the last good point that the next good point would add, as far as `now`
+ * can tell (PLAN 4.4a: the clock on the screen counts between two positions). Zero whenever the
+ * next point would add none: paused by hand, standing with auto pause on, before the first point,
+ * right after a resume by hand (the first point after it starts a new piece with no time). It stops
+ * growing at GAP_SEC: past that the wait is a gap, and only its first GAP_SEC count (addPoint).
+ */
+export function pendingMs(state: TrackerState, now: number): number {
+  if (state.manual || state.afterPause || !state.lastGood || (state.still && state.autoPause)) return 0;
+  const since = now - state.lastGood.t;
+  return since > 0 ? Math.min(since, GAP_SEC * 1000) : 0;
+}
+
+/**
+ * Pause by hand. Until resumeRun nothing is recorded and auto pause does nothing. With `now` (the
+ * live run gives it) the moving time since the last good point is counted first (pendingMs): the
+ * runner was moving until the tap, and the clock on the screen had already shown that time. It
+ * adds time only, never distance.
+ */
+export function pauseRun(state: TrackerState, now?: number): TrackerState {
+  if (state.manual) return state;
+  const ms = now === undefined ? 0 : pendingMs(state, now);
+  // Paused (or ended) inside a gap: its first GAP_SEC count the way the next point would count them.
+  const gap = ms > 0 && now! - state.lastGood!.t > GAP_SEC * 1000;
+  const counted = ms <= 0 ? state : gap ? holdGap(state, ms) : advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
+  return { ...counted, manual: true };
+}
 
 /**
  * Resume by hand. After a pause by hand the next good point starts a new piece of line. Tapped
@@ -172,7 +214,7 @@ export function readTracker(state: TrackerState): TrackerReading {
     movingSec,
     elapsedSec: state.lastGood && state.firstT !== null ? (state.lastGood.t - state.firstT) / 1000 : 0,
     currentPace: state.manual || state.still ? null : currentPace(state.pace),
-    averagePace: averagePace(movingSec, state.timedM),
+    averagePace: averagePace(movingSec - (state.heldMs ?? 0) / 1000, state.timedM),
     splits: readSplits(state.splits),
   };
 }
