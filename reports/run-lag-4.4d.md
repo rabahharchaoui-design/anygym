@@ -168,7 +168,7 @@ The run diagnostics log (PLAN 4.4d (2)) keeps every fix with its fate; G's expor
 1. A wild first fix seeded the estimate (jog cold start at 5 m, seed 2: +7.7%, drift alone 0.3%).
    Now a run whose first fix is worse than 25 m starts its line only when three fixes in a row agree
    within their accuracies; the clock counts meanwhile (kept out of pace), distance shows 0.00, pace
-   "--". After: that trace +0.3%, every seed of the jog cold start at 5 m within 3% (it now fails
+   "--". After: that trace -0.3% (seeds 1 to 6: -2.2 to +1.1%) (it now fails
    only the freeze rule, see below). Distance first moves 9 to 14 s after the first usable fix at
    1 s on most traces (median 11 s); the worst is a walk at 60 m whose fixes drift against it,
    59 s (walk 5 m, seed 4). At 5 s fixes 18 to 50 s.
