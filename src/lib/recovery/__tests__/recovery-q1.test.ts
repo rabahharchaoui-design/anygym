@@ -146,7 +146,7 @@ describe('Recommended', () => {
 describe('facts from the log', () => {
   it('recent targets show the real fact, dimmed but never blocked (state recent, no other flag)', () => {
     const r = byId([chestDay(3)]);
-    expect(r.chest).toEqual({ id: 'chest', state: 'recent', recommended: false, fact: 'Trained today', restedMs: null });
+    expect(r.chest).toEqual({ id: 'chest', state: 'recent', recommended: false, fact: 'Trained today', restedMs: 3 * H });
     expect(r.push!.fact).toBe('Trained today');
   });
   it('"Trained yesterday" by the local calendar day, not 24 hours', () => {

@@ -23,7 +23,7 @@ export type TargetRecovery<Id extends string = string> = {
   recommended: boolean;
   /** Recent only: "Trained today", "Trained yesterday", "Trained 2 days ago". */
   fact: string | null;
-  /** Fresh only: ms since its least rested group was trained (Infinity: none of its groups in the log). */
+  /** With history: ms since its least rested group was trained (Infinity: none of its groups in the log). */
   restedMs: number | null;
 };
 
@@ -44,13 +44,11 @@ export function trainedFact(at: number, now: number): string {
 }
 
 function stateOf<Id extends string>(t: RecoveryTarget<Id>, trained: GroupTraining, now: number): TargetRecovery<Id> {
+  const restedMs = Math.min(...t.groups.map((g) => (trained[g] === undefined ? Infinity : now - trained[g]!)));
   const inside = t.groups.filter((g) => !isRested(g, trained, now));
-  if (inside.length) {
-    const latest = Math.max(...inside.map((g) => trained[g]!));
-    return { id: t.id, state: 'recent', recommended: false, fact: trainedFact(latest, now), restedMs: null };
-  }
-  const rested = Math.min(...t.groups.map((g) => (trained[g] === undefined ? Infinity : now - trained[g]!)));
-  return { id: t.id, state: 'fresh', recommended: false, fact: null, restedMs: rested };
+  if (!inside.length) return { id: t.id, state: 'fresh', recommended: false, fact: null, restedMs };
+  const latest = Math.max(...inside.map((g) => trained[g]!));
+  return { id: t.id, state: 'recent', recommended: false, fact: trainedFact(latest, now), restedMs };
 }
 
 /**
@@ -61,7 +59,7 @@ export function targetRecovery<Id extends string>(targets: readonly RecoveryTarg
   if (!hasHistory(trained)) return targets.map((t) => ({ id: t.id, state: 'unknown', recommended: false, fact: null, restedMs: null }));
   const out = targets.map((t) => stateOf(t, trained, now));
   const fresh = out.map((r, i) => ({ r, i })).filter(({ r }) => r.state === 'fresh');
-  fresh.sort((a, b) => b.r.restedMs! - a.r.restedMs! || a.i - b.i);
+  fresh.sort((a, b) => (a.r.restedMs === b.r.restedMs ? 0 : b.r.restedMs! - a.r.restedMs!) || a.i - b.i);
   for (const { r } of fresh.slice(0, MAX_RECOMMENDED)) r.recommended = true;
   return out;
 }
