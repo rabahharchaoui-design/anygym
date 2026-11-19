@@ -89,8 +89,8 @@ function trackerFrom(v: unknown): TrackerState | null {
   const t = v as Partial<TrackerState> | null;
   if (!t || typeof t !== 'object') return null;
   const ok = num(t.splitM) && t.splitM >= 1 && num(t.distanceM) && num(t.timedM) && num(t.movingMs) && typeof t.autoPause === 'boolean' && Array.isArray(t.recent) && Array.isArray(t.pace) && !!t.splits && Array.isArray(t.splits.full) && !!t.splits.open;
-  // Snapshots from before PLAN 4.4a have no held time.
-  return ok ? ({ ...t, heldMs: num(t.heldMs) ? t.heldMs : 0 } as TrackerState) : null;
+  // Snapshots from before PLAN 4.4a have no held time; from before 4.6a no clock rule (standing stopped the clock).
+  return ok ? ({ ...t, heldMs: num(t.heldMs) ? t.heldMs : 0, stopped: typeof t.stopped === 'boolean' ? t.stopped : t.still === true } as TrackerState) : null;
 }
 
 /** Reads a stored snapshot (JSON text). Null when it is missing, broken or belongs to another run. */
