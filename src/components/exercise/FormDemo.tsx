@@ -3,8 +3,9 @@ import { PauseIcon, PlayIcon } from '../../ui/icons';
 import type { DemoImages } from '../../lib/exerciseInfo';
 import { frameCount } from '../../lib/demoSequence';
 import { useDemoPhotos, type Photos } from '../../hooks/usePhotos';
-import { DemoSteps } from './DemoSteps';
 import { Picture } from './DemoPicture';
+import { DemoSteps } from './DemoSteps';
+import { DemoStage } from './DemoStage';
 import styles from './FormDemo.module.css';
 
 type Props = {
@@ -97,15 +98,9 @@ export function FormDemo({ demo, name, compact = false, hero = false, vtName, on
   if (frameCount(demo) > 2) return <DemoSteps demo={demo} name={name} onOpen={onOpen} fit={fit} />;
   return (
     <div className={styles.wrap} data-testid="form-demo" data-paused={paused || undefined} data-fit={fit || undefined} style={vtName ? { viewTransitionName: vtName } : undefined}>
-      {onOpen ? (
-        <button type="button" className={`${styles.stage} pressable`} onClick={onOpen} aria-label={`Show ${name} full screen`} data-testid="demo-stage">
-          {frames}
-        </button>
-      ) : (
-        <div className={styles.stage} data-testid="demo-stage">
-          {frames}
-        </div>
-      )}
+      <DemoStage className={styles.stage ?? ''} name={name} onOpen={onOpen}>
+        {frames}
+      </DemoStage>
       {/* Pause is a visible glyph in the corner, never a hidden tap on the photo (hidden with reduced motion: nothing moves). */}
       <button type="button" className={`${styles.pause} pressable`} onClick={() => setPaused((p) => !p)} aria-pressed={paused} aria-label={paused ? 'Play demo' : 'Pause demo'}>
         {paused ? <PlayIcon width={14} height={14} strokeWidth={2.6} fill="currentColor" aria-hidden="true" /> : <PauseIcon width={14} height={14} strokeWidth={2.6} fill="currentColor" aria-hidden="true" />}

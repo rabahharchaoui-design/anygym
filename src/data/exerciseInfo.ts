@@ -4,13 +4,12 @@ import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import catalogDemos from '../../data/catalog-demos.json';
 import demoHidden from './demoHidden.json';
-import demoSequenceFile from '../../data/demo-sequences.json';
 import { catalogInfo, eligibleDemos, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
 import type { MatchKind } from '../lib/catalog';
 import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
 import { approvedCandidate, isApprovedCandidate, onApprovedChange } from './candidateGate';
 import { applyHiddenList, type HiddenList } from '../lib/demoReview';
-import { demoWithSequence, parseDemoSequences, type SequenceEntry } from '../lib/demoSequence';
+import { decodeSequences, demoWithSequence } from '../lib/demoSequence';
 
 const CUES = cueFile as CueFile;
 const CATALOG = new Map((catalog as { exercises: CatalogImages[] }).exercises.map((e) => [e.id, e]));
@@ -50,23 +49,13 @@ export function photoEligibility(catalogId: string | null | undefined): MatchKin
 const catalogOf = (id: string): CatalogImages | undefined => CATALOG.get(id) ?? approvedCandidate(id);
 const inCatalog = (id: string): boolean => CATALOG.has(id) || isApprovedCandidate(id);
 
+declare const __DEMO_SEQUENCES__: string | undefined;
 /**
- * PLAN D1: the declared 3 or 4 frame sequences (data/demo-sequences.json). A refused one is logged
- * and its exercise shows no demo; a file of another format refuses every sequence (and so every
- * declared exercise's demo). The unit tests fail on either long before it ships.
+ * PLAN D1: the declared 3 or 4 frame sequences, checked at build time (vite.config.ts runs
+ * lib/demoSequence.ts parseDemoSequences on data/demo-sequences.json): id to frame count, 0 for a
+ * refused one, which then shows no demo. None in unit tests.
  */
-function sequences(): ReadonlyMap<string, SequenceEntry> {
-  try {
-    const out = parseDemoSequences(demoSequenceFile, new Set(CATALOG.keys()));
-    for (const e of out.values()) if (!e.ok) console.error(`Demo sequence refused: ${e.reason}`);
-    return out;
-  } catch (e) {
-    console.error(e);
-    const ids = Object.keys((demoSequenceFile as { sequences?: object }).sequences ?? {});
-    return new Map(ids.map((id) => [id, { ok: false, reason: `${id}: file refused` }]));
-  }
-}
-const SEQUENCES = sequences();
+const SEQUENCES = decodeSequences(typeof __DEMO_SEQUENCES__ === 'string' ? __DEMO_SEQUENCES__ : '');
 /** A frame file the build hashed exists (no table, as in unit tests: none is known). */
 const frameExists = (path: string) => photoTable()?.has(path) ?? false;
 /** A catalog id's sure pair, or its declared sequence in place of it (lib/demoSequence.ts). */

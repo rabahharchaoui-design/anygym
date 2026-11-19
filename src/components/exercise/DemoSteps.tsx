@@ -11,6 +11,7 @@ import type { DemoImages } from '../../lib/exerciseInfo';
 import { frameCount } from '../../lib/demoSequence';
 import { useDemoPhotos, type Photos } from '../../hooks/usePhotos';
 import { Picture } from './DemoPicture';
+import { DemoStage } from './DemoStage';
 import styles from './DemoSteps.module.css';
 
 /** One frame's time on screen, the same slot as the two frame loop. */
@@ -97,16 +98,29 @@ export function DemoSteps({ demo, name, onOpen, fit = false }: Props) {
   const frames = <StepFrames demo={demo} photos={photos} name={name} steps={steps} />;
   return (
     <div className={styles.wrap} data-testid="form-demo" data-frames={steps.n} data-index={steps.index} data-fit={fit || undefined}>
-      {onOpen ? (
-        <button type="button" className={`${styles.stage} pressable`} onClick={onOpen} aria-label={`Show ${name} full screen`} data-testid="demo-stage">
-          {frames}
-        </button>
-      ) : (
-        <div className={styles.stage} data-testid="demo-stage">
-          {frames}
-        </div>
-      )}
+      <DemoStage className={styles.stage ?? ''} name={name} onOpen={onOpen}>
+        {frames}
+      </DemoStage>
       <StepBar steps={steps} name={name} />
     </div>
+  );
+}
+
+/**
+ * The full screen viewer's sequence (DemoViewer.tsx): the frames fill the viewer's 3:2 stage, the
+ * step bar hangs under it (the stage keeps room for it), so the viewer loads this file only for a sequence.
+ */
+export function ViewerSteps({ demo, name }: { demo: DemoImages; name: string }) {
+  const photos = useDemoPhotos(demo);
+  const steps = useDemoSteps(frameCount(demo), photos);
+  return (
+    <>
+      <span className={styles.viewerFrames} data-testid="demo-hero" data-frames={steps.n} data-index={steps.index}>
+        <StepFrames demo={demo} photos={photos} name={name} steps={steps} />
+      </span>
+      <div className={styles.viewerBar}>
+        <StepBar steps={steps} name={name} />
+      </div>
+    </>
   );
 }

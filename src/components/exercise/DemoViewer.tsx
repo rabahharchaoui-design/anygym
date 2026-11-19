@@ -6,9 +6,8 @@ import { useSheetLayer } from '../../ui/useSheetLayer';
 import { XIcon } from '../../ui/icons';
 import type { DemoImages } from '../../lib/exerciseInfo';
 import { FormDemo } from './FormDemo';
-import { StepBar, StepFrames, useDemoSteps } from './DemoSteps';
 import { frameCount } from '../../lib/demoSequence';
-import { useDemoPhotos } from '../../hooks/usePhotos';
+import { ViewerSteps } from './DemoSteps';
 import styles from './DemoViewer.module.css';
 
 type Props = {
@@ -38,9 +37,7 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   // PLAN D1: a 3 or 4 frame sequence steps here too, its bar under the photo.
-  const photos = useDemoPhotos(demo);
-  const steps = useDemoSteps(frameCount(demo), photos);
-  const sequence = steps.n > 2;
+  const sequence = frameCount(demo) > 2;
 
   useSheetLayer(present, rootRef, closeRef, (root) => root.querySelector<HTMLElement>('[data-close]')?.focus({ preventScroll: true }));
 
@@ -65,6 +62,7 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
     >
       <motion.div
         className={styles.stage}
+        data-steps={sequence || undefined}
         drag={reduce ? false : 'y'}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={{ top: 0.05, bottom: 0.9 }}
@@ -76,18 +74,11 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
         transition={SHEET_SPRING}
       >
         {sequence ? (
-          <span className={styles.steps} data-testid="demo-hero" data-frames={steps.n} data-index={steps.index}>
-            <StepFrames demo={demo} photos={photos} name={name} steps={steps} />
-          </span>
+          <ViewerSteps demo={demo} name={name} />
         ) : (
           <FormDemo demo={demo} name={name} hero />
         )}
       </motion.div>
-      {sequence && (
-        <div className={styles.bar}>
-          <StepBar steps={steps} name={name} />
-        </div>
-      )}
       <p className={styles.title}>{name}</p>
       <button type="button" className={`${styles.close} pressable`} data-close onClick={onClose} aria-label="Close">
         <XIcon width={22} height={22} strokeWidth={2.4} aria-hidden="true" />

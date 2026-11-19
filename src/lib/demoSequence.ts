@@ -89,15 +89,34 @@ export function sequencePaths(id: string, frames: 3 | 4): DemoImages {
 }
 
 /**
- * The demo an exercise shows. `base` is its sure catalog pair (null: hidden or unsure, and a
- * sequence never brings a hidden demo back). No declaration: the pair, unchanged. A refused
- * declaration, or a sequence with any frame file missing (`exists` is the build's file table):
- * null, never a sequence with a hole and never the pair alone.
+ * The table the build ships (vite.config.ts reads data/demo-sequences.json with parseDemoSequences,
+ * so the checks above never reach the phone): `id:frames;id:frames`, 0 for a refused sequence.
  */
-export function demoWithSequence(id: string, base: DemoImages | null, entry: SequenceEntry | undefined, exists: (path: string) => boolean): DemoImages | null {
-  if (!base || !entry) return base;
-  if (!entry.ok) return null;
-  const paths = sequencePaths(id, entry.sequence.frames);
+export function encodeSequences(entries: ReadonlyMap<string, SequenceEntry>): string {
+  return [...entries].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, e]) => `${id}:${e.ok ? e.sequence.frames : 0}`).join(';');
+}
+
+/** Reads the build's table back: id to its frame count (0: refused, show no demo). */
+export function decodeSequences(table: string): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const entry of table ? table.split(';') : []) {
+    const [id, n] = entry.split(':');
+    if (id) out.set(id, n === '3' || n === '4' ? Number(n) : 0);
+  }
+  return out;
+}
+
+/**
+ * The demo an exercise shows. `base` is its sure catalog pair (null: hidden or unsure, and a
+ * sequence never brings a hidden demo back). `frames` is its declared sequence from the build's
+ * table: none keeps the pair, unchanged. A refused declaration (0), or a sequence with any frame
+ * file missing (`exists` is the build's file table): null, never a sequence with a hole and never
+ * the pair alone.
+ */
+export function demoWithSequence(id: string, base: DemoImages | null, frames: number | undefined, exists: (path: string) => boolean): DemoImages | null {
+  if (!base || frames === undefined) return base;
+  if (frames !== 3 && frames !== 4) return null;
+  const paths = sequencePaths(id, frames);
   return [...paths.webp, ...paths.jpg].every(exists) ? paths : null;
 }
 

@@ -1,34 +1,12 @@
 /* PLAN D1: the sequence demo (Monolith, SPEC 10 and 23): the same fixed box as the two frame demo,
    the frames stacked in it, a hairline step bar under it with square 44 pt controls. */
+/* The same box as the two frame demo (and its compact height in the sheet). */
 .wrap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  composes: wrap from './FormDemo.module.css';
 }
 
 .stage {
-  position: relative;
-  display: block;
-  width: 100%;
-  aspect-ratio: 3 / 2;
-  padding: 0;
-  border: var(--divider);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--surface-2);
-  cursor: pointer;
-}
-
-/* The exercise sheet: the same compact height as the two frame demo (FormDemo.module.css). */
-.wrap[data-fit] .stage {
-  aspect-ratio: auto;
-  height: clamp(120px, 20svh, 230px);
-}
-
-@media (max-height: 600px) {
-  .wrap[data-fit] .stage {
-    height: 104px;
-  }
+  composes: stage from './FormDemo.module.css';
 }
 
 .frame {
@@ -113,9 +91,31 @@
   white-space: nowrap;
 }
 
+/* The full screen viewer: the frames fill its 3:2 stage, the bar hangs under it. */
+.viewerFrames {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.viewerBar {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  right: 0;
+  padding: 0 var(--space-4);
+}
+
 /* Reduced motion: frames change only on a tap, at once. */
 @media (prefers-reduced-motion: reduce) {
   .on {
     animation: none;
+  }
+  /* The two frame demo lays its pair side by side here; a sequence keeps its one 3:2 box. */
+  .wrap .stage {
+    display: block;
+    aspect-ratio: 3 / 2;
   }
 }

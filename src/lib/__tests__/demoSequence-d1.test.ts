@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import shipped from '../../../data/demo-sequences.json';
 import catalog from '../../../data/catalog.json';
-import { demoWithSequence, frameCount, parseDemoSequences, SEQUENCE_FORMAT, sequencePaths, type DemoSource } from '../demoSequence';
+import { decodeSequences, demoWithSequence, encodeSequences, frameCount, parseDemoSequences, SEQUENCE_FORMAT, sequencePaths, type DemoSource, type SequenceEntry } from '../demoSequence';
 import type { DemoImages } from '../exerciseInfo';
 
 // PLAN D1: a demo may have 2, 3 or 4 frames. Two stays the catalog pair with no declaration; 3 or 4
@@ -20,6 +20,8 @@ const SOURCE: DemoSource = {
 const file = (sequences: Record<string, unknown>) => ({ format: SEQUENCE_FORMAT, sequences });
 const pair = (id: string): DemoImages => ({ webp: [`ex/${id}/0.webp`, `ex/${id}/1.webp`], jpg: [`ex/${id}/0.jpg`, `ex/${id}/1.jpg`] });
 const all = () => true;
+/** What the app gets for an id: through the build's table, as shipped. */
+const shippedFrames = (seqs: Map<string, SequenceEntry>, id: string) => decodeSequences(encodeSequences(seqs)).get(id);
 const filesUpTo = (n: number) => (p: string) => Number(/\/(\d)\.(?:jpg|webp)$/.exec(p)![1]) < n;
 
 describe('demo frame list (PLAN D1)', () => {
@@ -32,7 +34,7 @@ describe('demo frame list (PLAN D1)', () => {
   it('three and four frames, in order, WebP and JPG twins', () => {
     for (const frames of [3, 4] as const) {
       const seqs = parseDemoSequences(file({ Dumbbell_Lunges: { frames, source: SOURCE, samePersonAndSetup: true } }), IDS);
-      const demo = demoWithSequence('Dumbbell_Lunges', pair('Dumbbell_Lunges'), seqs.get('Dumbbell_Lunges'), all)!;
+      const demo = demoWithSequence('Dumbbell_Lunges', pair('Dumbbell_Lunges'), shippedFrames(seqs, 'Dumbbell_Lunges'), all)!;
       expect(frameCount(demo)).toBe(frames);
       expect(demo.webp).toEqual(Array.from({ length: frames }, (_, i) => `ex/Dumbbell_Lunges/${i}.webp`));
       expect(demo.jpg).toEqual(Array.from({ length: frames }, (_, i) => `ex/Dumbbell_Lunges/${i}.jpg`));
@@ -41,8 +43,8 @@ describe('demo frame list (PLAN D1)', () => {
 
   it('a missing frame file (middle or last, either format) refuses the sequence: no demo, never a hole', () => {
     const seqs = parseDemoSequences(file({ Dead_Bug: { frames: 4, source: SOURCE, samePersonAndSetup: true } }), IDS);
-    const entry = seqs.get('Dead_Bug');
-    expect(entry?.ok).toBe(true);
+    expect(seqs.get('Dead_Bug')?.ok).toBe(true);
+    const entry = shippedFrames(seqs, 'Dead_Bug');
     const base = pair('Dead_Bug');
     expect(demoWithSequence('Dead_Bug', base, entry, (p) => p !== 'ex/Dead_Bug/2.webp')).toBeNull();
     expect(demoWithSequence('Dead_Bug', base, entry, (p) => p !== 'ex/Dead_Bug/1.jpg')).toBeNull();
@@ -52,7 +54,7 @@ describe('demo frame list (PLAN D1)', () => {
 
   it('a hidden or unsure demo stays hidden whatever is declared', () => {
     const seqs = parseDemoSequences(file({ Dumbbell_Flyes: { frames: 3, source: SOURCE, samePersonAndSetup: true } }), IDS);
-    expect(demoWithSequence('Dumbbell_Flyes', null, seqs.get('Dumbbell_Flyes'), all)).toBeNull();
+    expect(demoWithSequence('Dumbbell_Flyes', null, shippedFrames(seqs, 'Dumbbell_Flyes'), all)).toBeNull();
   });
 
   it('refuses a 3 or 4 frame sequence without one complete licensed source record', () => {
@@ -74,9 +76,9 @@ describe('demo frame list (PLAN D1)', () => {
     const ids = new Set(Object.keys(bad));
     const seqs = parseDemoSequences(file(bad), ids);
     for (const id of ids) {
-      const entry = seqs.get(id)!;
-      expect(entry.ok, id).toBe(false);
-      expect(demoWithSequence(id, pair(id), entry, all), id).toBeNull();
+      expect(seqs.get(id)!.ok, id).toBe(false);
+      expect(shippedFrames(seqs, id), id).toBe(0);
+      expect(demoWithSequence(id, pair(id), shippedFrames(seqs, id), all), id).toBeNull();
     }
   });
 
@@ -85,6 +87,13 @@ describe('demo frame list (PLAN D1)', () => {
     expect(seqs.get('Not_An_Exercise')).toEqual({ ok: false, reason: 'Not_An_Exercise: not in the catalog' });
     expect(() => parseDemoSequences({ format: 'other', sequences: {} }, IDS)).toThrow(/format/);
     expect(() => parseDemoSequences({ format: SEQUENCE_FORMAT }, IDS)).toThrow(/sequences/);
+  });
+
+  it('the build table keeps each frame count and marks a refused one 0; an empty table is no sequence', () => {
+    const seqs = parseDemoSequences(file({ Dead_Bug: { frames: 4, source: SOURCE, samePersonAndSetup: true }, Dumbbell_Flyes: { frames: 3, source: SOURCE } }), IDS);
+    expect(encodeSequences(seqs)).toBe('Dead_Bug:4;Dumbbell_Flyes:0');
+    expect(decodeSequences('')).toEqual(new Map());
+    expect(decodeSequences('A:4;B:3;C:0;D:9')).toEqual(new Map([['A', 4], ['B', 3], ['C', 0], ['D', 0]]));
   });
 
   it('sequencePaths lists frame files in order', () => {
