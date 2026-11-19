@@ -130,7 +130,7 @@ export default defineConfig({
       // 'prompt': a new version waits until no workout or run is active (src/pwa.ts).
       registerType: 'prompt',
       injectRegister: false, // registered in src/main.tsx via virtual:pwa-register
-      includeAssets: ['icons/favicon.svg', 'icons/apple-touch-icon-180.png'],
+      includeAssets: ['icons/favicon-32.png', 'icons/favicon-48.png', 'icons/apple-touch-icon-180.png'],
       manifest: {
         name: 'AnyGym',
         short_name: 'AnyGym',
@@ -138,8 +138,10 @@ export default defineConfig({
         lang: 'en',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#111214',
-        background_color: '#111214',
+        // PLAN M8 (SPEC 1): the splash and the installed app's bar are pure black like the icon's ground.
+        // The page's own background (--bg, and the theme-color meta in index.html) stays graphite.
+        theme_color: '#000000',
+        background_color: '#000000',
         start_url: BASE,
         scope: BASE,
         icons: [
