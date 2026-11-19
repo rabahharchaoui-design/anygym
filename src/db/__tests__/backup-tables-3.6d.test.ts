@@ -32,7 +32,7 @@ const ROWS: Record<TableName, Record<string, unknown>> = {
   planDays: { id: 'pd1', planId: 'p1', order: 0, name: 'Day 1' },
   sessions: { id: 's1', gymId: 'g1', startedAt: 10, imported: false },
   sets: set,
-  runs: { id: 'r1', startedAt: 1, type: 'easy', movingSec: 1, elapsedSec: 2, distanceM: 3, points: [[1, 2, 3, 4]], gaps: [], splits: [] },
+  runs: { id: 'r1', startedAt: 1, endedAt: 2, type: 'easy', movingSec: 1, elapsedSec: 2, distanceM: 3, points: [[1, 2, 3, 4]], gaps: [], splits: [] },
   exerciseSettings: { exerciseId: 'bench', gymId: 'g1', restSec: 90 },
   planState: { id: 'active', planId: 'five-day-split', startedAt: 1, weekIndex: 0, nextDayIndex: 1, doneDays: [0] },
   orderCounters: { sessionId: 's1', next: 2 },

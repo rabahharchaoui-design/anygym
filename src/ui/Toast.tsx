@@ -31,7 +31,8 @@ type Props = { toast: ToastMessage | null; /** Extra space below, e.g. above a b
 /**
  * One short message at the bottom (SPEC 13.1), with an optional action like Undo. One spot on every
  * screen, just above its bottom pill or tab bar (`bottom`), on an opaque surface so it never reads
- * through over a row (SPEC 23, gate B2), always one line.
+ * through over a row (SPEC 23, gate B2). A toast with a name stays on one line (the name shortens);
+ * a plain message wraps, never cut (PLAN 4.4b 2).
  */
 export function Toast({ toast, bottom = '0px' }: Props) {
   const reduce = useReducedMotion();

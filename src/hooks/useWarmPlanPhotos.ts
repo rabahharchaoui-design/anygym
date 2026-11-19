@@ -8,7 +8,8 @@ import { getPlanState } from '../db/planState';
 import { assetUrl, demoFor } from '../data/exerciseInfo';
 import { planById } from '../data/plans';
 import { alwaysPicksFor, planExerciseIds, planPhotoPaths } from '../lib/planPhotos';
-import { browserWarmDeps, warmPhotos } from '../lib/photoWarm';
+import { browserWarmDeps, warmPhotos, type WarmDeps } from '../lib/photoWarm';
+import { warmAcrossPageHide } from './warmAcrossPageHide';
 import { wantsLessData } from '../ui/icon3d/icons';
 import { useLive } from './useLive';
 import { usePlanRegistry } from './usePlanRegistry';
@@ -29,6 +30,15 @@ const loaded = () =>
 
 const lessData = () => wantsLessData(navigator as never, (q) => typeof matchMedia === 'function' && matchMedia(q).matches);
 
+/**
+ * Saves these photos now, in the background. A page going away stops the fetches cleanly (WebKit
+ * logs an error for a fetch cut by a page going away); coming back (pageshow) goes on with the rest
+ * (PLAN 4.4b 16). Returns the stop for good.
+ */
+export function startPlanPhotoWarm(urls: string, deps: WarmDeps, win: Parameters<typeof warmAcrossPageHide>[1] = window): () => void {
+  return warmAcrossPageHide((signal) => loaded().then((): Promise<{ stopped: boolean }> | { stopped: boolean } => (signal.aborted || !deps.online() ? { stopped: true } : warmPhotos(urls.split('\n'), deps, signal))), win);
+}
+
 export function useWarmPlanPhotos(): void {
   const registry = usePlanRegistry().state;
   // The list as one string, so a re-render with the same photos never starts again.
@@ -36,18 +46,6 @@ export function useWarmPlanPhotos(): void {
   useEffect(() => {
     const deps = browserWarmDeps();
     if (!urls || !deps || lessData()) return;
-    const stop = new AbortController();
-    // A reload or a closed tab cancels the fetches cleanly (WebKit logs an error for a fetch cut by a page going away).
-    const leave = () => stop.abort();
-    window.addEventListener('pagehide', leave, { once: true });
-    window.addEventListener('beforeunload', leave, { once: true });
-    void loaded()
-      .then(() => (stop.signal.aborted || !deps.online() ? undefined : warmPhotos(urls.split('\n'), deps, stop.signal)))
-      .catch(() => undefined);
-    return () => {
-      window.removeEventListener('pagehide', leave);
-      window.removeEventListener('beforeunload', leave);
-      stop.abort();
-    };
+    return startPlanPhotoWarm(urls, deps);
   }, [urls]);
 }

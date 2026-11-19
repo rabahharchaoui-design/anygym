@@ -47,7 +47,7 @@ test('variant: photos, the map caveat as a note, numbered cues, watch out and go
   // Two frames (webp with a jpg fallback) plus the blurred fill behind them, from the app's own files.
   await expect(hero.locator('[data-frame] source[type="image/webp"]')).toHaveCount(2);
   await expect(hero.locator('[data-frame] img')).toHaveCount(2);
-  await expect(hero.locator('[data-frame] img').first()).toHaveAttribute('src', /ex\/Barbell_Squat\/0\.jpg$/);
+  await expect(hero.locator('[data-frame] img').first()).toHaveAttribute('src', /ex\/Barbell_Squat\/0\.jpg\?v=[0-9a-z]+$/);
   await expect(view.getByTestId('cue-line')).toHaveCount(0);
   await tableOnScreen(page);
   await expect(view.getByTestId('variant-note')).toContainText('Plan uses a wide stance');

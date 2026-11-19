@@ -5,6 +5,7 @@ import { getGlobalDispatcher, Map as GlMap, Marker, setWorkerUrl } from 'maplibr
 // The worker is a file of our own origin (no blob: worker), so the CSP keeps worker-src 'self'.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { HEALTHY, mapHealthStep, mapOffline, type MapHealth, type MapHealthEvent } from '../../lib/run/mapHealth';
 import { HERE_ZOOM, MAP_PALETTE_TOKENS, NEUTRAL_VIEW, runMapStyle, type MapPalette } from '../../lib/run/mapStyle';
 import type { RouteGeo } from '../../lib/run/routeGeo';
 import { DUR } from '../../ui/motion';
@@ -31,6 +32,8 @@ export type RunMapGlProps = {
   route?: RouteGeo | null;
   /** A finished run: the map shows the whole route and does not answer touches. */
   still?: boolean;
+  /** The live run is locked (PLAN 4.4b 5): the map does not pan or zoom until it is unlocked. */
+  locked?: boolean;
 };
 
 const SOURCE = 'openmaptiles';
@@ -43,7 +46,7 @@ function readPalette(): MapPalette {
   return Object.fromEntries(Object.entries(MAP_PALETTE_TOKENS).map(([k, token]) => [k, css.getPropertyValue(token).trim()])) as MapPalette;
 }
 
-export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady, onOffline, onMoved, route = null, still = false }: RunMapGlProps) {
+export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady, onOffline, onMoved, route = null, still = false, locked = false }: RunMapGlProps) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<GlMap | null>(null);
   const dot = useRef<Marker | null>(null);
@@ -64,7 +67,14 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
   useEffect(() => {
     if (!box.current) return;
     let gl: GlMap;
-    let failed = false;
+    let health: MapHealth = HEALTHY;
+    const step = (e: MapHealthEvent) => {
+      const next = mapHealthStep(health, e);
+      if (next === health) return;
+      const was = mapOffline(health);
+      health = next;
+      if (mapOffline(next) !== was) cb.current.onOffline(mapOffline(next));
+    };
     try {
       gl = new GlMap({
         container: box.current,
@@ -91,11 +101,11 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     map.current = gl;
     gl.touchZoomRotate.disableRotation();
     // Any failed request of the map (tile list, a tile, glyphs) or a lost WebGL context.
-    const onError = (e: { error?: { message?: string } }) => {
-      failed = true;
+    // PLAN 4.4b (15): one failed tile is not the map gone (mapHealth): only that holds the chip.
+    const onError = (e: { error?: { message?: string }; tile?: unknown }) => {
       // What failed, for tests and problem reports; the screen only ever says "Map offline".
       if (box.current) box.current.dataset.mapError = String(e.error?.message ?? 'error').slice(0, 120);
-      cb.current.onOffline(true);
+      step({ type: 'error', tile: !!e.tile });
       cb.current.onReady();
     };
     gl.on('error', onError);
@@ -111,8 +121,8 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
       addRouteLayers(gl, palette.accent, palette.bg);
       if (routeRef.current) drawRouteOn(gl, routeRef.current);
     });
-    gl.on('idle', () => {
-      if (!failed && gl.isSourceLoaded(SOURCE)) cb.current.onOffline(false);
+    gl.on('sourcedata', (e: { sourceId?: string; tile?: unknown }) => {
+      if (e.sourceId === SOURCE && e.tile) step({ type: 'tile-ok' });
     });
     gl.on('dragstart', () => {
       following.current = false;
@@ -120,8 +130,8 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     });
     // Signal is back: ask for the tile list and the tiles again.
     const retry = () => {
-      if (!failed) return;
-      failed = false;
+      if (!health.latched) return;
+      step({ type: 'retry' });
       gl.setStyle(runMapStyle(readPalette()) as never);
     };
     window.addEventListener('online', retry);
@@ -200,6 +210,17 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     cb.current.onMoved(false);
     gl.easeTo({ center: [h.lng, h.lat], zoom: Math.max(gl.getZoom(), HERE_ZOOM), padding: paddingRef.current, duration: reduceMotion ? 0 : DUR.slow });
   }, [recentre, reduceMotion]);
+
+  // Locked: no drag, pinch, double tap or scroll moves the map.
+  useEffect(() => {
+    const gl = map.current;
+    if (!gl || still) return;
+    for (const h of [gl.dragPan, gl.touchZoomRotate, gl.doubleClickZoom, gl.scrollZoom, gl.boxZoom]) {
+      if (locked) h.disable();
+      else h.enable();
+    }
+    if (!locked) gl.touchZoomRotate.disableRotation();
+  }, [locked, still]);
 
   return <div ref={box} className={styles.gl} data-testid="run-map-gl" />;
 }

@@ -24,6 +24,18 @@ export class ActiveWorkoutError extends Error {
   }
 }
 
+/** PLAN 4.4b (1): a run in progress refuses a restore the same way, in the same words for a run. */
+export class ActiveRunError extends ActiveWorkoutError {
+  constructor() {
+    super();
+    this.message = 'Finish your run first';
+    this.name = 'ActiveRunError';
+  }
+}
+
+/** Only finished runs come in from a file: a run open in a backup taken mid run never restores as one in progress. */
+const restorable = (t: TableName, rows: unknown[]): unknown[] => (t === 'runs' ? (rows as Array<{ endedAt?: number }>).filter((r) => r.endedAt !== undefined) : rows);
+
 const tablesOf = (db: AnyGymDB) => TABLE_NAMES.map((t) => db.table(t));
 
 /** Where drafts live (undefined: localStorage, through the drafts module's default; tests pass their own). */
@@ -124,6 +136,7 @@ function applyLive(backup: Backup, kv: DraftStorage): void {
 
 async function refuseIfActive(db: AnyGymDB): Promise<void> {
   if ((await db.sessions.filter(isActiveSession).count()) > 0) throw new ActiveWorkoutError();
+  if ((await db.runs.filter((r) => r.endedAt === undefined).count()) > 0) throw new ActiveRunError();
 }
 
 export type RestoreResult = { workouts: number; sets: number };
@@ -158,8 +171,8 @@ export async function restoreReplace(backup: Backup, db: AnyGymDB = defaultDb, d
     await db.kv.where('key').startsWith(MUTATION_SUP_PREFIX).delete();
     await db.kv.where('key').startsWith(LOG_CANCEL_PREFIX).delete();
     for (const t of TABLE_NAMES) {
-      const rows = backup.tables[t];
-      if (rows?.length) await db.table(t).bulkAdd(rows);
+      const rows = restorable(t, backup.tables[t] ?? []);
+      if (rows.length) await db.table(t).bulkAdd(rows);
     }
     await storeDraftsDurably(db, backup.drafts);
     // The held corrections too (PLAN 2.0i), so they survive a restart even when localStorage refuses them.
@@ -213,7 +226,7 @@ export async function restoreMerge(backup: Backup, db: AnyGymDB = defaultDb, dra
     const added = await sessionsToAdd(backup, db);
     let sets = 0;
     for (const t of TABLE_NAMES) {
-      const rows = (backup.tables[t] ?? []) as unknown as Array<Record<string, unknown>>;
+      const rows = restorable(t, backup.tables[t] ?? []) as Array<Record<string, unknown>>;
       if (rows.length === 0) continue;
       if ((t === 'profile' || t === 'planState') && (await db.table(t).count()) > 0) continue;
       const table = db.table(t);

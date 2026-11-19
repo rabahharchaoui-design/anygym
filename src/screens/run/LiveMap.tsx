@@ -28,8 +28,8 @@ export function LiveMap({ live, readout, reduceMotion, inset, locked }: Props) {
   const gaps = useMemo(() => live.breaks.map((b) => [b.fromT, b.toT] as const), [live.breaks]);
   const route = useMemo(() => drawRoute(live.points, gaps), [live.points, gaps]);
   return (
-    <div className={styles.mapPage} data-testid="live-map" data-points={live.points.length} data-solid={route.solid.length} data-dashed={route.dashed.length}>
-      <RunMap here={live.here} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} route={route} />
+    <div className={styles.mapPage} data-testid="live-map" data-points={live.points.length} data-solid={route.solid.length} data-dashed={route.dashed.length} data-moved={moved || undefined}>
+      <RunMap here={live.here} recentre={recentre} reduceMotion={reduceMotion} inset={inset} onOffline={setOffline} onMoved={setMoved} route={route} locked={locked} />
       <div className={styles.mapTop} style={{ top: inset.top }}>
         <span className={`${styles.readout} num`} data-testid="live-map-readout">
           {readout}

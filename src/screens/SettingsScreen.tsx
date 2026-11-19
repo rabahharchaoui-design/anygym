@@ -19,6 +19,7 @@ import { GymUnitSettings } from './settings/GymUnitSettings';
 import { registerTap } from '../lib/secretTaps';
 import { version } from '../../package.json';
 import { getActiveSession } from '../db/workouts';
+import { getActiveRun } from '../db/runs';
 import { parseBackup, workoutCount, type Backup } from '../lib/backup';
 import { RestoreSheet, type RestoreMode } from './settings/RestoreSheet';
 import { useBackup } from './settings/useBackup';
@@ -142,6 +143,10 @@ export function SettingsScreen() {
     try {
       if (await getActiveSession()) {
         setRestoreError('Finish your workout first, then restore.');
+        return;
+      }
+      if (await getActiveRun()) {
+        setRestoreError('Finish your run first, then restore.');
         return;
       }
     } catch {

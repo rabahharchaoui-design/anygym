@@ -12,7 +12,9 @@ const EMPTY_TILE = Buffer.from([0x1a, 0x08, 0x0a, 0x01, 0x78, 0x28, 0x80, 0x20, 
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 
-export async function stubTiles(page: Page): Promise<{ asked: string[] }> {
+/** `failFirstTiles` (or failNext later): that many vector tiles fail (500) before the rest load (PLAN 4.4b 15). */
+export async function stubTiles(page: Page, opts: { failFirstTiles?: number } = {}): Promise<{ asked: string[]; failNext: (n: number) => void }> {
+  let failing = opts.failFirstTiles ?? 0;
   const asked: string[] = [];
   await page.addInitScript(() => {
     (window as unknown as { __pwTiles: string }).__pwTiles = 'pass';
@@ -28,10 +30,14 @@ export async function stubTiles(page: Page): Promise<{ asked: string[] }> {
         body: JSON.stringify({ tilejson: '3.0.0', tiles: [`${TILE_ORIGIN}/planet/test/{z}/{x}/{y}.pbf`], minzoom: 0, maxzoom: 14, bounds: [-180, -85.05113, 180, 85.05113], attribution: 'test' }),
       });
     }
+    if (url.pathname.endsWith('.pbf') && failing > 0) {
+      failing--;
+      return route.fulfill({ status: 500, headers: CORS, body: '' });
+    }
     // A vector tile with one layer and nothing in it (a glyph range gets the same harmless bytes).
     return route.fulfill({ status: 200, headers: CORS, contentType: 'application/x-protobuf', body: EMPTY_TILE });
   });
-  return { asked };
+  return { asked, failNext: (n: number) => void (failing = n) };
 }
 
 /** Every request the page tried to send to the tile host since it loaded (answered or refused). */

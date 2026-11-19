@@ -98,7 +98,7 @@ test('workout: tap quads, the list of quad exercises opens, one opens its sheet,
   for (let i = 0; i < Math.min(4, quads.length); i++) expect((await rows.nth(i).boundingBox())!.height).toBeGreaterThanOrEqual(44);
   const squat = list.locator('[data-id="Barbell_Squat"]');
   const img = squat.locator('img');
-  await expect(img).toHaveAttribute('src', /ex\/Barbell_Squat\/0\.jpg$/);
+  await expect(img).toHaveAttribute('src', /ex\/Barbell_Squat\/0\.jpg\?v=[0-9a-z]+$/);
   await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
   const also = quads.find((q) => q.id === 'Barbell_Squat')!.also!;
   await expect(squat).toContainText(also);
