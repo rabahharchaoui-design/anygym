@@ -10,8 +10,8 @@ export type FixFate = { fix: TraceFix; t: number; fate: string; distanceM: numbe
 
 export type ReplayResult = {
   fates: FixFate[];
-  /** The screen every second from the first fix: [ms, distance m, current pace s/m or null]. */
-  ticks: Array<{ at: number; distanceM: number; pace: number | null }>;
+  /** The screen every second from the first fix: distance m, current pace s/m or null, moving time s. */
+  ticks: Array<{ at: number; distanceM: number; pace: number | null; movingSec: number }>;
   /** The distance saved at End. */
   endM: number;
   run: LiveRun;
@@ -37,7 +37,7 @@ export function replay(trace: Trace, opts: { autoPause?: boolean } = {}): Replay
       fates.push({ fix: f, t: point.t, fate, distanceM: readLive(run).distanceM });
     }
     const r = readLiveAt(run, at);
-    ticks.push({ at, distanceM: r.distanceM, pace: r.currentPace });
+    ticks.push({ at, distanceM: r.distanceM, pace: r.currentPace, movingSec: r.movingSec });
   }
   const ended = liveStep(run, { type: 'pause', now: last + 1000 });
   return { fates, ticks, endM: readLive(ended).distanceM, run: ended };

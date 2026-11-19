@@ -9,9 +9,10 @@ import type { Run } from '../db/types';
 import type { DistanceUnit } from '../lib/intake/answers';
 import { unitMeters } from '../lib/gps';
 import {
-  DEFAULT_VOICE, finishRun, fixTime, liveMovingMs, liveRow, rewatchDue, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
+  DEFAULT_VOICE, finishRun, fixFate, fixTime, liveMovingMs, liveRow, rewatchDue, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
   type LiveAction, type LiveRun, type RunSetup, type VoiceSettings,
 } from '../lib/run';
+import { runDiagLog } from './runDiagLog';
 import { createRunWake, type WakeState } from './runWake';
 import { say, unlockVoice } from './voicePlayer';
 
@@ -88,6 +89,7 @@ function queue(job: () => Promise<void>): Promise<void> {
 function save() {
   const live = state.live;
   if (!live) return;
+  runDiagLog.flush();
   const now = Date.now();
   const face = liveMovingMs(live.tracker, now);
   if (!dirty && face === savedFace) return;
@@ -112,22 +114,30 @@ function stopWatch() {
 function startWatch() {
   stopWatch();
   watchedAt = Date.now();
+  if (state.live) runDiagLog.note(watchedAt, 'watch:restarted');
   if (!navigator.geolocation) return dispatch({ type: 'gps', trouble: 'unavailable' });
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       earlyTrouble = null;
-      const { latitude, longitude, accuracy } = pos.coords;
+      const { latitude, longitude, accuracy, speed } = pos.coords;
+      const now = Date.now();
+      // The diagnostics log keeps every position as the phone gave it (PLAN 4.4d 2).
+      const raw = { lat: latitude, lng: longitude, accuracy, speed: speed ?? null, stamp: pos.timestamp };
       // Only the first callback after the restart can be the replay (PLAN 4.6a 4): a runner standing
       // on that spot keeps reporting it, and those fixes must end GPS lost.
       const replay = replayOf !== null && replayOf.lat === latitude && replayOf.lng === longitude;
       replayOf = null;
-      if (replay) return;
+      if (replay) return runDiagLog.fix(now, raw, 'watch:replay-dropped', false);
       // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
-      const now = Date.now();
-      dispatch({ type: 'fix', point: { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, now) }, now });
+      if (!state.live) return runDiagLog.early(now, raw);
+      const point = { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, now) };
+      const fate = fixFate(state.live.tracker, point);
+      dispatch({ type: 'fix', point, now });
+      runDiagLog.fix(now, raw, fate, state.live?.tracker.still ?? false);
     },
     (err) => {
       earlyTrouble = err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable';
+      runDiagLog.note(Date.now(), `error:${earlyTrouble}`);
       dispatch({ type: 'gps', trouble: earlyTrouble });
     },
     WATCH,
@@ -195,6 +205,7 @@ export const runEngine = {
           const live = restoreLive(found.row, parseSnapshot(found.snapshot, found.row.id), { unit, autoPause: setup.autoPause }, Date.now());
           voice = setup.voice;
           dirty = true;
+          runDiagLog.begin(live.id, live.startedAt, false);
           set({ live, ready: true });
           attach();
           save();
@@ -228,6 +239,7 @@ export const runEngine = {
     const live = startLive({ id: newId(), now: Date.now(), setup, unit, autoPause: setup.autoPause });
     dirty = false;
     voice = setup.voice;
+    runDiagLog.begin(live.id, live.startedAt, true);
     set({ live, finished: null, saveFailed: false, autosaveFailed: false, ready: true });
     say({ type: 'start', first: live.intervals?.plan.blocks[0]?.name ?? null }, voice);
     void queue(() => startRunRow(liveRow(live), JSON.stringify(toSnapshot(live, Date.now())))).catch(() => {
@@ -265,8 +277,10 @@ export const runEngine = {
     const run = finishRun(paused, now) as Run & { endedAt: number };
     detach();
     dirty = false;
+    runDiagLog.flush();
     try {
       await queue(() => finishRunRow(run));
+      runDiagLog.flush(true);
       set({ live: null, finished: { run, unit: live.unit }, saveFailed: false, autosaveFailed: false });
       const pace = rowPace(run);
       // A run with nothing to show gets no numbers, spoken or printed.
@@ -288,6 +302,7 @@ export const runEngine = {
     const f = state.finished;
     if (!f) return;
     set({ finished: null });
+    runDiagLog.discard(f.run.id);
     await queue(() => deleteRun(f.run.id)).catch(() => undefined);
   },
 };
