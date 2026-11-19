@@ -1,0 +1,5 @@
+I'll audit the Run tab against SPEC 12 only, starting with the spec, the plan, and the newest reports so I don't repeat what's already listed.
+
+The newest reports are in. Next I’ll read the spec, the plan’s checked Run items, and those reports so the audit only covers what’s already built.
+
+The Nov 18 run audit and the Nov 19 Codex notes already cover several GPS and save bugs. I’ll read the current filter, pace, split, and live-run code for anything those reports do not list.
