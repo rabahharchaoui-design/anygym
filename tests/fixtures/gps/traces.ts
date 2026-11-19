@@ -123,7 +123,8 @@ export const traceName = (s: TraceSpec) => `${s.speed}-${s.cadence}s-${s.noise}m
  * repeats or stalls): what is left is the error no filter can tell from movement.
  */
 export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean } = {}): Trace {
-  const jitter = opts.biasOnly ? 0 : 0.05;
+  const off = (k: string) => opts.biasOnly || (process.env.OFF ?? '').includes(k);
+  const jitter = off('j') ? 0 : 0.05;
   const truth = profile(spec);
   const seed = spec.seed * 1009 + spec.noise * 31 + spec.cadence * 7 + SPEEDS[spec.speed] * 100 + SCENARIOS.indexOf(spec.scenario) * 50_000;
   const rand = seeded(seed);
@@ -143,17 +144,17 @@ export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean } = {}): T
     const pos = routeAt(truth.distanceAt(at));
     let east = pos.east + 0.35 * accuracy * biasE(at) + jitter * accuracy * normal();
     let north = pos.north + 0.35 * accuracy * biasN(at) + jitter * accuracy * normal();
-    if (!opts.biasOnly && rand() < 0.01) {
+    if (!off('o') && rand() < 0.01) {
       const angle = rand() * 2 * Math.PI;
       const jump = (2 + rand()) * accuracy;
       east += jump * Math.cos(angle);
       north += jump * Math.sin(angle);
     }
     const prev = fixes[fixes.length - 1];
-    const repeat = !opts.biasOnly && prev && rand() < 0.03;
+    const repeat = !off('r') && prev && rand() < 0.03;
     const { lat, lng } = repeat ? prev : toLatLng(east, north);
     const stamp = T0 + Math.round(at * 1000);
-    if (!opts.biasOnly && stallUntil < 0 && rand() < 0.04) stallUntil = stamp + Math.round((1.5 + rand() * 2.5) * 1000);
+    if (!off('s') && stallUntil < 0 && rand() < 0.04) stallUntil = stamp + Math.round((1.5 + rand() * 2.5) * 1000);
     let arrival = stamp + Math.round((0.1 + rand() * 0.5) * 1000);
     if (stallUntil >= 0) {
       if (stamp <= stallUntil) arrival = Math.max(arrival, stallUntil);

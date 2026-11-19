@@ -65,6 +65,8 @@ export type Metrics = {
   /** A still phone: distance shown just before End, and saved at End (the flush path). */
   stillLiveM: number | null;
   stillEndM: number | null;
+  /** A still phone: what the first 10 s added (the 8 s standing rule needs that long to see it). */
+  stillFirstM: number | null;
   /** Fixes by fate. */
   fates: Record<string, number>;
   /** Good fixes held as "standing" while really moving at 1.2 m/s or more. */
@@ -146,6 +148,7 @@ export function measure(trace: Trace, r: ReplayResult = replay(trace)): Metrics 
     standingAddedM: trace.spec?.scenario === 'still' ? null : standingAddedM,
     stillLiveM: trace.spec?.scenario === 'still' ? (r.ticks[r.ticks.length - 1]?.distanceM ?? 0) : null,
     stillEndM: trace.spec?.scenario === 'still' ? r.endM : null,
+    stillFirstM: trace.spec?.scenario === 'still' ? (tickAt(10)?.distanceM ?? 0) : null,
     fates,
     stillWhileMoving,
   };

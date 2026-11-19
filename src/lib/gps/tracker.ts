@@ -142,7 +142,7 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     return { state: { ...state, est: { ...state.est, jumps: state.est.jumps + 1 } }, event: { type: 'rejected', reason: 'jump' } };
   }
   // The fix moves the estimate (PLAN 4.4d); a new stretch (the first fix, after a pause or a gap) starts one.
-  const stepped = state.est && from && prev && v.link === 'step' ? stepEstimate(state.est, v.point, state.still && state.stopped) : { kind: 'ok' as const, est: startEstimate(v.point) };
+  const stepped = state.est && from && prev && v.link === 'step' ? stepEstimate(state.est, v.point, state.still && state.stopped, state.still) : { kind: 'ok' as const, est: startEstimate(v.point) };
   if (stepped.kind === 'jump') return { state: { ...state, est: stepped.est }, event: { type: 'rejected', reason: 'jump' } };
   let est = stepped.est;
   const p = estimatePoint(est);

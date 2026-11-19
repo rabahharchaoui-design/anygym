@@ -143,14 +143,22 @@ function apply(est: Estimate, p: GpsPoint, j: Judged): Estimate {
  * next one says whether it was real). `reanchor`: the estimate starts again at the fix (a
  * correction, or the jumps were right): no distance across.
  */
-export function stepEstimate(est: Estimate, p: GpsPoint, standing = false): { kind: 'ok' | 'jump' | 'reanchor'; est: Estimate } {
+/**
+ * `standing`: the runner stands (the clock stopped): the estimate takes the speed as zero.
+ * `wary`: the distance is frozen as standing: a surprising fix always waits for the next one.
+ */
+export function stepEstimate(est: Estimate, p: GpsPoint, standing = false, wary = standing): { kind: 'ok' | 'jump' | 'reanchor'; est: Estimate } {
   const j = judge(est, p, standing);
+  // Wary (standing), the surprise is measured from the spot, not from where a wait could have
+  // taken the runner: with fixes 5 s apart a lone wild fix otherwise looked like a walk off.
+  const surprise = wary ? (j.ye * j.ye + j.yn * j.yn) / ((est.e.p[0] + est.n.p[0]) / 2 + j.r) : j.d2;
   // A held surprise (CONFIRM): if this fix is where the estimate expects, the held one was noise
   // and is forgotten; if not, the held one was the first step of a real change and counts first.
   const held = est.pending ?? null;
-  if (held && j.d2 > SURPRISE_SQ) {
+  if (held && surprise > SURPRISE_SQ) {
     const first = apply(est, held, judge(est, held, standing));
-    return stepEstimate(first, p, standing);
+    // Confirmed: the runner is off, so this fix counts at once (no second wait).
+    return stepEstimate(first, p, false, false);
   }
   // How sure the estimate was before this fix (not after the wait: a long wait is no correction).
   const prior = Math.sqrt((est.e.p[0] + est.n.p[0]) / 2);
@@ -164,6 +172,6 @@ export function stepEstimate(est: Estimate, p: GpsPoint, standing = false): { ki
   }
   if (j.d2 > JUMP_GATE_SQ) return { kind: 'jump', est: { ...est, jumps: est.jumps + 1, pending: null } };
   // With fixes every second or so, or standing, a surprising one waits for the next to confirm it.
-  if (!held && j.d2 > SURPRISE_SQ && (standing || p.t - est.t <= CONFIRM_WITHIN_MS)) return { kind: 'jump', est: { ...est, pending: p } };
+  if (!held && surprise > SURPRISE_SQ && (wary || p.t - est.t <= CONFIRM_WITHIN_MS)) return { kind: 'jump', est: { ...est, pending: p } };
   return { kind: 'ok', est: apply(est, p, j) };
 }
