@@ -1,20 +1,19 @@
-/* Share card and GPX buttons (PLAN 4.6). */
+/* Share card and GPX (PLAN 4.6), in Monolith (PLAN M3): two heavy text buttons over their lines,
+   the outcome in a caption, and the sheet with the card in a square hairline frame. */
 .row {
-  margin-top: var(--space-5);
+  margin-top: var(--space-6);
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
 }
 
 .note {
-  margin-top: var(--space-2);
-  color: var(--text-2);
-  font-size: 14px;
-  line-height: 1.45;
+  composes: quiet from './Summary.module.css';
 }
 
 .sheet {
   composes: sheet from './Run.module.css';
+  gap: var(--space-4);
 }
 
 /* The card keeps its 4:5 shape before the picture is drawn, so nothing moves when it appears. */
@@ -22,7 +21,7 @@
   width: min(100%, 44vh * 0.8);
   aspect-ratio: 4 / 5;
   align-self: center;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--hairline);
+  border-radius: var(--radius-none);
+  border: var(--divider);
   background: var(--bg);
 }

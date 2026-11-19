@@ -45,6 +45,7 @@ const RunRecords = lazy(() => import('./screens/history/RunRecords').then((m) =>
 // and no chunk for it, since the constant below is replaced at build time and the import dropped.
 const PREVIEW = import.meta.env.DEV || import.meta.env.VITE_DEV_PREVIEW === '1';
 const MonolithDevScreen = PREVIEW ? lazy(() => import('./screens/dev/MonolithDevScreen').then((m) => ({ default: m.MonolithDevScreen }))) : null;
+const RunSummaryDevScreen = PREVIEW ? lazy(() => import('./screens/dev/RunSummaryDevScreen').then((m) => ({ default: m.RunSummaryDevScreen }))) : null;
 const MusclesDevScreen = lazy(() => import('./screens/dev/MusclesDevScreen').then((m) => ({ default: m.MusclesDevScreen })));
 
 export function App() {
@@ -64,6 +65,7 @@ export function App() {
         {DEV_TOOLS && <Route path="dev/info" element={<InfoDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/ui" element={<UiDevScreen />} />}
         {DEV_TOOLS && MonolithDevScreen && <Route path="dev/monolith" element={<Suspense fallback={null}><MonolithDevScreen /></Suspense>} />}
+        {DEV_TOOLS && RunSummaryDevScreen && <Route path="dev/run-summary/:runId" element={<Suspense fallback={null}><RunSummaryDevScreen /></Suspense>} />}
         {DEV_TOOLS && (
           <Route
             path="dev/muscles"

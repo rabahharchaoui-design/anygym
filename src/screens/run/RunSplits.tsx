@@ -7,7 +7,8 @@ import styles from './Summary.module.css';
 /**
  * The splits of a stored run (SPEC 12.9): each full mile or km, the best one marked "Best" (two or
  * more timed splits, a split with a GPS gap is never the best), and "GPS gap" where a split has no
- * honest time. Used by the finish screen and the run's detail.
+ * honest time. Used by the finish screen and the run's detail. Monolith rows (PLAN M3): the split's
+ * name in secondary text, the time heavy and white on the right, "Best" in ice blue beside it.
  */
 export function RunSplits({ run, unit }: { run: Run; unit: DistanceUnit }) {
   const summary = useMemo(() => summaryOf(run, unit), [run, unit]);
@@ -23,11 +24,11 @@ export function RunSplits({ run, unit }: { run: Run; unit: DistanceUnit }) {
         <ol className={styles.splits} data-testid="summary-splits">
           {summary.splits.map((s) => (
             <li key={s.n} className={styles.split} data-gap={s.time === null || undefined} data-best={best.includes(s.n - 1) || undefined}>
-              <span>
+              <span className={`${styles.splitName} num`}>
                 {summary.splitUnit === 'mi' ? 'Mile' : 'Km'} {s.n}
-                {best.includes(s.n - 1) && <span className={styles.best}>Best</span>}
               </span>
-              {s.time === null ? <span className={styles.splitGap}>{SPLIT_GAP}</span> : <span className="num">{s.time}</span>}
+              {best.includes(s.n - 1) && <span className={styles.best}>Best</span>}
+              {s.time === null ? <span className={styles.splitGap}>{SPLIT_GAP}</span> : <span className={`${styles.splitTime} num`}>{s.time}</span>}
             </li>
           ))}
         </ol>
