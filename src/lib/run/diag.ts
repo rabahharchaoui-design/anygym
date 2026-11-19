@@ -26,6 +26,7 @@ export const DIAG_FATES = [
   'before-run',
   'held:short',
   'held:checking',
+  'held:settling',
 ] as const;
 export type DiagFate = (typeof DIAG_FATES)[number];
 

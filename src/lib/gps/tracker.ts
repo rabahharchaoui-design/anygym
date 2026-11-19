@@ -25,8 +25,8 @@ import { judgePoint } from './filter';
 import { haversineM } from './geo';
 import { averagePace, currentPace, pushPace, pushSpeed, speedPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
-import { clockStill, isStill, leftStill, minStepM, movedLately, pushRecent, type Recent } from './stillness';
-import { GAP_SEC, SPEED_MOVING_MPS, STILL_BY_SPEED_SEC, STILL_SPEED_MPS, STILL_TRUST_M, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
+import { clockStill, isStill, leftStill, minStepM, movedLately, pushRecent, walkingLately, type Recent } from './stillness';
+import { AUTO_PAUSE_SEC, GAP_SEC, MAX_ACCURACY_M, SETTLE_FIXES, SPEED_MEMORY_SEC, SPEED_MOVING_MPS, STILL_BY_SPEED_SEC, STILL_SPEED_MPS, STILL_TRUST_M, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
   /** Split length in meters (units.ts unitMeters). */
@@ -67,6 +67,13 @@ export type TrackerState = {
   /** Moving time counted with no distance of its own (the first GAP_SEC of a gap): pace leaves it out. */
   heldMs: number;
   recent: Recent;
+  /**
+   * PLAN 4.4d: the phone's own speed has said "standing" (under STILL_SPEED_MPS) on every reading
+   * since `since`; `last` is the newest reading. Null: it said moving, or never spoke.
+   */
+  calm?: { since: number; last: number } | null;
+  /** PLAN 4.4d: the first fixes of a run that is not sure yet (SETTLE_FIXES); null once settled. */
+  settle?: GpsPoint[] | null;
   /** The phone's own speeds of the last SPEED_PACE_SEC (PLAN 4.4d), [time, m/s]. Absent in older snapshots. */
   speeds?: ReadonlyArray<readonly [number, number]>;
   /** Every recorded or held point of the last AUTO_PAUSE_SEC, standing or not (movedLately). Absent in older snapshots. */
@@ -139,10 +146,23 @@ const standsAt = (recent: Recent, p: GpsPoint, rule: (r: Recent) => boolean = is
  * STILL_BY_SPEED_SEC, all under the standing speed. Sooner than the 8 s window, so a stop at a light
  * adds no meters of the estimate running on. The clock keeps its own rule (SPEC 12.3, 8 s).
  */
-function stillBySpeed(speeds: ReadonlyArray<readonly [number, number]>, p: GpsPoint): boolean {
-  if (p.speed === undefined) return false;
-  const all = [...speeds, [p.t, p.speed] as const].filter((s) => p.t - s[0] <= STILL_BY_SPEED_SEC * 1000);
-  return all.length >= 3 && p.t - all[0]![0] >= STILL_BY_SPEED_SEC * 1000 && all.every((s) => s[1] < STILL_SPEED_MPS);
+function stillBySpeed(state: TrackerState, p: GpsPoint): boolean {
+  if (p.speed !== undefined && p.speed >= STILL_SPEED_MPS) return false;
+  const c = state.calm;
+  return !!c && p.t - c.since >= STILL_BY_SPEED_SEC * 1000 && calmNow(state, p);
+}
+
+/** The phone's speed said standing on its last reading, recently enough to still hold (SPEED_MEMORY_SEC). */
+const calmNow = (state: TrackerState, p: GpsPoint): boolean =>
+  p.speed !== undefined ? p.speed < STILL_SPEED_MPS : !!state.calm && p.t - state.calm.last <= SPEED_MEMORY_SEC * 1000;
+
+/** The phone's speed is known now (this fix, or a recent reading): positions do not decide. */
+const speedKnown = (state: TrackerState, p: GpsPoint): boolean => p.speed !== undefined || calmNow(state, p);
+
+/** The settling fixes with the newest: kept while each agrees with the one before within both accuracies, else it starts again. */
+function settleWith(chain: readonly GpsPoint[], q: GpsPoint): GpsPoint[] {
+  const last = chain[chain.length - 1];
+  return last && haversineM(last, q) <= last.accuracy + q.accuracy ? [...chain, q] : [q];
 }
 
 /** Auto paused: standing by the clock's rule with auto pause on. The moving clock stands. */
@@ -155,7 +175,8 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   if (e.type === 'rejected' || (e.type === 'held' && e.reason === 'paused')) return out;
   // The phone's own speeds of the last seconds (PLAN 4.4d): current pace and moving again read them.
   const p = out.state.lastGood!;
-  return { ...out, state: { ...out.state, speeds: p.speed === undefined ? [] : pushSpeed(out.state.speeds ?? [], p, e.type === 'recorded' && e.brk !== null) } };
+  const calm = p.speed === undefined ? (out.state.calm ?? null) : p.speed < STILL_SPEED_MPS ? { since: out.state.calm?.since ?? p.t, last: p.t } : null;
+  return { ...out, state: { ...out.state, calm, speeds: p.speed === undefined ? [] : pushSpeed(out.state.speeds ?? [], p, e.type === 'recorded' && e.brk !== null) } };
 }
 
 function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; event: TrackerEvent } {
@@ -178,8 +199,23 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
   const p = estimatePoint(est, v.point.speed);
 
   if (!from || !prev) {
-    const sample = { movingMs: 0, timedM: 0 };
-    return { state: { ...restart(state, p), est, firstT: p.t, pace: [sample] }, event: { type: 'recorded', point: p, brk: null, splits: [] } };
+    // The start of the run (PLAN 4.4d): a first fix sure enough alone (MAX_ACCURACY_M) starts the
+    // track; a poorer one waits until SETTLE_FIXES fixes in a row agree within their accuracies,
+    // so one wild fix of a cold start never becomes the start of the line. Meanwhile the clock
+    // counts (kept out of every pace) and the distance stays 0.
+    const chain = settleWith(state.settle ?? [], v.point);
+    const ms = prev ? v.point.t - prev.t : 0;
+    const timed = ms > 0 ? { ...advance(state, { distanceM: 0, ms, timed: false, gap: false }).state, heldMs: (state.heldMs ?? 0) + ms } : state;
+    const firstT = state.firstT ?? v.point.t;
+    if (v.point.accuracy > MAX_ACCURACY_M && chain.length < SETTLE_FIXES) return { state: { ...timed, lastGood: v.point, firstT, settle: chain }, event: { type: 'held', reason: 'settling' } };
+    let start = startEstimate(chain[0]!);
+    for (const q of chain.slice(1)) {
+      const s = stepEstimate(start, q);
+      start = s.kind === 'ok' ? s.est : startEstimate(q);
+    }
+    const p0 = estimatePoint(start, v.point.speed);
+    const sample = { movingMs: timed.movingMs, timedM: timed.timedM };
+    return { state: { ...restart(timed, p0), est: start, firstT, settle: null, pace: [sample] }, event: { type: 'recorded', point: p0, brk: null, splits: [] } };
   }
   if (v.link === 'first') {
     const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'pause', bridged: false, distanceM: 0 };
@@ -222,7 +258,8 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
   // Moving again (PLAN 4.4d): the phone's own speed says so when it gives one (it does not wander
   // with the position). Without one (no GPS lock: the phone is unsure anyway) the old rule: off the
   // spot by more than both accuracy circles, and moving now, not drifting there.
-  const goingAgain = p.speed !== undefined ? p.speed >= SPEED_MOVING_MPS : leftStill(from, p) && movedLately(state.trail ?? [], p);
+  // A recent reading of the phone's speed that said standing holds too: positions alone never end it.
+  const goingAgain = p.speed !== undefined ? p.speed >= SPEED_MOVING_MPS : !calmNow(state, p) && leftStill(from, p) && movedLately(state.trail ?? [], p) && walkingLately(state.trail ?? [], p);
   if (state.still && !goingAgain) {
     // Standing: no distance. Auto paused, the clock stands. Otherwise it counts, and the window goes
     // on so the 4 m rule can still stop it (a walk at poor accuracy that then stops at a light).
@@ -233,12 +270,23 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
     return { state: { ...held, lastGood: p, est, trail, recent, stopped: state.stopped || stops, stopAt: stops ? p : (state.stopAt ?? null) }, event: { type: 'held', reason: 'still' } };
   }
   const legM = haversineM(from, p);
-  if (!state.still && legM < minStepM(p)) {
+  // Without the phone's speed and too unsure to call standing, way counts only while the estimate
+  // moves like a walk over the last seconds (PLAN 4.4d): a still phone's slow drift never does.
+  const known = speedKnown(state, p);
+  const drifting = !known && p.accuracy > STILL_TRUST_M && !walkingLately(trail, p);
+  if (!state.still && drifting && legM >= minStepM(p, known) && p.t - from.t >= AUTO_PAUSE_SEC * 1000) {
+    // Drifted off the last point without moving like a walk: the spot moves with the drift, the
+    // distance does not (PLAN 4.4d). The line breaks there (no distance across, like an unbridged gap).
+    const held = advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
+    const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'gap', bridged: false, distanceM: 0 };
+    return { state: { ...held, lastGood: p, lastRecorded: p, est, trail, recent: pushRecent(state.recent, p) }, event: { type: 'recorded', point: p, brk, splits: [] } };
+  }
+  if (!state.still && (legM < minStepM(p, known) || drifting)) {
     // A step shorter than the estimate's own wobble (PLAN 4.4d): it waits for the next, so the
     // wobble from side to side never adds meters. Its time counts now, its way with the next step.
     const recent = pushRecent(state.recent, p);
     const held = advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
-    return { state: { ...held, lastGood: p, est, trail, recent, still: standsAt(recent, p) || stillBySpeed(state.speeds ?? [], p), stopped: standsAt(recent, p, clockStill), stopAt: null }, event: { type: 'held', reason: 'short' } };
+    return { state: { ...held, lastGood: p, est, trail, recent, still: standsAt(recent, p) || stillBySpeed(state, p), stopped: standsAt(recent, p, clockStill), stopAt: null }, event: { type: 'held', reason: 'short' } };
   }
   // Off again after standing: the speed is unknown again, so the estimate takes it from the fixes quickly.
   if (state.still) est = reopenSpeed(est);
@@ -254,7 +302,7 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
   const recent = state.still ? [p] : pushRecent(state.recent, p);
   const stopped = standsAt(recent, p, clockStill);
   return {
-    state: { ...next.state, lastGood: p, lastRecorded: p, est, trail, recent, still: standsAt(recent, p) || stillBySpeed(state.speeds ?? [], p), stopped, stopAt: null },
+    state: { ...next.state, lastGood: p, lastRecorded: p, est, trail, recent, still: standsAt(recent, p) || stillBySpeed(state, p), stopped, stopAt: null },
     event: { type: 'recorded', point: p, brk: null, splits: next.completed },
   };
 }
@@ -316,7 +364,7 @@ export function flushStill(state: TrackerState): { state: TrackerState; point: G
   }
   // The phone's own speed says standing (PLAN 4.4d): the way off the spot is wander, not a walk.
   const lastSpeed = state.speeds?.[state.speeds.length - 1];
-  if (lastSpeed && lastSpeed[0] === last.t && lastSpeed[1] < STILL_SPEED_MPS) return none;
+  if ((lastSpeed && lastSpeed[0] === last.t && lastSpeed[1] < STILL_SPEED_MPS) || calmNow(state, last)) return none;
   // Stopped: the shorter of the way to the last point and the way to where the clock stopped, with
   // the point it ends on, so the line and the distance agree.
   const stopAt = state.stopped ? (state.stopAt ?? null) : null;

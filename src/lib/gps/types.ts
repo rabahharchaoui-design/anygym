@@ -21,7 +21,7 @@ export type RejectReason = 'no-time' | 'time-backwards' | 'bad-position' | 'accu
  * or (PLAN 4.4d) the step is shorter than the estimate's wobble and waits for the next one, or the
  * fix is surprising and waits for the next one to say whether it was real ('checking').
  */
-export type HeldReason = 'paused' | 'still' | 'short' | 'checking';
+export type HeldReason = 'paused' | 'still' | 'short' | 'checking' | 'settling';
 
 /**
  * A break in the drawn line between two recorded points (their timestamps): a GPS gap, or a pause by
@@ -150,3 +150,26 @@ export const STILL_BY_SPEED_SEC = 3;
  * says standing when it gives one; a still phone at such accuracy may add some meters (reported).
  */
 export const STILL_TRUST_M = 15;
+
+/**
+ * PLAN 4.4d: a run whose first fix is worse than MAX_ACCURACY_M starts its line once this many
+ * fixes in a row agree within their accuracies (a wild first fix of a cold start seeded 7.7% of
+ * extra distance). The distance shows 0 until then; the clock counts.
+ */
+export const SETTLE_FIXES = 3;
+
+/**
+ * PLAN 4.4d: a reading of the phone's speed that said standing holds this long for fixes that bring
+ * none (a phone at 30 m gives a speed only now and then): positions alone never end it meanwhile.
+ */
+export const SPEED_MEMORY_SEC = 10;
+
+/**
+ * PLAN 4.4d: without the phone's speed and with an unsure estimate, a step is recorded once the net
+ * way is past the estimate's accuracy, but never more than this: 7 s of a walk at 1.4 m/s, so a
+ * cold start shows its distance within about 10 s while a phone lying still adds only drift beyond it.
+ */
+export const UNSURE_STEP_CAP_M = 10;
+
+/** PLAN 4.4d: without the phone's speed and with an unsure estimate, moving means at least this over the last 8 s. */
+export const UNSURE_MOVE_MPS = 1;

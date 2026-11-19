@@ -3,7 +3,7 @@
 // table. So "standing" is judged on the last 8 seconds as a whole, and "moving again" on leaving the
 // spot by more than the GPS's own stated uncertainty.
 import { haversineM } from './geo';
-import { AUTO_PAUSE_SEC, MIN_STEP_CAP_M, MIN_STEP_SHARE, RESUME_LOOKBACK_SEC, RESUME_WINDOW_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
+import { STILL_TRUST_M, UNSURE_MOVE_MPS, UNSURE_STEP_CAP_M, AUTO_PAUSE_SEC, MIN_STEP_CAP_M, MIN_STEP_SHARE, RESUME_LOOKBACK_SEC, RESUME_WINDOW_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
 
 /** The recorded points of the last AUTO_PAUSE_SEC seconds of one continuous stretch, oldest first. */
 export type Recent = readonly GpsPoint[];
@@ -73,4 +73,18 @@ export function movedLately(trail: Recent, p: GpsPoint): boolean {
 }
 
 /** The shortest step that is recorded (PLAN 4.4d): a share of the point's accuracy, at most MIN_STEP_CAP_M. */
-export const minStepM = (p: GpsPoint): number => Math.min(MIN_STEP_CAP_M, p.accuracy * MIN_STEP_SHARE);
+export const minStepM = (p: GpsPoint, speedKnown = true): number =>
+  // Without the phone's speed, an estimate too unsure to call standing (STILL_TRUST_M) counts only
+  // net way beyond its own accuracy (at most UNSURE_STEP_CAP_M): its wobble on the spot is never a path (PLAN 4.4d).
+  !speedKnown && p.accuracy > STILL_TRUST_M ? Math.min(p.accuracy, UNSURE_STEP_CAP_M) : Math.min(MIN_STEP_CAP_M, p.accuracy * MIN_STEP_SHARE);
+
+/**
+ * Moving like a walk (PLAN 4.4d): over the trail (the last AUTO_PAUSE_SEC or more) the estimate
+ * went at least UNSURE_MOVE_MPS. A slow walk (1.2 m/s) does; the drift of a still phone's fixes
+ * (a few tenths of a meter a second) does not.
+ */
+export function walkingLately(trail: Recent, p: GpsPoint): boolean {
+  const q = trail[0];
+  if (!q || p.t - q.t < AUTO_PAUSE_SEC * 1000) return false;
+  return haversineM(q, p) >= (UNSURE_MOVE_MPS * (p.t - q.t)) / 1000;
+}
