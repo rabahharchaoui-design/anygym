@@ -7,7 +7,7 @@ import { AnyGymDB } from '../schema';
 import { ensureFirstGym } from '../bootstrap';
 import { choosePlan } from '../planState';
 import { readSchedule } from '../schedule';
-import { coachData, regionWord } from '../coachData';
+import { coachData } from '../coachData';
 import { startPlanDay } from '../workoutStart';
 import { finishWorkout } from '../workoutFinish';
 import { logSet } from '../workoutSets';
@@ -43,7 +43,7 @@ async function saturday() {
 }
 const today = async (now: number) => {
   const data = await coachData(now, db);
-  return { data, coach: coachToday({ now, lifts: data.lifts, dates: data.dates, changes: data.changes, closed: data.closed, autoLevelUp: false, activeWorkout: data.active, plan: { scheduleStyle: scheduleStyleOf(data.profile?.intake), daysPerWeek: 3 }, ...(data.recovery ? { recovery: { ...data.recovery, nameOf: regionWord } } : {}), ...(data.kept ? { kept: data.kept } : {}) }) };
+  return { data, coach: coachToday({ now, lifts: data.lifts, dates: data.dates, changes: data.changes, closed: data.closed, autoLevelUp: false, activeWorkout: data.active, plan: { scheduleStyle: scheduleStyleOf(data.profile?.intake), daysPerWeek: 3 }, ...(data.recovery ? { recovery: data.recovery } : {}), ...(data.kept ? { kept: data.kept } : {}) }) };
 };
 beforeEach(() => undefined);
 afterEach(async () => { await db.delete(); });

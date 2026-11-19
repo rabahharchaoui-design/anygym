@@ -3,26 +3,21 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
-import { PHOTO_URL_PATTERN } from './src/lib/photoVersion';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { encodePhotoHashes, PHOTO_FRAMES, PHOTO_URL_PATTERN } from './src/lib/photoVersion';
+// @ts-expect-error plain .mjs script, no types
+import { photoHashes } from './scripts/photo-hashes.mjs';
 import type { Plugin } from 'vite';
 
 const BASE = '/anygym/';
 
-/** The git short sha of this build (SPEC 24: reports name the exact build); 'dev' without git. */
-/** PLAN 4.4b (12): one hash of every exercise photo's name and bytes, the version in their URLs. */
-function photoVersion(): string {
-  const root = new URL('./public/ex/', import.meta.url);
-  const hash = createHash('sha256');
-  try {
-    for (const dir of readdirSync(root).sort())
-      for (const f of readdirSync(new URL(`${dir}/`, root)).sort()) hash.update(`${dir}/${f}`).update(readFileSync(new URL(`${dir}/${f}`, root)));
-  } catch {
-    return 'dev';
-  }
-  return hash.digest('hex').slice(0, 10);
+/** PLAN 4.6c (2): one short hash per exercise photo file, shipped as one string (lib/photoVersion.ts). */
+function photoHashTable(): string {
+  return encodePhotoHashes(photoHashes(fileURLToPath(new URL('./public/ex/', import.meta.url)), PHOTO_FRAMES));
 }
 
+/** The git short sha of this build (SPEC 24: reports name the exact build); 'dev' without git. */
 function shortSha(): string {
   try {
     const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
@@ -121,7 +116,7 @@ export default defineConfig({
   base: BASE,
   // A source map would hand out the source: none ships (the secret scan fails the build on one).
   build: { sourcemap: false },
-  define: { __APP_SHA__: JSON.stringify(shortSha()), __PHOTO_VERSION__: JSON.stringify(photoVersion()) },
+  define: { __APP_SHA__: JSON.stringify(shortSha()), __PHOTO_HASHES__: JSON.stringify(photoHashTable()) },
   plugins: [
     react(),
     cspPlugin(),
@@ -165,14 +160,17 @@ export default defineConfig({
         // PLAN 3.5e: the candidate move list is only for the owner review and a phone with approvals:
         // never precached for everyone; kept once it loaded (below).
         globIgnores: ['**/ex/**', '**/catalog-candidates-*.js'],
+        // PLAN 4.6c (6): the photo and voice caches may be emptied when the phone is out of room
+        // (purgeOnQuotaError); they fill again as photos show and the Run tab saves the voice.
         runtimeCaching: [
           {
             // A RegExp, never a closure: the matcher is copied into sw.js as source text, where BASE
             // does not exist (gate s2: `${BASE}` threw there, so no photo was ever kept or served).
-            // PLAN 4.4b (12): photo URLs carry a version (lib/photoVersion.ts), so a changed photo is a new entry.
+            // PLAN 4.4b (12), 4.6c (2): each photo URL carries its own file's hash (lib/photoVersion.ts), so a
+            // changed photo is a new entry and the others keep theirs.
             urlPattern: PHOTO_URL_PATTERN,
             handler: 'CacheFirst',
-            options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600 } },
+            options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600, purgeOnQuotaError: true } },
           },
           {
             urlPattern: /\/assets\/catalog-candidates-[^/]+\.js$/,
@@ -191,7 +189,7 @@ export default defineConfig({
             // them in the background (hooks/voiceWarm.ts, the same cache) and each is kept once played.
             urlPattern: /\/voice\/[^/]+\.m4a(?:\?.*)?$/,
             handler: 'CacheFirst',
-            options: { cacheName: 'run-voice', expiration: { maxEntries: 400 } },
+            options: { cacheName: 'run-voice', expiration: { maxEntries: 400, purgeOnQuotaError: true } },
           },
         ],
         // HashRouter: every route is index.html, so any navigation falls back to it.
