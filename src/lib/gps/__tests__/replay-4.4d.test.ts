@@ -25,6 +25,7 @@ for (const group of [1, 2, 3] as const) {
     for (const [key, specs] of combos) {
       if (priority(specs[0]!) !== group) continue;
       const expected = EXPECTED_FAIL[key];
+      // Expected failure: the combination misses a pass rule; its reason and numbers are in the name.
       if (expected) it.fails(`${key} EXPECTED FAIL: ${expected}`, () => expect(failuresOf(specs)).toEqual([]));
       else it(`${key} meets every rule on seeds ${SEEDS.join(', ')}`, () => expect(failuresOf(specs)).toEqual([]));
     }
