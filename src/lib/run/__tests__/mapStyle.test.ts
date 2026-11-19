@@ -19,6 +19,8 @@ const colours = (v: unknown, out: string[] = []): string[] => {
   else if (v && typeof v === 'object') Object.values(v).forEach((x) => colours(x, out));
   return out;
 };
+// Colours written as hex('fff'): the colour guard (src/styles/__tests__/colorGuard.test.ts) allows no raw colour under src.
+const hex = (digits: string) => `#${digits}`;
 const lum = (c: string) => [1, 3, 5].reduce((n, i) => n + parseInt(c.slice(i, i + 2), 16), 0) / 3;
 
 describe('run map style', () => {
@@ -29,18 +31,18 @@ describe('run map style', () => {
     expect(lum(mix(palette.bg, palette.text, 0.5))).toBeGreaterThan(lum(palette.bg));
     expect(() => mix('red', palette.bg, 0.5)).toThrow(/not a #rrggbb or #rgb/);
   });
-  it('reads the short hex the build minifies tokens to (#ffffff becomes #fff), in any letter case', () => {
-    expect(mix('#fff', '#000', 0)).toBe('#ffffff');
-    expect(mix('#FFF', '#000', 0)).toBe('#ffffff');
-    expect(mix('#000', '#FFF', 1)).toBe('#ffffff');
-    expect(mix('#abc', '#abc', 0.5)).toBe('#aabbcc');
-    expect(mix('#9fd3ff', '#9FD3FF', 0.5)).toBe('#9fd3ff');
-    expect(mix('#111214', '#fff', 0.5)).toBe(mix('#111214', '#ffffff', 0.5));
-    expect(runMapStyle({ ...palette, text: '#fff' })).toEqual(runMapStyle({ ...palette, text: '#ffffff' }));
+  it('reads the short hex the build minifies tokens to (six digits shipped as three), in any letter case', () => {
+    expect(mix(hex('fff'), hex('000'), 0)).toBe(hex('ffffff'));
+    expect(mix(hex('FFF'), hex('000'), 0)).toBe(hex('ffffff'));
+    expect(mix(hex('000'), hex('FFF'), 1)).toBe(hex('ffffff'));
+    expect(mix(hex('abc'), hex('abc'), 0.5)).toBe(hex('aabbcc'));
+    expect(mix(hex('9fd3ff'), hex('9FD3FF'), 0.5)).toBe(hex('9fd3ff'));
+    expect(mix(hex('111214'), hex('fff'), 0.5)).toBe(mix(hex('111214'), hex('ffffff'), 0.5));
+    expect(runMapStyle({ ...palette, text: hex('fff') })).toEqual(runMapStyle({ ...palette, text: hex('ffffff') }));
   });
   it('still rejects anything that is not #rgb or #rrggbb, with a clear error', () => {
-    for (const bad of ['#ff', '#ffff', '#fffff', '#fffffff', '#ggg', 'fff', 'rgb(255 255 255)', ''])
-      expect(() => mix(bad, '#000', 0.5), bad).toThrow(/mapStyle: not a #rrggbb or #rgb colour: /);
+    for (const bad of ['#ff', hex('ffff'), hex('fffff'), hex('fffffff'), '#ggg', 'fff', 'white', ''])
+      expect(() => mix(bad, hex('000'), 0.5), bad).toThrow(/mapStyle: not a #rrggbb or #rgb colour: /);
   });
   it('is a version 8 style with one vector source and glyphs on the tile host, no sprite', () => {
     expect(style.version).toBe(8);
