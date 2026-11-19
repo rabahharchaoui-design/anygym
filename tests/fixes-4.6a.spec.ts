@@ -104,5 +104,15 @@ test.describe('4.6a review fixes on screen', () => {
     await expect(stage).toHaveAttribute('aria-label', /front delts/);
     await expect(stage).not.toHaveAttribute('aria-label', /side delts/);
   });
+
+  test('(8) the share picture is named by what is on it', async ({ page }) => {
+    await stubTiles(page);
+    await seedRuns(page, [runRow('share-run', 2000, Date.now() - DAY)]);
+    await page.goto('./#/history/run/share-run');
+    await page.getByTestId('run-share-card').tap();
+    const card = page.getByTestId('run-share-preview');
+    await expect(card).toHaveAttribute('aria-label', /^Share card with your route: 2\.00 km, 11:05, \d+:\d\d \/km\. Start and end hidden$/);
+    await expect(page.getByRole('img', { name: /2\.00 km/ })).toBeVisible();
+  });
 });
 

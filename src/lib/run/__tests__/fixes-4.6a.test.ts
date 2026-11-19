@@ -6,6 +6,7 @@ import { toRunPoint } from '../../gps';
 import { formatElapsed } from '../../timer';
 import { bestEffortSec } from '../efforts';
 import { gpxFileName } from '../gpx';
+import { posterLabel, posterOf } from '../poster';
 import { fasterWords, recordMoments } from '../records';
 
 const MILE = 1609.344;
@@ -50,5 +51,17 @@ describe('two runs on one day get two GPX files (PLAN 4.6a 7)', () => {
     const evening = new Date(2026, 5, 1, 18, 40).getTime();
     expect(gpxFileName({ startedAt: morning })).toBe('AnyGym-run-2026-06-01-0705.gpx');
     expect(gpxFileName({ startedAt: evening })).toBe('AnyGym-run-2026-06-01-1840.gpx');
+  });
+});
+
+describe('the share card says what is on it (PLAN 4.6a 8)', () => {
+  it('its label is the distance, time, pace, city and privacy note the card paints', () => {
+    const r = { ...twoKm('c', 3, 30_000_000), city: 'Tempe' };
+    const p = posterOf(r, 'km', true);
+    expect(posterLabel(p)).toBe(`Share card with your route: ${p.distance}, ${p.time}, ${p.pace}, Tempe. Start and end hidden`);
+    expect(posterLabel(p)).toContain('2.00 km');
+    expect(posterLabel(p)).toContain(formatElapsed(r.movingSec));
+    const open = posterOf({ ...r, city: undefined }, 'km', false);
+    expect(posterLabel(open)).toBe(`Share card with your route: ${open.distance}, ${open.time}, ${open.pace}`);
   });
 });
