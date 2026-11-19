@@ -127,7 +127,7 @@ Group 1 still failing (the orchestrator asked for exact cases; tuning stopped af
   3% (walk 5 m 4.8%, walk 15 m 5.6%, jog 15 m 4.0%, run 15 m 4.0%). Exception: jog 5 m seed 2,
   7.7% with 0.3% drift alone, a filter failure (a wild first fix in the 60 m stretch).
 - walk cold start at 5 and 15 m: frozen (corrected, Nov 20, seeds 1 to 3 after the last round) 7 to
-  24 s at 5 m and 13 to 38 s at 15 m during the 60 m stretch (up to 54 s on seed 4), was 91 to 101 s.
+  24 s at 5 m and 18 to 38 s at 15 m during the 60 m stretch (up to 54 s on seed 4), was 91 to 101 s.
   The distance first moves 3 to 7 s after GO on every seed; the long freezes come later, while the
   60 m fixes drift against the walk.
 - jog and run cold start at 15 m: 3.2 and 3.3% on seed 1 (drift alone 4.0%).
@@ -253,7 +253,7 @@ run 15 m: 3/4/3/3/3/3
 ```
 The 10 s target holds on all 36 traces. The jog cold start at 5 m that a wild first fix pushed to
 +7.7% stays fixed (seeds 1 to 6: -1.9 to +1.1%). Later in the 60 m stretch a walk can still freeze
-(walk 15 m seed 1 13 s, walk 5 m seed 4 36 to 54 s) while its fixes drift against it. A variant that
+(walk 15 m: 38, 23, 18 s on seeds 1 to 3; walk 5 m: 10, 24, 7 s, and 54 s on seed 4) while its fixes drift against it. A variant that
 let the fixes show a walk more easily (the middle fix between the ends instead of every fix nearer)
 cut those to 13 to 15 s but a still phone at 30 m then added 13.5 m on average (worst 43.9 m), so it
 was not kept.
