@@ -1,4 +1,4 @@
-/* Design tokens (SPEC 10). The only place colors, fonts and motion values are defined. */
+/* Design tokens (SPEC 10, Monolith). The only place colors, corners, type, fonts and motion values are defined. */
 
 /* Inter (SIL OFL, src/assets/fonts/OFL-Inter.txt): one variable file, latin subset, self hosted. */
 @font-face {
@@ -11,37 +11,43 @@
 }
 
 :root {
-  /* color: TITANIUM GLASS (PLAN 3.5t, SPEC 10). Graphite to near black, frosted glass, silver
-     text and ONE accent, ice blue. Every colour in the app comes from here
-     (src/styles/__tests__/colorGuard.test.ts fails on a raw colour anywhere else). */
-  --bg: #0f1114; /* the near black the gradient settles on; fades and bottom bars use it */
-  --bg-top: #2b2e34; /* graphite at the very top */
-  /* Every full screen frame paints this: graphite at the top, near black by 60%. */
-  --bg-screen: linear-gradient(to bottom, var(--bg-top) 0%, var(--bg) 60%);
-  /* Glass fills: translucent white, so a card is always a touch lighter than whatever is under it. */
-  --surface-1: rgb(255 255 255 / 0.06);
-  --surface-2: rgb(255 255 255 / 0.1);
-  /* The main cards: lit from the top left, like the reference. */
-  --card-fill: linear-gradient(160deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04));
+  /* color: MONOLITH (SPEC 10, PLAN M0; values from the round 2 style sheet). Flat graphite, white
+     and grey text, hairlines and ONE accent, ice blue. No glass, no gradients, no glow. Every colour
+     in the app comes from here (src/styles/__tests__/colorGuard.test.ts fails on a raw colour
+     anywhere else). */
+  --bg: #131417; /* graphite, the whole app */
+  --bg-top: #131417; /* the status bar strip and the browser bar: the same flat graphite */
+  /* Every full screen frame paints this. Flat graphite, kept as an image so every
+     "background: var(--bg-screen)" stays opaque. */
+  --bg-screen: linear-gradient(var(--bg), var(--bg));
+  /* Faint fills, so a control that has no other outline still reads until its M item squares it. */
+  --surface-1: rgb(255 255 255 / 0.05);
+  --surface-2: rgb(255 255 255 / 0.09);
+  --card-fill: var(--surface-1); /* flat: the old lit card is gone */
   /* Solid twins, for pieces that must hide what is under them (menus, sticky rows, fades). */
-  --surface-solid: #1d1f23;
-  --surface-solid-2: #25282d;
-  --sheet-bg: #1b1d21; /* a sheet's body */
-  --sheet-top: #23262b; /* its lit top edge */
-  --hairline: rgb(255 255 255 / 0.11);
-  --hairline-strong: rgb(255 255 255 / 0.22);
-  --text: #f2f4f7;
-  --text-2: #a9b2bd;
-  --text-3: #7b8490; /* placeholders and art only, never body text */
+  --surface-solid: #16181b; /* the map and photo frame surface */
+  --surface-solid-2: #1f2125;
+  --sheet-bg: #1b1d21; /* a sheet's body (equal to SHEET_BG in src/lib/plateColors.ts) */
+  --sheet-top: #1b1d21; /* no lit edge */
+  --hairline: rgb(255 255 255 / 0.12); /* the 1 px divider */
+  --hairline-strong: rgb(255 255 255 / 0.28); /* a chip outline */
+  --line-secondary: rgb(255 255 255 / 0.35); /* the underline of a secondary button */
+  --divider: 1px solid var(--hairline);
+  --text: #ffffff;
+  --text-2: #a3a6ab; /* secondary text, 7.6 to 1 on graphite */
+  --text-3: #64676c; /* decoration and art only: under 4.5 to 1, never words a user must read */
+  --text-disabled: #55585d;
+  --bar-disabled: #2e3034;
+  --ring-track: #2a2c30;
   --accent: #9fd3ff;
-  --accent-hi: #c6e5ff; /* the lit top of an accent fill */
+  --accent-hi: #9fd3ff; /* flat: an accent fill has no lit top any more */
   --on-accent: #0f1114;
   --amber: #ffb020;
   --red: #ff4d4d;
-  --red-text: #ff8080; /* the same red, lit for words on glass (AA 4.5:1 on a card at the top of the gradient) */
-  --pair: #c9d0d8; /* the rail that groups a pair (superset): titanium, so the accent stays alone */
-  --white: #ffffff; /* light, for sheens mixed with transparent */
-  --black: #000000; /* shade, for shadows and scrims mixed with transparent */
+  --red-text: #ff8080; /* the same red, lit for words on graphite (AA 4.5:1) */
+  --pair: #c9d0d8; /* the rail that groups a pair (superset), so the accent stays alone */
+  --white: #ffffff; /* light, for mixes with transparent */
+  --black: #000000; /* shade, for scrims mixed with transparent */
 
   /* type */
   --font-display: 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
@@ -50,7 +56,25 @@
   --text-sm: 14px;
   --text-lg: 20px;
   --text-xl: 28px;
-  --text-hero: 40px;
+  --text-hero: 40px; /* the old hero size (unused); Monolith screens use the scale below */
+  /* Monolith type scale (SPEC 10): sizes at a 430 px wide screen, shrinking with the width so
+     nothing clips at 320 px. Inter, tabular numerals. */
+  --text-mono-hero: clamp(96px, 34.9vw, 196px); /* 150 at 430 */
+  --text-mono-title: clamp(64px, 22.3vw, 96px); /* 96 at 430 */
+  --text-mono-heading: clamp(32px, 10.2vw, 44px); /* 44 at 430, the primary button too */
+  --text-mono-heading-pair: 30px; /* two buttons share a row */
+  --text-mono-pause: clamp(60px, 19.5vw, 84px);
+  --text-mono-value: clamp(26px, 7.4vw, 32px); /* list values, 26 to 36 */
+  --text-mono-label: 12px; /* section labels, capitals */
+  --text-mono-body: 18px;
+  --text-mono-caption: 14px;
+  --text-mono-tab: 13px;
+  --weight-heavy: 900;
+  --track-hero: -0.05em;
+  --track-title: -0.045em;
+  --track-heading: -0.03em;
+  --track-value: -0.02em;
+  --track-label: 0.14em;
 
   /* space and shape */
   --space-1: 4px;
@@ -59,10 +83,16 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
-  --radius-sm: 10px;
-  --radius-md: 20px;
-  --radius-lg: 24px; /* the main glass cards */
-  --radius-pill: 999px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --side: clamp(20px, 6.5vw, 28px); /* the side margin: 28 at 430, 20 at 320 */
+  --row-min: 62px; /* a list row, hairline between rows */
+  /* Monolith corners (SPEC 10): square, 0 to 4 px. There is no pill radius. A dot or a ring that
+     is round in real life uses 50% instead. */
+  --radius-none: 0;
+  --radius-sm: 2px; /* chips, small frames, inputs */
+  --radius-md: 4px;
+  --radius-lg: 4px; /* what used to be a card */
   --tap: 48px; /* minimum touch target */
 
   /* safe areas: the only way the app reads them (never raw env()). The floors are set by
@@ -79,24 +109,22 @@
      height, never inset bottom 0, so one bottom inset is applied once by the frame's last bar. */
   --app-height: 100vh;
 
-  /* glass (SPEC 23.1): blurred translucent graphite with a thin white hairline. Blur is used on
-     bars, sheets and floating pieces only (never a full screen layer), so WebKit stays smooth. */
-  /* dense enough that text never reads through it (ux-critic 1.7e) */
-  --glass-bg: rgb(30 32 36 / 0.86);
-  /* At least 90% opaque (gate 3): bars and toasts never let text show through. */
-  --glass-bg-strong: rgb(27 29 33 / 0.93);
-  /* The floating tab bar (3.5t): near solid so page text never reads through it. */
-  --glass-bg-bar: rgb(30 32 36 / 0.97);
-  /* Pushed screen top bars once scrolled (gate B3): near solid graphite, the top of the gradient. */
+  /* Bars, sheets and floating pieces (SPEC 23): solid graphite with a hairline edge. Monolith has no
+     glass: blur is off and the old glass fills are opaque, so text never reads through a bar. */
+  --glass-bg: #16181b;
+  --glass-bg-strong: #16181b;
+  --glass-bg-bar: #131417; /* the tab bar */
+  /* Pushed screen top bars once scrolled (gate B3): graphite. */
   --bar-fill: 0.95;
-  --bar-solid: #282b30;
+  --bar-solid: #131417;
   --glass-line: rgb(255 255 255 / 0.12);
-  --glass-blur: saturate(140%) blur(22px);
-  --card-sheen: inset 0 1px 0 rgb(255 255 255 / 0.07); /* the lit top edge of a glass card */
-  --shadow-float: 0 12px 32px rgb(0 0 0 / 0.42); /* anything that floats over the page */
-  --shadow-push: -14px 0 34px rgb(0 0 0 / 0.5); /* the edge of a screen sliding over another */
+  --glass-blur: none;
+  /* No shadows, no glow (SPEC 10). Kept as empty shadows so lists like "a, var(--accent-glow)" stay valid. */
+  --card-sheen: 0 0 0 transparent;
+  --shadow-float: 0 0 0 transparent;
+  --shadow-push: -1px 0 0 rgb(255 255 255 / 0.12); /* the edge of a screen sliding over another: a hairline */
   --scrim: rgb(0 0 0 / 0.5); /* behind a sheet */
-  --accent-glow: 0 6px 22px rgb(159 211 255 / 0.2);
+  --accent-glow: 0 0 0 transparent;
   --accent-soft: rgb(159 211 255 / 0.14);
   --accent-line: rgb(159 211 255 / 0.45); /* a selected outline */
   --amber-soft: rgb(255 176 32 / 0.1);
@@ -127,7 +155,7 @@
   --dur-tap: 180ms;
   --ease-tap-spring: linear(0, 0.2 8%, 0.52 18%, 0.8 30%, 0.96 42%, 1.03 54%, 1.04 64%, 1.02 78%, 1 100%);
 
-  /* the floating tab bar: capsule height and its gap to the bottom edge */
+  /* the tab bar: its height and its gap to the bottom edge (docked in M1) */
   --tabbar-capsule: 62px;
   --tabbar-gap: max(var(--safe-bottom), 10px);
   --tabbar-space: calc(var(--tabbar-capsule) + var(--tabbar-gap) + 12px);
@@ -144,16 +172,16 @@
   }
 }
 
-/* Reduce Transparency (iOS Accessibility): no blur and solid fills, same layout. */
+/* Reduce Transparency (iOS Accessibility): Monolith is already solid; the faint fills go solid too. */
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --surface-1: #2f3237; /* lighter than the top of the gradient, so a card still reads as raised */
-    --surface-2: #3a3d43;
-    --glass-bg: #1e2024;
-    --glass-bg-strong: #1b1d21;
-    --glass-bg-bar: #1e2024;
+    --surface-1: #1c1d21;
+    --surface-2: #25272b;
+    --glass-bg: #16181b;
+    --glass-bg-strong: #16181b;
+    --glass-bg-bar: #131417;
     --bar-fill: 1;
     --glass-blur: none;
-    --card-fill: #2f3237;
+    --card-fill: #1c1d21;
   }
 }

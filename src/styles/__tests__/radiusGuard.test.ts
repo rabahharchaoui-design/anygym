@@ -66,6 +66,14 @@ function offenders(): Map<string, string[]> {
 }
 
 describe('Monolith corner guard (PLAN M0)', () => {
+  it('the radius tokens are square: 0 to 4 px, and there is no pill radius', () => {
+    const css = readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8');
+    expect(css).not.toMatch(/--radius-pill\s*:/);
+    const radii = [...css.matchAll(/--radius-[\w-]+:\s*([^;]+);/g)].map((m) => m[1]!.trim());
+    expect(radii.length).toBeGreaterThan(2);
+    for (const value of radii) expect(Number.parseFloat(value), value).toBeLessThanOrEqual(4);
+  });
+
   it('the detector sees raw corners and leaves tokens, circles and zero alone', () => {
     for (const bad of ['border-radius: 14px;', 'border-top-left-radius: 2px', 'border-radius: 28px 28px 0 0;', 'border-radius: 1rem;', 'border-radius: var(--radius-pill);'])
       expect(rawCorners(bad, true), bad).not.toEqual([]);
