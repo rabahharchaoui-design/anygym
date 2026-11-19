@@ -46,3 +46,12 @@ test('(8) VoiceOver reads the numbers on the stats page, not only the cycle hint
   await expect(cycle).toHaveAccessibleName(/moving time/);
   await expect(cycle).toHaveAccessibleDescription('Shows the next number big');
 });
+
+test('(MINOR) the page dots are 44 pt touch targets @matrix', async ({ page, context }) => {
+  await startRun(page, context);
+  for (const i of [0, 1]) {
+    const box = (await page.getByTestId(`live-dot-${i}`).boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+});

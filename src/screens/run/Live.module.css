@@ -279,7 +279,8 @@
 }
 
 .dotHit {
-  width: 36px;
+  /* 44 pt wide at least (PLAN 4.4b MINOR): the page dots are a touch target. */
+  width: 44px;
   height: 48px;
   display: grid;
   place-items: center;
