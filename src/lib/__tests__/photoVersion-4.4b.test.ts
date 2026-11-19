@@ -14,7 +14,7 @@ describe('photo URLs carry a version (PLAN 4.4b 12)', () => {
     expect(versionedAsset('exc/x/0.webp', 'v1')).toBe('exc/x/0.webp');
     expect(versionedAsset('ex/x/0.webp', '')).toBe('ex/x/0.webp');
   });
-  it('the app builds its photo URLs through it', () => {
+  it('the app builds its photo URLs through it (one shared fallback version in unit tests)', () => {
     expect(assetUrl('ex/Ab_Roller/0.webp')).toMatch(/ex\/Ab_Roller\/0\.webp\?v=[0-9a-z]+$/);
   });
 });

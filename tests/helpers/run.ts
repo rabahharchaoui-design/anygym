@@ -39,6 +39,14 @@ export const M_PER_DEG = (6_371_008.8 * Math.PI) / 180;
 export const T0 = new Date('2026-06-01T08:00:00Z');
 export const SPEED = 3;
 
+/** A finished run row (the runs table) going north from PARK, `meters` long, at 3 m/s with a position every 5 s. */
+export function runRow(id: string, meters: number, startedAt: number) {
+  const steps = Math.max(1, Math.round(meters / 15));
+  const points = Array.from({ length: steps + 1 }, (_, i) => [PARK.latitude + (i * (meters / steps)) / M_PER_DEG, PARK.longitude, startedAt + i * 5000, 5]);
+  const movingSec = steps * 5;
+  return { id, startedAt, endedAt: startedAt + movingSec * 1000, type: 'free', movingSec, elapsedSec: movingSec, distanceM: meters, points, gaps: [], splits: [], splitUnit: 'km', timedM: meters };
+}
+
 export type Runner = { page: Page; context: BrowserContext; north: number };
 export const live = (page: Page) => page.getByTestId('live-run');
 

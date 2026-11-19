@@ -315,7 +315,7 @@ describe('missed days (ask before changing the plan)', () => {
 describe('Today: one card at most, in priority order, honest when empty', () => {
   it('no data: no card and no line', () => {
     expect(coachToday(base())).toEqual({ card: null, line: null, autoApply: null });
-    expect(coachToday(base({ recovery: { yesterday: [], next: [], nameOf: String } }))).toEqual({ card: null, line: null, autoApply: null });
+    expect(coachToday(base({ recovery: { yesterday: [], next: [] } }))).toEqual({ card: null, line: null, autoApply: null });
   });
   it('the priority order is welcome back > missed days > deload > level up > leveled up > plateau', () => {
     expect(PRIORITY).toEqual(['welcome_back', 'missed_days', 'deload', 'level_up', 'leveled_up', 'plateau']);
@@ -343,18 +343,18 @@ describe('Today: one card at most, in priority order, honest when empty', () => 
   });
   it('plateau is last; a recovery line only when there is no card', () => {
     const l = lift({ sessions: [sess(nov(10), [10, 9, 9], bar(200)), sess(nov(9), [10, 9, 9], bar(200)), sess(nov(8, 9), [10, 10, 9], bar(200))] });
-    const t = coachToday(base({ lifts: [l], dates: datesOf([l]), recovery: { yesterday: ['quadriceps'], next: ['quadriceps'], nameOf: () => 'quads' } }));
+    const t = coachToday(base({ lifts: [l], dates: datesOf([l]), recovery: { yesterday: ['quads'], next: ['quads'] } }));
     expect(t.card?.kind).toBe('plateau');
     expect(t.line).toBeNull();
-    const none = coachToday(base({ lifts: [], dates: [nov(10)], recovery: { yesterday: ['quadriceps', 'gluteal'], next: ['gluteal', 'quadriceps'], nameOf: (r) => (r === 'gluteal' ? 'glutes' : 'quads') } }));
+    const none = coachToday(base({ lifts: [], dates: [nov(10)], recovery: { yesterday: ['quads', 'glutes'], next: ['glutes', 'quads'] } }));
     expect(none.card).toBeNull();
     expect(none.line).toBe('You trained glutes and quads yesterday, and today works them again. Go a little lighter if they feel tired.');
   });
   it('nothing during a workout in progress', () => {
     const l = squatTop();
     expect(coachToday(base({ lifts: [l], dates: datesOf([l]), activeWorkout: true }))).toEqual({ card: null, line: null, autoApply: null });
-    expect(recoveryLine({ activeWorkout: true, recovery: { yesterday: ['chest'], next: ['chest'], nameOf: () => 'chest' } })).toBeNull();
-    expect(recoveryLine({ activeWorkout: false, recovery: { yesterday: ['chest'], next: ['chest'], nameOf: () => 'chest' } })).toBe(
+    expect(recoveryLine({ activeWorkout: true, recovery: { yesterday: ['chest'], next: ['chest'] } })).toBeNull();
+    expect(recoveryLine({ activeWorkout: false, recovery: { yesterday: ['chest'], next: ['chest'] } })).toBe(
       'You trained chest yesterday, and today works it again. Go a little lighter if it feels tired.',
     );
   });

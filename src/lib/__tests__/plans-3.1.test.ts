@@ -7,6 +7,7 @@ import { PLANS, planById } from '../../data/plans';
 import { PLACE_TILES, needOf, placesOfPlan, planNeeds, plansForPlace } from '../../data/places';
 import { demoFor, demoForPlan, infoForPlan, photoEligibility } from '../../data/exerciseInfo';
 import { EXERCISE_MAP, musclesForPlan } from '../../data/muscles';
+import { gApproved } from './fixtures/demoReview';
 import { PLACES, exerciseNeed, placeById, placeFits, placeTiles, placesFor, type Need, type PlaceId } from '../places';
 import { itemLine, weekTable, type PlanItem } from '../plans';
 
@@ -214,9 +215,10 @@ describe('demos inside plan workouts: every plan exercise', () => {
           // Name and plan notes only.
           if (it.note) expect(JSON.stringify(info)).toContain(it.note);
         } else {
-          demos++;
-          expect(demo, it.exerciseId).not.toBeNull();
-          for (const path of [...demo!.jpg, ...demo!.webp]) {
+          // PLAN D0: a sure match shows its photos only when G approved them; muscles either way.
+          expect(demo !== null, it.exerciseId).toBe(gApproved(e!.catalogId));
+          if (demo) demos++;
+          for (const path of demo ? [...demo.jpg, ...demo.webp] : []) {
             expect(path.startsWith(`ex/${e!.catalogId}/`), path).toBe(true);
             expect(existsSync(`public/${path}`), path).toBe(true);
           }

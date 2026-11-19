@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { scheduleStyleOf } from '../../lib/plan/schedule';
 import { useLive } from '../../hooks/useLive';
-import { coachData, regionWord, weekdaysOf, type CoachData } from '../../db/coachData';
+import { coachData, weekdaysOf, type CoachData } from '../../db/coachData';
 import { applyChanges, resolveOutcomes } from '../../db/coach';
 import { planById } from '../../data/plans';
 import { coachDay, coachToday, currentEstimate, freshBands, freshNames, learnedScale, newOutcomes, weeklyRate, type CoachToday, type FreshBand } from '../../lib/coach';
@@ -55,7 +55,7 @@ export function useCoach(enabled: boolean): CoachView {
       autoLevelUp: data.profile?.coach?.autoLevelUp === true,
       activeWorkout: data.active,
       ...(plan ? { plan: { scheduleStyle: scheduleStyleOf(data.profile?.intake), daysPerWeek: plan.daysPerWeek, weekdays: weekdaysOf(data.profile, data.now) } } : {}),
-      ...(data.recovery ? { recovery: { ...data.recovery, nameOf: regionWord } } : {}),
+      ...(data.recovery ? { recovery: data.recovery } : {}),
       ...(data.kept ? { kept: data.kept } : {}),
     });
   }, [data]);

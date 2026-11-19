@@ -9,8 +9,9 @@ test('golden: Quick workout, swipe through the deck, Start workout', async ({ pa
   await pastIntake(page);
   await page.getByTestId('build-card').tap();
   await expect(page.getByRole('heading', { name: 'Quick workout' })).toBeVisible();
-  await page.getByTestId('min-30').tap();
-  await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
+  // PLAN D0: with G's 99 sure demos Strength focus is a 45 chip card (the 30 row holds the other styles).
+  await page.getByTestId('min-45').tap();
+  await expect(page.getByTestId('min-45')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-concept]').first()).toBeVisible();
   await page.locator('[data-concept="strength"]').tap();
   await expect(card(page)).toBeVisible();

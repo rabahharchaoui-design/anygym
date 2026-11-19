@@ -5,6 +5,7 @@ import exerciseMap from '../../../data/exercise-map.json';
 import type { MapEntry } from '../catalog';
 import { MAX_CUE_WORDS, exerciseInfo, firstLine, validateCues, wordCount, type CatalogImages, type CueFile } from '../exerciseInfo';
 import { infoForPlan } from '../../data/exerciseInfo';
+import { gApproved } from './fixtures/demoReview';
 
 const MAP = exerciseMap as MapEntry[];
 const CUES = cueFile as CueFile;
@@ -43,7 +44,8 @@ describe('exercise cues file (SPEC 4.4)', () => {
       expect(info.cues.length, m.planId).toBeGreaterThanOrEqual(1);
       expect(info.cues.length, m.planId).toBeLessThanOrEqual(3);
       expect(info.goodFor, m.planId).toBeTruthy();
-      expect(info.demo, m.planId).not.toBeNull();
+      // PLAN D0: the photos only when G approved them; the cues stay either way.
+      expect(info.demo !== null, m.planId).toBe(gApproved(m.catalogId));
     }
   });
 

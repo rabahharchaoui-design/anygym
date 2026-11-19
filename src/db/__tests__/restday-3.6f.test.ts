@@ -6,7 +6,7 @@ import { AnyGymDB } from '../schema';
 import { ensureFirstGym } from '../bootstrap';
 import { choosePlan } from '../planState';
 import { saveGeneratedPlan } from '../savedPlans';
-import { coachData, regionWord } from '../coachData';
+import { coachData } from '../coachData';
 import { readSchedule } from '../schedule';
 import { coachToday } from '../../lib/coach';
 import { restDayWords } from '../../lib/plan/scheduleWords';
@@ -32,7 +32,7 @@ afterEach(async () => { await db.delete(); });
 const lineOn = async (weekdays: string[]) => {
   await db.profile.put({ id: 'me', defaultUnit: 'lb', createdAt: 1, intakeDoneAt: 2, intake: { scheduleStyle: 'fixed', weekdays: weekdays as never, days: 2 } });
   const d = await coachData(wed, db);
-  const today = coachToday({ now: d.now, lifts: d.lifts, dates: d.dates, changes: d.changes, closed: d.closed, autoLevelUp: false, activeWorkout: d.active, ...(d.recovery ? { recovery: { ...d.recovery, nameOf: regionWord } } : {}) });
+  const today = coachToday({ now: d.now, lifts: d.lifts, dates: d.dates, changes: d.changes, closed: d.closed, autoLevelUp: false, activeWorkout: d.active, ...(d.recovery ? { recovery: d.recovery } : {}) });
   return { recovery: d.recovery, line: today.line, schedule: await readSchedule(wed, db) };
 };
 

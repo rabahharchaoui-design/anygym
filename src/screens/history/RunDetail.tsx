@@ -6,17 +6,21 @@ import { Skeleton } from '../../ui/Skeleton';
 import { LoadError } from '../../components/LoadError';
 import { useFinishedRuns } from '../../hooks/useRuns';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
-import { DASHED_NOTE, VERDICT_WORDS, drawRoute, ghostResult, ghostWords, paceUnit, summaryOf, titlesHeldBy, runVerdict } from '../../lib/run';
+import { DASHED_NOTE, VERDICT_WORDS, drawRoute, ghostResult, ghostWords, summaryOf, titlesHeldBy, runVerdict } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { RouteMap } from '../run/RouteMap';
 import { RunShare } from '../run/RunShare';
 import { RunSplits } from '../run/RunSplits';
+import { RunStats } from '../run/RunStats';
 import { RunDiagExport } from './RunDiagExport';
 import { runTitle, workoutDate } from './historyWords';
 import styles from './History.module.css';
 import run from '../run/Summary.module.css';
 
-/** One finished run (PLAN 4.6, SPEC 12.9): the whole route and its splits, the numbers, the records it holds, share and GPX. */
+/**
+ * One finished run (PLAN 4.6, SPEC 12.9): the whole route and its splits, the numbers, the records it holds, share and GPX.
+ * PLAN M3: the same family as the finish screen: the route edge to edge first, the stat row, then the rest.
+ */
 export function RunDetail() {
   const { runId = '' } = useParams();
   const all = useFinishedRuns();
@@ -37,35 +41,22 @@ export function RunDetail() {
       </TopBar>
       {all.error ? <LoadError text="Could not load this run" onRetry={all.retry} /> : null}
       {!row || !summary || !route ? (
-        !all.error && <Skeleton height={180} radius={20} />
+        !all.error && <Skeleton height={180} radius={0} />
       ) : verdict !== 'ok' ? (
         <p className={styles.meta} data-testid="run-detail-plain" data-verdict={verdict ?? undefined}>
           {VERDICT_WORDS[verdict ?? 'no-gps'].line}
         </p>
       ) : (
         <div data-testid="run-detail">
-          <dl className={run.facts}>
-            <div className={run.fact}>
-              <dd className="num" data-testid="detail-distance">{summary.distance} {unit}</dd>
-              <dt>Distance</dt>
-            </div>
-            <div className={run.fact}>
-              <dd className="num" data-testid="detail-time">{summary.time}</dd>
-              <dt>Moving time</dt>
-            </div>
-            <div className={run.fact}>
-              <dd className="num" data-testid="detail-pace">{summary.pace}</dd>
-              <dt>Average pace {paceUnit(unit)}</dt>
-            </div>
-          </dl>
+          <RouteMap route={route} reduceMotion={reduce} hero />
+          <RunStats summary={summary} unit={unit} ids="detail" />
+          {route.dashed.length > 0 && <p className={run.quiet}>{DASHED_NOTE}</p>}
           {held.length > 0 && (
             <p className={run.ghost} data-testid="detail-records">
               Your record: {held.join(', ')}
             </p>
           )}
           {ghost && <p className={run.ghost}>{ghost}</p>}
-          <RouteMap route={route} reduceMotion={reduce} />
-          {route.dashed.length > 0 && <p className={run.quiet}>{DASHED_NOTE}</p>}
           <RunSplits run={row} unit={unit} />
           <RunShare run={row} unit={unit} />
         </div>

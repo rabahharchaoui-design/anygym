@@ -81,6 +81,8 @@
   font-weight: 700;
   line-height: 1.2;
   text-wrap: balance;
+  /* a long number or city at the largest text size in a 320 px row breaks rather than spills (PLAN M3) */
+  overflow-wrap: anywhere;
 }
 
 .card[data-size='row'] .cardDetail {

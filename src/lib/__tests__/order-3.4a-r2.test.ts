@@ -52,9 +52,11 @@ describe('(3) an Up next lift brings its rule 6 rest', () => {
 });
 
 describe('(1) demos: SPEC 4.3 forbids a wrong demo; Up next never invents one', () => {
-  it('ideas without a sure match have no demo (the card shows the plain tile, never a photo)', () => {
-    expect(demoFor('Dumbbell_Squat')).toBeNull();
-    expect(demoFor('Bodyweight_Squat')).toBeNull();
+  it('ideas show a demo only when G approved it, else the plain tile, never a wrong photo (D0)', () => {
+    // PLAN D0: G approved these two on Nov 19; Russian_Twist he marked a wrong demo.
+    expect(demoFor('Dumbbell_Squat')).not.toBeNull();
+    expect(demoFor('Bodyweight_Squat')).not.toBeNull();
+    expect(demoFor('Russian_Twist')).toBeNull();
     expect(upNextPool(HOTEL_DUMBBELLS).map((p) => p.id)).toContain('Dumbbell_Squat');
     expect(demoFor('single-arm-dumbbell-row')).not.toBeNull();
   });
