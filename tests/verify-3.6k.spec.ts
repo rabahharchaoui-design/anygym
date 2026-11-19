@@ -15,10 +15,10 @@ const intake = (page: Page) => page.getByTestId('intake');
 const keptPhotos = (page: Page) =>
   page.evaluate(async () => {
     const cache = await caches.open('exercise-photos');
-    const out: { url: string; bytes: number }[] = [];
+    const out: { url: string; v: string | null; bytes: number }[] = [];
     for (const req of await cache.keys()) {
       const res = await cache.match(req);
-      out.push({ url: new URL(req.url).pathname, bytes: res ? (await res.blob()).size : 0 });
+      out.push({ url: new URL(req.url).pathname, v: new URL(req.url).searchParams.get('v'), bytes: res ? (await res.blob()).size : 0 });
     }
     return out;
   });
@@ -65,6 +65,9 @@ test('fresh phone: intake online, then the first workout offline shows every exe
   // Only the plan's photos, one format, both frames: never the whole catalog.
   expect(kept.every((k) => /\/anygym\/ex\/[^/]+\/[01]\.webp$/.test(k.url))).toBe(true);
   expect(kept.length % 2).toBe(0);
+  // PLAN 4.6c (2): each photo is kept under its own file's version.
+  expect(kept.every((k) => /^[0-9a-z]{7}$/.test(k.v ?? ''))).toBe(true);
+  expect(new Set(kept.map((k) => k.v)).size).toBe(kept.length);
   expect(kept.length).toBeLessThan(120);
   const bytes = kept.reduce((s, k) => s + k.bytes, 0);
   test.info().annotations.push({ type: 'photos kept', description: `${kept.length} files, ${bytes} bytes` });
