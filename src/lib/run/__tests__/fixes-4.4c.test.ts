@@ -21,6 +21,9 @@ describe('the dashed stretch caption (fix 2)', () => {
     expect(DASHED_NOTE).toContain(`first ${GAP_SEC} seconds`);
     expect(DASHED_NOTE).not.toContain('That stretch is not counted as moving time');
   });
+  it('says the distance across a GPS gap counts in the distance but not in the average pace (PLAN 4.6c 4)', () => {
+    expect(DASHED_NOTE).toContain('The distance across a GPS gap counts in the total but not in the average pace.');
+  });
 });
 
 describe('restore after a reload keeps the time the clock had shown (fix 3)', () => {

@@ -7,7 +7,7 @@ import { fixedDaysOf } from '../lib/plan/weekdays';
 import { weekKey } from '../lib/coach/time';
 import type { Region } from '../lib/bodyArt';
 import { REGION_NAMES } from '../lib/bodyArt';
-import { ownShoulderLabel } from '../lib/muscles';
+import { ownRegionLabel } from '../lib/muscles';
 import { liftKey, type ChangeRecord, type Effort, type Lift, type LiftSession, type TrainedSet } from '../lib/coach';
 import type { RepRange } from '../lib/progression';
 import { patternOf, slotOf, swapCandidates, workoutIdOf } from '../lib/swap';
@@ -53,8 +53,8 @@ export type CoachData = {
   liftRows: CoachLiftRow[];
   /** Logged working sets of the last 3 days with their sure main muscles (Fresh muscles). */
   fresh: TrainedSet[];
-  /** Main muscles worked yesterday and in the next plan day (the recovery note). */
-  recovery: { yesterday: Region[]; next: Region[] } | undefined;
+  /** Main muscles worked yesterday and in the next plan day, in each exercise's own words (the recovery note, PLAN 4.6c 3). */
+  recovery: { yesterday: string[]; next: string[] } | undefined;
   /** The day up next is the same day again (under 60% done): its number and the part done workout's own set counts. */
   kept: { dayN: number; logged?: number; planned?: number } | undefined;
   /** PLAN 3.5g: the exercises of the plan day up next (a coach card lists these lifts first). */
@@ -76,16 +76,22 @@ export function primaryRegions(exerciseId: string): Region[] {
   return (Object.keys(m.shading) as Region[]).filter((r) => m.shading[r] === 'primary');
 }
 
-/** The exercise's own words for its primary shapes that stand for more than one muscle (PLAN 4.6a 5). */
+/** The exercise's own words for its primary shapes that stand for more than one muscle (PLAN 4.6a 5, 4.6c 3). */
 export function primaryNames(exerciseId: string): Partial<Record<Region, string>> {
   const m = infoForExercise(exerciseId).muscles;
   const out: Partial<Record<Region, string>> = {};
   if (!m) return out;
   for (const r of primaryRegions(exerciseId)) {
-    const own = ownShoulderLabel(r, { primary: m.primary, secondary: [] });
+    const own = ownRegionLabel(r, { primary: m.primary, secondary: [] });
     if (own) out[r] = own;
   }
   return out;
+}
+
+/** The exercise's sure main muscles in words (PLAN 4.6c 3): its own word for a shared shape, else the shape's name. */
+export function primaryWords(exerciseId: string): string[] {
+  const own = primaryNames(exerciseId);
+  return primaryRegions(exerciseId).map((r) => own[r] ?? regionWord(r));
 }
 
 const nameOf = (id: string): string => planExercise(id)?.name ?? exerciseNameOf(id) ?? id;
@@ -234,7 +240,7 @@ function nextDayIds(planState: PlanState | undefined): string[] {
   return dayWorkout(plan, index, planState.weekIndex).filter((e) => !e.warmup && !e.finisher).map((e) => e.exerciseId);
 }
 
-/** Main muscles of yesterday's logged working sets, and of the next plan day (sure muscles only). */
+/** Main muscles of yesterday's logged working sets, and of the next plan day (sure muscles only, in each exercise's own words). */
 function recoveryRegions(recent: readonly Session[], sets: readonly WorkoutSet[], planState: PlanState | undefined, now: number): CoachData['recovery'] {
   const plan = planById(planState?.planId);
   if (!plan || !planState) return undefined;
@@ -242,11 +248,11 @@ function recoveryRegions(recent: readonly Session[], sets: readonly WorkoutSet[]
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   const ids = new Set(recent.filter((s) => s.startedAt >= yesterday.getTime() && s.startedAt < today).map((s) => s.id));
-  const done = new Set<Region>();
-  for (const x of sets) if (ids.has(x.sessionId) && x.kind === 'work' && !x.uncertain) for (const r of primaryRegions(x.exerciseId)) done.add(r);
+  const done = new Set<string>();
+  for (const x of sets) if (ids.has(x.sessionId) && x.kind === 'work' && !x.uncertain) for (const w of primaryWords(x.exerciseId)) done.add(w);
   const index = Math.max(0, Math.min(planState.nextDayIndex, plan.days.length - 1));
-  const next = new Set<Region>();
-  for (const e of dayWorkout(plan, index, planState.weekIndex)) if (!e.warmup && !e.finisher) for (const r of primaryRegions(e.exerciseId)) next.add(r);
+  const next = new Set<string>();
+  for (const e of dayWorkout(plan, index, planState.weekIndex)) if (!e.warmup && !e.finisher) for (const w of primaryWords(e.exerciseId)) next.add(w);
   return { yesterday: [...done], next: [...next] };
 }
 

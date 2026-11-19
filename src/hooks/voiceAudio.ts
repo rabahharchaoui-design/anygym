@@ -12,12 +12,15 @@ export const VOICE_CACHE = 'run-voice';
 type Loaded = { buffer: AudioBuffer; start: number; sec: number };
 type AudioSessionLike = { type: string };
 
-const files = manifest.clips as Record<string, { file: string; ms: number }>;
+const files = manifest.clips as Record<string, { file: string; ms: number; v?: string }>;
 
-/** The address of a clip, or null for an id the pack does not hold. The pack's version keeps an old cached clip from being served for a new pack. */
+/**
+ * The address of a clip, or null for an id the pack does not hold. Each clip carries its own version
+ * (a hash of its bytes, PLAN 4.6c 5): a new clip is fetched again on its own, the rest stay cached.
+ */
 export function clipUrl(id: string): string | null {
   const c = files[id];
-  return c ? `${import.meta.env.BASE_URL}${VOICE_DIR}/${c.file}?v=${manifest.version}` : null;
+  return c ? `${import.meta.env.BASE_URL}${VOICE_DIR}/${c.file}?v=${c.v ?? manifest.version}` : null;
 }
 export const allClipUrls = (): string[] => Object.keys(files).map((id) => clipUrl(id)!);
 

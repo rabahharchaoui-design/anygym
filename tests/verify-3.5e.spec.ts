@@ -314,7 +314,7 @@ test('backup export + restore (replace and merge) keep approvals; old backup wit
 
 test('Dexie v10 shaped DB opens, upgrades to v11 and keeps every prior row @matrix', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('./icons/favicon.svg');
+  await page.goto('./icons/favicon-32.png');
   const stores: Record<string, string> = {
     profile: 'id', gyms: 'id', plans: 'id', planDays: 'id', sessions: 'id', sets: 'id', runs: 'id', exerciseSettings: '', planState: 'id', orderCounters: 'sessionId', submissions: 'id', tombstones: 'id', kv: 'key', journal: 'id', reportQueue: 'id', crashSignatures: '', reportPreferences: 'id', coachLifts: 'key', coachChanges: 'id', coachCards: 'id', efforts: '',
   };

@@ -4,7 +4,6 @@
 // PRIORITY (tested): welcome back > missed days > lighter week (deload) > level up (or, with Auto
 // level up on, the quiet "Leveled up" card) > plateau. With no card, one Coach line may show (a
 // recovery note when today's plan day works muscles trained yesterday); with nothing, nothing.
-import type { Region } from '../bodyArt';
 import { comparableWeight } from '../load';
 import { liftClass, weighted } from './classify';
 import { nextTarget } from './increment';
@@ -32,7 +31,8 @@ export type CoachInput = {
   /** The plan in use, for missed days. */
   plan?: { scheduleStyle?: 'fixed' | 'flexible' | 'weekly'; daysPerWeek: number; weekdays?: readonly string[] };
   /** Main muscles worked yesterday (logged sets) and in today's plan day, for the recovery note. */
-  recovery?: { yesterday: readonly Region[]; next: readonly Region[]; nameOf: (r: Region) => string };
+  /** Muscle words (PLAN 4.6c 3): each exercise's own word for a shared shape, so a match is the same muscle. */
+  recovery?: { yesterday: readonly string[]; next: readonly string[] };
   /** The day up next is the same day again (under 60% done last time): the line says that, never the recovery note. */
   kept?: { dayN: number; logged?: number; planned?: number };
 };
@@ -135,7 +135,7 @@ export function recoveryLine(input: Pick<CoachInput, 'recovery' | 'activeWorkout
   if (!r) return null;
   const both = [...new Set(r.next.filter((x) => r.yesterday.includes(x)))];
   if (!both.length) return null;
-  const names = [...new Set(both.map(r.nameOf))].slice(0, 2);
+  const names = both.slice(0, 2);
   const list = names.length === 2 ? `${names[0]} and ${names[1]}` : names[0]!;
   return `You trained ${list} yesterday, and today works ${names.length === 2 ? 'them' : 'it'} again. Go a little lighter if ${names.length === 2 ? 'they feel' : 'it feels'} tired.`;
 }
