@@ -7,7 +7,7 @@ import { readRunSetup } from '../db/runSetup';
 import { newId } from '../db/ids';
 import type { Run } from '../db/types';
 import type { DistanceUnit } from '../lib/intake/answers';
-import { unitMeters } from '../lib/gps';
+import { haversineM, unitMeters } from '../lib/gps';
 import {
   DEFAULT_VOICE, finishRun, fixFate, fixTime, liveMovingMs, liveRow, rewatchDue, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
   type LiveAction, type LiveRun, type RunSetup, type VoiceSettings,
@@ -48,7 +48,14 @@ let watchedAt = 0;
  * A watch started again in a gap may first hand back the last position it had, as if new: that
  * exact spot (where the dot is) is not taken as a position again: only that first callback is dropped.
  */
-let replayOf: { lat: number; lng: number } | null = null;
+let replayOf: { lat: number; lng: number; near: boolean } | null = null;
+/**
+ * After a reload the phone's last raw position is not known (it lived in memory): the dot (the
+ * estimate, saved with the run) stands in for it, and a position within REPLAY_NEAR_M of it counts as
+ * the replay (PLAN 4.4d: the cached position from before the reload started the line again there and
+ * every real position after it was dropped as an impossible jump).
+ */
+const REPLAY_NEAR_M = 2;
 /**
  * The last position exactly as the phone gave it (PLAN 4.4d): the dot (`here`) is the estimate now,
  * not the phone's position, so a replayed position is recognised against this one.
@@ -132,7 +139,7 @@ function startWatch() {
       const raw = { lat: latitude, lng: longitude, accuracy, speed: speed ?? null, stamp: pos.timestamp };
       // Only the first callback after the restart can be the replay (PLAN 4.6a 4): a runner standing
       // on that spot keeps reporting it, and those fixes must end GPS lost.
-      const replay = replayOf !== null && replayOf.lat === latitude && replayOf.lng === longitude;
+      const replay = replayOf !== null && (replayOf.near ? haversineM(replayOf, { lat: latitude, lng: longitude }) <= REPLAY_NEAR_M : replayOf.lat === latitude && replayOf.lng === longitude);
       replayOf = null;
       if (replay) {
         lastRaw = raw0;
@@ -159,7 +166,7 @@ function every5s() {
   save();
   if (state.live && navigator.geolocation && document.visibilityState === 'visible' && rewatchDue(state.live, Date.now(), watchedAt)) {
     startWatch();
-    replayOf = lastRaw;
+    replayOf = lastRaw ? { ...lastRaw, near: false } : state.live.here && { lat: state.live.here.lat, lng: state.live.here.lng, near: true };
   }
 }
 
