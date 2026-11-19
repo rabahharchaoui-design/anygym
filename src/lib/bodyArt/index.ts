@@ -81,7 +81,8 @@ export const REGION_NAMES: Record<Region, string> = {
   biceps: 'Biceps',
   triceps: 'Triceps',
   neck: 'Neck',
-  'front-deltoids': 'Front delts',
+  // PLAN 4.4b (11): the shape stands for the side delts too (lib/muscles SHOULDER_PARTS): never "Front delts" alone.
+  'front-deltoids': 'Front and side delts',
   head: 'Head',
   adductor: 'Inner thighs',
   quadriceps: 'Quads',

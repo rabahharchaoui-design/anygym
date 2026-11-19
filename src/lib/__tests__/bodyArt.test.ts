@@ -47,9 +47,15 @@ describe('body art', () => {
   });
 
   it('plain-word names', () => {
-    expect(REGION_NAMES['front-deltoids']).toBe('Front delts');
+    expect(REGION_NAMES['front-deltoids']).toBe('Front and side delts');
     expect(REGION_NAMES['back-deltoids']).toBe('Rear delts');
     expect(REGION_NAMES.adductor).toBe('Inner thighs');
     expect(REGION_NAMES.gluteal).toBe('Glutes');
+  });
+});
+
+describe('PLAN 4.4b (11): the front shoulder shape names both delts it stands for', () => {
+  it('side raises are listed under it, so it is never called front delts alone', () => {
+    expect(REGION_NAMES['front-deltoids']).toBe('Front and side delts');
   });
 });
