@@ -62,6 +62,9 @@ export const STYLES: Record<StyleId, StyleDef> = {
     maxMoves: (m) => (m <= 37 ? 3 : m <= 52 ? 4 : 5),
     maxSets: () => 5,
     rest: { group: 150, single: 150, floor: 150, cap: 180 },
+    // PLAN D0: compounds only, so a sure isolation (a cable kickback in the glutes slot, now that G
+    // approved its demo) never makes the name untrue.
+    only: (p) => isCompound(p),
     honest: (ps) => ps.length >= 3 && ps.every((p) => isCompound(p)),
   },
   cardioCore: {

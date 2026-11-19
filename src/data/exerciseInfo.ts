@@ -3,14 +3,17 @@ import { versionedAsset } from '../lib/photoVersion';
 import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import catalogDemos from '../../data/catalog-demos.json';
+import demoReviewFile from '../../data/reviews/demo-review-2026-11-19.json';
 import { catalogInfo, eligibleDemos, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
 import type { MatchKind } from '../lib/catalog';
 import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
 import { approvedCandidate, isApprovedCandidate, onApprovedChange } from './candidateGate';
+import { applyDemoReview, parseDemoReview, type DemoReview } from '../lib/demoReview';
 
 const CUES = cueFile as CueFile;
 const CATALOG = new Map((catalog as { exercises: CatalogImages[] }).exercises.map((e) => [e.id, e]));
 const PLAN = new Map(EXERCISE_MAP.map((e) => [e.planId, e]));
+export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
 
 /**
  * The one photo eligibility lookup (SPEC 4.3, audit 2.5): a catalog id may show its photos only when
@@ -18,8 +21,21 @@ const PLAN = new Map(EXERCISE_MAP.map((e) => [e.planId, e]));
  * downgraded entries are match none), so a rejected or unaudited id is "none". PLAN 3.5a round 2:
  * plus catalog only swap candidates whose photos were checked by hand (data/catalog-demos.json).
  * PLAN 3.5e: plus a candidate move G approved on this phone (src/data/candidateGate.ts), never another.
+ * PLAN D0: then G's hand review of the catalog demos (data/reviews/) has the last word on every id it
+ * names. A review made for another catalog sha is refused: then no catalog demo is shown at all (no
+ * bad data) and the reason is logged; the unit tests fail on it long before it ships.
  */
-const ELIGIBLE = eligibleDemos(EXERCISE_MAP, (catalogDemos as { exercises: { catalogId: string }[] }).exercises, new Set(CATALOG.keys()));
+function loadReview(): DemoReview | null {
+  try {
+    return parseDemoReview(demoReviewFile, CATALOG_SHA, new Set(CATALOG.keys()));
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+export const DEMO_REVIEW = loadReview();
+const AUDITED = eligibleDemos(EXERCISE_MAP, (catalogDemos as { exercises: { catalogId: string }[] }).exercises, new Set(CATALOG.keys()));
+const ELIGIBLE = DEMO_REVIEW ? applyDemoReview(AUDITED, DEMO_REVIEW) : new Map<string, MatchKind>();
 export function photoEligibility(catalogId: string | null | undefined): MatchKind {
   if (!catalogId) return 'none';
   return ELIGIBLE.get(catalogId) ?? (isApprovedCandidate(catalogId) ? 'exact' : 'none');
@@ -74,8 +90,6 @@ const PHOTO_VERSION = typeof __PHOTO_VERSION__ === 'string' && /^[0-9a-z]{4,16}$
 
 /** A public asset's URL; exercise photos carry their version (lib/photoVersion.ts). */
 export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${versionedAsset(path, PHOTO_VERSION)}`;
-
-export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
 
 /** The public sheet for a bare catalog exercise (muscle lists): photos only when eligible. */
 export function infoForCatalog(id: string): ExerciseInfo {
