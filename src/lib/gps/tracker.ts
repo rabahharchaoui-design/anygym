@@ -220,13 +220,22 @@ export function countShown(state: TrackerState, ms: number): TrackerState {
  * The withheld leg (PLAN 4.6b): standing by the wide circle (poor accuracy) while the 4 m rule says
  * moving, the clock counts but the way from the standing spot to the last good point waits until
  * the runner leaves the spot. When the run stops there first (a pause, the end, a gap) it counts
- * now, as timed distance (its seconds are already counted), and its end joins the track. Standing
- * by the 4 m rule (a still phone) it is wander and adds nothing. A second call finds no leg.
+ * now, as timed distance (its seconds are already counted), and its end joins the track. Once the
+ * 4 m rule stopped the clock too, only the way up to where it stopped (stopAt) was walked on the
+ * clock: that part counts, as when leaving the spot (addPoint); the rest is wander. A phone that
+ * stood from the start (no stopAt) adds nothing. A second call finds no leg.
  */
 export function flushStill(state: TrackerState): { state: TrackerState; point: GpsPoint | null; completed: Split[] } {
   const from = state.lastRecorded;
-  const to = state.lastGood;
-  if (!state.still || state.stopped || !from || !to || to.t <= from.t) return { state, point: null, completed: [] };
+  const last = state.lastGood;
+  const none = { state, point: null, completed: [] };
+  if (!state.still || !from || !last) return none;
+  // Stopped: the shorter of the way to the last point and the way to where the clock stopped, with
+  // the point it ends on, so the line and the distance agree.
+  const stopAt = state.stopped ? (state.stopAt ?? null) : null;
+  if (state.stopped && !stopAt) return none;
+  const to = stopAt && haversineM(from, stopAt) <= haversineM(from, last) ? stopAt : last;
+  if (to.t <= from.t) return none;
   const next = advance(state, { distanceM: haversineM(from, to), ms: 0, timed: true, gap: false });
   return { state: { ...next.state, lastRecorded: to }, point: to, completed: next.completed };
 }
