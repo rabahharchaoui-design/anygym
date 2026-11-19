@@ -12,7 +12,7 @@ export function worstBySpec(rows: Array<{ spec: TraceSpec; m: Metrics }>) {
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
   return [...groups].map(([key, g]) => {
-    const worst = <T>(pick: (m: Metrics) => number | null, by = (n: number) => n): { v: number | null; m: Metrics } => {
+    const worst = (pick: (m: Metrics) => number | null, by = (n: number) => n): { v: number | null; m: Metrics } => {
       let best: { v: number | null; m: Metrics } = { v: null, m: g[0]!.m };
       for (const { m } of g) {
         const v = pick(m);
