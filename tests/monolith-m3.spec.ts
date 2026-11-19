@@ -21,7 +21,6 @@ const SIZES: Array<{ name: string; project: string; viewport?: { width: number; 
 
 const DAY = 86_400_000;
 const M_PER_DEG = (6_371_008.8 * Math.PI) / 180;
-const MILE = 1609.344;
 
 type Pt = [number, number, number, number];
 
