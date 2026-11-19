@@ -63,6 +63,25 @@ describe('3D icon manifest (PLAN 3.6i)', () => {
     }
   });
 
+  // PLAN M9: the v2 goal marks are sized evenly (scripts/make-icons-3d.mjs --goals): each mark's
+  // longest side is the same share of its square, and each sits centred, so all 8 read the same size.
+  it('the 8 goal icons are the same visual size and centred in their squares', async () => {
+    const goals = wired.filter((n) => ICONS_3D[n]!.group === 'goal');
+    expect(goals).toHaveLength(8);
+    for (const n of goals) {
+      const { data, info } = await sharp(file(n, 'webp')).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      let [l, t, r, b] = [info.width, info.height, -1, -1];
+      for (let y = 0; y < info.height; y++)
+        for (let x = 0; x < info.width; x++)
+          if (data[(y * info.width + x) * 4 + 3]! > 8) [l, t, r, b] = [Math.min(l, x), Math.min(t, y), Math.max(r, x), Math.max(b, y)];
+      const longest = Math.max(r - l + 1, b - t + 1);
+      expect(longest, `${n} longest side`).toBeGreaterThanOrEqual(122);
+      expect(longest, `${n} longest side`).toBeLessThanOrEqual(126);
+      expect(Math.abs(l - (info.width - 1 - r)), `${n} centred across`).toBeLessThanOrEqual(2);
+      expect(Math.abs(t - (info.height - 1 - b)), `${n} centred down`).toBeLessThanOrEqual(2);
+    }
+  });
+
   it('the wired set is small enough to precache in both formats', () => {
     const total = wired.reduce((sum, n) => sum + ICONS_3D[n]!.avif + ICONS_3D[n]!.webp, 0);
     expect(total).toBeLessThan(300 * 1024);

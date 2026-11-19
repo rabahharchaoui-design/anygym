@@ -3,6 +3,7 @@
 // repo (a local, git ignored folder): pass the folder that holds `chatgpt/` and `higgsfield/`.
 //
 //   node scripts/make-icons-3d.mjs <design-ref-folder>      (or ANYGYM_DESIGN_REF=<folder>)
+//   node scripts/make-icons-3d.mjs --goals <art/goal-icons folder>   (PLAN M9: only the 8 v2 goal icons)
 //
 // Each icon is exported once, at SCALE times the largest size its slot has on screen (SIZES below, in
 // CSS px), into public/icons3d/. SCALE is 3: the iPhones this app is for draw 3 device pixels per point
@@ -10,7 +11,7 @@
 // to public/icons3d/later/, which the PWA never precaches. The manifest the app and a unit test read
 // is written to src/ui/icon3d/manifest.json. AI art is decoration only (SPEC: no bad data).
 import sharp from 'sharp';
-import { mkdir, readdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -51,6 +52,52 @@ async function both(img, limit = MAX_BYTES) {
   let a = await avif(img);
   for (let q = 55; a.length > limit && q >= 25; q -= 10) a = await avif(img, q);
   return { webp: w, avif: a };
+}
+
+/** PLAN M9: the v2 goal icons (Monolith, art/goal-icons/ in the private art repo), art slug to app id.
+ *  The tone up alternates (alt1 tape measure, alt2 hourglass) are never exported. */
+const GOALS_V2 = [
+  ['build-muscle', 'muscle'], ['get-stronger', 'strength'], ['lose-fat', 'fat_loss'], ['tone-up', 'tone'],
+  ['stay-healthy', 'health'], ['athletic-performance', 'athletic'], ['train-for-a-race', 'race'], ['get-back-into-it', 'comeback'],
+];
+/** Even sizing: every mark's longest side is this share of the square, centred on its own box. */
+const GOAL_MARK = 0.86;
+
+/** `--goals <art/goal-icons folder>`: re-export only the 8 goal icons and their manifest entries. Each
+ *  mark is trimmed to its visible box, scaled uniformly so its longest side is GOAL_MARK of the square,
+ *  and centred on clear padding, so all 8 read the same size in their cells. */
+async function exportGoalsV2(dir) {
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const px = SIZES.goal * SCALE;
+  const side = Math.round(px * GOAL_MARK);
+  for (const [slug, id] of GOALS_V2) {
+    const input = sharp(join(dir, `goal-${slug}-1024.png`));
+    const meta = await input.metadata();
+    if (!meta.hasAlpha) throw new Error(`goal-${slug}: no alpha channel`);
+    const { data, info } = await input.clone().trim({ threshold: 8 }).toBuffer({ resolveWithObject: true });
+    const scale = side / Math.max(info.width, info.height);
+    const w = Math.max(1, Math.round(info.width * scale));
+    const h = Math.max(1, Math.round(info.height * scale));
+    const mark = await sharp(data).resize(w, h, { kernel: 'lanczos3', fit: 'fill' }).png().toBuffer();
+    const img = sharp({ create: { width: px, height: px, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: mark, left: Math.round((px - w) / 2), top: Math.round((px - h) / 2) }])
+      .png();
+    const sized = sharp(await img.toBuffer());
+    const name = `goal-${id}`;
+    const out2 = await both(sized);
+    await writeFile(join(out, `${name}.webp`), out2.webp);
+    await writeFile(join(out, `${name}.avif`), out2.avif);
+    manifest[name] = { group: 'goal', path: '', slot: SIZES.goal, width: px, height: px, webp: out2.webp.length, avif: out2.avif.length };
+    const before = (Math.max(info.width, info.height) / meta.width).toFixed(3);
+    console.log(name.padEnd(18), `${px}px`, `mark ${w}x${h}`, `longest side ${before} -> ${(Math.max(w, h) / px).toFixed(3)}`, 'webp', out2.webp.length, 'avif', out2.avif.length);
+  }
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
+if (process.argv[2] === '--goals') {
+  if (!process.argv[3]) throw new Error('make-icons-3d --goals: pass the art/goal-icons folder');
+  await exportGoalsV2(process.argv[3]);
+  process.exit(0);
 }
 
 await mkdir(later, { recursive: true });
