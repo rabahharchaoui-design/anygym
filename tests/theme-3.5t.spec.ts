@@ -5,7 +5,7 @@ import { simulateSafeAreas } from './helpers/layout';
 import { tokenColor } from './helpers/tokens';
 import { bar185, exerciseView, quickWith, seedFinished, usePlan } from './workout-helpers';
 
-// PLAN 3.5t: TITANIUM GLASS on the whole app. Graphite gradient behind every screen (the status bar
+// PLAN 3.5t, now Monolith (PLAN M0): flat graphite, no glass. Originally TITANIUM GLASS on the whole app. Graphite gradient behind every screen (the status bar
 // strip included), glass cards, one ice blue accent with dark text on it, Inter, a floating glass
 // tab bar, and no lime anywhere a person can see. Colours are read from the tokens, never typed.
 
@@ -49,13 +49,14 @@ const drawnColours = (page: Page) =>
 
 const LIME = /212,\s*255,\s*58|0\.83\d* 1 0\.22|d4ff3a/i;
 
-test('tokens: ice blue accent, dark text on it, graphite gradient, Inter; the browser bar matches @matrix', async ({ page }) => {
+test('tokens: ice blue accent, dark text on it, flat graphite, Inter; the browser bar matches @matrix', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByRole('button', { name: 'See plans' })).toBeVisible();
   expect(await paint(page, await tokenColor(page, '--accent'))).toEqual([159, 211, 255, 255]);
   expect(await paint(page, await tokenColor(page, '--on-accent'))).toEqual([15, 17, 20, 255]);
-  expect(await paint(page, await tokenColor(page, '--text'))).toEqual([242, 244, 247, 255]);
-  expect(await paint(page, await tokenColor(page, '--text-2'))).toEqual([169, 178, 189, 255]);
+  // Monolith (PLAN M0, SPEC 10): white text and #A3A6AB secondary on graphite.
+  expect(await paint(page, await tokenColor(page, '--text'))).toEqual([255, 255, 255, 255]);
+  expect(await paint(page, await tokenColor(page, '--text-2'))).toEqual([163, 166, 171, 255]);
   // Warning amber and destructive red are kept.
   expect(await paint(page, await tokenColor(page, '--amber'))).toEqual([255, 176, 32, 255]);
   expect(await paint(page, await tokenColor(page, '--red'))).toEqual([255, 77, 77, 255]);
@@ -75,7 +76,8 @@ test('tokens: ice blue accent, dark text on it, graphite gradient, Inter; the br
   const top = await tokenColor(page, '--bg-top');
   const theme = await page.locator('meta[name="theme-color"]').getAttribute('content');
   expect((await paint(page, theme!)).slice(0, 3)).toEqual((await paint(page, top)).slice(0, 3));
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundImage)).toContain(top);
+  // Monolith (PLAN M0): the page behind everything is flat graphite, no gradient image.
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).toBe(top);
 });
 
 test('the status bar strip shows the new background on Today, a pushed screen and a workout @matrix', async ({ page }) => {
@@ -95,34 +97,36 @@ test('the status bar strip shows the new background on Today, a pushed screen an
       }
       return 'nothing';
     });
-  const gradient = `linear-gradient(${top} 0%, ${bottom} 60%)`;
+  // Monolith (PLAN M0, SPEC 10): flat graphite, no gradient: every colour the strip paints is --bg.
+  expect(top).toBe(bottom);
+  const flat = (v: string) => /rgb/.test(v) && [...v.matchAll(/rgba?\([^)]*\)/g)].every((m) => m[0] === bottom);
   await expect(page.getByRole('button', { name: 'See plans' })).toBeVisible();
-  expect(await strip()).toBe(gradient);
+  expect(flat(await strip()), await strip()).toBe(true);
   await page.goto('./#/settings');
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-  expect(await strip()).toBe(gradient);
+  expect(flat(await strip()), await strip()).toBe(true);
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   // The live header is glass over the same gradient: never a black band.
   const live = await strip();
   expect(live).not.toMatch(/rgb\(0, 0, 0\)/);
 });
 
-test('the tab bar floats as glass: blurred, inset from the edges, the accent on the active tab @matrix', async ({ page }) => {
+// Monolith (PLAN M0, SPEC 23.1): no glass. The bar is solid (no blur, opaque) with square corners;
+// docking it to the edge is M1's job, so its position is not asserted here.
+test('the tab bar is solid Monolith: no blur, opaque, square corners, the accent on the active tab @matrix', async ({ page }) => {
   await page.goto('./');
   const nav = page.getByRole('navigation', { name: 'Main' });
   const capsule = nav.locator('[class*="capsule"]');
   const box = (await capsule.boundingBox())!;
   const view = page.viewportSize()!;
-  expect(box.x).toBeGreaterThanOrEqual(12);
-  expect(box.x + box.width).toBeLessThanOrEqual(view.width - 12);
-  expect(box.y + box.height).toBeLessThan(view.height - 8);
+  expect(box.y + box.height).toBeLessThanOrEqual(view.height);
   const style = await capsule.evaluate((el) => {
     const s = getComputedStyle(el);
     return { blur: s.backdropFilter || (s as unknown as { webkitBackdropFilter: string }).webkitBackdropFilter, bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), border: s.borderTopColor };
   });
-  expect(style.blur).toMatch(/blur\(\d+px\)/);
-  expect((await paint(page, style.bg))[3]).toBeGreaterThan(200); // dense glass: text never reads through
-  expect(style.radius).toBeGreaterThanOrEqual(box.height / 2 - 1);
+  expect(style.blur || 'none').toBe('none');
+  expect((await paint(page, style.bg))[3]).toBeGreaterThan(200); // opaque: text never reads through
+  expect(style.radius).toBeLessThanOrEqual(4);
   const active = nav.getByRole('link', { name: 'Today' });
   expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe(await tokenColor(page, '--accent'));
   expect(await nav.getByRole('link', { name: 'Run' }).evaluate((el) => getComputedStyle(el).color)).toBe(await tokenColor(page, '--text-2'));
@@ -203,8 +207,9 @@ for (const scale of [100, 130]) {
 
 test('the app icons and the manifest are Titanium Glass (no lime pixel, graphite theme)', async ({ page, baseURL }) => {
   const manifest = await (await page.request.get(new URL('manifest.webmanifest', baseURL!).href)).json();
-  expect(manifest.theme_color).toBe('#2b2e34');
-  expect(manifest.background_color).toBe('#0f1114');
+  // Monolith (PLAN M0): the browser bar and the splash are the flat graphite of --bg.
+  expect(manifest.theme_color).toBe('#111214');
+  expect(manifest.background_color).toBe('#111214');
   const svg = readFileSync('public/icons/favicon.svg', 'utf8');
   expect(svg).toContain('#9fd3ff');
   expect(svg).not.toMatch(/d4ff3a/i);

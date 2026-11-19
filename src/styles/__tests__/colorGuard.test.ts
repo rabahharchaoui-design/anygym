@@ -78,16 +78,19 @@ describe('Titanium Glass colour guard (PLAN 3.5t)', () => {
     expect(found).toEqual([]);
   });
 
-  it('the tokens are Titanium Glass: ice blue accent with dark text on it, amber and red kept', () => {
+  it('the tokens are Monolith (SPEC 10): graphite, white and grey text, ice blue accent with dark text on it, amber and red kept', () => {
     const css = readFileSync(join(ROOT, TOKENS), 'utf8');
     const token = (name: string) => new RegExp(`--${name}:\\s*([^;]+);`).exec(css)?.[1]?.trim().toLowerCase();
     expect(token('accent')).toBe('#9fd3ff');
     expect(token('on-accent')).toBe('#0f1114');
-    expect(token('text')).toBe('#f2f4f7');
-    expect(token('text-2')).toBe('#a9b2bd');
+    expect(token('bg')).toBe('#111214');
+    expect(token('text')).toBe('#ffffff');
+    expect(token('text-2')).toBe('#a3a6ab');
     expect(token('amber')).toBe('#ffb020');
     expect(token('red')).toBe('#ff4d4d');
-    expect(token('accent-glow')).toContain('159 211 255');
+    // No glow and no glass blur (Monolith).
+    expect(token('accent-glow')).toBe('0 0 0 transparent');
+    expect(token('glass-blur')).toBe('none');
     expect(token('accent-soft')).toContain('159 211 255');
     // The plate contrast check (src/lib/plateColors.ts) uses the sheet colour: the two stay equal.
     expect(token('sheet-bg')).toBe(SHEET_BG.toLowerCase());
