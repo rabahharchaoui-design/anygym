@@ -30,7 +30,8 @@ export function worstBySpec(rows: Array<{ spec: TraceSpec; m: Metrics }>) {
       frozenCause: frozen.m.frozenCause,
       paceFirstSec: worst((m) => m.paceFirstSec).v!,
       followSec: worst((m) => m.followSec).v,
-      standingAddedM: worst((m) => m.standingAddedM).v,
+      standingAddedM: worst((m) => m.standingAddedM ?? m.stillEndM).v,
+      stillLiveM: worst((m) => m.stillLiveM).v,
       stillWhileMoving: g.reduce((s, r) => s + r.m.stillWhileMoving, 0),
       rejectedAccuracy: g.reduce((s, r) => s + (r.m.fates['rejected:accuracy'] ?? 0), 0),
       fixes: g.reduce((s, r) => s + Object.values(r.m.fates).reduce((a, b) => a + b, 0), 0),
@@ -39,10 +40,10 @@ export function worstBySpec(rows: Array<{ spec: TraceSpec; m: Metrics }>) {
 }
 
 export function markdownTable(rows: ReturnType<typeof worstBySpec>): string {
-  const head = '| trace | distance error % | frozen s (cause) | pace first s | pace follow s | added standing m | accuracy rejects | still while moving |\n|---|---|---|---|---|---|---|---|';
+  const head = '| trace | distance error % | frozen s (cause) | pace first s | pace follow s | added standing m (still: live / End) | accuracy rejects | still while moving |\n|---|---|---|---|---|---|---|---|';
   const lines = rows.map(
     (r) =>
-      `| ${r.key} | ${r.errPct.toFixed(1)} | ${f1(r.frozenSec)}${r.frozenCause ? ` (${r.frozenCause})` : ''} | ${f1(r.paceFirstSec)} | ${f1(r.followSec)} | ${f1(r.standingAddedM)} | ${r.rejectedAccuracy}/${r.fixes} | ${r.stillWhileMoving} |`,
+      `| ${r.key} | ${r.errPct.toFixed(1)} | ${f1(r.frozenSec)}${r.frozenCause ? ` (${r.frozenCause})` : ''} | ${f1(r.paceFirstSec)} | ${f1(r.followSec)} | ${r.stillLiveM !== null ? `${f1(r.stillLiveM)} / ${f1(r.standingAddedM)}` : f1(r.standingAddedM)} | ${r.rejectedAccuracy}/${r.fixes} | ${r.stillWhileMoving} |`,
   );
   return [head, ...lines].join('\n');
 }

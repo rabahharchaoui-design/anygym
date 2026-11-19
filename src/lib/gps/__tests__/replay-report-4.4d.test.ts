@@ -14,6 +14,6 @@ describe('4.4d replay report', () => {
     const rows = matrix(seeds).map((spec) => ({ spec, m: measure(makeTrace(spec)) }));
     writeFileSync(OUT!, markdownTable(worstBySpec(rows)) + '\n');
     writeFileSync(OUT! + '.json', JSON.stringify(rows.map((r) => r.m)));
-    expect(rows.length).toBe(96 * seeds.length);
+    expect(rows.length).toBe(120 * seeds.length);
   }, 120_000);
 });

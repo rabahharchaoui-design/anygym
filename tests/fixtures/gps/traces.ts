@@ -31,8 +31,9 @@ export type Noise = (typeof NOISES)[number];
  * cold-start: 60 m accuracy or worse for the first 90 s.
  * tunnel: no fix at all from 300 to 340 s while moving.
  * light: standing at a light from 300 to 330 s, the phone still reporting.
+ * still: a phone lying still for 300 s (no distance may be added, live or at End).
  */
-export const SCENARIOS = ['surge', 'cold-start', 'tunnel', 'light'] as const;
+export const SCENARIOS = ['surge', 'cold-start', 'tunnel', 'light', 'still'] as const;
 export type Scenario = (typeof SCENARIOS)[number];
 
 export type TraceSpec = { speed: SpeedName; cadence: Cadence; noise: Noise; scenario: Scenario; seed: number };
@@ -82,23 +83,25 @@ function profile(spec: TraceSpec): Truth {
   const v = SPEEDS[spec.speed];
   const s = spec.scenario;
   const speedAt = (sec: number): number => {
+    if (s === 'still') return 0;
     if (s === 'surge' && sec >= 300 && sec < 420) return v * 1.3;
     if (s === 'light' && sec >= 300 && sec < 330) return 0;
     return v;
   };
   const distanceAt = (sec: number): number => {
     const t = Math.max(0, Math.min(sec, DURATION_SEC));
+    if (s === 'still') return 0;
     if (s === 'surge') return v * t + 0.3 * v * Math.max(0, Math.min(t, 420) - 300);
     if (s === 'light') return v * t - v * Math.max(0, Math.min(t, 330) - 300);
     return v * t;
   };
   return {
-    durationSec: DURATION_SEC,
+    durationSec: s === 'still' ? 300 : DURATION_SEC,
     speedAt,
     distanceAt,
     changes: s === 'surge' ? [300, 420] : s === 'light' ? [330] : [],
     tunnel: s === 'tunnel' ? [300, 340] : null,
-    stop: s === 'light' ? [300, 330] : null,
+    stop: s === 'light' ? [300, 330] : s === 'still' ? [0, 300] : null,
   };
 }
 
@@ -157,7 +160,7 @@ export function makeTrace(spec: TraceSpec): Trace {
   return { name: traceName(spec), spec, t0: T0, fixes, truth };
 }
 
-/** Every combination for the given seeds: 3 speeds x 2 cadences x 4 noise levels x 4 scenarios each. */
+/** Every combination for the given seeds: 3 speeds x 2 cadences x 4 noise levels x 5 scenarios each. */
 export function matrix(seeds: readonly number[]): TraceSpec[] {
   const out: TraceSpec[] = [];
   for (const seed of seeds)

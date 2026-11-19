@@ -62,6 +62,9 @@ export type Metrics = {
   followSec: number | null;
   /** Distance added while standing at the light, once the 8 s standing rule (plus 2 s) had time to see it. */
   standingAddedM: number | null;
+  /** A still phone: distance shown just before End, and saved at End (the flush path). */
+  stillLiveM: number | null;
+  stillEndM: number | null;
   /** Fixes by fate. */
   fates: Record<string, number>;
   /** Good fixes held as "standing" while really moving at 1.2 m/s or more. */
@@ -133,14 +136,16 @@ export function measure(trace: Trace, r: ReplayResult = replay(trace)): Metrics 
     name: trace.name,
     trueM,
     endM: r.endM,
-    distErrPct: ((r.endM - trueM) / trueM) * 100,
+    distErrPct: trueM > 0 ? ((r.endM - trueM) / trueM) * 100 : 0,
     frozenSec,
     frozenCause,
     waitSec,
     paceFirstSec,
     paceFirstErrPct,
     followSec,
-    standingAddedM,
+    standingAddedM: trace.spec?.scenario === 'still' ? null : standingAddedM,
+    stillLiveM: trace.spec?.scenario === 'still' ? (r.ticks[r.ticks.length - 1]?.distanceM ?? 0) : null,
+    stillEndM: trace.spec?.scenario === 'still' ? r.endM : null,
     fates,
     stillWhileMoving,
   };
