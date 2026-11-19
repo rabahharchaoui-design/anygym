@@ -8,11 +8,7 @@
 }
 
 .note {
-  margin-top: var(--space-3);
-  color: var(--text-2);
-  font-size: var(--text-mono-caption);
-  font-weight: 500;
-  line-height: 1.45;
+  composes: quiet from './Summary.module.css';
 }
 
 .sheet {

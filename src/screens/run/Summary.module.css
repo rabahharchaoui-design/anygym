@@ -116,16 +116,12 @@
   line-height: 1.45;
 }
 
-/* Section label (SPEC 10): 12 px capitals, tracked, white (a runner reads it). */
+/* Section label (SPEC 10): the data field's label (12 px capitals, tracked, white), one copy. */
 .heading {
+  composes: label from '../../ui/DataField.module.css';
+  display: block;
   margin-top: var(--space-6);
   margin-bottom: var(--space-2);
-  color: var(--text);
-  font-size: var(--text-mono-label);
-  font-weight: 600;
-  letter-spacing: var(--track-label);
-  line-height: 1.2;
-  text-transform: uppercase;
 }
 
 /* Splits: Monolith list rows, a hairline above the first and under each. */
