@@ -19,7 +19,9 @@ const trackM = (run: LiveRun) => run.points.reduce((sum, p, i) => (i === 0 ? 0 :
 describe('the withheld leg at End, Pause and restore (PLAN 4.6b 1)', () => {
   it('End: the saved run has 90 m for its 90 s (before 4.6b: 56 m), and its track ends where the walk did', () => {
     const live = walk();
-    expect(readLive(live).distanceM).toBeCloseTo(56, 6);
+    // PLAN 4.4d: the walk is no longer read as standing (circle capped at 6 m): it counts as it goes,
+    // all but its last short step (was 56 m withheld live).
+    expect(Math.abs(readLive(live).distanceM - 90)).toBeLessThan(4);
     const ended = liveStep(live, { type: 'pause', now: T0 + 90_000 });
     const row = finishRun(ended, T0 + 90_000);
     expect(row.distanceM).toBeCloseTo(90, 6);

@@ -305,7 +305,14 @@ export function flushStill(state: TrackerState): { state: TrackerState; point: G
   const from = state.lastRecorded;
   const last = state.lastGood;
   const none = { state, point: null, completed: [] };
-  if (!state.still || !from || !last) return none;
+  if (!from || !last) return none;
+  // Moving, the last steps may be waiting (shorter than the estimate's wobble, PLAN 4.4d): the run
+  // stops here, so they count now (their time already did).
+  if (!state.still) {
+    if (last.t <= from.t) return none;
+    const moved = advance(state, { distanceM: haversineM(from, last), ms: 0, timed: true, gap: false });
+    return { state: { ...moved.state, lastRecorded: last }, point: last, completed: moved.completed };
+  }
   // The phone's own speed says standing (PLAN 4.4d): the way off the spot is wander, not a walk.
   const lastSpeed = state.speeds?.[state.speeds.length - 1];
   if (lastSpeed && lastSpeed[0] === last.t && lastSpeed[1] < STILL_SPEED_MPS) return none;

@@ -30,11 +30,14 @@ const sumSplits = (s: TrackerState) => {
 };
 
 describe('the withheld leg is not lost when the run ends inside the wide circle (PLAN 4.6b 1)', () => {
-  it('the walk is standing by the wide circle at its end, with the clock going (the case)', () => {
+  // PLAN 4.4d (3): the standing circle is capped at 6 m, so this walk (8 m in 8 s) is no longer
+  // read as standing at all (was: still by the 10 m circle, its way withheld). Its distance counts
+  // as it goes; the last step (shorter than the estimate's wobble) waits for the next fix.
+  it('the walk is no longer read as standing at 20 m: its distance counts as it goes, the clock going', () => {
     const s = fed(walk());
-    expect(s.still).toBe(true);
+    expect(s.still).toBe(false);
     expect(s.stopped).toBe(false);
-    expect(s.lastGood!.t).toBeGreaterThan(s.lastRecorded!.t);
+    expect(Math.abs(s.distanceM - 90)).toBeLessThan(4);
   });
 
   it('End or Pause: the walk saves 90 m for its 90 s, not only the part before the circle', () => {
@@ -77,9 +80,11 @@ describe('the withheld leg is not lost when the run ends inside the wide circle 
     const gap = r.breaks.find((b) => b.kind === 'gap')!;
     expect(gap.fromT).toBe(walk()[90]!.t);
     // Before 4.6b the 34 m from the standing spot to the last point before the gap were lost:
-    // 56 m timed by the gap, now 90 m (the bridge across it is untimed either way).
+    // 56 m timed by the gap, now 90 m (the bridge across it is untimed either way). Since 4.4d the
+    // walk is no longer read as standing, so it counts as it goes: live, at most one step (under
+    // 4 m) waits for the next fix; the gap counts it.
     const before = processTrack(pts(walk()), KM);
-    expect(before.state.timedM).toBeCloseTo(56, 6);
+    expect(before.state.timedM).toBeGreaterThan(86);
     expect(r.state.timedM).toBeGreaterThanOrEqual(90 - 1e-6);
     expect(gap.distanceM).toBeCloseTo(gap.bridged ? 60 : 0, 6);
     const sum = sumSplits(r.state);
@@ -124,19 +129,22 @@ describe('a walk at poor accuracy that then stands until the clock stops, then e
   // at 30 m: the 4 m rule stops the clock at 34 s. The 22 m from the spot to there were walked on the clock.
   const walkThenStand = () => [...straight({ speed: 1, seconds: 30, accuracy: 20 }), ...straight({ speed: 0, seconds: 29, startSec: 31, startEast: 30, accuracy: 20 })];
 
-  it('End keeps the walked distance: 30 m for 34 s (before: 8 m)', () => {
+  // PLAN 4.4d: the walk is counted as it goes (not withheld: before 4.4d 8 m live, 30 at End). The
+  // estimate runs about a meter past an abrupt stop and settles on the spot 2 s later, so: within
+  // 1.5 m of 30 m live and at End, and 36 s on the clock (was exactly 30 m and 34 s).
+  it('End keeps the walked distance: about 30 m for 36 s (before 4.6b: 8 m)', () => {
     const s = fed(walkThenStand());
     expect(s.stopped).toBe(true);
-    expect(s.distanceM).toBeCloseTo(8, 6);
+    expect(Math.abs(s.distanceM - 30)).toBeLessThan(1.5);
     const r = processTrack([...pts(walkThenStand()), PAUSE], KM);
-    expect(r.reading.distanceM).toBeCloseTo(30, 6);
-    expect(r.reading.movingSec).toBe(34);
-    expect(r.state.timedM).toBeCloseTo(30, 6);
+    expect(Math.abs(r.reading.distanceM - 30)).toBeLessThan(1.5);
+    expect(r.reading.movingSec).toBe(36);
+    expect(r.state.timedM).toBeCloseTo(r.reading.distanceM, 6);
     expect(r.points[r.points.length - 1]!.t).toBe(s.stopAt!.t);
-    expect(pauseRun(pauseRun(s)).distanceM).toBeCloseTo(30, 6);
+    expect(pauseRun(pauseRun(s)).distanceM).toBeCloseTo(r.reading.distanceM, 6);
     const sum = sumSplits(pauseRun(s));
-    expect(sum.m).toBeCloseTo(30, 6);
-    expect(sum.sec).toBeCloseTo(34, 6);
+    expect(sum.m).toBeCloseTo(r.reading.distanceM, 6);
+    expect(sum.sec).toBeCloseTo(36, 6);
   });
 
   it('a phone that never moved still adds nothing', () => {

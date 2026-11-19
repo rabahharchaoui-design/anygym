@@ -106,7 +106,10 @@ describe('fixTime', () => {
   it('uses the phone timestamp when it is close to the clock, else the arrival time', () => {
     expect(fixTime(T0 - 800, T0)).toBe(T0 - 800);
     expect(fixTime(T0 + 300, T0)).toBe(T0 + 300);
-    expect(fixTime(T0 - 5000, T0)).toBe(T0);
+    // PLAN 4.4d: up to FIX_LAG_MS (10 s, was 2 s) late is still the phone's own stamp (a stall
+    // delivers held fixes together); more than that, or ahead of the clock, is the arrival time.
+    expect(fixTime(T0 - 5000, T0)).toBe(T0 - 5000);
+    expect(fixTime(T0 - 10_001, T0)).toBe(T0);
     expect(fixTime(T0 + 5000, T0)).toBe(T0);
     expect(fixTime(12345, T0)).toBe(T0);
     expect(fixTime(undefined, T0)).toBe(T0);

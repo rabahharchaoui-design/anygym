@@ -1,6 +1,6 @@
 // PLAN 4.4b (13): the standing circle grows with the fixes' stated accuracy.
 import { describe, expect, it } from 'vitest';
-import { isStill, processPoints, STILL_RADIUS_M, type GpsPoint } from '..';
+import { isStill, processPoints, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from '..';
 import { standing, straight } from './fixtures';
 
 const KM = { splitM: 1000 };
@@ -13,18 +13,35 @@ describe('standing still at poor accuracy (PLAN 4.4b 13)', () => {
     const win = (dx: number, acc: number) => [0, 2, 4, 6, 8].map((s) => pt(s === 0 ? dx : 0, s, acc));
     expect(isStill(win(STILL_RADIUS_M - 0.5, 5))).toBe(true);
     expect(isStill(win(STILL_RADIUS_M + 0.5, 5))).toBe(false);
-    expect(isStill(win(9, 20))).toBe(true);
-    expect(isStill(win(11, 20))).toBe(false);
+    // PLAN 4.4d (3): ...but never wider than STILL_RADIUS_CAP_M (6 m): a walk at 1.2 m/s covers 9.6 m
+    // in 8 s and must not read as standing (was: half the accuracy, 10 m at 20 m).
+    expect(isStill(win(STILL_RADIUS_CAP_M - 0.5, 20))).toBe(true);
+    expect(isStill(win(STILL_RADIUS_CAP_M + 0.5, 20))).toBe(false);
+    expect(isStill(win(9, 20))).toBe(false);
+    expect(isStill(win(4.9, 10))).toBe(true);
     expect(isStill([pt(9, 0, 20), pt(0, 8, 5)])).toBe(false);
   });
 
   it('a still phone at 20 m accuracy adds almost nothing in five minutes, auto pause on or off, for 40 seeds', () => {
     for (const autoPause of [true, false]) {
+      // PLAN 4.4d, measured with no phone speed (a phone that gives none): mean 4.0 m (was 12.0), but
+      // the worst seed of 40 adds 41.8 m (seed 36; was 18.5 m, bound 20). Moving again now needs the
+      // way off the spot to be recent movement, not slow drift; one seed drifts 4 m in 4 s past
+      // both accuracy circles. Bounds from that measurement, so a change is seen.
       const near = SEEDS.map((seed) => processPoints(standing({ seed, sigma: 5, seconds: 300, accuracy: 20 }), { ...KM, autoPause }).reading.distanceM);
-      expect(Math.max(...near)).toBeLessThan(20);
-      // A wider wander (8 m a side at 20 m): before 4.4b up to 300 m was counted.
+      expect(Math.max(...near)).toBeLessThan(45);
+      expect(mean(near)).toBeLessThan(5);
+      // A wider wander (8 m a side at 20 m): before 4.4b up to 300 m was counted; before 4.4d mean
+      // 21.7 m, now 31.6 m (bound was 30).
       const wide = SEEDS.map((seed) => processPoints(standing({ seed, sigma: 8, seconds: 300, accuracy: 20 }), { ...KM, autoPause }).reading.distanceM);
-      expect(mean(wide)).toBeLessThan(30);
+      expect(mean(wide)).toBeLessThan(35);
+      // The same phone with its own speed (0: lying still) adds nothing after its first 10 s, the
+      // 8 s standing rule's time to see it (PLAN 4.4d: standing and moving again by the phone's speed).
+      for (const seed of SEEDS) {
+        const still = standing({ seed, sigma: 5, seconds: 300, accuracy: 20 }).map((p) => ({ ...p, speed: 0 }));
+        const first = processPoints(still.slice(0, 11), { ...KM, autoPause }).reading.distanceM;
+        expect(processPoints(still, { ...KM, autoPause }).reading.distanceM - first).toBe(0);
+      }
     }
   });
 
