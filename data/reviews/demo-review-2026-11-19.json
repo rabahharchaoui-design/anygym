@@ -1,0 +1,592 @@
+{
+  "format": "anygym-review-v1",
+  "catalogSha": "f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5",
+  "exportedAt": "2026-11-19T04:57:03.038Z",
+  "reviewed": 138,
+  "total": 138,
+  "decisions": {
+    "Ab_Crunch_Machine": {
+      "verdict": "approved",
+      "at": 1795063413516
+    },
+    "Ab_Roller": {
+      "verdict": "approved",
+      "at": 1795063416379
+    },
+    "Arnold_Dumbbell_Press": {
+      "verdict": "approved",
+      "at": 1795063418133
+    },
+    "Back_Flyes_-_With_Bands": {
+      "verdict": "approved",
+      "at": 1795063426655
+    },
+    "Band_Assisted_Pull-Up": {
+      "verdict": "approved",
+      "at": 1795063429463
+    },
+    "Barbell_Bench_Press_-_Medium_Grip": {
+      "verdict": "approved",
+      "at": 1795063432005
+    },
+    "Barbell_Curl": {
+      "verdict": "approved",
+      "at": 1795063434318
+    },
+    "Barbell_Deadlift": {
+      "verdict": "fix-cues",
+      "at": 1795063460668,
+      "note": "Demo isn’t good. Needs better form"
+    },
+    "Barbell_Glute_Bridge": {
+      "verdict": "approved",
+      "at": 1795063471968
+    },
+    "Barbell_Hip_Thrust": {
+      "verdict": "approved",
+      "at": 1795063476656
+    },
+    "Barbell_Incline_Bench_Press_-_Medium_Grip": {
+      "verdict": "approved",
+      "at": 1795063479406
+    },
+    "Barbell_Lunge": {
+      "verdict": "fix-cues",
+      "at": 1795063494651,
+      "note": "Needs better demo. Maybe 3 part"
+    },
+    "Barbell_Squat": {
+      "verdict": "approved",
+      "at": 1795063502063
+    },
+    "Barbell_Walking_Lunge": {
+      "verdict": "fix-cues",
+      "at": 1795063517288,
+      "note": "Needs like 4 part pictures"
+    },
+    "Bench_Dips": {
+      "verdict": "approved",
+      "at": 1795063521956
+    },
+    "Bent_Over_Barbell_Row": {
+      "verdict": "approved",
+      "at": 1795063524698
+    },
+    "Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench": {
+      "verdict": "wrong-demo",
+      "at": 1795063527737
+    },
+    "Bent_Over_Two-Dumbbell_Row": {
+      "verdict": "approved",
+      "at": 1795063537866
+    },
+    "Bodyweight_Squat": {
+      "verdict": "approved",
+      "at": 1795063541475
+    },
+    "Bodyweight_Walking_Lunge": {
+      "verdict": "fix-cues",
+      "at": 1795063554421,
+      "note": "Needs 4 part pics"
+    },
+    "Butt_Lift_Bridge": {
+      "verdict": "approved",
+      "at": 1795063560602
+    },
+    "Butterfly": {
+      "verdict": "fix-cues",
+      "at": 1795063573567,
+      "note": "Needs 3 part pics. Better the demo"
+    },
+    "Cable_Chest_Press": {
+      "verdict": "wrong-demo",
+      "at": 1795063579541
+    },
+    "Cable_Crossover": {
+      "verdict": "approved",
+      "at": 1795063594693
+    },
+    "Cable_Crunch": {
+      "verdict": "fix-cues",
+      "at": 1795063605960,
+      "note": "Needs better demo"
+    },
+    "Cable_Rear_Delt_Fly": {
+      "verdict": "approved",
+      "at": 1795063609040
+    },
+    "Cable_Rope_Overhead_Triceps_Extension": {
+      "verdict": "approved",
+      "at": 1795063612128
+    },
+    "Cable_Seated_Lateral_Raise": {
+      "verdict": "approved",
+      "at": 1795063615520
+    },
+    "Calf_Press_On_The_Leg_Press_Machine": {
+      "verdict": "approved",
+      "at": 1795063621504
+    },
+    "Calf_Raises_-_With_Bands": {
+      "verdict": "wrong-demo",
+      "at": 1795063632563
+    },
+    "Chin-Up": {
+      "verdict": "approved",
+      "at": 1795063636801
+    },
+    "Close-Grip_Barbell_Bench_Press": {
+      "verdict": "approved",
+      "at": 1795063643968
+    },
+    "Close-Grip_Front_Lat_Pulldown": {
+      "verdict": "approved",
+      "at": 1795063648881
+    },
+    "Concentration_Curls": {
+      "verdict": "approved",
+      "at": 1795063652340
+    },
+    "Crunches": {
+      "verdict": "approved",
+      "at": 1795063656782
+    },
+    "Dead_Bug": {
+      "verdict": "fix-cues",
+      "at": 1795063666973,
+      "note": "Needs 4 part demo"
+    },
+    "Dips_-_Triceps_Version": {
+      "verdict": "approved",
+      "at": 1795063670788
+    },
+    "Dumbbell_Bench_Press": {
+      "verdict": "fix-cues",
+      "at": 1795063685996,
+      "note": "Needs better demo"
+    },
+    "Dumbbell_Bicep_Curl": {
+      "verdict": "fix-cues",
+      "at": 1795063695226,
+      "note": "Needs like 4 part demo"
+    },
+    "Dumbbell_Flyes": {
+      "verdict": "fix-cues",
+      "at": 1795063707794,
+      "note": "Needs better and 3 part demo"
+    },
+    "Dumbbell_Lunges": {
+      "verdict": "fix-cues",
+      "at": 1795063716016,
+      "note": "Needs better demo"
+    },
+    "Dumbbell_Rear_Lunge": {
+      "verdict": "fix-cues",
+      "at": 1795063727224,
+      "note": "Needs better demo"
+    },
+    "Dumbbell_Shoulder_Press": {
+      "verdict": "approved",
+      "at": 1795063731090
+    },
+    "Dumbbell_Shrug": {
+      "verdict": "approved",
+      "at": 1795063736153
+    },
+    "Dumbbell_Squat": {
+      "verdict": "approved",
+      "at": 1795063743099
+    },
+    "Dumbbell_Step_Ups": {
+      "verdict": "fix-cues",
+      "at": 1795063752081,
+      "note": "Needs better demo"
+    },
+    "EZ-Bar_Curl": {
+      "verdict": "approved",
+      "at": 1795063758905
+    },
+    "EZ-Bar_Skullcrusher": {
+      "verdict": "approved",
+      "at": 1795063763364
+    },
+    "Face_Pull": {
+      "verdict": "approved",
+      "at": 1795063766306
+    },
+    "Flat_Bench_Cable_Flyes": {
+      "verdict": "approved",
+      "at": 1795063770685
+    },
+    "Front_Barbell_Squat": {
+      "verdict": "approved",
+      "at": 1795063776482
+    },
+    "Front_Two-Dumbbell_Raise": {
+      "verdict": "approved",
+      "at": 1795063781574
+    },
+    "Glute_Kickback": {
+      "verdict": "fix-cues",
+      "at": 1795063791965,
+      "note": "Needs better demo"
+    },
+    "Goblet_Squat": {
+      "verdict": "approved",
+      "at": 1795063796234
+    },
+    "Good_Morning": {
+      "verdict": "approved",
+      "at": 1795063800926
+    },
+    "Hack_Squat": {
+      "verdict": "approved",
+      "at": 1795063805735
+    },
+    "Hammer_Curls": {
+      "verdict": "approved",
+      "at": 1795063808464
+    },
+    "Handstand_Push-Ups": {
+      "verdict": "approved",
+      "at": 1795063814978
+    },
+    "Hanging_Leg_Raise": {
+      "verdict": "fix-cues",
+      "at": 1795063823046,
+      "note": "Needs better demo"
+    },
+    "Hyperextensions_Back_Extensions": {
+      "verdict": "approved",
+      "at": 1795063829575
+    },
+    "Incline_Cable_Flye": {
+      "verdict": "approved",
+      "at": 1795063839755
+    },
+    "Incline_Dumbbell_Curl": {
+      "verdict": "approved",
+      "at": 1795063845577
+    },
+    "Incline_Dumbbell_Flyes": {
+      "verdict": "fix-cues",
+      "at": 1795063855280,
+      "note": "Needs better demo"
+    },
+    "Incline_Push-Up": {
+      "verdict": "approved",
+      "at": 1795063864133
+    },
+    "Internal_Rotation_with_Band": {
+      "verdict": "fix-cues",
+      "at": 1795063872262,
+      "note": "Needs better demo"
+    },
+    "Inverted_Row": {
+      "verdict": "approved",
+      "at": 1795063881397
+    },
+    "Jackknife_Sit-Up": {
+      "verdict": "approved",
+      "at": 1795063889206
+    },
+    "Lateral_Raise_-_With_Bands": {
+      "verdict": "approved",
+      "at": 1795063891631
+    },
+    "Leg_Extensions": {
+      "verdict": "approved",
+      "at": 1795063893644
+    },
+    "Leg_Press": {
+      "verdict": "approved",
+      "at": 1795063895473
+    },
+    "Leverage_Chest_Press": {
+      "verdict": "fix-cues",
+      "at": 1795063903410,
+      "note": "Needs better demo"
+    },
+    "Leverage_Iso_Row": {
+      "verdict": "approved",
+      "at": 1795063906133
+    },
+    "Lying_Dumbbell_Tricep_Extension": {
+      "verdict": "approved",
+      "at": 1795063912975
+    },
+    "Lying_Leg_Curls": {
+      "verdict": "approved",
+      "at": 1795063915997
+    },
+    "Lying_T-Bar_Row": {
+      "verdict": "approved",
+      "at": 1795063918405
+    },
+    "Machine_Bench_Press": {
+      "verdict": "approved",
+      "at": 1795063922526
+    },
+    "Machine_Bicep_Curl": {
+      "verdict": "wrong-demo",
+      "at": 1795063926927
+    },
+    "Machine_Shoulder_Military_Press": {
+      "verdict": "approved",
+      "at": 1795063929531
+    },
+    "Machine_Triceps_Extension": {
+      "verdict": "wrong-demo",
+      "at": 1795063931389
+    },
+    "Narrow_Stance_Leg_Press": {
+      "verdict": "approved",
+      "at": 1795063933781
+    },
+    "Natural_Glute_Ham_Raise": {
+      "verdict": "wrong-demo",
+      "at": 1795063938057
+    },
+    "One-Arm_Dumbbell_Row": {
+      "verdict": "approved",
+      "at": 1795063942315
+    },
+    "One-Legged_Cable_Kickback": {
+      "verdict": "approved",
+      "at": 1795063948937
+    },
+    "One_Arm_Dumbbell_Preacher_Curl": {
+      "verdict": "approved",
+      "at": 1795063951266
+    },
+    "Plank": {
+      "verdict": "fix-cues",
+      "at": 1795063963898,
+      "note": "Needs better demo"
+    },
+    "Preacher_Curl": {
+      "verdict": "approved",
+      "at": 1795063966339
+    },
+    "Pull_Through": {
+      "verdict": "fix-cues",
+      "at": 1795063978546,
+      "note": "Needs better demo"
+    },
+    "Pullups": {
+      "verdict": "approved",
+      "at": 1795063981303
+    },
+    "Pushups": {
+      "verdict": "approved",
+      "at": 1795063986874
+    },
+    "Reverse_Crunch": {
+      "verdict": "fix-cues",
+      "at": 1795063993110,
+      "note": "Needs better demo"
+    },
+    "Reverse_Flyes": {
+      "verdict": "approved",
+      "at": 1795063997121
+    },
+    "Reverse_Machine_Flyes": {
+      "verdict": "approved",
+      "at": 1795064000071
+    },
+    "Romanian_Deadlift": {
+      "verdict": "fix-cues",
+      "at": 1795064016074,
+      "note": "Needs better demo; form is crucial on this"
+    },
+    "Rope_Jumping": {
+      "verdict": "fix-cues",
+      "at": 1795064032049,
+      "note": "Needs better demo"
+    },
+    "Russian_Twist": {
+      "verdict": "wrong-demo",
+      "at": 1795064037959
+    },
+    "Seated_Barbell_Military_Press": {
+      "verdict": "approved",
+      "at": 1795064043576
+    },
+    "Seated_Cable_Rows": {
+      "verdict": "approved",
+      "at": 1795064045113
+    },
+    "Seated_Calf_Raise": {
+      "verdict": "approved",
+      "at": 1795064046747
+    },
+    "Seated_Dumbbell_Press": {
+      "verdict": "approved",
+      "at": 1795064047880
+    },
+    "Seated_Leg_Curl": {
+      "verdict": "approved",
+      "at": 1795064050197
+    },
+    "Seated_Side_Lateral_Raise": {
+      "verdict": "approved",
+      "at": 1795064052435
+    },
+    "Side_Bridge": {
+      "verdict": "fix-cues",
+      "at": 1795064060075,
+      "note": "Needs better demo"
+    },
+    "Side_Lateral_Raise": {
+      "verdict": "approved",
+      "at": 1795064062720
+    },
+    "Single-Leg_Leg_Extension": {
+      "verdict": "fix-cues",
+      "at": 1795064070482,
+      "note": "Needs better demo"
+    },
+    "Single_Leg_Glute_Bridge": {
+      "verdict": "approved",
+      "at": 1795064073520
+    },
+    "Sit-Up": {
+      "verdict": "approved",
+      "at": 1795064077537
+    },
+    "Smith_Machine_Bench_Press": {
+      "verdict": "approved",
+      "at": 1795064082076
+    },
+    "Smith_Machine_Bent_Over_Row": {
+      "verdict": "approved",
+      "at": 1795064088756
+    },
+    "Smith_Machine_Calf_Raise": {
+      "verdict": "approved",
+      "at": 1795064094181
+    },
+    "Smith_Machine_Overhead_Shoulder_Press": {
+      "verdict": "approved",
+      "at": 1795064096377
+    },
+    "Smith_Machine_Squat": {
+      "verdict": "approved",
+      "at": 1795064099577
+    },
+    "Smith_Machine_Stiff-Legged_Deadlift": {
+      "verdict": "fix-cues",
+      "at": 1795064106705,
+      "note": "Needs better demo"
+    },
+    "Smith_Machine_Upright_Row": {
+      "verdict": "approved",
+      "at": 1795064114208
+    },
+    "Smith_Single-Leg_Split_Squat": {
+      "verdict": "fix-cues",
+      "at": 1795064120406,
+      "note": "Needs better demo"
+    },
+    "Split_Squat_with_Dumbbells": {
+      "verdict": "approved",
+      "at": 1795064127384
+    },
+    "Split_Squats": {
+      "verdict": "fix-cues",
+      "at": 1795064133683,
+      "note": "Needs better demo"
+    },
+    "Standing_Barbell_Calf_Raise": {
+      "verdict": "fix-cues",
+      "at": 1795064143530,
+      "note": "Needs better demo"
+    },
+    "Standing_Biceps_Cable_Curl": {
+      "verdict": "approved",
+      "at": 1795064149216
+    },
+    "Standing_Calf_Raises": {
+      "verdict": "approved",
+      "at": 1795064155904
+    },
+    "Standing_Dumbbell_Calf_Raise": {
+      "verdict": "approved",
+      "at": 1795064158621
+    },
+    "Standing_Leg_Curl": {
+      "verdict": "wrong-demo",
+      "at": 1795064161658
+    },
+    "Standing_Low-Pulley_Deltoid_Raise": {
+      "verdict": "approved",
+      "at": 1795064166134
+    },
+    "Standing_Military_Press": {
+      "verdict": "approved",
+      "at": 1795064168201
+    },
+    "Standing_One-Arm_Cable_Curl": {
+      "verdict": "approved",
+      "at": 1795064170472
+    },
+    "Standing_One-Arm_Dumbbell_Triceps_Extension": {
+      "verdict": "approved",
+      "at": 1795064171864
+    },
+    "Stiff-Legged_Barbell_Deadlift": {
+      "verdict": "approved",
+      "at": 1795064174860
+    },
+    "Stiff-Legged_Dumbbell_Deadlift": {
+      "verdict": "approved",
+      "at": 1795064179373
+    },
+    "Straight-Arm_Pulldown": {
+      "verdict": "approved",
+      "at": 1795064185391
+    },
+    "Sumo_Deadlift": {
+      "verdict": "fix-cues",
+      "at": 1795064192430,
+      "note": "Needs better demo"
+    },
+    "Thigh_Abductor": {
+      "verdict": "approved",
+      "at": 1795064194612
+    },
+    "Thigh_Adductor": {
+      "verdict": "fix-cues",
+      "at": 1795064200116,
+      "note": "Needs better demo"
+    },
+    "Trap_Bar_Deadlift": {
+      "verdict": "approved",
+      "at": 1795064204388
+    },
+    "Tricep_Dumbbell_Kickback": {
+      "verdict": "approved",
+      "at": 1795064208476
+    },
+    "Triceps_Pushdown": {
+      "verdict": "approved",
+      "at": 1795064210851
+    },
+    "Triceps_Pushdown_-_Rope_Attachment": {
+      "verdict": "approved",
+      "at": 1795064213376
+    },
+    "Underhand_Cable_Pulldowns": {
+      "verdict": "approved",
+      "at": 1795064216273
+    },
+    "V-Bar_Pulldown": {
+      "verdict": "approved",
+      "at": 1795064218031
+    },
+    "Wide-Grip_Lat_Pulldown": {
+      "verdict": "approved",
+      "at": 1795064220319
+    }
+  }
+}
