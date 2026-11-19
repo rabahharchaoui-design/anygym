@@ -22,6 +22,12 @@ export type RunSnapshot = {
   unit: DistanceUnit;
   tracker: TrackerState;
   breaks: TrackBreak[];
+  /**
+   * When it was written (PLAN 4.4c). The clock on the screen had counted the time since the last
+   * position up to then (pendingMs), so a restore pauses from this moment and keeps it. Snapshots
+   * from before 4.4c have none: they restore with the counted time only.
+   */
+  savedAt?: number;
 };
 
 /** The run as its row (SPEC 12.11), without an end: saved every few seconds while it runs. */
@@ -46,7 +52,7 @@ export function liveRow(run: LiveRun): Run {
   };
 }
 
-export const toSnapshot = (run: LiveRun): RunSnapshot => ({
+export const toSnapshot = (run: LiveRun, savedAt?: number): RunSnapshot => ({
   v: SNAPSHOT_VERSION,
   id: run.id,
   type: run.type,
@@ -56,6 +62,7 @@ export const toSnapshot = (run: LiveRun): RunSnapshot => ({
   unit: run.unit,
   tracker: run.tracker,
   breaks: run.breaks,
+  ...(savedAt !== undefined ? { savedAt } : {}),
 });
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -94,7 +101,7 @@ export function parseSnapshot(text: string | null | undefined, runId: string): R
     if (!s || s.v !== SNAPSHOT_VERSION || s.id !== runId || !isType(s.type) || (s.unit !== 'km' && s.unit !== 'mi')) return null;
     const tracker = trackerFrom(s.tracker);
     if (!tracker || !Array.isArray(s.breaks)) return null;
-    return { v: SNAPSHOT_VERSION, id: runId, type: s.type, goal: goalFrom(s.goal), intervalPreset: isPreset(s.intervalPreset) ? s.intervalPreset : null, intervals: intervalsFrom(s.intervals), unit: s.unit, tracker, breaks: s.breaks };
+    return { v: SNAPSHOT_VERSION, id: runId, type: s.type, goal: goalFrom(s.goal), intervalPreset: isPreset(s.intervalPreset) ? s.intervalPreset : null, intervals: intervalsFrom(s.intervals), unit: s.unit, tracker, breaks: s.breaks, ...(num(s.savedAt) ? { savedAt: s.savedAt } : {}) };
   } catch {
     return null;
   }
@@ -139,7 +146,8 @@ export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { 
     intervalPreset,
     intervals,
     unit,
-    tracker: pauseRun(tracker),
+    // Paused from the moment of the snapshot: the time the clock had shown by then stays (PLAN 4.4c).
+    tracker: pauseRun(tracker, fits ? snapshot.savedAt : undefined),
     points,
     breaks,
     here: last,

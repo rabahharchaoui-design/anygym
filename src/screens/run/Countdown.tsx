@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { tick } from '../../ui/haptics';
+import { buzz } from '../../ui/haptics';
 import styles from './Countdown.module.css';
 
 export const COUNT_FROM = 3;
@@ -9,6 +9,8 @@ const STEP_MS = 1000;
 export const GO_MS = 650;
 /** The last part of GO: the layer darkens to the live screen's black. */
 const DARK_MS = 220;
+/** One light tick on Android, the same as ui/haptics tick; on iPhone the best effort switch tick. */
+const BEAT_TICK = [8];
 
 /** 3, 2, 1, then 0: GO. */
 type Beat = number;
@@ -27,6 +29,10 @@ type Props = {
  * GO lights the whole layer ice, then it darkens into the live screen's black. The beats are timed
  * from the first frame, so a slow phone never stretches the count. Cancel, or leaving the app,
  * stops it: a run never starts by itself minutes later. Reduced motion: fades only.
+ *
+ * The tick of the first number is the caller's: it fires inside the tap that opened the countdown
+ * (iPhone plays a tick only inside a tap, PLAN 4.4c). 2, 1 and GO arrive on their own, so they use
+ * the best effort buzz; whether iPhone plays those is up to the phone.
  */
 export function Countdown({ reduceMotion, onDone, onCancel }: Props) {
   const [beat, setBeat] = useState<Beat>(COUNT_FROM);
@@ -45,10 +51,9 @@ export function Countdown({ reduceMotion, onDone, onCancel }: Props) {
     const timers: number[] = [];
     // Each beat lands at its own time from the start: a late timer never pushes the next one.
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, Math.max(0, t0 + ms - performance.now())));
-    tick();
     for (let k = 1; k <= COUNT_FROM; k += 1) {
       at(k * STEP_MS, () => {
-        tick();
+        buzz(BEAT_TICK);
         setBeat(COUNT_FROM - k);
       });
     }

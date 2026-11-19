@@ -2,7 +2,7 @@
 // a tap on Pause or Resume, the auto pause switch). Pure: lib/gps does every number; this file only
 // keeps the track, its breaks and what the run was started as. No clock: time comes in with the points.
 import type { DistanceUnit } from '../intake/answers';
-import { addPoint, pauseRun, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
+import { addPoint, countShown, pauseRun, pendingMs, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
 import { distanceLabel, goalMeters, goalSeconds, timeLabel, type RunSetup, type RunType } from './goal';
 import { planFor, startIntervals, tickIntervals, type IntervalChoice, type IntervalState } from './intervals';
 
@@ -35,7 +35,8 @@ export type LiveRun = {
 };
 
 export type LiveAction =
-  | { type: 'fix'; point: RawPoint }
+  /** `now`: when it reached the app. The time the clock had shown by then is never taken back (PLAN 4.4c). */
+  | { type: 'fix'; point: RawPoint; now?: number }
   /** `now`: the clock at the tap, so the time since the last position still counts (gps pendingMs). */
   | { type: 'pause'; now?: number }
   | { type: 'resume' }
@@ -71,12 +72,16 @@ export function startLive({ id, now, setup, unit, autoPause }: StartInput): Live
   };
 }
 
+/** Moving time as the clock on the screen shows it at `now` (the same as liveClock liveMovingMs). */
+const shownMs = (tracker: TrackerState, now: number): number => tracker.movingMs + pendingMs(tracker, now);
+
 /** One step. An action that changes nothing returns the same object. */
 export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
   switch (action.type) {
     case 'fix': {
-      const { state: tracker, event } = addPoint(run.tracker, action.point);
+      const { state: added, event } = addPoint(run.tracker, action.point);
       if (event.type === 'rejected') return run;
+      const tracker = action.now === undefined ? added : countShown(added, shownMs(run.tracker, action.now) - shownMs(added, action.now));
       const gps = null;
       if (event.type === 'held') {
         // A good position that is not recorded (paused, or standing): the dot still follows it.
@@ -106,7 +111,7 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
 export const readLive = (run: LiveRun): TrackerReading => readTracker(run.tracker);
 
 /** How far the phone's own timestamp may lag behind the clock and still be used. */
-const FIX_LAG_MS = 2000;
+export const FIX_LAG_MS = 2000;
 /** ...and how far it may be ahead (two clocks never agree exactly). */
 const FIX_LEAD_MS = 500;
 

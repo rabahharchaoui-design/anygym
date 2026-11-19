@@ -13,7 +13,8 @@
 //   Those GAP_SEC count as moving time (the next position, a pause or End credits them, gps
 //   addPoint and pauseRun), the rest of the gap never does. When positions return it goes on from
 //   there.
-// - Saved time is always the engine's. The face is at most one second ahead of what will be saved.
+// - Saved time is always the engine's, and never less than the face showed: a position that arrives
+//   late and starts an auto pause still counts the time the face had shown (live fix `now`, PLAN 4.4c).
 import { GAP_SEC, pendingMs, type TrackerReading, type TrackerState } from '../gps';
 import { readLive, type LiveRun } from './live';
 
@@ -81,9 +82,9 @@ export const FACE_HOLD_SEC = 1;
 
 /**
  * The whole second the face prints, given the one it printed last (null: none yet). It only steps
- * back when it must: a drop of one second (a position stamped a moment before it arrived, at the
- * start of an auto pause) is held, so a number never repeats backwards; a larger drop (a gap that
- * will not count) is shown, because the face never stays more than a second ahead of the truth.
+ * back when it must: a drop of one second is held, so a number never repeats backwards; a larger
+ * drop is shown, because the face never stays more than a second ahead of the truth. With every
+ * position given its arrival time (live fix `now`) the time itself never drops: this is a guard.
  */
 export function faceSec(prev: number | null, movingMs: number): number {
   const whole = Math.floor(Math.max(0, movingMs) / 1000);

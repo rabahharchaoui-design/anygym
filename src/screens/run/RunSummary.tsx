@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { FinishedRun } from '../../hooks/runEngine';
-import { RUN_TYPES, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
+import { DASHED_NOTE, RUN_TYPES, VERDICT_WORDS, drawRoute, paceUnit, runVerdict, summaryOf } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { Button } from '../../ui/Button';
 import { DrawnCheck } from '../../ui/celebrate';
@@ -63,7 +63,7 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
             </dl>
             <RunFacts run={run} unit={unit} reduce={reduceMotion} />
             <RouteMap route={route} reduceMotion={reduceMotion} resize={verdict} />
-            {route.dashed.length > 0 && <p className={styles.quiet}>Dashed: GPS was lost or the run was paused there. That stretch is not counted as moving time.</p>}
+            {route.dashed.length > 0 && <p className={styles.quiet}>{DASHED_NOTE}</p>}
             <RunSplits run={run} unit={unit} />
             <RunShare run={run} unit={unit} />
           </div>

@@ -174,6 +174,28 @@ describe('auto pause and resume', () => {
     expect(r.reading.averagePace).toBeCloseTo(150 / 360, 4);
   });
 
+  it('a GPS hole while auto paused, ending on the same spot, keeps the run still (PLAN 4.4c)', () => {
+    // Auto paused at 1:07; no position from 1:29 until 2:00, which lands back on the standing spot.
+    const holed = [...points.slice(0, 90), at(181, 0, 120), at(180, 1, 121)];
+    const r = processPoints(holed, KM);
+    expect(r.reading).toMatchObject({ status: 'auto-paused', standing: true, movingSec: 67 });
+    expect(r.reading.distanceM).toBeCloseTo(180, 2);
+    expect(r.breaks).toEqual([]);
+    expect(r.state.heldMs).toBe(0);
+    expect(r.reading.splits.partial).toMatchObject({ gap: false });
+    // Moving again afterwards behaves as any end of an auto pause: the leg from the spot counts, no time.
+    const on = processPoints([...holed, at(192, 0, 125)], KM);
+    expect(on.reading).toMatchObject({ status: 'running', movingSec: 67 });
+    expect(on.reading.distanceM).toBeCloseTo(192, 2);
+  });
+
+  it('a GPS hole while auto paused that ends away from the spot is a gap as before', () => {
+    const r = processPoints([...points.slice(0, 90), at(270, 0, 120)], KM);
+    expect(r.breaks).toEqual([{ fromT: T0 + 67_000, toT: T0 + 120_000, kind: 'gap', bridged: true, distanceM: expect.closeTo(90, 2) }]);
+    expect(r.reading).toMatchObject({ status: 'running', movingSec: 67 });
+    expect(r.reading.distanceM).toBeCloseTo(270, 2);
+  });
+
   it('a tap on resume while auto paused ends the pause at once', () => {
     const paused = processPoints(points.slice(0, 80), KM).state;
     const resumed = resumeRun(paused);
