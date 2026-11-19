@@ -118,3 +118,31 @@ describe('a still phone still adds nothing (PLAN 4.6b 1)', () => {
     expect(after.distanceM - s.distanceM).toBeCloseTo(30, 0);
   });
 });
+
+describe('a walk at poor accuracy that then stands until the clock stops, then ends (PLAN 4.6b 3)', () => {
+  // 1 m/s at 20 m for 30 s (still by the 10 m circle from 8 s on, the clock going), then standing
+  // at 30 m: the 4 m rule stops the clock at 34 s. The 22 m from the spot to there were walked on the clock.
+  const walkThenStand = () => [...straight({ speed: 1, seconds: 30, accuracy: 20 }), ...straight({ speed: 0, seconds: 29, startSec: 31, startEast: 30, accuracy: 20 })];
+
+  it('End keeps the walked distance: 30 m for 34 s (before: 8 m)', () => {
+    const s = fed(walkThenStand());
+    expect(s.stopped).toBe(true);
+    expect(s.distanceM).toBeCloseTo(8, 6);
+    const r = processTrack([...pts(walkThenStand()), PAUSE], KM);
+    expect(r.reading.distanceM).toBeCloseTo(30, 6);
+    expect(r.reading.movingSec).toBe(34);
+    expect(r.state.timedM).toBeCloseTo(30, 6);
+    expect(r.points[r.points.length - 1]!.t).toBe(s.stopAt!.t);
+    expect(pauseRun(pauseRun(s)).distanceM).toBeCloseTo(30, 6);
+    const sum = sumSplits(pauseRun(s));
+    expect(sum.m).toBeCloseTo(30, 6);
+    expect(sum.sec).toBeCloseTo(34, 6);
+  });
+
+  it('a phone that never moved still adds nothing', () => {
+    const raw = straight({ speed: 0, seconds: 60, accuracy: 20 });
+    const s = fed(raw);
+    expect(s.stopped).toBe(true);
+    expect(pauseRun(s).distanceM).toBe(0);
+  });
+});
