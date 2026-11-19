@@ -163,6 +163,61 @@ Worst cases before and after (worst of 3 seeds: distance error, frozen, pace fir
 The run diagnostics log (PLAN 4.4d (2)) keeps every fix with its fate; G's export replays as a test
 (tests/fixtures/gps/load.ts) and settles which of these causes his phone really had.
 
+## Last round (orchestrator, Nov 20): the two defects
+
+1. A wild first fix seeded the estimate (jog cold start at 5 m, seed 2: +7.7%, drift alone 0.3%).
+   Now a run whose first fix is worse than 25 m starts its line only when three fixes in a row agree
+   within their accuracies; the clock counts meanwhile (kept out of pace), distance shows 0.00, pace
+   "--". After: that trace +0.3%, every seed of the jog cold start at 5 m within 3% (it now fails
+   only the freeze rule, see below). Distance first moves 9 to 14 s after the first usable fix at
+   1 s on most traces (median 11 s); the worst is a walk at 60 m whose fixes drift against it,
+   59 s (walk 5 m, seed 4). At 5 s fixes 18 to 50 s.
+2. A still phone counted drift. Now: the phone's speed saying standing holds 10 s for fixes without
+   one; without speed, an estimate too unsure to call standing (over 15 m) counts way only while it
+   moves like a walk (1 m/s over 8 s) and lets the spot follow the drift without distance (a
+   dashed, uncounted break); standing ends without speed only at walking pace over 8 s.
+
+Still phone, 300 s, meters after the first 10 s, End included, seeds 1 to 6, every speed label:
+```
+still 5 m, 1 s, speed 0: mean 0.0 worst 0.0
+still 5 m, 5 s, speed 0: mean 0.0 worst 0.0
+still 5 m, 1 s, no speed: mean 0.0 worst 0.0
+still 5 m, 5 s, no speed: mean 0.0 worst 0.0
+still 5 m, 1 s, as modeled: mean 0.0 worst 0.0
+still 5 m, 5 s, as modeled: mean 0.0 worst 0.7
+still 15 m, 1 s, speed 0: mean 0.0 worst 0.0
+still 15 m, 5 s, speed 0: mean 0.0 worst 0.0
+still 15 m, 1 s, no speed: mean 0.0 worst 0.0
+still 15 m, 5 s, no speed: mean 5.0 worst 79.9
+still 15 m, 1 s, as modeled: mean 0.0 worst 0.0
+still 15 m, 5 s, as modeled: mean 0.7 worst 13.1
+still 30 m, 1 s, speed 0: mean 0.0 worst 0.0
+still 30 m, 5 s, speed 0: mean 0.0 worst 0.0
+still 30 m, 1 s, no speed: mean 3.2 worst 12.8
+still 30 m, 5 s, no speed: mean 66.2 worst 262.1
+still 30 m, 1 s, as modeled: mean 3.6 worst 12.8
+still 30 m, 5 s, as modeled: mean 47.2 worst 184.8
+still 50 m, 1 s, speed 0: mean 0.0 worst 0.0
+still 50 m, 5 s, speed 0: mean 1.8 worst 5.4
+still 50 m, 1 s, no speed: mean 36.7 worst 102.2
+still 50 m, 5 s, no speed: mean 90.2 worst 253.4
+still 50 m, 1 s, as modeled: mean 36.7 worst 102.2
+still 50 m, 5 s, as modeled: mean 90.2 worst 253.4
+```
+At 1 s fixes the targets hold (0 m with speed; without speed 30 m: mean 3.2, worst 12.8). With
+fixes 5 s apart and no speed the walking check sees too few fixes: 15 m worst 79.9 m, 30 m mean 66 m,
+not met. Old unit fixture (20 m, no speed, 40 seeds): mean 3.1 m, worst 13.2 m (before 4.4d 12.0 /
+18.5; last round 4.0 / 41.8).
+
+Freeze, worst over seeds 1 to 6 and walk, jog, run (surge, light, tunnel): 1 s at 5 m 5 s, at 15 m 7 s
+(walk tunnel, seed 3); 5 s fixes 19 s at both. The price of 2. without speed: a walk resumes 6 s
+after moving off (was 4), and at the 60 m start the walking check holds the distance about 10 s,
+so every cold start now fails the 6 s freeze rule by 4 s at its start (jog and run: 10 s on every
+seed), walks up to 58 s (seed 4). Group 1 stays 23 of 30 on seeds 1 to 3 (21 on 4 to 6); the 7
+failing cases are the same 7 as before, now failing on the start freeze instead of (jog 5 m) or
+besides distance. This is a real trade: the 10 s at a cold start is honest waiting for evidence
+that the runner moves; it is far from the 91 to 105 s G could have seen.
+
 ## Before: today's code (fix-4.6b at 7ce8b1dd), worst of 3 seeds per combination
 
 | trace | distance error % | frozen s (cause) | pace first s | pace follow s | added standing m (still: live / End) | accuracy rejects | still while moving |
@@ -293,122 +348,122 @@ The run diagnostics log (PLAN 4.4d (2)) keeps every fix with its fate; G's expor
 | trace | distance error % | frozen s (cause) | pace first s | pace follow s | added standing m (still: live / End) | accuracy rejects | still while moving |
 |---|---|---|---|---|---|---|---|
 | walk-1s-5m-surge | 2.0 | 4.0 (held:short) | 2.0 | 5.0 | - | 0/1803 | 0 |
-| walk-1s-5m-cold-start | -4.4 | 9.0 (held:short) | 15.0 | - | - | 0/1803 | 0 |
+| walk-1s-5m-cold-start | -5.9 | 24.0 (held:short) | 15.0 | - | - | 0/1803 | 0 |
 | walk-1s-5m-tunnel | -0.9 | 4.0 (held:short) | 2.0 | - | - | 0/1683 | 0 |
 | walk-1s-5m-light | 2.1 | 4.0 (held:short) | 5.0 | 9.0 | 0.0 | 0/1803 | 0 |
 | walk-1s-5m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/903 | 0 |
 | walk-1s-15m-surge | 2.2 | 6.0 (held:short) | 3.0 | 6.0 | - | 0/1803 | 0 |
-| walk-1s-15m-cold-start | 6.6 | 11.0 (held:short) | 14.0 | - | - | 0/1803 | 0 |
+| walk-1s-15m-cold-start | -8.6 | 38.0 (held:short) | 14.0 | - | - | 0/1803 | 0 |
 | walk-1s-15m-tunnel | 4.4 | 7.0 (held:short) | 2.0 | - | - | 0/1683 | 0 |
 | walk-1s-15m-light | 2.2 | 6.0 (held:short) | 2.0 | 6.0 | 0.0 | 0/1803 | 0 |
 | walk-1s-15m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/903 | 0 |
-| walk-1s-30m-surge | 4.7 | 20.0 (held:still) | 11.0 | 24.0 | - | 0/1803 | 29 |
-| walk-1s-30m-cold-start | 10.9 | 8.0 (held:short) | 13.0 | - | - | 0/1803 | 0 |
-| walk-1s-30m-tunnel | 6.7 | 32.0 (held:still) | 11.0 | - | - | 0/1683 | 19 |
-| walk-1s-30m-light | 8.4 | 33.0 (held:still) | 9.0 | 120.0 | 0.0 | 0/1803 | 89 |
-| walk-1s-30m-still | 0.0 | 0.0 | never | - | 53.3 / 53.3 | 0/903 | 0 |
-| walk-1s-50m-surge | 12.4 | 64.0 (rejected:accuracy) | 25.0 | 47.0 | - | 139/1803 | 0 |
-| walk-1s-50m-cold-start | 13.2 | 73.0 (rejected:accuracy) | 17.0 | - | - | 72/1803 | 0 |
-| walk-1s-50m-tunnel | 11.1 | 60.0 (rejected:accuracy) | 13.0 | - | - | 76/1683 | 0 |
-| walk-1s-50m-light | 17.0 | 83.0 (rejected:accuracy) | 13.0 | 99.0 | 10.0 | 214/1803 | 0 |
-| walk-1s-50m-still | 0.0 | 0.0 | 281.0 | - | 156.7 / 158.6 | 0/903 | 0 |
+| walk-1s-30m-surge | -7.0 | 45.0 (held:short) | 12.0 | 50.0 | - | 0/1803 | 29 |
+| walk-1s-30m-cold-start | 6.8 | 22.0 (held:short) | 13.0 | - | - | 0/1803 | 0 |
+| walk-1s-30m-tunnel | -5.2 | 40.0 (held:short) | 14.0 | - | - | 0/1683 | 19 |
+| walk-1s-30m-light | 7.5 | 33.0 (held:still) | 11.0 | 43.0 | 0.0 | 0/1803 | 89 |
+| walk-1s-30m-still | 0.0 | 0.0 | never | - | 7.1 / 7.6 | 0/903 | 0 |
+| walk-1s-50m-surge | 10.6 | 64.0 (rejected:accuracy) | 27.0 | never | - | 139/1803 | 0 |
+| walk-1s-50m-cold-start | 7.2 | 77.0 (rejected:accuracy) | 13.0 | - | - | 72/1803 | 0 |
+| walk-1s-50m-tunnel | 4.2 | 64.0 (rejected:accuracy) | 13.0 | - | - | 76/1683 | 0 |
+| walk-1s-50m-light | 8.9 | 85.0 (rejected:accuracy) | 14.0 | 100.0 | 0.0 | 214/1803 | 0 |
+| walk-1s-50m-still | 0.0 | 0.0 | 297.0 | - | 32.0 / 36.5 | 0/903 | 0 |
 | walk-5s-5m-surge | 1.6 | 10.0 (held:short) | 6.0 | 26.0 | - | 0/363 | 0 |
-| walk-5s-5m-cold-start | 21.2 | 14.0 (held:short) | 11.0 | - | - | 0/363 | 0 |
+| walk-5s-5m-cold-start | 4.8 | 25.0 (held:settling) | 26.0 | - | - | 0/363 | 0 |
 | walk-5s-5m-tunnel | 3.7 | 11.0 (held:short) | 6.0 | - | - | 0/339 | 0 |
 | walk-5s-5m-light | 1.9 | 12.0 (held:short) | 6.0 | 11.0 | 0.0 | 0/363 | 0 |
 | walk-5s-5m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/183 | 0 |
 | walk-5s-15m-surge | 18.3 | 9.0 (held:short) | 6.0 | 11.0 | - | 0/363 | 0 |
-| walk-5s-15m-cold-start | 22.9 | 14.0 (held:short) | 16.0 | - | - | 0/363 | 0 |
+| walk-5s-15m-cold-start | 20.2 | 20.0 (held:settling) | 21.0 | - | - | 0/363 | 0 |
 | walk-5s-15m-tunnel | 10.3 | 12.0 (held:short) | 6.0 | - | - | 0/339 | 0 |
-| walk-5s-15m-light | 8.7 | 14.0 (held:short) | 6.0 | 11.0 | 6.1 | 0/363 | 0 |
-| walk-5s-15m-still | 0.0 | 0.0 | never | - | 79.5 / 79.5 | 0/183 | 0 |
-| walk-5s-30m-surge | 36.1 | 11.0 (held:short) | 11.0 | 71.0 | - | 0/363 | 0 |
-| walk-5s-30m-cold-start | 25.9 | 14.0 (held:short) | 16.0 | - | - | 0/363 | 0 |
-| walk-5s-30m-tunnel | 27.7 | 10.0 (kept, no distance) | 16.0 | - | - | 0/339 | 0 |
-| walk-5s-30m-light | 47.5 | 14.0 (held:short) | 11.0 | 16.0 | 80.1 | 0/363 | 0 |
-| walk-5s-30m-still | 0.0 | 0.0 | 96.0 | - | 252.9 / 252.9 | 0/183 | 0 |
-| walk-5s-50m-surge | 35.1 | 84.0 (rejected:accuracy) | 36.0 | 76.0 | - | 21/363 | 0 |
-| walk-5s-50m-cold-start | 35.0 | 109.0 (rejected:accuracy) | 16.0 | - | - | 21/363 | 0 |
-| walk-5s-50m-tunnel | 7.8 | 83.0 (rejected:accuracy) | 18.0 | - | - | 51/339 | 0 |
-| walk-5s-50m-light | 38.9 | 85.0 (rejected:accuracy) | 86.0 | 66.0 | 9.8 | 34/363 | 0 |
-| walk-5s-50m-still | 0.0 | 0.0 | 136.0 | - | 215.3 / 215.3 | 4/183 | 0 |
+| walk-5s-15m-light | 8.7 | 14.0 (held:short) | 6.0 | 11.0 | 0.0 | 0/363 | 0 |
+| walk-5s-15m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/183 | 0 |
+| walk-5s-30m-surge | 33.7 | 24.0 (held:short) | 21.0 | 96.0 | - | 0/363 | 0 |
+| walk-5s-30m-cold-start | 21.3 | 39.0 (held:short) | 26.0 | - | - | 0/363 | 0 |
+| walk-5s-30m-tunnel | 24.6 | 20.0 (held:settling) | 21.0 | - | - | 0/339 | 0 |
+| walk-5s-30m-light | 34.2 | 29.0 (held:short) | 21.0 | 41.0 | 4.7 | 0/363 | 0 |
+| walk-5s-30m-still | 0.0 | 0.0 | never | - | 156.9 / 162.1 | 0/183 | 0 |
+| walk-5s-50m-surge | 14.4 | 84.0 (rejected:accuracy) | 46.0 | 36.0 | - | 21/363 | 0 |
+| walk-5s-50m-cold-start | 24.8 | 114.0 (rejected:accuracy) | 21.0 | - | - | 21/363 | 0 |
+| walk-5s-50m-tunnel | -4.3 | 83.0 (rejected:accuracy) | 21.0 | - | - | 51/339 | 0 |
+| walk-5s-50m-light | 30.8 | 95.0 (rejected:accuracy) | 96.0 | 66.0 | 14.1 | 34/363 | 0 |
+| walk-5s-50m-still | 0.0 | 0.0 | 156.0 | - | 79.4 / 79.4 | 4/183 | 0 |
 | jog-1s-5m-surge | 2.5 | 4.0 (held:short) | 2.0 | 7.0 | - | 0/1803 | 0 |
-| jog-1s-5m-cold-start | 7.7 | 6.0 (held:short) | 9.0 | - | - | 0/1803 | 0 |
+| jog-1s-5m-cold-start | 1.1 | 14.0 (held:short) | 15.0 | - | - | 0/1803 | 0 |
 | jog-1s-5m-tunnel | 0.5 | 3.0 (kept, no distance) | 4.0 | - | - | 0/1683 | 0 |
 | jog-1s-5m-light | 0.2 | 4.0 (held:short) | 2.0 | 6.0 | 0.0 | 0/1803 | 0 |
 | jog-1s-5m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/903 | 0 |
 | jog-1s-15m-surge | 1.9 | 5.0 (held:short) | 2.0 | 6.0 | - | 0/1803 | 0 |
-| jog-1s-15m-cold-start | 3.2 | 5.0 (held:short) | 10.0 | - | - | 0/1803 | 0 |
+| jog-1s-15m-cold-start | 2.5 | 10.0 (held:short) | 11.0 | - | - | 0/1803 | 0 |
 | jog-1s-15m-tunnel | 1.6 | 5.0 (held:short) | 5.0 | - | - | 0/1683 | 0 |
 | jog-1s-15m-light | 2.8 | 5.0 (rejected:speed) | 2.0 | 6.0 | 0.0 | 0/1803 | 0 |
 | jog-1s-15m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/903 | 0 |
-| jog-1s-30m-surge | 2.7 | 4.0 (held:short) | 8.0 | 14.0 | - | 0/1803 | 0 |
-| jog-1s-30m-cold-start | 3.0 | 5.0 (held:short) | 10.0 | - | - | 0/1803 | 0 |
-| jog-1s-30m-tunnel | 3.6 | 5.0 (held:short) | 9.0 | - | - | 0/1683 | 0 |
-| jog-1s-30m-light | 5.6 | 14.0 (rejected:jump) | 8.0 | 34.0 | 9.2 | 0/1803 | 6 |
-| jog-1s-30m-still | 0.0 | 0.0 | never | - | 63.0 / 63.0 | 0/903 | 0 |
-| jog-1s-50m-surge | 5.0 | 83.0 (rejected:accuracy) | 9.0 | 16.0 | - | 159/1803 | 0 |
-| jog-1s-50m-cold-start | 6.4 | 75.0 (rejected:accuracy) | 12.0 | - | - | 184/1803 | 0 |
-| jog-1s-50m-tunnel | -7.2 | 78.0 (rejected:accuracy) | 8.0 | - | - | 77/1683 | 0 |
-| jog-1s-50m-light | -9.8 | 82.0 (rejected:accuracy) | 81.0 | 17.0 | 18.3 | 209/1803 | 0 |
-| jog-1s-50m-still | 0.0 | 0.0 | 55.0 | - | 184.4 / 185.5 | 61/903 | 0 |
+| jog-1s-30m-surge | 1.9 | 10.0 (held:short) | 11.0 | 33.0 | - | 0/1803 | 0 |
+| jog-1s-30m-cold-start | -3.6 | 10.0 (held:short) | 11.0 | - | - | 0/1803 | 0 |
+| jog-1s-30m-tunnel | 2.9 | 10.0 (held:short) | 11.0 | - | - | 0/1683 | 0 |
+| jog-1s-30m-light | 4.4 | 14.0 (rejected:jump) | 13.0 | 25.0 | 0.0 | 0/1803 | 6 |
+| jog-1s-30m-still | 0.0 | 0.0 | never | - | 5.5 / 5.5 | 0/903 | 0 |
+| jog-1s-50m-surge | 3.7 | 84.0 (rejected:accuracy) | 11.0 | 29.0 | - | 159/1803 | 0 |
+| jog-1s-50m-cold-start | 5.2 | 79.0 (rejected:accuracy) | 11.0 | - | - | 184/1803 | 0 |
+| jog-1s-50m-tunnel | -9.0 | 77.0 (rejected:accuracy) | 11.0 | - | - | 77/1683 | 0 |
+| jog-1s-50m-light | -12.3 | 82.0 (rejected:accuracy) | 83.0 | 41.0 | 21.8 | 209/1803 | 0 |
+| jog-1s-50m-still | 0.0 | 0.0 | never | - | 47.8 / 54.1 | 61/903 | 0 |
 | jog-5s-5m-surge | -1.6 | 9.0 (held:short) | 6.0 | 21.0 | - | 0/363 | 0 |
-| jog-5s-5m-cold-start | 2.2 | 10.0 (held:short) | 11.0 | - | - | 0/363 | 0 |
+| jog-5s-5m-cold-start | -3.6 | 20.0 (held:settling) | 21.0 | - | - | 0/363 | 0 |
 | jog-5s-5m-tunnel | -1.7 | 9.0 (held:short) | 6.0 | - | - | 0/339 | 0 |
 | jog-5s-5m-light | -1.6 | 10.0 (kept, no distance) | 6.0 | 16.0 | 0.0 | 0/363 | 0 |
 | jog-5s-5m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/183 | 0 |
 | jog-5s-15m-surge | 5.9 | 14.0 (held:short) | 6.0 | 6.0 | - | 0/363 | 0 |
-| jog-5s-15m-cold-start | 4.8 | 9.0 (held:short) | 11.0 | - | - | 0/363 | 0 |
+| jog-5s-15m-cold-start | 3.2 | 20.0 (held:settling) | 21.0 | - | - | 0/363 | 0 |
 | jog-5s-15m-tunnel | 11.3 | 14.0 (rejected:speed) | 6.0 | - | - | 0/339 | 0 |
-| jog-5s-15m-light | 3.5 | 10.0 (held:short) | 6.0 | 11.0 | 7.6 | 0/363 | 0 |
+| jog-5s-15m-light | 3.5 | 10.0 (held:short) | 6.0 | 11.0 | 0.0 | 0/363 | 0 |
 | jog-5s-15m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/183 | 0 |
-| jog-5s-30m-surge | 23.2 | 11.0 (held:short) | 11.0 | 26.0 | - | 0/363 | 0 |
-| jog-5s-30m-cold-start | 7.6 | 9.0 (rejected:speed) | 11.0 | - | - | 0/363 | 0 |
-| jog-5s-30m-tunnel | -1.1 | 9.0 (held:short) | 11.0 | - | - | 0/339 | 0 |
-| jog-5s-30m-light | 8.7 | 9.0 (held:short) | 11.0 | 26.0 | 11.4 | 0/363 | 0 |
-| jog-5s-30m-still | 0.0 | 0.0 | 176.0 | - | 205.8 / 206.6 | 0/183 | 0 |
-| jog-5s-50m-surge | 17.0 | 14.0 (held:short) | 11.0 | 41.0 | - | 0/363 | 0 |
-| jog-5s-50m-cold-start | 12.3 | 54.0 (rejected:accuracy) | 11.0 | - | - | 10/363 | 0 |
-| jog-5s-50m-tunnel | 9.5 | 59.0 (rejected:accuracy) | 11.0 | - | - | 11/339 | 0 |
-| jog-5s-50m-light | 11.0 | 39.0 (rejected:accuracy) | 11.0 | 21.0 | 13.7 | 10/363 | 0 |
-| jog-5s-50m-still | 0.0 | 0.0 | 36.0 | - | 311.4 / 312.5 | 21/183 | 0 |
+| jog-5s-30m-surge | 18.7 | 24.0 (held:settling) | 25.0 | 41.0 | - | 0/363 | 0 |
+| jog-5s-30m-cold-start | 5.9 | 20.0 (held:settling) | 21.0 | - | - | 0/363 | 0 |
+| jog-5s-30m-tunnel | -3.3 | 20.0 (held:settling) | 21.0 | - | - | 0/339 | 0 |
+| jog-5s-30m-light | 5.7 | 30.0 (held:settling) | 31.0 | 26.0 | 0.0 | 0/363 | 0 |
+| jog-5s-30m-still | 0.0 | 0.0 | never | - | 121.8 / 125.5 | 0/183 | 0 |
+| jog-5s-50m-surge | 13.4 | 20.0 (held:settling) | 21.0 | 41.0 | - | 0/363 | 0 |
+| jog-5s-50m-cold-start | 10.4 | 54.0 (rejected:accuracy) | 21.0 | - | - | 10/363 | 0 |
+| jog-5s-50m-tunnel | 7.5 | 59.0 (rejected:accuracy) | 21.0 | - | - | 11/339 | 0 |
+| jog-5s-50m-light | 7.2 | 44.0 (rejected:accuracy) | 21.0 | 21.0 | 0.0 | 10/363 | 0 |
+| jog-5s-50m-still | 0.0 | 0.0 | 256.0 | - | 162.0 / 165.8 | 21/183 | 0 |
 | run-1s-5m-surge | 0.5 | 2.0 (rejected:jump) | 2.0 | 6.0 | - | 0/1803 | 0 |
-| run-1s-5m-cold-start | 3.2 | 5.0 (held:short) | 8.0 | - | - | 0/1803 | 0 |
-| run-1s-5m-tunnel | -1.1 | 4.0 (rejected:jump) | 2.0 | - | - | 0/1683 | 0 |
+| run-1s-5m-cold-start | 2.7 | 10.0 (held:short) | 11.0 | - | - | 0/1803 | 0 |
+| run-1s-5m-tunnel | -1.1 | 4.0 (held:checking) | 2.0 | - | - | 0/1683 | 0 |
 | run-1s-5m-light | 1.1 | 2.0 (held:short) | 2.0 | 6.0 | 0.0 | 0/1803 | 0 |
 | run-1s-5m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/903 | 0 |
 | run-1s-15m-surge | 2.1 | 4.0 (held:short) | 2.0 | 5.0 | - | 0/1803 | 0 |
-| run-1s-15m-cold-start | 3.3 | 5.0 (held:short) | 9.0 | - | - | 0/1803 | 0 |
+| run-1s-15m-cold-start | 3.1 | 10.0 (held:short) | 11.0 | - | - | 0/1803 | 0 |
 | run-1s-15m-tunnel | -0.9 | 5.0 (held:short) | 2.0 | - | - | 0/1683 | 0 |
 | run-1s-15m-light | 2.8 | 4.0 (held:short) | 2.0 | 8.0 | 0.0 | 0/1803 | 0 |
 | run-1s-15m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/903 | 0 |
-| run-1s-30m-surge | 2.7 | 4.0 (held:short) | 9.0 | 11.0 | - | 0/1803 | 0 |
-| run-1s-30m-cold-start | 2.5 | 4.0 (held:short) | 10.0 | - | - | 0/1803 | 0 |
-| run-1s-30m-tunnel | 4.4 | 4.0 (held:short) | 8.0 | - | - | 0/1683 | 0 |
-| run-1s-30m-light | 4.2 | 19.0 (rejected:jump) | 7.0 | 35.0 | 13.1 | 0/1803 | 8 |
-| run-1s-30m-still | 0.0 | 0.0 | 139.0 | - | 83.6 / 95.7 | 0/903 | 0 |
-| run-1s-50m-surge | -11.5 | 135.0 (rejected:accuracy) | 58.0 | 135.0 | - | 243/1803 | 0 |
-| run-1s-50m-cold-start | 2.3 | 69.0 (rejected:accuracy) | 7.0 | - | - | 167/1803 | 0 |
-| run-1s-50m-tunnel | -0.5 | 47.0 (rejected:accuracy) | 10.0 | - | - | 136/1683 | 0 |
-| run-1s-50m-light | 2.6 | 41.0 (rejected:accuracy) | 7.0 | 19.0 | 24.6 | 98/1803 | 0 |
-| run-1s-50m-still | 0.0 | 0.0 | 160.0 | - | 179.6 / 182.5 | 98/903 | 0 |
+| run-1s-30m-surge | 2.1 | 10.0 (held:short) | 11.0 | 11.0 | - | 0/1803 | 0 |
+| run-1s-30m-cold-start | 1.8 | 10.0 (held:short) | 11.0 | - | - | 0/1803 | 0 |
+| run-1s-30m-tunnel | 3.9 | 10.0 (held:short) | 11.0 | - | - | 0/1683 | 0 |
+| run-1s-30m-light | 2.6 | 19.0 (rejected:jump) | 11.0 | 32.0 | 0.0 | 0/1803 | 8 |
+| run-1s-30m-still | 0.0 | 0.0 | never | - | 0.0 / 12.8 | 0/903 | 0 |
+| run-1s-50m-surge | -12.1 | 135.0 (rejected:accuracy) | 60.0 | 137.0 | - | 243/1803 | 0 |
+| run-1s-50m-cold-start | -3.4 | 68.0 (rejected:accuracy) | 11.0 | - | - | 167/1803 | 0 |
+| run-1s-50m-tunnel | -1.4 | 48.0 (rejected:accuracy) | 12.0 | - | - | 136/1683 | 0 |
+| run-1s-50m-light | 1.3 | 42.0 (rejected:accuracy) | 11.0 | 19.0 | 11.9 | 98/1803 | 0 |
+| run-1s-50m-still | 0.0 | 0.0 | never | - | 49.0 / 54.2 | 98/903 | 0 |
 | run-5s-5m-surge | -2.1 | 9.0 (held:short) | 9.0 | 11.0 | - | 0/363 | 0 |
-| run-5s-5m-cold-start | -1.3 | 9.0 (held:short) | 11.0 | - | - | 0/363 | 0 |
+| run-5s-5m-cold-start | -2.7 | 21.0 (held:settling) | 22.0 | - | - | 0/363 | 0 |
 | run-5s-5m-tunnel | -3.3 | 19.0 (held:short) | 6.0 | - | - | 0/339 | 0 |
 | run-5s-5m-light | -3.5 | 13.0 (held:short) | 6.0 | 16.0 | 0.0 | 0/363 | 0 |
-| run-5s-5m-still | 0.0 | 0.0 | never | - | 0.0 / 0.0 | 0/183 | 0 |
+| run-5s-5m-still | 0.0 | 0.0 | never | - | 0.0 / 0.7 | 0/183 | 0 |
 | run-5s-15m-surge | 2.7 | 14.0 (held:short) | 8.0 | 11.0 | - | 0/363 | 0 |
-| run-5s-15m-cold-start | 5.4 | 10.0 (held:short) | 11.0 | - | - | 0/363 | 0 |
+| run-5s-15m-cold-start | 4.2 | 20.0 (held:settling) | 21.0 | - | - | 0/363 | 0 |
 | run-5s-15m-tunnel | -1.1 | 9.0 (held:short) | 6.0 | - | - | 0/339 | 0 |
-| run-5s-15m-light | 5.5 | 9.0 (held:short) | 6.0 | 11.0 | 44.6 | 0/363 | 0 |
-| run-5s-15m-still | 0.0 | 0.0 | never | - | 14.3 / 14.3 | 0/183 | 0 |
-| run-5s-30m-surge | -0.7 | 12.0 (held:short) | 11.0 | 21.0 | - | 0/363 | 0 |
-| run-5s-30m-cold-start | 11.7 | 9.0 (held:short) | 11.0 | - | - | 0/363 | 0 |
-| run-5s-30m-tunnel | 3.8 | 10.0 (rejected:speed) | 11.0 | - | - | 0/339 | 0 |
-| run-5s-30m-light | 15.8 | 9.0 (held:short) | 11.0 | 21.0 | 16.9 | 0/363 | 0 |
-| run-5s-30m-still | 0.0 | 0.0 | 36.0 | - | 294.3 / 296.4 | 0/183 | 0 |
-| run-5s-50m-surge | 7.1 | 64.0 (rejected:accuracy) | 11.0 | 21.0 | - | 18/363 | 0 |
-| run-5s-50m-cold-start | 17.8 | 35.0 (rejected:accuracy) | 11.0 | - | - | 7/363 | 0 |
-| run-5s-50m-tunnel | -12.0 | 74.0 (rejected:accuracy) | 51.0 | - | - | 37/339 | 0 |
-| run-5s-50m-light | 4.5 | 79.0 (rejected:accuracy) | 11.0 | 26.0 | 18.2 | 41/363 | 0 |
-| run-5s-50m-still | 0.0 | 0.0 | 31.0 | - | 339.3 / 342.8 | 15/183 | 0 |
+| run-5s-15m-light | 1.2 | 9.0 (held:short) | 6.0 | 11.0 | 0.0 | 0/363 | 0 |
+| run-5s-15m-still | 0.0 | 0.0 | never | - | 13.1 / 13.1 | 0/183 | 0 |
+| run-5s-30m-surge | -2.5 | 20.0 (held:settling) | 21.0 | 21.0 | - | 0/363 | 0 |
+| run-5s-30m-cold-start | 10.3 | 20.0 (held:settling) | 21.0 | - | - | 0/363 | 0 |
+| run-5s-30m-tunnel | -3.5 | 20.0 (held:settling) | 21.0 | - | - | 0/339 | 0 |
+| run-5s-30m-light | 13.9 | 20.0 (held:settling) | 21.0 | 41.0 | 0.0 | 0/363 | 0 |
+| run-5s-30m-still | 0.0 | 0.0 | never | - | 182.5 / 184.8 | 0/183 | 0 |
+| run-5s-50m-surge | 5.8 | 69.0 (rejected:accuracy) | 21.0 | 26.0 | - | 18/363 | 0 |
+| run-5s-50m-cold-start | 16.3 | 35.0 (rejected:accuracy) | 21.0 | - | - | 7/363 | 0 |
+| run-5s-50m-tunnel | -13.6 | 74.0 (rejected:accuracy) | 61.0 | - | - | 37/339 | 0 |
+| run-5s-50m-light | -3.5 | 79.0 (rejected:accuracy) | 21.0 | 26.0 | 24.2 | 41/363 | 0 |
+| run-5s-50m-still | 0.0 | 0.0 | never | - | 250.0 / 253.4 | 15/183 | 0 |
