@@ -4,11 +4,13 @@ import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import catalogDemos from '../../data/catalog-demos.json';
 import demoHidden from './demoHidden.json';
+import demoSequenceFile from '../../data/demo-sequences.json';
 import { catalogInfo, eligibleDemos, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
 import type { MatchKind } from '../lib/catalog';
 import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
 import { approvedCandidate, isApprovedCandidate, onApprovedChange } from './candidateGate';
 import { applyHiddenList, type HiddenList } from '../lib/demoReview';
+import { demoWithSequence, parseDemoSequences, type SequenceEntry } from '../lib/demoSequence';
 
 const CUES = cueFile as CueFile;
 const CATALOG = new Map((catalog as { exercises: CatalogImages[] }).exercises.map((e) => [e.id, e]));
@@ -48,13 +50,38 @@ export function photoEligibility(catalogId: string | null | undefined): MatchKin
 const catalogOf = (id: string): CatalogImages | undefined => CATALOG.get(id) ?? approvedCandidate(id);
 const inCatalog = (id: string): boolean => CATALOG.has(id) || isApprovedCandidate(id);
 
+/**
+ * PLAN D1: the declared 3 or 4 frame sequences (data/demo-sequences.json). A refused one is logged
+ * and its exercise shows no demo; a file of another format refuses every sequence (and so every
+ * declared exercise's demo). The unit tests fail on either long before it ships.
+ */
+function sequences(): ReadonlyMap<string, SequenceEntry> {
+  try {
+    const out = parseDemoSequences(demoSequenceFile, new Set(CATALOG.keys()));
+    for (const e of out.values()) if (!e.ok) console.error(`Demo sequence refused: ${e.reason}`);
+    return out;
+  } catch (e) {
+    console.error(e);
+    const ids = Object.keys((demoSequenceFile as { sequences?: object }).sequences ?? {});
+    return new Map(ids.map((id) => [id, { ok: false, reason: `${id}: file refused` }]));
+  }
+}
+const SEQUENCES = sequences();
+/** A frame file the build hashed exists (no table, as in unit tests: none is known). */
+const frameExists = (path: string) => photoTable()?.has(path) ?? false;
+/** A catalog id's sure pair, or its declared sequence in place of it (lib/demoSequence.ts). */
+const withSequence = (info: ExerciseInfo, catalogId: string | null | undefined): ExerciseInfo => {
+  if (!info.demo || !catalogId || !SEQUENCES.has(catalogId)) return info;
+  return { ...info, demo: demoWithSequence(catalogId, info.demo, SEQUENCES.get(catalogId), frameExists) };
+};
+
 /** The sheet for a plan exercise (by plan id); notes are the plan's own lines for match none. */
 export function infoForPlan(planId: string, notes: string[] = []): ExerciseInfo {
   const entry = PLAN.get(planId);
   const cat = entry?.catalogId ? CATALOG.get(entry.catalogId) : undefined;
   const cues = entry?.catalogId ? CUES.exercises[entry.catalogId] : undefined;
   const info = exerciseInfo(entry, cat, cues, musclesForPlan(planId), notes);
-  return info.demo && photoEligibility(entry?.catalogId) === 'none' ? { ...info, demo: null } : info;
+  return info.demo && photoEligibility(entry?.catalogId) === 'none' ? { ...info, demo: null } : withSequence(info, entry?.catalogId);
 }
 
 const DEMOS = new Map<string, ExerciseInfo['demo']>();
@@ -97,10 +124,10 @@ export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${versione
 
 /** The public sheet for a bare catalog exercise (muscle lists): photos only when eligible. */
 export function infoForCatalog(id: string): ExerciseInfo {
-  return catalogInfo(photoEligibility(id), catalogOf(id), CUES.exercises[id], musclesForCatalog(id));
+  return withSequence(catalogInfo(photoEligibility(id), catalogOf(id), CUES.exercises[id], musclesForCatalog(id)), id);
 }
 
 /** Owner preview (Review, SPEC 9.4 only): every catalog photo, including audit rejects, to inspect them. */
 export function ownerPreviewForCatalog(id: string): ExerciseInfo {
-  return catalogInfo('exact', CATALOG.get(id), CUES.exercises[id], musclesForCatalog(id));
+  return withSequence(catalogInfo('exact', CATALOG.get(id), CUES.exercises[id], musclesForCatalog(id)), id);
 }
