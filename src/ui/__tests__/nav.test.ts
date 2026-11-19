@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { depthOf, kindBetween, supportsViewTransitions, withTransition } from '../nav';
+import { beginStep, depthOf, kindBetween, supportsViewTransitions, withTransition } from '../nav';
 
 describe('depthOf (PLAN 1.7e)', () => {
   it('tab roots are depth 0', () => {
@@ -97,5 +97,30 @@ describe('withTransition', () => {
     withTransition('none', update);
     expect(startViewTransition).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledOnce();
+  });
+});
+
+describe('beginStep (PLAN 4.4a)', () => {
+  afterEach(() => vi.useRealTimers());
+  const win = () => Object.assign(new EventTarget(), { setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms) }) as unknown as Window;
+  it('a second history step asked for before the first has landed is dropped, and the next one after is not', () => {
+    vi.useFakeTimers();
+    const w = win();
+    expect(beginStep(w)).toBe(true);
+    // Back tapped again, or the "Nice" chip returning, before the list is drawn: the same intent.
+    expect(beginStep(w)).toBe(false);
+    w.dispatchEvent(new Event('popstate'));
+    expect(beginStep(w)).toBe(false); // the app's own popstate work runs first
+    vi.advanceTimersByTime(0);
+    expect(beginStep(w)).toBe(true);
+    vi.advanceTimersByTime(1000);
+  });
+  it('a step whose popstate never comes stops counting as on its way', () => {
+    vi.useFakeTimers();
+    const w = win();
+    expect(beginStep(w)).toBe(true);
+    vi.advanceTimersByTime(700);
+    expect(beginStep(w)).toBe(true);
+    vi.advanceTimersByTime(1000);
   });
 });

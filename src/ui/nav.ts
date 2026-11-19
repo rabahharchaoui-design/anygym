@@ -200,11 +200,45 @@ function afterPopstate(update: () => void): Promise<void> {
   });
 }
 
+/**
+ * PLAN 4.4a (golden journey 2 on CI): when the last go() was asked for, so the screen it brings ignores
+ * the rest of a double tap for TAP_GUARD_MS from the tap itself, however late it arrives (ArrivalGuard).
+ */
+let lastGoAt = -Infinity;
+export const lastNavRequestAt = (): number => lastGoAt;
+
+/**
+ * PLAN 4.4a: a history step (go(-1)) still on its way. A second one asked for before the screen it
+ * lands on is drawn (a double tap, or the "Nice" chip's own return as Back is tapped) is the same
+ * intent, never a second step: two steps back from an exercise passed the workout list to Today.
+ */
+let stepPending = false;
+type StepWindow = Pick<Window, 'addEventListener' | 'removeEventListener'> & { setTimeout: (fn: () => void, ms: number) => unknown };
+export function beginStep(win: StepWindow = window): boolean {
+  if (stepPending) return false;
+  stepPending = true;
+  let cleared = false;
+  const clear = () => {
+    if (cleared) return;
+    cleared = true;
+    win.removeEventListener('popstate', clear);
+    // After the app's own popstate work: the screen it landed on has rendered by then.
+    win.setTimeout(() => (stepPending = false), 0);
+  };
+  win.addEventListener('popstate', clear);
+  win.setTimeout(clear, STEP_MAX_MS);
+  return true;
+}
+/** Longest a history step counts as on its way (a popstate that never comes, e.g. at the first entry). */
+const STEP_MAX_MS = 600;
+
 /** navigate with the right transition: go('/plans/x') pushes, go(-1) or go('/plans', { kind: 'pop' }) goes back. */
 export function useNav() {
   const navigate = useNavigate();
   return useCallback(
     (to: To | number, opts: NavigateOptions & { kind?: NavKind; flat?: boolean } = {}) => {
+      if (typeof to === 'number' && !beginStep()) return;
+      lastGoAt = performance.now();
       const { kind: asked, flat, ...rest } = opts;
       const from = window.location.hash.replace(/^#/, '') || '/';
       const target = typeof to === 'number' ? null : typeof to === 'string' ? to : (to.pathname ?? from);
