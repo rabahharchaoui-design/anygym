@@ -12,7 +12,8 @@
 // - A gap (no good point for more than GAP_SEC): only its first GAP_SEC count as moving time (the
 //   clock on the screen had already counted them while it waited, PLAN 4.4a, and a clock never goes
 //   back); nothing after them. The straight line across counts as distance only when filter.ts
-//   calls it plausible; either way the line breaks.
+//   calls it plausible; either way the line breaks. A hole while auto paused that ends on the
+//   standing spot is no gap at all: the runner stood there throughout, so the run stays still.
 // - A pause by hand always wins: nothing is recorded, auto pause does nothing, and the first point
 //   after resume starts a new piece of line with no distance and no time across the pause.
 // - Moving time only moves forward with good points, so it never has to be taken back.
@@ -115,6 +116,8 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     return { state: { ...restart(state, p), pace: [sample] }, event: { type: 'recorded', point: p, brk, splits: [] } };
   }
   if (v.link === 'gap') {
+    // Auto paused and back on the same spot: the runner never left, so nothing moved and the run stays still.
+    if (state.still && state.autoPause && !leftStill(from, p)) return { state: { ...state, lastGood: p }, event: { type: 'held', reason: 'still' } };
     const distanceM = v.bridged ? haversineM(from, p) : 0;
     // The wait up to GAP_SEC was counted on the screen (pendingMs): it stays counted (holdGap).
     const credit = state.still && state.autoPause ? 0 : GAP_SEC * 1000;
@@ -159,6 +162,17 @@ export function pendingMs(state: TrackerState, now: number): number {
   if (state.manual || state.afterPause || !state.lastGood || (state.still && state.autoPause)) return 0;
   const since = now - state.lastGood.t;
   return since > 0 ? Math.min(since, GAP_SEC * 1000) : 0;
+}
+
+/**
+ * Moving time the clock on the screen had already shown that the engine would take back (PLAN
+ * 4.4c): a position reaches the app up to 2 s after its stamp, and when that position starts an
+ * auto pause the engine counts only up to the stamp. The runner was counted as moving until the app
+ * learned of the stop (as for the 8 s it takes to see one), so those seconds count, as standing
+ * time: no distance. The live run gives them (live.ts, fix `now`); a replay has no arrival times.
+ */
+export function countShown(state: TrackerState, ms: number): TrackerState {
+  return ms > 0 ? advance(state, { distanceM: 0, ms, timed: true, gap: false }).state : state;
 }
 
 /**

@@ -90,6 +90,7 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
   };
   const start = useTapGuard(() => {
     if (phase !== 'setup') return;
+    // The tap's tick, and the countdown's first one when it opens straight away (PLAN 4.4c).
     tick();
     // A phone lets sound start only from a tap: this is the tap the voice coach's first words hang on.
     unlockVoice();
@@ -100,6 +101,8 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
     else toCountdown();
   });
   const afterPocket = () => {
+    // The countdown's first tick: inside this tap, the only place iPhone plays it (PLAN 4.4c).
+    tick();
     rememberTold('pocket');
     setPocket(false);
     toCountdown();

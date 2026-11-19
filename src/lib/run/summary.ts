@@ -2,7 +2,7 @@
 // number on the summary comes from the stored row, so the screen and the phone's data always agree.
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../intake/answers';
-import { averagePace, fromRunPoint, pathLengthM, toSegments, type Segment } from '../gps';
+import { averagePace, fromRunPoint, GAP_SEC, pathLengthM, toSegments, type Segment } from '../gps';
 import { formatElapsed } from '../timer';
 import { formatDistance, formatPace } from './format';
 import type { LiveRun } from './live';
@@ -18,6 +18,13 @@ export const VERDICT_WORDS: Record<Exclude<RunVerdict, 'ok'>, { title: string; l
   'no-gps': { title: 'No GPS on this run', line: 'The phone never found a position it could trust, so there is no distance or route to show.' },
   'too-short': { title: 'Too short to measure', line: 'Under 50 m was recorded. That is too little for an honest distance or pace.' },
 };
+
+/**
+ * The caption under a route with dashed stretches (finish screen and run detail), matching the
+ * moving clock: a pause adds no time; a GPS gap keeps the first GAP_SEC the clock had already shown
+ * while it waited (PLAN 4.4a), and nothing after them.
+ */
+export const DASHED_NOTE = `Dashed: GPS was lost or the run was paused there. A pause adds no moving time. A GPS gap adds at most its first ${GAP_SEC} seconds, which the clock had already shown.`;
 
 /** The route as solid pieces; the join before a piece with `dashedFromPrev` is drawn dashed. */
 export const routeOf = (run: Pick<Run, 'points' | 'gaps'>): Segment[] => toSegments(run.points.map(fromRunPoint), run.gaps);

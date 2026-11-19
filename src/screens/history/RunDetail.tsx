@@ -6,7 +6,7 @@ import { Skeleton } from '../../ui/Skeleton';
 import { LoadError } from '../../components/LoadError';
 import { useFinishedRuns } from '../../hooks/useRuns';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
-import { drawRoute, ghostResult, ghostWords, paceUnit, summaryOf, titlesHeldBy, runVerdict } from '../../lib/run';
+import { DASHED_NOTE, drawRoute, ghostResult, ghostWords, paceUnit, summaryOf, titlesHeldBy, runVerdict } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { RouteMap } from '../run/RouteMap';
 import { RunShare } from '../run/RunShare';
@@ -64,7 +64,7 @@ export function RunDetail() {
           )}
           {ghost && <p className={run.ghost}>{ghost}</p>}
           <RouteMap route={route} reduceMotion={reduce} />
-          {route.dashed.length > 0 && <p className={run.quiet}>Dashed: GPS was lost or the run was paused there. That stretch is not counted as moving time.</p>}
+          {route.dashed.length > 0 && <p className={run.quiet}>{DASHED_NOTE}</p>}
           <RunSplits run={row} unit={unit} />
           <RunShare run={row} unit={unit} />
         </div>
