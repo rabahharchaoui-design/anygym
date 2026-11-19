@@ -170,6 +170,9 @@
   /* the active tab's mark (style sheet): a 20 x 3 px ice blue bar */
   --tab-mark-w: 20px;
   --tab-mark-h: 3px;
+  /* a sheet's grabber: a flat bar */
+  --grabber-w: 36px;
+  --grabber-h: 4px;
 }
 
 @supports (height: 100dvh) {

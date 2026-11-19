@@ -57,3 +57,17 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
 }
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.sheetTitle {
+  margin: 0;
+  font-size: var(--text-mono-heading);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-heading);
+}

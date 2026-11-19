@@ -209,3 +209,39 @@ test('M1 tab bar: docked to the bottom, solid graphite with a hairline, words on
   expect(await label('History')).toMatchObject({ color: 'rgb(255, 255, 255)', weight: '700' });
   await shot(page, 'tab-bar-history');
 });
+
+for (const width of [0, 320]) {
+  test(`M1 sheet${width ? ' at 320 x 568' : ''}: solid graphite, hairline top, square corners, flat grabber; a short sheet never scrolls, a tall one does`, async ({ page }) => {
+    if (width) await page.setViewportSize({ width, height: 568 });
+    await page.goto('./#/dev/monolith?dev');
+    await page.getByTestId('m1-open-sheet').tap();
+    const dialog = page.getByRole('dialog', { name: 'Units' });
+    await expect(dialog).toBeVisible();
+    await page.waitForTimeout(500);
+    const look = await dialog.evaluate((el) => {
+      const s = getComputedStyle(el);
+      const grab = el.querySelector<HTMLElement>('button[aria-label="Close"] span') ?? el.querySelector<HTMLElement>('[class*="grabber_"]')!;
+      const g = getComputedStyle(grab);
+      return { bg: s.backgroundColor, image: s.backgroundImage, shadow: s.boxShadow, line: s.borderTopWidth, lineColor: s.borderTopColor, tl: s.borderTopLeftRadius, tr: s.borderTopRightRadius, scroll: el.dataset.scroll ?? null, grabW: grab.getBoundingClientRect().width, grabH: grab.getBoundingClientRect().height, grabR: g.borderTopLeftRadius, scrollable: el.scrollHeight > el.clientHeight + 1 };
+    });
+    expect(look).toMatchObject({ bg: 'rgb(27, 29, 33)', image: 'none', shadow: 'none', line: '1px', lineColor: 'rgba(255, 255, 255, 0.12)', tl: '4px', tr: '4px', grabW: 36, grabH: 4, grabR: '0px', scrollable: false });
+    expect(look.scroll === null || look.scroll === 'false').toBe(true);
+    const root = await page.evaluate(() => getComputedStyle(document.getElementById('root')!).borderTopLeftRadius);
+    expect(['0px', '4px']).toContain(root);
+    const close = page.getByRole('button', { name: 'Close' });
+    expect((await close.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+    const suffix = width ? '-320' : '';
+    await shot(page, `sheet${suffix}`);
+    await close.tap();
+    await expect(dialog).toBeHidden();
+
+    await page.getByTestId('m1-open-tall').tap();
+    const tall = page.getByRole('dialog', { name: 'Gyms' });
+    await expect(tall).toBeVisible();
+    await expect(tall).toHaveAttribute('data-scroll', 'true');
+    await page.waitForTimeout(500);
+    expect((await page.getByRole('button', { name: 'Close' }).boundingBox())!.y).toBeGreaterThanOrEqual(0);
+    await expect(tall.getByRole('button', { name: 'Done' })).toBeInViewport();
+    await shot(page, `sheet-tall${suffix}`);
+  });
+}

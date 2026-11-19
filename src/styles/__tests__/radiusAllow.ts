@@ -86,7 +86,6 @@ export const RADIUS_ALLOW: string[] = [
   'src/ui/EmptyState.module.css',
   'src/ui/PRBadge.module.css',
   'src/ui/ResumeBar.module.css',
-  'src/ui/Sheet.module.css',
   'src/ui/SlidingToggle.module.css',
   'src/ui/SummaryRow.module.css',
   'src/ui/Switch.module.css',

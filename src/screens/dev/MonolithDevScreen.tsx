@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Button } from '../../ui/Button';
+import { Sheet, SheetFooter } from '../../ui/Sheet';
 import { Divider } from '../../ui/Divider';
 import { DataField } from '../../ui/DataField';
 import styles from './MonolithDevScreen.module.css';
@@ -8,6 +10,8 @@ import styles from './MonolithDevScreen.module.css';
  * screenshot spec (tests/monolith-m1.spec.ts) and the critic. Behind the dev flag.
  */
 export function MonolithDevScreen() {
+  const [sheet, setSheet] = useState<'short' | 'tall' | null>(null);
+  const close = () => setSheet(null);
   return (
     <main className={styles.screen} data-m1-preview>
       <section className={styles.block} data-testid="m1-buttons" aria-label="Buttons">
@@ -72,6 +76,41 @@ export function MonolithDevScreen() {
           <DataField label="Pace" value={null} unit="/mi" size="medium" />
         </div>
       </section>
+      <section className={styles.block} data-testid="m1-sheets" aria-label="Sheets">
+        <h2 className={styles.label}>Sheet</h2>
+        <Button variant="secondary" onClick={() => setSheet('short')} data-testid="m1-open-sheet">
+          Open a sheet
+        </Button>
+        <Button variant="secondary" onClick={() => setSheet('tall')} data-testid="m1-open-tall">
+          Open a tall sheet
+        </Button>
+      </section>
+      <Sheet open={sheet === 'short'} onClose={close} label="Units">
+        <div className={styles.sheetBody} data-testid="m1-sheet-body">
+          <h2 className={styles.sheetTitle}>Units</h2>
+          {['Weight', 'Distance'].map((row) => (
+            <div key={row}>
+              <p className={styles.row}>{row}</p>
+              <Divider />
+            </div>
+          ))}
+          <Button onClick={close}>Done</Button>
+        </div>
+      </Sheet>
+      <Sheet open={sheet === 'tall'} onClose={close} label="Gyms" scroll footer>
+        <div className={styles.sheetBody}>
+          <h2 className={styles.sheetTitle}>Gyms</h2>
+          {Array.from({ length: 14 }, (_, i) => `Gym ${i + 1}`).map((row) => (
+            <div key={row}>
+              <p className={styles.row}>{row}</p>
+              <Divider />
+            </div>
+          ))}
+        </div>
+        <SheetFooter>
+          <Button onClick={close}>Done</Button>
+        </SheetFooter>
+      </Sheet>
     </main>
   );
 }
