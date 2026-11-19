@@ -35,12 +35,11 @@
 
 .sheet {
   position: relative;
-  background: linear-gradient(to bottom, var(--sheet-top), var(--sheet-bg) 120px);
-  border-top: 1px solid var(--glass-line);
-  border-radius: 28px 28px 0 0;
-  box-shadow:
-    0 -12px 40px color-mix(in srgb, var(--black) 45%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--white) 5%, transparent);
+  /* Monolith (SPEC 23.1, PLAN M1): solid graphite, a hairline top edge, square top corners (4 px),
+     no shadow, no blur. */
+  background: var(--sheet-bg);
+  border-top: var(--divider);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   transform-origin: 50% 0;
   transition:
     scale var(--dur-slow) var(--ease-drawer),
@@ -130,12 +129,13 @@
   }
 }
 
+/* A flat 36 x 4 bar (decoration only, the button around it carries the "Close" name). */
 .grabber {
   display: block;
-  width: 36px;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--hairline);
+  width: var(--grabber-w);
+  height: var(--grabber-h);
+  border-radius: var(--radius-none);
+  background: var(--text-3);
   margin: 0 auto;
 }
 
@@ -168,7 +168,7 @@
 }
 
 /* A pinned header (PLAN 2.0k: Back on a nested sheet): its room is reserved above the body, which
-   scrolls under nothing. Content cut off below it fades in instead of ending on a hard line. */
+   scrolls under nothing. Once the body scrolls, a hairline marks where content goes under it. */
 .header {
   position: relative;
   z-index: 1;
@@ -185,25 +185,23 @@
   left: calc(var(--space-4) * -1 + var(--space-1));
   right: calc(var(--space-4) * -1);
   bottom: calc(var(--space-2) * -1);
-  height: var(--space-2);
-  background: linear-gradient(to top, transparent, var(--sheet-bg));
+  border-bottom: var(--divider);
   pointer-events: none;
 }
 
-/* Content cut off above the bar fades out instead of ending on a hard line (never catches taps). */
+/* Content that scrolls on under the footer ends on a hairline (Monolith: no fades; never catches taps). */
 .sheet[data-scroll='true'] .footer::before {
   content: '';
   position: absolute;
   left: calc(var(--space-4) * -1);
   right: calc(var(--space-4) * -1);
-  top: calc(var(--space-3) * -1);
-  height: var(--space-3);
-  background: linear-gradient(to bottom, transparent, var(--sheet-bg));
+  top: 0;
+  border-top: var(--divider);
   pointer-events: none;
 }
 
-/* iOS card stack (SPEC 23.1): while a sheet is open the app behind scales to 0.94 with rounded
-   corners and drops a little (the scrim dims it). The transition lives on the plain rule, so the
+/* iOS card stack (SPEC 23.1): while a sheet is open the app behind scales to 0.94 with its square
+   (4 px) corners and drops a little (the scrim dims it). The transition lives on the plain rule, so the
    app steps back as the sheet comes up and comes forward again as it leaves (PLAN 3.5w: it used to
    snap back in one frame): out on the drawer curve with the sheet, back in 200 ms, in step with
    the closing sheet (SHEET_CLOSE in Sheet.tsx). Reduced motion: only the dim. */
@@ -224,7 +222,7 @@
   transition-timing-function: var(--ease-drawer);
   scale: 0.94;
   translate: 0 calc(var(--safe-top) + 10px);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,15 +1,15 @@
-/* The nav reaches the bottom edge (PLAN 1.10b) and owns the one bottom inset; it is see through,
-   so content scrolls under it, and only the capsule takes taps. */
+/* The tab bar (SPEC 23.1, Monolith style sheet): docked to the bottom edge, solid graphite, a
+   hairline on top, words only, no blur, no capsule. The nav owns the one bottom inset (PLAN 1.10b).
+   The inner row keeps its old class name (capsule) and data-tour="tabs" for the tour and the specs. */
 .bar {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 10;
-  display: flex;
-  justify-content: center;
-  padding: 0 calc(var(--space-4) + var(--safe-right)) var(--tabbar-gap) calc(var(--space-4) + var(--safe-left));
-  pointer-events: none;
+  padding: 0 var(--safe-right) var(--tabbar-gap) var(--safe-left);
+  background: var(--glass-bg-bar);
+  border-top: var(--divider);
   view-transition-name: tabbar;
   transition:
     transform var(--dur-base) var(--ease-drawer),
@@ -18,7 +18,7 @@
 
 /* Pushed screens (plan, history detail): slid below the screen edge. */
 .bar[data-hidden] {
-  transform: translateY(calc(100% + 24px));
+  transform: translateY(calc(100% + var(--space-5)));
   opacity: 0;
 }
 
@@ -35,57 +35,36 @@
   }
 }
 
-/* a soft fade so content never meets the capsule with a hard edge */
-.bar::before {
-  content: '';
-  position: absolute;
-  inset: -28px 0 0;
-  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 82%, transparent) 60%);
-  pointer-events: none;
-}
-
 .capsule {
   position: relative;
-  pointer-events: auto;
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
   height: var(--tabbar-capsule);
+  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  padding: 5px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg-bar);
-  border: 1px solid var(--glass-line);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow:
-    0 10px 30px color-mix(in srgb, var(--black) 50%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent);
   touch-action: none;
 }
 
 .tab {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-height: 52px;
-  min-width: var(--tap);
-  border-radius: var(--radius-pill);
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
   color: var(--text-2);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
   transition:
     color var(--dur-fast) var(--ease-out),
-    transform 160ms var(--ease-out);
+    transform var(--dur-fast) var(--ease-out);
 }
 
-/* Held: the whole tab scales to 0.94 on the first frame (no transition in), eases back on release. */
+/* Held: the tab scales to 0.94 on the first frame (no transition in), eases back on release. */
 .tab:active {
-  transform: scale(0.94);
+  transform: scale(var(--press-scale-tab));
   transition-duration: 0ms;
 }
 
@@ -96,50 +75,29 @@
 }
 
 .tab[data-active] {
-  color: var(--accent);
+  color: var(--text);
 }
 
+/* The active tab's mark: a 20 x 3 px ice blue bar sitting on the hairline above its word. */
 .pill {
   position: absolute;
-  inset: 0;
-  border-radius: var(--radius-pill);
-  /* Titanium Glass (3.5t): a quiet ice tinted glass pill; the icon and label carry the accent. */
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.content {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.iconWrap {
-  position: relative;
-  display: inline-flex;
-}
-
-.icon {
-  width: 22px;
-  height: 22px;
+  top: calc(-1 * var(--line-hair));
+  left: 50%;
+  width: var(--tab-mark-w);
+  height: var(--tab-mark-h);
+  margin-left: calc(var(--tab-mark-w) / -2);
+  border-radius: var(--radius-none);
+  background: var(--accent);
 }
 
 .label {
   position: relative;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--text-mono-tab);
+  font-weight: 500;
   line-height: 1.1;
-  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
-/* A view transition snapshot cannot blur what is behind it: keep the capsule solid while one runs. */
-:global(html[data-nav]) .capsule {
-  background: var(--surface-solid);
-}
-
-.capsule {
-  transition: background-color var(--dur-base) var(--ease-out);
+.tab[data-active] .label {
+  font-weight: 700;
 }

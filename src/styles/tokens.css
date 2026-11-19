@@ -32,7 +32,7 @@
   --hairline: rgb(255 255 255 / 0.12); /* the 1 px divider */
   --hairline-strong: rgb(255 255 255 / 0.28); /* a chip outline */
   --line-secondary: rgb(255 255 255 / 0.35); /* the underline of a secondary button */
-  --divider: 1px solid var(--hairline);
+  --divider: var(--line-hair) solid var(--hairline);
   --text: #ffffff;
   --text-2: #a3a6ab; /* secondary text, 7.6 to 1 on graphite */
   --text-3: #64676c; /* decoration and art only: under 4.5 to 1, never words a user must read */
@@ -62,10 +62,11 @@
   --text-mono-hero: clamp(96px, 34.9vw, 196px); /* 150 at 430 */
   --text-mono-title: clamp(64px, 22.3vw, 96px); /* 96 at 430 */
   --text-mono-heading: clamp(32px, 10.2vw, 44px); /* 44 at 430, the primary button too */
-  --text-mono-heading-pair: 30px; /* two buttons share a row */
+  --text-mono-heading-pair: clamp(24px, 7vw, 30px); /* two buttons share a row: 30 at 430 */
   --text-mono-pause: clamp(60px, 19.5vw, 84px);
   --text-mono-value: clamp(26px, 7.4vw, 32px); /* list values, 26 to 36 */
   --text-mono-label: 12px; /* section labels, capitals */
+  --text-mono-unit: clamp(20px, 5.6vw, 24px); /* the unit under a data field's number (km, /km) */
   --text-mono-body: 18px;
   --text-mono-caption: 14px;
   --text-mono-tab: 13px;
@@ -93,7 +94,13 @@
   --radius-sm: 2px; /* chips, small frames, inputs */
   --radius-md: 4px;
   --radius-lg: 4px; /* what used to be a card */
-  --tap: 48px; /* minimum touch target */
+  --tap: 48px; /* a comfortable touch target */
+  --tap-min: 44px; /* the least any control may be (SPEC 23.2) */
+  --tap-lg: 56px; /* the screen's one big action */
+  /* the lines under the buttons (style sheet): primary 4 px, 8 px while pressed */
+  --bar-primary: 4px;
+  --bar-pressed: 8px;
+  --line-hair: 1px; /* a hairline: dividers, the secondary button line, bar edges */
 
   /* safe areas: the only way the app reads them (never raw env()). The floors are set by
      ui/safeArea.ts when an iPhone reports no top inset while the page is drawn under the status
@@ -133,6 +140,7 @@
 
   /* motion: mirrors src/ui/motion.ts */
   --press-scale: 0.97;
+  --press-scale-tab: 0.94;
   --press-dim: 0.8;
   --dur-press: 80ms;
   --dur-fast: 160ms;
@@ -155,10 +163,16 @@
   --dur-tap: 180ms;
   --ease-tap-spring: linear(0, 0.2 8%, 0.52 18%, 0.8 30%, 0.96 42%, 1.03 54%, 1.04 64%, 1.02 78%, 1 100%);
 
-  /* the tab bar: its height and its gap to the bottom edge (docked in M1) */
-  --tabbar-capsule: 62px;
-  --tabbar-gap: max(var(--safe-bottom), 10px);
-  --tabbar-space: calc(var(--tabbar-capsule) + var(--tabbar-gap) + 12px);
+  /* the tab bar (M1): docked to the bottom edge, its row height and the bottom inset under it */
+  --tabbar-capsule: 56px;
+  --tabbar-gap: var(--safe-bottom);
+  --tabbar-space: calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--line-hair));
+  /* the active tab's mark (style sheet): a 20 x 3 px ice blue bar */
+  --tab-mark-w: 20px;
+  --tab-mark-h: 3px;
+  /* a sheet's grabber: a flat bar */
+  --grabber-w: 36px;
+  --grabber-h: 4px;
 }
 
 @supports (height: 100dvh) {

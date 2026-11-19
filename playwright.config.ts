@@ -47,7 +47,9 @@ export default defineConfig({
     ...MATRIX.map(([name, device]) => ({ name, ...(process.env.PW_FULL_MATRIX ? {} : { grep: /@matrix/ }), use: device })),
   ],
   webServer: {
-    command: `${process.env.PW_NO_BUILD ? '' : 'npm run build && '}npx vite preview --port ${PORT} --strictPort${process.env.PW_DIST ? ` --outDir ${process.env.PW_DIST}` : ''}`,
+    // VITE_DEV_PREVIEW=1: the test build also carries the dev only Monolith preview (#/dev/monolith,
+    // PLAN M1); the shipped build (deploy.yml's deploy job) does not. With PW_NO_BUILD, build the same way.
+    command: `${process.env.PW_NO_BUILD ? '' : 'VITE_DEV_PREVIEW=1 npm run build && '}npx vite preview --port ${PORT} --strictPort${process.env.PW_DIST ? ` --outDir ${process.env.PW_DIST}` : ''}`,
     url: `http://localhost:${PORT}/anygym/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

@@ -78,7 +78,7 @@ export function CandidateReviewScreen() {
   return (
     <div className={styles.page} data-testid="candidate-review" data-view={q.loaded ? q.view : undefined}>
       <header className={styles.header}>
-        <Button variant="tertiary" onClick={() => go('/review', { kind: 'pop' })}>
+        <Button variant="quiet" onClick={() => go('/review', { kind: 'pop' })}>
           Back
         </Button>
         <UndoChip {...undo} />
@@ -109,11 +109,11 @@ export function CandidateReviewScreen() {
       {q.loaded && (
         <div className={styles.foot}>
           {q.view !== 'careful' && !q.allDone && (
-            <Button variant="tertiary" onClick={() => q.setMode('deck')} data-testid="review-mode">
+            <Button variant="quiet" onClick={() => q.setMode('deck')} data-testid="review-mode">
               One by one
             </Button>
           )}
-          <Button variant="tertiary" onClick={() => void q.exportApprovals()} data-testid="export-approvals">
+          <Button variant="quiet" onClick={() => void q.exportApprovals()} data-testid="export-approvals">
             Export approvals
           </Button>
         </div>
