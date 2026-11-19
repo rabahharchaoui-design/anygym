@@ -66,6 +66,7 @@
   --text-mono-pause: clamp(60px, 19.5vw, 84px);
   --text-mono-value: clamp(26px, 7.4vw, 32px); /* list values, 26 to 36 */
   --text-mono-label: 12px; /* section labels, capitals */
+  --text-mono-unit: clamp(20px, 5.6vw, 24px); /* the unit under a data field's number (km, /km) */
   --text-mono-body: 18px;
   --text-mono-caption: 14px;
   --text-mono-tab: 13px;

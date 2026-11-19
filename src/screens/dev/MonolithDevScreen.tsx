@@ -1,5 +1,6 @@
 import { Button } from '../../ui/Button';
 import { Divider } from '../../ui/Divider';
+import { DataField } from '../../ui/DataField';
 import styles from './MonolithDevScreen.module.css';
 
 /**
@@ -37,6 +38,38 @@ export function MonolithDevScreen() {
               <Divider />
             </div>
           ))}
+        </div>
+      </section>
+      <section className={styles.block} data-testid="m1-fields" aria-label="Data fields">
+        <h2 className={styles.label}>Data field</h2>
+        <DataField label="Time" value="21:08" />
+        <Divider />
+        <DataField label="Distance" value="3.42" unit="km" size="hero" />
+        <Divider />
+        <DataField label="Pace" value="6:11" unit="/km" />
+        <Divider />
+        <div className={styles.stats}>
+          <DataField label="Distance" value="3.42" unit="km" size="medium" />
+          <DataField label="Time" value="21:08" size="medium" />
+          <DataField label="Pace" value="6:11" unit="/km" size="medium" />
+        </div>
+      </section>
+      <section className={styles.block} data-testid="m1-fields-worst" aria-label="Data fields, worst case">
+        <h2 className={styles.label}>Data field, worst case</h2>
+        <DataField label="Time" value="1:59:59" />
+        <Divider />
+        <DataField label="Distance" value="99.99" unit="mi" size="hero" />
+        <Divider />
+        <DataField label="Time" value="1:59:59" size="hero" />
+        <Divider />
+        <DataField label="Pace" value={null} unit="/mi" />
+        <Divider />
+        <DataField label="Total weight" value="999" unit="lb" size="hero" />
+        <Divider />
+        <div className={styles.stats}>
+          <DataField label="Distance" value="99.99" unit="mi" size="medium" />
+          <DataField label="Time" value="1:59:59" size="medium" />
+          <DataField label="Pace" value={null} unit="/mi" size="medium" />
         </div>
       </section>
     </main>
