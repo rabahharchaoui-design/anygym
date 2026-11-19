@@ -27,7 +27,6 @@ export const RADIUS_ALLOW: string[] = [
   'src/screens/dev/ViewportDevScreen.module.css',
   'src/screens/history/History.module.css',
   'src/screens/history/HistoryDetail.tsx',
-  'src/screens/history/RunDetail.tsx',
   'src/screens/history/RunRecords.tsx',
   'src/screens/intake/Focus.module.css',
   'src/screens/intake/Intake.module.css',
