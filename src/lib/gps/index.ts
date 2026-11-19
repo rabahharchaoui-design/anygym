@@ -20,7 +20,7 @@ export { pushPace, currentPace, averagePace, pacePerUnit } from './pace';
 export type { PaceSample } from './pace';
 export { startSplits, addSplitStep, readSplits, splitPace } from './splits';
 export type { Split, SplitState, SplitStep } from './splits';
-export { startTracker, addPoint, pauseRun, pendingMs, resumeRun, readTracker } from './tracker';
+export { startTracker, addPoint, countShown, pauseRun, pendingMs, resumeRun, readTracker } from './tracker';
 export type { TrackerOptions, TrackerState, TrackerEvent, TrackerReading, RunStatus } from './tracker';
 export { stepTracker, processTrack, processPoints } from './batch';
 export type { TrackInput, TrackResult } from './batch';

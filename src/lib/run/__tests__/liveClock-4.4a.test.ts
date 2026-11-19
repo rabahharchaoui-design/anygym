@@ -1,8 +1,8 @@
 // PLAN 4.4a: the clock on the live screen counts between two positions, never backwards, never
-// through a pause or a gap, and never more than FACE_HOLD_SEC (2 s, PLAN 4.4c) ahead of what is saved.
+// through a pause or a gap, and never ahead of what End saves (PLAN 4.4c).
 import { describe, expect, it } from 'vitest';
 import { addPoint, GAP_SEC, pauseRun, pendingMs, readTracker, resumeRun, startTracker, type TrackerState } from '../../gps';
-import { FACE_HOLD_SEC, FIX_LAG_MS, faceSec, inGap, liveMovingMs, liveMovingSec, liveStep, msToNextFace, readLiveAt, startLive } from '..';
+import { FIX_LAG_MS, faceSec, finishRun, inGap, liveMovingMs, liveMovingSec, liveStep, msToNextFace, readLiveAt, startLive } from '..';
 import { DEFAULT_RUN_SETUP as DEFAULT_SETUP } from '../goal';
 
 const T0 = 1_700_000_000_000;
@@ -181,13 +181,9 @@ describe('faceSec', () => {
     expect(faceSec(null, 59_999)).toBe(59);
     expect(faceSec(59, 60_000)).toBe(60);
   });
-  it('holds a step back of up to FACE_HOLD_SEC (the most a position may be stamped late), shows a larger one', () => {
-    expect(FACE_HOLD_SEC * 1000).toBe(FIX_LAG_MS);
+  it('holds a step back of one second, shows a larger one', () => {
     expect(faceSec(31, 30_900)).toBe(31);
     expect(faceSec(31, 31_000)).toBe(31);
-    // PLAN 4.4c (5): stopping on a position stamped 2 s late must not step the face back.
-    expect(faceSec(33, 31_000)).toBe(33);
-    expect(faceSec(33, 31_999)).toBe(33);
     expect(faceSec(45, 30_000)).toBe(30);
   });
 });
@@ -196,26 +192,32 @@ describe('the face over random timelines (property)', () => {
   /** A small seeded random, so a failure can be replayed. */
   const rng = (seed: number) => () => ((seed = (seed * 1_103_515_245 + 12_345) % 2 ** 31) / 2 ** 31);
 
-  it('never steps back, and is never more than FACE_HOLD_SEC beyond what End would save', () => {
+  it('never steps back, needs no hold, and End saves at least what the face showed (PLAN 4.4c)', () => {
     for (let seed = 1; seed <= 200; seed++) {
       const r = rng(seed);
-      let s = fresh(r() < 0.7);
+      let run = startLive({ id: 'p', now: T0, setup: DEFAULT_SETUP, unit: 'km', autoPause: r() < 0.7 });
       let now = T0;
       let m = 0;
       let prev: number | null = null;
       let t = 0;
       const check = () => {
-        const shown = faceSec(prev, liveMovingMs(s, now));
-        if (prev !== null) expect(shown, `seed ${seed} at ${now - T0} ms`).toBeGreaterThanOrEqual(prev);
+        const raw = liveMovingMs(run.tracker, now);
+        const shown = faceSec(prev, raw);
+        if (prev !== null) {
+          expect(shown, `seed ${seed} at ${now - T0} ms`).toBeGreaterThanOrEqual(prev);
+          // The time itself never drops, so the face never has to hold a step back.
+          expect(Math.floor(raw / 1000), `seed ${seed} at ${now - T0} ms: no hold`).toBeGreaterThanOrEqual(prev);
+        }
         prev = shown;
-        const saved = pauseRun(s, now).movingMs;
-        expect(shown * 1000 - saved, `seed ${seed}: face ahead of End`).toBeLessThanOrEqual(FACE_HOLD_SEC * 1000);
-        expect(saved - liveMovingMs(s, now), `seed ${seed}: End beyond the face`).toBeLessThanOrEqual(0);
+        // End (runEngine.end): pause at the tap, then the row. The summary and History print its movingSec.
+        const saved = finishRun(liveStep(run, { type: 'pause', now }), now).movingSec;
+        expect(Math.floor(saved), `seed ${seed}: the summary below the face`).toBeGreaterThanOrEqual(shown);
+        expect(saved * 1000 - raw, `seed ${seed}: End beyond the face`).toBeLessThanOrEqual(0.001);
       };
       for (let step = 0; step < 120; step++) {
         const pick = r();
         if (pick < 0.08) {
-          s = s.manual ? resumeRun(s) : pauseRun(s, now);
+          run = liveStep(run, run.tracker.manual ? { type: 'resume' } : { type: 'pause', now });
         } else if (pick < 0.14) {
           // A gap: no position for 16 to 60 s, the face read on the way.
           const until = now + 16_000 + Math.floor(r() * 44_000);
@@ -225,12 +227,29 @@ describe('the face over random timelines (property)', () => {
           for (const end = now + wait; now < end; now += 400) check();
           t = now - T0;
           // Standing still now and then (auto pause), else running at 3 m/s; stamped up to FIX_LAG_MS
-          // early, the most fixTime accepts (PLAN 4.4c: a stop on such a position stepped the face back).
+          // before it arrives, the most fixTime accepts (PLAN 4.4c: a stop on such a position stepped the face back).
           if (r() < 0.75) m += (3 * wait) / 1000;
-          s = addPoint(s, at(Math.max(0, t - Math.floor(r() * (FIX_LAG_MS + 1))) / 1000, m)).state;
+          run = liveStep(run, { type: 'fix', point: at(Math.max(0, t - Math.floor(r() * (FIX_LAG_MS + 1))) / 1000, m), now });
         }
         check();
       }
     }
+  });
+
+  it('a stop on a position stamped 2 s before it arrives: the face, End and the summary agree', () => {
+    let run = startLive({ id: 'p', now: T0, setup: DEFAULT_SETUP, unit: 'km', autoPause: true });
+    for (let s = 0; s <= 30; s++) run = liveStep(run, { type: 'fix', point: at(s, s * 3), now: T0 + s * 1000 });
+    // Standing from 0:30; each position reaches the app 2 s after its stamp.
+    let face = 0;
+    for (let s = 31; s <= 50; s++) {
+      const now = T0 + (s + 2) * 1000;
+      face = faceSec(face, liveMovingMs(run.tracker, now - 1));
+      run = liveStep(run, { type: 'fix', point: at(s, 90), now });
+      expect(Math.floor(liveMovingMs(run.tracker, now) / 1000), `0:${s}`).toBeGreaterThanOrEqual(face);
+    }
+    expect(readTracker(run.tracker).status).toBe('auto-paused');
+    const end = T0 + 60_000;
+    face = faceSec(face, liveMovingMs(run.tracker, end));
+    expect(Math.floor(finishRun(liveStep(run, { type: 'pause', now: end }), end).movingSec)).toBeGreaterThanOrEqual(face);
   });
 });

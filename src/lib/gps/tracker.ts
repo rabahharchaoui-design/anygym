@@ -165,6 +165,17 @@ export function pendingMs(state: TrackerState, now: number): number {
 }
 
 /**
+ * Moving time the clock on the screen had already shown that the engine would take back (PLAN
+ * 4.4c): a position reaches the app up to 2 s after its stamp, and when that position starts an
+ * auto pause the engine counts only up to the stamp. The runner was counted as moving until the app
+ * learned of the stop (as for the 8 s it takes to see one), so those seconds count, as standing
+ * time: no distance. The live run gives them (live.ts, fix `now`); a replay has no arrival times.
+ */
+export function countShown(state: TrackerState, ms: number): TrackerState {
+  return ms > 0 ? advance(state, { distanceM: 0, ms, timed: true, gap: false }).state : state;
+}
+
+/**
  * Pause by hand. Until resumeRun nothing is recorded and auto pause does nothing. With `now` (the
  * live run gives it) the moving time since the last good point is counted first (pendingMs): the
  * runner was moving until the tap, and the clock on the screen had already shown that time. It

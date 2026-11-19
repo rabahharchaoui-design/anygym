@@ -120,7 +120,8 @@ function startWatch() {
       if (replayOf && replayOf.lat === latitude && replayOf.lng === longitude) return;
       replayOf = null;
       // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
-      dispatch({ type: 'fix', point: { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, Date.now()) } });
+      const now = Date.now();
+      dispatch({ type: 'fix', point: { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, now) }, now });
     },
     (err) => {
       earlyTrouble = err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable';
