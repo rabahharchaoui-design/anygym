@@ -14,3 +14,4 @@ playwright/.cache/
 .dev.vars
 workers/**/node_modules
 .jscpd-report/
+node_modules
