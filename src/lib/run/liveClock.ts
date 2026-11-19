@@ -13,9 +13,9 @@
 //   Those GAP_SEC count as moving time (the next position, a pause or End credits them, gps
 //   addPoint and pauseRun), the rest of the gap never does. When positions return it goes on from
 //   there.
-// - Saved time is always the engine's. The face is at most one second ahead of what will be saved.
+// - Saved time is always the engine's. The face is at most FACE_HOLD_SEC (2 s) ahead of what will be saved.
 import { GAP_SEC, pendingMs, type TrackerReading, type TrackerState } from '../gps';
-import { readLive, type LiveRun } from './live';
+import { FIX_LAG_MS, readLive, type LiveRun } from './live';
 
 /** Moving time as the face shows it, in ms: counted time plus what the next position would add. */
 export const liveMovingMs = (tracker: TrackerState, nowMs: number): number => tracker.movingMs + pendingMs(tracker, nowMs);
@@ -55,14 +55,17 @@ export function msToNextFace(tracker: TrackerState, nowMs: number): number | nul
   return Math.max(1, Math.min(toSecond, toGap));
 }
 
-/** A step back of at most this many seconds is not shown (see faceSec). */
-export const FACE_HOLD_SEC = 1;
+/**
+ * A step back of at most this many seconds is not shown (see faceSec): as far as a position may be
+ * stamped before it arrives (live fixTime), so stopping on such a position never steps the face back.
+ */
+export const FACE_HOLD_SEC = FIX_LAG_MS / 1000;
 
 /**
  * The whole second the face prints, given the one it printed last (null: none yet). It only steps
- * back when it must: a drop of one second (a position stamped a moment before it arrived, at the
- * start of an auto pause) is held, so a number never repeats backwards; a larger drop (a gap that
- * will not count) is shown, because the face never stays more than a second ahead of the truth.
+ * back when it must: a drop of up to FACE_HOLD_SEC (a position stamped up to 2 s before it arrived,
+ * at the start of an auto pause, PLAN 4.4c) is held, so a number never repeats backwards; a larger
+ * drop is shown, because the face never stays more than FACE_HOLD_SEC ahead of the truth.
  */
 export function faceSec(prev: number | null, movingMs: number): number {
   const whole = Math.floor(Math.max(0, movingMs) / 1000);

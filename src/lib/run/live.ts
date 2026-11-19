@@ -106,7 +106,7 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
 export const readLive = (run: LiveRun): TrackerReading => readTracker(run.tracker);
 
 /** How far the phone's own timestamp may lag behind the clock and still be used. */
-const FIX_LAG_MS = 2000;
+export const FIX_LAG_MS = 2000;
 /** ...and how far it may be ahead (two clocks never agree exactly). */
 const FIX_LEAD_MS = 500;
 
