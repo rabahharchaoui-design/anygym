@@ -16,7 +16,8 @@
 // - 3% of fixes repeat the previous position exactly with a new time (phones do that).
 // - Delivery: a fix reaches the app 0.1 to 0.6 s after its stamp; 4% of the time delivery stalls for
 //   1.5 to 4 s and the held fixes then arrive together, in order (late fixes).
-// - Speed (coords.speed) is given only below 20 m accuracy, as phones give it with a GPS lock.
+// - Speed (coords.speed, true speed plus a spread of 0.2 m/s) is given only at 25 m accuracy or better
+//   (the app's own "good GPS" line): phones give it only with a GPS lock. None in the cold start.
 import { seeded, seededNormal } from '../../../src/lib/gps/__tests__/fixtures';
 import { EARTH_RADIUS_M } from '../../../src/lib/gps/geo';
 
@@ -123,8 +124,7 @@ export const traceName = (s: TraceSpec) => `${s.speed}-${s.cadence}s-${s.noise}m
  * repeats or stalls): what is left is the error no filter can tell from movement.
  */
 export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean } = {}): Trace {
-  const off = (k: string) => opts.biasOnly || (process.env.OFF ?? '').includes(k);
-  const jitter = off('j') ? 0 : 0.05;
+  const jitter = opts.biasOnly ? 0 : 0.05;
   const truth = profile(spec);
   const seed = spec.seed * 1009 + spec.noise * 31 + spec.cadence * 7 + SPEEDS[spec.speed] * 100 + SCENARIOS.indexOf(spec.scenario) * 50_000;
   const rand = seeded(seed);
@@ -144,24 +144,24 @@ export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean } = {}): T
     const pos = routeAt(truth.distanceAt(at));
     let east = pos.east + 0.35 * accuracy * biasE(at) + jitter * accuracy * normal();
     let north = pos.north + 0.35 * accuracy * biasN(at) + jitter * accuracy * normal();
-    if (!off('o') && rand() < 0.01) {
+    if (!opts.biasOnly && rand() < 0.01) {
       const angle = rand() * 2 * Math.PI;
       const jump = (2 + rand()) * accuracy;
       east += jump * Math.cos(angle);
       north += jump * Math.sin(angle);
     }
     const prev = fixes[fixes.length - 1];
-    const repeat = !off('r') && prev && rand() < 0.03;
+    const repeat = !opts.biasOnly && prev && rand() < 0.03;
     const { lat, lng } = repeat ? prev : toLatLng(east, north);
     const stamp = T0 + Math.round(at * 1000);
-    if (!off('s') && stallUntil < 0 && rand() < 0.04) stallUntil = stamp + Math.round((1.5 + rand() * 2.5) * 1000);
+    if (!opts.biasOnly && stallUntil < 0 && rand() < 0.04) stallUntil = stamp + Math.round((1.5 + rand() * 2.5) * 1000);
     let arrival = stamp + Math.round((0.1 + rand() * 0.5) * 1000);
     if (stallUntil >= 0) {
       if (stamp <= stallUntil) arrival = Math.max(arrival, stallUntil);
       else stallUntil = -1;
     }
     if (prev && arrival < prev.arrival) arrival = prev.arrival;
-    const speed = accuracy < 20 ? Math.max(0, truth.speedAt(at) + 0.2 * normal()) : null;
+    const speed = accuracy <= 25 ? Math.max(0, truth.speedAt(at) + 0.2 * normal()) : null;
     fixes.push({ stamp, arrival, lat, lng, accuracy: repeat ? prev.accuracy : accuracy, speed });
   }
   return { name: traceName(spec), spec, t0: T0, fixes, truth };

@@ -103,9 +103,9 @@ function capSpeed(e: Axis, n: Axis): [Axis, Axis] {
 }
 
 /** The estimate as a point: its position, the fix's time, and its own accuracy (same scale as a phone's). */
-export function estimatePoint(est: Estimate): GpsPoint {
+export function estimatePoint(est: Estimate, speed?: number): GpsPoint {
   const { lat, lng } = toLatLng(est);
-  return { lat, lng, t: est.t, accuracy: ACCURACY_SIGMAS * Math.sqrt((est.e.p[0] + est.n.p[0]) / 2) };
+  return { lat, lng, t: est.t, accuracy: ACCURACY_SIGMAS * Math.sqrt((est.e.p[0] + est.n.p[0]) / 2), ...(speed !== undefined ? { speed } : {}) };
 }
 
 /** The speed is unknown again (the runner moves off after standing): the fixes set it quickly. */

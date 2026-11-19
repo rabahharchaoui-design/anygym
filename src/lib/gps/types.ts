@@ -3,10 +3,14 @@
 // Inside: meters, seconds for results, milliseconds for timestamps (the stored RunPoint uses ms).
 
 /** A position as the phone reports it. Anything may be missing; nothing missing is ever guessed. */
-export type RawPoint = { lat?: number | null; lng?: number | null; t?: number | null; accuracy?: number | null };
+export type RawPoint = { lat?: number | null; lng?: number | null; t?: number | null; accuracy?: number | null; speed?: number | null };
 
-/** A point that passed the filter: degrees, timestamp in ms, accuracy radius in meters. */
-export type GpsPoint = { lat: number; lng: number; t: number; accuracy: number };
+/**
+ * A point that passed the filter: degrees, timestamp in ms, accuracy radius in meters, and (PLAN
+ * 4.4d) the phone's own speed in m/s when it gave one (coords.speed: measured from the signal's
+ * Doppler shift, so it does not wander with the position).
+ */
+export type GpsPoint = { lat: number; lng: number; t: number; accuracy: number; speed?: number };
 
 /** Why a point was not trusted. */
 /** `jump`: far off where the estimate expects (estimate.ts, PLAN 4.4d). */
@@ -125,5 +129,18 @@ export const START_MAX_MPS = 4.5;
  * is not recorded yet: summed fix by fix, the estimate's small wobble from side to side added 3 to
  * 6% to a walk. A walk at one fix a second still records at least every 2 to 3 s.
  */
-export const MIN_STEP_SHARE = 0.25;
-export const MIN_STEP_CAP_M = 3;
+export const MIN_STEP_SHARE = 0.5;
+export const MIN_STEP_CAP_M = 4;
+
+/**
+ * PLAN 4.4d (3): the phone's own speed (coords.speed, from the Doppler shift of the signal) at or
+ * above this is moving: standing never freezes the distance then, and moving again needs no way
+ * off the spot. A walk is 1.2 to 1.6 m/s; a phone lying still reads 0 to 0.3.
+ */
+export const SPEED_MOVING_MPS = 0.9;
+
+/** PLAN 4.4d (3): current pace from the phone's own speeds is their mean over this many seconds. */
+export const SPEED_PACE_SEC = 5;
+
+/** PLAN 4.4d (3): the phone's own speed under STILL_SPEED_MPS for this long is standing, for the distance. */
+export const STILL_BY_SPEED_SEC = 3;

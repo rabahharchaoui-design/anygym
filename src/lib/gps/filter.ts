@@ -22,7 +22,9 @@ function readPoint(raw: RawPoint): GpsPoint | RejectReason {
   if (!finite(raw.lat) || !finite(raw.lng) || Math.abs(raw.lat) > 90 || Math.abs(raw.lng) > 180) return 'bad-position';
   // A missing accuracy is not a good accuracy: the phone did not say how sure it is.
   if (!finite(raw.accuracy) || raw.accuracy < 0 || raw.accuracy > POOR_ACCURACY_M) return 'accuracy';
-  return { lat: raw.lat, lng: raw.lng, t: raw.t, accuracy: raw.accuracy };
+  // A speed is kept only when the phone gave a real one (iPhone says -1 or null without a GPS lock).
+  const speed = finite(raw.speed) && raw.speed >= 0 && raw.speed <= MAX_SPEED_MPS ? { speed: raw.speed } : {};
+  return { lat: raw.lat, lng: raw.lng, t: raw.t, accuracy: raw.accuracy, ...speed };
 }
 
 /**

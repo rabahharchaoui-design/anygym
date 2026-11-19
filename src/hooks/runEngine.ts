@@ -130,7 +130,7 @@ function startWatch() {
       if (replay) return runDiagLog.fix(now, raw, 'watch:replay-dropped', false);
       // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
       if (!state.live) return runDiagLog.early(now, raw);
-      const point = { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, now) };
+      const point = { lat: latitude, lng: longitude, accuracy, speed, t: fixTime(pos.timestamp, now) };
       const fate = fixFate(state.live.tracker, point);
       dispatch({ type: 'fix', point, now });
       runDiagLog.fix(now, raw, fate, state.live?.tracker.still ?? false);

@@ -30,7 +30,7 @@ export function replay(trace: Trace, opts: { autoPause?: boolean } = {}): Replay
   for (let at = trace.t0; at <= last + 1000; at += 1000) {
     for (; i < fixes.length && fixes[i]!.arrival <= at; i++) {
       const f = fixes[i]!;
-      const point = { lat: f.lat, lng: f.lng, accuracy: f.accuracy, t: fixTime(f.stamp, f.arrival) };
+      const point = { lat: f.lat, lng: f.lng, accuracy: f.accuracy, speed: f.speed, t: fixTime(f.stamp, f.arrival) };
       const { event } = addPoint(run.tracker, point);
       run = liveStep(run, { type: 'fix', point, now: f.arrival });
       const fate = event.type === 'rejected' ? `rejected:${event.reason}` : event.type === 'held' ? `held:${event.reason}` : 'kept';

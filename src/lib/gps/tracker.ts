@@ -23,10 +23,10 @@
 import { JUMP_RESET, estimatePoint, estimateSpeed, reopenSpeed, startEstimate, stepEstimate, type Estimate } from './estimate';
 import { judgePoint } from './filter';
 import { haversineM } from './geo';
-import { averagePace, currentPace, pushPace, type PaceSample } from './pace';
+import { averagePace, currentPace, pushPace, pushSpeed, speedPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
 import { clockStill, isStill, leftStill, minStepM, movedLately, pushRecent, type Recent } from './stillness';
-import { GAP_SEC, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
+import { GAP_SEC, SPEED_MOVING_MPS, STILL_BY_SPEED_SEC, STILL_SPEED_MPS, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
   /** Split length in meters (units.ts unitMeters). */
@@ -67,6 +67,8 @@ export type TrackerState = {
   /** Moving time counted with no distance of its own (the first GAP_SEC of a gap): pace leaves it out. */
   heldMs: number;
   recent: Recent;
+  /** The phone's own speeds of the last SPEED_PACE_SEC (PLAN 4.4d), [time, m/s]. Absent in older snapshots. */
+  speeds?: ReadonlyArray<readonly [number, number]>;
   /** Every recorded or held point of the last AUTO_PAUSE_SEC, standing or not (movedLately). Absent in older snapshots. */
   trail?: Recent;
   /**
@@ -125,11 +127,34 @@ function advance(state: TrackerState, move: Move): { state: TrackerState; comple
 /** Put a point on the track as the start of a new continuous stretch. */
 const restart = (state: TrackerState, p: GpsPoint): TrackerState => ({ ...state, lastGood: p, lastRecorded: p, still: false, stopped: false, stopAt: null, afterPause: false, recent: [p], trail: [p] });
 
+/** Standing by the window's rule, unless the phone's own speed says the runner is moving (PLAN 4.4d). */
+const standsAt = (recent: Recent, p: GpsPoint, rule: (r: Recent) => boolean = isStill): boolean => rule(recent) && !(p.speed !== undefined && p.speed >= SPEED_MOVING_MPS);
+
+/**
+ * Standing for the distance by the phone's own speed (PLAN 4.4d): the last speeds, over at least
+ * STILL_BY_SPEED_SEC, all under the standing speed. Sooner than the 8 s window, so a stop at a light
+ * adds no meters of the estimate running on. The clock keeps its own rule (SPEC 12.3, 8 s).
+ */
+function stillBySpeed(speeds: ReadonlyArray<readonly [number, number]>, p: GpsPoint): boolean {
+  if (p.speed === undefined) return false;
+  const all = [...speeds, [p.t, p.speed] as const].filter((s) => p.t - s[0] <= STILL_BY_SPEED_SEC * 1000);
+  return all.length >= 3 && p.t - all[0]![0] >= STILL_BY_SPEED_SEC * 1000 && all.every((s) => s[1] < STILL_SPEED_MPS);
+}
+
 /** Auto paused: standing by the clock's rule with auto pause on. The moving clock stands. */
 export const clockStopped = (state: TrackerState): boolean => state.autoPause && state.still && state.stopped;
 
 /** Feed one reported position. Returns the new state and what happened to the point. */
 export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerState; event: TrackerEvent } {
+  const out = addFix(state, raw);
+  const e = out.event;
+  if (e.type === 'rejected' || (e.type === 'held' && e.reason === 'paused')) return out;
+  // The phone's own speeds of the last seconds (PLAN 4.4d): current pace and moving again read them.
+  const p = out.state.lastGood!;
+  return { ...out, state: { ...out.state, speeds: p.speed === undefined ? [] : pushSpeed(out.state.speeds ?? [], p, e.type === 'recorded' && e.brk !== null) } };
+}
+
+function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; event: TrackerEvent } {
   const v = judgePoint(state.lastGood, raw, state.afterPause);
   if (!v.ok) return { state, event: { type: 'rejected', reason: v.reason } };
   if (state.manual) return { state, event: { type: 'held', reason: 'paused' } };
@@ -145,7 +170,7 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   const stepped = state.est && from && prev && v.link === 'step' ? stepEstimate(state.est, v.point, state.still && state.stopped, state.still) : { kind: 'ok' as const, est: startEstimate(v.point) };
   if (stepped.kind === 'jump') return { state: { ...state, est: stepped.est }, event: { type: 'rejected', reason: 'jump' } };
   let est = stepped.est;
-  const p = estimatePoint(est);
+  const p = estimatePoint(est, v.point.speed);
 
   if (!from || !prev) {
     const sample = { movingMs: 0, timedM: 0 };
@@ -189,7 +214,10 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   const ms = p.t - prev.t;
   const trail = pushRecent(state.trail ?? [], p);
   // Moving again: off the standing spot, and moving now, not drifting there (PLAN 4.4d).
-  if (state.still && !(leftStill(from, p) && movedLately(state.trail ?? [], p))) {
+  // Moving again: the phone's own speed says so when it gives one (it does not wander with the
+  // position); else off the standing spot, and moving now, not drifting there (PLAN 4.4d).
+  const goingAgain = p.speed !== undefined ? p.speed >= SPEED_MOVING_MPS : leftStill(from, p) && movedLately(state.trail ?? [], p);
+  if (state.still && !goingAgain) {
     // Standing: no distance. Auto paused, the clock stands. Otherwise it counts, and the window goes
     // on so the 4 m rule can still stop it (a walk at poor accuracy that then stops at a light).
     if (clockStopped(state)) return { state: { ...state, lastGood: p, est, trail }, event: { type: 'held', reason: 'still' } };
@@ -204,7 +232,7 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     // wobble from side to side never adds meters. Its time counts now, its way with the next step.
     const recent = pushRecent(state.recent, p);
     const held = advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
-    return { state: { ...held, lastGood: p, est, trail, recent, still: isStill(recent), stopped: clockStill(recent), stopAt: null }, event: { type: 'held', reason: 'short' } };
+    return { state: { ...held, lastGood: p, est, trail, recent, still: standsAt(recent, p) || stillBySpeed(state.speeds ?? [], p), stopped: standsAt(recent, p, clockStill), stopAt: null }, event: { type: 'held', reason: 'short' } };
   }
   // Off again after standing: the speed is unknown again, so the estimate takes it from the fixes quickly.
   if (state.still) est = reopenSpeed(est);
@@ -218,9 +246,9 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     next = { state: rest.state, completed: [...first.completed, ...rest.completed] };
   } else next = advance(state, { distanceM: legM, ms, timed: true, gap: false });
   const recent = state.still ? [p] : pushRecent(state.recent, p);
-  const stopped = clockStill(recent);
+  const stopped = standsAt(recent, p, clockStill);
   return {
-    state: { ...next.state, lastGood: p, lastRecorded: p, est, trail, recent, still: isStill(recent), stopped, stopAt: null },
+    state: { ...next.state, lastGood: p, lastRecorded: p, est, trail, recent, still: standsAt(recent, p) || stillBySpeed(state.speeds ?? [], p), stopped, stopAt: null },
     event: { type: 'recorded', point: p, brk: null, splits: next.completed },
   };
 }
@@ -273,6 +301,9 @@ export function flushStill(state: TrackerState): { state: TrackerState; point: G
   const last = state.lastGood;
   const none = { state, point: null, completed: [] };
   if (!state.still || !from || !last) return none;
+  // The phone's own speed says standing (PLAN 4.4d): the way off the spot is wander, not a walk.
+  const lastSpeed = state.speeds?.[state.speeds.length - 1];
+  if (lastSpeed && lastSpeed[0] === last.t && lastSpeed[1] < STILL_SPEED_MPS) return none;
   // Stopped: the shorter of the way to the last point and the way to where the clock stopped, with
   // the point it ends on, so the line and the distance agree.
   const stopAt = state.stopped ? (state.stopAt ?? null) : null;
@@ -341,7 +372,7 @@ export function readTracker(state: TrackerState): TrackerReading {
     distanceM: state.distanceM,
     movingSec,
     elapsedSec: state.lastGood && state.firstT !== null ? (state.lastGood.t - state.firstT) / 1000 : 0,
-    currentPace: state.manual || state.still ? null : currentPace(state.pace),
+    currentPace: state.manual || state.still ? null : (speedPace(state.speeds ?? [], state.lastGood) ?? currentPace(state.pace)),
     averagePace: averagePace(movingSec - (state.heldMs ?? 0) / 1000, state.timedM),
     splits: readSplits(state.splits),
   };
