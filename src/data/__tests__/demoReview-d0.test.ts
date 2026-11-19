@@ -61,3 +61,21 @@ describe('demo review applied to the catalog', async () => {
     vi.resetModules();
   });
 });
+
+describe('the D1 replacement list', () => {
+  const list = JSON.parse(readFileSync('data/reviews/demo-replacements-2026-11-19.json', 'utf8')) as { groups: { name: string; ids: { id: string; verdict: string; note?: string }[] }[] };
+  const rows = list.groups.flatMap((g) => g.ids);
+
+  it('is exactly the 39 ids G hid, each once, with his verdict and note', () => {
+    const hidden = Object.entries(raw.decisions).filter(([, d]) => d.verdict !== 'approved');
+    expect(rows.length).toBe(39);
+    expect(new Set(rows.map((r) => r.id)).size).toBe(39);
+    for (const [id, d] of hidden) expect(rows.find((r) => r.id === id), id).toEqual({ id, verdict: d.verdict, ...(d.note ? { note: d.note } : {}) });
+  });
+
+  it('in PLAN D1 order: the 8 wrong demos, the 4 form critical lifts, then the other fix cues', () => {
+    expect(list.groups.map((g) => [g.name, g.ids.length])).toEqual([['wrong demo', 8], ['form critical lifts', 4], ['other fix cues', 27]]);
+    expect(list.groups[0]!.ids.every((r) => r.verdict === 'wrong-demo')).toBe(true);
+    expect(list.groups[1]!.ids.map((r) => r.id)).toEqual(['Barbell_Deadlift', 'Romanian_Deadlift', 'Sumo_Deadlift', 'Smith_Machine_Stiff-Legged_Deadlift']);
+  });
+});
