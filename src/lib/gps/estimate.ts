@@ -50,7 +50,7 @@ const JUMP_GATE_SQ = 12.25;
  * the last one waits for the next fix: a lone outlier is then never counted, a real turn or stop is
  * counted one fix late. With fixes 5 s apart there is no waiting (it would freeze the number).
  */
-const SURPRISE_SQ = 6.25;
+const SURPRISE_SQ = 4;
 const CONFIRM_WITHIN_MS = 2500;
 /** Past this surprise (2 standard deviations, squared) a fix is weighted down. */
 const ROBUST_FROM_SQ = 4;

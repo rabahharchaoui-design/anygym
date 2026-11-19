@@ -3,7 +3,7 @@
 // table. So "standing" is judged on the last 8 seconds as a whole, and "moving again" on leaving the
 // spot by more than the GPS's own stated uncertainty.
 import { haversineM } from './geo';
-import { AUTO_PAUSE_SEC, RESUME_LOOKBACK_SEC, RESUME_RADIUS_CAP_M, RESUME_WINDOW_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
+import { AUTO_PAUSE_SEC, MIN_STEP_CAP_M, MIN_STEP_SHARE, RESUME_LOOKBACK_SEC, RESUME_RADIUS_CAP_M, RESUME_WINDOW_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
 
 /** The recorded points of the last AUTO_PAUSE_SEC seconds of one continuous stretch, oldest first. */
 export type Recent = readonly GpsPoint[];
@@ -71,3 +71,6 @@ export function movedLately(trail: Recent, p: GpsPoint): boolean {
   for (const r of trail) if (p.t - r.t >= RESUME_LOOKBACK_SEC * 1000) q = r;
   return !q || q.t >= p.t || haversineM(q, p) > RESUME_WINDOW_M;
 }
+
+/** The shortest step that is recorded (PLAN 4.4d): a share of the point's accuracy, at most MIN_STEP_CAP_M. */
+export const minStepM = (p: GpsPoint): number => Math.min(MIN_STEP_CAP_M, p.accuracy * MIN_STEP_SHARE);

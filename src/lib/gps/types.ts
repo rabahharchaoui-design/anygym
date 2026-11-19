@@ -12,8 +12,11 @@ export type GpsPoint = { lat: number; lng: number; t: number; accuracy: number }
 /** `jump`: far off where the estimate expects (estimate.ts, PLAN 4.4d). */
 export type RejectReason = 'no-time' | 'time-backwards' | 'bad-position' | 'accuracy' | 'speed' | 'jump';
 
-/** Why a good point was not added to the track: the run is paused by hand, or the runner stands still. */
-export type HeldReason = 'paused' | 'still';
+/**
+ * Why a good point was not added to the track: the run is paused by hand, the runner stands still,
+ * or (PLAN 4.4d) the step is shorter than the estimate's wobble and waits for the next one.
+ */
+export type HeldReason = 'paused' | 'still' | 'short';
 
 /**
  * A break in the drawn line between two recorded points (their timestamps): a GPS gap, or a pause by
@@ -116,3 +119,11 @@ export const AVG_PACE_MIN_M = 50;
  * as a jump until more agree (estimate.ts JUMP_RESET).
  */
 export const START_MAX_MPS = 4.5;
+
+/**
+ * PLAN 4.4d (3): a step shorter than this share of the estimate's accuracy (at most MIN_STEP_CAP_M)
+ * is not recorded yet: summed fix by fix, the estimate's small wobble from side to side added 3 to
+ * 6% to a walk. A walk at one fix a second still records at least every 2 to 3 s.
+ */
+export const MIN_STEP_SHARE = 0.25;
+export const MIN_STEP_CAP_M = 3;

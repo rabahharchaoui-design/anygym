@@ -24,6 +24,7 @@ export const DIAG_FATES = [
   'watch:restarted',
   'watch:replay-dropped',
   'before-run',
+  'held:short',
 ] as const;
 export type DiagFate = (typeof DIAG_FATES)[number];
 

@@ -25,7 +25,7 @@ import { judgePoint } from './filter';
 import { haversineM } from './geo';
 import { averagePace, currentPace, pushPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
-import { clockStill, isStill, leftStill, movedLately, pushRecent, type Recent } from './stillness';
+import { clockStill, isStill, leftStill, minStepM, movedLately, pushRecent, type Recent } from './stillness';
 import { GAP_SEC, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
@@ -199,6 +199,13 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     return { state: { ...held, lastGood: p, est, trail, recent, stopped: state.stopped || stops, stopAt: stops ? p : (state.stopAt ?? null) }, event: { type: 'held', reason: 'still' } };
   }
   const legM = haversineM(from, p);
+  if (!state.still && legM < minStepM(p)) {
+    // A step shorter than the estimate's own wobble (PLAN 4.4d): it waits for the next, so the
+    // wobble from side to side never adds meters. Its time counts now, its way with the next step.
+    const recent = pushRecent(state.recent, p);
+    const held = advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
+    return { state: { ...held, lastGood: p, est, trail, recent, still: isStill(recent), stopped: clockStill(recent), stopAt: null }, event: { type: 'held', reason: 'short' } };
+  }
   // Off again after standing: the speed is unknown again, so the estimate takes it from the fixes quickly.
   if (state.still) est = reopenSpeed(est);
   let next: { state: TrackerState; completed: Split[] };
