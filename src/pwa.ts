@@ -3,12 +3,14 @@
 import { registerSW } from 'virtual:pwa-register';
 import { getActiveRun } from './db/runs';
 import { getActiveSession } from './db/workouts';
+import { liveRunInMemory } from './lib/liveRunProbe';
 import { reloadWhenIdle, setUpdateReady, shouldApplyUpdateNow, type Activity } from './lib/pwaUpdate';
 
-async function activity(): Promise<Activity> {
+export async function appActivity(): Promise<Activity> {
   try {
     const [session, run] = await Promise.all([getActiveSession(), getActiveRun()]);
-    return { workout: !!session, run: !!run };
+    // A run in memory counts even when no row was saved yet (PLAN 4.6c 1): a reload would lose it.
+    return { workout: !!session, run: !!run || liveRunInMemory() };
   } catch {
     // Storage unreadable: be safe and wait for a tap.
     return { workout: true, run: false };
@@ -22,13 +24,13 @@ export function registerAppUpdates(): void {
     // The plugin would reload unconditionally once the new version controls the page: the
     // activity is checked again right there, so a workout started meanwhile is never reloaded.
     onNeedReload() {
-      void reloadWhenIdle(activity, () => window.location.reload());
+      void reloadWhenIdle(appActivity, () => window.location.reload());
     },
     onNeedRefresh() {
-      void activity().then(({ workout, run }) => {
+      void appActivity().then(({ workout, run }) => {
         const apply = () => void updateSW(true);
         if (shouldApplyUpdateNow(workout, run)) apply();
-        else setUpdateReady(apply, activity);
+        else setUpdateReady(apply, appActivity);
       });
     },
     onRegisteredSW(_url, registration) {
