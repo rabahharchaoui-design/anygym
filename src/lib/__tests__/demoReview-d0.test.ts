@@ -1,7 +1,7 @@
 // PLAN D0: G's hand review of the demos, applied to the photo gate (pure part).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { applyDemoReview, DemoReviewError, hiddenByReview, parseDemoReview } from '../demoReview';
+import { applyDemoReview, DemoReviewError, parseDemoReview } from '../demoReview';
 
 const SHA = 'f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5';
 const IDS = new Set(['A', 'B', 'C', 'D']);
@@ -53,10 +53,6 @@ describe('applyDemoReview', () => {
   it('running it twice changes nothing', () => {
     const once = applyDemoReview(before, review);
     expect([...applyDemoReview(once, review)]).toEqual([...once]);
-  });
-
-  it('lists the hidden ids with their notes, in id order', () => {
-    expect(hiddenByReview(review)).toEqual([{ id: 'B', verdict: 'wrong-demo' }, { id: 'C', verdict: 'fix-cues', note: 'x' }]);
   });
 });
 

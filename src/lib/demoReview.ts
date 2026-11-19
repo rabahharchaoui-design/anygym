@@ -58,11 +58,3 @@ export function applyDemoReview(eligible: ReadonlyMap<string, ShownKind>, review
   }
   return out;
 }
-
-/** The ids G hid, with his note when he left one, in catalog id order (the D1 replacement list). */
-export function hiddenByReview(review: DemoReview): { id: string; verdict: Verdict; note?: string }[] {
-  return [...review.verdicts]
-    .filter(([, d]) => d.verdict !== 'approved')
-    .map(([id, d]) => ({ id, ...d }))
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-}
