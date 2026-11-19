@@ -12,7 +12,8 @@
 // - A gap (no good point for more than GAP_SEC): only its first GAP_SEC count as moving time (the
 //   clock on the screen had already counted them while it waited, PLAN 4.4a, and a clock never goes
 //   back); nothing after them. The straight line across counts as distance only when filter.ts
-//   calls it plausible; either way the line breaks.
+//   calls it plausible; either way the line breaks. A hole while auto paused that ends on the
+//   standing spot is no gap at all: the runner stood there throughout, so the run stays still.
 // - A pause by hand always wins: nothing is recorded, auto pause does nothing, and the first point
 //   after resume starts a new piece of line with no distance and no time across the pause.
 // - Moving time only moves forward with good points, so it never has to be taken back.
@@ -115,6 +116,8 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     return { state: { ...restart(state, p), pace: [sample] }, event: { type: 'recorded', point: p, brk, splits: [] } };
   }
   if (v.link === 'gap') {
+    // Auto paused and back on the same spot: the runner never left, so nothing moved and the run stays still.
+    if (state.still && state.autoPause && !leftStill(from, p)) return { state: { ...state, lastGood: p }, event: { type: 'held', reason: 'still' } };
     const distanceM = v.bridged ? haversineM(from, p) : 0;
     // The wait up to GAP_SEC was counted on the screen (pendingMs): it stays counted (holdGap).
     const credit = state.still && state.autoPause ? 0 : GAP_SEC * 1000;
