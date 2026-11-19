@@ -1,6 +1,10 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { T0 } from '../../lib/gps/__tests__/fixtures';
+import { T0, at } from '../../lib/gps/__tests__/fixtures';
+
+// PLAN 4.4d: the dot is the estimate now, so "the last spot" a restarted watch hands back is the
+// last position as the phone gave it: run(0, 20) ends at 60 m east.
+const LAST = at(60, 0, 20);
 import { DEFAULT_RUN_SETUP } from '../../lib/run';
 import { freshApp, phone, report, run, settle, systemReleasesWake } from './enginePhone';
 
@@ -44,7 +48,7 @@ describe('run engine: GPS lost (PLAN 4.4b 6)', () => {
     run(0, 20);
     const here = engine.get().live!.here!;
     vi.advanceTimersByTime(20_000);
-    report({ lat: here.lat, lng: here.lng, accuracy: 5, t: T0 + 40_000 });
+    report({ lat: LAST.lat, lng: LAST.lng, accuracy: 5, t: T0 + 40_000 });
     expect(engine.get().live!.here!.t).toBe(here.t);
     run(41, 45, 60 + 40 * 3);
     expect(engine.get().live!.here!.t).toBe(T0 + 45_000);
@@ -60,10 +64,10 @@ describe('run engine: the replay guard lets go (PLAN 4.6a 4)', () => {
     run(0, 20);
     const here = engine.get().live!.here!;
     vi.advanceTimersByTime(20_000);
-    report({ lat: here.lat, lng: here.lng, accuracy: 5, t: T0 + 40_000 });
+    report({ lat: LAST.lat, lng: LAST.lng, accuracy: 5, t: T0 + 40_000 });
     expect(engine.get().live!.here!.t).toBe(here.t);
     // Standing at a light: the phone keeps reporting the very same spot, now as a real new fix.
-    report({ lat: here.lat, lng: here.lng, accuracy: 5, t: T0 + 41_000 });
+    report({ lat: LAST.lat, lng: LAST.lng, accuracy: 5, t: T0 + 41_000 });
     expect(engine.get().live!.here!.t).toBe(T0 + 41_000);
     await engine.end();
   });

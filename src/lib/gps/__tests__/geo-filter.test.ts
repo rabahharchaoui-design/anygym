@@ -1,6 +1,6 @@
 // SPEC 12.3: haversine and the filter (accuracy worse than 25 m, more than 8 m/s, time order, gaps).
 import { describe, expect, it } from 'vitest';
-import { EARTH_RADIUS_M, filterPoints, haversineM, judgePoint, pathLengthM, GAP_BRIDGE_MAX_SEC, GAP_SEC, MAX_ACCURACY_M, type GpsPoint, type RawPoint } from '..';
+import { EARTH_RADIUS_M, filterPoints, haversineM, judgePoint, pathLengthM, GAP_BRIDGE_MAX_SEC, GAP_SEC, MAX_ACCURACY_M, POOR_ACCURACY_M, type GpsPoint, type RawPoint } from '..';
 import { at, straight, T0 } from './fixtures';
 
 const good = (raw: RawPoint): GpsPoint => {
@@ -54,9 +54,13 @@ describe('judgePoint: what is dropped', () => {
     }
   });
 
-  it('drops accuracy worse than 25 m, and a point that does not say its accuracy', () => {
+  // PLAN 4.4d (3): fixes worse than 25 m are kept up to POOR_ACCURACY_M (65 m), weighted by the
+  // estimate; was: dropped above 25 m (that froze the run for minutes at a cold start).
+  it('drops accuracy worse than 65 m, and a point that does not say its accuracy', () => {
     expect(judgePoint(prev, at(3, 0, 1, MAX_ACCURACY_M)).ok).toBe(true);
-    for (const accuracy of [MAX_ACCURACY_M + 0.1, 60, -1, null, undefined, Number.NaN]) {
+    expect(judgePoint(prev, at(3, 0, 1, 60)).ok).toBe(true);
+    expect(judgePoint(prev, at(3, 0, 1, POOR_ACCURACY_M)).ok).toBe(true);
+    for (const accuracy of [POOR_ACCURACY_M + 0.1, 99, -1, null, undefined, Number.NaN]) {
       expect(judgePoint(prev, { ...at(3, 0, 1), accuracy })).toEqual({ ok: false, reason: 'accuracy' });
     }
   });
@@ -66,9 +70,11 @@ describe('judgePoint: what is dropped', () => {
     expect(judgePoint(prev, at(3, 0, 0))).toEqual({ ok: false, reason: 'time-backwards' });
   });
 
-  it('drops a jump faster than 8 m/s from the previous good point', () => {
-    expect(judgePoint(prev, at(7.9, 0, 1))).toMatchObject({ ok: true, link: 'step' });
-    expect(judgePoint(prev, at(8.1, 0, 1))).toEqual({ ok: false, reason: 'speed' });
+  // PLAN 4.4d (3): what the two fixes' accuracy allows (5 m + 5 m here) is not speed: the limit is
+  // 8 m/s beyond 10 m (was: 8 m/s from the first meter).
+  it('drops a jump faster than 8 m/s from the previous good point, beyond both accuracy circles', () => {
+    expect(judgePoint(prev, at(17.9, 0, 1))).toMatchObject({ ok: true, link: 'step' });
+    expect(judgePoint(prev, at(18.1, 0, 1))).toEqual({ ok: false, reason: 'speed' });
     // 100 m away is fine after 20 s of dropped fixes... and still a spike after 10 s.
     expect(judgePoint(prev, at(100, 0, 10))).toEqual({ ok: false, reason: 'speed' });
   });

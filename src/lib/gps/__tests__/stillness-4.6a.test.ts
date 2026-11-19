@@ -14,7 +14,10 @@ describe('poor accuracy: distance and moving time agree (PLAN 4.6a 3)', () => {
       for (const autoPause of [true, false])
         for (const seed of SEEDS) {
           const r = processPoints(standing({ seed, sigma: accuracy / 4, seconds: 300, accuracy }), { ...KM, autoPause }).reading;
-          expect(r.distanceM).toBeLessThan(20);
+          // PLAN 4.4d, no phone speed: worst of 40 seeds 3.9 m at 10 m, 9.8 m at 15 m, 13.2 m at
+          // 20 m (before 4.4d 9.2, 13.9 and 18.5 m). Means 0.6, 1.6, 3.1 m (were 6.0, 9.0, 12.0).
+          // With the phone's own speed: 0 (stillness-4.4b).
+          expect(r.distanceM).toBeLessThan(15);
         }
   });
 
@@ -54,7 +57,9 @@ describe('poor accuracy: distance and moving time agree (PLAN 4.6a 3)', () => {
       const r = processPoints([...walk, ...wait, ...on], KM).reading;
       // 336 m walked; the minute at the light adds none of its own.
       expect(Math.abs(r.distanceM - 336) / 336).toBeLessThan(0.3);
-      expect(r.movingSec).toBeGreaterThan(240 * 0.8);
+      // PLAN 4.4d: without the phone's speed, moving off the light needs 8 s of walking pace, so a
+      // few more seconds stand: at least 75% of the 240 s walked (was 80%).
+      expect(r.movingSec).toBeGreaterThan(240 * 0.75);
       expect(Math.abs(1 / r.averagePace! - 1.4) / 1.4).toBeLessThan(0.35);
     }
   });

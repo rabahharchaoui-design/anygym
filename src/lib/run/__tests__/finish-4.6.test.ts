@@ -241,7 +241,7 @@ describe('share card and GPX (PLAN 4.6)', () => {
     expect(gpx).toContain(`lon="${first[0]![1].toFixed(6)}"`);
     expect(gpx).not.toContain('<ele>');
     expect(gpx).toContain(new Date(first[0]![2]).toISOString());
-    expect(gpxFileName(row)).toMatch(/^AnyGym-run-\d{4}-\d{2}-\d{2}-\d{4}\.gpx$/);
+    expect(gpxFileName(row)).toMatch(/^AnyGym-run-\d{4}-\d{2}-\d{2}-\d{6}\.gpx$/);
   });
 });
 
