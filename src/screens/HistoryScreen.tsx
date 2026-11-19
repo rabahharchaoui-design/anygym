@@ -2,11 +2,14 @@ import { Link } from 'react-router-dom';
 import { TopBar } from '../ui/TopBar';
 import { EmptyState } from '../ui/EmptyState';
 import { Skeleton } from '../ui/Skeleton';
-import { ChevronRight } from '../ui/icons';
+import { ChevronRight, RunIcon } from '../ui/icons';
 import { useNav } from '../ui/nav';
 import { LoadError } from '../components/LoadError';
 import { listFinished } from '../db/history';
 import { useLive } from '../hooks/useLive';
+import { useFinishedRuns } from '../hooks/useRuns';
+import { historyFeed } from './history/historyFeed';
+import { RunRow } from './history/RunRow';
 import { importNumbers, setCount, workoutDate, workoutTitle } from './history/historyWords';
 import styles from './history/History.module.css';
 
@@ -18,10 +21,13 @@ import styles from './history/History.module.css';
 export function HistoryScreen() {
   const list = useLive(() => listFinished(), []);
   const go = useNav();
+  const runsRead = useFinishedRuns();
   const items = list.data ?? [];
+  const runs = runsRead.data?.runs ?? [];
+  const unit = runsRead.data?.unit ?? 'km';
   const numbers = importNumbers(items.map((x) => x.session));
-  const dated = items.filter((x) => !x.session.imported);
-  const imported = items.filter((x) => x.session.imported);
+  const feed = historyFeed(items, runs);
+  const imported = feed.imported;
   const row = ({ session, sets }: (typeof items)[number]) => {
     const no = numbers.get(session.id);
     const sub = session.imported ? (no ? `Workout ${no.n} of ${no.of}` : '') : workoutDate(session.startedAt);
@@ -55,9 +61,9 @@ export function HistoryScreen() {
     <>
       <TopBar title="History" />
       {list.error ? <LoadError text="Could not load workouts" onRetry={list.retry} /> : null}
-      {!list.ready ? (
+      {!list.ready || !runsRead.ready ? (
         <Skeleton height={76} radius={20} />
-      ) : list.error && items.length === 0 ? null : items.length === 0 ? (
+      ) : list.error && items.length === 0 && runs.length === 0 ? null : feed.dated.length === 0 && imported.length === 0 ? (
         <EmptyState
           scene="history"
           title="No workouts yet"
@@ -66,9 +72,18 @@ export function HistoryScreen() {
         />
       ) : (
         <>
-          {dated.length > 0 && (
-            <ul className={styles.list} aria-label="Finished workouts">
-              {dated.map(row)}
+          {runs.length > 0 && (
+            <Link to="/history/runs" className={`${styles.row} ${styles.runsLink} pressable`} data-testid="history-runs-link" onClick={(e) => { e.preventDefault(); go('/history/runs'); }}>
+              <RunIcon className={styles.rowIcon} aria-hidden="true" width={22} height={22} />
+              <span className={styles.rowMain}>
+                <span className={styles.rowTitle}>Run records and heatmap</span>
+              </span>
+              <ChevronRight className={styles.rowChevron} aria-hidden="true" />
+            </Link>
+          )}
+          {feed.dated.length > 0 && (
+            <ul className={styles.list} aria-label="Finished workouts and runs">
+              {feed.dated.map((d) => (d.kind === 'run' ? <RunRow key={d.run.id} run={d.run} unit={unit} /> : row(d.workout)))}
             </ul>
           )}
           {imported.length > 0 && (

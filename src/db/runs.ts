@@ -49,6 +49,15 @@ export async function finishRunRow(row: Run & { endedAt: number }, db: AnyGymDB 
   });
 }
 
+/** Finished runs, newest start first. A run still going is not history. */
+export async function listFinishedRuns(db: AnyGymDB = defaultDb): Promise<Run[]> {
+  const all = await db.runs.orderBy('startedAt').reverse().toArray();
+  return all.filter((r) => r.endedAt !== undefined);
+}
+
+/** One run, finished or not. Undefined when there is no such id. */
+export const getRun = (id: string, db: AnyGymDB = defaultDb): Promise<Run | undefined> => db.runs.get(id);
+
 /** Removes a run for good (Discard on a run with nothing to show). */
 export async function deleteRun(id: string, db: AnyGymDB = defaultDb): Promise<void> {
   await db.transaction('rw', db.runs, db.kv, async () => {

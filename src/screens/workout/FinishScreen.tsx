@@ -31,7 +31,7 @@ import { exerciseNamer, setCount, workoutTitle } from '../history/historyWords';
 import { finishRows, slotProgress } from '../../lib/swap';
 import styles from './Finish.module.css';
 import { trimmedPlan } from '../../lib/timeBudget';
-import { useFinishCelebration } from './useFinishCelebration';
+import { useFinishCelebration } from '../../hooks/useFinishCelebration';
 
 /**
  * The finish screen (SPEC 21.1, minimal): how long, how many sets, total lifted (when there is

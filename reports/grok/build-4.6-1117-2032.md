@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED merged (logic only; screens, share card, GPX buttons and history added by the Sonnet reviewer; shipped as 4.6)
 # Grok backup build of PLAN item 4.6
 Branch: grok-build-4.6-1117-2032 (based on s4-run, in the main repo). Review it like any builder output, then: git merge --no-ff --no-edit grok-build-4.6-1117-2032
 Changes:  15 files changed, 909 insertions(+)
