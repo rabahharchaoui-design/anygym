@@ -92,6 +92,15 @@ describe('judgePoint: after a gap', () => {
     expect(judgePoint(prev, at(400, 0, 120))).toMatchObject({ ok: true, link: 'gap', bridged: true });
   });
 
+  it('includes the exact five minute and 8 m/s boundaries', () => {
+    const origin = good({ lat: 0, lng: 0, t: T0, accuracy: 5 });
+    const point = (meters: number, seconds: number) => ({ lat: 0, lng: meters / EARTH_RADIUS_M * 180 / Math.PI, t: T0 + seconds * 1000, accuracy: 5 });
+    expect(judgePoint(origin, point(600, 300))).toMatchObject({ link: 'gap', bridged: true });
+    expect(judgePoint(origin, point(600, 300.001))).toMatchObject({ link: 'gap', bridged: false });
+    expect(judgePoint(origin, point(8 * 60, 60))).toMatchObject({ link: 'gap', bridged: true });
+    expect(judgePoint(origin, point(8 * 60 + 0.001, 60))).toMatchObject({ link: 'gap', bridged: false });
+  });
+
   it('keeps an impossible jump after a gap as a fresh start, without counting the line across', () => {
     // 5 km in one minute is 83 m/s.
     expect(judgePoint(prev, at(5000, 0, 60))).toMatchObject({ ok: true, link: 'gap', bridged: false });
