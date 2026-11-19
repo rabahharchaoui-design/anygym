@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED discarded: its build failed and ours is merged; its label by label recovery match is ported in 4.6d
 # Grok backup build of PLAN item 4.6c
 Branch: grok-build-4.6c-1119-2046 (based on s4-run, in the main repo). Review it like any builder output, then: git merge --no-ff --no-edit grok-build-4.6c-1119-2046
 Changes:  10 files changed, 435 insertions(+), 23 deletions(-)
