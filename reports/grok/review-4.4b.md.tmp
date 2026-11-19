@@ -1,7 +1,0 @@
-I'll review PLAN item 4.4b from the spec and the builder's diff only, without changing the repo.
-
-The spec and the 4.4b line are in. Next I’ll read only that commit range and the code around it.
-
-The range also includes later commits. I’ll isolate the 4.4b code and read the final behavior against the spec.
-
-The first slice looks coherent. I’ll read the run engine, GPS, and map changes next, where the math and save bugs would show up.
