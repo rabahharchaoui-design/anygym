@@ -1,4 +1,5 @@
 // Exercise sheet lookups (SPEC 4.4) over the committed catalog, plan map and cue file.
+import { versionedAsset } from '../lib/photoVersion';
 import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import catalogDemos from '../../data/catalog-demos.json';
@@ -67,7 +68,12 @@ export function demoFor(id: string): ExerciseInfo['demo'] {
 }
 
 /** Image paths are relative to the app base (/anygym/ on Pages). */
-export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+declare const __PHOTO_VERSION__: string | undefined;
+/** PLAN 4.4b (12): the hash of every exercise photo, from the build (vite.config.ts); 'dev' elsewhere. */
+const PHOTO_VERSION = typeof __PHOTO_VERSION__ === 'string' && /^[0-9a-z]{4,16}$/.test(__PHOTO_VERSION__) ? __PHOTO_VERSION__ : 'dev';
+
+/** A public asset's URL; exercise photos carry their version (lib/photoVersion.ts). */
+export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${versionedAsset(path, PHOTO_VERSION)}`;
 
 export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
 
