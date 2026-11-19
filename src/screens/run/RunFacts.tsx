@@ -5,6 +5,7 @@ import { useFinishedRuns } from '../../hooks/useRuns';
 import type { DistanceUnit } from '../../lib/intake/answers';
 import { ghostResult, ghostWords, newCityMoment, recordMoments } from '../../lib/run';
 import { BigMoment, MomentCard } from '../../ui/celebrate';
+import { LoadError } from '../../components/LoadError';
 import styles from './Summary.module.css';
 
 type Props = { run: Run; unit: DistanceUnit; reduce: boolean };
@@ -13,7 +14,7 @@ type Props = { run: Run; unit: DistanceUnit; reduce: boolean };
  * What this run earned, read from the saved runs (PLAN 4.6, SPEC 12.9): the new personal records
  * (the biggest gets the whole screen once, the rest are cards), a stamp for a first run in a city,
  * and the ghost result when it raced one. Each shows only when the stored points can prove it; a
- * run that earned nothing leaves no gap and no placeholder.
+ * run that earned nothing leaves no gap and no placeholder; a failed read says so with Try again.
  */
 export function RunFacts({ run, unit, reduce }: Props) {
   const all = useFinishedRuns();
@@ -25,9 +26,12 @@ export function RunFacts({ run, unit, reduce }: Props) {
   }, [run, runs, unit]);
   const ghost = useMemo(() => (runs ? ghostWords(ghostResult(run, runs), unit) : null), [run, runs, unit]);
   const cele = useFinishCelebration(run.id, moments, true);
-  if (!cele.settled && !ghost) return null;
+  // PLAN 4.6a: the saved runs could not be read, so nothing here can be proved: say so, never a silent gap.
+  const failed = all.error ? <LoadError text="Could not load your run records" onRetry={all.retry} /> : null;
+  if (!cele.settled && !ghost) return failed;
   return (
     <>
+      {failed}
       {ghost && (
         <p className={styles.ghost} data-testid="summary-ghost">
           {ghost}

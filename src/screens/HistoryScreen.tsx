@@ -16,7 +16,7 @@ import styles from './history/History.module.css';
 /**
  * History (minimal honest version, PLAN 1.10c): every finished workout with its date, name and set
  * count; tap one to see its sets. The empty state shows only when there truly are none: a failed
- * read says so with Try again and keeps the last list it had (PLAN 1.7f).
+ * read (workouts or runs) says so with Try again and keeps the last list it had (PLAN 1.7f, 4.6a).
  */
 export function HistoryScreen() {
   const list = useLive(() => listFinished(), []);
@@ -25,6 +25,10 @@ export function HistoryScreen() {
   const items = list.data ?? [];
   const runs = runsRead.data?.runs ?? [];
   const unit = runsRead.data?.unit ?? 'km';
+  const retryReads = () => {
+    if (list.error) list.retry();
+    if (runsRead.error) runsRead.retry();
+  };
   const numbers = importNumbers(items.map((x) => x.session));
   const feed = historyFeed(items, runs);
   const imported = feed.imported;
@@ -60,10 +64,11 @@ export function HistoryScreen() {
   return (
     <>
       <TopBar title="History" />
-      {list.error ? <LoadError text="Could not load workouts" onRetry={list.retry} /> : null}
+      {/* PLAN 4.6a: a failed runs read is said too, never shown as "no runs". One line, one Try again for both reads. */}
+      {list.error || runsRead.error ? <LoadError text={list.error ? 'Could not load workouts' : 'Could not load runs'} onRetry={retryReads} /> : null}
       {!list.ready || !runsRead.ready ? (
         <Skeleton height={76} radius={20} />
-      ) : list.error && items.length === 0 && runs.length === 0 ? null : feed.dated.length === 0 && imported.length === 0 ? (
+      ) : (list.error || runsRead.error) && items.length === 0 && runs.length === 0 ? null : feed.dated.length === 0 && imported.length === 0 ? (
         <EmptyState
           scene="history"
           title="No workouts yet"

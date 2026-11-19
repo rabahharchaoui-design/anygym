@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { usePhotos } from '../../hooks/usePhotos';
 import { REGION_NAMES, type Region } from '../../lib/bodyArt';
+import { cap } from '../../lib/words';
 import { exercisesLinkText } from '../../lib/muscleExercises';
 import { exerciseCount, exercisesForMuscle, type MuscleExerciseRow } from '../../data/muscleExercises';
 import { assetUrl, infoForCatalog } from '../../data/exerciseInfo';
@@ -15,10 +16,13 @@ import styles from './MuscleExercises.module.css';
 // PLAN 2.2c: a tapped muscle lists the catalog exercises that work it as primary, each opening its
 // exercise sheet on top (nested sheets, SPEC 23.1). Only catalog data, never an invented exercise.
 
-/** "12 exercises ›" beside the tapped muscle's name. */
-export function MuscleExercisesLink({ region, onOpen }: { region: Region; onOpen: (r: Region) => void }) {
-  const n = exerciseCount(region);
-  const name = REGION_NAMES[region];
+/** The tapped shape's name: the exercise's own word for it when it has one (ownShoulderLabel, PLAN 4.6a 5). */
+const shapeName = (region: Region, label: string | null): string => (label ? cap(label) : REGION_NAMES[region]);
+
+/** "12 exercises ›" beside the tapped muscle's name. `label`: the exercise's own word for the shape. */
+export function MuscleExercisesLink({ region, label = null, onOpen }: { region: Region; label?: string | null; onOpen: (r: Region) => void }) {
+  const n = exerciseCount(region, label);
+  const name = shapeName(region, label);
   return (
     <button
       type="button"
@@ -63,19 +67,20 @@ function Thumb({ row }: { row: MuscleExerciseRow }) {
 
 /**
  * The list sheet for one muscle, and the exercise sheet a row opens. `region` null: closed. Back on
- * the exercise sheet returns here; Close here returns to the screen underneath.
+ * the exercise sheet returns here; Close here returns to the screen underneath. `label`: the
+ * exercise's own word for the shape (front delts after a bench press), which also narrows the list.
  */
-export function MuscleExercisesSheet({ region, onClose }: { region: Region | null; onClose: () => void }) {
+export function MuscleExercisesSheet({ region, label = null, onClose }: { region: Region | null; label?: string | null; onClose: () => void }) {
   const planIds = usePlanCatalogIds();
   const [ex, setEx] = useState<{ row: MuscleExerciseRow; open: boolean } | null>(null);
   // The last muscle shown, so the sheet keeps its words while it slides away.
-  const last = useRef<Region | null>(region);
-  if (region) last.current = region;
-  const shown = region ?? last.current;
+  const last = useRef<{ region: Region; label: string | null } | null>(region ? { region, label } : null);
+  if (region) last.current = { region, label };
   // No sheet (and no portal) until a muscle's list is first opened.
-  if (!shown) return null;
-  const rows = exercisesForMuscle(shown, planIds);
-  const title = REGION_NAMES[shown];
+  if (!last.current) return null;
+  const { region: shown, label: own } = last.current;
+  const rows = exercisesForMuscle(shown, planIds, own);
+  const title = shapeName(shown, own);
   const closeEx = () => setEx((e) => (e ? { ...e, open: false } : e));
   return (
     <>

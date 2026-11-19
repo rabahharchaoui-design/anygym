@@ -45,7 +45,7 @@ let watchId: number | null = null;
 let watchedAt = 0;
 /**
  * A watch started again in a gap may first hand back the last position it had, as if new: that
- * exact spot (where the dot is) is not taken as a position again until a different one comes.
+ * exact spot (where the dot is) is not taken as a position again: only that first callback is dropped.
  */
 let replayOf: { lat: number; lng: number } | null = null;
 let saveTimer: number | null = null;
@@ -117,8 +117,11 @@ function startWatch() {
     (pos) => {
       earlyTrouble = null;
       const { latitude, longitude, accuracy } = pos.coords;
-      if (replayOf && replayOf.lat === latitude && replayOf.lng === longitude) return;
+      // Only the first callback after the restart can be the replay (PLAN 4.6a 4): a runner standing
+      // on that spot keeps reporting it, and those fixes must end GPS lost.
+      const replay = replayOf !== null && replayOf.lat === latitude && replayOf.lng === longitude;
       replayOf = null;
+      if (replay) return;
       // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
       const now = Date.now();
       dispatch({ type: 'fix', point: { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, now) }, now });
@@ -189,7 +192,7 @@ export const runEngine = {
         const found = state.live ? null : await readLiveRun();
         if (found && !state.live) {
           const { setup, unit } = await readRunSetup();
-          const live = restoreLive(found.row, parseSnapshot(found.snapshot, found.row.id), { unit, autoPause: setup.autoPause });
+          const live = restoreLive(found.row, parseSnapshot(found.snapshot, found.row.id), { unit, autoPause: setup.autoPause }, Date.now());
           voice = setup.voice;
           dirty = true;
           set({ live, ready: true });

@@ -52,6 +52,23 @@ describe('run engine: GPS lost (PLAN 4.4b 6)', () => {
   });
 });
 
+describe('run engine: the replay guard lets go (PLAN 4.6a 4)', () => {
+  it('only the first repeat of the last spot is dropped: standing there, the next fix is taken and GPS lost ends', async () => {
+    const { engine } = await freshApp();
+    engine.start(DEFAULT_RUN_SETUP, 'km');
+    await settle();
+    run(0, 20);
+    const here = engine.get().live!.here!;
+    vi.advanceTimersByTime(20_000);
+    report({ lat: here.lat, lng: here.lng, accuracy: 5, t: T0 + 40_000 });
+    expect(engine.get().live!.here!.t).toBe(here.t);
+    // Standing at a light: the phone keeps reporting the very same spot, now as a real new fix.
+    report({ lat: here.lat, lng: here.lng, accuracy: 5, t: T0 + 41_000 });
+    expect(engine.get().live!.here!.t).toBe(T0 + 41_000);
+    await engine.end();
+  });
+});
+
 describe('run engine: a failed save during the run (PLAN 4.4b 3)', () => {
   it('is said at once, the engine keeps trying every 5 s, and it clears when a save lands', async () => {
     const { engine, db } = await freshApp();
