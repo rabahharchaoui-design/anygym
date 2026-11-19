@@ -1,5 +1,0 @@
-I'll audit the offline and update path against the spec, starting with the project docs and the newest Codex and Grok reports so I don't repeat what's already listed.
-
-The newest PWA reports are in place. Next I’ll read the spec and those reports, then check the service worker, cache, and Dexie code against them.
-
-Previous PWA reports already cover photo cache, the run update toast, online-but-dead Wi-Fi, and photo warming. I’ll read the update, cache, Dexie, and backup code for anything they missed.
