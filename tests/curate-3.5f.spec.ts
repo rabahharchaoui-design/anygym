@@ -34,6 +34,7 @@ async function expectFact(scope: Page | Locator) {
 
 const noSideScroll = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
+// PLAN D0: with G's 99 sure demos Strength focus is a 45 chip card (the 30 row holds the other styles).
 async function openDeck(page: Page, concept: string, minutes: 15 | 30 | 45 | 60 = 30) {
   await page.getByTestId('build-card').tap();
   await page.getByTestId(`min-${minutes}`).tap();
@@ -59,7 +60,7 @@ test.describe('3.5f the deck in Quick workout', () => {
   test('a calm card: name, sets x reps, one curated why line; the rest behind the info button', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
-    await openDeck(page, 'strength');
+    await openDeck(page, 'strength', 45);
     // Three things on the face, no badges: the name, sets x reps and the why line.
     await expect(name(page)).toBeVisible();
     await expect(page.getByTestId('deck-sets')).toContainText(/\d+ sets? × /);
@@ -183,7 +184,7 @@ test.describe('3.5f the deck in Quick workout', () => {
   test('3 lefts on one move across workouts ask once "Hide it for good?"', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
-    await openDeck(page, 'strength');
+    await openDeck(page, 'strength', 45);
     // The first card that has something to swap in.
     for (let guard = 0; guard < 8; guard++) {
       await page.getByTestId('deck-swap').tap();
@@ -203,7 +204,7 @@ test.describe('3.5f the deck in Quick workout', () => {
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await dbPut(page, { profile: [{ ...PROFILE, dislikes: { lefts: { [id]: ['deck-1', 'deck-2'] } } }] });
     await page.reload();
-    await page.getByTestId('min-30').tap();
+    await page.getByTestId('min-45').tap();
     await page.locator('[data-concept="strength"]').first().tap();
     await expect(card(page)).toBeVisible();
     // Its card again.
@@ -302,9 +303,9 @@ test.describe('3.5f the deck in Quick workout', () => {
   test('a reload mid deck comes back to the same card with its swaps; Back or Start clears it', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
-    await openDeck(page, 'strength', 30);
+    await openDeck(page, 'strength', 45);
     // The minutes picked are in the URL.
-    await expect(page).toHaveURL(/[?&]min=30\b/);
+    await expect(page).toHaveURL(/[?&]min=45\b/);
     await page.getByTestId('deck-keep').tap();
     await expect(page.getByTestId('deck-count')).toHaveText(/^2 of /);
     const before = (await page.getByTestId('deck-name').textContent())!;
@@ -316,14 +317,14 @@ test.describe('3.5f the deck in Quick workout', () => {
     await expect(card(page)).toBeVisible();
     await expect(page.getByTestId('deck-count')).toHaveText(count);
     await expect(page.getByTestId('deck-name')).toHaveText(swapped);
-    await expect(page).toHaveURL(/[?&]min=30\b/);
+    await expect(page).toHaveURL(/[?&]min=45\b/);
     // Back: the ideas, and a reload stays there.
     await page.getByRole('button', { name: 'Back to the workouts' }).tap();
     await expect(page.locator('[data-concept]').first()).toBeVisible();
     await page.reload();
     await expect(page.locator('[data-concept]').first()).toBeVisible();
     await expect(page.getByTestId('deck-card')).toHaveCount(0);
-    await expect(page.getByTestId('min-30')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('min-45')).toHaveAttribute('aria-pressed', 'true');
     // Start: the deck is done with (nothing kept for a reload).
     await page.locator('[data-concept="strength"]').first().tap();
     await expect(card(page)).toBeVisible();
@@ -335,7 +336,7 @@ test.describe('3.5f the deck in Quick workout', () => {
 
   test('large text (130%) on the deck: nothing clipped sideways, Start in reach', async ({ page }) => {
     await pastIntake(page);
-    await openDeck(page, 'strength');
+    await openDeck(page, 'strength', 45);
     await page.evaluate(() => (document.documentElement.style.fontSize = '130%'));
     await page.waitForTimeout(200);
     await noSideScroll(page);

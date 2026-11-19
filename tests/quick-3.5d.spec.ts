@@ -139,7 +139,8 @@ test.describe('3.5d Quick', () => {
     // Weights from last time, so the first tap logs a set (a first time lift asks for a weight).
     const gymId = (await dbAll<{ id: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.id;
     const start = Date.now() - 6 * DAY;
-    const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
+    // PLAN D0: G's approved catalog moves (Dumbbell_Shoulder_Press) have capitals: matched either way.
+    const loadOf = (id: string) => (/^single-arm/i.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/i.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
     await dbPut(page, {
       sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: sess.exerciseIds }],
       sets: sess.exerciseIds.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
@@ -147,6 +148,13 @@ test.describe('3.5d Quick', () => {
     await page.reload();
     await expect(checkCurrent(page)).toBeVisible();
     await expect(page.getByTestId('group-next')).toHaveCount(0);
+    // PLAN D0: the pump card can open on a dumbbell press now (G approved its demo), which gets a warm
+    // up set first: that one is logged first and never offers the pair's next move.
+    if ((await page.getByRole('button', { name: /^Warm up set/ }).count()) > 0) {
+      await checkCurrent(page).tap();
+      await expect(page.getByRole('button', { name: /^Set 1, Warm up: .* Edit$/ })).toBeVisible();
+      await expect(page.getByTestId('group-next')).toHaveCount(0);
+    }
     await checkCurrent(page).tap();
     const next = page.getByTestId('group-next');
     await expect(next).toBeVisible();
