@@ -65,13 +65,13 @@ test('tokens: ice blue accent, dark text on it, flat graphite, Inter; the browse
   expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toMatch(/^"?Inter"?,/);
   expect(await page.evaluate(() => document.fonts.check('700 17px Inter'))).toBe(true);
   expect(await page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '')))).toContain('Inter');
-  // The primary button: the accent with the dark text on it, well over AA.
+  // The primary button (PLAN M1, Monolith): white heavy text on graphite over an ice blue bar, no fill, well over AA.
   const primary = page.getByRole('button', { name: 'See plans' });
-  const [bg, fg] = await primary.evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
-  expect(fg).toBe(await tokenColor(page, '--on-accent'));
-  const image = await primary.evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(`${bg} ${image}`).toContain((await tokenColor(page, '--accent')).replace(/^rgb\(|\)$/g, ''));
-  expect(ratio(await paint(page, fg!), await paint(page, await tokenColor(page, '--accent')))).toBeGreaterThan(7);
+  const [bg, fg, bar] = await primary.evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color, getComputedStyle(el, '::after').backgroundColor]);
+  expect(fg).toBe(await tokenColor(page, '--text'));
+  expect(bg).toBe('rgba(0, 0, 0, 0)');
+  expect(bar).toBe(await tokenColor(page, '--accent'));
+  expect(ratio(await paint(page, fg!), await paint(page, await tokenColor(page, '--bg')))).toBeGreaterThan(7);
   // The page behind everything, and the browser's own bar, are the graphite of the gradient's top.
   const top = await tokenColor(page, '--bg-top');
   const theme = await page.locator('meta[name="theme-color"]').getAttribute('content');
@@ -116,11 +116,12 @@ test('the status bar strip shows the new background on Today, a pushed screen an
 test('the tab bar is solid Monolith: no blur, opaque, square corners, the accent on the active tab @matrix', async ({ page }) => {
   await page.goto('./');
   const nav = page.getByRole('navigation', { name: 'Main' });
+  // PLAN M1: the bar itself (the nav, docked to the bottom edge) carries the solid fill now.
   const capsule = nav.locator('[class*="capsule"]');
   const box = (await capsule.boundingBox())!;
   const view = page.viewportSize()!;
   expect(box.y + box.height).toBeLessThanOrEqual(view.height);
-  const style = await capsule.evaluate((el) => {
+  const style = await nav.evaluate((el) => {
     const s = getComputedStyle(el);
     return { blur: s.backdropFilter || (s as unknown as { webkitBackdropFilter: string }).webkitBackdropFilter, bg: s.backgroundColor, radius: parseFloat(s.borderTopLeftRadius), border: s.borderTopColor };
   });
@@ -128,7 +129,9 @@ test('the tab bar is solid Monolith: no blur, opaque, square corners, the accent
   expect((await paint(page, style.bg))[3]).toBeGreaterThan(200); // opaque: text never reads through
   expect(style.radius).toBeLessThanOrEqual(4);
   const active = nav.getByRole('link', { name: 'Today' });
-  expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe(await tokenColor(page, '--accent'));
+  // PLAN M1 (style sheet): the active tab is white with the ice blue mark above it.
+  expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe(await tokenColor(page, '--text'));
+  expect(await active.locator('[data-pill]').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await tokenColor(page, '--accent'));
   expect(await nav.getByRole('link', { name: 'Run' }).evaluate((el) => getComputedStyle(el).color)).toBe(await tokenColor(page, '--text-2'));
 });
 

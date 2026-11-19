@@ -357,7 +357,7 @@ test.describe('3.5f Preview today\'s plan day before Start', () => {
     await page.reload();
     const title = (await page.getByTestId('day-card-title').textContent())!;
     // Start stays the one primary action; Preview is a quiet text button beside Change day.
-    await expect(page.getByTestId('day-preview')).toHaveAttribute('data-variant', 'tertiary');
+    await expect(page.getByTestId('day-preview')).toHaveAttribute('data-variant', 'quiet');
     await shot(page, 'today-preview-link');
     await page.getByTestId('day-preview').tap();
     await expect(card(page)).toBeVisible();

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { Odometer } from '../Odometer';
-import { Button } from '../Button';
+import { Button, buttonLook } from '../Button';
 import { EmptyState } from '../EmptyState';
 import { Ring } from '../Ring';
 import { TopBar } from '../TopBar';
@@ -65,8 +65,23 @@ describe('Button (SPEC 23.2)', () => {
   });
   it('variants and sizes', () => {
     expect(renderToStaticMarkup(<Button>Start</Button>)).toMatch(/data-variant="primary".*data-size="lg".*data-block="true"/);
-    expect(renderToStaticMarkup(<Button variant="tertiary">Change day</Button>)).toMatch(/data-variant="tertiary" data-size="md"/);
+    expect(renderToStaticMarkup(<Button variant="quiet">Change day</Button>)).toMatch(/data-variant="quiet" data-size="md"/);
     expect(renderToStaticMarkup(<Button variant="destructive">Delete set</Button>)).not.toContain('role="note"');
+  });
+  it('Monolith defaults (M1): primary is the big full width action, secondary full width, quiet and destructive inline', () => {
+    expect(buttonLook('primary')).toEqual({ size: 'lg', block: true });
+    expect(buttonLook('secondary')).toEqual({ size: 'md', block: true });
+    expect(buttonLook('quiet')).toEqual({ size: 'md', block: false });
+    expect(buttonLook('destructive')).toEqual({ size: 'md', block: false });
+    expect(buttonLook('secondary', 'lg', false)).toEqual({ size: 'lg', block: false });
+    const html = renderToStaticMarkup(<Button variant="secondary" size="lg" block={false}>Share</Button>);
+    expect(html).toMatch(/data-variant="secondary" data-size="lg"/);
+    expect(html).not.toContain('data-block');
+  });
+  it('a disabled button without a reason adds no note; the reason is a note under it', () => {
+    expect(renderToStaticMarkup(<Button disabled>Start</Button>)).not.toContain('role="note"');
+    expect(renderToStaticMarkup(<Button disabled disabledReason="Pick a day first">Start</Button>)).toMatch(/<\/button><span[^>]*role="note">Pick a day first/);
+    expect(renderToStaticMarkup(<Button disabledReason="Pick a day first">Start</Button>)).not.toContain('role="note"');
   });
 });
 

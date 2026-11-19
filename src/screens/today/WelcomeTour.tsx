@@ -199,7 +199,7 @@ export function WelcomeTour({ show }: { show: boolean }) {
               </span>
               {/* PLAN 3.6h: the first card carries the welcome scene, in room the row already has (the card keeps its height). */}
               {state.index === 0 && <ArtScene name="welcome" width={48} className={styles.hero} />}
-              <Button variant="tertiary" block={false} onClick={() => act('skip')} data-testid="tour-skip">
+              <Button variant="quiet" block={false} onClick={() => act('skip')} data-testid="tour-skip">
                 Skip
               </Button>
               <Button size="md" block={false} onClick={() => act('next')} data-testid="tour-next">

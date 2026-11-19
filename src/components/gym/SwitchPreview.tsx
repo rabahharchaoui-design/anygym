@@ -34,7 +34,7 @@ export function SwitchPreview({ pending, fromName, busy, onConfirm, onStay }: { 
           <Button onClick={onConfirm} disabled={busy} data-testid="switch-confirm">
             Switch gym
           </Button>
-          <Button variant="tertiary" block onClick={onStay} data-testid="switch-stay">
+          <Button variant="quiet" block onClick={onStay} data-testid="switch-stay">
             {fromName ? `Stay at ${fromName}` : 'Stay here'}
           </Button>
         </div>

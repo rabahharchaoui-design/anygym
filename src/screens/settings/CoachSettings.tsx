@@ -100,7 +100,7 @@ function AutoLevelUpSheet({ open, onClose, onTurnOn }: { open: boolean; onClose:
           >
             Turn on
           </Button>
-          <Button variant="tertiary" onClick={onClose}>
+          <Button variant="quiet" onClick={onClose}>
             Not now
           </Button>
         </div>

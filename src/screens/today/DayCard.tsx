@@ -164,11 +164,11 @@ export function DayCard({ plan, state, onStart, onChangeDay, active, minutes, fi
         {!active && (
           <div className={own.links}>
             {onPreview && (
-              <Button variant="tertiary" className={styles.changeDay} onClick={onPreview} data-testid="day-preview">
+              <Button variant="quiet" className={styles.changeDay} onClick={onPreview} data-testid="day-preview">
                 Preview
               </Button>
             )}
-            <Button variant="tertiary" className={styles.changeDay} onClick={() => onChangeDay()}>
+            <Button variant="quiet" className={styles.changeDay} onClick={() => onChangeDay()}>
               Change day
             </Button>
           </div>

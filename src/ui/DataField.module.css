@@ -1,0 +1,86 @@
+/* A data field (SPEC 10, PLAN M1): label, giant number, unit. The field is a size container, so the
+   number can take min(its step of the type scale, the size at which it fills the width). */
+.field {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Labels a runner reads at a glance are white, never a dim grey (SPEC 10, M-TEST). */
+.label {
+  color: var(--text);
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+  /* in a narrow column at the largest text size a long label breaks rather than runs into the next field */
+  overflow-wrap: anywhere;
+}
+
+.line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.field[data-size='medium'] .line {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+/* The number: tabular, heavy, as big as its step allows and never wider than the field. A larger
+   text size setting grows the label and the unit; the number already fills the width it has, so it
+   holds this size (important: a text size override must not push it past the edge). */
+.number {
+  --df-size: var(--text-mono-title);
+  display: block;
+  font-family: var(--font-display);
+  font-weight: var(--weight-heavy);
+  font-size: min(var(--df-size), calc(100cqi / var(--df-em))) !important;
+  line-height: 0.92 !important;
+  letter-spacing: var(--track-title);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--text);
+}
+
+.field[data-size='hero'] .number {
+  --df-size: var(--text-mono-hero);
+  letter-spacing: var(--track-hero);
+}
+
+.field[data-size='medium'] .number {
+  --df-size: var(--text-mono-heading);
+  letter-spacing: var(--track-heading);
+}
+
+.field[data-blank] .number {
+  color: var(--text-2);
+}
+
+.unit {
+  color: var(--text-2);
+  font-size: var(--text-mono-unit);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.field[data-size='medium'] .unit {
+  font-size: var(--text-mono-caption);
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
