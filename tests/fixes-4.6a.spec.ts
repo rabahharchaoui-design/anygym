@@ -94,4 +94,15 @@ test.describe('4.6a review fixes on screen', () => {
     await expect(error).toHaveCount(0);
     await expect(page.getByTestId('run-summary')).toContainText('Longest run');
   });
+
+  test('(5) Worked lately names front delts after an overhead press, never front and side delts', async ({ page }) => {
+    await page.goto('./');
+    await seedFinished(page, { 'overhead-press': [{ reps: 5, load: { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } }] }, 0.1);
+    await page.reload();
+    const card = page.getByTestId('fresh-muscles');
+    const stage = card.getByRole('img');
+    await expect(stage).toHaveAttribute('aria-label', /front delts/);
+    await expect(stage).not.toHaveAttribute('aria-label', /side delts/);
+  });
 });
+

@@ -109,6 +109,18 @@ function target(muscle: string, override: MuscleOverride | undefined): MuscleTar
 }
 
 
+/**
+ * The exercise's own word for a drawn shoulder shape that stands for more than one shoulder part
+ * (the front delt shape is the side delts too, SHOULDER_PARTS): "front delts" after a bench press,
+ * "side delts" after a lateral raise (PLAN 4.6a 5). Null for any other shape, or when the exercise
+ * does not name that shape. The shared name is only right where no exercise is in view.
+ */
+export function ownShoulderLabel(region: Region, data: Pick<MuscleMapData, 'primary' | 'secondary'>): string | null {
+  const parts = Object.values(SHOULDER_PARTS).filter((s) => s.regions.includes(region));
+  if (parts.length < 2) return null;
+  return [...data.primary, ...data.secondary].find((t) => t.muscle === 'shoulders' && t.regions.includes(region))?.label ?? null;
+}
+
 /** The text line under the drawing. */
 export function muscleText(primary: MuscleTarget[], secondary: MuscleTarget[]): string {
   const group = (list: MuscleTarget[]) => cap(list.map((t) => t.label).join(', '));
