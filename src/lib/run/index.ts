@@ -8,6 +8,7 @@
 //   live.ts      the live run: one state, one step at a time (PLAN 4.3)
 //   liveClock.ts the time on the screen between two positions, and when it next changes (PLAN 4.4a)
 //   snapshot.ts  a live run written down and read back after the app closed
+//   diag.ts      the run diagnostics log: every position and what the run did with it (PLAN 4.4d)
 //   progress.ts  progress toward a Distance or Time goal
 //   summary.ts   the finished row and the summary read from it
 //   efforts.ts   best efforts along a stored run (PLAN 4.6)
@@ -36,6 +37,7 @@ export * from './format';
 export * from './live';
 export * from './liveClock';
 export * from './snapshot';
+export * from './diag';
 export * from './progress';
 export * from './summary';
 export * from './efforts';

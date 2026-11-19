@@ -3,7 +3,7 @@
 // table. So "standing" is judged on the last 8 seconds as a whole, and "moving again" on leaving the
 // spot by more than the GPS's own stated uncertainty.
 import { haversineM } from './geo';
-import { AUTO_PAUSE_SEC, STILL_ACCURACY_SHARE, STILL_RADIUS_M, type GpsPoint } from './types';
+import { STILL_TRUST_M, UNSURE_MOVE_MPS, UNSURE_STEP_CAP_M, AUTO_PAUSE_SEC, MIN_STEP_CAP_M, MIN_STEP_SHARE, RESUME_LOOKBACK_SEC, RESUME_WINDOW_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
 
 /** The recorded points of the last AUTO_PAUSE_SEC seconds of one continuous stretch, oldest first. */
 export type Recent = readonly GpsPoint[];
@@ -46,15 +46,45 @@ export const clockStill = (recent: Recent): boolean => within(recent, () => STIL
  * was counted as distance. Half the accuracy: inside 8 s a still phone wanders a fraction of its
  * stated radius, while a full radius would take a 2.5 m/s jog at 20 m for standing (seeded tests).
  */
-export const stillRadiusM = (p: GpsPoint, newest: GpsPoint): number => Math.max(STILL_RADIUS_M, Math.min(p.accuracy, newest.accuracy) * STILL_ACCURACY_SHARE);
+export const stillRadiusM = (p: GpsPoint, newest: GpsPoint): number => Math.max(STILL_RADIUS_M, Math.min(STILL_RADIUS_CAP_M, Math.min(p.accuracy, newest.accuracy) * STILL_ACCURACY_SHARE));
 
 /**
  * How far from the standing spot counts as moving again: outside the standing circle, and farther
  * than the two fixes could be apart by their own stated accuracy (both radii added), so GPS wander
  * on the spot does not resume the run. With a typical accuracy of 5 m that is 10 m: about three
- * seconds of running. Nothing is lost by waiting: the leg from the spot counts once it is sure.
+ * seconds of running. The leg from the spot counts once it is sure, or, when the run stops on the
+ * spot first (a pause, the end, a GPS gap) while the 4 m rule said moving, right then (tracker.ts
+ * flushStill, PLAN 4.6b). A phone the 4 m rule calls standing never gets it: that is wander.
  */
 export const resumeRadiusM = (anchor: GpsPoint, p: GpsPoint): number => Math.max(STILL_RADIUS_M, anchor.accuracy + p.accuracy);
 
 /** Moving again: the point left the standing spot (`anchor`) by more than resumeRadiusM. */
 export const leftStill = (anchor: GpsPoint, p: GpsPoint): boolean => haversineM(anchor, p) > resumeRadiusM(anchor, p);
+
+/**
+ * Moved lately (PLAN 4.4d): the newest point is more than RESUME_WINDOW_M from where the runner was
+ * RESUME_LOOKBACK_SEC ago (`trail`: the recent points, oldest first; the newest one at least that
+ * old, else the oldest). Slow drift on the spot never is; walking off always is.
+ */
+export function movedLately(trail: Recent, p: GpsPoint): boolean {
+  let q = trail[0];
+  for (const r of trail) if (p.t - r.t >= RESUME_LOOKBACK_SEC * 1000) q = r;
+  return !q || q.t >= p.t || haversineM(q, p) > RESUME_WINDOW_M;
+}
+
+/** The shortest step that is recorded (PLAN 4.4d): a share of the point's accuracy, at most MIN_STEP_CAP_M. */
+export const minStepM = (p: GpsPoint, speedKnown = true): number =>
+  // Without the phone's speed, an estimate too unsure to call standing (STILL_TRUST_M) counts only
+  // net way beyond its own accuracy (at most UNSURE_STEP_CAP_M): its wobble on the spot is never a path (PLAN 4.4d).
+  !speedKnown && p.accuracy > STILL_TRUST_M ? Math.min(p.accuracy, UNSURE_STEP_CAP_M) : Math.min(MIN_STEP_CAP_M, p.accuracy * MIN_STEP_SHARE);
+
+/**
+ * Moving like a walk (PLAN 4.4d): over the trail (the last AUTO_PAUSE_SEC or more) the estimate
+ * went at least UNSURE_MOVE_MPS. A slow walk (1.2 m/s) does; the drift of a still phone's fixes
+ * (a few tenths of a meter a second) does not.
+ */
+export function walkingLately(trail: Recent, p: GpsPoint): boolean {
+  const q = trail[0];
+  if (!q || p.t - q.t < AUTO_PAUSE_SEC * 1000) return false;
+  return haversineM(q, p) >= (UNSURE_MOVE_MPS * (p.t - q.t)) / 1000;
+}

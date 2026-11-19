@@ -111,12 +111,13 @@ describe('pace', () => {
   });
 
   it('has no pace when the window holds too little distance', () => {
-    // 0.3 m/s for 30 s is 9 m: inside the GPS noise.
-    expect(currentPace(samples(0.3, 30))).toBeNull();
-    expect(currentPace(samples(0.4, 30))).toBeCloseTo(2.5, 9);
+    // PLAN 4.4d: the window is PACE_WINDOW_SEC (15 s, was 30). Under PACE_MIN_M (10 m) in it is no
+    // pace: 0.6 m/s for 15 s is 9 m, inside the GPS noise; 0.7 m/s is 10.5 m.
+    expect(currentPace(samples(0.6, 30))).toBeNull();
+    expect(currentPace(samples(0.7, 30))).toBeCloseTo(1 / 0.7, 9);
   });
 
-  it('keeps a window of 30 seconds of moving time', () => {
+  it('keeps a window of PACE_WINDOW_SEC of moving time', () => {
     const w = samples(3, 100);
     expect(w[0]!.movingMs).toBe((100 - PACE_WINDOW_SEC) * 1000);
     expect(w).toHaveLength(PACE_WINDOW_SEC + 1);

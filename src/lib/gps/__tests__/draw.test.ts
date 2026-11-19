@@ -112,8 +112,11 @@ describe('smoothForDrawing', () => {
     const raw = zigzag(60);
     const r = processPoints(raw, KM);
     const before = r.reading.distanceM;
+    // PLAN 4.4d: the track is the tracker's estimate (estimate.ts), no longer the raw fixes; what
+    // this protects is that drawing never changes it, nor the distance.
+    const track = r.points.map((p) => ({ ...p }));
     smoothForDrawing(r.points, toRunGaps(r.breaks));
-    expect(r.points).toEqual(raw);
-    expect(processPoints(r.points, KM).reading.distanceM).toBe(before);
+    expect(r.points).toEqual(track);
+    expect(processPoints(raw, KM).reading.distanceM).toBe(before);
   });
 });

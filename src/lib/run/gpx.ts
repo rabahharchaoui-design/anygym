@@ -2,17 +2,20 @@
 // GPS gap is a break and not a straight line. No elevation: the phone's altitude is not shown.
 import type { Run } from '../../db/types';
 import { fromRunPoint, toSegments } from '../gps';
-import { dayKey, timeKey } from '../dayKey';
+import { dayKey, timeKeySec } from '../dayKey';
 import { runLabel } from './goal';
 
 const xml = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const iso = (t: number): string => new Date(t).toISOString();
 
-/** The file name, in the phone's local date and start time (two runs on one day differ, PLAN 4.6a 7). */
+/**
+ * The file name, in the phone's local date and start time to the second: two runs on one day
+ * (PLAN 4.6a 7), even in one minute (PLAN 4.6b 2), get two files. "AnyGym-run-2026-06-01-070503.gpx".
+ */
 export function gpxFileName(run: Pick<Run, 'startedAt'>): string {
   const d = new Date(run.startedAt);
-  return `AnyGym-run-${dayKey(d)}-${timeKey(d)}.gpx`;
+  return `AnyGym-run-${dayKey(d)}-${timeKeySec(d)}.gpx`;
 }
 
 const nameOf = (run: Run): string => {
