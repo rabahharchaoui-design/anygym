@@ -173,3 +173,6 @@ export const UNSURE_STEP_CAP_M = 10;
 
 /** PLAN 4.4d: without the phone's speed and with an unsure estimate, moving means at least this over the last 8 s. */
 export const UNSURE_MOVE_MPS = 1;
+
+/** PLAN 4.4d: the span over which the fixes themselves must show a walk (fixesWalking). */
+export const FIXES_WALK_SEC = 5;

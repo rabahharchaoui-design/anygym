@@ -22,7 +22,7 @@
 // - Moving time only moves forward with good points, so it never has to be taken back.
 import { JUMP_RESET, estimatePoint, estimateSpeed, reopenSpeed, startEstimate, stepEstimate, type Estimate } from './estimate';
 import { judgePoint } from './filter';
-import { calmNow, settleWith, speedKnown, standsAt, stillBySpeed } from './standing';
+import { calmNow, fixesWalking, pushRaw, settleWith, speedKnown, standsAt, stillBySpeed } from './standing';
 import { haversineM } from './geo';
 import { pushPace, pushSpeed, type PaceSample } from './pace';
 import { addSplitStep, startSplits, type Split, type SplitState } from './splits';
@@ -73,6 +73,8 @@ export type TrackerState = {
    * since `since`; `last` is the newest reading. Null: it said moving, or never spoke.
    */
   calm?: { since: number; last: number } | null;
+  /** PLAN 4.4d: the fixes of the last few seconds as the phone gave them (fixesWalking). */
+  raws?: readonly GpsPoint[];
   /** PLAN 4.4d: the first fixes of a run that is not sure yet (SETTLE_FIXES); null once settled. */
   settle?: GpsPoint[] | null;
   /** The phone's own speeds of the last SPEED_PACE_SEC (PLAN 4.4d), [time, m/s]. Absent in older snapshots. */
@@ -143,10 +145,13 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   const out = addFix(state, raw);
   const e = out.event;
   if (e.type === 'rejected' || (e.type === 'held' && e.reason === 'paused')) return out;
+  // The fixes as the phone gave them, last few seconds (fixesWalking).
+  const fix = { lat: raw.lat!, lng: raw.lng!, t: raw.t!, accuracy: raw.accuracy! };
+  const raws = e.type === 'recorded' && e.brk !== null ? [fix] : pushRaw(out.state.raws ?? [], fix);
   // The phone's own speeds of the last seconds (PLAN 4.4d): current pace and moving again read them.
   const p = out.state.lastGood!;
   const calm = p.speed === undefined ? (out.state.calm ?? null) : p.speed < STILL_SPEED_MPS ? { since: out.state.calm?.since ?? p.t, last: p.t } : null;
-  return { ...out, state: { ...out.state, calm, speeds: p.speed === undefined ? [] : pushSpeed(out.state.speeds ?? [], p, e.type === 'recorded' && e.brk !== null) } };
+  return { ...out, state: { ...out.state, raws, calm, speeds: p.speed === undefined ? [] : pushSpeed(out.state.speeds ?? [], p, e.type === 'recorded' && e.brk !== null) } };
 }
 
 function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; event: TrackerEvent } {
@@ -185,7 +190,11 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
     }
     const p0 = estimatePoint(start, v.point.speed);
     const sample = { movingMs: timed.movingMs, timedM: timed.timedM };
-    return { state: { ...restart(timed, p0), est: start, firstT, settle: null, pace: [sample] }, event: { type: 'recorded', point: p0, brk: null, splits: [] } };
+    if (chain.length < 2) return { state: { ...restart(timed, p0), est: start, firstT, settle: null, pace: [sample] }, event: { type: 'recorded', point: p0, brk: null, splits: [] } };
+    // The line starts at the first of the agreeing fixes and the way since then counts (PLAN 4.4d).
+    const first = chain[0]!;
+    const credited = advance({ ...timed, pace: [sample] }, { distanceM: haversineM(first, p0), ms: 0, timed: true, gap: false });
+    return { state: { ...restart(credited.state, p0), est: start, firstT, settle: null }, event: { type: 'recorded', point: p0, brk: null, splits: credited.completed, withheld: first } };
   }
   if (v.link === 'first') {
     const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'pause', bridged: false, distanceM: 0 };
@@ -243,7 +252,7 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
   // Without the phone's speed and too unsure to call standing, way counts only while the estimate
   // moves like a walk over the last seconds (PLAN 4.4d): a still phone's slow drift never does.
   const known = speedKnown(state, p);
-  const drifting = !known && p.accuracy > STILL_TRUST_M && !walkingLately(trail, p);
+  const drifting = !known && p.accuracy > STILL_TRUST_M && !walkingLately(trail, p) && !fixesWalking([...(state.raws ?? []), v.point]);
   if (!state.still && drifting && legM >= minStepM(p, known) && p.t - from.t >= AUTO_PAUSE_SEC * 1000) {
     // Drifted off the last point without moving like a walk: the spot moves with the drift, the
     // distance does not (PLAN 4.4d). The line breaks there (no distance across, like an unbridged gap).

@@ -2,7 +2,7 @@
 // fixes of a run (PLAN 4.4d). Pure; split from tracker.ts, which uses them.
 import { haversineM } from './geo';
 import { isStill, type Recent } from './stillness';
-import { SPEED_MEMORY_SEC, SPEED_MOVING_MPS, STILL_BY_SPEED_SEC, STILL_SPEED_MPS, STILL_TRUST_M, type GpsPoint } from './types';
+import { FIXES_WALK_SEC, UNSURE_MOVE_MPS, SPEED_MEMORY_SEC, SPEED_MOVING_MPS, STILL_BY_SPEED_SEC, STILL_SPEED_MPS, STILL_TRUST_M, type GpsPoint } from './types';
 import type { TrackerState } from './tracker';
 
 /**
@@ -36,3 +36,30 @@ export function settleWith(chain: readonly GpsPoint[], q: GpsPoint): GpsPoint[] 
   return last && haversineM(last, q) <= last.accuracy + q.accuracy ? [...chain, q] : [q];
 }
 
+
+/** The phone's fixes of the last FIXES_WALK_SEC and one older, oldest first. */
+export function pushRaw(raws: readonly GpsPoint[], q: GpsPoint): GpsPoint[] {
+  const all = [...raws, q];
+  let from = 0;
+  while (from + 1 < all.length && q.t - all[from + 1]!.t >= FIXES_WALK_SEC * 1000) from++;
+  return all.slice(from);
+}
+
+/**
+ * Moving like a walk by the fixes themselves (PLAN 4.4d), for a poor start with no phone speed:
+ * at least three fixes over FIXES_WALK_SEC, each step going the same way as the whole (never back
+ * against it), and the whole at walking pace (UNSURE_MOVE_MPS) or faster. A phone's error drifts
+ * slowly, so consecutive fixes show a walk long before the estimate, which waits on the accuracy.
+ */
+export function fixesWalking(raws: readonly GpsPoint[]): boolean {
+  const last = raws[raws.length - 1];
+  let i = raws.length - 1;
+  while (i > 0 && last && last.t - raws[i]!.t < FIXES_WALK_SEC * 1000) i--;
+  const run = raws.slice(i);
+  const first = run[0];
+  if (!first || !last || run.length < 3 || last.t - first.t < FIXES_WALK_SEC * 1000) return false;
+  const net = haversineM(first, last);
+  if (net < (UNSURE_MOVE_MPS * (last.t - first.t)) / 1000) return false;
+  // Every fix closer to the last one than the one before it: one way, not to and fro.
+  return run.every((q, k) => k === 0 || haversineM(q, last) < haversineM(run[k - 1]!, last));
+}
