@@ -5,8 +5,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 6094,
-    "avif": 3255
+    "webp": 2744,
+    "avif": 1947
   },
   "goal-strength": {
     "group": "goal",
@@ -14,8 +14,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 8468,
-    "avif": 4259
+    "webp": 4494,
+    "avif": 3334
   },
   "goal-fat_loss": {
     "group": "goal",
@@ -23,8 +23,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 7078,
-    "avif": 4269
+    "webp": 4384,
+    "avif": 2679
   },
   "goal-tone": {
     "group": "goal",
@@ -32,8 +32,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 5684,
-    "avif": 3227
+    "webp": 2814,
+    "avif": 2044
   },
   "goal-health": {
     "group": "goal",
@@ -41,8 +41,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 6502,
-    "avif": 3368
+    "webp": 2706,
+    "avif": 1991
   },
   "goal-athletic": {
     "group": "goal",
@@ -50,8 +50,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 5744,
-    "avif": 3245
+    "webp": 4008,
+    "avif": 3058
   },
   "goal-race": {
     "group": "goal",
@@ -59,8 +59,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 6926,
-    "avif": 3483
+    "webp": 982,
+    "avif": 1005
   },
   "goal-comeback": {
     "group": "goal",
@@ -68,8 +68,8 @@
     "slot": 48,
     "width": 144,
     "height": 144,
-    "webp": 8722,
-    "avif": 4667
+    "webp": 4160,
+    "avif": 2494
   },
   "place-full": {
     "group": "place",
