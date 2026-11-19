@@ -207,7 +207,7 @@ for (const scale of [100, 130]) {
   });
 }
 
-test('the app icons and the manifest are Loaded Bar (no lime pixel, black splash)', async ({ page, baseURL }) => {
+test('the app icons and the manifest are the Diagonal (no lime pixel, black splash)', async ({ page, baseURL }) => {
   const manifest = await (await page.request.get(new URL('manifest.webmanifest', baseURL!).href)).json();
   // PLAN M8 (SPEC 1): the splash and the installed app's bar are pure black like the icon's ground.
   expect(manifest.theme_color).toBe('#000000');
