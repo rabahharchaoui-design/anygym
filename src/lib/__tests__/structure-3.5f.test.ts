@@ -45,14 +45,16 @@ const bestOf = (c: Case, pattern: Pattern): string | undefined => {
 describe('3.5f (3) smart structure on every place preset at 15, 30, 45, 60', () => {
   it('covers every preset, and builds days where the gym has the moves', () => {
     expect(CASES).toHaveLength(PLACES.length * EXPERIENCES.length * QUICK_MINUTES.length * SESSION_AREAS.length);
-    // A full gym has a chest, a shoulder and a leg day at every length, and a back day from 30 min.
+    // A full gym has a shoulder and a leg day at every length, and a chest and a back day from 30 min.
+    // PLAN D0: G hid all three chest fly demos (Butterfly, Dumbbell_Flyes, Incline_Dumbbell_Flyes:
+    // "needs 3 part pics"), so the 15 min chest day (a press and a fly) waits for D1's new pictures.
     for (const minutes of QUICK_MINUTES) {
       const got = BUILT.filter((c) => c.label.startsWith(`full 1_2y ${minutes} `)).map((c) => c.area);
-      expect(got, `full ${minutes}`).toEqual(expect.arrayContaining(['chest', 'shoulders', 'legs']));
-      if (minutes >= 30) expect(got).toContain('back');
+      expect(got, `full ${minutes}`).toEqual(expect.arrayContaining(['shoulders', 'legs']));
+      if (minutes >= 30) expect(got).toEqual(expect.arrayContaining(['chest', 'back']));
     }
-    // No equipment: no day is made up (bodyweight moves have no demo we are sure of yet).
-    expect(BUILT.filter((c) => c.label.startsWith('outdoors') || c.label.startsWith('home'))).toEqual([]);
+    // No equipment: a day only from moves that need no gear (G approved the bodyweight demos in D0).
+    for (const c of BUILT.filter((x) => x.label.startsWith('outdoors') || x.label.startsWith('home'))) for (const it of c.card.items) expect(sureGear(SWAP_DATA, it.id, c.gym), `${c.label} ${it.id}`).toBe(true);
     expect(BUILT.length).toBeGreaterThan(60);
   });
 
@@ -105,14 +107,18 @@ describe('3.5f (3) smart structure on every place preset at 15, 30, 45, 60', () 
       if (iso !== -1) expect(iso, `${c.label} isolation after the lifts`).toBeGreaterThan(lastCompound);
     }
     // G's example: a 30 min chest day at a full gym: a barbell press first, a second angle, then a fly.
+    // PLAN D0: no chest fly has a sure demo until D1 (G hid all three), so no fly is shown, never a wrong one.
     const chest = BUILT.find((c) => c.label === 'full 1_2y 30 chest')!.card.items;
-    expect(chest.map((it) => it.pattern)).toEqual(['horizontal push', 'horizontal push', 'chest isolation']);
+    expect(chest.slice(0, 2).map((it) => it.pattern)).toEqual(['horizontal push', 'horizontal push']);
+    expect(chest.some((it) => it.pattern === 'chest isolation')).toBe(false);
     expect(chest[0]!.name).toMatch(/Barbell/);
     expect(angleOf(P(chest[0]!.id))).not.toBe(angleOf(P(chest[1]!.id)));
-    // No barbell: dumbbells lead (the best gear the gym has).
+    // No barbell: the best gear the gym has with a sure demo leads. PLAN D0: G hid the dumbbell bench
+    // press demo ("needs better demo"), so the chest press machine leads until D1 replaces it.
     const noBar: GymKit = { equipment: kitOf('full').equipment.filter((e) => e !== 'barbell_rack' && e !== 'smith_machine'), dumbbellRange: { min: 5, max: 100, step: 5 } };
     const db = focusCard('chest', { base: base(noBar, '1_2y'), minutes: 30, recent: [] }, QUICK_DEPS)!;
-    expect(db.items[0]!.name).toBe('Dumbbell Bench Press');
+    expect(db.items[0]!.name).toBe('Machine Bench Press');
+    expect(db.items.map((it) => it.id)).not.toContain('Dumbbell_Bench_Press');
   });
 
   it('the finisher is a pair with a non competing muscle, last, sharing one rest', () => {

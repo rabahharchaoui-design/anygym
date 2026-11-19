@@ -341,8 +341,14 @@ describe('the time math (one estimator), every length and every place preset', (
   });
 
   it('a gym with no sure moves gets no card at all, never padding', () => {
+    // PLAN D0: home and outdoors now have sure bodyweight demos (G approved Pushups, Bodyweight_Squat,
+    // Sit-Up): every card holds only moves that need no gear and have a demo, at least 3 of them.
     for (const place of ['home', 'outdoors'] as const) {
-      for (const m of QUICK_MINUTES) expect(buildIdeas({ base: { goals: ['muscle'], gym: placeGym(place) }, minutes: m, recent: [] }, QUICK_DEPS).cards).toEqual([]);
+      for (const m of QUICK_MINUTES)
+        for (const c of buildIdeas({ base: { goals: ['muscle'], gym: placeGym(place) }, minutes: m, recent: [] }, QUICK_DEPS).cards) {
+          expect(c.items.length).toBeGreaterThanOrEqual(3);
+          for (const it of c.items) expect(demoFor(it.id), `${place} ${m} ${it.id}`).not.toBeNull();
+        }
     }
   });
 });
@@ -466,7 +472,9 @@ describe('3.5b round 2', () => {
     expect(c.minutes).toBeGreaterThanOrEqual(28);
     // The day list of that workout: its fitted pairs rest after each round.
     const entries = dayWorkout(trimmedPlan(split, 1, c.plan!.trim, 0), 1, 0);
-    expect(entries.some((e) => e.roundRest)).toBe(true);
+    // PLAN D0: the band rotations and the chest fly have no sure demo now (G), so the day may fit
+    // without pairing; when it pairs, the pairs rest after each round.
+    expect(entries.some((e) => e.roundRest)).toBe((c.plan!.trim?.pairs?.length ?? 0) > 0);
     expect(entries.some((e) => e.finisher)).toBe(false);
   });
 
@@ -690,7 +698,8 @@ describe('3.5b round 4, the rest of the critic list', () => {
         const extra = hist ? { recent: ['quads', 'glutes'] as Muscle[], lastTrained: { quads: NOW - DAY, glutes: NOW - DAY, back: NOW - 4 * DAY } as Partial<Record<Muscle, number>>, now: NOW } : {};
         const got = ideas({ goals: ['muscle'], experience: '1_2y', gym: HOTEL }, m, extra);
         const label = `hotel ${m} hist=${hist}`;
-        if (got.cards.length < 4) expect(got.fewer, label).toMatch(/no leg lift we can show you/);
+        // PLAN D0: G approved Dumbbell_Squat, so a hotel has a leg lift: the honest reason is the minutes.
+        if (got.cards.length < 4) expect(got.fewer, label).toMatch(/different enough to show together/);
         else expect(got.fewer).toBeUndefined();
         for (const c of got.cards) {
           if (c.id !== 'strength') expect(c.items.length, `${label} ${c.id}`).toBeGreaterThanOrEqual(densityFor(m).min);
@@ -801,7 +810,11 @@ describe('3.5b round 4, the rest of the critic list', () => {
     for (const m of QUICK_MINUTES)
       for (const experience of ['new', '1_2y', '3y'] as ExperienceId[]) {
         const got = ideas({ goals: ['muscle'], experience, gym: FULL }, m);
-        expect(got.more.length, `${experience} ${m}`).toBeGreaterThan(0);
+        // PLAN D0: with G's 99 sure demos every style that can be built may already be one of the 4
+        // cards (a new lifter at 30 min: circuit, pump, arms and abs, easy): then More has nothing new.
+        const built = [...buildStyleCards({ base: { goals: ['muscle'], experience, gym: FULL }, minutes: m, recent: [] }, QUICK_DEPS).keys()];
+        const allShown = built.every((id) => got.cards.some((c) => c.id === id));
+        if (!allShown) expect(got.more.length, `${experience} ${m}`).toBeGreaterThan(0);
       }
   });
 });

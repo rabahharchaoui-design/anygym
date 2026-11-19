@@ -38,6 +38,9 @@ export function distinctCards(batch: Batch<Concept>, input: QuickInput, deps: Qu
       const tryItems = safePairs(items.map((x) => (x === it ? next : x)), deps.profile);
       const withWhy = tryItems;
       if (!fits(quickMinutes(withWhy), input.minutes)) continue;
+      // PLAN D0: a replacement never makes the card's name untrue (a cable kickback on Strength focus,
+      // now that more demos are sure): the style's own honest test holds after the swap.
+      if (!STYLES[c.id as StyleId].honest(withWhy.map((x) => deps.profile(x.id)), withWhy)) continue;
       const primary = mainMuscles(withWhy, deps);
       // The card keeps the muscles it showed. Round 2: a replacement that moves one of its three main
       // muscles (a Romanian deadlift for a deadlift: back to hamstrings) is let in only when the card is

@@ -21,8 +21,12 @@ const BODYWEIGHT: GymKit = { equipment: [], dumbbellRange: null as never };
 const FLAT_BENCH = 'Barbell_Bench_Press_-_Medium_Grip';
 const DB_BENCH = 'dumbbell-bench-press';
 const PUSH_UPS = 'Pushups';
-/** A fake set of candidates G approved (their demos reviewed): only the candidate gate changes. */
-const APPROVED = new Set([FLAT_BENCH, PUSH_UPS, 'Incline_Push-Up', 'Dumbbell_Flyes', 'Incline_Dumbbell_Flyes']);
+/**
+ * A fake set of candidates G approved (their demos reviewed): only the candidate gate changes.
+ * PLAN D0: G's real review hid the dumbbell bench press demo, so the fake set adds it back to test
+ * the ladder order.
+ */
+const APPROVED = new Set([FLAT_BENCH, PUSH_UPS, DB_BENCH, 'Incline_Push-Up', 'Dumbbell_Flyes', 'Incline_Dumbbell_Flyes']);
 const approved: QuickDeps = { ...QUICK_DEPS, usable: (id) => QUICK_DEPS.usable(id) || APPROVED.has(id) };
 
 const input = (gym: GymKit, minutes: number, experience: '1_2y' | '3y' | 'new' = '1_2y') => ({ base: { goals: ['muscle' as const], gym, experience }, minutes, recent: [] });
@@ -32,7 +36,11 @@ describe('3.5f round 2: chest leads with the best gear the gym has', () => {
     for (const minutes of QUICK_MINUTES) {
       expect(focusCard('chest', input(kitOf('full'), minutes), approved)?.items[0]?.id, `full ${minutes}`).toBe(FLAT_BENCH);
       expect(focusCard('chest', input(DUMBBELLS, minutes), approved)?.items[0]?.id, `dumbbells ${minutes}`).toBe(DB_BENCH);
-      expect(focusCard('chest', input(BODYWEIGHT, minutes), approved)?.items[0]?.id, `bodyweight ${minutes}`).toBe(PUSH_UPS);
+      // PLAN D0: with G's real verdicts a bodyweight chest day is a push day (push ups and handstand push
+      // ups), which needs 30 min or more; whenever there is a card, push ups lead it.
+      const bw = focusCard('chest', input(BODYWEIGHT, minutes), approved);
+      if (minutes >= 30) expect(bw, `bodyweight ${minutes}`).not.toBeNull();
+      if (bw) expect(bw.items[0]?.id, `bodyweight ${minutes}`).toBe(PUSH_UPS);
     }
   });
 
@@ -59,13 +67,14 @@ describe('3.5f round 2: chest leads with the best gear the gym has', () => {
 });
 
 describe('3.5f round 2: fewer than 3 sure moves for an area: the nearest honest day', () => {
-  it('a hotel chest day is a push day led by its one sure chest press, saying why from the curated file', () => {
+  // PLAN D0: G hid the dumbbell bench press demo, so a hotel's one sure chest move is push ups now.
+  it('a hotel chest day is a push day led by its one sure chest move, saying why from the curated file', () => {
     for (const minutes of QUICK_MINUTES) {
       const c = focusCard('chest', input(kitOf('hotel'), minutes), QUICK_DEPS);
       expect(c, `hotel ${minutes}`).not.toBeNull();
       expect(c!.title).toBe('Push day');
       expect(c!.variant).toBe(FALLBACK_RULES.chest.id);
-      expect(c!.items[0]!.id).toBe(DB_BENCH);
+      expect(c!.items[0]!.id).toBe(PUSH_UPS);
       expect(isCompound(profileFor(c!.items[0]!.id))).toBe(true);
       expect(c!.line).toBe(fill(factById('idea-fewer')!.line, { muscle: 'chest', name: c!.items[0]!.name }));
       expect(c!.minutes).toBeLessThanOrEqual(minutes);
@@ -91,6 +100,12 @@ describe('3.5f round 2: fewer than 3 sure moves for an area: the nearest honest 
   });
 
   it('no sure big lift for an area at all: no card (never padded with unsure moves)', () => {
-    for (const area of SESSION_AREAS) expect(focusCard(area, input(BODYWEIGHT, 30), QUICK_DEPS), area).toBeNull();
+    // PLAN D0: G approved push ups and the bodyweight squat, so a bodyweight gym has a push and a leg
+    // day; back and shoulders have no sure bodyweight lift and get no card.
+    for (const area of SESSION_AREAS) {
+      const c = focusCard(area, input(BODYWEIGHT, 30), QUICK_DEPS);
+      if (area === 'back' || area === 'shoulders') expect(c, area).toBeNull();
+      else for (const it of c?.items ?? []) expect(QUICK_DEPS.usable(it.id), `${area} ${it.id}`).toBe(true);
+    }
   });
 });

@@ -119,9 +119,11 @@ describe('verify 3.5b', () => {
     void STYLE_ORDER;
   });
 
-  it('home and outdoors: no cards at all', () => {
+  it('home and outdoors: only bodyweight cards with a sure demo (PLAN D0: G approved the bodyweight demos)', () => {
     for (const p of ['home', 'outdoors'] as const)
-      for (const m of QUICK_MINUTES) expect(buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym: place(p) }, minutes: m, recent: [] }, QUICK_DEPS).cards).toEqual([]);
+      for (const m of QUICK_MINUTES)
+        for (const c of buildIdeas({ base: { goals: ['muscle'], experience: '1_2y', gym: place(p) }, minutes: m, recent: [] }, QUICK_DEPS).cards)
+          for (const it of c.items) expect(sureGear(SWAP_DATA, it.id, place(p)), `${p} ${m} ${it.id}`).toBe(true);
   });
 
   it('fresh card claims: every named muscle is outside the recent set and the rested number equals the seeded history', () => {
