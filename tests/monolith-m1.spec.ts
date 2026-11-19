@@ -15,8 +15,21 @@ const tag = () => test.info().project.name.replace(/ /g, '-');
 
 async function shot(target: Page | Locator, name: string) {
   mkdirSync(DIR, { recursive: true });
-  await (target as Page).waitForTimeout?.(300);
-  await target.screenshot({ path: `${DIR}/${name}-${tag()}.jpg`, type: 'jpeg', quality: 80, animations: 'disabled' });
+  const path = `${DIR}/${name}-${tag()}.jpg`;
+  if (!('locator' in target) || 'goto' in target) {
+    await (target as Page).waitForTimeout(300);
+    await target.screenshot({ path, type: 'jpeg', quality: 80, animations: 'disabled' });
+    return;
+  }
+  // A section of the preview: the screen is a fixed scroller, so the viewport is made as tall as
+  // the preview for the shot (widths, and so every vw size, stay the same), then put back.
+  const page = target.page();
+  const vp = page.viewportSize()!;
+  const tall = await page.evaluate(() => document.querySelector('[data-m1-preview]')?.scrollHeight ?? 0);
+  if (tall > vp.height) await page.setViewportSize({ width: vp.width, height: tall });
+  await page.waitForTimeout(300);
+  await target.screenshot({ path, type: 'jpeg', quality: 80, animations: 'disabled' });
+  if (tall > vp.height) await page.setViewportSize(vp);
 }
 
 async function openPreview(page: Page) {
@@ -94,7 +107,8 @@ async function fieldsFit(section: Locator) {
       const fr = f.getBoundingClientRect();
       const nr = n.getBoundingClientRect();
       const lines = Math.round(nr.height / parseFloat(getComputedStyle(n).lineHeight));
-      const out = nr.right > fr.right + 0.5 || nr.right > innerWidth || n.scrollWidth > n.clientWidth + 1 || lines > 1;
+      const lr = f.firstElementChild!.getBoundingClientRect();
+      const out = lr.right > fr.right + 0.5 || nr.right > fr.right + 0.5 || nr.right > innerWidth || n.scrollWidth > n.clientWidth + 1 || lines > 1;
       return out ? [`${n.textContent} ${nr.right.toFixed(1)} > ${fr.right.toFixed(1)} (lines ${lines})`] : [];
     }),
   );

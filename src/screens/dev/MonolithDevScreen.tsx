@@ -9,7 +9,7 @@ import styles from './MonolithDevScreen.module.css';
  */
 export function MonolithDevScreen() {
   return (
-    <main className={styles.screen}>
+    <main className={styles.screen} data-m1-preview>
       <section className={styles.block} data-testid="m1-buttons" aria-label="Buttons">
         <h2 className={styles.label}>Buttons</h2>
         <Button>Start workout</Button>

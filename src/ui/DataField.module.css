@@ -16,6 +16,8 @@
   letter-spacing: var(--track-label);
   line-height: 1.2;
   text-transform: uppercase;
+  /* in a narrow column at the largest text size a long label breaks rather than runs into the next field */
+  overflow-wrap: anywhere;
 }
 
 .line {
