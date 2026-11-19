@@ -5,6 +5,16 @@ import { Divider } from '../../ui/Divider';
 import { DataField } from '../../ui/DataField';
 import styles from './MonolithDevScreen.module.css';
 
+/** Plain rows with a hairline under each. */
+function Rows({ names }: { names: string[] }) {
+  return names.map((name) => (
+    <div key={name}>
+      <p className={styles.row}>{name}</p>
+      <Divider />
+    </div>
+  ));
+}
+
 /**
  * Dev preview (#/dev/monolith?dev, PLAN M1): the shared Monolith pieces in every state, for the
  * screenshot spec (tests/monolith-m1.spec.ts) and the critic. Behind the dev flag.
@@ -36,12 +46,7 @@ export function MonolithDevScreen() {
       <section className={styles.block} data-testid="m1-dividers" aria-label="Dividers">
         <h2 className={styles.label}>Divider</h2>
         <div className={styles.rows}>
-          {['Gyms', 'Units', 'Weekly goal'].map((row) => (
-            <div key={row}>
-              <p className={styles.row}>{row}</p>
-              <Divider />
-            </div>
-          ))}
+          <Rows names={['Gyms', 'Units', 'Weekly goal']} />
         </div>
       </section>
       <section className={styles.block} data-testid="m1-fields" aria-label="Data fields">
@@ -88,24 +93,14 @@ export function MonolithDevScreen() {
       <Sheet open={sheet === 'short'} onClose={close} label="Units">
         <div className={styles.sheetBody} data-testid="m1-sheet-body">
           <h2 className={styles.sheetTitle}>Units</h2>
-          {['Weight', 'Distance'].map((row) => (
-            <div key={row}>
-              <p className={styles.row}>{row}</p>
-              <Divider />
-            </div>
-          ))}
+          <Rows names={['Weight', 'Distance']} />
           <Button onClick={close}>Done</Button>
         </div>
       </Sheet>
       <Sheet open={sheet === 'tall'} onClose={close} label="Gyms" scroll footer>
         <div className={styles.sheetBody}>
           <h2 className={styles.sheetTitle}>Gyms</h2>
-          {Array.from({ length: 14 }, (_, i) => `Gym ${i + 1}`).map((row) => (
-            <div key={row}>
-              <p className={styles.row}>{row}</p>
-              <Divider />
-            </div>
-          ))}
+          <Rows names={Array.from({ length: 14 }, (_, i) => `Gym ${i + 1}`)} />
         </div>
         <SheetFooter>
           <Button onClick={close}>Done</Button>
