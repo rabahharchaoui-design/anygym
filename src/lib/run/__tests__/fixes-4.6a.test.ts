@@ -1,13 +1,16 @@
 // PLAN 4.6a: review fixes in the run logic (6 records, 7 GPX name, 8 share card label, 9 restore).
 import { describe, expect, it } from 'vitest';
 import type { Run, RunPoint } from '../../../db/types';
-import { at } from '../../gps/__tests__/fixtures';
+import { at, T0 } from '../../gps/__tests__/fixtures';
 import { toRunPoint } from '../../gps';
 import { formatElapsed } from '../../timer';
 import { bestEffortSec } from '../efforts';
 import { gpxFileName } from '../gpx';
 import { posterLabel, posterOf } from '../poster';
 import { fasterWords, recordMoments } from '../records';
+import { liveStep, startLive, type LiveRun } from '../live';
+import { liveRow, parseSnapshot, restoreLive, toSnapshot } from '../snapshot';
+import { DEFAULT_RUN_SETUP } from '../goal';
 
 const MILE = 1609.344;
 
@@ -63,5 +66,24 @@ describe('the share card says what is on it (PLAN 4.6a 8)', () => {
     expect(posterLabel(p)).toContain(formatElapsed(r.movingSec));
     const open = posterOf({ ...r, city: undefined }, 'km', false);
     expect(posterLabel(open)).toBe(`Share card with your route: ${open.distance}, ${open.time}, ${open.pace}`);
+  });
+});
+
+describe('a snapshot stamped in the future adds no moving time (PLAN 4.6a 9)', () => {
+  const going = (): LiveRun =>
+    Array.from({ length: 101 }, (_, i) => at(i * 3, 0, i)).reduce((r, point) => liveStep(r, { type: 'fix', point }), startLive({ id: 'r1', now: T0, setup: DEFAULT_RUN_SETUP, unit: 'km', autoPause: true }));
+  const back = (run: LiveRun, savedAt: number, now: number) => restoreLive(liveRow(run), parseSnapshot(JSON.stringify(toSnapshot(run, savedAt)), 'r1'), { unit: 'km', autoPause: true }, now);
+
+  it('the clock was set back: the time the snapshot claims is not counted', () => {
+    const run = going();
+    expect(run.tracker.movingMs).toBe(100_000);
+    // Saved 6 s after the last position, but the phone now says it is 1 s after it.
+    expect(back(run, T0 + 106_000, T0 + 101_000).tracker.movingMs).toBe(100_000);
+  });
+
+  it('a snapshot in the past still keeps the seconds the clock had shown', () => {
+    const run = going();
+    expect(back(run, T0 + 106_000, T0 + 500_000).tracker.movingMs).toBe(106_000);
+    expect(back(run, T0 + 106_000, T0 + 106_000).tracker.movingMs).toBe(106_000);
   });
 });

@@ -125,9 +125,10 @@ function replay(row: Run, unit: DistanceUnit, autoPause: boolean): { tracker: Tr
 
 /**
  * A run that was still going when the app closed, back as a live run: paused by hand, marked
- * `closed`. With a snapshot it is exact; without one the track is replayed.
+ * `closed`. With a snapshot it is exact; without one the track is replayed. `now` (the engine gives
+ * it): a snapshot stamped after it (the phone's clock was set back) adds no moving time (PLAN 4.6a 9).
  */
-export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { unit: DistanceUnit; autoPause: boolean }): LiveRun {
+export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { unit: DistanceUnit; autoPause: boolean }, now?: number): LiveRun {
   const points = row.points.map(fromRunPoint);
   const last = points[points.length - 1] ?? null;
   // The snapshot is only trusted when it ends where the stored track ends.
@@ -147,7 +148,7 @@ export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { 
     intervals,
     unit,
     // Paused from the moment of the snapshot: the time the clock had shown by then stays (PLAN 4.4c).
-    tracker: pauseRun(tracker, fits ? snapshot.savedAt : undefined),
+    tracker: pauseRun(tracker, fits && snapshot.savedAt !== undefined && (now === undefined || snapshot.savedAt <= now) ? snapshot.savedAt : undefined),
     points,
     breaks,
     here: last,

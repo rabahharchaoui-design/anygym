@@ -192,7 +192,7 @@ export const runEngine = {
         const found = state.live ? null : await readLiveRun();
         if (found && !state.live) {
           const { setup, unit } = await readRunSetup();
-          const live = restoreLive(found.row, parseSnapshot(found.snapshot, found.row.id), { unit, autoPause: setup.autoPause });
+          const live = restoreLive(found.row, parseSnapshot(found.snapshot, found.row.id), { unit, autoPause: setup.autoPause }, Date.now());
           voice = setup.voice;
           dirty = true;
           set({ live, ready: true });
