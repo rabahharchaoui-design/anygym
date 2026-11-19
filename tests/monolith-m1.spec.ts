@@ -4,6 +4,8 @@ import { expect, test, type Locator, type Page } from './fixtures';
 // PLAN M1 (SPEC 10, 23): the shared Monolith pieces on the dev preview (#/dev/monolith?dev) and in
 // the app, on the iPhone 15 (the iPhone 15 Pro's size) and the iPhone SE. Screenshots land in
 // reports/monolith/m1/ (small JPEGs) so the report shows them; the checks are the real test.
+// The preview exists only in a build made with VITE_DEV_PREVIEW=1 (playwright.config.ts builds that
+// way; with PW_NO_BUILD, build with it yourself). The shipped build has no such route.
 const PROFILES = ['iPhone 15', 'iPhone SE'];
 const DIR = 'reports/monolith/m1';
 
