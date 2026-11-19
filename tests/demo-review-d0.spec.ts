@@ -88,3 +88,23 @@ test('an approved demo shows its photos, a hidden one in the same workout does n
     await expect(page.locator('img[alt$="start position"]')).toHaveCount(0);
   }
 });
+
+test('plans are unaffected: a plan row whose demo G hid stays in the workout with the empty state and its cues', async ({ page }) => {
+  test.skip(test.info().project.name !== 'iPhone 15', 'one phone');
+  // The 8 plan rows that map exactly to a hidden catalog demo; each keeps its match, muscles and cues.
+  const rows: Array<[string, string]> = [['deadlift', 'Barbell_Deadlift'], ['romanian-deadlift', 'Romanian_Deadlift'], ['dumbbell-bench-press', 'Dumbbell_Bench_Press'], ['dead-bug', 'Dead_Bug']];
+  const sid = await seedWorkout(page, rows.map(([p]) => p));
+  await page.goto(`./#/workout/${sid}`);
+  for (const [planId] of rows) await expect(page.getByTestId(`row-${planId}`)).toBeVisible();
+  for (const [planId, catalogId] of rows) {
+    await page.goto(`./#/workout/${sid}/${planId}`);
+    const view = page.getByTestId(`exercise-${planId}`);
+    await expect(view).toBeVisible();
+    await expect(view.getByTestId('ex-hero')).toHaveCount(0);
+    await expect(page.locator('img[alt$="start position"]')).toHaveCount(0);
+    // The How to card on the page keeps the catalog's cues (a sure match), and the muscle card.
+    const tips = view.getByTestId('form-tips');
+    for (const cue of cueFile.exercises[catalogId]!.cues.map((c) => c.text)) await expect(tips).toContainText(cue);
+    await expect(view.getByTestId('muscle-card')).toBeVisible();
+  }
+});
