@@ -57,7 +57,7 @@ export function SixSheet({ open, onClose, options, onPick }: { open: boolean; on
               </li>
             ))}
           </ul>
-          <Button variant="tertiary" onClick={onClose} data-testid="six-close">
+          <Button variant="quiet" onClick={onClose} data-testid="six-close">
             Keep swiping
           </Button>
         </div>
@@ -77,7 +77,7 @@ export function HideAskSheet({ name, onAnswer }: { name: string | null; onAnswer
           <Button variant="secondary" onClick={() => onAnswer(true)} data-testid="hide-yes">
             Hide it
           </Button>
-          <Button variant="tertiary" onClick={() => onAnswer(false)} data-testid="hide-no">
+          <Button variant="quiet" onClick={() => onAnswer(false)} data-testid="hide-no">
             Keep it around
           </Button>
         </div>

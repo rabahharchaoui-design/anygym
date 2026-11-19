@@ -60,10 +60,10 @@ function RankRow({ id, i, last, none, move }: { id: FocusPickId; i: number; last
         </span>
         {none && <span className={styles.rankNone}>No room for extra work this far down</span>}
       </span>
-      <Button variant="tertiary" block={false} className={styles.arrow} aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => move(i, -1)}>
+      <Button variant="quiet" block={false} className={styles.arrow} aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => move(i, -1)}>
         <ArrowUp aria-hidden width={20} height={20} />
       </Button>
-      <Button variant="tertiary" block={false} className={styles.arrow} aria-label={`Move ${name} down`} disabled={last} onClick={() => move(i, 1)}>
+      <Button variant="quiet" block={false} className={styles.arrow} aria-label={`Move ${name} down`} disabled={last} onClick={() => move(i, 1)}>
         <ArrowDown aria-hidden width={20} height={20} />
       </Button>
     </Reorder.Item>

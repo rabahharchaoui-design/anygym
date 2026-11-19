@@ -1,0 +1,73 @@
+.screen {
+  /* A fixed scroller like every screen (the app root clips anything past the viewport). */
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-height);
+  overflow-y: auto;
+  padding: calc(var(--safe-top) + var(--space-5)) calc(var(--side) + var(--safe-right)) calc(var(--space-7) + var(--safe-bottom)) calc(var(--side) + var(--safe-left));
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.label {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  min-height: var(--row-min);
+  margin: 0;
+  font-size: var(--text-mono-body);
+  font-weight: 600;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.sheetTitle {
+  margin: 0;
+  font-size: var(--text-mono-heading);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-heading);
+}

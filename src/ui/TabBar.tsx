@@ -1,39 +1,31 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
-import { HistoryIcon, ICON_STROKE, PlansIcon, RunIcon, TodayIcon } from './icons';
 import { tick } from './haptics';
-import { SPRING, FADE } from './motion';
-
-const BOUNCE = { duration: 0.34, ease: 'easeOut' } as const;
+import { SPRING } from './motion';
 import { useNav } from './nav';
+import { activeTab, TABS } from './tabs';
 import styles from './TabBar.module.css';
 
-const TABS = [
-  { to: '/', label: 'Today', Icon: TodayIcon, also: ['/settings'] },
-  { to: '/run', label: 'Run', Icon: RunIcon, also: [] },
-  { to: '/history', label: 'History', Icon: HistoryIcon, also: [] },
-  { to: '/plans', label: 'Plans', Icon: PlansIcon, also: [] },
-] as const;
-
 /**
- * Floating, blurred tab bar (SPEC 23.1): an accent pill slides to the tab you pick (shared layout
- * animation) and its icon gives a small spring bounce. The nav itself reaches the bottom edge and
- * owns the one bottom inset (PLAN 1.10b); the capsule floats inside it. Hidden on pushed screens.
+ * The tab bar (SPEC 23.1, Monolith style sheet): docked to the bottom edge, solid graphite with a
+ * hairline on top, words only. The active tab is white and bold with a 20 x 3 px ice blue bar above
+ * it that slides between tabs (shared layout animation) and lands on a small spring. The nav owns
+ * the one bottom inset (PLAN 1.10b). Hidden on pushed screens.
  */
 export function TabBar({ hidden = false }: { hidden?: boolean }) {
   const { pathname } = useLocation();
   const go = useNav();
   const reduce = useReducedMotion();
   // PLAN 3.5w: the bar is never inside a page snapshot. A tab switch moves only the screen's
-  // content (nav.ts), and the pill slides live between tabs on the shared spring (layoutId).
+  // content (nav.ts), and the bar (still data-pill for the specs) slides live between tabs on the
+  // shared spring (layoutId).
   // Reduced motion: it simply jumps.
   // Pushed screens hide it like iOS: it slides away, and takes no taps or focus while gone.
   return (
     <nav className={styles.bar} aria-label="Main" data-hidden={hidden || undefined} aria-hidden={hidden || undefined} {...(hidden ? { inert: '' } : {})}>
       <div className={styles.capsule} data-tour="tabs">
-        {TABS.map(({ to, label, Icon, also }) => {
-          const here = pathname === to || (also as readonly string[]).includes(pathname) || (to !== '/' && pathname.startsWith(`${to}/`));
-          const active = here;
+        {TABS.map(({ to, label }) => {
+          const active = activeTab(pathname) === to;
           return (
             <NavLink
               key={to}
@@ -57,17 +49,7 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
                   transition={reduce ? { duration: 0 } : SPRING}
                 />
               )}
-              <span className={styles.content}>
-                <motion.span
-                  className={styles.iconWrap}
-                  initial={false}
-                  animate={active && !reduce ? { scale: [1, 0.84, 1.1, 1] } : { scale: 1 }}
-                  transition={active ? BOUNCE : FADE}
-                >
-                  <Icon className={styles.icon} strokeWidth={ICON_STROKE} aria-hidden="true" />
-                </motion.span>
-                <span className={styles.label}>{label}</span>
-              </span>
+              <span className={styles.label}>{label}</span>
             </NavLink>
           );
         })}

@@ -1,0 +1,14 @@
+/* The hairline (SPEC 10): one device pixel line of white at 12%, no margin of its own, so the
+   rows around it own the spacing. */
+.divider {
+  flex: none;
+  align-self: stretch;
+  height: 0;
+  margin: 0;
+  border: 0;
+  border-top: var(--divider);
+}
+
+.divider[data-inset] {
+  margin-inline: calc(var(--side) + var(--safe-left)) calc(var(--side) + var(--safe-right));
+}

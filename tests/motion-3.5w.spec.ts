@@ -477,7 +477,9 @@ test.describe('round 2: past the intake', () => {
     // The pill travels through places between the two tabs (live, not a jump), and ends under Plans.
     const xs = seen.map((f) => f.v.pill);
     const from = xs[0]!;
-    const to = (await plans.boundingBox())!.x;
+    // PLAN M1: the mark is a 20 px bar centred over the tab's word.
+    const plansBox = (await plans.boundingBox())!;
+    const to = plansBox.x + plansBox.width / 2 - 10;
     if (!(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches))) expect(xs.filter((x) => x > from + 4 && x < to - 4).length).toBeGreaterThanOrEqual(framesFloor(3, 350, idle));
     await expect.poll(async () => Math.abs((await nav.locator('[data-pill]').boundingBox())!.x - to)).toBeLessThan(1.5);
     // Only the screen's content moved: it faded in and rose at most 7 px, and is at rest inside 350 ms.
