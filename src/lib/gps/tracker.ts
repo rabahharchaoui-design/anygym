@@ -26,7 +26,7 @@ import { haversineM } from './geo';
 import { averagePace, currentPace, pushPace, pushSpeed, speedPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
 import { clockStill, isStill, leftStill, minStepM, movedLately, pushRecent, type Recent } from './stillness';
-import { GAP_SEC, SPEED_MOVING_MPS, STILL_BY_SPEED_SEC, STILL_SPEED_MPS, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
+import { GAP_SEC, SPEED_MOVING_MPS, STILL_BY_SPEED_SEC, STILL_SPEED_MPS, STILL_TRUST_M, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
   /** Split length in meters (units.ts unitMeters). */
@@ -127,8 +127,12 @@ function advance(state: TrackerState, move: Move): { state: TrackerState; comple
 /** Put a point on the track as the start of a new continuous stretch. */
 const restart = (state: TrackerState, p: GpsPoint): TrackerState => ({ ...state, lastGood: p, lastRecorded: p, still: false, stopped: false, stopAt: null, afterPause: false, recent: [p], trail: [p] });
 
-/** Standing by the window's rule, unless the phone's own speed says the runner is moving (PLAN 4.4d). */
-const standsAt = (recent: Recent, p: GpsPoint, rule: (r: Recent) => boolean = isStill): boolean => rule(recent) && !(p.speed !== undefined && p.speed >= SPEED_MOVING_MPS);
+/**
+ * Standing by the window's rule, unless the phone's own speed says the runner is moving, or the
+ * estimate is too unsure for its positions to tell a walk from standing (STILL_TRUST_M, PLAN 4.4d).
+ */
+const standsAt = (recent: Recent, p: GpsPoint, rule: (r: Recent) => boolean = isStill): boolean =>
+  rule(recent) && p.accuracy <= STILL_TRUST_M && !(p.speed !== undefined && p.speed >= SPEED_MOVING_MPS);
 
 /**
  * Standing for the distance by the phone's own speed (PLAN 4.4d): the last speeds, over at least
@@ -214,8 +218,9 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
   const ms = p.t - prev.t;
   const trail = pushRecent(state.trail ?? [], p);
   // Moving again: off the standing spot, and moving now, not drifting there (PLAN 4.4d).
-  // Moving again: the phone's own speed says so when it gives one (it does not wander with the
-  // position); else off the standing spot, and moving now, not drifting there (PLAN 4.4d).
+  // Moving again (PLAN 4.4d): the phone's own speed says so when it gives one (it does not wander
+  // with the position). Without one (no GPS lock: the phone is unsure anyway) the old rule: off the
+  // spot by more than both accuracy circles, and moving now, not drifting there.
   const goingAgain = p.speed !== undefined ? p.speed >= SPEED_MOVING_MPS : leftStill(from, p) && movedLately(state.trail ?? [], p);
   if (state.still && !goingAgain) {
     // Standing: no distance. Auto paused, the clock stands. Otherwise it counts, and the window goes

@@ -68,9 +68,6 @@ export const STILL_ACCURACY_SHARE = 0.5;
  */
 export const STILL_RADIUS_CAP_M = 6;
 
-/** PLAN 4.4d (3): moving again never needs more than this from the standing spot (6 s of a slow walk). */
-export const RESUME_RADIUS_CAP_M = 8;
-
 /**
  * PLAN 4.4d (3): ...and moving again also needs this much way in the last RESUME_LOOKBACK_SEC
  * (1 m/s). A still phone's fixes drift slowly off the spot (a few cm a second); with the standing
@@ -144,3 +141,11 @@ export const SPEED_PACE_SEC = 5;
 
 /** PLAN 4.4d (3): the phone's own speed under STILL_SPEED_MPS for this long is standing, for the distance. */
 export const STILL_BY_SPEED_SEC = 3;
+
+/**
+ * PLAN 4.4d (3): an estimate less sure than this (its own accuracy, m) never calls the runner
+ * standing by the positions: at the 60 m of a cold start a walk moved the estimate so little that it
+ * read as standing and froze the distance for a minute (G's "lagged"). The phone's own speed still
+ * says standing when it gives one; a still phone at such accuracy may add some meters (reported).
+ */
+export const STILL_TRUST_M = 15;
