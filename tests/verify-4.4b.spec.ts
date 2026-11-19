@@ -38,3 +38,11 @@ test.describe('4.4b live run', () => {
     await expect(page.getByTestId('map-offline')).toHaveCount(0, { timeout: 10_000 });
   });
 });
+
+test('(8) VoiceOver reads the numbers on the stats page, not only the cycle hint @matrix', async ({ page, context }) => {
+  await startRun(page, context);
+  const cycle = page.getByTestId('live-cycle');
+  await expect(cycle).toHaveAccessibleName(/kilometers/);
+  await expect(cycle).toHaveAccessibleName(/moving time/);
+  await expect(cycle).toHaveAccessibleDescription('Shows the next number big');
+});

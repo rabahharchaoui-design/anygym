@@ -198,7 +198,11 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
         <div className={styles.strip} ref={strip}>
           <div className={styles.page} aria-hidden={page !== 0} style={{ paddingTop: inset.top, paddingBottom: inset.bottom }} {...swipe}>
             {effort && <div className={iv.tint} data-effort={effort} data-testid="interval-tint" aria-hidden="true" />}
-            <button type="button" className={styles.cycle} disabled={locked || page !== 0 || !!effort} aria-label="Show the next number big" data-testid="live-cycle" onClick={cycle}>
+            <button type="button" className={styles.cycle} disabled={locked || page !== 0 || !!effort} aria-describedby="live-cycle-hint" data-testid="live-cycle" onClick={cycle}>
+              {/* PLAN 4.4b (8): the numbers are the button's name (VoiceOver reads them, the interval ring too); what it does is its hint. */}
+              <span id="live-cycle-hint" className={styles.hint} aria-hidden="true">
+                Shows the next number big
+              </span>
               <LiveStats reading={reading} unit={live.unit} big={big} note={noteOf(live, reading.status)} goal={goalProgress(live.goal, reading, live.unit)} paused={paused} intervals={blocks} />
             </button>
           </div>
