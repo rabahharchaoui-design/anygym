@@ -44,7 +44,7 @@ week_allowed(){ # G, Nov 17: never leave G with nothing; spread what is left eve
   span=$(( wr - 14400 - t0 )); [ $span -lt 3600 ] && { echo $stop; return; }
   local lead=${WEEK_LEAD:-10}; local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span )); [ $a -gt $stop ] && a=$stop; echo $a   # lead: may run this far ahead of the even pace (Nov 19: a lead of 2 made runs stop after 4 min)
 }
-over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; [ "${f:-0}" -ge ${FIVE_STOP:-74} ] && { echo five; return 0; }; return 1; }
+over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; local cap=${FIVE_STOP:-74}; if [ -f .five-override ]; then read -r oc ou < .five-override; [ "$(date +%s)" -lt "${ou:-0}" ] 2>/dev/null && cap=$oc; fi; [ "${f:-0}" -ge $cap ] && { echo five; return 0; }; return 1; }   # .five-override "cap until": a one run exception G approved
 tap_age(){ local ts=$(tapv ts); [ -n "$ts" ] && echo $(( $(date +%s) - ts )) || echo 99999; }
 probe(){ local root="$PWD" d="$HOME/.cache/anygym-probe"; mkdir -p "$d"; date +%s > .usage-probe-at; ( cd "$d" && perl -e 'alarm shift; exec @ARGV' 90 claude --model haiku --output-format stream-json --verbose -p "Reply with OK only." 2>/dev/null | node "$root/.loop-tools/stream-tap.mjs" "$root/.usage-tap" >/dev/null 2>&1 ); }
 probe_due(){ [ $(tap_age) -gt ${PROBE_EVERY:-300} ] || return 1; local pa=$(cat .usage-probe-at 2>/dev/null); [ $(( $(date +%s) - ${pa:-0} )) -gt ${PROBE_EVERY:-300} ]; }
@@ -111,9 +111,14 @@ while [ $n -lt 300 ]; do
   if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
   # Grok helper (G, Nov 17): live tests through Grok Bot, reviews and audits through the Grok Build CLI. Keep it running.
   if [ -f .codex-restart ]; then rm -f .codex-restart; tmux kill-session -t codex-helper 2>/dev/null; say "restarting the Codex helper (asked by Claude)"; sleep 2; fi
-  if [ -f .codex-helper.sh ] && command -v tmux >/dev/null 2>&1 && command -v codex >/dev/null 2>&1 && ! tmux has-session -t codex-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s codex-helper "bash $PWD/.codex-helper.sh" && say "started the Codex helper (tmux session codex-helper)"; fi
+  if [ -f .codex-helper.sh ] && /bin/bash -n .codex-helper.sh 2>/dev/null && command -v tmux >/dev/null 2>&1 && command -v codex >/dev/null 2>&1 && ! tmux has-session -t codex-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s codex-helper "bash $PWD/.codex-helper.sh" && say "started the Codex helper (tmux session codex-helper)"; fi
   if [ -f .grok-restart ]; then rm -f .grok-restart; tmux kill-session -t grok-helper 2>/dev/null; say "restarting the Grok helper (asked by Claude)"; sleep 2; fi
-  if [ -f .grok-helper.sh ] && command -v tmux >/dev/null 2>&1 && { command -v grok >/dev/null 2>&1 || [ -x "$HOME/.grok/bin/grok" ]; } && ! tmux has-session -t grok-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s grok-helper "bash $PWD/.grok-helper.sh" && say "started the Grok helper (tmux session grok-helper)"; fi
+  for hs in .grok-helper.sh .codex-helper.sh; do   # never start a helper that does not parse in this Mac's own bash (Nov 19 crash loop)
+    if [ -f "$hs" ] && ! /bin/bash -n "$hs" 2>/dev/null; then hh=$(md5 -q "$hs" 2>/dev/null)
+      [ "$(cat ".broken-$hs" 2>/dev/null)" != "$hh" ] && { echo "$hh" > ".broken-$hs"; say "$hs has a syntax error, not starting it"; ntfy "AnyGym: a helper script is broken" "$hs does not parse on gmini, so it is not started. Claude is fixing it." "warning"; }
+    else rm -f ".broken-$hs" 2>/dev/null; fi
+  done
+  if [ -f .grok-helper.sh ] && /bin/bash -n .grok-helper.sh 2>/dev/null && command -v tmux >/dev/null 2>&1 && { command -v grok >/dev/null 2>&1 || [ -x "$HOME/.grok/bin/grok" ]; } && ! tmux has-session -t grok-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s grok-helper "bash $PWD/.grok-helper.sh 2>>$PWD/.grok-helper.err" && say "started the Grok helper (tmux session grok-helper)"; fi
   if ! command -v claude >/dev/null 2>&1; then [ "$WAITMSG" != noclaude ] && { say "claude command not found on PATH ($PATH), waiting"; ntfy "AnyGym: needs Claude" "The build loop cannot find the claude command. Tell Claude in chat." "warning"; }; WAITMSG=noclaude; sleep 600; continue; fi
   if [ -f .loop-pause ]; then pu=$(grep -o 'until=[0-9]*' .loop-pause | head -1 | cut -d= -f2); if [ -n "$pu" ] && [ $(date +%s) -ge $pu ]; then mv .loop-pause .loop-pause.expired; say "pause expired, resuming"; fi; fi   # a pause can carry until=<epoch>
   if [ -f .loop-pause ] && [ "${IGNORE_GOV:-0}" = 1 ] && grep -q "usage governor" .loop-pause; then mv .loop-pause .loop-pause.gov-ignored; say "governor pause ignored: weekly reset is close (IGNORE_GOV)"; fi
@@ -162,10 +167,12 @@ while [ $n -lt 300 ]; do
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"
+  if [ -f .usage-stop ] && [ -f .five-override ]; then mv .five-override .five-override.used; hold_set; fi
   if [ -f .usage-stop ]; then mv .usage-stop .usage-stop.last; say "run $n stopped by the usage guard, checking again in 10 min"; sleep 600; continue; fi
   if [ $REST -eq 1 ] && ! tap_fresh; then say "no live usage numbers while G is awake: resting 3 h after a 2 h run"; sleep 10800; continue; fi
   if [ $dur -lt 60 ]; then FAST=$((FAST+1)); else FAST=0; fi
   if [ $FAST -ge 3 ]; then say "3 runs in a row failed in under a minute, stopping. Check the end of $LOG"; break; fi
+  if [ -f .five-override ]; then mv .five-override .five-override.used; hold_set; say "one run exception done, holding again until the 5 hour window resets"; fi   # G: one run only, then pause
   say "run $n ended after $((dur/60)) min, next check in 2 min"; sleep 120
 done
 say "AnyGym loop finished"
