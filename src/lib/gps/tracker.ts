@@ -237,7 +237,7 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
   if (v.link === 'gap') {
     const onSpot = state.still && !leftStill(from, p);
     // Auto paused and back on the same spot: the runner never left, so nothing moved and the run stays still.
-    if (onSpot && clockStopped(state)) return { state: { ...state, lastGood: p, est }, event: { type: 'held', reason: 'still' } };
+    if (onSpot && clockStopped(state)) return { state: { ...state, lastGood: p, est, trail: [p] }, event: { type: 'held', reason: 'still' } };
     // The way walked on the clock before the gap counts first; the gap starts where it ends.
     const flushed = flushStill(state);
     const start = flushed.state.lastRecorded!;

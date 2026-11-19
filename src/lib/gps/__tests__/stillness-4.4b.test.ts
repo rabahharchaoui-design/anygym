@@ -24,17 +24,16 @@ describe('standing still at poor accuracy (PLAN 4.4b 13)', () => {
 
   it('a still phone at 20 m accuracy adds almost nothing in five minutes, auto pause on or off, for 40 seeds', () => {
     for (const autoPause of [true, false]) {
-      // PLAN 4.4d, measured with no phone speed (a phone that gives none): mean 4.0 m (was 12.0), but
-      // the worst seed of 40 adds 41.8 m (seed 36; was 18.5 m, bound 20). Moving again now needs the
-      // way off the spot to be recent movement, not slow drift; one seed drifts 4 m in 4 s past
-      // both accuracy circles. Bounds from that measurement, so a change is seen.
+      // PLAN 4.4d, measured with no phone speed (a phone that gives none): mean 3.1 m (was 12.0),
+      // worst seed of 40 13.2 m (was 18.5 m). Moving again needs the way off the spot and walking
+      // pace over the last 8 s, so slow drift never ends standing.
       const near = SEEDS.map((seed) => processPoints(standing({ seed, sigma: 5, seconds: 300, accuracy: 20 }), { ...KM, autoPause }).reading.distanceM);
-      expect(Math.max(...near)).toBeLessThan(45);
+      expect(Math.max(...near)).toBeLessThan(15);
       expect(mean(near)).toBeLessThan(5);
-      // A wider wander (8 m a side at 20 m): before 4.4b up to 300 m was counted; before 4.4d mean
-      // 21.7 m, now 31.6 m (bound was 30).
+      // A wider wander (8 m a side at 20 m, wider than the phone claims): before 4.4b up to 300 m
+      // was counted; before 4.4d mean 21.7 m, now 24.6 m (worst 124.7 m). Bound as before 4.4d.
       const wide = SEEDS.map((seed) => processPoints(standing({ seed, sigma: 8, seconds: 300, accuracy: 20 }), { ...KM, autoPause }).reading.distanceM);
-      expect(mean(wide)).toBeLessThan(35);
+      expect(mean(wide)).toBeLessThan(30);
       // The same phone with its own speed (0: lying still) adds nothing after its first 10 s, the
       // 8 s standing rule's time to see it (PLAN 4.4d: standing and moving again by the phone's speed).
       for (const seed of SEEDS) {

@@ -146,37 +146,38 @@ describe('auto pause and resume', () => {
     expect(statusAt(89).distanceM).toBeCloseTo(180, 2);
   });
 
-  it('resumes once the runner is more than 10 m from the spot (both 5 m accuracy circles)', () => {
-    expect(statusAt(93)).toMatchObject({ status: 'auto-paused', movingSec: 67 });
-    expect(statusAt(93).distanceM).toBeCloseTo(180, 2);
-    const back = statusAt(94);
+  it('resumes once the runner is more than 10 m from the spot (both 5 m accuracy circles) and moving like a walk', () => {
+    // PLAN 4.4d: without the phone's speed, standing ends only when the estimate also went 1 m/s or
+    // more over the last 8 s (a still phone's drift never does): 6 s after moving off, was 4 s.
+    expect(statusAt(95)).toMatchObject({ status: 'auto-paused', movingSec: 67 });
+    expect(statusAt(95).distanceM).toBeCloseTo(180, 2);
+    const back = statusAt(96);
     expect(back).toMatchObject({ status: 'running', standing: false, movingSec: 67 });
-    // The way from the spot counts at once: the estimate trails the fix by under 3 m as it takes up
-    // the speed again (PLAN 4.4d; was exactly 12 m with raw fixes), and the total is exact (below).
-    expect(Math.abs(back.distanceM - 192)).toBeLessThan(3);
+    // The way from the spot counts at once (18 m in 6 s, the estimate trails by under 3 m).
+    expect(Math.abs(back.distanceM - 198)).toBeLessThan(3);
   });
 
   it('counts all the distance, and as moving time everything but the pause', () => {
     const r = processPoints(points, KM);
     expect(r.reading.distanceM).toBeCloseTo(360, 2);
-    expect(r.reading.movingSec).toBe(67 + (150 - 94));
+    expect(r.reading.movingSec).toBe(67 + (150 - 96));
     expect(r.reading.elapsedSec).toBe(150);
-    // 26 standing + 6 short steps while the estimate slows to the spot (PLAN 4.4d, was 26).
-    expect(r.heldCount).toBe(32);
+    // 28 standing + short steps while the estimate slows to the spot (PLAN 4.4d, was 26).
+    expect(r.heldCount).toBe(33);
     expect(r.breaks).toEqual([]);
-    // Pace leaves out the leg that ended the pause (nobody timed it): about 12 m (9.7 m: the
-    // estimate trails the fix, PLAN 4.4d), so 123 s over about 348 m.
+    // Pace leaves out the leg that ended the pause (nobody timed it): about 18 m since 4.4d (the
+    // walk off is seen after 6 s, was 12 m), so 121 s over about 342 m.
     const timedM = r.reading.splits.partial!.timedM;
-    expect(Math.abs(timedM - 348)).toBeLessThan(3);
-    expect(r.reading.averagePace).toBeCloseTo(123 / timedM, 6);
+    expect(Math.abs(timedM - 342)).toBeLessThan(3);
+    expect(r.reading.averagePace).toBeCloseTo(121 / timedM, 6);
     expect(r.reading.currentPace).toBeCloseTo(1 / 3, 4);
   });
 
   // PLAN 4.4d: PACE_MIN_SEC is 6 s (was 10). The first pace after resuming is within 15% (the
   // estimate still catches up the 2 m it trailed by), and exact once the 15 s window turned over.
   it('has no current pace for the first PACE_MIN_SEC after resuming', () => {
-    expect(statusAt(99).currentPace).toBeNull();
-    expect(Math.abs(statusAt(100).currentPace! * 3 - 1)).toBeLessThan(0.15);
+    expect(statusAt(101).currentPace).toBeNull();
+    expect(Math.abs(statusAt(102).currentPace! * 3 - 1)).toBeLessThan(0.15);
     expect(statusAt(112).currentPace).toBeCloseTo(1 / 3, 1);
   });
 
@@ -200,9 +201,10 @@ describe('auto pause and resume', () => {
     // Moving again afterwards behaves as any end of an auto pause: the leg from the spot counts, no time.
     // PLAN 4.4d: standing, a fix that surprises waits for the next to confirm it (one wild fix is no
     // walk off), so it takes two fixes off the spot; the leg counts once, with no time.
-    const on = processPoints([...holed, at(192, 0, 125), at(195, 0, 126)], KM);
-    expect(on.reading).toMatchObject({ status: 'running', movingSec: 67 });
-    expect(Math.abs(on.reading.distanceM - 195)).toBeLessThan(3);
+    // Without the phone's speed it also needs 8 s of moving like a walk (PLAN 4.4d): five fixes.
+    const on = processPoints([...holed, at(192, 0, 125), at(195, 0, 126), at(198, 0, 127), at(201, 0, 128), at(204, 0, 129)], KM);
+    expect(on.reading).toMatchObject({ status: 'running' });
+    expect(Math.abs(on.reading.distanceM - 204)).toBeLessThan(3);
   });
 
   it('a GPS hole while auto paused that ends away from the spot is a gap as before', () => {
