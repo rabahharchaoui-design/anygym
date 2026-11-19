@@ -192,7 +192,8 @@ describe('3.5f (1) the intake deck: exercises you love / never want', () => {
     // No equipment: only moves that need none (a floor move for the abs), never one this gym lacks.
     const NONE: GymKit = { equipment: [], dumbbellRange: null };
     for (const id of intakeDeck(NONE, deps)) expect(sureGear(SWAP_DATA, id, NONE), id).toBe(true);
-    expect(intakeDeck(NONE, deps).length).toBeLessThan(4);
+    // PLAN D0: G approved the bodyweight demos, so a gym with nothing has a real (smaller) deck now.
+    expect(intakeDeck(NONE, deps).length).toBeLessThan(full.length);
   });
 
   it('Love and Never never hold the same move; a pass changes nothing', () => {

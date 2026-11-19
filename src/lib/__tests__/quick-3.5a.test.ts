@@ -255,10 +255,11 @@ describe('the plan day concept', () => {
   });
 
   it('a gym where too little of the day fits: no plan concept', () => {
-    // PLAN D0: with no gear, day 1 still keeps 3 sure moves (Bodyweight_Squat, Crunch, Sit-Up), all honest.
-    const bodyweight = planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: 30, gym: NOTHING }, QUICK_DEPS);
-    if (bodyweight) expectHonest([bodyweight], NOTHING);
-    expect(planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: 30, gym: { equipment: ['pull_up_bar'], dumbbellRange: null } }, QUICK_DEPS)).toBeNull();
+    // PLAN D0: with no gear, leg day still keeps 3 sure moves (Bodyweight_Squat, Crunch, Sit-Up), all
+    // honest; the upper body days do not.
+    const legs = planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: 30, gym: NOTHING }, QUICK_DEPS);
+    if (legs) expectHonest([legs], NOTHING);
+    expect(planConcept({ plan: split, dayIndex: 1, weekIndex: 0, minutes: 30, gym: NOTHING }, QUICK_DEPS)).toBeNull();
   });
 });
 
@@ -380,10 +381,16 @@ describe('round 3', () => {
 
   it('B1: a rejected card never comes back, and never "Same movement as X" on X', () => {
     const a = { id: 'dumbbell-lateral-raise', slot: 'dumbbell-lateral-raise', origin: 'dumbbell-lateral-raise', name: 'Dumbbell Lateral Raise', pattern: 'lateral delt' as const, sets: 3, reps: [10, 15] as [number, number], restSec: 60, why: 'Isolates your shoulders' };
-    // PLAN D0: the seated side lateral raise (G approved) is the one other sure option; the slot's own
-    // exercise is never offered back.
-    expect(nextSwap(a, [a], [], { data: SWAP_DATA, gym: FULL, ok, nameOf })).toBe('Seated_Side_Lateral_Raise');
-    expect(nextSwap(a, [a], ['Seated_Side_Lateral_Raise'], { data: SWAP_DATA, gym: FULL, ok, nameOf })).toBeNull();
+    // PLAN D0: G approved more lateral raises; each is offered once, the slot's own exercise never comes
+    // back, and then nothing is left.
+    const tried: string[] = [];
+    for (let next = nextSwap(a, [a], tried, { data: SWAP_DATA, gym: FULL, ok, nameOf }); next; next = nextSwap(a, [a], tried, { data: SWAP_DATA, gym: FULL, ok, nameOf })) {
+      expect(next).not.toBe(a.id);
+      expect(tried).not.toContain(next);
+      tried.push(next);
+    }
+    expect(tried).toContain('Seated_Side_Lateral_Raise');
+    expect(tried.length).toBeLessThan(6);
     const back = swapItem(a, 'leg-press', 'Leg Press', false, 'Leg Press');
     // 3.5f: the line is a curated fact picked from `from` (quickNotes.ts); back on the slot's own move there is no "from".
     expect(back.from).toBeUndefined();
