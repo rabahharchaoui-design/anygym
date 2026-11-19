@@ -90,7 +90,6 @@ export const RADIUS_ALLOW: string[] = [
   'src/ui/SlidingToggle.module.css',
   'src/ui/SummaryRow.module.css',
   'src/ui/Switch.module.css',
-  'src/ui/TabBar.module.css',
   'src/ui/Toast.module.css',
   'src/ui/WheelColumn.module.css',
   'src/ui/art/passport/passport.module.css',

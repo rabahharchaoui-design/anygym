@@ -164,3 +164,48 @@ for (const width of [0, 320]) {
     await shot(worst, `data-field-worst-largest-text${suffix}`);
   });
 }
+
+test('M1 tab bar: docked to the bottom, solid graphite with a hairline, words only, a 20 x 3 ice blue mark that moves', async ({ page }) => {
+  await page.goto('./');
+  const nav = page.getByRole('navigation', { name: 'Main' });
+  await expect(nav.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+  await page.waitForTimeout(400);
+  const vh = page.viewportSize()!.height;
+  const bar = await nav.evaluate((el) => {
+    const s = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    return { bottom: r.bottom, left: r.left, width: r.width, bg: s.backgroundColor, line: s.borderTopWidth, lineColor: s.borderTopColor, shadow: s.boxShadow };
+  });
+  expect(bar).toMatchObject({ bg: 'rgb(17, 18, 20)', line: '1px', lineColor: 'rgba(255, 255, 255, 0.12)', shadow: 'none', left: 0 });
+  expect(bar.bottom).toBeCloseTo(vh, 0);
+  expect(bar.width).toBe(page.viewportSize()!.width);
+  await expect(nav.locator('svg')).toHaveCount(0);
+  await expect(nav.getByRole('link')).toHaveText(['Today', 'Run', 'History', 'Plans']);
+  for (const link of await nav.getByRole('link').all()) {
+    const box = (await link.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+  }
+  const label = (name: string) =>
+    nav.getByRole('link', { name }).evaluate((a) => {
+      const s = getComputedStyle(a.querySelector('span:last-child')!);
+      return { color: s.color, weight: s.fontWeight, size: s.fontSize };
+    });
+  expect(await label('Today')).toEqual({ color: 'rgb(255, 255, 255)', weight: '700', size: '13px' });
+  expect(await label('Run')).toEqual({ color: 'rgb(163, 166, 171)', weight: '500', size: '13px' });
+  const mark = nav.locator('[data-pill]');
+  await expect(mark).toHaveCount(1);
+  const m = await mark.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { w: r.width, h: r.height, color: getComputedStyle(el).backgroundColor, radius: getComputedStyle(el).borderTopLeftRadius };
+  });
+  expect(m).toEqual({ w: 20, h: 3, color: 'rgb(159, 211, 255)', radius: '0px' });
+  await shot(page, 'tab-bar-today');
+  const today = (await mark.boundingBox())!;
+  await nav.getByRole('link', { name: 'History' }).tap();
+  await expect(nav.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page');
+  await expect.poll(async () => Math.round((await nav.locator('[data-pill]').boundingBox())!.x)).toBeGreaterThan(today.x + 100);
+  await page.waitForTimeout(400);
+  expect(await label('History')).toMatchObject({ color: 'rgb(255, 255, 255)', weight: '700' });
+  await shot(page, 'tab-bar-history');
+});

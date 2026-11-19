@@ -772,7 +772,8 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     expect(await named()).toEqual([]);
     await expect(nav.getByRole('link', { name: 'Plans' })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: 'Plans' }).locator('[data-pill]')).toHaveCount(1);
-    // Every tab keeps its icon in the bar.
-    for (const name of ['Today', 'Run', 'History', 'Plans']) await expect(nav.getByRole('link', { name }).locator('svg')).toBeVisible();
+    // PLAN M1 (Monolith style sheet): the bar is words only, every tab keeps its word.
+    for (const name of ['Today', 'Run', 'History', 'Plans']) await expect(nav.getByRole('link', { name })).toBeVisible();
+    await expect(nav.locator('svg')).toHaveCount(0);
   });
 });

@@ -98,4 +98,4 @@ describe('Monolith corner guard (PLAN M0)', () => {
   });
 });
 
-const RADIUS_ALLOW_MAX = 95;
+const RADIUS_ALLOW_MAX = 94;

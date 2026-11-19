@@ -140,6 +140,7 @@
 
   /* motion: mirrors src/ui/motion.ts */
   --press-scale: 0.97;
+  --press-scale-tab: 0.94;
   --press-dim: 0.8;
   --dur-press: 80ms;
   --dur-fast: 160ms;
@@ -162,10 +163,13 @@
   --dur-tap: 180ms;
   --ease-tap-spring: linear(0, 0.2 8%, 0.52 18%, 0.8 30%, 0.96 42%, 1.03 54%, 1.04 64%, 1.02 78%, 1 100%);
 
-  /* the tab bar: its height and its gap to the bottom edge (docked in M1) */
-  --tabbar-capsule: 62px;
-  --tabbar-gap: max(var(--safe-bottom), 10px);
-  --tabbar-space: calc(var(--tabbar-capsule) + var(--tabbar-gap) + 12px);
+  /* the tab bar (M1): docked to the bottom edge, its row height and the bottom inset under it */
+  --tabbar-capsule: 56px;
+  --tabbar-gap: var(--safe-bottom);
+  --tabbar-space: calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--line-hair));
+  /* the active tab's mark (style sheet): a 20 x 3 px ice blue bar */
+  --tab-mark-w: 20px;
+  --tab-mark-h: 3px;
 }
 
 @supports (height: 100dvh) {
