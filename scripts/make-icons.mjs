@@ -1,4 +1,4 @@
-// Makes the AnyGym app icons (PLAN M8) from G's "Loaded Bar" icon (Monolith, option 03, Nov 19).
+// Makes the AnyGym app icons (PLAN M8) from G's "Diagonal" icon (Monolith B06, Nov 19 9 PM; it replaced "Loaded Bar").
 // The art lives in a private repo, never in this one: fetch its art/app-icon/ folder to a temp dir
 // first, then run:  npm run icons -- /tmp/some-dir   (the folder holding app-icon-1024.png and app-icon-180.png)
 // Every file written is opaque RGB on pure black (iOS masks the corners itself).
