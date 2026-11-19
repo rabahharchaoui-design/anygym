@@ -17,6 +17,7 @@ import { bodyPref } from '../lib/bodyPref';
 import { useActiveGym } from '../db/useActiveGym';
 import { GymUnitSettings } from './settings/GymUnitSettings';
 import { registerTap } from '../lib/secretTaps';
+import { unlockDiagnostics } from '../hooks/diagUnlock';
 import { version } from '../../package.json';
 import { getActiveSession } from '../db/workouts';
 import { getActiveRun } from '../db/runs';
@@ -54,7 +55,11 @@ export function SettingsScreen() {
   const onVersionTap = () => {
     const r = registerTap(versionTaps.current, Date.now(), 5);
     versionTaps.current = r.taps;
-    if (r.fired) go('/review', { kind: 'push' });
+    if (r.fired) {
+      // The same door opens the run diagnostics export on the run detail screen (PLAN 4.4d 2).
+      unlockDiagnostics();
+      go('/review', { kind: 'push' });
+    }
   };
   const fileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState('');

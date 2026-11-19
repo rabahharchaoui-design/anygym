@@ -2,7 +2,7 @@
 // a tap on Pause or Resume, the auto pause switch). Pure: lib/gps does every number; this file only
 // keeps the track, its breaks and what the run was started as. No clock: time comes in with the points.
 import type { DistanceUnit } from '../intake/answers';
-import { addPoint, countShown, pauseRun, pendingMs, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
+import { addPoint, countShown, pauseTrack, pendingMs, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
 import { distanceLabel, goalMeters, goalSeconds, timeLabel, type RunSetup, type RunType } from './goal';
 import { planFor, startIntervals, tickIntervals, type IntervalChoice, type IntervalState } from './intervals';
 
@@ -80,7 +80,8 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
   switch (action.type) {
     case 'fix': {
       const { state: added, event } = addPoint(run.tracker, action.point);
-      if (event.type === 'rejected') return run;
+      // A dropped fix changes nothing on the screen; the estimate may remember it (a jump, PLAN 4.4d).
+      if (event.type === 'rejected') return added === run.tracker ? run : { ...run, tracker: added };
       const tracker = action.now === undefined ? added : countShown(added, shownMs(run.tracker, action.now) - shownMs(added, action.now));
       const gps = null;
       if (event.type === 'held') {
@@ -88,10 +89,15 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
         const p = action.point as GpsPoint;
         return { ...run, tracker, here: { lat: p.lat, lng: p.lng, t: p.t, accuracy: p.accuracy }, gps };
       }
-      return { ...run, tracker, here: event.point, points: [...run.points, event.point], breaks: event.brk ? [...run.breaks, event.brk] : run.breaks, gps };
+      const points = event.withheld ? [...run.points, event.withheld, event.point] : [...run.points, event.point];
+      return { ...run, tracker, here: event.point, points, breaks: event.brk ? [...run.breaks, event.brk] : run.breaks, gps };
     }
-    case 'pause':
-      return run.tracker.manual ? run : { ...run, tracker: pauseRun(run.tracker, action.now) };
+    case 'pause': {
+      if (run.tracker.manual) return run;
+      // Ending or pausing inside the wide standing circle: the way walked there joins the track (PLAN 4.6b).
+      const { state: tracker, point } = pauseTrack(run.tracker, action.now);
+      return { ...run, tracker, points: point ? [...run.points, point] : run.points };
+    }
     case 'resume': {
       const tracker = resumeRun(run.tracker);
       return tracker === run.tracker && !run.closed ? run : { ...run, tracker, closed: false };
@@ -110,8 +116,14 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
 
 export const readLive = (run: LiveRun): TrackerReading => readTracker(run.tracker);
 
-/** How far the phone's own timestamp may lag behind the clock and still be used. */
-export const FIX_LAG_MS = 2000;
+/**
+ * How far the phone's own timestamp may lag behind the clock and still be used. PLAN 4.4d: 5 s, was
+ * 2 s. After a stall (a busy screen) the held fixes arrive together 2 to 4 s late; given the arrival
+ * time they shared one time and were dropped as going backwards. Not more: a watch started again may
+ * hand back an older cached position, which must not take its old time. The clock is safe either
+ * way: the time the face showed is never taken back (fix `now`, countShown).
+ */
+export const FIX_LAG_MS = 5000;
 /** ...and how far it may be ahead (two clocks never agree exactly). */
 const FIX_LEAD_MS = 500;
 

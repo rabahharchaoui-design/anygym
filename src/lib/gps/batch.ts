@@ -1,6 +1,6 @@
 // A whole run at once (SPEC 12.3): the same tracker, folded over a list of inputs. Used to replay a
 // run and by the tests; a live run that feeds the tracker one input at a time ends in the same state.
-import { addPoint, pauseRun, readTracker, resumeRun, startTracker, type TrackerOptions, type TrackerReading, type TrackerState } from './tracker';
+import { addPoint, pauseTrack, readTracker, resumeRun, startTracker, type TrackerOptions, type TrackerReading, type TrackerState } from './tracker';
 import type { Split } from './splits';
 import type { GpsPoint, RawPoint, RejectReason, TrackBreak } from './types';
 
@@ -24,10 +24,12 @@ export type TrackResult = {
   splitEvents: Array<{ index: number; split: Split }>;
 };
 
-/** Feed one input to a tracker state. */
+/** Feed one input to a tracker state. A pause that counts the withheld leg records its end (pauseTrack). */
 export function stepTracker(state: TrackerState, input: TrackInput): ReturnType<typeof addPoint> | { state: TrackerState; event: null } {
   if (input.type === 'point') return addPoint(state, input.point);
-  return { state: input.type === 'pause' ? pauseRun(state) : resumeRun(state), event: null };
+  if (input.type === 'resume') return { state: resumeRun(state), event: null };
+  const paused = pauseTrack(state);
+  return { state: paused.state, event: paused.point ? { type: 'recorded', point: paused.point, brk: null, splits: paused.completed } : null };
 }
 
 /** Process a whole list of inputs. */
@@ -42,6 +44,7 @@ export function processTrack(inputs: readonly TrackInput[], options: TrackerOpti
     if (e.type === 'rejected') out.rejected.push({ index, reason: e.reason });
     else if (e.type === 'held') out.heldCount++;
     else {
+      if (e.withheld) out.points.push(e.withheld);
       out.points.push(e.point);
       if (e.brk) out.breaks.push(e.brk);
       for (const split of e.splits) out.splitEvents.push({ index, split });

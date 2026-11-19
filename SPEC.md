@@ -285,7 +285,7 @@ A full screen run tracker in the spirit of Nike Run Club and Strava, with its ow
 Big map of where you are (dark style), one huge Start button, and a row of run types: **Free run · Distance · Time · Intervals**. Distance and Time open a clean picker (e.g. 3 mi, 5 km, 10 km, custom; 20 / 30 / 45 min). Music buttons (Spotify, Apple Music) sit right above Start so music is on before the run. A 3, 2, 1 countdown fills the screen.
 
 ### 12.2 Live run screen (full screen, two pages, swipe between)
-- **Stats page:** pure black, OLED friendly. One giant number (distance by default; tap to cycle distance, time, pace) with two smaller numbers under it. Current pace uses a rolling 30 second window. Tabular numerals, readable at arm's length while running.
+- **Stats page:** pure black, OLED friendly. One giant number (distance by default; tap to cycle distance, time, pace) with two smaller numbers under it. Current pace is the mean of the phone's own speed over the last 5 seconds when the phone gives it, else a rolling 15 second window of distance (PLAN 4.4d: the 30 s window took 18 s just to show a 30% change). Tabular numerals, readable at arm's length while running.
 - **Map page:** the route drawing live in the accent color over the dark map, a pulsing dot for you, and the start marked. With Turnaround on, also the way back (12.5).
 - Bottom controls: Pause (big), Lock (prevents accidental taps), and press and hold to End (1 second hold with a ring fill, no accidental ends).
 - **Pocket mode:** Screen Wake Lock keeps the screen on, and the UI dims to near black after 10 seconds with no touch (tap to wake). Shown once before the first run: "Keep AnyGym open with the screen on. Your music keeps playing. Locking the phone pauses GPS."
@@ -293,7 +293,8 @@ Big map of where you are (dark style), one huge Start button, and a row of run t
 
 ### 12.3 GPS processing (pure functions in src/lib/gps.ts, fully unit tested with synthetic tracks)
 - `navigator.geolocation.watchPosition` with enableHighAccuracy, maximumAge 0.
-- Drop points with accuracy worse than 25 m, and points that imply more than 8 m/s from the previous good point.
+- Drop points with accuracy worse than 65 m, and points that imply more than 8 m/s from the previous good point beyond what both points' accuracy allows. Fixes between 25 and 65 m are used, weighted by their accuracy (PLAN 4.4d: dropping them froze the run for minutes on iPhone). Distance follows an accuracy weighted estimate of the position (a Kalman filter per axis), so jitter and single wild fixes add no meters; a step shorter than the estimate's wobble waits for the next fix.
+- Standing and moving again use the phone's own speed (coords.speed) when it gives one; without it, the positions (a walk at poor accuracy is never read as standing).
 - Light smoothing (moving average over 3 to 5 points) for drawing only; distance uses the filtered points with haversine.
 - Auto pause (optional, on by default): speed under 0.5 m/s for 8 seconds pauses, moving again resumes. Toggle in run settings.
 - Splits per mile or km (follows the profile unit, toggle on the start screen).

@@ -12,6 +12,7 @@ import { RouteMap } from '../run/RouteMap';
 import { RunShare } from '../run/RunShare';
 import { RunSplits } from '../run/RunSplits';
 import { RunStats } from '../run/RunStats';
+import { RunDiagExport } from './RunDiagExport';
 import { runTitle, workoutDate } from './historyWords';
 import styles from './History.module.css';
 import run from '../run/Summary.module.css';
@@ -60,6 +61,8 @@ export function RunDetail() {
           <RunShare run={row} unit={unit} />
         </div>
       )}
+      {/* Also on a run with nothing to show: that is when the log matters most (PLAN 4.4d 2). */}
+      {row && <RunDiagExport runId={row.id} startedAt={row.startedAt} />}
     </>
   );
 }

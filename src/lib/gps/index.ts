@@ -7,7 +7,8 @@
 //   stillness.ts  standing still and moving again (auto pause)
 //   pace.ts       current pace (rolling window) and average pace, null when not sure
 //   splits.ts     splits per mile or km, boundaries interpolated
-//   tracker.ts    the run state, one position at a time
+//   tracker.ts    the run state, one position at a time (estimate.ts: where the runner most likely is;
+//                 standing.ts: rules on the phone's speed and the first fixes; reading.ts: what screens read)
 //   batch.ts      the same tracker over a whole list
 //   draw.ts       solid pieces, dashed breaks and smoothing, for drawing only
 //   units.ts      meters per mile and per km
@@ -20,7 +21,7 @@ export { pushPace, currentPace, averagePace, pacePerUnit } from './pace';
 export type { PaceSample } from './pace';
 export { startSplits, addSplitStep, readSplits, splitPace } from './splits';
 export type { Split, SplitState, SplitStep } from './splits';
-export { startTracker, addPoint, clockStopped, countShown, pauseRun, pendingMs, resumeRun, readTracker } from './tracker';
+export { startTracker, addPoint, clockStopped, countShown, flushStill, pauseRun, pauseTrack, pendingMs, resumeRun, readTracker } from './tracker';
 export type { TrackerOptions, TrackerState, TrackerEvent, TrackerReading, RunStatus } from './tracker';
 export { stepTracker, processTrack, processPoints } from './batch';
 export type { TrackInput, TrackResult } from './batch';
