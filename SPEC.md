@@ -253,8 +253,8 @@ Hidden route `#/review` (reachable by tapping the About version number 5 times).
 Visual direction: MONOLITH (G picked it Nov 19 from UI concepts round 1, issue #5; exact values from the round 2 style sheet, issue #6, private repo anygym-art art/ui-concepts-2/14_style_sheet.png and its README; fetch with gh into .design-ref/monolith/, never commit those images). It replaces Titanium Glass everywhere. Graphite, huge type, hairlines, square corners, one ice blue accent. Calm and premium, almost no chrome.
 
 - Colors (all live in src/styles/tokens.css, nowhere else):
-  - Background graphite `#131417` (flat, no gradient). Map and photo frame surface `#16181B`.
-  - Text white `#FFFFFF`. Secondary text `#A3A6AB`. Tertiary `#64676C` is for decoration, rule lines and disabled art only: it is under 4.5 to 1 on graphite, so never use it for words a user must read. Disabled text `#55585D`, disabled bar `#2E3034`, ring track `#2A2C30`.
+  - Background graphite `#111214` (flat, no gradient; the round 2 sheet allows `#111214` to `#16181B` and shows `#131417`; the dark end is used so the run map, mixed from background and text, stays calm). Map and photo frame surface `#16181B`.
+  - Text white `#FFFFFF` (`#F2F4F7` also passes the M-TEST rule). Secondary text `#A3A6AB`. Tertiary `#64676C` is for decoration, rule lines and disabled art only: it is under 4.5 to 1 on graphite, so never use it for words a user must read. Disabled text `#55585D`, disabled bar `#2E3034`, ring track `#2A2C30`.
   - Dividers: 1 px hairline, white at 12%.
   - One accent: ice blue `#9FD3FF` (dark text `#0F1114` when text sits on it) for primary actions, progress, the active tab and primary muscles. No lime, no red line, no second accent. Success uses the accent; warnings amber `#FFB020`; destructive `#FF4D4D`.
   - Contrast: every word a user must read is at least 4.5 to 1 on graphite. Labels a runner or lifter needs at a glance are white or ice blue, never a dim grey.

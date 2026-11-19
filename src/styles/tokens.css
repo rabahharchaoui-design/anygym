@@ -15,8 +15,8 @@
      and grey text, hairlines and ONE accent, ice blue. No glass, no gradients, no glow. Every colour
      in the app comes from here (src/styles/__tests__/colorGuard.test.ts fails on a raw colour
      anywhere else). */
-  --bg: #131417; /* graphite, the whole app */
-  --bg-top: #131417; /* the status bar strip and the browser bar: the same flat graphite */
+  --bg: #111214; /* graphite, the whole app (round 2 range #111214 to #16181B; the dark end keeps the run map calm) */
+  --bg-top: #111214; /* the status bar strip and the browser bar: the same flat graphite */
   /* Every full screen frame paints this. Flat graphite, kept as an image so every
      "background: var(--bg-screen)" stays opaque. */
   --bg-screen: linear-gradient(var(--bg), var(--bg));
@@ -113,10 +113,10 @@
      glass: blur is off and the old glass fills are opaque, so text never reads through a bar. */
   --glass-bg: #16181b;
   --glass-bg-strong: #16181b;
-  --glass-bg-bar: #131417; /* the tab bar */
+  --glass-bg-bar: #111214; /* the tab bar */
   /* Pushed screen top bars once scrolled (gate B3): graphite. */
   --bar-fill: 0.95;
-  --bar-solid: #131417;
+  --bar-solid: #111214;
   --glass-line: rgb(255 255 255 / 0.12);
   --glass-blur: none;
   /* No shadows, no glow (SPEC 10). Kept as empty shadows so lists like "a, var(--accent-glow)" stay valid. */
@@ -179,7 +179,7 @@
     --surface-2: #25272b;
     --glass-bg: #16181b;
     --glass-bg-strong: #16181b;
-    --glass-bg-bar: #131417;
+    --glass-bg-bar: #111214;
     --bar-fill: 1;
     --glass-blur: none;
     --card-fill: #1c1d21;

@@ -83,7 +83,7 @@ describe('Titanium Glass colour guard (PLAN 3.5t)', () => {
     const token = (name: string) => new RegExp(`--${name}:\\s*([^;]+);`).exec(css)?.[1]?.trim().toLowerCase();
     expect(token('accent')).toBe('#9fd3ff');
     expect(token('on-accent')).toBe('#0f1114');
-    expect(token('bg')).toBe('#131417');
+    expect(token('bg')).toBe('#111214');
     expect(token('text')).toBe('#ffffff');
     expect(token('text-2')).toBe('#a3a6ab');
     expect(token('amber')).toBe('#ffb020');

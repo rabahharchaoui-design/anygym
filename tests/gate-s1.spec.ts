@@ -472,7 +472,8 @@ test('the Start pill says Continue with the set once one is logged; surfaces are
   const nums = glass.match(/[\d.]+/g)!.map(Number);
   expect(nums[nums.length - 1]).toBeGreaterThanOrEqual(0.9);
   if (await rest.count()) {
-    expect(await rest.evaluate((el) => (getComputedStyle(el) as unknown as Record<string, string>).webkitBackdropFilter || getComputedStyle(el).backdropFilter)).toContain('blur');
+    // Monolith (PLAN M0, SPEC 10): no glass blur; the bar is solid instead.
+    expect((await rest.evaluate((el) => (getComputedStyle(el) as unknown as Record<string, string>).webkitBackdropFilter || getComputedStyle(el).backdropFilter)) || 'none').toBe('none');
   }
   const pad = await page.locator('main[data-pill]').evaluate((el) => parseFloat(getComputedStyle(el).paddingBottom));
   expect(pad).toBeGreaterThanOrEqual(64);
