@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED fix item 4.6b (1 major, 1 minor, both real)
 Grok Build review of PLAN item 4.6a, range e71eb768890747975ba43bf2d7e3ee64a666a5a3..473baf35dcb481d0a3c68a17734410df1ac92e68, written Nov 19 16:16. A second opinion, not orders: SPEC.md wins.
 
 I'll review PLAN item 4.6a against the spec and only the commits in that range. First I'm reading the project rules and the diff.
