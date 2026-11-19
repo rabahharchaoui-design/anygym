@@ -7,6 +7,7 @@ import { DEFAULT_RUN_SETUP } from '../goal';
 import { liveStep, readLive, startLive, type LiveAction, type LiveRun } from '../live';
 import { liveRow, parseSnapshot, restoreLive, toSnapshot } from '../snapshot';
 import { finishRun } from '../summary';
+import { gpxFileName } from '../gpx';
 
 const start = (autoPause = true) => startLive({ id: 'r1', now: T0, setup: DEFAULT_RUN_SETUP, unit: 'km', autoPause });
 const fix = (point: RawPoint): LiveAction => ({ type: 'fix', point });
@@ -62,5 +63,14 @@ describe('the withheld leg at End, Pause and restore (PLAN 4.6b 1)', () => {
       expect(ended.tracker.distanceM).toBe(live.tracker.distanceM);
       expect(ended.points).toBe(live.points);
     }
+  });
+});
+
+describe('two runs started in the same minute get two GPX files (PLAN 4.6b 2)', () => {
+  it('the name has the local start time to the second', () => {
+    const first = new Date(2026, 5, 1, 7, 5, 3).getTime();
+    const second = new Date(2026, 5, 1, 7, 5, 41).getTime();
+    expect(gpxFileName({ startedAt: first })).toBe('AnyGym-run-2026-06-01-070503.gpx');
+    expect(gpxFileName({ startedAt: second })).toBe('AnyGym-run-2026-06-01-070541.gpx');
   });
 });
