@@ -9,7 +9,7 @@ import type { Run } from '../db/types';
 import type { DistanceUnit } from '../lib/intake/answers';
 import { unitMeters } from '../lib/gps';
 import {
-  DEFAULT_VOICE, finishRun, fixTime, liveRow, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
+  DEFAULT_VOICE, finishRun, fixTime, liveMovingMs, liveRow, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
   type LiveAction, type LiveRun, type RunSetup, type VoiceSettings,
 } from '../lib/run';
 import { createRunWake, type WakeState } from './runWake';
@@ -44,6 +44,8 @@ let tickTimer: number | null = null;
 /** The voice coach's settings for the run that is going on (SPEC 12.4). */
 let voice: VoiceSettings = DEFAULT_VOICE;
 let dirty = false;
+/** The clock as it stood at the last save: in a GPS hole it still counts (up to GAP_SEC) with nothing dirty. */
+let savedFace = -1;
 let writes: Promise<void> = Promise.resolve();
 let restoring: Promise<void> | null = null;
 /** What the watch said before the run existed (it starts at the countdown): told to the run at GO. */
@@ -76,9 +78,13 @@ function queue(job: () => Promise<void>): Promise<void> {
 
 function save() {
   const live = state.live;
-  if (!live || !dirty) return;
+  if (!live) return;
+  const now = Date.now();
+  const face = liveMovingMs(live.tracker, now);
+  if (!dirty && face === savedFace) return;
   dirty = false;
-  void queue(() => saveLiveRun(liveRow(live), JSON.stringify(toSnapshot(live)))).catch(() => {
+  savedFace = face;
+  void queue(() => saveLiveRun(liveRow(live), JSON.stringify(toSnapshot(live, now)))).catch(() => {
     dirty = true;
   });
 }
@@ -193,7 +199,7 @@ export const runEngine = {
     voice = setup.voice;
     set({ live, finished: null, saveFailed: false, ready: true });
     say({ type: 'start', first: live.intervals?.plan.blocks[0]?.name ?? null }, voice);
-    void queue(() => startRunRow(liveRow(live), JSON.stringify(toSnapshot(live)))).catch(() => {
+    void queue(() => startRunRow(liveRow(live), JSON.stringify(toSnapshot(live, Date.now())))).catch(() => {
       dirty = true;
     });
     attach();
