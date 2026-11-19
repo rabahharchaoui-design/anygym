@@ -1,6 +1,6 @@
 // The filter (SPEC 12.3): which reported positions are trusted. Pure.
 import { haversineM } from './geo';
-import { GAP_BRIDGE_MAX_SEC, GAP_SEC, MAX_ACCURACY_M, MAX_SPEED_MPS, type GpsPoint, type RawPoint, type RejectReason } from './types';
+import { GAP_BRIDGE_MAX_SEC, GAP_SEC, MAX_SPEED_MPS, POOR_ACCURACY_M, type GpsPoint, type RawPoint, type RejectReason } from './types';
 
 /**
  * How a trusted point joins the one before it.
@@ -21,7 +21,7 @@ function readPoint(raw: RawPoint): GpsPoint | RejectReason {
   if (!finite(raw.t)) return 'no-time';
   if (!finite(raw.lat) || !finite(raw.lng) || Math.abs(raw.lat) > 90 || Math.abs(raw.lng) > 180) return 'bad-position';
   // A missing accuracy is not a good accuracy: the phone did not say how sure it is.
-  if (!finite(raw.accuracy) || raw.accuracy < 0 || raw.accuracy > MAX_ACCURACY_M) return 'accuracy';
+  if (!finite(raw.accuracy) || raw.accuracy < 0 || raw.accuracy > POOR_ACCURACY_M) return 'accuracy';
   return { lat: raw.lat, lng: raw.lng, t: raw.t, accuracy: raw.accuracy };
 }
 
@@ -29,7 +29,7 @@ function readPoint(raw: RawPoint): GpsPoint | RejectReason {
  * Judge one reported position against the previous good point (`prev`, null for none).
  *
  * Dropped: no timestamp, a timestamp not after the previous good point's, a position off the globe,
- * no accuracy or one worse than 25 m, and a jump faster than 8 m/s since the previous good point.
+ * no accuracy or one worse than POOR_ACCURACY_M (65 m, PLAN 4.4d), and a jump faster than 8 m/s since the previous good point.
  *
  * After a gap (more than GAP_SEC since the previous good point) the point is judged against the
  * gap's real time, never dropped for distance alone. It is always kept, as a fresh start of the
@@ -47,7 +47,8 @@ export function judgePoint(prev: GpsPoint | null, raw: RawPoint, fresh = false):
   if (point.t <= prev.t) return { ok: false, reason: 'time-backwards' };
   if (fresh) return { ok: true, point, link: 'first' };
   const sec = (point.t - prev.t) / 1000;
-  const plausible = haversineM(prev, point) / sec <= MAX_SPEED_MPS;
+  // PLAN 4.4d: what the two fixes' own accuracy allows is not speed (with poor fixes it was most of it).
+  const plausible = Math.max(0, haversineM(prev, point) - prev.accuracy - point.accuracy) / sec <= MAX_SPEED_MPS;
   if (sec > GAP_SEC) return { ok: true, point, link: 'gap', bridged: plausible && sec <= GAP_BRIDGE_MAX_SEC };
   if (!plausible) return { ok: false, reason: 'speed' };
   return { ok: true, point, link: 'step' };

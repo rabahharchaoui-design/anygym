@@ -3,7 +3,7 @@
 // table. So "standing" is judged on the last 8 seconds as a whole, and "moving again" on leaving the
 // spot by more than the GPS's own stated uncertainty.
 import { haversineM } from './geo';
-import { AUTO_PAUSE_SEC, STILL_ACCURACY_SHARE, STILL_RADIUS_M, type GpsPoint } from './types';
+import { AUTO_PAUSE_SEC, RESUME_RADIUS_CAP_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
 
 /** The recorded points of the last AUTO_PAUSE_SEC seconds of one continuous stretch, oldest first. */
 export type Recent = readonly GpsPoint[];
@@ -46,7 +46,7 @@ export const clockStill = (recent: Recent): boolean => within(recent, () => STIL
  * was counted as distance. Half the accuracy: inside 8 s a still phone wanders a fraction of its
  * stated radius, while a full radius would take a 2.5 m/s jog at 20 m for standing (seeded tests).
  */
-export const stillRadiusM = (p: GpsPoint, newest: GpsPoint): number => Math.max(STILL_RADIUS_M, Math.min(p.accuracy, newest.accuracy) * STILL_ACCURACY_SHARE);
+export const stillRadiusM = (p: GpsPoint, newest: GpsPoint): number => Math.max(STILL_RADIUS_M, Math.min(STILL_RADIUS_CAP_M, Math.min(p.accuracy, newest.accuracy) * STILL_ACCURACY_SHARE));
 
 /**
  * How far from the standing spot counts as moving again: outside the standing circle, and farther
@@ -56,7 +56,7 @@ export const stillRadiusM = (p: GpsPoint, newest: GpsPoint): number => Math.max(
  * spot first (a pause, the end, a GPS gap) while the 4 m rule said moving, right then (tracker.ts
  * flushStill, PLAN 4.6b). A phone the 4 m rule calls standing never gets it: that is wander.
  */
-export const resumeRadiusM = (anchor: GpsPoint, p: GpsPoint): number => Math.max(STILL_RADIUS_M, anchor.accuracy + p.accuracy);
+export const resumeRadiusM = (anchor: GpsPoint, p: GpsPoint): number => Math.max(STILL_RADIUS_M, Math.min(RESUME_RADIUS_CAP_M, anchor.accuracy + p.accuracy));
 
 /** Moving again: the point left the standing spot (`anchor`) by more than resumeRadiusM. */
 export const leftStill = (anchor: GpsPoint, p: GpsPoint): boolean => haversineM(anchor, p) > resumeRadiusM(anchor, p);

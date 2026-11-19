@@ -6,7 +6,7 @@
 //
 // The noise model, per fix:
 // - Reported accuracy a(t): the level (5, 15, 30 or 50 m) times a slow wobble between 0.6 and 1.5.
-//   A cold start reports at least 60 m for the first 90 s.
+//   A cold start reports 60 m (within 5%) for the first 90 s.
 // - The real error is tied to the reported accuracy (a phone that says 50 m is really further off):
 //   a smooth bias, per axis a sum of three slow waves (periods 120 to 600 s) with a spread of
 //   0.35 a(t), plus white jitter with a spread of 0.05 a(t). Phones filter their own fixes, so the
@@ -118,8 +118,12 @@ const toLatLng = (east: number, north: number) => ({
 
 export const traceName = (s: TraceSpec) => `${s.speed}-${s.cadence}s-${s.noise}m-${s.scenario}-seed${s.seed}`;
 
-/** One seeded trace. */
-export function makeTrace(spec: TraceSpec): Trace {
+/**
+ * One seeded trace. `biasOnly`: the same trace with only the smooth bias (no jitter, outliers,
+ * repeats or stalls): what is left is the error no filter can tell from movement.
+ */
+export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean } = {}): Trace {
+  const jitter = opts.biasOnly ? 0 : 0.05;
   const truth = profile(spec);
   const seed = spec.seed * 1009 + spec.noise * 31 + spec.cadence * 7 + SPEEDS[spec.speed] * 100 + SCENARIOS.indexOf(spec.scenario) * 50_000;
   const rand = seeded(seed);
@@ -132,22 +136,24 @@ export function makeTrace(spec: TraceSpec): Trace {
   for (let sec = 0; sec <= truth.durationSec; sec += spec.cadence) {
     if (truth.tunnel && sec >= truth.tunnel[0] && sec < truth.tunnel[1]) continue;
     const at = sec + (spec.cadence === 5 && sec > 0 ? (rand() - 0.5) * 0.4 : 0);
-    const level = spec.scenario === 'cold-start' && at < 90 ? Math.max(60, spec.noise) : spec.noise;
-    const accuracy = Math.round(level * Math.max(0.6, Math.min(1.5, 1 + 0.2 * wobble(at))) * 10) / 10;
+    // The cold start says 60 m (within 5%) for its first 90 s, as the brief has it.
+    const cold = spec.scenario === 'cold-start' && at < 90 && spec.noise < 60;
+    const spread = cold ? Math.max(0.95, Math.min(1.05, 1 + 0.05 * wobble(at))) : Math.max(0.6, Math.min(1.5, 1 + 0.2 * wobble(at)));
+    const accuracy = Math.round((cold ? 60 : spec.noise) * spread * 10) / 10;
     const pos = routeAt(truth.distanceAt(at));
-    let east = pos.east + 0.35 * accuracy * biasE(at) + 0.05 * accuracy * normal();
-    let north = pos.north + 0.35 * accuracy * biasN(at) + 0.05 * accuracy * normal();
-    if (rand() < 0.01) {
+    let east = pos.east + 0.35 * accuracy * biasE(at) + jitter * accuracy * normal();
+    let north = pos.north + 0.35 * accuracy * biasN(at) + jitter * accuracy * normal();
+    if (!opts.biasOnly && rand() < 0.01) {
       const angle = rand() * 2 * Math.PI;
       const jump = (2 + rand()) * accuracy;
       east += jump * Math.cos(angle);
       north += jump * Math.sin(angle);
     }
     const prev = fixes[fixes.length - 1];
-    const repeat = prev && rand() < 0.03;
+    const repeat = !opts.biasOnly && prev && rand() < 0.03;
     const { lat, lng } = repeat ? prev : toLatLng(east, north);
     const stamp = T0 + Math.round(at * 1000);
-    if (stallUntil < 0 && rand() < 0.04) stallUntil = stamp + Math.round((1.5 + rand() * 2.5) * 1000);
+    if (!opts.biasOnly && stallUntil < 0 && rand() < 0.04) stallUntil = stamp + Math.round((1.5 + rand() * 2.5) * 1000);
     let arrival = stamp + Math.round((0.1 + rand() * 0.5) * 1000);
     if (stallUntil >= 0) {
       if (stamp <= stallUntil) arrival = Math.max(arrival, stallUntil);
