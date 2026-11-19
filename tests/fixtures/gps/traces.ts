@@ -126,6 +126,31 @@ export const traceName = (s: TraceSpec) => `${s.speed}-${s.cadence}s-${s.noise}m
  * One seeded trace. `biasOnly`: the same trace with only the smooth bias (no jitter, outliers,
  * repeats or stalls): what is left is the error no filter can tell from movement.
  */
+/**
+ * How the phone's own speed behaves (PLAN 4.4d, non gating rows of the report): 'none' never gives
+ * one; 'patchy' none for the first 30 s and for 20% of fixes; 'lagged' a 3 s smoothing of the true
+ * speed plus 0.5 m/s noise, never exactly 0 (a phone in a hand or pocket). Default: as modeled above.
+ */
+export type SpeedMode = 'none' | 'patchy' | 'lagged';
+
+export function withSpeed(trace: Trace, mode: SpeedMode, seed: number): Trace {
+  const rand = seeded(seed * 7919 + 13);
+  const normal = seededNormal(seed * 7919 + 17);
+  let smooth = 0;
+  let prevSec = 0;
+  const fixes = trace.fixes.map((f) => {
+    const sec = (f.stamp - trace.t0) / 1000;
+    if (mode === 'none') return { ...f, speed: null };
+    if (mode === 'patchy') return { ...f, speed: sec < 30 || rand() < 0.2 ? null : f.speed };
+    const truth = trace.truth!.speedAt(sec);
+    const k = 1 - Math.exp(-Math.max(0, sec - prevSec) / 3);
+    prevSec = sec;
+    smooth += k * (truth - smooth);
+    return { ...f, speed: f.accuracy <= 25 ? Math.max(0.05, Math.abs(smooth + 0.5 * normal())) : null };
+  });
+  return { ...trace, fixes };
+}
+
 export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean; white?: boolean; exact?: boolean } = {}): Trace {
   const jitter = opts.biasOnly ? 0 : 0.05;
   const truth = profile(spec);

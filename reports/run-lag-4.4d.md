@@ -126,7 +126,10 @@ Group 1 still failing (the orchestrator asked for exact cases; tuning stopped af
   stretch drifts with its fixes: the same traces with only the drift ("drift alone") already miss
   3% (walk 5 m 4.8%, walk 15 m 5.6%, jog 15 m 4.0%, run 15 m 4.0%). Exception: jog 5 m seed 2,
   7.7% with 0.3% drift alone, a filter failure (a wild first fix in the 60 m stretch).
-- walk cold start at 5 and 15 m: frozen 7 to 11 s (steps waiting at 60 m), was 91 to 101 s.
+- walk cold start at 5 and 15 m: frozen (corrected, Nov 20, seeds 1 to 3 after the last round) 7 to
+  24 s at 5 m and 13 to 38 s at 15 m during the 60 m stretch (up to 54 s on seed 4), was 91 to 101 s.
+  The distance first moves 3 to 7 s after GO on every seed; the long freezes come later, while the
+  60 m fixes drift against the walk.
 - jog and run cold start at 15 m: 3.2 and 3.3% on seed 1 (drift alone 4.0%).
 - walk 1 s 15 m tunnel: 3.5 and 4.4% (drift alone 2.5 and 4.1%: the straight line across 40 s of
   drifting fixes), frozen 7 s on seed 3.
@@ -217,6 +220,63 @@ seed), walks up to 58 s (seed 4). Group 1 stays 23 of 30 on seeds 1 to 3 (21 on 
 failing cases are the same 7 as before, now failing on the start freeze instead of (jog 5 m) or
 besides distance. This is a real trade: the 10 s at a cold start is honest waiting for evidence
 that the runner moves; it is far from the 91 to 105 s G could have seen.
+
+## Round 3 (tester findings, Nov 20)
+
+Reload regression (verify-4.3 "a reload mid run comes straight back"): failed every run on iPhone SE,
+17 Pro Max, Pixel 7 and the 320 floor. Cause, from the run's own diagnostics log: commit 3k made the
+replay guard compare with the phone's last raw position, which lives in memory and is gone after a
+reload; the watch started again handed back the cached position from before the reload, it was
+kept as the start of the new piece of line, and every real position after it (300 m on) was dropped
+as faster than 8 m/s. Fix: without that raw position the guard compares with the dot (within 2 m).
+Unit test src/hooks/__tests__/runEngine-reload-4.4d.test.ts failed first (with and without the
+phone's speed). verify-4.3 on all default projects, --workers=2: 73 passed, 3 skipped, three runs in
+a row.
+
+Cold start, seconds after GO until the distance first moves (seeds 1/2/3/4/5/6, 1 s fixes):
+```
+before this round (settle plus the 8 s walking check):
+walk 5 m: 13/15/12/59/17/11
+walk 15 m: 12/14/11/11/19/11
+jog 5 m: 11/15/11/11/11/11
+jog 15 m: 11/11/11/11/11/11
+run 5 m: 11/11/11/11/11/11
+run 15 m: 11/11/11/11/11/11
+after (count from the first of three agreeing fixes, credit the way since then; without speed the
+fixes themselves may show a walk: 5 s one way at 1 m/s):
+walk 5 m: 3/3/4/4/7/3
+walk 15 m: 3/3/3/3/3/3
+jog 5 m: 5/7/6/3/3/3
+jog 15 m: 3/3/3/3/3/3
+run 5 m: 3/3/3/3/3/3
+run 15 m: 3/4/3/3/3/3
+```
+The 10 s target holds on all 36 traces. The jog cold start at 5 m that a wild first fix pushed to
++7.7% stays fixed (seeds 1 to 6: -1.9 to +1.1%). Later in the 60 m stretch a walk can still freeze
+(walk 15 m seed 1 13 s, walk 5 m seed 4 36 to 54 s) while its fixes drift against it. A variant that
+let the fixes show a walk more easily (the middle fix between the ends instead of every fix nearer)
+cut those to 13 to 15 s but a still phone at 30 m then added 13.5 m on average (worst 43.9 m), so it
+was not kept.
+
+The phone's speed, three non gating variants (group 1: 1 s fixes at 5 and 15 m, seeds 1 to 6;
+"still 15 m 5 s" is the 5 s still phone without enough fixes for the walking check):
+```
+as modeled: group 1 21/30 pass (seeds 1-6); worst distance error 8.8% (4.4% without cold starts); worst freeze 54 s; pace first worst 59 s; follow worst 9 s; still phone 1 s mean 0.0 worst 0.0 m; still 15 m 5 s worst 13.1 m
+none: group 1 16/30 pass (seeds 1-6); worst distance error 8.8% (4.4% without cold starts); worst freeze 54 s; pace first worst 59 s; follow worst 35 s; still phone 1 s mean 0.0 worst 0.0 m; still 15 m 5 s worst 79.9 m
+patchy: group 1 22/30 pass (seeds 1-6); worst distance error 8.8% (4.4% without cold starts); worst freeze 54 s; pace first worst 59 s; follow worst 12 s; still phone 1 s mean 0.0 worst 0.0 m; still 15 m 5 s worst 74.4 m
+lagged: group 1 10/30 pass (seeds 1-6); worst distance error 8.8% (4.4% without cold starts); worst freeze 54 s; pace first worst 59 s; follow worst 17 s; still phone 1 s mean 29.4 worst 57.6 m; still 15 m 5 s worst 92.2 m
+```
+Plainly: without a good phone speed the fix is weaker. With no speed at all group 1 drops from 21 to
+16 of 30 (pace follows a change in up to 35 s, a still phone at 15 m with 5 s fixes adds up to 80 m).
+With a noisy, lagged speed that is never exactly 0 (a phone in a hand or pocket) it drops to 10 of
+30 and a still phone at 1 s fixes adds 29 m on average (worst 58 m): a single reading of 0.9 m/s or
+more ends standing. Only G's export can say which of these his phone is.
+
+Old test loosened, said here as asked: src/lib/gps/__tests__/withheld-4.6b.test.ts:135 (a walk at
+poor accuracy that then stands until the clock stops, then ends) was exact (30 m, 34 s on the clock)
+and is now within 1.5 m of 30 m and 36 s: the estimate settles about 2 s after the stop (it trails
+the fixes as it slows), so the clock stops 2 s later and the distance is the estimate's, not the
+raw fixes'.
 
 ## Before: today's code (fix-4.6b at 7ce8b1dd), worst of 3 seeds per combination
 
