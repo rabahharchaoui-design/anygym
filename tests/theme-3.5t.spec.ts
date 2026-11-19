@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from './fixtures';
 import { checkContrast } from './helpers/contrast';
 import { simulateSafeAreas } from './helpers/layout';
@@ -208,14 +207,11 @@ for (const scale of [100, 130]) {
   });
 }
 
-test('the app icons and the manifest are Titanium Glass (no lime pixel, graphite theme)', async ({ page, baseURL }) => {
+test('the app icons and the manifest are Loaded Bar (no lime pixel, black splash)', async ({ page, baseURL }) => {
   const manifest = await (await page.request.get(new URL('manifest.webmanifest', baseURL!).href)).json();
-  // Monolith (PLAN M0): the browser bar and the splash are the flat graphite of --bg.
-  expect(manifest.theme_color).toBe('#111214');
-  expect(manifest.background_color).toBe('#111214');
-  const svg = readFileSync('public/icons/favicon.svg', 'utf8');
-  expect(svg).toContain('#9fd3ff');
-  expect(svg).not.toMatch(/d4ff3a/i);
+  // PLAN M8 (SPEC 1): the splash and the installed app's bar are pure black like the icon's ground.
+  expect(manifest.theme_color).toBe('#000000');
+  expect(manifest.background_color).toBe('#000000');
   // The apple touch icon: ice blue pixels on the barbell, graphite in a corner, nothing lime.
   await page.goto('./');
   const px = await page.evaluate(async () => {

@@ -1,11 +1,13 @@
-// GOLDEN 6: Back up to a file, wipe the phone's data, restore it, the workouts are back.
+// GOLDEN 6: Back up to a file, wipe the phone's data, restore it, the workouts and runs are back exactly
+// (PLAN M8: the reinstall for the new icon depends on it).
 import { readFileSync } from 'node:fs';
 import { expect, test } from '../fixtures';
-import { bar185, checkCurrent, dbAll, exerciseView, loggedRows, quickWith, seedFinished } from '../workout-helpers';
+import { runRow } from '../helpers/run';
+import { bar185, checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, seedFinished } from '../workout-helpers';
 
 test.describe.configure({ retries: 0 });
 
-test('golden: back up to a file, wipe, restore with Replace, History is the same', async ({ page }) => {
+test('golden: back up to a file, wipe, restore with Replace, History and runs are the same', async ({ page }) => {
   // The share sheet is taken away so Back up downloads a file.
   await page.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, 'share', { value: undefined, configurable: true });
@@ -27,6 +29,10 @@ test('golden: back up to a file, wipe, restore with Replace, History is the same
   const sets = (await dbAll<{ id: string }>(page, 'sets')).sort((a, b) => a.id.localeCompare(b.id));
   expect(sessions).toHaveLength(2);
   expect(sets).toHaveLength(3);
+  // Two finished runs, every field and GPS point of which must come back unchanged.
+  await dbPut(page, { runs: [runRow('golden-run-a', 3000, Date.now() - 3 * 86_400_000), runRow('golden-run-b', 1200, Date.now() - 86_400_000)] });
+  const runs = (await dbAll<{ id: string }>(page, 'runs')).sort((a, b) => a.id.localeCompare(b.id));
+  expect(runs).toHaveLength(2);
 
   await page.goto('./#/settings');
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('backup').tap()]);
@@ -36,6 +42,7 @@ test('golden: back up to a file, wipe, restore with Replace, History is the same
   const file = JSON.parse(readFileSync(path, 'utf8'));
   expect(file.format).toBe('anygym-backup-v1');
   expect(file.tables.sets).toHaveLength(3);
+  expect(file.tables.runs).toHaveLength(2);
 
   // Wipe everything the app has stored, as a new phone.
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
@@ -46,6 +53,7 @@ test('golden: back up to a file, wipe, restore with Replace, History is the same
   await page.goto('./#/history');
   await page.reload();
   await expect(page.getByText('No workouts yet')).toBeVisible();
+  expect(await dbAll(page, 'runs')).toEqual([]);
 
   await page.goto('./#/settings');
   await page.getByTestId('restore-file').setInputFiles(path);
@@ -59,6 +67,7 @@ test('golden: back up to a file, wipe, restore with Replace, History is the same
 
   expect((await dbAll<{ id: string }>(page, 'sessions')).sort((a, b) => a.id.localeCompare(b.id))).toEqual(sessions);
   expect((await dbAll<{ id: string }>(page, 'sets')).sort((a, b) => a.id.localeCompare(b.id))).toEqual(sets);
+  expect((await dbAll<{ id: string }>(page, 'runs')).sort((a, b) => a.id.localeCompare(b.id))).toEqual(runs);
   await page.getByLabel('Back to Today').tap();
   await page.getByRole('link', { name: /History/ }).tap();
   await expect(page.getByTestId('history-row')).toHaveCount(2);

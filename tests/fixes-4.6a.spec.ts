@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { holdFor, move, startRun, wake } from './helpers/run';
+import { holdFor, move, runRow, startRun, wake } from './helpers/run';
 import { stubTiles } from './helpers/tiles';
 import { dbAll, dbPut, seedFinished, watchErrors } from './workout-helpers';
 
@@ -8,15 +8,6 @@ import { dbAll, dbPut, seedFinished, watchErrors } from './workout-helpers';
 test.use({ serviceWorkers: 'block', locale: 'en-GB' });
 
 const DAY = 86_400_000;
-const M_PER_DEG = (6_371_008.8 * Math.PI) / 180;
-
-/** A finished run going north from a park, `meters` long, at 3 m/s with a position every 5 s. */
-function runRow(id: string, meters: number, startedAt: number) {
-  const steps = Math.max(1, Math.round(meters / 15));
-  const points = Array.from({ length: steps + 1 }, (_, i) => [40.7812 + (i * (meters / steps)) / M_PER_DEG, -73.9665, startedAt + i * 5000, 5]);
-  const movingSec = steps * 5;
-  return { id, startedAt, endedAt: startedAt + movingSec * 1000, type: 'free', movingSec, elapsedSec: movingSec, distanceM: meters, points, gaps: [], splits: [], splitUnit: 'km', timedM: meters };
-}
 
 /** Opens the app once (it makes its database), then writes the runs. */
 async function seedRuns(page: Page, runs: unknown[]) {
