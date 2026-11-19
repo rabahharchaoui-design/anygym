@@ -21,18 +21,20 @@ export interface MuscleExercise {
 
 /**
  * Catalog exercises that work `region` as a primary muscle: the plan's first, then A to Z.
- * Exercises without sure muscles (resolveMuscles null) are never listed.
+ * Exercises without sure muscles (resolveMuscles null) are never listed. With `label` (ownShoulderLabel,
+ * PLAN 4.6a 5) only the ones that name the shape that way: front delts lists no lateral raise.
  */
 export function exercisesForRegion(
   region: Region,
   catalog: readonly NamedCatalogMuscles[],
   overrides: MuscleOverrides,
   planIds: ReadonlySet<string> = new Set(),
+  label: string | null = null,
 ): MuscleExercise[] {
   const out: MuscleExercise[] = [];
   for (const e of catalog) {
     const data = resolveMuscles(e, overrides);
-    if (!data || !data.primary.some((t) => t.regions.includes(region))) continue;
+    if (!data || !data.primary.some((t) => t.regions.includes(region) && (label === null || t.label === label))) continue;
     const labels = [...new Set(data.secondary.map((t) => t.label))];
     const also = labels.length ? `Also works ${labels[0]}${labels.length > 1 ? ` +${labels.length - 1}` : ''}` : null;
     out.push({ id: e.id, name: e.name, also, inPlan: planIds.has(e.id) });

@@ -4,8 +4,10 @@
 // The rules, in one place:
 // - Distance is haversine over the recorded points. Recorded = passed the filter (filter.ts), not
 //   during a pause by hand, not while standing still.
-// - Standing still (stillness.ts) freezes the distance whether auto pause is on or off, so GPS wander
-//   on the spot never adds meters. Auto pause decides only whether the moving clock stops too.
+// - Standing still (stillness.ts isStill, a circle that grows at poor accuracy) freezes the distance
+//   whether auto pause is on or off, so GPS wander on the spot never adds meters. The moving clock
+//   stops only on the 4 m rule (clockStill, PLAN 4.6a 3) with auto pause on: a walk at poor accuracy
+//   can look like wander for a while, and keeps its time; its distance counts once it leaves the spot.
 // - Moving again: the leg from the standing spot to the new point counts (it was really covered).
 //   With auto pause on nobody knows how long that leg took (the clock was stopped), so it adds
 //   distance but no time and stays out of every pace, the same way a bridged gap does.
@@ -21,7 +23,7 @@ import { judgePoint } from './filter';
 import { haversineM } from './geo';
 import { averagePace, currentPace, pushPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
-import { isStill, leftStill, pushRecent, type Recent } from './stillness';
+import { clockStill, isStill, leftStill, pushRecent, type Recent } from './stillness';
 import { GAP_SEC, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
@@ -36,8 +38,19 @@ export type TrackerState = {
   autoPause: boolean;
   /** Paused by hand. */
   manual: boolean;
-  /** Standing still (distance frozen; the clock too when autoPause is on). */
+  /** Standing still (distance frozen). */
   still: boolean;
+  /**
+   * Standing by the 4 m rule too (stillness.ts clockStill): with autoPause on the moving clock stops.
+   * Only ever true while `still` (PLAN 4.6a 3).
+   */
+  stopped: boolean;
+  /**
+   * Where the clock stopped, when that came after the distance froze (a walk at poor accuracy that
+   * looked like wander first): the way from the standing spot to here was walked while the clock
+   * counted, so leaving the spot times that part. Absent (older snapshots) or null: none.
+   */
+  stopAt?: GpsPoint | null;
   /** The next good point is the first after a pause by hand. */
   afterPause: boolean;
   firstT: number | null;
@@ -68,6 +81,7 @@ export function startTracker(options: TrackerOptions): TrackerState {
     autoPause: options.autoPause ?? true,
     manual: false,
     still: false,
+    stopped: false,
     afterPause: false,
     firstT: null,
     lastGood: null,
@@ -95,7 +109,10 @@ function advance(state: TrackerState, move: Move): { state: TrackerState; comple
 }
 
 /** Put a point on the track as the start of a new continuous stretch. */
-const restart = (state: TrackerState, p: GpsPoint): TrackerState => ({ ...state, lastGood: p, lastRecorded: p, still: false, afterPause: false, recent: [p] });
+const restart = (state: TrackerState, p: GpsPoint): TrackerState => ({ ...state, lastGood: p, lastRecorded: p, still: false, stopped: false, stopAt: null, afterPause: false, recent: [p] });
+
+/** Auto paused: standing by the clock's rule with auto pause on. The moving clock stands. */
+export const clockStopped = (state: TrackerState): boolean => state.autoPause && state.still && state.stopped;
 
 /** Feed one reported position. Returns the new state and what happened to the point. */
 export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerState; event: TrackerEvent } {
@@ -116,27 +133,43 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     return { state: { ...restart(state, p), pace: [sample] }, event: { type: 'recorded', point: p, brk, splits: [] } };
   }
   if (v.link === 'gap') {
+    const onSpot = state.still && !leftStill(from, p);
     // Auto paused and back on the same spot: the runner never left, so nothing moved and the run stays still.
-    if (state.still && state.autoPause && !leftStill(from, p)) return { state: { ...state, lastGood: p }, event: { type: 'held', reason: 'still' } };
-    const distanceM = v.bridged ? haversineM(from, p) : 0;
+    if (onSpot && clockStopped(state)) return { state: { ...state, lastGood: p }, event: { type: 'held', reason: 'still' } };
+    // Back on the standing spot: whatever lies across is wander, not distance, so it is not bridged.
+    const bridged = v.bridged && !onSpot;
+    const distanceM = bridged ? haversineM(from, p) : 0;
     // The wait up to GAP_SEC was counted on the screen (pendingMs): it stays counted (holdGap).
-    const credit = state.still && state.autoPause ? 0 : GAP_SEC * 1000;
+    const credit = clockStopped(state) ? 0 : GAP_SEC * 1000;
     const next = advance(holdGap(state, credit), { distanceM, ms: 0, timed: false, gap: true });
-    const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'gap', bridged: v.bridged, distanceM };
+    const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'gap', bridged, distanceM };
     return { state: restart(next.state, p), event: { type: 'recorded', point: p, brk, splits: next.completed } };
   }
 
   const ms = p.t - prev.t;
   if (state.still && !leftStill(from, p)) {
-    // Standing: no distance. The clock stops with auto pause on and keeps counting with it off.
-    const held = state.autoPause ? state : advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
-    return { state: { ...held, lastGood: p }, event: { type: 'held', reason: 'still' } };
+    // Standing: no distance. Auto paused, the clock stands. Otherwise it counts, and the window goes
+    // on so the 4 m rule can still stop it (a walk at poor accuracy that then stops at a light).
+    if (clockStopped(state)) return { state: { ...state, lastGood: p }, event: { type: 'held', reason: 'still' } };
+    const recent = state.stopped ? state.recent : pushRecent(state.recent, p);
+    const held = advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
+    const stops = !state.stopped && clockStill(recent);
+    return { state: { ...held, lastGood: p, recent, stopped: state.stopped || stops, stopAt: stops ? p : (state.stopAt ?? null) }, event: { type: 'held', reason: 'still' } };
   }
-  const untimed = state.still && state.autoPause;
-  const next = advance(state, { distanceM: haversineM(from, p), ms: untimed ? 0 : ms, timed: !untimed, gap: false });
+  const legM = haversineM(from, p);
+  let next: { state: TrackerState; completed: Split[] };
+  if (clockStopped(state)) {
+    // Leaving the spot after the clock stood: the part walked before it stood was timed (its
+    // seconds were counted); the rest took an unknown time, so it adds distance only.
+    const timedM = state.stopAt ? Math.min(legM, haversineM(from, state.stopAt)) : 0;
+    const first = advance(state, { distanceM: timedM, ms: 0, timed: true, gap: false });
+    const rest = advance(first.state, { distanceM: legM - timedM, ms: 0, timed: false, gap: false });
+    next = { state: rest.state, completed: [...first.completed, ...rest.completed] };
+  } else next = advance(state, { distanceM: legM, ms, timed: true, gap: false });
   const recent = state.still ? [p] : pushRecent(state.recent, p);
+  const stopped = clockStill(recent);
   return {
-    state: { ...next.state, lastGood: p, lastRecorded: p, recent, still: isStill(recent) },
+    state: { ...next.state, lastGood: p, lastRecorded: p, recent, still: isStill(recent), stopped, stopAt: null },
     event: { type: 'recorded', point: p, brk: null, splits: next.completed },
   };
 }
@@ -159,7 +192,7 @@ function holdGap(state: TrackerState, ms: number): TrackerState {
  * growing at GAP_SEC: past that the wait is a gap, and only its first GAP_SEC count (addPoint).
  */
 export function pendingMs(state: TrackerState, now: number): number {
-  if (state.manual || state.afterPause || !state.lastGood || (state.still && state.autoPause)) return 0;
+  if (state.manual || state.afterPause || !state.lastGood || clockStopped(state)) return 0;
   const since = now - state.lastGood.t;
   return since > 0 ? Math.min(since, GAP_SEC * 1000) : 0;
 }
@@ -195,8 +228,8 @@ export function pauseRun(state: TrackerState, now?: number): TrackerState {
  * while auto paused it simply ends the standing state (the runner says they are moving).
  */
 export function resumeRun(state: TrackerState): TrackerState {
-  if (state.manual) return { ...state, manual: false, still: false, recent: [], afterPause: state.lastGood !== null };
-  return state.still ? { ...state, still: false, recent: [] } : state;
+  if (state.manual) return { ...state, manual: false, still: false, stopped: false, stopAt: null, recent: [], afterPause: state.lastGood !== null };
+  return state.still ? { ...state, still: false, stopped: false, stopAt: null, recent: [] } : state;
 }
 
 export type RunStatus = 'waiting' | 'running' | 'auto-paused' | 'paused';
@@ -219,7 +252,7 @@ export type TrackerReading = {
 
 /** Everything the live screen and the finish screen show, read from the state. */
 export function readTracker(state: TrackerState): TrackerReading {
-  const status: RunStatus = state.manual ? 'paused' : !state.lastGood ? 'waiting' : state.still && state.autoPause ? 'auto-paused' : 'running';
+  const status: RunStatus = state.manual ? 'paused' : !state.lastGood ? 'waiting' : clockStopped(state) ? 'auto-paused' : 'running';
   const movingSec = state.movingMs / 1000;
   return {
     status,

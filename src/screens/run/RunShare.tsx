@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../../lib/intake/answers';
-import { gpxDocument, gpxFileName, posterOf } from '../../lib/run';
+import { gpxDocument, gpxFileName, posterLabel, posterOf } from '../../lib/run';
 import { shareOrDownload, type ShareOutcome } from '../../lib/shareFile';
 import { Button } from '../../ui/Button';
 import { Sheet } from '../../ui/Sheet';
@@ -64,7 +64,7 @@ export function RunShare({ run, unit }: Props) {
       )}
       <Sheet open={open} onClose={() => setOpen(false)} label="Share card" scroll>
         <div className={styles.sheet} data-testid="run-share-sheet">
-          <canvas ref={preview} className={styles.preview} data-testid="run-share-preview" data-hidden={poster.routeHidden || undefined} role="img" aria-label="Share card preview" />
+          <canvas ref={preview} className={styles.preview} data-testid="run-share-preview" data-hidden={poster.routeHidden || undefined} role="img" aria-label={posterLabel(poster)} />
           <Switch label="Hide start and end" hint="Leaves out the first and last 200 m, so your door stays private." checked={hideEnds} onChange={setHideEnds} />
           <Button onClick={() => void shareCard()} disabled={!file} data-testid="run-share-go">
             Share

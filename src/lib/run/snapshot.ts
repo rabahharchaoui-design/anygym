@@ -89,8 +89,8 @@ function trackerFrom(v: unknown): TrackerState | null {
   const t = v as Partial<TrackerState> | null;
   if (!t || typeof t !== 'object') return null;
   const ok = num(t.splitM) && t.splitM >= 1 && num(t.distanceM) && num(t.timedM) && num(t.movingMs) && typeof t.autoPause === 'boolean' && Array.isArray(t.recent) && Array.isArray(t.pace) && !!t.splits && Array.isArray(t.splits.full) && !!t.splits.open;
-  // Snapshots from before PLAN 4.4a have no held time.
-  return ok ? ({ ...t, heldMs: num(t.heldMs) ? t.heldMs : 0 } as TrackerState) : null;
+  // Snapshots from before PLAN 4.4a have no held time; from before 4.6a no clock rule (standing stopped the clock).
+  return ok ? ({ ...t, heldMs: num(t.heldMs) ? t.heldMs : 0, stopped: typeof t.stopped === 'boolean' ? t.stopped : t.still === true } as TrackerState) : null;
 }
 
 /** Reads a stored snapshot (JSON text). Null when it is missing, broken or belongs to another run. */
@@ -125,9 +125,10 @@ function replay(row: Run, unit: DistanceUnit, autoPause: boolean): { tracker: Tr
 
 /**
  * A run that was still going when the app closed, back as a live run: paused by hand, marked
- * `closed`. With a snapshot it is exact; without one the track is replayed.
+ * `closed`. With a snapshot it is exact; without one the track is replayed. `now` (the engine gives
+ * it): a snapshot stamped after it (the phone's clock was set back) adds no moving time (PLAN 4.6a 9).
  */
-export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { unit: DistanceUnit; autoPause: boolean }): LiveRun {
+export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { unit: DistanceUnit; autoPause: boolean }, now?: number): LiveRun {
   const points = row.points.map(fromRunPoint);
   const last = points[points.length - 1] ?? null;
   // The snapshot is only trusted when it ends where the stored track ends.
@@ -147,7 +148,7 @@ export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { 
     intervals,
     unit,
     // Paused from the moment of the snapshot: the time the clock had shown by then stays (PLAN 4.4c).
-    tracker: pauseRun(tracker, fits ? snapshot.savedAt : undefined),
+    tracker: pauseRun(tracker, fits && snapshot.savedAt !== undefined && (now === undefined || snapshot.savedAt <= now) ? snapshot.savedAt : undefined),
     points,
     breaks,
     here: last,

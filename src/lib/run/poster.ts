@@ -80,3 +80,13 @@ export function posterOf(run: Run, unit: DistanceUnit, privacy: boolean): Poster
     mark: 'AnyGym',
   };
 }
+
+/**
+ * What the card shows, in words, for its accessible name (PLAN 4.6a 8): the same formatted values it
+ * paints, and the privacy note. Nothing that is not on the picture.
+ */
+export function posterLabel(poster: Poster): string {
+  const what = poster.lines.length > 0 ? 'Share card with your route' : 'Share card';
+  const stats = [poster.distance, poster.time, poster.pace, ...(poster.city ? [poster.city] : [])].join(', ');
+  return `${what}: ${stats}${poster.note ? `. ${poster.note}` : ''}`;
+}

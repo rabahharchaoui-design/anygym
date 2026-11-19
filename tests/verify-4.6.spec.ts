@@ -71,7 +71,7 @@ test.describe('4.6 finish, history, share, GPX', () => {
     // GPX: a real file, well formed, one track.
     await page.getByTestId('run-export-gpx').tap();
     const gpx = await sharedFile(page, 0);
-    expect(gpx.name).toMatch(/^AnyGym-run-\d{4}-\d{2}-\d{2}\.gpx$/);
+    expect(gpx.name).toMatch(/^AnyGym-run-\d{4}-\d{2}-\d{2}-\d{4}\.gpx$/);
     const text = Buffer.from(gpx.bytes).toString('utf8');
     expect(text.startsWith('<?xml')).toBe(true);
     expect(text).toContain('<gpx version="1.1"');

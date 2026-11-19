@@ -19,17 +19,18 @@ const EQUIPMENT = new Map((CATALOG as ReadonlyArray<{ id: string; equipment?: st
 
 const thumbOf = (demo: DemoImages | null) => (demo ? { webp: demo.webp[0], jpg: demo.jpg[0] } : null);
 
-export function exercisesForMuscle(region: Region, planIds?: ReadonlySet<string>): MuscleExerciseRow[] {
-  return exercisesForRegion(region, CATALOG, overrides as MuscleOverrides, planIds).map((e) => ({ ...e, thumb: thumbOf(infoForCatalog(e.id).demo), tile: tileKindOf(EQUIPMENT.get(e.id)) }));
+export function exercisesForMuscle(region: Region, planIds?: ReadonlySet<string>, label: string | null = null): MuscleExerciseRow[] {
+  return exercisesForRegion(region, CATALOG, overrides as MuscleOverrides, planIds, label).map((e) => ({ ...e, thumb: thumbOf(infoForCatalog(e.id).demo), tile: tileKindOf(EQUIPMENT.get(e.id)) }));
 }
 
-const counts = new Map<Region, number>();
-/** How many catalog exercises work this muscle as primary (cached: the catalog is static). */
-export function exerciseCount(region: Region): number {
-  let n = counts.get(region);
+const counts = new Map<string, number>();
+/** How many catalog exercises work this muscle as primary, named `label` when given (cached: the catalog is static). */
+export function exerciseCount(region: Region, label: string | null = null): number {
+  const key = `${region}|${label ?? ''}`;
+  let n = counts.get(key);
   if (n === undefined) {
-    n = exercisesForRegion(region, CATALOG, overrides as MuscleOverrides).length;
-    counts.set(region, n);
+    n = exercisesForRegion(region, CATALOG, overrides as MuscleOverrides, undefined, label).length;
+    counts.set(key, n);
   }
   return n;
 }

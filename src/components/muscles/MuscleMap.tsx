@@ -1,7 +1,7 @@
 import { useId, useState, useSyncExternalStore, type MouseEvent } from 'react';
 import { BODIES, REGION_NAMES, regionsIn, type BodyKind, type Region, type View } from '../../lib/bodyArt';
 import { bodyPref } from '../../lib/bodyPref';
-import type { MuscleMapData } from '../../lib/muscles';
+import { ownShoulderLabel, type MuscleMapData } from '../../lib/muscles';
 import { Segmented } from '../../ui/Segmented';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
 import { MuscleExercisesLink, MuscleExercisesSheet } from './MuscleExercises';
@@ -165,7 +165,7 @@ function Drawing({ data }: { data: MuscleMapData }) {
             <span>Tap a muscle to name it</span>
           )}
         </div>
-        {picked && <MuscleExercisesLink region={picked} onOpen={setListFor} />}
+        {picked && <MuscleExercisesLink region={picked} label={ownShoulderLabel(picked, data)} onOpen={setListFor} />}
       </div>
       <div className={styles.stage} onClick={onTap}>
         <svg width="0" height="0" className={styles.defs} aria-hidden="true" focusable="false">
@@ -196,7 +196,7 @@ function Drawing({ data }: { data: MuscleMapData }) {
         line={(r) => pickLine(r, data)}
         onPick={(region) => setState((s) => ({ ...s, picked: region }))}
       />
-      <MuscleExercisesSheet region={listFor} onClose={() => setListFor(null)} />
+      <MuscleExercisesSheet region={listFor} label={listFor ? ownShoulderLabel(listFor, data) : null} onClose={() => setListFor(null)} />
     </>
   );
 }
@@ -326,7 +326,7 @@ export function MusclePair({ data, exercises = false, compact = false }: { data:
           <div className={styles.readout} data-testid="muscle-pick" aria-live="polite">
             {picked ? <span className={styles.picking}>{pickLine(picked, data)}</span> : <span>Tap a muscle to see its exercises</span>}
           </div>
-          {picked && <MuscleExercisesLink region={picked} onOpen={setListFor} />}
+          {picked && <MuscleExercisesLink region={picked} label={ownShoulderLabel(picked, data)} onOpen={setListFor} />}
         </div>
       )}
       {tappable && (
@@ -338,7 +338,7 @@ export function MusclePair({ data, exercises = false, compact = false }: { data:
           onPick={(region) => setPick({ key, region })}
         />
       )}
-      {exercises && <MuscleExercisesSheet region={listFor} onClose={() => setListFor(null)} />}
+      {exercises && <MuscleExercisesSheet region={listFor} label={listFor ? ownShoulderLabel(listFor, data) : null} onClose={() => setListFor(null)} />}
     </figure>
   );
 }
