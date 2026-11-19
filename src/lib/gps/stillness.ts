@@ -52,7 +52,9 @@ export const stillRadiusM = (p: GpsPoint, newest: GpsPoint): number => Math.max(
  * How far from the standing spot counts as moving again: outside the standing circle, and farther
  * than the two fixes could be apart by their own stated accuracy (both radii added), so GPS wander
  * on the spot does not resume the run. With a typical accuracy of 5 m that is 10 m: about three
- * seconds of running. Nothing is lost by waiting: the leg from the spot counts once it is sure.
+ * seconds of running. The leg from the spot counts once it is sure, or, when the run stops on the
+ * spot first (a pause, the end, a GPS gap) while the 4 m rule said moving, right then (tracker.ts
+ * flushStill, PLAN 4.6b). A phone the 4 m rule calls standing never gets it: that is wander.
  */
 export const resumeRadiusM = (anchor: GpsPoint, p: GpsPoint): number => Math.max(STILL_RADIUS_M, anchor.accuracy + p.accuracy);
 

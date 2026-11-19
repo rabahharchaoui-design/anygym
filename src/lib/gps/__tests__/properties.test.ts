@@ -1,7 +1,7 @@
 // SPEC 12.3: what must hold for any track. Random runs from a seeded generator: clean stretches,
 // spikes, bad fixes, gaps, stops, taps on pause and resume.
 import { describe, expect, it } from 'vitest';
-import { addPoint, haversineM, pauseRun, processTrack, readTracker, resumeRun, startTracker, stepTracker, METERS_PER_MILE, type GpsPoint, type TrackInput, type TrackerState } from '..';
+import { addPoint, haversineM, pauseTrack, processTrack, readTracker, resumeRun, startTracker, stepTracker, METERS_PER_MILE, type GpsPoint, type TrackInput, type TrackerState } from '..';
 import { at, seeded, wander } from './fixtures';
 
 /** A random run of about `steps` inputs. */
@@ -69,8 +69,14 @@ describe('for any track', () => {
         if (input.type === 'point') {
           const r = addPoint(state, input.point);
           state = r.state;
-          if (r.event.type === 'recorded') points.push(r.event.point);
-        } else state = input.type === 'pause' ? pauseRun(state) : resumeRun(state);
+          if (r.event.type === 'recorded') points.push(...(r.event.withheld ? [r.event.withheld] : []), r.event.point);
+        } else if (input.type === 'resume') state = resumeRun(state);
+        else {
+          // A pause may record the end of the withheld leg (PLAN 4.6b).
+          const r = pauseTrack(state);
+          state = r.state;
+          if (r.point) points.push(r.point);
+        }
         if (i % 50 === 49 || i === inputs.length - 1) {
           const batch = processTrack(inputs.slice(0, i + 1), options);
           expect(batch.state).toEqual(state);

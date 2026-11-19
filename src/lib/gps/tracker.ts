@@ -7,7 +7,8 @@
 // - Standing still (stillness.ts isStill, a circle that grows at poor accuracy) freezes the distance
 //   whether auto pause is on or off, so GPS wander on the spot never adds meters. The moving clock
 //   stops only on the 4 m rule (clockStill, PLAN 4.6a 3) with auto pause on: a walk at poor accuracy
-//   can look like wander for a while, and keeps its time; its distance counts once it leaves the spot.
+//   can look like wander for a while, and keeps its time; its distance counts once it leaves the spot,
+//   or, when the run stops there first (pause, end, a gap), right then (flushStill, PLAN 4.6b).
 // - Moving again: the leg from the standing spot to the new point counts (it was really covered).
 //   With auto pause on nobody knows how long that leg took (the clock was stopped), so it adds
 //   distance but no time and stays out of every pace, the same way a bridged gap does.
@@ -72,8 +73,11 @@ export type TrackerState = {
 export type TrackerEvent =
   | { type: 'rejected'; reason: RejectReason }
   | { type: 'held'; reason: HeldReason }
-  /** The point joined the track. `brk`: the line breaks before it. `splits`: splits it completed. */
-  | { type: 'recorded'; point: GpsPoint; brk: TrackBreak | null; splits: Split[] };
+  /**
+   * The point joined the track. `brk`: the line breaks before it. `splits`: splits it completed.
+   * `withheld`: a point that joined the track just before it (the end of the withheld leg, flushStill).
+   */
+  | { type: 'recorded'; point: GpsPoint; brk: TrackBreak | null; splits: Split[]; withheld?: GpsPoint };
 
 export function startTracker(options: TrackerOptions): TrackerState {
   return {
@@ -136,14 +140,18 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     const onSpot = state.still && !leftStill(from, p);
     // Auto paused and back on the same spot: the runner never left, so nothing moved and the run stays still.
     if (onSpot && clockStopped(state)) return { state: { ...state, lastGood: p }, event: { type: 'held', reason: 'still' } };
+    // The way walked on the clock before the gap counts first; the gap starts where it ends.
+    const flushed = flushStill(state);
+    const start = flushed.state.lastRecorded!;
     // Back on the standing spot: whatever lies across is wander, not distance, so it is not bridged.
     const bridged = v.bridged && !onSpot;
-    const distanceM = bridged ? haversineM(from, p) : 0;
+    const distanceM = bridged ? haversineM(start, p) : 0;
     // The wait up to GAP_SEC was counted on the screen (pendingMs): it stays counted (holdGap).
     const credit = clockStopped(state) ? 0 : GAP_SEC * 1000;
-    const next = advance(holdGap(state, credit), { distanceM, ms: 0, timed: false, gap: true });
-    const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'gap', bridged, distanceM };
-    return { state: restart(next.state, p), event: { type: 'recorded', point: p, brk, splits: next.completed } };
+    const next = advance(holdGap(flushed.state, credit), { distanceM, ms: 0, timed: false, gap: true });
+    const brk: TrackBreak = { fromT: start.t, toT: p.t, kind: 'gap', bridged, distanceM };
+    const splits = [...flushed.completed, ...next.completed];
+    return { state: restart(next.state, p), event: { type: 'recorded', point: p, brk, splits, ...(flushed.point ? { withheld: flushed.point } : {}) } };
   }
 
   const ms = p.t - prev.t;
@@ -209,19 +217,40 @@ export function countShown(state: TrackerState, ms: number): TrackerState {
 }
 
 /**
- * Pause by hand. Until resumeRun nothing is recorded and auto pause does nothing. With `now` (the
- * live run gives it) the moving time since the last good point is counted first (pendingMs): the
- * runner was moving until the tap, and the clock on the screen had already shown that time. It
- * adds time only, never distance.
+ * The withheld leg (PLAN 4.6b): standing by the wide circle (poor accuracy) while the 4 m rule says
+ * moving, the clock counts but the way from the standing spot to the last good point waits until
+ * the runner leaves the spot. When the run stops there first (a pause, the end, a gap) it counts
+ * now, as timed distance (its seconds are already counted), and its end joins the track. Standing
+ * by the 4 m rule (a still phone) it is wander and adds nothing. A second call finds no leg.
  */
-export function pauseRun(state: TrackerState, now?: number): TrackerState {
-  if (state.manual) return state;
-  const ms = now === undefined ? 0 : pendingMs(state, now);
-  // Paused (or ended) inside a gap: its first GAP_SEC count the way the next point would count them.
-  const gap = ms > 0 && now! - state.lastGood!.t > GAP_SEC * 1000;
-  const counted = ms <= 0 ? state : gap ? holdGap(state, ms) : advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
-  return { ...counted, manual: true };
+export function flushStill(state: TrackerState): { state: TrackerState; point: GpsPoint | null; completed: Split[] } {
+  const from = state.lastRecorded;
+  const to = state.lastGood;
+  if (!state.still || state.stopped || !from || !to || to.t <= from.t) return { state, point: null, completed: [] };
+  const next = advance(state, { distanceM: haversineM(from, to), ms: 0, timed: true, gap: false });
+  return { state: { ...next.state, lastRecorded: to }, point: to, completed: next.completed };
 }
+
+/**
+ * Pause by hand (also how a run ends). Until resumeRun nothing is recorded and auto pause does
+ * nothing. The withheld leg counts first (flushStill): `point`, when there is one, joins the track.
+ * With `now` (the live run gives it) the moving time since the last good point is counted too
+ * (pendingMs): the runner was moving until the tap, and the clock on the screen had already shown
+ * that time. That adds time only, never distance.
+ */
+export function pauseTrack(state: TrackerState, now?: number): { state: TrackerState; point: GpsPoint | null; completed: Split[] } {
+  if (state.manual) return { state, point: null, completed: [] };
+  const flushed = flushStill(state);
+  const s = flushed.state;
+  const ms = now === undefined ? 0 : pendingMs(s, now);
+  // Paused (or ended) inside a gap: its first GAP_SEC count the way the next point would count them.
+  const gap = ms > 0 && now! - s.lastGood!.t > GAP_SEC * 1000;
+  const counted = ms <= 0 ? { state: s, completed: [] } : gap ? { state: holdGap(s, ms), completed: [] } : advance(s, { distanceM: 0, ms, timed: true, gap: false });
+  return { state: { ...counted.state, manual: true }, point: flushed.point, completed: [...flushed.completed, ...counted.completed] };
+}
+
+/** pauseTrack, the state alone: for a caller that keeps no track of its own. */
+export const pauseRun = (state: TrackerState, now?: number): TrackerState => pauseTrack(state, now).state;
 
 /**
  * Resume by hand. After a pause by hand the next good point starts a new piece of line. Tapped

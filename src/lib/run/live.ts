@@ -2,7 +2,7 @@
 // a tap on Pause or Resume, the auto pause switch). Pure: lib/gps does every number; this file only
 // keeps the track, its breaks and what the run was started as. No clock: time comes in with the points.
 import type { DistanceUnit } from '../intake/answers';
-import { addPoint, countShown, pauseRun, pendingMs, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
+import { addPoint, countShown, pauseTrack, pendingMs, readTracker, resumeRun, startTracker, unitMeters, type GpsPoint, type RawPoint, type TrackBreak, type TrackerReading, type TrackerState } from '../gps';
 import { distanceLabel, goalMeters, goalSeconds, timeLabel, type RunSetup, type RunType } from './goal';
 import { planFor, startIntervals, tickIntervals, type IntervalChoice, type IntervalState } from './intervals';
 
@@ -88,10 +88,15 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
         const p = action.point as GpsPoint;
         return { ...run, tracker, here: { lat: p.lat, lng: p.lng, t: p.t, accuracy: p.accuracy }, gps };
       }
-      return { ...run, tracker, here: event.point, points: [...run.points, event.point], breaks: event.brk ? [...run.breaks, event.brk] : run.breaks, gps };
+      const points = event.withheld ? [...run.points, event.withheld, event.point] : [...run.points, event.point];
+      return { ...run, tracker, here: event.point, points, breaks: event.brk ? [...run.breaks, event.brk] : run.breaks, gps };
     }
-    case 'pause':
-      return run.tracker.manual ? run : { ...run, tracker: pauseRun(run.tracker, action.now) };
+    case 'pause': {
+      if (run.tracker.manual) return run;
+      // Ending or pausing inside the wide standing circle: the way walked there joins the track (PLAN 4.6b).
+      const { state: tracker, point } = pauseTrack(run.tracker, action.now);
+      return { ...run, tracker, points: point ? [...run.points, point] : run.points };
+    }
     case 'resume': {
       const tracker = resumeRun(run.tracker);
       return tracker === run.tracker && !run.closed ? run : { ...run, tracker, closed: false };
