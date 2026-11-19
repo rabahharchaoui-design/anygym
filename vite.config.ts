@@ -138,8 +138,8 @@ export default defineConfig({
         lang: 'en',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#131417',
-        background_color: '#131417',
+        theme_color: '#111214',
+        background_color: '#111214',
         start_url: BASE,
         scope: BASE,
         icons: [
