@@ -1,7 +1,7 @@
 // PLAN D0: G's hand review of the demos, applied to the photo gate (pure part).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { applyDemoReview, DemoReviewError, parseDemoReview } from '../demoReview';
+import { applyHiddenList, DemoReviewError, hiddenList, parseDemoReview } from '../demoReview';
 
 const SHA = 'f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5';
 const IDS = new Set(['A', 'B', 'C', 'D']);
@@ -29,30 +29,39 @@ describe('parseDemoReview', () => {
   });
 });
 
-describe('applyDemoReview', () => {
+describe('hiddenList and applyHiddenList', () => {
   const review = parseDemoReview(
-    file({ A: { verdict: 'approved', at }, B: { verdict: 'wrong-demo', at }, C: { verdict: 'fix-cues', note: 'x', at } }),
+    file({ A: { verdict: 'approved', at }, B: { verdict: 'wrong-demo', at }, C: { verdict: 'fix-cues', note: 'x', at }, D: { verdict: 'approved', at } }),
     SHA,
     IDS,
   );
+  const list = hiddenList(review, IDS);
   const before = new Map([['B', 'exact' as const], ['C', 'variant' as const], ['D', 'variant' as const]]);
 
-  it('approved shows (exact when new), every other verdict hides, unnamed ids keep the earlier rule', () => {
-    const out = applyDemoReview(before, review);
-    expect([...out].sort()).toEqual([['A', 'exact'], ['D', 'variant']]);
+  it('ships only the sha and the hidden ids: no notes, no times', () => {
+    expect(list).toEqual({ catalogSha: SHA, hidden: ['B', 'C'] });
+    expect(Object.keys(list).sort()).toEqual(['catalogSha', 'hidden']);
   });
 
-  it('keeps an earlier kind for an approved id and never changes its input', () => {
-    const variant = new Map([['A', 'variant' as const]]);
-    expect(applyDemoReview(variant, review).get('A')).toBe('variant');
-    expect([...variant]).toEqual([['A', 'variant']]);
-    applyDemoReview(before, review);
+  it('refuses a review that leaves a catalog id unjudged (it would ship as approved)', () => {
+    const part = parseDemoReview(file({ A: { verdict: 'approved', at } }), SHA, IDS);
+    expect(() => hiddenList(part, IDS)).toThrow(/3 catalog exercises are not reviewed/);
+  });
+
+  it('approved shows (exact when new, an earlier kind kept), hidden never shows', () => {
+    expect([...applyHiddenList(before, list, SHA, IDS)].sort()).toEqual([['A', 'exact'], ['D', 'variant']]);
     expect(before.size).toBe(3);
   });
 
+  it('refuses a list made for another catalog sha, with a plain message', () => {
+    const run = () => applyHiddenList(before, { ...list, catalogSha: 'deadbeef' }, SHA, IDS);
+    expect(run).toThrow(DemoReviewError);
+    expect(run).toThrow(/made for catalog deadbeef but data\/catalog\.json is f00c92c7/);
+  });
+
   it('running it twice changes nothing', () => {
-    const once = applyDemoReview(before, review);
-    expect([...applyDemoReview(once, review)]).toEqual([...once]);
+    const once = applyHiddenList(before, list, SHA, IDS);
+    expect([...applyHiddenList(once, list, SHA, IDS)]).toEqual([...once]);
   });
 });
 
@@ -73,5 +82,16 @@ describe("G's Nov 19 review file", () => {
   it('holds nothing but ids, verdicts, times and notes', () => {
     for (const d of Object.values(raw.decisions)) for (const k of Object.keys(d)) expect(['verdict', 'at', 'note']).toContain(k);
     expect(Object.keys(raw).sort()).toEqual(['catalogSha', 'decisions', 'exportedAt', 'format', 'reviewed', 'total']);
+  });
+});
+
+describe('the shipped hidden list (src/data/demoHidden.json)', () => {
+  it('is what scripts/demo-review.ts makes from the review file today (run npm run demo-review)', () => {
+    const raw = JSON.parse(readFileSync('data/reviews/demo-review-2026-11-19.json', 'utf8'));
+    const catalog = JSON.parse(readFileSync('data/catalog.json', 'utf8')) as { source: { sha: string }; exercises: { id: string }[] };
+    const ids = new Set(catalog.exercises.map((e) => e.id));
+    const want = `${JSON.stringify(hiddenList(parseDemoReview(raw, catalog.source.sha, ids), ids), null, 1)}\n`;
+    expect(readFileSync('src/data/demoHidden.json', 'utf8')).toBe(want);
+    expect(JSON.parse(want).hidden).toHaveLength(39);
   });
 });

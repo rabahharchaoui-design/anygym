@@ -11,11 +11,11 @@ const verdict = (id: string) => raw.decisions[id]!.verdict;
 describe('demo review applied to the catalog', async () => {
   const before = Object.fromEntries(MUSCLE_FILES.map((p) => [p, bytes(p)]));
   const { CATALOG, musclesForCatalog } = await import('../muscles');
-  const { DEMO_REVIEW, infoForCatalog, photoEligibility, ownerPreviewForCatalog } = await import('../exerciseInfo');
+  const { DEMO_REVIEW_OK, infoForCatalog, photoEligibility, ownerPreviewForCatalog } = await import('../exerciseInfo');
   const ids = CATALOG.map((e) => e.id);
 
-  it('the shipped review is accepted', () => {
-    expect(DEMO_REVIEW?.verdicts.size).toBe(138);
+  it('the shipped hidden list is accepted', () => {
+    expect(DEMO_REVIEW_OK).toBe(true);
   });
 
   it('99 catalog demos shown, 39 hidden, exactly as G judged them', () => {
@@ -48,16 +48,17 @@ describe('demo review applied to the catalog', async () => {
     for (const id of ids) expect(JSON.stringify(infoForCatalog(id).muscles), id).toBe(JSON.stringify(musclesForCatalog(id)));
   });
 
-  it('a review made for another catalog is refused: no catalog demo shows at all', async () => {
+  it('a hidden list made for another catalog is refused: no catalog demo shows at all', async () => {
     vi.resetModules();
-    vi.doMock('../../../data/reviews/demo-review-2026-11-19.json', () => ({ default: { ...raw, format: 'anygym-review-v1', catalogSha: 'not-this-catalog' } }));
+    const shipped = JSON.parse(readFileSync('src/data/demoHidden.json', 'utf8')) as { hidden: string[] };
+    vi.doMock('../demoHidden.json', () => ({ default: { ...shipped, catalogSha: 'not-this-catalog' } }));
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const mod = await import('../exerciseInfo');
-    expect(mod.DEMO_REVIEW).toBeNull();
+    expect(mod.DEMO_REVIEW_OK).toBe(false);
     expect(String(error.mock.calls[0]?.[0])).toMatch(/Demo review refused: it was made for catalog not-this-catalog/);
     expect(ids.filter((id) => mod.infoForCatalog(id).demo !== null)).toEqual([]);
     error.mockRestore();
-    vi.doUnmock('../../../data/reviews/demo-review-2026-11-19.json');
+    vi.doUnmock('../demoHidden.json');
     vi.resetModules();
   });
 });

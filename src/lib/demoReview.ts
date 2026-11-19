@@ -46,15 +46,35 @@ export function parseDemoReview(raw: unknown, catalogSha: string, catalogIds: Re
 }
 
 /**
- * The sure demo ids after G's review: approved ids are shown (keeping an earlier kind, else exact),
- * any other verdict is hidden, unnamed ids are unchanged. Returns a new map; running it again on its
- * own result changes nothing.
+ * What the app ships (src/data/demoHidden.json, written by scripts/demo-review.ts): only the catalog
+ * sha and the ids G hid, sorted. No notes, no times. Refuses a review that does not cover every
+ * catalog id, since every id not listed is then shown as approved.
  */
-export function applyDemoReview(eligible: ReadonlyMap<string, ShownKind>, review: DemoReview): Map<string, ShownKind> {
+export interface HiddenList {
+  catalogSha: string;
+  hidden: string[];
+}
+export function hiddenList(review: DemoReview, catalogIds: ReadonlySet<string>): HiddenList {
+  const missing = [...catalogIds].filter((id) => !review.verdicts.has(id));
+  if (missing.length) throw new DemoReviewError(`Demo review refused: ${missing.length} catalog exercises are not reviewed (${missing.slice(0, 3).join(', ')}).`);
+  const hidden = [...review.verdicts].filter(([, d]) => d.verdict !== 'approved').map(([id]) => id);
+  return { catalogSha: review.catalogSha, hidden: hidden.sort() };
+}
+
+/**
+ * The sure demo ids after G's review (the shipped hidden list): a hidden id is never shown, every
+ * other catalog id is (keeping an earlier kind, else exact). A list made for another catalog sha is
+ * refused. Returns a new map; running it again on its own result changes nothing.
+ */
+export function applyHiddenList(eligible: ReadonlyMap<string, ShownKind>, list: HiddenList, catalogSha: string, catalogIds: Iterable<string>): Map<string, ShownKind> {
+  if (list.catalogSha !== catalogSha) {
+    throw new DemoReviewError(`Demo review refused: it was made for catalog ${list.catalogSha} but data/catalog.json is ${catalogSha}. Run npm run demo-review on a review of this catalog.`);
+  }
+  const hidden = new Set(list.hidden);
   const out = new Map(eligible);
-  for (const [id, { verdict }] of review.verdicts) {
-    if (verdict === 'approved') out.set(id, eligible.get(id) ?? 'exact');
-    else out.delete(id);
+  for (const id of catalogIds) {
+    if (hidden.has(id)) out.delete(id);
+    else out.set(id, eligible.get(id) ?? 'exact');
   }
   return out;
 }

@@ -3,12 +3,12 @@ import { decodePhotoHashes, photoVersionOf, versionedAsset } from '../lib/photoV
 import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import catalogDemos from '../../data/catalog-demos.json';
-import demoReviewFile from '../../data/reviews/demo-review-2026-11-19.json';
+import demoHidden from './demoHidden.json';
 import { catalogInfo, eligibleDemos, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
 import type { MatchKind } from '../lib/catalog';
 import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
 import { approvedCandidate, isApprovedCandidate, onApprovedChange } from './candidateGate';
-import { applyDemoReview, parseDemoReview, type DemoReview } from '../lib/demoReview';
+import { applyHiddenList, type HiddenList } from '../lib/demoReview';
 
 const CUES = cueFile as CueFile;
 const CATALOG = new Map((catalog as { exercises: CatalogImages[] }).exercises.map((e) => [e.id, e]));
@@ -21,21 +21,24 @@ export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
  * downgraded entries are match none), so a rejected or unaudited id is "none". PLAN 3.5a round 2:
  * plus catalog only swap candidates whose photos were checked by hand (data/catalog-demos.json).
  * PLAN 3.5e: plus a candidate move G approved on this phone (src/data/candidateGate.ts), never another.
- * PLAN D0: then G's hand review of the catalog demos (data/reviews/) has the last word on every id it
- * names. A review made for another catalog sha is refused: then no catalog demo is shown at all (no
- * bad data) and the reason is logged; the unit tests fail on it long before it ships.
+ * PLAN D0: then G's hand review of the catalog demos has the last word: only the ids he hid ship
+ * (src/data/demoHidden.json, written by scripts/demo-review.ts from data/reviews/). A list made for
+ * another catalog sha is refused: then no catalog demo is shown at all (no bad data) and the reason
+ * is logged; the unit tests fail on it long before it ships.
  */
-function loadReview(): DemoReview | null {
+const AUDITED = eligibleDemos(EXERCISE_MAP, (catalogDemos as { exercises: { catalogId: string }[] }).exercises, new Set(CATALOG.keys()));
+function reviewed(): Map<string, Exclude<MatchKind, 'none'>> | null {
   try {
-    return parseDemoReview(demoReviewFile, CATALOG_SHA, new Set(CATALOG.keys()));
+    return applyHiddenList(AUDITED, demoHidden as HiddenList, CATALOG_SHA, CATALOG.keys());
   } catch (e) {
     console.error(e);
     return null;
   }
 }
-export const DEMO_REVIEW = loadReview();
-const AUDITED = eligibleDemos(EXERCISE_MAP, (catalogDemos as { exercises: { catalogId: string }[] }).exercises, new Set(CATALOG.keys()));
-const ELIGIBLE = DEMO_REVIEW ? applyDemoReview(AUDITED, DEMO_REVIEW) : new Map<string, MatchKind>();
+const REVIEWED = reviewed();
+/** False when the shipped hidden list was refused (made for another catalog). */
+export const DEMO_REVIEW_OK = REVIEWED !== null;
+const ELIGIBLE: ReadonlyMap<string, MatchKind> = REVIEWED ?? new Map<string, MatchKind>();
 export function photoEligibility(catalogId: string | null | undefined): MatchKind {
   if (!catalogId) return 'none';
   return ELIGIBLE.get(catalogId) ?? (isApprovedCandidate(catalogId) ? 'exact' : 'none');
