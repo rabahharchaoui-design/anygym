@@ -2,15 +2,18 @@
 // GPS gap is a break and not a straight line. No elevation: the phone's altitude is not shown.
 import type { Run } from '../../db/types';
 import { fromRunPoint, toSegments } from '../gps';
-import { dayKey } from '../dayKey';
+import { dayKey, timeKey } from '../dayKey';
 import { runLabel } from './goal';
 
 const xml = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const iso = (t: number): string => new Date(t).toISOString();
 
-/** The file name, in the phone's local date. */
-export const gpxFileName = (run: Pick<Run, 'startedAt'>): string => `AnyGym-run-${dayKey(new Date(run.startedAt))}.gpx`;
+/** The file name, in the phone's local date and start time (two runs on one day differ, PLAN 4.6a 7). */
+export function gpxFileName(run: Pick<Run, 'startedAt'>): string {
+  const d = new Date(run.startedAt);
+  return `AnyGym-run-${dayKey(d)}-${timeKey(d)}.gpx`;
+}
 
 const nameOf = (run: Run): string => {
   const label = runLabel(run.type);

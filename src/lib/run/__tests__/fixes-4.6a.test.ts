@@ -5,6 +5,7 @@ import { at } from '../../gps/__tests__/fixtures';
 import { toRunPoint } from '../../gps';
 import { formatElapsed } from '../../timer';
 import { bestEffortSec } from '../efforts';
+import { gpxFileName } from '../gpx';
 import { fasterWords, recordMoments } from '../records';
 
 const MILE = 1609.344;
@@ -40,5 +41,14 @@ describe('a record claim matches the two clocks shown (PLAN 4.6a 6)', () => {
     const mile = recordMoments(now, [before, now], 'mi').find((m) => m.id === 'run:b:mile')!;
     expect(mile.hero).toBe(formatElapsed(mine));
     expect(mile.plus).toBe(`${shown} s faster`);
+  });
+});
+
+describe('two runs on one day get two GPX files (PLAN 4.6a 7)', () => {
+  it('the name has the local start time after the date', () => {
+    const morning = new Date(2026, 5, 1, 7, 5).getTime();
+    const evening = new Date(2026, 5, 1, 18, 40).getTime();
+    expect(gpxFileName({ startedAt: morning })).toBe('AnyGym-run-2026-06-01-0705.gpx');
+    expect(gpxFileName({ startedAt: evening })).toBe('AnyGym-run-2026-06-01-1840.gpx');
   });
 });
