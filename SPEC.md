@@ -250,13 +250,29 @@ Hidden route `#/review` (reachable by tapping the About version number 5 times).
 
 ## 10. Design direction
 
-- Dark first, true black `#000` background, surfaces `#0E0E10` and `#17171A`, hairlines `#26262B`. Text `#F5F5F7` and secondary `#9A9AA2`.
-- Visual direction: TITANIUM GLASS (G picked it Nov 11; reference .design-ref/style/titanium/, PLAN 3.5t): graphite to near black gradient, frosted glass cards, silver text, Inter.
-- One accent: ice blue `#9FD3FF` (dark text `#0F1114` on it) for primary actions, progress and primary muscles. No lime anywhere. Success uses the accent; warnings amber `#FFB020`; destructive `#FF4D4D`.
-- Typography: a confident grotesk for numbers and headings (e.g. "Space Grotesk" or "Inter Tight", self hosted, subset), tabular numerals for all weights and reps. Numbers are the hero: the total weight is the biggest thing on the set card.
+Visual direction: MONOLITH (G picked it Nov 19 from UI concepts round 1, issue #5; exact values from the round 2 style sheet, issue #6, private repo anygym-art art/ui-concepts-2/14_style_sheet.png and its README; fetch with gh into .design-ref/monolith/, never commit those images). It replaces Titanium Glass everywhere. Graphite, huge type, hairlines, square corners, one ice blue accent. Calm and premium, almost no chrome.
+
+- Colors (all live in src/styles/tokens.css, nowhere else):
+  - Background graphite `#111214` (flat, no gradient; the round 2 sheet allows `#111214` to `#16181B` and shows `#131417`; the dark end is used so the run map, mixed from background and text, stays calm). Map and photo frame surface `#16181B`.
+  - Text white `#FFFFFF` (`#F2F4F7` also passes the M-TEST rule). Secondary text `#A3A6AB`. Tertiary `#64676C` is for decoration, rule lines and disabled art only: it is under 4.5 to 1 on graphite, so never use it for words a user must read. Disabled text `#55585D`, disabled bar `#2E3034`, ring track `#2A2C30`.
+  - Dividers: 1 px hairline, white at 12%.
+  - One accent: ice blue `#9FD3FF` (dark text `#0F1114` when text sits on it) for primary actions, progress, the active tab and primary muscles. No lime, no red line, no second accent. Success uses the accent; warnings amber `#FFB020`; destructive `#FF4D4D`.
+  - Contrast: every word a user must read is at least 4.5 to 1 on graphite. Labels a runner or lifter needs at a glance are white or ice blue, never a dim grey.
+- Shape: square. Corners 0 to 4 px (chips, small frames and inputs 2 px). No pills, no capsules, no 20 px cards. A round shape is used only where the thing is round in real life or is a dot (the GPS dot, the progress ring, page dots, plates). Where other sections say "gym pill", read "gym chip": same control and behavior, 2 px corners.
+- Surfaces: no frosted glass, no blur, no shadows, no gradients, no glow. Content sits straight on graphite and is grouped by hairlines and space, not by cards. Bars and sheets are solid graphite with a hairline edge.
+- Typography: Inter (self hosted, subset), tabular numerals for every weight, rep, time, distance and pace. Type is the hero and dominates each screen; the most important number (total weight on the set card, distance on the live run) is the biggest thing on screen. Scale at a 430 px wide screen, shrinking with the screen width so nothing clips at 320 px:
+  - Hero number 150 px (up to 196), weight 900, tracking -5%.
+  - Screen title 96 px, weight 900, tracking -4.5%.
+  - Countdown digit about 60% of screen height, weight 900.
+  - Heading and primary button 44 px, weight 900, tracking -3% (30 px when two buttons share a row, 60 to 84 px for the live run Pause).
+  - List value 26 to 36 px, weight 900, tracking -2%.
+  - Section label 12 px, weight 600, tracking +14%, capitals (TIME, DISTANCE, PACE).
+  - Body 17 to 19 px, weight 500 to 600. Caption 13 to 15 px, weight 500. Tab label 13 px, weight 500 (active 700). Inputs stay at least 16 px (iOS zoom rule below).
+- Spacing: scale 4, 8, 16, 24, 32, 48, 64 px. Side margin 28 px (at 430 px wide; may tighten to 20 px at 320 px). List rows 62 to 96 px tall with a hairline between rows.
 - Motion: springy but quick (stiffness ~400, damping ~30), plates slide on, cards expand in place, no gratuitous animation. Respect reduced motion.
 - iPhone details: safe areas, no rubber band scroll on fixed bars, bottom sheet pattern for details, inputs never trigger zoom (16px+), pull down to close sheets.
 - Light mode not required in v1.
+- Provisional: the round 2 boards are concepts, not pixel specs. Screens move to Monolith one at a time (PLAN M1 to M7); until a screen's M item lands it may still show older shapes drawn from the shared tokens.
 
 ## 11. Explicitly out of v1
 Accounts and sync (Supabase later), Apple Health and Apple Watch (Apple only allows these from native apps, so they come in the native phase in PLAN.md LATER), push notifications, social, AI coaching, camera or photo features, Spotify or Apple Music APIs (launch buttons only), native app, GPS tracking with the screen locked (needs the native wrapper later).
@@ -552,20 +568,20 @@ Tests: every flag above on G's split, plus a table of at least 30 day scenarios 
 Read first for every UI item (builder and ux-critic): .design-ref/skills/emil-design-eng/SKILL.md, .design-ref/skills/mobile-native/SKILL.md, .design-ref/skills/frontend-design/SKILL.md; the ux-critic also uses .design-ref/skills/break-ui/SKILL.md. These are local, never commit them. The bar: it should feel like a top App Store app, not a website. Everything lives in one design system: src/ui/motion.ts (springs, durations, easings as tokens) and src/ui/ components. No one off styles.
 ### 23.1 Navigation that feels native
 - Stack screens push in from the right with the previous screen sliding about 30% left and dimming, exactly like iOS. Back reverses it.
-- Back: a round 44 pt glass button top left (blurred translucent surface, thin hairline, chevron icon), plus an interactive edge swipe from the left edge that follows the finger and finishes or cancels by velocity. Both on every pushed screen.
-- Large titles that shrink into a compact centered title in a blurred top bar as you scroll (iOS large title behavior).
-- Tab bar: floating, blurred, with an accent pill that slides between tabs (shared layout animation), icon does a small spring bounce on select. Tab switches crossfade with a 6 to 8 px rise, never a slide.
-- Sheets: spring up from the bottom, drag down to dismiss with velocity, the screen behind scales to about 0.94 with rounded corners and dims (iOS card stack). Nested sheets stack.
+- Back: a 44 pt square back button top left (no blur, no fill or solid graphite, 0 to 4 px corners, chevron icon), plus an interactive edge swipe from the left edge that follows the finger and finishes or cancels by velocity. Both on every pushed screen.
+- Large titles that shrink into a compact centered title in a solid graphite top bar with a hairline bottom edge as you scroll (iOS large title behavior).
+- Tab bar: docked to the bottom edge (above the home indicator), solid graphite with a hairline on top, no blur, no capsule. Labels 13 px: the active tab is white, weight 700, with a 20 x 3 px ice blue bar above it that slides between tabs (shared layout animation) and lands with a small spring; inactive tabs are secondary text (never under 4.5 to 1). Icons are optional; if shown they follow the same colors. Tab switches crossfade with a 6 to 8 px rise, never a slide.
+- Sheets: spring up from the bottom, drag down to dismiss with velocity, the screen behind scales to about 0.94 and dims (iOS card stack; corners stay square, 0 to 4 px). A sheet is solid graphite with a hairline top edge and 0 to 4 px top corners, no blur. Nested sheets stack.
 - Shared elements: exercise thumbnail grows into the exercise view hero, a plan day card expands into the workout, the Start button morphs into the workout header. View Transitions API where Safari supports it, otherwise motion layout animations.
 ### 23.2 Buttons and controls
-- Primary: accent pill, 52 to 56 pt tall, bold label, subtle top highlight and soft accent glow, press scales to 0.97 instantly. Secondary: glass. Tertiary: text only. Destructive: red text, confirm with undo instead of dialogs where possible.
+- Primary: full width heavy text (Inter 900, 44 px, 30 px when two share a row) over a 4 px ice blue bar, hit area at least 56 pt tall; no pill, no fill, no glow. Pressed: the text turns ice blue and the bar thickens to 8 px, and the press scales to 0.97 instantly. Disabled: `#55585D` text over a `#2E3034` bar. Secondary: heavy text over a 1 px white 35% line. Hold to end: 15 px text over a 3 px track that fills ice blue while held. Chips: 1 px white 28% outline, 2 px corners, 14 px text. Tertiary: text only. Destructive: red text, confirm with undo instead of dialogs where possible.
 - Every control: 44 pt minimum hit area, pressed state within one frame, disabled state that still explains why ("Set the starting weight first").
 - One icon family everywhere (Lucide or Phosphor, MIT licensed, one stroke weight), never emoji as icons.
 - Haptics: a tiny tick on set check, plate add, wheel detents and tab switch. iPhone Safari 18+ via the native switch input haptic technique, Android via navigator.vibrate(8). Setting to turn off.
 ### 23.3 Motion that rewards
 - Numbers roll like an odometer when weight or reps change. Rest timer is a smooth ring that counts down.
-- Set check: the check draws in, the row fills with the accent from left to right, haptic tick. A PR gets a short accent burst and "New best" chip. Finishing a workout: summary cards cascade in with count up stats.
-- Skeletons, never spinners. Empty states get a simple original illustration and one clear action.
+- Set check: the check draws in, the row fills with the accent from left to right, haptic tick. A PR gets a short accent burst and "New best" chip. Finishing a workout: summary rows cascade in with count up stats.
+- Skeletons, never spinners. Empty states get a big plain headline, one short line and one clear action; an illustration is optional and, if used, is flat, square and drawn only in token colors.
 - Durations 150 to 300 ms with springs; celebrations up to 900 ms. 60 fps on iPhone. prefers-reduced-motion swaps movement for crossfades.
 ### 23.4 Proof
 - Each UI item's report includes Playwright screen recordings (video) of its main flow on iPhone SE and iPhone 17 Pro Max in reports/videos/, plus before and after screenshots. The ux-critic watches them and scores feel 1 to 10; anything under 8 goes back to the builder.

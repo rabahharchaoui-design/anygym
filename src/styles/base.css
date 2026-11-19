@@ -23,17 +23,17 @@ body {
   overflow: clip;
 }
 
-/* The graphite gradient behind everything (PLAN 3.5t), so no stray band can ever show a different
-   color: the strip under the status bar is the top of the gradient, the bottom edge its near black. */
+/* Flat graphite behind everything (Monolith, SPEC 10), so no stray band can ever show a different
+   color: the strip under the status bar and the bottom edge are the same graphite. */
 html {
-  background: var(--bg-screen) var(--bg);
+  background: var(--bg);
   color-scheme: dark;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 body {
-  background: var(--bg-screen) var(--bg);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   font-size: var(--text-base);
