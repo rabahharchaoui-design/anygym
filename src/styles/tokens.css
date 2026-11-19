@@ -32,7 +32,7 @@
   --hairline: rgb(255 255 255 / 0.12); /* the 1 px divider */
   --hairline-strong: rgb(255 255 255 / 0.28); /* a chip outline */
   --line-secondary: rgb(255 255 255 / 0.35); /* the underline of a secondary button */
-  --divider: 1px solid var(--hairline);
+  --divider: var(--line-hair) solid var(--hairline);
   --text: #ffffff;
   --text-2: #a3a6ab; /* secondary text, 7.6 to 1 on graphite */
   --text-3: #64676c; /* decoration and art only: under 4.5 to 1, never words a user must read */
@@ -62,7 +62,7 @@
   --text-mono-hero: clamp(96px, 34.9vw, 196px); /* 150 at 430 */
   --text-mono-title: clamp(64px, 22.3vw, 96px); /* 96 at 430 */
   --text-mono-heading: clamp(32px, 10.2vw, 44px); /* 44 at 430, the primary button too */
-  --text-mono-heading-pair: 30px; /* two buttons share a row */
+  --text-mono-heading-pair: clamp(24px, 7vw, 30px); /* two buttons share a row: 30 at 430 */
   --text-mono-pause: clamp(60px, 19.5vw, 84px);
   --text-mono-value: clamp(26px, 7.4vw, 32px); /* list values, 26 to 36 */
   --text-mono-label: 12px; /* section labels, capitals */
@@ -93,7 +93,13 @@
   --radius-sm: 2px; /* chips, small frames, inputs */
   --radius-md: 4px;
   --radius-lg: 4px; /* what used to be a card */
-  --tap: 48px; /* minimum touch target */
+  --tap: 48px; /* a comfortable touch target */
+  --tap-min: 44px; /* the least any control may be (SPEC 23.2) */
+  --tap-lg: 56px; /* the screen's one big action */
+  /* the lines under the buttons (style sheet): primary 4 px, 8 px while pressed */
+  --bar-primary: 4px;
+  --bar-pressed: 8px;
+  --line-hair: 1px; /* a hairline: dividers, the secondary button line, bar edges */
 
   /* safe areas: the only way the app reads them (never raw env()). The floors are set by
      ui/safeArea.ts when an iPhone reports no top inset while the page is drawn under the status

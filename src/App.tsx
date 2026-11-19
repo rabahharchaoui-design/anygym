@@ -40,6 +40,8 @@ const RunScreen = lazy(loadRun);
 // A run's detail and the records load when opened: they bring the map and the share card.
 const RunDetail = lazy(() => import('./screens/history/RunDetail').then((m) => ({ default: m.RunDetail })));
 const RunRecords = lazy(() => import('./screens/history/RunRecords').then((m) => ({ default: m.RunRecords })));
+// PLAN M1: the Monolith pieces preview, its own chunk.
+const MonolithDevScreen = lazy(() => import('./screens/dev/MonolithDevScreen').then((m) => ({ default: m.MonolithDevScreen })));
 const MusclesDevScreen = lazy(() => import('./screens/dev/MusclesDevScreen').then((m) => ({ default: m.MusclesDevScreen })));
 
 export function App() {
@@ -58,6 +60,7 @@ export function App() {
         {DEV_TOOLS && <Route path="dev/loads" element={<LoadsDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/info" element={<InfoDevScreen />} />}
         {DEV_TOOLS && <Route path="dev/ui" element={<UiDevScreen />} />}
+        {DEV_TOOLS && <Route path="dev/monolith" element={<Suspense fallback={null}><MonolithDevScreen /></Suspense>} />}
         {DEV_TOOLS && (
           <Route
             path="dev/muscles"

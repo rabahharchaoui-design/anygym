@@ -81,7 +81,6 @@ export const RADIUS_ALLOW: string[] = [
   'src/screens/workout/UpNext.module.css',
   'src/screens/workout/WorkoutDock.module.css',
   'src/screens/workout/WorkoutHeader.module.css',
-  'src/ui/Button.module.css',
   'src/ui/Chip.module.css',
   'src/ui/ChoiceCard.module.css',
   'src/ui/EmptyState.module.css',

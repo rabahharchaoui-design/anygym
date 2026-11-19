@@ -1,122 +1,139 @@
+/* The app's buttons (SPEC 23.2, Monolith style sheet): heavy text over a line, no fill, no pill, no
+   glow. The line is drawn inside the button's own box (it thickens upward when pressed), so a press
+   never moves anything around it. */
 .button {
+  --line: 0px;
+  --line-color: transparent;
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 48px;
-  min-width: var(--tap);
-  padding: 0 var(--space-5);
-  border-radius: var(--radius-pill);
+  min-height: var(--tap);
+  min-width: var(--tap-min);
+  padding: var(--space-2) 0 var(--space-4);
+  border-radius: var(--radius-none);
+  background: none;
+  color: var(--text);
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
-  line-height: 1.15;
-  text-align: center;
+  font-weight: var(--weight-heavy);
+  font-size: var(--text-mono-heading-pair);
+  letter-spacing: var(--track-heading);
+  line-height: 1.05;
+  text-align: left;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
   transition:
-    transform 160ms var(--ease-out),
-    opacity 160ms var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.button::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--line);
+  background: var(--line-color);
+  transition: height var(--dur-fast) var(--ease-out);
+  pointer-events: none;
 }
 
 /* 0.97 on the first frame of the press; the ease out runs only on release. */
+.button:active:not(:disabled),
+.button:active:not(:disabled)::after {
+  transition-duration: 0ms;
+}
+
 .button:active:not(:disabled) {
   transform: scale(var(--press-scale));
-  transition-duration: 0ms;
 }
 
 .button[data-block] {
   width: 100%;
+  justify-content: flex-start;
 }
 
 .button[data-size='lg'] {
-  min-height: 56px;
-  font-size: clamp(18px, 5vw, 20px);
+  min-height: var(--tap-lg);
+  font-size: var(--text-mono-heading);
 }
 
 .label {
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: 6px 0;
 }
 
-/* primary: accent pill, subtle top highlight, soft accent glow */
+/* primary: heavy white text over a 4 px ice blue bar; pressed, the text turns ice blue and the bar 8 px */
 .button[data-variant='primary'] {
-  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 55%);
-  color: var(--on-accent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--white) 55%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--black) 8%, transparent),
-    var(--accent-glow);
+  --line: var(--bar-primary);
+  --line-color: var(--accent);
 }
 
 .button[data-variant='primary']:active:not(:disabled) {
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--white) 40%, transparent),
-    0 2px 10px color-mix(in srgb, var(--accent) 20%, transparent);
+  --line: var(--bar-pressed);
+  color: var(--accent);
 }
 
-/* secondary: glass */
+/* secondary: heavy text over a 1 px white 35% line; pressed, the text dims */
 .button[data-variant='secondary'] {
-  background: color-mix(in srgb, var(--white) 7%, transparent);
-  border: 1px solid var(--glass-line);
-  color: var(--text);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent);
+  --line: var(--line-hair);
+  --line-color: var(--line-secondary);
 }
 
 .button[data-variant='secondary']:active:not(:disabled) {
-  background: color-mix(in srgb, var(--white) 12%, transparent);
-}
-
-/* tertiary: text only */
-.button[data-variant='tertiary'] {
   color: var(--text-2);
-  font-family: var(--font-body);
-  font-weight: 600;
-  padding: 0 var(--space-3);
 }
 
-.button[data-variant='tertiary']:active:not(:disabled) {
-  opacity: var(--press-dim);
+/* quiet and destructive: text only, at body size */
+.button[data-variant='quiet'],
+.button[data-variant='destructive'] {
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-mono-body);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.button[data-variant='quiet'] {
+  color: var(--text-2);
 }
 
 /* destructive: red text, undo instead of dialogs */
 .button[data-variant='destructive'] {
   color: var(--red-text);
-  font-family: var(--font-body);
-  font-weight: 600;
 }
 
+.button[data-variant='quiet']:active:not(:disabled),
+.button[data-variant='destructive']:active:not(:disabled) {
+  opacity: var(--press-dim);
+}
+
+/* disabled: dim text over a dim bar (the reason sits under it) */
 .button:disabled {
   cursor: default;
-  opacity: 0.45;
-  box-shadow: none;
+  color: var(--text-disabled);
 }
 
-.button[data-variant='primary']:disabled {
-  background: var(--surface-2);
-  color: var(--text-2);
-  opacity: 1;
+.button[data-variant='primary']:disabled,
+.button[data-variant='secondary']:disabled {
+  --line-color: var(--bar-disabled);
 }
 
 .reason {
   display: block;
-  margin-top: 6px;
+  margin-top: var(--space-2);
   color: var(--text-2);
   font-size: var(--text-sm);
-  text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .button:active:not(:disabled) {
     transform: none;
-    opacity: var(--press-dim);
   }
 }
