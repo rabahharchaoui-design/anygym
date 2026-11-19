@@ -10,7 +10,7 @@ import { planExercise } from '../../data/planExercises';
 import { PLANS } from '../../data/plans';
 import { dayWorkout, firstOpen, upNext, type WorkoutEntry } from '../planWorkout';
 import { PATTERNS, adaptDay, applySwap, finishRows, liveEntries, missingWord, patternOf, requiresOf, revertSwap, slotProgress, supports, swapCandidates, swapLine, swapReason, validatePatterns, workoutIdOf, type PatternFile } from '../swap';
-import catalogDemos from '../../../data/catalog-demos.json';
+import { gApproved } from './fixtures/demoReview';
 
 const CATALOG = new Set((catalog as { exercises: Array<{ id: string }> }).exercises.map((e) => e.id));
 const PLAN_IDS = (planExercises as Array<{ id: string }>).map((e) => e.id);
@@ -20,7 +20,6 @@ const HOTEL = kit(['dumbbells', 'adjustable_bench', 'cable_station', 'treadmill'
 const NOTHING = kit([]);
 const ids = (id: string, gym = FULL, opts = {}) => swapCandidates(SWAP_DATA, id, gym, opts).map(workoutIdOf);
 
-const HAND_CHECKED = (catalogDemos as { exercises: { catalogId: string }[] }).exercises.map((e) => e.catalogId);
 
 describe('data/patterns.json', () => {
   it('is valid: all 17 patterns, every id in the catalog, every plan exercise has a row', () => {
@@ -62,14 +61,13 @@ describe('data/patterns.json', () => {
     expect(at('Pushups')).toBeLessThan(at('Incline_Push-Up'));
   });
 
-  it('every candidate it can show has a photo only through an audited match', () => {
-    // PLAN 3.5a round 2: or a catalog exercise whose photos were checked by hand (data/catalog-demos.json).
-    const eligible = new Set([...EXERCISE_MAP.filter((e) => e.match !== 'none').map((e) => e.catalogId), ...HAND_CHECKED]);
+  it('every candidate it can show has a photo only when G approved it (PLAN D0)', () => {
     for (const ladder of Object.values(PATTERN_FILE.patterns)) {
-      for (const c of ladder.candidates) if (demoFor(workoutIdOf(c))) expect(eligible.has(c.id), c.id).toBe(true);
+      for (const c of ladder.candidates) expect(!!demoFor(workoutIdOf(c)), c.id).toBe(gApproved(c.id));
     }
-    expect(demoFor('Pushups')).toBeNull();
-    expect(demoFor('dumbbell-bench-press')).not.toBeNull();
+    expect(demoFor('Pushups')).not.toBeNull();
+    // G: "Needs better demo": the plan row keeps its exact match but shows no photo until D1.
+    expect(demoFor('dumbbell-bench-press')).toBeNull();
   });
 
   it('thin ladders say why', () => {

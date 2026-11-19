@@ -53,8 +53,9 @@ test.describe('Quick workout builds it for you', () => {
     const errors = watchErrors(page);
     await pastIntake(page);
     const started = Date.now();
-    // 3.5b round 4 (P15): Today opens on the intake's 45; the Strength focus card below is the 30 chip's.
-    await openQuick(page, 30);
+    // 3.5b round 4 (P15): Today opens on the intake's 45. PLAN D0: with G's 99 sure demos the Strength
+    // focus card is a 45 chip card (at 30 the four other styles fill the row).
+    await openQuick(page, 45);
     // PLAN 3.5b: the Strength focus card (its second card, the squat, has a same movement swap; the
     // first card's second move may have none at a full gym now that cards differ by style).
     await page.locator('[data-concept="strength"]').tap();
@@ -87,7 +88,8 @@ test.describe('Quick workout builds it for you', () => {
     await openQuick(page, 30);
     const concepts = page.locator('[data-concept]');
     await expect(concepts).toHaveCount(4);
-    expect(await concepts.evaluateAll((els) => els.map((e) => e.getAttribute('data-concept')))).toEqual(['circuit', 'pump', 'strength', 'armsAbs']);
+    // PLAN D0: with G's 99 sure demos, Strength focus moves to More ideas at 30 and Go easy takes its place.
+    expect(await concepts.evaluateAll((els) => els.map((e) => e.getAttribute('data-concept')))).toEqual(['circuit', 'pump', 'armsAbs', 'easy']);
     await expect(concepts.first()).toContainText('Full body circuit');
     // Every concept card has its mini muscle map.
     await expect(page.getByTestId('mini-map')).toHaveCount(4);
@@ -137,8 +139,9 @@ test.describe('Quick workout builds it for you', () => {
       for (let i = 0; i < total; i++) {
         await expect(eyebrow(page)).toContainText(`${i + 1} of ${total}`);
         await expect(card(page).locator('[data-demo]')).toHaveCount(1);
-        // Dumbbells, a bench or the body only: never a barbell, cable or machine here.
-        expect(await page.getByTestId('deck-name').textContent()).toMatch(/Dumbbell|Crunch|Dead Bug/);
+        // Dumbbells, a bench or the body only: never a barbell, cable or machine here. PLAN D0: G approved
+        // bodyweight moves too (push ups, bridges, sit ups), so the names are checked for what must not be there.
+        expect(await page.getByTestId('deck-name').textContent()).not.toMatch(/Barbell|Cable|Machine|Smith|Lever|Pulldown|EZ/);
         await page.getByTestId('deck-keep').tap();
       }
       await page.getByRole('button', { name: 'Back to the workouts' }).tap();
@@ -149,6 +152,10 @@ test.describe('Quick workout builds it for you', () => {
   test('fewer than 3 sure moves fit: Today says add equipment, the empty state leads with Add equipment, Pick exercises myself opens the picker', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page, []);
+    // PLAN D0: G approved the bodyweight demos, so no gear alone still builds: this person also never
+    // wants any of the 8 sure moves that need no gear.
+    await dbPut(page, { profile: [{ ...PROFILE, dislikes: { never: ['Bodyweight_Squat', 'Pushups', 'Incline_Push-Up', 'Handstand_Push-Ups', 'Single_Leg_Glute_Bridge', 'Butt_Lift_Bridge', 'crunch', 'Sit-Up'] } }] });
+    await page.reload();
     // Today never promises what it cannot build (round 2, B5).
     await expect(page.getByTestId('build-card')).toHaveCount(0);
     await expect(page.getByTestId('build-equipment')).toContainText('Add your equipment to get built workouts');
@@ -170,8 +177,9 @@ test.describe('Quick workout builds it for you', () => {
     test.setTimeout(90_000);
     const errors = watchErrors(page);
     await pastIntake(page);
-    await openQuick(page, 30);
-    // PLAN 3.5b: the Strength focus card, whose second move (the squat) has same movement swaps.
+    // PLAN D0: Strength focus is a 45 chip card now (G's 99 sure demos fill the 30 row with other styles).
+    await openQuick(page, 45);
+    // PLAN 3.5b: the Strength focus card, whose second move has same movement swaps.
     await page.locator('[data-concept="strength"]').tap();
     await expect(page.getByTestId('deck-hint')).toHaveText('Right keeps it, left swaps it.');
     await shotOn(page, '3.5a', 'deck');
@@ -234,8 +242,9 @@ test.describe('Quick workout builds it for you', () => {
   test('Start as is from any card lands in the workout with the deck exactly', async ({ page }) => {
     const errors = watchErrors(page);
     await pastIntake(page);
-    await openQuick(page, 30);
-    // 3.5b round 2: the Strength focus card, whose second move (the squat) has a same movement swap.
+    // PLAN D0: Strength focus is a 45 chip card now.
+    await openQuick(page, 45);
+    // 3.5b round 2: the Strength focus card, whose second move has a same movement swap.
     await page.locator('[data-concept="strength"]').tap();
     const names: string[] = [];
     names.push((await page.getByTestId('deck-name').textContent())!);

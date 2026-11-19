@@ -296,8 +296,11 @@ function ideasOnce(input: QuickInput, deps0: QuickDeps): Ideas {
   return fewer ? { ...owned, fewer } : owned;
 }
 
-/** A pull up hangs your whole bodyweight: Quick offers a pulldown instead, except to 3+ year lifters (B4). */
-const bodyweightHang = hangsBodyweight;
+/**
+ * A pull up hangs your whole bodyweight: Quick offers a pulldown instead, except to 3+ year lifters (B4).
+ * PLAN D0: a band assisted pull up (G approved its demo) still hangs from the bar, so it counts too.
+ */
+const bodyweightHang = (requires: Parameters<typeof hangsBodyweight>[0]) => hangsBodyweight(requires) || (!!requires && requires.some((g) => g.includes('pull_up_bar')));
 
 const barbellOnly = (requires: readonly (readonly string[])[] | null) => !!requires && requires.some((g) => g.every((id) => id === 'barbell_rack'));
 

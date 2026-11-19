@@ -1,0 +1,208 @@
+{
+ "note": "PLAN D0 to D1: the 39 catalog demos G hid in his Nov 19 hand review (data/reviews/demo-review-2026-11-19.json), in the order PLAN D1 replaces them. Each stays hidden (the honest empty state with its text cues) until a better, licensed demo replaces it. Notes are G's own words.",
+ "review": "data/reviews/demo-review-2026-11-19.json",
+ "groups": [
+  {
+   "name": "wrong demo",
+   "ids": [
+    {
+     "id": "Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench",
+     "verdict": "wrong-demo"
+    },
+    {
+     "id": "Cable_Chest_Press",
+     "verdict": "wrong-demo"
+    },
+    {
+     "id": "Calf_Raises_-_With_Bands",
+     "verdict": "wrong-demo"
+    },
+    {
+     "id": "Machine_Bicep_Curl",
+     "verdict": "wrong-demo"
+    },
+    {
+     "id": "Machine_Triceps_Extension",
+     "verdict": "wrong-demo"
+    },
+    {
+     "id": "Natural_Glute_Ham_Raise",
+     "verdict": "wrong-demo"
+    },
+    {
+     "id": "Russian_Twist",
+     "verdict": "wrong-demo"
+    },
+    {
+     "id": "Standing_Leg_Curl",
+     "verdict": "wrong-demo"
+    }
+   ]
+  },
+  {
+   "name": "form critical lifts",
+   "ids": [
+    {
+     "id": "Barbell_Deadlift",
+     "verdict": "fix-cues",
+     "note": "Demo isn’t good. Needs better form"
+    },
+    {
+     "id": "Romanian_Deadlift",
+     "verdict": "fix-cues",
+     "note": "Needs better demo; form is crucial on this"
+    },
+    {
+     "id": "Sumo_Deadlift",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Smith_Machine_Stiff-Legged_Deadlift",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    }
+   ]
+  },
+  {
+   "name": "other fix cues",
+   "ids": [
+    {
+     "id": "Barbell_Lunge",
+     "verdict": "fix-cues",
+     "note": "Needs better demo. Maybe 3 part"
+    },
+    {
+     "id": "Barbell_Walking_Lunge",
+     "verdict": "fix-cues",
+     "note": "Needs like 4 part pictures"
+    },
+    {
+     "id": "Bodyweight_Walking_Lunge",
+     "verdict": "fix-cues",
+     "note": "Needs 4 part pics"
+    },
+    {
+     "id": "Butterfly",
+     "verdict": "fix-cues",
+     "note": "Needs 3 part pics. Better the demo"
+    },
+    {
+     "id": "Cable_Crunch",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Dead_Bug",
+     "verdict": "fix-cues",
+     "note": "Needs 4 part demo"
+    },
+    {
+     "id": "Dumbbell_Bench_Press",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Dumbbell_Bicep_Curl",
+     "verdict": "fix-cues",
+     "note": "Needs like 4 part demo"
+    },
+    {
+     "id": "Dumbbell_Flyes",
+     "verdict": "fix-cues",
+     "note": "Needs better and 3 part demo"
+    },
+    {
+     "id": "Dumbbell_Lunges",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Dumbbell_Rear_Lunge",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Dumbbell_Step_Ups",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Glute_Kickback",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Hanging_Leg_Raise",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Incline_Dumbbell_Flyes",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Internal_Rotation_with_Band",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Leverage_Chest_Press",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Plank",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Pull_Through",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Reverse_Crunch",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Rope_Jumping",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Side_Bridge",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Single-Leg_Leg_Extension",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Smith_Single-Leg_Split_Squat",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Split_Squats",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Standing_Barbell_Calf_Raise",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    },
+    {
+     "id": "Thigh_Adductor",
+     "verdict": "fix-cues",
+     "note": "Needs better demo"
+    }
+   ]
+  }
+ ]
+}

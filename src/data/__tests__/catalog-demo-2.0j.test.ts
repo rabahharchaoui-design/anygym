@@ -1,4 +1,6 @@
 // PLAN 2.0j (1): catalog photos only for exact and variant matches kept by the 2.5 audit.
+// PLAN D0: G's hand review (data/reviews/demo-review-2026-11-19.json) now has the last word on every
+// catalog id it names (all 138): approved is shown, anything else hidden, whatever the audit said.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { demoForPlan, infoForCatalog, infoForPlan, ownerPreviewForCatalog, photoEligibility } from '../exerciseInfo';
@@ -14,6 +16,9 @@ const audit = readFileSync('reports/audit-2.5.md', 'utf8')
 const handChecked = (JSON.parse(readFileSync('data/catalog-demos.json', 'utf8')) as { exercises: { catalogId: string; reason: string }[] }).exercises;
 const keptIds = new Set([...audit.filter((a) => a.verdict === 'keep').map((a) => a.catalogId), ...handChecked.map((e) => e.catalogId)]);
 const rejectedIds = new Set(audit.filter((a) => a.verdict !== 'keep').map((a) => a.catalogId));
+const review = (JSON.parse(readFileSync('data/reviews/demo-review-2026-11-19.json', 'utf8')) as { decisions: Record<string, { verdict: string }> }).decisions;
+/** Shown after D0: G approved it, or G never judged it and the audit kept it. */
+const shownIds = new Set(CATALOG.map((c) => c.id).filter((id) => (review[id] ? review[id].verdict === 'approved' : keptIds.has(id))));
 
 describe('catalog photo eligibility', () => {
   it('the hand checked list only adds catalog exercises no audit rejected, each with its reason', () => {
@@ -29,10 +34,10 @@ describe('catalog photo eligibility', () => {
     expect(keptIds.size).toBeGreaterThan(30);
   });
 
-  it('every catalog id: photos only when the audit kept it', () => {
+  it('every catalog id: photos only when G approved it (D0), else when the audit kept it', () => {
     for (const e of CATALOG) {
       const info = infoForCatalog(e.id);
-      const kept = keptIds.has(e.id);
+      const kept = shownIds.has(e.id);
       expect(photoEligibility(e.id) !== 'none', e.id).toBe(kept);
       expect(!!info.demo, e.id).toBe(kept);
       expect(info.match === 'exact', `${e.id} never a synthesized exact`).toBe(kept && photoEligibility(e.id) === 'exact');
@@ -41,16 +46,19 @@ describe('catalog photo eligibility', () => {
 
   it('muscle lists carry no thumbnail for ineligible ids', () => {
     for (const region of ['abs', 'chest', 'upper-back'] as const) {
-      for (const row of exercisesForMuscle(region)) expect(!!row.thumb, row.id).toBe(keptIds.has(row.id));
+      for (const row of exercisesForMuscle(region)) expect(!!row.thumb, row.id).toBe(shownIds.has(row.id));
     }
   });
 
-  it('Plank and Close-Grip_Front_Lat_Pulldown never regain public photos', () => {
-    for (const id of ['Plank', 'Close-Grip_Front_Lat_Pulldown']) {
-      expect(rejectedIds.has(id) || !keptIds.has(id)).toBe(true);
-      expect(infoForCatalog(id).demo).toBeNull();
-      expect(photoEligibility(id)).toBe('none');
-    }
+  it('Plank stays hidden (G: fix cues); Close-Grip_Front_Lat_Pulldown is shown only because G approved it (D0)', () => {
+    expect(review['Plank']!.verdict).toBe('fix-cues');
+    expect(infoForCatalog('Plank').demo).toBeNull();
+    expect(photoEligibility('Plank')).toBe('none');
+    // The 2.5 audit rejected it; G's hand review on Nov 19 approved its photos, and his verdict wins.
+    expect(rejectedIds.has('Close-Grip_Front_Lat_Pulldown')).toBe(true);
+    expect(review['Close-Grip_Front_Lat_Pulldown']!.verdict).toBe('approved');
+    expect(infoForCatalog('Close-Grip_Front_Lat_Pulldown').demo).not.toBeNull();
+    // A plan row is never pointed at another exercise: the rows the audit set to none stay without photos.
     for (const p of ['plank', 'elbow-plank', 'narrow-grip-lat-pulldown']) {
       expect(infoForPlan(p).demo).toBeNull();
       expect(demoForPlan(p)).toBeNull();
