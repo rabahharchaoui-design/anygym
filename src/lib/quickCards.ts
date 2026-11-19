@@ -13,6 +13,7 @@ import { type Muscle, muscleWord, patternTargets } from './order';
 import { type Pattern, requiresOf, workoutIdOf } from './swap';
 import { TIRED_MS, leavesOut, mainWords, muscleRestLine, restedLine, targetsOf, trainedWithin, wordList } from './quickWhy';
 import { cap } from './words';
+import { type LoggedWorkout, type RecoveryGroup, type RecoveryState, type TargetRecovery, lastTrainedGroups, targetRecovery } from './recovery';
 
 /** The fresh concept's pool, big moves first; only the patterns that train no recent muscle stay. */
 export const FRESH_POOL: Pattern[] = ['squat', 'hinge', 'horizontal push', 'horizontal pull', 'vertical push', 'vertical pull', 'lunge', 'glutes', 'lateral delt', 'chest isolation', 'rear delt', 'biceps', 'triceps', 'quads isolation', 'hamstrings isolation', 'calves', 'core'];
@@ -203,4 +204,89 @@ export function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
     });
   }
   return out;
+}
+
+// ---------------------------------------------------------------- target menu (PLAN Q2, SPEC 20.3)
+// Replaces the 3 concept cards once the new screen reads it (PLAN Q3); until then the cards above stay
+// as they are. Recovery facts come only from src/lib/recovery.
+
+/** The eight targets, in the menu's base order. */
+export const QUICK_TARGETS = ['best', 'push', 'pull', 'legs', 'chest', 'back', 'full', 'abs'] as const;
+export type QuickTargetId = (typeof QUICK_TARGETS)[number];
+export type TrainTargetId = Exclude<QuickTargetId, 'best'>;
+
+export const TARGET_TITLE: Readonly<Record<QuickTargetId, string>> = { best: 'Best for today', push: 'Push', pull: 'Pull', legs: 'Legs', chest: 'Chest', back: 'Back', full: 'Full body', abs: 'Abs' };
+
+/** Each target's primary groups: what recovery checks before calling it fresh. */
+export const TARGET_GROUPS: Readonly<Record<TrainTargetId, readonly RecoveryGroup[]>> = {
+  push: ['chest', 'shoulders'],
+  pull: ['back'],
+  legs: ['legs'],
+  chest: ['chest'],
+  back: ['back'],
+  full: ['legs', 'chest', 'back'],
+  abs: ['abs'],
+};
+
+/** The line Best for today shows with no history (it is Full body then). */
+export const NO_HISTORY_LINE = 'Log a workout and I will steer you.';
+/** Abs as a 5 minute toggle on any other workout. */
+export const ABS_FINISHER = { label: 'Add abs finisher', minutes: 5 } as const;
+/** The small link to the old picker. */
+export const BUILD_MY_OWN = 'Build my own';
+
+export type TargetEntry = {
+  id: QuickTargetId;
+  title: string;
+  /** Best for today: the target it builds. Any other: itself. */
+  builds: TrainTargetId;
+  state: RecoveryState;
+  /** At most 2 in the menu; Best for today never carries one. */
+  recommended: boolean;
+  /** "Trained today", "Trained yesterday": recent targets only, from the log. */
+  fact: string | null;
+  /** Recent: shown dimmed, never blocked. */
+  dimmed: boolean;
+  /** Best for today with no history: NO_HISTORY_LINE. Otherwise null. */
+  line: string | null;
+  /** The "Add abs finisher" toggle is offered (every target but Abs). */
+  absFinisher: boolean;
+};
+
+export type TargetMenu = { targets: TargetEntry[]; buildMyOwn: typeof BUILD_MY_OWN };
+
+const TRAIN_TARGETS = QUICK_TARGETS.filter((t): t is TrainTargetId => t !== 'best');
+
+/**
+ * The Quick target menu from the log: Best for today first, then the other seven in base order with
+ * fresh ones up and recent ones down. Best for today builds the fresh target rested longest (never Abs
+ * alone; none fresh: the one rested longest); with no history it builds Full body with NO_HISTORY_LINE.
+ */
+export function targetMenu(log: readonly LoggedWorkout[], now: number): TargetMenu {
+  const recovery = targetRecovery(TRAIN_TARGETS.map((id) => ({ id, groups: TARGET_GROUPS[id] })), lastTrainedGroups(log, now), now);
+  const entry = (r: TargetRecovery<TrainTargetId>): TargetEntry => ({
+    id: r.id,
+    title: TARGET_TITLE[r.id],
+    builds: r.id,
+    state: r.state,
+    recommended: r.recommended,
+    fact: r.fact,
+    dimmed: r.state === 'recent',
+    line: null,
+    absFinisher: r.id !== 'abs',
+  });
+  const rest = [...recovery.filter((r) => r.state !== 'recent'), ...recovery.filter((r) => r.state === 'recent')].map(entry);
+  const pick = bestPick(recovery);
+  const best: TargetEntry = pick
+    ? { ...entry(pick), id: 'best', title: TARGET_TITLE.best, recommended: false, dimmed: false }
+    : { id: 'best', title: TARGET_TITLE.best, builds: 'full', state: 'unknown', recommended: false, fact: null, dimmed: false, line: NO_HISTORY_LINE, absFinisher: true };
+  return { targets: [best, ...rest], buildMyOwn: BUILD_MY_OWN };
+}
+
+/** What Best for today builds, or null with no history. Fresh first, then the longest rested; ties keep base order. */
+function bestPick(recovery: readonly TargetRecovery<TrainTargetId>[]): TargetRecovery<TrainTargetId> | null {
+  const pool = recovery.filter((r) => r.id !== 'abs' && r.state !== 'unknown');
+  if (!pool.length) return null;
+  const rank = (r: TargetRecovery) => (r.state === 'fresh' ? 0 : 1);
+  return [...pool].sort((a, b) => rank(a) - rank(b) || (a.restedMs === b.restedMs ? 0 : b.restedMs! - a.restedMs!))[0]!;
 }
