@@ -117,12 +117,13 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
 export const readLive = (run: LiveRun): TrackerReading => readTracker(run.tracker);
 
 /**
- * How far the phone's own timestamp may lag behind the clock and still be used. PLAN 4.4d: 10 s,
- * was 2 s. After a stall (a busy screen) the held fixes arrive together 2 to 4 s late; given the
- * arrival time they shared one time and were dropped as going backwards. The clock is safe either
+ * How far the phone's own timestamp may lag behind the clock and still be used. PLAN 4.4d: 5 s, was
+ * 2 s. After a stall (a busy screen) the held fixes arrive together 2 to 4 s late; given the arrival
+ * time they shared one time and were dropped as going backwards. Not more: a watch started again may
+ * hand back an older cached position, which must not take its old time. The clock is safe either
  * way: the time the face showed is never taken back (fix `now`, countShown).
  */
-export const FIX_LAG_MS = 10_000;
+export const FIX_LAG_MS = 5000;
 /** ...and how far it may be ahead (two clocks never agree exactly). */
 const FIX_LEAD_MS = 500;
 

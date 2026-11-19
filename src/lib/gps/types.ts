@@ -18,9 +18,10 @@ export type RejectReason = 'no-time' | 'time-backwards' | 'bad-position' | 'accu
 
 /**
  * Why a good point was not added to the track: the run is paused by hand, the runner stands still,
- * or (PLAN 4.4d) the step is shorter than the estimate's wobble and waits for the next one.
+ * or (PLAN 4.4d) the step is shorter than the estimate's wobble and waits for the next one, or the
+ * fix is surprising and waits for the next one to say whether it was real ('checking').
  */
-export type HeldReason = 'paused' | 'still' | 'short';
+export type HeldReason = 'paused' | 'still' | 'short' | 'checking';
 
 /**
  * A break in the drawn line between two recorded points (their timestamps): a GPS gap, or a pause by

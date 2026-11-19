@@ -172,7 +172,8 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
   }
   // The fix moves the estimate (PLAN 4.4d); a new stretch (the first fix, after a pause or a gap) starts one.
   const stepped = state.est && from && prev && v.link === 'step' ? stepEstimate(state.est, v.point, state.still && state.stopped, state.still) : { kind: 'ok' as const, est: startEstimate(v.point) };
-  if (stepped.kind === 'jump') return { state: { ...state, est: stepped.est }, event: { type: 'rejected', reason: 'jump' } };
+  // A surprising fix waiting for the next one is held, not dropped: the dot may show it (PLAN 4.4d).
+  if (stepped.kind === 'jump') return { state: { ...state, est: stepped.est }, event: stepped.est.pending === v.point ? { type: 'held', reason: 'checking' } : { type: 'rejected', reason: 'jump' } };
   let est = stepped.est;
   const p = estimatePoint(est, v.point.speed);
 

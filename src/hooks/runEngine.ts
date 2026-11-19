@@ -49,6 +49,11 @@ let watchedAt = 0;
  * exact spot (where the dot is) is not taken as a position again: only that first callback is dropped.
  */
 let replayOf: { lat: number; lng: number } | null = null;
+/**
+ * The last position exactly as the phone gave it (PLAN 4.4d): the dot (`here`) is the estimate now,
+ * not the phone's position, so a replayed position is recognised against this one.
+ */
+let lastRaw: { lat: number; lng: number } | null = null;
 let saveTimer: number | null = null;
 let tickTimer: number | null = null;
 /** The voice coach's settings for the run that is going on (SPEC 12.4). */
@@ -121,13 +126,18 @@ function startWatch() {
       earlyTrouble = null;
       const { latitude, longitude, accuracy, speed } = pos.coords;
       const now = Date.now();
+      const raw0 = lastRaw;
+      lastRaw = { lat: latitude, lng: longitude };
       // The diagnostics log keeps every position as the phone gave it (PLAN 4.4d 2).
       const raw = { lat: latitude, lng: longitude, accuracy, speed: speed ?? null, stamp: pos.timestamp };
       // Only the first callback after the restart can be the replay (PLAN 4.6a 4): a runner standing
       // on that spot keeps reporting it, and those fixes must end GPS lost.
       const replay = replayOf !== null && replayOf.lat === latitude && replayOf.lng === longitude;
       replayOf = null;
-      if (replay) return runDiagLog.fix(now, raw, 'watch:replay-dropped', false);
+      if (replay) {
+        lastRaw = raw0;
+        return runDiagLog.fix(now, raw, 'watch:replay-dropped', false);
+      }
       // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
       if (!state.live) return runDiagLog.early(now, raw);
       const point = { lat: latitude, lng: longitude, accuracy, speed, t: fixTime(pos.timestamp, now) };
@@ -149,7 +159,7 @@ function every5s() {
   save();
   if (state.live && navigator.geolocation && document.visibilityState === 'visible' && rewatchDue(state.live, Date.now(), watchedAt)) {
     startWatch();
-    replayOf = state.live.here && { lat: state.live.here.lat, lng: state.live.here.lng };
+    replayOf = lastRaw;
   }
 }
 
