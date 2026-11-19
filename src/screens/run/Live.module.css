@@ -67,6 +67,15 @@
   touch-action: none;
 }
 
+/* Read by VoiceOver only (the cycle button's hint). */
+.hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 .stats {
   width: 100%;
   display: flex;
@@ -270,7 +279,8 @@
 }
 
 .dotHit {
-  width: 36px;
+  /* 44 pt wide at least (PLAN 4.4b MINOR): the page dots are a touch target. */
+  width: 44px;
   height: 48px;
   display: grid;
   place-items: center;

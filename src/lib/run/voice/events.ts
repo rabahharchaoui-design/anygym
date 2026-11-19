@@ -28,12 +28,13 @@ export function runCues(before: LiveRun, after: LiveRun): VoiceEvent[] {
   else if (a.status === 'running' && b.status === 'auto-paused') out.push({ type: 'auto-paused' });
   else if (a.status === 'auto-paused' && b.status === 'running') out.push({ type: 'resumed' });
 
-  // A split: the newest one only, should a long step finish several.
-  if (b.splits.full.length > a.splits.full.length) {
-    const last = b.splits.full[b.splits.full.length - 1]!;
-    const movingSec = b.splits.full.reduce((sum, s) => sum + s.sec, 0);
-    const pace = last.gap ? null : splitPace(last);
-    out.push({ type: 'split', count: b.splits.full.length, unit: after.unit, movingSec, paceSec: pace === null ? null : pace * unitMeters(after.unit) });
+  // Every split this step finished (a long step across a gap may finish several), in order. A split
+  // that holds a GPS gap is said by its count only: its time is not known (PLAN 4.4b 10).
+  for (let i = a.splits.full.length; i < b.splits.full.length; i++) {
+    const split = b.splits.full[i]!;
+    const movingSec = b.splits.full.slice(0, i + 1).reduce((sum, s) => sum + s.sec, 0);
+    const pace = split.gap ? null : splitPace(split);
+    out.push({ type: 'split', count: i + 1, unit: after.unit, movingSec: split.gap ? null : movingSec, paceSec: pace === null ? null : pace * unitMeters(after.unit) });
   }
 
   // Halfway and the goal itself, once each (the crossing).

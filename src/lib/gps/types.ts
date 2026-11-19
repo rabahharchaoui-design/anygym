@@ -39,6 +39,9 @@ export const AUTO_PAUSE_SEC = 8;
  */
 export const STILL_RADIUS_M = STILL_SPEED_MPS * AUTO_PAUSE_SEC;
 
+/** PLAN 4.4b (13): the standing circle is at least this share of the fixes' stated accuracy. */
+export const STILL_ACCURACY_SHARE = 0.5;
+
 /**
  * No good point for longer than this is a gap. The phone reports about once a second, so two or
  * three dropped fixes under trees stay far below it, while 15 missing fixes in a row is a real loss

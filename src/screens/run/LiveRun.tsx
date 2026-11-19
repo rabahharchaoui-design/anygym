@@ -21,7 +21,10 @@ import { RunSettingsSheet } from './RunSheets';
 import styles from './Live.module.css';
 import iv from './Intervals.module.css';
 
-type Props = { live: Live; wake: EngineState['wake']; saveFailed: boolean; reduceMotion: boolean; onHide: () => void };
+type Props = { live: Live; wake: EngineState['wake']; saveFailed: boolean; autosaveFailed: boolean; reduceMotion: boolean; onHide: () => void };
+
+/** The run whose failed save was already said (once per run, also across hiding the screen). */
+let toldSaveFor: string | null = null;
 
 function noteOf(live: Live, status: RunStatus): LiveNote {
   if (status === 'paused') return { tone: 'paused', text: live.closed ? 'Paused while the app was closed' : 'Paused' };
@@ -40,7 +43,7 @@ function noteOf(live: Live, status: RunStatus): LiveNote {
  * dots at the top. The bottom controls never move. After 10 seconds with no touch the screen dims
  * to near black; the first tap only wakes it.
  */
-export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props) {
+export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, onHide }: Props) {
   // The time counts second by second between positions, from one tick (PLAN 4.4a).
   const reading = useLiveReading(live);
   const paused = reading.status === 'paused';
@@ -82,6 +85,12 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
   useEffect(() => {
     if (saveFailed) setToast({ id: Date.now(), text: 'The run could not be saved. Hold End to try again.' });
   }, [saveFailed]);
+  // PLAN 4.4b (3): a save during the run failed. Said once per run; the engine keeps trying.
+  useEffect(() => {
+    if (!autosaveFailed || toldSaveFor === live.id) return;
+    toldSaveFor = live.id;
+    setToast({ id: Date.now(), text: 'The run could not be saved just now. AnyGym keeps trying.' });
+  }, [autosaveFailed, live.id]);
 
   // The pages: one strip, two screens wide. It follows the finger (no transition) and settles on a
   // page with the app's page spring (CSS, on the compositor; tokens mirror ui/motion PAGE_SPRING).
@@ -189,7 +198,11 @@ export function LiveRun({ live, wake, saveFailed, reduceMotion, onHide }: Props)
         <div className={styles.strip} ref={strip}>
           <div className={styles.page} aria-hidden={page !== 0} style={{ paddingTop: inset.top, paddingBottom: inset.bottom }} {...swipe}>
             {effort && <div className={iv.tint} data-effort={effort} data-testid="interval-tint" aria-hidden="true" />}
-            <button type="button" className={styles.cycle} disabled={locked || page !== 0 || !!effort} aria-label="Show the next number big" data-testid="live-cycle" onClick={cycle}>
+            <button type="button" className={styles.cycle} disabled={locked || page !== 0 || !!effort} aria-describedby="live-cycle-hint" data-testid="live-cycle" onClick={cycle}>
+              {/* PLAN 4.4b (8): the numbers are the button's name (VoiceOver reads them, the interval ring too); what it does is its hint. */}
+              <span id="live-cycle-hint" className={styles.hint} aria-hidden="true">
+                Shows the next number big
+              </span>
               <LiveStats reading={reading} unit={live.unit} big={big} note={noteOf(live, reading.status)} goal={goalProgress(live.goal, reading, live.unit)} paused={paused} intervals={blocks} />
             </button>
           </div>

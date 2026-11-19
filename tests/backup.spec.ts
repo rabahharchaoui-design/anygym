@@ -164,6 +164,20 @@ test('a file that is not a backup shows one plain sentence, and a workout in pro
   expect(errors).toEqual([]);
 });
 
+test('PLAN 4.4b (1): a run in progress blocks restore too, and the run stays', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('./#/settings');
+  await expect(page.getByTestId('restore')).toBeVisible();
+  await dbPut(page, { runs: [{ id: 'live-run', startedAt: Date.now(), type: 'free', movingSec: 10, elapsedSec: 12, distanceM: 30, points: [], gaps: [], splits: [] }] });
+  const tables = Object.fromEntries(['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones'].map((t) => [t, []]));
+  const good = JSON.stringify({ format: 'anygym-backup-v1', schemaVersion: 6, appVersion: '0.1.0', exportedAt: 1, tables, drafts: {} });
+  await page.getByTestId('restore-file').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(good) });
+  await expect(page.getByTestId('import-error')).toHaveText('Finish your run first, then restore.');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect((await dbAll<{ id: string }>(page, 'runs')).map((r) => r.id)).toEqual(['live-run']);
+  expect(errors).toEqual([]);
+});
+
 async function seedSix(page: Page, lastBackupAt?: number) {
   await page.goto('./');
   await expect.poll(async () => (await dbAll(page, 'gyms')).length).toBeGreaterThan(0);
