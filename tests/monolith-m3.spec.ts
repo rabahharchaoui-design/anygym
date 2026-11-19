@@ -151,6 +151,9 @@ async function clipping(page: Page, scope: string): Promise<string[]> {
   }, scope);
 }
 
+/** No clipping once the springs have settled (a record card grows in from nothing as it arrives). */
+const noClipping = (page: Page, scope: string) => expect.poll(() => clipping(page, scope), { timeout: 5000 }).toEqual([]);
+
 /** At least 44 x 44 to tap. */
 async function target44(l: Locator) {
   await l.scrollIntoViewIfNeeded();
@@ -196,7 +199,7 @@ for (const size of SIZES) {
       expect(done.y + done.height).toBeLessThanOrEqual(vh);
       await target44(page.getByTestId('summary-done'));
       await target44(page.getByTestId('run-share-card'));
-      expect(await clipping(page, '[data-testid="run-summary"]')).toEqual([]);
+      await noClipping(page, '[data-testid="run-summary"]');
       await shot(page, 'summary-worst', size.name);
       await checkLayout(page, { scope: '[data-testid="run-summary"]', primary: page.getByTestId('summary-done') });
       await page.getByTestId('summary-splits').locator('li').nth(12).scrollIntoViewIfNeeded();
@@ -205,7 +208,7 @@ for (const size of SIZES) {
       await shot(page, 'summary-worst-end', size.name);
       await page.getByTestId('summary-map').scrollIntoViewIfNeeded();
       await largestText(page);
-      expect(await clipping(page, '[data-testid="run-summary"]')).toEqual([]);
+      await noClipping(page, '[data-testid="run-summary"]');
       await target44(page.getByTestId('summary-done'));
       await shot(page, 'summary-worst-largest-text', size.name);
     });
@@ -213,7 +216,7 @@ for (const size of SIZES) {
     test('run summary: records proved, records none, under 50 m, no route', async ({ page }) => {
       await openSummary(page, 'proved');
       await expect(page.getByTestId('run-summary')).toContainText('Longest run');
-      expect(await clipping(page, '[data-testid="run-summary"]')).toEqual([]);
+      await noClipping(page, '[data-testid="run-summary"]');
       await shot(page, 'summary-records', size.name);
       await page.getByTestId('summary-win').or(page.getByTestId('summary-win-row')).first().scrollIntoViewIfNeeded();
       await shot(page, 'summary-records-cards', size.name);
@@ -223,7 +226,7 @@ for (const size of SIZES) {
       await expect(page.getByTestId('summary-win-row')).toHaveCount(0);
       // One timed split: nothing to be best against, so no mark.
       await expect(page.getByTestId('summary-splits')).not.toContainText('Best');
-      expect(await clipping(page, '[data-testid="run-summary"]')).toEqual([]);
+      await noClipping(page, '[data-testid="run-summary"]');
       await shot(page, 'summary-no-records', size.name);
 
       for (const id of ['short', 'noroute']) {
@@ -232,10 +235,10 @@ for (const size of SIZES) {
         await expect(page.getByTestId('summary-distance')).toHaveCount(0);
         await target44(page.getByTestId('summary-discard'));
         await target44(page.getByTestId('summary-keep'));
-        expect(await clipping(page, '[data-testid="run-summary"]')).toEqual([]);
+        await noClipping(page, '[data-testid="run-summary"]');
         await shot(page, `summary-${id}`, size.name);
         await largestText(page);
-        expect(await clipping(page, '[data-testid="run-summary"]')).toEqual([]);
+        await noClipping(page, '[data-testid="run-summary"]');
         await shot(page, `summary-${id}-largest-text`, size.name);
       }
     });
@@ -251,7 +254,7 @@ for (const size of SIZES) {
       expect(card.x).toBeGreaterThanOrEqual(0);
       expect(card.x + card.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       await target44(page.getByTestId('run-share-go'));
-      expect(await clipping(page, '[data-testid="run-share-sheet"]')).toEqual([]);
+      await noClipping(page, '[data-testid="run-share-sheet"]');
       await page.waitForTimeout(400);
       await shot(page, 'share-sheet', size.name);
       // The card itself, full size, as the share sheet gets it.
@@ -267,7 +270,7 @@ for (const size of SIZES) {
       await page.waitForTimeout(400);
       await expect(page.getByTestId('detail-distance')).toContainText('99.99');
       await expect(page.getByTestId('summary-splits').locator('li')).toHaveCount(30);
-      expect(await clipping(page, 'main')).toEqual([]);
+      await noClipping(page, 'main');
       await shot(page, 'detail-worst', size.name);
       await checkLayout(page);
       await target44(page.getByTestId('run-share-card'));
@@ -275,7 +278,7 @@ for (const size of SIZES) {
       await shot(page, 'detail-worst-end', size.name);
       await page.evaluate(() => scrollTo(0, 0));
       await largestText(page);
-      expect(await clipping(page, 'main')).toEqual([]);
+      await noClipping(page, 'main');
       await shot(page, 'detail-worst-largest-text', size.name);
       for (const id of ['short', 'noroute']) {
         await page.goto(`./#/history/run/${id}`);
