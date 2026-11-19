@@ -1,4 +1,5 @@
 import { Button } from '../../ui/Button';
+import { Divider } from '../../ui/Divider';
 import styles from './MonolithDevScreen.module.css';
 
 /**
@@ -25,6 +26,17 @@ export function MonolithDevScreen() {
           <Button variant="quiet" disabled>
             Skip
           </Button>
+        </div>
+      </section>
+      <section className={styles.block} data-testid="m1-dividers" aria-label="Dividers">
+        <h2 className={styles.label}>Divider</h2>
+        <div className={styles.rows}>
+          {['Gyms', 'Units', 'Weekly goal'].map((row) => (
+            <div key={row}>
+              <p className={styles.row}>{row}</p>
+              <Divider />
+            </div>
+          ))}
         </div>
       </section>
     </main>

@@ -69,3 +69,19 @@ test('M1 button: primary, secondary, quiet, destructive, disabled; 44 pt targets
   await shot(section, 'button-pressed');
   await page.mouse.up();
 });
+
+test('M1 divider: a 1 px hairline of white at 12%, full width of its rows', async ({ page }) => {
+  await openPreview(page);
+  const section = page.getByTestId('m1-dividers');
+  const lines = section.locator('hr');
+  await expect(lines).toHaveCount(3);
+  for (const hr of await lines.all()) {
+    const s = await hr.evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { top: c.borderTopWidth, color: c.borderTopColor, h: el.getBoundingClientRect().height, w: el.getBoundingClientRect().width, hidden: el.getAttribute('aria-hidden') };
+    });
+    expect(s).toMatchObject({ top: '1px', color: 'rgba(255, 255, 255, 0.12)', h: 1, hidden: 'true' });
+    expect(s.w).toBeGreaterThan(page.viewportSize()!.width - 60);
+  }
+  await shot(section, 'divider');
+});

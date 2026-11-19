@@ -46,7 +46,7 @@ Bigger shared pieces that know about AnyGym. Loose files here are app wide: the 
 - `components/hint/`: the one time hints that point at something.
 
 ### src/ui/
-Small generic building blocks with no AnyGym knowledge: `Button`, `Sheet` (the slide up panel), `TopBar`, `TabBar`, `Toast`, `Chip`, `Switch`, `Skeleton` and so on. Also the motion rules (`motion.ts`: every spring and duration), screen navigation (`nav.ts`), haptics and safe area helpers.
+Small generic building blocks with no AnyGym knowledge: `Button` (Monolith: heavy text over a line; primary, secondary, quiet, destructive), `Divider` (the 1 px hairline between rows), `Sheet` (the slide up panel), `TopBar`, `TabBar`, `Toast`, `Chip`, `Switch`, `Skeleton` and so on. `#/dev/monolith?dev` shows the Monolith pieces in every state (PLAN M1). Also the motion rules (`motion.ts`: every spring and duration), screen navigation (`nav.ts`), haptics and safe area helpers.
 - `ui/art/`: the drawn scenes and pictures for empty states and celebrations. Loaded on demand.
 - `ui/art/passport/`: the passport style artwork (leather, paper, ink) used for milestones.
 - `ui/icon3d/`: the 3D icon set (PLAN 3.6i). `Icon3D` draws one icon in a fixed slot, with the line icon while it loads, when it cannot load and when the phone saves data; `manifest.json` (written by `scripts/make-icons-3d.mjs`) lists every exported file in `public/icons3d/`.
