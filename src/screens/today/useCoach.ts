@@ -6,7 +6,7 @@ import { useLive } from '../../hooks/useLive';
 import { coachData, regionWord, weekdaysOf, type CoachData } from '../../db/coachData';
 import { applyChanges, resolveOutcomes } from '../../db/coach';
 import { planById } from '../../data/plans';
-import { coachDay, coachToday, currentEstimate, freshBands, learnedScale, newOutcomes, weeklyRate, type CoachToday, type FreshBand } from '../../lib/coach';
+import { coachDay, coachToday, currentEstimate, freshBands, freshNames, learnedScale, newOutcomes, weeklyRate, type CoachToday, type FreshBand } from '../../lib/coach';
 import type { Region } from '../../lib/bodyArt';
 import type { CoachLiftRow } from '../../db/coachTypes';
 
@@ -17,6 +17,8 @@ export type CoachView = {
   data: CoachData | undefined;
   /** Fresh muscles: regions by band, only from logged sets; empty without any. */
   fresh: Partial<Record<Region, FreshBand>>;
+  /** The same muscles in words, each named the way the exercise that worked it names it (PLAN 4.6a 5). */
+  freshNamed: ReadonlyArray<{ name: string; band: FreshBand }>;
   /** PLAN 3.5g: logged lately, muscles not confirmed (named under the map, never drawn on it). */
   unmapped: readonly string[];
   /** PLAN 3.5g: the coach has (or had today) a card: Today shows no backup reminder. */
@@ -26,6 +28,7 @@ export type CoachView = {
 const NO_NAMES: readonly string[] = [];
 
 const NONE: Partial<Record<Region, FreshBand>> = {};
+const NO_FRESH: ReadonlyArray<{ name: string; band: FreshBand }> = [];
 
 /** What the engine learned for each lift (stored on its row when a change lands). Internal only. */
 export function learnedOf(data: CoachData, now: number): Record<string, CoachLiftRow['learned']> {
@@ -57,6 +60,7 @@ export function useCoach(enabled: boolean): CoachView {
     });
   }, [data]);
   const fresh = useMemo(() => (data ? freshBands(data.fresh, data.now) : NONE), [data]);
+  const freshNamed = useMemo(() => (data ? freshNames(data.fresh, data.now) : NO_FRESH), [data]);
 
   // Codex 3.8 #3: each raise's outcome is judged once and stored, as soon as it can be.
   useEffect(() => {
@@ -82,5 +86,5 @@ export function useCoach(enabled: boolean): CoachView {
   // "nothing yet" of before, and Today must not draw without the coach and let its card come in after
   // the day card (an entrance that waits on script animation frames, and a shift of the page).
   const landed = live.ready && (data !== undefined || !!live.error);
-  return { ready: !enabled || landed, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
+  return { ready: !enabled || landed, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, freshNamed: live.error ? NO_FRESH : freshNamed, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
 }

@@ -7,6 +7,7 @@ import { fixedDaysOf } from '../lib/plan/weekdays';
 import { weekKey } from '../lib/coach/time';
 import type { Region } from '../lib/bodyArt';
 import { REGION_NAMES } from '../lib/bodyArt';
+import { ownShoulderLabel } from '../lib/muscles';
 import { liftKey, type ChangeRecord, type Effort, type Lift, type LiftSession, type TrainedSet } from '../lib/coach';
 import type { RepRange } from '../lib/progression';
 import { patternOf, slotOf, swapCandidates, workoutIdOf } from '../lib/swap';
@@ -73,6 +74,18 @@ export function primaryRegions(exerciseId: string): Region[] {
   const m = infoForExercise(exerciseId).muscles;
   if (!m) return [];
   return (Object.keys(m.shading) as Region[]).filter((r) => m.shading[r] === 'primary');
+}
+
+/** The exercise's own words for its primary shapes that stand for more than one muscle (PLAN 4.6a 5). */
+export function primaryNames(exerciseId: string): Partial<Record<Region, string>> {
+  const m = infoForExercise(exerciseId).muscles;
+  const out: Partial<Record<Region, string>> = {};
+  if (!m) return out;
+  for (const r of primaryRegions(exerciseId)) {
+    const own = ownShoulderLabel(r, { primary: m.primary, secondary: [] });
+    if (own) out[r] = own;
+  }
+  return out;
 }
 
 const nameOf = (id: string): string => planExercise(id)?.name ?? exerciseNameOf(id) ?? id;
@@ -178,7 +191,7 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     const s = sessionOf.get(x.sessionId);
     if (!s || x.kind !== 'work' || x.uncertain || s.startedAt < now - 3 * DAY) continue;
     const regions = primaryRegions(x.exerciseId);
-    if (regions.length) fresh.push({ at: s.startedAt, regions });
+    if (regions.length) fresh.push({ at: s.startedAt, regions, names: primaryNames(x.exerciseId) });
     else unmapped.add(nameOf(x.exerciseId));
   }
 

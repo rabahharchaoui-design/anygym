@@ -1,7 +1,7 @@
 // Fresh muscles (competitor gap 4): which muscles were worked recently, from logged sets only.
 // No recovery science is claimed: it only says how long ago a logged working set last worked a
 // muscle as a main muscle.
-import type { Region } from '../bodyArt';
+import { REGION_NAMES, type Region } from '../bodyArt';
 import { DAY_MS } from './time';
 
 export type FreshBand = 'day' | 'two' | 'three';
@@ -17,7 +17,11 @@ export const FRESH_HOURS: Readonly<Record<FreshBand, readonly [number, number]>>
 /** The legend, in plain words (no recovery claims). */
 export const FRESH_LABELS: Record<FreshBand, string> = { day: 'Under 24 h', two: '1 to 2 days', three: '2 to 3 days' };
 
-export type TrainedSet = { at: number; regions: readonly Region[] };
+/**
+ * `names`: the exercise's own word for a shape that stands for more than one muscle (the front delt
+ * shape is the side delts too: "front delts" after an overhead press, PLAN 4.6a 5).
+ */
+export type TrainedSet = { at: number; regions: readonly Region[]; names?: Partial<Record<Region, string>> };
 
 /** The band one region falls in for a set `ageMs` old, or null when it is 72 h or more. */
 export function bandOf(ageMs: number): FreshBand | null {
@@ -34,6 +38,25 @@ export function freshBands(sets: readonly TrainedSet[], now: number): Partial<Re
   for (const [r, at] of latest) {
     const b = bandOf(now - at);
     if (b) out[r] = b;
+  }
+  return out;
+}
+
+/**
+ * The muscles worked lately in words, each with its band, by the same rule as freshBands: a shape
+ * is named the way the exercise that worked it names it, never a muscle it did not train.
+ */
+export function freshNames(sets: readonly TrainedSet[], now: number): Array<{ name: string; band: FreshBand }> {
+  const latest = new Map<string, number>();
+  for (const s of sets)
+    for (const r of s.regions) {
+      const name = s.names?.[r] ?? REGION_NAMES[r].toLowerCase();
+      latest.set(name, Math.max(latest.get(name) ?? -Infinity, s.at));
+    }
+  const out: Array<{ name: string; band: FreshBand }> = [];
+  for (const [name, at] of latest) {
+    const band = bandOf(now - at);
+    if (band) out.push({ name, band });
   }
   return out;
 }

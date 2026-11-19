@@ -321,7 +321,7 @@ export function TodayScreen() {
           </button>
         )}
         {/* Competitor gap 4: from logged sets only; nothing logged lately, no card. */}
-        {data.ready && !failed && !active && <FreshMuscles bands={coach.fresh} unmapped={coach.unmapped} />}
+        {data.ready && !failed && !active && <FreshMuscles bands={coach.fresh} named={coach.freshNamed} unmapped={coach.unmapped} />}
         <BackupReminder
           show={remind}
           reason={reminderReason({ onlyHere: data.value?.onlyHere ?? 0, lastBackupAt: data.value?.lastBackupAt, now: Date.now() })}

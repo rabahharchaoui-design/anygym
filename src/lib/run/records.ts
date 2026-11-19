@@ -76,8 +76,12 @@ export const recordBoard = (runs: readonly Run[]): RecordSlot[] => RECORD_DEFS.m
 /** Titles of the records this run currently holds. */
 export const titlesHeldBy = (run: Run, runs: readonly Run[]): string[] => recordBoard(runs).filter((s) => s.hit?.runId === run.id).map((s) => s.title);
 
-function faster(deltaSec: number): string {
-  const d = Math.round(deltaSec);
+/**
+ * "3 s faster": the gap between the two clocks as shown (formatElapsed floors both), so the claim
+ * always matches the two times on screen (PLAN 4.6a 6).
+ */
+export function fasterWords(prevSec: number, mineSec: number): string {
+  const d = Math.floor(prevSec) - Math.floor(mineSec);
   if (d < 1) return '';
   return d < 60 ? `${d} s faster` : `${formatElapsed(d)} faster`;
 }
@@ -111,7 +115,7 @@ export function recordMoments(run: Run, runs: readonly Run[], unit: DistanceUnit
     if (gain !== null && (def.distance ? gain < LONGEST_STEP_M : gain < 1)) continue;
     const hero = def.distance ? distanceWithUnit(mine, unit) : formatElapsed(mine);
     const caption = def.distance ? 'Your longest' : 'Best ever';
-    const plus = gain === null ? '' : def.distance ? farther(gain, unit) : faster(gain);
+    const plus = gain === null || prev === null ? '' : def.distance ? farther(gain, unit) : fasterWords(prev, mine);
     const weight = prev === null || !(gain! > 0) ? FIRST_WEIGHT[def.id] : (def.distance ? mine / prev : prev / mine) * RARITY[def.id];
     out.push({
       id: `run:${run.id}:${def.id}`,

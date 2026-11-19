@@ -4,18 +4,23 @@
 // exercise whose muscles are not confirmed is named under the map, never drawn on it. No recovery
 // science is claimed.
 import { useSyncExternalStore } from 'react';
-import { BODIES, REGION_NAMES, type BodyKind, type Region } from '../../lib/bodyArt';
+import { BODIES, type BodyKind, type Region } from '../../lib/bodyArt';
 import { bodyPref } from '../../lib/bodyPref';
 import { FRESH_LABELS, type FreshBand } from '../../lib/coach';
 import styles from './Fresh.module.css';
 
 const BANDS: readonly FreshBand[] = ['day', 'two', 'three'];
 
-/** "Worked under 24 h ago: chest, triceps. 1 to 2 days: quads." for screen readers. */
-export function freshWords(bands: Partial<Record<Region, FreshBand>>): string {
+type Named = ReadonlyArray<{ name: string; band: FreshBand }>;
+
+/**
+ * "Under 24 h: chest, triceps. 1 to 2 days: quads." for screen readers. The names are the exercises'
+ * own (lib/coach freshNames): "front delts" after an overhead press, never "front and side delts".
+ */
+export function freshWords(named: Named): string {
   const parts: string[] = [];
   for (const b of BANDS) {
-    const names = [...new Set((Object.keys(bands) as Region[]).filter((r) => bands[r] === b).map((r) => REGION_NAMES[r].toLowerCase()))];
+    const names = [...new Set(named.filter((n) => n.band === b).map((n) => n.name))];
     if (names.length) parts.push(`${FRESH_LABELS[b]}: ${names.join(', ')}`);
   }
   return parts.join('. ');
@@ -29,7 +34,7 @@ export function unmappedLine(names: readonly string[]): string | null {
   return `Not on the map: ${list} (muscles not confirmed)`;
 }
 
-export function FreshMuscles({ bands, unmapped = [] }: { bands: Partial<Record<Region, FreshBand>>; unmapped?: readonly string[] }) {
+export function FreshMuscles({ bands, named, unmapped = [] }: { bands: Partial<Record<Region, FreshBand>>; named: Named; unmapped?: readonly string[] }) {
   const body = useSyncExternalStore(bodyPref.subscribe, bodyPref.get, () => 'male' as BodyKind);
   const shaded = Object.keys(bands).length > 0;
   if (!shaded && !unmapped.length) return null;
@@ -41,7 +46,7 @@ export function FreshMuscles({ bands, unmapped = [] }: { bands: Partial<Record<R
         <h2 className={styles.title}>Worked lately</h2>
         <p className={styles.sub}>Based on your logged sets</p>
       </div>
-      <div className={styles.stage} role="img" aria-label={`Muscles you worked lately. ${shaded ? `${freshWords(bands)}. ` : ''}Everything else: no logged sets we can map.`}>
+      <div className={styles.stage} role="img" aria-label={`Muscles you worked lately. ${shaded ? `${freshWords(named)}. ` : ''}Everything else: no logged sets we can map.`}>
         {(['front', 'back'] as const).map((view) => {
           const art = BODIES[body][view];
           return (

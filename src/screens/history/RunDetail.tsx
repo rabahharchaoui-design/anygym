@@ -6,7 +6,7 @@ import { Skeleton } from '../../ui/Skeleton';
 import { LoadError } from '../../components/LoadError';
 import { useFinishedRuns } from '../../hooks/useRuns';
 import { useReducedMotionLive } from '../../ui/useReducedMotionLive';
-import { DASHED_NOTE, drawRoute, ghostResult, ghostWords, paceUnit, summaryOf, titlesHeldBy, runVerdict } from '../../lib/run';
+import { DASHED_NOTE, VERDICT_WORDS, drawRoute, ghostResult, ghostWords, paceUnit, summaryOf, titlesHeldBy, runVerdict } from '../../lib/run';
 import { fromRunPoint } from '../../lib/gps';
 import { RouteMap } from '../run/RouteMap';
 import { RunShare } from '../run/RunShare';
@@ -25,7 +25,7 @@ export function RunDetail() {
   const unit = data?.unit ?? 'km';
   const route = useMemo(() => (row ? drawRoute(row.points.map(fromRunPoint), row.gaps) : null), [row]);
   if (all.ready && !all.error && !row) return <Navigate to="/history" replace />;
-  const ok = row ? runVerdict(row) === 'ok' : false;
+  const verdict = row ? runVerdict(row) : null;
   const summary = row ? summaryOf(row, unit) : null;
   const held = row && data ? titlesHeldBy(row, data.runs) : [];
   const ghost = row && data ? ghostWords(ghostResult(row, data.runs), unit) : null;
@@ -37,9 +37,9 @@ export function RunDetail() {
       {all.error ? <LoadError text="Could not load this run" onRetry={all.retry} /> : null}
       {!row || !summary || !route ? (
         !all.error && <Skeleton height={180} radius={20} />
-      ) : !ok ? (
-        <p className={styles.meta} data-testid="run-detail-plain">
-          This run has no distance to show: the phone had no GPS for it.
+      ) : verdict !== 'ok' ? (
+        <p className={styles.meta} data-testid="run-detail-plain" data-verdict={verdict ?? undefined}>
+          {VERDICT_WORDS[verdict ?? 'no-gps'].line}
         </p>
       ) : (
         <div data-testid="run-detail">

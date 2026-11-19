@@ -15,7 +15,7 @@
 //   there.
 // - Saved time is always the engine's, and never less than the face showed: a position that arrives
 //   late and starts an auto pause still counts the time the face had shown (live fix `now`, PLAN 4.4c).
-import { GAP_SEC, pendingMs, type TrackerReading, type TrackerState } from '../gps';
+import { GAP_SEC, clockStopped, pendingMs, type TrackerReading, type TrackerState } from '../gps';
 import { readLive, type LiveRun } from './live';
 
 /** Moving time as the face shows it, in ms: counted time plus what the next position would add. */
@@ -67,7 +67,7 @@ export function msToNextFace(tracker: TrackerState, nowMs: number): number | nul
   const pending = pendingMs(tracker, nowMs);
   if (pending <= 0) {
     // Not counting. A position stamped a little ahead of the clock starts counting when the clock gets there.
-    const ahead = tracker.lastGood && !tracker.manual && !tracker.afterPause && !(tracker.still && tracker.autoPause) ? tracker.lastGood.t - nowMs : -1;
+    const ahead = tracker.lastGood && !tracker.manual && !tracker.afterPause && !clockStopped(tracker) ? tracker.lastGood.t - nowMs : -1;
     return ahead >= 0 ? ahead + 1 : null;
   }
   const since = nowMs - tracker.lastGood!.t;

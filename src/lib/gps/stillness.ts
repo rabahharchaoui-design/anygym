@@ -16,21 +16,32 @@ export function pushRecent(recent: Recent, p: GpsPoint): GpsPoint[] {
   return all.slice(from);
 }
 
-/**
- * Standing: the window spans at least 8 seconds and every point in it lies within the standing
- * circle of the newest one: STILL_RADIUS_M (4 m, the most anyone covers in 8 s under 0.5 m/s), wider
- * when the fixes say they are less sure (stillRadiusM).
- */
-export function isStill(recent: Recent): boolean {
+/** The window spans at least 8 seconds and every point lies within `radius` of the newest one. */
+function within(recent: Recent, radius: (p: GpsPoint, newest: GpsPoint) => number): boolean {
   const first = recent[0];
   const last = recent[recent.length - 1];
   if (!first || !last || last.t - first.t < AUTO_PAUSE_SEC * 1000) return false;
-  return recent.every((p) => haversineM(p, last) < stillRadiusM(p, last));
+  return recent.every((p) => haversineM(p, last) < radius(p, last));
 }
 
 /**
- * The standing circle around the newest fix (PLAN 4.4b 13): it grows with the fixes' stated
- * accuracy (the better of the two), never below STILL_RADIUS_M. A phone lying still at 20 m
+ * Standing, for the distance: every point of the last 8 seconds lies within the standing circle of
+ * the newest one: STILL_RADIUS_M (4 m, the most anyone covers in 8 s under 0.5 m/s), wider when the
+ * fixes say they are less sure (stillRadiusM). Inside it a step is indistinguishable from GPS
+ * wander, so it adds no distance. It does not stop the clock: see clockStill.
+ */
+export const isStill = (recent: Recent): boolean => within(recent, stillRadiusM);
+
+/**
+ * Standing, for the moving clock (SPEC 12.3 auto pause, PLAN 4.6a 3): the 4 m rule at any
+ * accuracy. A walk at 20 m accuracy covers 8 m in 8 s, inside the wide circle: with the wide circle
+ * for the clock too it was mostly counted as standing, so its distance came without its time.
+ */
+export const clockStill = (recent: Recent): boolean => within(recent, () => STILL_RADIUS_M);
+
+/**
+ * The standing circle around the newest fix (PLAN 4.4b 13), for the distance only (PLAN 4.6a 3):
+ * it grows with the fixes' stated accuracy (the better of the two), never below STILL_RADIUS_M. A phone lying still at 20 m
  * accuracy wanders well past 4 m in 8 s; with a fixed 4 m circle that wander was never standing and
  * was counted as distance. Half the accuracy: inside 8 s a still phone wanders a fraction of its
  * stated radius, while a full radius would take a 2.5 m/s jog at 20 m for standing (seeded tests).
