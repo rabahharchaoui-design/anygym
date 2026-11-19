@@ -20,13 +20,13 @@
 // - A pause by hand always wins: nothing is recorded, auto pause does nothing, and the first point
 //   after resume starts a new piece of line with no distance and no time across the pause.
 // - Moving time only moves forward with good points, so it never has to be taken back.
-import { estimatePoint, startEstimate, stepEstimate, type Estimate } from './estimate';
+import { JUMP_RESET, estimatePoint, estimateSpeed, reopenSpeed, startEstimate, stepEstimate, type Estimate } from './estimate';
 import { judgePoint } from './filter';
 import { haversineM } from './geo';
 import { averagePace, currentPace, pushPace, type PaceSample } from './pace';
 import { addSplitStep, readSplits, startSplits, type Split, type SplitState } from './splits';
-import { clockStill, isStill, leftStill, pushRecent, type Recent } from './stillness';
-import { GAP_SEC, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
+import { clockStill, isStill, leftStill, movedLately, pushRecent, type Recent } from './stillness';
+import { GAP_SEC, START_MAX_MPS, type GpsPoint, type HeldReason, type RawPoint, type RejectReason, type TrackBreak } from './types';
 
 export type TrackerOptions = {
   /** Split length in meters (units.ts unitMeters). */
@@ -67,6 +67,8 @@ export type TrackerState = {
   /** Moving time counted with no distance of its own (the first GAP_SEC of a gap): pace leaves it out. */
   heldMs: number;
   recent: Recent;
+  /** Every recorded or held point of the last AUTO_PAUSE_SEC, standing or not (movedLately). Absent in older snapshots. */
+  trail?: Recent;
   /**
    * Where the runner most likely is (estimate.ts, PLAN 4.4d): the track is made of its points, so
    * distance is never the jitter of the raw fixes. Absent (older snapshots) or null: none yet, the
@@ -121,7 +123,7 @@ function advance(state: TrackerState, move: Move): { state: TrackerState; comple
 }
 
 /** Put a point on the track as the start of a new continuous stretch. */
-const restart = (state: TrackerState, p: GpsPoint): TrackerState => ({ ...state, lastGood: p, lastRecorded: p, still: false, stopped: false, stopAt: null, afterPause: false, recent: [p] });
+const restart = (state: TrackerState, p: GpsPoint): TrackerState => ({ ...state, lastGood: p, lastRecorded: p, still: false, stopped: false, stopAt: null, afterPause: false, recent: [p], trail: [p] });
 
 /** Auto paused: standing by the clock's rule with auto pause on. The moving clock stands. */
 export const clockStopped = (state: TrackerState): boolean => state.autoPause && state.still && state.stopped;
@@ -133,10 +135,16 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   if (state.manual) return { state, event: { type: 'held', reason: 'paused' } };
   const from = state.lastRecorded;
   const prev = state.lastGood;
+  // Standing, a fix that would mean starting off faster than START_MAX_MPS is not believed until
+  // JUMP_RESET such fixes in a row say so (PLAN 4.4d): with fixes 5 s apart one wild fix otherwise
+  // pulled the estimate off the spot and counted tens of meters for a phone lying still.
+  if (state.still && state.stopped && state.est && prev && v.link === 'step' && haversineM(prev, v.point) / ((v.point.t - prev.t) / 1000) > START_MAX_MPS && state.est.jumps + 1 < JUMP_RESET) {
+    return { state: { ...state, est: { ...state.est, jumps: state.est.jumps + 1 } }, event: { type: 'rejected', reason: 'jump' } };
+  }
   // The fix moves the estimate (PLAN 4.4d); a new stretch (the first fix, after a pause or a gap) starts one.
-  const stepped = state.est && from && prev && v.link === 'step' ? stepEstimate(state.est, v.point) : { kind: 'ok' as const, est: startEstimate(v.point) };
+  const stepped = state.est && from && prev && v.link === 'step' ? stepEstimate(state.est, v.point, state.still && state.stopped) : { kind: 'ok' as const, est: startEstimate(v.point) };
   if (stepped.kind === 'jump') return { state: { ...state, est: stepped.est }, event: { type: 'rejected', reason: 'jump' } };
-  const est = stepped.est;
+  let est = stepped.est;
   const p = estimatePoint(est);
 
   if (!from || !prev) {
@@ -149,14 +157,16 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
     return { state: { ...restart(state, p), est, pace: [sample] }, event: { type: 'recorded', point: p, brk, splits: [] } };
   }
   if (stepped.kind === 'reanchor') {
-    // The estimate was off and starts again at the fix: the line breaks, the correction is no
-    // distance. The time since the last fix counts (the clock showed it) but stays out of every pace.
+    // The estimate was off and starts again at the fix: the line breaks there and the correction is
+    // no distance. What the estimated speed covered in the time since the last fix counts (at most
+    // the straight line across), as timed distance, so the numbers go on moving (PLAN 4.4d).
     const flushed = flushStill(state);
     const start = flushed.state.lastRecorded!;
     const ms = clockStopped(state) ? 0 : p.t - prev.t;
-    const held = ms > 0 ? { ...advance(flushed.state, { distanceM: 0, ms, timed: false, gap: false }).state, heldMs: (state.heldMs ?? 0) + ms } : flushed.state;
-    const brk: TrackBreak = { fromT: start.t, toT: p.t, kind: 'gap', bridged: false, distanceM: 0 };
-    return { state: { ...restart(held, p), est }, event: { type: 'recorded', point: p, brk, splits: flushed.completed, ...(flushed.point ? { withheld: flushed.point } : {}) } };
+    const distanceM = state.still ? 0 : Math.min(haversineM(start, p), (estimateSpeed(est) * ms) / 1000);
+    const next = advance(flushed.state, { distanceM, ms, timed: true, gap: false });
+    const brk: TrackBreak = { fromT: start.t, toT: p.t, kind: 'gap', bridged: distanceM > 0, distanceM };
+    return { state: { ...restart(next.state, p), est }, event: { type: 'recorded', point: p, brk, splits: [...flushed.completed, ...next.completed], ...(flushed.point ? { withheld: flushed.point } : {}) } };
   }
   if (v.link === 'gap') {
     const onSpot = state.still && !leftStill(from, p);
@@ -177,16 +187,20 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   }
 
   const ms = p.t - prev.t;
-  if (state.still && !leftStill(from, p)) {
+  const trail = pushRecent(state.trail ?? [], p);
+  // Moving again: off the standing spot, and moving now, not drifting there (PLAN 4.4d).
+  if (state.still && !(leftStill(from, p) && movedLately(state.trail ?? [], p))) {
     // Standing: no distance. Auto paused, the clock stands. Otherwise it counts, and the window goes
     // on so the 4 m rule can still stop it (a walk at poor accuracy that then stops at a light).
-    if (clockStopped(state)) return { state: { ...state, lastGood: p, est }, event: { type: 'held', reason: 'still' } };
+    if (clockStopped(state)) return { state: { ...state, lastGood: p, est, trail }, event: { type: 'held', reason: 'still' } };
     const recent = state.stopped ? state.recent : pushRecent(state.recent, p);
     const held = advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
     const stops = !state.stopped && clockStill(recent);
-    return { state: { ...held, lastGood: p, est, recent, stopped: state.stopped || stops, stopAt: stops ? p : (state.stopAt ?? null) }, event: { type: 'held', reason: 'still' } };
+    return { state: { ...held, lastGood: p, est, trail, recent, stopped: state.stopped || stops, stopAt: stops ? p : (state.stopAt ?? null) }, event: { type: 'held', reason: 'still' } };
   }
   const legM = haversineM(from, p);
+  // Off again after standing: the speed is unknown again, so the estimate takes it from the fixes quickly.
+  if (state.still) est = reopenSpeed(est);
   let next: { state: TrackerState; completed: Split[] };
   if (clockStopped(state)) {
     // Leaving the spot after the clock stood: the part walked before it stood was timed (its
@@ -199,7 +213,7 @@ export function addPoint(state: TrackerState, raw: RawPoint): { state: TrackerSt
   const recent = state.still ? [p] : pushRecent(state.recent, p);
   const stopped = clockStill(recent);
   return {
-    state: { ...next.state, lastGood: p, lastRecorded: p, est, recent, still: isStill(recent), stopped, stopAt: null },
+    state: { ...next.state, lastGood: p, lastRecorded: p, est, trail, recent, still: isStill(recent), stopped, stopAt: null },
     event: { type: 'recorded', point: p, brk: null, splits: next.completed },
   };
 }

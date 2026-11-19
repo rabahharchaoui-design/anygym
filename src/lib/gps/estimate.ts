@@ -32,6 +32,12 @@ export type Estimate = {
 const ACCURACY_SIGMAS = 1.5;
 /** How far a runner's speed may change per second, as a spread (m/s per s): walking to sprinting. */
 const ACCEL_SIGMA = 1;
+/**
+ * Standing (the tracker says so), the runner is taken to stay put unless the fixes say otherwise:
+ * a smaller change of speed per second, from zero. With fixes 5 s apart the moving model allowed
+ * 12 m of surprise, so one wild fix pulled the estimate of a still phone off the spot.
+ */
+const STANDING_ACCEL_SIGMA = 1;
 /** The speed is unknown at the start of a stretch: anything up to a fast run. */
 const START_SPEED_SIGMA = 4;
 /**
@@ -72,8 +78,9 @@ export function startEstimate(p: GpsPoint): Estimate {
   return { lat0: p.lat, lng0: p.lng, t: p.t, e: axis(), n: axis(), jumps: 0 };
 }
 
-function predict(a: Axis, dt: number): Axis {
-  const q = ACCEL_SIGMA ** 2;
+function predict(a: Axis, dt: number, standing = false): Axis {
+  const q = (standing ? STANDING_ACCEL_SIGMA : ACCEL_SIGMA) ** 2;
+  if (standing) a = { ...a, v: 0 };
   const [pp, pv, vv] = a.p;
   return { x: a.x + a.v * dt, v: a.v, p: [pp + dt * (2 * pv + dt * vv) + (q * dt ** 4) / 4, pv + dt * vv + (q * dt ** 3) / 2, vv + q * dt ** 2] };
 }
@@ -101,16 +108,22 @@ export function estimatePoint(est: Estimate): GpsPoint {
   return { lat, lng, t: est.t, accuracy: ACCURACY_SIGMAS * Math.sqrt((est.e.p[0] + est.n.p[0]) / 2) };
 }
 
+/** The speed is unknown again (the runner moves off after standing): the fixes set it quickly. */
+export function reopenSpeed(est: Estimate): Estimate {
+  const open = (a: Axis): Axis => ({ ...a, p: [a.p[0], 0, Math.max(a.p[2], START_SPEED_SIGMA ** 2)] });
+  return { ...est, e: open(est.e), n: open(est.n) };
+}
+
 /** The estimated speed in m/s. */
 export const estimateSpeed = (est: Estimate): number => Math.hypot(est.e.v, est.n.v);
 
 type Judged = { d2: number; ye: number; yn: number; e: Axis; n: Axis; r: number; z: { east: number; north: number } };
 
 /** How the fix compares with where the estimate expects the runner at its time. */
-function judge(est: Estimate, p: GpsPoint): Judged {
+function judge(est: Estimate, p: GpsPoint, standing: boolean): Judged {
   const dt = Math.max(0, (p.t - est.t) / 1000);
-  const e = predict(est.e, dt);
-  const n = predict(est.n, dt);
+  const e = predict(est.e, dt, standing);
+  const n = predict(est.n, dt, standing);
   const r = sigmaOf(p.accuracy) ** 2;
   const z = toLocal(est, p);
   const ye = z.east - e.x;
@@ -130,14 +143,14 @@ function apply(est: Estimate, p: GpsPoint, j: Judged): Estimate {
  * next one says whether it was real). `reanchor`: the estimate starts again at the fix (a
  * correction, or the jumps were right): no distance across.
  */
-export function stepEstimate(est: Estimate, p: GpsPoint): { kind: 'ok' | 'jump' | 'reanchor'; est: Estimate } {
-  const j = judge(est, p);
+export function stepEstimate(est: Estimate, p: GpsPoint, standing = false): { kind: 'ok' | 'jump' | 'reanchor'; est: Estimate } {
+  const j = judge(est, p, standing);
   // A held surprise (CONFIRM): if this fix is where the estimate expects, the held one was noise
   // and is forgotten; if not, the held one was the first step of a real change and counts first.
   const held = est.pending ?? null;
   if (held && j.d2 > SURPRISE_SQ) {
-    const first = apply(est, held, judge(est, held));
-    return stepEstimate(first, p);
+    const first = apply(est, held, judge(est, held, standing));
+    return stepEstimate(first, p, standing);
   }
   // How sure the estimate was before this fix (not after the wait: a long wait is no correction).
   const prior = Math.sqrt((est.e.p[0] + est.n.p[0]) / 2);
@@ -150,7 +163,7 @@ export function stepEstimate(est: Estimate, p: GpsPoint): { kind: 'ok' | 'jump' 
     return { kind: 'reanchor', est: { ...fresh, e: { ...fresh.e, v: j.e.v }, n: { ...fresh.n, v: j.n.v } } };
   }
   if (j.d2 > JUMP_GATE_SQ) return { kind: 'jump', est: { ...est, jumps: est.jumps + 1, pending: null } };
-  // With fixes every second or so, a surprising one waits for the next to confirm it.
-  if (!held && j.d2 > SURPRISE_SQ && p.t - est.t <= CONFIRM_WITHIN_MS) return { kind: 'jump', est: { ...est, pending: p } };
+  // With fixes every second or so, or standing, a surprising one waits for the next to confirm it.
+  if (!held && j.d2 > SURPRISE_SQ && (standing || p.t - est.t <= CONFIRM_WITHIN_MS)) return { kind: 'jump', est: { ...est, pending: p } };
   return { kind: 'ok', est: apply(est, p, j) };
 }

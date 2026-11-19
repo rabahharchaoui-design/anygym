@@ -3,7 +3,7 @@
 // table. So "standing" is judged on the last 8 seconds as a whole, and "moving again" on leaving the
 // spot by more than the GPS's own stated uncertainty.
 import { haversineM } from './geo';
-import { AUTO_PAUSE_SEC, RESUME_RADIUS_CAP_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
+import { AUTO_PAUSE_SEC, RESUME_LOOKBACK_SEC, RESUME_RADIUS_CAP_M, RESUME_WINDOW_M, STILL_ACCURACY_SHARE, STILL_RADIUS_CAP_M, STILL_RADIUS_M, type GpsPoint } from './types';
 
 /** The recorded points of the last AUTO_PAUSE_SEC seconds of one continuous stretch, oldest first. */
 export type Recent = readonly GpsPoint[];
@@ -60,3 +60,14 @@ export const resumeRadiusM = (anchor: GpsPoint, p: GpsPoint): number => Math.max
 
 /** Moving again: the point left the standing spot (`anchor`) by more than resumeRadiusM. */
 export const leftStill = (anchor: GpsPoint, p: GpsPoint): boolean => haversineM(anchor, p) > resumeRadiusM(anchor, p);
+
+/**
+ * Moved lately (PLAN 4.4d): the newest point is more than RESUME_WINDOW_M from where the runner was
+ * RESUME_LOOKBACK_SEC ago (`trail`: the recent points, oldest first; the newest one at least that
+ * old, else the oldest). Slow drift on the spot never is; walking off always is.
+ */
+export function movedLately(trail: Recent, p: GpsPoint): boolean {
+  let q = trail[0];
+  for (const r of trail) if (p.t - r.t >= RESUME_LOOKBACK_SEC * 1000) q = r;
+  return !q || q.t >= p.t || haversineM(q, p) > RESUME_WINDOW_M;
+}

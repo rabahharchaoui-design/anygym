@@ -65,6 +65,15 @@ export const STILL_RADIUS_CAP_M = 6;
 export const RESUME_RADIUS_CAP_M = 8;
 
 /**
+ * PLAN 4.4d (3): ...and moving again also needs this much way in the last RESUME_LOOKBACK_SEC
+ * (1 m/s). A still phone's fixes drift slowly off the spot (a few cm a second); with the standing
+ * circle alone that drift ended the standing state again and again and added meters. A walk covers
+ * it in under 3 s.
+ */
+export const RESUME_WINDOW_M = 4;
+export const RESUME_LOOKBACK_SEC = 4;
+
+/**
  * No good point for longer than this is a gap. The phone reports about once a second, so two or
  * three dropped fixes under trees stay far below it, while 15 missing fixes in a row is a real loss
  * (phone locked, app switched). At a running pace 15 s is at most about 60 m, so the straight line
@@ -84,10 +93,10 @@ export const GAP_BRIDGE_MAX_SEC = 300;
  * distance is already smoothed by the estimate (estimate.ts), so one noisy fix does not swing the
  * number; with 30 s it took 18 s just for a 30% change of speed to show within 10%.
  */
-export const PACE_WINDOW_SEC = 20;
+export const PACE_WINDOW_SEC = 15;
 
 /** Current pace needs at least this much moving time in its window, otherwise there is no pace yet. */
-export const PACE_MIN_SEC = 8;
+export const PACE_MIN_SEC = 6;
 
 /**
  * Current pace needs at least this much distance in its window: twice what PACE_MIN_SEC covers at
@@ -100,3 +109,10 @@ export const PACE_MIN_M = 10;
  * then about a tenth, and it shrinks from there; below it the number would be mostly noise.
  */
 export const AVG_PACE_MIN_M = 50;
+
+/**
+ * PLAN 4.4d (3): nobody standing still is, a moment later, going faster than this on average (a
+ * hard start from a light reaches it in a few seconds). A fix that says so while standing is held
+ * as a jump until more agree (estimate.ts JUMP_RESET).
+ */
+export const START_MAX_MPS = 4.5;
