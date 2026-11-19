@@ -1,69 +1,13 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { at, T0 } from '../../lib/gps/__tests__/fixtures';
-import type { RawPoint } from '../../lib/gps';
+import { freshApp, phone, report, run, settle } from './enginePhone';
 import { DEFAULT_RUN_SETUP, readLive } from '../../lib/run';
 
-// The run engine against a real (in memory) database, a phone that reports positions when the test
-// says so, and a clock the test moves. Each test loads a fresh engine, like a fresh app start.
-
-type Watch = { ok: (p: GeolocationPosition) => void; fail: (e: GeolocationPositionError) => void; options: PositionOptions };
-let watches: Map<number, Watch>;
-let wakeAsks: number;
-let wakeReleases: number;
-let wakeMode: 'ok' | 'refuse' | 'missing';
-let visibility: 'visible' | 'hidden';
-let docEvents: EventTarget;
-let winEvents: EventTarget;
-
-function stubPhone() {
-  watches = new Map();
-  wakeAsks = 0;
-  wakeReleases = 0;
-  visibility = 'visible';
-  docEvents = new EventTarget();
-  winEvents = new EventTarget();
-  let nextId = 1;
-  const geolocation = {
-    watchPosition: (ok: Watch['ok'], fail: Watch['fail'], options: PositionOptions) => {
-      watches.set(nextId, { ok, fail, options });
-      return nextId++;
-    },
-    clearWatch: (id: number) => void watches.delete(id),
-  };
-  const wakeLock = {
-    request: () => {
-      wakeAsks++;
-      return wakeMode === 'refuse' ? Promise.reject(new Error('no')) : Promise.resolve({ released: false, release: () => (wakeReleases++, Promise.resolve()) });
-    },
-  };
-  vi.stubGlobal('navigator', { geolocation, ...(wakeMode === 'missing' ? {} : { wakeLock }) });
-  vi.stubGlobal('document', { get visibilityState() { return visibility; }, addEventListener: docEvents.addEventListener.bind(docEvents), removeEventListener: docEvents.removeEventListener.bind(docEvents) });
-  vi.stubGlobal('window', { setInterval: globalThis.setInterval.bind(globalThis), clearInterval: globalThis.clearInterval.bind(globalThis), addEventListener: winEvents.addEventListener.bind(winEvents), removeEventListener: winEvents.removeEventListener.bind(winEvents) });
-}
-
-/** The phone reports a position now (its own timestamp is the clock's). */
-function report(p: RawPoint) {
-  vi.setSystemTime(p.t!);
-  for (const w of [...watches.values()]) w.ok({ coords: { latitude: p.lat, longitude: p.lng, accuracy: p.accuracy }, timestamp: p.t } as GeolocationPosition);
-}
-const run = (from: number, to: number, x0 = 0) => {
-  for (let s = from; s <= to; s++) report(at(x0 + (s - from) * 3, 0, s));
-};
-const settle = async () => {
-  for (let i = 0; i < 30; i++) await new Promise<void>((r) => setImmediate(r));
-};
-
-async function freshApp() {
-  vi.resetModules();
-  stubPhone();
-  const engine = (await import('../runEngine')).runEngine;
-  const dbm = await import('../../db/schema');
-  return { engine, db: dbm.db };
-}
+// The run engine against a real (in memory) database and the test phone of enginePhone.ts.
 
 beforeEach(() => {
-  wakeMode = 'ok';
+  phone.wakeMode = 'ok';
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
   vi.setSystemTime(T0);
 });
@@ -83,8 +27,8 @@ describe('run engine', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ startedAt: T0, type: 'distance', goal: '5 km', distanceM: 0, points: [] });
     expect(rows[0]!.endedAt).toBeUndefined();
-    expect([...watches.values()].map((w) => w.options)).toEqual([{ enableHighAccuracy: true, maximumAge: 0 }]);
-    expect(wakeAsks).toBe(1);
+    expect([...phone.watches.values()].map((w) => w.options)).toEqual([{ enableHighAccuracy: true, maximumAge: 0 }]);
+    expect(phone.wakeAsks).toBe(1);
     expect(engine.get().wake).toBe('on');
     // A second Start while a run goes on does nothing.
     engine.start(DEFAULT_RUN_SETUP, 'km');
@@ -108,12 +52,12 @@ describe('run engine', () => {
     expect((await db.runs.toArray())[0]!.points).toHaveLength(26);
     engine.resume();
     run(40, 44, 120);
-    visibility = 'hidden';
-    docEvents.dispatchEvent(new Event('visibilitychange'));
+    phone.visibility = 'hidden';
+    phone.docEvents.dispatchEvent(new Event('visibilitychange'));
     await settle();
     expect((await db.runs.toArray())[0]!.points).toHaveLength(31);
     run(45, 46, 135);
-    winEvents.dispatchEvent(new Event('pagehide'));
+    phone.winEvents.dispatchEvent(new Event('pagehide'));
     await settle();
     const row = (await db.runs.toArray())[0]!;
     expect(row.points).toHaveLength(33);
@@ -125,22 +69,22 @@ describe('run engine', () => {
     const { engine } = await freshApp();
     engine.start(DEFAULT_RUN_SETUP, 'km');
     await settle();
-    const first = [...watches.keys()];
-    visibility = 'hidden';
-    docEvents.dispatchEvent(new Event('visibilitychange'));
-    visibility = 'visible';
-    docEvents.dispatchEvent(new Event('visibilitychange'));
+    const first = [...phone.watches.keys()];
+    phone.visibility = 'hidden';
+    phone.docEvents.dispatchEvent(new Event('visibilitychange'));
+    phone.visibility = 'visible';
+    phone.docEvents.dispatchEvent(new Event('visibilitychange'));
     await settle();
-    expect([...watches.keys()]).toHaveLength(1);
-    expect([...watches.keys()]).not.toEqual(first);
-    expect(wakeAsks).toBe(1);
+    expect([...phone.watches.keys()]).toHaveLength(1);
+    expect([...phone.watches.keys()]).not.toEqual(first);
+    expect(phone.wakeAsks).toBe(1);
   });
 
   it('a run that was going when the app closed comes back paused, and the time away is a break with no distance', async () => {
     let app = await freshApp();
     app.engine.start({ ...DEFAULT_RUN_SETUP, type: 'time', timeMin: 20 }, 'mi');
     run(0, 60);
-    winEvents.dispatchEvent(new Event('pagehide'));
+    phone.winEvents.dispatchEvent(new Event('pagehide'));
     await settle();
     const before = readLive(app.engine.get().live!);
 
@@ -155,11 +99,11 @@ describe('run engine', () => {
     expect(live.unit).toBe('mi');
     expect(live.goal).toEqual({ kind: 'time', seconds: 1200, label: '20 min' });
     expect(readLive(live)).toMatchObject({ status: 'paused', distanceM: before.distanceM, movingSec: before.movingSec });
-    expect(watches.size).toBe(1);
-    expect(wakeAsks).toBe(1);
-    // Asking twice brings back one run, not two watches.
+    expect(phone.watches.size).toBe(1);
+    expect(phone.wakeAsks).toBe(1);
+    // Asking twice brings back one run, not two phone.watches.
     await app.engine.restore();
-    expect(watches.size).toBe(1);
+    expect(phone.watches.size).toBe(1);
 
     run(661, 665, 5000);
     expect(app.engine.get().live!.points).toHaveLength(61);
@@ -178,7 +122,7 @@ describe('run engine', () => {
     const { engine } = await freshApp();
     await engine.restore();
     expect(engine.get()).toMatchObject({ ready: true, live: null, finished: null });
-    expect(watches.size).toBe(0);
+    expect(phone.watches.size).toBe(0);
   });
 
   it('end writes the finished row, stops the watch, releases the screen and hands over the summary', async () => {
@@ -189,8 +133,8 @@ describe('run engine', () => {
     await engine.end();
     const { live, finished } = engine.get();
     expect(live).toBeNull();
-    expect(watches.size).toBe(0);
-    expect(wakeReleases).toBe(1);
+    expect(phone.watches.size).toBe(0);
+    expect(phone.wakeReleases).toBe(1);
     const row = (await db.runs.toArray())[0]!;
     expect(row).toEqual(finished!.run);
     // PLAN 4.4a: the 5 s since the last position (still running, under GAP_SEC) count, as the face showed them.
@@ -229,7 +173,7 @@ describe('run engine', () => {
     await engine.end();
     expect(engine.get()).toMatchObject({ saveFailed: true, finished: null });
     expect(readLive(engine.get().live!).status).toBe('paused');
-    expect(watches.size).toBe(1);
+    expect(phone.watches.size).toBe(1);
     put.mockRestore();
     await engine.end();
     expect(engine.get()).toMatchObject({ saveFailed: false, live: null });
@@ -242,14 +186,14 @@ describe('run engine', () => {
     expect(engine.get().live!.tracker.autoPause).toBe(true);
     engine.setAutoPause(false);
     expect(engine.get().live!.tracker.autoPause).toBe(false);
-    [...watches.values()][0]!.fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+    [...phone.watches.values()][0]!.fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
     expect(engine.get().live!.gps).toBe('denied');
-    [...watches.values()][0]!.fail({ code: 2, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+    [...phone.watches.values()][0]!.fail({ code: 2, PERMISSION_DENIED: 1 } as GeolocationPositionError);
     expect(engine.get().live!.gps).toBe('unavailable');
   });
 
   it('a phone with no wake lock, or one that refuses, is reported and the run goes on', async () => {
-    wakeMode = 'missing';
+    phone.wakeMode = 'missing';
     let app = await freshApp();
     app.engine.start(DEFAULT_RUN_SETUP, 'km');
     await settle();
@@ -258,7 +202,7 @@ describe('run engine', () => {
     expect(readLive(app.engine.get().live!).distanceM).toBeGreaterThan(20);
     await app.engine.end();
     await app.db.delete();
-    wakeMode = 'refuse';
+    phone.wakeMode = 'refuse';
     app = await freshApp();
     app.engine.start(DEFAULT_RUN_SETUP, 'km');
     await settle();
@@ -271,13 +215,13 @@ describe('run engine: GPS from the countdown (PLAN 4.4a)', () => {
     const { engine } = await freshApp();
     engine.warmGps();
     engine.warmGps();
-    expect(watches.size).toBe(1);
-    const [id] = [...watches.keys()];
+    expect(phone.watches.size).toBe(1);
+    const [id] = [...phone.watches.keys()];
     report(at(0, 0, 0));
     expect(engine.get().live).toBeNull();
     vi.setSystemTime(T0 + 3_000);
     engine.start(DEFAULT_RUN_SETUP, 'km');
-    expect([...watches.keys()]).toEqual([id]);
+    expect([...phone.watches.keys()]).toEqual([id]);
     expect(engine.get().live!.points).toHaveLength(0);
     report(at(0, 0, 4));
     expect(engine.get().live!.points).toHaveLength(1);
@@ -288,13 +232,13 @@ describe('run engine: GPS from the countdown (PLAN 4.4a)', () => {
     const { engine } = await freshApp();
     engine.warmGps();
     engine.coolGps();
-    expect(watches.size).toBe(0);
+    expect(phone.watches.size).toBe(0);
     engine.warmGps();
-    for (const w of watches.values()) w.fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+    for (const w of phone.watches.values()) w.fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
     engine.start(DEFAULT_RUN_SETUP, 'km');
     expect(engine.get().live!.gps).toBe('denied');
     engine.coolGps();
-    expect(watches.size).toBe(1);
+    expect(phone.watches.size).toBe(1);
     await engine.end();
   });
 });

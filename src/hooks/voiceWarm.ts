@@ -5,6 +5,7 @@
 import { browserWarmDeps, warmPhotos } from '../lib/photoWarm';
 import { wantsLessData } from '../ui/icon3d/icons';
 import { allClipUrls, VOICE_CACHE } from './voiceAudio';
+import { warmAcrossPageHide } from './warmAcrossPageHide';
 
 let started = false;
 
@@ -14,10 +15,8 @@ export function warmVoicePack(): void {
   const deps = browserWarmDeps(VOICE_CACHE);
   if (!deps || !deps.online() || wantsLessData(navigator as never, (q) => typeof matchMedia === 'function' && matchMedia(q).matches)) return;
   started = true;
-  // A reload or a closed tab cancels the fetches cleanly.
-  const stop = new AbortController();
-  for (const leaving of ['pagehide', 'beforeunload'] as const) window.addEventListener(leaving, () => stop.abort(), { once: true });
-  const go = () => void warmPhotos(allClipUrls(), deps, stop.signal, 4).catch(() => undefined);
+  // A page going away stops the fetches cleanly; coming back (pageshow) goes on with the rest (PLAN 4.4b 7).
+  const go = () => warmAcrossPageHide((signal) => (deps.online() ? warmPhotos(allClipUrls(), deps, signal, 4) : Promise.resolve({ stopped: true })));
   if (document.readyState === 'complete') go();
   else window.addEventListener('load', go, { once: true });
 }

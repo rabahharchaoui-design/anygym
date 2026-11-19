@@ -3,7 +3,7 @@
 // table. So "standing" is judged on the last 8 seconds as a whole, and "moving again" on leaving the
 // spot by more than the GPS's own stated uncertainty.
 import { haversineM } from './geo';
-import { AUTO_PAUSE_SEC, STILL_RADIUS_M, type GpsPoint } from './types';
+import { AUTO_PAUSE_SEC, STILL_ACCURACY_SHARE, STILL_RADIUS_M, type GpsPoint } from './types';
 
 /** The recorded points of the last AUTO_PAUSE_SEC seconds of one continuous stretch, oldest first. */
 export type Recent = readonly GpsPoint[];
@@ -17,15 +17,25 @@ export function pushRecent(recent: Recent, p: GpsPoint): GpsPoint[] {
 }
 
 /**
- * Standing: the window spans at least 8 seconds and every point in it lies within STILL_RADIUS_M
- * (4 m: the most anyone covers in 8 s under 0.5 m/s) of the newest one.
+ * Standing: the window spans at least 8 seconds and every point in it lies within the standing
+ * circle of the newest one: STILL_RADIUS_M (4 m, the most anyone covers in 8 s under 0.5 m/s), wider
+ * when the fixes say they are less sure (stillRadiusM).
  */
 export function isStill(recent: Recent): boolean {
   const first = recent[0];
   const last = recent[recent.length - 1];
   if (!first || !last || last.t - first.t < AUTO_PAUSE_SEC * 1000) return false;
-  return recent.every((p) => haversineM(p, last) < STILL_RADIUS_M);
+  return recent.every((p) => haversineM(p, last) < stillRadiusM(p, last));
 }
+
+/**
+ * The standing circle around the newest fix (PLAN 4.4b 13): it grows with the fixes' stated
+ * accuracy (the better of the two), never below STILL_RADIUS_M. A phone lying still at 20 m
+ * accuracy wanders well past 4 m in 8 s; with a fixed 4 m circle that wander was never standing and
+ * was counted as distance. Half the accuracy: inside 8 s a still phone wanders a fraction of its
+ * stated radius, while a full radius would take a 2.5 m/s jog at 20 m for standing (seeded tests).
+ */
+export const stillRadiusM = (p: GpsPoint, newest: GpsPoint): number => Math.max(STILL_RADIUS_M, Math.min(p.accuracy, newest.accuracy) * STILL_ACCURACY_SHARE);
 
 /**
  * How far from the standing spot counts as moving again: outside the standing circle, and farther

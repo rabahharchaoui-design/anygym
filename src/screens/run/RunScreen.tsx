@@ -25,7 +25,7 @@ export function RunScreen() {
   useEffect(() => warmVoicePack(), []);
 
   if (finished) return <RunSummary finished={finished} reduceMotion={reduceMotion} onDone={runEngine.closeFinished} onDiscard={() => void runEngine.discardFinished()} />;
-  if (live && shown) return <LiveRun live={live} wake={engine.wake} saveFailed={engine.saveFailed} reduceMotion={reduceMotion} onHide={() => setShown(false)} />;
+  if (live && shown) return <LiveRun live={live} wake={engine.wake} saveFailed={engine.saveFailed} autosaveFailed={engine.autosaveFailed} reduceMotion={reduceMotion} onHide={() => setShown(false)} />;
   // The time as the live screen showed it when it was hidden (PLAN 4.4a).
   const reading = live ? readLiveAt(live, Date.now()) : null;
   const going = live && reading ? { readout: `${distanceWithUnit(reading.distanceM, live.unit)} · ${formatElapsed(reading.movingSec)}`, paused: reading.status === 'paused' } : null;

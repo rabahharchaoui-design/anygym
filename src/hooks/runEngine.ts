@@ -9,7 +9,7 @@ import type { Run } from '../db/types';
 import type { DistanceUnit } from '../lib/intake/answers';
 import { unitMeters } from '../lib/gps';
 import {
-  DEFAULT_VOICE, finishRun, fixTime, liveRow, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
+  DEFAULT_VOICE, finishRun, fixTime, liveRow, rewatchDue, liveStep, parseSnapshot, restoreLive, rowPace, runCues, runVerdict, startLive, toSnapshot,
   type LiveAction, type LiveRun, type RunSetup, type VoiceSettings,
 } from '../lib/run';
 import { createRunWake, type WakeState } from './runWake';
@@ -34,11 +34,20 @@ export type EngineState = {
   wake: WakeState;
   /** The end could not be saved: the run is still there, paused, to try again. */
   saveFailed: boolean;
+  /** PLAN 4.4b (3): the last save during the run failed; it is tried again every 5 s until one lands. */
+  autosaveFailed: boolean;
 };
 
-let state: EngineState = { ready: false, live: null, finished: null, wake: 'off', saveFailed: false };
+let state: EngineState = { ready: false, live: null, finished: null, wake: 'off', saveFailed: false, autosaveFailed: false };
 const listeners = new Set<() => void>();
 let watchId: number | null = null;
+/** When the watch last started: a lost signal is asked for again from here (PLAN 4.4b 6). */
+let watchedAt = 0;
+/**
+ * A watch started again in a gap may first hand back the last position it had, as if new: that
+ * exact spot (where the dot is) is not taken as a position again until a different one comes.
+ */
+let replayOf: { lat: number; lng: number } | null = null;
 let saveTimer: number | null = null;
 let tickTimer: number | null = null;
 /** The voice coach's settings for the run that is going on (SPEC 12.4). */
@@ -78,9 +87,15 @@ function save() {
   const live = state.live;
   if (!live || !dirty) return;
   dirty = false;
-  void queue(() => saveLiveRun(liveRow(live), JSON.stringify(toSnapshot(live)))).catch(() => {
-    dirty = true;
-  });
+  void queue(() => saveLiveRun(liveRow(live), JSON.stringify(toSnapshot(live)))).then(
+    () => {
+      if (state.autosaveFailed) set({ autosaveFailed: false });
+    },
+    () => {
+      dirty = true;
+      if (!state.autosaveFailed && state.live) set({ autosaveFailed: true });
+    },
+  );
 }
 
 function stopWatch() {
@@ -90,11 +105,14 @@ function stopWatch() {
 
 function startWatch() {
   stopWatch();
+  watchedAt = Date.now();
   if (!navigator.geolocation) return dispatch({ type: 'gps', trouble: 'unavailable' });
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       earlyTrouble = null;
       const { latitude, longitude, accuracy } = pos.coords;
+      if (replayOf && replayOf.lat === latitude && replayOf.lng === longitude) return;
+      replayOf = null;
       // Before GO (the countdown) there is no run yet: the position only wakes the GPS up.
       dispatch({ type: 'fix', point: { lat: latitude, lng: longitude, accuracy, t: fixTime(pos.timestamp, Date.now()) } });
     },
@@ -104,6 +122,15 @@ function startWatch() {
     },
     WATCH,
   );
+}
+
+/** The 5 s beat: save, and start the watch again while GPS is lost (PLAN 4.4b 6). */
+function every5s() {
+  save();
+  if (state.live && navigator.geolocation && document.visibilityState === 'visible' && rewatchDue(state.live, Date.now(), watchedAt)) {
+    startWatch();
+    replayOf = state.live.here && { lat: state.live.here.lat, lng: state.live.here.lng };
+  }
 }
 
 const onVisibility = () => {
@@ -118,7 +145,7 @@ function attach() {
   // Started at the countdown already (warmGps): kept, so the first position is not delayed.
   if (watchId === null) startWatch();
   wake.hold();
-  saveTimer = window.setInterval(save, SAVE_EVERY_MS);
+  saveTimer = window.setInterval(every5s, SAVE_EVERY_MS);
   if (state.live?.intervals) tickTimer = window.setInterval(() => dispatch({ type: 'tick', now: Date.now() }), TICK_EVERY_MS);
   // Any touch during a run keeps the phone willing to play the voice (it may fall asleep in the background).
   document.addEventListener('pointerdown', unlockVoice, { passive: true });
@@ -191,7 +218,7 @@ export const runEngine = {
     const live = startLive({ id: newId(), now: Date.now(), setup, unit, autoPause: setup.autoPause });
     dirty = false;
     voice = setup.voice;
-    set({ live, finished: null, saveFailed: false, ready: true });
+    set({ live, finished: null, saveFailed: false, autosaveFailed: false, ready: true });
     say({ type: 'start', first: live.intervals?.plan.blocks[0]?.name ?? null }, voice);
     void queue(() => startRunRow(liveRow(live), JSON.stringify(toSnapshot(live)))).catch(() => {
       dirty = true;
@@ -230,7 +257,7 @@ export const runEngine = {
     dirty = false;
     try {
       await queue(() => finishRunRow(run));
-      set({ live: null, finished: { run, unit: live.unit }, saveFailed: false });
+      set({ live: null, finished: { run, unit: live.unit }, saveFailed: false, autosaveFailed: false });
       const pace = rowPace(run);
       // A run with nothing to show gets no numbers, spoken or printed.
       say({ type: 'finished', summary: runVerdict(run) === 'ok' ? { meters: run.distanceM, unit: live.unit, movingSec: run.movingSec, paceSec: pace === null ? null : pace * unitMeters(live.unit) } : null }, voice);

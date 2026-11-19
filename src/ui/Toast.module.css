@@ -55,11 +55,15 @@
   padding-left: 0.28em;
 }
 
+/* A message with no name in it (PLAN 4.4b 2): its words are never cut. It wraps onto a second line. */
+.text:not(:has(.subject)) {
+  white-space: normal;
+}
+
 .text:not(:has(.subject)) .rest {
   flex: 0 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .action {
