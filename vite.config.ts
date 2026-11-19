@@ -160,6 +160,8 @@ export default defineConfig({
         // PLAN 3.5e: the candidate move list is only for the owner review and a phone with approvals:
         // never precached for everyone; kept once it loaded (below).
         globIgnores: ['**/ex/**', '**/catalog-candidates-*.js'],
+        // PLAN 4.6c (6): the photo and voice caches may be emptied when the phone is out of room
+        // (purgeOnQuotaError); they fill again as photos show and the Run tab saves the voice.
         runtimeCaching: [
           {
             // A RegExp, never a closure: the matcher is copied into sw.js as source text, where BASE
@@ -168,7 +170,7 @@ export default defineConfig({
             // changed photo is a new entry and the others keep theirs.
             urlPattern: PHOTO_URL_PATTERN,
             handler: 'CacheFirst',
-            options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600 } },
+            options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600, purgeOnQuotaError: true } },
           },
           {
             urlPattern: /\/assets\/catalog-candidates-[^/]+\.js$/,
@@ -187,7 +189,7 @@ export default defineConfig({
             // them in the background (hooks/voiceWarm.ts, the same cache) and each is kept once played.
             urlPattern: /\/voice\/[^/]+\.m4a(?:\?.*)?$/,
             handler: 'CacheFirst',
-            options: { cacheName: 'run-voice', expiration: { maxEntries: 400 } },
+            options: { cacheName: 'run-voice', expiration: { maxEntries: 400, purgeOnQuotaError: true } },
           },
         ],
         // HashRouter: every route is index.html, so any navigation falls back to it.
