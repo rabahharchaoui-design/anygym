@@ -1,5 +1,6 @@
-import { expect, test } from './fixtures';
-import { live, startRun } from './helpers/run';
+import { allowConsoleErrors, expect, test } from './fixtures';
+import { fix, live, startRun } from './helpers/run';
+import { stubTiles } from './helpers/tiles';
 
 // PLAN 4.4b: the Grok review fixes for the live run that show on screen.
 
@@ -16,5 +17,24 @@ test.describe('4.4b live run', () => {
     const box = (await text.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  });
+
+  test('(15) one failed map tile does not say "Map offline" for the whole run: the chip goes when tiles load again @matrix', async ({ page, context }) => {
+    allowConsoleErrors(/status of 500.*\.pbf/);
+    const tiles = await stubTiles(page);
+    const r = await startRun(page, context);
+    tiles.failNext(1);
+    await page.getByTestId('live-dot-1').tap();
+    await expect(page.getByTestId('run-map')).toHaveAttribute('data-ready', 'true');
+    // A tile failed (before 4.4b this said "Map offline" for the rest of the run).
+    await expect(page.getByTestId('run-map-gl').last()).toHaveAttribute('data-map-error', /.+/);
+    // Somewhere new (after a long wait, so it is no spike): the map follows and asks for new tiles.
+    await page.clock.runFor(600_000);
+    r.north += 3000;
+    await fix(r);
+    await page.clock.runFor(5000);
+    r.north += 15;
+    await fix(r);
+    await expect(page.getByTestId('map-offline')).toHaveCount(0, { timeout: 10_000 });
   });
 });

@@ -5,6 +5,7 @@ import { getGlobalDispatcher, Map as GlMap, Marker, setWorkerUrl } from 'maplibr
 // The worker is a file of our own origin (no blob: worker), so the CSP keeps worker-src 'self'.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { HEALTHY, mapHealthStep, mapOffline, type MapHealth, type MapHealthEvent } from '../../lib/run/mapHealth';
 import { HERE_ZOOM, MAP_PALETTE_TOKENS, NEUTRAL_VIEW, runMapStyle, type MapPalette } from '../../lib/run/mapStyle';
 import type { RouteGeo } from '../../lib/run/routeGeo';
 import { DUR } from '../../ui/motion';
@@ -66,7 +67,14 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
   useEffect(() => {
     if (!box.current) return;
     let gl: GlMap;
-    let failed = false;
+    let health: MapHealth = HEALTHY;
+    const step = (e: MapHealthEvent) => {
+      const next = mapHealthStep(health, e);
+      if (next === health) return;
+      const was = mapOffline(health);
+      health = next;
+      if (mapOffline(next) !== was) cb.current.onOffline(mapOffline(next));
+    };
     try {
       gl = new GlMap({
         container: box.current,
@@ -93,11 +101,11 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     map.current = gl;
     gl.touchZoomRotate.disableRotation();
     // Any failed request of the map (tile list, a tile, glyphs) or a lost WebGL context.
-    const onError = (e: { error?: { message?: string } }) => {
-      failed = true;
+    // PLAN 4.4b (15): one failed tile is not the map gone (mapHealth): only that holds the chip.
+    const onError = (e: { error?: { message?: string }; tile?: unknown }) => {
       // What failed, for tests and problem reports; the screen only ever says "Map offline".
       if (box.current) box.current.dataset.mapError = String(e.error?.message ?? 'error').slice(0, 120);
-      cb.current.onOffline(true);
+      step({ type: 'error', tile: !!e.tile });
       cb.current.onReady();
     };
     gl.on('error', onError);
@@ -113,8 +121,8 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
       addRouteLayers(gl, palette.accent, palette.bg);
       if (routeRef.current) drawRouteOn(gl, routeRef.current);
     });
-    gl.on('idle', () => {
-      if (!failed && gl.isSourceLoaded(SOURCE)) cb.current.onOffline(false);
+    gl.on('sourcedata', (e: { sourceId?: string; tile?: unknown }) => {
+      if (e.sourceId === SOURCE && e.tile) step({ type: 'tile-ok' });
     });
     gl.on('dragstart', () => {
       following.current = false;
@@ -122,8 +130,8 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
     });
     // Signal is back: ask for the tile list and the tiles again.
     const retry = () => {
-      if (!failed) return;
-      failed = false;
+      if (!health.latched) return;
+      step({ type: 'retry' });
       gl.setStyle(runMapStyle(readPalette()) as never);
     };
     window.addEventListener('online', retry);
