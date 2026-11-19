@@ -65,3 +65,18 @@
   border: 1px solid var(--glass-line);
   white-space: nowrap;
 }
+
+/* PLAN D1: a sequence's frames fill the 3:2 stage; its step bar sits under it. */
+.steps {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.bar {
+  width: 100%;
+  max-width: 420px;
+  padding: 0 var(--space-4);
+}

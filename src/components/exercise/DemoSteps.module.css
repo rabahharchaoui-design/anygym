@@ -1,0 +1,121 @@
+/* PLAN D1: the sequence demo (Monolith, SPEC 10 and 23): the same fixed box as the two frame demo,
+   the frames stacked in it, a hairline step bar under it with square 44 pt controls. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  padding: 0;
+  border: var(--divider);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+/* The exercise sheet: the same compact height as the two frame demo (FormDemo.module.css). */
+.wrap[data-fit] .stage {
+  aspect-ratio: auto;
+  height: clamp(120px, 20svh, 230px);
+}
+
+@media (max-height: 600px) {
+  .wrap[data-fit] .stage {
+    height: 104px;
+  }
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: 0;
+}
+
+.frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cover img {
+  object-fit: cover;
+}
+
+/* The frame stepped from stays whole under the new one while it fades in: no dip, no double image. */
+.under {
+  opacity: 1;
+  z-index: 1;
+}
+
+.on {
+  opacity: 1;
+  z-index: 2;
+  animation: step-in var(--dur-tap) var(--ease-out);
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap-min);
+}
+
+.bar[data-hidden] {
+  visibility: hidden;
+}
+
+.btn {
+  flex: none;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: var(--divider);
+  border-radius: var(--radius-sm);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.btn:active {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.pos {
+  flex: 1;
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Reduced motion: frames change only on a tap, at once. */
+@media (prefers-reduced-motion: reduce) {
+  .on {
+    animation: none;
+  }
+}
