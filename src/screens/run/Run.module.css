@@ -329,7 +329,9 @@
 @media (max-height: 600px) {
   .top {
     padding-top: calc(var(--safe-top) + var(--space-1));
-    padding-bottom: var(--space-4);
+    /* PLAN M1: 8 px less fade under the chips, so Start stays fully above the docked tab bar on
+       the 320 x 568 floor (the map gives up the room, the controls keep their spacing). */
+    padding-bottom: var(--space-2);
   }
 }
 
