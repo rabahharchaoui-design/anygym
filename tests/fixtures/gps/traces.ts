@@ -35,7 +35,8 @@ export type Noise = (typeof NOISES)[number];
  * still: a phone lying still for 300 s (no distance may be added, live or at End).
  */
 export const SCENARIOS = ['surge', 'cold-start', 'tunnel', 'light', 'still'] as const;
-export type Scenario = (typeof SCENARIOS)[number];
+/** Not in the matrix, for the lag numbers of the report: walking at 1.4 m/s, running at 3.5 m/s from 300 s. */
+export type Scenario = (typeof SCENARIOS)[number] | 'walk-to-run';
 
 export type TraceSpec = { speed: SpeedName; cadence: Cadence; noise: Noise; scenario: Scenario; seed: number };
 
@@ -84,6 +85,7 @@ function profile(spec: TraceSpec): Truth {
   const v = SPEEDS[spec.speed];
   const s = spec.scenario;
   const speedAt = (sec: number): number => {
+    if (s === 'walk-to-run') return sec < 300 ? 1.4 : 3.5;
     if (s === 'still') return 0;
     if (s === 'surge' && sec >= 300 && sec < 420) return v * 1.3;
     if (s === 'light' && sec >= 300 && sec < 330) return 0;
@@ -92,6 +94,7 @@ function profile(spec: TraceSpec): Truth {
   const distanceAt = (sec: number): number => {
     const t = Math.max(0, Math.min(sec, DURATION_SEC));
     if (s === 'still') return 0;
+    if (s === 'walk-to-run') return 1.4 * Math.min(t, 300) + 3.5 * Math.max(0, t - 300);
     if (s === 'surge') return v * t + 0.3 * v * Math.max(0, Math.min(t, 420) - 300);
     if (s === 'light') return v * t - v * Math.max(0, Math.min(t, 330) - 300);
     return v * t;
@@ -100,7 +103,7 @@ function profile(spec: TraceSpec): Truth {
     durationSec: s === 'still' ? 300 : DURATION_SEC,
     speedAt,
     distanceAt,
-    changes: s === 'surge' ? [300, 420] : s === 'light' ? [330] : [],
+    changes: s === 'surge' ? [300, 420] : s === 'light' ? [330] : s === 'walk-to-run' ? [300] : [],
     tunnel: s === 'tunnel' ? [300, 340] : null,
     stop: s === 'light' ? [300, 330] : s === 'still' ? [0, 300] : null,
   };
@@ -123,10 +126,10 @@ export const traceName = (s: TraceSpec) => `${s.speed}-${s.cadence}s-${s.noise}m
  * One seeded trace. `biasOnly`: the same trace with only the smooth bias (no jitter, outliers,
  * repeats or stalls): what is left is the error no filter can tell from movement.
  */
-export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean } = {}): Trace {
+export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean; white?: boolean; exact?: boolean } = {}): Trace {
   const jitter = opts.biasOnly ? 0 : 0.05;
   const truth = profile(spec);
-  const seed = spec.seed * 1009 + spec.noise * 31 + spec.cadence * 7 + SPEEDS[spec.speed] * 100 + SCENARIOS.indexOf(spec.scenario) * 50_000;
+  const seed = spec.seed * 1009 + spec.noise * 31 + spec.cadence * 7 + SPEEDS[spec.speed] * 100 + (SCENARIOS as readonly string[]).indexOf(spec.scenario) * 50_000;
   const rand = seeded(seed);
   const normal = seededNormal(seed + 1);
   const biasE = wave(rand);
@@ -142,9 +145,13 @@ export function makeTrace(spec: TraceSpec, opts: { biasOnly?: boolean } = {}): T
     const spread = cold ? Math.max(0.95, Math.min(1.05, 1 + 0.05 * wobble(at))) : Math.max(0.6, Math.min(1.5, 1 + 0.2 * wobble(at)));
     const accuracy = Math.round((cold ? 60 : spec.noise) * spread * 10) / 10;
     const pos = routeAt(truth.distanceAt(at));
-    let east = pos.east + 0.35 * accuracy * biasE(at) + jitter * accuracy * normal();
-    let north = pos.north + 0.35 * accuracy * biasN(at) + jitter * accuracy * normal();
-    if (!opts.biasOnly && rand() < 0.01) {
+    // `white`: the stress case, an error drawn afresh for every fix with the full spread the accuracy
+    // claims (accuracy / 1.5 a side). Far harsher than a phone; reported, never a pass rule.
+    // `exact`: no error at all, the accuracy still reported: what the filter itself lags.
+    const k = opts.exact ? 0 : 1;
+    let east = pos.east + k * (opts.white ? (accuracy / 1.5) * normal() : 0.35 * accuracy * biasE(at) + jitter * accuracy * normal());
+    let north = pos.north + k * (opts.white ? (accuracy / 1.5) * normal() : 0.35 * accuracy * biasN(at) + jitter * accuracy * normal());
+    if (!opts.biasOnly && !opts.exact && rand() < 0.01) {
       const angle = rand() * 2 * Math.PI;
       const jump = (2 + rand()) * accuracy;
       east += jump * Math.cos(angle);

@@ -24,6 +24,8 @@ export type Estimate = {
   n: Axis;
   /** Fixes dropped as jumps in a row. */
   jumps: number;
+  /** The accuracy the last fix it took said (absent in older snapshots). */
+  accuracy?: number;
   /** A surprising fix waiting for the next one to say whether it was real (CONFIRM_WITHIN_MS). */
   pending?: GpsPoint | null;
 };
@@ -75,7 +77,7 @@ function toLatLng(est: Estimate): { lat: number; lng: number } {
 export function startEstimate(p: GpsPoint): Estimate {
   const r = sigmaOf(p.accuracy) ** 2;
   const axis = (): Axis => ({ x: 0, v: 0, p: [r, 0, START_SPEED_SIGMA ** 2] });
-  return { lat0: p.lat, lng0: p.lng, t: p.t, e: axis(), n: axis(), jumps: 0 };
+  return { lat0: p.lat, lng0: p.lng, t: p.t, e: axis(), n: axis(), jumps: 0, accuracy: p.accuracy };
 }
 
 function predict(a: Axis, dt: number, standing = false): Axis {
@@ -135,7 +137,7 @@ function judge(est: Estimate, p: GpsPoint, standing: boolean): Judged {
 function apply(est: Estimate, p: GpsPoint, j: Judged): Estimate {
   const rw = j.d2 > ROBUST_FROM_SQ ? (j.r * j.d2) / ROBUST_FROM_SQ : j.r;
   const [e, n] = capSpeed(update(j.e, j.z.east, rw), update(j.n, j.z.north, rw));
-  return { ...est, t: p.t, e, n, jumps: 0, pending: null };
+  return { ...est, t: p.t, e, n, jumps: 0, pending: null, accuracy: p.accuracy };
 }
 
 /**
@@ -164,7 +166,10 @@ export function stepEstimate(est: Estimate, p: GpsPoint, standing = false, wary 
   const prior = Math.sqrt((est.e.p[0] + est.n.p[0]) / 2);
   const off = Math.hypot(j.ye, j.yn);
   // A much surer fix that shows the estimate was off: the estimate jumps to it, the distance does not.
-  const corrects = prior > CORRECT_RATIO * Math.sqrt(j.r) && off > CORRECT_SIGMAS * Math.sqrt(j.r);
+  // Also when the phone's own accuracy just got much better (a GPS lock after Wi-Fi fixes): the
+  // offset is where the old fixes were wrong, and gliding over to the new ones counted it as meters.
+  const locked = est.accuracy !== undefined && est.accuracy >= CORRECT_RATIO * p.accuracy && off > 2 * Math.sqrt(j.r);
+  const corrects = locked || (prior > CORRECT_RATIO * Math.sqrt(j.r) && off > CORRECT_SIGMAS * Math.sqrt(j.r));
   if (corrects || (j.d2 > JUMP_GATE_SQ && est.jumps + 1 >= JUMP_RESET)) {
     const fresh = startEstimate(p);
     // The speed it had is still the best guess of the speed.
