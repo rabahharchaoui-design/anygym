@@ -2,7 +2,7 @@
 // app's own palette. Derived from OpenFreeMap's "dark" style: the same sources and layer filters,
 // cut down to what a runner needs (water, parks, buildings, paths, roads, rail, names) and
 // recoloured from the tokens passed in. No sprite (no icons on a calm map), one font stack.
-// Pure: colours come in as #rrggbb strings (the screen reads them from src/styles/tokens.css).
+// Pure: colours come in as #rrggbb or #rgb strings (the screen reads them from src/styles/tokens.css).
 
 import { TILE_ORIGIN } from './mapSource';
 
@@ -10,14 +10,16 @@ import { TILE_ORIGIN } from './mapSource';
 export type MapPalette = { bg: string; text: string; text2: string; accent: string };
 export const MAP_PALETTE_TOKENS: Readonly<Record<keyof MapPalette, string>> = { bg: '--bg', text: '--text', text2: '--text-2', accent: '--accent' };
 
-const HEX = /^#([0-9a-f]{6})$/i;
+// #rrggbb or the short #rgb: the build minifies tokens (#ffffff ships as #fff), any letter case.
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
-/** `a` moved `t` of the way to `b` (0 to 1), as #rrggbb. Throws on anything that is not #rrggbb. */
+/** `a` moved `t` of the way to `b` (0 to 1), as #rrggbb. Throws on anything that is not #rrggbb or #rgb. */
 export function mix(a: string, b: string, t: number): string {
   const parse = (c: string): number[] => {
     const m = HEX.exec(c.trim());
-    if (!m) throw new Error(`mapStyle: not a #rrggbb colour: ${c}`);
-    return [0, 2, 4].map((i) => parseInt(m[1]!.slice(i, i + 2), 16));
+    if (!m) throw new Error(`mapStyle: not a #rrggbb or #rgb colour: ${c}`);
+    const hex = m[1]!.length === 3 ? [...m[1]!].map((d) => d + d).join('') : m[1]!;
+    return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
   };
   const [x, y] = [parse(a), parse(b)];
   const k = Math.min(1, Math.max(0, t));
