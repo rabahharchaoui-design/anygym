@@ -3,26 +3,34 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
-import { PHOTO_URL_PATTERN } from './src/lib/photoVersion';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { encodePhotoHashes, PHOTO_FRAMES, PHOTO_URL_PATTERN } from './src/lib/photoVersion';
+import { encodeSequences, parseDemoSequences } from './src/lib/demoSequence';
+// @ts-expect-error plain .mjs script, no types
+import { photoHashes } from './scripts/photo-hashes.mjs';
 import type { Plugin } from 'vite';
 
 const BASE = '/anygym/';
 
-/** The git short sha of this build (SPEC 24: reports name the exact build); 'dev' without git. */
-/** PLAN 4.4b (12): one hash of every exercise photo's name and bytes, the version in their URLs. */
-function photoVersion(): string {
-  const root = new URL('./public/ex/', import.meta.url);
-  const hash = createHash('sha256');
-  try {
-    for (const dir of readdirSync(root).sort())
-      for (const f of readdirSync(new URL(`${dir}/`, root)).sort()) hash.update(`${dir}/${f}`).update(readFileSync(new URL(`${dir}/${f}`, root)));
-  } catch {
-    return 'dev';
-  }
-  return hash.digest('hex').slice(0, 10);
+/** PLAN 4.6c (2): one short hash per exercise photo file, shipped as one string (lib/photoVersion.ts). */
+function photoHashTable(): string {
+  return encodePhotoHashes(photoHashes(fileURLToPath(new URL('./public/ex/', import.meta.url)), PHOTO_FRAMES));
 }
 
+/**
+ * PLAN D1: the 3 or 4 frame demo sequences, checked here so the checks stay out of the app: a file
+ * of another format fails the build; a refused sequence is shipped as 0 (no demo) and named here.
+ */
+function demoSequenceTable(): string {
+  const read = (path: string) => JSON.parse(readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8'));
+  const ids = new Set<string>((read('./data/catalog.json') as { exercises: { id: string }[] }).exercises.map((e) => e.id));
+  const entries = parseDemoSequences(read('./data/demo-sequences.json'), ids);
+  for (const e of entries.values()) if (!e.ok) console.warn(`Demo sequence refused (no demo shown): ${e.reason}`);
+  return encodeSequences(entries);
+}
+
+/** The git short sha of this build (SPEC 24: reports name the exact build); 'dev' without git. */
 function shortSha(): string {
   try {
     const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
@@ -121,7 +129,7 @@ export default defineConfig({
   base: BASE,
   // A source map would hand out the source: none ships (the secret scan fails the build on one).
   build: { sourcemap: false },
-  define: { __APP_SHA__: JSON.stringify(shortSha()), __PHOTO_VERSION__: JSON.stringify(photoVersion()) },
+  define: { __APP_SHA__: JSON.stringify(shortSha()), __PHOTO_HASHES__: JSON.stringify(photoHashTable()), __DEMO_SEQUENCES__: JSON.stringify(demoSequenceTable()) },
   plugins: [
     react(),
     cspPlugin(),
@@ -130,7 +138,7 @@ export default defineConfig({
       // 'prompt': a new version waits until no workout or run is active (src/pwa.ts).
       registerType: 'prompt',
       injectRegister: false, // registered in src/main.tsx via virtual:pwa-register
-      includeAssets: ['icons/favicon.svg', 'icons/apple-touch-icon-180.png'],
+      includeAssets: ['icons/favicon-32.png', 'icons/favicon-48.png', 'icons/apple-touch-icon-180.png'],
       manifest: {
         name: 'AnyGym',
         short_name: 'AnyGym',
@@ -138,8 +146,10 @@ export default defineConfig({
         lang: 'en',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#111214',
-        background_color: '#111214',
+        // PLAN M8 (SPEC 1): the splash and the installed app's bar are pure black like the icon's ground.
+        // The page's own background (--bg, and the theme-color meta in index.html) stays graphite.
+        theme_color: '#000000',
+        background_color: '#000000',
         start_url: BASE,
         scope: BASE,
         icons: [
@@ -163,14 +173,17 @@ export default defineConfig({
         // PLAN 3.5e: the candidate move list is only for the owner review and a phone with approvals:
         // never precached for everyone; kept once it loaded (below).
         globIgnores: ['**/ex/**', '**/catalog-candidates-*.js'],
+        // PLAN 4.6c (6): the photo and voice caches may be emptied when the phone is out of room
+        // (purgeOnQuotaError); they fill again as photos show and the Run tab saves the voice.
         runtimeCaching: [
           {
             // A RegExp, never a closure: the matcher is copied into sw.js as source text, where BASE
             // does not exist (gate s2: `${BASE}` threw there, so no photo was ever kept or served).
-            // PLAN 4.4b (12): photo URLs carry a version (lib/photoVersion.ts), so a changed photo is a new entry.
+            // PLAN 4.4b (12), 4.6c (2): each photo URL carries its own file's hash (lib/photoVersion.ts), so a
+            // changed photo is a new entry and the others keep theirs.
             urlPattern: PHOTO_URL_PATTERN,
             handler: 'CacheFirst',
-            options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600 } },
+            options: { cacheName: 'exercise-photos', expiration: { maxEntries: 600, purgeOnQuotaError: true } },
           },
           {
             urlPattern: /\/assets\/catalog-candidates-[^/]+\.js$/,
@@ -189,7 +202,7 @@ export default defineConfig({
             // them in the background (hooks/voiceWarm.ts, the same cache) and each is kept once played.
             urlPattern: /\/voice\/[^/]+\.m4a(?:\?.*)?$/,
             handler: 'CacheFirst',
-            options: { cacheName: 'run-voice', expiration: { maxEntries: 400 } },
+            options: { cacheName: 'run-voice', expiration: { maxEntries: 400, purgeOnQuotaError: true } },
           },
         ],
         // HashRouter: every route is index.html, so any navigation falls back to it.

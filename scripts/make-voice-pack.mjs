@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shortHash } from './short-hash.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const KOKORO = process.env.KOKORO_HOME ?? join(homedir(), 'kokoro');
@@ -121,7 +122,8 @@ try {
     r = ff(['-i', levelled, '-af', fade, '-c:a', 'aac_at', '-b:a', BITRATE, '-ar', String(SAMPLE_RATE), '-ac', '1', '-map_metadata', '-1', '-fflags', '+bitexact', '-movflags', '+faststart', out]);
     if (r.status !== 0) throw new Error(`encode failed for ${c.id}: ${r.stderr.slice(-300)}`);
     const ms = Math.round(len * 1000);
-    clips[c.id] = { file: clipFile(c.id), ms };
+    // PLAN 4.6c (5): each clip's own version, so a new clip is fetched again on its own.
+    clips[c.id] = { file: clipFile(c.id), ms, v: shortHash(readFileSync(out)) };
     report.push({ id: c.id, text: c.text, rawMs: Math.round(seconds(raw) * 1000), ms, lufsBefore: before, gainDb: Number(gain.toFixed(2)), lufs: loudness(out), peakDb: peakDb(out), bytes: statSync(out).size });
   }
 

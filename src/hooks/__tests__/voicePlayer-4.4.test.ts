@@ -97,11 +97,11 @@ describe('the voice queue', () => {
 });
 
 describe('the voice pack on the phone', () => {
-  it('every clip has an address under voice/ with the pack version; an unknown id has none', async () => {
+  it('every clip has an address under voice/ with its own version; an unknown id has none', async () => {
     vi.resetModules();
     const { allClipUrls, clipUrl, VOICE_CACHE } = await vi.importActual<typeof import('../voiceAudio')>('../voiceAudio');
     expect(allClipUrls()).toHaveLength(CLIPS.length);
-    expect(clipUrl('n9')).toMatch(/voice\/n9\.m4a\?v=[0-9a-f]{10}$/);
+    expect(clipUrl('n9')).toMatch(/voice\/n9\.m4a\?v=[0-9a-z]{7}$/);
     expect(clipUrl('nope')).toBeNull();
     // The service worker keeps the clips in the same cache the background save fills, and never precaches them.
     const config = readFileSync(new URL('../../../vite.config.ts', import.meta.url), 'utf8');

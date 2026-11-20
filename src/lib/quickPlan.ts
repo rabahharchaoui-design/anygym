@@ -179,7 +179,14 @@ export function planConcept(input: PlanConceptInput, deps: QuickDeps): Concept |
   // The gym cannot do the day: fewer than 3 of its lifts with a sure demo and sure gear.
   if (workingBlocks(applyTrim(day, base, weekIndex)).reduce((n, b) => n + b.items.length, 0) < 3) return null;
   const newer = input.experience === undefined || ['new', 'months', 'break'].includes(input.experience);
-  const fitted = fitPlanDay(day, base, weekIndex, input.minutes, (id, name) => deps.profileOf(id, name), newer);
+  // PLAN D0: a slot counts as heavy when the plan's move or its stand in is (a stiff legged deadlift
+  // for a back extension, now that its demo is sure): never paired, never its rest cut, to save time.
+  const doneAs = (id: string, name: string) => {
+    const own = deps.profileOf(id, name);
+    const to = swapTo.get(id) ?? currentOf.get(id);
+    return to && to !== id && !isHeavy(own) && isHeavy(deps.profile(to)) ? deps.profile(to) : own;
+  };
+  const fitted = fitPlanDay(day, base, weekIndex, input.minutes, doneAs, newer);
   // PLAN 3.5g: "short" only when the fit really is shorter than the plan day as this gym does it. When
   // the minutes picked are longer, the card is the plan day as written, with the plan's own estimate
   // (never padded with sets to look like the chip).

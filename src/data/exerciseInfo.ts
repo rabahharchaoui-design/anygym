@@ -1,16 +1,20 @@
 // Exercise sheet lookups (SPEC 4.4) over the committed catalog, plan map and cue file.
-import { versionedAsset } from '../lib/photoVersion';
+import { decodePhotoHashes, photoVersionOf, versionedAsset } from '../lib/photoVersion';
 import catalog from '../../data/catalog.json';
 import cueFile from '../../data/exercise-cues.json';
 import catalogDemos from '../../data/catalog-demos.json';
+import demoHidden from './demoHidden.json';
 import { catalogInfo, eligibleDemos, exerciseInfo, type CatalogImages, type CueFile, type ExerciseInfo } from '../lib/exerciseInfo';
 import type { MatchKind } from '../lib/catalog';
 import { EXERCISE_MAP, musclesForCatalog, musclesForPlan } from './muscles';
 import { approvedCandidate, isApprovedCandidate, onApprovedChange } from './candidateGate';
+import { applyHiddenList, type HiddenList } from '../lib/demoReview';
+import { decodeSequences, demoWithSequence } from '../lib/demoSequence';
 
 const CUES = cueFile as CueFile;
 const CATALOG = new Map((catalog as { exercises: CatalogImages[] }).exercises.map((e) => [e.id, e]));
 const PLAN = new Map(EXERCISE_MAP.map((e) => [e.planId, e]));
+export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
 
 /**
  * The one photo eligibility lookup (SPEC 4.3, audit 2.5): a catalog id may show its photos only when
@@ -18,8 +22,24 @@ const PLAN = new Map(EXERCISE_MAP.map((e) => [e.planId, e]));
  * downgraded entries are match none), so a rejected or unaudited id is "none". PLAN 3.5a round 2:
  * plus catalog only swap candidates whose photos were checked by hand (data/catalog-demos.json).
  * PLAN 3.5e: plus a candidate move G approved on this phone (src/data/candidateGate.ts), never another.
+ * PLAN D0: then G's hand review of the catalog demos has the last word: only the ids he hid ship
+ * (src/data/demoHidden.json, written by scripts/demo-review.ts from data/reviews/). A list made for
+ * another catalog sha is refused: then no catalog demo is shown at all (no bad data) and the reason
+ * is logged; the unit tests fail on it long before it ships.
  */
-const ELIGIBLE = eligibleDemos(EXERCISE_MAP, (catalogDemos as { exercises: { catalogId: string }[] }).exercises, new Set(CATALOG.keys()));
+const AUDITED = eligibleDemos(EXERCISE_MAP, (catalogDemos as { exercises: { catalogId: string }[] }).exercises, new Set(CATALOG.keys()));
+function reviewed(): Map<string, Exclude<MatchKind, 'none'>> | null {
+  try {
+    return applyHiddenList(AUDITED, demoHidden as HiddenList, CATALOG_SHA, CATALOG.keys());
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+const REVIEWED = reviewed();
+/** False when the shipped hidden list was refused (made for another catalog). */
+export const DEMO_REVIEW_OK = REVIEWED !== null;
+const ELIGIBLE: ReadonlyMap<string, MatchKind> = REVIEWED ?? new Map<string, MatchKind>();
 export function photoEligibility(catalogId: string | null | undefined): MatchKind {
   if (!catalogId) return 'none';
   return ELIGIBLE.get(catalogId) ?? (isApprovedCandidate(catalogId) ? 'exact' : 'none');
@@ -29,13 +49,28 @@ export function photoEligibility(catalogId: string | null | undefined): MatchKin
 const catalogOf = (id: string): CatalogImages | undefined => CATALOG.get(id) ?? approvedCandidate(id);
 const inCatalog = (id: string): boolean => CATALOG.has(id) || isApprovedCandidate(id);
 
+declare const __DEMO_SEQUENCES__: string | undefined;
+/**
+ * PLAN D1: the declared 3 or 4 frame sequences, checked at build time (vite.config.ts runs
+ * lib/demoSequence.ts parseDemoSequences on data/demo-sequences.json): id to frame count, 0 for a
+ * refused one, which then shows no demo. None in unit tests.
+ */
+const SEQUENCES = decodeSequences(typeof __DEMO_SEQUENCES__ === 'string' ? __DEMO_SEQUENCES__ : '');
+/** A frame file the build hashed exists (no table, as in unit tests: none is known). */
+const frameExists = (path: string) => photoTable()?.has(path) ?? false;
+/** A catalog id's sure pair, or its declared sequence in place of it (lib/demoSequence.ts). */
+const withSequence = (info: ExerciseInfo, catalogId: string | null | undefined): ExerciseInfo => {
+  if (!info.demo || !catalogId || !SEQUENCES.has(catalogId)) return info;
+  return { ...info, demo: demoWithSequence(catalogId, info.demo, SEQUENCES.get(catalogId), frameExists) };
+};
+
 /** The sheet for a plan exercise (by plan id); notes are the plan's own lines for match none. */
 export function infoForPlan(planId: string, notes: string[] = []): ExerciseInfo {
   const entry = PLAN.get(planId);
   const cat = entry?.catalogId ? CATALOG.get(entry.catalogId) : undefined;
   const cues = entry?.catalogId ? CUES.exercises[entry.catalogId] : undefined;
   const info = exerciseInfo(entry, cat, cues, musclesForPlan(planId), notes);
-  return info.demo && photoEligibility(entry?.catalogId) === 'none' ? { ...info, demo: null } : info;
+  return info.demo && photoEligibility(entry?.catalogId) === 'none' ? { ...info, demo: null } : withSequence(info, entry?.catalogId);
 }
 
 const DEMOS = new Map<string, ExerciseInfo['demo']>();
@@ -68,21 +103,20 @@ export function demoFor(id: string): ExerciseInfo['demo'] {
 }
 
 /** Image paths are relative to the app base (/anygym/ on Pages). */
-declare const __PHOTO_VERSION__: string | undefined;
-/** PLAN 4.4b (12): the hash of every exercise photo, from the build (vite.config.ts); 'dev' elsewhere. */
-const PHOTO_VERSION = typeof __PHOTO_VERSION__ === 'string' && /^[0-9a-z]{4,16}$/.test(__PHOTO_VERSION__) ? __PHOTO_VERSION__ : 'dev';
+declare const __PHOTO_HASHES__: string | undefined;
+/** PLAN 4.6c (2): each exercise photo's own hash, from the build (vite.config.ts); read on first use. */
+let photoHashes: Map<string, string> | null | undefined;
+const photoTable = () => (photoHashes ??= typeof __PHOTO_HASHES__ === 'string' ? decodePhotoHashes(__PHOTO_HASHES__) : null);
 
-/** A public asset's URL; exercise photos carry their version (lib/photoVersion.ts). */
-export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${versionedAsset(path, PHOTO_VERSION)}`;
-
-export const CATALOG_SHA = (catalog as { source: { sha: string } }).source.sha;
+/** A public asset's URL; exercise photos carry their own version (lib/photoVersion.ts); 'dev' in unit tests. */
+export const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${versionedAsset(path, photoVersionOf(path, photoTable(), 'dev'))}`;
 
 /** The public sheet for a bare catalog exercise (muscle lists): photos only when eligible. */
 export function infoForCatalog(id: string): ExerciseInfo {
-  return catalogInfo(photoEligibility(id), catalogOf(id), CUES.exercises[id], musclesForCatalog(id));
+  return withSequence(catalogInfo(photoEligibility(id), catalogOf(id), CUES.exercises[id], musclesForCatalog(id)), id);
 }
 
 /** Owner preview (Review, SPEC 9.4 only): every catalog photo, including audit rejects, to inspect them. */
 export function ownerPreviewForCatalog(id: string): ExerciseInfo {
-  return catalogInfo('exact', CATALOG.get(id), CUES.exercises[id], musclesForCatalog(id));
+  return withSequence(catalogInfo('exact', CATALOG.get(id), CUES.exercises[id], musclesForCatalog(id)), id);
 }

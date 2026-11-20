@@ -21,14 +21,20 @@ export interface CueFile {
 }
 
 export interface DemoImages {
-  /** Start and end position, in order. Paths relative to the app base (ex/<id>/0.webp). */
-  webp: [string, string];
-  jpg: [string, string];
+  /**
+   * The frames in order, start position first. Paths relative to the app base (ex/<id>/0.webp).
+   * Two frames (start and end, the catalog pair), or 3 or 4 for a declared sequence (PLAN D1,
+   * lib/demoSequence.ts). The JPG list is the WebP list's twin, frame for frame.
+   */
+  webp: Frames;
+  jpg: Frames;
 }
+/** At least the start and end frames, in order. */
+export type Frames = readonly [string, string, ...string[]];
 
 export interface ExerciseInfo {
   match: MapEntry['match'] | 'unknown';
-  /** The two photo demo; null means the honest "Demo coming soon" state. */
+  /** The photo demo (2 to 4 frames); null means the honest "Demo coming soon" state. */
   demo: DemoImages | null;
   muscles: MuscleMapData | null;
   /** The "How to" lines: catalog cues, or for match none only the plan's own notes. */

@@ -4,7 +4,7 @@
 // away is a pause, never moving time, and the line breaks there.
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../intake/answers';
-import { fromRunPoint, pauseRun, processTrack, readTracker, toRunGaps, toRunPoint, unitMeters, type TrackBreak, type TrackInput, type TrackerState } from '../gps';
+import { fromRunPoint, pauseTrack, processTrack, readTracker, toRunGaps, toRunPoint, unitMeters, type TrackBreak, type TrackInput, type TrackerState } from '../gps';
 import { INTERVAL_PRESETS, RUN_TYPES, type RunType } from './goal';
 import { PRESET_PLANS, sanitizePlan, startIntervals, type IntervalChoice, type IntervalState } from './intervals';
 import type { LiveRun, RunGoal } from './live';
@@ -139,6 +139,9 @@ export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { 
   // The interval clock comes from the snapshot alone (the track cannot tell it). With no snapshot a
   // preset starts its blocks again; a custom set that was not written down runs on as a free run.
   const intervals = snapshot?.intervals ? { ...snapshot.intervals, at: null } : !snapshot && intervalPreset && intervalPreset !== 'custom' ? startIntervals(PRESET_PLANS[intervalPreset]) : null;
+  // Paused from the moment of the snapshot: the time the clock had shown by then stays (PLAN 4.4c),
+  // and the way walked inside the wide standing circle joins the track (PLAN 4.6b).
+  const paused = pauseTrack(tracker, fits && snapshot.savedAt !== undefined && (now === undefined || snapshot.savedAt <= now) ? snapshot.savedAt : undefined);
   return {
     id: row.id,
     startedAt: row.startedAt,
@@ -147,9 +150,8 @@ export function restoreLive(row: Run, snapshot: RunSnapshot | null, fallback: { 
     intervalPreset,
     intervals,
     unit,
-    // Paused from the moment of the snapshot: the time the clock had shown by then stays (PLAN 4.4c).
-    tracker: pauseRun(tracker, fits && snapshot.savedAt !== undefined && (now === undefined || snapshot.savedAt <= now) ? snapshot.savedAt : undefined),
-    points,
+    tracker: paused.state,
+    points: paused.point ? [...points, paused.point] : points,
     breaks,
     here: last,
     closed: true,

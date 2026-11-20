@@ -1,7 +1,7 @@
 // SPEC 12.3: what must hold for any track. Random runs from a seeded generator: clean stretches,
 // spikes, bad fixes, gaps, stops, taps on pause and resume.
 import { describe, expect, it } from 'vitest';
-import { addPoint, haversineM, pauseRun, processTrack, readTracker, resumeRun, startTracker, stepTracker, METERS_PER_MILE, type GpsPoint, type TrackInput, type TrackerState } from '..';
+import { addPoint, haversineM, pauseTrack, processTrack, readTracker, resumeRun, startTracker, stepTracker, METERS_PER_MILE, type GpsPoint, type TrackInput, type TrackerState } from '..';
 import { at, seeded, wander } from './fixtures';
 
 /** A random run of about `steps` inputs. */
@@ -51,7 +51,8 @@ describe('for any track', () => {
   it('the generator really produces every kind of trouble', () => {
     const all = SEEDS.map((seed) => processTrack(randomRun(seed), optionsFor(seed)));
     const reasons = new Set(all.flatMap((r) => r.rejected.map((x) => x.reason)));
-    expect([...reasons].sort()).toEqual(['accuracy', 'no-time', 'speed', 'time-backwards']);
+    // PLAN 4.4d adds 'jump': far off where the estimate expected (estimate.ts).
+    expect([...reasons].sort()).toEqual(['accuracy', 'jump', 'no-time', 'speed', 'time-backwards']);
     expect(all.some((r) => r.breaks.some((b) => b.kind === 'gap' && b.bridged))).toBe(true);
     expect(all.some((r) => r.unbridgedGaps > 0)).toBe(true);
     expect(all.some((r) => r.breaks.some((b) => b.kind === 'pause'))).toBe(true);
@@ -69,8 +70,14 @@ describe('for any track', () => {
         if (input.type === 'point') {
           const r = addPoint(state, input.point);
           state = r.state;
-          if (r.event.type === 'recorded') points.push(r.event.point);
-        } else state = input.type === 'pause' ? pauseRun(state) : resumeRun(state);
+          if (r.event.type === 'recorded') points.push(...(r.event.withheld ? [r.event.withheld] : []), r.event.point);
+        } else if (input.type === 'resume') state = resumeRun(state);
+        else {
+          // A pause may record the end of the withheld leg (PLAN 4.6b).
+          const r = pauseTrack(state);
+          state = r.state;
+          if (r.point) points.push(r.point);
+        }
         if (i % 50 === 49 || i === inputs.length - 1) {
           const batch = processTrack(inputs.slice(0, i + 1), options);
           expect(batch.state).toEqual(state);
@@ -99,15 +106,18 @@ describe('for any track', () => {
     }
   });
 
+  // PLAN 4.4d: a 'jump' is judged against the estimate and remembered by it (a held surprise counts
+  // once the next fix confirms it; jumps in a row restart it), so it is not a stateless drop: only
+  // the filter's own drops are removed here, and the jumps must come out the same.
   it('removing the rejected points changes nothing', () => {
     for (const seed of SEEDS) {
       const inputs = randomRun(seed);
       const options = optionsFor(seed);
       const full = processTrack(inputs, options);
       expect(full.rejected.length).toBeGreaterThan(0);
-      const dropped = new Set(full.rejected.map((r) => r.index));
+      const dropped = new Set(full.rejected.filter((r) => r.reason !== 'jump').map((r) => r.index));
       const clean = processTrack(inputs.filter((_, i) => !dropped.has(i)), options);
-      expect(clean.rejected).toEqual([]);
+      expect(clean.rejected.map((r) => r.reason)).toEqual(full.rejected.filter((r) => r.reason === 'jump').map((r) => r.reason));
       expect(clean.state).toEqual(full.state);
       expect(clean.points).toEqual(full.points);
       expect(clean.breaks).toEqual(full.breaks);
@@ -138,7 +148,11 @@ describe('for any track', () => {
         const brk = breakAfter.get(prev.t);
         if (brk && brk.toT === p.t) {
           sum += brk.distanceM;
-          expect(brk.distanceM).toBeCloseTo(brk.bridged ? haversineM(prev, p) : 0, 9);
+          // PLAN 4.4d: a correction of the estimate (reanchor) is a bridged break that counts what the
+          // estimated speed covered in its time, so a bridged break counts at most the straight line
+          // across (was: exactly it). An unbridged one counts nothing.
+          if (brk.bridged) expect(brk.distanceM).toBeLessThanOrEqual(haversineM(prev, p) + 1e-9);
+          else expect(brk.distanceM).toBe(0);
         } else sum += haversineM(prev, p);
       });
       expect(r.reading.distanceM).toBeCloseTo(sum, 6);

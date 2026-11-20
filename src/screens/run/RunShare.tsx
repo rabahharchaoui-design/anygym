@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../../lib/intake/answers';
 import { gpxDocument, gpxFileName, posterLabel, posterOf } from '../../lib/run';
@@ -13,13 +13,17 @@ type Props = { run: Run; unit: DistanceUnit };
 
 const said = (o: ShareOutcome): string => (o === 'downloaded' ? 'Saved to your phone' : o === 'needs-tap' ? 'Tap again to share' : '');
 
+/** What a screen places: the Share card button, the Export GPX button, the outcome note and the sheet. */
+export type RunShareParts = { shareButton: ReactNode; gpxButton: ReactNode; note: ReactNode; sheet: ReactNode };
+
 /**
- * Share card and GPX for one run (PLAN 4.6, SPEC 12.9, 12.12): two plain buttons. The card is a
- * line on a dark poster with the numbers and AnyGym; the first and last 200 m are off it unless
- * the switch is turned off. The GPX goes through the same share sheet (a download where there is
- * none) so Strava or Garmin can take it.
+ * Share card and GPX for one run (PLAN 4.6, SPEC 12.9, 12.12). The card is a line on a dark poster
+ * with the numbers and AnyGym; the first and last 200 m are off it unless the switch is turned off.
+ * The GPX goes through the same share sheet (a download where there is none) so Strava or Garmin
+ * can take it. Returns the pieces, so the finish screen can put Share card beside Done (PLAN M3)
+ * while the run's detail keeps the two buttons together (`RunShare`).
  */
-export function RunShare({ run, unit }: Props) {
+export function useRunShare({ run, unit }: Props, shareVariant: 'secondary' | 'primary' = 'secondary'): RunShareParts {
   const [open, setOpen] = useState(false);
   const [hideEnds, setHideEnds] = useState(true);
   const [note, setNote] = useState('');
@@ -47,21 +51,23 @@ export function RunShare({ run, unit }: Props) {
     setNote(said(await shareOrDownload(gpx)));
   };
 
-  return (
-    <>
-      <div className={styles.row}>
-        <Button variant="secondary" onClick={() => { setNote(''); setOpen(true); }} data-testid="run-share-card">
-          Share card
-        </Button>
-        <Button variant="secondary" onClick={() => void exportGpx()} data-testid="run-export-gpx">
-          Export GPX
-        </Button>
-      </div>
-      {note && (
-        <p className={styles.note} role="status" data-testid="run-share-note">
-          {note}
-        </p>
-      )}
+  return {
+    shareButton: (
+      <Button variant={shareVariant} size="md" onClick={() => { setNote(''); setOpen(true); }} data-testid="run-share-card">
+        Share card
+      </Button>
+    ),
+    gpxButton: (
+      <Button variant="secondary" size="md" onClick={() => void exportGpx()} data-testid="run-export-gpx">
+        Export GPX
+      </Button>
+    ),
+    note: note ? (
+      <p className={styles.note} role="status" data-testid="run-share-note">
+        {note}
+      </p>
+    ) : null,
+    sheet: (
       <Sheet open={open} onClose={() => setOpen(false)} label="Share card" scroll>
         <div className={styles.sheet} data-testid="run-share-sheet">
           <canvas ref={preview} className={styles.preview} data-testid="run-share-preview" data-hidden={poster.routeHidden || undefined} role="img" aria-label={posterLabel(poster)} />
@@ -71,6 +77,21 @@ export function RunShare({ run, unit }: Props) {
           </Button>
         </div>
       </Sheet>
+    ),
+  };
+}
+
+/** Share card and Export GPX side by side, the note under them, and the card's sheet (the run's detail). */
+export function RunShare(props: Props) {
+  const parts = useRunShare(props);
+  return (
+    <>
+      <div className={styles.row}>
+        {parts.shareButton}
+        {parts.gpxButton}
+      </div>
+      {parts.note}
+      {parts.sheet}
     </>
   );
 }

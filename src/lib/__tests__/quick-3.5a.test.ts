@@ -79,8 +79,9 @@ describe('concepts', () => {
   // PLAN 3.5b: four cards that differ by style (was three body part concepts, Full body first).
   it('a full gym with no history: four honest style cards, Full body circuit first', () => {
     const cs = buildConcepts({ base: base(FULL), minutes: 30, recent: [] }, QUICK_DEPS);
-    // 3.5b round 4: the diversity rule compares each card's main muscles, so Strength focus fits next to the circuit.
-    expect(cs.map((c) => c.id)).toEqual(['circuit', 'pump', 'strength', 'armsAbs']);
+    // 3.5b round 4: the diversity rule compares each card's main muscles. PLAN D0: with G's 99 approved
+    // demos the pump card holds sure compounds that overlap Strength focus, so the fourth card is Go easy.
+    expect(cs.map((c) => c.id)).toEqual(['circuit', 'pump', 'armsAbs', 'easy']);
     expect(cs[0]!.title).toBe('Full body circuit');
     expectHonest(cs, FULL);
     // No fresh concept without logged sets: it would claim something it does not know.
@@ -117,13 +118,19 @@ describe('concepts', () => {
   it('a dumbbell only gym: only concepts whose name is true, every card doable with a sure demo', () => {
     const cs = buildConcepts({ base: base(DUMBBELLS), minutes: 30, recent: [] }, QUICK_DEPS);
     expect(cs.length).toBeGreaterThanOrEqual(2);
-    // No sure demo of a dumbbell leg move: never a Full body circuit here (PLAN 3.5b ids).
-    expect(cs.some((c) => c.id === 'circuit')).toBe(false);
+    // PLAN D0: G approved Dumbbell_Squat, a sure dumbbell leg move, so the Full body circuit is true here now.
+    const circuit = cs.find((c) => c.id === 'circuit');
+    expect(circuit?.items.map((it) => it.id)).toContain('Dumbbell_Squat');
     expectHonest(cs, DUMBBELLS);
   });
 
   it('fewer than 3 sure exercises fit: no concept at all (the honest empty state)', () => {
-    expect(buildConcepts({ base: base(NOTHING), minutes: 30, recent: [] }, QUICK_DEPS)).toEqual([]);
+    // PLAN D0: bodyweight only now has sure demos (Pushups, Bodyweight_Squat, Sit-Up): honest cards.
+    const bodyweight = buildConcepts({ base: base(NOTHING), minutes: 30, recent: [] }, QUICK_DEPS);
+    expect(bodyweight.length).toBeGreaterThan(0);
+    expectHonest(bodyweight, NOTHING);
+    // A pull up bar only gym has no 3 sure moves for any card.
+    expect(buildConcepts({ base: base({ equipment: ['pull_up_bar'], dumbbellRange: null }), minutes: 30, recent: [] }, QUICK_DEPS).every((c) => c.items.length >= 3)).toBe(true);
   });
 
   it('the never list and go easy on are respected', () => {
@@ -211,7 +218,9 @@ describe('the deck swap', () => {
   it('nothing else fits: null, the card stays', () => {
     const item = { id: 'crunch', slot: 'crunch', origin: 'crunch', name: 'Crunch', pattern: 'core' as const, sets: 3, reps: [10, 15] as [number, number], restSec: 60, why: 'x' };
     const other = { ...item, id: 'dead-bug', slot: 'dead-bug', origin: 'dead-bug' };
-    expect(nextSwap(item, [item, other], [item.id], { data: SWAP_DATA, gym: NOTHING, ok })).toBeNull();
+    // PLAN D0: G approved Sit-Up, the one other sure core move with no gear; once tried, nothing is left.
+    expect(nextSwap(item, [item, other], [item.id], { data: SWAP_DATA, gym: NOTHING, ok })).toBe('Sit-Up');
+    expect(nextSwap(item, [item, other], [item.id, 'Sit-Up'], { data: SWAP_DATA, gym: NOTHING, ok })).toBeNull();
   });
 });
 
@@ -246,7 +255,11 @@ describe('the plan day concept', () => {
   });
 
   it('a gym where too little of the day fits: no plan concept', () => {
-    expect(planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: 30, gym: NOTHING }, QUICK_DEPS)).toBeNull();
+    // PLAN D0: with no gear, leg day still keeps 3 sure moves (Bodyweight_Squat, Crunch, Sit-Up), all
+    // honest; the upper body days do not.
+    const legs = planConcept({ plan: split, dayIndex: 0, weekIndex: 0, minutes: 30, gym: NOTHING }, QUICK_DEPS);
+    if (legs) expectHonest([legs], NOTHING);
+    expect(planConcept({ plan: split, dayIndex: 1, weekIndex: 0, minutes: 30, gym: NOTHING }, QUICK_DEPS)).toBeNull();
   });
 });
 
@@ -310,9 +323,9 @@ describe('round 2', () => {
     }
   });
 
-  it('B5: nothing can be built with a pull up bar or bodyweight only; a full gym can', () => {
-    expect(canBuild(base(NOTHING), QUICK_DEPS)).toBe(false);
-    expect(canBuild(base({ equipment: ['pull_up_bar'], dumbbellRange: null }), QUICK_DEPS)).toBe(false);
+  it('B5: bodyweight only and a pull up bar can build since G approved the bodyweight demos (D0); a full gym can', () => {
+    expect(canBuild(base(NOTHING), QUICK_DEPS)).toBe(true);
+    expect(canBuild(base({ equipment: ['pull_up_bar'], dumbbellRange: null }), QUICK_DEPS)).toBe(true);
     expect(canBuild(base(FULL), QUICK_DEPS)).toBe(true);
   });
 
@@ -368,8 +381,16 @@ describe('round 3', () => {
 
   it('B1: a rejected card never comes back, and never "Same movement as X" on X', () => {
     const a = { id: 'dumbbell-lateral-raise', slot: 'dumbbell-lateral-raise', origin: 'dumbbell-lateral-raise', name: 'Dumbbell Lateral Raise', pattern: 'lateral delt' as const, sets: 3, reps: [10, 15] as [number, number], restSec: 60, why: 'Isolates your shoulders' };
-    // Nothing else with a sure demo fits a lateral raise: the slot's own exercise is never offered back.
-    expect(nextSwap(a, [a], [], { data: SWAP_DATA, gym: FULL, ok, nameOf })).toBeNull();
+    // PLAN D0: G approved more lateral raises; each is offered once, the slot's own exercise never comes
+    // back, and then nothing is left.
+    const tried: string[] = [];
+    for (let next = nextSwap(a, [a], tried, { data: SWAP_DATA, gym: FULL, ok, nameOf }); next; next = nextSwap(a, [a], tried, { data: SWAP_DATA, gym: FULL, ok, nameOf })) {
+      expect(next).not.toBe(a.id);
+      expect(tried).not.toContain(next);
+      tried.push(next);
+    }
+    expect(tried).toContain('Seated_Side_Lateral_Raise');
+    expect(tried.length).toBeLessThan(6);
     const back = swapItem(a, 'leg-press', 'Leg Press', false, 'Leg Press');
     // 3.5f: the line is a curated fact picked from `from` (quickNotes.ts); back on the slot's own move there is no "from".
     expect(back.from).toBeUndefined();

@@ -121,6 +121,20 @@ export function ownShoulderLabel(region: Region, data: Pick<MuscleMapData, 'prim
   return [...data.primary, ...data.secondary].find((t) => t.muscle === 'shoulders' && t.regions.includes(region))?.label ?? null;
 }
 
+/**
+ * PLAN 4.6c (3): the exercise's own words for any drawn shape that stands for more than one muscle:
+ * the shoulder shape (ownShoulderLabel), the glute shape (glutes, and the outer hips that light it
+ * too), the upper back shape (lats, mid back). The labels of the exercise's targets that light it,
+ * joined; null for a shape that stands for one muscle, or one the exercise does not name.
+ */
+export function ownRegionLabel(region: Region, data: Pick<MuscleMapData, 'primary' | 'secondary'>): string | null {
+  const shoulder = ownShoulderLabel(region, data);
+  if (shoulder) return shoulder;
+  if (Object.values(MUSCLE_REGIONS).filter((rs) => rs.includes(region)).length < 2) return null;
+  const labels = [...new Set([...data.primary, ...data.secondary].filter((t) => t.muscle !== 'shoulders' && t.regions.includes(region)).map((t) => t.label))];
+  return labels.length ? labels.join(' and ') : null;
+}
+
 /** The text line under the drawing. */
 export function muscleText(primary: MuscleTarget[], secondary: MuscleTarget[]): string {
   const group = (list: MuscleTarget[]) => cap(list.map((t) => t.label).join(', '));

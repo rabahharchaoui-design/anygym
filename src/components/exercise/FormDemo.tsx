@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { PauseIcon, PlayIcon } from '../../ui/icons';
-import { assetUrl } from '../../data/exerciseInfo';
 import type { DemoImages } from '../../lib/exerciseInfo';
+import { frameCount } from '../../lib/demoSequence';
 import { useDemoPhotos, type Photos } from '../../hooks/usePhotos';
+import { Picture } from './DemoPicture';
+import { DemoSteps } from './DemoSteps';
+import { DemoStage } from './DemoStage';
 import styles from './FormDemo.module.css';
 
 type Props = {
@@ -24,43 +27,32 @@ type Props = {
 };
 
 /**
- * One picture: WebP with a JPG fallback online; offline only the URL the cache holds, so nothing
- * ever fails to load (gate s2: a failed load logs an error in WebKit). Sized by its box, so nothing
- * shifts when it loads.
- */
-function Picture({ demo, i, photos, className, alt, lazy = true, fill = false, sync = false }: { demo: DemoImages; i: 0 | 1; photos: Photos; className: string; alt: string; lazy?: boolean; fill?: boolean; sync?: boolean }) {
-  // The blurred fill behind the hero is not a frame of the demo.
-  const frame = fill ? undefined : i;
-  // The hero's sharp photo decodes with the page (round 3): it is in the screen change's snapshot.
-  const decoding = sync ? 'sync' : 'async';
-  if (photos.kind === 'net') {
-    return (
-      <picture className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden={alt ? undefined : true}>
-        <source srcSet={assetUrl(demo.webp[i])} type="image/webp" />
-        <img src={assetUrl(demo.jpg[i])} alt={alt} loading={lazy ? 'lazy' : undefined} decoding={decoding} width={640} height={427} draggable={false} />
-      </picture>
-    );
-  }
-  const url = photos.kind === 'cache' ? photos.urls[i] : null;
-  // Not kept (or still asking the cache): the frame stays empty, never a broken picture.
-  if (!url) return i === 0 ? <span className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden="true" /> : null;
-  return (
-    <picture className={className} data-frame={frame} data-hero-fill={fill || undefined} aria-hidden={alt ? undefined : true}>
-      <img src={url} alt={alt} decoding={decoding} width={640} height={427} draggable={false} />
-    </picture>
-  );
-}
-
-/**
  * The demo's two photos (start and end) stacked, the end one crossfading in on the form demo's own
  * loop (1.35 s, 0.15 s fade). One loop for every preview (PLAN 3.5h): the hero, the sheet, the
  * workout tiles, Up next, the Replace list and the Quick deck card. Our source has two photos per
  * exercise, so this is a two frame loop. `still`: the start photo only, nothing animates (off
  * screen, or a deck card that is not in play). Reduced motion stops the loop in CSS.
+ * PLAN D1: a 3 or 4 frame sequence loops the same way, one 1.5 s slot per frame, each frame
+ * crossfading in over the one before it (pure CSS, so a list of tiles costs no renders).
  */
 export function DemoFrames({ demo, photos, name, lazy = true, sync = false, still = false, fit = 'contain' }: { demo: DemoImages; photos: Photos; name?: string; lazy?: boolean; sync?: boolean; still?: boolean; fit?: 'contain' | 'cover' }) {
-  // Modifier classes on the two frames themselves (no wrapper box: the frames lay out in whatever box shows them).
+  // Modifier classes on the frames themselves (no wrapper box: the frames lay out in whatever box shows them).
   const mods = [fit === 'cover' ? styles.cover : '', still ? styles.still : ''].filter(Boolean).join(' ');
+  const n = frameCount(demo);
+  // Offline with a frame of the sequence not kept: the start photo still, never a loop with a hole.
+  const whole = photos.kind !== 'cache' || photos.urls.slice(0, n).every(Boolean);
+  if (n > 2 && !whole) return <Picture demo={demo} i={0} photos={photos} alt={name ? `${name}, start position` : ''} lazy={lazy} sync={sync} className={[styles.frame, mods].filter(Boolean).join(' ')} />;
+  if (n > 2) {
+    // Frame i shows in slot i: a mid frame holds until the next one covers it, the last fades out to the start photo.
+    const step = (i: number) => (i === 0 ? '' : `${styles.step} ${styles[`d${i}`]} ${styles[i === n - 1 ? `last${n}` : `mid${n}`]}`);
+    return (
+      <>
+        {Array.from({ length: n }, (_, i) => (
+          <Picture key={i} demo={demo} i={i} photos={photos} alt={i === 0 && name ? `${name}, start position` : ''} lazy={lazy} sync={sync && i === 0} className={[styles.frame, step(i), mods].filter(Boolean).join(' ')} />
+        ))}
+      </>
+    );
+  }
   const cls = (end: boolean) => [styles.frame, end ? styles.end : '', mods].filter(Boolean).join(' ');
   return (
     <>
@@ -102,17 +94,13 @@ export function FormDemo({ demo, name, compact = false, hero = false, vtName, on
       </span>
     );
   }
+  // PLAN D1: a 3 or 4 frame sequence steps with a position and Previous / Next (DemoSteps.tsx).
+  if (frameCount(demo) > 2) return <DemoSteps demo={demo} name={name} onOpen={onOpen} fit={fit} />;
   return (
     <div className={styles.wrap} data-testid="form-demo" data-paused={paused || undefined} data-fit={fit || undefined} style={vtName ? { viewTransitionName: vtName } : undefined}>
-      {onOpen ? (
-        <button type="button" className={`${styles.stage} pressable`} onClick={onOpen} aria-label={`Show ${name} full screen`} data-testid="demo-stage">
-          {frames}
-        </button>
-      ) : (
-        <div className={styles.stage} data-testid="demo-stage">
-          {frames}
-        </div>
-      )}
+      <DemoStage className={styles.stage ?? ''} name={name} onOpen={onOpen}>
+        {frames}
+      </DemoStage>
       {/* Pause is a visible glyph in the corner, never a hidden tap on the photo (hidden with reduced motion: nothing moves). */}
       <button type="button" className={`${styles.pause} pressable`} onClick={() => setPaused((p) => !p)} aria-pressed={paused} aria-label={paused ? 'Play demo' : 'Pause demo'}>
         {paused ? <PlayIcon width={14} height={14} strokeWidth={2.6} fill="currentColor" aria-hidden="true" /> : <PauseIcon width={14} height={14} strokeWidth={2.6} fill="currentColor" aria-hidden="true" />}
