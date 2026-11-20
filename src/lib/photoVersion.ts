@@ -6,20 +6,24 @@
 // the phone downloads only that one again. Pure.
 
 /** The service worker's rule for exercise photos: the path, with or without the version. */
-export const PHOTO_URL_PATTERN = /\/ex\/[^/]+\/[01]\.(?:webp|jpg)(?:\?v=[0-9a-z]+)?$/;
+export const PHOTO_URL_PATTERN = /\/ex\/[^/]+\/[0-3]\.(?:webp|jpg)(?:\?v=[0-9a-z]+)?$/;
 
-/** The files of one exercise's photos, in the order of their hashes in the table. */
-export const PHOTO_FRAMES = ['0.jpg', '0.webp', '1.jpg', '1.webp'] as const;
+/**
+ * The files of one exercise's photos, in the order of their hashes in the table. PLAN D1: frames 2
+ * and 3 of a 3 or 4 frame sequence (lib/demoSequence.ts) get their hashes the same way.
+ */
+export const PHOTO_FRAMES = ['0.jpg', '0.webp', '1.jpg', '1.webp', '2.jpg', '2.webp', '3.jpg', '3.webp'] as const;
 
 /**
  * The build's table, kept as one short string: `dir:h,h,h,h;dir:h,h,h,h` with the hashes in
- * PHOTO_FRAMES order (an empty hash where the file is missing). A string, not an object, so it
- * stays a few KB in the first download.
+ * PHOTO_FRAMES order (an empty hash where the file is missing; empty hashes at the end are left
+ * out, so a two frame exercise costs no more than before frames 2 and 3 existed). A string, not an
+ * object, so it stays a few KB in the first download.
  */
 export function encodePhotoHashes(dirs: Record<string, ReadonlyArray<string | null>>): string {
   return Object.keys(dirs)
     .sort()
-    .map((dir) => `${dir}:${PHOTO_FRAMES.map((_, i) => dirs[dir]![i] ?? '').join(',')}`)
+    .map((dir) => `${dir}:${PHOTO_FRAMES.map((_, i) => dirs[dir]![i] ?? '').join(',').replace(/,+$/, '')}`)
     .join(';');
 }
 

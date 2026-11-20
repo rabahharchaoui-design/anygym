@@ -6,6 +6,8 @@ import { useSheetLayer } from '../../ui/useSheetLayer';
 import { XIcon } from '../../ui/icons';
 import type { DemoImages } from '../../lib/exerciseInfo';
 import { FormDemo } from './FormDemo';
+import { frameCount } from '../../lib/demoSequence';
+import { ViewerSteps } from './DemoSteps';
 import styles from './DemoViewer.module.css';
 
 type Props = {
@@ -34,6 +36,8 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // PLAN D1: a 3 or 4 frame sequence steps here too, its bar under the photo.
+  const sequence = frameCount(demo) > 2;
 
   useSheetLayer(present, rootRef, closeRef, (root) => root.querySelector<HTMLElement>('[data-close]')?.focus({ preventScroll: true }));
 
@@ -58,6 +62,7 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
     >
       <motion.div
         className={styles.stage}
+        data-steps={sequence || undefined}
         drag={reduce ? false : 'y'}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={{ top: 0.05, bottom: 0.9 }}
@@ -68,7 +73,11 @@ function Frame({ onClose, name, demo, onDetails }: Omit<Props, 'open'>) {
         exit={reduce ? undefined : { scale: 0.96, y: 24 }}
         transition={SHEET_SPRING}
       >
-        <FormDemo demo={demo} name={name} hero />
+        {sequence ? (
+          <ViewerSteps demo={demo} name={name} />
+        ) : (
+          <FormDemo demo={demo} name={name} hero />
+        )}
       </motion.div>
       <p className={styles.title}>{name}</p>
       <button type="button" className={`${styles.close} pressable`} data-close onClick={onClose} aria-label="Close">
