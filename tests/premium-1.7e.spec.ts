@@ -37,9 +37,9 @@ test('push, pop and tab transitions; the tab pill moves to the picked tab', asyn
   await recordTransitions(page);
   await page.goto('./');
   const nav = page.getByRole('navigation', { name: 'Main' });
-  await nav.getByRole('link', { name: 'Plans' }).tap();
+  await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Plans' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Plans' })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByTestId('plan-five-day-split').tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Classic 5 Day Split' })).toBeVisible();
   await page.getByRole('link', { name: 'Back to Plans' }).tap();
@@ -135,8 +135,8 @@ test('sheet card stack: the app behind scales back while a sheet is open, nested
 test('Settings: Haptics and Colored plates switches save, version shows', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).tap();
-  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await page.getByTestId('tab-you').tap();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await expect(page.getByTestId('app-version')).toHaveText(/^Version \d+\.\d+\.\d+$/);
   const haptics = page.getByRole('switch', { name: /Haptics/ });
   await expect(haptics).toBeChecked();

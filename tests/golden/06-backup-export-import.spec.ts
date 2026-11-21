@@ -68,7 +68,7 @@ test('golden: back up to a file, wipe, restore with Replace, History and runs ar
   expect((await dbAll<{ id: string }>(page, 'sessions')).sort((a, b) => a.id.localeCompare(b.id))).toEqual(sessions);
   expect((await dbAll<{ id: string }>(page, 'sets')).sort((a, b) => a.id.localeCompare(b.id))).toEqual(sets);
   expect((await dbAll<{ id: string }>(page, 'runs')).sort((a, b) => a.id.localeCompare(b.id))).toEqual(runs);
-  await page.getByLabel('Back to Today').tap();
+  await page.getByTestId('tab-today').tap();
   await page.getByRole('link', { name: /History/ }).tap();
   await expect(page.getByTestId('history-row')).toHaveCount(2);
 });

@@ -11,8 +11,8 @@ test.describe('app shell', () => {
     await page.goto('./');
     const nav = page.getByRole('navigation', { name: 'Main' });
     const tabs = nav.getByRole('link');
-    await expect(tabs).toHaveCount(4);
-    await expect(tabs).toHaveText(['Today', 'Run', 'History', 'Plans']);
+    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveText(['Today', 'Plan', 'Run', 'History', 'You']);
 
     for (const [name, hash] of [
       ['Run', '#/run'],
@@ -29,10 +29,10 @@ test.describe('app shell', () => {
       expect(box!.height).toBeGreaterThanOrEqual(48);
     }
 
-    await page.getByRole('link', { name: 'Settings' }).tap();
+    await page.getByTestId('tab-you').tap();
     await expect(page).toHaveURL(/#\/settings$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
-    await page.getByRole('link', { name: 'Back to Today' }).tap();
+    await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
+    await page.getByTestId('tab-today').tap();
     await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
 
     expect(errors).toEqual([]);

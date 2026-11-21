@@ -15,7 +15,7 @@ test('2.2e flow: Today, Plans, plan, day list, exercise, a PR set, finish, a tab
   await page.reload();
   await page.waitForTimeout(800);
   const nav = page.getByRole('navigation', { name: 'Main' });
-  await nav.getByRole('link', { name: 'Plans' }).tap();
+  await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
   await page.waitForTimeout(700);
   await page.getByTestId('plan-five-day-split').tap();
   await page.waitForTimeout(900);
@@ -61,7 +61,7 @@ test('2.2e flow: Today, Plans, plan, day list, exercise, a PR set, finish, a tab
   await navIdle(page);
   await nav.getByRole('link', { name: 'History' }).tap();
   await page.waitForTimeout(900);
-  await nav.getByRole('link', { name: 'Plans' }).tap();
+  await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
   await page.waitForTimeout(900);
   await nav.getByRole('link', { name: 'Today' }).tap();
   await page.waitForTimeout(1000);

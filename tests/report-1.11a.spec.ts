@@ -13,7 +13,7 @@ const DISCLOSURE =
 
 async function openReport(page: Page) {
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   await expect(page).toHaveURL(/#\/settings$/);
   await page.getByRole('button', { name: /Report a problem/ }).tap();
   const sheet = page.getByRole('dialog', { name: 'Report a problem' });

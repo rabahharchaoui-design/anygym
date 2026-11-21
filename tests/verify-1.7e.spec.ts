@@ -129,7 +129,7 @@ test('V3 every control is at least 48pt on every screen', async ({ page }) => {
   await page.reload();
   const check = async (n: string) => { await rootAtRest(page); await page.waitForTimeout(450); found.push(...(await small(page, n))); };
   await check('today');
-  await page.getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('link', { name: 'Plan', exact: true }).tap();
   await expect(page.getByTestId('plan-five-day-split')).toBeVisible();
   await check('plans');
   await page.getByTestId('plan-six-week-volume').tap();
@@ -192,7 +192,7 @@ for (const w of [320, 375, 440]) {
     await seedSquat(page);
     await page.reload();
     await check('today');
-    await page.getByRole('link', { name: 'Plans' }).tap();
+    await page.getByRole('link', { name: 'Plan', exact: true }).tap();
     await check('plans');
     await page.getByTestId('plan-six-week-volume').tap();
     await check('viewer');
@@ -225,7 +225,7 @@ test.describe('reduced motion', () => {
     await usePlan(page);
     await seedSquat(page);
     await page.reload();
-    await page.getByRole('link', { name: 'Plans' }).tap();
+    await page.getByRole('link', { name: 'Plan', exact: true }).tap();
     await expect(page.getByTestId('plan-five-day-split')).toBeVisible();
     await page.getByTestId('plan-five-day-split').tap();
     await expect(page.getByRole('heading', { level: 1, name: 'Classic 5 Day Split' })).toBeVisible();
@@ -307,7 +307,7 @@ test('V7 Settings: Haptics persists on and off, colors change the diagram, versi
   await page.reload();
   await expect(page.getByRole('switch', { name: /Haptics/ })).toBeChecked();
   // tabs tick through the switch path without throwing (Settings hides the tab bar: back to Today first)
-  await page.getByRole('link', { name: 'Back to Today' }).tap();
+  await page.getByTestId('tab-today').tap();
   await page.getByRole('link', { name: 'History' }).tap();
   await page.getByRole('link', { name: 'Today', exact: true }).tap();
   await expect(page).toHaveURL(/#\/$/);

@@ -408,7 +408,7 @@ for (const [locale, weight, distance, measure] of [
 test('existing users never see the funnel: a profile, or a workout logged before it existed @matrix', async ({ page }) => {
   // Open a screen the gate does not touch, write an existing user's data, then open Today.
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await dbPut(page, 'profile', { id: 'me', defaultUnit: 'lb', createdAt: 1 });
   await page.goto('./#/');
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
@@ -419,7 +419,7 @@ test('existing users never see the funnel: a profile, or a workout logged before
 
 test('a user with only a workout (no profile) is an existing user too', async ({ page }) => {
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   const [gym] = await dbAll(page, 'gyms');
   await dbPut(page, 'sessions', { id: 'old-1', gymId: gym!.id as string, startedAt: 1000, endedAt: 2000, imported: false, exerciseIds: [] });
   await page.goto('./#/');

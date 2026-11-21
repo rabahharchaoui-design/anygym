@@ -38,7 +38,7 @@ test('an earlier Send finishing late never marks a new unsent report as Sent @ma
   const sent = await mockReportApi(context);
   await holdFirstReport(page);
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   await expect(page).toHaveURL(/#\/settings$/);
 
   // Report A: Send, and its request hangs.
@@ -78,7 +78,7 @@ test('a late failure from an earlier opening never shows its error in the new sh
   const sent = await mockReportApi(context, 400);
   await holdFirstReport(page);
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   let sheet = await openReport(page);
   await sheet.getByTestId('report-text').fill('First report');
   await sheet.getByTestId('report-send').tap();

@@ -54,7 +54,7 @@ const brokenWords = (page: Page, scope: string) =>
 /** Settings, Gyms, + New gym, Hotel gym, tap your equipment (dumbbells max 22 kg). */
 async function newHotelGym(page: Page) {
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).or(page.getByRole('button', { name: 'Settings' })).first().tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByTestId('settings-gyms').tap();
   await expect(page.getByTestId('gyms-list')).toBeVisible();
   await page.getByTestId('settings-new-gym').tap();

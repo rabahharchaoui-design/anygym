@@ -326,12 +326,12 @@ test('"How do you load this?" marks the current choice', async ({ page }) => {
 test('Settings hides the tab bar like every pushed screen; plain "us" in the report copy', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).tap();
-  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await page.getByTestId('tab-you').tap();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await expect(page.locator('nav[aria-label="Main"]')).toHaveAttribute('data-hidden', 'true');
   await expect(page.getByText('Tell us what went wrong. Add a screenshot if it helps.')).toBeVisible();
   await expect(page.getByText(/the builder/)).toHaveCount(0);
-  await page.getByRole('link', { name: 'Back to Today' }).tap();
+  await page.getByTestId('tab-today').tap();
   await expect(page.locator('nav[aria-label="Main"]')).not.toHaveAttribute('data-hidden', /.*/);
   expect(errors).toEqual([]);
 });

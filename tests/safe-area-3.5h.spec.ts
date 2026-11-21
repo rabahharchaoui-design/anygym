@@ -56,7 +56,7 @@ test.describe('safe areas on every screen @matrix', () => {
     await nav.getByRole('link', { name: 'Run' }).tap();
     await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
     await screen(page, 'run');
-    await nav.getByRole('link', { name: 'Plans' }).tap();
+    await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
     await expect(page.getByTestId('place-home')).toBeVisible();
     await screen(page, 'plans', { primary: page.getByTestId('place-home') });
     await page.getByTestId('place-home').tap();
@@ -66,7 +66,7 @@ test.describe('safe areas on every screen @matrix', () => {
     await expect(page.getByRole('button', { name: 'Use this plan' })).toBeVisible();
     await screen(page, 'plan-viewer', { primary: page.getByRole('button', { name: 'Use this plan' }) });
     await page.goto('./#/settings');
-    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
     await screen(page, 'settings');
     await page.getByTestId('settings-gyms').tap();
     await expect(page.getByTestId('gyms-list')).toBeVisible();

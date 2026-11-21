@@ -429,7 +429,7 @@ test('V7 backup then restore keeps swaps and alwaysUse; an old backup without th
   expect(sessions.some((x) => x.swaps?.length)).toBe(true);
   expect(settings.length).toBe(1);
 
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   await expect(page.getByTestId('backup')).toBeVisible();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('backup').tap()]);
   const path = await download.path();

@@ -32,8 +32,8 @@ test('live site: shell renders, manifest served, no errors, no third party reque
 
   const nav = page.getByRole('navigation', { name: 'Main' });
   const tabs = nav.getByRole('link');
-  await expect(tabs).toHaveCount(4);
-  await expect(tabs).toHaveText(['Today', 'Run', 'History', 'Plans']);
+  await expect(tabs).toHaveCount(5);
+  await expect(tabs).toHaveText(['Today', 'Plan', 'Run', 'History', 'You']);
   for (const t of await tabs.all()) await expect(t).toBeVisible();
 
   // Nothing left the site before the Run tab was opened.

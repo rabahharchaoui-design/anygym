@@ -136,7 +136,7 @@ test('M10 Run', async ({ page, context }) => {
 test('M10 Settings', async ({ page }) => {
   await pastIntake(page);
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await square(page, 'settings');
 });
 
