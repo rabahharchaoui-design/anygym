@@ -93,6 +93,13 @@ async function clipping(page: Page, ids: string[]) {
         if (ink.right > innerWidth + 0.5) out.push(`${f.getAttribute('data-testid')}: number off the screen`);
       }
       const controls = document.querySelector('[data-testid="live-controls"]');
+      const page0 = document.querySelector('[data-testid="live-stats"]');
+      if (controls && page0) {
+        const top = controls.getBoundingClientRect().top;
+        for (const f of page0.querySelectorAll('[data-field], [data-testid="interval-face"]')) {
+          if (f.getBoundingClientRect().bottom > top + 0.5) out.push(`${f.getAttribute('data-testid')}: under the controls`);
+        }
+      }
       if (controls) {
         for (const c of controls.querySelectorAll('button')) {
           const r = c.getBoundingClientRect();
@@ -170,6 +177,8 @@ test.describe('M2 live run', () => {
     await targets(page, ['live-pause', 'live-lock', 'live-end']);
     expect(await clipping(page, ids)).toEqual([]);
     await shot(page, 'live-data');
+    // The clock stands, so the next tick does not print over the painted numbers.
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 50);
     await paintWorst(page, { 'live-big-field': '99.99', 'live-small-time': '1:59:59', 'live-small-pace': '59:59' });
     expect(await clipping(page, ids)).toEqual([]);
     await shot(page, 'live-data-worst');

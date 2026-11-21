@@ -19,6 +19,8 @@ type Props = {
   labelTestId?: string;
   numberTestId?: string;
   numberData?: Record<`data-${string}`, string>;
+  /** The unit beside the number at any size (as at medium), where height is short (PLAN M2). */
+  inline?: boolean;
 };
 
 /**
@@ -26,12 +28,12 @@ type Props = {
  * unit. The number takes the biggest size of its step that fits the field's width, so 99.99 or
  * 1:59:59 never clips at 320 px. A value the app does not trust shows two dashes, never a guess.
  */
-export function DataField({ label, value, unit, size = 'large', testId, className, spoken, labelTestId, numberTestId, numberData }: Props) {
+export function DataField({ label, value, unit, size = 'large', testId, className, spoken, labelTestId, numberTestId, numberData, inline }: Props) {
   const blank = value === null || value.trim() === '' || value === BLANK;
   const shown = blank ? BLANK : value;
   const fit = { '--df-em': numberEm(shown, size).toFixed(3) } as CSSProperties;
   return (
-    <div className={`${styles.field} ${className ?? ''}`} data-size={size} data-blank={blank || undefined} data-testid={testId} data-field>
+    <div className={`${styles.field} ${className ?? ''}`} data-size={size} data-inline={inline || undefined} data-blank={blank || undefined} data-testid={testId} data-field>
       {spoken && <span className={styles.hidden}>{spoken}</span>}
       <span className={styles.label} aria-hidden={spoken ? true : undefined} data-testid={labelTestId}>
         {label}
