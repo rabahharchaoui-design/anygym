@@ -82,3 +82,58 @@
     transition: none;
   }
 }
+
+/* PLAN M14 (Monolith, board 13): a plain row on the page, the state as a word on the right. On:
+   white over a 3 px ice line; Off: secondary text. The whole row stays the hit area. */
+.row[data-words] {
+  min-height: 62px;
+  padding: var(--space-2) 0;
+}
+
+.row[data-words]:active .word {
+  opacity: var(--press-dim);
+}
+
+.word {
+  position: relative;
+  flex: none;
+  min-width: var(--tap-min);
+  padding: var(--space-2) 0;
+  text-align: right;
+  color: var(--text-2);
+  font-size: var(--text-mono-body);
+  font-weight: 500;
+}
+
+.word::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  width: 100%;
+  height: var(--tab-mark-h);
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform var(--dur-base) var(--ease-tap-spring);
+}
+
+.input:checked + .word {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.input:checked + .word::after {
+  transform: scaleX(1);
+}
+
+.input:focus-visible + .word {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word::after {
+    transition: none;
+  }
+}

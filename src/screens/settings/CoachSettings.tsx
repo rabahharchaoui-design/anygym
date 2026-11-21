@@ -39,6 +39,7 @@ export function CoachSettings() {
       </h2>
       <div className={settings.card} data-testid="settings-coach">
         <Switch
+          words
           label="Auto level up"
           hint={AUTO_LEVEL_UP_HINT}
           checked={on}

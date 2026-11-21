@@ -1,4 +1,3 @@
-import { ChevronRight } from 'lucide-react';
 import { SCHEDULE_STYLES, WEEKDAYS } from '../../lib/intake/options';
 import { sanitizeAnswers } from '../../lib/intake/funnel';
 import { focusName, normalizeFocusPicks } from '../../lib/plan/focus';
@@ -34,12 +33,11 @@ export function PlanAnswerRows({ intake, go }: Props) {
   return (
     <>
       {rows.map((r) => (
-        <button key={r.id} type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => go(r.to)} data-testid={r.id}>
+        <button key={r.id} type="button" className={`${styles.linkRow} pressable`} onClick={() => go(r.to)} data-testid={r.id}>
           <span className={styles.unitText}>
             <span className={styles.unitLabel}>{r.label}</span>
             <span className={styles.unitHint}>{r.hint}</span>
           </span>
-          <ChevronRight className={styles.chevron} aria-hidden="true" />
         </button>
       ))}
     </>

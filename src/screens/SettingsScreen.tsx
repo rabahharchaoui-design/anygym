@@ -2,10 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TopBar } from '../ui/TopBar';
 import { TAB_TOAST_BOTTOM, Toast, type ToastMessage } from '../ui/Toast';
-import { ChevronRight } from '../ui/icons';
 import { useNav } from '../ui/nav';
 import { undoImport } from '../db/importHistory';
-import { parseImportText } from '../lib/import/anygymImportV1';
 import { UNDO_MS } from '../lib/undoQueue';
 import { setCount } from './history/historyWords';
 import { importDraft, isImportDone } from './settings/importDraft';
@@ -18,12 +16,6 @@ import { GymUnitSettings } from './settings/GymUnitSettings';
 import { registerTap } from '../lib/secretTaps';
 import { unlockDiagnostics } from '../hooks/diagUnlock';
 import { version } from '../../package.json';
-import { getActiveSession } from '../db/workouts';
-import { getActiveRun } from '../db/runs';
-import { parseBackup, workoutCount, type Backup } from '../lib/backup';
-import { RestoreSheet, type RestoreMode } from './settings/RestoreSheet';
-import { useBackup } from './settings/useBackup';
-import type { RestoreResult } from '../db/backup';
 import { ReportProblemSheet } from './settings/ReportProblemSheet';
 import { crashReports } from '../lib/reporting/preferences';
 import { gymFacts } from '../lib/reporting/feedback';
@@ -31,16 +23,21 @@ import { useLive } from '../hooks/useLive';
 import { getProfile, setProfileUnits } from '../db/intake';
 import { PlanAnswerRows } from './settings/PlanAnswerRows';
 import { db } from '../db/schema';
+import { recentGyms } from '../lib/gymPresets';
 import { phoneLocale, unitsForLocale } from '../lib/intake/region';
 import { CoachSettings } from './settings/CoachSettings';
+import { BackupRows } from './settings/BackupRows';
+import { useRunSetup } from '../hooks/useRunSetup';
 import styles from './Settings.module.css';
 import { useToastTimeout } from '../ui/useToastTimeout';
 
 let toastSeq = 0;
 
 /**
- * Settings (PLAN 1.7e): small and honest. Haptics on this phone, plate colors for this gym, back up
- * and restore (SPEC 9.1, 9.2, PLAN 1.8), import history (SPEC 9.3) and which version is running.
+ * You, the fifth tab (PLAN M14, board 13; Settings until then, PLAN 1.7e): "You" giant, then plain
+ * rows split by hairlines, the name on the left and the value or the choice in words on the right.
+ * Gyms, units, the coach, how it feels, your plan's answers, backup and restore, privacy, help and
+ * which version is running. Every setting does and saves what it did on the old Settings page.
  */
 export function SettingsScreen() {
   const hapticsOn = useSyncExternalStore(haptics.subscribe, haptics.enabled, () => true);
@@ -60,28 +57,24 @@ export function SettingsScreen() {
       go('/review', { kind: 'push' });
     }
   };
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [importError, setImportError] = useState('');
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  const restoreRef = useRef<HTMLInputElement>(null);
-  const [restoreError, setRestoreError] = useState('');
-  const [restoring, setRestoring] = useState<Backup | null>(null);
-  const backUp = useBackup(setToast);
   const crashOn = useSyncExternalStore(crashReports.subscribe, crashReports.enabled, () => true);
   const [reporting, setReporting] = useState(false);
   const [privacyError, setPrivacyError] = useState(false);
   // PLAN 3.3: the intake's answers stay changeable here (units, and the whole intake again).
   const profile = useLive(() => getProfile(), []);
   const [profileError, setProfileError] = useState(false);
-  const gymTotal = useLive(() => db.gyms.count(), []);
-  const gymsHint =
-    gym && gymTotal.data !== undefined
-      ? `${gymTotal.data === 1 ? '1 gym' : `${gymTotal.data} gyms`} · ${gym.name} is active. Add one, switch, edit equipment.`
-      : 'Add one, switch, edit equipment.';
+  // Board 13: the Gyms row shows every gym's name, most recent first (as the Gyms screen lists them).
+  const gyms = useLive(() => db.gyms.toArray(), []);
+  const gymNames = gyms.data ? recentGyms(gyms.data).map((g) => g.name).join(', ') : '';
+  // The voice coach (SPEC 12.4) is kept with the run setup; the Run tab's settings sheet shows it too.
+  const run = useRunSetup();
+  const voice = run.state?.setup.voice;
   const profileUnits = (patch: Parameters<typeof setProfileUnits>[0]) => {
     setProfileError(false);
     setProfileUnits(patch).catch(() => setProfileError(true));
   };
+  const toastMaker = (make: (id: number) => ToastMessage) => setToast(make(++toastSeq));
 
   // Back from the review screen: "Imported N sets · Undo" (SPEC 13.1: undo, never a confirm).
   useEffect(() => {
@@ -105,83 +98,23 @@ export function SettingsScreen() {
     });
   }, [location.state, navigate]);
 
-  // Every toast on Settings stays the full Undo time, with or without an action.
+  // Every toast on You stays the full Undo time, with or without an action.
   useToastTimeout(toast, setToast, () => UNDO_MS);
-
-  const pickFile = async (file: File | undefined) => {
-    if (!file) return;
-    setImportError('');
-    setRestoreError('');
-    let text: string;
-    try {
-      text = await file.text();
-    } catch {
-      setImportError('Could not open that file. Try again.');
-      return;
-    }
-    const parsed = parseImportText(text);
-    if (!parsed.ok) {
-      setImportError(parsed.error);
-      return;
-    }
-    importDraft.set(parsed);
-    go('/settings/import', { kind: 'push' });
-  };
-
-  const pickBackup = async (file: File | undefined) => {
-    if (!file) return;
-    setRestoreError('');
-    setImportError('');
-    let text: string;
-    try {
-      text = await file.text();
-    } catch {
-      setRestoreError('Could not open that file. Try again.');
-      return;
-    }
-    const parsed = parseBackup(text);
-    if (!parsed.ok) {
-      setRestoreError(parsed.error);
-      return;
-    }
-    try {
-      if (await getActiveSession()) {
-        setRestoreError('Finish your workout first, then restore.');
-        return;
-      }
-      if (await getActiveRun()) {
-        setRestoreError('Finish your run first, then restore.');
-        return;
-      }
-    } catch {
-      setRestoreError('Could not read your workouts. Try again.');
-      return;
-    }
-    setRestoring(parsed.backup);
-  };
-
-  const restored = (result: RestoreResult, mode: RestoreMode) => {
-    setRestoring(null);
-    const text = mode === 'merge' && result.workouts === 0 ? 'Nothing new. Every workout is already here.' : `Restored ${workoutCount(result.workouts)}`;
-    setToast({ id: ++toastSeq, text });
-  };
 
   return (
     <>
-      <TopBar title="Settings" />
-      <section className={styles.group} aria-labelledby="set-profile">
-        <h2 id="set-profile" className={styles.groupTitle}>
-          My profile
-        </h2>
+      <TopBar title="You" giant />
+      <section className={styles.group} aria-label="Gyms and units">
         <div className={styles.card}>
-          {profile.data?.name && (
-            <p className={`${styles.row} ${styles.divided}`} data-testid="profile-name">
-              <span>Name</span>
-              <span className={styles.value}>{profile.data.name}</span>
-            </p>
-          )}
-          <PlanAnswerRows intake={profile.data?.intake} go={(to) => go(to, { kind: 'push' })} />
-          <div className={`${styles.unitRow} ${styles.divided}`}>
+          {/* PLAN 3.9 (SPEC 19): every gym, add one, switch, edit its equipment. */}
+          <button type="button" className={`${styles.linkRow} pressable`} onClick={() => go('/settings/gyms', { kind: 'push' })} data-testid="settings-gyms">
+            <span className={styles.unitLabel}>Gyms</span>
+            <span className={`${styles.value} ${styles.oneLine}`} data-testid="settings-gyms-value">
+              {gymNames}
+            </span>
+          </button>
+          <GymUnitSettings gym={gym} toast={toastMaker} />
+          <div className={styles.unitRow}>
             <span className={styles.unitText}>
               <span className={styles.unitLabel} id="distance-label">
                 Distance
@@ -189,6 +122,7 @@ export function SettingsScreen() {
               <span className={styles.unitHint}>For runs.</span>
             </span>
             <Segmented
+              words
               labelledBy="distance-label"
               testId="settings-distance"
               options={[
@@ -208,6 +142,7 @@ export function SettingsScreen() {
               <span className={styles.unitHint}>Height and the like.</span>
             </span>
             <Segmented
+              words
               labelledBy="measure-label"
               testId="settings-measure"
               options={[
@@ -219,17 +154,40 @@ export function SettingsScreen() {
               onChange={(measureUnit) => profileUnits({ measureUnit })}
             />
           </div>
+          <Switch
+            words
+            label="Voice coach"
+            hint="Says your time and pace on runs, over your music."
+            checked={voice?.on ?? false}
+            disabled={!voice}
+            onChange={(on) => voice && run.change({ voice: { ...voice, on } })}
+          />
         </div>
         <p className={styles.error} role="status">
           {profileError ? 'Could not save that. Try again.' : ''}
         </p>
+      </section>
+      <CoachSettings />
+      <section className={styles.group} aria-labelledby="set-profile">
+        <h2 id="set-profile" className={styles.groupTitle}>
+          Your plan
+        </h2>
+        <div className={styles.card}>
+          {profile.data?.name && (
+            <p className={styles.row} data-testid="profile-name">
+              <span>Name</span>
+              <span className={styles.value}>{profile.data.name}</span>
+            </p>
+          )}
+          <PlanAnswerRows intake={profile.data?.intake} go={(to) => go(to, { kind: 'push' })} />
+        </div>
       </section>
       <section className={styles.group} aria-labelledby="set-feel">
         <h2 id="set-feel" className={styles.groupTitle}>
           Feel
         </h2>
         <div className={styles.card}>
-          <Switch label="Haptics" hint="A light tap when you check a set, add a plate or switch tabs." checked={hapticsOn} onChange={(on) => haptics.setEnabled(on)} />
+          <Switch words label="Haptics" hint="A light tap when you check a set, add a plate or switch tabs." checked={hapticsOn} onChange={(on) => haptics.setEnabled(on)} />
           <div className={`${styles.unitRow} ${styles.feelRow}`}>
             <span className={styles.unitText}>
               <span className={styles.unitLabel} id="body-label">
@@ -238,6 +196,7 @@ export function SettingsScreen() {
               <span className={styles.unitHint}>Which body the muscle map shows.</span>
             </span>
             <Segmented
+              words
               labelledBy="body-label"
               testId="settings-body"
               options={[
@@ -250,89 +209,15 @@ export function SettingsScreen() {
           </div>
         </div>
       </section>
-      <CoachSettings />
-      <section className={styles.group} aria-labelledby="set-gyms">
-        <h2 id="set-gyms" className={styles.groupTitle}>
-          Gyms
-        </h2>
-        <div className={styles.card}>
-          {/* PLAN 3.9 (SPEC 19): every gym, add one, switch, edit its equipment. */}
-          <button type="button" className={`${styles.linkRow} pressable`} onClick={() => go('/settings/gyms', { kind: 'push' })} data-testid="settings-gyms">
-            <span className={styles.unitText}>
-              <span className={styles.unitLabel}>Gyms</span>
-              <span className={styles.unitHint}>{gymsHint}</span>
-            </span>
-            <ChevronRight className={styles.chevron} aria-hidden="true" />
-          </button>
-        </div>
-      </section>
-      <GymUnitSettings gym={gym} toast={(make) => setToast(make(++toastSeq))} />
-      <section className={styles.group} aria-labelledby="set-data">
-        <h2 id="set-data" className={styles.groupTitle}>
-          Your data
-        </h2>
-        <div className={styles.card}>
-          <button type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => void backUp()} data-testid="backup">
-            <span className={styles.unitText}>
-              <span className={styles.unitLabel}>Back up</span>
-              <span className={styles.unitHint}>Save everything to one file you keep, in Files or anywhere you like.</span>
-            </span>
-            <ChevronRight className={styles.chevron} aria-hidden="true" />
-          </button>
-          <button type="button" className={`${styles.linkRow} ${styles.divided} pressable`} onClick={() => restoreRef.current?.click()} data-testid="restore">
-            <span className={styles.unitText}>
-              <span className={styles.unitLabel}>Restore</span>
-              <span className={styles.unitHint}>Bring back your workouts from a backup file.</span>
-            </span>
-            <ChevronRight className={styles.chevron} aria-hidden="true" />
-          </button>
-          <input
-            ref={restoreRef}
-            type="file"
-            accept=".json,application/json"
-            className={styles.file}
-            tabIndex={-1}
-            aria-hidden="true"
-            data-testid="restore-file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = '';
-              void pickBackup(file);
-            }}
-          />
-          <button type="button" className={`${styles.linkRow} pressable`} disabled={!gym} onClick={() => fileRef.current?.click()} data-testid="import-history">
-            <span className={styles.unitText}>
-              <span className={styles.unitLabel}>Import history</span>
-              <span className={styles.unitHint}>Bring in your past workouts from an AnyGym history file. You check every set first.</span>
-            </span>
-            <ChevronRight className={styles.chevron} aria-hidden="true" />
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".json,application/json"
-            className={styles.file}
-            tabIndex={-1}
-            aria-hidden="true"
-            data-testid="import-file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = '';
-              void pickFile(file);
-            }}
-          />
-        </div>
-        <p className={styles.error} role="status" data-testid="import-error">
-          {restoreError || importError}
-        </p>
-      </section>
+      <BackupRows canImport={!!gym} toast={toastMaker} setToast={setToast} />
       <section className={styles.group} aria-labelledby="set-privacy">
         <h2 id="set-privacy" className={styles.groupTitle}>
-          Privacy
+          Privacy and help
         </h2>
         <div className={styles.card}>
           {/* SPEC 24: on by default; off also deletes crash reports still waiting to be sent. */}
           <Switch
+            words
             label="Send crash reports"
             hint="If AnyGym breaks, it sends us a short note about what broke. Never your workouts or anything personal."
             checked={crashOn}
@@ -341,24 +226,16 @@ export function SettingsScreen() {
               crashReports.setEnabled(on).catch(() => setPrivacyError(true));
             }}
           />
-        </div>
-        <p className={styles.error} role="status">
-          {privacyError ? 'Could not save that. Try again.' : ''}
-        </p>
-      </section>
-      <section className={styles.group} aria-labelledby="set-help">
-        <h2 id="set-help" className={styles.groupTitle}>
-          Help
-        </h2>
-        <div className={styles.card}>
           <button type="button" className={`${styles.linkRow} pressable`} onClick={() => setReporting(true)} data-testid="report-problem">
             <span className={styles.unitText}>
               <span className={styles.unitLabel}>Report a problem</span>
               <span className={styles.unitHint}>Tell us what went wrong. Add a screenshot if it helps.</span>
             </span>
-            <ChevronRight className={styles.chevron} aria-hidden="true" />
           </button>
         </div>
+        <p className={styles.error} role="status">
+          {privacyError ? 'Could not save that. Try again.' : ''}
+        </p>
       </section>
       <section className={styles.group} aria-labelledby="set-about">
         <h2 id="set-about" className={styles.groupTitle}>
@@ -377,7 +254,6 @@ export function SettingsScreen() {
         </div>
       </section>
       <ReportProblemSheet open={reporting} onClose={() => setReporting(false)} facts={gymFacts(gym)} />
-      <RestoreSheet backup={restoring} onClose={() => setRestoring(null)} onDone={restored} />
       <Toast toast={toast} bottom={TAB_TOAST_BOTTOM} />
     </>
   );
