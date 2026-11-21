@@ -97,7 +97,7 @@ async function clipping(page: Page, ids: string[]) {
       if (controls && page0) {
         const top = controls.getBoundingClientRect().top;
         for (const f of page0.querySelectorAll('[data-field], [data-testid="interval-face"]')) {
-          if (f.getBoundingClientRect().bottom > top + 0.5) out.push(`${f.getAttribute('data-testid')}: under the controls`);
+          if (f.getBoundingClientRect().bottom > top + 0.5) out.push(`${f.getAttribute('data-testid')}: under the controls (${Math.round(f.getBoundingClientRect().bottom)} > ${Math.round(top)})`);
         }
       }
       if (controls) {
