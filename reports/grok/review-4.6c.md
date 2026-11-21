@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED its caption point is 4.6d
 Grok Build review of PLAN item 4.6c, range 473baf35dcb481d0a3c68a17734410df1ac92e68..55ac5e0a9658c632f3a425d7464f6c73fcb06764, written Nov 21 00:34. A second opinion, not orders: SPEC.md wins.
 
 I'll review PLAN item 4.6c from the spec and the diff only, without changing the repo.

@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED fix item 4.4f (phone lock loses distance; caption is in 4.6d)
 Grok Build review of PLAN item 4.4d, range 55ac5e0a9658c632f3a425d7464f6c73fcb06764..e1e5aead2dbf53549d4bbb8d179a9bef2bf97a50, written Nov 21 00:55. A second opinion, not orders: SPEC.md wins.
 
 I'll review PLAN item 4.4d from the spec and the commit range only, without changing the repo.
