@@ -142,3 +142,39 @@
     transition: none;
   }
 }
+
+/* .list: one column of rows where the answers are long (ChoiceCard flat: the label heavy, a hairline
+   under each row, an ice tick on the right when picked). The first row gets a hairline over it. */
+.list {
+  gap: 0;
+  border-top: var(--divider);
+}
+
+/* Rows share the height when they fill, but stay rows: never past the style sheet's 96 pt. */
+.list[data-fill] > * {
+  max-height: 96px;
+}
+
+/* The small mark keeps no square behind it (a box), on the line icon or the 3D picture. */
+.list button[data-flat] > span[aria-hidden]:first-child {
+  width: 28px;
+  height: auto;
+  background: none;
+}
+
+.list button[data-flat] > [data-icon3d]::before {
+  display: none;
+}
+
+.list button[data-flat] > [data-icon3d] {
+  width: 36px;
+}
+
+.list button[data-flat] {
+  gap: var(--space-3);
+}
+
+/* A lone last answer in two columns: no column line beside the empty half. */
+.grid > :last-child:nth-child(odd) {
+  box-shadow: none;
+}

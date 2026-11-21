@@ -50,16 +50,16 @@ export function SingleChoice<T extends string | number>({
   useFlip(cards, fill);
   if (options.length <= 5)
     return (
-      <div ref={cards} className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
+      <div ref={cards} className={`${styles.cards} ${rowStyles.list}`} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
         {options.map((o) => (
           <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
-            <ChoiceCard icon={iconFor(o.icon)} art={art ? `${art}-${o.id}` : undefined} label={o.label} hint={o.hint} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
+            <ChoiceCard icon={iconFor(o.icon)} art={art ? `${art}-${o.id}` : undefined} label={o.label} hint={o.hint} picked={String(value) === o.id} onPress={() => onPick(o.id)} flat testId={`${testId}-${o.id}`} />
           </div>
         ))}
       </div>
     );
   return (
-    <div className={styles.chips} data-grid={columns ?? '2'} data-fill role="group" data-testid={testId}>
+    <div className={`${styles.chips} ${rowStyles.grid}`} data-grid={columns ?? '2'} data-fill role="group" data-testid={testId}>
       {options.map((o) => (
         <div key={o.id} className={styles.pulseWrap} data-pulse={pulse === o.id || undefined}>
           <Chip block icon={iconFor(o.icon)} label={o.label} picked={String(value) === o.id} onPress={() => onPick(o.id)} testId={`${testId}-${o.id}`} />
@@ -126,14 +126,14 @@ export function MultiChoice({
   };
   if (options.length <= 5)
     return (
-      <div className={styles.cards} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
+      <div className={`${styles.cards} ${rowStyles.list}`} role="group" data-testid={testId} data-fill={fill ? '' : 'off'}>
         {options.map((o) => (
-          <ChoiceCard key={o.id} icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} testId={`${testId}-${o.id}`} />
+          <ChoiceCard key={o.id} icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} flat testId={`${testId}-${o.id}`} />
         ))}
       </div>
     );
   return (
-    <div className={styles.chips} data-grid={columns ?? '2'} data-fill={fill ? '' : 'off'} role="group" data-testid={testId}>
+    <div className={`${styles.chips} ${rowStyles.grid}`} data-grid={columns ?? '2'} data-fill={fill ? '' : 'off'} role="group" data-testid={testId}>
       {options.map((o) => (
         <Chip key={o.id} block tile={tiles} icon={iconFor(o.icon)} label={o.label} picked={picked.has(o.id)} onPress={() => toggle(o.id)} testId={`${testId}-${o.id}`} />
       ))}
