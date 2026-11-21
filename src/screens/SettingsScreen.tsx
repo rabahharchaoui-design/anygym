@@ -28,6 +28,8 @@ import { phoneLocale, unitsForLocale } from '../lib/intake/region';
 import { CoachSettings } from './settings/CoachSettings';
 import { BackupRows } from './settings/BackupRows';
 import { useRunSetup } from '../hooks/useRunSetup';
+import { getActiveSession } from '../db/workouts';
+import { getActiveRun } from '../db/runs';
 import styles from './Settings.module.css';
 import { useToastTimeout } from '../ui/useToastTimeout';
 
@@ -75,6 +77,8 @@ export function SettingsScreen() {
     setProfileUnits(patch).catch(() => setProfileError(true));
   };
   const toastMaker = (make: (id: number) => ToastMessage) => setToast(make(++toastSeq));
+  // A restore waits for a workout or a run in progress to end (PLAN 1.8).
+  const whyBusy = async () => ((await getActiveSession()) ? 'Finish your workout first, then restore.' : (await getActiveRun()) ? 'Finish your run first, then restore.' : null);
 
   // Back from the review screen: "Imported N sets · Undo" (SPEC 13.1: undo, never a confirm).
   useEffect(() => {
@@ -209,7 +213,7 @@ export function SettingsScreen() {
           </div>
         </div>
       </section>
-      <BackupRows canImport={!!gym} toast={toastMaker} setToast={setToast} />
+      <BackupRows canImport={!!gym} toast={toastMaker} setToast={setToast} whyBusy={whyBusy} />
       <section className={styles.group} aria-labelledby="set-privacy">
         <h2 id="set-privacy" className={styles.groupTitle}>
           Privacy and help

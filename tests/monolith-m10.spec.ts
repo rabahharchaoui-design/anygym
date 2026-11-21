@@ -138,6 +138,17 @@ test('M10 Settings', async ({ page }) => {
   await page.goto('./#/settings');
   await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await square(page, 'settings');
+  // PLAN M14: the same screen as the You tab, and its sub screens.
+  await page.goto('./#/');
+  await page.getByTestId('tab-you').tap();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
+  await square(page, 'you tab');
+  await page.getByTestId('settings-gyms').tap();
+  await expect(page.getByRole('heading', { level: 1, name: 'Gyms' })).toBeVisible();
+  await square(page, 'you gyms');
+  await page.getByTestId('gyms-list').getByRole('button').first().tap();
+  await expect(page.getByTestId('edit-equipment')).toBeVisible();
+  await square(page, 'you gym detail');
 });
 
 test.describe('M10 onboarding', () => {

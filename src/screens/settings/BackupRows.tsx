@@ -6,8 +6,6 @@ import { useNav } from '../../ui/nav';
 import type { ToastMessage } from '../../ui/Toast';
 import { parseImportText } from '../../lib/import/anygymImportV1';
 import { parseBackup, workoutCount, type Backup } from '../../lib/backup';
-import { getActiveSession } from '../../db/workouts';
-import { getActiveRun } from '../../db/runs';
 import type { RestoreResult } from '../../db/backup';
 import { importDraft } from './importDraft';
 import { RestoreSheet, type RestoreMode } from './RestoreSheet';
@@ -20,9 +18,11 @@ type Props = {
   /** Shows a toast on You (one toast spot per screen). */
   toast: (make: (id: number) => ToastMessage) => void;
   setToast: (t: ToastMessage | null) => void;
+  /** Why a restore must wait (a workout or a run going on), or null; read through You. Throws if it cannot tell. */
+  whyBusy: () => Promise<string | null>;
 };
 
-export function BackupRows({ canImport, toast, setToast }: Props) {
+export function BackupRows({ canImport, toast, setToast, whyBusy }: Props) {
   const go = useNav();
   const fileRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
@@ -68,12 +68,9 @@ export function BackupRows({ canImport, toast, setToast }: Props) {
       return;
     }
     try {
-      if (await getActiveSession()) {
-        setRestoreError('Finish your workout first, then restore.');
-        return;
-      }
-      if (await getActiveRun()) {
-        setRestoreError('Finish your run first, then restore.');
+      const busy = await whyBusy();
+      if (busy) {
+        setRestoreError(busy);
         return;
       }
     } catch {
