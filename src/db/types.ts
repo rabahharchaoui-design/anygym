@@ -376,6 +376,11 @@ export type Run = {
   distanceM: number;
   points: RunPoint[];
   gaps: Array<[number, number]>;
+  /**
+   * PLAN 4.4f, additive: the breaks in `gaps` that are only a move of the GPS estimate (no GPS was
+   * lost): drawn as part of the line, never dashed. Distance and pace read all of `gaps`.
+   */
+  shifts?: Array<[number, number]>;
   /** Moving seconds of each finished split, in order. */
   splits: number[];
   /**

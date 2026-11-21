@@ -28,7 +28,12 @@ export type HeldReason = 'paused' | 'still' | 'short' | 'checking' | 'settling';
  * hand. Never drawn solid. `bridged` says whether the straight line across it was added to the
  * distance (`distanceM`, 0 when not); a pause is never bridged.
  */
-export type TrackBreak = { fromT: number; toT: number; kind: 'gap' | 'pause'; bridged: boolean; distanceM: number };
+/**
+ * Where the line breaks. gap: no position for a while (GPS lost). pause: paused by hand. shift
+ * (PLAN 4.4f 5): the estimate was moved, no GPS was lost (a drift relocation, or the estimate starting
+ * again at a fix after it was off): a break for distance and pace, drawn as part of the line.
+ */
+export type TrackBreak = { fromT: number; toT: number; kind: 'gap' | 'pause' | 'shift'; bridged: boolean; distanceM: number };
 
 /**
  * SPEC 12.3: a fix this sure or better is good on its own (the GPS chip says "good" up to here).
