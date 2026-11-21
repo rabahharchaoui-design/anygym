@@ -25,7 +25,7 @@ export function LiveMap({ live, readout, reduceMotion, inset, locked }: Props) {
   const [offline, setOffline] = useState(false);
   const [moved, setMoved] = useState(false);
   const [recentre, setRecentre] = useState(0);
-  const gaps = useMemo(() => live.breaks.map((b) => [b.fromT, b.toT] as const), [live.breaks]);
+  const gaps = useMemo(() => live.breaks.filter((b) => b.kind !== 'shift').map((b) => [b.fromT, b.toT] as const), [live.breaks]);
   const route = useMemo(() => drawRoute(live.points, gaps), [live.points, gaps]);
   return (
     <div className={styles.mapPage} data-testid="live-map" data-points={live.points.length} data-solid={route.solid.length} data-dashed={route.dashed.length} data-moved={moved || undefined}>
