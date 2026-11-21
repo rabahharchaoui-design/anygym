@@ -156,3 +156,36 @@
     transition: none;
   }
 }
+
+/* PLAN M12 (Monolith): flat, a row on the page with a hairline under it, no box and no fill. The
+   label is heavy; picked, an ice tick stands on the right (no filled block). */
+.card[data-flat] {
+  min-height: var(--row-min);
+  padding: var(--space-3) 0;
+  border: 0;
+  border-bottom: var(--divider);
+  border-radius: var(--radius-none);
+  background: none;
+}
+
+.card[data-flat][aria-pressed='true'] {
+  background: none;
+}
+
+.card[data-flat] .label {
+  font-family: var(--font-display);
+  font-size: var(--text-mono-value);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-value);
+  line-height: 1.1;
+}
+
+.card[data-flat] .ring,
+.card[data-flat][aria-pressed='true'] .ring {
+  box-shadow: none;
+}
+
+.card[data-flat] .fill {
+  background: none;
+  color: var(--accent);
+}

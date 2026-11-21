@@ -1,0 +1,48 @@
+/* A choice as a word (PLAN M12): the picked one white over an ice line that grows in from the left. */
+.word {
+  position: relative;
+  min-height: var(--tap);
+  min-width: var(--tap-min);
+  padding: 0 2px;
+  color: var(--text-2);
+  font-size: clamp(15px, 4.4vw, 18px);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.word::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 6px;
+  height: var(--tab-mark-h);
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-base) var(--ease-tap-spring);
+}
+
+.word[aria-pressed='true'] {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.word[aria-pressed='true']::after {
+  transform: scaleX(1);
+}
+
+.word:active {
+  opacity: var(--press-dim);
+  transition-duration: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word::after {
+    transition: none;
+  }
+}

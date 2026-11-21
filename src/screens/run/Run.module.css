@@ -157,7 +157,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-2);
-  padding: var(--space-1) var(--run-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px) + var(--space-2)) var(--run-pad-l);
+  padding: var(--space-1) var(--run-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px) + var(--space-3)) var(--run-pad-l);
   background: var(--bg);
   border-top: var(--divider);
   pointer-events: none;
@@ -170,48 +170,6 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0 var(--space-2);
-}
-
-.type {
-  position: relative;
-  min-height: var(--tap);
-  min-width: var(--tap-min);
-  padding: 0 2px;
-  color: var(--text-2);
-  font-size: var(--text-mono-body);
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-
-.type::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: 6px;
-  height: var(--tab-mark-h);
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform var(--dur-base) var(--ease-tap-spring);
-}
-
-.type[aria-pressed='true'] {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.type[aria-pressed='true']::after {
-  transform: scaleX(1);
-}
-
-.type:active {
-  opacity: var(--press-dim);
-  transition-duration: 0ms;
 }
 
 /* What this run is (left) and the music words (right). With very large text the music moves under
@@ -292,9 +250,11 @@
 }
 
 .sheetTitle {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  line-height: 1.2;
+  font-family: var(--font-display);
+  font-size: var(--text-mono-heading-pair);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-heading);
+  line-height: 1.1;
 }
 
 .sheetLine {
@@ -317,9 +277,10 @@
 }
 
 .presets {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
 }
 
 .custom {
@@ -336,15 +297,12 @@
 .choices {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  border-top: var(--divider);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .gps[data-tone='busy'] .gpsDot {
     animation: none;
-  }
-  .type::after {
-    transition: none;
   }
 }
 

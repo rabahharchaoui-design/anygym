@@ -14,6 +14,7 @@ import { IconButton } from '../../ui/IconButton';
 import { Button } from '../../ui/Button';
 import { ChevronDown, RecentreIcon, TuneIcon } from '../../ui/icons';
 import { Divider } from '../../ui/Divider';
+import { WordToggle } from '../../ui/WordToggle';
 import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useToastTimeout } from '../../ui/useToastTimeout';
 import { Countdown } from './Countdown';
@@ -174,9 +175,9 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
             {/* PLAN M12: the four modes as words, the chosen one underlined in ice. */}
             <div className={styles.types} role="group" aria-label="Run type" data-testid="run-types">
               {RUN_TYPES.map((t) => (
-                <button key={t.value} type="button" className={styles.type} aria-pressed={setup.type === t.value} onClick={() => pickType(t.value)} data-testid={`run-type-${t.value}`}>
+                <WordToggle key={t.value} picked={setup.type === t.value} onPress={() => pickType(t.value)} testId={`run-type-${t.value}`}>
                   {t.label}
-                </button>
+                </WordToggle>
               ))}
             </div>
             <Divider />
