@@ -173,7 +173,7 @@ async function checkBeat(page: Page, beat: string, digits: boolean) {
 }
 
 test.describe('4.4a the countdown', () => {
-  test('3, 2, 1, GO: giant ice numbers, never clipped, also at 130% text; then the live run @matrix', async ({ page, context }) => {
+  test('3, 2, 1, GO: giant white numbers, never clipped, also at 130% text; then the live run @matrix', async ({ page, context }) => {
     for (const zoom of [1, 1.3]) {
       if (zoom !== 1) {
         // Safari's 130% text zoom scales the whole page: the same phone, 1.3 times fewer CSS pixels.
@@ -183,9 +183,9 @@ test.describe('4.4a the countdown', () => {
       if (zoom === 1) await openRun(page, context);
       await holdClock(page);
       await page.getByTestId('run-start').tap();
-      const color = await page.getByTestId('run-count').evaluate((el) => getComputedStyle(el).backgroundImage);
-      // Ice (#9fd3ff, lit with #c6e5ff), no lime.
-      expect(color).toMatch(/159, 211, 255|9fd3ff/i);
+      // PLAN M2 (SPEC 10 Monolith, board 05): a flat white digit, no gradient (was an ice gradient fill).
+      const look = await page.getByTestId('run-count').evaluate((el) => ({ bg: getComputedStyle(el).backgroundImage, color: getComputedStyle(el).color }));
+      expect(look).toEqual({ bg: 'none', color: 'rgb(255, 255, 255)' });
       expect(await page.getByTestId('run-count').evaluate((el) => getComputedStyle(el).fontWeight)).toBe('900');
       for (const beat of ['3', '2', '1']) {
         await checkBeat(page, beat, true);
