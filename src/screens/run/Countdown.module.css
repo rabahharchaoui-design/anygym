@@ -117,7 +117,7 @@
 }
 
 /* Cancel: plain words (ui/Button quiet), white so it reads at a glance. */
-.cancel {
+.count .cancel {
   min-width: 132px;
   justify-content: center;
   color: var(--text);

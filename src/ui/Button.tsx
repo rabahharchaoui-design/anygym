@@ -3,8 +3,8 @@ import styles from './Button.module.css';
 
 /** primary: heavy text over an ice blue bar. secondary: heavy text over a hairline. quiet: text only. destructive: red text. */
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'destructive';
-/** lg: the screen's one big action (heading size, 56 pt tall at least); md: two share a row (48 pt). */
-export type ButtonSize = 'lg' | 'md';
+/** xl: the live run's Pause (60 to 84 px, SPEC 10); lg: the screen's one big action (heading size, 56 pt tall at least); md: two share a row (48 pt). */
+export type ButtonSize = 'xl' | 'lg' | 'md';
 
 type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className'> & {
   variant?: ButtonVariant;

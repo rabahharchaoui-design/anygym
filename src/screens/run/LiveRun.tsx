@@ -5,7 +5,7 @@ import { runEngine, type EngineState } from '../../hooks/useRunEngine';
 import { usePocketDim } from '../../hooks/usePocketDim';
 import { useLiveReading } from '../../hooks/useLiveReading';
 import { useRunSetup } from '../../hooks/useRunSetup';
-import { blockEffort, DEFAULT_VOICE, liveNote, readIntervals, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
+import { blockEffort, DEFAULT_VOICE, liveNote, readIntervals, distanceWithUnit, formatDistance, formatPace, goalProgress, paceUnit, spokenPace, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
 import { formatElapsed } from '../../lib/timer';
 import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
@@ -13,7 +13,7 @@ import { ChevronDown, TuneIcon } from '../../ui/icons';
 import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useToastTimeout } from '../../ui/useToastTimeout';
 import { LiveControls } from './LiveControls';
-import { LiveMap } from './LiveMap';
+import { LiveMap, type MapStat } from './LiveMap';
 import { LiveStats, nextMetric, type Metric } from './LiveStats';
 import { pageAfterSwipe, type Page } from './liveSwipe';
 import { RunSettingsSheet } from './RunSheets';
@@ -160,7 +160,12 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
     return () => ro?.disconnect();
   }, [locked]);
 
-  const readout = `${distanceWithUnit(reading.distanceM, live.unit)} · ${formatElapsed(reading.movingSec)}`;
+  // The map page's one stat row (board 07): distance, time and pace, each as printed by lib/run.
+  const readout: MapStat[] = [
+    { value: formatDistance(reading.distanceM, live.unit), unit: live.unit, spoken: distanceWithUnit(reading.distanceM, live.unit) },
+    { value: formatElapsed(reading.movingSec), spoken: `${formatElapsed(reading.movingSec)} moving time` },
+    { value: formatPace(reading.currentPace, live.unit), unit: paceUnit(live.unit), spoken: `Pace ${spokenPace(reading.currentPace, live.unit)}` },
+  ];
   const cycle = () => {
     if (swiped.current || locked) return;
     tick();
@@ -219,21 +224,14 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
       <div className={styles.bar} ref={barRef}>
         <span className={styles.barSlot}>
           {!locked && (
-            <IconButton label="Hide the run. It keeps going." onPress={onHide} testId="live-hide">
+            <IconButton plain label="Hide the run. It keeps going." onPress={onHide} testId="live-hide">
               <ChevronDown aria-hidden="true" />
             </IconButton>
           )}
         </span>
-        <div className={styles.dots} role="tablist" aria-label="Run pages">
-          {(['Numbers', 'Map'] as const).map((name, i) => (
-            <button key={name} type="button" role="tab" aria-selected={page === i} aria-label={name} className={styles.dotHit} disabled={locked} data-testid={`live-dot-${i}`} onClick={() => goTo(i as Page)}>
-              <span className={styles.pageDot} data-on={page === i || undefined} />
-            </button>
-          ))}
-        </div>
         <span className={styles.barSlot}>
           {paused && !locked && (
-            <IconButton label="Run settings" onPress={() => setSettings(true)} testId="live-settings">
+            <IconButton plain label="Run settings" onPress={() => setSettings(true)} testId="live-settings">
               <TuneIcon aria-hidden="true" />
             </IconButton>
           )}
@@ -241,6 +239,13 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
       </div>
 
       <div className={styles.foot} ref={footRef}>
+        <div className={styles.dots} role="tablist" aria-label="Run pages">
+          {(['Numbers', 'Map'] as const).map((name, i) => (
+            <button key={name} type="button" role="tab" aria-selected={page === i} aria-label={name} className={styles.dotHit} disabled={locked} data-testid={`live-dot-${i}`} onClick={() => goTo(i as Page)}>
+              <span className={styles.pageDot} data-on={page === i || undefined} />
+            </button>
+          ))}
+        </div>
         <LiveControls
           paused={paused}
           locked={locked}

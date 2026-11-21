@@ -1,19 +1,19 @@
-/* The live run (SPEC 12.2): a full screen layer over the app, pure black so an OLED screen is
-   mostly off. Under sheets (50), over the tab bar and toasts of the app behind. */
+/* The live run (SPEC 12.2, PLAN M2, boards 06 and 07): a full screen layer over the app, flat
+   graphite. Under sheets (50), over the tab bar and toasts of the app behind. */
 .live {
   position: fixed;
   inset: 0 0 auto;
   height: var(--app-height);
   z-index: 45;
   overflow: hidden;
-  background: var(--black);
+  background: var(--bg);
   color: var(--text);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  --live-pad-l: calc(var(--space-5) + var(--safe-left));
-  --live-pad-r: calc(var(--space-5) + var(--safe-right));
+  --live-pad-l: calc(var(--side) + var(--safe-left));
+  --live-pad-r: calc(var(--side) + var(--safe-right));
   animation: liveIn var(--dur-base) var(--ease-out) both;
 }
 
@@ -54,16 +54,18 @@
   touch-action: none;
 }
 
-/* The whole numbers page is one button: a tap shows the next number big. */
+/* The whole numbers page is one button: a tap makes the next number big. The fields stack from the
+   top, left aligned, full width between the side margins. */
 .cycle {
   flex: 1;
   min-height: 0;
   width: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   padding: 0 var(--live-pad-r) 0 var(--live-pad-l);
   color: inherit;
+  text-align: left;
   touch-action: none;
 }
 
@@ -76,57 +78,52 @@
   clip-path: inset(50%);
 }
 
+/* The fields take their size from the phone's height too, so three of them, the note and the goal
+   always fit above the foot: hero about 15% of the height (150 px on a 932 px phone), the others
+   about 8.5%; never more than the type scale. */
 .stats {
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  --df-hero: min(var(--text-mono-hero), calc(var(--app-height) * 0.15));
+  --df-large: min(var(--text-mono-title), calc(var(--app-height) * 0.085));
 }
 
-/* One quiet line of state. It keeps its height when there is nothing to say, so the numbers never jump. */
+/* One plain line of state over the numbers. It keeps its height when there is nothing to say, so
+   the numbers never jump. White, amber for auto pause (the app's doing), ice while GPS is lost. */
 .note {
-  min-height: 32px;
-  box-sizing: border-box;
-  margin-bottom: var(--space-4);
-  padding: 6px var(--space-3);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  min-height: 24px;
+  margin-bottom: var(--space-2);
   font-size: 15px;
   font-weight: 600;
-  line-height: 1.25;
-  text-align: center;
-  color: var(--text-2);
+  line-height: 1.3;
+  color: var(--text);
 }
 
 .note:empty {
   visibility: hidden;
 }
 
-.note[data-tone='paused'] {
-  color: var(--text);
-  background: var(--surface-2);
-}
-
-/* Auto pause is the app's doing, not the runner's: amber, so it never reads as their own pause. */
 .note[data-tone='auto'] {
   color: var(--amber);
-  background: var(--amber-soft);
-  border-color: var(--amber-line);
 }
 
-.bigBox {
-  max-width: 100%;
+.note[data-tone='wait'] {
+  color: var(--accent);
+}
+
+.stack {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  /* A new big number rises from the row below, where it was small. */
-  animation: bigIn var(--dur-base) var(--ease-out) both;
+  /* A new big number arrives on top with a short rise. */
+  animation: stackIn var(--dur-base) var(--ease-out) both;
 }
 
-@keyframes bigIn {
+@keyframes stackIn {
   from {
     opacity: 0;
-    transform: translateY(28px) scale(0.82);
+    transform: translateY(12px);
   }
 }
 
@@ -136,79 +133,27 @@
   }
 }
 
-/* The giant number: readable at arm's length. LiveStats scales it down if it would ever be wider
-   than the screen (very large text). */
-.big {
-  display: block;
-  font-size: min(30vw, 148px);
-  font-weight: 700;
-  line-height: 0.95;
-  letter-spacing: -0.035em;
-  white-space: nowrap;
-  transform-origin: center;
-}
-
-.big[data-len='long'] {
-  font-size: min(23vw, 112px);
-}
-
-.bigLabel {
-  margin-top: var(--space-2);
-  color: var(--text-2);
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.pair {
-  width: 100%;
-  max-width: 360px;
-  margin-top: var(--space-6);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
-
-.smallBox {
-  animation: fadeIn var(--dur-base) var(--ease-out) both;
-  min-width: 0;
+/* A field under the hero: a hairline, then the field, with even air around the line. */
+.rest {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
-.small {
-  font-size: clamp(30px, 10vw, 44px);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
+/* Paused by hand: the numbers step back, the note says why. */
+.stats[data-paused] .field [data-value] {
+  opacity: 0.55;
 }
 
-.smallLabel {
-  color: var(--text-2);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-/* Paused by hand: the numbers step back, the pill says why. */
-.stats[data-paused] .big,
-.stats[data-paused] .small {
-  opacity: 0.5;
-}
-
-.big,
-.small {
+.field [data-value] {
   transition: opacity var(--dur-base) var(--ease-out);
 }
 
-/* Progress toward a Distance or Time goal: one thin line and what is left. */
+/* Progress toward a Distance or Time goal: what is left, then one thin line. */
 .goal {
   width: 100%;
-  max-width: 320px;
-  margin-top: var(--space-5);
+  margin-top: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -216,16 +161,14 @@
 
 .goalBar {
   display: block;
-  height: 4px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  height: var(--tab-mark-h);
+  background: var(--ring-track);
   overflow: hidden;
 }
 
 .goalFill {
   display: block;
   height: 100%;
-  border-radius: inherit;
   background: var(--accent);
   transform-origin: left center;
   transition: transform var(--dur-slow) var(--ease-out);
@@ -236,8 +179,8 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0 var(--space-3);
-  color: var(--text-2);
-  font-size: 14px;
+  color: var(--text);
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
   font-variant-numeric: tabular-nums;
@@ -248,19 +191,18 @@
 }
 
 .goalLabel {
+  color: var(--text-2);
   font-weight: 500;
 }
 
-/* The top bar: hide, the two page dots, run settings (while paused). A soft shade under it so it
-   reads over the map; on the black page the shade is invisible. */
+/* The top bar: hide (left) and run settings (right, while paused), plain icons on graphite or map. */
 .bar {
   position: absolute;
   inset: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(var(--safe-top) + var(--space-1)) calc(var(--live-pad-r) - var(--space-3)) var(--space-2) calc(var(--live-pad-l) - var(--space-3));
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--black) 72%, transparent), transparent);
+  padding: var(--safe-top) calc(var(--live-pad-r) - var(--space-3)) 0 calc(var(--live-pad-l) - var(--space-3));
   pointer-events: none;
 }
 
@@ -274,39 +216,43 @@
   height: 48px;
 }
 
+/* The page marks over Pause (board 06): two short bars, the shown page ice and longer. */
 .dots {
   display: flex;
+  justify-content: center;
+  pointer-events: auto;
 }
 
 .dotHit {
-  /* 44 pt wide at least (PLAN 4.4b MINOR): the page dots are a touch target. */
+  /* 44 pt wide at least (PLAN 4.4b MINOR): the page marks are a touch target. */
   width: 44px;
-  height: 48px;
+  height: 44px;
   display: grid;
   place-items: center;
 }
 
 .pageDot {
   width: 8px;
-  height: 8px;
-  border-radius: var(--radius-sm);
+  height: 4px;
   background: var(--text-3);
   transition:
-    transform var(--dur-fast) var(--ease-out),
+    width var(--dur-fast) var(--ease-out),
     background-color var(--dur-fast) var(--ease-out);
 }
 
 .pageDot[data-on] {
-  background: var(--text);
-  transform: scale(1.3);
+  width: 20px;
+  background: var(--accent);
 }
 
-/* The bottom controls, clear of the home indicator. The shade lets them sit on the map too. */
+/* The foot: the page marks, then the controls, solid graphite, clear of the home indicator. */
 .foot {
   position: absolute;
   inset: auto 0 0;
-  padding: var(--space-5) var(--live-pad-r) calc(var(--safe-bottom) + var(--space-4)) var(--live-pad-l);
-  background: linear-gradient(to top, var(--black) 62%, transparent);
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--live-pad-r) calc(var(--safe-bottom) + var(--space-3)) var(--live-pad-l);
+  background: var(--bg);
   pointer-events: none;
 }
 
@@ -343,7 +289,7 @@
   .strip[data-settle='true'] {
     transition: none;
   }
-  .bigBox {
+  .stack {
     animation-name: fadeIn;
   }
   .goalFill,
@@ -352,19 +298,13 @@
   }
 }
 
-/* The 320 x 568 floor: a little less air so the numbers and the controls both fit. */
-@media (max-height: 600px) {
-  .note {
-    margin-bottom: var(--space-2);
-  }
-  .pair {
-    margin-top: var(--space-4);
+/* Short phones (568 to 667 tall): a little less air so the numbers and the controls both fit. */
+@media (max-height: 700px) {
+  .rest {
+    gap: var(--space-2);
+    margin-top: var(--space-2);
   }
   .goal {
-    margin-top: var(--space-3);
-  }
-  .foot {
-    padding-top: var(--space-3);
-    padding-bottom: calc(var(--safe-bottom) + var(--space-3));
+    margin-top: var(--space-2);
   }
 }

@@ -63,6 +63,14 @@
   font-size: var(--text-mono-heading);
 }
 
+/* xl (PLAN M2): the live run's Pause, the biggest words on the screen's foot. */
+.button[data-size='xl'] {
+  min-height: var(--tap-lg);
+  padding-top: 0;
+  font-size: var(--text-mono-pause);
+  line-height: 0.95;
+}
+
 .label {
   min-width: 0;
   overflow-wrap: anywhere;

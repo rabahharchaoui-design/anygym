@@ -21,7 +21,7 @@ const onlyOn = (names: string[]) => test.skip(!names.includes(test.info().projec
 
 const faceSec = async (page: Page) => Number(await live(page).getAttribute('data-moving-sec'));
 const toSec = (text: string) => text.split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
-const shownTime = async (page: Page) => toSec((await page.getByTestId('live-small-time').locator('span').first().textContent())!);
+const shownTime = async (page: Page) => toSec((await page.getByTestId('live-small-time').locator('[data-value]').textContent())!);
 
 /** Stops the page's clock where it is: from here on only runFor moves it. */
 async function holdClock(page: Page) {
