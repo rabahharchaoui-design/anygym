@@ -73,3 +73,22 @@
   background: none;
   opacity: var(--press-dim);
 }
+
+/* PLAN M14: the plain back, as words: the chevron and "Back", no face, 48 pt tall. */
+.hit[data-plain] {
+  width: auto;
+  min-width: var(--tap);
+  padding-right: var(--space-2);
+}
+
+.face[data-plain] {
+  width: auto;
+  gap: 2px;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.word {
+  font-size: var(--text-mono-body);
+  font-weight: 600;
+}
