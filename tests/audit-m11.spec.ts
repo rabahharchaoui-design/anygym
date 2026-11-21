@@ -1,5 +1,7 @@
 import { expect, test, type Page } from './fixtures';
 import { DEVICE, note, shot } from './helpers/auditShot';
+import { firstFix, holdFor, live, move, openRun, wake } from './helpers/run';
+import { stubTiles } from './helpers/tiles';
 
 // PLAN M11 (1): a screenshot of every screen and menu as the app is now, on the iPhone 15 Pro
 // (the "iPhone 15" project, 393 x 852) and the iPhone SE (375 x 667). One test per screen group.
@@ -87,4 +89,93 @@ test.describe('fresh phone', () => {
     }
     note('onboarding: no separate welcome screen exists; the first screen is the goal question, and a 3 step welcome tour shows on first Today');
   });
+});
+
+test('run', async ({ page, context }) => {
+  const G = 'run';
+  await stubTiles(page);
+  await openRun(page, context, { pocket: true });
+  await shot(page, G, '01-start-free', 'Run tab, #/run: Free run selected');
+  await page.getByTestId('run-type-distance').tap();
+  await expect(page.getByTestId('goal-sheet-distance')).toBeVisible();
+  await shot(page, G, '02-goal-sheet-distance', 'Run tab, tap Distance: goal sheet open');
+  await page.getByTestId('distance-custom').tap();
+  await shot(page, G, '02b-goal-sheet-distance-custom', 'distance goal sheet, tap Custom: wheel');
+  await page.getByTestId('goal-done').tap();
+  await expect(page.getByTestId('goal-sheet-distance')).toBeHidden();
+  await shot(page, G, '03-start-distance-closed', 'goal sheet Done: start screen with a distance goal');
+  await page.getByTestId('run-type-time').tap();
+  await expect(page.getByTestId('goal-sheet-time')).toBeVisible();
+  await shot(page, G, '04-goal-sheet-time', 'Run tab, tap Time: goal sheet open');
+  await page.getByTestId('time-custom').tap();
+  await shot(page, G, '04b-goal-sheet-time-custom', 'time goal sheet, tap Custom: wheel');
+  await page.getByTestId('goal-done').tap();
+  await expect(page.getByTestId('goal-sheet-time')).toBeHidden();
+  await page.getByTestId('run-type-intervals').tap();
+  await expect(page.getByTestId('goal-sheet-intervals')).toBeVisible();
+  await shot(page, G, '05-goal-sheet-intervals', 'Run tab, tap Intervals: interval picker sheet');
+  await page.getByTestId('interval-beginner').tap();
+  await expect(page.getByTestId('goal-sheet-intervals')).toBeHidden();
+  await shot(page, G, '06-start-intervals', 'intervals sheet, Beginner: start screen');
+  await page.getByTestId('run-type-free').tap();
+  await page.getByTestId('run-start').tap();
+  await expect(page.getByTestId('pocket-sheet')).toBeVisible();
+  await shot(page, G, '07-pocket-explainer-sheet', 'first Start tap: pocket mode explainer sheet');
+  await page.getByTestId('pocket-go').tap();
+  await expect(page.getByTestId('run-countdown')).toHaveAttribute('data-beat', '3');
+  await page.clock.runFor(200);
+  await shot(page, G, '08-countdown', 'pocket sheet Got it: countdown');
+  await page.clock.runFor(3500);
+  await expect(live(page)).toBeVisible({ timeout: 8000 });
+  await firstFix(page, context);
+  const r = { page, context, north: 0 };
+  await move(r, 12, 5);
+  await wake(page);
+  await shot(page, G, '09-live-numbers', 'live run, numbers page (page 1)');
+  const vp = page.viewportSize()!;
+  const y = vp.height * 0.45;
+  await page.mouse.move(vp.width * 0.8, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(vp.width * (0.8 - 0.1 * i), y);
+  await page.mouse.up();
+  await expect(live(page)).toHaveAttribute('data-page', '1');
+  await shot(page, G, '10-live-map', 'live run, swipe left: map page (tiles stubbed)');
+  await page.getByTestId('live-dot-0').tap();
+  await page.getByTestId('live-lock').tap();
+  await expect(page.getByTestId('live-unlock')).toBeVisible();
+  await shot(page, G, '11-locked', 'live run, tap Lock: locked, hold to unlock');
+  await holdFor(page, page.getByTestId('live-unlock'), 1250);
+  await expect(page.getByTestId('live-lock')).toBeVisible();
+  await page.clock.runFor(12_000);
+  await shot(page, G, '12-pocket-dim', 'live run left alone 12 s: pocket mode dimmed screen');
+  await wake(page);
+  await page.getByTestId('live-pause').tap();
+  await expect(page.getByTestId('live-resume')).toBeVisible();
+  await shot(page, G, '13-paused', 'live run, tap Pause: paused');
+  await page.getByTestId('live-settings').tap();
+  await shot(page, G, '14-run-settings-sheet', 'paused, tap settings: run settings sheet (auto pause, voice)');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('live-hide').tap();
+  await shot(page, G, '15-start-while-running', 'live run, tap hide: run start screen with the run going');
+  await page.getByTestId('run-going-open').tap();
+  await holdFor(page, page.getByTestId('live-end'), 1250).catch(() => undefined);
+  if (!(await page.getByTestId('run-summary').isVisible())) {
+    await page.getByTestId('live-resume').tap();
+    await holdFor(page, page.getByTestId('live-end'), 1250);
+  }
+  await expect(page.getByTestId('run-summary')).toBeVisible();
+  await page.clock.runFor(4000);
+  await shot(page, G, '16-summary', 'hold End: run summary', true);
+  await page.getByTestId('run-summary').evaluate((el) => {
+    for (const e of [el, ...Array.from(el.querySelectorAll<HTMLElement>('*'))]) if (e.scrollHeight > e.clientHeight + 4 && getComputedStyle(e).overflowY !== 'visible') e.scrollTop = e.scrollHeight;
+  });
+  await shot(page, G, '16b-summary-scrolled', 'run summary scrolled to the bottom (splits, facts)');
+  await page.getByTestId('run-share-card').tap();
+  await expect(page.getByTestId('run-share-sheet')).toBeVisible();
+  await shot(page, G, '17-share-card-sheet', 'summary, tap Share card: share sheet with the poster preview');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('summary-done').tap();
+  await expect(page.getByTestId('run-start')).toBeVisible();
+  await shot(page, G, '18-start-after-done', 'summary, Done: back on the start screen');
+  note('run: summary variants (saved, too short) not separate; Done path shown; the short-run discard variant is not shot');
 });
