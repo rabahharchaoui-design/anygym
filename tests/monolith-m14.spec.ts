@@ -96,7 +96,7 @@ test('M14 the old address opens You; Gyms goes back to it; browser back moves li
   await page.getByTestId('settings-gyms').tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Gyms' })).toBeVisible();
   // Pushed: the tab bar hides, the back is plain words.
-  await expect(nav(page)).toHaveAttribute('data-hidden', 'true');
+  await expect(page.locator('nav[aria-label="Main"]')).toHaveAttribute('data-hidden', 'true');
   const back = page.getByRole('link', { name: 'Back to Settings' });
   await expect(back).toContainText('Back');
   await back.tap();
@@ -211,7 +211,6 @@ test('M14 screenshots of You, Gyms, a gym and the tab bar (iPhone 15, SE, 320 x 
     await expect(page.getByTestId('edit-equipment')).toBeVisible();
     await page.waitForTimeout(500);
     await shot(page, `gym-detail-${tag}`);
-    await nav(page).evaluate(() => undefined);
     await page.goto('./#/');
     await expect(page.getByTestId('gym-pill').first()).toBeVisible();
     await page.waitForTimeout(500);
