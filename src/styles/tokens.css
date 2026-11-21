@@ -76,6 +76,9 @@
   --track-heading: -0.03em;
   --track-value: -0.02em;
   --track-label: 0.14em;
+  /* The figures of a data field (PLAN M2): looser than the hero tracking (-5%), where at hero size the
+     colon of 21:08 and the point of 3.42 touched their neighbours. Glyphs never touch at -2%. */
+  --track-number: -0.02em;
 
   /* space and shape */
   --space-1: 4px;

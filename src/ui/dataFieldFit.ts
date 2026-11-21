@@ -7,8 +7,9 @@ export const BLANK = '--';
 
 export type DataFieldSize = 'hero' | 'large' | 'medium';
 
-/** Letter spacing of each size (SPEC 10 type scale), in em. */
-export const TRACKING: Record<DataFieldSize, number> = { hero: -0.05, large: -0.045, medium: -0.03 };
+/** Letter spacing of each size, in em: --track-number in tokens.css (PLAN M2: the hero's -5% made the
+ *  colon and the point touch their neighbours, so every size uses the looser figure tracking). */
+export const TRACKING: Record<DataFieldSize, number> = { hero: -0.02, large: -0.02, medium: -0.02 };
 
 // Advance widths measured in WebKit from the shipped Inter (weight 900, 'tnum'): every figure and the
 // dash are 0.645 em, the colon, point and comma 0.269 em. Letters vary; 0.95 em covers the widest (m, w).
