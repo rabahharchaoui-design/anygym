@@ -164,6 +164,7 @@ export default function RunMapGl({ here, recentre, reduceMotion, inset, onReady,
       const el = document.createElement('div');
       el.className = styles.dot!;
       el.setAttribute('data-testid', 'run-dot');
+      el.setAttribute('data-round', 'ok');
       el.setAttribute('role', 'img');
       el.setAttribute('aria-label', 'You are here');
       dot.current = new Marker({ element: el }).setLngLat(at).addTo(gl);

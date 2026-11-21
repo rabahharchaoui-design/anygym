@@ -41,7 +41,7 @@ export function RunDetail() {
       </TopBar>
       {all.error ? <LoadError text="Could not load this run" onRetry={all.retry} /> : null}
       {!row || !summary || !route ? (
-        !all.error && <Skeleton height={180} radius={0} />
+        !all.error && <Skeleton height={180} />
       ) : verdict !== 'ok' ? (
         <p className={styles.meta} data-testid="run-detail-plain" data-verdict={verdict ?? undefined}>
           {VERDICT_WORDS[verdict ?? 'no-gps'].line}

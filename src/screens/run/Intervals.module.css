@@ -188,7 +188,7 @@
   height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   color: var(--text);
   transition: transform var(--dur-fast) var(--ease-out);
 }
@@ -198,7 +198,7 @@
   height: 36px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 

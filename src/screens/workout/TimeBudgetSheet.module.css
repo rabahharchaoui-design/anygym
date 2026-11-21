@@ -29,7 +29,7 @@
   flex-direction: column;
   gap: 4px;
   padding: var(--space-4);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
 }
@@ -87,7 +87,7 @@
   top: 0.55em;
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: var(--accent);
 }
 

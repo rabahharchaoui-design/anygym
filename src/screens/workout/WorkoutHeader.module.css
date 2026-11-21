@@ -57,7 +57,7 @@
   height: 48px;
   min-width: 88px;
   padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--accent);

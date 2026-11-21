@@ -60,7 +60,7 @@
 .startMark {
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: var(--bg);
   border: 3px solid var(--text);
   box-shadow: 0 1px 6px color-mix(in srgb, var(--black) 50%, transparent);

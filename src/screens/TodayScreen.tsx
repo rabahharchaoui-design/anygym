@@ -241,7 +241,7 @@ export function TodayScreen() {
         ) : null}
         {registry.state === 'failed' ? <LoadError text={registryWords(registry.missing)} onRetry={registry.retry} /> : null}
         {failed ? null : !data.ready ? (
-          <Skeleton height={248} radius={28} />
+          <Skeleton height={248} />
         ) : active && plan && planState && active.planId === plan.id && dayIndexOf(plan, active.dayId) >= 0 ? (
           // The plan day in progress: the day card stays, as the one card, with Resume (1.7e).
           <DayCard

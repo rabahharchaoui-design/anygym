@@ -43,7 +43,7 @@ export function GymEquipment() {
         {g && <p className={gymStyles.meta}>{g.name}</p>}
       </TopBar>
       {!g ? (
-        <Skeleton height={320} radius={20} />
+        <Skeleton height={320} />
       ) : (
         <div className={gymStyles.picker} data-testid="gym-equipment">
           <EquipmentStep

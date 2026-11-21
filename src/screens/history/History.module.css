@@ -91,7 +91,7 @@
   margin-bottom: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--glass-line);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--card-fill);
 }
 
@@ -126,7 +126,7 @@
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   /* On glass on glass, the muted grey falls under AA at the top of the gradient (3.5t). */
   color: var(--text);

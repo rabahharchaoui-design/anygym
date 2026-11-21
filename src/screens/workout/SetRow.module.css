@@ -10,7 +10,7 @@
   align-items: center;
   min-height: 52px;
   padding: 2px 4px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   transition: background-color var(--dur-fast) var(--ease-out);
 }
@@ -19,7 +19,7 @@
    face; the action waits behind it, hidden until the row moves. */
 .swipe {
   position: relative;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   transition:
     scale 200ms var(--ease-out),
@@ -51,7 +51,7 @@
   align-items: center;
   justify-content: flex-end;
   padding-right: 16px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--red);
   color: var(--white);
   font-size: 15px;
@@ -227,7 +227,7 @@
 /* The whole 48 pt square takes the tap; the circle is drawn inside it. */
 .checkDone,
 .checkCircle {
-  border-radius: 50%;
+  border-radius: var(--radius-md);
 }
 
 .checkCircle {

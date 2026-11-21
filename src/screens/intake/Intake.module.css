@@ -51,7 +51,7 @@
 .progress {
   flex: 1;
   height: 6px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   overflow: hidden;
 }
@@ -86,7 +86,7 @@
   min-width: var(--tap);
   min-height: var(--tap);
   padding: 0 var(--space-2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-size: var(--text-base);
   font-weight: 700;

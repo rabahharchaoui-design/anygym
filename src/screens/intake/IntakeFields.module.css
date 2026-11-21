@@ -3,7 +3,7 @@
   width: 100%;
   min-height: var(--tap);
   padding: 0 var(--space-4);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--hairline);
   background: var(--surface-1);
   color: var(--text);
@@ -36,7 +36,7 @@
   width: 100%;
   min-height: 56px;
   padding: 0 var(--space-4);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--hairline);
   background: var(--surface-1);
   color: var(--text);
@@ -134,7 +134,7 @@
   /* Clear of the edge swipe strip (20 pt). */
   margin-inline: var(--space-1);
   height: 96px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   overflow: hidden;
@@ -148,7 +148,7 @@
   left: 50%;
   width: 3px;
   margin-left: -1.5px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--text-2);
   pointer-events: none;
   transition: background-color var(--dur-fast) var(--ease-out);

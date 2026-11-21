@@ -155,7 +155,7 @@ export function FinishScreen() {
       <main className={styles.main} aria-label="Workout done">
         {detail.error ? <LoadError text="Could not load this workout" onRetry={detail.retry} /> : null}
         {!d || !v || !cele.settled ? (
-          !detail.error && <Skeleton height={240} radius={22} />
+          !detail.error && <Skeleton height={240} />
         ) : (
           <>
             <motion.div className={styles.head} {...item(0)}>

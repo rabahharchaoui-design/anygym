@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
 }
 
@@ -25,7 +25,7 @@
 .typeChip {
   max-width: 48px;
   padding: 1px 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, currentColor 14%, transparent);
   font-size: 9px;
   font-weight: 700;
@@ -70,7 +70,7 @@
 
 .cellButton {
   min-height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 
 .cellButton:disabled {
@@ -92,7 +92,7 @@
   align-items: center;
   gap: var(--space-2);
   padding: 4px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
 
@@ -107,7 +107,7 @@
   height: 48px;
   min-height: 48px;
   padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 700;
