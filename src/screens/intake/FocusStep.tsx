@@ -15,6 +15,7 @@ import { FocusPartsSheet } from './FocusPartsSheet';
 import { FocusRank } from './FocusRank';
 import { list } from '../../lib/intake/yourPlan';
 import styles from './Focus.module.css';
+import rowStyles from './IntakeRows.module.css';
 
 type Group = Exclude<FocusId, 'balance' | 'glutes'>;
 // The areas, the three goal types, and last the one that clears them all.
@@ -77,7 +78,7 @@ export function FocusStep({ value, onChange }: { value: readonly string[]; onCha
   const openRank = () => { setAsks(false); setRankOpen(true); };
   return (
     <div className={styles.step}>
-      <div className={styles.tiles} role="group" aria-label="Focus areas" data-testid="q-focus">
+      <div className={`${rowStyles.grid} ${styles.tiles}`} role="group" aria-label="Focus areas" data-testid="q-focus">
         {TILES.map((o) => {
           const parts = o.id in FOCUS_PARTS ? FOCUS_PARTS[o.id as keyof typeof FOCUS_PARTS] : [];
           const selected = picks.filter((p) => p === o.id || parts.some((part) => part.id === p));
