@@ -134,6 +134,8 @@ async function walk(page: Page, big: boolean) {
   await page.getByTestId('skip').tap();
   await step('reveal');
   await check('19-reveal');
+  await page.locator('main[data-scroller]').evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+  await check('19b-reveal-end');
   await page.getByTestId('reveal-cta').getByRole('button', { name: 'Looks good', exact: true }).tap();
   await expect(page).toHaveURL(/#\/$/);
   await page.getByTestId('tour-words').waitFor();
