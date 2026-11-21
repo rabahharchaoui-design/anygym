@@ -157,4 +157,9 @@
     align-items: flex-start;
     gap: 0;
   }
+
+  /* The first word lines up with the label above it (its hit area reaches into the margin). */
+  .feelRow > [data-words] {
+    margin-left: calc(-1 * var(--space-2));
+  }
 }

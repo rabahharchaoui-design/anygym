@@ -97,7 +97,6 @@
 .word {
   position: relative;
   flex: none;
-  min-width: var(--tap-min);
   padding: var(--space-2) 0;
   text-align: right;
   color: var(--text-2);
