@@ -31,14 +31,12 @@
 
 .skeleton {
   height: 360px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
 }
 
 .card {
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-  border-radius: 20px;
+  composes: surface from '../../ui/card.module.css';
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
@@ -75,7 +73,7 @@
 .chip {
   min-height: var(--tap);
   padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   border: 1px solid var(--hairline);
   font-weight: 600;

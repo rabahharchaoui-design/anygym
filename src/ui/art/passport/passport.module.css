@@ -13,12 +13,8 @@
   position: relative;
   aspect-ratio: 5 / 7;
   overflow: hidden;
-  border-radius: 14px 18px 18px 14px;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-lg);
   background: var(--surface-solid);
-  box-shadow:
-    inset 6px 0 8px -4px color-mix(in srgb, var(--black) 60%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--white) 10%, transparent),
-    0 10px 24px color-mix(in srgb, var(--black) 45%, transparent);
 }
 
 /* The hide: graphite with a breath of the accent, darker toward the spine and the bottom. */
@@ -63,8 +59,8 @@
 .paper {
   position: relative;
   overflow: hidden;
-  border-radius: 14px;
-  background: linear-gradient(170deg, var(--text), color-mix(in srgb, var(--text) 86%, var(--accent)));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--text) 86%, var(--accent));
   color: var(--on-accent);
 }
 

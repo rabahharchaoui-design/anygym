@@ -120,7 +120,7 @@
   min-height: 48px;
   padding: 0 2px;
   border: 1px solid var(--glass-line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--white) 5%, transparent);
   color: var(--text);
   font-weight: 700;
@@ -156,7 +156,7 @@
   max-width: 100%;
   padding: 10px var(--space-4);
   border: 1px solid var(--glass-line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--white) 5%, transparent);
   color: var(--text);
   font-size: 0.9375rem;
@@ -221,7 +221,7 @@
   min-height: 48px;
   padding: 0 var(--space-3);
   border: 1px solid var(--glass-line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--white) 8%, transparent);
   color: var(--accent);
   font-weight: 700;
@@ -244,7 +244,7 @@
   padding: var(--space-1) 0;
   list-style: none;
   border: 1px solid var(--glass-line);
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   animation: ready-in 280ms var(--ease-spring) both;
 }
@@ -313,7 +313,7 @@
   margin-top: var(--space-5);
   padding: var(--space-5);
   border: 1px solid var(--glass-line);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   text-align: center;
 }
@@ -341,7 +341,7 @@
   margin: 0;
   padding: var(--space-4);
   border: 1px dashed var(--glass-line);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   color: var(--text-2);
   text-align: center;
 }

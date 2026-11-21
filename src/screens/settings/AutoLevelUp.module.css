@@ -29,8 +29,8 @@
   gap: 4px;
   padding: var(--space-4);
   border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  border-radius: 20px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 2%, transparent) 60%);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 2%, transparent);
   text-align: center;
 }
 
@@ -60,7 +60,7 @@
   margin: 0;
   padding: var(--space-4);
   border: 1px solid var(--glass-line);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   color: var(--text-2);
   line-height: 1.4;
   text-align: center;

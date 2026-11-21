@@ -6,7 +6,7 @@
   gap: var(--space-2);
   min-height: 48px;
   padding: 10px var(--space-4);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   color: var(--text);
@@ -110,7 +110,7 @@
   flex: none;
   margin-left: auto;
   padding: 2px 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent);
   font-size: 12px;
@@ -177,7 +177,7 @@
   flex: 0 1 auto;
   min-width: 0;
   padding: 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   font-size: 0.8125rem;
   white-space: nowrap;
 }

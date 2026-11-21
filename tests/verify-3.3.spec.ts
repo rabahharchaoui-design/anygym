@@ -59,9 +59,10 @@ async function chrome(page: Page, step: string, kind: 'auto' | 'cta', opts: { ba
   const back = page.locator('header').getByRole('button', { name: 'Back', exact: true });
   if (opts.back) {
     const b = (await back.boundingBox())!;
-    expect(Math.abs(b.width - b.height), `${step} back is round`).toBeLessThan(1.5);
+    expect(Math.abs(b.width - b.height), `${step} back is square`).toBeLessThan(1.5);
     expect(b.width, `${step} back size`).toBeGreaterThanOrEqual(44);
-    expect(await back.evaluate((el) => getComputedStyle(el).borderRadius)).toMatch(/50%|9999|999|\d{2,}px/);
+    // PLAN M10 (SPEC 23.1): a 44 pt square back button, 0 to 4 px corners.
+    expect(await back.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius))).toBeLessThanOrEqual(4);
   } else await expect(back).toHaveCount(0);
   if (kind === 'auto') await expect(page.getByTestId('intake-cta')).toHaveCount(0);
   else {

@@ -157,7 +157,7 @@
   min-height: 56px;
   padding: var(--space-1) var(--space-1) var(--space-1) 0;
   border: 1px solid var(--hairline);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--surface-solid);
 }
 

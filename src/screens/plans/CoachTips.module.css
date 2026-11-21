@@ -108,7 +108,7 @@
 .apply {
   min-height: 48px;
   padding: 0 20px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-line);
   color: var(--text);

@@ -37,7 +37,7 @@
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   touch-action: manipulation;
   transition: transform 160ms var(--ease-out);
 }
@@ -93,7 +93,7 @@
   inset: 6px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: var(--surface-solid);
 }
 

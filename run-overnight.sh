@@ -2,6 +2,7 @@
 # Started by the LaunchAgent after a reboot, launchd gives a bare PATH: find claude, codex, node, gh the same way a login shell does.
 [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile" >/dev/null 2>&1
 export PATH="$HOME/.local/bin:$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$HOME/.npm-global/bin:$HOME/bin:$PATH"
+export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0   # Nov 22 (Grok audit): the CLI was killing builder and tester agents 10 min after the orchestrator's last turn; the budget timer and usage guard still bound every run
 # AnyGym Fable Loop with a Claude usage budget (G, Oct 30: leave usage for G all week).
 # Fable orchestrates, Opus builds, Sonnet tests. Resumes from PLAN.md, stops at ALL DONE.
 # Budget lives in .loop-budget (reread before every run, edit any time):
@@ -42,10 +43,10 @@ week_allowed(){ # G, Nov 17: never leave G with nothing; spread what is left eve
   if [ "$wr0" != "$wr" ]; then echo "$wr $now ${w:-0}" > .week-pace; line="$wr $now ${w:-0}"; fi
   t0=$(echo "$line" | cut -d' ' -f2); p0=$(echo "$line" | cut -d' ' -f3)
   span=$(( wr - 14400 - t0 )); [ $span -lt 3600 ] && { echo $stop; return; }
-  local lead=${WEEK_LEAD:-20};   # G, Nov 22: "if you can go, let's go"; still 85% max by 4 h before the reset
+  local lead=${WEEK_LEAD:-25};   # G, Nov 22: "if you can go, let's go"; still 85% max by 4 h before the reset
    local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span )); [ $a -gt $stop ] && a=$stop; echo $a   # lead: may run this far ahead of the even pace (Nov 19: a lead of 2 made runs stop after 4 min)
 }
-over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; local cap=${FIVE_STOP:-74}; if [ -f .five-override ]; then read -r oc ou < .five-override; [ "$(date +%s)" -lt "${ou:-0}" ] 2>/dev/null && cap=$oc; fi; [ "${f:-0}" -ge $cap ] && { echo five; return 0; }; return 1; }   # .five-override "cap until": a one run exception G approved
+over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; local cap=${FIVE_STOP:-74}; if [ -f .five-override ]; then read -r oc ou < .five-override; case "$oc" in ""|*[!0-9]*) oc=${FIVE_STOP:-74};; esac; [ "$(date +%s)" -lt "${ou:-0}" ] 2>/dev/null && cap=$oc; fi; [ "${f:-0}" -ge $cap ] && { echo five; return 0; }; return 1; }   # .five-override "cap until": a one run exception G approved
 tap_age(){ local ts=$(tapv ts); [ -n "$ts" ] && echo $(( $(date +%s) - ts )) || echo 99999; }
 probe(){ local root="$PWD" d="$HOME/.cache/anygym-probe"; mkdir -p "$d"; date +%s > .usage-probe-at; ( cd "$d" && perl -e 'alarm shift; exec @ARGV' 90 claude --model haiku --output-format stream-json --verbose -p "Reply with OK only." 2>/dev/null | node "$root/.loop-tools/stream-tap.mjs" "$root/.usage-tap" >/dev/null 2>&1 ); }
 probe_due(){ [ $(tap_age) -gt ${PROBE_EVERY:-300} ] || return 1; local pa=$(cat .usage-probe-at 2>/dev/null); [ $(( $(date +%s) - ${pa:-0} )) -gt ${PROBE_EVERY:-300} ]; }
@@ -176,6 +177,7 @@ while [ $n -lt 300 ]; do
   if [ $dur -lt $(( limit - 60 )) ] && tail -n 6 "$RUNLOG" | grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your"; then
     if tail -n 6 "$RUNLOG" | grep -qiE "fable.*limit|limit.*fable"; then wr=$(tapv week_reset); [ -z "$wr" ] || [ "$wr" -lt $(date +%s) ] && wr=$(( $(date +%s) + 86400 )); echo "$wr" > .fable-capped; ntfy "AnyGym: Fable full for the week" "No Fable resets left, so the build switched to Opus by itself until the weekly reset. Nothing to press." "information_source"; say "Fable weekly limit hit, building on Opus until $(TZ=Pacific/Guam date -r $wr '+%a %H:%M')"; FAST=0; rm -f "$RUNLOG"; sleep 120; continue
     elif tail -n 6 "$RUNLOG" | grep -qiE "weekly limit|7-day limit|week.*limit" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "All models is full for the week. Nothing to press (no Full reset left); the build waits for Thursday 8 PM." "warning"; say "weekly all models limit hit, told G"; fi
+    [ -f .five-override ] && { mv .five-override .five-override.used; hold_set; }
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"

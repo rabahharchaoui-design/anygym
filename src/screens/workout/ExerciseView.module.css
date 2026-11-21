@@ -46,7 +46,7 @@
 
 .tableSkeleton {
   height: 220px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
 }
 
@@ -55,7 +55,7 @@
   width: 100%;
   min-height: 48px;
   margin-top: var(--row-gap);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px dashed var(--hairline-strong);
   color: var(--text-2);
   font-weight: 600;

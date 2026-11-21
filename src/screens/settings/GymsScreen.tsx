@@ -89,7 +89,7 @@ export function GymsScreen() {
       <TopBar title="Gyms" leading={<BackButton to="/settings" label="Back to Settings" />} />
       <p className={gymStyles.intro}>Where you train. Each gym keeps its own equipment, plates and units.</p>
       {!gyms.ready ? (
-        <Skeleton height={200} radius={20} />
+        <Skeleton height={200} />
       ) : (
         <div className={styles.card} data-testid="gyms-list">
           {list.map((g, i) => {

@@ -10,7 +10,7 @@
   /* The hit area is 48 pt; the negative margin keeps it from pushing the text around. */
   margin: -12px;
   color: var(--text-2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   vertical-align: middle;
   transition:
     transform var(--dur-press) var(--ease-out),
@@ -75,7 +75,7 @@
   margin: 0;
   align-self: center;
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   color: var(--text-2);
@@ -88,7 +88,7 @@
   width: 100%;
   height: 52px;
   margin-top: var(--space-1);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--hairline);
   background: transparent;
   color: var(--text);

@@ -8,7 +8,7 @@
   grid-auto-flow: column;
   grid-auto-columns: minmax(56px, 1fr);
   padding: var(--pad);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   /* A well cut into the glass (3.5t): darker than the card it sits on, so the grey labels keep AA
      even on a card at the top of the gradient. */
   background: color-mix(in srgb, var(--black) 24%, transparent);
@@ -28,11 +28,8 @@
   bottom: var(--pad);
   left: var(--pad);
   width: calc((100% - 2 * var(--pad)) / var(--n));
-  border-radius: var(--radius-pill);
-  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 60%);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--white) 50%, transparent),
-    0 2px 10px color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
   transform: translateX(calc(var(--i) * 100%));
   transition: transform var(--dur-tap) var(--ease-tap-spring);
   will-change: transform;
@@ -49,7 +46,7 @@
   min-height: calc(48px + 2 * var(--pad));
   margin-block: calc(var(--pad) * -1);
   padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   color: var(--text-2);
   font-size: var(--text-sm);
   font-weight: 700;
