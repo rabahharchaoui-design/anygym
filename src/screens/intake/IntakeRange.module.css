@@ -1,14 +1,13 @@
-/* Dumbbell range: a full row right under Dumbbells. */
+/* Dumbbell range: a full row right under Dumbbells, on the page (PLAN M13: no card). */
 .rangeCell {
   grid-column: 1 / -1;
+  border-bottom: var(--divider);
 }
 
 .range {
   margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
+  padding: var(--space-3) 0;
+  border: 0;
   min-width: 0;
 }
 
