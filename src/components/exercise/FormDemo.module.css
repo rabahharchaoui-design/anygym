@@ -72,8 +72,90 @@
   }
 }
 
+/* PLAN D1: a 3 or 4 frame sequence, one 1.5 s slot per frame (the same 0.15 s fade). Frame 0 stays
+   underneath; frame i crossfades in over frame i - 1 at the start of its slot, a middle frame holds
+   until the next one has covered it, the last one fades out to the start photo. */
+.step {
+  opacity: 0;
+}
+.mid3 {
+  animation: demo-mid3 4.5s linear infinite;
+}
+.last3 {
+  animation: demo-last3 4.5s linear infinite;
+}
+.mid4 {
+  animation: demo-mid4 6s linear infinite;
+}
+.last4 {
+  animation: demo-last4 6s linear infinite;
+}
+/* After the shorthands above, which would reset the delay. */
+.d1 {
+  animation-delay: 1.5s;
+}
+.d2 {
+  animation-delay: 3s;
+}
+.d3 {
+  animation-delay: 4.5s;
+}
+@keyframes demo-mid3 {
+  0% {
+    opacity: 0;
+  }
+  3.333%,
+  36.667% {
+    opacity: 1;
+  }
+  36.7%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes demo-last3 {
+  0% {
+    opacity: 0;
+  }
+  3.333%,
+  33.333% {
+    opacity: 1;
+  }
+  36.667%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes demo-mid4 {
+  0% {
+    opacity: 0;
+  }
+  2.5%,
+  27.5% {
+    opacity: 1;
+  }
+  27.53%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes demo-last4 {
+  0% {
+    opacity: 0;
+  }
+  2.5%,
+  25% {
+    opacity: 1;
+  }
+  27.5%,
+  100% {
+    opacity: 0;
+  }
+}
+
 /* A preview that is off screen (or a deck card not in play): the start photo, nothing animating. */
-.end.still {
+.end.still,
+.step.still {
   animation: none;
 }
 
@@ -179,7 +261,8 @@
 
 /* Reduced motion (SPEC 4.4): both photos side by side, still. The tile keeps the start photo. */
 @media (prefers-reduced-motion: reduce) {
-  .end {
+  .end,
+  .step {
     animation: none;
   }
   .stage {

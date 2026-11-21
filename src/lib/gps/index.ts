@@ -25,6 +25,6 @@ export { startTracker, addPoint, clockStopped, countShown, flushStill, pauseRun,
 export type { TrackerOptions, TrackerState, TrackerEvent, TrackerReading, RunStatus } from './tracker';
 export { stepTracker, processTrack, processPoints } from './batch';
 export type { TrackInput, TrackResult } from './batch';
-export { toRunPoint, fromRunPoint, toRunGaps, toSegments, smoothPoints, smoothForDrawing } from './draw';
+export { toRunPoint, fromRunPoint, toRunGaps, toRunShifts, dashedGaps, toSegments, smoothPoints, smoothForDrawing } from './draw';
 export type { Segment } from './draw';
 export { METERS_PER_KM, METERS_PER_MILE, unitMeters } from './units';

@@ -1,6 +1,7 @@
 // The route as the map draws it (SPEC 12.2: the line in the accent colour, honest dashed gaps).
 // Pure: lib/gps cuts and smooths the track; this file only turns the pieces into coordinates.
-import { smoothForDrawing, type GpsPoint, type Segment } from '../gps';
+import type { Run } from '../../db/types';
+import { dashedGaps, fromRunPoint, smoothForDrawing, type GpsPoint, type Segment } from '../gps';
 
 /** [lng, lat], the order maps use. */
 export type LngLat = [number, number];
@@ -38,3 +39,6 @@ export function routeGeo(segments: readonly Segment[]): RouteGeo {
 
 /** The live or the stored track, smoothed for drawing, as map coordinates. */
 export const drawRoute = (points: readonly GpsPoint[], gaps: ReadonlyArray<readonly [number, number]>): RouteGeo => routeGeo(smoothForDrawing(points, gaps));
+
+/** A stored run's route (PLAN 4.4f 5): dashed only across a GPS gap or a pause, never a shift of the estimate. */
+export const drawRunRoute = (run: Pick<Run, 'points' | 'gaps' | 'shifts'>): RouteGeo => drawRoute(run.points.map(fromRunPoint), dashedGaps(run.gaps, run.shifts));

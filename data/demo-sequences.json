@@ -1,0 +1,5 @@
+{
+  "format": "anygym-demo-sequences-v1",
+  "about": "PLAN D1: 3 or 4 frame demo sequences, one per catalog id. Each needs one source record (author, title, fileUrl, licenseUrl, license: Public domain, CC0 1.0 or CC BY x.y) and samePersonAndSetup true; frames live in public/ex/<id>/0.jpg to 3.jpg with WebP twins. See src/lib/demoSequence.ts.",
+  "sequences": {}
+}

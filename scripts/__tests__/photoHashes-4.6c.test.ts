@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -19,6 +19,7 @@ function urls(root: string): Map<string, string> {
   const out = new Map<string, string>();
   for (const dir of readdirSync(root))
     for (const f of PHOTO_FRAMES) {
+      if (!existsSync(join(root, dir, f))) continue;
       const path = `ex/${dir}/${f}`;
       out.set(path, versionedAsset(path, photoVersionOf(path, table, 'dev')));
     }
@@ -68,5 +69,26 @@ describe('one version per photo file (PLAN 4.6c 2)', () => {
     expect(photoVersionOf('ex/Nope/0.jpg', table, 'dev')).toBe('');
     expect(photoVersionOf('ex/Nope/0.jpg', null, 'dev')).toBe('dev');
     expect(photoHashes(join(root, 'none'), PHOTO_FRAMES)).toEqual({});
+  });
+
+  it('PLAN D1: frames 2 and 3 of a sequence get their own hashes; a two frame table is as short as before', () => {
+    const root = copyOf(dirs.slice(0, 2));
+    const before = encodePhotoHashes(photoHashes(root, PHOTO_FRAMES));
+    // Every entry of a two frame exercise has exactly its four hashes (no empty tail for frames 2 and 3).
+    for (const entry of before.split(';')) expect(entry.split(':')[1]!.split(',')).toHaveLength(4);
+    writeFileSync(join(root, dirs[0]!, '2.jpg'), Buffer.from('frame two jpg'));
+    writeFileSync(join(root, dirs[0]!, '2.webp'), Buffer.from('frame two webp'));
+    writeFileSync(join(root, dirs[0]!, '3.jpg'), Buffer.from('frame three jpg'));
+    writeFileSync(join(root, dirs[0]!, '3.webp'), Buffer.from('frame three webp'));
+    const table = decodePhotoHashes(encodePhotoHashes(photoHashes(root, PHOTO_FRAMES)));
+    for (const f of ['2.jpg', '2.webp', '3.jpg', '3.webp']) {
+      const path = `ex/${dirs[0]}/${f}`;
+      expect(table.get(path)).toMatch(/^[0-9a-z]{7}$/);
+      expect(PHOTO_URL_PATTERN.test(`/anygym/${versionedAsset(path, table.get(path)!)}`)).toBe(true);
+    }
+    expect(table.has(`ex/${dirs[1]}/2.jpg`)).toBe(false);
+    // The other exercise's entry did not change.
+    const other = (t: string) => t.split(';').find((e) => e.startsWith(`${dirs[1]}:`));
+    expect(other(encodePhotoHashes(photoHashes(root, PHOTO_FRAMES)))).toBe(other(before));
   });
 });

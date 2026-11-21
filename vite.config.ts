@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { encodePhotoHashes, PHOTO_FRAMES, PHOTO_URL_PATTERN } from './src/lib/photoVersion';
+import { encodeSequences, parseDemoSequences } from './src/lib/demoSequence';
 // @ts-expect-error plain .mjs script, no types
 import { photoHashes } from './scripts/photo-hashes.mjs';
 import type { Plugin } from 'vite';
@@ -15,6 +16,18 @@ const BASE = '/anygym/';
 /** PLAN 4.6c (2): one short hash per exercise photo file, shipped as one string (lib/photoVersion.ts). */
 function photoHashTable(): string {
   return encodePhotoHashes(photoHashes(fileURLToPath(new URL('./public/ex/', import.meta.url)), PHOTO_FRAMES));
+}
+
+/**
+ * PLAN D1: the 3 or 4 frame demo sequences, checked here so the checks stay out of the app: a file
+ * of another format fails the build; a refused sequence is shipped as 0 (no demo) and named here.
+ */
+function demoSequenceTable(): string {
+  const read = (path: string) => JSON.parse(readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8'));
+  const ids = new Set<string>((read('./data/catalog.json') as { exercises: { id: string }[] }).exercises.map((e) => e.id));
+  const entries = parseDemoSequences(read('./data/demo-sequences.json'), ids);
+  for (const e of entries.values()) if (!e.ok) console.warn(`Demo sequence refused (no demo shown): ${e.reason}`);
+  return encodeSequences(entries);
 }
 
 /** The git short sha of this build (SPEC 24: reports name the exact build); 'dev' without git. */
@@ -116,7 +129,7 @@ export default defineConfig({
   base: BASE,
   // A source map would hand out the source: none ships (the secret scan fails the build on one).
   build: { sourcemap: false },
-  define: { __APP_SHA__: JSON.stringify(shortSha()), __PHOTO_HASHES__: JSON.stringify(photoHashTable()) },
+  define: { __APP_SHA__: JSON.stringify(shortSha()), __PHOTO_HASHES__: JSON.stringify(photoHashTable()), __DEMO_SEQUENCES__: JSON.stringify(demoSequenceTable()) },
   plugins: [
     react(),
     cspPlugin(),

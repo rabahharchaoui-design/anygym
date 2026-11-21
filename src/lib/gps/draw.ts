@@ -10,6 +10,19 @@ export const fromRunPoint = ([lat, lng, t, accuracy]: RunPoint): GpsPoint => ({ 
 /** The stored breaks (db Run.gaps): [timestamp of the point before, timestamp of the point after]. */
 export const toRunGaps = (breaks: readonly TrackBreak[]): Array<[number, number]> => breaks.map((b) => [b.fromT, b.toT]);
 
+/** PLAN 4.4f (5): the breaks that are only a move of the estimate (db Run.shifts, also in Run.gaps). */
+export const toRunShifts = (breaks: readonly TrackBreak[]): Array<[number, number]> => toRunGaps(breaks.filter((b) => b.kind === 'shift'));
+
+/**
+ * The breaks the line is drawn dashed across: a GPS gap or a pause, never a shift of the estimate
+ * (no GPS was lost there; the line goes on). Distance and pace still read every break in Run.gaps.
+ */
+export function dashedGaps(gaps: ReadonlyArray<readonly [number, number]>, shifts: ReadonlyArray<readonly [number, number]> = []): ReadonlyArray<readonly [number, number]> {
+  if (!shifts.length) return gaps;
+  const moved = new Set(shifts.map(([a, b]) => `${a}:${b}`));
+  return gaps.filter(([a, b]) => !moved.has(`${a}:${b}`));
+}
+
 /**
  * One solid piece of line. `dashedFromPrev`: the stretch from the end of the piece before to the
  * start of this one is a gap or a pause; draw it dashed or not at all, never solid.

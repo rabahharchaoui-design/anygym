@@ -21,8 +21,8 @@ function now(frames: readonly Frame[] | null, key: string): Photos {
   return known ? fromAnswer(known) : { kind: 'checking' };
 }
 
-/** The two demo frames, WebP first, then the JPG twin. */
-export const demoFrames = (demo: DemoImages): Frame[] => [0, 1].map((i) => [assetUrl(demo.webp[i]!), assetUrl(demo.jpg[i]!)]);
+/** The demo's frames (2 to 4, PLAN D1) in order, each WebP first, then the JPG twin. */
+export const demoFrames = (demo: DemoImages): Frame[] => demo.webp.map((w, i) => [assetUrl(w), assetUrl(demo.jpg[i]!)]);
 
 export function usePhotos(frames: readonly Frame[] | null): Photos {
   const key = frames ? framesKey(frames) : '';

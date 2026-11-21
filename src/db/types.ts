@@ -376,6 +376,7 @@ export type Run = {
   distanceM: number;
   points: RunPoint[];
   gaps: Array<[number, number]>;
+  shifts?: Array<[number, number]>; // PLAN 4.4f, additive: the `gaps` that only moved the GPS estimate (no GPS lost): drawn solid
   /** Moving seconds of each finished split, in order. */
   splits: number[];
   /**

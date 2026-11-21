@@ -7,6 +7,7 @@
 //   voice/        the voice coach: the clip list, the sentences, the settings (PLAN 4.4)
 //   live.ts      the live run: one state, one step at a time (PLAN 4.3)
 //   liveClock.ts the time on the screen between two positions, and when it next changes (PLAN 4.4a)
+//   liveNote.ts  the one line under the big number: paused, auto paused, GPS lost (PLAN 4.4f)
 //   snapshot.ts  a live run written down and read back after the app closed
 //   diag.ts      the run diagnostics log: every position and what the run did with it (PLAN 4.4d)
 //   progress.ts  progress toward a Distance or Time goal
@@ -36,6 +37,7 @@ export * from './mapSource';
 export * from './format';
 export * from './live';
 export * from './liveClock';
+export * from './liveNote';
 export * from './snapshot';
 export * from './diag';
 export * from './progress';

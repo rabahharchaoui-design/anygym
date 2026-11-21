@@ -5,8 +5,7 @@ import { runEngine, type EngineState } from '../../hooks/useRunEngine';
 import { usePocketDim } from '../../hooks/usePocketDim';
 import { useLiveReading } from '../../hooks/useLiveReading';
 import { useRunSetup } from '../../hooks/useRunSetup';
-import { blockEffort, DEFAULT_VOICE, inGap, readIntervals, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
-import type { RunStatus } from '../../lib/gps';
+import { blockEffort, DEFAULT_VOICE, liveNote, readIntervals, distanceWithUnit, goalProgress, type LiveRun as Live, type VoiceSettings } from '../../lib/run';
 import { formatElapsed } from '../../lib/timer';
 import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
@@ -15,7 +14,7 @@ import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useToastTimeout } from '../../ui/useToastTimeout';
 import { LiveControls } from './LiveControls';
 import { LiveMap } from './LiveMap';
-import { LiveStats, nextMetric, type LiveNote, type Metric } from './LiveStats';
+import { LiveStats, nextMetric, type Metric } from './LiveStats';
 import { pageAfterSwipe, type Page } from './liveSwipe';
 import { RunSettingsSheet } from './RunSheets';
 import styles from './Live.module.css';
@@ -25,16 +24,6 @@ type Props = { live: Live; wake: EngineState['wake']; saveFailed: boolean; autos
 
 /** The run whose failed save was already said (once per run, also across hiding the screen). */
 let toldSaveFor: string | null = null;
-
-function noteOf(live: Live, status: RunStatus): LiveNote {
-  if (status === 'paused') return { tone: 'paused', text: live.closed ? 'Paused while the app was closed' : 'Paused' };
-  if (live.gps === 'denied') return { tone: 'wait', text: 'Location is off for AnyGym' };
-  if (status === 'waiting') return { tone: 'wait', text: 'Looking for GPS' };
-  if (status === 'auto-paused') return { tone: 'auto', text: 'Auto paused · move to go on' };
-  // PLAN 4.4a: no position for a while: the time holds (it never goes back) until GPS returns.
-  if (inGap(live.tracker, Date.now())) return { tone: 'wait', text: 'GPS lost · time on hold' };
-  return null;
-}
 
 /**
  * The live run (SPEC 12.2): full screen, two pages. The stats page is pure black with one giant
@@ -203,7 +192,7 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
               <span id="live-cycle-hint" className={styles.hint} aria-hidden="true">
                 Shows the next number big
               </span>
-              <LiveStats reading={reading} unit={live.unit} big={big} note={noteOf(live, reading.status)} goal={goalProgress(live.goal, reading, live.unit)} paused={paused} intervals={blocks} />
+              <LiveStats reading={reading} unit={live.unit} big={big} note={liveNote(live, reading.status, Date.now())} goal={goalProgress(live.goal, reading, live.unit)} paused={paused} intervals={blocks} />
             </button>
           </div>
           <div className={styles.page} aria-hidden={page !== 1}>
