@@ -2,11 +2,16 @@ import { expect, test, type Page } from './fixtures';
 import { DEVICE, note, shot } from './helpers/auditShot';
 import { firstFix, holdFor, live, move, openRun, wake } from './helpers/run';
 import { stubTiles } from './helpers/tiles';
-import { bar185, exerciseView, seedFinished, usePlan } from './workout-helpers';
+import { join } from 'node:path';
+import { card, pastIntake } from './helpers/quick';
+import { seedHistory } from './helpers/history-fixture';
+import { PARK, runRow } from './helpers/run';
+import { bar185, dbAll, dbPut, exerciseView, seedFinished, usePlan } from './workout-helpers';
 
 // PLAN M11 (1): a screenshot of every screen and menu as the app is now, on the iPhone 15 Pro
 // (the "iPhone 15" project, 393 x 852) and the iPhone SE (375 x 667). One test per screen group.
 // On demand: M11=1 PW_NO_BUILD=1 PW_PORT=4195 npx playwright test tests/audit-m11.spec.ts -g <group>
+test.setTimeout(90_000);
 test.beforeEach(() => {
   test.skip(!process.env.M11 || !DEVICE[test.info().project.name], 'audit run only');
 });
@@ -297,4 +302,176 @@ test('workout quick-start picker', async ({ page }) => {
   await picker.getByRole('button', { name: 'Add 1' }).tap();
   await expect(picker).toHaveCount(0);
   await shot(page, G, '14c-quick-day-list', 'quick workout day list after adding exercises (empty-ish quick list with + Add exercise)', true);
+});
+
+test('today', async ({ page }) => {
+  const G = 'today';
+  await page.goto('./');
+  await shot(page, G, '01-no-plan', 'fresh data past intake, open #/: Today without a plan');
+  await seedFinished(page, { 'barbell-back-squat': [{ reps: 8, load: bar185 }] });
+  await usePlan(page);
+  await shot(page, G, '02-with-plan', 'See plans, Five day split, Use this plan: Today with a plan');
+  await page.getByTestId('gym-pill').first().tap().catch(() => undefined);
+  await shot(page, G, '03-gym-sheet', 'Today, tap the gym pill: gym picker sheet');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Change day', exact: true }).tap({ timeout: 3000 }).catch(() => undefined);
+  await shot(page, G, '04-change-day-sheet', 'Today, tap Change day: change day sheet');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Preview', exact: true }).tap({ timeout: 3000 }).catch(() => undefined);
+  await shot(page, G, '05-preview', 'Today, tap Preview: day preview');
+  await page.keyboard.press('Escape');
+  await page.goto('./#/');
+  await page.getByTestId('day-card-time').tap({ timeout: 3000 }).catch(() => undefined);
+  await shot(page, G, '06-time-sheet', 'Today, tap the ~min line: time budget sheet');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+  await page.getByRole('button', { name: 'Minimize workout' }).tap();
+  await expect(page).toHaveURL(/#\/$/);
+  await shot(page, G, '07-workout-in-progress', 'workout, tap minimize: Today with a workout in progress (resume)');
+});
+
+test('quick', async ({ page }) => {
+  const G = 'quick';
+  await pastIntake(page);
+  await shot(page, G, '01-today-quick-entry', 'past intake, Today (build card)');
+  await page.getByTestId('build-card').tap();
+  await shot(page, G, '02-time-step', 'Today, tap the build card: Quick, how much time');
+  await page.getByTestId('min-30').tap();
+  await expect(page.locator('[data-concept]').first()).toBeVisible();
+  await shot(page, G, '03-ideas', 'Quick, tap 30 min: idea cards', true);
+  await page.locator('[data-concept]').first().getByTestId('concept-info').tap();
+  await expect(page.getByTestId('idea-sheet')).toBeVisible();
+  await shot(page, G, '04-idea-sheet', 'idea card, tap info: idea sheet');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-concept]').first().tap();
+  await expect(card(page)).toBeVisible();
+  await shot(page, G, '05-deck', 'tap an idea: exercise deck, first card');
+  for (let i = 0; i < 12 && !(await page.getByTestId('ready-list').isVisible()); i++) {
+    await page.getByTestId('deck-keep').tap({ timeout: 4000 }).catch(() => undefined);
+    await page.waitForTimeout(500);
+    if (i === 1) await shot(page, G, '06-deck-card-3', 'deck after two Keep taps');
+  }
+  if (await page.getByTestId('ready-list').isVisible()) await shot(page, G, '07-review-ready', 'keep every card: Ready to go review list', true);
+  else note('quick/07-review-ready not reached in 12 keeps');
+});
+
+test('history', async ({ page }) => {
+  const G = 'history';
+  await stubTiles(page);
+  await page.goto('./#/history');
+  await shot(page, G, '01-empty', 'fresh data, History tab: empty state');
+  await page.goto('./');
+  await seedHistory(page, { weeks: 20 });
+  const base = Date.now() - 3 * 86_400_000;
+  await dbPut(page, { runs: [runRow('audit-run-1', 3200, base), runRow('audit-run-2', 5100, base - 5 * 86_400_000), runRow('audit-run-3', 1700, base - 9 * 86_400_000)] });
+  await page.goto('./#/history');
+  await expect(page.getByTestId('history-row').first()).toBeVisible();
+  await shot(page, G, '02-list', 'History tab with 20 weeks of workouts and 3 runs', true);
+  await page.getByTestId('history-runs-link').tap();
+  await expect(page.getByTestId('run-records')).toBeVisible();
+  await shot(page, G, '03-run-records', 'History, tap the runs link: personal records', true);
+  await page.getByRole('radio', { name: /heatmap/i }).tap({ timeout: 3000 }).catch(() => undefined);
+  await shot(page, G, '04-run-heatmap', 'run records, switch to Heatmap');
+  await page.goto('./#/history/run/audit-run-1');
+  await expect(page.getByRole('main')).toBeVisible();
+  await shot(page, G, '05-run-detail', '#/history/run/<id>: run detail', true);
+  await page.goto('./#/history');
+  await page.locator('[data-testid="history-row"] a, a[data-testid="history-row"]').first().tap().catch(async () => page.getByTestId('history-row').first().tap());
+  await expect(page.getByTestId('history-meta')).toBeVisible();
+  await shot(page, G, '06-workout-detail', 'History, tap a workout: workout detail', true);
+  await page.getByTestId('history-set').first().tap().catch(() => undefined);
+  await shot(page, G, '07-workout-detail-set-tapped', 'workout detail, tap a set (edit sheet if any)');
+  note('history: no calendar view exists in the app');
+});
+
+test('plans', async ({ page }) => {
+  const G = 'plans';
+  await page.goto('./#/plans');
+  await shot(page, G, '01-plans-list', 'Plans tab', true);
+  const place = page.locator('[data-testid^="place-"]').first();
+  if (await place.count()) {
+    await place.tap();
+    await shot(page, G, '02-place-plans', 'Plans, tap the first place: plans for that place', true);
+    await page.goBack();
+  }
+  await page.goto('./#/plans/five-day-split');
+  await expect(page.getByRole('button', { name: 'Use this plan' })).toBeVisible();
+  await shot(page, G, '03-plan-detail', '#/plans/five-day-split: plan viewer', true);
+  const tips = page.getByTestId('coach-tips-toggle');
+  if (await tips.count()) {
+    await tips.tap();
+    await shot(page, G, '04-coach-tips-open', 'plan detail, open Coach tips', true);
+  } else note('plans/coach tips not on the plan detail without an active plan');
+  await page.getByRole('button', { name: 'Use this plan' }).tap();
+  await page.goto('./#/plans');
+  await shot(page, G, '05-plans-list-with-active', 'Plans tab with an active plan', true);
+  await page.goto('./#/plans/five-day-split');
+  await shot(page, G, '06-plan-detail-active', 'plan viewer of the active plan (coach tips if any)', true);
+  const tips2 = page.getByTestId('coach-tips-toggle');
+  if (await tips2.count()) {
+    await tips2.tap();
+    await shot(page, G, '07-coach-tips-open-active', 'active plan viewer, open Coach tips', true);
+  } else note('plans/coach tips: none on the active plan viewer');
+});
+
+test('settings', async ({ page }) => {
+  const G = 'settings';
+  await page.goto('./#/settings');
+  await expect(page.getByTestId('backup')).toBeVisible();
+  await shot(page, G, '01-settings', '#/settings top', false);
+  await shot(page, G, '01b-settings-full', '#/settings whole page (units, feel, gyms, data, privacy, help, about)', true);
+  await page.getByRole('main').evaluate((el) => (el.scrollTop = el.scrollHeight));
+  await shot(page, G, '01c-settings-bottom', '#/settings scrolled to the bottom (about, voice credit)');
+  await page.getByTestId('settings-gyms').tap();
+  await expect(page.getByTestId('gyms-list')).toBeVisible();
+  await shot(page, G, '02-gyms', 'Settings, tap Gyms: gyms list', true);
+  await page.getByTestId('settings-new-gym').tap();
+  await shot(page, G, '03-new-gym-sheet', 'Gyms, tap new gym: new gym sheet');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-testid^="gyms-row-"]').first().tap();
+  await shot(page, G, '04-gym-detail', 'Gyms, tap a gym: gym detail', true);
+  await page.getByTestId('detail-equipment').tap().catch(() => undefined);
+  await expect(page.getByTestId('gym-equipment')).toBeVisible();
+  await shot(page, G, '05-gym-equipment', 'gym detail, tap equipment: equipment picker', true);
+  await page.goto('./#/settings');
+  await page.getByTestId('report-problem').tap();
+  await shot(page, G, '06-report-problem-sheet', 'Settings, tap Report a problem: sheet');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('restore-file').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from('{"hello":1}') });
+  await shot(page, G, '07-restore-error', 'Settings, pick a file that is not a backup: error line');
+  const tables = Object.fromEntries(['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones'].map((t) => [t, []]));
+  const good = JSON.stringify({ format: 'anygym-backup-v1', schemaVersion: 6, appVersion: '0.1.0', exportedAt: 1, tables, drafts: {} });
+  await page.getByTestId('restore-file').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(good) });
+  await page.getByRole('dialog', { name: 'Restore backup' }).waitFor({ timeout: 4000 }).catch(() => undefined);
+  await shot(page, G, '08-restore-sheet', 'Settings, pick a backup file: Restore backup sheet');
+  await page.keyboard.press('Escape');
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.getByTestId('backup').tap()]);
+  void download;
+  await shot(page, G, '09-after-backup', 'Settings, tap Back up: toast');
+  await page.goto('./#/settings');
+  await page.getByTestId('import-file').setInputFiles(join('src', 'lib', 'import', '__tests__', 'fixtures', 'synthetic-import-v1.json'));
+  await expect(page).toHaveURL(/settings\/import/);
+  await shot(page, G, '10-import-review', 'Settings, pick an import file: import review', true);
+  await page.goto('./#/review');
+  await shot(page, G, '11-review', '#/review screen', true);
+  note('settings: no separate units/voice/about sub screens exist; units, voice credit and about live on the settings page');
+});
+
+test('load errors and offline', async ({ page, context }) => {
+  const G = 'errors';
+  await page.addInitScript(() => ((window as unknown as { __anygymFailReads: boolean }).__anygymFailReads = true));
+  await page.goto('./#/history');
+  await expect(page.getByTestId('load-error')).toBeVisible();
+  await shot(page, G, '01-history-load-error', 'history read fails (test flag __anygymFailReads): "Could not load workouts" with Try again');
+  await page.goto('./#/');
+  await expect(page.getByTestId('load-error')).toBeVisible();
+  await shot(page, G, '02-today-load-error', 'today read fails: load error with Try again');
+  await page.evaluate(() => ((window as unknown as { __anygymFailReads: boolean }).__anygymFailReads = false));
+  await page.getByRole('button', { name: 'Try again', exact: true }).tap();
+  await shot(page, G, '03-today-after-try-again', 'Try again with reads working again');
+  await context.setOffline(true);
+  await page.goto('./#/run').catch(() => undefined);
+  await shot(page, G, '04-run-offline', 'offline, Run tab (map offline state)');
+  await context.setOffline(false);
 });
