@@ -170,7 +170,7 @@ test.describe('M2 live run', () => {
     await targets(page, ['live-pause', 'live-lock', 'live-end']);
     expect(await clipping(page, ids)).toEqual([]);
     await shot(page, 'live-data');
-    await paintWorst(page, { 'live-big': '99.99', 'live-small-time': '1:59:59', 'live-small-pace': '59:59' });
+    await paintWorst(page, { 'live-big-field': '99.99', 'live-small-time': '1:59:59', 'live-small-pace': '59:59' });
     expect(await clipping(page, ids)).toEqual([]);
     await shot(page, 'live-data-worst');
     await largestText(page, '[data-testid="live-run"]');
@@ -226,6 +226,7 @@ test.describe('M2 live run', () => {
     await page.getByTestId('live-dot-1').tap();
     await expect(live(page)).toHaveAttribute('data-page', '1');
     await expect(page.getByTestId('live-map')).toHaveAttribute('data-dashed', /[1-9]/);
+    await page.waitForTimeout(500); // the page spring settles
     await targets(page, ['live-pause', 'live-lock', 'live-end']);
     expect(await clipping(page, ['live-map-readout', 'live-pause', 'live-controls'])).toEqual([]);
     await shot(page, 'live-map');

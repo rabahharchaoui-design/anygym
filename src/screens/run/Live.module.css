@@ -79,15 +79,15 @@
 }
 
 /* The fields take their size from the phone's height too, so three of them, the note and the goal
-   always fit above the foot: hero about 15% of the height (150 px on a 932 px phone), the others
-   about 8.5%; never more than the type scale. */
+   always fit above the foot: hero about 14% of the height (130 px on a 932 px phone), the others
+   about 7.5%; never more than the type scale. */
 .stats {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  --df-hero: min(var(--text-mono-hero), calc(var(--app-height) * 0.15));
-  --df-large: min(var(--text-mono-title), calc(var(--app-height) * 0.085));
+  --df-hero: min(var(--text-mono-hero), calc(var(--app-height) * 0.14));
+  --df-large: min(var(--text-mono-title), calc(var(--app-height) * 0.075));
 }
 
 /* One plain line of state over the numbers. It keeps its height when there is nothing to say, so
@@ -216,7 +216,8 @@
   height: 48px;
 }
 
-/* The page marks over Pause (board 06): two short bars, the shown page ice and longer. */
+/* The page marks (board 06 puts them over Pause; here they sit in the top bar so three fields fit
+   on every phone): two short bars, the shown page ice and longer. */
 .dots {
   display: flex;
   justify-content: center;
@@ -245,13 +246,13 @@
   background: var(--accent);
 }
 
-/* The foot: the page marks, then the controls, solid graphite, clear of the home indicator. */
+/* The foot: the controls, solid graphite, clear of the home indicator. */
 .foot {
   position: absolute;
   inset: auto 0 0;
   display: flex;
   flex-direction: column;
-  padding: 0 var(--live-pad-r) calc(var(--safe-bottom) + var(--space-3)) var(--live-pad-l);
+  padding: var(--space-2) var(--live-pad-r) calc(var(--safe-bottom) + var(--space-3)) var(--live-pad-l);
   background: var(--bg);
   pointer-events: none;
 }

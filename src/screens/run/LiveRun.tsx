@@ -229,6 +229,13 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
             </IconButton>
           )}
         </span>
+        <div className={styles.dots} role="tablist" aria-label="Run pages">
+          {(['Numbers', 'Map'] as const).map((name, i) => (
+            <button key={name} type="button" role="tab" aria-selected={page === i} aria-label={name} className={styles.dotHit} disabled={locked} data-testid={`live-dot-${i}`} onClick={() => goTo(i as Page)}>
+              <span className={styles.pageDot} data-on={page === i || undefined} />
+            </button>
+          ))}
+        </div>
         <span className={styles.barSlot}>
           {paused && !locked && (
             <IconButton plain label="Run settings" onPress={() => setSettings(true)} testId="live-settings">
@@ -239,13 +246,6 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
       </div>
 
       <div className={styles.foot} ref={footRef}>
-        <div className={styles.dots} role="tablist" aria-label="Run pages">
-          {(['Numbers', 'Map'] as const).map((name, i) => (
-            <button key={name} type="button" role="tab" aria-selected={page === i} aria-label={name} className={styles.dotHit} disabled={locked} data-testid={`live-dot-${i}`} onClick={() => goTo(i as Page)}>
-              <span className={styles.pageDot} data-on={page === i || undefined} />
-            </button>
-          ))}
-        </div>
         <LiveControls
           paused={paused}
           locked={locked}
