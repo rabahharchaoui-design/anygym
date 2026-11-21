@@ -85,8 +85,11 @@ export function liveStep(run: LiveRun, action: LiveAction): LiveRun {
       const tracker = action.now === undefined ? added : countShown(added, shownMs(run.tracker, action.now) - shownMs(added, action.now));
       const gps = null;
       if (event.type === 'held') {
-        // A good position that is not recorded (paused, or standing): the dot still follows it.
-        const p = action.point as GpsPoint;
+        // A good position that is not recorded (paused, or standing): the dot still follows it. Where
+        // the estimate took it (standing, a short step: lastGood is that fix's estimate) the dot is the
+        // estimate, as the line is (PLAN 4.4f 4); paused by hand, or a fix being checked, it is the fix.
+        const g = added.lastGood;
+        const p = g && g.t === action.point.t ? g : (action.point as GpsPoint);
         return { ...run, tracker, here: { lat: p.lat, lng: p.lng, t: p.t, accuracy: p.accuracy }, gps };
       }
       const points = event.withheld ? [...run.points, event.withheld, event.point] : [...run.points, event.point];
