@@ -1,13 +1,8 @@
 /* Exercises */
 .search {
-  width: 100%;
+  composes: input from '../../components/gym/Gym.module.css';
   min-height: var(--tap);
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--hairline);
-  background: var(--surface-1);
-  color: var(--text);
-  font-size: var(--text-base);
+  font-weight: inherit;
 }
 
 .search:focus {

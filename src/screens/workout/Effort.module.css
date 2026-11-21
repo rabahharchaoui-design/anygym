@@ -1,14 +1,12 @@
 /* The effort tap after the last set (PLAN 3.8, SPEC 15): Easy · Good · Hard, one tap, optional. */
 
 .effort {
+  composes: surface from '../../ui/card.module.css';
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-2);
   padding: var(--space-3);
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--white) 3%, transparent);
 }
 
 .effort[data-compact] {
