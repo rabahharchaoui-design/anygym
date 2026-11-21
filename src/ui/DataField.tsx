@@ -19,8 +19,8 @@ type Props = {
   labelTestId?: string;
   numberTestId?: string;
   numberData?: Record<`data-${string}`, string>;
-  /** The unit beside the number at any size (as at medium), where height is short (PLAN M2). */
-  inline?: boolean;
+  /** The unit beside the number at any size (as at medium); 'short': only on a short screen, under 760 px (PLAN M2). */
+  inline?: boolean | 'short';
 };
 
 /**
@@ -33,7 +33,7 @@ export function DataField({ label, value, unit, size = 'large', testId, classNam
   const shown = blank ? BLANK : value;
   const fit = { '--df-em': numberEm(shown, size).toFixed(3) } as CSSProperties;
   return (
-    <div className={`${styles.field} ${className ?? ''}`} data-size={size} data-inline={inline || undefined} data-blank={blank || undefined} data-testid={testId} data-field>
+    <div className={`${styles.field} ${className ?? ''}`} data-size={size} data-inline={inline === 'short' ? 'short' : inline || undefined} data-blank={blank || undefined} data-testid={testId} data-field>
       {spoken && <span className={styles.hidden}>{spoken}</span>}
       <span className={styles.label} aria-hidden={spoken ? true : undefined} data-testid={labelTestId}>
         {label}

@@ -2,7 +2,7 @@
    flash at each switch, and the custom editor in the picker. Colours come from the tokens: the
    accent for a push block, amber for an easy one. */
 .face {
-  --iv: min(64vw, 34svh, 290px);
+  --iv: min(64vw, 30svh, 290px);
   display: flex;
   justify-content: center;
 }

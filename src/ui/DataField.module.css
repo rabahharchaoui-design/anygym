@@ -28,11 +28,21 @@
 }
 
 .field[data-size='medium'] .line,
-.field[data-inline] .line {
+.field[data-inline='true'] .line {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1);
+}
+
+/* On a short screen the unit moves beside the number (it wraps under it when the number fills the width). */
+@media (max-height: 760px) {
+  .field[data-inline='short'] .line {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-2);
+  }
 }
 
 /* The number: tabular, heavy, as big as its step allows and never wider than the field. A larger

@@ -61,7 +61,7 @@ export function LiveStats({ reading, unit, big, note, goal, paused, intervals }:
         value={f.value}
         unit={f.unit}
         size={size}
-        inline={size === 'large'}
+        inline={size === 'medium' ? undefined : 'short'}
         spoken={f.spoken}
         className={styles.field}
         testId={hero ? 'live-big-field' : `live-small-${m}`}
