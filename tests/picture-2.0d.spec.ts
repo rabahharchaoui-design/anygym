@@ -509,9 +509,9 @@ test.describe('2.0d critic: import editor @matrix', () => {
       const text = await visible();
       expect(text).not.toMatch(/\d\s*×\s*\d/);
       expect(text).not.toContain('Weight stays');
-      // The header band: rounded, the sheet's colour family, pinned on top.
+      // The header band: square (PLAN M10, 0 to 4 px), the sheet's colour family, pinned on top.
       const band = await sheet.getByTestId('import-context').evaluate((e) => ({ r: getComputedStyle(e).borderTopLeftRadius, pos: getComputedStyle(e).position }));
-      expect(parseFloat(band.r)).toBeGreaterThanOrEqual(12);
+      expect(parseFloat(band.r)).toBeLessThanOrEqual(4);
       expect(band.pos).toBe('sticky');
       await page.waitForTimeout(300);
       await page.screenshot({ path: `reports/shots/2.0d/critic-import-${gymUnit}-${device}.png` });
