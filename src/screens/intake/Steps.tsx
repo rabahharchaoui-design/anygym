@@ -21,6 +21,7 @@ import unitStyles from './IntakeUnits.module.css';
 import equipStyles from './IntakeEquipment.module.css';
 import rangeStyles from './IntakeRange.module.css';
 import fieldStyles from './IntakeFields.module.css';
+import rowStyles from './IntakeRows.module.css';
 
 /** One pick. Cards for five or fewer options, chips for more. `pulse`: the card that was just tapped. */
 export function SingleChoice<T extends string | number>({
@@ -74,7 +75,7 @@ export function SingleChoice<T extends string | number>({
  */
 export function GoalChoice({ value, onChange }: { value: readonly GoalId[]; onChange: (v: GoalId[]) => void }) {
   return (
-    <div className={styles.chips} data-grid="2" data-fill role="group" data-testid="q-goal">
+    <div className={`${styles.chips} ${rowStyles.grid}`} data-grid="2" data-fill role="group" data-testid="q-goal">
       {GOALS.map((o) => {
         const at = value.indexOf(o.id);
         return (
