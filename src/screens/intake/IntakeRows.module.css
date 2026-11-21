@@ -79,11 +79,15 @@
 }
 
 /* The ice line under the picked row: on the row's own hairline, the width of the cell. */
-.grid button[aria-pressed][data-block]::after {
+/* The ice line under a picked row, on the row's own hairline: the grid's rows, the weekday words
+   (.week, on the schedule step) and any button with .mark (the equipment cells). One rule. */
+.grid button[aria-pressed][data-block]::after,
+.week [role='group'] > button[aria-pressed]::after,
+.mark::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--mark-inset, 0);
+  right: var(--mark-inset, 0);
   bottom: calc(-1 * var(--line-hair));
   height: 2px;
   background: var(--accent);
@@ -92,11 +96,15 @@
   transition: transform var(--dur-base) var(--ease-out);
 }
 
-[dir='rtl'] .grid button[aria-pressed][data-block]::after {
+[dir='rtl'] .grid button[aria-pressed][data-block]::after,
+[dir='rtl'] .week [role='group'] > button[aria-pressed]::after,
+[dir='rtl'] .mark::after {
   transform-origin: 100% 50%;
 }
 
-.grid button[aria-pressed='true'][data-block]::after {
+.grid button[aria-pressed='true'][data-block]::after,
+.week [role='group'] > button[aria-pressed='true']::after,
+.mark[aria-pressed='true']::after {
   transform: scaleX(1);
 }
 
@@ -138,7 +146,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .grid button[aria-pressed][data-block]::after {
+  .grid button[aria-pressed][data-block]::after,
+  .week [role='group'] > button[aria-pressed]::after,
+  .mark::after {
     transition: none;
   }
 }

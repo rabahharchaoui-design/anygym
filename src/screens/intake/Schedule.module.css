@@ -42,13 +42,14 @@
 }
 
 /* PLAN M13 (Monolith): the shared weekday chips as a hairline grid of words, four across; picked,
-   the day is white over an ice line. No chip boxes. */
+   the day is white over an ice line (IntakeRows .week). No chip boxes. */
 .days [role='group'] {
   gap: 0;
   border-top: var(--divider);
 }
 
 .days [role='group'] > button[aria-pressed] {
+  --mark-inset: var(--space-2);
   position: relative;
   justify-content: center;
   border: 0;
@@ -63,42 +64,6 @@
   box-shadow: none;
   color: var(--text);
   font-weight: 700;
-}
-
-.days [role='group'] > button[aria-pressed]::after {
-  content: '';
-  position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  bottom: calc(-1 * var(--line-hair));
-  height: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transition: transform var(--dur-base) var(--ease-out);
-}
-
-.days [role='group'] > button[aria-pressed='true']::after {
-  transform: scaleX(1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .days [role='group'] > button[aria-pressed]::after {
-    transition: none;
-  }
-}
-
-.meansTitle {
-  margin: 0;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.meansText {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.4;
 }
 
 /* Three long answers with a line under each: their names a step under the other lists, so the

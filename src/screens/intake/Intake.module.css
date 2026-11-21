@@ -124,10 +124,15 @@
   text-wrap: balance;
 }
 
-/* 3.5f round 3 (B2): on a short screen the love / never cards need the room; the top Skip already says optional. */
+/* 3.5f round 3 (B2): on a short screen the love / never cards need the room; the top Skip already says optional.
+   PLAN M13: the question a step under the giant heading there too, so the photo stays a photo. */
 @media (max-height: 720px) {
   .screen[data-step='exercises'] .sub {
     display: none;
+  }
+
+  .screen[data-step='exercises'] .title {
+    font-size: var(--text-xl);
   }
 }
 

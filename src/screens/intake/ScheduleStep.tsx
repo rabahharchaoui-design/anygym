@@ -42,7 +42,7 @@ export function ScheduleStep({ answers, onStyle, onDays }: { answers: IntakeAnsw
       </div>
       <div ref={detail} className={styles.detail}>
         {style === 'fixed' ? (
-          <div key="fixed" className={`${styles.days} ${intake.fadeIn}`}>
+          <div key="fixed" className={`${styles.days} ${rowStyles.week} ${intake.fadeIn}`}>
             <WeekdayChips value={answers.weekdays ?? []} onChange={onDays} label="Weekdays" testIdPrefix="q-weekdays" />
             <p className={styles.count} role="status" data-testid="weekday-count">
               {count ?? ''}

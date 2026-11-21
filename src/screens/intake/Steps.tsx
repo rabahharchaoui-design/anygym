@@ -260,7 +260,7 @@ export function EquipmentStep({
               <ul className={equipStyles.equipGrid}>
                 {g.shown.flatMap((id) => [
                   <li key={id} className={equipStyles.tileCell}>
-                    <button type="button" className={`${equipStyles.tile} pressable`} aria-pressed={on.has(id)} onClick={() => onChange(toggleItem(value, id))} data-testid={`equip-${id}`}>
+                    <button type="button" className={`${equipStyles.tile} ${rowStyles.mark} pressable`} aria-pressed={on.has(id)} onClick={() => onChange(toggleItem(value, id))} data-testid={`equip-${id}`}>
                       <Check className={equipStyles.tileCheck} width={12} height={12} strokeWidth={3.5} aria-hidden="true" data-check />
                       <span className={equipStyles.tileArt}>
                         <EquipmentArt id={id} className={equipStyles.art} />
