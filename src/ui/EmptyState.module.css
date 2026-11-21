@@ -5,8 +5,8 @@
   text-align: center;
   padding: var(--space-6) var(--space-5);
   border: 1px solid var(--hairline);
-  border-radius: 24px;
-  background: linear-gradient(to bottom, var(--surface-1), transparent);
+  border-radius: var(--radius-lg);
+  background: transparent;
 }
 
 .art {
