@@ -222,7 +222,7 @@ When a curated plan meets a gym missing equipment, every unavailable exercise is
 
 ## 8. Screens
 
-Bottom tabs: **Today · Run · History · Plans**. Settings opens from a profile icon at the top right of Today.
+Bottom tabs: **Today · Plan · Run · History · You** (this follows G's round 2 boards, Nov 2026). Settings is the You tab; there is no gear or profile icon on Today.
 
 1. **Today** (home): active gym pill, today's day card ("Day 3 · Back and biceps · ~55 min"), big Start button, week strip below. Empty state routes to onboarding.
 2. **Workout:** list of exercises as cards; the current one expanded with the set card (5.1). Top bar: elapsed time, music buttons, finish. Supersets visually grouped with a colored rail.
@@ -230,7 +230,7 @@ Bottom tabs: **Today · Run · History · Plans**. Settings opens from a profile
 4. **Finish summary:** total sets, volume, PRs (rep PR at a load, load PR), duration. A clean shareable card (Web Share API image) with the AnyGym mark.
 5. **History:** calendar dots + list; tap a session to see sets. Per exercise history chart (load over time).
 6. **Plans:** curated list + "Generate a new plan".
-7. **Settings:** profile, gyms (add, edit, set active), units, plate colors, muscle map body (Male / Female), rest timer defaults, Backup (export JSON via share sheet), Restore (import JSON), Import history (9.3), About and credits.
+7. **You (Settings):** the root of the You tab, reached by tapping You in the tab bar (`#/settings` still opens it). Profile, gyms (add, edit, set active), units, plate colors, muscle map body (Male / Female), rest timer defaults, Backup (export JSON via share sheet), Restore (import JSON), Import history (9.3), About and credits.
 
 Music: two small buttons in the workout top bar that open Spotify (`spotify://`) or Apple Music (`music://`). No API, no login. If the app is not installed, fail silently.
 
@@ -476,7 +476,7 @@ A real feeling passport. Opening it is a moment:
 - What G must set up first (the build waits for these and does everything else with mocks): a Firebase project with Google and Email link sign in enabled, the web app config saved to ~/anygym-private/accounts.env, and a one time `npx wrangler login` on gmini. Until then the sign up card stays hidden.
 
 ## 19. Gym switching everywhere
-The gym pill is on Today, the workout screen header, and the Run tab. One tap opens a sheet with recent gyms, "+ New gym" (presets: Hotel gym, Full gym, Home, Outdoors, No equipment) with name and optional city, and edit. Switching mid workout re-checks the remaining exercises and offers swaps. People travel constantly, so switching must take two taps or less.
+The gym pill is on Today, the workout screen header, and the Run tab. The tab bar has five tabs in this order: Today, Plan, Run, History, You (G's round 2 boards, Nov 2026); Settings is the You tab and the gear on Today is gone. One tap opens a sheet with recent gyms, "+ New gym" (presets: Hotel gym, Full gym, Home, Outdoors, No equipment) with name and optional city, and edit. Switching mid workout re-checks the remaining exercises and offers swaps. People travel constantly, so switching must take two taps or less.
 
 ## 20. Workout flow: follow the plan, don't fill in a log (G's rule, Oct 23 11:56 PM, overrides 5.1 where they differ)
 G tried logging a barbell squat and it took far too much clicking. The workout must feel like following a coach's list, not filling in a spreadsheet. Design reference (private, not in git): .design-ref/workout-list-inspiration.png (a white list from another app; take the layout idea, keep our dark style, copy nothing else).
@@ -571,7 +571,7 @@ Read first for every UI item (builder and ux-critic): .design-ref/skills/emil-de
 - Stack screens push in from the right with the previous screen sliding about 30% left and dimming, exactly like iOS. Back reverses it.
 - Back: a 44 pt square back button top left (no blur, no fill or solid graphite, 0 to 4 px corners, chevron icon), plus an interactive edge swipe from the left edge that follows the finger and finishes or cancels by velocity. Both on every pushed screen.
 - Large titles that shrink into a compact centered title in a solid graphite top bar with a hairline bottom edge as you scroll (iOS large title behavior).
-- Tab bar: docked to the bottom edge (above the home indicator), solid graphite with a hairline on top, no blur, no capsule. Labels 13 px: the active tab is white, weight 700, with a 20 x 3 px ice blue bar above it that slides between tabs (shared layout animation) and lands with a small spring; inactive tabs are secondary text (never under 4.5 to 1). Icons are optional; if shown they follow the same colors. Tab switches crossfade with a 6 to 8 px rise, never a slide.
+- Tab bar: five tabs in this order, Today, Plan, Run, History, You (G's round 2 boards, Nov 2026); Settings is the You tab, there is no gear on Today. Docked to the bottom edge (above the home indicator), solid graphite with a hairline on top, no blur, no capsule. Labels 13 px: the active tab is white, weight 700, with a 20 x 3 px ice blue bar above it that slides between tabs (shared layout animation) and lands with a small spring; inactive tabs are secondary text (never under 4.5 to 1). Icons are optional; if shown they follow the same colors. Tab switches crossfade with a 6 to 8 px rise, never a slide.
 - Sheets: spring up from the bottom, drag down to dismiss with velocity, the screen behind scales to about 0.94 and dims (iOS card stack; corners stay square, 0 to 4 px). A sheet is solid graphite with a hairline top edge and 0 to 4 px top corners, no blur. Nested sheets stack.
 - Shared elements: exercise thumbnail grows into the exercise view hero, a plan day card expands into the workout, the Start button morphs into the workout header. View Transitions API where Safari supports it, otherwise motion layout animations.
 ### 23.2 Buttons and controls
