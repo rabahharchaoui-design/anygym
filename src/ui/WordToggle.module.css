@@ -2,7 +2,7 @@
 .word {
   position: relative;
   min-height: var(--tap);
-  min-width: var(--tap-min);
+  min-width: var(--tap);
   padding: 0 2px;
   color: var(--text-2);
   font-size: clamp(15px, 4.4vw, 18px);
