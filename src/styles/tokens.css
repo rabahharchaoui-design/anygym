@@ -63,7 +63,8 @@
   --text-mono-title: clamp(64px, 22.3vw, 96px); /* 96 at 430 */
   --text-mono-heading: clamp(32px, 10.2vw, 44px); /* 44 at 430, the primary button too */
   --text-mono-heading-pair: clamp(24px, 7vw, 30px); /* two buttons share a row: 30 at 430 */
-  --text-mono-pause: clamp(60px, 19.5vw, 84px);
+  /* 84 at 430 wide, never under 60; on a short screen (the browser's 659 px) it gives way to the numbers. */
+  --text-mono-pause: min(clamp(60px, 19.5vw, 84px), max(60px, calc(var(--app-height) * 0.09)));
   --text-mono-value: clamp(26px, 7.4vw, 32px); /* list values, 26 to 36 */
   --text-mono-label: 12px; /* section labels, capitals */
   --text-mono-unit: clamp(20px, 5.6vw, 24px); /* the unit under a data field's number (km, /km) */
@@ -76,6 +77,9 @@
   --track-heading: -0.03em;
   --track-value: -0.02em;
   --track-label: 0.14em;
+  /* The figures of a data field (PLAN M2): looser than the hero tracking (-5%), where at hero size the
+     colon of 21:08 and the point of 3.42 touched their neighbours. Glyphs never touch at -2%. */
+  --track-number: -0.02em;
 
   /* space and shape */
   --space-1: 4px;

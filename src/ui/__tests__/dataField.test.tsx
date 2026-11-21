@@ -59,4 +59,14 @@ describe('DataField (PLAN M1)', () => {
   it('no unit, no unit line', () => {
     expect(text(renderToStaticMarkup(<DataField label="Reps" value="12" />))).toBe('Reps12');
   });
+  it('PLAN M2: a spoken line replaces the printed parts for VoiceOver; label and number take test ids and data', () => {
+    const html = renderToStaticMarkup(<DataField label="Distance" value="3.42" unit="km" spoken="3.42 kilometers" labelTestId="l" numberTestId="n" numberData={{ 'data-metric': 'distance' }} />);
+    expect(text(html)).toBe('3.42 kilometersDistance3.42km');
+    expect(html).toContain('data-testid="l"');
+    expect(html).toMatch(/data-testid="n" data-metric="distance">3\.42</);
+    expect((html.match(/aria-hidden="true"/g) ?? []).length).toBe(2);
+  });
+  it('PLAN M2: every size uses the looser figure tracking, so glyphs never touch', () => {
+    expect(new Set(Object.values(TRACKING))).toEqual(new Set([-0.02]));
+  });
 });

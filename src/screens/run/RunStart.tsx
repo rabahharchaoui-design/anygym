@@ -13,7 +13,8 @@ import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
 import { Button } from '../../ui/Button';
 import { ChevronDown, RecentreIcon, TuneIcon } from '../../ui/icons';
-import { Chip } from '../../ui/Chip';
+import { Divider } from '../../ui/Divider';
+import { WordToggle } from '../../ui/WordToggle';
 import { Toast, type ToastMessage } from '../../ui/Toast';
 import { useToastTimeout } from '../../ui/useToastTimeout';
 import { Countdown } from './Countdown';
@@ -143,7 +144,7 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
           {offline && <MapOfflineChip />}
           {!going && (
             <span className={styles.settingsSlot}>
-              <IconButton label="Run settings" onPress={() => setSettings(true)} testId="run-settings">
+              <IconButton plain label="Run settings" onPress={() => setSettings(true)} testId="run-settings">
                 <TuneIcon aria-hidden="true" />
               </IconButton>
             </span>
@@ -153,7 +154,7 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
       <div className={styles.stage}>
         <MapCredit />
         {here && moved && (
-          <IconButton label="Back to where I am" onPress={() => setRecentre((n) => n + 1)} testId="run-recentre">
+          <IconButton plain label="Back to where I am" onPress={() => setRecentre((n) => n + 1)} testId="run-recentre">
             <RecentreIcon aria-hidden="true" />
           </IconButton>
         )}
@@ -171,22 +172,28 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
           </div>
         ) : (
           <>
+            {/* PLAN M12: the four modes as words, the chosen one underlined in ice. */}
             <div className={styles.types} role="group" aria-label="Run type" data-testid="run-types">
               {RUN_TYPES.map((t) => (
-                <Chip key={t.value} label={t.label} picked={setup.type === t.value} onPress={() => pickType(t.value)} testId={`run-type-${t.value}`} block small />
+                <WordToggle key={t.value} picked={setup.type === t.value} onPress={() => pickType(t.value)} testId={`run-type-${t.value}`}>
+                  {t.label}
+                </WordToggle>
               ))}
             </div>
+            <Divider />
             <div className={styles.row}>
               {setup.type === 'free' ? (
                 <p className={styles.goal} data-testid="run-goal">
+                  <span className={styles.goalKicker}>{typeLabel}</span>
                   <span className={styles.goalLabel}>{goal.label}</span>
                   <span className={styles.goalDetail}>{goal.detail}</span>
                 </p>
               ) : (
                 <button type="button" className={`${styles.goal} pressable`} data-testid="run-goal" aria-label={`${typeLabel}: ${goal.label}. Change`} onClick={() => setGoalKind(setup.type as GoalKind)}>
-                  <span className={styles.goalLabel}>
+                  <span className={styles.goalKicker}>{typeLabel}</span>
+                  <span className={`${styles.goalLabel} num`}>
                     {goal.label}
-                    <ChevronDown width={18} height={18} strokeWidth={2.4} aria-hidden="true" />
+                    <ChevronDown width={22} height={22} strokeWidth={2.6} aria-hidden="true" />
                   </span>
                   {goal.detail && <span className={styles.goalDetail}>{goal.detail}</span>}
                 </button>
@@ -195,9 +202,9 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
                 <MusicLinks />
               </span>
             </div>
-            <button type="button" className={styles.start} data-testid="run-start" onClick={start}>
+            <Button size="lg" className={styles.start} data-testid="run-start" onClick={start}>
               Start
-            </button>
+            </Button>
           </>
         )}
       </div>

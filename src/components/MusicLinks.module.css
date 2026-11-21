@@ -1,25 +1,29 @@
-/* A 48 pt hit area around a small glass pill. */
+/* PLAN M12: the music links as plain words (no box), each in a 48 pt hit area. */
 .link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 48px;
   min-width: 48px;
-  margin: -6px 0;
-  padding: 0 3px;
-  border-radius: var(--radius-sm);
+  padding: 0 6px;
+  border-radius: var(--radius-none);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 32px;
-  padding: 0 11px 0 9px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--white) 7%, transparent);
-  border: 1px solid var(--glass-line);
+  gap: 6px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.2;
+}
+
+.pill > svg {
+  color: var(--text-2);
+}
+
+.link:active .pill {
+  opacity: var(--press-dim);
 }

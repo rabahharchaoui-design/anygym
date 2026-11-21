@@ -1,6 +1,7 @@
 /* The 3, 2, 1, GO that fills the screen, over the tab bar and everything else of the app (PLAN 4.4a).
-   Titanium Glass: graphite, one giant ice number, GO in graphite on ice. Every animation here is
-   transform and opacity only, so it runs on the compositor and never shifts a layout. */
+   Monolith (board 05, PLAN M2): flat graphite, one giant white number, GO the one ice word. Every
+   animation here is transform and opacity only, so it runs on the compositor and never shifts a
+   layout. */
 .count {
   position: fixed;
   inset: 0 0 auto;
@@ -10,40 +11,15 @@
   flex-direction: column;
   align-items: center;
   overflow: hidden;
-  padding: calc(var(--safe-top) + var(--space-5)) var(--space-5) calc(var(--safe-bottom) + var(--space-5));
-  background: var(--bg-screen);
+  /* Narrow sides: the digit needs the width (a 900 weight figure is about 0.7 em wide). */
+  padding: calc(var(--safe-top) + var(--space-5)) var(--space-2) calc(var(--safe-bottom) + var(--space-4));
+  background: var(--bg);
   color: var(--text);
   /* Taps never reach the screen under it. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   animation: layerIn var(--dur-base) var(--ease-out) both;
-}
-
-/* A soft ice light behind the number, so the glass has depth. */
-.glow {
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  width: 150vmin;
-  height: 150vmin;
-  margin: -75vmin 0 0 -75vmin;
-  border-radius: var(--radius-md);
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%);
-  pointer-events: none;
-}
-
-/* GO: the whole layer lights ice. */
-.ice {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 70%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.count[data-beat='go'] .ice {
-  animation: fadeIn 140ms var(--ease-out) both;
 }
 
 /* The last moment of GO: the screen goes to the live run's black, so the hand over is seamless. */
@@ -60,19 +36,17 @@
   opacity: 1;
 }
 
+/* A small capital label over the number (the board's "GPS ready" place). */
 .kicker {
   position: relative;
   flex: none;
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  line-height: 1.2;
   text-transform: uppercase;
-  color: var(--text-2);
-}
-
-.count[data-beat='go'] .kicker {
-  color: var(--on-accent);
+  color: var(--text);
 }
 
 /* The number's room: everything the kicker and the foot leave. The number is sized from it, so at
@@ -91,32 +65,28 @@
 .number {
   display: block;
   font-family: var(--font-display);
-  font-weight: 900;
-  /* About 60% of the screen height, never more than the room it has. */
-  font-size: min(calc(var(--app-height) * 0.6), 100cqh, 128cqw);
+  font-weight: var(--weight-heavy);
+  /* About 60% of the screen height, never more than the room it has. A single figure is at most
+     about 0.7 em wide, so 140% of the stage's width still holds it (at 128% and with the side
+     margins the Galaxy compact's 360 px width held the digit to 49% of the height). */
+  font-size: min(calc(var(--app-height) * 0.6), 100cqh, 140cqw);
   line-height: 1;
-  /* The plain figures (the tabular 1 has a foot), and no tightening: the ice fill is painted only
-     inside the box, so a glyph that overhangs it would lose its edge. */
+  /* The plain figures (the tabular 1 has a foot), and no tightening. */
   font-variant-numeric: proportional-nums;
   font-feature-settings: 'tnum' 0;
   letter-spacing: 0;
-  padding: 0 0.06em;
-  /* Ice, lit from the top. */
-  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 62%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text);
   transform-origin: 50% 50%;
   will-change: transform, opacity;
   /* Arrives a touch big and settles, eases back over its second, and leaves just before the next. */
   animation: beat 1000ms linear both;
 }
 
+/* GO: the one ice word, as wide as the screen allows. */
 .number[data-go] {
-  font-size: min(calc(var(--app-height) * 0.42), 100cqh, 60cqw);
-  letter-spacing: -0.04em;
-  background: none;
-  color: var(--on-accent);
+  font-size: min(calc(var(--app-height) * 0.3), 100cqh, 52cqw);
+  letter-spacing: var(--track-heading);
+  color: var(--accent);
   animation: goIn var(--dur-tap) var(--ease-tap-spring) both;
 }
 
@@ -126,7 +96,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .pips {
@@ -134,29 +104,23 @@
   gap: var(--space-2);
 }
 
+/* One short bar per beat (the page marks' shape): ice once that beat has come. */
 .pip {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  opacity: 0.22;
-  transition: opacity var(--dur-fast) var(--ease-out);
+  width: 20px;
+  height: var(--tab-mark-h);
+  background: var(--ring-track);
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .pip[data-on] {
-  opacity: 1;
+  background: var(--accent);
 }
 
-.cancel {
-  min-height: 48px;
+/* Cancel: plain words (ui/Button quiet), white so it reads at a glance. */
+.count .cancel {
   min-width: 132px;
-  padding: 0 var(--space-5);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--hairline-strong);
-  background: var(--surface-1);
+  justify-content: center;
   color: var(--text);
-  font-size: 17px;
-  font-weight: 700;
 }
 
 .count[data-beat='go'] .foot {

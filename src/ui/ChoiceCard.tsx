@@ -17,6 +17,8 @@ type Props = {
   onPress: () => void;
   testId?: string;
   disabled?: boolean;
+  /** PLAN M12 (Monolith): a row on the page, a hairline under it, no box; picked, the label turns white and an ice tick shows. */
+  flat?: boolean;
 };
 
 /**
@@ -24,9 +26,9 @@ type Props = {
  * right; picked, the border turns accent and the ring fills on the tap spring (CSS, compositor only).
  * A toggle button (aria-pressed), so a group of them reads as "pressed" for the one picked.
  */
-export function ChoiceCard({ icon: Icon, art, label, hint, detail, picked, onPress, testId, disabled }: Props) {
+export function ChoiceCard({ icon: Icon, art, label, hint, detail, picked, onPress, testId, disabled, flat }: Props) {
   return (
-    <button type="button" className={`${styles.card} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} disabled={disabled}>
+    <button type="button" className={`${styles.card} pressable`} aria-pressed={picked} onClick={onPress} data-testid={testId} data-flat={flat || undefined} disabled={disabled}>
       {art ? (
         <Icon3D name={art} fallback={Icon} lineSize={22} className={styles.art} />
       ) : (
