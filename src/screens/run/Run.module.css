@@ -60,7 +60,8 @@
 .title {
   min-width: 0;
   font-family: var(--font-display);
-  font-size: var(--text-mono-heading);
+  /* One line beside the gym chip, so the map keeps its room. */
+  font-size: var(--text-mono-heading-pair);
   font-weight: var(--weight-heavy);
   line-height: 1;
   letter-spacing: var(--track-heading);
@@ -304,7 +305,15 @@
        the 320 x 568 floor (the map gives up the room, the controls keep their spacing). */
     padding-bottom: var(--space-2);
   }
+  /* The goal and the panel tighten so Start stays above the docked tab bar. */
+  .goalLabel {
+    font-size: var(--text-mono-heading-pair);
+  }
+  .panel {
+    gap: var(--space-1);
+  }
 }
+
 
 /* Run settings: a quiet round button at the right end of the status chips. */
 .settingsSlot {
