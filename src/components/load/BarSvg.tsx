@@ -249,7 +249,7 @@ export function BarSvg({ layout, unit, colorMode, reduce, outer, onRemove }: Pro
           >
             <rect {...hit} fill="transparent" />
             {/* The press: a soft light wash over the side, shown within one frame. */}
-            <rect x={hit.x + 2} y={2} width={Math.max(0, hit.width - 4)} height={Math.max(0, height - 4)} rx={14} className={styles.flash} />
+            <rect x={hit.x + 2} y={2} width={Math.max(0, hit.width - 4)} height={Math.max(0, height - 4)} rx={4} className={styles.flash} />
           </g>
         );
       })}

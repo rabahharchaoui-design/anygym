@@ -260,7 +260,7 @@
   transform: translateX(-50%);
   margin: 0;
   padding: 3px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--glass-bg-strong);
   border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
   color: var(--amber);
@@ -407,7 +407,7 @@
 .swatch {
   width: 7px;
   height: 28px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   flex: none;
   /* A plate edge on: lit rim on top, falling into shadow, both faces beveled. */
   background:

@@ -4,7 +4,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px var(--space-3);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--accent) 6%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
 }
@@ -53,7 +53,7 @@
   justify-content: center;
   gap: 2px;
   padding: 12px 4px 0;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   font-size: 18px;
@@ -75,7 +75,7 @@
 .option {
   min-height: var(--tap);
   padding: 0 var(--space-2);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   color: var(--accent);
