@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { FinishedRun } from '../../hooks/runEngine';
-import { DASHED_NOTE, RUN_TYPES, VERDICT_WORDS, drawRoute, runVerdict, summaryOf, type RunVerdict } from '../../lib/run';
-import { fromRunPoint } from '../../lib/gps';
+import { DASHED_NOTE, RUN_TYPES, VERDICT_WORDS, drawRunRoute, runVerdict, summaryOf, type RunVerdict } from '../../lib/run';
 import { Button } from '../../ui/Button';
 import { DrawnCheck } from '../../ui/celebrate';
 import { RouteMap } from './RouteMap';
@@ -42,7 +41,7 @@ export function RunSummary({ finished, reduceMotion, onDone, onDiscard }: Props)
 function Saved({ finished, reduceMotion, onDone }: Omit<Props, 'onDiscard'>) {
   const { run, unit } = finished;
   const summary = useMemo(() => summaryOf(run, unit), [run, unit]);
-  const route = useMemo(() => drawRoute(run.points.map(fromRunPoint), run.gaps), [run]);
+  const route = useMemo(() => drawRunRoute(run), [run]);
   const type = RUN_TYPES.find((t) => t.value === run.type)?.label ?? 'Run';
   const share = useRunShare({ run, unit });
   return (

@@ -11,10 +11,21 @@ export async function readCandidateReviews(db: AnyGymDB = defaultDb): Promise<Ca
   return rows.filter(isReviewRow);
 }
 
-/** The gate gets these rows' approved ids (the candidate file is loaded first when any exist). */
+/**
+ * The gate gets these rows' approved ids (the candidate file is loaded first when any exist). PLAN
+ * 4.4f (3): the file is its own chunk and may not load (offline right after an update): then the
+ * approved moves stay unknown until it does (the next call tries again), and everything else, the
+ * saved and built in plans, still loads. Nothing saved is changed.
+ */
 export async function applyApprovals(rows: readonly CandidateReviewRow[]): Promise<number> {
   const ids = approvedIds(rows);
-  if (ids.length) await loadCandidateFile();
+  if (ids.length) {
+    try {
+      await loadCandidateFile();
+    } catch (e) {
+      console.warn('AnyGym candidate moves unavailable', e);
+    }
+  }
   setApproved(ids);
   return ids.length;
 }

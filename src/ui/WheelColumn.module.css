@@ -13,7 +13,7 @@
   right: 0;
   top: calc(var(--row) * (var(--rows, 5) - 1) / 2);
   height: var(--row);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
   border: 1px solid var(--hairline);
   pointer-events: none;
@@ -47,7 +47,7 @@
 
 .track:focus-visible {
   box-shadow: inset 0 0 0 2px var(--accent);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .spacer {

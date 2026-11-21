@@ -1,9 +1,8 @@
-/* The one glass card surface (rows on History, plan tiles, Settings groups, import exercises): a thin
-   line, 20 px corners, the card fill and a faint top highlight. Screens add their own layout with
+/* The one flat card surface (rows on History, plan tiles, Settings groups, import exercises): a
+   hairline, square corners (4 px, PLAN M10), the flat card fill, no glass. Screens add their own layout with
    `composes: surface from '…/ui/card.module.css';`. */
 .surface {
   border: 1px solid var(--glass-line);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--card-fill);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
 }

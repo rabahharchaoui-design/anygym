@@ -88,7 +88,7 @@
   top: 8px;
   z-index: 4;
   padding: 6px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--amber) 14%, var(--surface-solid));
   border: 1px solid color-mix(in srgb, var(--amber) 50%, transparent);
   color: var(--amber);
@@ -96,7 +96,6 @@
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--black) 55%, transparent);
   transform-origin: calc(100% - 24px) top;
   animation: why 1600ms var(--ease-out) both;
 }
@@ -214,7 +213,7 @@
   width: 100%;
   min-height: 48px;
   padding: 0 var(--space-3);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--accent) 7%, transparent);
   color: var(--text-2);
   font-size: var(--text-sm);

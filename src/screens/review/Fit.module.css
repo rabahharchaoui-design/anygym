@@ -79,7 +79,7 @@
   min-height: var(--tap);
   padding: 0 var(--space-2);
   margin-left: calc(-1 * var(--space-2));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--white) 6%, transparent);
   -webkit-tap-highlight-color: transparent;
   transition: transform 160ms var(--ease-out);
@@ -109,7 +109,7 @@
   flex: 0 1 auto;
   min-width: 0;
   padding: 4px 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 0.8125rem;
@@ -163,7 +163,7 @@
   height: var(--tap);
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   color: var(--text-2);
   -webkit-tap-highlight-color: transparent;
 }
@@ -178,7 +178,7 @@
   top: var(--space-3);
   left: var(--space-3);
   padding: 4px 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--black) 62%, transparent);
   color: var(--text);
   font-size: 0.8125rem;

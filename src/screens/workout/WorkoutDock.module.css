@@ -17,7 +17,7 @@
   min-height: 48px;
   margin: 0;
   padding: 10px 18px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 700;
@@ -25,7 +25,6 @@
   width: max-content;
   max-width: calc(100vw - 32px);
   overflow-wrap: anywhere;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--black) 50%, transparent);
   z-index: 3;
   pointer-events: none;
 }
@@ -76,7 +75,7 @@ button.nextChip {
   width: 100%;
   min-height: 52px;
   padding: 6px var(--space-4);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 700;

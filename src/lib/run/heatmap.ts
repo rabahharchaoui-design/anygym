@@ -2,8 +2,7 @@
 // Pure. The current city is the city of the latest finished run that has one. A run with no city
 // is in no city's map. Cities are not looked up here (PLAN 4.7).
 import type { Run } from '../../db/types';
-import { fromRunPoint } from '../gps';
-import { drawRoute, type RouteGeo } from './routeGeo';
+import { drawRunRoute, type RouteGeo } from './routeGeo';
 
 export const cityName = (run: Run): string | null => {
   const city = run.city?.trim();
@@ -39,7 +38,7 @@ const EMPTY: RouteGeo = { solid: [], dashed: [], start: null, end: null, bounds:
 export function heatmapRoute(runs: readonly Run[]): RouteGeo {
   let geo: RouteGeo = EMPTY;
   for (const run of runs) {
-    const part = drawRoute(run.points.map(fromRunPoint), run.gaps);
+    const part = drawRunRoute(run);
     if (!part.bounds) continue;
     const bounds = geo.bounds;
     geo = {

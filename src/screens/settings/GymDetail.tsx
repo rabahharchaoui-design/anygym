@@ -91,7 +91,7 @@ export function GymDetail() {
     <>
       <TopBar title={g?.name ?? 'Gym'} leading={<BackButton to="/settings/gyms" label="Back to Gyms" />} />
       {!g ? (
-        <Skeleton height={240} radius={20} />
+        <Skeleton height={240} />
       ) : (
         <>
           <section className={styles.group} aria-label="Where you train">

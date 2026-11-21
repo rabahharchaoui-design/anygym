@@ -165,9 +165,19 @@ function startWatch() {
 function every5s() {
   save();
   if (state.live && navigator.geolocation && document.visibilityState === 'visible' && rewatchDue(state.live, Date.now(), watchedAt)) {
-    startWatch();
-    replayOf = lastRaw ? { ...lastRaw, near: false } : state.live.here && { lat: state.live.here.lat, lng: state.live.here.lng, near: true };
+    rewatch();
   }
+}
+
+/**
+ * Starts the watch again with the replay guard set: its first callback may be the phone's last
+ * position handed back as new (PLAN 4.4b 6, 4.4f 1). Without the phone's last raw position (after a
+ * reload) the dot stands in for it.
+ */
+function rewatch() {
+  startWatch();
+  const here = state.live?.here;
+  replayOf = lastRaw ? { ...lastRaw, near: false } : here ? { lat: here.lat, lng: here.lng, near: true } : null;
 }
 
 const onVisibility = () => {
@@ -175,7 +185,7 @@ const onVisibility = () => {
   // Back in front: the screen lock is asked for again, and the watch starts fresh (phones stop
   // reporting in the background and do not always pick up by themselves).
   wake.hold();
-  startWatch();
+  rewatch();
 };
 
 function attach() {

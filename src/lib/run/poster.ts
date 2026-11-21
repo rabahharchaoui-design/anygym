@@ -2,7 +2,7 @@
 // tiles, and no position the privacy zone removed. The screen paints this; it does not recompute it.
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../intake/answers';
-import { EARTH_RADIUS_M, fromRunPoint, toSegments, type GpsPoint } from '../gps';
+import { EARTH_RADIUS_M, dashedGaps, fromRunPoint, toSegments, type GpsPoint } from '../gps';
 import { formatElapsed } from '../timer';
 import { distanceWithUnit, formatPace, paceUnit } from './format';
 import { trimPrivacy } from './privacy';
@@ -64,8 +64,10 @@ export function projectRoute(pieces: readonly (readonly GpsPoint[])[]): PosterPo
 
 /** The card for this run. `privacy` trims the first and last 200 m (the default). */
 export function posterOf(run: Run, unit: DistanceUnit, privacy: boolean): Poster {
-  const solid = toSegments(run.points.map(fromRunPoint), run.gaps).map((s) => s.points);
-  const trimmed = privacy ? trimPrivacy(run.points, run.gaps) : { pieces: solid, hidden: false };
+  // A shift of the estimate is part of the line, not a hole in it (PLAN 4.4f 5).
+  const gaps = dashedGaps(run.gaps, run.shifts);
+  const solid = toSegments(run.points.map(fromRunPoint), gaps).map((s) => s.points);
+  const trimmed = privacy ? trimPrivacy(run.points, gaps) : { pieces: solid, hidden: false };
   const lines = projectRoute(trimmed.pieces);
   const city = run.city?.trim() || null;
   const pace = formatPace(rowPace(run), unit);

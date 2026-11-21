@@ -45,7 +45,7 @@ export function HistoryDetail() {
       </TopBar>
       {detail.error ? <LoadError text="Could not load this workout" onRetry={detail.retry} /> : null}
       {!value ? (
-        !detail.error && <Skeleton height={180} radius={20} />
+        !detail.error && <Skeleton height={180} />
       ) : (
         <>
           {groups.length === 0 ? (

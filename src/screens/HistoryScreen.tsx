@@ -67,7 +67,7 @@ export function HistoryScreen() {
       {/* PLAN 4.6a: a failed runs read is said too, never shown as "no runs". One line, one Try again for both reads. */}
       {list.error || runsRead.error ? <LoadError text={list.error ? 'Could not load workouts' : 'Could not load runs'} onRetry={retryReads} /> : null}
       {!list.ready || !runsRead.ready ? (
-        <Skeleton height={76} radius={20} />
+        <Skeleton height={76} />
       ) : (list.error || runsRead.error) && items.length === 0 && runs.length === 0 ? null : feed.dated.length === 0 && imported.length === 0 ? (
         <EmptyState
           scene="history"

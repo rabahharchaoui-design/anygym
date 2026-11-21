@@ -4,7 +4,7 @@
 // away is a pause, never moving time, and the line breaks there.
 import type { Run } from '../../db/types';
 import type { DistanceUnit } from '../intake/answers';
-import { fromRunPoint, pauseTrack, processTrack, readTracker, toRunGaps, toRunPoint, unitMeters, type TrackBreak, type TrackInput, type TrackerState } from '../gps';
+import { fromRunPoint, pauseTrack, processTrack, readTracker, toRunGaps, toRunPoint, toRunShifts, unitMeters, type TrackBreak, type TrackInput, type TrackerState } from '../gps';
 import { INTERVAL_PRESETS, RUN_TYPES, type RunType } from './goal';
 import { PRESET_PLANS, sanitizePlan, startIntervals, type IntervalChoice, type IntervalState } from './intervals';
 import type { LiveRun, RunGoal } from './live';
@@ -43,6 +43,7 @@ export function liveRow(run: LiveRun): Run {
     distanceM: r.distanceM,
     points: run.points.map(toRunPoint),
     gaps: toRunGaps(run.breaks),
+    ...(run.breaks.some((b) => b.kind === 'shift') ? { shifts: toRunShifts(run.breaks) } : {}),
     splits: r.splits.full.map((s) => s.sec),
     splitGaps: r.splits.full.filter((s) => s.gap).map((s) => s.index),
     splitUnit: run.unit,

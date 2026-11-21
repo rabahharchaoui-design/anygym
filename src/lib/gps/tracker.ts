@@ -210,7 +210,7 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
     const ms = clockStopped(state) ? 0 : p.t - prev.t;
     const distanceM = state.still ? 0 : Math.min(haversineM(start, p), (estimateSpeed(est) * ms) / 1000);
     const next = advance(flushed.state, { distanceM, ms, timed: true, gap: false });
-    const brk: TrackBreak = { fromT: start.t, toT: p.t, kind: 'gap', bridged: distanceM > 0, distanceM };
+    const brk: TrackBreak = { fromT: start.t, toT: p.t, kind: 'shift', bridged: distanceM > 0, distanceM };
     return { state: { ...restart(next.state, p), est }, event: { type: 'recorded', point: p, brk, splits: [...flushed.completed, ...next.completed], ...(flushed.point ? { withheld: flushed.point } : {}) } };
   }
   if (v.link === 'gap') {
@@ -257,7 +257,7 @@ function addFix(state: TrackerState, raw: RawPoint): { state: TrackerState; even
     // Drifted off the last point without moving like a walk: the spot moves with the drift, the
     // distance does not (PLAN 4.4d). The line breaks there (no distance across, like an unbridged gap).
     const held = advance(state, { distanceM: 0, ms, timed: true, gap: false }).state;
-    const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'gap', bridged: false, distanceM: 0 };
+    const brk: TrackBreak = { fromT: from.t, toT: p.t, kind: 'shift', bridged: false, distanceM: 0 };
     return { state: { ...held, lastGood: p, lastRecorded: p, est, trail, recent: pushRecent(state.recent, p) }, event: { type: 'recorded', point: p, brk, splits: [] } };
   }
   if (!state.still && (legM < minStepM(p, known) || drifting)) {

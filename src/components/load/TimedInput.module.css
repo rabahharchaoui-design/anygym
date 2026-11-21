@@ -6,7 +6,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 35%, var(--surface-2), var(--surface-1) 70%);
+  background: var(--surface-1);
   touch-action: manipulation;
 }
 

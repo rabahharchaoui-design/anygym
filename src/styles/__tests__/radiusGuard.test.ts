@@ -8,7 +8,7 @@ import { RADIUS_ALLOW } from './radiusAllow';
 // border radius in px, rem or em, a React borderRadius number, a Skeleton radius={n}) or when it
 // uses --radius-pill, which Monolith removed. 50%, inherit and 0 stay allowed: a dot or a ring is
 // round in real life. SVG rx in drawings is picture geometry, not a corner rule, so it is not read.
-// Today's offenders are listed in radiusAllow.ts; that list may only shrink (M1 to M7).
+// PLAN M10 emptied radiusAllow.ts: there are no exceptions left.
 
 const ROOT = join(__dirname, '../../..');
 const SRC = join(ROOT, 'src');
@@ -98,4 +98,20 @@ describe('Monolith corner guard (PLAN M0)', () => {
   });
 });
 
-const RADIUS_ALLOW_MAX = 93;
+// M0 started at 93; M10 emptied it.
+// PLAN M10: only true circles stay round, each marked data-round="ok" in its markup: the GPS dot
+// (GpsChip, the map's "you are here" dot), the record dot (ResumeBar) and the hold timer's
+// progress ring (TimedInput). A new 50% corner anywhere else is a pill or a round button.
+const ROUND_OK = ['src/components/load/TimedInput.module.css', 'src/screens/run/Run.module.css', 'src/screens/run/RunMap.module.css', 'src/ui/ResumeBar.module.css'];
+
+describe('Monolith circles (PLAN M10)', () => {
+  it('a 50% corner lives only in the files of the true circles', () => {
+    const round = walk(SRC)
+      .filter((path) => path.endsWith('.css') && /radius\s*:\s*50%/.test(code(path)))
+      .map(rel)
+      .sort();
+    expect(round).toEqual([...ROUND_OK].sort());
+  });
+});
+
+const RADIUS_ALLOW_MAX = 0;

@@ -68,7 +68,12 @@ export function msToNextFace(tracker: TrackerState, nowMs: number): number | nul
   if (pending <= 0) {
     // Not counting. A position stamped a little ahead of the clock starts counting when the clock gets there.
     const ahead = tracker.lastGood && !tracker.manual && !tracker.afterPause && !clockStopped(tracker) ? tracker.lastGood.t - nowMs : -1;
-    return ahead >= 0 ? ahead + 1 : null;
+    if (ahead >= 0) return ahead + 1;
+    // Auto paused: one wake when the last position turns older than GAP_SEC, so the screen can say
+    // GPS is lost (PLAN 4.4f 2, liveNote).
+    if (!tracker.lastGood || tracker.manual || !clockStopped(tracker)) return null;
+    const toStale = GAP_SEC * 1000 - (nowMs - tracker.lastGood.t) + 1;
+    return toStale > 0 ? toStale : null;
   }
   const since = nowMs - tracker.lastGood!.t;
   if (since > GAP_SEC * 1000) return null;

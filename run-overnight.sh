@@ -2,6 +2,7 @@
 # Started by the LaunchAgent after a reboot, launchd gives a bare PATH: find claude, codex, node, gh the same way a login shell does.
 [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile" >/dev/null 2>&1
 export PATH="$HOME/.local/bin:$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$HOME/.npm-global/bin:$HOME/bin:$PATH"
+export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0   # Nov 22 (Grok audit): the CLI was killing builder and tester agents 10 min after the orchestrator's last turn; the budget timer and usage guard still bound every run
 # AnyGym Fable Loop with a Claude usage budget (G, Oct 30: leave usage for G all week).
 # Fable orchestrates, Opus builds, Sonnet tests. Resumes from PLAN.md, stops at ALL DONE.
 # Budget lives in .loop-budget (reread before every run, edit any time):
@@ -42,9 +43,10 @@ week_allowed(){ # G, Nov 17: never leave G with nothing; spread what is left eve
   if [ "$wr0" != "$wr" ]; then echo "$wr $now ${w:-0}" > .week-pace; line="$wr $now ${w:-0}"; fi
   t0=$(echo "$line" | cut -d' ' -f2); p0=$(echo "$line" | cut -d' ' -f3)
   span=$(( wr - 14400 - t0 )); [ $span -lt 3600 ] && { echo $stop; return; }
-  local lead=${WEEK_LEAD:-10}; local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span )); [ $a -gt $stop ] && a=$stop; echo $a   # lead: may run this far ahead of the even pace (Nov 19: a lead of 2 made runs stop after 4 min)
+  local lead=${WEEK_LEAD:-25};   # G, Nov 22: "if you can go, let's go"; still 85% max by 4 h before the reset
+   local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span )); [ $a -gt $stop ] && a=$stop; echo $a   # lead: may run this far ahead of the even pace (Nov 19: a lead of 2 made runs stop after 4 min)
 }
-over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; local cap=${FIVE_STOP:-74}; if [ -f .five-override ]; then read -r oc ou < .five-override; [ "$(date +%s)" -lt "${ou:-0}" ] 2>/dev/null && cap=$oc; fi; [ "${f:-0}" -ge $cap ] && { echo five; return 0; }; return 1; }   # .five-override "cap until": a one run exception G approved
+over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; local cap=${FIVE_STOP:-74}; if [ -f .five-override ]; then read -r oc ou < .five-override; case "$oc" in ""|*[!0-9]*) oc=${FIVE_STOP:-74};; esac; [ "$(date +%s)" -lt "${ou:-0}" ] 2>/dev/null && cap=$oc; fi; [ "${f:-0}" -ge $cap ] && { echo five; return 0; }; return 1; }   # .five-override "cap until": a one run exception G approved
 tap_age(){ local ts=$(tapv ts); [ -n "$ts" ] && echo $(( $(date +%s) - ts )) || echo 99999; }
 probe(){ local root="$PWD" d="$HOME/.cache/anygym-probe"; mkdir -p "$d"; date +%s > .usage-probe-at; ( cd "$d" && perl -e 'alarm shift; exec @ARGV' 90 claude --model haiku --output-format stream-json --verbose -p "Reply with OK only." 2>/dev/null | node "$root/.loop-tools/stream-tap.mjs" "$root/.usage-tap" >/dev/null 2>&1 ); }
 probe_due(){ [ $(tap_age) -gt ${PROBE_EVERY:-300} ] || return 1; local pa=$(cat .usage-probe-at 2>/dev/null); [ $(( $(date +%s) - ${pa:-0} )) -gt ${PROBE_EVERY:-300} ]; }
@@ -108,8 +110,16 @@ while [ $n -lt 300 ]; do
   source ./$CFG
   cloudcheck
   # The script file changed since this loop started: reload it between runs (never during one).
-  if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5;  say "loop script changed, reloading it"; exec zsh ./run-overnight.sh; fi
+  if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5
+    if zsh -n ./run-overnight.sh 2>>.loop-script.err; then say "loop script changed, reloading it"; exec zsh ./run-overnight.sh
+    else SELF_HASH=$(md5 -q run-overnight.sh 2>/dev/null); say "loop script changed but does not parse, keeping the running one"; ntfy "AnyGym: loop edit rejected" "A change to the build loop did not parse on gmini, so the old loop keeps running. Claude is fixing it." "warning"; fi
+  fi
   # Grok helper (G, Nov 17): live tests through Grok Bot, reviews and audits through the Grok Build CLI. Keep it running.
+  lastreal=$(git log -1 --format=%ct --invert-grep --grep='^WIP' 2>/dev/null || echo 0)
+  if [ ! -f .loop-pause ] && [ $(( $(date +%s) - ${lastreal:-0} )) -gt 43200 ] && [ $(( $(date +%s) - $(cat .noprog-ntfy 2>/dev/null || echo 0) )) -gt 43200 ]; then
+    date +%s > .noprog-ntfy; say "stall watch: no real commit in 12 hours"
+    ntfy "AnyGym: no progress in 12 hours" "No real work was committed in the last 12 hours. Last loop status: $(grep '^===' "$LOG" | grep -v 'pushed s4-run\|started the' | tail -1 | cut -c5-140). Claude has been asked to look." "warning"
+  fi
   if [ -f .codex-restart ]; then rm -f .codex-restart; tmux kill-session -t codex-helper 2>/dev/null; say "restarting the Codex helper (asked by Claude)"; sleep 2; fi
   if [ -f .codex-helper.sh ] && /bin/bash -n .codex-helper.sh 2>/dev/null && command -v tmux >/dev/null 2>&1 && command -v codex >/dev/null 2>&1 && ! tmux has-session -t codex-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s codex-helper "bash $PWD/.codex-helper.sh" && say "started the Codex helper (tmux session codex-helper)"; fi
   if [ -f .grok-restart ]; then rm -f .grok-restart; tmux kill-session -t grok-helper 2>/dev/null; say "restarting the Grok helper (asked by Claude)"; sleep 2; fi
@@ -134,6 +144,9 @@ while [ $n -lt 300 ]; do
   [ $limit -lt 900 ] && { sleep 600; continue; }
   if [ -f .usage-hold ]; then hr=$(cat .usage-hold 2>/dev/null); if [ "$(date +%s)" -lt "${hr:-0}" ] 2>/dev/null; then [ "$WAITMSG" != uhold ] && say "usage guard: holding until the 5 hour window resets at $(TZ=Pacific/Guam date -r ${hr} +%H:%M) (cap ${FIVE_STOP:-74}% so G never passes 83%)"; WAITMSG=uhold; sleep 120; continue; fi; mv .usage-hold .usage-hold.last; fi
   [ $(tap_age) -gt ${PROBE_EVERY:-300} ] && probe
+  if tap_fresh; then hw=$(( $(week_allowed) - $(tapv week) ))   # Nov 22: a run needs room to do real work; starting at the edge just burns startup tokens
+    if [ $hw -lt ${WEEK_START_GAP:-4} ]; then [ "$WAITMSG" != ugap ] && say "usage guard: ${hw}% of weekly room right now, waiting for ${WEEK_START_GAP:-4}% so a run can finish real work (85% by 4 hours before the reset, 15% kept for G)"; WAITMSG=ugap; sleep 1200; continue; fi
+  fi
   why=$(over_limit); [ "$why" = five ] && hold_set; if [ "$why" = week ]; then [ "$WAITMSG" != uweek ] && say "usage guard: $(tapv week)% of the week used, pacing allows $(week_allowed)% by now (85% by 4 hours before the reset, 15% kept for G); Grok and Codex build meanwhile"; WAITMSG=uweek; sleep 1800; continue; fi
   if [ "$why" = five ]; then wr=$(tapv five_reset); [ "$WAITMSG" != ufive ] && say "usage guard: $(tapv five)% of the 5 hour window used, waiting for its reset at $(TZ=Pacific/Guam date -r ${wr:-0} +%H:%M)"; WAITMSG=ufive; sleep 600; continue; fi
   REST=0; if awake && ! tap_fresh; then [ $limit -gt 7200 ] && limit=7200; REST=1; fi   # no live usage numbers yet: short runs with rests while G is awake
@@ -164,9 +177,16 @@ while [ $n -lt 300 ]; do
   if [ $dur -lt $(( limit - 60 )) ] && tail -n 6 "$RUNLOG" | grep -qiE "usage limit|limit reached|rate limit|resets at|resets [0-9]|hit your"; then
     if tail -n 6 "$RUNLOG" | grep -qiE "fable.*limit|limit.*fable"; then wr=$(tapv week_reset); [ -z "$wr" ] || [ "$wr" -lt $(date +%s) ] && wr=$(( $(date +%s) + 86400 )); echo "$wr" > .fable-capped; ntfy "AnyGym: Fable full for the week" "No Fable resets left, so the build switched to Opus by itself until the weekly reset. Nothing to press." "information_source"; say "Fable weekly limit hit, building on Opus until $(TZ=Pacific/Guam date -r $wr '+%a %H:%M')"; FAST=0; rm -f "$RUNLOG"; sleep 120; continue
     elif tail -n 6 "$RUNLOG" | grep -qiE "weekly limit|7-day limit|week.*limit" && [ "$(cat .weekly-ntfy 2>/dev/null)" != "$(tk +%F)" ]; then tk +%F > .weekly-ntfy; ntfy "AnyGym: weekly limit hit" "All models is full for the week. Nothing to press (no Full reset left); the build waits for Thursday 8 PM." "warning"; say "weekly all models limit hit, told G"; fi
+    [ -f .five-override ] && { mv .five-override .five-override.used; hold_set; }
     FAST=0; say "run $n hit a usage limit, sleeping 30 min"; rm -f "$RUNLOG"; sleep 1800; continue
   fi
   rm -f "$RUNLOG"
+  echo "$(date +%s) $dur" >> .run-durations; tail -n 20 .run-durations > .run-durations.t && mv .run-durations.t .run-durations
+  # STALL WATCH (G, Nov 22 "you can't let this keep happening"): 3 short runs in a row means the guard is chopping runs before real work
+  if [ "$(tail -n 3 .run-durations | awk '$2 < 300 {c++} END {print c+0}')" -ge 3 ] && [ "$(cat .stall-ntfy 2>/dev/null)" != "$(tail -n 1 .run-durations | cut -d' ' -f1)" ]; then
+    tail -n 1 .run-durations | cut -d' ' -f1 > .stall-ntfy; say "stall watch: the last 3 runs were each under 5 minutes"
+    ntfy "AnyGym: build is stalling" "The last 3 runs each stopped in under 5 minutes, so nothing is getting built. Claude is told; the next run waits until there is real room." "warning"
+  fi
   if [ -f .usage-stop ] && [ -f .five-override ]; then mv .five-override .five-override.used; hold_set; fi
   if [ -f .usage-stop ]; then mv .usage-stop .usage-stop.last; say "run $n stopped by the usage guard, checking again in 10 min"; sleep 600; continue; fi
   if [ $REST -eq 1 ] && ! tap_fresh; then say "no live usage numbers while G is awake: resting 3 h after a 2 h run"; sleep 10800; continue; fi
