@@ -311,6 +311,7 @@
   }
   .panel {
     gap: var(--space-1);
+    padding-bottom: calc(var(--tabbar-space) + var(--resume-space, 0px));
   }
 }
 
