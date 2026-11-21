@@ -27,7 +27,7 @@ import { recentGyms } from '../lib/gymPresets';
 import { phoneLocale, unitsForLocale } from '../lib/intake/region';
 import { CoachSettings } from './settings/CoachSettings';
 import { BackupRows } from './settings/BackupRows';
-import { useRunSetup } from '../hooks/useRunSetup';
+import { useRunVoice } from '../hooks/useRunVoice';
 import { getActiveSession } from '../db/workouts';
 import { getActiveRun } from '../db/runs';
 import styles from './Settings.module.css';
@@ -70,8 +70,7 @@ export function SettingsScreen() {
   const gyms = useLive(() => db.gyms.toArray(), []);
   const gymNames = gyms.data ? recentGyms(gyms.data).map((g) => g.name).join(', ') : '';
   // The voice coach (SPEC 12.4) is kept with the run setup; the Run tab's settings sheet shows it too.
-  const run = useRunSetup();
-  const voice = run.state?.setup.voice;
+  const { voice, setVoice } = useRunVoice();
   const profileUnits = (patch: Parameters<typeof setProfileUnits>[0]) => {
     setProfileError(false);
     setProfileUnits(patch).catch(() => setProfileError(true));
@@ -164,7 +163,7 @@ export function SettingsScreen() {
             hint="Says your time and pace on runs, over your music."
             checked={voice?.on ?? false}
             disabled={!voice}
-            onChange={(on) => voice && run.change({ voice: { ...voice, on } })}
+            onChange={(on) => voice && setVoice({ ...voice, on })}
           />
         </div>
         <p className={styles.error} role="status">
