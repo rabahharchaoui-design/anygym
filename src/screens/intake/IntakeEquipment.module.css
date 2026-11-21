@@ -66,7 +66,7 @@
   gap: 4px;
   min-height: 32px;
   padding: 0 12px 0 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--hairline);
   background: var(--surface-1);
   color: var(--text-2);
@@ -140,7 +140,7 @@
   justify-content: flex-start;
   gap: 6px;
   padding: 10px 8px 10px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--hairline);
   background: var(--surface-1);
   color: var(--text);
@@ -195,7 +195,7 @@
   left: 8px;
   box-sizing: content-box;
   padding: 3px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: var(--on-accent);
   opacity: 0;

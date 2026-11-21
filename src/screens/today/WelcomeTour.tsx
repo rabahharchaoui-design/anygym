@@ -48,7 +48,8 @@ function targetBox(el: HTMLElement, wordsHeight: number): Box {
 function measure(el: HTMLElement, wordsHeight: number): Lit {
   const box = spotBox(targetBox(el, wordsHeight), PAD);
   const own = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
-  return { ...box, radius: Math.min(own + PAD, box.height / 2) };
+  // Monolith (PLAN M10): the light keeps the square corner of what it lights, never over 4 px.
+  return { ...box, radius: Math.min(own, 4, box.height / 2) };
 }
 
 const moved = (a: Lit | null, b: Lit) => !a || Math.abs(a.x - b.x) > 0.5 || Math.abs(a.y - b.y) > 0.5 || Math.abs(a.width - b.width) > 0.5 || Math.abs(a.height - b.height) > 0.5 || a.radius !== b.radius;

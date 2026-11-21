@@ -89,6 +89,7 @@ export function TimedInput({ unit, targetSeconds, onChange, onSeconds, watch: co
       <button
         type="button"
         className={`${styles.dial} pressable`}
+        data-round="ok"
         data-running={running}
         onClick={toggle}
         aria-label={`${action} timer`}

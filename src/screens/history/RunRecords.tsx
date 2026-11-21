@@ -33,7 +33,7 @@ export function RunRecords() {
       <TopBar title="Run records" leading={<BackButton to="/history" label="Back to History" />} />
       {all.error ? <LoadError text="Could not load runs" onRetry={all.retry} /> : null}
       {!all.ready ? (
-        <Skeleton height={180} radius={20} />
+        <Skeleton height={180} />
       ) : (
         <>
           <Segmented

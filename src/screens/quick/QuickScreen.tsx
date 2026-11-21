@@ -303,7 +303,7 @@ export function QuickScreen() {
             {!concepts ? (
               <div className={styles.concepts}>
                 {[0, 1, 2, 3].map((i) => (
-                  <Skeleton key={i} height={156} radius={24} />
+                  <Skeleton key={i} height={156} />
                 ))}
               </div>
             ) : concepts.length === 0 ? (

@@ -14,7 +14,7 @@
 .logButton {
   width: 100%;
   min-height: 56px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent);
   padding: 0 var(--space-4);
@@ -32,7 +32,7 @@
 .secondaryButton {
   width: 100%;
   min-height: 48px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--hairline);
   background: transparent;
   color: var(--text);
@@ -43,7 +43,7 @@
 .deleteButton {
   width: 100%;
   min-height: 52px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   color: var(--red-text);
   font-weight: 600;
   font-size: 17px;

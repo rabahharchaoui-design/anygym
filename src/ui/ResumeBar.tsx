@@ -32,7 +32,7 @@ export function ResumeBar({ session, hidden = false, run = false }: Props) {
         >
           {session ? (
             <button type="button" className={`${styles.bar} pressable`} data-testid="resume-bar" onClick={() => go(`/workout/${session.id}`, { kind: 'push' })}>
-              <span className={styles.dot} aria-hidden="true" />
+              <span className={styles.dot} data-round="ok" aria-hidden="true" />
               <span className={styles.text}>
                 {dayLabel(session)} · <span className="num">{formatElapsed(Math.max(0, now - session.startedAt) / 1000)}</span>
               </span>
@@ -40,7 +40,7 @@ export function ResumeBar({ session, hidden = false, run = false }: Props) {
             </button>
           ) : (
             <button type="button" className={`${styles.bar} pressable`} data-testid="run-bar" onClick={() => go('/run')}>
-              <span className={styles.dot} aria-hidden="true" />
+              <span className={styles.dot} data-round="ok" aria-hidden="true" />
               <span className={styles.text}>Run in progress</span>
               <span className={styles.resume}>Open</span>
             </button>

@@ -32,7 +32,7 @@
 .dot {
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   flex: none;
   background:
     radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--white) 45%, transparent), transparent 60%),

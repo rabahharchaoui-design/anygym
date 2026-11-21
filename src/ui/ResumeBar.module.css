@@ -20,14 +20,9 @@
   align-items: center;
   gap: var(--space-3);
   padding: 0 6px 0 var(--space-4);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-line);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow:
-    0 10px 30px color-mix(in srgb, var(--black) 45%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent);
   color: var(--text);
   font-weight: 700;
   text-align: left;
@@ -54,7 +49,7 @@
   align-items: center;
   min-height: 40px;
   padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent);
 }

@@ -35,7 +35,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: 8px var(--space-3) 8px 8px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   text-align: left;
@@ -85,7 +85,7 @@
 .keep {
   min-height: 52px;
   padding: 8px var(--space-4);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2);
   font-weight: 600;
   overflow-wrap: anywhere;

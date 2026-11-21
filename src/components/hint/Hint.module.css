@@ -12,10 +12,9 @@
   margin: 0;
   max-width: min(320px, calc(100vw - 48px));
   padding: 8px 14px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--surface-solid-2);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--black) 55%, transparent);
   color: var(--text);
   font-size: var(--text-sm);
   font-weight: 600;

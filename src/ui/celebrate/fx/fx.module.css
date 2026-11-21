@@ -39,7 +39,7 @@
   top: 8%;
   width: 90%;
   aspect-ratio: 1;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 11%, transparent), transparent);
   --dx: 34%;
   --dy: 22%;
@@ -48,11 +48,11 @@
 
 /* A pane of glass: lit along its top left edge, nearly clear. */
 .pane {
-  border-radius: 26px;
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--white) 7%, transparent);
   border-right-color: transparent;
   border-bottom-color: transparent;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--white) 5%, transparent), transparent 62%);
+  background: transparent;
 }
 
 .pane[data-n='1'] {

@@ -25,7 +25,7 @@
   width: 48px;
   height: 48px;
   margin: -12px -14px -12px 0;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   color: var(--text-2);
 }
 
@@ -95,7 +95,7 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--hairline);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   text-align: left;
 }
@@ -142,7 +142,7 @@
   padding: 0 var(--space-4);
   margin: -8px 0;
   border: 1px solid var(--glass-line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--white) 7%, transparent);
   color: var(--text);
   font-size: 0.9375rem;

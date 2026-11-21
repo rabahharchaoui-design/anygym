@@ -13,7 +13,7 @@ export function GpsChip({ status, words, onPress }: ChipProps) {
   return (
     <button type="button" className={`${styles.gps} pressable`} data-testid="gps-chip" data-status={status} data-tone={words.tone} aria-label={`${words.chip}. What this means`} onClick={onPress}>
       <span className={styles.gpsFace}>
-        <span className={styles.gpsDot} aria-hidden="true" />
+        <span className={styles.gpsDot} data-round="ok" aria-hidden="true" />
         {words.chip}
       </span>
     </button>

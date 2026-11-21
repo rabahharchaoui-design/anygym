@@ -28,7 +28,7 @@
   width: 150vmin;
   height: 150vmin;
   margin: -75vmin 0 0 -75vmin;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%);
   pointer-events: none;
 }
@@ -137,7 +137,7 @@
 .pip {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   opacity: 0.22;
   transition: opacity var(--dur-fast) var(--ease-out);
@@ -151,7 +151,7 @@
   min-height: 48px;
   min-width: 132px;
   padding: 0 var(--space-5);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--hairline-strong);
   background: var(--surface-1);
   color: var(--text);

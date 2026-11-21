@@ -19,7 +19,7 @@
   align-items: flex-start;
   justify-content: center;
   padding: 8px var(--space-4);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   text-align: left;
@@ -81,7 +81,7 @@
   width: 100%;
   min-height: 96px;
   padding: var(--space-3);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--hairline);
   background: var(--surface-1);
   font-size: 17px;

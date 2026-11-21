@@ -188,7 +188,7 @@
 
 .heroTile {
   flex: none;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .heroText {
@@ -237,7 +237,7 @@
   flex: none;
   width: 48px;
   height: 48px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;

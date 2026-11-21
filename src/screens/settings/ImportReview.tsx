@@ -67,7 +67,7 @@ export function ImportReview() {
   const [parsed] = useState(() => importDraft.get());
   const gym = useActiveGym();
   if (!parsed) return <Navigate to="/settings" replace />;
-  return gym ? <Review gym={gym} parsed={parsed} /> : <Skeleton height={180} radius={20} />;
+  return gym ? <Review gym={gym} parsed={parsed} /> : <Skeleton height={180} />;
 }
 
 type Ask =

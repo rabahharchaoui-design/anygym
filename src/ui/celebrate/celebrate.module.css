@@ -18,18 +18,16 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   /* Ice blue wash over dense graphite: the number and the exercise name stay AA whatever is behind. */
-  background:
-    linear-gradient(to right, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 4%, transparent)),
-    var(--glass-bg-strong);
+  background: var(--glass-bg-strong);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .card[data-size='row'] {
   min-height: 52px;
   padding: 10px 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 .cardIcon {
@@ -93,7 +91,7 @@
 .plus {
   flex: none;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   color: var(--accent);

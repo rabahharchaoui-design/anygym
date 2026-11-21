@@ -6,8 +6,8 @@
   justify-content: center;
   width: 64px;
   height: 64px;
-  border-radius: 16px;
-  background: linear-gradient(160deg, var(--surface-2), var(--surface-1));
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
   border: 1px solid var(--hairline);
   color: var(--text-3);
 }
@@ -15,7 +15,7 @@
 .tile[data-size='hero'] {
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .glyph {
