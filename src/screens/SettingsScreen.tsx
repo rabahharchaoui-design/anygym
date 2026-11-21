@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TopBar } from '../ui/TopBar';
-import { Toast, type ToastMessage } from '../ui/Toast';
+import { TAB_TOAST_BOTTOM, Toast, type ToastMessage } from '../ui/Toast';
 import { ChevronRight } from '../ui/icons';
 import { useNav } from '../ui/nav';
 import { undoImport } from '../db/importHistory';
@@ -9,7 +9,6 @@ import { parseImportText } from '../lib/import/anygymImportV1';
 import { UNDO_MS } from '../lib/undoQueue';
 import { setCount } from './history/historyWords';
 import { importDraft, isImportDone } from './settings/importDraft';
-import { BackButton } from '../ui/BackButton';
 import { Switch } from '../ui/Switch';
 import { haptics } from '../ui/haptics';
 import { Segmented } from '../ui/Segmented';
@@ -169,7 +168,7 @@ export function SettingsScreen() {
 
   return (
     <>
-      <TopBar title="Settings" leading={<BackButton to="/" label="Back to Today" />} />
+      <TopBar title="Settings" />
       <section className={styles.group} aria-labelledby="set-profile">
         <h2 id="set-profile" className={styles.groupTitle}>
           My profile
@@ -379,8 +378,7 @@ export function SettingsScreen() {
       </section>
       <ReportProblemSheet open={reporting} onClose={() => setReporting(false)} facts={gymFacts(gym)} />
       <RestoreSheet backup={restoring} onClose={() => setRestoring(null)} onDone={restored} />
-      {/* No tab bar here (a pushed screen): the toast sits at the bottom safe area. */}
-      <Toast toast={toast} />
+      <Toast toast={toast} bottom={TAB_TOAST_BOTTOM} />
     </>
   );
 }
