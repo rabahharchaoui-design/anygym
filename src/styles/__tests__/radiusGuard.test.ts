@@ -99,10 +99,10 @@ describe('Monolith corner guard (PLAN M0)', () => {
 });
 
 // M0 started at 93; M10 emptied it.
-// PLAN M10: only true circles stay round, each marked data-round="ok" in its markup: the GPS dot
-// (GpsChip, the map's "you are here" dot), the record dot (ResumeBar) and the hold timer's
+// PLAN M10: only true circles stay round, each marked data-round="ok" in its markup: the map's
+// "you are here" dot (the GPS label's mark is a small square since PLAN M12), the record dot (ResumeBar) and the hold timer's
 // progress ring (TimedInput). A new 50% corner anywhere else is a pill or a round button.
-const ROUND_OK = ['src/components/load/TimedInput.module.css', 'src/screens/run/Run.module.css', 'src/screens/run/RunMap.module.css', 'src/ui/ResumeBar.module.css'];
+const ROUND_OK = ['src/components/load/TimedInput.module.css', 'src/screens/run/RunMap.module.css', 'src/ui/ResumeBar.module.css'];
 
 describe('Monolith circles (PLAN M10)', () => {
   it('a 50% corner lives only in the files of the true circles', () => {

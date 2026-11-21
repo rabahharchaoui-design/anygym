@@ -61,3 +61,15 @@
 .face[data-tone='red'] {
   color: var(--red-text);
 }
+
+/* PLAN M12: plain, the icon alone on graphite (no fill, no outline); the press dims it. */
+.face[data-plain] {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.hit:active .face[data-plain] {
+  background: none;
+  opacity: var(--press-dim);
+}

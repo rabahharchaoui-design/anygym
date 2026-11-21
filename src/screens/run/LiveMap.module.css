@@ -1,4 +1,4 @@
-/* The map page of the live run (SPEC 12.2): what floats over the map. */
+/* The map page of the live run (SPEC 12.2, PLAN M2, board 07): what sits over and under the map. */
 .mapPage {
   position: absolute;
   inset: 0;
@@ -15,10 +15,50 @@
   pointer-events: none;
 }
 
+/* One row of heavy numbers on graphite, over the page marks: distance, time, pace, each with its
+   small unit. A hairline above it ends the map. */
 .readout {
-  composes: gpsFace from './Run.module.css';
-  font-weight: 600;
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: var(--space-4) var(--live-pad-r) var(--space-1) var(--live-pad-l);
+  background: var(--bg);
+  border-top: var(--divider);
+  pointer-events: none;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: var(--text-mono-value);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-number);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
+}
+
+.statValue[data-blank] {
+  color: var(--text-2);
+}
+
+.statUnit {
+  color: var(--text);
+  font-size: var(--text-mono-caption);
+  font-weight: 600;
+  line-height: 1;
 }
 
 .mapFoot {

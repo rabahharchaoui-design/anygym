@@ -62,11 +62,13 @@ test.describe('4.3 live run', () => {
     const km = Number(await big(page).textContent());
     expect(km, 'distance within 1% of 600 m').toBeGreaterThanOrEqual(0.59);
     expect(km).toBeLessThanOrEqual(0.61);
-    await expect(page.getByTestId('live-big-label')).toHaveText('Kilometers');
-    const t = toSec((await page.getByTestId('live-small-time').locator('span').first().textContent())!);
+    // PLAN M2 (board 06): the label is the field's name, the unit sits under the number (was "Kilometers").
+    await expect(page.getByTestId('live-big-label')).toHaveText('Distance');
+    await expect(page.getByTestId('live-big-field')).toContainText('km');
+    const t = toSec((await page.getByTestId('live-small-time').locator('[data-value]').textContent())!);
     expect(t, 'moving time within 3 s of 200 s').toBeGreaterThanOrEqual(200);
     expect(t).toBeLessThanOrEqual(203);
-    const pace = toSec((await page.getByTestId('live-small-pace').locator('span').first().textContent())!);
+    const pace = toSec((await page.getByTestId('live-small-pace').locator('[data-value]').textContent())!);
     expect(Math.abs(pace - 333), 'pace within 15 s of 5:33 per km').toBeLessThanOrEqual(15);
     await wake(page);
     await checkLayout(page, { scope: '[data-testid="live-run"]' });
@@ -80,7 +82,8 @@ test.describe('4.3 live run', () => {
     await shot(page, 'stats-time');
     await page.getByTestId('live-cycle').tap();
     await expect(big(page)).toHaveAttribute('data-metric', 'pace');
-    await expect(page.getByTestId('live-big-label')).toHaveText('Pace /km');
+    await expect(page.getByTestId('live-big-label')).toHaveText('Pace'); // PLAN M2: was "Pace /km"
+    await expect(page.getByTestId('live-big-field')).toContainText('/km');
     await page.waitForTimeout(400);
     await shot(page, 'stats-pace');
     await page.getByTestId('live-cycle').tap();
@@ -196,9 +199,9 @@ test.describe('4.3 live run', () => {
     await expect(page.getByTestId('live-note')).toHaveText('Auto paused · move to go on');
     await expect(page.getByTestId('live-note')).toHaveAttribute('data-tone', 'auto');
     await expect(page.getByTestId('live-pause')).toBeVisible();
-    const still = toSec((await page.getByTestId('live-small-time').locator('span').first().textContent())!);
+    const still = toSec((await page.getByTestId('live-small-time').locator('[data-value]').textContent())!);
     await move(r, 5, 1, 0);
-    expect(toSec((await page.getByTestId('live-small-time').locator('span').first().textContent())!), 'the clock stands while auto paused').toBe(still);
+    expect(toSec((await page.getByTestId('live-small-time').locator('[data-value]').textContent())!), 'the clock stands while auto paused').toBe(still);
     await wake(page);
     await shot(page, 'auto-paused');
     await move(r, 4);
@@ -595,7 +598,8 @@ test.describe('4.3 live run, miles', () => {
     const goal = page.getByTestId('live-goal');
     await expect(goal).toContainText('Goal 0.5 mi');
     await move(r, 20);
-    await expect(page.getByTestId('live-big-label')).toHaveText('Miles');
+    await expect(page.getByTestId('live-big-label')).toHaveText('Distance'); // PLAN M2: was "Miles"
+    await expect(page.getByTestId('live-big-field')).toContainText('mi');
     await expect(page.getByTestId('live-goal-line')).toHaveText(/^0\.3[12] mi to go$/);
     await wake(page);
     await shot(page, 'goal-progress');

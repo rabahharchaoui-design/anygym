@@ -1,148 +1,109 @@
-/* The bottom controls of the live run (SPEC 12.2): Lock, Pause or Resume, hold to End; and the
-   hold button with its ring. The bar they sit in (.foot) is in Live.module.css. */
+/* The foot of the live run (SPEC 12.2, PLAN M2, board 06): "Pause" over the ice line, then "Hold to
+   end" over its track and "Lock" as a word. The bar they sit in (.foot) is in Live.module.css. */
 .controls {
-  max-width: 360px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
   pointer-events: none;
 }
 
-.controls[data-locked] {
-  grid-template-columns: 1fr;
-}
-
-.control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
+.controls > * {
   pointer-events: auto;
 }
 
-.caption {
-  color: var(--text-2);
-  font-size: 13px;
+/* Pause (ui/Button xl): white words; Resume is the same place, the same words size. */
+.main {
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.row > * {
+  pointer-events: auto;
+}
+
+/* Hold to end: small white words over a 3 px track; the track fills ice while held. */
+.hold {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--tap);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  color: var(--text);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.holdWords {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
 }
 
-.main,
-.side,
-.hold {
+.holdTrack {
   position: relative;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-md);
-  touch-action: manipulation;
-  transition: transform 160ms var(--ease-out);
+  display: block;
+  height: 3px;
+  background: var(--ring-track);
+  overflow: hidden;
 }
 
-.main:active,
-.side:active,
-.hold:active {
-  transform: scale(var(--press-scale));
-  transition-duration: 0ms;
-}
-
-/* Pause: the big one, in the thumb zone. */
-.main {
-  --main: clamp(84px, calc(var(--app-height) * 0.115), 100px);
-  width: var(--main);
-  height: var(--main);
-  background: var(--surface-solid-2);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
-}
-
-/* Resume is the one accent thing on a paused screen. */
-.main[data-paused] {
-  color: var(--on-accent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 55%, transparent), var(--accent-glow);
-  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 55%);
-}
-
-.main[data-paused] > svg {
-  /* The play triangle looks centred a hair to the right. */
-  transform: translateX(2px);
-}
-
-.side,
-.hold {
-  width: 64px;
-  height: 64px;
-  color: var(--text);
-}
-
-.side {
-  background: var(--surface-solid);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-}
-
-.hold[data-big] {
-  width: 96px;
-  height: 96px;
-}
-
-.holdFace {
-  position: absolute;
-  inset: 6px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-md);
-  background: var(--surface-solid);
-}
-
-.hold[data-tone='end'] .holdFace {
-  color: var(--red-text);
-}
-
-.hold[data-tone='end'] .holdFace > svg {
-  fill: currentColor;
-}
-
-/* The ring: a faint track always there (it says "this one is held"), filled while the finger is down. */
-.holdRing {
+.holdFill {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
 }
 
-.holdTrack,
-.holdFill {
-  fill: none;
-  stroke-width: 6;
+.hold[data-holding] .holdWords {
+  color: var(--accent);
 }
 
-.holdTrack {
-  stroke: var(--hairline-strong);
+/* Locked: the one control, centred words over a full width track, taller to find blind. */
+.hold[data-big] {
+  min-height: var(--tap-lg);
+  align-items: stretch;
 }
 
-.holdFill {
-  stroke: var(--accent);
-  stroke-linecap: round;
+.hold[data-big] .holdWords {
+  justify-content: center;
+  font-size: var(--text-mono-body);
 }
 
-.hold[data-tone='end'] .holdFill {
-  stroke: var(--red);
+/* Lock: a word with a small mark, at the right of the row. */
+.lock {
+  flex: none;
+  min-width: 64px;
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-/* Nothing drawn at rest (a round cap would leave a dot at the top). */
-.hold:not([data-holding]) .holdFill {
-  visibility: hidden;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .main:active,
-  .side:active,
-  .hold:active {
-    transform: none;
-    opacity: var(--press-dim);
-  }
+.lock:active {
+  opacity: var(--press-dim);
 }

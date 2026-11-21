@@ -17,7 +17,7 @@ const SECONDS = 150;
 const SETTLE_SEC = 10;
 const toSec = (text: string) => text.split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
 const km = async (page: Page) => Number(await page.getByTestId('live-big').textContent());
-const smallText = async (page: Page, m: 'time' | 'pace') => (await page.getByTestId(`live-small-${m}`).locator('span').first().textContent())!;
+const smallText = async (page: Page, m: 'time' | 'pace') => (await page.getByTestId(`live-small-${m}`).locator('[data-value]').textContent())!;
 
 /** The fixes of the first SECONDS, without the phone's speed (Playwright has none). */
 const fixesOf = (trace: Trace) => trace.fixes.filter((f) => f.stamp - trace.t0 <= SECONDS * 1000);

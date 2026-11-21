@@ -8,8 +8,8 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--bg);
-  --run-pad-l: calc(var(--space-4) + var(--safe-left));
-  --run-pad-r: calc(var(--space-4) + var(--safe-right));
+  --run-pad-l: calc(var(--side) + var(--safe-left));
+  --run-pad-r: calc(var(--side) + var(--safe-right));
 }
 
 /* Everything that floats on the map. It only scrolls when the controls cannot fit (very large
@@ -24,8 +24,8 @@
   pointer-events: none;
 }
 
-/* The title, the gym pill and the status chips float on the map, over a soft fade of the background so they read
-   on any map. Only the chips take touches; the map under the fade still drags. */
+/* The title, the gym chip and the GPS label float straight on the dark map (Monolith: no fade, no
+   box). Only the controls take touches; the map around them still drags. */
 .top {
   position: relative;
   flex: none;
@@ -33,7 +33,6 @@
   flex-direction: column;
   align-items: flex-start;
   padding: calc(var(--safe-top) + var(--space-2)) var(--run-pad-r) var(--space-6) var(--run-pad-l);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 72%, transparent), color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent);
   pointer-events: none;
 }
 
@@ -60,10 +59,12 @@
 
 .title {
   min-width: 0;
-  font-size: clamp(26px, 8.2vw, 34px);
-  font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+  /* One line beside the gym chip, so the map keeps its room. */
+  font-size: var(--text-mono-heading-pair);
+  font-weight: var(--weight-heavy);
+  line-height: 1;
+  letter-spacing: var(--track-heading);
   text-wrap: balance;
 }
 
@@ -76,29 +77,22 @@
   margin: -2px 0 -8px -4px;
 }
 
-/* The GPS chip: a 48 pt hit area around a small glass pill with a status light. */
+/* The GPS state (PLAN M12): a small uppercase label with a small square mark in its tone, no box,
+   inside a 48 pt hit area. */
 .gps {
   display: inline-flex;
   align-items: center;
   min-height: 48px;
   min-width: 48px;
   padding: 0 4px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-none);
 }
 
 .gpsFace {
+  composes: label from '../../ui/DataField.module.css';
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 32px;
-  padding: 4px 12px 4px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--glass-line);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
   text-align: left;
 }
 
@@ -106,13 +100,12 @@
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-none);
   background: var(--text-3);
 }
 
 .gps[data-tone='ok'] .gpsDot {
   background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .gps[data-tone='warn'] .gpsDot {
   background: var(--amber);
@@ -124,9 +117,9 @@
 .gps[data-status='denied'] .gpsDot {
   background: var(--red);
 }
-/* Not asked yet: the chip is the one next step for the map, so it is outlined in the accent. */
+/* Not asked yet: the label is the one next step for the map, so it reads in the accent. */
 .gps[data-status='ask'] .gpsFace {
-  border-color: var(--accent-line);
+  color: var(--accent);
 }
 
 @keyframes seek {
@@ -145,48 +138,48 @@
   flex: 1 0 64px;
   display: flex;
   align-items: flex-end;
-  background: linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 60%, transparent) 22px, transparent 56px);
   justify-content: space-between;
   gap: var(--space-3);
   padding: 0 calc(var(--run-pad-r) - 2px) 0 var(--run-pad-l);
   pointer-events: none;
 }
 
-/* The controls, on the app background under the map. */
+/* The controls, on the app background under the map, from the left edge: the modes, a hairline,
+   the goal with the music words, then Start over the ice line. */
 .panel {
   position: relative;
   flex: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-2);
-  padding: var(--space-1) var(--run-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px)) var(--run-pad-l);
+  padding: var(--space-1) var(--run-pad-r) calc(var(--tabbar-space) + var(--resume-space, 0px) + var(--space-3)) var(--run-pad-l);
   background: var(--bg);
+  border-top: var(--divider);
   pointer-events: none;
 }
 
-/* The four run types: one row; the cells are sized in em, so with very large text they wrap
-   instead of cutting a word. */
+/* The four modes (PLAN M12): words in one row, the chosen one white with an ice line under it. With
+   very large text the row wraps instead of cutting a word. */
 .types {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(5em, 1fr));
-  gap: var(--space-2);
-  font-size: 0.8125rem;
-}
-
-/* One row: what this run is (left) and the music buttons (right), right above Start. With very
-   large text the music buttons move under the goal instead of squeezing it. */
-.row {
-  width: 100%;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   justify-content: space-between;
   gap: 0 var(--space-2);
 }
 
-/* The same height for every run type, so nothing shifts when the type changes. */
+/* What this run is (left) and the music words (right). With very large text the music moves under
+   the goal instead of squeezing it. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+}
+
+/* The goal: a small capital label over one giant line ("5 km", "30 min", "No goal"). The same
+   height for every run type, so nothing shifts when the type changes. */
 .goal {
   flex: 1 1 auto;
   min-height: 48px;
@@ -195,68 +188,48 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  gap: 1px;
-  margin-left: calc(var(--space-2) * -1);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-md);
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
   text-align: left;
+}
+
+.goalKicker {
+  composes: label from '../../ui/DataField.module.css';
 }
 
 .goalLabel {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.15;
+  gap: var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-mono-heading);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-heading);
+  line-height: 1;
 }
 
 .goalLabel > svg {
-  color: var(--text-2);
+  flex: none;
+  color: var(--accent);
 }
 
 .goalDetail {
   color: var(--text-2);
-  font-size: 13px;
-  line-height: 1.25;
+  font-size: var(--text-mono-caption);
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .music {
   flex: none;
   display: flex;
-  margin-right: -3px;
+  margin-right: -6px;
 }
 
-/* Start: the one accent thing on the screen. A big round button in the thumb zone; it shrinks a
-   little on short phones so the map keeps its room. */
+/* Start (PLAN M12): the screen's one action, big words over the ice line (ui/Button primary). */
 .start {
-  --start: clamp(88px, calc(var(--app-height) * 0.14), 116px);
   flex: none;
-  width: var(--start);
-  height: var(--start);
-  margin-top: var(--space-1);
-  border-radius: var(--radius-md);
-  background: linear-gradient(to bottom, var(--accent-hi), var(--accent) 55%);
-  color: var(--on-accent);
-  font-family: var(--font-display);
-  font-size: clamp(20px, calc(var(--start) * 0.22), 26px);
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--white) 55%, transparent),
-    0 0 0 6px var(--accent-soft),
-    var(--accent-glow);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: transform 160ms var(--ease-out);
-}
-
-.start:active {
-  transform: scale(var(--press-scale));
-  transition-duration: 0ms;
 }
 
 /* Sheets of this screen: a title, a few plain lines, the choices. */
@@ -268,9 +241,11 @@
 }
 
 .sheetTitle {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  line-height: 1.2;
+  font-family: var(--font-display);
+  font-size: var(--text-mono-heading-pair);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-heading);
+  line-height: 1.1;
 }
 
 .sheetLine {
@@ -293,9 +268,10 @@
 }
 
 .presets {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
 }
 
 .custom {
@@ -312,16 +288,12 @@
 .choices {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  border-top: var(--divider);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .gps[data-tone='busy'] .gpsDot {
     animation: none;
-  }
-  .start:active {
-    transform: none;
-    opacity: var(--press-dim);
   }
 }
 
@@ -333,7 +305,16 @@
        the 320 x 568 floor (the map gives up the room, the controls keep their spacing). */
     padding-bottom: var(--space-2);
   }
+  /* The goal and the panel tighten so Start stays above the docked tab bar. */
+  .goalLabel {
+    font-size: var(--text-mono-heading-pair);
+  }
+  .panel {
+    gap: var(--space-1);
+    padding-bottom: calc(var(--tabbar-space) + var(--resume-space, 0px));
+  }
 }
+
 
 /* Run settings: a quiet round button at the right end of the status chips. */
 .settingsSlot {

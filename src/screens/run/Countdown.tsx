@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Button } from '../../ui/Button';
 import { buzz } from '../../ui/haptics';
 import styles from './Countdown.module.css';
 
@@ -23,10 +24,11 @@ type Props = {
 };
 
 /**
- * The 3, 2, 1, GO before a run (SPEC 12.1, PLAN 4.4a). A full screen graphite layer with one giant
- * ice number at a time; each arrives with a tick and a short scale and fade (CSS keyframes on
- * transform and opacity only, so the compositor runs them and nothing is measured or injected).
- * GO lights the whole layer ice, then it darkens into the live screen's black. The beats are timed
+ * The 3, 2, 1, GO before a run (SPEC 12.1, PLAN 4.4a, Monolith board 05 in PLAN M2). A full screen
+ * flat graphite layer with one giant white number at a time (about 60% of the screen height); each
+ * arrives with a tick and a short scale and fade (CSS keyframes on transform and opacity only, so the
+ * compositor runs them and nothing is measured or injected). GO is the one ice word, then the layer
+ * darkens into the live screen's black. The beats are timed
  * from the first frame, so a slow phone never stretches the count. Cancel, or leaving the app,
  * stops it: a run never starts by itself minutes later. Reduced motion: fades only.
  *
@@ -83,8 +85,6 @@ export function Countdown({ reduceMotion, onDone, onCancel }: Props) {
       aria-modal="true"
       aria-label="Starting your run"
     >
-      <span className={styles.glow} aria-hidden="true" />
-      <span className={styles.ice} aria-hidden="true" />
       <p className={styles.kicker} aria-hidden="true">
         {go ? 'Run' : 'Get ready'}
       </p>
@@ -100,9 +100,9 @@ export function Countdown({ reduceMotion, onDone, onCancel }: Props) {
             <span key={i} className={styles.pip} data-on={i <= COUNT_FROM - beat || undefined} />
           ))}
         </span>
-        <button type="button" className={`${styles.cancel} pressable`} onClick={onCancel} data-testid="run-count-cancel" disabled={go}>
+        <Button variant="quiet" className={styles.cancel} onClick={onCancel} data-testid="run-count-cancel" disabled={go}>
           Cancel
-        </button>
+        </Button>
       </div>
       <span className={styles.black} aria-hidden="true" />
     </div>,

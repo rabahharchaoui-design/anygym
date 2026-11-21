@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { IntervalEditor } from './IntervalEditor';
 import { Button } from '../../ui/Button';
-import { Chip } from '../../ui/Chip';
+import { WordToggle } from '../../ui/WordToggle';
 import { ChoiceCard } from '../../ui/ChoiceCard';
 import { Segmented } from '../../ui/Segmented';
 import { Sheet } from '../../ui/Sheet';
@@ -51,9 +51,9 @@ export function GoalSheet({ kind, setup, unit, onChange, onUnit, onClose }: Prop
         {shown === 'intervals' && (
           <div className={styles.choices}>
             {INTERVAL_PRESETS.map((p) => (
-              <ChoiceCard key={p.id} label={p.label} hint={p.detail} picked={setup.interval === p.id} onPress={() => (onChange({ interval: p.id }), onClose())} testId={`interval-${p.id}`} />
+              <ChoiceCard key={p.id} label={p.label} hint={p.detail} picked={setup.interval === p.id} onPress={() => (onChange({ interval: p.id }), onClose())} testId={`interval-${p.id}`} flat />
             ))}
-            <ChoiceCard label="Custom" hint={planWords(setup.custom)} picked={setup.interval === 'custom'} onPress={() => onChange({ interval: 'custom' })} testId="interval-custom" />
+            <ChoiceCard label="Custom" hint={planWords(setup.custom)} picked={setup.interval === 'custom'} onPress={() => onChange({ interval: 'custom' })} testId="interval-custom" flat />
             {setup.interval === 'custom' && (
               <>
                 <IntervalEditor plan={setup.custom} onChange={(custom) => onChange({ custom })} />
@@ -78,9 +78,13 @@ function DistancePicker({ goal, unit, onUnit, onPick }: { goal: DistanceGoal; un
     <>
       <div className={styles.presets} role="group" aria-label="Distance">
         {DISTANCE_PRESETS.map((p) => (
-          <Chip key={distanceLabel(p)} label={distanceLabel(p)} picked={!custom && sameDistance(p, goal)} onPress={() => onPick(p)} block small testId={`distance-${p.value}-${p.unit}`} />
+          <WordToggle key={distanceLabel(p)} picked={!custom && sameDistance(p, goal)} onPress={() => onPick(p)} testId={`distance-${p.value}-${p.unit}`}>
+            {distanceLabel(p)}
+          </WordToggle>
         ))}
-        <Chip label="Custom" picked={custom} onPress={() => setCustom(true)} block small testId="distance-custom" />
+        <WordToggle picked={custom} onPress={() => setCustom(true)} testId="distance-custom">
+          Custom
+        </WordToggle>
       </div>
       {custom && (
         <div className={styles.custom} data-testid="distance-wheel">
@@ -115,9 +119,13 @@ function TimePicker({ min, onPick }: { min: number; onPick: (min: number) => voi
     <>
       <div className={styles.presets} role="group" aria-label="Time">
         {TIME_PRESETS_MIN.map((m) => (
-          <Chip key={m} label={timeLabel(m)} picked={!custom && m === min} onPress={() => onPick(m)} block small testId={`time-${m}`} />
+          <WordToggle key={m} picked={!custom && m === min} onPress={() => onPick(m)} testId={`time-${m}`}>
+            {timeLabel(m)}
+          </WordToggle>
         ))}
-        <Chip label="Custom" picked={custom} onPress={() => setCustom(true)} block small testId="time-custom" />
+        <WordToggle picked={custom} onPress={() => setCustom(true)} testId="time-custom">
+          Custom
+        </WordToggle>
       </div>
       {custom && (
         <div className={styles.custom} data-testid="time-wheel">

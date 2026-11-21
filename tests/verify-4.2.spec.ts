@@ -102,8 +102,9 @@ test.describe('4.2 run start screen', () => {
     expect(s!.y - (m!.y + m!.height), 'nothing between music and Start').toBeLessThanOrEqual(32);
     expect(t!.y + t!.height, 'run types sit above music').toBeLessThanOrEqual(m!.y + 1);
     expect(s!.y + s!.height, 'Start clears the tab bar').toBeLessThanOrEqual(tab!.y);
-    expect(s!.width, 'one huge Start button').toBeGreaterThanOrEqual(88);
-    expect(Math.abs(s!.width - s!.height)).toBeLessThan(1);
+    // PLAN M12 (SPEC 23.2 Monolith): Start is big words over the ice line, full width (was a round button).
+    expect(s!.width, 'one huge Start button').toBeGreaterThanOrEqual(page.viewportSize()!.width * 0.8);
+    expect(s!.height, 'at least 56 pt tall').toBeGreaterThanOrEqual(56);
     const vh = page.viewportSize()!.height;
     expect(s!.y + s!.height / 2, 'Start is in the thumb zone').toBeGreaterThan(vh / 2);
     // The map is the hero (SPEC 12.1 "big map"): full bleed from the very top of the screen down to
