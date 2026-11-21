@@ -19,34 +19,6 @@
   border-bottom: var(--divider);
 }
 
-/* The shared sliding toggle as words: no track, no filled pill; the picked word white over an ice
-   line that slides between them on the same spring. */
-.units [role='radiogroup'][data-block] {
-  background: none;
-  box-shadow: none;
-  padding-inline: 0;
-}
-
-.units [role='radiogroup'][data-block] [data-pill] {
-  top: auto;
-  bottom: 6px;
-  left: 0;
-  width: calc(100% / var(--n));
-  height: 2px;
-  background: var(--accent);
-}
-
-.units [role='radiogroup'][data-block] [role='radio'] {
-  color: var(--text-2);
-  font-size: var(--text-mono-body);
-  font-weight: 600;
-}
-
-.units [role='radiogroup'][data-block] [role='radio'][aria-checked='true'] {
-  color: var(--text);
-  font-weight: 700;
-}
-
 .unitRow > :last-child {
   /* Up to 58%, and shrinks when a long label (130% text) needs the room: no sideways overflow. */
   flex: 1 1 58%;
