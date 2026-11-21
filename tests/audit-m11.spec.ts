@@ -2,6 +2,7 @@ import { expect, test, type Page } from './fixtures';
 import { DEVICE, note, shot } from './helpers/auditShot';
 import { firstFix, holdFor, live, move, openRun, wake } from './helpers/run';
 import { stubTiles } from './helpers/tiles';
+import { bar185, exerciseView, seedFinished, usePlan } from './workout-helpers';
 
 // PLAN M11 (1): a screenshot of every screen and menu as the app is now, on the iPhone 15 Pro
 // (the "iPhone 15" project, 393 x 852) and the iPhone SE (375 x 667). One test per screen group.
@@ -178,4 +179,122 @@ test('run', async ({ page, context }) => {
   await expect(page.getByTestId('run-start')).toBeVisible();
   await shot(page, G, '18-start-after-done', 'summary, Done: back on the start screen');
   note('run: summary variants (saved, too short) not separate; Done path shown; the short-run discard variant is not shot');
+});
+
+async function openDay(page: Page) {
+  await page.goto('./');
+  await seedFinished(page, { 'barbell-back-squat': [{ reps: 8, load: bar185 }, { reps: 8, load: bar185 }] });
+  await usePlan(page);
+  await page.getByRole('button', { name: 'Start', exact: true }).tap();
+  await expect(page.getByTestId('workout-title')).toBeVisible();
+}
+
+test('workout', async ({ page }) => {
+  const G = 'workout';
+  await openDay(page);
+  await shot(page, G, '01-day-list', 'Today, Start: workout day list (Day 1 of the 5 day split)', true);
+  await page.getByRole('button', { name: /How much time today/ }).tap({ timeout: 3000 }).catch(() => undefined);
+  if (await page.getByRole('dialog').isVisible().catch(() => false)) {
+    await shot(page, G, '02-time-budget-sheet', 'day list, tap the minutes line: time budget sheet');
+    await page.keyboard.press('Escape');
+  } else note('workout/02-time-budget-sheet not reachable by the minutes button');
+  await page.getByTestId('row-barbell-back-squat').tap();
+  const view = exerciseView(page, 'barbell-back-squat');
+  await expect(view).toBeVisible();
+  await shot(page, G, '03-exercise', 'day list, tap Barbell Back Squat: exercise view with demo hero', false);
+  await shot(page, G, '03b-exercise-scrolled', 'exercise view, full page (muscles, how to, watch out)', true);
+  await view.getByTestId('weight-cell').first().tap();
+  const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
+  await expect(sheet).toBeVisible();
+  await shot(page, G, '04-weight-sheet-empty', 'exercise, tap Set 1 weight: weight sheet, bar only');
+  await sheet.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+  await sheet.getByRole('button', { name: 'Add 25 lb plate to each side' }).tap();
+  await shot(page, G, '05-weight-sheet-plates', 'weight sheet, add 45 and 25 lb plates: plate diagram, 185 lb');
+  await sheet.getByRole('button', { name: 'Done' }).tap();
+  await expect(sheet).toHaveCount(0);
+  await view.getByTestId('check-current').tap();
+  await expect(page.getByTestId('rest-timer')).toBeVisible();
+  await shot(page, G, '06-set-logged-rest-running', 'log set 1 with the check: rest timer running');
+  await page.getByTestId('rest-timer').tap().catch(() => undefined);
+  await shot(page, G, '06b-rest-timer-tapped', 'tap the rest timer');
+  await page.getByRole('button', { name: /^Set 1.*\. Edit$/ }).first().tap();
+  const edit = page.getByRole('dialog', { name: 'Edit set' });
+  if (await edit.isVisible().catch(() => false)) {
+    await shot(page, G, '07-edit-set-sheet', 'tap the logged set 1 row: Edit set sheet');
+    await page.keyboard.press('Escape');
+    await expect(edit).toHaveCount(0);
+  } else note('workout/07-edit-set-sheet not reachable');
+  await page.getByRole('button', { name: /Change set type/ }).first().tap();
+  await shot(page, G, '08-set-type-sheet', 'tap the set number chip: set type sheet');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'More for Barbell Back Squat' }).tap();
+  await shot(page, G, '09-exercise-menu', 'exercise, tap the ... button: exercise menu');
+  await page.getByTestId('rest-row').tap();
+  await shot(page, G, '10-rest-setting', 'exercise menu, Rest after each set');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'More for Barbell Back Squat' }).tap().catch(() => undefined);
+  await page.getByRole('button', { name: /^Remove/ }).first().tap().catch(() => undefined);
+  await shot(page, G, '11-remove-exercise', 'exercise menu, tap Remove: confirm or toast, whatever shows');
+});
+
+test('workout sheets and demo', async ({ page }) => {
+  const G = 'workout';
+  await openDay(page);
+  await page.getByTestId('row-barbell-back-squat').tap();
+  const view = exerciseView(page, 'barbell-back-squat');
+  await expect(view).toBeVisible();
+  await page.waitForTimeout(500);
+  await view.getByRole('button', { name: 'How to do Barbell Back Squat' }).first().tap();
+  await page.waitForTimeout(600);
+  await shot(page, G, '12-demo-viewer-or-info-sheet', 'exercise, tap the demo picture: full screen demo / info sheet with the demo');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Back to the list' }).tap();
+  await page.getByTestId('row-decline-bench-sit-up').tap();
+  const none = exerciseView(page, 'decline-bench-sit-up');
+  await expect(none).toBeVisible();
+  await shot(page, G, '15-exercise-no-demo', 'day list, tap Decline Bench Sit Up: exercise with no demo');
+  await none.getByRole('button', { name: 'How to do Decline Bench Sit Up' }).tap();
+  await expect(page.getByTestId('exercise-sheet')).toHaveAttribute('data-match', 'none');
+  await shot(page, G, '16-info-sheet-demo-hidden', 'tap the picture of an exercise with no demo: info sheet, Demo coming soon');
+});
+
+test('workout finish', async ({ page }) => {
+  const G = 'workout';
+  await openDay(page);
+  await page.getByTestId('row-barbell-back-squat').tap();
+  const view = exerciseView(page, 'barbell-back-squat');
+  await view.getByTestId('weight-cell').first().tap();
+  const sheet = page.getByRole('dialog', { name: 'Pick the weight' });
+  await sheet.getByRole('button', { name: 'Add 45 lb plate to each side' }).tap();
+  await sheet.getByRole('button', { name: 'Done' }).tap();
+  await view.getByTestId('check-current').tap();
+  await view.getByTestId('check-current').tap();
+  await page.getByRole('button', { name: 'Finish' }).tap();
+  await page.waitForTimeout(500);
+  if (!/done$/.test(page.url())) {
+    await shot(page, G, '17-finish-confirm', 'tap Finish with sets left: confirm sheet');
+    await page.getByRole('button', { name: /Finish|End|Yes/ }).last().tap();
+  }
+  await expect(page).toHaveURL(/done$/);
+  await shot(page, G, '18-workout-finished', 'Finish: "Workout finished" screen', true);
+  await page.getByTestId('finish-change').tap({ timeout: 2000 }).catch(() => undefined);
+  await shot(page, G, '19-finish-change-day', 'finish screen, change next day sheet (if any)');
+});
+
+test('workout quick-start picker', async ({ page }) => {
+  const G = 'workout';
+  await page.goto('./');
+  await page.getByRole('button', { name: /Quick workout/ }).tap();
+  await expect(page).toHaveURL(/#\/workout\//);
+  const picker = page.getByRole('dialog', { name: 'Add exercise' });
+  await expect(picker).toBeVisible();
+  await shot(page, G, '13-add-exercise-picker', 'Today, Quick workout (the empty one): Add exercise picker sheet');
+  await picker.getByRole('searchbox', { name: 'Search exercises' }).fill('zzzz');
+  await shot(page, G, '14-add-exercise-no-results', 'picker, search for zzzz: empty state');
+  await picker.getByRole('searchbox', { name: 'Search exercises' }).fill('back squat');
+  await picker.getByRole('button', { name: 'Barbell Back Squat', exact: true }).tap();
+  await shot(page, G, '14b-add-exercise-one-picked', 'picker, one exercise picked: Add 1 button');
+  await picker.getByRole('button', { name: 'Add 1' }).tap();
+  await expect(picker).toHaveCount(0);
+  await shot(page, G, '14c-quick-day-list', 'quick workout day list after adding exercises (empty-ish quick list with + Add exercise)', true);
 });
