@@ -4,17 +4,18 @@ import { describe, expect, it } from 'vitest';
 import { activeTab, TABS } from '../tabs';
 
 describe('tabs (SPEC 23.1, PLAN M1)', () => {
-  it('four tabs, same routes and words as before', () => {
+  it('five tabs in the boards order (PLAN M14), the old routes kept', () => {
     expect(TABS.map((t) => [t.to, t.label])).toEqual([
       ['/', 'Today'],
+      ['/plans', 'Plan'],
       ['/run', 'Run'],
       ['/history', 'History'],
-      ['/plans', 'Plans'],
+      ['/settings', 'You'],
     ]);
   });
   it('a path lights its own tab, a listed route, or anything below it', () => {
     expect(activeTab('/')).toBe('/');
-    expect(activeTab('/settings')).toBe('/');
+    expect(activeTab('/settings')).toBe('/settings');
     expect(activeTab('/run')).toBe('/run');
     expect(activeTab('/history/abc')).toBe('/history');
     expect(activeTab('/plans/five-day')).toBe('/plans');
