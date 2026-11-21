@@ -5,7 +5,7 @@ import styles from './MusicLinks.module.css';
 const ICONS = { spotify: AudioLinesIcon, apple: MusicIcon } as const;
 
 /**
- * The music buttons (SPEC 11, 12.1): Spotify and Apple Music, as two small pills. Each is a plain link the user taps,
+ * The music buttons (SPEC 11, 12.1): Spotify and Apple Music, as two plain words. Each is a plain link the user taps,
  * which hands over to the music app (lib/music.ts says what works where). Nothing here plays,
  * pauses or reads what is playing.
  */
