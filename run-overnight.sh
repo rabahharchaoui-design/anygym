@@ -43,7 +43,7 @@ week_allowed(){ # G, Nov 17: never leave G with nothing; spread what is left eve
   if [ "$wr0" != "$wr" ]; then echo "$wr $now ${w:-0}" > .week-pace; line="$wr $now ${w:-0}"; fi
   t0=$(echo "$line" | cut -d' ' -f2); p0=$(echo "$line" | cut -d' ' -f3)
   span=$(( wr - 14400 - t0 )); [ $span -lt 3600 ] && { echo $stop; return; }
-  local lead=${WEEK_LEAD:-20};   # G, Nov 22: "if you can go, let's go"; still 85% max by 4 h before the reset
+  local lead=${WEEK_LEAD:-25};   # G, Nov 22: "if you can go, let's go"; still 85% max by 4 h before the reset
    local a=$(( p0 + lead + (stop - p0 - lead) * (now - t0) / span )); [ $a -gt $stop ] && a=$stop; echo $a   # lead: may run this far ahead of the even pace (Nov 19: a lead of 2 made runs stop after 4 min)
 }
 over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w:-0}" -ge "$(week_allowed)" ] && { echo week; return 0; }; local cap=${FIVE_STOP:-74}; if [ -f .five-override ]; then read -r oc ou < .five-override; case "$oc" in ""|*[!0-9]*) oc=${FIVE_STOP:-74};; esac; [ "$(date +%s)" -lt "${ou:-0}" ] 2>/dev/null && cap=$oc; fi; [ "${f:-0}" -ge $cap ] && { echo five; return 0; }; return 1; }   # .five-override "cap until": a one run exception G approved

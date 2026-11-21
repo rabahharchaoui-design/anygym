@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: PARTLY HANDLED by Claude Nov 22 4 AM: fixed 1 (agents cut at 10 min), 4 (override cap), 8 (stale .tried gate), 9 (pool decimals). Open: 2, 3, 5, 6, 7, 10, 11, 12, 13, 14.
 # Grok Build consult: loop-audit (Nov 22 03:54)
 
 I'll audit the loop scripts only, starting with the project docs and then the helper files you named.
