@@ -33,15 +33,58 @@
   display: none;
 }
 
-/* What the choice means: a quiet glass note, never a control. */
+/* What the choice means: a quiet note on the page, never a control (PLAN M13: no box). */
 .means {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface-1) 60%, transparent);
+  padding: var(--space-2) 0;
+}
+
+/* PLAN M13 (Monolith): the shared weekday chips as a hairline grid of words, four across; picked,
+   the day is white over an ice line. No chip boxes. */
+.days [role='group'] {
+  gap: 0;
+  border-top: var(--divider);
+}
+
+.days [role='group'] > button[aria-pressed] {
+  position: relative;
+  justify-content: center;
+  border: 0;
+  border-bottom: var(--divider);
+  border-radius: var(--radius-none);
+  background: none;
+  color: var(--text-2);
+}
+
+.days [role='group'] > button[aria-pressed='true'] {
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.days [role='group'] > button[aria-pressed]::after {
+  content: '';
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: calc(-1 * var(--line-hair));
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.days [role='group'] > button[aria-pressed='true']::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .days [role='group'] > button[aria-pressed]::after {
+    transition: none;
+  }
 }
 
 .meansTitle {
@@ -56,4 +99,10 @@
   margin: 0;
   font-size: var(--text-sm);
   line-height: 1.4;
+}
+
+/* Three long answers with a line under each: their names a step under the other lists, so the
+   weekdays under them stay above the button. */
+.step button[data-flat] > :nth-child(2) > :first-child {
+  font-size: var(--text-mono-unit);
 }

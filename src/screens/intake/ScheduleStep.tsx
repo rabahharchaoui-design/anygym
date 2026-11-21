@@ -7,6 +7,7 @@ import { ChoiceCard } from '../../ui/ChoiceCard';
 import { WeekdayChips } from '../../components/WeekdayChips';
 import intake from './Intake.module.css';
 import styles from './Schedule.module.css';
+import rowStyles from './IntakeRows.module.css';
 
 const ICONS = { fixed: CalendarDays, flexible: Repeat, weekly: CalendarClock } as const;
 /** What the picked style means on Today, in plain words. */
@@ -34,9 +35,9 @@ export function ScheduleStep({ answers, onStyle, onDays }: { answers: IntakeAnsw
   }, [style]);
   return (
     <div className={styles.step} data-testid="q-weekdays">
-      <div className={intake.cards} data-fill role="group" aria-label="Schedule style">
+      <div className={`${intake.cards} ${rowStyles.list}`} data-fill role="group" aria-label="Schedule style">
         {SCHEDULE_STYLES.map((s) => (
-          <ChoiceCard key={s.id} icon={ICONS[s.id]} label={s.label} hint={s.hint} picked={s.id === style} onPress={() => onStyle(s.id)} testId={`q-schedule-${s.id}`} />
+          <ChoiceCard key={s.id} icon={ICONS[s.id]} label={s.label} hint={s.hint} picked={s.id === style} onPress={() => onStyle(s.id)} flat testId={`q-schedule-${s.id}`} />
         ))}
       </div>
       <div ref={detail} className={styles.detail}>
