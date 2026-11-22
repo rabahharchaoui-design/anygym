@@ -1,0 +1,9 @@
+I'll audit the offline and app-update path against the spec, starting with the project docs and the newest reports so I don't repeat findings already listed.
+
+The newest PWA reports and the spec sections on updates, offline, and storage are next, so I can judge only what's already built.
+
+The last PWA audit found nothing new after the candidate-catalog fix. I’ll read the spec rules and the current update, cache, and storage code for anything that landed since.
+
+The last PWA pass was clean after the candidate-list fix. I’ll read the update, cache, migration, and reminder code for anything that landed since.
+
+I'll confirm the update and countdown paths in the current source, then write only the audit.
