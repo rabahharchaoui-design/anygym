@@ -1,3 +1,6 @@
+STATUS: NEW
+Grok Build feel audit, written Nov 22 14:12 at f6201503. A second opinion, not orders: SPEC.md wins.
+
 I'll start with the project rules and the newest audit reports, then check only the iPhone feel issues those reports have not already listed.
 
 The newest reports and SPEC sections 13 and 23 are next, so I only flag feel issues that are not already listed.

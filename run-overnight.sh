@@ -34,7 +34,7 @@ say(){ echo "=== $* $(date) ===" >> "$LOG"; }
 # G, Nov 15: build any time, but while G is awake (9 AM to 2 AM Guam) leave him 20% of each 5 hour window, and always keep 15% of the week.
 # Numbers come from .usage-tap, written by the status line tap (.claude/usage-tap.sh) with Claude Code's own rate limit data.
 awake(){ local h=$((10#$(tk +%H))); [ $h -ge 9 ] || [ $h -lt 2 ]; }
-tap_fresh(){ [ -f .usage-tap ] || return 1; local ts=$(grep '^ts=' .usage-tap | cut -d= -f2); [ -n "$ts" ] && [ $(( $(date +%s) - ts )) -lt 1200 ]; }
+tap_fresh(){ [ -f .usage-tap ] || return 1; local ts=$(grep '^ts=' .usage-tap | cut -d= -f2); [ -n "$ts" ] && [ $(( $(date +%s) - ts )) -lt 600 ]; }   # G rule 5 (Nov 22): readings older than 10 minutes are not trusted
 tapv(){ grep "^$1=" .usage-tap 2>/dev/null | cut -d= -f2; }
 week_allowed(){ # G, Nov 17: never leave G with nothing; spread what is left evenly until the weekly reset
   local stop=${WEEK_STOP:-85} wr=$(tapv week_reset) w=$(tapv week) now=$(date +%s) line wr0 t0 p0 span
@@ -50,8 +50,8 @@ over_limit(){ tap_fresh || return 1; local f=$(tapv five) w=$(tapv week); [ "${w
 tap_age(){ local ts=$(tapv ts); [ -n "$ts" ] && echo $(( $(date +%s) - ts )) || echo 99999; }
 probe(){ local root="$PWD" d="$HOME/.cache/anygym-probe"; mkdir -p "$d"; date +%s > .usage-probe-at; ( cd "$d" && perl -e 'alarm shift; exec @ARGV' 90 claude --model haiku --output-format stream-json --verbose -p "Reply with OK only." 2>/dev/null | node "$root/.loop-tools/stream-tap.mjs" "$root/.usage-tap" >/dev/null 2>&1 ); }
 probe_due(){ [ $(tap_age) -gt ${PROBE_EVERY:-300} ] || return 1; local pa=$(cat .usage-probe-at 2>/dev/null); [ $(( $(date +%s) - ${pa:-0} )) -gt ${PROBE_EVERY:-300} ]; }
-hold_set(){ local r=$(tapv five_reset); [ -n "$r" ] && [ "$r" -gt $(date +%s) ] 2>/dev/null || r=$(( $(date +%s) + 3600 )); echo "$r" > .usage-hold; }   # never restart before the 5h window resets
-usage_watch(){ while sleep 30; do probe_due && probe; local why=$(over_limit); if [ -n "$why" ]; then [ "$why" = five ] && hold_set; echo "=== usage guard: $why limit reached ($(tapv five)% of 5h, $(tapv week)% of week), stopping this run $(date) ===" >> "$LOG"; echo "$why" > .usage-stop; pkill -TERM -P $1 2>/dev/null; kill -TERM $1 2>/dev/null; return; fi; done; }
+hold_set(){ local r=$(tapv five_reset) cap=$(( $(date +%s) + 14400 )); [ -n "$r" ] && [ "$r" -gt $(date +%s) ] 2>/dev/null || r=$(( $(date +%s) + 3600 )); [ "$r" -gt "$cap" ] && r=$cap; echo "$r" > .usage-hold; }   # G rule 11: holds expire within 4 hours   # never restart before the 5h window resets
+usage_watch(){ while sleep 30; do probe_due && probe; local why=$(over_limit); [ -z "$why" ] && ! tap_fresh && [ $(( $(date +%s) - $(cat .usage-probe-at 2>/dev/null || echo 0) )) -gt 120 ] && why=stale; if [ -n "$why" ]; then [ "$why" = five ] && hold_set; echo "=== usage guard: $why limit reached ($(tapv five)% of 5h, $(tapv week)% of week), stopping this run $(date) ===" >> "$LOG"; echo "$why" > .usage-stop; pkill -TERM -P $1 2>/dev/null; kill -TERM $1 2>/dev/null; return; fi; done; }
 ntfy(){ local t=$(cat "$HOME/.config/anygym/ntfy-topic" 2>/dev/null); [ -n "$t" ] && curl -s -o /dev/null --max-time 10 -H "Title: $1" -H "Tags: $3" -H "Click: https://rabahharchaoui-design.github.io/anygym/" -d "$2" "https://ntfy.sh/$t"; }
 # One ntfy push per cloud builder run, so G sees in the morning that the cloud (free credit) worked.
 cloudcheck(){ git fetch -q origin 2>/dev/null || return
@@ -115,6 +115,8 @@ while [ $n -lt 300 ]; do
     else SELF_HASH=$(md5 -q run-overnight.sh 2>/dev/null); say "loop script changed but does not parse, keeping the running one"; ntfy "AnyGym: loop edit rejected" "A change to the build loop did not parse on gmini, so the old loop keeps running. Claude is fixing it." "warning"; fi
   fi
   # Grok helper (G, Nov 17): live tests through Grok Bot, reviews and audits through the Grok Build CLI. Keep it running.
+  dups=$(awk '/^- \[[ x!]\] /{t=$0; sub(/^- \[[ x!]\] /,"",t); split(t,a," "); print a[1]}' PLAN.md | sort | uniq -d | tr '\n' ' ')   # G rule 12
+  if [ -n "$dups" ] && [ "$(cat .dup-ntfy 2>/dev/null)" != "$dups" ]; then echo "$dups" > .dup-ntfy; say "PLAN has duplicate item numbers: $dups"; ntfy "AnyGym: duplicate item numbers" "PLAN.md has duplicate item numbers: $dups. Claude must renumber them." "warning"; fi
   lastreal=$(git log -1 --format=%ct --invert-grep --grep='^WIP' 2>/dev/null || echo 0)
   if [ ! -f .loop-pause ] && [ $(( $(date +%s) - ${lastreal:-0} )) -gt 43200 ] && [ $(( $(date +%s) - $(cat .noprog-ntfy 2>/dev/null || echo 0) )) -gt 43200 ]; then
     date +%s > .noprog-ntfy; say "stall watch: no real commit in 12 hours"
@@ -142,8 +144,10 @@ while [ $n -lt 300 ]; do
   if [ $KICK -eq 0 ] && [ $dayleft -lt 900 ]; then [ "$WAITMSG" != day ] && say "today's loop budget used ($DAY_HOURS h), waiting for tomorrow's window"; WAITMSG=day; daydone; sleep 900; continue; fi
   [ $limit -gt $dayleft ] && limit=$dayleft
   [ $limit -lt 900 ] && { sleep 600; continue; }
+  if [ -f .usage-hold ] && [ "$(date +%s)" -ge "$(cat .usage-hold 2>/dev/null || echo 0)" ] 2>/dev/null; then mv .usage-hold .usage-hold.last; say "usage hold expired, checking live usage again"; fi   # G rule 11
   if [ -f .usage-hold ]; then hr=$(cat .usage-hold 2>/dev/null); if [ "$(date +%s)" -lt "${hr:-0}" ] 2>/dev/null; then [ "$WAITMSG" != uhold ] && say "usage guard: holding until the 5 hour window resets at $(TZ=Pacific/Guam date -r ${hr} +%H:%M) (cap ${FIVE_STOP:-74}% so G never passes 83%)"; WAITMSG=uhold; sleep 120; continue; fi; mv .usage-hold .usage-hold.last; fi
   [ $(tap_age) -gt ${PROBE_EVERY:-300} ] && probe
+  if ! tap_fresh; then [ "$WAITMSG" != stale ] && say "usage guard: no live usage reading (newest is $(( $(tap_age) / 60 )) min old), not starting a run until one arrives"; WAITMSG=stale; sleep 600; continue; fi   # G rule 5
   if tap_fresh; then hw=$(( $(week_allowed) - $(tapv week) ))   # Nov 22: a run needs room to do real work; starting at the edge just burns startup tokens
     if [ $hw -lt ${WEEK_START_GAP:-4} ]; then [ "$WAITMSG" != ugap ] && say "usage guard: ${hw}% of weekly room right now, waiting for ${WEEK_START_GAP:-4}% so a run can finish real work (85% by 4 hours before the reset, 15% kept for G)"; WAITMSG=ugap; sleep 1200; continue; fi
   fi
@@ -164,8 +168,11 @@ while [ $n -lt 300 ]; do
   wd=$!
   rm -f .usage-stop; ( usage_watch $pid ) &
   uw=$!
+  W0=$(tapv week); ( sleep 3600; kill -0 $pid 2>/dev/null || exit 0; w1=$(tapv week); rc=$(git log --since="$(date -r $START '+%Y-%m-%d %H:%M:%S')" --invert-grep --grep='^WIP' --format=%h 2>/dev/null | wc -l | tr -d ' ')   # G rule 9
+    if [ "${w1:-0}" -le "${W0:-0}" ] || [ "${rc:-0}" -eq 0 ]; then say "60 minute check: week usage ${W0:-?} to ${w1:-?}, real commits ${rc:-0}"; ntfy "AnyGym: run not producing" "60 minutes into run $n: week usage went ${W0:-?}% to ${w1:-?}% and there are ${rc:-0} real commits. Claude needs to look." "warning"; fi ) &
+  ck=$!
   wait $pid 2>/dev/null
-  kill $wd $uw 2>/dev/null; pkill -P $wd 2>/dev/null; pkill -P $uw 2>/dev/null
+  kill $wd $uw $ck 2>/dev/null; pkill -P $wd 2>/dev/null; pkill -P $uw 2>/dev/null; pkill -P $ck 2>/dev/null
   dur=$(( $(date +%s) - START ))
   echo "$(weekkey) $(tk +%F) $dur" >> $STATE
   KICK=0
@@ -183,9 +190,10 @@ while [ $n -lt 300 ]; do
   rm -f "$RUNLOG"
   echo "$(date +%s) $dur" >> .run-durations; tail -n 20 .run-durations > .run-durations.t && mv .run-durations.t .run-durations
   # STALL WATCH (G, Nov 22 "you can't let this keep happening"): 3 short runs in a row means the guard is chopping runs before real work
-  if [ "$(tail -n 3 .run-durations | awk '$2 < 300 {c++} END {print c+0}')" -ge 3 ] && [ "$(cat .stall-ntfy 2>/dev/null)" != "$(tail -n 1 .run-durations | cut -d' ' -f1)" ]; then
-    tail -n 1 .run-durations | cut -d' ' -f1 > .stall-ntfy; say "stall watch: the last 3 runs were each under 5 minutes"
-    ntfy "AnyGym: build is stalling" "The last 3 runs each stopped in under 5 minutes, so nothing is getting built. Claude is told; the next run waits until there is real room." "warning"
+  if [ "$(tail -n 2 .run-durations | awk '$2 < 300 {c++} END {print c+0}')" -ge 2 ] && [ "$(cat .stall-ntfy 2>/dev/null)" != "$(tail -n 1 .run-durations | cut -d' ' -f1)" ]; then   # G rule 6
+    tail -n 1 .run-durations | cut -d' ' -f1 > .stall-ntfy; why6=$(grep '^===' "$LOG" | grep -v 'pushed s4-run\|started the' | tail -3 | cut -c5-120 | tr '\n' ' ')
+    echo "until=$(( $(date +%s) + 14400 )) reason: 2 runs in a row under 5 minutes" > .loop-pause; say "stall watch: 2 runs in a row under 5 minutes, loop paused for up to 4 hours"
+    ntfy "AnyGym: loop paused, 2 short runs" "The last 2 runs each ended in under 5 minutes, so the loop paused itself (it resumes on its own within 4 hours, or delete .loop-pause). Last status: $why6" "warning"
   fi
   if [ -f .usage-stop ] && [ -f .five-override ]; then mv .five-override .five-override.used; hold_set; fi
   if [ -f .usage-stop ]; then mv .usage-stop .usage-stop.last; say "run $n stopped by the usage guard, checking again in 10 min"; sleep 600; continue; fi
