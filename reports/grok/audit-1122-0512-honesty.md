@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED fix item H1 (2 major, both real)
 Grok Build honesty audit, written Nov 22 05:26 at 3555fe95. A second opinion, not orders: SPEC.md wins.
 
 I'll start with the spec, plan, and the newest audit reports so this honesty pass only covers what's already built and doesn't repeat known findings.
