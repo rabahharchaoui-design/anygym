@@ -323,12 +323,16 @@ test('"How do you load this?" marks the current choice', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Settings hides the tab bar like every pushed screen; plain "us" in the report copy', async ({ page }) => {
+// PLAN M10/M14: Settings is the You tab (SPEC 10): a root screen, so the tab bar stays and sits at the bottom edge.
+test('Settings is the You tab and keeps the tab bar; plain "us" in the report copy', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await page.getByTestId('tab-you').tap();
   await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
-  await expect(page.locator('nav[aria-label="Main"]')).toHaveAttribute('data-hidden', 'true');
+  const nav = page.locator('nav[aria-label="Main"]');
+  await expect(nav).toBeVisible();
+  await expect(nav).not.toHaveAttribute('data-hidden', /.*/);
+  await expect.poll(async () => { const b = (await nav.boundingBox())!; return Math.abs(b.y + b.height - page.viewportSize()!.height); }).toBeLessThanOrEqual(1);
   await expect(page.getByText('Tell us what went wrong. Add a screenshot if it helps.')).toBeVisible();
   await expect(page.getByText(/the builder/)).toHaveCount(0);
   await page.getByTestId('tab-today').tap();

@@ -176,14 +176,16 @@ test('7+3 aliases: shown once; history under either id merges (LAST TIME, PR, da
   expect(errors).toEqual([]);
 });
 
-test('12 Settings has no tab bar @matrix', async ({ page }) => {
+// PLAN M10/M14: Settings is the You tab, so the tab bar is there and docked to the bottom edge like on the other tabs.
+test('12 Settings keeps the tab bar (You tab) @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
   await page.getByTestId('tab-you').tap();
   await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   const nav = page.locator('nav[aria-label="Main"]');
-  await expect(nav).toHaveAttribute('data-hidden', 'true');
-  await expect.poll(async () => (await nav.boundingBox())!.y).toBeGreaterThanOrEqual(page.viewportSize()!.height - 1);
+  await expect(nav).toBeVisible();
+  await expect(nav).not.toHaveAttribute('data-hidden', /.*/);
+  await expect.poll(async () => { const b = (await nav.boundingBox())!; return Math.abs(b.y + b.height - page.viewportSize()!.height); }).toBeLessThanOrEqual(1);
   await shot(page, 'settings');
   expect(errors).toEqual([]);
 });
