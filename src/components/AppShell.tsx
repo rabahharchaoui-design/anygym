@@ -11,7 +11,7 @@ import { TodayScreen } from '../screens/TodayScreen';
 import { PlansScreen } from '../screens/plans/PlansScreen';
 import { PlacePlans } from '../screens/plans/PlacePlans';
 import { HistoryScreen } from '../screens/HistoryScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
+import { SettingsScreen } from '../screens/lazyScreens';
 import styles from './AppShell.module.css';
 
 /** The screen a pushed screen goes back to (null on a tab root). */

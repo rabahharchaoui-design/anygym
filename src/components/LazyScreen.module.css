@@ -1,0 +1,10 @@
+/* PLAN PB1: the page while a lazy screen's file arrives: plain graphite, the screen's full height,
+   so nothing below or around it moves when it lands. */
+.wait {
+  min-height: 100dvh;
+}
+
+.failed {
+  min-height: 100dvh;
+  padding: calc(var(--safe-top) + 72px) calc(var(--space-5) + var(--safe-right)) 0 calc(var(--space-5) + var(--safe-left));
+}
