@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from './fixtures';
 import { dbAll, dbPut, seedFinished, usePlan, watchErrors, bar185 } from './workout-helpers';
+import { sureDemo } from './helpers/demoOracle';
 import { card, DUMBBELLS, longPress, pastIntake, PROFILE, swipe } from './helpers/quick';
 
 // PLAN 3.5a verifier (independent of the builder's tests): reads data/*.json itself.
@@ -8,7 +9,6 @@ const patterns = JSON.parse(readFileSync('data/patterns.json', 'utf8')) as {
   patterns: Record<string, { candidates: { id: string; planId?: string; requires: string[][] }[] }>;
   planExercises: Record<string, { pattern: string | null; requires: string[][] | null }>;
 };
-const map = JSON.parse(readFileSync('data/exercise-map.json', 'utf8')) as { planId: string; match: string; catalogId: string | null }[];
 
 function facts(id: string): { pattern: string | null; requires: string[][] | null } {
   const row = patterns.planExercises[id];
@@ -16,11 +16,7 @@ function facts(id: string): { pattern: string | null; requires: string[][] | nul
   for (const [pattern, l] of Object.entries(patterns.patterns)) for (const c of l.candidates) if (c.id === id || c.planId === id) return { pattern, requires: c.requires };
   return { pattern: null, requires: null };
 }
-// 3.5d: and the catalog exercises whose photos were opened by hand (data/catalog-demos.json, 3.5a round 2).
-const handChecked = new Set((JSON.parse(readFileSync('data/catalog-demos.json', 'utf8')) as { exercises: { catalogId: string }[] }).exercises.map((e) => e.catalogId));
-function sureDemo(id: string): boolean {
-  return handChecked.has(id) || map.some((e) => (e.planId === id || e.catalogId === id) && (e.match === 'exact' || e.match === 'variant') && !!e.catalogId);
-}
+// PLAN D0: sureDemo() follows G's hand review (src/data/demoHidden.json), see helpers/demoOracle.ts.
 // 3.5f: the close patterns a left swipe may reach once a slot's own pattern is used up (src/lib/generatorRules.ts FALLBACK).
 const CLOSE_35F: Record<string, string[]> = { squat: ['lunge'], hinge: ['glutes', 'hamstrings isolation'], lunge: ['squat'], 'horizontal push': ['vertical push'], 'vertical push': ['horizontal push', 'lateral delt'], 'horizontal pull': ['vertical pull'], 'vertical pull': ['horizontal pull'], 'chest isolation': ['horizontal push'], 'rear delt': ['horizontal pull'], 'quads isolation': ['lunge', 'squat'], 'hamstrings isolation': ['hinge', 'glutes'], glutes: ['hinge'] };
 const doable = (req: string[][] | null, eq: string[]) => req !== null && req.every((g) => g.some((x) => eq.includes(x)));
