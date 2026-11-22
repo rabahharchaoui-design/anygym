@@ -99,8 +99,10 @@ describe('judgePoint: after a gap', () => {
   });
 
   it('includes the exact five minute and 8 m/s boundaries', () => {
-    const origin = good({ lat: 0, lng: 0, t: T0, accuracy: 5 });
-    const point = (meters: number, seconds: number) => ({ lat: 0, lng: meters / EARTH_RADIUS_M * 180 / Math.PI, t: T0 + seconds * 1000, accuracy: 5 });
+    // Zero accuracy on both points: the speed across a gap subtracts both fixes' accuracy (PLAN 4.4d),
+    // so only perfect fixes put the 8 m/s line exactly at 480 m in 60 s.
+    const origin = good({ lat: 0, lng: 0, t: T0, accuracy: 0 });
+    const point = (meters: number, seconds: number) => ({ lat: 0, lng: meters / EARTH_RADIUS_M * 180 / Math.PI, t: T0 + seconds * 1000, accuracy: 0 });
     expect(judgePoint(origin, point(600, 300))).toMatchObject({ link: 'gap', bridged: true });
     expect(judgePoint(origin, point(600, 300.001))).toMatchObject({ link: 'gap', bridged: false });
     expect(judgePoint(origin, point(8 * 60, 60))).toMatchObject({ link: 'gap', bridged: true });

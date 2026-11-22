@@ -5,7 +5,7 @@ import { stubTiles } from './helpers/tiles';
 import { dbAll, dbPut } from './workout-helpers';
 
 test.use({ serviceWorkers: 'block', locale: 'en-GB' });
-const caption = /A GPS gap up to 5 minutes may add its straight-line distance if the speed is believable\. Longer or faster gaps add no distance\. Any added gap distance counts in the total, but not in average pace\./;
+const caption = /A GPS gap of up to 5 minutes at a believable speed adds its straight-line distance to the total, but not to the average pace\. A longer or faster gap adds no distance\./;
 
 test('a dashed gap is explained on the finish and saved run screens', async ({ page, context }) => {
   await stubTiles(page);
