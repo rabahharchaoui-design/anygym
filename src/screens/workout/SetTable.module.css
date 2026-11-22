@@ -28,7 +28,7 @@
   padding: 0 4px 4px;
   /* Frosted, no fill (3.5t): rows passing under it blur away; at rest it is the page itself. */
   -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  backdrop-filter: none;
   color: var(--text-2);
   font-size: 12px;
   font-weight: 600;
