@@ -60,3 +60,15 @@
   font-size: var(--text-mono-body);
   font-weight: 600;
 }
+
+/* Short phones (the SE): calmer rows, so all four and the body hint fit above Continue unscrolled. */
+@media (max-height: 720px) {
+  .unitRow {
+    min-height: 52px;
+    padding-block: var(--space-1);
+  }
+
+  .unitApart {
+    padding-top: var(--space-3);
+  }
+}
