@@ -13,7 +13,7 @@ import { type Concept, type QuickDeps, type QuickInput, quickDepsFor } from './q
 import { rankSoft, sureGear } from './quickDeck';
 import { gearOf, itemsOf, mainMuscles } from './quickShow';
 import { type GroupedItem, quickMinutes } from './quickStyles';
-import { muscleRestLine, wordList } from './quickWhy';
+import { muscleRestLine, sureRest, wordList } from './quickWhy';
 import { cap } from './words';
 import { muscleWord } from './order';
 import { type Pattern, workoutIdOf } from './swap';
@@ -85,7 +85,7 @@ export function focusCard(area: SessionArea, input: QuickInput, deps0: QuickDeps
   // (data/coach-facts.json, chosen by id: never made up here).
   const line = near
     ? noteById(deps.facts, 'idea-fewer', { muscle: muscleWord(own.muscles[0]!), name: first.name }).why
-    : (muscleRestLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? noteById(deps.facts, 'idea-structure').why);
+    : (muscleRestLine(items, deps, sureRest(input.lastTrained, input.lastHelped), input.now ?? Date.now()) ?? noteById(deps.facts, 'idea-structure').why);
   return {
     id: 'focus',
     variant: near ? near.id : area,
