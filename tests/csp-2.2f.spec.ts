@@ -75,8 +75,9 @@ test('every screen loads with zero CSP violations @matrix', async ({ page, conte
   expect(blobs).toEqual({ a: true, b: true });
 
   const nav = page.getByRole('navigation', { name: 'Main' });
-  for (const name of ['Run', 'History', 'Plans', 'Today']) {
-    await nav.getByRole('link', { name }).tap();
+  // PLAN M2/M14: the tab is "Plan" now; the page it opens still has the heading "Plans".
+  for (const [tab, name] of [['Run', 'Run'], ['History', 'History'], ['Plan', 'Plans'], ['Today', 'Today']] as const) {
+    await nav.getByRole('link', { name: tab, exact: true }).tap();
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
   }
 
