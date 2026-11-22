@@ -22,10 +22,10 @@ export const VERDICT_WORDS: Record<Exclude<RunVerdict, 'ok'>, { title: string; l
 /**
  * The caption under a route with dashed stretches (finish screen and run detail), matching the
  * moving clock: a pause adds no time; a GPS gap keeps the first GAP_SEC the clock had already shown
- * while it waited (PLAN 4.4a), and nothing after them. The distance bridged across a gap is in the
- * total but left out of the average pace (rowPace), said so the three numbers never look at odds (PLAN 4.6c 4).
+ * while it waited (PLAN 4.4a), and nothing after them. Eligible gap distance may be included in
+ * the total but is left out of average pace (rowPace).
  */
-export const DASHED_NOTE = `Dashed: GPS was lost or the run was paused there. A pause adds no moving time. A GPS gap adds at most its first ${GAP_SEC} seconds, which the clock had already shown. The distance across a GPS gap counts in the total but not in the average pace.`;
+export const DASHED_NOTE = `Dashed: GPS was lost or the run was paused there. A pause adds no moving time. A GPS gap adds at most its first ${GAP_SEC} seconds, which the clock had already shown. A GPS gap up to 5 minutes may add its straight-line distance if the speed is believable. Longer or faster gaps add no distance. Any added gap distance counts in the total, but not in average pace.`;
 
 /** The route as solid pieces; the join before a piece with `dashedFromPrev` is drawn dashed. */
 export const routeOf = (run: Pick<Run, 'points' | 'gaps'>): Segment[] => toSegments(run.points.map(fromRunPoint), run.gaps);

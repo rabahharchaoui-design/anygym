@@ -2,9 +2,9 @@
 // and only a muscle both yesterday's log and the next plan day prove. A shared drawn shape ("front
 // and side delts", the glute shape that is the outer hips too) is never named on its own.
 import { describe, expect, it } from 'vitest';
-import { primaryWords } from '../../db/coachData';
+import { muscleWords, primaryWords } from '../../db/coachData';
 import { recoveryLine } from '../coach';
-import { ownRegionLabel } from '../muscles';
+import { ownRegionLabel, ownRegionLabels } from '../muscles';
 
 const PRESS = 'Seated_Barbell_Military_Press';
 const RAISE = 'Side_Lateral_Raise';
@@ -30,8 +30,26 @@ describe("the recovery line's muscle words (PLAN 4.6c 3)", () => {
     const abductors = { primary: [{ muscle: 'abductors', label: 'outer hips', regions: ['gluteal' as const] }] };
     const both = { primary: [...abductors.primary, { muscle: 'glutes', label: 'glutes', regions: ['gluteal' as const] }] };
     expect(ownRegionLabel('gluteal', { ...abductors, secondary: [] })).toBe('outer hips');
-    expect(ownRegionLabel('gluteal', { ...both, secondary: [] })).toBe('outer hips and glutes');
+    expect(ownRegionLabel('gluteal', { ...both, secondary: [] })).toBe('glutes and outer hips');
     expect(ownRegionLabel('chest', { primary: [{ muscle: 'chest', label: 'chest', regions: ['chest'] }], secondary: [] })).toBeNull();
+  });
+
+  it('compares each primary label in either direction, with stable distinct labels', () => {
+    const targets = [
+      { muscle: 'abductors', label: 'outer hips', regions: ['gluteal' as const] },
+      { muscle: 'glutes', label: 'glutes', regions: ['gluteal' as const] },
+    ];
+    const data = { primary: [...targets, targets[0]!], secondary: [{ muscle: 'chest', label: 'chest', regions: ['chest' as const] }] };
+    expect(ownRegionLabels('gluteal', data)).toEqual(['glutes', 'outer hips']);
+    expect(ownRegionLabels('gluteal', { ...data, primary: [...data.primary].reverse() })).toEqual(['glutes', 'outer hips']);
+    const words = muscleWords({ ...data, shading: { gluteal: 'primary' } });
+    expect(words).toEqual(['glutes', 'outer hips']);
+    for (const label of words) {
+      expect(line(words, [label])).toContain(label);
+      expect(line([label], words)).toContain(label);
+    }
+    expect(muscleWords({ primary: [targets[1]!], shading: { gluteal: 'primary', chest: 'secondary' } })).toEqual(['glutes']);
+    expect(muscleWords(null)).toEqual([]);
   });
 
   it('a lateral raise yesterday and an overhead press today share a shape, not a muscle: no line', () => {
