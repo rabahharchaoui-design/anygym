@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED merged in H1 (e5882a90) with one test fixed for the 4.4d filter
 # Codex backup build of PLAN item 4.6d
 Branch: codex-build-4.6d-1120-0157 (based on s4-run). Review like any builder output, then merge with: git merge --no-ff --no-edit codex-build-4.6d-1120-0157
 Changes:  8 files changed, 174 insertions(+), 20 deletions(-)
