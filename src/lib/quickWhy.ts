@@ -89,6 +89,15 @@ export function muscleRestLine(items: readonly QuickItem[], deps: QuickDeps, las
   return parts.length ? cap(parts.join(', ')) : null;
 }
 
+/**
+ * PLAN H1: the trained dates a "rested" or "trained" line may name. A muscle that worked as a helper
+ * (bench: triceps) after it was last trained has no sure rest and no trained fact: it is left out.
+ */
+export function sureRest(lastTrained: QuickInput['lastTrained'], lastHelped: QuickInput['lastHelped']): QuickInput['lastTrained'] {
+  if (!lastTrained || !lastHelped) return lastTrained;
+  return Object.fromEntries((Object.entries(lastTrained) as Array<[Muscle, number]>).filter(([m, at]) => !((lastHelped[m] ?? -Infinity) > at)));
+}
+
 /** 3.5d (9): the muscles trained in the last 48 h (logged working sets only) stay out of the style cards. */
 export const TIRED_MS = 48 * 60 * 60 * 1000;
 export function trainedWithin(lastTrained: QuickInput['lastTrained'], now: number, ms: number): Muscle[] {

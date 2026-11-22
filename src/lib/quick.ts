@@ -31,7 +31,7 @@ import { sureGear } from './quickDeck';
 // keeps importing from lib/quick: why lines (quickWhy), what a card shows (quickShow), the style and
 // fresh cards (quickCards), the plan day card (quickPlan), the deck's swap and learning (quickDeck).
 export { quickDayOf, structureOf, STYLES, STYLE_ORDER, type StyleId } from './quickStyles';
-export { daysSince, muscleRestLine, restedLine, trainedWithin, whenWords, wordList } from './quickWhy';
+export { daysSince, muscleRestLine, restedLine, sureRest, trainedWithin, whenWords, wordList } from './quickWhy';
 export { FIT_SLACK, MAIN_MUSCLES, countLine, fits, gearOf, gearWords, mainMuscles, metaLine, moreLabel, primaryOf, quickAvoids, roundsOf } from './quickShow';
 export { restedFirst, shortLine } from './quickCards';
 export { distinctCards } from './quickDistinct';
@@ -174,6 +174,11 @@ export type QuickInput = {
   plan?: Concept | null;
   /** PLAN 3.5b: when each muscle last had logged working sets (never warm ups, never imports). */
   lastTrained?: Readonly<Partial<Record<Muscle, number>>>;
+  /**
+   * PLAN H1: when each muscle last worked only as a helper (bench: triceps). Never named as trained
+   * or rested; it keeps the cards off tired helpers and the rest lines honest (sureRest).
+   */
+  lastHelped?: Readonly<Partial<Record<Muscle, number>>>;
   /** PLAN 3.5b: the time the batch is worked out for (the why lines' "rested N days"). */
   now?: number;
   /** PLAN 3.5b: the styles of the last 2 quick workouts done, latest first. */

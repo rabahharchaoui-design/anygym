@@ -15,7 +15,7 @@ import { getProfile } from '../../db/intake';
 import { readSchedule } from '../../db/schedule';
 import { getPlanState, weekFor } from '../../db/planState';
 import { useActiveGym } from '../../db/useActiveGym';
-import { alwaysPicks, getDislikes, readDoneStyles, readLastTrained, readRecentAt, readRecentMuscles, readRotation, recordShown, startBuilt } from '../../db/quick';
+import { alwaysPicks, getDislikes, readDoneStyles, readLastHelped, readLastTrained, readRecentAt, readRecentMuscles, readRotation, recordShown, startBuilt } from '../../db/quick';
 import { getActiveSession, startWorkout } from '../../db/workouts';
 import { planById } from '../../data/plans';
 import { QUICK_DEPS } from '../../data/quick';
@@ -52,6 +52,7 @@ type Loaded = {
   plan: { plan: Plan; dayIndex: number; weekIndex: number; always: Record<string, string> } | null;
   /** PLAN 3.5b: when each muscle last had logged sets, the styles of the last 2 quick workouts, the cards shown last time. */
   lastTrained: Partial<Record<Muscle, number>>;
+  lastHelped: Partial<Record<Muscle, number>>;
   done: string[];
   shown: string[];
   /** A visit soon after the last one: same memory, nothing recorded again. */
@@ -81,7 +82,7 @@ export function QuickScreen() {
     (async () => {
       await startDb();
       const now = Date.now();
-      const [profile, state, recent, dislikes, recentAt, lastTrained, done, rotation] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(now), getDislikes(), readRecentAt(now), readLastTrained(now), readDoneStyles(), readRotation(now)]);
+      const [profile, state, recent, dislikes, recentAt, lastTrained, lastHelped, done, rotation] = await Promise.all([getProfile(), getPlanState(), readRecentMuscles(now), getDislikes(), readRecentAt(now), readLastTrained(now), readLastHelped(now), readDoneStyles(), readRotation(now)]);
       const plan = planById(state?.planId);
       let planPart: Loaded['plan'] = null;
       const schedule = await readSchedule(now);
@@ -89,7 +90,7 @@ export function QuickScreen() {
         const dayIndex = schedule.resolved.dayIndex;
         planPart = { plan, dayIndex, weekIndex: weekFor(state, plan.id), always: await alwaysPicks(plan.id) };
       }
-      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, ...(recentAt !== null ? { recentWhen: whenWords(recentAt, now) } : {}), plan: planPart, lastTrained, done, shown: rotation.lastShown, keep: rotation.keep, now });
+      if (alive) setLoaded({ answers: profile?.intake, dislikes, recent, ...(recentAt !== null ? { recentWhen: whenWords(recentAt, now) } : {}), plan: planPart, lastTrained, lastHelped, done, shown: rotation.lastShown, keep: rotation.keep, now });
     })().catch(() => alive && setFailed(true));
     return () => {
       alive = false;
@@ -107,7 +108,7 @@ export function QuickScreen() {
       ? planConcept({ plan: p.plan, dayIndex: p.dayIndex, weekIndex: p.weekIndex, minutes: chip, gym: kit, always: p.always, ...(base.never ? { never: base.never } : {}), ...(base.soft ? { soft: base.soft } : {}), ...(base.easyOn ? { easyOn: base.easyOn } : {}), ...(base.experience ? { experience: base.experience } : {}) }, QUICK_DEPS)
       : null;
     return buildIdeas(
-      { base, minutes: chip, recent: loaded.recent, ...(loaded.recentWhen ? { recentWhen: loaded.recentWhen } : {}), plan, lastTrained: loaded.lastTrained, now: loaded.now, done: loaded.done, lastShown: loaded.shown },
+      { base, minutes: chip, recent: loaded.recent, ...(loaded.recentWhen ? { recentWhen: loaded.recentWhen } : {}), plan, lastTrained: loaded.lastTrained, lastHelped: loaded.lastHelped, now: loaded.now, done: loaded.done, lastShown: loaded.shown },
       QUICK_DEPS,
     );
     // Concepts are worked out for the chip picked; a "never" learned in the deck applies next time.
@@ -118,7 +119,7 @@ export function QuickScreen() {
   // More ideas, the person's focus areas first. One takes card 4's place (or is added under fewer cards).
   const all = useMemo(() => {
     if (!ideas || !base) return null;
-    const focus = focusCards({ base, minutes: chip, recent: loaded?.recent ?? [], ...(loaded ? { lastTrained: loaded.lastTrained, now: loaded.now } : {}) }, QUICK_DEPS);
+    const focus = focusCards({ base, minutes: chip, recent: loaded?.recent ?? [], ...(loaded ? { lastTrained: loaded.lastTrained, lastHelped: loaded.lastHelped, now: loaded.now } : {}) }, QUICK_DEPS);
     const at = ideas.cards.length < 4 ? ideas.cards.length : ideas.cards.length - 1;
     return { cards: ideas.cards, more: [...ideas.more, ...focus], moreAt: [...ideas.moreAt, ...focus.map(() => at)] };
     // eslint-disable-next-line react-hooks/exhaustive-deps

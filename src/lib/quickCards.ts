@@ -11,7 +11,8 @@ import { withNotes } from './quickNotes';
 import { quickMinutes } from './quickStyles';
 import { type Muscle, muscleWord, patternTargets } from './order';
 import { type Pattern, requiresOf, workoutIdOf } from './swap';
-import { TIRED_MS, leavesOut, mainWords, muscleRestLine, restedLine, targetsOf, trainedWithin, wordList } from './quickWhy';
+import { TIRED_MS, leavesOut, mainWords, muscleRestLine, restedLine, sureRest, targetsOf, trainedWithin, wordList } from './quickWhy';
+import { RECENT_MS } from './quickDeck';
 import { cap } from './words';
 import { type LoggedWorkout, type RecoveryGroup, type RecoveryState, type TargetRecovery, lastTrainedGroups, targetRecovery } from './recovery';
 
@@ -85,7 +86,9 @@ export function styleCard(style: StyleDef, variant: StyleDef['variants'][number]
   const attempt = (d: QuickDeps) => once(d, slots) ?? (slots.length && style.id !== 'cardioCore' ? once(d, []) : null);
   // 3.5d (9), 3.5g: muscles trained in the last 48 h stay out of every style card (the Full body
   // circuit and the Pairs too). A card that cannot be built without them is not offered at all.
-  const tired = trainedWithin(input.lastTrained, input.now ?? Date.now(), TIRED_MS);
+  const trainedTired = trainedWithin(input.lastTrained, input.now ?? Date.now(), TIRED_MS);
+  // PLAN H1: helpers worked in the last 48 h stay out as well, but only trained muscles are ever named.
+  const tired = [...new Set([...trainedTired, ...trainedWithin(input.lastHelped, input.now ?? Date.now(), TIRED_MS)])];
   // Round 2: when every tired muscle cannot go (yesterday's chest press also tires front delts and
   // triceps, so a shoulder press would go too), the big ones go and the small helpers may stay.
   const SMALL: readonly Muscle[] = ['front delts', 'triceps', 'biceps', 'forearms'];
@@ -124,8 +127,8 @@ export function styleCard(style: StyleDef, variant: StyleDef['variants'][number]
     ...(focus.length ? { focus: cap(wordList(focus)) } : {}),
     title: style.title,
     // 3.5g: the why line names the muscles this card trains most, each with its own rest.
-    line: muscleRestLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? blurb,
-    altLines: [...(kept.length ? [leavesOut(kept, input)] : []), blurb],
+    line: muscleRestLine(items, deps, sureRest(input.lastTrained, input.lastHelped), input.now ?? Date.now()) ?? blurb,
+    altLines: [...(kept.some((m) => trainedTired.includes(m)) ? [leavesOut(kept.filter((m) => trainedTired.includes(m)), input)] : []), blurb],
     items,
     minutes: built.minutes,
     over: false,
@@ -158,14 +161,16 @@ export function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
   const recent = [...new Set(input.recent)];
   const logged = recent.length > 0 || Object.keys(input.lastTrained ?? {}).length > 0;
   if (!logged) return [];
+  // PLAN H1: helpers worked in the last 3 days are not fresh either, but the Skips line never names them.
+  const worked = [...new Set([...recent, ...trainedWithin(input.lastHelped, input.now ?? Date.now(), RECENT_MS)])];
   // Round 2 (B4): nothing on this card may light a muscle the Skips line names, on its map either.
-  const blocked = new Set(recent.flatMap((m) => deps.muscleRegions?.(m) ?? []));
-  // 3.5d round 3: and no move whose main muscle was trained in the last 3 days, whatever its pattern.
-  const freshDeps: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !targetsOf(deps, id).some((m) => recent.includes(m)) && !(deps.litRegions?.(id) ?? []).some((r) => blocked.has(r)) };
-  // The why line names only muscles truly not trained in the last 3 days (a word shared with a trained muscle, shoulders, is out too).
-  const tiredWords = new Set(recent.map(muscleWord));
-  const restedOnly = Object.fromEntries(Object.entries(input.lastTrained ?? {}).filter(([m]) => !tiredWords.has(muscleWord(m as Muscle)))) as QuickInput['lastTrained'];
-  const pool = FRESH_POOL.filter((p) => !patternTargets(p).some((m) => recent.includes(m)));
+  const blocked = new Set(worked.flatMap((m) => deps.muscleRegions?.(m) ?? []));
+  // 3.5d round 3: and no move whose main muscle was worked in the last 3 days, whatever its pattern.
+  const freshDeps: QuickDeps = { ...deps, usable: (id) => deps.usable(id) && !targetsOf(deps, id).some((m) => worked.includes(m)) && !(deps.litRegions?.(id) ?? []).some((r) => blocked.has(r)) };
+  // The why line names only muscles truly not worked in the last 3 days (a word shared with a worked muscle, shoulders, is out too).
+  const tiredWords = new Set(worked.map(muscleWord));
+  const restedOnly = Object.fromEntries(Object.entries(sureRest(input.lastTrained, input.lastHelped) ?? {}).filter(([m]) => !tiredWords.has(muscleWord(m as Muscle)))) as QuickInput['lastTrained'];
+  const pool = FRESH_POOL.filter((p) => !patternTargets(p).some((m) => worked.includes(m)));
   const pools = [pool, pool.filter((p) => !LEG_PATTERNS.has(p)), pool.filter((p) => LEG_PATTERNS.has(p) || p === 'core')];
   const out: Concept[] = [];
   const density = densityFor(input.minutes);
@@ -175,7 +180,7 @@ export function freshCards(input: QuickInput, deps: QuickDeps): Concept[] {
       name: `fresh-${k}`,
       slots: ps.map((p) => ({ pattern: p })),
       shape: input.minutes <= 20 ? 'circuit' : 'pairs',
-      input: { ...input.base, avoidMuscles: recent, ...(k > 0 ? { noFallback: true as const } : {}) },
+      input: { ...input.base, avoidMuscles: worked, ...(k > 0 ? { noFallback: true as const } : {}) },
       want: density.max,
       density,
       maxSets: input.base.experience === 'new' ? 3 : 4,

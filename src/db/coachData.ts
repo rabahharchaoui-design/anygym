@@ -7,7 +7,7 @@ import { fixedDaysOf } from '../lib/plan/weekdays';
 import { weekKey } from '../lib/coach/time';
 import type { Region } from '../lib/bodyArt';
 import { REGION_NAMES } from '../lib/bodyArt';
-import { ownRegionLabel } from '../lib/muscles';
+import { ownRegionLabel, ownRegionLabels, type MuscleMapData } from '../lib/muscles';
 import { liftKey, type ChangeRecord, type Effort, type Lift, type LiftSession, type TrainedSet } from '../lib/coach';
 import type { RepRange } from '../lib/progression';
 import { patternOf, slotOf, swapCandidates, workoutIdOf } from '../lib/swap';
@@ -88,11 +88,24 @@ export function primaryNames(exerciseId: string): Partial<Record<Region, string>
   return out;
 }
 
-/** The exercise's sure main muscles in words (PLAN 4.6c 3): its own word for a shared shape, else the shape's name. */
-export function primaryWords(exerciseId: string): string[] {
-  const own = primaryNames(exerciseId);
-  return primaryRegions(exerciseId).map((r) => own[r] ?? regionWord(r));
+/**
+ * Sure main muscles in the exercise's own words (PLAN 4.6c 3). A shape that stands for more than
+ * one muscle contributes each label, so yesterday and today match only when a label matches.
+ * A shape with one muscle keeps that muscle's name. Nothing sure contributes nothing.
+ */
+export function muscleWords(m: Pick<MuscleMapData, 'primary' | 'shading'> | null | undefined): string[] {
+  if (!m) return [];
+  const data = { primary: m.primary, secondary: [] as MuscleMapData['secondary'] };
+  const words: string[] = [];
+  for (const r of (Object.keys(m.shading) as Region[]).filter((x) => m.shading[x] === 'primary')) {
+    const labels = ownRegionLabels(r, data);
+    words.push(...(labels.length ? labels : [regionWord(r)]));
+  }
+  return [...new Set(words)];
 }
+
+/** The exercise's sure main muscles in words (PLAN 4.6c 3). */
+export const primaryWords = (exerciseId: string): string[] => muscleWords(infoForExercise(exerciseId).muscles);
 
 const nameOf = (id: string): string => planExercise(id)?.name ?? exerciseNameOf(id) ?? id;
 

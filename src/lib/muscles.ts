@@ -122,17 +122,34 @@ export function ownShoulderLabel(region: Region, data: Pick<MuscleMapData, 'prim
 }
 
 /**
- * PLAN 4.6c (3): the exercise's own words for any drawn shape that stands for more than one muscle:
- * the shoulder shape (ownShoulderLabel), the glute shape (glutes, and the outer hips that light it
- * too), the upper back shape (lats, mid back). The labels of the exercise's targets that light it,
- * joined; null for a shape that stands for one muscle, or one the exercise does not name.
+ * PLAN 4.6c (3): each of the exercise's own words for a drawn shape that stands for more than one
+ * muscle (shoulders, glutes and outer hips, lats and mid back). Sorted, so the same muscles always
+ * read the same way. Empty when the shape stands for one muscle, or this exercise does not name it.
+ * Pass only the targets that count: recovery passes primary and leaves secondary out.
  */
-export function ownRegionLabel(region: Region, data: Pick<MuscleMapData, 'primary' | 'secondary'>): string | null {
+export function ownRegionLabels(region: Region, data: Pick<MuscleMapData, 'primary' | 'secondary'>): string[] {
   const shoulder = ownShoulderLabel(region, data);
-  if (shoulder) return shoulder;
-  if (Object.values(MUSCLE_REGIONS).filter((rs) => rs.includes(region)).length < 2) return null;
-  const labels = [...new Set([...data.primary, ...data.secondary].filter((t) => t.muscle !== 'shoulders' && t.regions.includes(region)).map((t) => t.label))];
+  if (shoulder) return [shoulder];
+  if (Object.values(MUSCLE_REGIONS).filter((rs) => rs.includes(region)).length < 2) return [];
+  return [...new Set([...data.primary, ...data.secondary].filter((t) => t.muscle !== 'shoulders' && t.regions.includes(region)).map((t) => t.label))].sort();
+}
+
+/** Those words as one line ("glutes and outer hips"), or null when ownRegionLabels is empty. */
+export function ownRegionLabel(region: Region, data: Pick<MuscleMapData, 'primary' | 'secondary'>): string | null {
+  const labels = ownRegionLabels(region, data);
   return labels.length ? labels.join(' and ') : null;
+}
+
+/**
+ * PLAN H1 (3): the exercise's own words for a tapped shape, from the side it works it on: its
+ * primary muscles there, else its secondary ones (as the tap line reads). The tap line, the
+ * exercises sheet's title and its list all use this, so the three agree ("outer hips" after a hip
+ * abduction, never "Glutes"). Null when the shape stands for one muscle: its own name serves.
+ */
+export function tappedRegionLabel(region: Region, data: Pick<MuscleMapData, 'primary' | 'secondary'>): string | null {
+  const on = (list: readonly MuscleTarget[]) => list.filter((t) => t.regions.includes(region));
+  const main = on(data.primary);
+  return ownRegionLabel(region, main.length ? { primary: main, secondary: [] } : { primary: [], secondary: on(data.secondary) });
 }
 
 /** The text line under the drawing. */
