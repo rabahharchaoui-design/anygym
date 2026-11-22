@@ -112,7 +112,7 @@ test('back up, wipe, restore with Replace: History shows the same workouts and s
   expect((await dbAll<WorkoutSet>(page, 'sets')).sort((a, b) => a.id.localeCompare(b.id))).toEqual(sets);
 
   // History reads the restored workouts live, without a reload.
-  await page.getByLabel('Back to Today').tap();
+  await page.getByTestId('tab-today').tap();
   await page.getByRole('link', { name: /History/ }).tap();
   await expect(page.getByTestId('history-row')).toHaveCount(2);
   await expect(page.getByTestId('history-row').first()).toContainText('2 sets');

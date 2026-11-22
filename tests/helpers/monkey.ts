@@ -299,14 +299,13 @@ async function goHome(page: Page, homeUrl: string) {
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
   };
   if (homeUrl === '#/') return tab('Today', 'Today');
-  if (homeUrl === '#/plans') return tab('Plans', 'Plans');
+  if (homeUrl === '#/plans') return tab('Plan', 'Plans');
   if (homeUrl === '#/history') return tab('History', 'History');
   if (homeUrl.startsWith('#/plans/')) {
-    await tab('Plans', 'Plans');
+    await tab('Plan', 'Plans');
     await page.getByTestId(`plan-${homeUrl.slice('#/plans/'.length)}`).tap();
   } else if (homeUrl === '#/settings') {
-    await tab('Today', 'Today');
-    await page.getByRole('link', { name: 'Settings' }).tap();
+    await tab('You', 'You');
   } else if (homeUrl.startsWith('#/workout/')) {
     await tab('Today', 'Today');
     // The resume bar ("Resume Quick workout · …") or the plan day card's Resume. The monkey may

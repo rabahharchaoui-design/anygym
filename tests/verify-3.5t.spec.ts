@@ -165,7 +165,7 @@ test('walk 1: Today, plans, viewer, day list, time sheet, history, settings, gym
   await step(page, 'history', async () => { await page.goto('./#/history'); await page.waitForTimeout(300); });
   await step(page, 'history-detail', async () => { await page.locator('a[href*="history/"]').first().tap(); await page.waitForTimeout(300); });
   await step(page, 'run', async () => { await page.goto('./#/run'); });
-  await step(page, 'settings', async () => { await page.goto('./#/settings'); await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible(); });
+  await step(page, 'settings', async () => { await page.goto('./#/settings'); await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible(); });
   await step(page, 'settings-coach', async () => { await page.getByTestId('settings-coach').scrollIntoViewIfNeeded(); });
   await step(page, 'gyms', async () => { await page.goto('./#/settings/gyms'); });
   await step(page, 'gym-detail', async () => { await page.locator('[data-testid^="gym"]').first().tap(); });

@@ -11,7 +11,7 @@ type Sess = { id: string; gymId: string; endedAt?: number; exerciseIds: string[]
 test('golden: switch to a hotel gym and Quick workout fits what is there', async ({ page }) => {
   await pastIntake(page);
   const home = (await dbAll<Gym>(page, 'gyms')).find((g) => g.isActive)!;
-  await page.getByRole('link', { name: 'Settings' }).or(page.getByRole('button', { name: 'Settings' })).first().tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByTestId('settings-gyms').tap();
   await expect(page.getByTestId('gyms-list')).toBeVisible();
   await page.getByTestId('settings-new-gym').tap();

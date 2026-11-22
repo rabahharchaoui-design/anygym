@@ -90,7 +90,7 @@ async function becomeNewPhone(page: Page) {
   );
   await page.goto('about:blank');
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   expect(await dbAll(page, 'plans')).toEqual([]);
 }
 

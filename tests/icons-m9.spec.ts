@@ -22,7 +22,7 @@ test('from Settings, the goal step shows the 8 v2 goal icons, all loaded, even a
     else loaded.add(m[1]!);
   });
   await pastIntake(page);
-  await page.getByRole('link', { name: 'Settings' }).or(page.getByRole('button', { name: 'Settings' })).first().tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByRole('button', { name: /Answer the questions again/ }).tap();
   await expect(page.getByRole('heading', { name: "What's your main goal?" })).toBeVisible();
   await page.waitForFunction(() => !document.documentElement.dataset.nav);

@@ -5,7 +5,6 @@ import { BackButton } from '../../ui/BackButton';
 import { Button } from '../../ui/Button';
 import { Skeleton } from '../../ui/Skeleton';
 import { Toast, type ToastMessage } from '../../ui/Toast';
-import { ChevronRight } from '../../ui/icons';
 import { useNav } from '../../ui/nav';
 import { useLive } from '../../hooks/useLive';
 import { db } from '../../db/schema';
@@ -89,7 +88,7 @@ export function GymDetail() {
 
   return (
     <>
-      <TopBar title={g?.name ?? 'Gym'} leading={<BackButton to="/settings/gyms" label="Back to Gyms" />} />
+      <TopBar title={g?.name ?? 'Gym'} leading={<BackButton plain to="/settings/gyms" label="Back to Gyms" />} />
       {!g ? (
         <Skeleton height={240} />
       ) : (
@@ -101,7 +100,7 @@ export function GymDetail() {
             <h2 id="gym-about" className={styles.groupTitle}>
               Name and place
             </h2>
-            <div className={`${styles.card} ${gymStyles.fields}`}>
+            <div className={gymStyles.fields}>
               <SavedField label="Name" value={g.name} placeholder="My Gym" testId="detail-name" onSave={(name) => save({ name })} />
               <SavedField label="City (optional)" value={g.city ?? ''} placeholder="Tokyo" testId="detail-city" onSave={(city) => save({ city })} />
             </div>
@@ -121,7 +120,6 @@ export function GymDetail() {
                     {equipmentSummary(g)}
                   </span>
                 </span>
-                <ChevronRight className={styles.chevron} aria-hidden="true" />
               </button>
             </div>
             <p className={gymStyles.note}>Plates, bars and machine weights are asked the first time you use them here.</p>

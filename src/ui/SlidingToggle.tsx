@@ -23,9 +23,11 @@ type Props<T extends string> = {
   block?: boolean;
   /** A glass pill instead of the accent one, where another button is the screen's one accent action (3.5f round 3). */
   glass?: boolean;
+  /** PLAN M14 (Monolith): the options as words, the picked one white over an ice line; no pill, no well. */
+  words?: boolean;
 };
 
-export function SlidingToggle<T extends string>({ options, value, onChange, label, labelledBy, testId, disabled, block, glass }: Props<T>) {
+export function SlidingToggle<T extends string>({ options, value, onChange, label, labelledBy, testId, disabled, block, glass, words }: Props<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const index = Math.max(
     0,
@@ -55,10 +57,11 @@ export function SlidingToggle<T extends string>({ options, value, onChange, labe
       data-testid={testId}
       data-block={block || undefined}
       data-glass={glass || undefined}
+      data-words={words || undefined}
       style={{ '--n': options.length, '--i': index } as CSSProperties}
       onKeyDown={onKey}
     >
-      {picked && <span className={styles.pill} aria-hidden="true" data-pill />}
+      {picked && !words && <span className={styles.pill} aria-hidden="true" data-pill />}
       {options.map((o, i) => (
         <button
           key={o.value}

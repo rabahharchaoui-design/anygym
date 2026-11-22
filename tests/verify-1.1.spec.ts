@@ -39,11 +39,11 @@ test('1.1 verify: network, shots, break', async ({ page }) => {
   const boxes: any[] = [];
   const nav = page.getByRole('navigation', { name: 'Main' });
   for (const l of await nav.getByRole('link').all()) boxes.push(await l.boundingBox());
-  boxes.push(await page.getByRole('link', { name: 'Settings' }).boundingBox());
+  boxes.push(await page.getByTestId('tab-you').boundingBox());
   console.log('BOXES', JSON.stringify(boxes));
-  const names = ['Today', 'Run', 'History', 'Plans'];
+  const names = ['Today', 'Plan', 'Run', 'History', 'You'];
   for (let i = 0; i < 20; i++) {
-    await nav.getByRole('link', { name: names[Math.floor(Math.random() * 4)] }).tap({ timeout: 2000 });
+    await nav.getByRole('link', { name: names[Math.floor(Math.random() * names.length)] }).tap({ timeout: 2000 });
   }
   for (let i = 0; i < 6; i++) { await page.goBack(); await page.goForward(); }
   await page.goto('./#/nonsense');

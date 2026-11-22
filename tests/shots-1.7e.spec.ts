@@ -27,7 +27,7 @@ test('1.7e every screen', async ({ page }) => {
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   await shot(page, 'today');
 
-  await page.getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('link', { name: 'Plan', exact: true }).tap();
   await expect(page.getByTestId('plan-five-day-split')).toBeVisible();
   await shot(page, 'plans');
   await page.getByTestId('plan-five-day-split').tap();
@@ -66,7 +66,7 @@ test('1.7e every screen', async ({ page }) => {
   await shot(page, 'history-detail');
 
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true }).first()).toBeVisible();
   await shot(page, 'settings');
 
   await page.goto('./');

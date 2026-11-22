@@ -462,7 +462,7 @@ test.describe('round 2: past the intake', () => {
         };
       }`,
     );
-    const plans = nav.getByRole('link', { name: 'Plans' });
+    const plans = nav.getByRole('link', { name: 'Plan', exact: true });
     await plans.tap();
     const seen = await frames<F>();
     expect(seen.length).toBeGreaterThan(framesFloor(10, 600, idle));

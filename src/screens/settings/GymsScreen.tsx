@@ -6,7 +6,6 @@ import { Button } from '../../ui/Button';
 import { Sheet } from '../../ui/Sheet';
 import { Skeleton } from '../../ui/Skeleton';
 import { Toast, type ToastMessage } from '../../ui/Toast';
-import { ChevronRight } from '../../ui/icons';
 import { useNav } from '../../ui/nav';
 import { useLive } from '../../hooks/useLive';
 import { db } from '../../db/schema';
@@ -15,7 +14,6 @@ import { gymLine, recentGyms } from '../../lib/gymPresets';
 import { NewGymForm } from '../../components/gym/NewGymForm';
 import { SwitchSheet, useActiveName } from '../../components/gym/MakeActive';
 import { useGymSwitch } from '../../components/gym/useGymSwitch';
-import { TYPE_ICON } from '../../components/gym/gymIcons';
 import styles from '../Settings.module.css';
 import gymStyles from './Gyms.module.css';
 import { useToastTimeout } from '../../ui/useToastTimeout';
@@ -86,27 +84,23 @@ export function GymsScreen() {
   const list = recentGyms(gyms.data ?? []);
   return (
     <>
-      <TopBar title="Gyms" leading={<BackButton to="/settings" label="Back to Settings" />} />
+      <TopBar title="Gyms" leading={<BackButton plain to="/settings" label="Back to Settings" />} />
       <p className={gymStyles.intro}>Where you train. Each gym keeps its own equipment, plates and units.</p>
       {!gyms.ready ? (
         <Skeleton height={200} />
       ) : (
         <div className={styles.card} data-testid="gyms-list">
-          {list.map((g, i) => {
-            const Icon = TYPE_ICON[g.type];
+          {list.map((g) => {
             const here = g.id === active?.id;
             return (
               <button
                 key={g.id}
                 type="button"
-                className={`${styles.linkRow} ${i < list.length - 1 ? styles.divided : ''} pressable`}
+                className={`${styles.linkRow} pressable`}
                 onClick={() => go(`/settings/gyms/${g.id}`, { kind: 'push' })}
                 aria-current={here ? 'true' : undefined}
                 data-testid={`gyms-row-${g.id}`}
               >
-                <span className={gymStyles.tile} data-active={here || undefined} aria-hidden="true">
-                  <Icon width={20} height={20} strokeWidth={2} />
-                </span>
                 <span className={`${styles.unitText} ${gymStyles.grow}`}>
                   <span className={styles.unitLabel}>
                     {g.name}
@@ -116,7 +110,6 @@ export function GymsScreen() {
                     {gymLine(g)} · {g.unit}
                   </span>
                 </span>
-                <ChevronRight className={styles.chevron} aria-hidden="true" />
               </button>
             );
           })}

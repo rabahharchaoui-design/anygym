@@ -20,6 +20,9 @@ export const undoToast = (id: number, text: string, onUndo: () => void, subject?
 
 const UNDO = 'Undo';
 
+/** The toast spot on a tab root: just above the tab bar (and the resume bar when it shows). */
+export const TAB_TOAST_BOTTOM = 'calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)';
+
 /**
  * SPEC 13.3: a toast that appears under a finger must not act on that same gesture. A tap on its
  * action in this long after it appears (a double tap on the button that made it) does nothing.

@@ -175,7 +175,7 @@ test('the welcome: three steps, each spotlight on its element; Done persists; a 
   await expect(line).toHaveText('Runs, history and plans live here.');
   const capsule = page.locator('[data-tour="tabs"]');
   await expectSpotOn(page, capsule);
-  await expect(capsule.getByRole('link')).toHaveText(['Today', 'Run', 'History', 'Plans']);
+  await expect(capsule.getByRole('link')).toHaveText(['Today', 'Plan', 'Run', 'History', 'You']);
   await expect(next).toHaveText('Done');
   await shot(page, 'tour-3-tabs');
 
@@ -189,7 +189,7 @@ test('the welcome: three steps, each spotlight on its element; Done persists; a 
   await page.waitForTimeout(1200);
   await expect(tour(page)).toHaveCount(0);
   // Another tab and back: still gone.
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Plan', exact: true }).tap();
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Today' }).tap();
   await page.waitForTimeout(1200);
   await expect(tour(page)).toHaveCount(0);

@@ -8,7 +8,7 @@ import styles from './TabBar.module.css';
 
 /**
  * The tab bar (SPEC 23.1, Monolith style sheet): docked to the bottom edge, solid graphite with a
- * hairline on top, words only. The active tab is white and bold with a 20 x 3 px ice blue bar above
+ * hairline on top, five words (Today, Plan, Run, History, You; PLAN M14). The active tab is white and bold with a 20 x 3 px ice blue bar above
  * it that slides between tabs (shared layout animation) and lands on a small spring. The nav owns
  * the one bottom inset (PLAN 1.10b). Hidden on pushed screens.
  */
@@ -24,7 +24,7 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
   return (
     <nav className={styles.bar} aria-label="Main" data-hidden={hidden || undefined} aria-hidden={hidden || undefined} {...(hidden ? { inert: '' } : {})}>
       <div className={styles.capsule} data-tour="tabs">
-        {TABS.map(({ to, label }) => {
+        {TABS.map(({ to, label, id }) => {
           const active = activeTab(pathname) === to;
           return (
             <NavLink
@@ -34,6 +34,7 @@ export function TabBar({ hidden = false }: { hidden?: boolean }) {
               className={styles.tab}
               data-active={active || undefined}
               aria-current={active ? 'page' : undefined}
+              data-testid={`tab-${id}`}
               onClick={(e) => {
                 e.preventDefault();
                 if (pathname === to) return;
