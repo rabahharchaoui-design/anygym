@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { expect, test } from './fixtures';
+import { allowConsoleErrors, expect, test } from './fixtures';
 import { pastIntake } from './helpers/quick';
 
 // PLAN PB1: the You tab and the screens only it opens are kept out of the first download. Their
@@ -25,21 +25,34 @@ test('PB1 deep links open the lazy You screens directly, and back still works', 
   await expect(page.getByRole('heading', { level: 1, name: 'Gyms' })).toBeVisible();
 });
 
-test('PB1 a You file that cannot load shows the load error, and Try again opens it', async ({ page }) => {
+test('PB1 a You file that cannot load shows the load error, never a blank or crash screen', async ({ page, context }) => {
+  // Provoked on purpose: the blocked file and the error the screen catches for it.
+  allowConsoleErrors(/assets\/SettingsScreen-[^ ]+\.js/, /ScreenLoadError/);
   await pastIntake(page);
-  let blocked = true;
-  await page.route(/\/assets\/SettingsScreen-[^/]+\.js$/, (route) => (blocked ? route.abort('internetdisconnected') : route.continue()));
+  await page.route(/\/assets\/SettingsScreen-[^/]+\.js$/, (route) => route.abort('internetdisconnected'));
   await nav(page).getByTestId('tab-you').tap();
   const error = page.getByTestId('load-error');
   await expect(error).toBeVisible();
   await expect(error).toContainText('Could not open this screen');
-  // Never a blank screen or the app's crash screen: the tab bar stays, so the other tabs still work.
+  await expect(error.getByRole('button', { name: 'Try again' })).toBeVisible();
   await expect(page.getByTestId('app-error')).toHaveCount(0);
-  await expect(nav(page)).toBeVisible();
-  blocked = false;
+  // The tab bar stays: the other tabs still work.
+  await nav(page).getByTestId('tab-today').tap();
+  await expect(page.getByTestId('gym-pill').first()).toBeVisible();
+  await nav(page).getByTestId('tab-you').tap();
+  await expect(error).toBeVisible();
+  // With signal, Try again loads the app afresh on the same address. (WebKit keeps a module that
+  // failed for the life of the page, so the screen itself comes back in a fresh page: below.)
+  await page.unroute(/\/assets\/SettingsScreen-[^/]+\.js$/);
+  const reloaded = page.waitForEvent('load');
   await error.getByRole('button', { name: 'Try again' }).tap();
-  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
-  await expect(page.getByTestId('load-error')).toHaveCount(0);
+  await reloaded;
+  await expect(page).toHaveURL(/#\/settings$/);
+  const fresh = await context.newPage();
+  await fresh.goto('./#/settings');
+  await expect(fresh.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
+  await expect(fresh.getByTestId('load-error')).toHaveCount(0);
+  await fresh.close();
 });
 
 test('PB1 every app file, the lazy screens included, is in the service worker precache', async () => {

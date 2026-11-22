@@ -27,7 +27,7 @@ export function lazyScreen(load: Load): { Screen: ComponentType; preload: () => 
     const [attempt, setAttempt] = useState(0);
     const C = current();
     return (
-      <LoadBoundary key={attempt} onRetry={() => { reset(); setAttempt((n) => n + 1); }}>
+      <LoadBoundary key={attempt} onRetry={() => retry(() => { reset(); setAttempt((n) => n + 1); })}>
         <Suspense fallback={<div className={styles.wait} aria-busy="true" data-testid="screen-wait" />}>
           <C />
         </Suspense>
@@ -58,6 +58,17 @@ class LoadBoundary extends Component<BoundaryProps, { error: unknown }> {
       </div>
     );
   }
+}
+
+/**
+ * Try again. WebKit remembers a module that failed to fetch for the life of the page, so asking
+ * again in place would fail again: with signal the page is loaded afresh on the same address (all
+ * data is saved; this screen had not opened yet). With no signal it asks in place, which shows the
+ * error again rather than a browser page about being offline.
+ */
+function retry(inPlace: () => void): void {
+  if (navigator.onLine) window.location.reload();
+  else inPlace();
 }
 
 /** The screen's file could not be fetched (marked where the import fails, so no other error is mistaken for it). */
