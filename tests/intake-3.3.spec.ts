@@ -1069,12 +1069,13 @@ test('P15: the edge swipe goes back on a pushed screen; the first screen has non
   await expect(page.getByText(/coming soon/i)).toHaveCount(0);
 });
 
-test('P1 P9 P10: the selected toggle is the solid lime pill; the body starts unpicked; Units fits the SE with no fade over it', async ({ page }) => {
+test('P1 P9 P10 (M13: the selected toggle is an ice line); the body starts unpicked; Units fits the SE with no fade over it', async ({ page }) => {
   await drafted(page, 'units', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in' } });
   await expect(page.getByText('Which body should the muscle map show?')).toBeVisible();
-  const bg = await page.getByTestId('units-weight').locator('[data-pill]').evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(bg).toContain('gradient');
-  expect(bg).not.toContain('0.14');
+  // PLAN M13 (Monolith): the pick is an ice line under the word, never a filled pill.
+  const pill = await page.getByTestId('units-weight').locator('[data-pill]').evaluate((el) => ({ h: el.getBoundingClientRect().height, image: getComputedStyle(el).backgroundImage }));
+  expect(pill.h).toBeLessThanOrEqual(3);
+  expect(pill.image).toBe('none');
   await expect(page.getByTestId('units-body').getByRole('radio', { checked: true })).toHaveCount(0);
   await expect(cta(page)).toBeEnabled();
   await checkLayout(page, { primary: cta(page) });

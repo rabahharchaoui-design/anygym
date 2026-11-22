@@ -33,6 +33,7 @@ import { STAYS_HERE } from './copy';
 import { ArtScene } from '../../ui/art/lazy';
 import styles from './Intake.module.css';
 import revealStyles from './IntakeReveal.module.css';
+import rowStyles from './IntakeRows.module.css';
 
 type Props = { answers: IntakeAnswers; redo: boolean; onBack: () => void; baseline: MutableRefObject<IntakeAnswers | undefined>; onChange: (a: IntakeAnswers) => void };
 
@@ -236,10 +237,10 @@ export function Reveal({ answers, redo, onBack, baseline, onChange }: Props) {
             <h2 id="reveal-others" className={revealStyles.othersTitle}>
               {mine && !isMine ? 'Or go back to your plan' : 'Or pick a curated plan'}
             </h2>
-            <div className={styles.cards}>
-              {mine && !isMine && <ChoiceCard label="Your plan" hint={`Built from your answers · ${mine.daysPerWeek} days a week`} picked={false} onPress={() => setChosenId(mine.id)} testId="reveal-plan-mine" />}
+            <div className={`${styles.cards} ${rowStyles.list}`}>
+              {mine && !isMine && <ChoiceCard label="Your plan" hint={`Built from your answers · ${mine.daysPerWeek} days a week`} picked={false} onPress={() => setChosenId(mine.id)} flat testId="reveal-plan-mine" />}
               {fits.filter((p) => p.id !== chosenId).map((p) => (
-                <ChoiceCard key={p.id} label={p.name} hint={`${p.daysPerWeek} days a week`} picked={p.id === chosenId} onPress={() => setChosenId(p.id)} testId={`reveal-plan-${p.id}`} />
+                <ChoiceCard key={p.id} label={p.name} hint={`${p.daysPerWeek} days a week`} picked={p.id === chosenId} onPress={() => setChosenId(p.id)} flat testId={`reveal-plan-${p.id}`} />
               ))}
             </div>
           </section>

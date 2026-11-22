@@ -1,4 +1,4 @@
-/* PLAN 3.5u: the first visit welcome. A dim page, one lit element, one quiet card of words. The
+/* PLAN 3.5u: the first visit welcome. A dim page, one lit element, one quiet block of words. The
    layer itself takes no taps: only the parts around the light and the card do. */
 .tour {
   position: fixed;
@@ -32,10 +32,13 @@
   max-width: 420px;
   margin: 0 auto;
   padding: var(--space-4) var(--space-4) var(--space-3) var(--space-5);
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface-solid-2);
-  box-shadow: var(--shadow-float);
+  /* PLAN M13 (Monolith): a plain block of words on the page's graphite under one hairline; no
+     bubble, no frame, no shadow. Opaque, so the dimmed page never reads through the words. */
+  border: 0;
+  border-top: var(--divider);
+  border-radius: var(--radius-none);
+  background: var(--bg);
+  box-shadow: none;
   pointer-events: auto;
 }
 

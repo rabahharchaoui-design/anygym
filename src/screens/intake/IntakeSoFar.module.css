@@ -85,13 +85,11 @@
 
 .soFarSlot {
   flex: none;
-  padding: 3px 9px;
-  border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  /* PLAN M13 (Monolith): a small ice word, no chip box. */
+  padding: 3px 0;
   color: var(--accent);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   animation: slot-in var(--dur-tap) var(--ease-tap-spring);
 }

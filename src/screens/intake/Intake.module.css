@@ -115,17 +115,24 @@
 .title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(28px, 8vw, 36px);
-  font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
+  /* PLAN M13 (Monolith): the question in giant type, the style sheet's heading. */
+  font-size: var(--text-mono-heading);
+  font-weight: var(--weight-heavy);
+  line-height: 1.02;
+  letter-spacing: var(--track-heading);
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
-/* 3.5f round 3 (B2): on a short screen the love / never cards need the room; the top Skip already says optional. */
+/* 3.5f round 3 (B2): on a short screen the love / never cards need the room; the top Skip already says optional.
+   PLAN M13: the question a step under the giant heading there too, so the photo stays a photo. */
 @media (max-height: 720px) {
   .screen[data-step='exercises'] .sub {
     display: none;
+  }
+
+  .screen[data-step='exercises'] .title {
+    font-size: var(--text-xl);
   }
 }
 
@@ -141,9 +148,9 @@
 }
 
 .sub {
-  margin: calc(-1 * var(--space-2)) 0 0;
+  margin: calc(-1 * var(--space-1)) 0 var(--space-2);
   color: var(--text-2);
-  font-size: var(--text-base);
+  font-size: var(--text-mono-caption);
   line-height: 1.35;
 }
 
