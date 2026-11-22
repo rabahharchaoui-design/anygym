@@ -11,8 +11,6 @@
   padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-2) + var(--safe-left));
   border-bottom: 1px solid var(--glass-line);
   background: var(--glass-bg-strong);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
   view-transition-name: workout-head;
 }
 
