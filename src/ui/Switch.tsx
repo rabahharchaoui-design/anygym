@@ -8,15 +8,17 @@ type Props = {
   checked: boolean;
   onChange: (on: boolean) => void;
   disabled?: boolean;
-  /** PLAN M14 (Monolith, board 13): the state as a word on the right ("On" white over an ice line, "Off" secondary), no track. */
-  words?: boolean;
 };
 
-/** A settings row with an on/off switch: the whole row is the 48 pt+ hit area. */
-export function Switch({ label, hint, checked, onChange, disabled, words }: Props) {
+/**
+ * A row with an on/off switch: the whole row is the 48 pt+ hit area. Monolith (board 13, PLAN M14,
+ * M15 everywhere): the state as a word on the right, "On" white over an ice line, "Off" secondary;
+ * no track, no filled block. Still a real switch (role, aria-checked) for screen readers and specs.
+ */
+export function Switch({ label, hint, checked, onChange, disabled }: Props) {
   const id = useId();
   return (
-    <label className={styles.row} htmlFor={id} data-disabled={disabled || undefined} data-words={words || undefined}>
+    <label className={styles.row} htmlFor={id} data-disabled={disabled || undefined}>
       <span className={styles.text}>
         <span className={styles.label}>{label}</span>
         {hint && <span className={styles.hint}>{hint}</span>}
@@ -34,15 +36,9 @@ export function Switch({ label, hint, checked, onChange, disabled, words }: Prop
           if (e.target.checked) tick();
         }}
       />
-      {words ? (
-        <span className={styles.word} aria-hidden="true">
-          {checked ? 'On' : 'Off'}
-        </span>
-      ) : (
-        <span className={styles.track} aria-hidden="true">
-          <span className={styles.thumb} />
-        </span>
-      )}
+      <span className={styles.word} aria-hidden="true">
+        {checked ? 'On' : 'Off'}
+      </span>
     </label>
   );
 }

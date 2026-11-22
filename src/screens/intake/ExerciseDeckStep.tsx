@@ -16,7 +16,6 @@ import { decideExercise, intakeDeck } from '../../lib/intake/exerciseDeck';
 import type { GymKit } from '../../lib/picker';
 import { ExercisesStep } from './ExerciseSearch';
 import styles from './ExerciseDeck.module.css';
-import rowStyles from './IntakeRows.module.css';
 
 // "Any favorites, or ones to avoid?" (SPEC 14 item 11; PLAN 3.5f: the shared swipe deck). Cards of
 // well known moves this person's gym has: right (or Love) is a favorite, left (or Not sure, round 3
@@ -50,10 +49,9 @@ export function ExerciseDeckStep({ love, never, onLove, onNever, gym }: Props) {
     setIndex((i) => i + 1);
   };
   return (
-    <div className={`${styles.step} ${rowStyles.words}`}>
+    <div className={styles.step}>
       <SlidingToggle
         block
-        glass
         label="Cards or lists"
         testId="ex-mode"
         options={[
