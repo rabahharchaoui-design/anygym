@@ -50,7 +50,6 @@ import { ResumeCard } from './today/ResumeCard';
 import { useArrivalToast } from './today/useArrivalToast';
 import { useToastRoom } from './today/useToastRoom';
 import { WelcomeTour } from './today/WelcomeTour';
-import { ArtScene } from '../ui/art/lazy';
 import { shouldShowTour } from '../lib/welcomeTour';
 import styles from './TodayScreen.module.css';
 import { useToastTimeout } from '../ui/useToastTimeout';
@@ -210,7 +209,7 @@ export function TodayScreen() {
     <>
       <TopBar
         title="Today"
-        pinned
+        giant
         onTitleTap={onTitleTap}
         trailing={
           <div className={styles.trailing}>
@@ -269,11 +268,7 @@ export function TodayScreen() {
           />
         ) : (
           <section className={styles.pick} aria-label="Pick a plan" data-tour="pick">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
-              <h2 className={styles.pickTitle}>Pick a plan</h2>
-              {/* PLAN 3.6h: the empty week, one day lit. Decoration, loaded after the first paint. */}
-              <ArtScene name="today" width={80} />
-            </div>
+            <h2 className={styles.pickTitle}>Pick a plan</h2>
             <p className={styles.pickSub}>Follow a plan and every day is lined up for you: exercises, sets and rest.</p>
             <Button onClick={() => go('/plans', { kind: 'tab' })}>See plans</Button>
           </section>
