@@ -34,7 +34,7 @@
 
 .title {
   /* "Workout saved · 22 sets" on one line on every iPhone (gate round 2 P3); "22 sets" never splits. */
-  font-size: clamp(26px, 7vw, 34px);
+  font-size: clamp(38px, 10vw, 72px);
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.05;
