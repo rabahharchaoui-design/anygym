@@ -14,9 +14,9 @@
   gap: var(--space-2);
   /* The same compact room as the demo (PLAN 2.0k): How to stays in the first screen. */
   height: clamp(120px, 20svh, 230px);
-  border: 1px dashed var(--hairline);
+  border: 0;
   border-radius: var(--radius-md);
-  background: var(--surface-1);
+  background: transparent;
 }
 
 /* PLAN 3.6v: under 600 pt tall (the 320 x 568 floor) a little less room around and for the picture,
@@ -38,10 +38,10 @@
 
 .title {
   margin: 0;
-  font-size: clamp(22px, 6.4vw, var(--text-xl));
+  font-size: clamp(30px, 8vw, 48px);
   font-weight: 700;
   line-height: 1.15;
-  text-align: center;
+  text-align: left;
   overflow-wrap: anywhere;
   text-wrap: balance;
 }

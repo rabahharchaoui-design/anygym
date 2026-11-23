@@ -35,7 +35,7 @@
 .title {
   /* "Workout saved · 22 sets" on one line on every iPhone (gate round 2 P3); "22 sets" never splits. */
   font-size: clamp(26px, 7vw, 34px);
-  font-weight: 700;
+  font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.05;
 }
@@ -73,49 +73,25 @@
 
 .stats {
   display: grid;
-  /* One row of three on every phone (round 3, critic P4; gate round 2 P3): Time and Sets as wide as
-     they need, Total lifted takes the rest. */
   grid-template-columns: auto auto minmax(0, 1fr);
   gap: var(--space-2);
 }
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  /* Glass sheen over dense graphite: the silver labels stay AA at the lit top of the screen. */
-  background: var(--card-fill), var(--glass-bg-strong);
-  border: 1px solid var(--glass-line);
-}
-
-.wide {
-  grid-column: auto;
-}
-
-.value {
-  font-size: clamp(22px, 6.4vw, 30px);
-  font-weight: 700;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
 .stat {
   min-width: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--hairline);
 }
-
-.wide {
-  background:
-    radial-gradient(110% 120% at 100% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
-    var(--card-fill),
-    var(--glass-bg-strong);
+.value {
+  font-size: clamp(22px, 6.4vw, 30px);
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.wide .value {
-  color: var(--accent);
-}
-
 .label {
   color: var(--text-2);
   font-size: 14px;
@@ -152,10 +128,8 @@
 .exerciseList {
   list-style: none;
   margin: 0;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
-  border: 1px solid var(--glass-line);
+  padding: 0;
+  border-top: 1px solid var(--hairline);
 }
 
 /* Round 3 (critic 15): a name never breaks inside a word ("Deadlif / t" at 130% text). When the
@@ -286,20 +260,6 @@
   .title {
     font-size: clamp(26px, 7.4vw, 30px);
   }
-  /* One row (round 3, critic P4): Time and Sets as wide as they need, Total lifted takes the rest,
-     so all three share one 22 pt size instead of each shrinking on its own. */
-  .stat {
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-lg);
-  }
-  .value {
-    font-size: 22px;
-  }
-  /* A very long total ("123,456.5 kg") ends with an ellipsis rather than spilling out of its tile. */
-  .wide .value {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
   .label {
     font-size: 12px;
   }
@@ -308,10 +268,4 @@
 
 .nowrap {
   white-space: nowrap;
-}
-
-/* A very long total ends with an ellipsis rather than spilling out of its tile. */
-.wide .value {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
