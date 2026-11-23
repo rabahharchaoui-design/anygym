@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { FADE, SPRING } from '../../ui/motion';
-import styles from '../settings/Restore.module.css';
+import styles from './BackupReminder.module.css';
 
 type Props = { show: boolean; reason: string; onBackUp: () => void; onLater: () => void };
 

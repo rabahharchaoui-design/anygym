@@ -1,5 +1,4 @@
 /* The day list (SPEC 20.1): a coach's list, not a log. Calm rows, the next one lit. */
-
 .main {
   height: 100%;
   overflow-y: auto;
@@ -8,23 +7,20 @@
   padding: var(--space-3) calc(var(--space-4) + var(--safe-right)) calc(var(--space-4) + var(--rest-height))
     calc(var(--space-4) + var(--safe-left));
 }
-
 .titleBlock {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-bottom: var(--space-4);
 }
-
 .title {
-  font-size: clamp(26px, 7.4vw, 32px);
-  font-weight: 700;
+  font-size: clamp(38px, 10vw, 72px);
+  font-weight: 900;
   line-height: 1.08;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
-
 .metaRow {
   display: flex;
   flex-wrap: wrap;
@@ -35,7 +31,6 @@
   row-gap: 8px;
   min-height: 36px;
 }
-
 /* "My Gym · ~90 min": one quiet metadata line. */
 .meta {
   /* Never squeezed: at large text sizes the music pills move under it instead. */
@@ -48,16 +43,13 @@
   font-size: 15px;
   font-weight: 600;
 }
-
 .minutes {
   flex: none;
   white-space: nowrap;
 }
-
 .minutesSep {
   flex: none;
 }
-
 /* PLAN 3.6: the estimate is a button (opens "How much time today?"): same quiet words, a dotted
    underline says it can be tapped, a 48 pt hit area like the gym pill beside it. */
 .minutesButton {
@@ -71,12 +63,10 @@
   text-decoration: underline dotted color-mix(in srgb, var(--white) 35%, transparent);
   text-underline-offset: 4px;
 }
-
 .minutesButton[data-trimmed] {
   color: var(--accent);
   text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
-
 /* One quiet line under the title: the time offer, or what the time budget did. */
 .timeLine {
   display: flex;
@@ -86,7 +76,6 @@
   margin-top: 2px;
   padding: 2px 0 2px 2px;
 }
-
 .timeText {
   flex: 1 1 160px;
   min-width: 0;
@@ -95,7 +84,6 @@
   font-size: 14px;
   overflow-wrap: anywhere;
 }
-
 .timeAction {
   flex: none;
   min-height: 48px;
@@ -104,7 +92,6 @@
   font-size: 14px;
   font-weight: 700;
 }
-
 .timeClose {
   flex: none;
   min-width: 48px;
@@ -115,7 +102,6 @@
   justify-content: center;
   color: var(--text-2);
 }
-
 .list,
 .pairRows {
   list-style: none;
@@ -125,7 +111,6 @@
   flex-direction: column;
   gap: 2px;
 }
-
 .row {
   position: relative;
   width: 100%;
@@ -133,33 +118,22 @@
   align-items: center;
   gap: var(--space-3);
   min-height: 84px;
-  padding: 10px 10px 10px 8px;
-  border-radius: var(--radius-lg);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
   text-align: left;
   transition:
     background-color var(--dur-fast) var(--ease-out),
     opacity var(--dur-fast) var(--ease-out),
     transform var(--dur-press) var(--ease-out);
 }
-
-.row[data-state='next'] {
-  background:
-    radial-gradient(90% 120% at 0% 50%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%),
-    var(--surface-2);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
-    0 8px 24px color-mix(in srgb, var(--black) 35%, transparent);
-}
-
+.row[data-state='next'] { color: var(--text); }
 .row[data-state='done'] {
   opacity: 0.55;
 }
-
 /* Nothing fits at this gym (PLAN 3.4): quiet, and it stays a row you can skip. */
 .row[data-skip] {
   opacity: 0.55;
 }
-
 /* "Swapped: no cable here", under its row, lined up with the name. On a narrow phone or at large
    text the buttons wrap under the words, nothing is cut. */
 .swapLine {
@@ -170,7 +144,6 @@
   column-gap: var(--space-2);
   margin: 0 10px 4px calc(8px + 64px + var(--space-3));
 }
-
 .swapWhy {
   flex: 1 1 120px;
   min-width: 0;
@@ -179,13 +152,11 @@
   font-size: 13px;
   overflow-wrap: anywhere;
 }
-
 .swapActions {
   flex: none;
   display: inline-flex;
   margin-right: -8px;
 }
-
 .swapButton {
   min-width: 48px;
   min-height: 48px;
@@ -194,7 +165,6 @@
   font-size: 14px;
   font-weight: 600;
 }
-
 .text {
   flex: 1;
   min-width: 0;
@@ -202,7 +172,6 @@
   flex-direction: column;
   gap: 2px;
 }
-
 .name {
   font-family: var(--font-display);
   font-size: clamp(17px, 4.9vw, 19px);
@@ -210,24 +179,20 @@
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
-
 .sets {
   color: var(--text);
   font-size: 15px;
   opacity: 0.85;
 }
-
 .rest {
   color: var(--text-2);
   font-size: 13px;
 }
-
 .progress {
   flex: none;
   display: inline-flex;
   color: var(--on-accent);
 }
-
 /* A pair (superset): one colored rail, the plain label (SPEC 13.1). */
 .pair {
   margin: 6px 0;
@@ -235,62 +200,50 @@
   border-left: 3px solid var(--pair);
   border-radius: var(--radius-sm);
 }
-
 .pair[data-warmup] {
   border-left-color: var(--amber);
 }
-
 /* PLAN 3.6: a time budget's stretches, done back to back as one block. */
 .pair[data-mobility] {
   border-left-color: var(--text-2);
 }
-
 .pair[data-mobility] .pairLabel {
   color: var(--text-2);
 }
-
 .pairLabel {
   margin: 2px 0 2px 8px;
   color: var(--pair);
   font-size: 13px;
   font-weight: 700;
 }
-
 .pair[data-warmup] .pairLabel,
 .warmLabel {
   color: var(--amber);
 }
-
 .warmLabel,
 .finisherLabel {
   margin: 8px 0 0 8px;
   font-size: 13px;
   font-weight: 700;
 }
-
 .finisherLabel {
   color: var(--accent);
 }
-
 .empty {
   padding: var(--space-6) var(--space-2);
   text-align: center;
 }
-
 .emptyTitle {
   font-size: var(--text-lg);
   font-weight: 700;
 }
-
 .emptySub {
   margin: 6px 0 0;
   color: var(--text-2);
 }
-
 .addRow {
   margin-top: var(--space-3);
 }
-
 .music {
   flex: none;
   margin-left: auto;
@@ -298,12 +251,10 @@
   /* The 48 pt hit areas overlap the gap a little; the pills themselves stay apart. */
   margin-right: -6px;
 }
-
 /* The row up next carries the one time hint right under it (pointer events off, no layout space). */
 .rowItem {
   position: relative;
 }
-
 /* Start: <exercise>, the one primary action in the thumb zone; it rides the bottom of the list. */
 .startDock {
   position: sticky;
@@ -314,7 +265,6 @@
   margin-top: var(--space-4);
   pointer-events: none;
 }
-
 /* The rows run out under the pill into the page color, so a row behind it reads as below the fold,
    never as half hidden (round 3, P4). */
 .startDock::before {
@@ -326,10 +276,9 @@
   /* Down to the screen's bottom edge: the pill's own inset plus the list's bottom room. */
   bottom: calc(-1 * (2 * var(--space-2) + var(--rest-height)));
   /* Dim, never blank: the next row still peeks below, so the list reads as scrollable. */
-  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 86%, transparent) 45%, color-mix(in srgb, var(--bg) 62%, transparent));
+  background: var(--bg);
   pointer-events: none;
 }
-
 .startPill {
   position: relative;
   pointer-events: auto;
@@ -342,32 +291,28 @@
   height: 52px;
   padding: 0 var(--space-5);
   border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow:
-    var(--accent-glow);
+  background: transparent;
+  color: var(--text);
+  border-bottom: 4px solid var(--accent);
+  box-shadow: none;
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
   transition: transform 160ms var(--ease-out);
 }
-
 .startPill:active {
   transform: scale(var(--press-scale));
   transition-duration: 0ms;
 }
-
 .startLabel {
   display: flex;
   min-width: 0;
   white-space: pre;
 }
-
 .startVerb,
 .startSet {
   flex: none;
 }
-
 /* Only the name gives way on a narrow phone (gate P7). */
 .startName {
   min-width: 0;
@@ -375,11 +320,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .startSet {
   font-variant-numeric: tabular-nums;
 }
-
 /* With the pill, the list keeps the pill's room plus the safe area below its last row. */
 .main[data-pill] {
   /* The rest bar's height below the last row (it floats over the bottom when a rest runs). */
@@ -387,26 +330,21 @@
   /* Anything scrolled into view lands above the pill, never under it. */
   scroll-padding-bottom: 84px;
 }
-
 /* A sticky inset counts from the list's padding edge, and that padding already keeps the rest bar's
    room (plus the safe area, which sits below the stage). So the pill's plain bottom inset keeps it
    above the rest bar during a rest, and at full scroll the last row ends above the pill: no extra
    offset while resting, or the pill would ride a rest bar higher than its flow spot and cover rows. */
-
 /* The gym name sits inline in the metadata line (no reserved pill width here). */
 .meta > :first-child {
   min-width: 0;
 }
-
 /* The second separator shows while everything fits; tight, a plain gap (gate round 2 P5). */
 .startLabel[data-tight] .startSep {
   display: none;
 }
-
 .startLabel[data-tight] .startSet {
   margin-left: 0.28em;
 }
-
 /* 3.5b round 4 (M8): a Quick group's rest, said once for the round. */
 .pairRest {
   margin: 0 0 var(--space-2);

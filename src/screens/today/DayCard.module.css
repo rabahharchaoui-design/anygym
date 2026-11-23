@@ -12,12 +12,12 @@
 }
 
 /* PLAN 3.6f: "Next up: Day 3 · Push · ~45 min" breaks only between its parts. Each part carries its
-   dot in a gutter on its left; the title starts one gutter to the left and that strip is clipped, so
+   dot in a gutter on its left; that strip is clipped, so
    a part that starts a line shows no dot (never "Day 1 ·" on one line and "Upper" on the next). The
    clip leaves room above and below for the time button's 48 pt hit area. */
 .title {
   --gutter: 0.6em;
-  margin-left: calc(-1 * var(--gutter));
+  margin-left: 0;
   clip-path: inset(-16px 0 -16px var(--gutter));
 }
 

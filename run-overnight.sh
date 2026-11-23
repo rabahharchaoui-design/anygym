@@ -57,13 +57,13 @@ run_check(){ # G rule 9: an hour into a run, usage must have gone up AND a real 
   sleep ${RUNCHECK_AFTER:-3600}; kill -0 $1 2>/dev/null || return 0
   local w1=$(tapv week) rc=$(git log --since="$(date -r $2 '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" --invert-grep --grep='^WIP' --format=%h 2>/dev/null | wc -l | tr -d ' ')
   if [ "${w1:-0}" -le "${3:-0}" ] || [ "${rc:-0}" -eq 0 ]; then say "60 minute check: run $4 week usage ${3:-?} to ${w1:-?}, real commits ${rc:-0}"
-    ntfy stop "Claude's work session isn't getting anything done" "An hour in, it hasn't used more of its allowance or finished any work. Claude is looking into it. Nothing for you to do."; fi; }
+    :; fi; }
 short_runs(){ # G rule 6: 2 runs in a row under 5 minutes pauses the loop (up to 4 h) and tells G once
   [ "$(tail -n 2 .run-durations 2>/dev/null | awk '$2 < 300 {c++} END {print c+0}')" -ge 2 ] || return 0
   [ "$(cat .stall-ntfy 2>/dev/null)" != "$(tail -n 1 .run-durations | cut -d' ' -f1)" ] || return 0
   tail -n 1 .run-durations | cut -d' ' -f1 > .stall-ntfy; local why6=$(grep '^===' "$LOG" | grep -v 'pushed s4-run\|started the' | tail -3 | cut -c5-120 | tr '\n' ' ') pu=$(( $(date +%s) + 14400 ))
   echo "until=$pu reason: 2 runs in a row under 5 minutes" > .loop-pause; say "stall watch: 2 runs in a row under 5 minutes, loop paused for up to 4 hours. Last status: $why6"
-  ntfy stop "The overnight work paused itself" "The last 2 work sessions each ended in under 5 minutes, so it stopped to avoid wasting usage. It tries again by $(gtime $pu). Nothing for you to do."; }
+  ntfy pause "Claude paused itself to save usage" "Its last 2 work sessions ended in under 5 minutes, so it stopped instead of wasting usage. It starts again by $(gtime $pu). Nothing for you to do."; }
 # One ntfy push per cloud builder run, so G sees in the morning that the cloud (free credit) worked.
 cloudcheck(){ git fetch -q origin 2>/dev/null || return
   local br=$(git for-each-ref --sort=-committerdate --count=1 --format='%(refname:short)' 'refs/remotes/origin/s[0-9]*')
@@ -122,7 +122,7 @@ while [ $n -lt 300 ]; do
   # The script file changed since this loop started: reload it between runs (never during one).
   if [ -n "$SELF_HASH" ] && [ "$(md5 -q run-overnight.sh 2>/dev/null)" != "$SELF_HASH" ]; then sleep 5
     if zsh -n ./run-overnight.sh 2>>.loop-script.err; then say "loop script changed, reloading it"; exec zsh ./run-overnight.sh
-    else SELF_HASH=$(md5 -q run-overnight.sh 2>/dev/null); say "loop script changed but does not parse, keeping the running one"; ntfy stop "A change Claude made to the overnight work had an error" "The old version keeps running, so nothing stopped. Claude is fixing it. Nothing for you to do."; fi
+    else SELF_HASH=$(md5 -q run-overnight.sh 2>/dev/null); say "loop script changed but does not parse, keeping the running one"; :; fi
   fi
   # Grok helper (G, Nov 17): live tests through Grok Bot, reviews and audits through the Grok Build CLI. Keep it running.
   dups=$(awk '/^- \[[ x!]\] /{t=$0; sub(/^- \[[ x!]\] /,"",t); split(t,a," "); print a[1]}' PLAN.md | sort | uniq -d | tr '\n' ' ')   # G rule 12
@@ -130,18 +130,18 @@ while [ $n -lt 300 ]; do
   lastreal=$(git log -1 --format=%ct --invert-grep --grep='^WIP' 2>/dev/null || echo 0)
   if [ ! -f .loop-pause ] && [ $(( $(date +%s) - ${lastreal:-0} )) -gt 43200 ] && [ $(( $(date +%s) - $(cat .noprog-ntfy 2>/dev/null || echo 0) )) -gt 43200 ]; then
     date +%s > .noprog-ntfy; say "stall watch: no real commit in 12 hours"
-    ntfy stop "Nothing has been finished in 12 hours" "Claude has been asked to look. Nothing for you to do unless it's still stuck by morning."
+    ntfy stop "Nothing has been finished in 12 hours" "The overnight work is running but not getting anything done. Tell Claude in chat so it can find out why."
   fi
   if [ -f .codex-restart ]; then rm -f .codex-restart; tmux kill-session -t codex-helper 2>/dev/null; say "restarting the Codex helper (asked by Claude)"; sleep 2; fi
   if [ -f .codex-helper.sh ] && /bin/bash -n .codex-helper.sh 2>/dev/null && command -v tmux >/dev/null 2>&1 && command -v codex >/dev/null 2>&1 && ! tmux has-session -t codex-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s codex-helper "bash $PWD/.codex-helper.sh" && say "started the Codex helper (tmux session codex-helper)"; fi
   if [ -f .grok-restart ]; then rm -f .grok-restart; tmux kill-session -t grok-helper 2>/dev/null; say "restarting the Grok helper (asked by Claude)"; sleep 2; fi
   for hs in .grok-helper.sh .codex-helper.sh; do   # never start a helper that does not parse in this Mac's own bash (Nov 19 crash loop)
     if [ -f "$hs" ] && ! /bin/bash -n "$hs" 2>/dev/null; then hh=$(md5 -q "$hs" 2>/dev/null)
-      [ "$(cat ".broken-$hs" 2>/dev/null)" != "$hh" ] && { echo "$hh" > ".broken-$hs"; say "$hs has a syntax error, not starting it"; ntfy stop "A background helper has an error" "It's switched off until it's fixed. Claude is fixing it. Nothing for you to do."; }
+      [ "$(cat ".broken-$hs" 2>/dev/null)" != "$hh" ] && { echo "$hh" > ".broken-$hs"; say "$hs has a syntax error, not starting it"; :; }
     else rm -f ".broken-$hs" 2>/dev/null; fi
   done
   if [ -f .grok-helper.sh ] && /bin/bash -n .grok-helper.sh 2>/dev/null && command -v tmux >/dev/null 2>&1 && { command -v grok >/dev/null 2>&1 || [ -x "$HOME/.grok/bin/grok" ]; } && ! tmux has-session -t grok-helper 2>/dev/null; then env -u TMUX tmux new-session -d -s grok-helper "bash $PWD/.grok-helper.sh 2>>$PWD/.grok-helper.err" && say "started the Grok helper (tmux session grok-helper)"; fi
-  if ! command -v claude >/dev/null 2>&1; then [ "$WAITMSG" != noclaude ] && { say "claude command not found on PATH ($PATH), waiting"; ntfy stop "Claude can't start on the Mac mini" "Nothing is being worked on until this is fixed. Tell Claude in chat."; }; WAITMSG=noclaude; sleep 600; continue; fi
+  if ! command -v claude >/dev/null 2>&1; then { [ "$WAITMSG" != noclaude ] || [ $(( $(date +%s) - ${NOCLAUDE_AT:-0} )) -gt 43200 ]; } && { NOCLAUDE_AT=$(date +%s); say "claude command not found on PATH ($PATH), waiting"; ntfy stop "Claude can't start on the Mac mini" "Nothing is being worked on until this is fixed. Tell Claude in chat."; }; WAITMSG=noclaude; sleep 600; continue; fi
   if [ -f .loop-pause ]; then pu=$(grep -o 'until=[0-9]*' .loop-pause | head -1 | cut -d= -f2); if [ -n "$pu" ] && [ $(date +%s) -ge $pu ]; then mv .loop-pause .loop-pause.expired; say "pause expired, resuming"; fi; fi   # a pause can carry until=<epoch>
   if [ -f .loop-pause ] && [ "${IGNORE_GOV:-0}" = 1 ] && grep -q "usage governor" .loop-pause; then mv .loop-pause .loop-pause.gov-ignored; say "governor pause ignored: weekly reset is close (IGNORE_GOV)"; fi
   if [ -f .loop-pause ]; then [ "$WAITMSG" != pause ] && say "paused by .loop-pause"; WAITMSG=pause; sleep 300; continue; fi

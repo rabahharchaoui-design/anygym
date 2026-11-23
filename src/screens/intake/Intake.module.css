@@ -125,8 +125,10 @@
 }
 
 /* 3.5f round 3 (B2): on a short screen the love / never cards need the room; the top Skip already says optional.
-   PLAN M13: the question a step under the giant heading there too, so the photo stays a photo. */
-@media (max-height: 720px) {
+   PLAN M13: the question a step under the giant heading there too, so the photo stays a photo.
+   Nov 23: up to 820 pt, not 720. Safari on an iPhone 17 Pro Max leaves 763 pt, where the giant question at 130% text took
+   175 pt and left the deck at its 196 pt floor: the photo was 98 pt (curate-3.5f-r3, failing on s4-run since M13). */
+@media (max-height: 820px) {
   .screen[data-step='exercises'] .sub {
     display: none;
   }
