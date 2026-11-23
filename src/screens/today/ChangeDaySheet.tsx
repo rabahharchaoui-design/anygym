@@ -2,7 +2,7 @@ import { Sheet } from '../../ui/Sheet';
 import type { PlanState } from '../../db/types';
 import { estimateDayMinutes, type Plan } from '../../lib/plans';
 import { dayTitle } from '../plans/planWords';
-import styles from '../TodayScreen.module.css';
+import styles from './ChangeDaySheet.module.css';
 
 type Props = {
   open: boolean;

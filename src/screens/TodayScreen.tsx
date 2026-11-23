@@ -271,7 +271,6 @@ export function TodayScreen() {
           <section className={styles.pick} aria-label="Pick a plan" data-tour="pick">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
               <h2 className={styles.pickTitle}>Pick a plan</h2>
-              {/* PLAN 3.6h: the empty week, one day lit. Decoration, loaded after the first paint. */}
               <ArtScene name="today" width={80} />
             </div>
             <p className={styles.pickSub}>Follow a plan and every day is lined up for you: exercises, sets and rest.</p>

@@ -3,11 +3,10 @@
    not mappable stays graphite. */
 
 .card {
-  composes: surface from '../../ui/card.module.css';
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4) 0;
 }
 
 .head {
