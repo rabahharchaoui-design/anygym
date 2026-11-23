@@ -89,3 +89,10 @@
 .deck article > :not(:first-child) {
   background: var(--bg);
 }
+
+/* Keep the intake photo useful when large text leaves a short card on a tall phone. */
+@media (min-height: 701px) {
+  .deck article > :first-child {
+    min-height: 120px;
+  }
+}

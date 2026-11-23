@@ -34,7 +34,7 @@
 
 .title {
   /* "Workout saved · 22 sets" on one line on every iPhone (gate round 2 P3); "22 sets" never splits. */
-  font-size: clamp(38px, 10vw, 72px);
+  font-size: clamp(26px, 7vw, 34px);
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -73,25 +73,25 @@
 
 .stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: var(--space-2);
 }
 .stat {
   min-width: 0;
   display: flex;
   flex-direction: column-reverse;
-  gap: var(--space-2);
-  padding: var(--space-3) 0;
+  gap: 2px;
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--hairline);
 }
-.stat:first-child { grid-column: 1 / -1; }
 .value {
-  font-size: clamp(24px, 7vw, 36px);
+  font-size: clamp(22px, 6.4vw, 30px);
   font-weight: 900;
   line-height: 1.05;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.stat:first-child .value { font-size: clamp(48px, 14vw, 100px); }
 .label {
   color: var(--text-2);
   font-size: 14px;
