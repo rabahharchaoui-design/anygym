@@ -87,60 +87,70 @@
 
 .title {
   margin: 0;
-  font-size: var(--text-xl);
-  font-weight: 700;
-  line-height: 1.15;
-  text-align: center;
+  font-family: var(--font-display);
+  font-size: var(--text-mono-heading-pair);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-heading);
+  line-height: 1.1;
   overflow-wrap: anywhere;
 }
 
 .sub {
   margin: calc(var(--space-2) * -1) 0 0;
   color: var(--text-2);
-  text-align: center;
   overflow-wrap: anywhere;
 }
 
+/* Monolith (PLAN M15): the gyms are rows on the sheet, a hairline between them, no boxes. */
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  border-top: var(--divider);
+}
+
+.list > li {
+  border-bottom: var(--divider);
 }
 
 .row {
   width: 100%;
-  min-height: 68px;
+  min-height: 62px;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 10px var(--space-3) 10px 10px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--hairline);
-  background: var(--surface-1);
+  padding: var(--space-2) 0;
+  border-radius: var(--radius-none);
+  background: none;
   color: var(--text);
   text-align: left;
-  transition:
-    transform 160ms var(--ease-out),
-    opacity 160ms var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
-.row[aria-current='true'] {
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 7%, transparent), var(--surface-1) 60%);
+.row:active:not(:disabled) {
+  opacity: var(--press-dim);
+  transition-duration: 0ms;
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The gym you are at: its name in ice blue and the small check mark on the right. */
+.row[aria-current='true'] .name {
+  color: var(--accent);
 }
 
 .tile {
   flex: none;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  width: 28px;
+  height: 28px;
   color: var(--text-2);
 }
 
@@ -149,7 +159,6 @@
 }
 
 .newTile {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
 
@@ -191,9 +200,9 @@
 }
 
 .link {
-  align-self: center;
+  align-self: flex-start;
   min-height: 48px;
-  padding: 0 var(--space-4);
+  padding: 0;
   color: var(--text-2);
   font-weight: 600;
 }
@@ -228,9 +237,9 @@
   width: 100%;
   min-height: 52px;
   padding: 0 var(--space-4);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--hairline);
-  background: var(--surface-1);
+  background: none;
   color: var(--text);
   font-family: var(--font-body);
   font-size: var(--text-base);
@@ -267,10 +276,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px var(--space-4);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--hairline);
-  background: var(--surface-1);
+  padding: 12px 0;
+  border-bottom: var(--divider);
 }
 
 .changeTitle {
@@ -298,7 +305,6 @@
   margin: 0;
   color: var(--text-2);
   font-size: var(--text-sm);
-  text-align: center;
 }
 
 /* Make active, once it is (PLAN 3.9; moved here with MakeActive in 3.5j). */
