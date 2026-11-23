@@ -174,7 +174,8 @@ test.describe('components (#/dev/ui)', () => {
     await expect(cards.getByRole('button', { name: /Get stronger/ })).toHaveAttribute('aria-pressed', 'false');
     await expect.poll(() => fill.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
     // 3.5t: the accent token (ice blue), never a typed colour.
-    expect(await card.evaluate((el) => getComputedStyle(el).borderColor)).toBe(await tokenColor(page, '--accent'));
+    // M15: the pick is the small square mark (ice outline), never a filled block or a boxed card.
+    expect(await card.locator('[data-ring]').evaluate((el) => getComputedStyle(el).borderColor)).toBe(await tokenColor(page, '--accent'));
     await expect(go).toBeEnabled();
     await expect(cta.getByRole('note')).toHaveCount(0);
     // Round 2 (critic B2): the reason and the quiet note swap in one reserved line; the button never moves.
