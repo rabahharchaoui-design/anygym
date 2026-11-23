@@ -179,8 +179,8 @@ test('7+3 aliases: shown once; history under either id merges (LAST TIME, PR, da
 test('12 Settings has no tab bar @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).tap();
-  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await page.getByTestId('tab-you').tap();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   const nav = page.locator('nav[aria-label="Main"]');
   await expect(nav).toHaveAttribute('data-hidden', 'true');
   await expect.poll(async () => (await nav.boundingBox())!.y).toBeGreaterThanOrEqual(page.viewportSize()!.height - 1);

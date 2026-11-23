@@ -9,11 +9,6 @@ import { HistoryDetail } from './screens/history/HistoryDetail';
 import { PlansScreen } from './screens/plans/PlansScreen';
 import { PlanViewer } from './screens/plans/PlanViewer';
 import { PlacePlans } from './screens/plans/PlacePlans';
-import { SettingsScreen } from './screens/SettingsScreen';
-import { ImportReview } from './screens/settings/ImportReview';
-import { GymsScreen } from './screens/settings/GymsScreen';
-import { GymDetail } from './screens/settings/GymDetail';
-import { GymEquipment } from './screens/settings/GymEquipment';
 import { WorkoutScreen } from './screens/workout/WorkoutScreen';
 import { FinishScreen } from './screens/workout/FinishScreen';
 import { PlatesDevScreen } from './screens/dev/PlatesDevScreen';
@@ -21,8 +16,7 @@ import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { InfoDevScreen } from './screens/dev/InfoDevScreen';
 import { ViewportDevScreen } from './screens/dev/ViewportDevScreen';
 import { UiDevScreen } from './screens/dev/UiDevScreen';
-import { ReviewScreen } from './screens/review/ReviewScreen';
-import { CandidateReviewScreen } from './screens/review/CandidateReviewScreen';
+import { CandidateReviewScreen, GymDetail, GymEquipment, GymsScreen, ImportReview, preloadTabs, ReviewScreen, SettingsScreen } from './screens/lazyScreens';
 import { devToolsEnabled } from './screens/dev/devFlag';
 import { AppMarkLoader } from './ui/AppMarkLoader';
 import { IntakeGate } from './components/IntakeGate';
@@ -53,9 +47,12 @@ const MusclesDevScreen = lazy(() => import('./screens/dev/MusclesDevScreen').the
 export function App() {
   // PLAN 3.6k: the current plan's photos are saved for offline in the background.
   useWarmPlanPhotos();
-  // The Run tab's chunk, once the first screen has settled. A failed fetch is tried again by the tab itself.
+  // The Run tab's chunk and the other lazy tabs (PLAN PB1), once the first screen has settled. A failed fetch is tried again by the tab itself.
   useEffect(() => {
-    const t = window.setTimeout(() => void loadRun().catch(() => undefined), 1200);
+    const t = window.setTimeout(() => {
+      void loadRun().catch(() => undefined);
+      preloadTabs();
+    }, 1200);
     return () => window.clearTimeout(t);
   }, []);
   return (

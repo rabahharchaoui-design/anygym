@@ -82,6 +82,14 @@
   translate: -50% -50%;
 }
 
+/* PLAN M14: a tab root drawn as its board: the title is the giant thing on the screen. */
+.large[data-giant] {
+  font-size: var(--text-mono-title);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+
 .head {
   display: flex;
   flex-direction: column;

@@ -12,6 +12,7 @@ import { cmToFtIn, formatBodyweight, ftInToCm } from '../../lib/load';
 import { BodyweightRuler } from './BodyweightRuler';
 import styles from './Intake.module.css';
 import fieldStyles from './IntakeFields.module.css';
+import rowStyles from './IntakeRows.module.css';
 
 /** The most a name can be (lib/intake/funnel.ts sanitize keeps the same). */
 const NAME_MAX = 40;
@@ -32,7 +33,7 @@ export function AboutStep({
 }) {
   const name = answers.name ?? '';
   return (
-    <div className={fieldStyles.about}>
+    <div className={`${fieldStyles.about} ${rowStyles.words}`}>
       <label className={fieldStyles.nameField}>
         <span className={fieldStyles.fieldLabel}>Your name</span>
         <input
@@ -58,7 +59,7 @@ export function AboutStep({
         <span className={fieldStyles.fieldLabel} id="age-label">
           Age
         </span>
-        <div className={styles.chips} data-grid="2" role="group" aria-labelledby="age-label" data-testid="q-age">
+        <div className={`${styles.chips} ${rowStyles.grid}`} data-grid="2" role="group" aria-labelledby="age-label" data-testid="q-age">
           {AGE_RANGES.map((o) => (
             <Chip key={o.id} block label={o.label} picked={answers.age === o.id} onPress={() => onAge(answers.age === o.id ? undefined : o.id)} testId={`q-age-${o.id}`} />
           ))}
@@ -89,7 +90,7 @@ export function BodyweightStep({
     else setStart(RULER_START[to]);
   };
   return (
-    <div className={fieldStyles.measure}>
+    <div className={`${fieldStyles.measure} ${rowStyles.words}`}>
       <SlidingToggle block label="Weight unit" testId="bw-unit" options={[{ value: 'kg', label: 'Kilograms' }, { value: 'lb', label: 'Pounds' }]} value={unit} onChange={flip} />
       <p className={`${fieldStyles.bigNumber} num`} data-touched={!!value || undefined} aria-live="polite" data-testid="bw-value">
         {formatBodyweight(current)}

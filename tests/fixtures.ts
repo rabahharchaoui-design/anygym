@@ -330,7 +330,7 @@ export async function guardContext(context: BrowserContext): Promise<BrowserCont
  */
 export async function seedExistingUser(page: Page) {
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await page.evaluate(
     () =>
       new Promise<void>((resolve, reject) => {

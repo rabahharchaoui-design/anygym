@@ -587,7 +587,7 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav).toBeVisible();
     await page.waitForTimeout(400);
-    const plans = nav.getByRole('link', { name: 'Plans' });
+    const plans = nav.getByRole('link', { name: 'Plan', exact: true });
     const pill = nav.locator('[data-pill]');
     // PLAN 3.5w: the bar is in no page snapshot (a tab switch is not a view transition), so the pill
     // slides live on the shared spring; frame by frame proof is in tests/motion-3.5w.spec.ts (B1).
@@ -672,7 +672,7 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     let tab = Infinity;
     for (let k = 0; k < rounds && !(tab < limit); k++) {
       await t.arm();
-      await nav.getByRole('link', { name: 'Plans' }).tap();
+      await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
       tab = Math.min(tab, await t.longest(minFrames));
       await nav.getByRole('link', { name: 'Today' }).tap();
       await page.waitForTimeout(800);
@@ -767,13 +767,13 @@ test.describe('speed budget (PLAN 2.2e point 4)', () => {
     // PLAN 3.5w: no named layers inside the bar (they made a ghost label slide across it).
     const named = () => nav.locator('a').evaluateAll((as) => as.flatMap((a) => [...a.querySelectorAll<HTMLElement>('span')].map((el) => el.style.viewTransitionName).filter(Boolean)));
     expect(await named()).toEqual([]);
-    await nav.getByRole('link', { name: 'Plans' }).tap();
+    await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
     await navIdle(page);
     expect(await named()).toEqual([]);
-    await expect(nav.getByRole('link', { name: 'Plans' })).toHaveAttribute('aria-current', 'page');
-    await expect(nav.getByRole('link', { name: 'Plans' }).locator('[data-pill]')).toHaveCount(1);
+    await expect(nav.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Plan', exact: true }).locator('[data-pill]')).toHaveCount(1);
     // PLAN M1 (Monolith style sheet): the bar is words only, every tab keeps its word.
-    for (const name of ['Today', 'Run', 'History', 'Plans']) await expect(nav.getByRole('link', { name })).toBeVisible();
+    for (const name of ['Today', 'Plan', 'Run', 'History', 'You']) await expect(nav.getByRole('link', { name })).toBeVisible();
     await expect(nav.locator('svg')).toHaveCount(0);
   });
 });

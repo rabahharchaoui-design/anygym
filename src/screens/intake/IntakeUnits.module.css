@@ -1,10 +1,10 @@
-/* Units: four big two option toggles. */
+/* Units: four rows on the page (PLAN M13, Monolith): the name left, the two answers as words right,
+   a hairline between the rows. */
 .units {
   flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  /* PLAN 3.3a: the rows breathe on taller phones, so the screen is never mostly empty. */
-  gap: clamp(var(--space-2), 2.6dvh, 28px);
+  border-top: var(--divider);
 }
 
 /* The label beside its toggle (one line each), so all four fit the SE with the strip. */
@@ -13,6 +13,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  /* PLAN 3.3a: the rows breathe on taller phones, so the screen is never mostly empty. */
+  min-height: clamp(var(--row-min), 9dvh, 84px);
+  padding-block: var(--space-2);
+  border-bottom: var(--divider);
 }
 
 .unitRow > :last-child {
@@ -44,12 +48,27 @@
   flex-direction: column;
   gap: 4px;
   margin-top: auto;
-  padding-top: 6px;
-  border-top: 1px solid var(--hairline);
+  padding-top: var(--space-5);
+}
+
+.unitApart .unitRow {
+  border-top: var(--divider);
 }
 
 .unitLabel {
-  color: var(--text-2);
-  font-size: var(--text-base);
+  color: var(--text);
+  font-size: var(--text-mono-body);
   font-weight: 600;
+}
+
+/* Short phones (the SE): calmer rows, so all four and the body hint fit above Continue unscrolled. */
+@media (max-height: 720px) {
+  .unitRow {
+    min-height: 52px;
+    padding-block: var(--space-1);
+  }
+
+  .unitApart {
+    padding-top: var(--space-3);
+  }
 }

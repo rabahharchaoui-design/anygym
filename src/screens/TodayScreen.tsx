@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { TopBar } from '../ui/TopBar';
-import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
-import { ChevronRight, CoachIcon, SettingsIcon } from '../ui/icons';
+import { ChevronRight, CoachIcon } from '../ui/icons';
 import { useNav } from '../ui/nav';
 import { GymPill } from '../components/GymPill';
 import { LoadError } from '../components/LoadError';
-import { Toast, undoToast, type ToastMessage } from '../ui/Toast';
+import { TAB_TOAST_BOTTOM, Toast, undoToast, type ToastMessage } from '../ui/Toast';
 import { planById } from '../data/plans';
 import { dayIndexOf } from '../lib/plans';
 import { useTodayData } from '../hooks/useTodayData';
@@ -88,7 +87,7 @@ export function TodayScreen() {
 
   // The toast sits just above the tab bar (gate 3), opaque, never over the cards' buttons.
   const quickRef = useRef<HTMLButtonElement>(null);
-  const toastBottom = 'calc(var(--tabbar-capsule) + var(--tabbar-gap) + var(--resume-space, 0px) - var(--safe-bottom) - 4px)';
+  const toastBottom = TAB_TOAST_BOTTOM;
   // The toast is over no button, and Today stays at its top (screens/today/useToastRoom.ts).
   const stackRef = useRef<HTMLDivElement>(null);
   useToastRoom(toast, data.ready, stackRef, quickRef);
@@ -228,10 +227,8 @@ export function TodayScreen() {
                 Update ready
               </button>
             )}
+            {/* PLAN M14: no gear; Settings is the You tab. The gym chip stays (SPEC 19). */}
             <GymPill onToast={setToast} />
-            <IconButton to="/settings" label="Settings">
-              <SettingsIcon strokeWidth={2} />
-            </IconButton>
           </div>
         }
       />
@@ -274,7 +271,6 @@ export function TodayScreen() {
           <section className={styles.pick} aria-label="Pick a plan" data-tour="pick">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
               <h2 className={styles.pickTitle}>Pick a plan</h2>
-              {/* PLAN 3.6h: the empty week, one day lit. Decoration, loaded after the first paint. */}
               <ArtScene name="today" width={80} />
             </div>
             <p className={styles.pickSub}>Follow a plan and every day is lined up for you: exercises, sets and rest.</p>

@@ -30,19 +30,23 @@
 .nameInput {
   width: 100%;
   min-height: 56px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--hairline);
-  background: var(--surface-1);
+  /* PLAN M13 (Monolith): typed on the page over a hairline, no box; the line turns ice while typing. */
+  padding: 0;
+  border: 0;
+  border-bottom: var(--divider);
+  border-radius: var(--radius-none);
+  background: none;
   color: var(--text);
   font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-value);
 }
 
 .nameInput:focus {
   outline: none;
-  border-color: var(--accent);
+  border-bottom-color: var(--accent);
+  box-shadow: 0 1px 0 var(--accent);
 }
 
 /* About you */
@@ -129,9 +133,8 @@
   /* Clear of the edge swipe strip (20 pt). */
   margin-inline: var(--space-1);
   height: 96px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
+  /* PLAN M13: the ruler on the page between two hairlines, no box. */
+  border-block: var(--divider);
   overflow: hidden;
 }
 
@@ -215,4 +218,18 @@
   display: flex;
   gap: var(--space-3);
   padding: 0 var(--space-2);
+}
+
+/* PLAN M13 (Monolith): the shared wheel's middle band as two hairlines, no box; once picked the
+   lower line turns ice. */
+.wheels > * > :first-child[aria-hidden] {
+  border: 0;
+  border-block: var(--divider);
+  border-radius: var(--radius-none);
+  background: none;
+}
+
+.wheels > [data-picked] > :first-child[aria-hidden] {
+  background: none;
+  border-bottom-color: var(--accent);
 }

@@ -41,13 +41,16 @@
   max-width: 480px;
   height: var(--tabbar-capsule);
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* PLAN M14: five words. Each tab is as wide as its word plus an equal share of what is left, so
+     the gaps shrink before the type does and no word clips (320 px at the largest text size). */
+  display: flex;
+  padding: 0 var(--space-1);
   touch-action: none;
 }
 
 .tab {
   position: relative;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: center;

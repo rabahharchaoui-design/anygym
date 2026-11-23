@@ -98,10 +98,10 @@ test('(4)(7) Settings to kg, Resume, reload: the pending 135 lb stays 135 lb and
   await page.getByRole('button', { name: 'Back to the list' }).tap();
   await page.getByRole('button', { name: 'Minimize workout' }).tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByRole('radio', { name: 'kg', exact: true }).tap();
   await expect.poll(async () => (await activeGym(page)).unit).toBe('kg');
-  await page.locator('[aria-label="Back to Today"]').first().tap();
+  await page.getByTestId('tab-today').tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
   await page.getByRole('button', { name: /^Resume\b/ }).first().tap();
   await page.getByTestId(`row-${SQUAT}`).tap();

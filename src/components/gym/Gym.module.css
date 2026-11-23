@@ -305,13 +305,10 @@
 .here {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--space-2);
   min-height: 52px;
   margin: 0;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  /* PLAN M14: a plain line of words, no box (board 13). */
   color: var(--accent);
   font-weight: 700;
 }

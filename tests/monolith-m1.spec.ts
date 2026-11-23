@@ -182,7 +182,7 @@ test('M1 tab bar: docked to the bottom, solid graphite with a hairline, words on
   expect(bar.bottom).toBeCloseTo(vh, 0);
   expect(bar.width).toBe(page.viewportSize()!.width);
   await expect(nav.locator('svg')).toHaveCount(0);
-  await expect(nav.getByRole('link')).toHaveText(['Today', 'Run', 'History', 'Plans']);
+  await expect(nav.getByRole('link')).toHaveText(['Today', 'Plan', 'Run', 'History', 'You']);
   for (const link of await nav.getByRole('link').all()) {
     const box = (await link.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(44);

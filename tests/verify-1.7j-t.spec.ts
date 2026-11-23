@@ -131,7 +131,7 @@ test('g: Plate Russian Twist in kg gym offers 5 kg and enabled plates', async ({
   const errors = watchErrors(page);
   await page.goto('./');
   await expect.poll(async () => (await dbAll(page, 'gyms')).length).toBeGreaterThan(0);
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByRole('radio', { name: 'kg', exact: true }).tap();
   await expect.poll(async () => (await dbAll<{ unit: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.unit).toBe('kg');
   await quickWith(page, [['russian twist', 'Plate Russian Twist']]);
@@ -326,7 +326,7 @@ test('i: +25 lb dip history, gym switched to kg: row says Last time +25 lb. Pick
   const errors = watchErrors(page);
   const gym = await startGym(page);
   await seedSession(page, gym, 'wide-grip-pull-up', [{ kind: 'bodyweight', unit: 'lb', total: 25, added: 25 }, { kind: 'bodyweight', unit: 'lb', total: 25, added: 25 }]);
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByRole('radio', { name: 'kg', exact: true }).tap();
   await expect.poll(async () => (await activeGym(page)).unit).toBe('kg');
   await quickWith(page, [['wide grip pull', 'Wide Grip Pull Up']]);
@@ -383,7 +383,7 @@ test('j: backup with stack step 0 is rejected as damaged, nothing changed', asyn
 test('g2: progression from a 5 kg plate twist targets 5 kg (an enabled plate), also at the top of the range', async ({ page }) => {
   const errors = watchErrors(page);
   const gym = await startGym(page);
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByRole('radio', { name: 'kg', exact: true }).tap();
   await expect.poll(async () => (await activeGym(page)).unit).toBe('kg');
   const g = await activeGym(page);

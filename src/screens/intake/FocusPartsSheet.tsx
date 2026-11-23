@@ -26,9 +26,9 @@ export function FocusPartsSheet({ group, picks, notYet, onClose, onSave }: Props
         <h2 className={styles.sheetTitle}>{label}</h2>
         <p className={styles.sheetNote}>All of it, or only the parts you care about.</p>
         {/* Each row carries its own check mark (the ring fills), so what is picked is never only an outline. */}
-        <ChoiceCard label={`All ${label.toLowerCase()}`} picked={selected.includes(group)} onPress={() => tap(group)} testId={`focus-part-${group}`} />
+        <ChoiceCard label={`All ${label.toLowerCase()}`} picked={selected.includes(group)} onPress={() => tap(group)} flat testId={`focus-part-${group}`} />
         {parts.filter((p) => p.id !== group).map((p) => (
-          <ChoiceCard key={p.id} label={p.label} hint={notYet.has(p.id) ? NOT_YET : undefined} picked={selected.includes(p.id)} onPress={() => tap(p.id)} testId={`focus-part-${p.id}`} />
+          <ChoiceCard key={p.id} label={p.label} hint={notYet.has(p.id) ? NOT_YET : undefined} picked={selected.includes(p.id)} onPress={() => tap(p.id)} flat testId={`focus-part-${p.id}`} />
         ))}
       </div>
       <SheetFooter>

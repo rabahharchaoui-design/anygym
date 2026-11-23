@@ -39,7 +39,7 @@ export function GymEquipment() {
 
   return (
     <>
-      <TopBar title="Equipment" leading={<BackButton to={`/settings/gyms/${gymId}`} label="Back to the gym" />}>
+      <TopBar title="Equipment" leading={<BackButton plain to={`/settings/gyms/${gymId}`} label="Back to the gym" />}>
         {g && <p className={gymStyles.meta}>{g.name}</p>}
       </TopBar>
       {!g ? (

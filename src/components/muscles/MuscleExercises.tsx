@@ -16,7 +16,7 @@ import styles from './MuscleExercises.module.css';
 // PLAN 2.2c: a tapped muscle lists the catalog exercises that work it as primary, each opening its
 // exercise sheet on top (nested sheets, SPEC 23.1). Only catalog data, never an invented exercise.
 
-/** The tapped shape's name: the exercise's own word for it when it has one (ownShoulderLabel, PLAN 4.6a 5). */
+/** The tapped shape's name: the exercise's own word for it when it has one (tappedRegionLabel, PLAN 4.6a 5, H1). */
 const shapeName = (region: Region, label: string | null): string => (label ? cap(label) : REGION_NAMES[region]);
 
 /** "12 exercises ›" beside the tapped muscle's name. `label`: the exercise's own word for the shape. */

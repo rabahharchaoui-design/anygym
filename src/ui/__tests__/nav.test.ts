@@ -3,10 +3,14 @@ import { beginStep, depthOf, kindBetween, supportsViewTransitions, withTransitio
 
 describe('depthOf (PLAN 1.7e)', () => {
   it('tab roots are depth 0', () => {
-    for (const p of ['/', '/run', '/history', '/plans', '/plans/']) expect(depthOf(p)).toBe(0);
+    for (const p of ['/', '/run', '/history', '/plans', '/plans/', '/settings']) expect(depthOf(p)).toBe(0);
   });
   it('pushed screens are deeper', () => {
-    expect(depthOf('/settings')).toBe(1);
+    // PLAN M14: Settings is the You tab; its sub screens push one level per segment.
+    expect(depthOf('/settings/gyms')).toBe(1);
+    expect(depthOf('/settings/gyms/g1')).toBe(2);
+    expect(depthOf('/settings/gyms/g1/equipment')).toBe(3);
+    expect(kindBetween('/settings', '/settings/gyms')).toBe('push');
     expect(depthOf('/plans/five-day-split')).toBe(1);
     expect(depthOf('/history/abc')).toBe(1);
     expect(depthOf('/dev/viewport')).toBe(1);
@@ -27,7 +31,8 @@ describe('kindBetween', () => {
     expect(kindBetween('/plans/x', '/plans')).toBe('pop');
     expect(kindBetween('/workout/s', '/workout/s/a')).toBe('push');
     expect(kindBetween('/workout/s/a', '/workout/s')).toBe('pop');
-    expect(kindBetween('/settings', '/plans/x')).toBe('fade');
+    expect(kindBetween('/settings/gyms', '/plans/x')).toBe('fade');
+    expect(kindBetween('/plans', '/settings')).toBe('tab');
     expect(kindBetween('/plans', '/plans')).toBe('none');
   });
 });

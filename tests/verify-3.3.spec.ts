@@ -277,7 +277,7 @@ test('Looks good double tap chooses the plan once and starts nothing; offline st
 
 test('a user with only a plan in use is an existing user; a corrupt draft starts fresh', async ({ page }) => {
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   const row = { id: 'x', planId: 'five-day-split', nextDayIndex: 0, startedAt: 1 };
   const keys = await page.evaluate(
     () =>

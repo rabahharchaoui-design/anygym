@@ -81,7 +81,7 @@ test('every screen loads with zero CSP violations @matrix', async ({ page, conte
   }
 
   // Plans, a plan, the day list.
-  await page.getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('link', { name: 'Plan', exact: true }).tap();
   await page.getByTestId('plan-five-day-split').tap();
   await expect(page.getByRole('button', { name: 'Use this plan' })).toBeVisible();
   await expect(page.locator('[data-testid^="plan-item-"]').first()).toBeVisible();
@@ -118,7 +118,7 @@ test('every screen loads with zero CSP violations @matrix', async ({ page, conte
 
   // Settings, its sections, the backup download (a blob link) and Report a problem with the Worker answered.
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await page.evaluate(() => {
     Object.defineProperty(Navigator.prototype, 'share', { value: undefined, configurable: true });
     Object.defineProperty(Navigator.prototype, 'canShare', { value: undefined, configurable: true });

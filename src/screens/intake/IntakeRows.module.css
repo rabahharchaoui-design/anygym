@@ -1,0 +1,219 @@
+/* PLAN M13 (Monolith onboarding, store art screen 02): the answers as rows on the page, split by
+   hairlines. No tiles, no boxes, no filled blocks. The shared Chip is restyled here, inside the
+   intake only: its label, a small mark, and when picked an ice line under the row and a small ice
+   word (Main, Also).
+
+   .grid: two columns where the answers are short (one when the text is large), a hairline between
+   the rows and between the columns. The grid reaches a little past the page margin on both sides
+   (so every cell has the same inner padding) and clip-path cuts the lines back to the margin, which
+   also hides the column line of the right hand cells. */
+.grid,
+.grid[data-grid] {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5em), 1fr));
+  align-content: start;
+  margin-inline: calc(-1 * var(--space-3));
+  border-top: var(--divider);
+  clip-path: inset(0 var(--space-3));
+}
+
+.grid > * {
+  position: relative;
+  min-width: 0;
+  border-bottom: var(--divider);
+  box-shadow: var(--line-hair) 0 0 0 var(--hairline);
+}
+
+/* A lone last answer keeps its own cell (never a stretched tile). */
+.grid[data-grid][role] > :last-child:nth-child(odd) {
+  grid-column: auto;
+}
+
+/* The fill rule (Intake.module.css .chips[data-fill]) still shares out the height; rows never grow past a calm row. */
+.grid[data-grid][data-fill]:not([data-fill='off']) {
+  grid-auto-rows: minmax(var(--row-min), 1fr);
+}
+
+.grid > * > button,
+.grid > button {
+  height: 100%;
+}
+
+.grid button[aria-pressed][data-block] {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: center;
+  align-content: center;
+  justify-content: stretch;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  min-height: var(--row-min);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-none);
+  background: none;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.grid > button[aria-pressed][data-block] {
+  border-bottom: var(--divider);
+}
+
+.grid button[aria-pressed][data-block]:disabled {
+  background: none;
+}
+
+/* Words only (no mark): the label takes the row. */
+.grid button[aria-pressed][data-block]:not(:has(> svg, > [data-icon3d])) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.grid button[aria-pressed='true'][data-block] {
+  background: none;
+}
+
+/* The ice line under the picked row: on the row's own hairline, the width of the cell. */
+/* The ice line under a picked row, on the row's own hairline: the grid's rows, the weekday words
+   (.week, on the schedule step) and any button with .mark (the equipment cells). One rule. */
+.grid button[aria-pressed][data-block]::after,
+.week [role='group'] > button[aria-pressed]::after,
+.mark::after {
+  content: '';
+  position: absolute;
+  left: var(--mark-inset, 0);
+  right: var(--mark-inset, 0);
+  bottom: calc(-1 * var(--line-hair));
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+[dir='rtl'] .grid button[aria-pressed][data-block]::after,
+[dir='rtl'] .week [role='group'] > button[aria-pressed]::after,
+[dir='rtl'] .mark::after {
+  transform-origin: 100% 50%;
+}
+
+.grid button[aria-pressed='true'][data-block]::after,
+.week [role='group'] > button[aria-pressed='true']::after,
+.mark[aria-pressed='true']::after {
+  transform: scaleX(1);
+}
+
+/* The small mark: a 3D goal icon or a line icon, the same small square either way. */
+.grid button[aria-pressed][data-block] > [data-icon3d] {
+  grid-row: 1;
+  width: 28px;
+}
+
+.grid button[aria-pressed][data-block] > svg {
+  grid-row: 1;
+  width: 20px;
+  height: 20px;
+}
+
+/* Main or Also: a small ice word under the label, no badge. Its line is always kept, so nothing moves. */
+.grid button[aria-pressed][data-block] > [data-testid$='-tag'],
+.grid button[aria-pressed][data-block] > [data-testid$='-tag'][data-tag] {
+  position: static;
+  grid-column: 2;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-none);
+  background: none;
+  box-shadow: none;
+  color: var(--accent);
+  font-size: var(--text-mono-label);
+  font-weight: 700;
+  letter-spacing: var(--track-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+  transform: none;
+  min-height: 1.2em;
+}
+
+.grid button[aria-pressed][data-block]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid button[aria-pressed][data-block]::after,
+  .week [role='group'] > button[aria-pressed]::after,
+  .mark::after {
+    transition: none;
+  }
+}
+
+/* .list: one column of rows where the answers are long (ChoiceCard flat: the label heavy, a hairline
+   under each row, an ice tick on the right when picked). The first row gets a hairline over it. */
+.list {
+  gap: 0;
+  border-top: var(--divider);
+}
+
+/* Rows share the height when they fill, but stay rows: never past the style sheet's 96 pt. */
+.list[data-fill] > * {
+  max-height: 96px;
+}
+
+/* The small mark keeps no square behind it (a box), on the line icon or the 3D picture. */
+.list button[data-flat] > span[aria-hidden]:first-child {
+  width: 28px;
+  height: auto;
+  background: none;
+}
+
+.list button[data-flat] > [data-icon3d]::before {
+  display: none;
+}
+
+.list button[data-flat] > [data-icon3d] {
+  width: 36px;
+}
+
+.list button[data-flat] {
+  gap: var(--space-3);
+}
+
+/* A lone last answer in two columns: no column line beside the empty half. */
+.grid > :last-child:nth-child(odd) {
+  box-shadow: none;
+}
+
+/* .words: the shared sliding toggle as words (units, the deck's Cards / Love / Never, height): no
+   track, no filled pill; the picked word white over an ice line that slides on the same spring. */
+.words [role='radiogroup'][data-block] {
+  background: none;
+  box-shadow: none;
+  padding-inline: 0;
+}
+
+.words [role='radiogroup'][data-block] [data-pill] {
+  top: auto;
+  bottom: 6px;
+  left: 0;
+  width: calc(100% / var(--n));
+  height: 2px;
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.words [role='radiogroup'][data-block] [role='radio'] {
+  color: var(--text-2);
+  font-size: var(--text-mono-body);
+  font-weight: 600;
+}
+
+.words [role='radiogroup'][data-block] [role='radio'][aria-checked='true'] {
+  color: var(--text);
+  font-weight: 700;
+}

@@ -102,3 +102,59 @@
     transition: none;
   }
 }
+
+/* PLAN M14 (Monolith, board 13): words, no well and no pill. Not picked: secondary text. Picked:
+   white and bold over a 3 px ice line as wide as the word (the tab bar's mark). Still a radiogroup
+   with a 48 pt hit area per word. */
+.toggle[data-words] {
+  --pad: 0px;
+  grid-auto-columns: auto;
+  gap: var(--space-1);
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.toggle[data-words] .option {
+  min-width: var(--tap);
+  padding: 0 var(--space-2);
+  font-size: var(--text-mono-body);
+  font-weight: 500;
+}
+
+.toggle[data-words] .option::after {
+  content: '';
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: 8px;
+  height: var(--tab-mark-h);
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-base) var(--ease-tap-spring);
+}
+
+.toggle[data-words] .option[aria-checked='true'] {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.toggle[data-words] .option[aria-checked='true']::after {
+  transform: scaleX(1);
+}
+
+.toggle[data-words] .option:active {
+  opacity: var(--press-dim);
+  transition-duration: 0ms;
+}
+
+.toggle[data-words][aria-disabled] .option[aria-checked='true']::after {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle[data-words] .option::after {
+    transition: none;
+  }
+}

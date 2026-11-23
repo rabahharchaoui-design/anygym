@@ -72,7 +72,7 @@ test('Back closes only the top sheet of a nested stack; a sheet closed by hand n
 test('Back from a screen with no sheet navigates; a sheet opened there and closed by hand changes nothing', async ({ page }) => {
   const errors = watchErrors(page);
   await usePlan(page);
-  await page.getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('link', { name: 'Plan', exact: true }).tap();
   await expect(page).toHaveURL(/#\/plans$/);
   await page.getByRole('link', { name: 'Today' }).tap();
   await expect(page).toHaveURL(/#\/$/);

@@ -21,8 +21,9 @@ export interface MuscleExercise {
 
 /**
  * Catalog exercises that work `region` as a primary muscle: the plan's first, then A to Z.
- * Exercises without sure muscles (resolveMuscles null) are never listed. With `label` (ownShoulderLabel,
- * PLAN 4.6a 5) only the ones that name the shape that way: front delts lists no lateral raise.
+ * Exercises without sure muscles (resolveMuscles null) are never listed. With `label` (tappedRegionLabel,
+ * PLAN 4.6a 5, H1) only the ones whose primary muscle there is named that way: front delts lists no
+ * lateral raise, outer hips lists no squat. A joined label ("glutes and outer hips") matches any one of its words.
  */
 export function exercisesForRegion(
   region: Region,
@@ -32,9 +33,10 @@ export function exercisesForRegion(
   label: string | null = null,
 ): MuscleExercise[] {
   const out: MuscleExercise[] = [];
+  const named = label === null ? null : new Set([label, ...label.split(' and ')]);
   for (const e of catalog) {
     const data = resolveMuscles(e, overrides);
-    if (!data || !data.primary.some((t) => t.regions.includes(region) && (label === null || t.label === label))) continue;
+    if (!data || !data.primary.some((t) => t.regions.includes(region) && (named === null || named.has(t.label)))) continue;
     const labels = [...new Set(data.secondary.map((t) => t.label))];
     const also = labels.length ? `Also works ${labels[0]}${labels.length > 1 ? ` +${labels.length - 1}` : ''}` : null;
     out.push({ id: e.id, name: e.name, also, inPlan: planIds.has(e.id) });

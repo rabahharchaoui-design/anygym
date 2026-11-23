@@ -22,7 +22,9 @@ describe('the dashed stretch caption (fix 2)', () => {
     expect(DASHED_NOTE).not.toContain('That stretch is not counted as moving time');
   });
   it('says the distance across a GPS gap counts in the distance but not in the average pace (PLAN 4.6c 4)', () => {
-    expect(DASHED_NOTE).toContain('The distance across a GPS gap counts in the total but not in the average pace.');
+    expect(DASHED_NOTE).toContain('A GPS gap of up to 5 minutes at a believable speed adds its straight-line distance to the total, but not to the average pace.');
+    expect(DASHED_NOTE).toContain('A longer or faster gap adds no distance.');
+    expect(DASHED_NOTE).not.toMatch(/\bmay\b/);
   });
 });
 

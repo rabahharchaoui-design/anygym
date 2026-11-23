@@ -51,3 +51,41 @@
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+
+/* PLAN M13 (Monolith): the step's own wrapper, so the body's column still lays out its children. */
+.step {
+  display: contents;
+}
+
+/* Cards, Love, Never: words over the ice line (IntakeRows .words), a hairline under the row. */
+.step [data-testid='ex-mode'] {
+  border-bottom: var(--divider);
+}
+
+/* The card: flat graphite, no frame (it stays opaque: the next card waits under it). */
+.deck article {
+  border: 0;
+  border-bottom: var(--divider);
+  border-radius: var(--radius-none);
+  background: var(--bg);
+}
+
+/* Not sure, Never, Love: words over hairlines, no boxes; Love in ice. */
+.deck button[data-kind] {
+  border: 0;
+  border-top: var(--divider);
+  border-radius: var(--radius-none);
+  background: none;
+  color: var(--text-2);
+}
+
+.deck button[data-kind='keep'] {
+  border-top: 2px solid var(--accent);
+  background: none;
+  color: var(--text);
+}
+
+/* The words under the photo sit on the page's graphite, not a lighter panel. */
+.deck article > :not(:first-child) {
+  background: var(--bg);
+}

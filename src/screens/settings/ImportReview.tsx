@@ -142,7 +142,7 @@ function Review({ gym, parsed }: { gym: Gym; parsed: ParsedImport }) {
 
   return (
     <div className={css.screen}>
-      <TopBar title="Import history" leading={<BackButton to="/settings" label="Back to Settings" />}>
+      <TopBar title="Import history" leading={<BackButton plain to="/settings" label="Back to Settings" />}>
         <p className={`${css.meta} num`} data-testid="import-summary">
           {setCount(total)} · {parsed.exercises.length} {parsed.exercises.length === 1 ? 'exercise' : 'exercises'} · {parsed.unit}
         </p>

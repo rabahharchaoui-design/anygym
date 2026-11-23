@@ -3,7 +3,7 @@
 // only: dislikes live on the profile, a built workout's targets on its session; history is never touched.
 // PLAN 3.5b adds the rotation memory: the cards shown last time (on the profile), the style a quick
 // workout started from (on its session), and when each muscle last had logged sets (read only).
-import { readTraining } from './training';
+import { readHelped, readTraining } from './training';
 import { trainedWithin } from '../lib/quickWhy';
 import { planById } from '../data/plans';
 import { learnLeft, learnNever, learnSwap, RECENT_MS, unlearnNever, type Concept, type ConceptId, type Dislikes } from '../lib/quick';
@@ -93,6 +93,14 @@ export function pairsOf(items: Concept['items']): Map<string, NonNullable<QuickT
  */
 export async function readLastTrained(now = Date.now(), db: AnyGymDB = defaultDb): Promise<Partial<Record<Muscle, number>>> {
   return readTraining(now, db);
+}
+
+/**
+ * PLAN H1: when each muscle last worked only as a helper (bench: triceps), over the last 30 days.
+ * Never named as trained or rested: it keeps "Hit what's fresh" off tired helpers and rest lines honest.
+ */
+export async function readLastHelped(now = Date.now(), db: AnyGymDB = defaultDb): Promise<Partial<Record<Muscle, number>>> {
+  return readHelped(now, db);
 }
 
 /** The styles of the last 2 quick workouts done (finished, with logged working sets), latest first. */

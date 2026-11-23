@@ -8,7 +8,9 @@ import { setProfileUnits } from './intake';
 import { readRunUnit } from './runUnit';
 import { db as defaultDb, type AnyGymDB } from './schema';
 
-export const RUN_SETUP_KEY = 'anygym-run-setup';
+import { RUN_SETUP_KEY } from './runSetupKey';
+
+export { RUN_SETUP_KEY };
 
 export type RunSetupState = { setup: RunSetup; unit: DistanceUnit };
 

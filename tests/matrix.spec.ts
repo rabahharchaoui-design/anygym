@@ -46,7 +46,7 @@ test.describe('every screen fits every phone @matrix', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Run With Me' })).toBeVisible();
     await checkLayout(page);
     await checkControls(page);
-    await nav.getByRole('link', { name: 'Plans' }).tap();
+    await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
     // PLAN 3.5: four place tiles now come first, so the first plan card starts below the tab bar on
     // shorter phones (the list scrolls); the top action is the first place tile.
     await expect(page.getByTestId('plan-five-day-split')).toBeAttached();
@@ -54,7 +54,7 @@ test.describe('every screen fits every phone @matrix', () => {
     await checkControls(page);
     await matrixShot(page, 'plans');
     await page.goto('./#/settings');
-    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
     await checkLayout(page);
     await checkControls(page);
     await matrixShot(page, 'settings');

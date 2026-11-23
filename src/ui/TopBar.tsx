@@ -15,6 +15,8 @@ type Props = {
    * the page scrolled (a toast scrolls Today's cards clear of it). The bar's fill still fades in.
    */
   pinned?: boolean;
+  /** PLAN M14: the Monolith screen title (96 px at 430, weight 900) for a tab root drawn as its board. */
+  giant?: boolean;
 };
 
 /**
@@ -27,7 +29,7 @@ type Props = {
 /** Scroll distance over which the large title hands over to the compact one. */
 export const COLLAPSE_PX = 30;
 
-export function TopBar({ title, leading, trailing, onTitleTap, children, pinned = false }: Props) {
+export function TopBar({ title, leading, trailing, onTitleTap, children, pinned = false, giant = false }: Props) {
   const barRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
@@ -65,7 +67,7 @@ export function TopBar({ title, leading, trailing, onTitleTap, children, pinned 
   }, [pinned]);
 
   const large = (
-    <h1 ref={titleRef} className={styles.large} onClick={onTitleTap}>
+    <h1 ref={titleRef} className={styles.large} onClick={onTitleTap} data-giant={giant || undefined}>
       {title}
     </h1>
   );

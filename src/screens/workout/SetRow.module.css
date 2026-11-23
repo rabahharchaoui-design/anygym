@@ -11,7 +11,8 @@
   min-height: 52px;
   padding: 2px 4px;
   border-radius: var(--radius-lg);
-  background: var(--surface-1);
+  background: var(--bg);
+  border-bottom: 1px solid var(--hairline);
   transition: background-color var(--dur-fast) var(--ease-out);
 }
 
@@ -71,8 +72,8 @@
 }
 
 .row[data-state='current'] {
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  background: var(--bg);
+  box-shadow: none;
 }
 
 /* Logged: an accent tint, filled from left to right once when it is checked (SPEC 23.3). */
@@ -143,13 +144,13 @@
 }
 
 .row:not([data-state='logged']) .cellValue {
-  background: color-mix(in srgb, var(--white) 4%, transparent);
+  background: transparent;
 }
 
 .cellValue[data-empty] {
   color: var(--accent);
   font-size: 15px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: none;
   background: transparent;
 }
 

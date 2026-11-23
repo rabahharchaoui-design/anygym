@@ -408,7 +408,7 @@ for (const [locale, weight, distance, measure] of [
 test('existing users never see the funnel: a profile, or a workout logged before it existed @matrix', async ({ page }) => {
   // Open a screen the gate does not touch, write an existing user's data, then open Today.
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await dbPut(page, 'profile', { id: 'me', defaultUnit: 'lb', createdAt: 1 });
   await page.goto('./#/');
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
@@ -419,7 +419,7 @@ test('existing users never see the funnel: a profile, or a workout logged before
 
 test('a user with only a workout (no profile) is an existing user too', async ({ page }) => {
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   const [gym] = await dbAll(page, 'gyms');
   await dbPut(page, 'sessions', { id: 'old-1', gymId: gym!.id as string, startedAt: 1000, endedAt: 2000, imported: false, exerciseIds: [] });
   await page.goto('./#/');
@@ -1069,12 +1069,13 @@ test('P15: the edge swipe goes back on a pushed screen; the first screen has non
   await expect(page.getByText(/coming soon/i)).toHaveCount(0);
 });
 
-test('P1 P9 P10: the selected toggle is the solid lime pill; the body starts unpicked; Units fits the SE with no fade over it', async ({ page }) => {
+test('P1 P9 P10 (M13: the selected toggle is an ice line); the body starts unpicked; Units fits the SE with no fade over it', async ({ page }) => {
   await drafted(page, 'units', { goal: 'muscle', units: { weight: 'lb', distance: 'mi', measure: 'in' } });
   await expect(page.getByText('Which body should the muscle map show?')).toBeVisible();
-  const bg = await page.getByTestId('units-weight').locator('[data-pill]').evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(bg).toContain('gradient');
-  expect(bg).not.toContain('0.14');
+  // PLAN M13 (Monolith): the pick is an ice line under the word, never a filled pill.
+  const pill = await page.getByTestId('units-weight').locator('[data-pill]').evaluate((el) => ({ h: el.getBoundingClientRect().height, image: getComputedStyle(el).backgroundImage }));
+  expect(pill.h).toBeLessThanOrEqual(3);
+  expect(pill.image).toBe('none');
   await expect(page.getByTestId('units-body').getByRole('radio', { checked: true })).toHaveCount(0);
   await expect(cta(page)).toBeEnabled();
   await checkLayout(page, { primary: cta(page) });

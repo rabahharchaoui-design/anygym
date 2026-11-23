@@ -11,12 +11,13 @@ import { TodayScreen } from '../screens/TodayScreen';
 import { PlansScreen } from '../screens/plans/PlansScreen';
 import { PlacePlans } from '../screens/plans/PlacePlans';
 import { HistoryScreen } from '../screens/HistoryScreen';
+import { SettingsScreen } from '../screens/lazyScreens';
 import styles from './AppShell.module.css';
 
 /** The screen a pushed screen goes back to (null on a tab root). */
 export function parentOf(pathname: string): string | null {
-  if (pathname === '/settings' || pathname === '/quick' || pathname.startsWith('/dev/')) return '/';
-  // PLAN 3.9: Settings, Gyms, a gym, its equipment: each goes back one level.
+  if (pathname === '/quick' || pathname.startsWith('/dev/')) return '/';
+  // PLAN 3.9: Gyms, a gym, its equipment: each goes back one level (Settings is the You tab, M14).
   const gyms = /^(\/settings\/gyms(?:\/[^/]+)?)\/[^/]+$/.exec(pathname);
   if (gyms) return gyms[1]!;
   if (pathname.startsWith('/settings/')) return '/settings';
@@ -34,6 +35,7 @@ const UNDER: Record<string, () => ReactNode> = {
   '/': () => <TodayScreen />,
   '/plans': () => <PlansScreen />,
   '/history': () => <HistoryScreen />,
+  '/settings': () => <SettingsScreen />,
 };
 
 /** The screen drawn under an edge swipe back to `parent` (a place's plan list reads its own URL). */
@@ -54,7 +56,7 @@ export function AppShell() {
   const parent = parentOf(pathname);
   // PLAN 3.5w: a tab switch moves only the arriving screen (never the tab bar), before its first paint.
   useLayoutEffect(() => playTabArrival(layerRef.current), [pathname]);
-  const pushed = pathname === '/settings' || pathname === '/quick' || pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
+  const pushed = pathname === '/quick' || pathname.startsWith('/plans/') || pathname.startsWith('/history/') || pathname.startsWith('/settings/');
   const active = useLive(() => getActiveSession(), []);
   // Today has its own in progress card; the bar is for the other tabs.
   const resuming = !!active.data && !pushed && pathname !== '/';
@@ -91,7 +93,7 @@ export function AppShell() {
       </div>
       {/* A workout in progress floats above the tab bar on every tab (one tap back to its list). */}
       <ResumeBar session={resuming ? (active.data ?? null) : null} run={running} hidden={!resuming && !running} />
-      {/* Like iOS, pushed screens hide the tab bar (Settings too: it is pushed from Today). */}
+      {/* Like iOS, pushed screens hide the tab bar (Settings is the You tab since M14: it keeps it). */}
       <TabBar hidden={pushed} />
     </div>
   );

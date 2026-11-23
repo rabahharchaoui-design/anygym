@@ -102,7 +102,7 @@ test('the status bar strip shows the new background on Today, a pushed screen an
   await expect(page.getByRole('button', { name: 'See plans' })).toBeVisible();
   expect(flat(await strip()), await strip()).toBe(true);
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   expect(flat(await strip()), await strip()).toBe(true);
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   // The live header is glass over the same gradient: never a black band.
@@ -136,7 +136,7 @@ test('the tab bar is solid Monolith: no blur, opaque, square corners, the accent
 
 test('a pushed screen top bar fills in graphite once the page scrolls under it', async ({ page }) => {
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   const bar = page.locator('[class*="_bar_"]').first();
   const alpha = async () => (await paint(page, await bar.evaluate((el) => getComputedStyle(el).backgroundColor)))[3]!;
   expect(await alpha()).toBeLessThan(20);
@@ -163,7 +163,7 @@ test('no lime is drawn anywhere: Today, plans, the workout, the weight sheet, Se
   await expect(page.getByTestId('plan-five-day-split')).toBeVisible();
   await look('plans');
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await look('settings');
   await page.goto('./#/quick?min=30');
   await expect(page.locator('[data-concept]').first()).toBeVisible();
@@ -191,7 +191,7 @@ for (const scale of [100, 130]) {
     await text();
     await checkContrast(page);
     await page.goto('./#/settings');
-    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
     await text();
     await checkContrast(page);
     await quickWith(page, [['back squat', 'Barbell Back Squat']]);

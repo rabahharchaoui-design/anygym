@@ -10,9 +10,7 @@
   min-height: calc(var(--safe-top) + 56px);
   padding: var(--safe-top) calc(var(--space-4) + var(--safe-right)) 0 calc(var(--space-2) + var(--safe-left));
   border-bottom: 1px solid var(--glass-line);
-  background: var(--glass-bg-strong);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background: var(--bg);
   view-transition-name: workout-head;
 }
 
@@ -58,8 +56,9 @@
   min-width: 88px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--accent);
   color: var(--accent);
   font-family: var(--font-display);
   font-weight: 700;

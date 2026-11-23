@@ -101,7 +101,7 @@ test('1.7g every screen at 130% on SE', async ({ page }) => {
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.style.fontSize)).toBe('130%');
   await shot('today');
-  await page.getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('link', { name: 'Plan', exact: true }).tap();
   await expect(page.getByTestId('plan-five-day-split')).toBeVisible();
   await shot('plans');
   await page.getByTestId('plan-six-week-volume').tap();

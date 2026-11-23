@@ -12,7 +12,7 @@ export type TrainingEntry = {
   at: number;
   planId?: string;
   dayId?: string;
-  /** Muscle → certain working sets that trained it (targets and helpers). */
+  /** Muscle → certain working sets that trained it (its exercise's targets only, PLAN H1; helpers never count). */
   sets: Readonly<Record<string, number>>;
 };
 

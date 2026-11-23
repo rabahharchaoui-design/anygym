@@ -27,7 +27,7 @@ const text130 = (page: Page, scope: string) =>
 /** Today → Settings → Gyms. */
 const openGyms = async (page: Page) => {
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).or(page.getByRole('button', { name: 'Settings' })).first().tap();
+  await page.getByTestId('tab-you').tap();
   await page.getByTestId('settings-gyms').tap();
   await expect(page.getByTestId('gyms-list')).toBeVisible();
 };

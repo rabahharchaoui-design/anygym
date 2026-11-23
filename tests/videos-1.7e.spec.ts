@@ -49,7 +49,7 @@ test('push-pop-swipe', async ({ page }) => {
   const errors = watchErrors(page);
   await usePlan(page);
   await page.waitForTimeout(600);
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Plan', exact: true }).tap();
   await page.waitForTimeout(700);
   await page.getByTestId('plan-five-day-split').tap();
   await page.waitForTimeout(900);

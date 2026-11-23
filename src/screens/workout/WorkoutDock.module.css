@@ -60,8 +60,6 @@ button.nextChip {
   padding: 6px calc(var(--space-3) + var(--safe-right)) 6px calc(var(--space-3) + var(--safe-left));
   background: var(--glass-bg-strong);
   border-top: 1px solid var(--glass-line);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
 }
 
 .groupDock[data-rest] {

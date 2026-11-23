@@ -65,7 +65,7 @@ test('130% text: no clipped heading or label on any screen', async ({ page }) =>
   await expect(page.getByTestId('day-card-title')).toBeVisible();
   await audit(page, 'Today', found);
 
-  await page.getByRole('link', { name: 'Plans' }).tap();
+  await page.getByRole('link', { name: 'Plan', exact: true }).tap();
   await expect(page.getByTestId('plan-five-day-split')).toBeVisible();
   await audit(page, 'Plans', found);
   await page.getByTestId('plan-six-week-volume').tap();
@@ -76,7 +76,7 @@ test('130% text: no clipped heading or label on any screen', async ({ page }) =>
   await expect(page.getByRole('heading', { level: 1, name: 'Run' })).toBeVisible();
   await audit(page, 'Run', found);
   await page.goto('./#/settings');
-  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
   await audit(page, 'Settings', found);
 
   await page.goto('./');

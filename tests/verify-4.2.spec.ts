@@ -191,7 +191,7 @@ test.describe('4.2 run start screen', () => {
     await expect(page.getByTestId('time-20')).toHaveAttribute('aria-pressed', 'true');
     await page.getByTestId('time-20').tap();
     await page.goto('./#/settings');
-    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
     await page.goto('./#/run');
     await page.getByTestId('run-type-distance').tap();
     await expect(page.getByTestId('run-unit').getByRole('radio', { name: 'Miles' })).toHaveAttribute('aria-checked', 'true');
@@ -362,7 +362,7 @@ test.describe('4.2 run start screen', () => {
       if (u.origin !== own) outside.push(r.url());
     });
     const mapFiles = () => page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /RunMapGl|maplibre/i.test(n)).length);
-    for (const [hash, title] of [['', 'Today'], ['history', 'History'], ['plans', 'Plans'], ['settings', 'Settings']] as const) {
+    for (const [hash, title] of [['', 'Today'], ['history', 'History'], ['plans', 'Plans'], ['settings', 'You']] as const) {
       await page.goto(`./#/${hash}`);
       await page.reload();
       await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();

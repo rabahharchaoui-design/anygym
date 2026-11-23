@@ -3,7 +3,7 @@
 import { CARDIO_MACHINES } from './cardio';
 import type { Concept, QuickDeps, QuickInput } from './quick';
 import { diverse, hangsBodyweight, quickMinutes, STYLES, type Batch, type StyleId } from './quickStyles';
-import { mainWords, muscleRestLine } from './quickWhy';
+import { mainWords, muscleRestLine, sureRest } from './quickWhy';
 import { chipOf } from './quickCards';
 import { fits, gearOf, mainMuscles } from './quickShow';
 import { withNotes } from './quickNotes';
@@ -67,7 +67,7 @@ export function distinctCards(batch: Batch<Concept>, input: QuickInput, deps: Qu
       // PLAN 3.5j: the cardio machine of a warm up stays on the gear line.
       gear: [...c.gear.filter((g) => CARDIO_MACHINES.includes(g)), ...gearOf(ids, deps.data, input.base.gym)],
       primary: mainMuscles(items, deps),
-      line: muscleRestLine(items, deps, input.lastTrained, input.now ?? Date.now()) ?? c.altLines?.[c.altLines.length - 1] ?? c.line,
+      line: muscleRestLine(items, deps, sureRest(input.lastTrained, input.lastHelped), input.now ?? Date.now()) ?? c.altLines?.[c.altLines.length - 1] ?? c.line,
     };
   };
   const cards: Concept[] = [];

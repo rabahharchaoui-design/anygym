@@ -213,7 +213,7 @@ test('Smith first use: question on top, nothing logged until answered, diagram =
 test('Settings Units lb to kg: gym unit and kg plates in the sheet, 40 px scroll collapses the title, back to lb', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./');
-  await page.getByRole('link', { name: 'Settings' }).tap();
+  await page.getByTestId('tab-you').tap();
   const lb = page.getByRole('radio', { name: 'lb', exact: true });
   const kg = page.getByRole('radio', { name: 'kg', exact: true });
   await expect(lb).toBeChecked();
@@ -223,13 +223,13 @@ test('Settings Units lb to kg: gym unit and kg plates in the sheet, 40 px scroll
   await expect.poll(async () => (await dbAll<{ unit: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.unit).toBe('kg');
   // the large title collapses after a 40 px scroll
   const scroller = page.getByRole('main');
-  const big = page.getByRole('heading', { level: 1, name: 'Settings' });
+  const big = page.getByRole('heading', { level: 1, name: 'You', exact: true });
   const op0 = await big.evaluate((el) => +getComputedStyle(el).opacity);
   await scroller.evaluate((el) => { const s = [el, ...Array.from(el.querySelectorAll('*'))].find((e) => e.scrollHeight > e.clientHeight + 40 && getComputedStyle(e).overflowY !== 'visible'); (s ?? el).scrollTo({ top: 40 }); });
   await page.waitForTimeout(400);
   console.log('settings title opacity', op0, await big.evaluate((el) => +getComputedStyle(el).opacity));
   // Settings is a pushed screen with no tab bar (gate fix 12): back to Today.
-  await page.getByRole('link', { name: 'Back to Today' }).tap();
+  await page.getByTestId('tab-today').tap();
   await quickWith(page, [['back squat', 'Barbell Back Squat']]);
   const view = page.getByTestId('exercise-barbell-back-squat');
   await view.getByTestId('weight-cell').first().tap();
