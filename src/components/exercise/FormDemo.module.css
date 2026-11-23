@@ -188,8 +188,6 @@
   border-radius: var(--radius-sm);
   background: var(--glass-bg);
   border: 1px solid var(--glass-line);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
 }
 
 .pause svg {
