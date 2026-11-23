@@ -2,7 +2,7 @@
 .reminderWords { flex: 1 1 100%; display: flex; flex-direction: column; gap: 4px; }
 .reminderText { font-weight: 700; }
 .reminderReason { color: var(--text-2); font-size: var(--text-sm); }
-.reminderButtons { display: flex; gap: var(--space-3); }
+.reminderButtons { display: flex; gap: var(--space-3); margin-left: auto; }
 .reminderAction, .reminderLater { min-height: 48px; padding: 0 var(--space-2); font-weight: 700; }
 .reminderAction { color: var(--text); border-bottom: var(--bar-primary) solid var(--accent); }
 .reminderLater { color: var(--text-2); }

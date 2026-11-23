@@ -3,15 +3,15 @@
 .stack { display: flex; flex-direction: column; padding-bottom: 88px; }
 .stack > * + * { border-top: 1px solid var(--hairline); }
 .pick, .dayCard { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-5) 0; }
-.dayCard { view-transition-name: plan-day; }
+.dayCard { padding-bottom: var(--space-3); view-transition-name: plan-day; }
 .planName, .stripLabel { margin: 0; color: var(--text-2); font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
-.pickTitle, .dayTitle { margin: 0; font-size: clamp(32px, 10vw, 48px); font-weight: 900; line-height: 1.04; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.pickTitle, .dayTitle { margin: 0; font-size: clamp(22px, 6.2vw, 26px); font-weight: 900; line-height: 1.18; letter-spacing: -.04em; overflow-wrap: anywhere; }
 .pickSub, .dayFits { margin: 0; color: var(--text-2); line-height: 1.4; }
-.dayTime { min-height: 48px; padding: 0; font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 5px; }
+.dayTime { display: inline-flex; align-items: center; min-height: 48px; margin: -12px 0; padding: 0; vertical-align: baseline; white-space: nowrap; font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 5px; }
 .dayTime[data-trimmed], .inProgress { color: var(--accent); }
 .inProgress { margin: 0; font-weight: 700; }
-.dayCard .dayStart { margin-top: var(--space-2); view-transition-name: workout-head; }
-.strip { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--hairline); }
+.dayCard .dayStart { margin-top: var(--space-1); view-transition-name: workout-head; }
+.strip { display: flex; flex-direction: column; gap: var(--space-2); }
 .stripNote { font-weight: 500; letter-spacing: normal; text-transform: none; }
 .days { display: flex; justify-content: space-between; gap: var(--space-1); list-style: none; margin: 0; padding: 0; }
 .dayDot { flex: 1; display: flex; justify-content: center; }
