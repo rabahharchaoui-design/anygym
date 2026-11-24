@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, usePlan, watchErrors } from './workout-helpers';
-import { pastIntake } from './helpers/quick';
+import { logFirstWorkSet, pastIntake } from './helpers/quick';
 
 // Tester checks for PLAN 3.5d (independent of tests/quick-3.5d.spec.ts).
 const SHOT = 'reports/shots/3.5d-verify';
@@ -141,15 +141,25 @@ test('check 10: swapping Barbell Incline Bench Press offers a sure machine press
   await pastIntake(page);
   await page.goto('./#/quick?min=45');
   await page.reload();
-  await expect(page.locator('[data-concept="strength"]')).toBeVisible();
-  await page.locator('[data-concept="strength"]').tap();
+  await expect(page.locator('[data-concept]').first()).toBeVisible();
+  // PLAN D0: the Quick pool grew and no idea's deck holds the barbell incline press now. The same check runs on the
+  // barbell bench press (a barbell press with sure machine presses to swap to), found in whichever idea's deck holds it.
+  const TARGETS = ['barbell-incline-bench-press', 'Barbell_Bench_Press_-_Medium_Grip'];
   const card = page.getByTestId('deck-card');
-  let guard = 0;
-  while ((await card.getAttribute('data-exercise')) !== 'barbell-incline-bench-press' && guard++ < 8) {
-    await page.getByTestId('deck-keep').tap();
-    await page.waitForTimeout(500);
+  const ideas = await page.locator('[data-concept]').count();
+  const idNow = () => card.getAttribute('data-exercise', { timeout: 1500 }).catch(() => null);
+  const onTarget = async () => TARGETS.includes((await idNow()) ?? '');
+  for (let c = 0; c < ideas; c++) {
+    await page.locator('[data-concept]').nth(c).tap();
+    await expect(card.or(page.getByTestId('ready-list'))).toBeVisible();
+    for (let guard = 0; guard < 8 && (await idNow()) !== null && !(await onTarget()); guard++) {
+      await page.getByTestId('deck-keep').tap();
+      await page.waitForTimeout(500);
+    }
+    if (await onTarget()) break;
+    await page.getByRole('button', { name: 'Back to the workouts' }).tap();
   }
-  expect(await card.getAttribute('data-exercise')).toBe('barbell-incline-bench-press');
+  expect(TARGETS).toContain(await card.getAttribute('data-exercise'));
   const seen: string[] = [];
   let ended = '';
   for (let i = 0; i < 6; i++) {
@@ -299,14 +309,14 @@ test('check 9: Next in the pair, bottom bar with the rest bar, never over a set 
   const sess = (await dbAll<S>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
   const gymId = (await dbAll<{ id: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.id;
   const start = Date.now() - 6 * DAY;
-  const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
+  const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/i.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
   await dbPut(page, {
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: sess.exerciseIds }],
     sets: sess.exerciseIds.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
   });
   await page.reload();
   await expect(checkCurrent(page)).toBeVisible();
-  await checkCurrent(page).tap();
+  await logFirstWorkSet(page); // PLAN 3.5g: warm up rows come first
   const next = page.getByTestId('group-next');
   await expect(next).toBeVisible();
   await page.waitForTimeout(600);
@@ -438,14 +448,14 @@ test('r2 check 7: pair dock leaves every bottom control reachable (scroll to the
   const sess = (await dbAll<S>(page, 'sessions')).find((x) => x.endedAt === undefined)!;
   const gymId = (await dbAll<{ id: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.id;
   const start = Date.now() - 6 * DAY;
-  const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
+  const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/i.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
   await dbPut(page, {
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: sess.exerciseIds }],
     sets: sess.exerciseIds.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
   });
   await page.reload();
   await expect(checkCurrent(page)).toBeVisible();
-  await checkCurrent(page).tap();
+  await logFirstWorkSet(page); // PLAN 3.5g: warm up rows come first
   const next = page.getByTestId('group-next');
   await expect(next).toBeVisible();
   await page.waitForTimeout(700);

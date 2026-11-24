@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from './fixtures';
 import { dbAll, dbPut, seedFinished, usePlan, watchErrors, bar185 } from './workout-helpers';
 import { sureDemo } from './helpers/demoOracle';
-import { card, DUMBBELLS, longPress, pastIntake, PROFILE, swipe } from './helpers/quick';
+import { card, DUMBBELLS, hideEveryMove, longPress, pastIntake, PROFILE, swipe } from './helpers/quick';
 
 // PLAN 3.5a verifier (independent of the builder's tests): reads data/*.json itself.
 const patterns = JSON.parse(readFileSync('data/patterns.json', 'utf8')) as {
@@ -182,7 +182,9 @@ test.describe('3.5a verify', () => {
     await page.reload();
     await expect(page.getByTestId('quick-empty').or(page.locator('[data-concept]').first())).toBeVisible();
     console.log('kettlebell gym concepts:', await page.locator('[data-concept]').count());
+    // PLAN D0: a gym with no equipment still has bodyweight moves with demos, so the empty state needs every move hidden (helpers/quick.ts).
     await pastIntake(page, []);
+    await hideEveryMove(page);
     await page.goto('./#/quick?min=30');
     await page.reload();
     await expect(page.getByTestId('quick-empty')).toBeVisible();
