@@ -30,13 +30,14 @@ export function RunRecords() {
   const geo = useMemo(() => heatmapRoute(shown), [shown]);
   return (
     <>
-      <TopBar title="Run records" leading={<BackButton to="/history" label="Back to History" />} />
+      <TopBar giant title="Run records" leading={<BackButton to="/history" label="Back to History" />} />
       {all.error ? <LoadError text="Could not load runs" onRetry={all.retry} /> : null}
       {!all.ready ? (
         <Skeleton height={180} />
       ) : (
         <>
           <Segmented
+            words
             label="View"
             value={view}
             onChange={setView}

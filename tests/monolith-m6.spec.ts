@@ -245,3 +245,25 @@ test.describe('M6 workout detail', () => {
     await shot(page, 'workout-detail-largest');
   });
 });
+
+test.describe('M6 run records and heatmap', () => {
+  test.use({ locale: 'en-US', serviceWorkers: 'block' });
+  test('records as rows with Not yet in words, the view switch as words @matrix', async ({ page }) => {
+    await seedHistory30(page);
+    await page.goto('./#/history');
+    await page.getByTestId('history-runs-link').tap();
+    await expect(page).toHaveURL(/#\/history\/runs$/);
+    const records = page.getByTestId('run-record');
+    await expect(records).toHaveCount(5);
+    await expect(records.filter({ hasText: 'Longest run' })).toContainText('99.99 mi');
+    await expect(page.locator('[data-words] [data-pill]')).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: 'Records' })).toBeChecked();
+    await noBoxes(page, '[data-testid="run-record"]');
+    await rowsTall(page, '[data-testid="run-record"], [role="radio"]');
+    await noOverflow(page);
+    await shot(page, 'run-records');
+    await largestText(page);
+    await noOverflow(page);
+    await shot(page, 'run-records-largest');
+  });
+});

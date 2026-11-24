@@ -189,14 +189,16 @@
 
 
 /* A personal record: what, the best, and when. One row, the same glass as a history row. */
+/* A personal record (board 11's rows): what on the left, the best on the right in bold, when under it.
+   Plain on graphite, a hairline under each. */
 .record {
-  composes: surface from '../../ui/card.module.css';
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 2px var(--space-3);
-  min-height: 64px;
-  padding: var(--space-3) var(--space-4);
+  min-height: 72px;
+  padding: var(--space-4) 0;
+  border-bottom: var(--divider);
 }
 
 .record > .rowSub {
@@ -236,4 +238,9 @@
 
 .emptyAction {
   margin-top: var(--space-8);
+}
+
+/* A distance no run has covered yet: the words in grey, never a number. */
+.record:not([data-held]) .rowCount {
+  color: var(--text-2);
 }
