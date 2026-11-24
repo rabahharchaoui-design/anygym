@@ -152,3 +152,59 @@ test.describe('M6 plan detail', () => {
     await shot(page, 'plan-detail-pairs');
   });
 });
+
+const DAY = 86_400_000;
+const M_PER_DEG = (6_371_008.8 * Math.PI) / 180;
+/** A straight run north: a point every 15 m. */
+const line = (startedAt: number, meters: number, sec: number) =>
+  Array.from({ length: Math.floor(meters / 15) + 1 }, (_, i) => [40.77 + (i * 15) / M_PER_DEG, -73.97, Math.round(startedAt + (i * 15 * sec * 1000) / meters), 5]);
+/** The worst case: 99.99 mi in 1:59:59 (the points carry a short line; the saved distance is the run's). */
+const bigRun = (startedAt: number) => ({
+  id: 'worst', startedAt, endedAt: startedAt + 7199_000, type: 'free', movingSec: 7199, elapsedSec: 7199, distanceM: 160_930,
+  points: line(startedAt, 3000, 7199), gaps: [], splits: [], splitUnit: 'mi', timedM: 160_930,
+});
+
+/** 30 finished workouts, one a day back from yesterday, 4 to 20 sets each, and the 99.99 mi run. */
+async function seedHistory30(page: Page) {
+  await pastIntake(page);
+  const gym = ((await page.evaluate(() => new Promise<Array<{ id: string; isActive: boolean }>>((res) => {
+    const r = indexedDB.open('anygym');
+    r.onsuccess = () => { const q = r.result.transaction('gyms').objectStore('gyms').getAll(); q.onsuccess = () => res(q.result); };
+  }))).find((g) => g.isActive))!;
+  const now = Date.now();
+  const sessions: unknown[] = [];
+  const sets: unknown[] = [];
+  for (let i = 0; i < 30; i++) {
+    const startedAt = now - (i + 1) * DAY;
+    const id = `h${i}`;
+    sessions.push({ id, gymId: gym.id, startedAt, endedAt: startedAt + (40 + i) * 60_000, imported: false, exerciseIds: ['bench'] });
+    for (let k = 0; k < 4 + (i % 17); k++) sets.push({ id: `${id}-${k}`, sessionId: id, exerciseId: 'bench', order: k, kind: 'work', uncertain: false, reps: 8, load: { kind: 'barbell', unit: 'lb', total: 185, barWeight: 45, perSide: [45, 25] } });
+  }
+  await dbPut(page, { sessions, sets, runs: [bigRun(now - 2 * DAY + 3_600_000)] });
+}
+
+test.describe('M6 History (board 11)', () => {
+  test.use({ locale: 'en-US' });
+
+  test('30 rows and a 99.99 mi run: plain rows, name and date left, the number right, the week line @matrix', async ({ page }) => {
+    await seedHistory30(page);
+    await page.goto('./#/history');
+    await expect(page.getByRole('heading', { level: 1, name: 'History' })).toBeVisible();
+    await expect(page.getByTestId('history-row')).toHaveCount(30);
+    const run = page.getByTestId('history-run-row');
+    await expect(run).toContainText('99.99 mi');
+    await expect(run).toContainText('1:59:59');
+    await expect(page.getByTestId('history-row').first()).toContainText(/\d+ min/);
+    await expect(page.getByTestId('history-row').first()).toContainText(/\d+ sets/);
+    await expect(page.getByTestId('history-week')).toContainText(/^This week: /);
+    await expect(page.getByTestId('history-runs-link')).toHaveText('Run records and heatmap');
+    await expect(page.locator('[data-testid="history-row"] svg, [data-testid="history-run-row"] svg')).toHaveCount(0);
+    await noBoxes(page, '[data-testid="history-row"], [data-testid="history-run-row"]');
+    await rowsTall(page, '[data-testid="history-row"], [data-testid="history-run-row"], [data-testid="history-runs-link"]');
+    await noOverflow(page);
+    await shot(page, 'history');
+    await largestText(page);
+    await noOverflow(page);
+    await shot(page, 'history-largest');
+  });
+});
