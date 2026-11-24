@@ -38,7 +38,7 @@ test.describe('every screen fits every phone @matrix', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await nav.getByRole('link', { name: 'History' }).tap();
     await expect(page.getByText('No workouts yet')).toBeVisible();
-    await checkLayout(page, { primary: page.getByRole('button', { name: 'Go to Today' }) });
+    await checkLayout(page, { primary: page.getByRole('button', { name: 'Start workout' }) });
     await checkControls(page);
     await checkContrast(page);
     await matrixShot(page, 'history-empty');

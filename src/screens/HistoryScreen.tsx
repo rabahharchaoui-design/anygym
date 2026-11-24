@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { TopBar } from '../ui/TopBar';
-import { EmptyState } from '../ui/EmptyState';
 import { Skeleton } from '../ui/Skeleton';
 import { useNav } from '../ui/nav';
 import { LoadError } from '../components/LoadError';
@@ -9,6 +8,7 @@ import { useLive } from '../hooks/useLive';
 import { useFinishedRuns } from '../hooks/useRuns';
 import { historyFeed, thisWeekLine } from './history/historyFeed';
 import { HistoryRow } from './history/HistoryRow';
+import { HistoryEmpty } from './history/HistoryEmpty';
 import { RunRow } from './history/RunRow';
 import { importNumbers, workoutDate, workoutFacts, workoutTitle } from './history/historyWords';
 import styles from './history/History.module.css';
@@ -76,12 +76,7 @@ export function HistoryScreen() {
       {!list.ready || !runsRead.ready ? (
         <Skeleton height={76} />
       ) : (list.error || runsRead.error) && items.length === 0 && runs.length === 0 ? null : feed.dated.length === 0 && imported.length === 0 ? (
-        <EmptyState
-          scene="history"
-          title="No workouts yet"
-          next="Finish your first workout and it shows up here."
-          action={{ label: 'Go to Today', onPress: () => go('/', { kind: 'tab' }) }}
-        />
+        <HistoryEmpty onStart={() => go('/', { kind: 'tab' })} />
       ) : (
         <>
           {feed.dated.length > 0 && (

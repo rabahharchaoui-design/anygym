@@ -283,7 +283,6 @@ test.describe('3.6h empty states', () => {
   test.use({ serviceWorkers: 'block' });
 
   const SCREENS = [
-    { name: 'history', url: './#/history', scene: 'history', words: 'No workouts yet' },
     { name: 'plans', url: './#/plans/place/cardio', scene: 'plans', words: 'No plans here yet' },
     { name: 'today', url: './#/', scene: 'today', words: 'Pick a plan' },
   ];

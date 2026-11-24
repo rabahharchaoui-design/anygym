@@ -208,3 +208,23 @@ test.describe('M6 History (board 11)', () => {
     await shot(page, 'history-largest');
   });
 });
+
+test('M6 History empty (board 12): No workouts yet, one line, Start workout over the line, no picture @matrix', async ({ page }) => {
+  await pastIntake(page);
+  await page.goto('./#/history');
+  await expect(page.getByRole('heading', { level: 1, name: 'History' })).toBeVisible();
+  const empty = page.getByTestId('history-empty');
+  await expect(empty.getByRole('heading', { name: 'No workouts yet' })).toBeVisible();
+  await expect(empty).toContainText('Your first one shows up here.');
+  await expect(empty.locator('svg, img')).toHaveCount(0);
+  await expect(page.getByTestId('history-week')).toHaveCount(0);
+  await expect(page.getByTestId('history-runs-link')).toHaveCount(0);
+  await rowsTall(page, '[data-testid="history-empty"] button');
+  await noOverflow(page);
+  await shot(page, 'history-empty');
+  await largestText(page);
+  await noOverflow(page);
+  await shot(page, 'history-empty-largest');
+  await page.getByRole('button', { name: 'Start workout' }).tap();
+  await expect(page).toHaveURL(/#\/$/);
+});

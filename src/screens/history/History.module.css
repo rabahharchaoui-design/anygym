@@ -215,3 +215,32 @@
 .afterSwitch {
   margin-top: var(--space-3);
 }
+
+/* History, empty (board 12): the words giant in the middle of the page, the action low. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-7);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  /* Board 12: bigger than the action under it (44), smaller than the screen title. */
+  font-size: calc(var(--text-mono-heading) * 1.27);
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  overflow-wrap: break-word;
+}
+
+.emptyNext {
+  margin: var(--space-5) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-mono-body);
+  font-weight: 500;
+}
+
+.emptyAction {
+  margin-top: var(--space-8);
+}
