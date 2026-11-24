@@ -63,6 +63,8 @@ export type CoachData = {
   answeredAt: number[];
   /** PLAN 3.5g: logged exercises of the last 3 days whose muscles are not confirmed (not on the map). */
   unmapped: string[];
+  /** PLAN R1 (4): sure main muscles of those 3 days that have a name but no shape on the map (rotator cuff). */
+  unshaped: string[];
 };
 
 export const regionWord = (r: Region): string => REGION_NAMES[r].toLowerCase();
@@ -74,6 +76,12 @@ export function primaryRegions(exerciseId: string): Region[] {
   const m = infoForExercise(exerciseId).muscles;
   if (!m) return [];
   return (Object.keys(m.shading) as Region[]).filter((r) => m.shading[r] === 'primary');
+}
+
+/** Sure main muscles of an exercise that have a name but no shape on the map (rotator cuff, PLAN R1 4). */
+export function shapelessMuscles(exerciseId: string): string[] {
+  const m = infoForExercise(exerciseId).muscles;
+  return (m?.primary ?? []).filter((t) => t.regions.length === 0 && t.label).map((t) => t.label);
 }
 
 /** The exercise's own words for its primary shapes that stand for more than one muscle (PLAN 4.6a 5, 4.6c 3). */
@@ -206,12 +214,19 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
   // exercise without sure muscles is named under the map, never guessed onto it.
   const fresh: TrainedSet[] = [];
   const unmapped = new Set<string>();
+  const unshaped = new Set<string>();
   for (const x of sets) {
     const s = sessionOf.get(x.sessionId);
     if (!s || x.kind !== 'work' || x.uncertain || s.startedAt < now - 3 * DAY) continue;
     const regions = primaryRegions(x.exerciseId);
     if (regions.length) fresh.push({ at: s.startedAt, regions, names: primaryNames(x.exerciseId) });
-    else unmapped.add(nameOf(x.exerciseId));
+    else {
+      // Sure muscles with no shape on the map are named by their own name (PLAN R1 4); an
+      // exercise without sure muscles is named instead.
+      const named = shapelessMuscles(x.exerciseId);
+      if (named.length) named.forEach((n) => unshaped.add(n));
+      else unmapped.add(nameOf(x.exerciseId));
+    }
   }
 
   return {
@@ -232,6 +247,7 @@ export async function coachData(now = Date.now(), db: AnyGymDB = defaultDb): Pro
     todayIds: nextDayIds(planState),
     answeredAt: rows.cards.map((c) => c.at),
     unmapped: [...unmapped],
+    unshaped: [...unshaped],
   };
 }
 
