@@ -26,7 +26,7 @@
   bottom: 6px;
   width: calc(100% / var(--n));
   height: var(--tab-mark-h);
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-1);
   background: var(--accent);
   background-clip: content-box;
   transform: translateX(calc(var(--i) * 100%));
@@ -40,8 +40,9 @@
   position: relative;
   z-index: 1;
   /* 48 pt hit area (SPEC 13.3). */
+  min-width: 0;
   min-height: var(--tap);
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-1);
   border-radius: var(--radius-none);
   color: var(--text-2);
   font-size: clamp(15px, 4.4vw, 18px);
@@ -53,8 +54,9 @@
     opacity var(--dur-fast) var(--ease-out);
 }
 
+/* Full width: body size, shrinking on a narrow phone so three words keep their own columns at 320. */
 .toggle[data-block] .option {
-  font-size: var(--text-mono-body);
+  font-size: clamp(15px, 4.8vw, var(--text-mono-body));
 }
 
 .option[aria-checked='true'] {

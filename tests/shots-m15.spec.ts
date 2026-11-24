@@ -65,3 +65,15 @@ test('m15 shots errors and empty @matrix', async ({ page }) => {
   await expect(page.getByTestId('load-error')).toBeVisible();
   await shot(page, 'error-today');
 });
+
+test('m15 shots toast and info @matrix', async ({ page }) => {
+  await page.goto('./?dev#/dev/ui');
+  await expect(page.getByRole('heading', { name: 'Components' })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete a set' }).tap();
+  await expect(page.getByRole('status').filter({ hasText: 'Set deleted' })).toBeVisible();
+  await shot(page, 'toast-dev-ui');
+  await pastIntake(page);
+  await page.goto('./#/settings/gyms');
+  await page.waitForTimeout(500);
+  await shot(page, 'back-gyms');
+});
