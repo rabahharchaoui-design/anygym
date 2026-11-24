@@ -85,13 +85,9 @@
   padding-bottom: var(--space-2);
 }
 
+/* Heavy and left aligned from the sheet shell (Sheet.module.css). */
 .title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-mono-heading-pair);
-  font-weight: var(--weight-heavy);
-  letter-spacing: var(--track-heading);
-  line-height: 1.1;
   overflow-wrap: anywhere;
 }
 
