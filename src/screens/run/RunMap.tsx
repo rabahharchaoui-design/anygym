@@ -1,11 +1,29 @@
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { MAP_ATTRIBUTION } from '../../lib/run';
 import { OfflineIcon } from '../../ui/icons';
 import type { RunMapGlProps } from './RunMapGl';
 import styles from './RunMap.module.css';
 
 // MapLibre is a few hundred KB: it is asked for only when the Run tab opens, never with the app.
-const RunMapGl = lazy(() => import('./RunMapGl'));
+// PLAN R1 (1): when its file cannot be fetched (no signal on a first visit, a stale tab after an
+// update) the map stays the dark placeholder with "Map offline"; the run itself starts and counts
+// as usual. The next time a map opens the file is asked for again.
+let RunMapGl = loadMap();
+function loadMap() {
+  return lazy((): Promise<{ default: ComponentType<RunMapGlProps> }> =>
+    import('./RunMapGl').catch(() => {
+      RunMapGl = loadMap();
+      return { default: MapFileMissing };
+    }),
+  );
+}
+
+/** The map's file could not load: said as "Map offline", the placeholder stays. */
+function MapFileMissing({ onOffline }: RunMapGlProps) {
+  const said = useRef(onOffline);
+  useEffect(() => said.current(true), []);
+  return null;
+}
 
 type Props = Omit<RunMapGlProps, 'onReady'> & {
   /** Covered by the countdown: hidden, so nothing of it is drawn or composited (PLAN 4.4a). */

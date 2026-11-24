@@ -14,6 +14,17 @@ export const GymEquipment = lazyScreen(() => import('./settings/GymEquipment').t
 export const ReviewScreen = lazyScreen(() => import('./review/ReviewScreen').then((m) => m.ReviewScreen)).Screen;
 export const CandidateReviewScreen = lazyScreen(() => import('./review/CandidateReviewScreen').then((m) => m.CandidateReviewScreen)).Screen;
 
+// The Run tab (PLAN 4.2), a run's detail and the records (they bring the map and the share card).
+// PLAN R1: through lazyScreen too, so a file that cannot load shows the load error in place of
+// that screen, never the app wide "Something went wrong".
+const run = lazyScreen(() => import('./run/RunScreen').then((m) => m.RunScreen));
+export const RunScreen = run.Screen;
+export const RunDetail = lazyScreen(() => import('./history/RunDetail').then((m) => m.RunDetail)).Screen;
+export const RunRecords = lazyScreen(() => import('./history/RunRecords').then((m) => m.RunRecords)).Screen;
+
+/** The Run tab's file, fetched right after the app starts so it is there before the tab is tapped. */
+export const preloadRun = run.preload;
+
 /** The tab roots' files, fetched after the app has started (a failure is tried again when the tab opens). */
 export function preloadTabs(): void {
   void settings.preload();
