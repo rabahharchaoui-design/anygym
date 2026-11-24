@@ -3,7 +3,7 @@
 .stage {
   position: relative;
   flex: 1 1 0;
-  min-height: 0;
+  /* FS1: no min-height 0 here, so at 130% text the stage grows to its rows (the page scrolls) and never lets the tiles run over Approve. */
   display: flex;
   margin: 0 calc(-1 * var(--page-pad-r)) var(--space-3) calc(-1 * var(--page-pad-l));
   padding: 2px var(--page-pad-r) 0 var(--page-pad-l);
@@ -18,7 +18,7 @@
   flex: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(min-content, 1fr)); /* FS1: a row never gets shorter than its name and chip, even at 130% text */
   min-height: 0;
   gap: var(--space-2);
   align-content: stretch;
