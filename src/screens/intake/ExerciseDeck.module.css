@@ -57,7 +57,7 @@
   display: contents;
 }
 
-/* Cards, Love, Never: words over the ice line (IntakeRows .words), a hairline under the row. */
+/* Cards, Love, Never: words over the ice line (the shared toggle), a hairline under the row. */
 .step [data-testid='ex-mode'] {
   border-bottom: var(--divider);
 }

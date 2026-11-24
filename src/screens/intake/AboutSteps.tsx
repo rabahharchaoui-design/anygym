@@ -33,7 +33,7 @@ export function AboutStep({
 }) {
   const name = answers.name ?? '';
   return (
-    <div className={`${fieldStyles.about} ${rowStyles.words}`}>
+    <div className={fieldStyles.about}>
       <label className={fieldStyles.nameField}>
         <span className={fieldStyles.fieldLabel}>Your name</span>
         <input
@@ -90,7 +90,7 @@ export function BodyweightStep({
     else setStart(RULER_START[to]);
   };
   return (
-    <div className={`${fieldStyles.measure} ${rowStyles.words}`}>
+    <div className={fieldStyles.measure}>
       <SlidingToggle block label="Weight unit" testId="bw-unit" options={[{ value: 'kg', label: 'Kilograms' }, { value: 'lb', label: 'Pounds' }]} value={unit} onChange={flip} />
       <p className={`${fieldStyles.bigNumber} num`} data-touched={!!value || undefined} aria-live="polite" data-testid="bw-value">
         {formatBodyweight(current)}

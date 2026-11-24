@@ -2,9 +2,10 @@ import { useRef, type CSSProperties, type KeyboardEvent } from 'react';
 import { tick } from './haptics';
 import styles from './SlidingToggle.module.css';
 
-// PLAN 2.2e: two or three options with one accent pill that slides between them on the tap spring.
-// A radiogroup (arrow keys move the pick), every option at least 48 pt tall, equal widths so the
-// pill moves by whole steps on the compositor (a transform, never a layout change).
+// PLAN 2.2e, Monolith since M15: two or three options as words, the picked one white over a 3 px ice
+// line that slides between them on the tap spring (no well, no filled pill). A radiogroup (arrow keys
+// move the pick), every option at least 48 pt tall, equal widths so the line moves by whole steps on
+// the compositor (a transform, never a layout change). The line keeps data-pill for the specs.
 export interface ToggleOption<T extends string> {
   value: T;
   label: string;
@@ -21,13 +22,9 @@ type Props<T extends string> = {
   disabled?: boolean;
   /** Fill the row (intake screens); otherwise as wide as the longest label needs. */
   block?: boolean;
-  /** A glass pill instead of the accent one, where another button is the screen's one accent action (3.5f round 3). */
-  glass?: boolean;
-  /** PLAN M14 (Monolith): the options as words, the picked one white over an ice line; no pill, no well. */
-  words?: boolean;
 };
 
-export function SlidingToggle<T extends string>({ options, value, onChange, label, labelledBy, testId, disabled, block, glass, words }: Props<T>) {
+export function SlidingToggle<T extends string>({ options, value, onChange, label, labelledBy, testId, disabled, block }: Props<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const index = Math.max(
     0,
@@ -56,12 +53,10 @@ export function SlidingToggle<T extends string>({ options, value, onChange, labe
       aria-disabled={disabled || undefined}
       data-testid={testId}
       data-block={block || undefined}
-      data-glass={glass || undefined}
-      data-words={words || undefined}
       style={{ '--n': options.length, '--i': index } as CSSProperties}
       onKeyDown={onKey}
     >
-      {picked && !words && <span className={styles.pill} aria-hidden="true" data-pill />}
+      {picked && <span className={styles.pill} aria-hidden="true" data-pill />}
       {options.map((o, i) => (
         <button
           key={o.value}

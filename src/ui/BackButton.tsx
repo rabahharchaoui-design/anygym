@@ -10,7 +10,8 @@ type Props = {
 } & ({ to: string; onPress?: never } | { onPress: () => void; to?: never });
 
 /**
- * Round 44 pt glass back button with a chevron in a 48 pt hit area (SPEC 23.1). With `to` it is a
+ * The back mark (SPEC 23.1; Monolith, PLAN M15): a plain chevron in a 48 pt hit area, no boxed square;
+ * `plain` adds the word "Back". With `to` it is a
  * link that pops back to that screen; with `onPress` the screen decides what back means.
  */
 export function BackButton({ label, to, onPress, plain }: Props) {

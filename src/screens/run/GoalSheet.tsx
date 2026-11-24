@@ -101,7 +101,6 @@ function DistancePicker({ goal, unit, onUnit, onPick }: { goal: DistanceGoal; un
             label="Miles or kilometers"
             testId="run-unit"
             block
-            glass
           />
           <Button onClick={() => onPick({ value, unit: wheelUnit })} data-testid="goal-done">
             {`Set ${distanceLabel({ value, unit: wheelUnit })}`}

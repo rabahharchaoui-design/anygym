@@ -63,7 +63,6 @@ export function GymUnitSettings({ gym, toast }: Props) {
           <span className={styles.unitHint}>{gym ? `At ${gym.name}. ` : ''}Plates and bars switch to the standard set for that unit.</span>
         </span>
         <Segmented
-          words
           labelledBy="units-label"
           testId="settings-units"
           options={[
@@ -76,7 +75,6 @@ export function GymUnitSettings({ gym, toast }: Props) {
         />
       </div>
       <Switch
-        words
         label="Colored plates"
         hint={gym ? `Show plates in competition colors at ${gym.name}. Off: black like most gyms.` : 'Show plates in competition colors.'}
         checked={gym?.plateColors === 'color'}
