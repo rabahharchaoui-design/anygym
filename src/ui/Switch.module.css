@@ -13,6 +13,11 @@
   -webkit-user-select: none;
 }
 
+/* Two switch rows in a row (run settings): a hairline between them, as every list on the page. */
+.row + .row {
+  border-top: var(--divider);
+}
+
 .row[data-disabled] {
   opacity: 0.5;
 }
