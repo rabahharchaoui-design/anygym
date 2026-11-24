@@ -176,3 +176,45 @@
 {"file":"onboarding-21-welcome-tour-2-iPhone-15-Pro.jpg","group":"onboarding","name":"21-welcome-tour-2","dev":"iPhone-15-Pro","how":"first Today, tour Next x1"}
 {"file":"onboarding-22-welcome-tour-3-iPhone-SE.jpg","group":"onboarding","name":"22-welcome-tour-3","dev":"iPhone-SE","how":"first Today, tour Next x2"}
 {"file":"onboarding-22-welcome-tour-3-iPhone-15-Pro.jpg","group":"onboarding","name":"22-welcome-tour-3","dev":"iPhone-15-Pro","how":"first Today, tour Next x2"}
+{"file":"run-01-start-free-iPhone-SE.jpg","group":"run","name":"01-start-free","dev":"iPhone-SE","how":"Run tab, #/run: Free run selected"}
+{"file":"run-01-start-free-iPhone-15-Pro.jpg","group":"run","name":"01-start-free","dev":"iPhone-15-Pro","how":"Run tab, #/run: Free run selected"}
+{"file":"run-02-goal-sheet-distance-iPhone-SE.jpg","group":"run","name":"02-goal-sheet-distance","dev":"iPhone-SE","how":"Run tab, tap Distance: goal sheet open"}
+{"file":"run-02-goal-sheet-distance-iPhone-15-Pro.jpg","group":"run","name":"02-goal-sheet-distance","dev":"iPhone-15-Pro","how":"Run tab, tap Distance: goal sheet open"}
+{"file":"run-02b-goal-sheet-distance-custom-iPhone-SE.jpg","group":"run","name":"02b-goal-sheet-distance-custom","dev":"iPhone-SE","how":"distance goal sheet, tap Custom: wheel"}
+{"file":"run-02b-goal-sheet-distance-custom-iPhone-15-Pro.jpg","group":"run","name":"02b-goal-sheet-distance-custom","dev":"iPhone-15-Pro","how":"distance goal sheet, tap Custom: wheel"}
+{"file":"run-03-start-distance-closed-iPhone-SE.jpg","group":"run","name":"03-start-distance-closed","dev":"iPhone-SE","how":"goal sheet Done: start screen with a distance goal"}
+{"file":"run-03-start-distance-closed-iPhone-15-Pro.jpg","group":"run","name":"03-start-distance-closed","dev":"iPhone-15-Pro","how":"goal sheet Done: start screen with a distance goal"}
+{"file":"run-04-goal-sheet-time-iPhone-SE.jpg","group":"run","name":"04-goal-sheet-time","dev":"iPhone-SE","how":"Run tab, tap Time: goal sheet open"}
+{"file":"run-04-goal-sheet-time-iPhone-15-Pro.jpg","group":"run","name":"04-goal-sheet-time","dev":"iPhone-15-Pro","how":"Run tab, tap Time: goal sheet open"}
+{"file":"run-04b-goal-sheet-time-custom-iPhone-SE.jpg","group":"run","name":"04b-goal-sheet-time-custom","dev":"iPhone-SE","how":"time goal sheet, tap Custom: wheel"}
+{"file":"run-04b-goal-sheet-time-custom-iPhone-15-Pro.jpg","group":"run","name":"04b-goal-sheet-time-custom","dev":"iPhone-15-Pro","how":"time goal sheet, tap Custom: wheel"}
+{"file":"run-05-goal-sheet-intervals-iPhone-SE.jpg","group":"run","name":"05-goal-sheet-intervals","dev":"iPhone-SE","how":"Run tab, tap Intervals: interval picker sheet"}
+{"file":"run-05-goal-sheet-intervals-iPhone-15-Pro.jpg","group":"run","name":"05-goal-sheet-intervals","dev":"iPhone-15-Pro","how":"Run tab, tap Intervals: interval picker sheet"}
+{"file":"run-06-start-intervals-iPhone-SE.jpg","group":"run","name":"06-start-intervals","dev":"iPhone-SE","how":"intervals sheet, Beginner: start screen"}
+{"file":"run-07-pocket-explainer-sheet-iPhone-SE.jpg","group":"run","name":"07-pocket-explainer-sheet","dev":"iPhone-SE","how":"first Start tap: pocket mode explainer sheet"}
+{"file":"run-06-start-intervals-iPhone-15-Pro.jpg","group":"run","name":"06-start-intervals","dev":"iPhone-15-Pro","how":"intervals sheet, Beginner: start screen"}
+{"file":"run-08-countdown-iPhone-SE.jpg","group":"run","name":"08-countdown","dev":"iPhone-SE","how":"pocket sheet Got it: countdown"}
+{"file":"run-07-pocket-explainer-sheet-iPhone-15-Pro.jpg","group":"run","name":"07-pocket-explainer-sheet","dev":"iPhone-15-Pro","how":"first Start tap: pocket mode explainer sheet"}
+{"file":"run-08-countdown-iPhone-15-Pro.jpg","group":"run","name":"08-countdown","dev":"iPhone-15-Pro","how":"pocket sheet Got it: countdown"}
+{"file":"run-09-live-numbers-iPhone-SE.jpg","group":"run","name":"09-live-numbers","dev":"iPhone-SE","how":"live run, numbers page (page 1)"}
+{"file":"run-10-live-map-iPhone-SE.jpg","group":"run","name":"10-live-map","dev":"iPhone-SE","how":"live run, swipe left: map page (tiles stubbed)"}
+{"file":"run-09-live-numbers-iPhone-15-Pro.jpg","group":"run","name":"09-live-numbers","dev":"iPhone-15-Pro","how":"live run, numbers page (page 1)"}
+{"file":"run-11-locked-iPhone-SE.jpg","group":"run","name":"11-locked","dev":"iPhone-SE","how":"live run, tap Lock: locked, hold to unlock"}
+{"file":"run-10-live-map-iPhone-15-Pro.jpg","group":"run","name":"10-live-map","dev":"iPhone-15-Pro","how":"live run, swipe left: map page (tiles stubbed)"}
+{"file":"run-11-locked-iPhone-15-Pro.jpg","group":"run","name":"11-locked","dev":"iPhone-15-Pro","how":"live run, tap Lock: locked, hold to unlock"}
+{"file":"run-12-pocket-dim-iPhone-SE.jpg","group":"run","name":"12-pocket-dim","dev":"iPhone-SE","how":"live run left alone 12 s: pocket mode dimmed screen"}
+{"file":"run-12-pocket-dim-iPhone-15-Pro.jpg","group":"run","name":"12-pocket-dim","dev":"iPhone-15-Pro","how":"live run left alone 12 s: pocket mode dimmed screen"}
+{"file":"run-13-paused-iPhone-SE.jpg","group":"run","name":"13-paused","dev":"iPhone-SE","how":"live run, tap Pause: paused"}
+{"file":"run-14-run-settings-sheet-iPhone-SE.jpg","group":"run","name":"14-run-settings-sheet","dev":"iPhone-SE","how":"paused, tap settings: run settings sheet (auto pause, voice)"}
+{"file":"run-13-paused-iPhone-15-Pro.jpg","group":"run","name":"13-paused","dev":"iPhone-15-Pro","how":"live run, tap Pause: paused"}
+{"file":"run-15-start-while-running-iPhone-SE.jpg","group":"run","name":"15-start-while-running","dev":"iPhone-SE","how":"live run, tap hide: run start screen with the run going"}
+{"file":"run-14-run-settings-sheet-iPhone-15-Pro.jpg","group":"run","name":"14-run-settings-sheet","dev":"iPhone-15-Pro","how":"paused, tap settings: run settings sheet (auto pause, voice)"}
+{"file":"run-15-start-while-running-iPhone-15-Pro.jpg","group":"run","name":"15-start-while-running","dev":"iPhone-15-Pro","how":"live run, tap hide: run start screen with the run going"}
+{"file":"run-16-summary-iPhone-SE.jpg","group":"run","name":"16-summary","dev":"iPhone-SE","how":"hold End: run summary"}
+{"file":"run-16b-summary-scrolled-iPhone-SE.jpg","group":"run","name":"16b-summary-scrolled","dev":"iPhone-SE","how":"run summary scrolled to the bottom (splits, facts)"}
+{"file":"run-16-summary-iPhone-15-Pro.jpg","group":"run","name":"16-summary","dev":"iPhone-15-Pro","how":"hold End: run summary"}
+{"file":"run-17-share-card-sheet-iPhone-SE.jpg","group":"run","name":"17-share-card-sheet","dev":"iPhone-SE","how":"summary, tap Share card: share sheet with the poster preview"}
+{"file":"run-16b-summary-scrolled-iPhone-15-Pro.jpg","group":"run","name":"16b-summary-scrolled","dev":"iPhone-15-Pro","how":"run summary scrolled to the bottom (splits, facts)"}
+{"file":"run-18-start-after-done-iPhone-SE.jpg","group":"run","name":"18-start-after-done","dev":"iPhone-SE","how":"summary, Done: back on the start screen"}
+{"file":"run-17-share-card-sheet-iPhone-15-Pro.jpg","group":"run","name":"17-share-card-sheet","dev":"iPhone-15-Pro","how":"summary, tap Share card: share sheet with the poster preview"}
+{"file":"run-18-start-after-done-iPhone-15-Pro.jpg","group":"run","name":"18-start-after-done","dev":"iPhone-15-Pro","how":"summary, Done: back on the start screen"}
