@@ -377,11 +377,14 @@ export const pauseRun = (state: TrackerState, now?: number): TrackerState => pau
 
 /**
  * Resume by hand. After a pause by hand the next good point starts a new piece of line. Tapped
- * while auto paused it simply ends the standing state (the runner says they are moving).
+ * while auto paused it simply ends the standing state (the runner says they are moving). Either
+ * way the speeds and the pace window from before are dropped (PLAN R1 2): no current pace is shown
+ * until a new accepted position gives one, never the old pace as if it were current.
  */
 export function resumeRun(state: TrackerState): TrackerState {
-  if (state.manual) return { ...state, manual: false, still: false, stopped: false, stopAt: null, recent: [], afterPause: state.lastGood !== null };
-  return state.still ? { ...state, still: false, stopped: false, stopAt: null, recent: [] } : state;
+  const fresh = { still: false, stopped: false, stopAt: null, recent: [], speeds: [], pace: [] };
+  if (state.manual) return { ...state, ...fresh, manual: false, afterPause: state.lastGood !== null };
+  return state.still ? { ...state, ...fresh } : state;
 }
 
 export { readTracker } from './reading';
