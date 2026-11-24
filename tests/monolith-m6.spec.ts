@@ -119,3 +119,36 @@ test.describe('M6 Plan tab (board 10)', () => {
     await shot(page, 'plan-tab-none');
   });
 });
+
+test.describe('M6 plan detail', () => {
+  test('the plan name giant, its days as rows, tips as text rows, Use this plan over the line @matrix', async ({ page }) => {
+    await pastIntake(page);
+    await page.goto('./#/plans/six-week-volume');
+    const title = page.getByRole('heading', { level: 1, name: 'Six Week Volume Builder' });
+    await expect(title).toBeVisible();
+    expect(parseFloat(await title.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(60);
+    await expect(page.getByRole('button', { name: 'Use this plan' })).toBeVisible();
+    // No boxes: the exercises, the weeks and the tips are plain rows.
+    await noBoxes(page, '[data-testid^="plan-item-"], [data-testid="plan-pair"], [data-testid="coach-tips"], [aria-label^="Week "]');
+    await rowsTall(page, '[aria-label^="Week "][type="button"]');
+    await noOverflow(page);
+    await shot(page, 'plan-detail');
+    if (await page.getByTestId('coach-tips-toggle').count()) {
+      await page.getByTestId('coach-tips-toggle').tap();
+      await page.waitForTimeout(400);
+      await shot(page, 'plan-detail-tips');
+    }
+    await largestText(page);
+    await noOverflow(page);
+    await shot(page, 'plan-detail-largest');
+  });
+
+  test('a pair plan scrolled to its pairs @matrix', async ({ page }) => {
+    await pastIntake(page);
+    await page.goto('./#/plans/five-day-split');
+    await page.getByTestId('plan-pair').first().scrollIntoViewIfNeeded();
+    await noBoxes(page, '[data-testid="plan-pair"], [data-testid^="plan-item-"]');
+    await noOverflow(page);
+    await shot(page, 'plan-detail-pairs');
+  });
+});

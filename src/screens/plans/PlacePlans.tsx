@@ -25,7 +25,7 @@ export function PlacePlans({ placeId: fixed }: { placeId?: string } = {}) {
   const go = useNav();
   return (
     <>
-      <TopBar title={place?.label ?? 'Plans'} leading={<BackButton to="/plans" label="Back to Plans" />}>
+      <TopBar giant title={place?.label ?? 'Plans'} leading={<BackButton to="/plans" label="Back to Plans" />}>
         {plans.length > 0 && <p className={styles.lead}>Plans you can follow here.</p>}
       </TopBar>
       {plans.length > 0 ? (
