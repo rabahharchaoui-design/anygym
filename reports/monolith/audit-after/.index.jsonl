@@ -42,3 +42,93 @@
 {"file":"workout-14-add-exercise-no-results-iPhone-15-Pro.jpg","group":"workout","name":"14-add-exercise-no-results","dev":"iPhone-15-Pro","how":"picker, search for zzzz: empty state"}
 {"file":"workout-14b-add-exercise-one-picked-iPhone-15-Pro.jpg","group":"workout","name":"14b-add-exercise-one-picked","dev":"iPhone-15-Pro","how":"picker, one exercise picked: Add 1 button"}
 {"file":"workout-14c-quick-day-list-iPhone-15-Pro.jpg","group":"workout","name":"14c-quick-day-list","dev":"iPhone-15-Pro","how":"quick workout day list after adding exercises (empty-ish quick list with + Add exercise)"}
+{"file":"today-01-no-plan-iPhone-SE.jpg","group":"today","name":"01-no-plan","dev":"iPhone-SE","how":"fresh data past intake, open #/: Today without a plan"}
+{"file":"quick-01-today-quick-entry-iPhone-SE.jpg","group":"quick","name":"01-today-quick-entry","dev":"iPhone-SE","how":"past intake, Today (build card)"}
+{"file":"quick-02-time-step-iPhone-SE.jpg","group":"quick","name":"02-time-step","dev":"iPhone-SE","how":"Today, tap the build card: Quick, how much time"}
+{"file":"quick-03-ideas-iPhone-SE.jpg","group":"quick","name":"03-ideas","dev":"iPhone-SE","how":"Quick, tap 30 min: idea cards"}
+{"file":"today-02-with-plan-iPhone-SE.jpg","group":"today","name":"02-with-plan","dev":"iPhone-SE","how":"See plans, Five day split, Use this plan: Today with a plan"}
+{"file":"quick-04-idea-sheet-iPhone-SE.jpg","group":"quick","name":"04-idea-sheet","dev":"iPhone-SE","how":"idea card, tap info: idea sheet"}
+{"file":"today-03-gym-sheet-iPhone-SE.jpg","group":"today","name":"03-gym-sheet","dev":"iPhone-SE","how":"Today, tap the gym pill: gym picker sheet"}
+{"file":"quick-05-deck-iPhone-SE.jpg","group":"quick","name":"05-deck","dev":"iPhone-SE","how":"tap an idea: exercise deck, first card"}
+{"file":"today-04-change-day-sheet-iPhone-SE.jpg","group":"today","name":"04-change-day-sheet","dev":"iPhone-SE","how":"Today, tap Change day: change day sheet"}
+{"file":"quick-06-deck-card-3-iPhone-SE.jpg","group":"quick","name":"06-deck-card-3","dev":"iPhone-SE","how":"deck after two Keep taps"}
+{"file":"today-05-preview-iPhone-SE.jpg","group":"today","name":"05-preview","dev":"iPhone-SE","how":"Today, tap Preview: day preview"}
+{"file":"today-06-time-sheet-iPhone-SE.jpg","group":"today","name":"06-time-sheet","dev":"iPhone-SE","how":"Today, tap the ~min line: time budget sheet"}
+{"file":"quick-07-review-ready-iPhone-SE.jpg","group":"quick","name":"07-review-ready","dev":"iPhone-SE","how":"keep every card: Ready to go review list"}
+{"file":"history-01-empty-iPhone-SE.jpg","group":"history","name":"01-empty","dev":"iPhone-SE","how":"fresh data, History tab: empty state"}
+{"file":"today-07-workout-in-progress-iPhone-SE.jpg","group":"today","name":"07-workout-in-progress","dev":"iPhone-SE","how":"workout, tap minimize: Today with a workout in progress (resume)"}
+{"file":"history-02-list-iPhone-SE.jpg","group":"history","name":"02-list","dev":"iPhone-SE","how":"History tab with 20 weeks of workouts and 3 runs"}
+{"file":"plans-01-plans-list-iPhone-SE.jpg","group":"plans","name":"01-plans-list","dev":"iPhone-SE","how":"Plans tab"}
+{"file":"history-03-run-records-iPhone-SE.jpg","group":"history","name":"03-run-records","dev":"iPhone-SE","how":"History, tap the runs link: personal records"}
+{"file":"plans-02-place-plans-iPhone-SE.jpg","group":"plans","name":"02-place-plans","dev":"iPhone-SE","how":"Plans, tap the first place: plans for that place"}
+{"file":"history-04-run-heatmap-iPhone-SE.jpg","group":"history","name":"04-run-heatmap","dev":"iPhone-SE","how":"run records, switch to Heatmap"}
+{"file":"plans-03-plan-detail-iPhone-SE.jpg","group":"plans","name":"03-plan-detail","dev":"iPhone-SE","how":"#/plans/five-day-split: plan viewer"}
+{"file":"history-05-run-detail-iPhone-SE.jpg","group":"history","name":"05-run-detail","dev":"iPhone-SE","how":"#/history/run/<id>: run detail"}
+{"file":"plans-04-coach-tips-open-iPhone-SE.jpg","group":"plans","name":"04-coach-tips-open","dev":"iPhone-SE","how":"plan detail, open Coach tips"}
+{"file":"plans-05-plans-list-with-active-iPhone-SE.jpg","group":"plans","name":"05-plans-list-with-active","dev":"iPhone-SE","how":"Plans tab with an active plan"}
+{"file":"history-06-workout-detail-iPhone-SE.jpg","group":"history","name":"06-workout-detail","dev":"iPhone-SE","how":"History, tap a workout: workout detail"}
+{"file":"plans-06-plan-detail-active-iPhone-SE.jpg","group":"plans","name":"06-plan-detail-active","dev":"iPhone-SE","how":"plan viewer of the active plan (coach tips if any)"}
+{"file":"history-07-workout-detail-set-tapped-iPhone-SE.jpg","group":"history","name":"07-workout-detail-set-tapped","dev":"iPhone-SE","how":"workout detail, tap a set (edit sheet if any)"}
+{"file":"plans-07-coach-tips-open-active-iPhone-SE.jpg","group":"plans","name":"07-coach-tips-open-active","dev":"iPhone-SE","how":"active plan viewer, open Coach tips"}
+{"file":"settings-01-settings-iPhone-SE.jpg","group":"settings","name":"01-settings","dev":"iPhone-SE","how":"#/settings top"}
+{"file":"errors-01-history-load-error-iPhone-SE.jpg","group":"errors","name":"01-history-load-error","dev":"iPhone-SE","how":"history read fails (test flag __anygymFailReads): \"Could not load workouts\" with Try again"}
+{"file":"settings-01b-settings-full-iPhone-SE.jpg","group":"settings","name":"01b-settings-full","dev":"iPhone-SE","how":"#/settings whole page (units, feel, gyms, data, privacy, help, about)"}
+{"file":"errors-02-today-load-error-iPhone-SE.jpg","group":"errors","name":"02-today-load-error","dev":"iPhone-SE","how":"today read fails: load error with Try again"}
+{"file":"settings-01c-settings-bottom-iPhone-SE.jpg","group":"settings","name":"01c-settings-bottom","dev":"iPhone-SE","how":"#/settings scrolled to the bottom (about, voice credit)"}
+{"file":"errors-03-today-after-try-again-iPhone-SE.jpg","group":"errors","name":"03-today-after-try-again","dev":"iPhone-SE","how":"Try again with reads working again"}
+{"file":"settings-02-gyms-iPhone-SE.jpg","group":"settings","name":"02-gyms","dev":"iPhone-SE","how":"Settings, tap Gyms: gyms list"}
+{"file":"errors-04-run-offline-iPhone-SE.jpg","group":"errors","name":"04-run-offline","dev":"iPhone-SE","how":"offline, Run tab (map offline state)"}
+{"file":"settings-03-new-gym-sheet-iPhone-SE.jpg","group":"settings","name":"03-new-gym-sheet","dev":"iPhone-SE","how":"Gyms, tap new gym: new gym sheet"}
+{"file":"today-01-no-plan-iPhone-15-Pro.jpg","group":"today","name":"01-no-plan","dev":"iPhone-15-Pro","how":"fresh data past intake, open #/: Today without a plan"}
+{"file":"settings-04-gym-detail-iPhone-SE.jpg","group":"settings","name":"04-gym-detail","dev":"iPhone-SE","how":"Gyms, tap a gym: gym detail"}
+{"file":"settings-05-gym-equipment-iPhone-SE.jpg","group":"settings","name":"05-gym-equipment","dev":"iPhone-SE","how":"gym detail, tap equipment: equipment picker"}
+{"file":"today-02-with-plan-iPhone-15-Pro.jpg","group":"today","name":"02-with-plan","dev":"iPhone-15-Pro","how":"See plans, Five day split, Use this plan: Today with a plan"}
+{"file":"settings-06-report-problem-sheet-iPhone-SE.jpg","group":"settings","name":"06-report-problem-sheet","dev":"iPhone-SE","how":"Settings, tap Report a problem: sheet"}
+{"file":"today-03-gym-sheet-iPhone-15-Pro.jpg","group":"today","name":"03-gym-sheet","dev":"iPhone-15-Pro","how":"Today, tap the gym pill: gym picker sheet"}
+{"file":"settings-07-restore-error-iPhone-SE.jpg","group":"settings","name":"07-restore-error","dev":"iPhone-SE","how":"Settings, pick a file that is not a backup: error line"}
+{"file":"settings-08-restore-sheet-iPhone-SE.jpg","group":"settings","name":"08-restore-sheet","dev":"iPhone-SE","how":"Settings, pick a backup file: Restore backup sheet"}
+{"file":"today-04-change-day-sheet-iPhone-15-Pro.jpg","group":"today","name":"04-change-day-sheet","dev":"iPhone-15-Pro","how":"Today, tap Change day: change day sheet"}
+{"file":"today-05-preview-iPhone-15-Pro.jpg","group":"today","name":"05-preview","dev":"iPhone-15-Pro","how":"Today, tap Preview: day preview"}
+{"file":"today-06-time-sheet-iPhone-15-Pro.jpg","group":"today","name":"06-time-sheet","dev":"iPhone-15-Pro","how":"Today, tap the ~min line: time budget sheet"}
+{"file":"settings-09-after-backup-iPhone-SE.jpg","group":"settings","name":"09-after-backup","dev":"iPhone-SE","how":"Settings, tap Back up: toast"}
+{"file":"today-07-workout-in-progress-iPhone-15-Pro.jpg","group":"today","name":"07-workout-in-progress","dev":"iPhone-15-Pro","how":"workout, tap minimize: Today with a workout in progress (resume)"}
+{"file":"settings-10-import-review-iPhone-SE.jpg","group":"settings","name":"10-import-review","dev":"iPhone-SE","how":"Settings, pick an import file: import review"}
+{"file":"settings-11-review-iPhone-SE.jpg","group":"settings","name":"11-review","dev":"iPhone-SE","how":"#/review screen"}
+{"file":"quick-01-today-quick-entry-iPhone-15-Pro.jpg","group":"quick","name":"01-today-quick-entry","dev":"iPhone-15-Pro","how":"past intake, Today (build card)"}
+{"file":"quick-02-time-step-iPhone-15-Pro.jpg","group":"quick","name":"02-time-step","dev":"iPhone-15-Pro","how":"Today, tap the build card: Quick, how much time"}
+{"file":"history-01-empty-iPhone-15-Pro.jpg","group":"history","name":"01-empty","dev":"iPhone-15-Pro","how":"fresh data, History tab: empty state"}
+{"file":"quick-03-ideas-iPhone-15-Pro.jpg","group":"quick","name":"03-ideas","dev":"iPhone-15-Pro","how":"Quick, tap 30 min: idea cards"}
+{"file":"quick-04-idea-sheet-iPhone-15-Pro.jpg","group":"quick","name":"04-idea-sheet","dev":"iPhone-15-Pro","how":"idea card, tap info: idea sheet"}
+{"file":"history-02-list-iPhone-15-Pro.jpg","group":"history","name":"02-list","dev":"iPhone-15-Pro","how":"History tab with 20 weeks of workouts and 3 runs"}
+{"file":"history-03-run-records-iPhone-15-Pro.jpg","group":"history","name":"03-run-records","dev":"iPhone-15-Pro","how":"History, tap the runs link: personal records"}
+{"file":"quick-05-deck-iPhone-15-Pro.jpg","group":"quick","name":"05-deck","dev":"iPhone-15-Pro","how":"tap an idea: exercise deck, first card"}
+{"file":"history-04-run-heatmap-iPhone-15-Pro.jpg","group":"history","name":"04-run-heatmap","dev":"iPhone-15-Pro","how":"run records, switch to Heatmap"}
+{"file":"history-05-run-detail-iPhone-15-Pro.jpg","group":"history","name":"05-run-detail","dev":"iPhone-15-Pro","how":"#/history/run/<id>: run detail"}
+{"file":"quick-06-deck-card-3-iPhone-15-Pro.jpg","group":"quick","name":"06-deck-card-3","dev":"iPhone-15-Pro","how":"deck after two Keep taps"}
+{"file":"history-06-workout-detail-iPhone-15-Pro.jpg","group":"history","name":"06-workout-detail","dev":"iPhone-15-Pro","how":"History, tap a workout: workout detail"}
+{"file":"history-07-workout-detail-set-tapped-iPhone-15-Pro.jpg","group":"history","name":"07-workout-detail-set-tapped","dev":"iPhone-15-Pro","how":"workout detail, tap a set (edit sheet if any)"}
+{"file":"quick-07-review-ready-iPhone-15-Pro.jpg","group":"quick","name":"07-review-ready","dev":"iPhone-15-Pro","how":"keep every card: Ready to go review list"}
+{"file":"plans-01-plans-list-iPhone-15-Pro.jpg","group":"plans","name":"01-plans-list","dev":"iPhone-15-Pro","how":"Plans tab"}
+{"file":"plans-02-place-plans-iPhone-15-Pro.jpg","group":"plans","name":"02-place-plans","dev":"iPhone-15-Pro","how":"Plans, tap the first place: plans for that place"}
+{"file":"settings-01-settings-iPhone-15-Pro.jpg","group":"settings","name":"01-settings","dev":"iPhone-15-Pro","how":"#/settings top"}
+{"file":"plans-03-plan-detail-iPhone-15-Pro.jpg","group":"plans","name":"03-plan-detail","dev":"iPhone-15-Pro","how":"#/plans/five-day-split: plan viewer"}
+{"file":"settings-01b-settings-full-iPhone-15-Pro.jpg","group":"settings","name":"01b-settings-full","dev":"iPhone-15-Pro","how":"#/settings whole page (units, feel, gyms, data, privacy, help, about)"}
+{"file":"plans-04-coach-tips-open-iPhone-15-Pro.jpg","group":"plans","name":"04-coach-tips-open","dev":"iPhone-15-Pro","how":"plan detail, open Coach tips"}
+{"file":"settings-01c-settings-bottom-iPhone-15-Pro.jpg","group":"settings","name":"01c-settings-bottom","dev":"iPhone-15-Pro","how":"#/settings scrolled to the bottom (about, voice credit)"}
+{"file":"plans-05-plans-list-with-active-iPhone-15-Pro.jpg","group":"plans","name":"05-plans-list-with-active","dev":"iPhone-15-Pro","how":"Plans tab with an active plan"}
+{"file":"settings-02-gyms-iPhone-15-Pro.jpg","group":"settings","name":"02-gyms","dev":"iPhone-15-Pro","how":"Settings, tap Gyms: gyms list"}
+{"file":"plans-06-plan-detail-active-iPhone-15-Pro.jpg","group":"plans","name":"06-plan-detail-active","dev":"iPhone-15-Pro","how":"plan viewer of the active plan (coach tips if any)"}
+{"file":"settings-03-new-gym-sheet-iPhone-15-Pro.jpg","group":"settings","name":"03-new-gym-sheet","dev":"iPhone-15-Pro","how":"Gyms, tap new gym: new gym sheet"}
+{"file":"plans-07-coach-tips-open-active-iPhone-15-Pro.jpg","group":"plans","name":"07-coach-tips-open-active","dev":"iPhone-15-Pro","how":"active plan viewer, open Coach tips"}
+{"file":"settings-04-gym-detail-iPhone-15-Pro.jpg","group":"settings","name":"04-gym-detail","dev":"iPhone-15-Pro","how":"Gyms, tap a gym: gym detail"}
+{"file":"errors-01-history-load-error-iPhone-15-Pro.jpg","group":"errors","name":"01-history-load-error","dev":"iPhone-15-Pro","how":"history read fails (test flag __anygymFailReads): \"Could not load workouts\" with Try again"}
+{"file":"settings-05-gym-equipment-iPhone-15-Pro.jpg","group":"settings","name":"05-gym-equipment","dev":"iPhone-15-Pro","how":"gym detail, tap equipment: equipment picker"}
+{"file":"errors-02-today-load-error-iPhone-15-Pro.jpg","group":"errors","name":"02-today-load-error","dev":"iPhone-15-Pro","how":"today read fails: load error with Try again"}
+{"file":"settings-06-report-problem-sheet-iPhone-15-Pro.jpg","group":"settings","name":"06-report-problem-sheet","dev":"iPhone-15-Pro","how":"Settings, tap Report a problem: sheet"}
+{"file":"errors-03-today-after-try-again-iPhone-15-Pro.jpg","group":"errors","name":"03-today-after-try-again","dev":"iPhone-15-Pro","how":"Try again with reads working again"}
+{"file":"settings-07-restore-error-iPhone-15-Pro.jpg","group":"settings","name":"07-restore-error","dev":"iPhone-15-Pro","how":"Settings, pick a file that is not a backup: error line"}
+{"file":"errors-04-run-offline-iPhone-15-Pro.jpg","group":"errors","name":"04-run-offline","dev":"iPhone-15-Pro","how":"offline, Run tab (map offline state)"}
+{"file":"settings-08-restore-sheet-iPhone-15-Pro.jpg","group":"settings","name":"08-restore-sheet","dev":"iPhone-15-Pro","how":"Settings, pick a backup file: Restore backup sheet"}
+{"file":"settings-09-after-backup-iPhone-15-Pro.jpg","group":"settings","name":"09-after-backup","dev":"iPhone-15-Pro","how":"Settings, tap Back up: toast"}
+{"file":"settings-10-import-review-iPhone-15-Pro.jpg","group":"settings","name":"10-import-review","dev":"iPhone-15-Pro","how":"Settings, pick an import file: import review"}
+{"file":"settings-11-review-iPhone-15-Pro.jpg","group":"settings","name":"11-review","dev":"iPhone-15-Pro","how":"#/review screen"}
