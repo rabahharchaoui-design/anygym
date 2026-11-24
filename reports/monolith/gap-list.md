@@ -69,3 +69,22 @@ below gets its own after picture next to its board before it is called done.
 - The 3D icons on Quick go; the goal icons on onboarding stay (G approved them Nov 19) inside the
   hairline grid.
 - Order after M10: M12, M13, M14, M15 are new; then M2, M4, M5, Q3 to Q7, M6, M7 as G set them.
+
+## Second look, Nov 24 (M16): what went live from the Codex builds, next to the boards
+
+Looked at (iPhone 15 Pro, today's build, pictures in reports/monolith/audit-after/): Today, the workout
+day list, the exercise screen, the demo viewer, the record celebration, Quick. Not looked at yet:
+"Workout saved" (the after picture shows the record celebration, not the saved screen), Plans and
+History (item M6 is rebuilding them), You and onboarding (judged when they were built), Run (judged in M2).
+
+| Screen | Board | Verdict | What still differs |
+|---|---|---|---|
+| Workout day list | 10 (as rows) | close | rows with hairlines and a giant day name: good. Left: a boxed square with a timer icon in front of every row, round status rings at the right (should be a small tick or nothing), the back control is a boxed square, "Start · exercise" is centred with a play icon where the boards put big words at the left over the line |
+| Workout exercise | 02 | NOT the board | better than before (set rows are plain with hairlines) but the board's idea is missing: the board has no photo band; it shows the name, the loaded bar drawing, ONE giant weight ("185 lb"), "Last time 180 lb x 8" small, short set lines with a small tick, and "Log set" as big words over the ice blue line. Live has a photo band with a gradient under the name, a table with five columns, a boxed check button on every row (the first one a filled, outlined "Log" box), a boxed "..." button, a boxed back button, a dashed "Add set" box and a boxed coach tip bubble |
+| Record celebration | none | off style | a soft round glow behind the number and a boxed, tinted "+90 lb" chip: the two things Monolith removed everywhere else. Flat graphite, the number giant in white or ice blue, "+90 lb" as small ice blue words |
+| Today | 01 | close, type too small | the structure is the board's (label, day, minutes, "Start" over the line, rows with hairlines, no card). Left: "Today" is ordinary title size where the board's fills the top (about twice as tall); the day name is mid size and indented where the board's is very large and flush left; the gym is a boxed chip at the top right where the board has a small outlined label under the title; the rotation squares are five tiny boxes (one line of words would do: "Day 1 of 5"); the "Plan saved / Undo" toast is still a box with a filled Undo (M15 fixes it). No weekly ring and no next run line: correct, the app has no such data yet (item 5.1) |
+| Exercise info / demo viewer | 03 | NOT the board | live shows only the photo, the name and a boxed close button. Board 03: name large, muscles in one small line, the two frames side by side labelled Start and End, three numbered cues as rows with hairlines, "Back to workout" over the ice blue line. Cues exist only for some exercises (no bad data): show them when the app has them, otherwise the frames and the action |
+| Quick (time and ideas) | none (Q3 text) | old look | boxed time chips, boxed idea cards with 3D icons and two muscle figures each; Q3 replaces it with eight giant type rows |
+
+Calls: the exercise screen is the screen G uses most, so it gets its own item (M17) built to board 02,
+not a patch; the day list and celebration leftovers go into the same item.

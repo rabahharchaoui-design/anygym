@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED its real points are in R1 (5), (6)
 Grok Build feel audit, written Nov 22 14:12 at f6201503. A second opinion, not orders: SPEC.md wins.
 
 I'll start with the project rules and the newest audit reports, then check only the iPhone feel issues those reports have not already listed.
