@@ -228,3 +228,20 @@ test('M6 History empty (board 12): No workouts yet, one line, Start workout over
   await page.getByRole('button', { name: 'Start workout' }).tap();
   await expect(page).toHaveURL(/#\/$/);
 });
+
+test.describe('M6 workout detail', () => {
+  test.use({ locale: 'en-US' });
+  test('its exercises as rows with hairlines, sets as plain lines, 3 digit weights, no boxes @matrix', async ({ page }) => {
+    await seedHistory30(page);
+    await page.goto('./#/history/h16');
+    await expect(page.getByTestId('history-meta')).toContainText('20 sets');
+    await expect(page.getByTestId('history-set')).toHaveCount(20);
+    await expect(page.getByTestId('history-set').first()).toContainText('185');
+    await noBoxes(page, 'section[aria-label], [data-testid="history-set"], [data-testid="history-set"] span');
+    await noOverflow(page);
+    await shot(page, 'workout-detail');
+    await largestText(page);
+    await noOverflow(page);
+    await shot(page, 'workout-detail-largest');
+  });
+});

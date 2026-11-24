@@ -127,23 +127,21 @@
 .meta {
   margin: 0;
   color: var(--text-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-mono-caption);
+  font-weight: 500;
 }
 
 .exercise {
-  margin-bottom: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius-lg);
-  background: var(--card-fill);
+  padding: var(--space-4) 0;
+  border-top: var(--divider);
 }
 
 .exerciseName {
   margin: 0 0 var(--space-2);
   font-family: var(--font-display);
-  font-size: var(--text-base);
-  font-weight: 700;
-  overflow-wrap: anywhere;
+  font-size: var(--text-mono-body);
+  font-weight: 800;
+  overflow-wrap: break-word;
 }
 
 .sets {
@@ -152,42 +150,41 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
 .set {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 32px;
-  font-size: var(--text-base);
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: 36px;
+  padding: 6px 0;
+  font-size: var(--text-mono-body);
+  font-weight: 600;
 }
 
 .setIndex {
-  width: 24px;
-  height: 24px;
+  width: 1.4em;
   flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  /* On glass on glass, the muted grey falls under AA at the top of the gradient (3.5t). */
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--text-2);
+  font-size: var(--text-mono-caption);
+  font-weight: 600;
 }
 
 .warm {
   color: var(--amber);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 /* 3.6z A12: an imported set the import was not sure of; it stays out of the total lifted. */
 .unsure {
   color: var(--text-2);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 
@@ -206,10 +203,6 @@
   grid-column: 1 / -1;
 }
 
-/* The link to run records sits above the list with the list's own gap. */
-.runsLink {
-  margin-bottom: var(--space-2);
-}
 
 /* Records and the heatmap sit a step under the view switch. */
 .afterSwitch {
