@@ -132,3 +132,47 @@
 {"file":"settings-09-after-backup-iPhone-15-Pro.jpg","group":"settings","name":"09-after-backup","dev":"iPhone-15-Pro","how":"Settings, tap Back up: toast"}
 {"file":"settings-10-import-review-iPhone-15-Pro.jpg","group":"settings","name":"10-import-review","dev":"iPhone-15-Pro","how":"Settings, pick an import file: import review"}
 {"file":"settings-11-review-iPhone-15-Pro.jpg","group":"settings","name":"11-review","dev":"iPhone-15-Pro","how":"#/review screen"}
+{"file":"onboarding-01-goal-iPhone-SE.jpg","group":"onboarding","name":"01-goal","dev":"iPhone-SE","how":"fresh phone, open #/: \"What's your main goal?\""}
+{"file":"onboarding-01-goal-iPhone-15-Pro.jpg","group":"onboarding","name":"01-goal","dev":"iPhone-15-Pro","how":"fresh phone, open #/: \"What's your main goal?\""}
+{"file":"onboarding-02-goal-picked-iPhone-SE.jpg","group":"onboarding","name":"02-goal-picked","dev":"iPhone-SE","how":"goal step, tap Build muscle"}
+{"file":"onboarding-02-goal-picked-iPhone-15-Pro.jpg","group":"onboarding","name":"02-goal-picked","dev":"iPhone-15-Pro","how":"goal step, tap Build muscle"}
+{"file":"onboarding-03-units-iPhone-SE.jpg","group":"onboarding","name":"03-units","dev":"iPhone-SE","how":"tap Continue after goal"}
+{"file":"onboarding-03-units-iPhone-15-Pro.jpg","group":"onboarding","name":"03-units","dev":"iPhone-15-Pro","how":"tap Continue after goal"}
+{"file":"onboarding-04-focus-iPhone-SE.jpg","group":"onboarding","name":"04-focus","dev":"iPhone-SE","how":"units, Continue: \"What do you want to work on?\""}
+{"file":"onboarding-04-focus-iPhone-15-Pro.jpg","group":"onboarding","name":"04-focus","dev":"iPhone-15-Pro","how":"units, Continue: \"What do you want to work on?\""}
+{"file":"onboarding-05-focus-parts-sheet-iPhone-SE.jpg","group":"onboarding","name":"05-focus-parts-sheet","dev":"iPhone-SE","how":"focus step, tap Back tile: body parts sheet"}
+{"file":"onboarding-05-focus-parts-sheet-iPhone-15-Pro.jpg","group":"onboarding","name":"05-focus-parts-sheet","dev":"iPhone-15-Pro","how":"focus step, tap Back tile: body parts sheet"}
+{"file":"onboarding-06-focus-picked-iPhone-SE.jpg","group":"onboarding","name":"06-focus-picked","dev":"iPhone-SE","how":"focus step with Back picked"}
+{"file":"onboarding-06-focus-picked-iPhone-15-Pro.jpg","group":"onboarding","name":"06-focus-picked","dev":"iPhone-15-Pro","how":"focus step with Back picked"}
+{"file":"onboarding-07-experience-iPhone-SE.jpg","group":"onboarding","name":"07-experience","dev":"iPhone-SE","how":"focus, Continue"}
+{"file":"onboarding-07-experience-iPhone-15-Pro.jpg","group":"onboarding","name":"07-experience","dev":"iPhone-15-Pro","how":"focus, Continue"}
+{"file":"onboarding-08-days-iPhone-SE.jpg","group":"onboarding","name":"08-days","dev":"iPhone-SE","how":"experience, tap 3 years: days per week"}
+{"file":"onboarding-08-days-iPhone-15-Pro.jpg","group":"onboarding","name":"08-days","dev":"iPhone-15-Pro","how":"experience, tap 3 years: days per week"}
+{"file":"onboarding-09-schedule-iPhone-SE.jpg","group":"onboarding","name":"09-schedule","dev":"iPhone-SE","how":"days, tap 5: schedule style"}
+{"file":"onboarding-09-schedule-iPhone-15-Pro.jpg","group":"onboarding","name":"09-schedule","dev":"iPhone-15-Pro","how":"days, tap 5: schedule style"}
+{"file":"onboarding-10-weekdays-fixed-iPhone-SE.jpg","group":"onboarding","name":"10-weekdays-fixed","dev":"iPhone-SE","how":"schedule, tap Same days each week: weekday chips"}
+{"file":"onboarding-10-weekdays-fixed-iPhone-15-Pro.jpg","group":"onboarding","name":"10-weekdays-fixed","dev":"iPhone-15-Pro","how":"schedule, tap Same days each week: weekday chips"}
+{"file":"onboarding-11-minutes-iPhone-SE.jpg","group":"onboarding","name":"11-minutes","dev":"iPhone-SE","how":"schedule flexible, Continue"}
+{"file":"onboarding-11-minutes-iPhone-15-Pro.jpg","group":"onboarding","name":"11-minutes","dev":"iPhone-15-Pro","how":"schedule flexible, Continue"}
+{"file":"onboarding-12-place-iPhone-SE.jpg","group":"onboarding","name":"12-place","dev":"iPhone-SE","how":"minutes, tap 60"}
+{"file":"onboarding-12-place-iPhone-15-Pro.jpg","group":"onboarding","name":"12-place","dev":"iPhone-15-Pro","how":"minutes, tap 60"}
+{"file":"onboarding-13-equipment-iPhone-SE.jpg","group":"onboarding","name":"13-equipment","dev":"iPhone-SE","how":"place, tap Full gym"}
+{"file":"onboarding-13-equipment-iPhone-15-Pro.jpg","group":"onboarding","name":"13-equipment","dev":"iPhone-15-Pro","how":"place, tap Full gym"}
+{"file":"onboarding-14-style-iPhone-SE.jpg","group":"onboarding","name":"14-style","dev":"iPhone-SE","how":"equipment, Continue"}
+{"file":"onboarding-14-style-iPhone-15-Pro.jpg","group":"onboarding","name":"14-style","dev":"iPhone-15-Pro","how":"equipment, Continue"}
+{"file":"onboarding-15-cardio-iPhone-SE.jpg","group":"onboarding","name":"15-cardio","dev":"iPhone-SE","how":"style, tap mix"}
+{"file":"onboarding-15-cardio-iPhone-15-Pro.jpg","group":"onboarding","name":"15-cardio","dev":"iPhone-15-Pro","how":"style, tap mix"}
+{"file":"onboarding-16-easy-on-iPhone-SE.jpg","group":"onboarding","name":"16-easy-on","dev":"iPhone-SE","how":"cardio, Continue: easy on (joints)"}
+{"file":"onboarding-16-easy-on-iPhone-15-Pro.jpg","group":"onboarding","name":"16-easy-on","dev":"iPhone-15-Pro","how":"cardio, Continue: easy on (joints)"}
+{"file":"onboarding-17-exercises-deck-iPhone-SE.jpg","group":"onboarding","name":"17-exercises-deck","dev":"iPhone-SE","how":"easy on, Skip: exercises deck"}
+{"file":"onboarding-17-exercises-deck-iPhone-15-Pro.jpg","group":"onboarding","name":"17-exercises-deck","dev":"iPhone-15-Pro","how":"easy on, Skip: exercises deck"}
+{"file":"onboarding-18-about-you-iPhone-SE.jpg","group":"onboarding","name":"18-about-you","dev":"iPhone-SE","how":"exercises, Skip: about you"}
+{"file":"onboarding-18-about-you-iPhone-15-Pro.jpg","group":"onboarding","name":"18-about-you","dev":"iPhone-15-Pro","how":"exercises, Skip: about you"}
+{"file":"onboarding-19-reveal-iPhone-SE.jpg","group":"onboarding","name":"19-reveal","dev":"iPhone-SE","how":"about, Skip: plan reveal"}
+{"file":"onboarding-19-reveal-iPhone-15-Pro.jpg","group":"onboarding","name":"19-reveal","dev":"iPhone-15-Pro","how":"about, Skip: plan reveal"}
+{"file":"onboarding-20-first-today-iPhone-SE.jpg","group":"onboarding","name":"20-first-today","dev":"iPhone-SE","how":"reveal, Looks good: first Today with the welcome tour step 1"}
+{"file":"onboarding-20-first-today-iPhone-15-Pro.jpg","group":"onboarding","name":"20-first-today","dev":"iPhone-15-Pro","how":"reveal, Looks good: first Today with the welcome tour step 1"}
+{"file":"onboarding-21-welcome-tour-2-iPhone-SE.jpg","group":"onboarding","name":"21-welcome-tour-2","dev":"iPhone-SE","how":"first Today, tour Next x1"}
+{"file":"onboarding-21-welcome-tour-2-iPhone-15-Pro.jpg","group":"onboarding","name":"21-welcome-tour-2","dev":"iPhone-15-Pro","how":"first Today, tour Next x1"}
+{"file":"onboarding-22-welcome-tour-3-iPhone-SE.jpg","group":"onboarding","name":"22-welcome-tour-3","dev":"iPhone-SE","how":"first Today, tour Next x2"}
+{"file":"onboarding-22-welcome-tour-3-iPhone-15-Pro.jpg","group":"onboarding","name":"22-welcome-tour-3","dev":"iPhone-15-Pro","how":"first Today, tour Next x2"}
