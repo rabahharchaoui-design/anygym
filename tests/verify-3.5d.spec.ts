@@ -313,6 +313,8 @@ test('check 9: Next in the pair, bottom bar with the rest bar, never over a set 
   await dbPut(page, {
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: sess.exerciseIds }],
     sets: sess.exerciseIds.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
+    // PLAN D0: catalog moves like Leverage Iso Row have no load word in the name, so the app asks once how they are loaded; the answer is seeded with the sets.
+    exerciseSettings: sess.exerciseIds.map((id) => ({ exerciseId: id, gymId: '', loadType: loadOf(id).kind })),
   });
   await page.reload();
   await expect(checkCurrent(page)).toBeVisible();
@@ -452,6 +454,8 @@ test('r2 check 7: pair dock leaves every bottom control reachable (scroll to the
   await dbPut(page, {
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: sess.exerciseIds }],
     sets: sess.exerciseIds.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
+    // PLAN D0: catalog moves like Leverage Iso Row have no load word in the name, so the app asks once how they are loaded; the answer is seeded with the sets.
+    exerciseSettings: sess.exerciseIds.map((id) => ({ exerciseId: id, gymId: '', loadType: loadOf(id).kind })),
   });
   await page.reload();
   await expect(checkCurrent(page)).toBeVisible();

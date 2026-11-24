@@ -55,6 +55,8 @@ async function seedLoads(page: Page, ids: string[]) {
     profile: [{ ...PROFILE, intake: { ...PROFILE.intake, experience: 'months' } }],
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: ids }],
     sets: ids.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
+    // PLAN D0: catalog moves like Leverage Iso Row have no load word in the name, so the app asks once how they are loaded; the answer is seeded with the sets.
+    exerciseSettings: ids.map((id) => ({ exerciseId: id, gymId: '', loadType: loadOf(id).kind })),
   });
   await page.reload();
 }
