@@ -69,3 +69,18 @@ below gets its own after picture next to its board before it is called done.
 - The 3D icons on Quick go; the goal icons on onboarding stay (G approved them Nov 19) inside the
   hairline grid.
 - Order after M10: M12, M13, M14, M15 are new; then M2, M4, M5, Q3 to Q7, M6, M7 as G set them.
+
+## Second look, Nov 24 (M16): what went live from the Codex builds, next to the boards
+
+Looked at so far (iPhone 15 Pro, today's build): the workout day list, the exercise screen and the
+record celebration. Today, exercise info, "Workout saved", Plans, History and the rest follow when
+their after pictures exist (reports/monolith/audit-after/).
+
+| Screen | Board | Verdict | What still differs |
+|---|---|---|---|
+| Workout day list | 10 (as rows) | close | rows with hairlines and a giant day name: good. Left: a boxed square with a timer icon in front of every row, round status rings at the right (should be a small tick or nothing), the back control is a boxed square, "Start · exercise" is centred with a play icon where the boards put big words at the left over the line |
+| Workout exercise | 02 | NOT the board | better than before (set rows are plain with hairlines) but the board's idea is missing: the board has no photo band; it shows the name, the loaded bar drawing, ONE giant weight ("185 lb"), "Last time 180 lb x 8" small, short set lines with a small tick, and "Log set" as big words over the ice blue line. Live has a photo band with a gradient under the name, a table with five columns, a boxed check button on every row (the first one a filled, outlined "Log" box), a boxed "..." button, a boxed back button, a dashed "Add set" box and a boxed coach tip bubble |
+| Record celebration | none | off style | a soft round glow behind the number and a boxed, tinted "+90 lb" chip: the two things Monolith removed everywhere else. Flat graphite, the number giant in white or ice blue, "+90 lb" as small ice blue words |
+
+Calls: the exercise screen is the screen G uses most, so it gets its own item (M17) built to board 02,
+not a patch; the day list and celebration leftovers go into the same item.
