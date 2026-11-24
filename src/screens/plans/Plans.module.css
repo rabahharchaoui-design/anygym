@@ -1,140 +1,112 @@
-/* Plans tab and plan viewer (SPEC 8.6, 10, 13.1). Setup screens: they may scroll. */
+/* Plan tab, a place's plans and the plan viewer (SPEC 8.6, 10, 13.1; PLAN M6, board 10). No boxes:
+   rows sit on graphite split by hairlines; a group's title is a small uppercase label. */
 
 .lead {
   margin: 0;
+  min-height: 1.4em;
   color: var(--text-2);
+  font-size: var(--text-mono-body);
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
+.section {
+  margin-bottom: var(--space-6);
+}
+
+/* A stack of rows: a hairline over the first and under every row. */
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  border-top: var(--divider);
 }
 
-.planCard {
-  position: relative;
+.list > li {
+  border-bottom: var(--divider);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-2);
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* One plan: the name in bold, the detail small under it, "Your plan" small on the right. */
+.planRow {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--space-5) calc(var(--space-5) + 22px) var(--space-5) var(--space-5);
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius-lg);
-  background: var(--card-fill);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 72px;
+  padding: var(--space-3) 0;
   color: var(--text);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.planChevron {
-  position: absolute;
-  right: var(--space-4);
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  margin-top: -10px;
-  color: var(--text-2);
+.planText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .planName {
-  min-width: 0;
   font-family: var(--font-display);
-  font-size: clamp(20px, 5.6vw, 22px);
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: var(--text-mono-body);
+  font-weight: 800;
+  line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.planMeta {
+  color: var(--text-2);
+  font-size: var(--text-mono-caption);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .badge {
   flex: none;
-  padding: 2px 10px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  max-width: 40%;
   color: var(--accent);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-mono-caption);
+  font-weight: 600;
+  text-align: right;
 }
 
-.planMeta {
+/* Where you train: the place on the left, its count small on the right. */
+.placeRow {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px var(--space-2);
-  color: var(--accent);
-  font-size: var(--text-sm);
-  font-weight: 700;
-}
-
-.planSummary {
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-}
-
-.sectionTitle {
-  margin: var(--space-5) 0 var(--space-3);
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  font-weight: 700;
-}
-
-.places .sectionTitle {
-  margin-top: var(--space-2);
-}
-
-/* Routines by place (PLAN 3.1): two columns of tiles, the name top left, its count under it, one
-   line icon at the foot. An odd last tile takes the whole row, so the grid never has a hole. */
-.placeGrid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: space-between;
   gap: var(--space-3);
-}
-
-.placeGrid[data-count] > .placeItem:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-.placeTile {
-  composes: surface from '../../ui/card.module.css';
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 104px;
-  /* PLAN 3.5: the label uses the whole width (a long word like "Bodyweight" never breaks); only the
-     count row keeps clear of the icon, which sits in that row. */
-  padding: var(--space-4);
+  min-height: 62px;
+  padding: var(--space-2) 0;
   color: var(--text);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .placeLabel {
-  font-weight: 700;
+  min-width: 0;
+  font-size: var(--text-mono-body);
+  font-weight: 600;
   line-height: 1.25;
   overflow-wrap: break-word;
 }
 
 .placeCount {
-  display: flex;
-  align-items: flex-end;
-  min-height: 28px;
-  padding-right: 36px;
-  margin-top: auto;
+  flex: none;
   color: var(--text-2);
-  font-size: var(--text-sm);
-}
-
-.placeIcon {
-  position: absolute;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  width: 28px;
-  height: 28px;
-  color: var(--accent);
+  font-size: var(--text-mono-caption);
+  font-weight: 500;
 }
 
 /* ---------------------------------------------------------------- viewer */
