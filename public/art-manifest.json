@@ -98,6 +98,148 @@
         "badges/badge-plate-master-locked-1024.png"
       ],
       "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "first-workout": {
+      "title": "First Workout",
+      "files": [
+        "badges/badge-first-workout.png",
+        "badges/badge-first-workout-1024.png",
+        "badges/badge-first-workout-locked.png",
+        "badges/badge-first-workout-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)"
+    },
+    "streak-3": {
+      "title": "Streak \u00b7 3",
+      "files": [
+        "badges/badge-streak-3.png",
+        "badges/badge-streak-3-1024.png",
+        "badges/badge-streak-3-locked.png",
+        "badges/badge-streak-3-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)"
+    },
+    "streak-7": {
+      "title": "Streak \u00b7 7",
+      "files": [
+        "badges/badge-streak-7.png",
+        "badges/badge-streak-7-1024.png",
+        "badges/badge-streak-7-locked.png",
+        "badges/badge-streak-7-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)"
+    },
+    "streak-30": {
+      "title": "Streak \u00b7 30",
+      "files": [
+        "badges/badge-streak-30.png",
+        "badges/badge-streak-30-1024.png",
+        "badges/badge-streak-30-locked.png",
+        "badges/badge-streak-30-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)"
+    },
+    "week-complete": {
+      "title": "Week Complete",
+      "files": [
+        "badges/badge-week-complete.png",
+        "badges/badge-week-complete-1024.png",
+        "badges/badge-week-complete-locked.png",
+        "badges/badge-week-complete-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)"
+    },
+    "new-pr": {
+      "title": "New PR",
+      "files": [
+        "badges/badge-new-pr.png",
+        "badges/badge-new-pr-1024.png",
+        "badges/badge-new-pr-locked.png",
+        "badges/badge-new-pr-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)"
+    },
+    "new-city": {
+      "title": "New City",
+      "files": [
+        "badges/badge-new-city.png",
+        "badges/badge-new-city-1024.png",
+        "badges/badge-new-city-locked.png",
+        "badges/badge-new-city-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)"
+    },
+    "workouts-t1": {
+      "title": "Workouts \u00b7 10",
+      "files": [
+        "badges/badge-workouts-t1.png",
+        "badges/badge-workouts-t1-1024.png",
+        "badges/badge-workouts-t1-locked.png",
+        "badges/badge-workouts-t1-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)",
+      "tier": "t1",
+      "tier_rule": "Pips: 1/2/3 short ice bars under the mark. Ring: t1 titanium, t2 white, t3 white + ice outer hairline. No numerals."
+    },
+    "workouts-t2": {
+      "title": "Workouts \u00b7 50",
+      "files": [
+        "badges/badge-workouts-t2.png",
+        "badges/badge-workouts-t2-1024.png",
+        "badges/badge-workouts-t2-locked.png",
+        "badges/badge-workouts-t2-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, t2 white ring (#FFFFFF, 24 px at r=408)",
+      "tier": "t2",
+      "tier_rule": "Pips: 1/2/3 short ice bars under the mark. Ring: t1 titanium, t2 white, t3 white + ice outer hairline. No numerals."
+    },
+    "workouts-t3": {
+      "title": "Workouts \u00b7 100",
+      "files": [
+        "badges/badge-workouts-t3.png",
+        "badges/badge-workouts-t3-1024.png",
+        "badges/badge-workouts-t3-locked.png",
+        "badges/badge-workouts-t3-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, t3 white ring (#FFFFFF, 24 px at r=408) plus ice outer hairline (#9FD3FF, 16 px at r=436)",
+      "tier": "t3",
+      "tier_rule": "Pips: 1/2/3 short ice bars under the mark. Ring: t1 titanium, t2 white, t3 white + ice outer hairline. No numerals."
+    },
+    "lifted-t1": {
+      "title": "Lifted \u00b7 1k lb",
+      "files": [
+        "badges/badge-lifted-t1.png",
+        "badges/badge-lifted-t1-1024.png",
+        "badges/badge-lifted-t1-locked.png",
+        "badges/badge-lifted-t1-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, #8A9099 flat titanium ring (24 px at r=408)",
+      "tier": "t1",
+      "tier_rule": "Pips: 1/2/3 short ice bars under the mark. Ring: t1 titanium, t2 white, t3 white + ice outer hairline. No numerals."
+    },
+    "lifted-t2": {
+      "title": "Lifted \u00b7 10k lb",
+      "files": [
+        "badges/badge-lifted-t2.png",
+        "badges/badge-lifted-t2-1024.png",
+        "badges/badge-lifted-t2-locked.png",
+        "badges/badge-lifted-t2-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, t2 white ring (#FFFFFF, 24 px at r=408)",
+      "tier": "t2",
+      "tier_rule": "Pips: 1/2/3 short ice bars under the mark. Ring: t1 titanium, t2 white, t3 white + ice outer hairline. No numerals."
+    },
+    "lifted-t3": {
+      "title": "Lifted \u00b7 100k lb",
+      "files": [
+        "badges/badge-lifted-t3.png",
+        "badges/badge-lifted-t3-1024.png",
+        "badges/badge-lifted-t3-locked.png",
+        "badges/badge-lifted-t3-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset, t3 white ring (#FFFFFF, 24 px at r=408) plus ice outer hairline (#9FD3FF, 16 px at r=436)",
+      "tier": "t3",
+      "tier_rule": "Pips: 1/2/3 short ice bars under the mark. Ring: t1 titanium, t2 white, t3 white + ice outer hairline. No numerals."
     }
   },
   "stamps": {
@@ -469,5 +611,59 @@
       },
       "notes": "Color changed from silver to titanium (#8A9099) for Monolith compliance; filename kept for drop-in swap; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
     }
+  },
+  "tier_rule": {
+    "applies_to": [
+      "workouts-t1",
+      "workouts-t2",
+      "workouts-t3",
+      "lifted-t1",
+      "lifted-t2",
+      "lifted-t3"
+    ],
+    "pips": "1/2/3 short #9FD3FF bars under the mark",
+    "ring": {
+      "t1": "titanium #8A9099, 24 px at r=408",
+      "t2": "white #FFFFFF, 24 px at r=408",
+      "t3": "white #FFFFFF, 24 px at r=408, plus ice #9FD3FF hairline, 16 px at r=436"
+    },
+    "meanings": {
+      "workouts-t1": "10 sessions",
+      "workouts-t2": "50 sessions",
+      "workouts-t3": "100 sessions",
+      "lifted-t1": "1,000 lb",
+      "lifted-t2": "10,000 lb",
+      "lifted-t3": "100,000 lb"
+    },
+    "no_numerals": true
+  },
+  "sets": {
+    "m18": [
+      "first-workout",
+      "streak-3",
+      "streak-7",
+      "streak-30",
+      "week-complete",
+      "new-pr",
+      "early-bird",
+      "night-owl",
+      "new-city",
+      "comeback",
+      "workouts-t1",
+      "workouts-t2",
+      "workouts-t3",
+      "lifted-t1",
+      "lifted-t2",
+      "lifted-t3"
+    ],
+    "future_run_and_gym": [
+      "5k",
+      "10k",
+      "half-marathon",
+      "hotel-hero",
+      "iron-week",
+      "plate-master"
+    ],
+    "note": "Rabah, Nov 26: M18 shows only the m18 set; the future set is kept for later run and gym badges. Tier art has no numerals: the app draws 10 / 50 / 100 workouts and 1k / 10k / 100k lb next to the badge."
   }
 }
