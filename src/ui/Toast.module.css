@@ -5,7 +5,7 @@
   bottom: calc(var(--toast-bottom) + var(--safe-bottom) + var(--space-3));
   z-index: 40;
   display: flex;
-  justify-content: center;
+  justify-content: stretch;
   pointer-events: none;
 }
 
@@ -14,14 +14,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* Monolith (PLAN M15): a flat strip across the content column with a hairline on top, square,
+     no shadow, no blur. Opaque (gate B2): a row or button under it never reads through. */
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   min-height: 52px;
-  padding: 0 var(--space-2) 0 var(--space-4);
-  border-radius: var(--radius-sm);
-  /* Opaque (gate B2): a row or button under it never reads through, blur or not. */
-  background: var(--surface-solid-2);
-  border: 1px solid var(--glass-line);
+  padding: 0 0 0 var(--space-4);
+  border-radius: var(--radius-none);
+  background: var(--surface-solid);
+  border-top: var(--divider);
 }
 
 .text {
@@ -71,23 +73,23 @@
   /* 48 pt touch target (SPEC 0, 13.3). */
   min-height: var(--tap);
   min-width: var(--tap);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-sm);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-none);
+  background: none;
+  /* The action (Undo) as ice blue words, no fill (PLAN M15): the way back is the one thing in colour. */
   color: var(--accent);
+  font-size: var(--text-mono-body);
   font-weight: 700;
-}
-
-/* Undo: accent on a soft accent pill, so the way back is the one thing to see (PLAN 2.2e). */
-.action[data-undo] {
-  background: var(--accent-soft);
-  margin: 2px 0;
-  padding: 0 var(--space-4) 0 var(--space-3);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .action:active {
+  opacity: var(--press-dim);
   transform: scale(var(--press-scale));
+  transition-duration: 0ms;
 }
 
-.actionIcon {
-  flex: none;
+.action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }

@@ -86,9 +86,10 @@ describe('Button (SPEC 23.2)', () => {
 });
 
 describe('EmptyState', () => {
-  it('has a drawing, the words and one action', () => {
-    const html = renderToStaticMarkup(<EmptyState art="history" title="No workouts yet" next="Finish your first workout." action={{ label: 'Go to Today', onPress: () => {} }} />);
-    expect(html).toContain('<svg');
+  it('has the words and one action as a primary button, no drawing (Monolith, PLAN M15)', () => {
+    const html = renderToStaticMarkup(<EmptyState title="No workouts yet" next="Finish your first workout." action={{ label: 'Go to Today', onPress: () => {} }} />);
+    expect(html).not.toContain('<svg');
+    expect(html).toContain('data-variant="primary"');
     expect(text(html)).toBe('No workouts yetFinish your first workout.Go to Today');
   });
 });

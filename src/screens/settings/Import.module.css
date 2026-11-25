@@ -430,7 +430,7 @@
   }
 
   .editorContext {
-    padding: 4px var(--space-3);
+    padding: 1px var(--space-3);
   }
 
   .sheetReason {

@@ -4,6 +4,7 @@ import type { EquipmentWeight, Gym, Unit } from '../../db/types';
 import { entryFor, promptFor, type PromptKind } from '../../lib/equipmentPrompt';
 import { formatWeight } from '../../lib/load';
 import { parseTyped, pressKey } from '../../lib/numpad';
+import { Button } from '../../ui/Button';
 import { Sheet } from '../../ui/Sheet';
 import { InfoButton } from '../info/InfoButton';
 import { SIDES, useSaveOnce } from './BarQuestion';
@@ -106,25 +107,16 @@ export function EquipmentWeightSheet({ open, onClose, gymId, unit, machineId, ki
           <>
             <TypedReadout text={text} unit={unit} testId="equipment-typed" />
             <NumPad onKey={(k) => setText((t) => pressKey(t, k))} />
-            <button
-              type="button"
-              className={`${styles.primary} pressable`}
-              disabled={typed === null}
-              onClick={() => typed !== null && void save(entryFor(kind, typed))}
-            >
+            <Button size="md" disabled={typed === null} onClick={() => typed !== null && void save(entryFor(kind, typed))}>
               {prompt.save}
-            </button>
+            </Button>
           </>
         )}
 
         {prompt.alternative && (
-          <button
-            type="button"
-            className={`${styles.secondary} pressable`}
-            onClick={() => void save(prompt.alternative!.entry)}
-          >
+          <Button variant="secondary" size="md" onClick={() => void save(prompt.alternative!.entry)}>
             {prompt.alternative.label}
-          </button>
+          </Button>
         )}
 
         <p className={styles.error} role="status">

@@ -269,8 +269,9 @@ test("(2) tour: spotlights match elements, Next/Skip, outside tap and Escape, St
   await page.getByTestId("tour-next").tap();
   await expect(tour(page)).toHaveAttribute("data-step", "tabs");
   await expectSpot(page, page.locator('[data-tour="tabs"]'));
+  // PLAN M2/M14: five tab words now, Plans became Plan and You joined.
   await expect(page.locator('[data-tour="tabs"]').getByRole("link")).toHaveText(
-    ["Today", "Run", "History", "Plans"],
+    ["Today", "Plan", "Run", "History", "You"],
   );
   await shot(page, "tour3");
   // Words never over the tab bar nor outside safe area.

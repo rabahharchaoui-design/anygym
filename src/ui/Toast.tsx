@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
 import { FADE, SHEET_SPRING } from './motion';
-import { Undo2 } from 'lucide-react';
 import styles from './Toast.module.css';
 
 /**
@@ -32,8 +31,9 @@ export const TOAST_ARM_MS = 600;
 type Props = { toast: ToastMessage | null; /** Extra space below, e.g. above a bottom bar. */ bottom?: string };
 
 /**
- * One short message at the bottom (SPEC 13.1), with an optional action like Undo. One spot on every
- * screen, just above its bottom pill or tab bar (`bottom`), on an opaque surface so it never reads
+ * One short message at the bottom (SPEC 13.1), with an optional action like Undo as ice blue words.
+ * Monolith (PLAN M15): a flat strip with a hairline on top. One spot on every screen, just above its
+ * bottom bar or tab bar (`bottom`), on an opaque surface so it never reads
  * through over a row (SPEC 23, gate B2). A toast with a name stays on one line (the name shortens);
  * a plain message wraps, never cut (PLAN 4.4b 2).
  */
@@ -93,7 +93,6 @@ function ToastCard({ toast, reduce }: { toast: ToastMessage; reduce: boolean }) 
       </span>
       {toast.action && (
         <button type="button" className={`${styles.action} pressable`} onClick={press} disabled={!armed} data-undo={toast.action.label === UNDO || undefined}>
-          {toast.action.label === UNDO && <Undo2 className={styles.actionIcon} width={16} height={16} strokeWidth={2.4} aria-hidden="true" />}
           {toast.action.label}
         </button>
       )}

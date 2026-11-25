@@ -9,6 +9,7 @@ import { dayIndexOf, normalizePlan, type Plan } from '../src/lib/plans';
 import { dayWorkout, isWorkingEntry } from '../src/lib/planWorkout';
 import { checkControls, checkLayout, fullyShown, simulateSafeAreas } from './helpers/layout';
 import { dbAll, dbPut, exerciseView, loggedRows, usePlan, watchErrors } from './workout-helpers';
+import { sureDemo } from './helpers/demoOracle';
 
 test.describe.configure({ timeout: 150_000 });
 
@@ -16,8 +17,6 @@ type Req = string[][];
 type Cand = { id: string; planId?: string; requires: Req; load?: string; timed?: boolean };
 const PATTERNS = JSON.parse(readFileSync('data/patterns.json', 'utf8')) as { patterns: Record<string, { candidates: Cand[] }>; planExercises: Record<string, { pattern: string | null; requires: Req | null }> };
 const CATALOG = (JSON.parse(readFileSync('data/catalog.json', 'utf8')) as { exercises: Array<{ id: string; equipment: string | null; images: string[] }> }).exercises;
-const MAP = JSON.parse(readFileSync('data/exercise-map.json', 'utf8')) as Array<{ planId: string; match: string; catalogId: string | null }>;
-const DEMO_LIST = new Set<string>((JSON.parse(readFileSync('data/catalog-demos.json', 'utf8')) as { exercises: Array<{ catalogId: string }> }).exercises.map((e) => e.catalogId));
 const planExercises = new Map((JSON.parse(readFileSync('data/plan-exercises.json', 'utf8')) as PlanExercise[]).map((e) => [e.id, e]));
 const FIVE: Plan = normalizePlan(JSON.parse(readFileSync('data/plans/five-day-split.json', 'utf8')), (n: string) => planExercises.get(slugify(n)));
 
@@ -135,8 +134,6 @@ test('V2 Replace is first; every choice is a same pattern, gym supported candida
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Back to the list' }).tap();
 
-  const eligible = new Set(MAP.filter((m) => m.match !== 'none' && m.catalogId).map((m) => m.catalogId!));
-  const byPlan = new Map(MAP.map((m) => [m.planId, m]));
   let sheets = 0;
   let choices = 0;
   let photos = 0;
@@ -172,7 +169,8 @@ test('V2 Replace is first; every choice is a same pattern, gym supported candida
         expect(supported(c!.requires, gym), `${g} is doable in ${kit} gym`).toBe(true);
         const hasPhoto = (await sheet.getByTestId(`swap-choice-${g}`).locator('[data-photo]').count()) > 0;
         // PLAN 3.5a: data/catalog-demos.json lists catalog exercises whose own photos were opened and judged (Seated_Leg_Curl).
-        const sure = c!.planId ? !!byPlan.get(c!.planId) && byPlan.get(c!.planId)!.match !== 'none' : eligible.has(c!.id) || DEMO_LIST.has(c!.id);
+        // PLAN D0: a demo shows for any catalog id G's review did not hide (helpers/demoOracle.ts), not only exact or variant.
+        const sure = sureDemo(c!.planId ?? c!.id);
         if (hasPhoto) {
           photos++;
           expect(sure, `${g} shows a photo`).toBe(true);
