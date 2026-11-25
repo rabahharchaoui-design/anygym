@@ -8,7 +8,7 @@ import { useLive } from '../hooks/useLive';
 import { useFinishedRuns } from '../hooks/useRuns';
 import { historyFeed, thisWeekLine } from './history/historyFeed';
 import { HistoryRow } from './history/HistoryRow';
-import { HistoryEmpty } from './history/HistoryEmpty';
+import { EmptyState } from '../ui/EmptyState';
 import { RunRow } from './history/RunRow';
 import { importNumbers, workoutDate, workoutFacts, workoutTitle } from './history/historyWords';
 import styles from './history/History.module.css';
@@ -76,7 +76,8 @@ export function HistoryScreen() {
       {!list.ready || !runsRead.ready ? (
         <Skeleton height={76} />
       ) : (list.error || runsRead.error) && items.length === 0 && runs.length === 0 ? null : feed.dated.length === 0 && imported.length === 0 ? (
-        <HistoryEmpty onStart={() => go('/', { kind: 'tab' })} />
+        // Board 12, the shared empty state (M15): no picture, the one next step over the ice blue line.
+        <EmptyState title="No workouts yet" next="Your first one shows up here." action={{ label: 'Start workout', onPress: () => go('/', { kind: 'tab' }) }} />
       ) : (
         <>
           {feed.dated.length > 0 && (

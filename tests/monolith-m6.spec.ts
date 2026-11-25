@@ -213,13 +213,13 @@ test('M6 History empty (board 12): No workouts yet, one line, Start workout over
   await pastIntake(page);
   await page.goto('./#/history');
   await expect(page.getByRole('heading', { level: 1, name: 'History' })).toBeVisible();
-  const empty = page.getByTestId('history-empty');
+  const empty = page.locator('section', { has: page.getByRole('heading', { name: 'No workouts yet' }) });
   await expect(empty.getByRole('heading', { name: 'No workouts yet' })).toBeVisible();
   await expect(empty).toContainText('Your first one shows up here.');
   await expect(empty.locator('svg, img')).toHaveCount(0);
   await expect(page.getByTestId('history-week')).toHaveCount(0);
   await expect(page.getByTestId('history-runs-link')).toHaveCount(0);
-  await rowsTall(page, '[data-testid="history-empty"] button');
+  await rowsTall(page, 'main button:has-text("Start workout"), [data-scroller] button:has-text("Start workout")');
   await noOverflow(page);
   await shot(page, 'history-empty');
   await largestText(page);
@@ -256,7 +256,9 @@ test.describe('M6 run records and heatmap', () => {
     const records = page.getByTestId('run-record');
     await expect(records).toHaveCount(5);
     await expect(records.filter({ hasText: 'Longest run' })).toContainText('99.99 mi');
-    await expect(page.locator('[data-words] [data-pill]')).toHaveCount(0);
+    // The switch is words (M15's shared toggle): the picked one is not a filled block.
+    const bg = await page.getByRole('radio', { name: 'Records' }).evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent').toBe(true);
     await expect(page.getByRole('radio', { name: 'Records' })).toBeChecked();
     await noBoxes(page, '[data-testid="run-record"]');
     await rowsTall(page, '[data-testid="run-record"], [role="radio"]');

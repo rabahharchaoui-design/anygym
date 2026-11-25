@@ -37,7 +37,6 @@ export function RunRecords() {
       ) : (
         <>
           <Segmented
-            words
             label="View"
             value={view}
             onChange={setView}
