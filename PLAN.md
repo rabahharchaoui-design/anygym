@@ -134,6 +134,8 @@ Tag: pre-s7 · Branch: s7-polish · Report: reports/session-7.md
 - [ ] 7.4 Design polish pass across every screen with the frontend-design skill: spacing, type scale, motion, empty states, reduced motion. Before and after screenshots in the report.
 - [ ] 7.5 Final merge gate and a full iPhone hand test list covering onboarding, a full logged workout, plate diagram, import, swap, time budget, a real outdoor test run, backup.
 
+- [ ] G1 Gym check on switch (Rabah, Nov 26 2:21 AM): when you switch gyms from Today, an unconfirmed gym first shows "What does <gym> have?" with everything it has, editable in place (the intake equipment picker, every tap saves), then "Looks right" saves it and switches; "Not now" switches and asks next time. Confirmed gyms switch in one tap as today; new gyms never ask; in a workout the check comes before the switch preview. Full spec: docs/gym-check-g1.md.
+
 === STOP HERE UNLESS TOLD OTHERWISE ===
 
 ## LATER (do not start)
