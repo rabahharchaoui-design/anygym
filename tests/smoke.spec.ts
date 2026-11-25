@@ -17,7 +17,7 @@ test.describe('app shell', () => {
     for (const [name, hash, heading] of [
       ['Run', '#/run', 'Run'],
       ['History', '#/history', 'History'],
-      ['Plan', '#/plans', 'Plans'],
+      ['Plan', '#/plans', 'Plan'],
       ['Today', '#/', 'Today'],
     ] as const) {
       const tab = nav.getByRole('link', { name, exact: true });
