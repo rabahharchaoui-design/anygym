@@ -28,3 +28,18 @@ Pure rule in src/lib (unit tested), using a new additive field on Gym: `equipmen
 ## Tests
 - Unit: the rule (never checked, 61 days old and 31 days unused, recent, new gym, same gym, clock edges).
 - End to end at 393x852 and 440x956: switch from Today to an unconfirmed gym shows the check; turning cable station off saves it and Today's workout updates; Looks right saves and the next switch to that gym is one tap; Not now switches and asks again next time; + New gym never shows the check; in a workout the check comes before the switch preview; footer visible above the home indicator, nothing clipped.
+
+# G1b: every new gym gets its equipment asked, then saved (Rabah, Nov 26 2:36 AM)
+Rabah: whenever a new gym gets added, ask for its equipment so it is saved to the profile. Builds after G1 is merged (G1 adds `equipmentCheckedAt` and the check view).
+
+What exists today: "+ New gym" (gym sheet and Settings, both NewGymForm) already shows "Tap what it has" with the intake equipment picker. Two holes make it a guess, not an answer:
+1. The kind pre-ticks a typical list AND a typical dumbbell rack (a hotel gym gets 5 to 50 lb), so tapping "Add and switch" without looking saves the guess as fact.
+2. Gyms made without the form are never asked: the default "My Gym" made on first start (src/db/bootstrap.ts), and an intake where equipment was skipped and the kind's preset was used (src/db/intake.ts).
+
+Fixes:
+- New gym form: the dumbbell rack is never pre-filled from the kind; with dumbbells on, "Heaviest dumbbell" is required and empty until typed (the button says "Type the dumbbells it has" until then). The pre-ticked equipment stays as a starting point, with one line above it: "Started from a typical <kind>. Tap anything it doesn't have." Saving the form sets `equipmentCheckedAt`, because the person just answered it.
+- Intake: when the person answered the equipment step, the gym gets `equipmentCheckedAt`; when they skipped it and the preset was used, it stays unconfirmed.
+- An unconfirmed ACTIVE gym asks once on Today: a slim row under the gym pill, "Check what <gym> has", ice blue, which opens the same G1 check view in the gym sheet. "Looks right" saves and the row is gone for good; "Not now" hides it until the next day. It never shows during a workout.
+- No new picker, sheet or check view: reuse NewGymForm, EquipmentStep and the G1 check.
+
+Tests: unit (the rack is never pre-filled; form save and answered intake set equipmentCheckedAt; skipped intake and bootstrap leave it unset). End to end at 393x852 and 440x956: + New gym cannot be added with dumbbells on and no rack typed; a new gym is never checked again on its first switch; a fresh install's "My Gym" shows the Today row once, Looks right removes it for good, Not now hides it until the next day.

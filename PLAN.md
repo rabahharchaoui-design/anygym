@@ -136,6 +136,8 @@ Tag: pre-s7 · Branch: s7-polish · Report: reports/session-7.md
 
 - [ ] G1 Gym check on switch (Rabah, Nov 26 2:21 AM): when you switch gyms from Today, an unconfirmed gym first shows "What does <gym> have?" with everything it has, editable in place (the intake equipment picker, every tap saves), then "Looks right" saves it and switches; "Not now" switches and asks next time. Confirmed gyms switch in one tap as today; new gyms never ask; in a workout the check comes before the switch preview. Full spec: docs/gym-check-g1.md.
 
+- [ ] G1b Every new gym asks for its equipment (after G1 is merged; Rabah, Nov 26 2:36 AM): the New gym form never pre-fills the dumbbell rack from the kind and saving it marks the equipment confirmed; gyms made without asking (first start "My Gym", an intake that skipped equipment) ask once from a slim row on Today that opens the G1 check. Spec: docs/gym-check-g1.md, G1b.
+
 === STOP HERE UNLESS TOLD OTHERWISE ===
 
 ## LATER (do not start)
