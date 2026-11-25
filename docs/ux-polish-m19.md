@@ -62,3 +62,8 @@ CITY TEXT ON STAMPS (Rabah, Nov 25 11:38 PM):
 - The date sits in its own band (or below the city when the stamp has one band) and stays smaller than the city at every name length.
 - Band size and position come from Pluto's README for each stamp (and the same numbers in its manifest.json, as fractions of the canvas: x, y, width, height). Until the Monolith stamps land, use a centred band of 60% width as the placeholder.
 - The fitting math is pure logic in src/lib with unit tests: a short name (ROME), SAN FRANCISCO, a very long name (LLANFAIRPWLLGWYNGYLL), names with accents and spaces (SÃO PAULO, ST. JOHN'S), and the date always smaller than the city. End to end: stamps at 393x852 and 440x956 show the full city name inside the band.
+
+FINAL MONOLITH ART (Rabah approved, Nov 26 12:30 AM):
+- Pluto's final pass: 9 badges with -locked variants, 8 text free passport stamps and the stamp slam storyboard, in a monolith-pass folder with README.md and manifest.json. Filenames match the existing art, so it is a drop in swap. Commit it into the repo as part of M18d (badges) and M19f (stamps), with the usual tests and live checks.
+- The README and manifest give each stamp's city band and date band as pixel boxes, the ink colour, centred alignment and the max cap height. Use those numbers exactly (they replace the 60% placeholder band above); the city still shrinks below the max cap height to fit and is never cut off.
+- The storyboard is the timing reference for M19f: 1.8 s total. Reduce Motion is a 250 ms crossfade and keeps the haptic.
