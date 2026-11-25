@@ -174,7 +174,8 @@ test.describe('existing phone', () => {
 
   test('G redo path: Settings, Answer the questions again, hotel gym 4 days, Use this plan @matrix', async ({ page }) => {
     await page.goto('./#/settings');
-    await expect(page.getByText('My profile')).toBeVisible();
+    // PLAN M10/M14: Settings is the You tab; there is no "My profile" line, the page is headed "You".
+    await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
     await page.getByTestId('redo-intake').tap();
     await expect(intake(page)).toBeVisible();
     const steps: string[] = [];

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { dbAll, dbPut, seedFinished, shotOn, watchErrors } from './workout-helpers';
-import { card, pastIntake, PROFILE, readIdea, readIdeas } from './helpers/quick';
+import { card, hideEveryMove, logFirstWorkSet, pastIntake, PROFILE, readIdea, readIdeas } from './helpers/quick';
 import { readFileSync } from 'node:fs';
 
 // Tester checks for PLAN 3.5b (independent of tests/quick-3.5b.spec.ts).
@@ -49,12 +49,14 @@ async function seedLoads(page: Page, ids: string[]) {
   const gymId = (await dbAll<{ id: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.id;
   const start = Date.now() - 6 * 86_400_000;
   // 3.5b round 4 (M6): the pump now opens on a main lift (Hip Thrust, a barbell lift without "barbell" in its id).
-  const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
+  const loadOf = (id: string) => (/^single-arm/.test(id) ? { kind: 'single', unit: 'lb', total: 30 } : /dumbbell|kettlebell/i.test(id) ? { kind: 'dumbbell_each', unit: 'lb', total: 20 } : /^barbell|^hip-thrust|^deadlift|^overhead-press/.test(id) ? { kind: 'barbell', unit: 'lb', total: 95, barWeight: 45, perSide: [25] } : { kind: 'stack', unit: 'lb', total: 50, stackValue: 50 });
   // 3.5d: no coach warm up rows here (they start no rest, and this test is about the group rest): 'months' gets none.
   await dbPut(page, {
     profile: [{ ...PROFILE, intake: { ...PROFILE.intake, experience: 'months' } }],
     sessions: [{ id: 'seed-loads', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: ids }],
     sets: ids.map((id, i) => ({ id: `seed-loads-${i}`, sessionId: 'seed-loads', exerciseId: id, order: i, kind: 'work', uncertain: false, reps: 10, load: loadOf(id) })),
+    // PLAN D0: catalog moves like Leverage Iso Row have no load word in the name, so the app asks once how they are loaded; the answer is seeded with the sets.
+    exerciseSettings: ids.map((id) => ({ exerciseId: id, gymId: '', loadType: loadOf(id).kind })),
   });
   await page.reload();
 }
@@ -229,6 +231,8 @@ test.describe('verify 3.5b', () => {
     const errors = watchErrors(page);
     for (const [label, eq] of [['home', []], ['outdoors', []], ['hotel', HOTEL]] as const) {
       await pastIntake(page, eq as string[]);
+      // PLAN D0: home and outdoors still get bodyweight ideas (demos are approved); the honest empty state needs every move hidden (helpers/quick.ts).
+      if (label !== 'hotel') await hideEveryMove(page);
       await open(page, 30);
       if (label !== 'hotel') {
         expect(await page.locator('[data-concept]').count()).toBe(0);
@@ -380,7 +384,7 @@ test.describe('verify 3.5b', () => {
     console.log('R2-4 first member', first, JSON.stringify(t0), 'second', s.exerciseIds[1], JSON.stringify(s.targets[s.exerciseIds[1]!]));
     expect(t0.pair?.size).toBeGreaterThanOrEqual(2);
     await seedLoads(page, s.exerciseIds);
-    await page.getByTestId('check-current').tap();
+    await logFirstWorkSet(page); // PLAN 3.5g: warm up rows come first
     await page.waitForTimeout(700);
     const afterFirst = await page.getByTestId('rest-timer').count();
     console.log('R2-4 rest timer after first member:', afterFirst);
@@ -396,7 +400,7 @@ test.describe('verify 3.5b', () => {
     await page.getByTestId('group-next').tap();
     await expect(page.getByTestId(`exercise-${s.exerciseIds[1]}`)).toBeVisible();
     console.log('R2-4 now on', s.exerciseIds[1]);
-    await page.getByTestId('check-current').tap();
+    await logFirstWorkSet(page); // PLAN 3.5g: warm up rows come first
     await page.waitForTimeout(700);
     const afterSecond = await page.getByTestId('rest-timer').count();
     const clock = afterSecond ? await page.getByTestId('rest-clock').innerText() : '';
@@ -797,7 +801,7 @@ test.describe('verify 3.5b round 4 part 2', () => {
       return out;
     });
     console.log('C5 highlighted-ish elements', JSON.stringify(hi));
-    await page.getByTestId('check-current').tap();
+    await logFirstWorkSet(page); // PLAN 3.5g: warm up rows come first
     await page.waitForTimeout(700);
     await shotOn(page, '3.5b-verify/round4', 'c5-after-first-member', ['iPhone 15', 'iPhone SE']);
     expect(await page.getByTestId('rest-timer').count(), 'no rest after the first member').toBe(0);
@@ -822,7 +826,7 @@ test.describe('verify 3.5b round 4 part 2', () => {
     console.log('C5 styles', JSON.stringify(style));
     await next.tap();
     await expect(page.getByTestId(`exercise-${sess.exerciseIds[1]}`)).toBeVisible();
-    await page.getByTestId('check-current').tap();
+    await logFirstWorkSet(page); // PLAN 3.5g: warm up rows come first
     await page.waitForTimeout(700);
     expect(await page.getByTestId('rest-timer').count(), 'rest starts after the second member').toBe(1);
     await shotOn(page, '3.5b-verify/round4', 'c5-after-second-member', ['iPhone 15', 'iPhone SE']);

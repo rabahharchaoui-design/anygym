@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, type Locator, type Page } from '../fixtures';
 import { dbAll, dbPut } from '../workout-helpers';
 import { mouseFlick, stillBox } from './touch';
@@ -19,6 +20,32 @@ export async function pastIntake(page: Page, equipment?: string[]) {
     await dbPut(page, { gyms: [{ ...gym, equipment, dumbbellRange: equipment.includes('dumbbells') ? { min: 5, max: 50, step: 5 } : null }] });
   }
   await page.reload();
+}
+
+/**
+ * PLAN D0: the Quick pool is bigger now (bodyweight moves have demos), so no gym is "too empty" by its
+ * equipment any more. This is the honest empty state's other way in: the person hid every move with
+ * "never show me this" (profile.dislikes.never), so fewer than 3 moves fit and Quick says so.
+ */
+export async function hideEveryMove(page: Page) {
+  const ids = new Set<string>((JSON.parse(readFileSync('data/catalog.json', 'utf8')) as { exercises: { id: string }[] }).exercises.map((e) => e.id));
+  for (const e of JSON.parse(readFileSync('data/exercise-map.json', 'utf8')) as { planId: string }[]) ids.add(e.planId);
+  await dbPut(page, { profile: [{ ...PROFILE, dislikes: { never: [...ids] } }] });
+  await page.reload();
+}
+
+/**
+ * PLAN 3.5g: warm up rows come first in the set table. Logs the current row, and keeps logging while the
+ * row just logged was a warm up, so it ends having logged the first WORK set.
+ */
+export async function logFirstWorkSet(page: Page) {
+  const current = page.locator('[data-testid="set-todo"][data-state="current"]');
+  for (let i = 0; i < 5; i++) {
+    const warm = (await current.getByRole('button', { name: /^Warm up set/ }).count()) > 0;
+    await page.getByTestId('check-current').tap();
+    await page.waitForTimeout(400);
+    if (!warm) return;
+  }
 }
 
 export const counter = () => {

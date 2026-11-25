@@ -368,7 +368,8 @@ test.describe('edge cases @matrix', () => {
     // And the main tabs in quick succession.
     await page.goto('./');
     const nav = page.getByRole('navigation', { name: 'Main' });
-    for (const name of ['History', 'Plans', 'Today', 'History', 'Run', 'Plans', 'Today', 'Plans', 'History', 'Today']) await nav.getByRole('link', { name }).tap();
+    // PLAN M2/M14: the tab that was "Plans" is now "Plan".
+    for (const name of ['History', 'Plan', 'Today', 'History', 'Run', 'Plan', 'Today', 'Plan', 'History', 'Today']) await nav.getByRole('link', { name, exact: true }).tap();
     await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
     await noSideScroll(page);
   });

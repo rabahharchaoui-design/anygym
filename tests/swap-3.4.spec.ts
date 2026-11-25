@@ -3,6 +3,7 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { checkControls, checkLayout, fullyShown, simulateSafeAreas } from './helpers/layout';
 import { dbAll, dbPut, exerciseView, loggedRows, shotOn, usePlan, watchErrors } from './workout-helpers';
+import { sureDemo } from './helpers/demoOracle';
 
 type Sess = { id: string; exerciseIds: string[]; swaps?: Array<{ slot: string; current: string; kept?: string[]; noFit?: boolean }>; endedAt?: number };
 
@@ -70,8 +71,8 @@ test('Replace comes first in the ⋯ menu; one tap swaps for this workout; Undo 
   const choices = sheet.locator('[data-testid^="swap-choice-"]');
   await expect(choices).toHaveCount(6);
   await expect(sheet.getByTestId('swap-choice-front-squat')).toContainText('Same movement · uses a barbell');
-  // A demo photo only for a sure match (SPEC 4.3): Front Squat has one, Smith Machine Squat has none.
-  await expect(sheet.getByTestId('swap-choice-Smith_Machine_Squat').locator('[data-photo]')).toHaveCount(0);
+  // A demo photo only for a sure demo (SPEC 4.3). PLAN D0: G's review decides, so Smith Machine Squat (not hidden) has one now.
+  await expect(sheet.getByTestId('swap-choice-Smith_Machine_Squat').locator('[data-photo]')).toHaveCount(sureDemo('Smith_Machine_Squat') ? 1 : 0);
   await shotOn(page, '3.4', 'sheet');
 
   await sheet.getByTestId('swap-choice-Smith_Machine_Squat').tap();

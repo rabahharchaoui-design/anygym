@@ -5,6 +5,7 @@
 import { expect, test, type Page } from './fixtures';
 import { checkControls, checkLayout, fullyShown, simulateSafeAreas } from './helpers/layout';
 import { dbAll, dbPut, exerciseView, shotOn, watchErrors } from './workout-helpers';
+import { sureDemo } from './helpers/demoOracle';
 
 type Gym = { id: string; isActive: boolean; unit: string; equipment: string[] };
 type Sess = { id: string; exerciseIds: string[]; endedAt?: number };
@@ -289,9 +290,12 @@ async function benchOnlyDone(page: Page, done: string[]) {
 
 test('round 2 (1): an idea with no sure demo gets the plain tile, never a photo', async ({ page }) => {
   const errors = watchErrors(page);
-  const card = await benchOnlyDone(page, ['Pushups']);
+  // PLAN D0: G's review decides which demos show, and Bodyweight_Squat now has one. With the squat done
+  // too the idea is Bodyweight_Walking_Lunge, which G hid: the plain tile (src/data/demoHidden.json).
+  const card = await benchOnlyDone(page, ['Pushups', 'Bodyweight_Squat']);
   const pick = card.getByTestId('up-next-pick');
-  await expect(pick).toHaveAttribute('data-id', 'Bodyweight_Squat');
+  await expect(pick).toHaveAttribute('data-id', 'Bodyweight_Walking_Lunge');
+  expect(sureDemo('Bodyweight_Walking_Lunge')).toBe(false);
   await expect(pick.locator('[data-photo]')).toHaveCount(0);
   await expect(pick.locator('img')).toHaveCount(0);
   expect(errors).toEqual([]);
