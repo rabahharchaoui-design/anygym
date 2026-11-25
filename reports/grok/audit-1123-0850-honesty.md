@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED its real points are in R1 (3), (4)
 Grok Build honesty audit, written Nov 23 09:06 at 31e12fd5. A second opinion, not orders: SPEC.md wins.
 
 I'll audit AnyGym for numbers, muscles, demos, and coach lines the app shows without backing them up. First I'll read the spec, the plan, and the newest reports so I don't repeat findings already listed.

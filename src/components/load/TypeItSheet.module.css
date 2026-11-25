@@ -61,17 +61,4 @@
   margin: var(--space-3) 0;
 }
 
-.confirm {
-  width: 100%;
-  height: 56px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 700;
-  font-size: 17px;
-}
 
-.confirm:disabled {
-  background: var(--surface-1);
-  color: var(--text-2);
-}

@@ -65,7 +65,7 @@ export function RunSettingsSheet({ open, autoPause, onAutoPause, voice, onVoice,
         {voice.on && (
           <div className={iv.voice} data-testid="voice-settings">
             <span className={iv.voiceLabel} id="voice-splits-label">{`Say each ${splitWord}`}</span>
-            <Segmented options={SPLIT_CHOICES} value={voice.splits} onChange={(splits) => onVoice({ ...voice, splits })} labelledBy="voice-splits-label" testId="voice-splits" block glass />
+            <Segmented options={SPLIT_CHOICES} value={voice.splits} onChange={(splits) => onVoice({ ...voice, splits })} labelledBy="voice-splits-label" testId="voice-splits" block />
             <Button variant="secondary" onClick={preview} data-testid="voice-preview">
               Play a sample
             </Button>

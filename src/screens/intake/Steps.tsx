@@ -152,7 +152,7 @@ export function UnitsStep({ value, onChange }: { value: UnitsAnswer; onChange: (
     </div>
   );
   return (
-    <div className={`${unitStyles.units} ${rowStyles.words}`}>
+    <div className={unitStyles.units}>
       {row(
         'u-weight',
         'Weight',
