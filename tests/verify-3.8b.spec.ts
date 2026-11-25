@@ -321,9 +321,9 @@ test.describe('verify 3.8b', () => {
     const g = page.getByTestId(id);
     const on = g.getByRole('radio', { checked: true });
     await expect(on).toHaveCount(1);
-    // PLAN M14: no pill; the picked word has the 3 px ice line (helpers/wordToggle.ts).
-    const mark = await wordMark(on);
-    return { label: (await on.innerText()).trim(), line: mark.scaleX === 1 && mark.height === 3, pills: await g.locator('[data-pill]').count() };
+    // PLAN M14/M15: the pick is a word with one 3 px ice line under it, not a filled pill (helpers/wordToggle.ts).
+    const mark = await wordMark(g);
+    return { label: (await on.innerText()).trim(), line: mark.height === 3 && mark.underChecked, marks: mark.count };
   }
   test('3 Settings units: fresh profile shows the default word picked; a change persists after reload @matrix', async ({ page }) => {
     const errors = watchErrors(page);
@@ -338,8 +338,8 @@ test.describe('verify 3.8b', () => {
     const m0 = await selected(page, 'settings-measure');
     console.log('DEFAULTS', lang, JSON.stringify([d0, m0]));
     const us = /-US$|^en$/.test(lang!);
-    expect(d0).toEqual({ label: us ? 'mi' : 'km', line: true, pills: 0 });
-    expect(m0).toEqual({ label: us ? 'in' : 'cm', line: true, pills: 0 });
+    expect(d0).toEqual({ label: us ? 'mi' : 'km', line: true, marks: 1 });
+    expect(m0).toEqual({ label: us ? 'in' : 'cm', line: true, marks: 1 });
     await page.getByTestId('settings-distance').scrollIntoViewIfNeeded();
     await snap(page, 's3-units-default');
     const other = us ? 'km' : 'mi';
@@ -506,10 +506,8 @@ test.describe('verify 3.8b units, a metric phone', () => {
     await expect(page.getByTestId('settings-distance')).toBeVisible();
     await expect(page.getByTestId('settings-distance').getByRole('radio', { name: 'km' })).toBeChecked();
     await expect(page.getByTestId('settings-measure').getByRole('radio', { name: 'cm' })).toBeChecked();
-    // PLAN M14: the picked word has the ice line, no pill.
-    expect(await wordMark(page.getByTestId('settings-distance').getByRole('radio', { name: 'km' }))).toEqual({ height: 3, scaleX: 1 });
-    expect(await wordMark(page.getByTestId('settings-distance').getByRole('radio', { name: 'mi' }))).toEqual({ height: 3, scaleX: 0 });
-    expect(await page.getByTestId('settings-distance').locator('[data-pill]').count()).toBe(0);
+    // PLAN M14/M15: the picked word (km) has the one ice line under it, no filled pill.
+    expect(await wordMark(page.getByTestId('settings-distance'))).toEqual({ count: 1, height: 3, underChecked: true });
     expect(errors).toEqual([]);
   });
 });
