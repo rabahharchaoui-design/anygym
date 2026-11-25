@@ -35,6 +35,14 @@ export function gpsStatus(s: GeoState, now: number): GpsStatus {
   return 'searching';
 }
 
+/**
+ * The "you are here" dot of the start map (PLAN R1 8): only while the fix is fresh (good or weak).
+ * Searching, no signal, denied or a stale fix: no dot, the chip says why.
+ */
+export function hereDot(fix: GeoFix | null, status: GpsStatus): GeoFix | null {
+  return fix && (status === 'good' || status === 'weak') ? fix : null;
+}
+
 const FEET_PER_MILE = 5280;
 
 /** "about 40 m" or "about 130 ft": rounded so it never reads as more exact than the phone is. */

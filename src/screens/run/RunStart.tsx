@@ -8,7 +8,7 @@ import { useGeo } from '../../hooks/useGeo';
 import { useNow } from '../../hooks/useNow';
 import { useRunSetup } from '../../hooks/useRunSetup';
 import { useTapGuard } from '../../hooks/useTapGuard';
-import { DEFAULT_RUN_SETUP, RUN_TYPES, goalLine, gpsStatus, gpsWords, platformOf, type RunType } from '../../lib/run';
+import { DEFAULT_RUN_SETUP, RUN_TYPES, goalLine, gpsStatus, gpsWords, hereDot, platformOf, type RunType } from '../../lib/run';
 import { tick } from '../../ui/haptics';
 import { IconButton } from '../../ui/IconButton';
 import { Button } from '../../ui/Button';
@@ -122,7 +122,7 @@ export function RunStart({ going, onOpen, reduceMotion }: Props) {
 
   const goal = goalLine(setup);
   const typeLabel = RUN_TYPES.find((t) => t.value === setup.type)!.label;
-  const here = geo.fix && status !== 'denied' ? geo.fix : null;
+  const here = hereDot(geo.fix, status);
   // While the countdown covers it the map sleeps: hidden, and the dot does not move (no WebGL drawing under the count).
   const mapHere = useRef(here);
   if (phase === 'setup') mapHere.current = here;
