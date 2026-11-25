@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { fixedDaysAfter } from './helpers/fixedSchedule';
 import { checkCurrent, dbAll, dbPut, exerciseView, loggedRows, quickWith, usePlan, watchErrors } from './workout-helpers';
+import { wordMark } from './helpers/wordToggle';
 
 // Independent tester checks for PLAN 3.8b. Screenshots: reports/shots/3.8b-verify/.
 const DAY = 86_400_000;
@@ -320,10 +321,11 @@ test.describe('verify 3.8b', () => {
     const g = page.getByTestId(id);
     const on = g.getByRole('radio', { checked: true });
     await expect(on).toHaveCount(1);
-    const pill = await g.locator('[data-pill]').count();
-    return { label: (await on.innerText()).trim(), pill };
+    // PLAN M14/M15: the pick is a word with one 3 px ice line under it, not a filled pill (helpers/wordToggle.ts).
+    const mark = await wordMark(g);
+    return { label: (await on.innerText()).trim(), line: mark.height === 3 && mark.underChecked, marks: mark.count };
   }
-  test('3 Settings units: fresh profile shows the default pill; a change persists after reload @matrix', async ({ page }) => {
+  test('3 Settings units: fresh profile shows the default word picked; a change persists after reload @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('./');
     await expect.poll(async () => (await dbAll(page, 'gyms')).length).toBeGreaterThan(0);
@@ -336,8 +338,8 @@ test.describe('verify 3.8b', () => {
     const m0 = await selected(page, 'settings-measure');
     console.log('DEFAULTS', lang, JSON.stringify([d0, m0]));
     const us = /-US$|^en$/.test(lang!);
-    expect(d0).toEqual({ label: us ? 'mi' : 'km', pill: 1 });
-    expect(m0).toEqual({ label: us ? 'in' : 'cm', pill: 1 });
+    expect(d0).toEqual({ label: us ? 'mi' : 'km', line: true, marks: 1 });
+    expect(m0).toEqual({ label: us ? 'in' : 'cm', line: true, marks: 1 });
     await page.getByTestId('settings-distance').scrollIntoViewIfNeeded();
     await snap(page, 's3-units-default');
     const other = us ? 'km' : 'mi';
@@ -498,13 +500,14 @@ test.describe('verify 3.8b new best badge', () => {
 
 test.describe('verify 3.8b units, a metric phone', () => {
   test.use({ locale: 'en-GB' });
-  test('3b en-GB fresh profile: km and cm pills @matrix', async ({ page }) => {
+  test('3b en-GB fresh profile: km and cm words @matrix', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('./#/settings');
     await expect(page.getByTestId('settings-distance')).toBeVisible();
     await expect(page.getByTestId('settings-distance').getByRole('radio', { name: 'km' })).toBeChecked();
     await expect(page.getByTestId('settings-measure').getByRole('radio', { name: 'cm' })).toBeChecked();
-    expect(await page.getByTestId('settings-distance').locator('[data-pill]').count()).toBe(1);
+    // PLAN M14/M15: the picked word (km) has the one ice line under it, no filled pill.
+    expect(await wordMark(page.getByTestId('settings-distance'))).toEqual({ count: 1, height: 3, underChecked: true });
     expect(errors).toEqual([]);
   });
 });

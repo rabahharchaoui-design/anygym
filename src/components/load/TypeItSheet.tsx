@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Collars, Unit } from '../../db/types';
 import { formatAmount, formatWeight, solvePlates, type Horns, type Loading } from '../../lib/load';
 import { parseTyped, pressKey } from '../../lib/numpad';
+import { Button } from '../../ui/Button';
 import { Sheet } from '../../ui/Sheet';
 import { NumPad } from './NumPad';
 import { PlateChips } from './PlateChips';
@@ -88,14 +89,9 @@ export function TypeItSheet({ open, onClose, unit, bar, baseLabel = 'bar', inven
         <NumPad onKey={(k) => setText((t) => pressKey(t, k))} />
       </div>
 
-      <button
-        type="button"
-        className={`${styles.confirm} pressable`}
-        disabled={!result?.exact}
-        onClick={() => result?.exact && apply(result.perSide)}
-      >
+      <Button size="md" disabled={!result?.exact} onClick={() => result?.exact && apply(result.perSide)}>
         {result && !result.exact ? 'Pick one above' : 'Load it'}
-      </button>
+      </Button>
     </Sheet>
   );
 }

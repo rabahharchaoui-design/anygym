@@ -138,7 +138,8 @@ test('the test now line: + New gym, Hotel gym, his equipment, dumbbells max 22 k
   const view = exerciseView(page, dumbbell!);
   await expect(view.getByTestId('set-next')).toContainText('Heaviest here is 45 lb: add reps');
   await shotOn(page, SHOTS, 'heaviest-here', PHONES);
-  await view.getByTestId('weight-cell').first().tap();
+  // PLAN 3.5g: warm up rows come first in the table; the wheel under test is the first WORK set's (target 45 lb).
+  await view.getByTestId('set-todo').filter({ hasNot: page.getByRole('button', { name: /^Warm up set/ }) }).first().getByTestId('weight-cell').tap();
   const wheel = page.getByRole('dialog', { name: 'Pick the weight' }).getByRole('listbox', { name: 'Weight of one dumbbell' });
   await expect(wheel).toBeVisible();
   const weights = await wheel.getByRole('option').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));

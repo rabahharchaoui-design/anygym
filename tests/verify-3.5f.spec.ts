@@ -33,7 +33,8 @@ for (const pct of [100, 130]) {
     await page.getByTestId('build-card').tap();
     await page.getByTestId('min-30').tap();
     await audit(page, 'quick-ideas', pct);
-    await page.locator('[data-concept="strength"]').first().tap();
+    // PLAN D0: the Quick pool grew, so there is no "strength" idea at 30 min any more; this takes the first idea.
+  await page.locator('[data-concept]').first().tap();
     await expect(card(page)).toBeVisible();
     await audit(page, 'quick-deck', pct);
     await page.getByTestId('deck-info').tap();
@@ -127,7 +128,8 @@ test('break: double tap Keep/Start, reload mid deck, offline, hide button', asyn
   await pastIntake(page);
   await page.getByTestId('build-card').tap();
   await page.getByTestId('min-30').tap();
-  await page.locator('[data-concept="strength"]').first().tap();
+  // PLAN D0: the Quick pool grew, so there is no "strength" idea at 30 min any more; this takes the first idea.
+  await page.locator('[data-concept]').first().tap();
   await expect(card(page)).toBeVisible();
   const total = Number((await page.getByTestId('deck-count').textContent())!.split(' of ')[1]);
   await page.getByTestId('deck-keep').dblclick();

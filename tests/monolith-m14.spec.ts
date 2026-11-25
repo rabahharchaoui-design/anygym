@@ -119,7 +119,8 @@ test('M14 You shows every row, words for toggles, and the choices stay after a r
   // Board 13: the gym names as the Gyms row's value.
   await expect(page.getByTestId('settings-gyms-value')).not.toHaveText('');
   // Toggles are words: no track, no filled block; the picked unit is white over a line, not a pill.
-  await expect(page.locator('[data-words] [data-pill]')).toHaveCount(0);
+  // (M15: every toggle is words now; its data-pill is only the thin ice line under the pick.)
+  for (const h of await page.locator('[role="radiogroup"] [data-pill]').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) expect(h).toBeLessThanOrEqual(3);
   const picked = page.getByTestId('settings-distance').locator('[aria-checked="true"]');
   const bg = await picked.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent').toBe(true);

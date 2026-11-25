@@ -85,8 +85,9 @@ test('minimize the workout: back to the tabs, a resume bar on every tab, one tap
   await expect(bar).toBeVisible();
   await expect(bar).toContainText(/Day 1 · \d+:\d\d/);
   await expect(bar).toContainText('Resume');
-  for (const tab of ['History', 'Plans', 'Run']) {
-    await page.getByRole('link', { name: tab }).tap();
+  // PLAN M2/M14: the tab that was "Plans" is now "Plan" (its page heading stays "Plans").
+  for (const tab of ['History', 'Plan', 'Run']) {
+    await page.getByRole('link', { name: tab, exact: true }).tap();
     await expect(bar).toBeVisible();
     // It floats above the tab bar, never on it.
     const r = await bar.boundingBox();
