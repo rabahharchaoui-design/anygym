@@ -78,3 +78,20 @@ test('R1 the map file blocked: the dark placeholder says Map offline, and a run 
   await expect.poll(async () => Number(await page.getByTestId('live-big').textContent())).toBeGreaterThan(0.2);
   await expect(page.getByTestId('app-error')).toHaveCount(0);
 });
+
+test('R1 a reload while a screen file is still on its way is not a load error (nothing logged)', async ({ page }) => {
+  const YOU_FILE = /\/assets\/SettingsScreen-[^/]+\.js$/;
+  // The You file takes a while; the page is reloaded before it arrives (the browser cancels it).
+  await page.route(YOU_FILE, async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue().catch(() => undefined);
+  });
+  await pastIntake(page);
+  await nav(page).getByTestId('tab-you').tap();
+  await expect(page.getByTestId('screen-wait')).toBeVisible();
+  await page.reload();
+  await page.unroute(YOU_FILE);
+  await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();
+  await expect(page.getByTestId('load-error')).toHaveCount(0);
+  // The fixture fails the test on any console error, the logged ScreenLoadError included.
+});
