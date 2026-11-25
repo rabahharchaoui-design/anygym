@@ -1,5 +1,6 @@
 import type { Unit } from '../../db/types';
 import { Sheet } from '../../ui/Sheet';
+import { Button } from '../../ui/Button';
 import { AddedWeightField } from './AddedWeightField';
 import styles from './EquipmentWeightSheet.module.css';
 
@@ -24,9 +25,9 @@ export function AddedWeightSheet({ open, onClose, unit, value, onChange, label }
         <h2 className={styles.title}>Add weight</h2>
         <p className={styles.question}>Vest, belt or a plate you hold.</p>
         {open && <AddedWeightField unit={unit} value={value} onChange={onChange} label={label} />}
-        <button type="button" className={`${styles.primary} pressable`} onClick={onClose}>
+        <Button size="md" onClick={onClose}>
           Done
-        </button>
+        </Button>
       </div>
     </Sheet>
   );

@@ -35,3 +35,11 @@
 .action {
   margin-top: var(--space-6);
 }
+
+/* Keep the next action above the tab bar on short screens. */
+@media (max-height: 900px) {
+  .empty { padding-top: var(--space-2); }
+  .scene { margin-bottom: var(--space-1); }
+  .title { margin-bottom: var(--space-2); }
+  .action { margin-top: var(--space-2); }
+}
