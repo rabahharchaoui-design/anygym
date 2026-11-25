@@ -43,3 +43,16 @@ Fixes:
 - No new picker, sheet or check view: reuse NewGymForm, EquipmentStep and the G1 check.
 
 Tests: unit (the rack is never pre-filled; form save and answered intake set equipmentCheckedAt; skipped intake and bootstrap leave it unset). End to end at 393x852 and 440x956: + New gym cannot be added with dumbbells on and no rack typed; a new gym is never checked again on its first switch; a fresh install's "My Gym" shows the Today row once, Looks right removes it for good, Not now hides it until the next day.
+
+# G1c: Rabah's additions to G1 (Nov 26 2:40 AM)
+Codex had already built G1 and started its full suite when these came in, so they land as G1c on top of G1 (after G1 is merged). G1b builds after G1c.
+
+1. (G1b) The New gym dumbbell field gets a "No dumbbells" option right beside "Heaviest dumbbell": picking it turns dumbbells off for that gym and lets Add turn on without a number. Some hotel gyms have none.
+2. Instant and never blocking: the check view renders from the gym already loaded for the sheet (no await, no spinner, no skeleton before it shows). "Not now" switches right away and writes nothing: not the equipment, not `equipmentCheckedAt`. If saving "Looks right" fails, the switch still happens and a toast says the equipment could not be saved. Tests: "Not now" leaves the gym record byte for byte unchanged and the gym still unconfirmed (it asks again on the next switch); a failed save still switches.
+3. The re-ask rule reads two dates stored on the gym: `equipmentCheckedAt` (last confirmed) and a new additive `lastWorkoutAt` (set when a workout is saved at that gym; for a gym without it, filled once from its newest saved session). Ask when more than 60 days since confirmed AND more than 30 days since the last workout there. Unit tests on each side of both limits: confirmed exactly 60 days ago (no ask) and 60 days plus 1 ms (ask, with the workout limit passed); last workout exactly 30 days ago (no ask) and 30 days plus 1 ms (ask, with the confirm limit passed); a gym with no workouts counts as past the workout limit.
+4. If the corrected equipment removes something in today's plan, Today's "Next up" swaps it with the same exercise swap logic the in workout switch preview already uses (src/lib/gymSwitch.ts and src/db/gymSwitch.ts). No new swap code; the test checks the swap Today shows equals the one the preview would show for the same gym and plan day.
+5. Layout tests with a gym that has every piece of equipment on: at 393x852 (iPhone 15) and at the small phone (iPhone SE, 375x667) the list scrolls inside the sheet, "Looks right" and "Not now" stay visible above the home indicator, and each is at least 44 pt tall.
+6. Style: flat Monolith. Ice blue only on "Looks right"; "Not now" is a quiet titanium text button. Motion from src/ui/motion.ts only: the 220 ms push into the check view and the 160 ms fade, no new timings.
+7. (Done by Claude, Nov 26) The personal name scan now covers every file under public/ (images included: PNG text chunks, compressed or not, and JPEG EXIF or XMP) and docs/art/, in src/lib/__tests__/no-personal-names-art.test.ts, part of npm test in CI.
+
+Merge rule for G1, G1c and G1b: each merges only after its own tests pass at both phone sizes and CI is green.

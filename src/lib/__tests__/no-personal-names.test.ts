@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { personalNames } from './personalNames';
 
 // PLAN 1.10f, SPEC 0.6: no personal names in anything the app ships (plans, UI strings, assets).
 // Scans every text file under src/, data/, public/ and index.html. Test files are not shipped and
@@ -25,14 +26,6 @@ function walk(dir: string, out: string[]): string[] {
   return out;
 }
 
-/**
- * The personal names found in `text`, after removing URLs on github.io / github.com and the
- * public report API host on workers.dev (SPEC 24), which carry the account name.
- */
-export function personalNames(text: string): string[] {
-  const clean = text.replace(/\S*github\.(io|com)\S*/gi, '').replace(/\S*\.workers\.dev\S*/gi, '');
-  return [...clean.matchAll(/ohrabah|harchaoui|\brabah\b/gi)].map((m) => m[0]);
-}
 
 describe('personalNames', () => {
   it('finds the names in any case and ignores GitHub URLs', () => {
