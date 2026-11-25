@@ -1,18 +1,15 @@
-/* PLAN 2.2e: the sliding toggle. One accent pill under equal width options; it slides on the tap
-   spring (--ease-tap-spring, a sampled spring with a small overshoot), the labels change color. */
+/* The sliding toggle (PLAN 2.2e; Monolith since M15, the style sheet's "toggles become words"):
+   equal width options written as words on the page, no well, no filled pill. Not picked: secondary
+   text. Picked: white and bold, with a 3 px ice line under it (the tab bar's mark) that slides
+   between the options on the tap spring (--ease-tap-spring). */
 .toggle {
-  --pad: 3px;
   position: relative;
   flex: none;
   display: inline-grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(56px, 1fr);
-  padding: var(--pad);
-  border-radius: var(--radius-sm);
-  /* A well cut into the glass (3.5t): darker than the card it sits on, so the grey labels keep AA
-     even on a card at the top of the gradient. */
-  background: color-mix(in srgb, var(--black) 24%, transparent);
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  grid-auto-columns: minmax(var(--tap), 1fr);
+  gap: 0;
+  padding: 0;
   isolation: isolate;
 }
 
@@ -21,15 +18,17 @@
   width: 100%;
 }
 
+/* The ice line under the pick (data-pill: the specs' name for the moving mark). */
 .pill {
   position: absolute;
   z-index: 0;
-  top: var(--pad);
-  bottom: var(--pad);
-  left: var(--pad);
-  width: calc((100% - 2 * var(--pad)) / var(--n));
-  border-radius: var(--radius-sm);
+  left: 0;
+  bottom: 6px;
+  width: calc(100% / var(--n));
+  height: var(--tab-mark-h);
+  padding-inline: var(--space-1);
   background: var(--accent);
+  background-clip: content-box;
   transform: translateX(calc(var(--i) * 100%));
   transition: transform var(--dur-tap) var(--ease-tap-spring);
   will-change: transform;
@@ -40,121 +39,58 @@
 .option {
   position: relative;
   z-index: 1;
-  /* 48 pt hit area (SPEC 13.3), reaching over the track's own padding top and bottom so no sliver
-     of the track sits between an option's edge and its probe points at any width (PLAN 3.6). The
-     track keeps its height; the pill stays inset. */
-  min-height: calc(48px + 2 * var(--pad));
-  margin-block: calc(var(--pad) * -1);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-sm);
+  /* 48 pt hit area (SPEC 13.3). */
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-none);
   color: var(--text-2);
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: clamp(15px, 4.4vw, 18px);
+  font-weight: 500;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
   transition:
     color var(--dur-fast) var(--ease-out),
-    transform 160ms var(--ease-out),
-    opacity 160ms var(--ease-out);
+    opacity var(--dur-fast) var(--ease-out);
 }
 
+/* Full width: body size, shrinking on a narrow phone so three words keep their own columns at 320. */
 .toggle[data-block] .option {
-  font-size: var(--text-base);
+  font-size: clamp(15px, 4.8vw, var(--text-mono-body));
 }
 
 .option[aria-checked='true'] {
-  color: var(--on-accent);
-}
-
-/* Glass (3.5f round 3, M6): a raised glass pill and a bright label, so the accent stays the screen's one action. */
-.toggle[data-glass] .pill {
-  background: var(--surface-2);
-  box-shadow:
-    inset 0 0 0 1px var(--glass-line),
-    inset 0 1px 0 color-mix(in srgb, var(--white) 10%, transparent);
-}
-
-.toggle[data-glass] .option[aria-checked='true'] {
   color: var(--text);
+  font-weight: 700;
+}
+
+/* Pressed: dims on the first frame. */
+.option:active:not(:disabled) {
+  opacity: var(--press-dim);
+  transition-duration: 0ms;
 }
 
 .option:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
-.toggle[aria-disabled] {
-  opacity: 0.55;
+.toggle[aria-disabled] .option {
+  color: var(--text-disabled);
 }
 
-/* Disabled (critic P15): the pick still shows, as a dim accent outline, never lost. */
-.toggle[aria-disabled] .pill {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
+/* Disabled (critic P15): the pick still shows, its line dimmed, never lost. */
 .toggle[aria-disabled] .option[aria-checked='true'] {
-  color: var(--text);
+  color: var(--text-2);
+}
+
+.toggle[aria-disabled] .pill {
+  opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pill,
   .option {
-    transition: none;
-  }
-}
-
-/* PLAN M14 (Monolith, board 13): words, no well and no pill. Not picked: secondary text. Picked:
-   white and bold over a 3 px ice line as wide as the word (the tab bar's mark). Still a radiogroup
-   with a 48 pt hit area per word. */
-.toggle[data-words] {
-  --pad: 0px;
-  grid-auto-columns: auto;
-  gap: var(--space-1);
-  padding: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.toggle[data-words] .option {
-  min-width: var(--tap);
-  padding: 0 var(--space-2);
-  font-size: var(--text-mono-body);
-  font-weight: 500;
-}
-
-.toggle[data-words] .option::after {
-  content: '';
-  position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  bottom: 8px;
-  height: var(--tab-mark-h);
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform var(--dur-base) var(--ease-tap-spring);
-}
-
-.toggle[data-words] .option[aria-checked='true'] {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.toggle[data-words] .option[aria-checked='true']::after {
-  transform: scaleX(1);
-}
-
-.toggle[data-words] .option:active {
-  opacity: var(--press-dim);
-  transition-duration: 0ms;
-}
-
-.toggle[data-words][aria-disabled] .option[aria-checked='true']::after {
-  opacity: 0.5;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toggle[data-words] .option::after {
     transition: none;
   }
 }

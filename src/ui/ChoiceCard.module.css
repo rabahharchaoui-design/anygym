@@ -1,21 +1,28 @@
-/* PLAN 2.2e: choice card. The picked card's accent border and the ring's fill answer the tap; the
-   fill scales up on the tap spring from 0.5 (never from 0), the check fades in with it. */
+/* PLAN 2.2e, Monolith since M15: a choice as a row on the surface, a hairline under it, no box and
+   no fill. The picked one is marked by the small square on the right: its outline turns ice blue and
+   the ice check scales in on the tap spring from 0.5 (never from 0). */
 .card {
   width: 100%;
   min-height: 64px;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
+  padding: var(--space-2) 0;
+  border: 0;
+  border-bottom: var(--divider);
+  border-radius: var(--radius-none);
+  background: none;
   color: var(--text);
   text-align: left;
+  -webkit-tap-highlight-color: transparent;
   transition:
-    border-color var(--dur-fast) var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out),
     transform 160ms var(--ease-out);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .card:active:not(:disabled) {
@@ -23,9 +30,8 @@
   transition-duration: 0ms;
 }
 
-.card[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 7%, transparent), color-mix(in srgb, var(--accent) 2%, transparent)), var(--surface-1);
+.card:active:not(:disabled) {
+  opacity: var(--press-dim);
 }
 
 .card:disabled {
@@ -34,12 +40,10 @@
 
 .icon {
   flex: none;
-  width: 40px;
+  width: 28px;
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
   color: var(--text-2);
   transition: color var(--dur-fast) var(--ease-out);
 }
@@ -79,18 +83,19 @@
   font-weight: 600;
 }
 
+/* The small square mark (2 px corners): a hairline when not picked, ice blue when picked. */
 .ring {
   flex: none;
   position: relative;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-md);
-  box-shadow: inset 0 0 0 2px var(--hairline);
-  transition: box-shadow var(--dur-fast) var(--ease-out);
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .card[aria-pressed='true'] .ring {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  border-color: var(--accent);
 }
 
 .fill {
@@ -98,9 +103,8 @@
   inset: 0;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent);
+  background: none;
+  color: var(--accent);
   opacity: 0;
   transform: scale(0.5);
   transition:
@@ -138,8 +142,7 @@
   content: '';
   position: absolute;
   inset: 4px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: none;
   transition: opacity var(--dur-fast) var(--ease-out);
 }
 
@@ -162,14 +165,6 @@
 .card[data-flat] {
   min-height: var(--row-min);
   padding: var(--space-3) 0;
-  border: 0;
-  border-bottom: var(--divider);
-  border-radius: var(--radius-none);
-  background: none;
-}
-
-.card[data-flat][aria-pressed='true'] {
-  background: none;
 }
 
 .card[data-flat] .label {
@@ -182,7 +177,7 @@
 
 .card[data-flat] .ring,
 .card[data-flat][aria-pressed='true'] .ring {
-  box-shadow: none;
+  border-color: transparent;
 }
 
 .card[data-flat] .fill {

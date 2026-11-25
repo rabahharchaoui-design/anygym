@@ -62,6 +62,7 @@
   --text-mono-hero: clamp(96px, 34.9vw, 196px); /* 150 at 430 */
   --text-mono-title: clamp(64px, 22.3vw, 96px); /* 96 at 430 */
   --text-mono-heading: clamp(32px, 10.2vw, 44px); /* 44 at 430, the primary button too */
+  --text-mono-empty: clamp(40px, 14.9vw, 64px); /* an empty state's words (board 12): 64 at 430 */
   --text-mono-heading-pair: clamp(24px, 7vw, 30px); /* two buttons share a row: 30 at 430 */
   /* 84 at 430 wide, never under 60; on a short screen (the browser's 659 px) it gives way to the numbers. */
   --text-mono-pause: min(clamp(60px, 19.5vw, 84px), max(60px, calc(var(--app-height) * 0.09)));

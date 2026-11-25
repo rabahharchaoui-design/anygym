@@ -80,6 +80,20 @@
   outline: none;
 }
 
+/* The sheet's title (PLAN M15, the style sheet's heading): every sheet's h2 is heavy display type,
+   left aligned on the sheet, at the size two buttons share a row (30 px at 430), so a sheet title
+   never takes more room than before. One rule here, so every sheet picks it up. */
+.sheet h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-mono-heading-pair);
+  font-weight: var(--weight-heavy);
+  letter-spacing: var(--track-heading);
+  line-height: 1.1;
+  text-align: left;
+  /* Clear of the grabber bar above it (the heavy caps sit higher than the old title's). */
+  padding-top: 6px;
+}
+
 /* The grabber is also the Close button (labelled for screen readers). Last in the DOM, drawn first.
    Its 49px hit area reaches 24px up over the scrim (which closes too), so the layout below is
    exactly as before and it never covers the sheet's own content. */

@@ -125,7 +125,6 @@ export function SettingsScreen() {
               <span className={styles.unitHint}>For runs.</span>
             </span>
             <Segmented
-              words
               labelledBy="distance-label"
               testId="settings-distance"
               options={[
@@ -145,7 +144,6 @@ export function SettingsScreen() {
               <span className={styles.unitHint}>Height and the like.</span>
             </span>
             <Segmented
-              words
               labelledBy="measure-label"
               testId="settings-measure"
               options={[
@@ -158,7 +156,6 @@ export function SettingsScreen() {
             />
           </div>
           <Switch
-            words
             label="Voice coach"
             hint="Says your time and pace on runs, over your music."
             checked={voice?.on ?? false}
@@ -190,7 +187,7 @@ export function SettingsScreen() {
           Feel
         </h2>
         <div className={styles.card}>
-          <Switch words label="Haptics" hint="A light tap when you check a set, add a plate or switch tabs." checked={hapticsOn} onChange={(on) => haptics.setEnabled(on)} />
+          <Switch label="Haptics" hint="A light tap when you check a set, add a plate or switch tabs." checked={hapticsOn} onChange={(on) => haptics.setEnabled(on)} />
           <div className={`${styles.unitRow} ${styles.feelRow}`}>
             <span className={styles.unitText}>
               <span className={styles.unitLabel} id="body-label">
@@ -199,7 +196,6 @@ export function SettingsScreen() {
               <span className={styles.unitHint}>Which body the muscle map shows.</span>
             </span>
             <Segmented
-              words
               labelledBy="body-label"
               testId="settings-body"
               options={[
@@ -220,7 +216,6 @@ export function SettingsScreen() {
         <div className={styles.card}>
           {/* SPEC 24: on by default; off also deletes crash reports still waiting to be sent. */}
           <Switch
-            words
             label="Send crash reports"
             hint="If AnyGym breaks, it sends us a short note about what broke. Never your workouts or anything personal."
             checked={crashOn}

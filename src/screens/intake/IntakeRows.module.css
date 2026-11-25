@@ -189,31 +189,3 @@
   box-shadow: none;
 }
 
-/* .words: the shared sliding toggle as words (units, the deck's Cards / Love / Never, height): no
-   track, no filled pill; the picked word white over an ice line that slides on the same spring. */
-.words [role='radiogroup'][data-block] {
-  background: none;
-  box-shadow: none;
-  padding-inline: 0;
-}
-
-.words [role='radiogroup'][data-block] [data-pill] {
-  top: auto;
-  bottom: 6px;
-  left: 0;
-  width: calc(100% / var(--n));
-  height: 2px;
-  background: var(--accent);
-  box-shadow: none;
-}
-
-.words [role='radiogroup'][data-block] [role='radio'] {
-  color: var(--text-2);
-  font-size: var(--text-mono-body);
-  font-weight: 600;
-}
-
-.words [role='radiogroup'][data-block] [role='radio'][aria-checked='true'] {
-  color: var(--text);
-  font-weight: 700;
-}

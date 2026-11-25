@@ -1,28 +1,21 @@
+/* Monolith (PLAN M15): a row on the page, hairline above and below, no box and no fill. The sentence,
+   then Try again as heavy words over the ice blue line (left aligned, as wide as its words). */
 .box {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-top: var(--divider);
+  border-bottom: var(--divider);
   animation: rise var(--dur-base) var(--ease-spring) both;
 }
 
 .text {
   margin: 0;
+  font-size: var(--text-mono-body);
   font-weight: 600;
-}
-
-.retry {
-  flex: none;
-  min-height: 48px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 700;
+  line-height: 1.3;
 }
 
 @keyframes rise {

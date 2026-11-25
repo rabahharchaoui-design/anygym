@@ -14,7 +14,8 @@ type Props = {
 };
 
 /**
- * The small ⓘ next to an equipment name or gym term (SPEC 13.7): secondary colour, a 24 pt glyph
+ * The small info mark next to an equipment name or gym term (SPEC 13.7; Monolith, PLAN M15: an i in a
+ * square with 2 px corners, never a circle): secondary colour, a 24 pt glyph
  * inside a 48 pt hit area. Opens the info sheet. Renders nothing for an unknown id.
  */
 export function InfoButton({ id, className, art, showWeight = true }: Props) {
@@ -35,7 +36,7 @@ export function InfoButton({ id, className, art, showWeight = true }: Props) {
         }}
       >
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-          <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <rect x="3.5" y="3.5" width="17" height="17" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
           <circle cx="12" cy="7.6" r="1.25" fill="currentColor" />
           <path d="M12 11v6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
         </svg>
