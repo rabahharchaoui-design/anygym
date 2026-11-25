@@ -47,3 +47,8 @@ Graphite #131417 background, flat white and titanium #8A9099, ice blue #9FD3FF a
 Badges and passport stamps are flat and matte. No Titanium Glass anywhere: graphite #131417, white and titanium #8A9099, ice blue #9FD3FF as the only accent, square cuts. Build the badge and stamp slots and placeholders in this style (the missing art fallback is a flat titanium mark in a square cut, not a glossy circle). Pluto delivers the final Monolith art. The passport stamp moment itself is M19f (docs/ux-polish-m19.md).
 
 City text on the stamp follows CITY TEXT ON STAMPS in docs/ux-polish-m19.md (Rabah, Nov 25 11:38 PM): city in caps as the main text, bigger than the date, shrunk to fit its band, never cut off.
+
+BADGE ART DECISION (Rabah, Nov 26 12:33 AM):
+- M18 uses this spec's badge list. Final Monolith art is in public/badges/ only for comeback, early-bird and night-owl. The other 9 M18 badges (first-workout, streak-3, streak-7, streak-30, week-complete, new-pr, new-city, and the tiered workouts and lifted badges) show the flat titanium placeholder until Pluto delivers them in Monolith with -locked variants under the same filename rules (a drop in swap, no code change).
+- public/badges/ also holds 10k, 5k, half-marathon, hotel-hero, iron-week and plate-master. They are kept for future run and gym badges and must NOT appear anywhere in M18 (finish screen, Badges page, locked grid).
+- No new art request is needed for M18d: Pluto is already drawing the missing 9.

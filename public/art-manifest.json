@@ -1,0 +1,473 @@
+{
+  "style": "Monolith",
+  "palette": {
+    "graphite": "#131417",
+    "white": "#FFFFFF",
+    "titanium": "#8A9099",
+    "ice_blue": "#9FD3FF",
+    "locked_silhouette": "#2A2C30",
+    "locked_mark": "#34373C"
+  },
+  "badges": {
+    "5k": {
+      "title": "5K",
+      "files": [
+        "badges/badge-5k.png",
+        "badges/badge-5k-1024.png",
+        "badges/badge-5k-locked.png",
+        "badges/badge-5k-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "10k": {
+      "title": "10K",
+      "files": [
+        "badges/badge-10k.png",
+        "badges/badge-10k-1024.png",
+        "badges/badge-10k-locked.png",
+        "badges/badge-10k-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "half-marathon": {
+      "title": "Half Marathon",
+      "files": [
+        "badges/badge-half-marathon.png",
+        "badges/badge-half-marathon-1024.png",
+        "badges/badge-half-marathon-locked.png",
+        "badges/badge-half-marathon-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "comeback": {
+      "title": "Comeback",
+      "files": [
+        "badges/badge-comeback.png",
+        "badges/badge-comeback-1024.png",
+        "badges/badge-comeback-locked.png",
+        "badges/badge-comeback-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "early-bird": {
+      "title": "Early Bird",
+      "files": [
+        "badges/badge-early-bird.png",
+        "badges/badge-early-bird-1024.png",
+        "badges/badge-early-bird-locked.png",
+        "badges/badge-early-bird-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "night-owl": {
+      "title": "Night Owl",
+      "files": [
+        "badges/badge-night-owl.png",
+        "badges/badge-night-owl-1024.png",
+        "badges/badge-night-owl-locked.png",
+        "badges/badge-night-owl-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "iron-week": {
+      "title": "Iron Week",
+      "files": [
+        "badges/badge-iron-week.png",
+        "badges/badge-iron-week-1024.png",
+        "badges/badge-iron-week-locked.png",
+        "badges/badge-iron-week-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "hotel-hero": {
+      "title": "Hotel Hero",
+      "files": [
+        "badges/badge-hotel-hero.png",
+        "badges/badge-hotel-hero-1024.png",
+        "badges/badge-hotel-hero-locked.png",
+        "badges/badge-hotel-hero-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    },
+    "plate-master": {
+      "title": "Plate Master",
+      "files": [
+        "badges/badge-plate-master.png",
+        "badges/badge-plate-master-1024.png",
+        "badges/badge-plate-master-locked.png",
+        "badges/badge-plate-master-locked-1024.png"
+      ],
+      "style": "Monolith flat medallion: #131417 graphite disc (88% circle, 6% margin), #8A9099 flat titanium ring, #FFFFFF geometric mark (~55%), #9FD3FF ice-blue inset"
+    }
+  },
+  "stamps": {
+    "stamp-circle-ice.png": {
+      "file": "stamps/stamp-circle-ice.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "circle",
+      "ink_hex": "#9FD3FF",
+      "original_color": "ice",
+      "monolith_color": "ice",
+      "city_band": {
+        "rect_px": {
+          "x": 444,
+          "y": 838,
+          "w": 1160,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.216797,
+          "y": 0.40918,
+          "w": 0.566406,
+          "h": 0.109863
+        },
+        "text_color": "#9FD3FF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 97
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 676,
+          "y": 1099,
+          "w": 696,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.330078,
+          "y": 0.536621,
+          "w": 0.339844,
+          "h": 0.054688
+        },
+        "text_color": "#9FD3FF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 68
+      },
+      "notes": "Color unchanged; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    },
+    "stamp-circle-silver.png": {
+      "file": "stamps/stamp-circle-silver.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "circle",
+      "ink_hex": "#8A9099",
+      "original_color": "silver",
+      "monolith_color": "titanium",
+      "city_band": {
+        "rect_px": {
+          "x": 444,
+          "y": 838,
+          "w": 1160,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.216797,
+          "y": 0.40918,
+          "w": 0.566406,
+          "h": 0.109863
+        },
+        "text_color": "#8A9099",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 97
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 676,
+          "y": 1099,
+          "w": 696,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.330078,
+          "y": 0.536621,
+          "w": 0.339844,
+          "h": 0.054688
+        },
+        "text_color": "#8A9099",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 68
+      },
+      "notes": "Color changed from silver to titanium (#8A9099) for Monolith compliance; filename kept for drop-in swap; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    },
+    "stamp-rounded-rect-ice.png": {
+      "file": "stamps/stamp-rounded-rect-ice.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "rect-square-cut",
+      "ink_hex": "#9FD3FF",
+      "original_color": "ice",
+      "monolith_color": "ice",
+      "city_band": {
+        "rect_px": {
+          "x": 444,
+          "y": 838,
+          "w": 1160,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.216797,
+          "y": 0.40918,
+          "w": 0.566406,
+          "h": 0.109863
+        },
+        "text_color": "#9FD3FF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 97
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 676,
+          "y": 1099,
+          "w": 696,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.330078,
+          "y": 0.536621,
+          "w": 0.339844,
+          "h": 0.054688
+        },
+        "text_color": "#9FD3FF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 68
+      },
+      "notes": "Color unchanged; corners changed from rounded to sharp square-cut; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    },
+    "stamp-rounded-rect-amber.png": {
+      "file": "stamps/stamp-rounded-rect-amber.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "rect-square-cut",
+      "ink_hex": "#FFFFFF",
+      "original_color": "amber",
+      "monolith_color": "white",
+      "city_band": {
+        "rect_px": {
+          "x": 444,
+          "y": 838,
+          "w": 1160,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.216797,
+          "y": 0.40918,
+          "w": 0.566406,
+          "h": 0.109863
+        },
+        "text_color": "#FFFFFF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 97
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 676,
+          "y": 1099,
+          "w": 696,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.330078,
+          "y": 0.536621,
+          "w": 0.339844,
+          "h": 0.054688
+        },
+        "text_color": "#FFFFFF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 68
+      },
+      "notes": "Color changed from amber to white (#FFFFFF) for Monolith compliance; filename kept for drop-in swap; corners changed from rounded to sharp square-cut; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    },
+    "stamp-hexagon-silver.png": {
+      "file": "stamps/stamp-hexagon-silver.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "hexagon",
+      "ink_hex": "#8A9099",
+      "original_color": "silver",
+      "monolith_color": "titanium",
+      "city_band": {
+        "rect_px": {
+          "x": 472,
+          "y": 838,
+          "w": 1104,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.230469,
+          "y": 0.40918,
+          "w": 0.539062,
+          "h": 0.109863
+        },
+        "text_color": "#8A9099",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 91
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 696,
+          "y": 1099,
+          "w": 656,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.339844,
+          "y": 0.536621,
+          "w": 0.320312,
+          "h": 0.054688
+        },
+        "text_color": "#8A9099",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 67
+      },
+      "notes": "Color changed from silver to titanium (#8A9099) for Monolith compliance; filename kept for drop-in swap; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    },
+    "stamp-shield-ice.png": {
+      "file": "stamps/stamp-shield-ice.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "shield",
+      "ink_hex": "#9FD3FF",
+      "original_color": "ice",
+      "monolith_color": "ice",
+      "city_band": {
+        "rect_px": {
+          "x": 534,
+          "y": 711,
+          "w": 980,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.260742,
+          "y": 0.347168,
+          "w": 0.478516,
+          "h": 0.109863
+        },
+        "text_color": "#9FD3FF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 81
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 730,
+          "y": 972,
+          "w": 588,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.356445,
+          "y": 0.474609,
+          "w": 0.287109,
+          "h": 0.054688
+        },
+        "text_color": "#9FD3FF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 59
+      },
+      "notes": "Color unchanged; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    },
+    "stamp-oval-amber.png": {
+      "file": "stamps/stamp-oval-amber.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "oval",
+      "ink_hex": "#FFFFFF",
+      "original_color": "amber",
+      "monolith_color": "white",
+      "city_band": {
+        "rect_px": {
+          "x": 454,
+          "y": 838,
+          "w": 1140,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.22168,
+          "y": 0.40918,
+          "w": 0.556641,
+          "h": 0.109863
+        },
+        "text_color": "#FFFFFF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 94
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 684,
+          "y": 1099,
+          "w": 680,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.333984,
+          "y": 0.536621,
+          "w": 0.332031,
+          "h": 0.054688
+        },
+        "text_color": "#FFFFFF",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 68
+      },
+      "notes": "Color changed from amber to white (#FFFFFF) for Monolith compliance; filename kept for drop-in swap; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    },
+    "stamp-oval-silver.png": {
+      "file": "stamps/stamp-oval-silver.png",
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "shape": "oval",
+      "ink_hex": "#8A9099",
+      "original_color": "silver",
+      "monolith_color": "titanium",
+      "city_band": {
+        "rect_px": {
+          "x": 454,
+          "y": 838,
+          "w": 1140,
+          "h": 225
+        },
+        "rect_frac": {
+          "x": 0.22168,
+          "y": 0.40918,
+          "w": 0.556641,
+          "h": 0.109863
+        },
+        "text_color": "#8A9099",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 94
+      },
+      "date_band": {
+        "rect_px": {
+          "x": 684,
+          "y": 1099,
+          "w": 680,
+          "h": 112
+        },
+        "rect_frac": {
+          "x": 0.333984,
+          "y": 0.536621,
+          "w": 0.332031,
+          "h": 0.054688
+        },
+        "text_color": "#8A9099",
+        "alignment": "center",
+        "suggested_max_cap_height_px": 68
+      },
+      "notes": "Color changed from silver to titanium (#8A9099) for Monolith compliance; filename kept for drop-in swap; empty city band (primary) and smaller date band below; app draws all text, art stays letter-free"
+    }
+  }
+}
