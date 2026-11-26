@@ -22,6 +22,11 @@ export interface WarmDeps {
 
 export type WarmResult = { saved: number; kept: number; failed: number; stopped: boolean };
 
+/** A save is done only when it ran to the end and every file is kept (PLAN R2); else it goes again later. */
+export function warmIsDone(r: { stopped: boolean; failed?: number } | undefined): boolean {
+  return !!r && !r.stopped && !(r.failed && r.failed > 0);
+}
+
 /** Fetch and keep each URL the cache does not hold yet, `batch` at a time. */
 export async function warmPhotos(urls: readonly string[], deps: WarmDeps, signal?: AbortSignal, batch = 3): Promise<WarmResult> {
   const result: WarmResult = { saved: 0, kept: 0, failed: 0, stopped: false };

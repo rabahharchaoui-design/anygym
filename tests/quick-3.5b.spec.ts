@@ -81,8 +81,9 @@ test.describe('Quick workout ideas: diverse and full', () => {
         { id: 'seed-y', gymId, startedAt: Date.now() - 86_400_000, endedAt: Date.now() - 86_000_000, imported: false, exerciseIds: ['cable-tricep-pushdown'] },
       ],
       sets: [
-        ...['cable-seated-close-grip-row', 'cable-single-arm-bicep-curl'].map((exerciseId, order) => ({ id: `seed-${order}`, sessionId: 'seed', exerciseId, order, kind: 'work', uncertain: false, reps: 10, load })),
-        { id: 'seed-y-0', sessionId: 'seed-y', exerciseId: 'cable-tricep-pushdown', order: 0, kind: 'work', uncertain: false, reps: 10, load },
+        // PLAN H2 (SPEC 20.3): 3 working sets per lift, so each one trains its group.
+        ...['cable-seated-close-grip-row', 'cable-single-arm-bicep-curl'].flatMap((exerciseId, e) => [0, 1, 2].map((n) => ({ id: `seed-${e * 3 + n}`, sessionId: 'seed', exerciseId, order: e * 3 + n, kind: 'work', uncertain: false, reps: 10, load }))),
+        ...[0, 1, 2].map((order) => ({ id: `seed-y-${order}`, sessionId: 'seed-y', exerciseId: 'cable-tricep-pushdown', order, kind: 'work', uncertain: false, reps: 10, load })),
       ],
     });
     await openQuick(page, 30);

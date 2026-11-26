@@ -201,7 +201,7 @@ export function LiveRun({ live, wake, saveFailed, autosaveFailed, reduceMotion, 
             </button>
           </div>
           <div className={styles.page} aria-hidden={page !== 1}>
-            {mapSeen && <LiveMap live={live} readout={readout} reduceMotion={reduceMotion} inset={inset} locked={locked} />}
+            {mapSeen && <LiveMap live={live} readout={readout} reduceMotion={reduceMotion} inset={inset} locked={locked} now={Date.now()} />}
             {/* The map keeps its own drags: only a swipe that starts on this left edge turns the page. */}
             <div
               className={styles.edge}
