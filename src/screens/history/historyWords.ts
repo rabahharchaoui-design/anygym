@@ -12,6 +12,7 @@ import { dayIndexOf } from '../../lib/plans';
 import { dayWorkout } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
 import { IMPORTED_LABEL, isImportOrder } from '../../lib/import/importOrder';
+import { workoutTime } from '../../lib/workoutTime';
 
 /** "Day 3 · Back and biceps" for a plan day, the exercise for an imported one, else "Quick workout". */
 export function workoutTitle(session: Session): string {
@@ -69,4 +70,18 @@ export const runTitle = (run: Run): string => `${runLabel(run.type)}${run.goal ?
 /** "5.02 km · 31:08". A run with no usable distance (SPEC 12.3: no GPS) shows words, never numbers. */
 export function runFacts(run: Run, unit: DistanceUnit): string {
   return runVerdict(run) === 'ok' ? `${distanceWithUnit(run.distanceM, unit)} · ${formatElapsed(run.movingSec)}` : 'No distance recorded';
+}
+
+/** A History row's right side (board 11): the main number in bold and a small detail under it. */
+export type RowFacts = { main: string; detail?: string };
+
+/** A workout: its time when the app knows it (start and finish both saved), the sets under it; else the sets alone. */
+export function workoutFacts(session: Session, sets: number): RowFacts {
+  const known = session.endedAt !== undefined && !session.imported && !isImportOrder(session.startedAt);
+  return known ? { main: workoutTime(session.startedAt, session.endedAt!).words, detail: setCount(sets) } : { main: setCount(sets) };
+}
+
+/** A run: distance, the moving time under it. A run with no usable distance says so in words, never a number. */
+export function runRowFacts(run: Run, unit: DistanceUnit): RowFacts {
+  return runVerdict(run) === 'ok' ? { main: distanceWithUnit(run.distanceM, unit), detail: formatElapsed(run.movingSec) } : { main: '', detail: 'No distance recorded' };
 }

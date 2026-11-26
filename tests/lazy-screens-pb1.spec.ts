@@ -60,7 +60,7 @@ test('PB1 every app file, the lazy screens included, is in the service worker pr
   const dist = process.env.PW_DIST ?? 'dist';
   const sw = readFileSync(`${dist}/sw.js`, 'utf8');
   const js = readdirSync(`${dist}/assets`).filter((f) => f.endsWith('.js') && !f.startsWith('catalog-candidates-'));
-  for (const name of ['SettingsScreen-', 'GymsScreen-', 'GymDetail-', 'GymEquipment-', 'ImportReview-', 'ReviewScreen-', 'CandidateReviewScreen-']) {
+  for (const name of ['SettingsScreen-', 'GymsScreen-', 'GymDetail-', 'GymEquipment-', 'ImportReview-', 'ReviewScreen-', 'CandidateReviewScreen-', 'RunScreen-', 'RunDetail-', 'RunRecords-', 'RunMapGl-']) {
     expect(js.some((f) => f.startsWith(name)), name).toBe(true);
   }
   for (const f of js) expect(sw, f).toContain(`"assets/${f}"`);

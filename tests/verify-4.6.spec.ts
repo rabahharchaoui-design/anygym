@@ -100,7 +100,7 @@ test.describe('4.6 finish, history, share, GPX', () => {
     await page.goto('./#/history');
     const row = page.getByTestId('history-run-row');
     await expect(row).toHaveCount(1);
-    await expect(row).toContainText(/2\.\d\d km · \d+:\d\d/);
+    await expect(row).toContainText(/2\.\d\d km\s*\d+:\d\d/); // M6, board 11: distance and time on two lines, no dot
     await shot(page, 'history');
     await checkLayout(page);
 

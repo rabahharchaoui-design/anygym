@@ -86,7 +86,7 @@ export function PlanViewer() {
 
   return (
     <div className={styles.viewer}>
-      <TopBar title={plan.name} leading={<BackButton to={backTo} label={`Back to ${place?.label ?? 'Plans'}`} />}>
+      <TopBar giant title={plan.name} leading={<BackButton to={backTo} label={`Back to ${place?.label ?? 'Plans'}`} />}>
         <p className={styles.viewerMeta}>{planMeta(plan)}</p>
         <p className={styles.viewerSummary}>{plan.summary}</p>
       </TopBar>

@@ -1,0 +1,107 @@
+/* Board 10: the plan's days as rows on the page, a hairline over the first and under every row. */
+
+.week {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  border-top: var(--divider);
+}
+
+.item {
+  position: relative;
+  border-bottom: var(--divider);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(3.6em, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-4);
+  min-height: 72px;
+  padding: var(--space-3) 0;
+  color: var(--text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.day {
+  color: var(--text-2);
+  font-size: var(--text-mono-caption);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.name {
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-mono-value);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  overflow-wrap: break-word;
+}
+
+/* Narrow phones and large text: the small day label goes over the name, so the name keeps the width
+   and a word never breaks in its middle. */
+@media (max-width: 379px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'day mark' 'name mark';
+    row-gap: 2px;
+  }
+
+  .day {
+    grid-area: day;
+  }
+
+  .name {
+    grid-area: name;
+  }
+
+  .mark {
+    grid-area: mark;
+  }
+}
+
+.mark {
+  justify-self: end;
+  color: var(--text-2);
+  font-size: var(--text-mono-caption);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.tick {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+/* The day up next: a short ice blue bar at the screen's left edge and the word in ice blue. */
+.item[data-state='next'] .day {
+  color: var(--text);
+}
+
+.item[data-state='next'] .mark {
+  color: var(--accent);
+}
+
+.item[data-state='next']::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--page-pad-l, var(--side)));
+  top: 50%;
+  width: 4px;
+  height: 40px;
+  margin-top: -20px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+/* Days still to come in this pass are a step quieter than the one up next, as board 10's rest days. */
+.item[data-state='todo'] .name,
+.item[data-state='partial'] .name {
+  color: var(--text-2);
+}

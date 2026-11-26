@@ -16,7 +16,7 @@ import { LoadsDevScreen } from './screens/dev/LoadsDevScreen';
 import { InfoDevScreen } from './screens/dev/InfoDevScreen';
 import { ViewportDevScreen } from './screens/dev/ViewportDevScreen';
 import { UiDevScreen } from './screens/dev/UiDevScreen';
-import { CandidateReviewScreen, GymDetail, GymEquipment, GymsScreen, ImportReview, preloadTabs, ReviewScreen, SettingsScreen } from './screens/lazyScreens';
+import { CandidateReviewScreen, GymDetail, GymEquipment, GymsScreen, ImportReview, preloadRun, preloadTabs, ReviewScreen, RunDetail, RunRecords, RunScreen, SettingsScreen } from './screens/lazyScreens';
 import { devToolsEnabled } from './screens/dev/devFlag';
 import { AppMarkLoader } from './ui/AppMarkLoader';
 import { IntakeGate } from './components/IntakeGate';
@@ -26,14 +26,8 @@ import { useWarmPlanPhotos } from './hooks/useWarmPlanPhotos';
 
 const DEV_TOOLS = devToolsEnabled();
 // Lazy, so the catalog JSON it reads stays out of the main bundle.
-// PLAN 4.2: the Run tab's start screen is its own chunk, fetched right after the app starts (below),
-// so it is there before the tab is tapped and stays out of the first download. MapLibre is a
-// further chunk that only the open Run tab asks for.
-const loadRun = () => import('./screens/run/RunScreen').then((m) => ({ default: m.RunScreen }));
-const RunScreen = lazy(loadRun);
-// A run's detail and the records load when opened: they bring the map and the share card.
-const RunDetail = lazy(() => import('./screens/history/RunDetail').then((m) => ({ default: m.RunDetail })));
-const RunRecords = lazy(() => import('./screens/history/RunRecords').then((m) => ({ default: m.RunRecords })));
+// PLAN 4.2: the Run tab's start screen, a run's detail and the records are their own chunks
+// (src/screens/lazyScreens.ts, PLAN R1). MapLibre is a further chunk that only an open map asks for.
 // PLAN M1: the Monolith pieces preview. Only in the dev server and in builds made with
 // VITE_DEV_PREVIEW=1 (the Playwright build, playwright.config.ts): the shipped build has no route
 // and no chunk for it, since the constant below is replaced at build time and the import dropped.
@@ -50,7 +44,7 @@ export function App() {
   // The Run tab's chunk and the other lazy tabs (PLAN PB1), once the first screen has settled. A failed fetch is tried again by the tab itself.
   useEffect(() => {
     const t = window.setTimeout(() => {
-      void loadRun().catch(() => undefined);
+      void preloadRun();
       preloadTabs();
     }, 1200);
     return () => window.clearTimeout(t);
@@ -89,17 +83,10 @@ export function App() {
           }
         >
           <Route index element={<TodayScreen />} />
-          <Route
-            path="run"
-            element={
-              <Suspense fallback={null}>
-                <RunScreen />
-              </Suspense>
-            }
-          />
+          <Route path="run" element={<RunScreen />} />
           <Route path="history" element={<HistoryScreen />} />
-          <Route path="history/runs" element={<Suspense fallback={null}><RunRecords /></Suspense>} />
-          <Route path="history/run/:runId" element={<Suspense fallback={null}><RunDetail /></Suspense>} />
+          <Route path="history/runs" element={<RunRecords />} />
+          <Route path="history/run/:runId" element={<RunDetail />} />
           <Route path="history/:sessionId" element={<HistoryDetail />} />
           <Route path="quick" element={<QuickScreen />} />
           <Route path="plans" element={<PlansScreen />} />

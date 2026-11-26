@@ -21,6 +21,8 @@ export type CoachView = {
   freshNamed: ReadonlyArray<{ name: string; band: FreshBand }>;
   /** PLAN 3.5g: logged lately, muscles not confirmed (named under the map, never drawn on it). */
   unmapped: readonly string[];
+  /** PLAN R1 (4): sure muscles logged lately that have no shape on the map, by their own names. */
+  unshaped: readonly string[];
   /** PLAN 3.5g: the coach has (or had today) a card: Today shows no backup reminder. */
   busy: boolean;
 };
@@ -86,5 +88,5 @@ export function useCoach(enabled: boolean): CoachView {
   // "nothing yet" of before, and Today must not draw without the coach and let its card come in after
   // the day card (an entrance that waits on script animation frames, and a shift of the page).
   const landed = live.ready && (data !== undefined || !!live.error);
-  return { ready: !enabled || landed, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, freshNamed: live.error ? NO_FRESH : freshNamed, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), busy };
+  return { ready: !enabled || landed, today: live.error ? null : today, data, fresh: live.error ? NONE : fresh, freshNamed: live.error ? NO_FRESH : freshNamed, unmapped: live.error ? NO_NAMES : (data?.unmapped ?? NO_NAMES), unshaped: live.error ? NO_NAMES : (data?.unshaped ?? NO_NAMES), busy };
 }

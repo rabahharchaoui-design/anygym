@@ -16,8 +16,16 @@
   letter-spacing: var(--track-label);
   line-height: 1.2;
   text-transform: uppercase;
-  /* in a narrow column at the largest text size a long label breaks rather than runs into the next field */
-  overflow-wrap: anywhere;
+  /* PLAN R1 (6): a label breaks only between words, never inside one ("DISTANCE" stays whole). In a
+     narrow column (the run summary's three-up row at 320 pt) the tracking goes before a word could break. */
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+@container (max-width: 112px) {
+  .label {
+    letter-spacing: 0;
+  }
 }
 
 .line {

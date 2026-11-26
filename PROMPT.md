@@ -26,6 +26,11 @@ MERGE GATE (the last item of each session)
 CHECKPOINTS
 Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. NEVER BATCH CHECKPOINTS (G, Nov 11: he opened the app and saw none of the day's work): before starting any item, compare master with the session branch; if any checked item is not on master yet, checkpoint first. A checked item that is not live does not count as done for G. Write the test-now line (which the phone watcher turns into the ready to test push) ONLY after the Pages deploy run is green AND the live site serves the new build (fetch the live index and check the new asset hash); G, Nov 11 11:34 PM, opened the app during a deploy and saw the old version. Master is always usable and saved data is never lost.
 
+CODEX FIRST AFTER EACH WEEKLY RESET (G, Nov 25 4:41 PM)
+- From the Thursday 8 PM reset on, every run starts by reviewing and merging Codex's passing builds (reports/codex/build-*.md with STATUS: NEW and a PASS from the full suite) before building anything new. Codex only hands over builds that pass; builds marked FAILED or REJECTED are not yours to fix.
+- Q3 is split into Q3a, Q3b and Q3c; each says which part must be merged first. Merge a Codex build with a message that starts "Merge Codex <id>" (for example "Merge Codex Q3a: ..."): Codex starts the next part only once it sees that merge on s4-run.
+- Keep your own usage for reviews, merges and shipping; Codex does the fixing.
+
 CODEX AND GROK BUILDS NEED A FULL SUITE PASS (G, Nov 23 12:05 AM; until G says otherwise)
 - A codex-build-* or grok-build-* branch never counts as done, never gets its PLAN tick and never goes live (no merge into s4-run or master) until .loop-tools/verify/<branch name>.txt exists for that branch's exact commit and its last RESULT line says PASS. That file comes from .loop-tools/full-suite.sh (the whole Vitest suite plus the whole Playwright suite, about 5,900 phone tests, failures rechecked and compared with the commit before the change). Get one with `echo "fullsuite <branch>" > .grok-cmd`. A build report's own "Tests:" line is not enough. If the branch changes after the run, run it again.
 - Put the test count and result from that file in the merge commit message and in the item's report.
@@ -104,6 +109,7 @@ GROK CREW (added Nov 17 2026, G: "add it to build in the loop"; Grok runs on G's
   - Spend at most about 10 minutes triaging grok-qa issues per run; fixes go through the normal builder and tester flow.
 
 PLUTO ART (added Nov 17 2026, G: "tell bots to do all this, not me")
+- Art decision (Rabah, Nov 25 11:28 PM): Monolith everything. Badges and passport stamps are flat and matte, no Titanium Glass anywhere: graphite #131417, white and titanium #8A9099, ice blue #9FD3FF the only accent, square cuts. Slots and placeholders are built in this style before the art lands; Pluto delivers the final Monolith art (docs/finish-celebration.md, docs/ux-polish-m19.md).
 - Pluto is G's art Grok Bot. It only makes images, on G's xAI plan (no Claude usage). You ask it for art by filing an issue in the PRIVATE repo rabahharchaoui-design/anygym-art; it pushes the images there (its token only reaches that repo), and the Grok helper copies finished jobs to .design-ref/pluto/<issue number>/ (git ignored) and writes reports/pluto/<issue number>.md.
 - ASK AHEAD: at the start of every run, look at the next 6 open PLAN items. For each one that needs decorative art the repo does not have yet (badges, passport stamp frames, share card backgrounds, achievement art, empty state art), and that has no art-request issue yet (open or closed), file one:
   gh label create art-request --repo rabahharchaoui-design/anygym-art --color 9FD3FF 2>/dev/null; gh issue create --repo rabahharchaoui-design/anygym-art --label art-request --title "<item id> art: <short name>" --body "<brief>"
