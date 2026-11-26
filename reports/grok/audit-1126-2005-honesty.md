@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED Nov 26: the stack raise judged on the pin alone is real, new item R3 (1) (triage /tmp/grok-triage-14.md)
 Grok Build honesty audit, written Nov 26 20:20 at 834fe0c3. A second opinion, not orders: SPEC.md wins.
 
 I'll audit only what's already built, starting with the spec, the plan, and the newest reports so I don't repeat known findings.
