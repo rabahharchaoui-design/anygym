@@ -152,20 +152,23 @@ test('workout: a muscle with no catalog exercise says so honestly @matrix', asyn
   expect(errors).toEqual([]);
 });
 
-test('muscle preview: tap chest, the presses are listed and open their sheet', async ({ page }) => {
+// PLAN H2: the incline's own word for the chest shape is the tap line, the sheet title and the list.
+test('muscle preview: tap chest, the upper chest presses are listed and open their sheet', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./?dev#/dev/muscles');
   const map = page.getByTestId('muscle-map');
   await map.locator('svg[data-view="front"] [data-region="chest"]').first().click();
   await expect(page.getByTestId('muscle-pick')).toHaveText('Upper chest · primary');
-  const chest = expected('chest');
-  await map.getByRole('button', { name: `${chest.length} exercises for Chest` }).click();
-  const list = page.getByRole('dialog', { name: 'Chest exercises' });
+  const chest = exercisesForRegion('chest', CATALOG, OVERRIDES, new Set(), 'upper chest');
+  expect(chest.length).toBeGreaterThan(1);
+  expect(chest.length).toBeLessThan(expected('chest').length);
+  await map.getByRole('button', { name: `${chest.length} exercises for Upper chest` }).click();
+  const list = page.getByRole('dialog', { name: 'Upper chest exercises' });
   await expect(list.getByTestId('muscle-exercise')).toHaveCount(chest.length);
   await list.locator('[data-id="Barbell_Incline_Bench_Press_-_Medium_Grip"]').click();
   const sheet = page.getByRole('dialog', { name: /^How to do Barbell Incline Bench Press/ });
   await expect(sheet).toBeVisible();
-  await sheet.getByRole('button', { name: 'Back to Chest exercises' }).click();
+  await sheet.getByRole('button', { name: 'Back to Upper chest exercises' }).click();
   await expect(list).toBeVisible();
   expect(errors).toEqual([]);
 });

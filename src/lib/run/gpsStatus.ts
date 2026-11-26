@@ -43,6 +43,20 @@ export function hereDot(fix: GeoFix | null, status: GpsStatus): GeoFix | null {
   return fix && (status === 'good' || status === 'weak') ? fix : null;
 }
 
+/** What the live run knows (lib/run/live): its last trusted position and whether location was refused or failed. */
+type LiveGps = { here: GeoFix | null; gps: 'denied' | 'unavailable' | null };
+
+/** The live run's GPS status, read with the same rule as the start chip (gpsStatus): the run is always watching. */
+export function liveGpsStatus(run: LiveGps, now: number): GpsStatus {
+  return gpsStatus({ supported: true, permission: run.gps === 'denied' ? 'denied' : 'granted', watching: true, fix: run.here, problem: run.gps }, now);
+}
+
+/**
+ * The live map's "you are here" (PLAN R3 2): the start map's rule (hereDot), so the dot, the centring
+ * and "Back to where I am" go when GPS is lost or location is denied. The drawn route stays.
+ */
+export const liveHere = (run: LiveGps, now: number): GeoFix | null => hereDot(run.here, liveGpsStatus(run, now));
+
 const FEET_PER_MILE = 5280;
 
 /** "about 40 m" or "about 130 ft": rounded so it never reads as more exact than the phone is. */

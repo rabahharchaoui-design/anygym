@@ -176,6 +176,11 @@ function every5s() {
  */
 function rewatch() {
   startWatch();
+  guardReplay();
+}
+
+/** The replay guard for a watch just started: the phone's last raw position, else the dot (after a reload). */
+function guardReplay() {
   const here = state.live?.here;
   replayOf = lastRaw ? { ...lastRaw, near: false } : here ? { lat: here.lat, lng: here.lng, near: true } : null;
 }
@@ -320,6 +325,8 @@ export const runEngine = {
       dirty = true;
       set({ live: paused, saveFailed: true });
       attach();
+      // PLAN R3 (3): the new watch's first callback may be the last position handed back as new.
+      guardReplay();
     }
   },
 

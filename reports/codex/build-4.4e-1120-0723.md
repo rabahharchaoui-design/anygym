@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: HANDLED Nov 26: not merged, could not run Vitest and 4.4e waits for G's diagnostics export; branch kept as a reference for that builder
 # Codex backup build of PLAN item 4.4e
 Branch: codex-build-4.4e-1120-0723 (based on s4-run). Review like any builder output, then merge with: git merge --no-ff --no-edit codex-build-4.4e-1120-0723
 Changes:  2 files changed, 162 insertions(+)
