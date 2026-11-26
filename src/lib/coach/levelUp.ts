@@ -1,14 +1,15 @@
 // The weekly Level up (SPEC 15): after each training week, which lifts earned more weight (every
-// working set at the top of its range, every workout that week, no missed reps) and which hold
-// steady, and why, in one plain line each. It never raises a lift that missed reps, never one done
+// working set at the top of its range, every workout that week at one scheme and weight, no missed
+// reps) and which hold steady, and why, in one plain line each. It never raises a lift that missed reps, never one done
 // since (its Next already moved on), and every new weight comes from load.ts, loadable here.
-import { comparableWeight, formatWeight, heaviestHeld, weightChange } from '../load';
+import { comparableWeight, formatWeight, heaviestHeld, sameResistance, weightChange } from '../load';
 import { liftClass, weighted } from './classify';
 import { nextTarget } from './increment';
 import { learnedScale } from './outcome';
 import { allTop, changeWords, lastPicked, missedCount, sameWeight, toWeight } from './sets';
 import { weeklyRate } from './strength';
 import { lastWeek, weekStartFrom } from './time';
+import type { Load } from '../../db/types';
 import type { ChangeRecord, Hold, Lift, LiftSession, PlannedChange } from './types';
 import { plural } from '../words';
 
@@ -28,6 +29,24 @@ export function lighterActive(lift: Pick<Lift, 'target'>, now: number): boolean 
 
 export const levelUpCardId = (weekKey: string): string => `levelup:${weekKey}`;
 
+
+/** What every workout of a week logged: the set count, the top of the range, one whole weight. */
+type Scheme = { sets: number; top: number; load: Load };
+
+/**
+ * PLAN R4 (1): the week's scheme, only when every workout that week agrees. 'short': a workout not at
+ * the top of its range on every set, or not at one weight; null: no range known, or the workouts
+ * logged different set counts, ranges or whole weights (no "you hit N × R" can speak for them all).
+ */
+function weekScheme(sessions: readonly LiftSession[]): Scheme | 'short' | null {
+  const first = sessions[0];
+  if (!first || !sessions.every((s) => s.range)) return null;
+  if (sessions.some((s) => !sameWeight(s.sets) || !allTop(s.sets, s.range!))) return 'short';
+  const load = first.sets[0]!.load;
+  const top = first.range![1];
+  const agree = sessions.every((s) => s.sets.length === first.sets.length && s.range![1] === top && sameResistance(s.sets[0]!.load, load));
+  return agree ? { sets: first.sets.length, top, load } : null;
+}
 
 /** Both workouts at the top of the range at the same weight. */
 const sameTop = (a: LiftSession, b: LiftSession): boolean => {
@@ -55,7 +74,9 @@ export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: n
   const missed = inWeek.reduce((n, s) => n + missedCount(s.sets, s.range), 0);
   const range = latest.range;
   if (missed > 0) return hold(`${plural(missed, 'set', 'sets')} fell short of ${range[0]} reps`);
-  if (!sameWeight(latest.sets) || !allTop(latest.sets, range)) return hold(`aim for ${range[1]} reps on every set first`);
+  const scheme = weekScheme(inWeek);
+  if (scheme === 'short') return hold(`aim for ${range[1]} reps on every set first`);
+  if (!scheme) return null;
   if (latest.effort === 'hard') return hold('it felt hard, so one more week at this weight');
   const easy = latest.effort === 'easy';
   // PLAN 3.6h2: a stack's add-on stays on top of the raised pin (the card shows the whole total).
@@ -68,7 +89,7 @@ export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: n
   }
   const before = lift.sessions.find((s) => s.date < week.start);
   const twice = !!before && before.date >= week.start - 7 * 24 * 60 * 60 * 1000 && sameTop(latest, before);
-  const top = `${latest.sets.length} × ${range[1]}`;
+  const top = `${scheme.sets} × ${scheme.top}`;
   const fromTotal = comparableWeight(at.load, at.unit);
   const reason = `${changeWords(lift.loadKind, weightChange(fromTotal, toWeight({ to: pick.value, toAdded: pick.added })), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${easy ? ', with reps to spare' : ''}`;
   return {
