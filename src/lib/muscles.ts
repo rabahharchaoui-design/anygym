@@ -144,12 +144,19 @@ export function ownRegionLabel(region: Region, data: Pick<MuscleMapData, 'primar
  * PLAN H1 (3): the exercise's own words for a tapped shape, from the side it works it on: its
  * primary muscles there, else its secondary ones (as the tap line reads). The tap line, the
  * exercises sheet's title and its list all use this, so the three agree ("outer hips" after a hip
- * abduction, never "Glutes"). Null when the shape stands for one muscle: its own name serves.
+ * abduction, never "Glutes"; "upper chest" after an incline press, never "Chest", PLAN H2). Null when
+ * the shape stands for one muscle in its plain words: its own name serves.
  */
 export function tappedRegionLabel(region: Region, data: Pick<MuscleMapData, 'primary' | 'secondary'>): string | null {
   const on = (list: readonly MuscleTarget[]) => list.filter((t) => t.regions.includes(region));
   const main = on(data.primary);
-  return ownRegionLabel(region, main.length ? { primary: main, secondary: [] } : { primary: [], secondary: on(data.secondary) });
+  const side = main.length ? main : on(data.secondary);
+  const own = ownRegionLabel(region, main.length ? { primary: main, secondary: [] } : { primary: [], secondary: side });
+  if (own) return own;
+  // PLAN H2: a part of the shape's one muscle ("upper chest" on an incline) is named as the exercise
+  // names it; the shape's plain muscle keeps its own name.
+  const parts = [...new Set(side.filter((t) => t.label !== (MUSCLE_LABELS[t.muscle] ?? t.muscle)).map((t) => t.label))].sort();
+  return parts.length ? parts.join(' and ') : null;
 }
 
 /** The text line under the drawing. */
