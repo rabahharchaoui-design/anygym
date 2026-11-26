@@ -10,7 +10,7 @@ Owner: G (rabahharchaoui-design). Audience: everyone (all goals and levels), wit
 2. **Plate math is exact.** Every number the plate diagram shows must equal the sum of what is drawn. Covered by exhaustive unit tests.
 3. **Never cluttered.** One primary action per screen. Detail lives one tap away in a sheet. Big thumb targets (min 48pt), one hand use, portrait.
 4. **Offline first.** Gym basements have no signal. Everything works offline after first load.
-5. **User data never leaves the phone** in this version. No analytics, no camera. Location is used only by Run With Me (section 12), only while a run is active, and routes are stored only on the phone.
+5. **User data never leaves the phone** in this version, with one exception. No analytics. Location is used only by Run With Me (section 12), only while a run is active, and routes are stored only on the phone. The one exception is Point & Lift (Rabah, Nov 27 2026; docs/point-and-lift.md): recognition runs in the cloud through our own backend, a Cloudflare Worker that holds the vision API key (never the client). Before upload the photo is downscaled and cropped to the machine. Photos are never stored or logged. The app asks for the camera the first time, with one line saying photos aren't kept. The model only returns ids from our curated catalog of about 60 machines, as JSON. A 5 s timeout, rate limiting, and the list picker as the fallback when offline or on a timeout.
 6. **This repo is public.** Never commit personal data, history files, tokens, or anything from `~/anygym-private/`.
 
 ## 1. Stack
@@ -275,7 +275,7 @@ Visual direction: MONOLITH (G picked it Nov 19 from UI concepts round 1, issue #
 - Provisional: the round 2 boards are concepts, not pixel specs. Screens move to Monolith one at a time (PLAN M1 to M7); until a screen's M item lands it may still show older shapes drawn from the shared tokens.
 
 ## 11. Explicitly out of v1
-Accounts and sync (Supabase later), Apple Health and Apple Watch (Apple only allows these from native apps, so they come in the native phase in PLAN.md LATER), push notifications, social, AI coaching, camera or photo features, Spotify or Apple Music APIs (launch buttons only), native app, GPS tracking with the screen locked (needs the native wrapper later).
+Accounts and sync (Supabase later), Apple Health and Apple Watch (Apple only allows these from native apps, so they come in the native phase in PLAN.md LATER), push notifications, social, AI coaching, camera or photo features, except Point & Lift (docs/point-and-lift.md), Spotify or Apple Music APIs (launch buttons only), native app, GPS tracking with the screen locked (needs the native wrapper later).
 
 ## 12. Run With Me (the Run tab)
 

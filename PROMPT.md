@@ -26,6 +26,21 @@ MERGE GATE (the last item of each session)
 CHECKPOINTS
 Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. NEVER BATCH CHECKPOINTS (G, Nov 11: he opened the app and saw none of the day's work): before starting any item, compare master with the session branch; if any checked item is not on master yet, checkpoint first. A checked item that is not live does not count as done for G. Write the test-now line (which the phone watcher turns into the ready to test push) ONLY after the Pages deploy run is green AND the live site serves the new build (fetch the live index and check the new asset hash); G, Nov 11 11:34 PM, opened the app during a deploy and saw the old version. Master is always usable and saved data is never lost.
 
+HANDOFF WITH GROK (G, Nov 27 2:55 AM)
+- ~/anygym-handoff.md is the handoff between you and Grok. When the usage guard stops you at your 5 hour or weekly cap, run-overnight.sh writes it with STATUS: Claude paused (time, your usage and resets, what is in flight, what to check), and Grok becomes lead reviewer.
+- At the start of EVERY run: read the Grok findings at the bottom of ~/anygym-handoff.md first and act on each one before other work. Under each finding write AGREE (and fix it) or WRONG with the reason; flagging Grok's mistakes is part of the job, and Grok flags yours. Then run `bash .loop-tools/handoff.sh active` so the file says Claude active.
+- Merging stays yours alone. Grok never merges; you merge only what passed its full suite and Grok's review.
+
+GROK REVIEWS CODEX FIRST (G, Nov 27 2:53 AM)
+- Grok is lead reviewer of Codex's builds while your window is low. At the start of every run, read Grok's newest findings (reports/grok/, newest review or findings file) before anything else. Merge a Codex build only when its full suite says PASS AND Grok's review passed it; anything Grok flagged goes back to Codex's fix queue with Grok's note, never merged as is.
+
+ONE OWNER PER ITEM (G, Nov 27 2:47 AM)
+- An item whose id is a line in .codex-lane belongs to Codex. Never build it yourself, even when it is next in PLAN order: skip it and build the next item that is not in the lane. You only review and merge Codex's build of it once its report says STATUS: NEW with a full suite PASS (STATUS: BUILDING or TESTING means Codex is still on it). Right now Codex owns G1, G1c, G1b, SV1 to SV4, FL1 and Q6; you own R3 and H2 (release), M17, the PL phases (PL-a waits for Codex's G1b merge), M18 and M19.
+
+USAGE PLAN (G, Nov 27 2:42 AM: "utilize ChatGPT a lot, use or lose")
+- Codex has 3 saved full resets expiring 12/2, 12/13 and 12/26, so until 12/26 Codex is the workhorse: its lane and fix queue are never left empty while PLAN has open items, and it also drafts briefs, data files (like the PL-a machine catalog) and fix rounds. Claude keeps its own week for reviews, merges, shipping and anything Codex cannot do.
+- The Grok helper tells G to tap a reset (in the ChatGPT app; bots never spend money or tap it) when Codex passes 80% of its week with work queued, and the evening before each expiry. Grok stays on audits and live tests within its own brakes.
+
 CODEX FIRST AFTER EACH WEEKLY RESET (G, Nov 25 4:41 PM)
 - From the Thursday 8 PM reset on, every run starts by reviewing and merging Codex's passing builds (reports/codex/build-*.md with STATUS: NEW and a PASS from the full suite) before building anything new. Codex only hands over builds that pass; builds marked FAILED or REJECTED are not yours to fix.
 - Q3 is split into Q3a, Q3b and Q3c; each says which part must be merged first. Merge a Codex build with a message that starts "Merge Codex <id>" (for example "Merge Codex Q3a: ..."): Codex starts the next part only once it sees that merge on s4-run.
