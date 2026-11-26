@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: REJECTED (G, Nov 25: thrown away)
 # Codex backup build of PLAN item Q3
 Branch: codex-build-Q3-1124-0652 (based on s4-run). Review like any builder output, then merge with: git merge --no-ff --no-edit codex-build-Q3-1124-0652
 Changes:  10 files changed, 218 insertions(+), 303 deletions(-)
