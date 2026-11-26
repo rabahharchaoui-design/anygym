@@ -481,6 +481,9 @@ The gym pill is on Today, the workout screen header, and the Run tab. The tab ba
 ## 20. Workout flow: follow the plan, don't fill in a log (G's rule, Oct 23 11:56 PM, overrides 5.1 where they differ)
 G tried logging a barbell squat and it took far too much clicking. The workout must feel like following a coach's list, not filling in a spreadsheet. Design reference (private, not in git): .design-ref/workout-list-inspiration.png (a white list from another app; take the layout idea, keep our dark style, copy nothing else).
 
+### 20.0 Monolith boards override the older look (Nov 26 2026)
+Since the Monolith decision (boards 01 to 05, PLAN M16 and M17), where a board and the older text below or in 4.4 disagree about LOOK, the board wins: the workout exercise screen follows board 02 (no photo band, one giant weight, sets as short plain lines with a small tick, "Log set" over the ice blue line, no five column table, no round check buttons), the day list drops the round progress rings (plain done marks instead), exercise info follows board 03 (the two demo frames side by side labelled Start and End instead of the crossfading loop, muscles in one small line), and Today follows board 01. What the screens DO is unchanged and still required: targets filled in, one tap to log, the rest timer, the weight and reps pickers, the demo one tap away, cues only from the source, no bad data.
+
 ### 20.1 The day list (the workout screen)
 - Title is the day name ("Legs · hamstring focus"), with the gym pill and time estimate.
 - One row per exercise, in order: small rounded thumbnail of the form demo on the left (about 64 pt), then the exercise name (big), then "3 sets × 15 to 20" (or "3 × 60 to 90 sec"), then a quiet line "60 s rest". Pairs (supersets) are grouped with a colored rail and the label "Pair: back to back".
