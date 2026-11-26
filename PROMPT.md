@@ -26,6 +26,9 @@ MERGE GATE (the last item of each session)
 CHECKPOINTS
 Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. NEVER BATCH CHECKPOINTS (G, Nov 11: he opened the app and saw none of the day's work): before starting any item, compare master with the session branch; if any checked item is not on master yet, checkpoint first. A checked item that is not live does not count as done for G. Write the test-now line (which the phone watcher turns into the ready to test push) ONLY after the Pages deploy run is green AND the live site serves the new build (fetch the live index and check the new asset hash); G, Nov 11 11:34 PM, opened the app during a deploy and saw the old version. Master is always usable and saved data is never lost.
 
+GROK REVIEWS CODEX FIRST (G, Nov 27 2:53 AM)
+- Grok is lead reviewer of Codex's builds while your window is low. At the start of every run, read Grok's newest findings (reports/grok/, newest review or findings file) before anything else. Merge a Codex build only when its full suite says PASS AND Grok's review passed it; anything Grok flagged goes back to Codex's fix queue with Grok's note, never merged as is.
+
 ONE OWNER PER ITEM (G, Nov 27 2:47 AM)
 - An item whose id is a line in .codex-lane belongs to Codex. Never build it yourself, even when it is next in PLAN order: skip it and build the next item that is not in the lane. You only review and merge Codex's build of it once its report says STATUS: NEW with a full suite PASS (STATUS: BUILDING or TESTING means Codex is still on it). Right now Codex owns G1, G1c, G1b, SV1 to SV4, FL1 and Q6; you own R3 and H2 (release), M17, the PL phases (PL-a waits for Codex's G1b merge), M18 and M19.
 
