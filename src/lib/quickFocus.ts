@@ -37,8 +37,12 @@ function areaMoves(rule: AreaRule, pool: (pattern: Pattern) => Profile[]): Profi
   return all.filter((p, i) => all.findIndex((q) => q.id === p.id) === i);
 }
 
-/** One area's day for this person, gym and minutes, or null when it cannot be built honestly. */
-export function focusCard(area: SessionArea, input: QuickInput, deps0: QuickDeps): Concept | null {
+/**
+ * One area's day for this person, gym and minutes, or null when it cannot be built honestly.
+ * PLAN Q3a0: `day` lays out a named day instead (the Push and Pull targets: FALLBACK_RULES' push and
+ * pull days), with no nearer day to fall back to: fewer than 3 sure moves for it is null.
+ */
+export function focusCard(area: SessionArea, input: QuickInput, deps0: QuickDeps, day0?: { id: string; rule: AreaRule }): Concept | null {
   const deps = quickDepsFor(input.base, deps0);
   const base = input.base;
   const never = new Set((base.never ?? []).map(deps.data.sameAs));
@@ -69,13 +73,13 @@ export function focusCard(area: SessionArea, input: QuickInput, deps0: QuickDeps
       sets: { compound: setsFor(base.experience ?? 'new', true, comeback), isolation: setsFor(base.experience ?? 'new', false, comeback), max: newer ? 3 : 4 },
       minutesOf: (items) => quickMinutes(day(items).map((it) => ({ ...it, name: deps.name(it.id) }))),
     });
-  const own = AREA_RULES[area];
+  const own = day0?.rule ?? AREA_RULES[area];
   const moves = areaMoves(own, pool);
   // Fewer than 3 sure moves: the nearest honest day, led by the area's own big lift (none: no card).
   const fallback = FALLBACK_RULES[area];
   const few = moves.length < FEWEST_AREA_MOVES;
-  const near = few && fallback.rule.main.flatMap(pool).some((p) => p.role === 'lift' && isCompound(p)) ? fallback : null;
-  const plan = few ? (near ? session(near.rule) : null) : session();
+  const near = !day0 && few && fallback.rule.main.flatMap(pool).some((p) => p.role === 'lift' && isCompound(p)) ? fallback : null;
+  const plan = few ? (near ? session(near.rule) : null) : session(day0?.rule);
   if (!plan) return null;
   const items = itemsOf(deps, day(plan.items));
   const rule = near ? near.rule : own;
@@ -88,7 +92,7 @@ export function focusCard(area: SessionArea, input: QuickInput, deps0: QuickDeps
     : (muscleRestLine(items, deps, sureRest(input.lastTrained, input.lastHelped), input.now ?? Date.now()) ?? noteById(deps.facts, 'idea-structure').why);
   return {
     id: 'focus',
-    variant: near ? near.id : area,
+    variant: near ? near.id : (day0?.id ?? area),
     variantLabel: rule.title.toLowerCase(),
     focus: cap(wordList(words, 2)),
     title: rule.title,
