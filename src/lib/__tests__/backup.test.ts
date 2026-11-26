@@ -25,7 +25,7 @@ import {
 } from '../backup';
 import { SCHEMA_VERSION } from '../../db/schema';
 
-const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [], journal: [], candidateReviews: [], coachLifts: [], coachChanges: [], coachCards: [], efforts: [] });
+const empty = (): BackupTables => ({ profile: [], gyms: [], plans: [], planDays: [], sessions: [], sets: [], runs: [], exerciseSettings: [], planState: [], orderCounters: [], submissions: [], tombstones: [], journal: [], candidateReviews: [], coachLifts: [], coachChanges: [], coachCards: [], efforts: [], badges: [] });
 
 const gym = { id: 'g', name: 'Home', type: 'home', unit: 'kg', equipment: [], dumbbellRange: null, bars: { olympic: 45, womens: 35, ez_curl: null, trap: null, smith: 0 }, stackStep: 2.5, equipmentWeights: {}, plateInventory: [], collars: 'none', plateColors: 'color', isActive: true, createdAt: 1 };
 const session = { id: 's', gymId: 'g', startedAt: 10, endedAt: 20, imported: false };
@@ -196,6 +196,7 @@ const good: Record<TableName, Record<string, unknown>> = {
   coachChanges: { id: 'c1', cardId: 'levelup:2026-11-02', weekKey: '2026-11-02', appliedAt: 4, key: 'bench|barbell', exerciseId: 'bench', name: 'Bench press', loadKind: 'barbell', unit: 'lb', from: 130, to: 135, reason: 'All reps last time', source: 'level_up', prevTarget: null },
   coachCards: { id: 'levelup:2026-11-02', state: 'used', at: 4 },
   efforts: { sessionId: 's', exerciseId: 'bench', effort: 'hard', at: 5 },
+  badges: { id: 'new-pr', earnedAt: 6, sessionId: 's' },
 };
 
 const without = (r: Record<string, unknown>, k: string) => {

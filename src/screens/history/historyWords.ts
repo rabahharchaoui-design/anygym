@@ -12,7 +12,7 @@ import { dayIndexOf } from '../../lib/plans';
 import { dayWorkout } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
 import { IMPORTED_LABEL, isImportOrder } from '../../lib/import/importOrder';
-import { workoutTime } from '../../lib/workoutTime';
+import { sessionTime } from '../../lib/workoutTime';
 
 /** "Day 3 · Back and biceps" for a plan day, the exercise for an imported one, else "Quick workout". */
 export function workoutTitle(session: Session): string {
@@ -77,8 +77,8 @@ export type RowFacts = { main: string; detail?: string };
 
 /** A workout: its time when the app knows it (start and finish both saved), the sets under it; else the sets alone. */
 export function workoutFacts(session: Session, sets: number): RowFacts {
-  const known = session.endedAt !== undefined && !session.imported && !isImportOrder(session.startedAt);
-  return known ? { main: workoutTime(session.startedAt, session.endedAt!).words, detail: setCount(sets) } : { main: setCount(sets) };
+  const time = sessionTime(session);
+  return time ? { main: time.words, detail: setCount(sets) } : { main: setCount(sets) };
 }
 
 /** A run: distance, the moving time under it. A run with no usable distance says so in words, never a number. */

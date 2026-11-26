@@ -17,6 +17,7 @@ import { MAX_ROW_SLOT } from './setTable';
 import type { CandidateReviewRow } from './candidates/review';
 import type { CoachCardRow, CoachLiftRow, EffortRow } from '../db/coachTypes';
 import type { ChangeRecord } from './coach/types';
+import type { EarnedBadge } from './badges/award';
 import { RECORD_CHECKS, isDraft, isMutation, isObj, knownPlates, num, oneOf, recordOf, shape, str, type Check, type Rec } from './backupChecks';
 import { plural } from './words';
 import { dayKey } from './dayKey';
@@ -51,18 +52,20 @@ export type BackupTables = {
   coachChanges?: ChangeRecord[];
   coachCards?: CoachCardRow[];
   efforts?: EffortRow[];
+  /** PLAN M18a: the badges earned, with the date earned (schema 12). An older file leaves it out. */
+  badges?: EarnedBadge[];
 };
 
 export type TableName = keyof BackupTables;
 
 /** Every table a backup carries, in write order. */
-export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones', 'journal', 'candidateReviews', 'coachLifts', 'coachChanges', 'coachCards', 'efforts'];
+export const TABLE_NAMES: readonly TableName[] = ['profile', 'gyms', 'plans', 'planDays', 'sessions', 'sets', 'runs', 'exerciseSettings', 'planState', 'orderCounters', 'submissions', 'tombstones', 'journal', 'candidateReviews', 'coachLifts', 'coachChanges', 'coachCards', 'efforts', 'badges'];
 
 /**
  * Tables a backup started carrying after their schema version (PLAN 3.6d): a file may leave them
  * out, which means "not in this file" (never "empty"): Replace keeps the phone's, Merge adds none.
  */
-export const LATER_TABLES: readonly TableName[] = ['coachLifts', 'coachChanges', 'coachCards', 'efforts'];
+export const LATER_TABLES: readonly TableName[] = ['coachLifts', 'coachChanges', 'coachCards', 'efforts', 'badges'];
 
 /**
  * Tables on the phone that a backup never carries, each on purpose (the coverage test fails when a
@@ -143,6 +146,8 @@ export function buildBackup(tables: BackupTables, drafts: BackupDrafts, appVersi
       coachChanges: tables.coachChanges ?? [],
       coachCards: tables.coachCards ?? [],
       efforts: tables.efforts ?? [],
+      // PLAN M18a: a backup made now always carries the badges.
+      badges: tables.badges ?? [],
     },
     drafts: Object.fromEntries(Object.entries(drafts).filter(([id, d]) => activeIds.has(id) && Object.keys(d).length > 0)),
   };
@@ -175,6 +180,7 @@ export const TABLE_SINCE: Record<TableName, number> = {
   coachChanges: 10,
   coachCards: 10,
   efforts: 10,
+  badges: 12,
 };
 
 /** The primary key of a record, as a string, so duplicates can be found. */

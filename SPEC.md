@@ -465,6 +465,14 @@ A real feeling passport. Opening it is a moment:
 - Trophy case screen with locked badges showing how to earn them.
 - Leaderboards come with accounts (section 18): friends and global weekly XP, opt in only.
 
+### 17.1 Finish counts and M18 badges (PLAN M18a, docs/finish-celebration.md)
+- A workout counts when it was finished in the app with at least one working set. Imported workouts have no dates and never count by date; warm ups alone are not a workout.
+- The workout Time is from Start to the save of Finish. Over 4 hours reads "Over 4 h"; a Time the app cannot know (imported, an end before the start) is shown as none.
+- Weeks are Monday to Sunday on the phone's own clock. A workout belongs to the day and week it was started in. The weekly goal is the active plan's days a week, or 3.
+- The streak is weeks in a row reaching the weekly goal (this section wins over a day count): the week going on counts once it reaches the goal. streak-3, streak-7 and streak-30 mean 3, 7 and 30 weeks.
+- Comeback: at least 14 whole calendar days with no workout before this one. Early bird: started 4:00 to 6:59 AM; night owl: started 9 PM to 3:59 AM, phone time, only with a believable Time.
+- Badges (ids are the art slugs): first-workout, streak-3, streak-7, streak-30, week-complete, new-pr, early-bird, night-owl, new-city (the gym's town, never the phone's location), comeback; tiered workouts 10 / 50 / 100 and lifted 1k / 10k / 100k lb over counted workouts. Each is stored once, with the date of the save that earned it, and travels in backups.
+
 ## 18. Accounts and reminders (optional, after the first workout) — 100% free stack (G's choice)
 - After the first finished workout: one friendly card "Save your progress and get reminders" with Continue with Google and Continue with email. "Not now" is always there and never nags more than once a week.
 - Sign in: Firebase Authentication on the free Spark plan (Google sign in plus email link sign in; Firebase sends the sign in emails itself, so no domain is needed). Add rabahharchaoui-design.github.io as an authorized domain.

@@ -20,7 +20,7 @@ const row = (patch: Partial<Run> = {}): Run => ({ id: 'r1', startedAt: 1000, typ
 describe('runs storage (PLAN 4.3)', () => {
   it('needs no schema change: the runs table of version 1 holds every SPEC 12.11 field', async () => {
     expect(SCHEMA_V1.runs).toBe('id, startedAt');
-    expect(SCHEMA_VERSION).toBe(11);
+    expect(SCHEMA_VERSION).toBe(12); // PLAN M18a added badges, not a runs change
     const full: Run = { ...row(), endedAt: 2000, goal: '5 km', movingSec: 61.5, elapsedSec: 70, distanceM: 201.5, points: [[45.1, -122.3, 1, 5]], gaps: [[1, 2]], splits: [300.2], city: 'Portland', country: 'US', ghostOfRunId: 'r0', intervalPreset: 'speed' };
     await db.runs.put(full);
     expect(await db.runs.get('r1')).toEqual(full);
