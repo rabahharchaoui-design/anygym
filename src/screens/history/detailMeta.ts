@@ -3,15 +3,14 @@
 import type { Session, Unit, WorkoutSet } from '../../db/types';
 import { workSetCount, isWorkSet } from '../../lib/workSets';
 import { formatTotal, totalLifted } from '../../lib/load';
-import { isImportOrder } from '../../lib/import/importOrder';
-import { workoutTime } from '../../lib/workoutTime';
+import { sessionTime } from '../../lib/workoutTime';
 import { setCount, workoutDate } from './historyWords';
 
 /** 3.6z A12: a set the import was not sure of is marked in History and kept out of the total, as records already skip it. */
 export const isSureWorkSet = (s: Pick<WorkoutSet, 'kind' | 'uncertain'>): boolean => isWorkSet(s) && !s.uncertain;
 
 export function detailMeta(session: Session, sets: readonly WorkoutSet[], unit: Unit | undefined, now = Date.now()): string {
-  const time = session.endedAt !== undefined && !session.imported && !isImportOrder(session.startedAt) ? workoutTime(session.startedAt, session.endedAt) : null;
+  const time = sessionTime(session);
   const sure = sets.filter(isSureWorkSet);
   const lifted = unit ? totalLifted(sure, unit) : 0;
   return [
