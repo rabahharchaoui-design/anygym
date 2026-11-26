@@ -27,16 +27,16 @@ async function setGym(page: Page, equipment: string[]) {
   await pastIntake(page, equipment);
 }
 async function seedHistory(page: Page) {
-  // chest-free history: triceps yesterday, back/biceps 4 days ago.
-  await seedFinished(page, { 'cable-tricep-pushdown': [{ reps: 10, load: STACK }] }, 1);
+  // chest-free history: triceps yesterday, back/biceps 4 days ago. H2 (SPEC 20.3): a muscle counts as trained only after 3 working sets, so each lift gets 3.
+  const three = { reps: 10, load: STACK };
+  await seedFinished(page, { 'cable-tricep-pushdown': [three, three, three] }, 1);
   const gymId = (await dbAll<{ id: string; isActive: boolean }>(page, 'gyms')).find((g) => g.isActive)!.id;
   const start = Date.now() - 4 * 86_400_000;
   await dbPut(page, {
     sessions: [{ id: 'seed-4d', gymId, startedAt: start, endedAt: start + 3_000_000, imported: false, exerciseIds: ['cable-seated-close-grip-row', 'cable-single-arm-bicep-curl'] }],
-    sets: [
-      { id: 'seed-4d-0', sessionId: 'seed-4d', exerciseId: 'cable-seated-close-grip-row', order: 0, kind: 'work', uncertain: false, reps: 10, load: STACK },
-      { id: 'seed-4d-1', sessionId: 'seed-4d', exerciseId: 'cable-single-arm-bicep-curl', order: 1, kind: 'work', uncertain: false, reps: 10, load: STACK },
-    ],
+    sets: ['cable-seated-close-grip-row', 'cable-single-arm-bicep-curl'].flatMap((exerciseId, e) =>
+      [0, 1, 2].map((k) => ({ id: `seed-4d-${e * 3 + k}`, sessionId: 'seed-4d', exerciseId, order: e * 3 + k, kind: 'work', uncertain: false, reps: 10, load: STACK })),
+    ),
   });
 }
 async function usePlanSeed(page: Page) {
