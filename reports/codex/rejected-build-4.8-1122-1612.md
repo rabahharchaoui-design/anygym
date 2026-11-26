@@ -1,4 +1,4 @@
-STATUS: NEW
+STATUS: REJECTED (G, Nov 25: thrown away)
 # Codex backup build of PLAN item 4.8
 Branch: codex-build-4.8-1122-1612 (based on s4-run). Review like any builder output, then merge with: git merge --no-ff --no-edit codex-build-4.8-1122-1612
 Changes:  3 files changed, 84 insertions(+)
