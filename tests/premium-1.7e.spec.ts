@@ -38,12 +38,12 @@ test('push, pop and tab transitions; the tab pill moves to the picked tab', asyn
   await page.goto('./');
   const nav = page.getByRole('navigation', { name: 'Main' });
   await nav.getByRole('link', { name: 'Plan', exact: true }).tap();
-  await expect(page.getByRole('heading', { level: 1, name: 'Plans' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan', exact: true })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByTestId('plan-five-day-split').tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Classic 5 Day Split' })).toBeVisible();
   await page.getByRole('link', { name: 'Back to Plans' }).tap();
-  await expect(page.getByRole('heading', { level: 1, name: 'Plans' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan', exact: true })).toBeVisible();
   await nav.getByRole('link', { name: 'Today' }).tap();
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
   // 3.5w: a tab switch is no view transition any more (only the content fades and rises), so only push and pop record.
@@ -85,7 +85,7 @@ test('edge swipe back: a fast flick finishes, a short slow drag cancels', async 
   // loaded machine stretches the timers (160 px is under 40% of a wide phone: speed decides).
   await edgeSwipe(page, 160, 0);
   await expect(page).toHaveURL(/#\/plans$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Plans' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan', exact: true })).toBeVisible();
   await expect(page.locator('main')).toHaveCount(1);
   expect(errors).toEqual([]);
 });

@@ -1,16 +1,16 @@
 import { Link } from 'react-router-dom';
 import { TopBar } from '../ui/TopBar';
-import { EmptyState } from '../ui/EmptyState';
 import { Skeleton } from '../ui/Skeleton';
-import { ChevronRight, RunIcon } from '../ui/icons';
 import { useNav } from '../ui/nav';
 import { LoadError } from '../components/LoadError';
 import { listFinished } from '../db/history';
 import { useLive } from '../hooks/useLive';
 import { useFinishedRuns } from '../hooks/useRuns';
-import { historyFeed } from './history/historyFeed';
+import { historyFeed, thisWeekLine } from './history/historyFeed';
+import { HistoryRow } from './history/HistoryRow';
+import { EmptyState } from '../ui/EmptyState';
 import { RunRow } from './history/RunRow';
-import { importNumbers, setCount, workoutDate, workoutTitle } from './history/historyWords';
+import { importNumbers, workoutDate, workoutFacts, workoutTitle } from './history/historyWords';
 import styles from './history/History.module.css';
 
 /**
@@ -35,57 +35,51 @@ export function HistoryScreen() {
   const row = ({ session, sets }: (typeof items)[number]) => {
     const no = numbers.get(session.id);
     const sub = session.imported ? (no ? `Workout ${no.n} of ${no.of}` : '') : workoutDate(session.startedAt);
-    return (
-      <li key={session.id}>
-        <Link
-          to={`/history/${session.id}`}
-          className={`${styles.row} pressable`}
-          data-testid="history-row"
-          onClick={(e) => {
-            e.preventDefault();
-            go(`/history/${session.id}`);
-          }}
-        >
-          <span className={styles.rowMain}>
-            <span className={styles.rowTitle}>{workoutTitle(session)}</span>
-            {sub && <span className={`${styles.rowSub} num`}>{sub}</span>}
-            {session.imported && session.note ? (
-              <span className={styles.rowNote} data-testid="history-note">
-                {session.note}
-              </span>
-            ) : null}
-          </span>
-          <span className={`${styles.rowCount} num`}>{setCount(sets)}</span>
-          <ChevronRight className={styles.rowChevron} aria-hidden="true" />
-        </Link>
-      </li>
-    );
+    const note =
+      session.imported && session.note ? (
+        <span className={styles.rowNote} data-testid="history-note">
+          {session.note}
+        </span>
+      ) : null;
+    return <HistoryRow key={session.id} to={`/history/${session.id}`} testId="history-row" title={workoutTitle(session)} sub={sub} note={note} facts={workoutFacts(session, sets)} />;
   };
+  const hasRows = feed.dated.length > 0 || imported.length > 0;
   return (
     <>
-      <TopBar title="History" />
+      <TopBar
+        title="History"
+        giant
+        trailing={
+          runs.length > 0 && hasRows ? (
+            <Link
+              to="/history/runs"
+              className={`${styles.runsLink} pressable`}
+              data-testid="history-runs-link"
+              onClick={(e) => {
+                e.preventDefault();
+                go('/history/runs');
+              }}
+            >
+              Run records and heatmap
+            </Link>
+          ) : undefined
+        }
+      >
+        {feed.dated.length > 0 && (
+          <p className={`${styles.week} num`} data-testid="history-week">
+            {thisWeekLine(feed.dated, Date.now())}
+          </p>
+        )}
+      </TopBar>
       {/* PLAN 4.6a: a failed runs read is said too, never shown as "no runs". One line, one Try again for both reads. */}
       {list.error || runsRead.error ? <LoadError text={list.error ? 'Could not load workouts' : 'Could not load runs'} onRetry={retryReads} /> : null}
       {!list.ready || !runsRead.ready ? (
         <Skeleton height={76} />
       ) : (list.error || runsRead.error) && items.length === 0 && runs.length === 0 ? null : feed.dated.length === 0 && imported.length === 0 ? (
-        <EmptyState
-          scene="history"
-          title="No workouts yet"
-          next="Finish your first workout and it shows up here."
-          action={{ label: 'Go to Today', onPress: () => go('/', { kind: 'tab' }) }}
-        />
+        // Board 12, the shared empty state (M15): no picture, the one next step over the ice blue line.
+        <EmptyState title="No workouts yet" next="Your first one shows up here." action={{ label: 'Start workout', onPress: () => go('/', { kind: 'tab' }) }} />
       ) : (
         <>
-          {runs.length > 0 && (
-            <Link to="/history/runs" className={`${styles.row} ${styles.runsLink} pressable`} data-testid="history-runs-link" onClick={(e) => { e.preventDefault(); go('/history/runs'); }}>
-              <RunIcon className={styles.rowIcon} aria-hidden="true" width={22} height={22} />
-              <span className={styles.rowMain}>
-                <span className={styles.rowTitle}>Run records and heatmap</span>
-              </span>
-              <ChevronRight className={styles.rowChevron} aria-hidden="true" />
-            </Link>
-          )}
           {feed.dated.length > 0 && (
             <ul className={styles.list} aria-label="Finished workouts and runs">
               {feed.dated.map((d) => (d.kind === 'run' ? <RunRow key={d.run.id} run={d.run} unit={unit} /> : row(d.workout)))}

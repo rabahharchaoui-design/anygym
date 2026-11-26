@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { FADE, SHEET_SPRING } from '../../ui/motion';
 import type { Tip, TipId } from '../../lib/coachTips';
-import { CheckIcon, ChevronDown, CoachIcon } from '../../ui/icons';
+import { CheckIcon, ChevronDown } from '../../ui/icons';
 import styles from './CoachTips.module.css';
 
 type Props = {
@@ -28,7 +28,6 @@ export function CoachTips({ tips, applied, onApply, onUndo, onApplyAll, onHide }
   return (
     <section className={styles.coach} data-open={open || undefined} data-testid="coach-tips" aria-label="Coach tips">
       <button type="button" className={`${styles.toggle} pressable`} aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)} data-testid="coach-tips-toggle">
-        <CoachIcon className={styles.icon} width={18} height={18} strokeWidth={2.2} aria-hidden="true" />
         <span className={styles.toggleText}>
           Coach tips <span className="num">({tips.length})</span>
         </span>

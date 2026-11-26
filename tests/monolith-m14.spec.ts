@@ -77,7 +77,7 @@ test('M14 five tabs in the boards order, each opens its screen, You is Settings'
     await expect(page).toHaveURL(new RegExp(`${t.hash.replace('/', '\\/')}$`));
     await expect(nav(page).getByTestId(`tab-${t.id}`)).toHaveAttribute('aria-current', 'page');
     await expect(nav(page).locator('[aria-current="page"]')).toHaveCount(1);
-    if (t.id === 'plan') await expect(page.getByRole('heading', { level: 1, name: 'Plans' })).toBeVisible();
+    if (t.id === 'plan') await expect(page.getByRole('heading', { level: 1, name: 'Plan', exact: true })).toBeVisible();
     if (t.id === 'history') await expect(page.getByRole('heading', { level: 1, name: 'History' })).toBeVisible();
     if (t.id === 'run') await expect(page.getByTestId('run-start')).toBeVisible();
     if (t.id === 'you') await expect(page.getByRole('heading', { level: 1, name: 'You', exact: true })).toBeVisible();

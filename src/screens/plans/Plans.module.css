@@ -1,231 +1,204 @@
-/* Plans tab and plan viewer (SPEC 8.6, 10, 13.1). Setup screens: they may scroll. */
+/* Plan tab, a place's plans and the plan viewer (SPEC 8.6, 10, 13.1; PLAN M6, board 10). No boxes:
+   rows sit on graphite split by hairlines; a group's title is a small uppercase label. */
 
 .lead {
   margin: 0;
+  min-height: 1.4em;
   color: var(--text-2);
+  font-size: var(--text-mono-body);
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
+.section {
+  margin-bottom: var(--space-6);
+}
+
+/* A stack of rows: a hairline over the first and under every row. */
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  border-top: var(--divider);
 }
 
-.planCard {
-  position: relative;
+.list > li {
+  border-bottom: var(--divider);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-2);
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* One plan: the name in bold, the detail small under it, "Your plan" small on the right. */
+.planRow {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--space-5) calc(var(--space-5) + 22px) var(--space-5) var(--space-5);
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius-lg);
-  background: var(--card-fill);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 72px;
+  padding: var(--space-3) 0;
   color: var(--text);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.planChevron {
-  position: absolute;
-  right: var(--space-4);
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  margin-top: -10px;
-  color: var(--text-2);
+.planText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .planName {
-  min-width: 0;
   font-family: var(--font-display);
-  font-size: clamp(20px, 5.6vw, 22px);
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: var(--text-mono-body);
+  font-weight: 800;
+  line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.planMeta {
+  color: var(--text-2);
+  font-size: var(--text-mono-caption);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .badge {
   flex: none;
-  padding: 2px 10px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  max-width: 40%;
   color: var(--accent);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-mono-caption);
+  font-weight: 600;
+  text-align: right;
 }
 
-.planMeta {
+/* Where you train: the place on the left, its count small on the right. */
+.placeRow {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px var(--space-2);
-  color: var(--accent);
-  font-size: var(--text-sm);
-  font-weight: 700;
-}
-
-.planSummary {
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-}
-
-.sectionTitle {
-  margin: var(--space-5) 0 var(--space-3);
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  font-weight: 700;
-}
-
-.places .sectionTitle {
-  margin-top: var(--space-2);
-}
-
-/* Routines by place (PLAN 3.1): two columns of tiles, the name top left, its count under it, one
-   line icon at the foot. An odd last tile takes the whole row, so the grid never has a hole. */
-.placeGrid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: space-between;
   gap: var(--space-3);
-}
-
-.placeGrid[data-count] > .placeItem:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-.placeTile {
-  composes: surface from '../../ui/card.module.css';
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 104px;
-  /* PLAN 3.5: the label uses the whole width (a long word like "Bodyweight" never breaks); only the
-     count row keeps clear of the icon, which sits in that row. */
-  padding: var(--space-4);
+  min-height: 62px;
+  padding: var(--space-2) 0;
   color: var(--text);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .placeLabel {
-  font-weight: 700;
+  min-width: 0;
+  font-size: var(--text-mono-body);
+  font-weight: 600;
   line-height: 1.25;
   overflow-wrap: break-word;
 }
 
 .placeCount {
-  display: flex;
-  align-items: flex-end;
-  min-height: 28px;
-  padding-right: 36px;
-  margin-top: auto;
+  flex: none;
   color: var(--text-2);
-  font-size: var(--text-sm);
-}
-
-.placeIcon {
-  position: absolute;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  width: 28px;
-  height: 28px;
-  color: var(--accent);
+  font-size: var(--text-mono-caption);
+  font-weight: 500;
 }
 
 /* ---------------------------------------------------------------- viewer */
 
+/* A plan (PLAN M6): its name giant, the detail small under it, the days as rows split by hairlines,
+   the exercises as plain lines, "Use this plan" as big words over the ice blue line. */
 .viewer {
   display: flex;
   flex-direction: column;
   /* room for the Use this plan dock */
-  padding-bottom: 76px;
+  padding-bottom: 96px;
 }
 
 .viewerMeta {
-  margin: 4px 0 0;
-  color: var(--accent);
-  font-size: var(--text-sm);
-  font-weight: 700;
+  margin: var(--space-1) 0 0;
+  color: var(--text);
+  font-size: var(--text-mono-body);
+  font-weight: 600;
 }
 
 .viewerSummary {
   margin: 0;
   color: var(--text-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-mono-caption);
   line-height: 1.45;
 }
 
+/* The week of a set length plan: six numbers as words, the one shown white over an ice blue line. */
 .weeks {
   display: grid;
-  grid-template-columns: repeat(6, minmax(48px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(6, minmax(44px, 1fr));
   margin-bottom: var(--space-4);
 }
 
-/* Narrow phones (360 and the 320 floor): six 48 pt weeks do not fit one row, so two rows of three. */
-@media (max-width: 379px) {
+/* The 320 floor: six 44 pt weeks do not fit one row, so two rows of three. */
+@media (max-width: 339px) {
   .weeks {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 .week {
-  height: var(--tap);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
+  min-height: var(--tap);
+  border-bottom: 3px solid transparent;
   color: var(--text-2);
   font-family: var(--font-display);
-  font-size: var(--text-base);
-  font-weight: 700;
+  font-size: var(--text-mono-body);
+  font-weight: 800;
   transition:
     transform var(--dur-press) var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 .week[aria-pressed='true'] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  border-bottom-color: var(--accent);
+  color: var(--text);
 }
 
 .day {
-  padding: var(--space-4) 0;
-  border-top: 1px solid var(--hairline);
+  padding: var(--space-5) 0 var(--space-4);
+  border-top: var(--divider);
 }
 
 .dayHead {
   display: flex;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .dayTitle {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: var(--text-lg);
-  font-weight: 700;
-  line-height: 1.25;
+  overflow-wrap: break-word;
+  font-family: var(--font-display);
+  font-size: var(--text-mono-value);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .dayTime {
   flex: none;
   color: var(--text-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-mono-caption);
   font-weight: 600;
 }
 
 .addOn {
-  margin: 2px 0 0;
+  margin: var(--space-1) 0 0;
   color: var(--text-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-mono-caption);
 }
 
 .blocks {
@@ -234,47 +207,36 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
-/* A pair (SPEC 8.2, 13.1): one shared card, the pair rail down its left, the label on top and the
-   one rest under both rows (PLAN 3.1). */
+/* A pair (SPEC 8.2, 13.1): its label on top, a thin rail down its left, the one rest under both
+   rows (PLAN 3.1). No box. */
 .block[data-kind='pair'] {
   position: relative;
-  padding: 10px 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
-  border: 1px solid color-mix(in srgb, var(--pair) 28%, transparent);
+  padding: var(--space-2) 0 var(--space-2) var(--space-4);
 }
 
 .block[data-kind='pair']::before {
   content: '';
   position: absolute;
-  left: 8px;
-  top: 14px;
-  bottom: 14px;
-  width: 3px;
-  border-radius: var(--radius-sm);
+  left: 0;
+  top: var(--space-3);
+  bottom: var(--space-3);
+  width: 2px;
   background: var(--pair);
 }
 
 .blockLabel {
-  margin: 0 0 4px;
+  margin: var(--space-2) 0 0;
   color: var(--pair);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.block[data-kind='pair'] .blockLabel {
-  padding: 2px var(--space-4) 0 22px;
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .block[data-warmup] .blockLabel {
   color: var(--amber);
-}
-
-.block[data-warmup][data-kind='pair'] {
-  border-color: color-mix(in srgb, var(--amber) 28%, transparent);
 }
 
 .block[data-warmup][data-kind='pair']::before {
@@ -287,34 +249,24 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
+/* One exercise: a plain line, a hairline between it and the next. */
 .item {
   display: flex;
   flex-direction: column;
-  padding: 12px var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
-  border: 1px solid color-mix(in srgb, var(--white) 4%, transparent);
+  min-height: 56px;
+  justify-content: center;
+  padding: 10px 0;
 }
 
-.block[data-kind='pair'] .items {
-  gap: 0;
+.block + .block .item:first-child,
+.item + .item {
+  border-top: var(--divider);
 }
 
-.block[data-kind='pair'] .item {
-  padding: 10px var(--space-4) 10px 22px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-}
-
-/* The hairline between the two rows starts at the text, clear of the rail. */
-.block[data-kind='pair'] .item + .item {
-  margin-left: 22px;
-  padding-left: 0;
-  border-top: 1px solid var(--hairline);
+.block[data-kind='pair'] + .block .item:first-child {
+  border-top: var(--divider);
 }
 
 .itemText {
@@ -325,22 +277,21 @@
 
 .pairRest {
   margin: 2px 0 0;
-  padding: 0 var(--space-4) 2px 22px;
   color: var(--text-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-mono-caption);
   font-weight: 600;
 }
 
-/* The week by week table of a six week item (PLAN 3.1): six equal cells, the shown week accent. */
+/* The week by week table of a six week item (PLAN 3.1): six numbers, the shown week in ice blue. */
 .weekTable {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 
 .weekCaption {
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-1);
   color: var(--text-2);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-mono-caption);
+  font-weight: 500;
 }
 
 .weekCells {
@@ -349,7 +300,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .weekCell {
@@ -357,17 +308,13 @@
   flex-direction: column;
   align-items: center;
   min-width: 0;
-  padding: 5px 0 6px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--white) 3.5%, transparent);
-  transition:
-    background-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+  padding: 2px 0 4px;
+  border-bottom: 2px solid transparent;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .weekCell[data-current] {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
+  border-bottom-color: var(--accent);
 }
 
 .weekCellWeek {
@@ -381,7 +328,7 @@
 .weekCellValue {
   font-family: var(--font-display);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.25;
   white-space: nowrap;
 }
@@ -391,20 +338,20 @@
 }
 
 .itemName {
+  font-size: var(--text-mono-body);
   font-weight: 700;
   line-height: 1.3;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .itemLine {
   color: var(--text-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-mono-caption);
 }
 
 .itemNote {
-  color: var(--text);
-  opacity: 0.8;
-  font-size: var(--text-sm);
+  color: var(--text-2);
+  font-size: var(--text-mono-caption);
   font-style: italic;
 }
 
@@ -417,15 +364,17 @@
 }
 
 .finisher {
-  margin: var(--space-2) 0 0;
-  padding: 10px var(--space-3);
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--hairline);
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  border-top: var(--divider);
   font-weight: 700;
 }
 
 .finisherTag {
   color: var(--accent);
-  font-size: 13px;
-  margin-right: 4px;
+  font-size: var(--text-mono-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-right: var(--space-1);
 }
