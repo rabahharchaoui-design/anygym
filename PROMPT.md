@@ -26,6 +26,11 @@ MERGE GATE (the last item of each session)
 CHECKPOINTS
 Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. NEVER BATCH CHECKPOINTS (G, Nov 11: he opened the app and saw none of the day's work): before starting any item, compare master with the session branch; if any checked item is not on master yet, checkpoint first. A checked item that is not live does not count as done for G. Write the test-now line (which the phone watcher turns into the ready to test push) ONLY after the Pages deploy run is green AND the live site serves the new build (fetch the live index and check the new asset hash); G, Nov 11 11:34 PM, opened the app during a deploy and saw the old version. Master is always usable and saved data is never lost.
 
+HANDOFF WITH GROK (G, Nov 27 2:55 AM)
+- ~/anygym-handoff.md is the handoff between you and Grok. When the usage guard stops you at your 5 hour or weekly cap, run-overnight.sh writes it with STATUS: Claude paused (time, your usage and resets, what is in flight, what to check), and Grok becomes lead reviewer.
+- At the start of EVERY run: read the Grok findings at the bottom of ~/anygym-handoff.md first and act on each one before other work. Under each finding write AGREE (and fix it) or WRONG with the reason; flagging Grok's mistakes is part of the job, and Grok flags yours. Then run `bash .loop-tools/handoff.sh active` so the file says Claude active.
+- Merging stays yours alone. Grok never merges; you merge only what passed its full suite and Grok's review.
+
 GROK REVIEWS CODEX FIRST (G, Nov 27 2:53 AM)
 - Grok is lead reviewer of Codex's builds while your window is low. At the start of every run, read Grok's newest findings (reports/grok/, newest review or findings file) before anything else. Merge a Codex build only when its full suite says PASS AND Grok's review passed it; anything Grok flagged goes back to Codex's fix queue with Grok's note, never merged as is.
 
