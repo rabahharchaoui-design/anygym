@@ -38,8 +38,8 @@ async function quickList(page: Page) {
 }
 
 const slots = (page: Page) => page.locator('[data-icon3d]');
-/** The goal slot's size on this phone (Chip.module.css), the place card's and the style card's. */
-const goalSlot = (page: Page) => ((page.viewportSize()?.width ?? 0) >= 420 ? 48 : (page.viewportSize()?.width ?? 0) >= 390 ? 40 : 36);
+/** The goal tile's picture slot: 28 pt on every phone since M13 and M15 (IntakeRows.module.css). */
+const GOAL_SLOT = 28;
 
 /** Where every tile and its words are, relative to the first tile (so a scroll changes nothing). */
 const boxes = (page: Page, tiles: string, words: string) =>
@@ -131,7 +131,7 @@ test.describe('3D icons: pictures, slots and the line icon', () => {
       await expect(slots(page).first().locator('svg')).toHaveCSS('opacity', '1');
       const before = await boxes(page, '[data-testid="q-goal"] > button', '[data-icon3d], span[class*="label"]');
       release();
-      await expectPictures(page, goalSlot(page), GOALS.map((g) => `goal-${g}`));
+      await expectPictures(page, GOAL_SLOT, GOALS.map((g) => `goal-${g}`));
       expect(await boxes(page, '[data-testid="q-goal"] > button', '[data-icon3d], span[class*="label"]')).toEqual(before);
       // The words on the tiles are the same words.
       await expect(page.getByTestId('q-goal-muscle')).toHaveText('Build muscle');
@@ -148,13 +148,14 @@ test.describe('3D icons: pictures, slots and the line icon', () => {
       await shot(page, 'goal-picked');
     });
 
-    test('the 5 place cards: the picture in a 48 pt slot, nothing moves', async ({ page }) => {
+    test('the 5 place cards: the picture in a 28 pt slot, nothing moves', async ({ page }) => {
       const release = await hold(page);
       await intakeAt(page, 'place');
       await expect(page.locator('[data-icon3d][data-state="wait"]')).toHaveCount(5);
       const before = await boxes(page, '[data-testid="q-place"] button', '[data-icon3d], span[class*="text"], [data-ring]');
       release();
-      await expectPictures(page, 48, PLACES.map((p) => `place-${p}`));
+      // 28 pt on every phone since M13 and M15 (IntakeRows.module.css, ChoiceCard.module.css).
+      await expectPictures(page, 28, PLACES.map((p) => `place-${p}`));
       expect(await boxes(page, '[data-testid="q-place"] button', '[data-icon3d], span[class*="text"], [data-ring]')).toEqual(before);
       await expect(page.getByTestId('q-place-hotel')).toContainText('Hotel gyms');
       await checkLayout(page);
