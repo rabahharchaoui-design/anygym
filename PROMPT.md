@@ -26,6 +26,10 @@ MERGE GATE (the last item of each session)
 CHECKPOINTS
 Follow the CHECKPOINT RULE at the top of PLAN.md: after every item that passes, merge to master, smoke test, push, confirm the Pages deploy, live check, back to the session branch. NEVER BATCH CHECKPOINTS (G, Nov 11: he opened the app and saw none of the day's work): before starting any item, compare master with the session branch; if any checked item is not on master yet, checkpoint first. A checked item that is not live does not count as done for G. Write the test-now line (which the phone watcher turns into the ready to test push) ONLY after the Pages deploy run is green AND the live site serves the new build (fetch the live index and check the new asset hash); G, Nov 11 11:34 PM, opened the app during a deploy and saw the old version. Master is always usable and saved data is never lost.
 
+USAGE PLAN (G, Nov 27 2:42 AM: "utilize ChatGPT a lot, use or lose")
+- Codex has 3 saved full resets expiring 12/2, 12/13 and 12/26, so until 12/26 Codex is the workhorse: its lane and fix queue are never left empty while PLAN has open items, and it also drafts briefs, data files (like the PL-a machine catalog) and fix rounds. Claude keeps its own week for reviews, merges, shipping and anything Codex cannot do.
+- The Grok helper tells G to tap a reset (in the ChatGPT app; bots never spend money or tap it) when Codex passes 80% of its week with work queued, and the evening before each expiry. Grok stays on audits and live tests within its own brakes.
+
 CODEX FIRST AFTER EACH WEEKLY RESET (G, Nov 25 4:41 PM)
 - From the Thursday 8 PM reset on, every run starts by reviewing and merging Codex's passing builds (reports/codex/build-*.md with STATUS: NEW and a PASS from the full suite) before building anything new. Codex only hands over builds that pass; builds marked FAILED or REJECTED are not yours to fix.
 - Q3 is split into Q3a, Q3b and Q3c; each says which part must be merged first. Merge a Codex build with a message that starts "Merge Codex <id>" (for example "Merge Codex Q3a: ..."): Codex starts the next part only once it sees that merge on s4-run.

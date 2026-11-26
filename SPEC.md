@@ -275,7 +275,7 @@ Visual direction: MONOLITH (G picked it Nov 19 from UI concepts round 1, issue #
 - Provisional: the round 2 boards are concepts, not pixel specs. Screens move to Monolith one at a time (PLAN M1 to M7); until a screen's M item lands it may still show older shapes drawn from the shared tokens.
 
 ## 11. Explicitly out of v1
-Accounts and sync (Supabase later), Apple Health and Apple Watch (Apple only allows these from native apps, so they come in the native phase in PLAN.md LATER), push notifications, social, AI coaching, camera or photo features, Spotify or Apple Music APIs (launch buttons only), native app, GPS tracking with the screen locked (needs the native wrapper later).
+Accounts and sync (Supabase later), Apple Health and Apple Watch (Apple only allows these from native apps, so they come in the native phase in PLAN.md LATER), push notifications, social, AI coaching, camera or photo features, except Point & Lift (docs/point-and-lift.md), Spotify or Apple Music APIs (launch buttons only), native app, GPS tracking with the screen locked (needs the native wrapper later).
 
 ## 12. Run With Me (the Run tab)
 
