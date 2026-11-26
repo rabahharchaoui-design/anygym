@@ -4,7 +4,7 @@ import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AnyGymDB } from '../schema';
-import { readRecoveryLog } from '../recoveryLog';
+import { readRecoveryLog } from '../training';
 import { targetMenu } from '../../lib/quickCards';
 import type { WorkoutSet } from '../types';
 

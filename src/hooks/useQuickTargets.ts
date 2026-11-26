@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { readRecoveryLog } from '../db/recoveryLog';
+import { readRecoveryLog } from '../db/training';
 import type { LoggedWorkout } from '../lib/recovery';
 import type { QuickDeps, QuickInput } from '../lib/quick';
 import { targetRows, type TargetRow } from '../lib/quickTargets';
