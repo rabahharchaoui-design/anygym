@@ -89,3 +89,16 @@ export async function readTrainingLog(now: number, db: AnyGymDB = defaultDb): Pr
   }
   return [...byId.values()];
 }
+
+/**
+ * PLAN Q3a0: every dated workout's proving sets, as Quick's target menu reads them (lib/quickCards.ts
+ * targetMenu). The whole history, so "rested longest" is true; what counts as trained is decided in
+ * src/lib/recovery alone. A plain Dexie promise chain (see workSince).
+ */
+export function readRecoveryLog(now: number, db: AnyGymDB = defaultDb): Promise<LoggedWorkout[]> {
+  return workSince(0, now, db).then(({ sessions, sets }) => {
+    const bySession = new Map<string, WorkoutSet[]>();
+    for (const row of sets) if (liftOf(row)) bySession.set(row.sessionId, [...(bySession.get(row.sessionId) ?? []), row]);
+    return [...bySession].map(([id, rows]) => loggedOf(sessions.get(id)!.startedAt, rows));
+  });
+}
