@@ -235,6 +235,9 @@ export const runEngine = {
           runDiagLog.begin(live.id, live.startedAt, false);
           set({ live, ready: true });
           attach();
+          // The new watch's first callback may be the phone's old position handed back as new
+          // (PLAN R1 7): guarded like rewatch(), with the saved dot standing in for it.
+          replayOf = live.here ? { lat: live.here.lat, lng: live.here.lng, near: true } : null;
           save();
           return;
         }

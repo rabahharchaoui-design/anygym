@@ -1,4 +1,6 @@
 import { Component, lazy, Suspense, useState, type ComponentType, type ReactNode } from 'react';
+import { appActivity } from '../pwa';
+import { retryLoad } from '../lib/loadRetry';
 import { LoadError } from './LoadError';
 import styles from './LazyScreen.module.css';
 
@@ -17,7 +19,9 @@ export function lazyScreen(load: Load): { Screen: ComponentType; preload: () => 
   const fetchScreen = () =>
     load().then(
       (C) => ({ default: C }),
-      (cause: unknown) => Promise.reject(new ScreenLoadError(cause)),
+      // The page is going away (a reload or a new address): the browser cancelled the fetch. Not a
+      // missing file, so no load error flashes and nothing is logged; the next page asks afresh.
+      (cause: unknown) => (pageLeaving() ? new Promise<never>(() => {}) : Promise.reject(new ScreenLoadError(cause))),
     );
   const current = () => (made ??= lazy(fetchScreen));
   const reset = () => {
@@ -62,14 +66,23 @@ class LoadBoundary extends Component<BoundaryProps, { error: unknown }> {
 
 /**
  * Try again. WebKit remembers a module that failed to fetch for the life of the page, so asking
- * again in place would fail again: with signal the page is loaded afresh on the same address (all
- * data is saved; this screen had not opened yet). With no signal it asks in place, which shows the
- * error again rather than a browser page about being offline.
+ * again in place may fail again: with signal and nothing active the page is loaded afresh on the
+ * same address (all data is saved; this screen had not opened yet). While a workout or a run is
+ * active the page is never reloaded (PLAN R1): the file is asked for again in place, as with no
+ * signal, which at worst shows this error again rather than losing the run.
  */
 function retry(inPlace: () => void): void {
-  if (navigator.onLine) window.location.reload();
-  else inPlace();
+  void retryLoad(navigator.onLine, appActivity, () => window.location.reload(), inPlace);
 }
+
+let leaving = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => (leaving = true));
+  window.addEventListener('pagehide', () => (leaving = true));
+  // Back from the page cache: the page is in use again.
+  window.addEventListener('pageshow', () => (leaving = false));
+}
+const pageLeaving = () => leaving;
 
 /** The screen's file could not be fetched (marked where the import fails, so no other error is mistaken for it). */
 export class ScreenLoadError extends Error {

@@ -13,7 +13,8 @@ const gpsStale = (run: LiveRun, nowMs: number): boolean => run.tracker.lastGood 
 export function liveNote(run: LiveRun, status: RunStatus, nowMs: number): LiveNoteWords {
   if (status === 'paused') return { tone: 'paused', text: run.closed ? 'Paused while the app was closed' : 'Paused' };
   if (run.gps === 'denied') return { tone: 'wait', text: 'Location is off for AnyGym' };
-  if (status === 'waiting') return { tone: 'wait', text: 'Looking for GPS' };
+  // Resumed after a pause by hand, no new position yet (PLAN R1 2): no pace is shown, and why.
+  if (status === 'waiting' || run.tracker.afterPause) return { tone: 'wait', text: 'Looking for GPS' };
   // Auto paused, but no position for a while: it is not known that the runner stands (PLAN 4.4f 2).
   if (status === 'auto-paused') return gpsStale(run, nowMs) ? { tone: 'wait', text: 'GPS lost · time on hold' } : { tone: 'auto', text: 'Auto paused · move to go on' };
   // PLAN 4.4a: no position for a while: the time holds (it never goes back) until GPS returns.
