@@ -36,6 +36,23 @@ export function groupsTrained(w: LoggedWorkout): RecoveryGroup[] {
   return [...sets].filter(([, n]) => n >= TRAINED_MIN_SETS).map(([g]) => g);
 }
 
+/** PLAN H2: the primary muscles of one workout's counted sets whose group it trained (helpers never). */
+export function musclesTrained(w: LoggedWorkout): Muscle[] {
+  const groups = new Set(groupsTrained(w));
+  return primaryMuscles(w).filter((m) => groups.has(groupOf(m)));
+}
+
+/**
+ * PLAN H2: the primary muscles one workout worked without training them (under TRAINED_MIN_SETS
+ * sets for their group). Never a trained fact, and no "rested" claim may be made past them.
+ */
+export function musclesWorkedOnly(w: LoggedWorkout): Muscle[] {
+  const groups = new Set(groupsTrained(w));
+  return primaryMuscles(w).filter((m) => !groups.has(groupOf(m)));
+}
+
+const primaryMuscles = (w: LoggedWorkout): Muscle[] => [...new Set(w.sets.filter(counts).flatMap((s) => s.primary))];
+
 /** When each group was last trained. Workouts dated after `now` are not facts yet and never count. */
 export function lastTrainedGroups(log: readonly LoggedWorkout[], now: number): GroupTraining {
   const out: GroupTraining = {};

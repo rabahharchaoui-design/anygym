@@ -3,6 +3,7 @@ import { profileFor } from '../data/order';
 import { focusFacts } from '../data/focus';
 import type { Muscle } from '../lib/order';
 import type { TrainingEntry } from '../lib/plan/recovery';
+import { type LoggedWorkout, musclesTrained, musclesWorkedOnly } from '../lib/recovery';
 import { TIRED_MS } from '../lib/quickWhy';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { Session, WorkoutSet } from './types';
@@ -30,8 +31,8 @@ function liftOf(row: WorkoutSet) {
   return p.role === 'lift' && focusFacts(row.exerciseId, p).muscles.length ? p : null;
 }
 
-/** SPEC 20.3 (PLAN H1): the muscles one logged set trained: its exercise's targets, never its helpers. */
-function trainedMusclesOf(row: WorkoutSet): Muscle[] {
+/** The target (primary) muscles of one logged set that proves something; never its helpers. */
+function targetsOf(row: WorkoutSet): Muscle[] {
   return [...(liftOf(row)?.targets ?? [])];
 }
 
@@ -44,30 +45,47 @@ function helperMusclesOf(row: WorkoutSet): Muscle[] {
   return p ? p.helpers.filter((m) => m !== 'forearms' && !p.targets.includes(m)) : [];
 }
 
+/** One session's proving sets as src/lib/recovery reads them (every set here is a certain working set). */
+const loggedOf = (at: number, rows: readonly WorkoutSet[]): LoggedWorkout => ({ at, sets: rows.map((row) => ({ kind: row.kind, primary: targetsOf(row) })) });
+
 /** Muscle → the start of the latest workout whose sets give it, over the last 30 days. */
-async function lastDates(of: (row: WorkoutSet) => Muscle[], now: number, db: AnyGymDB, excludeSession?: string): Promise<Partial<Record<Muscle, number>>> {
+async function lastDates(of: (at: number, rows: readonly WorkoutSet[]) => Muscle[], now: number, db: AnyGymDB, excludeSession?: string): Promise<Partial<Record<Muscle, number>>> {
   const { sessions, sets } = await workSince(now - LOOKBACK, now, db, excludeSession);
+  const bySession = new Map<string, WorkoutSet[]>();
+  for (const row of sets) if (liftOf(row)) bySession.set(row.sessionId, [...(bySession.get(row.sessionId) ?? []), row]);
   const out: Partial<Record<Muscle, number>> = {};
-  for (const row of sets) for (const m of of(row)) out[m] = Math.max(out[m] ?? 0, sessions.get(row.sessionId)!.startedAt);
+  for (const [id, rows] of bySession) {
+    const at = sessions.get(id)!.startedAt;
+    for (const m of of(at, rows)) out[m] = Math.max(out[m] ?? 0, at);
+  }
   return out;
 }
 
-/** When each muscle was last trained (target muscles of logged working sets only). */
-export const readTraining = (now: number, db: AnyGymDB = defaultDb, excludeSession?: string) => lastDates(trainedMusclesOf, now, db, excludeSession);
+/**
+ * When each muscle was last trained. SPEC 20.3 (PLAN H2): the one rule lives in src/lib/recovery
+ * (3 working sets with the group as a primary muscle); helpers never count (PLAN H1).
+ */
+export const readTraining = (now: number, db: AnyGymDB = defaultDb, excludeSession?: string) =>
+  lastDates((at, rows) => musclesTrained(loggedOf(at, rows)), now, db, excludeSession);
 
-/** When each muscle last worked as a helper of a logged working set. Never a trained fact (PLAN H1). */
-export const readHelped = (now: number, db: AnyGymDB = defaultDb, excludeSession?: string) => lastDates(helperMusclesOf, now, db, excludeSession);
+/**
+ * When each muscle last worked without being trained: as a helper of a logged working set, or as a
+ * target with too few sets (PLAN H2). Never a trained fact (PLAN H1); it keeps suggestions off the
+ * muscle and any "rested" claim past that workout off the screen.
+ */
+export const readHelped = (now: number, db: AnyGymDB = defaultDb, excludeSession?: string) =>
+  lastDates((at, rows) => [...new Set([...rows.flatMap(helperMusclesOf), ...musclesWorkedOnly(loggedOf(at, rows))])], now, db, excludeSession);
 
 /**
  * The last 48 hours of real work, one entry per workout, for the next day rule (lib/plan/recovery.ts
- * decides what counts). The same inclusion rule as readTraining.
+ * decides what counts). The same proving sets as readTraining.
  */
 export async function readTrainingLog(now: number, db: AnyGymDB = defaultDb): Promise<TrainingEntry[]> {
   const { sessions, sets } = await workSince(now - TIRED_MS, now, db);
   const byId = new Map([...sessions.values()].map((s) => [s.id, { at: s.startedAt, ...(s.planId ? { planId: s.planId } : {}), ...(s.dayId ? { dayId: s.dayId } : {}), sets: {} as Record<string, number> }]));
   for (const row of sets) {
     const e = byId.get(row.sessionId)!;
-    for (const m of trainedMusclesOf(row)) e.sets[m] = (e.sets[m] ?? 0) + 1;
+    for (const m of targetsOf(row)) e.sets[m] = (e.sets[m] ?? 0) + 1;
   }
   return [...byId.values()];
 }
