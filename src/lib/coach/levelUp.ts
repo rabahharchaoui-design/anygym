@@ -48,12 +48,11 @@ function weekScheme(sessions: readonly LiftSession[]): Scheme | 'short' | null {
   return agree ? { sets: first.sets.length, top, load } : null;
 }
 
-/** Both workouts at the top of the range at the same weight. */
-const sameTop = (a: LiftSession, b: LiftSession): boolean => {
-  const pa = lastPicked(a);
-  const pb = lastPicked(b);
-  return !!a.range && !!b.range && !!pa && !!pb && pa.unit === pb.unit && Math.abs(weightChange(pa.value, pb.value)) < 0.01 && allTop(b.sets, b.range) && sameWeight(b.sets);
-};
+/** PLAN R4 (5): two weeks' schemes are one: the same set count, top of range and whole weight. */
+const sameScheme = (a: Scheme, b: Scheme): boolean => a.sets === b.sets && a.top === b.top && sameResistance(a.load, b.load);
+
+/** Every workout marked Easy. */
+const allEasy = (sessions: readonly LiftSession[]): boolean => sessions.length > 0 && sessions.every((s) => s.effort === 'easy');
 
 /** One lift's verdict for the week, or null when the week says nothing about it. */
 export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: number, week = lastWeek(now)): { raise: PlannedChange } | { hold: Hold } | null {
@@ -87,11 +86,15 @@ export function liftVerdict(lift: Lift, changes: readonly ChangeRecord[], now: n
     if (top !== null) return hold(`${lift.loadKind === 'dumbbell_each' ? 'Heaviest dumbbell' : 'Heaviest weight'} here is ${formatWeight(top, setup.unit)}: add reps`);
     return hold('no heavier weight here yet. Add a rep to each set instead');
   }
-  const before = lift.sessions.find((s) => s.date < week.start);
-  const twice = !!before && before.date >= week.start - 7 * 24 * 60 * 60 * 1000 && sameTop(latest, before);
+  // PLAN R4 (5): "two weeks in a row" only when every workout of the week before logged this same
+  // scheme at the same whole weight; "with reps to spare" only with Easy on every workout it speaks for.
+  const weekBefore = lift.sessions.filter((s) => s.date >= week.start - 7 * 24 * 60 * 60 * 1000 && s.date < week.start);
+  const prior = weekScheme(weekBefore);
+  const twice = !!prior && prior !== 'short' && sameScheme(scheme, prior);
+  const spare = allEasy(inWeek) && (!twice || allEasy(weekBefore));
   const top = `${scheme.sets} × ${scheme.top}`;
   const fromTotal = comparableWeight(at.load, at.unit);
-  const reason = `${changeWords(lift.loadKind, weightChange(fromTotal, toWeight({ to: pick.value, toAdded: pick.added })), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${easy ? ', with reps to spare' : ''}`;
+  const reason = `${changeWords(lift.loadKind, weightChange(fromTotal, toWeight({ to: pick.value, toAdded: pick.added })), setup.unit)}: you hit ${top}${twice ? ' two weeks in a row' : ' last week'}${spare ? ', with reps to spare' : ''}`;
   return {
     raise: { ...base, loadKind: lift.loadKind, unit: setup.unit, from: at.value, fromTotal, to: pick.value, ...(pick.added ? { toAdded: pick.added } : {}), reason, source: 'level_up', reps: 'low' },
   };
