@@ -108,7 +108,10 @@ describe('the rotation memory', () => {
       { id: 'imp', gymId: 'g', startedAt: NOW - 1 * DAY, imported: true },
       { id: 'future', gymId: 'g', startedAt: NOW + DAY, imported: false },
     ]);
-    await db.sets.bulkAdd([set('w', 'machine-seated-reverse-fly', 0), set('w', 'cable-single-arm-bicep-curl', 1), set('x', 'cable-single-arm-bicep-curl', 0, 'warmup'), set('imp', 'leg-extension', 0), set('future', 'crunch', 0)]);
+    // PLAN H2 (SPEC 20.3): 3 working sets per group train it, so each lift has 3 here.
+    await db.sets.bulkAdd([0, 1, 2].map((i) => set('w', 'machine-seated-reverse-fly', i)));
+    await db.sets.bulkAdd([3, 4, 5].map((i) => set('w', 'cable-single-arm-bicep-curl', i)));
+    await db.sets.bulkAdd([set('x', 'cable-single-arm-bicep-curl', 0, 'warmup'), set('imp', 'leg-extension', 0), set('future', 'crunch', 0)]);
     const last = await readLastTrained(NOW, db);
     expect(last).toEqual({ 'rear delts': NOW - 4 * DAY, biceps: NOW - 4 * DAY });
   });

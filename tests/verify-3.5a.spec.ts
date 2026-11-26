@@ -133,9 +133,10 @@ test.describe('3.5a verify', () => {
     await usePlan(page);
     const dayTitle = (await page.getByTestId('day-card-title').textContent())!;
     await dbPut(page, { profile: [PROFILE] });
-    // Chest and triceps trained yesterday; legs trained 5 days ago (not recent).
-    await seedFinished(page, { 'barbell-incline-bench-press': [{ reps: 10, load: bar185 }, { reps: 10, load: bar185 }] }, 1);
-    const old = await seedFinished(page, { 'barbell-back-squat': [{ reps: 10, load: bar185 }] }, 5);
+    // Chest trained yesterday; legs trained 5 days ago (not recent). PLAN H2 (SPEC 20.3): 3 working sets each.
+    const three = [0, 1, 2].map(() => ({ reps: 10, load: bar185 }));
+    await seedFinished(page, { 'barbell-incline-bench-press': three }, 1);
+    const old = await seedFinished(page, { 'barbell-back-squat': three }, 5);
     expect(old).toBeTruthy();
     await page.reload();
     await page.getByTestId('build-card').tap();
