@@ -5,11 +5,12 @@
 // its reason, never a padded workout or a nearer day under the target's name.
 import { AREA_RULES, FALLBACK_RULES, type SessionArea } from './order';
 import { focusCard } from './quickFocus';
-import { BUILD, chipOf, newerOf, styleCard, TARGET_TITLE, type QuickTargetId, type TargetEntry, type TrainTargetId } from './quickCards';
+import { BUILD, chipOf, newerOf, styleCard, TARGET_TITLE, targetMenu, type QuickTargetId, type TargetEntry, type TrainTargetId } from './quickCards';
 import { buildCard, densityFor, STYLES } from './quickStyles';
 import { fits, gearOf, itemsOf, mainMuscles } from './quickShow';
 import { QUICK_MINUTES, type Concept, type QuickDeps, type QuickInput } from './quick';
 import type { Slot } from './generatorRules';
+import type { LoggedWorkout } from './recovery';
 
 /** Why a target cannot be built here. */
 export type TargetMissing = 'few-moves' | 'no-fit';
@@ -90,4 +91,12 @@ export function buildTarget(entry: Pick<TargetEntry, 'id' | 'builds'>, input: Qu
   if (c && fits(c.minutes, input.minutes)) return { ok: true, target: entry.id, builds: entry.builds, concept: c };
   const reason = c ? 'no-fit' : reasonOf(entry.builds, input, deps);
   return { ok: false, target: entry.id, builds: entry.builds, reason, words: missingWords(entry.builds, reason, input.minutes) };
+}
+
+/** One row of the target menu with the workout it starts (or why it cannot). */
+export type TargetRow = { entry: TargetEntry; build: TargetBuild };
+
+/** The whole menu from the log, each entry with its build, in menu order (the Q3a1 screen reads this). */
+export function targetRows(log: readonly LoggedWorkout[], now: number, input: QuickInput, deps: QuickDeps): TargetRow[] {
+  return targetMenu(log, now).targets.map((entry) => ({ entry, build: buildTarget(entry, input, deps) }));
 }
