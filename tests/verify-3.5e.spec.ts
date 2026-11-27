@@ -312,7 +312,7 @@ test('backup export + restore (replace and merge) keep approvals; old backup wit
   expect(errors).toEqual([]);
 });
 
-test('Dexie v10 shaped DB opens, upgrades to v11 and keeps every prior row @matrix', async ({ page }) => {
+test('Dexie v10 shaped DB opens, upgrades to v12 and keeps every prior row @matrix', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('./icons/favicon-32.png');
   const stores: Record<string, string> = {
@@ -350,7 +350,7 @@ test('Dexie v10 shaped DB opens, upgrades to v11 and keeps every prior row @matr
   await expect(page.getByTestId('history-row')).toHaveCount(1, { timeout: 15000 });
   expect((await dbAll(page, 'sets')).length).toBe(1);
   expect((await dbAll<{ name: string }>(page, 'gyms'))[0]!.name).toBe('Old Gym');
-  expect(await page.evaluate(() => new Promise<number>((r) => { const q = indexedDB.open('anygym'); q.onsuccess = () => { const v = q.result.version; q.result.close(); r(v); }; }))).toBe(110);
+  expect(await page.evaluate(() => new Promise<number>((r) => { const q = indexedDB.open('anygym'); q.onsuccess = () => { const v = q.result.version; q.result.close(); r(v); }; }))).toBe(120);
   expect(await dbAll(page, 'candidateReviews')).toEqual([]);
   expect(errors).toEqual([]);
 });
