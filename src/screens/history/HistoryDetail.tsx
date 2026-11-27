@@ -36,7 +36,7 @@ export function HistoryDetail() {
 
   return (
     <>
-      <TopBar title={value ? workoutTitle(value.session) : 'Workout'} leading={<BackButton to="/history" label="Back to History" />}>
+      <TopBar title={value ? workoutTitle(value.session, value.logged) : 'Workout'} leading={<BackButton to="/history" label="Back to History" />}>
         {value && (
           <p className={`${styles.meta} num`} data-testid="history-meta">
             {meta}
@@ -54,7 +54,7 @@ export function HistoryDetail() {
             groups.map((g) => (
               <section key={g.exerciseId} className={styles.exercise} aria-label={nameOf(g.exerciseId)}>
                 {/* The title already names a one exercise workout: no second time on the card. */}
-                {!(groups.length === 1 && nameOf(g.exerciseId) === workoutTitle(value.session)) && <h2 className={styles.exerciseName}>{nameOf(g.exerciseId)}</h2>}
+                {!(groups.length === 1 && nameOf(g.exerciseId) === workoutTitle(value.session, value.logged)) && <h2 className={styles.exerciseName}>{nameOf(g.exerciseId)}</h2>}
                 <ol className={styles.sets}>
                   {g.sets.map((s, i) => (
                     <li key={s.id} className={styles.set} data-testid="history-set">

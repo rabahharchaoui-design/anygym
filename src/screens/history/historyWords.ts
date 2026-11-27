@@ -13,9 +13,14 @@ import { dayWorkout } from '../../lib/planWorkout';
 import { dayTitle } from '../plans/planWords';
 import { IMPORTED_LABEL, isImportOrder } from '../../lib/import/importOrder';
 import { sessionTime } from '../../lib/workoutTime';
+import type { LoggedWorkout } from '../../lib/recovery';
+import { QUICK_FALLBACK, quickLabel } from '../../lib/workoutLabel';
 
-/** "Day 3 · Back and biceps" for a plan day, the exercise for an imported one, else "Quick workout". */
-export function workoutTitle(session: Session): string {
+/**
+ * "Day 3 · Back and biceps" for a plan day, the exercise for an imported one, else what was logged
+ * (PLAN HT1: "Quick · Back + Shoulders", lib/workoutLabel.ts), "Quick workout" without `logged`.
+ */
+export function workoutTitle(session: Session, logged?: Pick<LoggedWorkout, 'sets'>): string {
   if (session.imported) {
     const ids = session.exerciseIds ?? [];
     return ids.length === 1 ? (exerciseNameOf(ids[0]!) ?? 'Imported workout') : 'Imported workout';
@@ -23,7 +28,7 @@ export function workoutTitle(session: Session): string {
   const plan = planById(session.planId);
   const i = plan ? dayIndexOf(plan, session.dayId) : -1;
   const day = plan && i >= 0 ? plan.days[i] : undefined;
-  return day ? dayTitle(day.n, day.name) : 'Quick workout';
+  return day ? dayTitle(day.n, day.name) : logged ? quickLabel(logged) : QUICK_FALLBACK;
 }
 
 /** "Fri, Oct 24", with the year when it is not this year. "Imported" for imported workouts (no date, SPEC 9.3). */

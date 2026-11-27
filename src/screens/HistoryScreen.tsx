@@ -32,7 +32,7 @@ export function HistoryScreen() {
   const numbers = importNumbers(items.map((x) => x.session));
   const feed = historyFeed(items, runs);
   const imported = feed.imported;
-  const row = ({ session, sets }: (typeof items)[number]) => {
+  const row = ({ session, sets, logged }: (typeof items)[number]) => {
     const no = numbers.get(session.id);
     const sub = session.imported ? (no ? `Workout ${no.n} of ${no.of}` : '') : workoutDate(session.startedAt);
     const note =
@@ -41,7 +41,7 @@ export function HistoryScreen() {
           {session.note}
         </span>
       ) : null;
-    return <HistoryRow key={session.id} to={`/history/${session.id}`} testId="history-row" title={workoutTitle(session)} sub={sub} note={note} facts={workoutFacts(session, sets)} />;
+    return <HistoryRow key={session.id} to={`/history/${session.id}`} testId="history-row" title={workoutTitle(session, logged)} sub={sub} note={note} facts={workoutFacts(session, sets)} />;
   };
   const hasRows = feed.dated.length > 0 || imported.length > 0;
   return (

@@ -10,6 +10,8 @@ import { exerciseNameOf } from '../data/importMatch';
 import { dayIndexOf } from '../lib/plans';
 import { dayWorkout } from '../lib/planWorkout';
 import { isWorkSet } from '../lib/workSets';
+import type { LoggedWorkout } from '../lib/recovery';
+import { provingLog } from './training';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import { ANY_GYM, type BarId, type Gym, type Load, type Session, type WorkoutSet } from './types';
 
@@ -214,22 +216,30 @@ export async function lastSessionSets(exerciseId: string, gymId: string, loadKin
 }
 
 /** A finished workout for the History list (SPEC 8, 13.1): only what is saved, nothing made up. */
-export type FinishedWorkout = { session: Session; sets: number };
+/** `logged`: the proving sets, read at read time for the row's title (PLAN HT1: older workouts get it too, no schema change). */
+export type FinishedWorkout = { session: Session; sets: number; logged?: LoggedWorkout };
 
-/** Finished workouts (ended, or imported), newest first, each with its set count. */
+/** Finished workouts (ended, or imported), newest first, each with its set count and its proving sets. */
 export async function listFinished(db: AnyGymDB = defaultDb): Promise<FinishedWorkout[]> {
   const sessions = (await db.sessions.orderBy('startedAt').reverse().toArray()).filter((s) => s.endedAt !== undefined || s.imported);
   const counts = new Map<string, number>();
-  await db.sets.each((s) => isWorkSet(s) && counts.set(s.sessionId, (counts.get(s.sessionId) ?? 0) + 1));
-  return sessions.map((session) => ({ session, sets: counts.get(session.id) ?? 0 }));
+  const rows = new Map<string, WorkoutSet[]>();
+  await db.sets.each((s) => {
+    if (isWorkSet(s)) counts.set(s.sessionId, (counts.get(s.sessionId) ?? 0) + 1);
+    const list = rows.get(s.sessionId);
+    if (list) list.push(s);
+    else rows.set(s.sessionId, [s]);
+  });
+  const byOrder = (a: WorkoutSet, b: WorkoutSet) => a.order - b.order;
+  return sessions.map((session) => ({ session, sets: counts.get(session.id) ?? 0, logged: provingLog(session.startedAt, (rows.get(session.id) ?? []).sort(byOrder)) }));
 }
 
 /** One finished workout and its sets in logged order; undefined if it does not exist or is still going. */
-export async function finishedDetail(id: string, db: AnyGymDB = defaultDb): Promise<{ session: Session; sets: WorkoutSet[] } | undefined> {
+export async function finishedDetail(id: string, db: AnyGymDB = defaultDb): Promise<{ session: Session; sets: WorkoutSet[]; logged: LoggedWorkout } | undefined> {
   const session = await db.sessions.get(id);
   if (!session || (session.endedAt === undefined && !session.imported)) return undefined;
   const sets = await db.sets.where('[sessionId+order]').between([id, -Infinity], [id, Infinity]).toArray();
-  return { session, sets };
+  return { session, sets, logged: provingLog(session.startedAt, sets) };
 }
 
 /** The warm up items of a plan day workout (stretches, band work): never "Recent" lifts. */

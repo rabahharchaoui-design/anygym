@@ -64,7 +64,7 @@ describe('subscribeLive (useLive)', () => {
     stop = subscribeLive(query, h.update);
     const ok = await h.until((s) => s.ready && s.data !== undefined);
     expect(ok.error).toBeNull();
-    expect(ok.data).toEqual([{ session: expect.objectContaining({ id: session.id }), sets: 1 }]);
+    expect(ok.data).toEqual([{ session: expect.objectContaining({ id: session.id }), sets: 1, logged: expect.objectContaining({ sets: expect.any(Array) }) }]);
     stop();
   });
 

@@ -4,6 +4,7 @@ import { AnyGymDB } from '../schema';
 import { ANY_GYM, type Load } from '../types';
 import { finishedDetail, getPastSessions, historyKeyFor, lastSessionSets, listFinished } from '../history';
 import { finishWorkout, logSet, startWorkout } from '../workouts';
+import { workoutTitle } from '../../screens/history/historyWords';
 
 let db: AnyGymDB;
 let n = 0;
@@ -140,6 +141,18 @@ describe('listFinished and finishedDetail (PLAN 1.10c fix 7: History)', () => {
     expect(await listFinished(db)).toEqual([]);
     await db.sessions.add({ id: 'imp', gymId: 'g1', startedAt: 10, imported: true });
     expect((await listFinished(db)).map((x) => [x.session.id, x.sets])).toEqual([['imp', 0]]);
+  });
+
+  it('PLAN HT1: each workout comes with its proving sets, so a Quick row is named for what was logged', async () => {
+    const legs = await workout('g1', 1000, [{ id: 'a1', ex: 'barbell-back-squat' }, { id: 'a2', ex: 'barbell-back-squat' }, { id: 'a3', ex: 'dumbbell-bench-press' }]);
+    const list = await listFinished(db);
+    const row = list.find((x) => x.session.id === legs.id)!;
+    expect(row.logged?.sets).toHaveLength(3);
+    expect(workoutTitle(row.session, row.logged)).toBe('Quick · Legs + Chest');
+    expect(workoutTitle(row.session)).toBe('Quick workout');
+    const d = await finishedDetail(legs.id, db);
+    expect(workoutTitle(d!.session, d!.logged)).toBe('Quick · Legs + Chest');
+    expect(workoutTitle(row.session, { sets: [] })).toBe('Quick workout');
   });
 
   it('detail: the session and its sets in logged order; nothing for a missing or running workout', async () => {

@@ -382,12 +382,12 @@ test('(7) History lists finished workouts with date, name and sets; tap one for 
   const today = await page.evaluate(() => new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
   await expect(rows.nth(0)).toContainText(title);
   await expect(rows.nth(0)).toContainText('1 set');
-  await expect(rows.nth(1)).toContainText('Quick workout');
+  await expect(rows.nth(1)).toContainText('Quick · Legs');
   await expect(rows.nth(1)).toContainText(today);
   await expect(rows.nth(1)).toContainText('2 sets');
 
   await rows.nth(1).tap();
-  await expect(page.getByRole('heading', { name: 'Quick workout' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Quick · Legs' })).toBeVisible();
   await expect(page.getByTestId('history-meta')).toHaveText(new RegExp(`^${today} · 2 sets · (<1|\\d+) min · [\\d,.]+ lb lifted$`));
   const squat = page.getByRole('region', { name: 'Barbell Back Squat' });
   await expect(squat.getByTestId('history-set')).toHaveText([/135 lb × 8/, /135 lb × 8/]);

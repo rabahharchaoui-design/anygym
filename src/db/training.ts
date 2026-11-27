@@ -48,6 +48,9 @@ function helperMusclesOf(row: WorkoutSet): Muscle[] {
 /** One session's proving sets as src/lib/recovery reads them (every set here is a certain working set). */
 const loggedOf = (at: number, rows: readonly WorkoutSet[]): LoggedWorkout => ({ at, sets: rows.map((row) => ({ kind: row.kind, primary: targetsOf(row) })) });
 
+/** PLAN HT1: one workout's proving sets (any set rows of it, in logged order), as History's title reads them. */
+export const provingLog = (at: number, rows: readonly WorkoutSet[]): LoggedWorkout => loggedOf(at, rows.filter((row) => liftOf(row) !== null));
+
 /** Muscle → the start of the latest workout whose sets give it, over the last 30 days. */
 async function lastDates(of: (at: number, rows: readonly WorkoutSet[]) => Muscle[], now: number, db: AnyGymDB, excludeSession?: string): Promise<Partial<Record<Muscle, number>>> {
   const { sessions, sets } = await workSince(now - LOOKBACK, now, db, excludeSession);

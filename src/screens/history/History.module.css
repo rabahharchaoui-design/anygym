@@ -89,7 +89,10 @@
   font-weight: 900;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  overflow-wrap: break-word;
+  /* PLAN HT1: one line, cut cleanly with an ellipsis (VoiceOver still reads the whole title). */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rowSub {
