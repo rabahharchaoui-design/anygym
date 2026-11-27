@@ -1,7 +1,9 @@
 // A run as a GPX 1.1 file (PLAN 4.6, SPEC 12.12). Pure. One track segment per solid piece, so a
-// GPS gap is a break and not a straight line. No elevation: the phone's altitude is not shown.
+// GPS gap is a break and not a straight line. A move of the estimate (Run.shifts, PLAN 4.4f 5) is
+// no break: the file splits where the app draws dashed (dashedGaps, PLAN R5 2). No elevation: the
+// phone's altitude is not shown.
 import type { Run } from '../../db/types';
-import { fromRunPoint, toSegments } from '../gps';
+import { dashedGaps, fromRunPoint, toSegments } from '../gps';
 import { dayKey, timeKeySec } from '../dayKey';
 import { runLabel } from './goal';
 
@@ -26,7 +28,7 @@ const nameOf = (run: Run): string => {
 /** The whole file. Points keep six decimal places (about a tenth of a meter). */
 export function gpxDocument(run: Run): string {
   const name = xml(nameOf(run));
-  const segs = toSegments(run.points.map(fromRunPoint), run.gaps)
+  const segs = toSegments(run.points.map(fromRunPoint), dashedGaps(run.gaps, run.shifts))
     .map((seg) => seg.points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && Number.isFinite(p.t)))
     .filter((pts) => pts.length > 0)
     .map((pts) => {
