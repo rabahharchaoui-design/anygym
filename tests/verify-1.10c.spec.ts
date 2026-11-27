@@ -215,7 +215,7 @@ test.describe('1.10c verify', () => {
     await expect(row).toHaveCount(1);
     const rb = (await row.boundingBox())!;
     expect(rb.height).toBeGreaterThanOrEqual(48);
-    await expect(row).toContainText('Quick workout');
+    await expect(row).toContainText('Quick · Legs');
     await expect(row).toContainText('1 set');
     await shot(page, 'history-list');
     await row.tap();
