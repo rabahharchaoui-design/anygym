@@ -158,7 +158,8 @@ describe('weekly Level up', () => {
     expect(d.holding).toEqual([]);
   });
   it('two weeks in a row, with reps to spare', () => {
-    const l = lift({ sessions: [sess(nov(5), [12, 12, 12], bar(200), [8, 12], 'easy'), sess(nov(29) - 31 * DAY, [12, 12, 12], bar(200))] });
+    // PLAN R4 (5): reps to spare on a two week claim needs Easy in both weeks.
+    const l = lift({ sessions: [sess(nov(5), [12, 12, 12], bar(200), [8, 12], 'easy'), sess(nov(29) - 31 * DAY, [12, 12, 12], bar(200), [8, 12], 'easy')] });
     expect(weeklyLevelUp([l], [], NOW)!.earned[0]!.reason).toBe('+15 lb: you hit 3 × 12 two weeks in a row, with reps to spare');
   });
   it('upper body +2.5% at least +5 lb; a kg gym rounds to kg plates', () => {
