@@ -521,6 +521,14 @@ Since the Monolith decision (boards 01 to 05, PLAN M16 and M17), where a board a
 - "Build my own" starts with a fast exercise picker: search box on top, then "Recent", "For your gym", and body part chips. Tapping an exercise adds it to the list with sensible default sets and reps for the user's goal. No load type question ever: the catalog knows it.
 - Then it behaves exactly like 20.1 and 20.2.
 
+**20.3 addendum: build your own with a swipe deck (Rabah, Nov 27 2026; PLAN Q8; the Nov 19 rules above stay)**
+- "Pick exercises myself" becomes a swipe builder: the time chip first (15, 30, 45, 60, preselected as everywhere in Quick), then a deck of single exercise cards. Right or Add puts the exercise in the workout and moves on; left or Skip discards it and moves on. Visible Add and Skip buttons do the same (VoiceOver, 44 pt). This is a new meaning of the swipe; the curate deck after a prebuilt card keeps Keep and Swap exactly as before.
+- The deck holds only what every Quick card may hold: sure gear at this gym, a sure demo, nothing on the never list, nothing Go easy on rules out (said in one line, for example "Going easy on your knees: 5 moves left out."), the newer lifter rules, fewest left swipes first. Any mix is allowed (shoulders, legs, abs, calves); the deck mixes the movement patterns from its first cards. Each card shows the demo, the name, sets x reps from the generator's own prescription, its why line and the mini map.
+- A live time meter (the one estimator) fills toward the chip on every Add, Skip and Undo; a card that would run past the minutes no longer comes up. The coverage map shows the muscles of what is kept.
+- After each Add from the deck, one suggested next move from Up next (its own ranking and reason lines), only one that still fits the minutes; accept or skip it, then the deck continues.
+- Start appears once one exercise is kept and becomes the main button when the minutes are full (within 2 min) or nothing left fits. It starts a non plan Quick workout (the plan never moves on) and opens the first exercise. Undo works like the curate deck's.
+- "Search the list" stays as the escape to the search picker. "Your plan" stays on top of Quick. No muscle filter chips, no automatic supersets or circuits in v1.
+
 ### 20.4 Test it the way G uses it
 Playwright tap count tests that fail if exceeded:
 - From Today: start today's plan day and log all 4 sets of a barbell squat at target: at most 6 taps (Start, row, 4 checks).
