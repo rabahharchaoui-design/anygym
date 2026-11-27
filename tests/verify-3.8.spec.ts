@@ -457,8 +457,8 @@ test.describe('verify 3.8', () => {
     await page.goto('./');
     await page.reload();
     await expect(page.getByTestId('day-card-title')).toBeVisible();
-    // 3.5e: schema v11 (IndexedDB 110); the v9 data must survive both upgrade steps.
-    await expect.poll(async () => page.evaluate(() => new Promise<number>((r) => { const q = indexedDB.open('anygym'); q.onsuccess = () => { const v = q.result.version; q.result.close(); r(v); }; })), { timeout: 15000 }).toBe(110);
+    // 3.5e + M18a: schema v12 (IndexedDB 120); the v9 data must survive every upgrade step.
+    await expect.poll(async () => page.evaluate(() => new Promise<number>((r) => { const q = indexedDB.open('anygym'); q.onsuccess = () => { const v = q.result.version; q.result.close(); r(v); }; })), { timeout: 15000 }).toBe(120);
     expect((await dbAll(page, 'gyms')).length).toBe(gymCount);
     expect((await dbAll(page, 'sets')).length).toBe(setCount);
     expect((await dbAll<{ nextDayIndex: number; doneDays: number[] }>(page, 'planState'))[0]).toMatchObject({ nextDayIndex: 3, doneDays: [0, 1, 2] });
