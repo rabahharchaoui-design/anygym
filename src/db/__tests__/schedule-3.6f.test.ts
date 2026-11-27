@@ -210,7 +210,7 @@ describe('additive v11 data and backup compatibility', () => {
     const row = { id: 'active', planId, startedAt: 10, weekIndex: 0, nextDayIndex: 1, doneDays: [0] };
     await old.table('planState').put(row); old.close();
     const opened = new AnyGymDB(oldName); await opened.open();
-    expect(SCHEMA_VERSION).toBe(11); expect(await opened.planState.get('active')).toEqual(row);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(11); expect(await opened.planState.get('active')).toEqual(row);
     await opened.delete();
   });
   it('round-trips ranked answers, weekly choice, deferred days and generated explanations; refuses invalid queues', async () => {

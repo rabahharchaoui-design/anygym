@@ -2,6 +2,7 @@ import { useRef, useState, type Dispatch, type MutableRefObject, type SetStateAc
 import type { WorkoutSet } from '../../db/types';
 import { UnresolvedDeletesError, UnsavedWritesError, finishWorkout } from '../../db/workouts';
 import { changeCount, dropMutations, pendingMutations, retryMutations } from '../../db/mutations';
+import { awardOnSave } from '../../db/finishEarned';
 import { useTapGuard } from '../../hooks/useTapGuard';
 import { UndoUnresolvedError, type DeleteUndo } from '../../lib/deleteUndo';
 import { clearSessionDrafts } from '../../lib/drafts';
@@ -78,6 +79,9 @@ export function useFinish({ w, sessionId, go, finishing, deletes, setRest, setTo
       setRest(null);
       clearSessionDrafts(sessionId);
       clearExtraSets();
+      // PLAN M18a: the badges this workout earned are stored now (once ever, dated with the save);
+      // never awaited, never blocking the finish screen, and a failure is picked up by the next read.
+      if (result.saved) void awardOnSave(sessionId);
       if (result.saved) go(`/workout/${sessionId}/done`, { kind: 'push', replace: true, flat: true });
       else
         go('/', {

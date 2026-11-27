@@ -49,8 +49,8 @@ describe('schema v10 → v11 (candidateReviews)', () => {
 
     const up = new AnyGymDB(old);
     await up.open();
-    expect(SCHEMA_VERSION).toBe(11);
-    expect(up.verno).toBe(11);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(11);
+    expect(up.verno).toBe(SCHEMA_VERSION);
     for (const t of Object.keys(before)) expect(JSON.stringify(await up.table(t).toArray()), t).toBe(before[t]);
     expect(await up.candidateReviews.count()).toBe(0);
     await saveCandidateDecision(decisionRow(ids[0]!, 'approve', 9), up);
@@ -103,7 +103,7 @@ describe('backup and restore', () => {
     await saveCandidateDecision(decisionRow(ids[1]!, 'fix', 2, { reason: 'gear', note: 'needs a box' }), db);
     const parsed = parseBackup(serializeBackup(await exportBackup(db, 5)));
     if (!parsed.ok) throw new Error(parsed.error);
-    expect(parsed.backup.schemaVersion).toBe(11);
+    expect(parsed.backup.schemaVersion).toBe(SCHEMA_VERSION);
     expect(parsed.backup.tables.candidateReviews).toEqual(await readCandidateReviews(db));
 
     await db.candidateReviews.clear();

@@ -10,7 +10,7 @@ Owner: G (rabahharchaoui-design). Audience: everyone (all goals and levels), wit
 2. **Plate math is exact.** Every number the plate diagram shows must equal the sum of what is drawn. Covered by exhaustive unit tests.
 3. **Never cluttered.** One primary action per screen. Detail lives one tap away in a sheet. Big thumb targets (min 48pt), one hand use, portrait.
 4. **Offline first.** Gym basements have no signal. Everything works offline after first load.
-5. **User data never leaves the phone** in this version. No analytics, no camera. Location is used only by Run With Me (section 12), only while a run is active, and routes are stored only on the phone.
+5. **User data never leaves the phone** in this version, with one exception. No analytics. Location is used only by Run With Me (section 12), only while a run is active, and routes are stored only on the phone. The one exception is Point & Lift (Rabah, Nov 27 2026; docs/point-and-lift.md): recognition runs in the cloud through our own backend, a Cloudflare Worker that holds the vision API key (never the client). Before upload the photo is downscaled and cropped to the machine. Photos are never stored or logged. The app asks for the camera the first time, with one line saying photos aren't kept. The model only returns ids from our curated catalog of about 60 machines, as JSON. A 5 s timeout, rate limiting, and the list picker as the fallback when offline or on a timeout.
 6. **This repo is public.** Never commit personal data, history files, tokens, or anything from `~/anygym-private/`.
 
 ## 1. Stack
@@ -275,7 +275,7 @@ Visual direction: MONOLITH (G picked it Nov 19 from UI concepts round 1, issue #
 - Provisional: the round 2 boards are concepts, not pixel specs. Screens move to Monolith one at a time (PLAN M1 to M7); until a screen's M item lands it may still show older shapes drawn from the shared tokens.
 
 ## 11. Explicitly out of v1
-Accounts and sync (Supabase later), Apple Health and Apple Watch (Apple only allows these from native apps, so they come in the native phase in PLAN.md LATER), push notifications, social, AI coaching, camera or photo features, Spotify or Apple Music APIs (launch buttons only), native app, GPS tracking with the screen locked (needs the native wrapper later).
+Accounts and sync (Supabase later), Apple Health and Apple Watch (Apple only allows these from native apps, so they come in the native phase in PLAN.md LATER), push notifications, social, AI coaching, camera or photo features, except Point & Lift (docs/point-and-lift.md), Spotify or Apple Music APIs (launch buttons only), native app, GPS tracking with the screen locked (needs the native wrapper later).
 
 ## 12. Run With Me (the Run tab)
 
@@ -464,6 +464,14 @@ A real feeling passport. Opening it is a moment:
 - Badges with great looking unlock animations (badge drops in, shines, confetti burst, "Badge unlocked"): First workout · First PR · 5, 25, 100 workouts · 3, 8, 26 week streaks · Hotel Hero (workout at a hotel gym) · Globetrotter (3, 10, 25 cities) · Early Bird · Night Owl · 5K, 10K, half marathon · Iron Week (all planned workouts done) · Comeback (back after 2+ weeks off) · Plate Master (first 2 plate lift, 225 lb or 100 kg) and more.
 - Trophy case screen with locked badges showing how to earn them.
 - Leaderboards come with accounts (section 18): friends and global weekly XP, opt in only.
+
+### 17.1 Finish counts and M18 badges (PLAN M18a, docs/finish-celebration.md)
+- A workout counts when it was finished in the app with at least one working set. Imported workouts have no dates and never count by date; warm ups alone are not a workout.
+- The workout Time is from Start to the save of Finish. Over 4 hours reads "Over 4 h"; a Time the app cannot know (imported, an end before the start) is shown as none.
+- Weeks are Monday to Sunday on the phone's own clock. A workout belongs to the day and week it was started in. The weekly goal is the active plan's days a week, or 3.
+- The streak is weeks in a row reaching the weekly goal (this section wins over a day count): the week going on counts once it reaches the goal. streak-3, streak-7 and streak-30 mean 3, 7 and 30 weeks.
+- Comeback: at least 14 whole calendar days with no workout before this one. Early bird: started 4:00 to 6:59 AM; night owl: started 9 PM to 3:59 AM, phone time, only with a believable Time.
+- Badges (ids are the art slugs): first-workout, streak-3, streak-7, streak-30, week-complete, new-pr, early-bird, night-owl, new-city (the gym's town, never the phone's location), comeback; tiered workouts 10 / 50 / 100 and lifted 1k / 10k / 100k lb over counted workouts. Each is stored once, with the date of the save that earned it, and travels in backups.
 
 ## 18. Accounts and reminders (optional, after the first workout) — 100% free stack (G's choice)
 - After the first finished workout: one friendly card "Save your progress and get reminders" with Continue with Google and Continue with email. "Not now" is always there and never nags more than once a week.

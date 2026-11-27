@@ -3,6 +3,7 @@ import type { CrashSignatureRow, ReportPreferencesRow, ReportQueueRow } from '..
 import type { CoachCardRow, CoachLiftRow, EffortRow } from './coachTypes';
 import type { ChangeRecord } from '../lib/coach/types';
 import type { CandidateReviewRow } from '../lib/candidates/review';
+import type { EarnedBadge } from '../lib/badges/award';
 import type { ExerciseSetting, Gym, JournalEntry, OrderCounter, Plan, PlanDay, PlanState, Profile, Run, Session, Submission, Tombstone, WorkoutSet } from './types';
 
 export const DB_NAME = 'anygym';
@@ -127,11 +128,21 @@ export const SCHEMA_V11 = {
   candidateReviews: 'id',
 } as const;
 
+/**
+ * Version 12 (PLAN M18a), additive: badges, one row per earned badge (lib/badges: its id is the art
+ * slug, a tier its own row), with the date earned and the workout that earned it. The primary key
+ * is the badge id, so a badge is stored once ever (db/badges.ts). Backed up (lib/backup.ts
+ * TABLE_NAMES, LATER_TABLES): an older file leaves it out and Replace then keeps the phone's.
+ */
+export const SCHEMA_V12 = {
+  badges: 'id, earnedAt',
+} as const;
+
 /** One mirrored localStorage key (lib/durable.ts): its value (null = removed) and write stamp. */
 export type KvRow = { key: string; value: string | null; at: number };
 
 /** The current schema version (the highest this.version below). Backups record it (lib/backup.ts). */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 /** Plan ids that were renamed, old → new. Only the migration reads this. */
 export const RENAMED_PLAN_IDS: Readonly<Record<string, string>> = { 'ohrabah-split': 'five-day-split' };
@@ -160,6 +171,7 @@ export class AnyGymDB extends Dexie {
   coachCards!: EntityTable<CoachCardRow, 'id'>;
   efforts!: Table<EffortRow, [string, string]>;
   candidateReviews!: EntityTable<CandidateReviewRow, 'id'>;
+  badges!: EntityTable<EarnedBadge, 'id'>;
 
   constructor(name = DB_NAME) {
     super(name);
@@ -187,6 +199,7 @@ export class AnyGymDB extends Dexie {
     this.version(9).stores(SCHEMA_V9);
     this.version(10).stores(SCHEMA_V10);
     this.version(11).stores(SCHEMA_V11);
+    this.version(12).stores(SCHEMA_V12);
   }
 }
 

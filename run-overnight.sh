@@ -31,6 +31,7 @@ usedday(){ local k=$(tk +%F); awk -v k="$k" 'NF==3 && $2==k{s+=$3} END{print s+0
 in_window(){ [ "${ALLDAY:-0}" = 1 ] && return 0; local h=$((10#$(tk +%H))); if [ $START_HOUR -le $END_HOUR ]; then [ $h -ge $START_HOUR ] && [ $h -lt $END_HOUR ]; else [ $h -ge $START_HOUR ] || [ $h -lt $END_HOUR ]; fi; }
 window_left(){ local e=$(tk -j -f "%Y-%m-%d %H:%M:%S" "$(tk +%F) $(printf %02d $END_HOUR):00:00" +%s) now=$(date +%s); [ $e -le $now ] && e=$((e+86400)); echo $((e-now)); }
 say(){ echo "=== $* $(date) ===" >> "$LOG"; }
+hand(){ bash .loop-tools/handoff.sh pause "$1" >/dev/null 2>&1; return 0; }   # G, Nov 27: at a cap, hand review to Grok through ~/anygym-handoff.md
 # G, Nov 15 and Nov 22: build any time. Usage caps (74% of 5 h, 85% of the week) apply at every hour; there is no awake or asleep rule.
 # Numbers come from .usage-tap, written by the status line tap (.claude/usage-tap.sh) with Claude Code's own rate limit data.
 tap_fresh(){ [ -f .usage-tap ] || return 1; local ts=$(grep '^ts=' .usage-tap | cut -d= -f2); [ -n "$ts" ] && [ $(( $(date +%s) - ts )) -lt 600 ]; }   # G rule 5 (Nov 22): readings older than 10 minutes are not trusted
@@ -156,14 +157,14 @@ while [ $n -lt 300 ]; do
   [ $limit -gt $dayleft ] && limit=$dayleft
   [ $limit -lt 900 ] && { sleep 600; continue; }
   if [ -f .usage-hold ] && [ "$(date +%s)" -ge "$(cat .usage-hold 2>/dev/null || echo 0)" ] 2>/dev/null; then mv .usage-hold .usage-hold.last; say "usage hold expired, checking live usage again"; fi   # G rule 11
-  if [ -f .usage-hold ]; then hr=$(cat .usage-hold 2>/dev/null); if [ "$(date +%s)" -lt "${hr:-0}" ] 2>/dev/null; then [ "$WAITMSG" != uhold ] && say "usage guard: holding until the 5 hour window resets at $(TZ=Pacific/Guam date -r ${hr} +%H:%M) (cap ${FIVE_STOP:-74}% so G never passes 83%)"; WAITMSG=uhold; sleep 120; continue; fi; mv .usage-hold .usage-hold.last; fi
+  if [ -f .usage-hold ]; then hr=$(cat .usage-hold 2>/dev/null); if [ "$(date +%s)" -lt "${hr:-0}" ] 2>/dev/null; then [ "$WAITMSG" != uhold ] && hand "Claude hit its 5 hour window cap" && say "usage guard: holding until the 5 hour window resets at $(TZ=Pacific/Guam date -r ${hr} +%H:%M) (cap ${FIVE_STOP:-74}% so G never passes 83%)"; WAITMSG=uhold; sleep 120; continue; fi; mv .usage-hold .usage-hold.last; fi
   [ $(tap_age) -gt ${PROBE_EVERY:-300} ] && probe
   if ! tap_fresh; then [ "$WAITMSG" != stale ] && say "usage guard: no live usage reading (newest is $(( $(tap_age) / 60 )) min old), not starting a run until one arrives"; WAITMSG=stale; sleep 600; continue; fi   # G rule 5
   if tap_fresh; then hw=$(( $(week_allowed) - $(tapv week) ))   # Nov 22: a run needs room to do real work; starting at the edge just burns startup tokens
-    if [ $hw -lt ${WEEK_START_GAP:-4} ]; then [ "$WAITMSG" != ugap ] && say "usage guard: ${hw}% of weekly room right now, waiting for ${WEEK_START_GAP:-4}% so a run can finish real work (85% by 4 hours before the reset, 15% kept for G)"; WAITMSG=ugap; sleep 1200; continue; fi
+    if [ $hw -lt ${WEEK_START_GAP:-4} ]; then [ "$WAITMSG" != ugap ] && hand "Claude is near its weekly cap" && say "usage guard: ${hw}% of weekly room right now, waiting for ${WEEK_START_GAP:-4}% so a run can finish real work (85% by 4 hours before the reset, 15% kept for G)"; WAITMSG=ugap; sleep 1200; continue; fi
   fi
-  why=$(over_limit); [ "$why" = five ] && hold_set; if [ "$why" = week ]; then [ "$WAITMSG" != uweek ] && say "usage guard: $(tapv week)% of the week used, pacing allows $(week_allowed)% by now (85% by 4 hours before the reset, 15% kept for G); Grok and Codex build meanwhile"; WAITMSG=uweek; sleep 1800; continue; fi
-  if [ "$why" = five ]; then wr=$(tapv five_reset); [ "$WAITMSG" != ufive ] && say "usage guard: $(tapv five)% of the 5 hour window used, waiting for its reset at $(TZ=Pacific/Guam date -r ${wr:-0} +%H:%M)"; WAITMSG=ufive; sleep 600; continue; fi
+  why=$(over_limit); [ "$why" = five ] && hold_set; if [ "$why" = week ]; then [ "$WAITMSG" != uweek ] && hand "Claude hit its weekly cap" && say "usage guard: $(tapv week)% of the week used, pacing allows $(week_allowed)% by now (85% by 4 hours before the reset, 15% kept for G); Grok and Codex build meanwhile"; WAITMSG=uweek; sleep 1800; continue; fi
+  if [ "$why" = five ]; then wr=$(tapv five_reset); [ "$WAITMSG" != ufive ] && hand "Claude hit its 5 hour window cap" && say "usage guard: $(tapv five)% of the 5 hour window used, waiting for its reset at $(TZ=Pacific/Guam date -r ${wr:-0} +%H:%M)"; WAITMSG=ufive; sleep 600; continue; fi
   REST=0   # Nov 22: no time of day rests; rule 5 above already refuses to start without a live usage reading
   sync_in || { sleep 600; continue; }
   WAITMSG=""; n=$((n+1)); RANTODAY=1

@@ -7,6 +7,7 @@ import { definitionShapeOk } from './backupPlans';
 import { isKnownPlate, validDumbbellRange, validStackStep } from './load';
 import { isReviewRow } from './candidates/review';
 import { EFFORTS } from './coach/types';
+import { BADGE_IDS } from './badges/catalog';
 import { FOCUS_PICKS } from './intake/options';
 import type { TableName } from './backup';
 
@@ -185,6 +186,8 @@ export const RECORD_CHECKS: Record<TableName, Check> = {
   coachChanges: coachChange,
   coachCards: shape({ req: { id: str, state: oneOf('dismissed', 'used'), at: num } }),
   efforts: shape({ req: { sessionId: str, exerciseId: str, effort: oneOf(...EFFORTS), at: num } }),
+  // PLAN M18a: one earned badge, only an M18 badge id.
+  badges: shape({ req: { id: oneOf(...BADGE_IDS), earnedAt: num, sessionId: str } }),
 };
 
 /**

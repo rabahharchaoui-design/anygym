@@ -44,6 +44,7 @@ const ROWS: Record<TableName, Record<string, unknown>> = {
   coachChanges: { id: 'c1', cardId: 'levelup:2026-11-02', weekKey: '2026-11-02', appliedAt: 4, key: 'bench|barbell', exerciseId: 'bench', name: 'Bench press', loadKind: 'barbell', unit: 'kg', from: 105, to: 107.5, reason: 'All reps last time', source: 'level_up', prevTarget: null },
   coachCards: { id: 'levelup:2026-11-02', state: 'used', at: 4 },
   efforts: { sessionId: 's1', exerciseId: 'bench', effort: 'good', at: 12 },
+  badges: { id: 'first-workout', earnedAt: 13, sessionId: 's1' },
 };
 
 describe('every table is backed up or left out on purpose', () => {
