@@ -36,19 +36,29 @@ export function groupsTrained(w: LoggedWorkout): RecoveryGroup[] {
   return [...sets].filter(([, n]) => n >= TRAINED_MIN_SETS).map(([g]) => g);
 }
 
-/** PLAN H2: the primary muscles of one workout's counted sets whose group it trained (helpers never). */
-export function musclesTrained(w: LoggedWorkout): Muscle[] {
-  const groups = new Set(groupsTrained(w));
-  return primaryMuscles(w).filter((m) => groups.has(groupOf(m)));
+/**
+ * PLAN R4 (2): the one rule for which muscles a sentence may name as trained (Quick's Skips and Leaves
+ * out lines, Up next, the rested lines): a primary muscle of at least TRAINED_MIN_SETS counted sets
+ * itself. The group's pooled sets decide recovery and card order (groupsTrained) but never name a
+ * muscle: 2 curls and 1 pushdown train arms and name neither biceps nor triceps.
+ */
+export function musclesNamed(w: LoggedWorkout): Muscle[] {
+  const sets = new Map<Muscle, number>();
+  for (const s of w.sets) {
+    if (!counts(s)) continue;
+    for (const m of new Set(s.primary)) sets.set(m, (sets.get(m) ?? 0) + 1);
+  }
+  return [...sets].filter(([, n]) => n >= TRAINED_MIN_SETS).map(([m]) => m);
 }
 
 /**
- * PLAN H2: the primary muscles one workout worked without training them (under TRAINED_MIN_SETS
- * sets for their group). Never a trained fact, and no "rested" claim may be made past them.
+ * PLAN H2, R4 (2): the primary muscles one workout worked without a sentence being able to name them
+ * (under TRAINED_MIN_SETS sets of their own). Never a trained fact, and no "rested" claim may be made
+ * past them.
  */
 export function musclesWorkedOnly(w: LoggedWorkout): Muscle[] {
-  const groups = new Set(groupsTrained(w));
-  return primaryMuscles(w).filter((m) => !groups.has(groupOf(m)));
+  const named = new Set(musclesNamed(w));
+  return primaryMuscles(w).filter((m) => !named.has(m));
 }
 
 const primaryMuscles = (w: LoggedWorkout): Muscle[] => [...new Set(w.sets.filter(counts).flatMap((s) => s.primary))];

@@ -172,7 +172,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest}', 'icons3d/*.{avif,webp}'],
         // PLAN 3.5e: the candidate move list is only for the owner review and a phone with approvals:
         // never precached for everyone; kept once it loaded (below).
-        globIgnores: ['**/ex/**', '**/catalog-candidates-*.js'],
+        // PLAN R4 (4): the badge (about 6 MB) and stamp pictures wait for their screens; M18c, M18d
+        // and M19f cache their own art when those ship.
+        globIgnores: ['**/ex/**', '**/catalog-candidates-*.js', 'badges/**', 'stamps/**'],
         // PLAN 4.6c (6): the photo and voice caches may be emptied when the phone is out of room
         // (purgeOnQuotaError); they fill again as photos show and the Run tab saves the voice.
         runtimeCaching: [

@@ -3,7 +3,7 @@ import { profileFor } from '../data/order';
 import { focusFacts } from '../data/focus';
 import type { Muscle } from '../lib/order';
 import type { TrainingEntry } from '../lib/plan/recovery';
-import { type LoggedWorkout, musclesTrained, musclesWorkedOnly } from '../lib/recovery';
+import { type LoggedWorkout, musclesNamed, musclesWorkedOnly } from '../lib/recovery';
 import { TIRED_MS } from '../lib/quickWhy';
 import { db as defaultDb, type AnyGymDB } from './schema';
 import type { Session, WorkoutSet } from './types';
@@ -62,15 +62,16 @@ async function lastDates(of: (at: number, rows: readonly WorkoutSet[]) => Muscle
 }
 
 /**
- * When each muscle was last trained. SPEC 20.3 (PLAN H2): the one rule lives in src/lib/recovery
- * (3 working sets with the group as a primary muscle); helpers never count (PLAN H1).
+ * When each muscle was last trained, as a sentence may name it. SPEC 20.3 (PLAN H2, R4 2): the one
+ * rule lives in src/lib/recovery (musclesNamed: 3 working sets of its own as a primary muscle);
+ * helpers never count (PLAN H1). The group's recovery reads readRecoveryLog instead.
  */
 export const readTraining = (now: number, db: AnyGymDB = defaultDb, excludeSession?: string) =>
-  lastDates((at, rows) => musclesTrained(loggedOf(at, rows)), now, db, excludeSession);
+  lastDates((at, rows) => musclesNamed(loggedOf(at, rows)), now, db, excludeSession);
 
 /**
  * When each muscle last worked without being trained: as a helper of a logged working set, or as a
- * target with too few sets (PLAN H2). Never a trained fact (PLAN H1); it keeps suggestions off the
+ * target with too few sets of its own (PLAN H2, R4 2). Never a trained fact (PLAN H1); it keeps suggestions off the
  * muscle and any "rested" claim past that workout off the screen.
  */
 export const readHelped = (now: number, db: AnyGymDB = defaultDb, excludeSession?: string) =>
