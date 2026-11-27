@@ -362,7 +362,7 @@ test.describe('4.2 run start screen', () => {
       if (u.origin !== own) outside.push(r.url());
     });
     const mapFiles = () => page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /RunMapGl|maplibre/i.test(n)).length);
-    for (const [hash, title] of [['', 'Today'], ['history', 'History'], ['plans', 'Plans'], ['settings', 'You']] as const) {
+    for (const [hash, title] of [['', 'Today'], ['history', 'History'], ['plans', 'Plan'], ['settings', 'You']] as const) {
       await page.goto(`./#/${hash}`);
       await page.reload();
       await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
