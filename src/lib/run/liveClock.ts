@@ -62,24 +62,33 @@ export function inGap(tracker: TrackerState, nowMs: number): boolean {
  * moment the wait turns into a gap (one more wake, so the screen can say so), whichever comes
  * first. Null while it stands still (paused, auto paused, waiting for GPS, in a gap): then only the
  * engine can change it, and no timer runs.
+ * `hereMs` is the time of the position the map dot shows (LiveRun here). Paused by hand the tracker
+ * keeps no positions, so this is how the screen knows when the dot goes stale (PLAN R5 1): one wake
+ * at that moment, so the dot goes (liveHere), and none after it until a new position comes in.
  */
-export function msToNextFace(tracker: TrackerState, nowMs: number): number | null {
+export function msToNextFace(tracker: TrackerState, nowMs: number, hereMs: number | null = null): number | null {
   const pending = pendingMs(tracker, nowMs);
   if (pending <= 0) {
     // Not counting. A position stamped a little ahead of the clock starts counting when the clock gets there.
     const ahead = tracker.lastGood && !tracker.manual && !tracker.afterPause && !clockStopped(tracker) ? tracker.lastGood.t - nowMs : -1;
     if (ahead >= 0) return ahead + 1;
+    if (tracker.manual) return hereMs === null ? null : toStale(hereMs, nowMs);
     // Auto paused: one wake when the last position turns older than GAP_SEC, so the screen can say
     // GPS is lost (PLAN 4.4f 2, liveNote).
-    if (!tracker.lastGood || tracker.manual || !clockStopped(tracker)) return null;
-    const toStale = GAP_SEC * 1000 - (nowMs - tracker.lastGood.t) + 1;
-    return toStale > 0 ? toStale : null;
+    if (!tracker.lastGood || !clockStopped(tracker)) return null;
+    return toStale(tracker.lastGood.t, nowMs);
   }
   const since = nowMs - tracker.lastGood!.t;
   if (since > GAP_SEC * 1000) return null;
   const toSecond = 1000 - ((tracker.movingMs + pending) % 1000);
   const toGap = GAP_SEC * 1000 - since + 1;
   return Math.max(1, Math.min(toSecond, toGap));
+}
+
+/** The wait until a position stamped `t` is older than GAP_SEC (stale: no dot, GPS lost), or null once it is. */
+function toStale(t: number, nowMs: number): number | null {
+  const ms = GAP_SEC * 1000 - (nowMs - t) + 1;
+  return ms > 0 ? ms : null;
 }
 
 /** A step back of at most this many seconds is not shown (see faceSec). */

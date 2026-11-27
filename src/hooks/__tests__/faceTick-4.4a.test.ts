@@ -1,8 +1,9 @@
 // PLAN 4.4a: one tick drives the time face, waking at each whole second of the shown time, never
 // while it stands still or the app is in the background.
 import { describe, expect, it } from 'vitest';
-import { addPoint, pauseRun, startTracker, type TrackerState } from '../../lib/gps';
-import { faceSec, liveMovingMs } from '../../lib/run';
+import { GAP_SEC, addPoint, pauseRun, startTracker, type TrackerState } from '../../lib/gps';
+import { faceSec, liveHere, liveMovingMs, liveStep, startLive, type LiveRun } from '../../lib/run';
+import { DEFAULT_RUN_SETUP } from '../../lib/run/goal';
 import { createFaceTick, type FaceTickDeps } from '../faceTick';
 
 const T0 = 1_700_000_000_000;
@@ -43,7 +44,7 @@ describe('createFaceTick', () => {
     const clock = fakeClock(T0);
     const shown: number[] = [];
     let prev: number | null = null;
-    const tick = createFaceTick(() => s, (now) => {
+    const tick = createFaceTick(() => ({ tracker: s, here: null }), (now) => {
       const v = faceSec(prev, liveMovingMs(s, now));
       if (v !== prev) shown.push(v);
       prev = v;
@@ -67,7 +68,7 @@ describe('createFaceTick', () => {
     s = addPoint(s, at(6, 18)).state;
     const clock = fakeClock(T0 + 6_500);
     const ticks: number[] = [];
-    const tick = createFaceTick(() => s, (now) => ticks.push(now), clock.deps);
+    const tick = createFaceTick(() => ({ tracker: s, here: null }), (now) => ticks.push(now), clock.deps);
     tick.start();
     expect(clock.pending()).toBe(1);
     s = pauseRun(s, clock.now());
@@ -83,5 +84,21 @@ describe('createFaceTick', () => {
     clock.setVisible(true);
     tick.poke();
     expect(clock.pending()).toBe(1);
+  });
+
+  it('paused by hand: one wake when the last position goes stale, and the dot is gone after it (PLAN R5 1)', () => {
+    let run: LiveRun = startLive({ id: 'r5', now: T0, setup: DEFAULT_RUN_SETUP, unit: 'km', autoPause: true });
+    for (let t = 0; t <= 12; t += 2) run = liveStep(run, { type: 'fix', point: at(t, t * 3), now: T0 + t * 1000 });
+    run = liveStep(run, { type: 'pause', now: T0 + 13_000 });
+    const clock = fakeClock(T0 + 13_000);
+    const dots: boolean[] = [];
+    const tick = createFaceTick(() => run, (now) => dots.push(liveHere(run, now) !== null), clock.deps);
+    tick.start();
+    expect(clock.pending()).toBe(1);
+    clock.run(T0 + 12_000 + 10 * GAP_SEC * 1000);
+    // The start, then the one wake: the dot was there, then it is not, and no timer is left.
+    expect(dots).toEqual([true, false]);
+    expect(clock.pending()).toBe(0);
+    tick.stop();
   });
 });

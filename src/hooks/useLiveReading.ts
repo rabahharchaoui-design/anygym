@@ -11,11 +11,11 @@ import { createFaceTick, type FaceTick } from './faceTick';
  */
 export function useLiveReading(live: LiveRun): TrackerReading {
   const [, setNow] = useState(0);
-  const tracker = useRef(live.tracker);
-  tracker.current = live.tracker;
+  const input = useRef({ tracker: live.tracker, here: live.here });
+  input.current = { tracker: live.tracker, here: live.here };
   const tick = useRef<FaceTick | null>(null);
   useEffect(() => {
-    const t = createFaceTick(() => tracker.current, setNow);
+    const t = createFaceTick(() => input.current, setNow);
     tick.current = t;
     t.start();
     document.addEventListener('visibilitychange', t.poke);
@@ -25,8 +25,9 @@ export function useLiveReading(live: LiveRun): TrackerReading {
       tick.current = null;
     };
   }, []);
-  // A new position, a pause or a resume: the next whole second is somewhere else now.
-  useEffect(() => tick.current?.poke(), [live.tracker]);
+  // A new position, a pause or a resume: the next whole second is somewhere else now. Paused by hand
+  // a position moves only the dot, and with it the moment it goes stale (PLAN R5 1).
+  useEffect(() => tick.current?.poke(), [live.tracker, live.here]);
 
   const shown = useRef<number | null>(null);
   const now = Date.now();
