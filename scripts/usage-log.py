@@ -4,7 +4,8 @@ Claude 5h% / week% from .usage-tap, Codex 5h% / week% and its weekly reset from 
 files, the Grok pool from the Grok helper's state. Reads local files only: no logins, no paid calls.
 Anything it cannot read is written as "unknown", never guessed. Alerts (rate limited, once a day each):
 Codex with lots of its week unused and the week resetting within 24 h, and a saved ChatGPT reset expiring
-within 24 h when CODEX_RESET_EXPIRES (dates, in ~/.config/anygym/local.env) is set. npm: npm run tools:usage"""
+within 24 h (CODEX_SAVED_RESETS dates in ~/.config/anygym/local.env; CODEX_RESET_EXPIRES is when this Codex
+week resets, CODEX_PACE is G's pace plan). Prints Codex pace: on or behind. npm: npm run tools:usage"""
 import glob, json, os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import jobkit  # noqa: E402
@@ -56,6 +57,9 @@ def main():
     cx = kv(os.path.join(jobkit.REPO, '.codex-usage'), '=')
     gk = kv(os.path.join(jobkit.CONF, 'grok-state'), '=')
     reset = codex_reset()
+    if not reset and env.get('CODEX_RESET_EXPIRES'):
+        try: reset = time.mktime(time.strptime(env['CODEX_RESET_EXPIRES'], '%Y-%m-%dT%H:%M'))
+        except ValueError: pass
     row = [time.strftime('%Y-%m-%dT%H:%M:%S%z'), u(tap, 'five'), u(tap, 'week'), age(tap.get('ts', '')),
            u(cx, 'five'), u(cx, 'week'), age(cx.get('at', '')),
            time.strftime('%Y-%m-%dT%H:%M', time.localtime(reset)) if reset and reset > now else 'unknown',
@@ -73,17 +77,19 @@ def main():
         h = int((reset - now) / 3600); notes.append('Codex %s%% of its week used, resets in %d h' % (wk, h))
         job.alert('codex-unused-' + time.strftime('%Y%m%d', time.localtime(reset)), 'pause', 'Codex has unused allowance',
                   'Codex has used %s%% of its week and it resets in about %d h. Queue Codex work so it is not lost.' % (wk, h), 86400)
-    for d in env.get('CODEX_RESET_EXPIRES', '').replace(',', ' ').split():
+    for d in env.get('CODEX_SAVED_RESETS', '').replace(',', ' ').split():  # G taps these in the ChatGPT app; counted as expiring at the start of that day
         try:
             exp = time.mktime(time.strptime(d, '%Y-%m-%d'))
         except ValueError:
-            notes.append('bad CODEX_RESET_EXPIRES date %s' % d); continue
+            notes.append('bad CODEX_SAVED_RESETS date %s' % d); continue
         if 0 < exp - now <= 86400:
             notes.append('saved reset expires %s' % d)
-            job.alert('codex-reset-' + d, 'stop', 'A Codex reset expires tomorrow',
-                      'A saved ChatGPT full reset expires %s, use or lose. Open the ChatGPT app, Usage and limits, and tap it.' % d, 86400)
-    if not env.get('CODEX_RESET_EXPIRES'):
-        notes.append('saved reset expiry dates unknown (CODEX_RESET_EXPIRES not set)')
+            job.alert('codex-reset-' + d, 'stop', 'A Codex reset expires within a day',
+                      'A saved ChatGPT full reset expires %s, use or lose. Open the ChatGPT app, Usage and limits, and tap it once Codex has used this week.' % d, 86400)
+    if not env.get('CODEX_SAVED_RESETS'):
+        notes.append('saved reset dates unknown (CODEX_SAVED_RESETS not set)')
+    st, exp, tgt = jobkit.codex_pace(env, now, cx.get('week', ''), reset)
+    notes.append('Codex pace: %s (week %s%%, plan %s%% by now, %s)' % (st, cx.get('week', '?'), exp if exp is not None else '?', tgt))
     job.finish('ok', 'claude %s/%s%%, codex %s/%s%%, grok pool %s%%' % (row[1], row[2], row[4], row[5], row[8]),
                ['usage-log: ' + ','.join(row)] + ['usage-log: ' + n for n in notes])
     return 0

@@ -32,6 +32,7 @@ def block(now, text, notes):
     return ([BEGIN + ': scripts/coord.py rebuilds this block every 30 minutes; write your own lines above it -->',
              '## Daily token tally (newest first, last 14 days; older lines: ~/anygym-coord/tally-archive.md)']
             + [l for l in tally if l not in old]
+            + ['', '## Codex pace and jobs (start, end and usage of each job, newest first; Grok checks the pace)'] + ck.codex_lines(now)
             + ['', '## Pluto (read from the art drop; Pluto never edits this file; full log: ~/anygym-coord/pluto.log)']
             + prev[::-1][:ck.KEEP_DAYS]
             + ['', '## Conflicts (two sources disagree; nothing was changed, a person decides)'] + ['- ' + c for c in conf]

@@ -109,3 +109,23 @@ def script_list():
         else: al = 'no alerts'
         lines.append('- `%s`: `%s`%s; %s' % (rel, run, (', npm `npm run %s`' % ', '.join(names)) if names else '', al))
     return lines
+
+def codex_lines(now):
+    """Codex pace and the job log for the handoff (G, Nov 29), newest first."""
+    env = jobkit.local_env()
+    cx = kv(os.path.join(jobkit.REPO, '.codex-usage'))
+    reset = None
+    try:
+        reset = time.mktime(time.strptime(env.get('CODEX_RESET_EXPIRES', ''), '%Y-%m-%dT%H:%M'))
+    except ValueError:
+        pass
+    st, exp, tgt = jobkit.codex_pace(env, now, cx.get('week', ''), reset)
+    out = ['Codex pace: %s (week %s%%, plan %s%% by now, %s)' % (st, cx.get('week', '?'), exp if exp is not None else '?', tgt),
+           'Codex week resets %s; saved resets (G taps them): %s' % (env.get('CODEX_RESET_EXPIRES', 'unknown'), env.get('CODEX_SAVED_RESETS', 'unknown'))]
+    jl = os.path.join(jobkit.CONF, 'codex-jobs.log')
+    rows = open(jl, errors='ignore').read().strip().splitlines()[-10:] if os.path.exists(jl) else []
+    out += ['- ' + r for r in rows[::-1]] or ['- no Codex jobs logged yet']
+    cl = os.path.join(jobkit.REPO, '.claude-lane')
+    if os.path.exists(cl):
+        out.append('Moved to Claude: ' + '; '.join(l.strip() for l in open(cl, errors='ignore') if l.strip()))
+    return out

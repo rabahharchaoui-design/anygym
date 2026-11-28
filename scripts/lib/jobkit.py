@@ -109,6 +109,28 @@ def unlock(name):
     try: os.rmdir(os.path.join(CONF, 'locks', name + '.lock'))
     except OSError: pass
 
+def codex_pace(env, now, week, week_reset=None):
+    """Codex pace against G's plan. CODEX_PACE = "START_ISO START_PCT TARGET_ISO TARGET_PCT" (local.env).
+    Returns (on|behind|unknown, expected % now, plain words target)."""
+    import datetime
+    p = env.get('CODEX_PACE', '').split()
+    try:
+        if not str(week).isdigit():
+            raise ValueError
+        w = int(week)
+        if len(p) == 4:
+            s, sp, t, tp = time.mktime(time.strptime(p[0], '%Y-%m-%dT%H:%M')), int(p[1]), time.mktime(time.strptime(p[2], '%Y-%m-%dT%H:%M')), int(p[3])
+            if s <= now < t and w >= sp - 5:
+                exp = sp + (tp - sp) * (now - s) / (t - s)
+                return ('on' if w >= exp - 5 else 'behind'), int(exp), '%d%% by %s' % (tp, time.strftime('%a %b %d %I:%M %p', time.localtime(t)))
+        if week_reset and week_reset > now:  # a fresh week (after a reset): most of it by 2 hours before it resets
+            start, end = week_reset - 7 * 86400, week_reset - 7200
+            exp = max(0.0, min(90.0, 90.0 * (now - start) / (end - start)))
+            return ('on' if w >= exp - 5 else 'behind'), int(exp), '90%% by %s' % time.strftime('%a %b %d %I:%M %p', time.localtime(end))
+    except (ValueError, OverflowError):
+        pass
+    return 'unknown', None, 'no pace plan readable'
+
 def main_guard(fn, job_name):
     """Exit 0 ok, 1 checks failed, 2 script error; never a traceback dump. An error leaves an error heartbeat."""
     t0 = time.time()
