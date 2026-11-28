@@ -1,0 +1,2 @@
+# AnyGym Python helpers (scripts/*.py, scripts/lib/*.py) use the standard library only.
+# Python version: see .python-version. Nothing to install for them.

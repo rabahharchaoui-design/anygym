@@ -15,3 +15,7 @@ playwright/.cache/
 workers/**/node_modules
 .jscpd-report/
 node_modules
+
+# Python virtualenv (optional, scripts/lib/common.sh uses it when present)
+.venv/
+__pycache__/

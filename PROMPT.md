@@ -18,6 +18,7 @@ LOOP FOR EACH ITEM (top to bottom, first unchecked item above the STOP line)
 MERGE GATE (the last item of each session)
 - Run the ux-critic on every screen touched this session. Send every BLOCKER to the builder to fix, then tester rechecks. Repeat until the critic reports zero BLOCKERs (max 3 rounds; leftovers go in the report). Fix POLISH items that take under 15 minutes each.
 - Full `npm run test` (Vitest) and `npx playwright test` must pass on all three device profiles with zero console errors, plus the session's monkey test and edge case tests from SPEC 13.3.
+- RELEASES.md (Nov 28): every merge to master adds one line at the top of its list, `YYYY-MM-DD: what changed (commit)`, in the same merge commit (amend the merge before pushing; the hash is the merged item's commit). No personal info: the file is public. scripts/coord.py lists any live Checkpoint without a line in the handoff's Conflicts.
 - Merge the block branch into master (no fast forward), push, wait for the GitHub Pages workflow to finish green (`gh run list --limit 3`, `gh run watch`), then run the live check against https://rabahharchaoui-design.github.io/anygym/.
 - Write reports/session-N.md: what shipped, screenshots paths, anything marked [!], and an iPhone hand test list G can run in 5 minutes.
 - If the gate fails, do NOT merge. Leave the branch, explain in the report, and continue with the next session only if it does not depend on the failed work.

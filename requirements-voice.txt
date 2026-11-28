@@ -1,0 +1,5 @@
+# The voice pack recorder (scripts/voice-synth.py, run by scripts/make-voice-pack.mjs) uses the Kokoro
+# install that lives outside this repo (~/kokoro, its own Python 3.14). Pinned at the versions installed
+# there on Nov 28 2026 (read with ~/kokoro/bin/pip show). Do not upgrade without re-recording a sample.
+kokoro-onnx==0.4.7
+soundfile==0.14.0

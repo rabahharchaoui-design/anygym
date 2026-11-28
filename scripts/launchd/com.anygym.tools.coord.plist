@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- AnyGym helper job (coord). Template: scripts/install-launchd.sh fills __REPO__ and __PY__ and copies it
+     to ~/Library/LaunchAgents. Runs under its own hard timeout (60 s). No KeepAlive: launchd never
+     restarts it in a loop. Output goes to the job's own log in /tmp/anygym-logs/coord/. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.anygym.tools.coord</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PY__</string>
+    <string>__REPO__/scripts/lib/timeout.py</string>
+    <string>60</string>
+    <string>__PY__</string>
+    <string>__REPO__/scripts/coord.py</string>
+    <string>refresh</string>
+  </array>
+  <key>WorkingDirectory</key><string>__REPO__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>ANYGYM_REPO</key><string>__REPO__</string>
+  </dict>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>RunAtLoad</key><false/>
+  <key>KeepAlive</key><false/>
+  <key>LowPriorityIO</key><true/>
+  <key>Nice</key><integer>10</integer>
+</dict>
+</plist>
